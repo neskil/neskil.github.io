@@ -1,0 +1,13 @@
+@font-face {
+    font-family: 'viking';
+    src: url('../fonts/viking-webfont.eot');
+    src: url('../fonts/viking-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/viking-webfont.woff2') format('woff2'),
+         url('../fonts/viking-webfont.woff') format('woff'),
+         url('../fonts/viking-webfont.ttf') format('truetype'),
+         url('../fonts/viking-webfont.svg#viking-normalregular') format('svg');
+    font-weight: 600;
+    font-style: normal;
+
+
+}
