@@ -1,18 +1,17 @@
-var config = {
+ var config =   {
         type: Phaser.AUTO,
-        width: 1000,
+        width: 800,
         height: 400,
-        physics: {
+        physics:    {
             default: 'arcade',
-            arcade: {
-                gravity: { y: 200 }
-            }
-        },
-        scene: {
+            arcade: {gravity: { y: 200 }}
+                    },
+        scene:      {
             preload: preload,
             create: create
-        }
-    };
+                    },
+        parent:'GAMEWID'
+                };
 
     var game = new Phaser.Game(config);
 
