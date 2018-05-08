@@ -1598,8 +1598,8 @@
 
 .divGame {
     
-    width: 1000px;
-    height: 400px;
+    width: 1050px;
+    height: 450px;
     padding: 20px;
-    border: 1px solid blue; 
+    border: 2px solid gray; 
 }
