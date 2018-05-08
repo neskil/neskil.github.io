@@ -1,6 +1,6 @@
  var config =   {
         type: Phaser.AUTO,
-        width: 800,
+        width: 400,
         height: 400,
         physics:    {
             default: 'arcade',
@@ -23,6 +23,8 @@
         this.load.image('maja', 'img/maja.png');
         this.load.image('carl', 'img/carl.png');
         this.load.image('red', 'img/red.png');
+        this.load.image('purp', 'img/purp.png');
+        this.load.image('green', 'img/green.png');
         this.load.image('daniel', 'img/daniel.png');
 
     }
@@ -34,24 +36,25 @@
         
     function create ()
     {
-        this.add.image(500, 600, 'sky');
+        this.add.image(200, 600, 'sky');
 
         var particles = this.add.particles('red');
-        var particles2 = this.add.particles('red');
+        var particles2 = this.add.particles('purp');
+        var particles3 = this.add.particles('green');
 
         var emitter = particles.createEmitter({
-            speed: 100,
-            scale: { start: 1, end: -1 },
+            speed: 50,
+            scale: { start: 1, end: -0.5 },
             blendMode: 'ADD'
         });
-        var emitter2 = particles.createEmitter({
-            speed: 500,
-            scale: { start: 0, end: 2 },
+        var emitter2 = particles2.createEmitter({
+            speed: 50,
+            scale: { start: 0, end: 0.5 },
             blendMode: 'ADD'
         });
-        var emitter3 = particles.createEmitter({
-            speed: 500,
-            scale: { start: 0, end: 2 },
+        var emitter3 = particles3.createEmitter({
+            speed: 50,
+            scale: { start: 0, end: 0.5 },
             blendMode: 'ADD'
         });
 
