@@ -1,7 +1,7 @@
 var config = {
         type: Phaser.AUTO,
         width: 1000,
-        height: 800,
+        height: 400,
         physics: {
             default: 'arcade',
             arcade: {
