@@ -1,14 +1,17 @@
  var config =   {
         type: Phaser.AUTO,
-        width: 400,
-        height: 400,
+        width: 600,
+        height: 500,
         physics:    {
             default: 'arcade',
-            arcade: {gravity: { y: 200 }}
+            arcade: {gravity: { y: 300 },
+                    debug:false}
                     },
         scene:      {
             preload: preload,
-            create: create
+            create: create,
+            update: update,
+            render: render
                     },
         parent:'GAMEWID'
                 };
@@ -31,12 +34,16 @@
 
         
         
-    var bmpText;
-    
+    var cursors;
+    var carl;
+    var maja;
+    var daniel;
+    var showDebug= true;
+
         
     function create ()
     {
-        this.add.image(200, 600, 'sky');
+        this.add.image(290, 640, 'sky');
 
         var particles = this.add.particles('red');
         var particles2 = this.add.particles('purp');
@@ -45,39 +52,82 @@
         var emitter = particles.createEmitter({
             speed: 0,
             scale: { start: 0.3, end: 0 },
+            x: 50,
+            y: 50,
             blendMode: 'ADD'
         });
         var emitter2 = particles2.createEmitter({
             speed: 500,
             scale: { start: 0.1, end: 0.2 },
+            x: 50,
+            y: 50,
             blendMode: 'ADD'
         });
         var emitter3 = particles3.createEmitter({
             speed: 50,
             scale: { start: 0.5, end: 0 },
+            x: 50,
+            y: 50,
             blendMode: 'ADD'
         });
 
-        var carl = this.physics.add.image(400, 100, 'carl').setScale(0.5);
-        var maja = this.physics.add.image(300, 000, 'maja').setScale(0.5);
-        var daniel = this.physics.add.image(700, 500, 'daniel').setScale(0.5);
-
+        carl = this.physics.add.image(0, 0, 'carl');
+        carl.displayOriginX = -20;
+        carl.displayOriginY = 20;
+        carl.displayWidth = 100;
+        carl.displayHeight = 100;
+        carl.setBounce(1).setCollideWorldBounds(true);
+        carl.body.ignoreGravity = true;;
         carl.setVelocity(-300, 400);
-        carl.setBounce(0.6, 0.95);
-        carl.setCollideWorldBounds(true);
+        
+        maja = this.physics.add.image(300, 000, 'maja');
+        daniel = this.physics.add.image(700, 500, 'daniel');
+
+
         
         
         maja.setVelocity(700, 100);
-        maja.setBounce(0.7, 0.9);
+        maja.setBounce(0.5, 1);
         maja.setCollideWorldBounds(true);
-
+        maja.displayOriginX = 0;
+        maja.displayOriginY = 0;
+        maja.displayWidth = 100;
+        maja.displayHeight = 100;
+        
         
         daniel.setVelocity(-700, -400);
-        daniel.setBounce(0.7, 0.9);
+        daniel.setBounce(0.5, 1);
         daniel.setCollideWorldBounds(true);
+        daniel.displayOriginX = 0;
+        daniel.displayOriginY = 0;
+        daniel.displayWidth = 100;
+        daniel.displayHeight = 100;
 
         
         emitter.startFollow(carl);
         emitter2.startFollow(maja);
         emitter3.startFollow(daniel);
+        
+        
+        cursors = this.input.keyboard.createCursorKeys();
+        
         }
+
+function update (){
+    
+if (cursors.up.isDown)
+{
+maja.setVelocityY(-200);
+daniel.setVelocityY(500);
+carl.setVelocityY(-50);
+}
+
+    
+    
+}
+
+function render (){
+    game.debug.bodyInfo(maja, 32, 32);
+    game.debug.body(maja);
+    
+}
