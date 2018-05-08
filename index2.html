@@ -30,6 +30,7 @@
         this.load.setBaseURL('http://neskilsson.se');
         this.load.image('sky', 'images/designer-photo.jpg');
         this.load.image('test', 'images/sm-twitter-icon.png');
+        this.load.image('carl', 'img/carl.png');
         this.load.image('red', 'img/red.png');
 
     }
@@ -42,8 +43,8 @@
         var particles2 = this.add.particles('red');
 
         var emitter = particles.createEmitter({
-            speed: 1000,
-            scale: { start: 2, end: 0 },
+            speed: 400,
+            scale: { start: 1, end: 0 },
             blendMode: 'ADD'
         });
         var emitter2 = particles.createEmitter({
@@ -53,10 +54,10 @@
         });
 
         var logo = this.physics.add.image(400, 100, 'test');
-        var logo2 = this.physics.add.image(100, 000, 'test');
+        var logo2 = this.physics.add.image(100, 000, 'carl');
 
         logo.setVelocity(-300, 400);
-        logo.setBounce(0.4, 0.9);
+        logo.setBounce(0.6, 0.95);
         logo.setCollideWorldBounds(true);
         
         
