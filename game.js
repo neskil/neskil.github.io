@@ -1,11 +1,11 @@
-  var config = {
+var config = {
         type: Phaser.AUTO,
         width: 1000,
-        height: 400,
+        height: 800,
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 300 }
+                gravity: { y: 200 }
             }
         },
         scene: {
@@ -20,8 +20,7 @@
     {
        
         this.load.setBaseURL('http://neskilsson.se');
-        this.load.image('sky', 'images/designer-photo.jpg');
-        this.load.image('test', 'images/sm-twitter-icon.png');
+        this.load.image('sky', 'img/designer-photo.jpg');
         this.load.image('maja', 'img/maja.png');
         this.load.image('carl', 'img/carl.png');
         this.load.image('red', 'img/red.png');
@@ -30,7 +29,10 @@
     }
 
         
-                
+        
+    var bmpText;
+    
+        
     function create ()
     {
         this.add.image(500, 600, 'sky');
@@ -76,6 +78,4 @@
         emitter.startFollow(logo);
         emitter2.startFollow(logo2);
         emitter3.startFollow(logo3);
-    }
-    
-        
+        }
