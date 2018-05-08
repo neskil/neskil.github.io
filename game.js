@@ -43,41 +43,41 @@
         var particles3 = this.add.particles('green');
 
         var emitter = particles.createEmitter({
-            speed: 50,
-            scale: { start: 1, end: -0.5 },
+            speed: 0,
+            scale: { start: 0.3, end: 0 },
             blendMode: 'ADD'
         });
         var emitter2 = particles2.createEmitter({
-            speed: 50,
-            scale: { start: 0, end: 0.5 },
+            speed: 500,
+            scale: { start: 0.1, end: 0.2 },
             blendMode: 'ADD'
         });
         var emitter3 = particles3.createEmitter({
             speed: 50,
-            scale: { start: 0, end: 0.5 },
+            scale: { start: 0.5, end: 0 },
             blendMode: 'ADD'
         });
 
-        var logo = this.physics.add.image(400, 100, 'carl').setScale(0.5);
-        var logo2 = this.physics.add.image(300, 000, 'maja').setScale(0.5);
-        var logo3 = this.physics.add.image(700, 500, 'daniel').setScale(0.5);
+        var carl = this.physics.add.image(400, 100, 'carl').setScale(0.5);
+        var maja = this.physics.add.image(300, 000, 'maja').setScale(0.5);
+        var daniel = this.physics.add.image(700, 500, 'daniel').setScale(0.5);
 
-        logo.setVelocity(-300, 400);
-        logo.setBounce(0.6, 0.95);
-        logo.setCollideWorldBounds(true);
+        carl.setVelocity(-300, 400);
+        carl.setBounce(0.6, 0.95);
+        carl.setCollideWorldBounds(true);
         
         
-        logo2.setVelocity(700, 100);
-        logo2.setBounce(0.7, 0.9);
-        logo2.setCollideWorldBounds(true);
-
-        
-        logo3.setVelocity(-700, -400);
-        logo3.setBounce(0.7, 0.9);
-        logo3.setCollideWorldBounds(true);
+        maja.setVelocity(700, 100);
+        maja.setBounce(0.7, 0.9);
+        maja.setCollideWorldBounds(true);
 
         
-        emitter.startFollow(logo);
-        emitter2.startFollow(logo2);
-        emitter3.startFollow(logo3);
+        daniel.setVelocity(-700, -400);
+        daniel.setBounce(0.7, 0.9);
+        daniel.setCollideWorldBounds(true);
+
+        
+        emitter.startFollow(carl);
+        emitter2.startFollow(maja);
+        emitter3.startFollow(daniel);
         }
