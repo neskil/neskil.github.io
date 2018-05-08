@@ -58,9 +58,9 @@
             blendMode: 'ADD'
         });
 
-        var logo = this.physics.add.image(400, 100, 'carl');
-        var logo2 = this.physics.add.image(300, 000, 'maja');
-        var logo3 = this.physics.add.image(700, 500, 'daniel');
+        var logo = this.physics.add.image(400, 100, 'carl').setScale(0.5);
+        var logo2 = this.physics.add.image(300, 000, 'maja').setScale(0.5);
+        var logo3 = this.physics.add.image(700, 500, 'daniel').setScale(0.5);
 
         logo.setVelocity(-300, 400);
         logo.setBounce(0.6, 0.95);
