@@ -1597,9 +1597,8 @@
 /* BACONS EGNA RÖRA */
 
 .divGame {
-    
-    width: 1050px;
-    height: 450px;
-    padding: 20px;
-    border: 2px solid gray; 
+    margin: auto;
+    width: 100%;
+    border: 3px solid gray;
+    padding: 10px;
 }
