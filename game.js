@@ -72,14 +72,14 @@ var config =   {
 var particles4 = this.add.particles('flares');
 
 var emitter4 = particles4.createEmitter({
-        frame: 'yellow',
+        frame: 'blue',
         x: 10,
         y: 440,
         lifespan: 2000,
         speed: { min: 200, max: 600 },
         angle: 270+5,
         gravityY: 400,
-        scale: { start: 0.4, end: 0 },
+        scale: { start: 0.3, end: 0.1 },
         quantity: 1,
         blendMode: 'ADD'
 });
@@ -92,7 +92,7 @@ var emitter4 = particles4.createEmitter({
         speed: { min: 200, max: 600 },
         angle: 270-5,
         gravityY: 400,
-        scale: { start: 0.4, end: 0 },
+        scale: { start: 0.3, end: 0.1 },
         quantity: 1,
         blendMode: 'ADD'
 });
@@ -130,17 +130,17 @@ var emitter4 = particles4.createEmitter({
         carl.displayOriginY = 20;
         carl.displayWidth = 100;
         carl.displayHeight = 100;
-        carl.setBounce(0.95).setCollideWorldBounds(true);
+        carl.setBounce(0.99).setCollideWorldBounds(true);
         carl.body.ignoreGravity = true;;
         carl.setVelocity(-300, 400);
         
-        maja = this.physics.add.image(300, 000, 'maja');
-        daniel = this.physics.add.image(700, 500, 'daniel');
+        maja = this.physics.add.image(0, 30, 'maja');
+        daniel = this.physics.add.image(xWidth, 30, 'daniel');
 
 
         
         
-        maja.setVelocity(700, 100);
+        maja.setVelocity(randX(-500,500), randX(-500,500));
         maja.setBounce(0.5, 0.9);
         maja.setCollideWorldBounds(true);
         maja.displayOriginX = 0;
@@ -149,7 +149,7 @@ var emitter4 = particles4.createEmitter({
         maja.displayHeight = 100;
         
         
-        daniel.setVelocity(-700, -400);
+        daniel.setVelocity(randX(-500,500), randX(-500,500));
         daniel.setBounce(0.5, 0.9);
         daniel.setCollideWorldBounds(true);
         daniel.displayOriginX = 0;
