@@ -8,18 +8,18 @@ var xWidth = 500
 
 var xWidth = screen.width - 100;
 
-document.write(xWidth + "   ")
+//document.write(xWidth + "   ")
 
 if (xWidth > 800){xWidth=800}
     
 //var xWidth = screen.width;
 //var yWidth = screen.width;
-document.write(xWidth)
+//document.write(xWidth)
 
 var config =   {
         type: Phaser.AUTO,
         width: xWidth,
-        height: 400,
+        height: 500,
         physics:    {
             default: 'arcade',
             arcade: {gravity: { y: 300 },
@@ -61,7 +61,7 @@ var config =   {
         
     function create ()
     {
-        this.add.image(xWidth/2, 640, 'sky');
+        this.add.image((xWidth/2)-40, 640, 'sky');
 
         var particles = this.add.particles('red');
         var particles2 = this.add.particles('purp');
