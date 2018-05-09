@@ -48,7 +48,7 @@ var config =   {
         this.load.image('green', 'img/green.png');
         this.load.image('daniel', 'img/daniel.png');
         
-        this.load.atlas('flares', 'phaser/src/assets/particles/flares.png', 'assets/particles/flares.json');
+        this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
 
 
     }
@@ -65,6 +65,39 @@ var config =   {
     function create ()
     {
         this.add.image((xWidth/2)-20, 640, 'sky');
+        
+        //Emitters i hörnen
+
+
+var particles4 = this.add.particles('flares');
+
+var emitter4 = particles4.createEmitter({
+        frame: 'yellow',
+        x: 10,
+        y: 440,
+        lifespan: 2000,
+        speed: { min: 200, max: 600 },
+        angle: 270+5,
+        gravityY: 400,
+        scale: { start: 0.4, end: 0 },
+        quantity: 1,
+        blendMode: 'ADD'
+});
+
+var emitter4 = particles4.createEmitter({
+        frame: 'blue',
+        x: xWidth-20,
+        y: 440,
+        lifespan: 2000,
+        speed: { min: 200, max: 600 },
+        angle: 270-5,
+        gravityY: 400,
+        scale: { start: 0.4, end: 0 },
+        quantity: 1,
+        blendMode: 'ADD'
+});
+        
+        
 
         var particles = this.add.particles('red');
         var particles2 = this.add.particles('purp');
@@ -141,24 +174,16 @@ var config =   {
             
             ;}, this);
         
-        }
+        
 
 
 
-//Emitters i hörnen
-    var emitter4 = this.add.particles('flares');
 
-    emitter4.createEmitter({
-        x: 5,
-        y: 450,
-        lifespan: 2000,
-        speed: { min: 400, max: 600 },
-        angle: 330,
-        gravityY: 300,
-        scale: { start: 0.4, end: 0 },
-        quantity: 2,
-        blendMode: 'ADD'
-    });
+        
+        
+
+//Slut av Funciton Create
+}
 
 function update (){
     
