@@ -1,4 +1,12 @@
- var config =   {
+//Random function 
+function randX(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
+
+
+
+
+var config =   {
         type: Phaser.AUTO,
         width: 600,
         height: 500,
@@ -111,6 +119,15 @@
         
         cursors = this.input.keyboard.createCursorKeys();
         
+        this.input.on('pointerdown', function (pointer) {
+            maja.setVelocity(-200,200);
+
+            daniel.setVelocity(500,-500);
+
+            carl.setVelocity(-500,300);
+            
+            ;}, this);
+        
         }
 
 function update (){
@@ -119,7 +136,7 @@ if (cursors.up.isDown)
 {
 maja.setVelocityY(-200);
 daniel.setVelocityY(500);
-carl.setVelocityY(-50);
+carl.setVelocityY(-500);
 }
 
     
