@@ -3,13 +3,23 @@ function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
 }
 
+//Screen width
+var xWidth = 500
+console.log(xWidth)
+var xWidth = screen.width - 100;
+
+if (xWidth > 800){xWidth=800}
+    
 
 
+//var xWidth = screen.width;
+//var yWidth = screen.width;
+console.log(xWidth)
 
 var config =   {
         type: Phaser.AUTO,
-        width: 600,
-        height: 500,
+        width: xWidth,
+        height: 400,
         physics:    {
             default: 'arcade',
             arcade: {gravity: { y: 300 },
@@ -51,7 +61,7 @@ var config =   {
         
     function create ()
     {
-        this.add.image(290, 640, 'sky');
+        this.add.image(xWidth/2, 640, 'sky');
 
         var particles = this.add.particles('red');
         var particles2 = this.add.particles('purp');
