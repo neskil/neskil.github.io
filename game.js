@@ -23,7 +23,7 @@ var config =   {
         physics:    {
             default: 'arcade',
             arcade: {gravity: { y: 300 },
-                    debug:false}
+                    debug:true}
                     },
         scene:      {
             preload: preload,
@@ -158,7 +158,7 @@ var emitter4 = particles4.createEmitter({
         daniel.displayOriginX = 0;
         daniel.displayOriginY = 0;
         daniel.displayWidth = 100;
-        daniel.displayHeight = 100;
+        daniel.displayHeight = 130;
 
         
         emitter.startFollow(carl);
