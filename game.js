@@ -19,7 +19,7 @@ if (xWidth > 800){xWidth=800}
 var config =   {
         type: Phaser.AUTO,
         width: xWidth,
-        height: 500,
+        height: 450,
         physics:    {
             default: 'arcade',
             arcade: {gravity: { y: 300 },
