@@ -120,11 +120,11 @@ var config =   {
         cursors = this.input.keyboard.createCursorKeys();
         
         this.input.on('pointerdown', function (pointer) {
-            maja.setVelocity(-200,200);
+            maja.setVelocity(randX(-800,800),randX(-800,800));
 
-            daniel.setVelocity(500,-500);
+            daniel.setVelocity(randX(-800,800),-randX(-800,800));
 
-            carl.setVelocity(-500,300);
+            carl.setVelocity(randX(-800,800),randX(-800,800));
             
             ;}, this);
         
@@ -132,12 +132,12 @@ var config =   {
 
 function update (){
     
-if (cursors.up.isDown)
-{
-maja.setVelocityY(-200);
-daniel.setVelocityY(500);
-carl.setVelocityY(-500);
-}
+//if (cursors.up.isDown)
+//{
+//maja.setVelocityY(-200);
+//daniel.setVelocityY(500);
+//carl.setVelocityY(-500);
+//}
 
     
     
