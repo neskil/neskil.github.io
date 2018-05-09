@@ -186,7 +186,7 @@ var emitter4 = particles4.createEmitter({
         speed: { min: -400, max: 400 },
         angle: { min: 0, max: 360 },
         scale: { start: 0.5, end: 0 },
-        blendMode: 'ADD',
+        blendMode: 'BLEND',
         //active: false,
         lifespan: 900,
         gravityY: 1200,
