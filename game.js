@@ -5,7 +5,7 @@ function randX(min, max) {
 
 //Screen width
 var xWidth = 500
-console.log(xWidth)
+
 var xWidth = screen.width - 100;
 
 if (xWidth > 800){xWidth=800}
@@ -14,7 +14,7 @@ if (xWidth > 800){xWidth=800}
 
 //var xWidth = screen.width;
 //var yWidth = screen.width;
-console.log(xWidth)
+document.write(xWidth)
 
 var config =   {
         type: Phaser.AUTO,
