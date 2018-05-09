@@ -181,30 +181,30 @@ var emitter4 = particles4.createEmitter({
 
     var emitter10 = this.add.particles('flares').createEmitter({
         frame:'red',
-        x: 400,
-        y: 300,
-        speed: { min: -800, max: 800 },
+        x: -1000,
+        y: -1000,
+        speed: { min: -400, max: 400 },
         angle: { min: 0, max: 360 },
         scale: { start: 0.5, end: 0 },
-        blendMode: 'SCREEN',
+        blendMode: 'ADD',
         //active: false,
-        lifespan: 600,
-        gravityY: 800,
-        quantity: 10,
+        lifespan: 900,
+        gravityY: 1200,
+        quantity: 30,
     });
 
     var emitter11 = this.add.particles('flares').createEmitter({
         frame:'yellow',
-        x: 400,
-        y: 300,
-        speed: { min: -800, max: 800 },
+        x: -1000,
+        y: -1000,
+        speed: { min: -400, max: 400 },
         angle: { min: 0, max: 360 },
-        scale: { start: 0.3, end: 0 },
-        blendMode: 'SCREEN',
+        scale: { start: 0.5, end: 0 },
+        blendMode: 'ADD',
         //active: false,
-        lifespan: 300,
-        gravityY: 800,
-        quantity: 10
+        lifespan: 600,
+        gravityY: 1200,
+        quantity: 30
     });
 
     this.input.on('pointerdown', function (pointer) {
@@ -213,11 +213,6 @@ var emitter4 = particles4.createEmitter({
         emitter10.explode();
         emitter11.explode();
     });
-
-
-
-        
-        
 
 //Slut av Funciton Create
 }
