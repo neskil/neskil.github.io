@@ -47,6 +47,9 @@ var config =   {
         this.load.image('purp', 'img/purp.png');
         this.load.image('green', 'img/green.png');
         this.load.image('daniel', 'img/daniel.png');
+        
+        this.load.atlas('flares', 'phaser/src/assets/particles/flares.png', 'assets/particles/flares.json');
+
 
     }
 
@@ -139,6 +142,23 @@ var config =   {
             ;}, this);
         
         }
+
+
+
+//Emitters i hörnen
+    var emitter4 = this.add.particles('flares');
+
+    emitter4.createEmitter({
+        x: 5,
+        y: 450,
+        lifespan: 2000,
+        speed: { min: 400, max: 600 },
+        angle: 330,
+        gravityY: 300,
+        scale: { start: 0.4, end: 0 },
+        quantity: 2,
+        blendMode: 'ADD'
+    });
 
 function update (){
     
