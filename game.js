@@ -133,7 +133,7 @@ var emitter4 = particles4.createEmitter({
         carl.displayOriginY = 20;
         carl.displayWidth = 100;
         carl.displayHeight = 100;
-        carl.setBounce(0.99).setCollideWorldBounds(true);
+        carl.setBounce(1).setCollideWorldBounds(true);
         carl.body.ignoreGravity = true;;
         carl.setVelocity(-300, 400);
         
@@ -144,7 +144,7 @@ var emitter4 = particles4.createEmitter({
         
         
         maja.setVelocity(randX(-500,500), randX(-500,500));
-        maja.setBounce(0.5, 0.9);
+        maja.setBounce(1, 1);
         maja.setCollideWorldBounds(true);
         maja.displayOriginX = 0;
         maja.displayOriginY = 0;
@@ -153,7 +153,7 @@ var emitter4 = particles4.createEmitter({
         
         
         daniel.setVelocity(randX(-500,500), randX(-500,500));
-        daniel.setBounce(0.5, 0.9);
+        daniel.setBounce(1, 1);
         daniel.setCollideWorldBounds(true);
         daniel.displayOriginX = 0;
         daniel.displayOriginY = 0;
