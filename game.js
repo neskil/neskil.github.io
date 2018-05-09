@@ -81,6 +81,9 @@ var emitter4 = particles4.createEmitter({
         gravityY: 400,
         scale: { start: 0.3, end: 0.1 },
         quantity: 1,
+        collideWorldBounds:true,
+        bounce: 0.9,
+        collideBottom: false,
         blendMode: 'ADD'
 });
 
@@ -176,6 +179,40 @@ var emitter4 = particles4.createEmitter({
         
         
 
+    var emitter10 = this.add.particles('flares').createEmitter({
+        frame:'red',
+        x: 400,
+        y: 300,
+        speed: { min: -800, max: 800 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 0.5, end: 0 },
+        blendMode: 'SCREEN',
+        //active: false,
+        lifespan: 600,
+        gravityY: 800,
+        quantity: 10,
+    });
+
+    var emitter11 = this.add.particles('flares').createEmitter({
+        frame:'yellow',
+        x: 400,
+        y: 300,
+        speed: { min: -800, max: 800 },
+        angle: { min: 0, max: 360 },
+        scale: { start: 0.3, end: 0 },
+        blendMode: 'SCREEN',
+        //active: false,
+        lifespan: 300,
+        gravityY: 800,
+        quantity: 10
+    });
+
+    this.input.on('pointerdown', function (pointer) {
+        emitter10.setPosition(pointer.x, pointer.y);
+        emitter11.setPosition(pointer.x, pointer.y);
+        emitter10.explode();
+        emitter11.explode();
+    });
 
 
 
