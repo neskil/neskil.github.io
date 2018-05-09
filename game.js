@@ -8,10 +8,10 @@ var xWidth = 500
 
 var xWidth = screen.width - 100;
 
+document.write(xWidth + "   ")
+
 if (xWidth > 800){xWidth=800}
     
-
-
 //var xWidth = screen.width;
 //var yWidth = screen.width;
 document.write(xWidth)
