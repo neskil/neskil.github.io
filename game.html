@@ -8,8 +8,6 @@
     <script src="//cdn.jsdelivr.net/npm/phaser@3.0.0/dist/phaser.min.js"></script>
 </head>
 <body>
-
-
 <script>
 
 var config = {
@@ -29,13 +27,19 @@ function preload ()
 {
     function preload ()
 {
-    this.load.image('sky', 'phaser/src/games/firstgame/assets/sky.png');
-    this.load.image('ground', 'phaser/src/games/firstgame/assets/platform.png');
-    this.load.image('star', 'phaser/src/games/firstgame/assets/star.png');
-    this.load.image('bomb', 'phaser/src/games/firstgame/assets/bomb.png');
-    this.load.spritesheet('dude', 'phaser/src/games/firstgame/assets/dude.png',
+//Start Preload
+    this.load.setBaseURL('http://neskilsson.se');
+    this.load.image('sky', 'src/games/firstgame/assets/sky.png');
+    this.load.image('ground', 'src/games/firstgame/assets/platform.png');
+    this.load.image('star', 'src/games/firstgame/assets/star.png');
+    this.load.image('bomb', 'src/games/firstgame/assets/bomb.png');
+    this.load.spritesheet('dude', 
+        'src/games/firstgame/assets/dude.png',
         { frameWidth: 32, frameHeight: 48 }
-    );
+    );    
+    
+    
+//Stop Preload    
 }
     
     
@@ -46,18 +50,35 @@ function preload ()
 
 function create ()
 {
+//Start create
     this.add.image(400, 300, 'sky');
+    this.add.image(400, 300, 'star');
+
+    
+    
+//Stop create    
 }
 
 function update ()
 {
+//Start update
+    
+    
+    
+//Stop update    
 }
 
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
 </script>
-
-
-
-
-
 </body>
 </html>
