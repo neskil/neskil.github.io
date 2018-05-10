@@ -1,19 +1,33 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Untitled Document</title>
-    <meta charset="UTF-8">
-    <meta name="description" content="" />
-    <meta name="keywords" content="" />
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.0.0/dist/phaser.min.js"></script>
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Making your first Phaser 3 Game - Part 10</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.1.1/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
 </head>
-<body>
-<script>
+<Body>
+<script type="text/javascript">
+//General funcitons    
+function randX(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
 
 var config = {
     type: Phaser.AUTO,
     width: 800,
     height: 600,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 300 },
+            debug: true
+        }
+    },
     scene: {
         preload: preload,
         create: create,
@@ -21,64 +35,140 @@ var config = {
     }
 };
 
+var player;
+var huvud;
+var stars;
+var platforms;
+var cursors;
+var score = 0;
+var gameOver = false;
+var scoreText;
+
 var game = new Phaser.Game(config);
 
 function preload ()
 {
-    function preload ()
-{
-//Start Preload
-    this.load.setBaseURL('http://neskilsson.se');
-    this.load.image('sky', 'src/games/firstgame/assets/sky.png');
     this.load.image('ground', 'src/games/firstgame/assets/platform.png');
     this.load.image('star', 'src/games/firstgame/assets/star.png');
     this.load.image('bomb', 'src/games/firstgame/assets/bomb.png');
-    this.load.spritesheet('dude', 
-        'src/games/firstgame/assets/dude.png',
-        { frameWidth: 32, frameHeight: 48 }
-    );    
-    
-    
-//Stop Preload    
-}
-    
-    
-    
-    
-    
+    this.load.spritesheet('dude', 'src/games/firstgame/assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.image('sky', 'img/bg.jpg');
+    this.load.image('maja', 'img/maja.png');
+    this.load.image('carl', 'img/carl.png');
+    this.load.image('red', 'img/red.png');
+    this.load.image('purp', 'img/purp.png');
+    this.load.image('green', 'img/green.png');
+    this.load.image('daniel', 'img/daniel.png');
+
+    this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
+    this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
 }
 
 function create ()
 {
-//Start create
+    var particles = this.add.particles('explosion');
+    //  A simple background for our game
     this.add.image(400, 300, 'sky');
-    this.add.image(400, 300, 'star');
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = this.physics.add.staticGroup();
+
+    //  Here we create the ground.
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    platforms.create(400, 600, 'ground').setScale(2).refreshBody();
+
+    //  Now let's create some ledges
+
+
+    // The player and its settings
+    player = this.physics.add.group();
+    player = this.physics.add.sprite(100, 450, 'dude');
+    
+    player2 = this.physics.add.sprite(100, 050, 'dude');
+
+    //  Player physics properties. Give the little guy a slight bounce.
+    player.setBounce(1);
+    player.setCollideWorldBounds(true);
+    player.setVelocity(randX(-500,500),randX(-500,500));
+    
+    player2.setBounce(1);
+    player2.setCollideWorldBounds(true);
+    player2.setVelocity(randX(-500,500),randX(-500,500));
+
+
+    //  Our player animations, turning, walking left and walking right.
 
     
     
-//Stop create    
+    bombs = this.physics.add.group();
+
+    //  The score
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
+
+    //  Collide the player and the stars with the platforms
+    this.physics.add.collider(player, platforms);
+    this.physics.add.collider(player, player2);
+    this.physics.add.collider(bombs, platforms);
+
+    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
+    //this.physics.add.overlap(player, stars, collectStar, null, this);
+    //this.physics.add.collider(player, bombs, hitBomb, null, this);
+    
+    this.input.on('pointerdown', function (pointer) {
+    emitter10.setPosition(pointer.x, pointer.y);
+    emitter11.setPosition(pointer.x, pointer.y);
+    emitter10.explode();
+    emitter11.explode();
+    });
+        
+    
+    
+   ///END CREATE 
+    
 }
 
 function update ()
 {
-//Start update
+
     
     
-    
-//Stop update    
 }
 
-    
+function collectStar (player, star)
+{
+        //  Add and update the score
+    score += 10;
+    scoreText.setText('Klicx: ' + score);
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    //if (stars.countActive(true) === 0)
+    //{
+        //  A new batch of stars to collect
+    //    stars.children.iterate(function (child) {
+
+    //        child.enableBody(true, child.x, 0, true, true);
+
+    //    });
+
+
+        var bomb = bombs.create(x, 16, 'bomb');
+        bomb.setBounce(1);
+        bomb.setCollideWorldBounds(true);
+        bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        bomb.allowGravity = false;
+
+}
+
+function hitBomb (player, bomb)
+{
+    this.physics.pause();
+
+    player.setTint(0xff0000);
+
+    player.anims.play('turn');
+
+    gameOver = true;
+}
+
 </script>
-</body>
+</Body>
 </html>

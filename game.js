@@ -49,6 +49,7 @@ var config =   {
         this.load.image('daniel', 'img/daniel.png');
         
         this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
+        this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
 
 
     }
@@ -213,6 +214,9 @@ var emitter4 = particles4.createEmitter({
         emitter10.explode();
         emitter11.explode();
     });
+this.physics.add.collider(daniel, maja);
+this.physics.add.collider(maja, carl);              
+this.physics.add.collider(carl, daniel);              
         
 //this.physics.add.collider(daniel,maja,carl);
 
