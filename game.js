@@ -23,7 +23,7 @@ var config =   {
         physics:    {
             default: 'arcade',
             arcade: {gravity: { y: 300 },
-                    debug:true}
+                    debug:false}
                     },
         scene:      {
             preload: preload,
@@ -214,7 +214,7 @@ var emitter4 = particles4.createEmitter({
         emitter11.explode();
     });
         
-this.physics.add.collider(daniel,maja,carl);
+//this.physics.add.collider(daniel,maja,carl);
 
 //Slut av Funciton Create
 }
