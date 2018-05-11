@@ -19,8 +19,8 @@ function randX(min, max) {
 
 var config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: window.innerWidth,
+    height: window.innerHeight,
     physics: {
         default: 'arcade',
         arcade: {
@@ -59,6 +59,7 @@ function preload ()
     this.load.image('purp', 'img/purp.png');
     this.load.image('green', 'img/green.png');
     this.load.image('daniel', 'img/daniel.png');
+    this.load.image('asa', 'img/asa.png');
 
     this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
     this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
@@ -66,25 +67,23 @@ function preload ()
 
 function create ()
 {
-    var particles = this.add.particles('explosion');
+    var particles = this.add.particles('flares');
     //  A simple background for our game
-    this.add.image(400, 300, 'sky');
+    //this.add.image(600, 600, 'sky');
 
     //  The platforms group contains the ground and the 2 ledges we can jump on
     platforms = this.physics.add.staticGroup();
 
     //  Here we create the ground.
     //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
-    platforms.create(400, 600, 'ground').setScale(2).refreshBody();
-
-    //  Now let's create some ledges
+    platforms.create(600, 600, 'ground').setScale(2).refreshBody();
 
 
     // The player and its settings
     player = this.physics.add.group();
-    player = this.physics.add.sprite(100, 450, 'dude');
     
-    player2 = this.physics.add.sprite(100, 050, 'dude');
+    player = this.physics.add.sprite(100, 450, 'maja');
+    player2 = this.physics.add.sprite(100, 050, 'asa');
 
     //  Player physics properties. Give the little guy a slight bounce.
     player.setBounce(1);
@@ -96,42 +95,72 @@ function create ()
     player2.setVelocity(randX(-500,500),randX(-500,500));
 
 
-    //  Our player animations, turning, walking left and walking right.
-
-    
-    
-    bombs = this.physics.add.group();
-
     //  The score
-    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '64px', fill: '#FFF' });
 
     //  Collide the player and the stars with the platforms
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, player2);
-    this.physics.add.collider(bombs, platforms);
 
-    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
-    //this.physics.add.overlap(player, stars, collectStar, null, this);
-    //this.physics.add.collider(player, bombs, hitBomb, null, this);
     
-    this.input.on('pointerdown', function (pointer) {
-    emitter10.setPosition(pointer.x, pointer.y);
-    emitter11.setPosition(pointer.x, pointer.y);
-    emitter10.explode();
-    emitter11.explode();
+    
+
+    particles.createEmitter({
+        frame: { frames: [ 'red', 'blue', 'green', 'yellow' ], cycle: true },
+        x: window.innerWidth/2,
+        y: { min: -32, max: window.innerHeight+32, steps: 32 },
+        lifespan: 2000,
+        accelerationX: 300,
+        scale: 0.5,
+        blendMode: 'ADD'
     });
-        
+
+    particles.createEmitter({
+        frame: { frames: [ 'red', 'blue', 'green', 'yellow' ], cycle: true },
+        x: window.innerWidth/2,
+        y: { min: window.innerHeight+32, max: -32, steps: 32 },
+        lifespan: 2000,
+        accelerationX: -300,
+        scale: 0.5,
+        blendMode: 'ADD',
+    });
+    console.log('geh')
+
+    var particles2 = this.add.particles('explosion');
     
+    particles2.createEmitter({
+        frame: [ 'smoke-puff', 'cloud', 'smoke-puff' ],
+        angle: { min: 240, max: 300 },
+        speed: { min: 200, max: 300 },
+        quantity: 12,
+        lifespan: 2000,
+        alpha: { start: 1, end: 0 },
+        scale: { start: 1.5, end: 0.5 },
+        on: false
+    });
+        particles2.createEmitter({
+        frame: 'muzzleflash2',
+        lifespan: 300,
+        scale: { start: 4, end: 0 },
+        rotate: { start: 0, end: 90 },
+        on: false
+    });
+
     
-   ///END CREATE 
+        this.input.on('pointerdown', function (pointer) {
+        player.setPosition(pointer.x+20, pointer.y);
+        player2.setPosition(pointer.x-30, pointer.y);
+        particles2.emitParticleAt(pointer.x, pointer.y);
+    });
+    
+       ///END CREATE 
     
 }
 
 function update ()
 {
 
-    
-    
+
 }
 
 function collectStar (player, star)
