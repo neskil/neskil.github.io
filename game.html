@@ -84,6 +84,7 @@ function create ()
     
     player = this.physics.add.sprite(100, 450, 'asa');
     player2 = this.physics.add.sprite(100, 050, 'asa');
+    
 
     //  Player physics properties. Give the little guy a slight bounce.
     player.setBounce(1);
@@ -96,7 +97,7 @@ function create ()
 
 
     //  The score
-    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '64px', fill: '#FFF' });
+    scoreText = this.add.text(16, 16, 'Antal klixx: 0', { fontSize: '32px', fill: '#FFF' });
 
     //  Collide the player and the stars with the platforms
     this.physics.add.collider(player, platforms);
@@ -151,6 +152,10 @@ function create ()
         player.setPosition(pointer.x+20, pointer.y);
         player2.setPosition(pointer.x-30, pointer.y);
         particles2.emitParticleAt(pointer.x, pointer.y);
+        player.setVelocity(randX(-1000,1000),randX(-1000,1000));
+        player2.setVelocity(randX(-1000,1000),-randX(-1000,1000));
+        score += 1;
+        scoreText.setText('Antal klixx:: ' + score);
     });
     
        ///END CREATE 
@@ -166,8 +171,8 @@ function update ()
 function collectStar (player, star)
 {
         //  Add and update the score
-    score += 10;
-    scoreText.setText('Klicx: ' + score);
+    score += 1;
+    scoreText.setText('Antal klixx:: ' + score);
 
     //if (stars.countActive(true) === 0)
     //{
