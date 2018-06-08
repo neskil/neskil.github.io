@@ -25,7 +25,7 @@ var config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 300 },
-            debug: true
+            debug: false
         }
     },
     scene: {
@@ -76,13 +76,13 @@ function create ()
 
     //  Here we create the ground.
     //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
-    platforms.create(600, 600, 'ground').setScale(2).refreshBody();
+    //platforms.create(600, 600, 'ground').setScale(2).refreshBody();
 
 
     // The player and its settings
     player = this.physics.add.group();
     
-    player = this.physics.add.sprite(100, 450, 'carl');
+    player = this.physics.add.sprite(100, 450, 'asa');
     player2 = this.physics.add.sprite(100, 050, 'asa');
 
     //  Player physics properties. Give the little guy a slight bounce.
