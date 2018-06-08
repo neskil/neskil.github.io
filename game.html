@@ -97,7 +97,7 @@ function create ()
 
 
     //  The score
-    scoreText = this.add.text(16, 16, 'Antal klixx: 0', { fontSize: '32px', fill: '#FFF' });
+    scoreText = this.add.text(16, 16, 'Klicka for fun grej', { fontSize: '32px', fill: '#FFF' });
 
     //  Collide the player and the stars with the platforms
     this.physics.add.collider(player, platforms);
@@ -155,7 +155,7 @@ function create ()
         player.setVelocity(randX(-1000,1000),randX(-1000,1000));
         player2.setVelocity(randX(-1000,1000),-randX(-1000,1000));
         score += 1;
-        scoreText.setText('Antal klixx:: ' + score);
+        scoreText.setText('# klixx: ' + score);
     });
     
        ///END CREATE 
