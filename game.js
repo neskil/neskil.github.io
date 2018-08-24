@@ -135,7 +135,7 @@ var emitter4 = particles4.createEmitter({
         carl.displayWidth = 100;
         carl.displayHeight = 100;
         carl.setBounce(1).setCollideWorldBounds(true);
-        carl.body.ignoreGravity = true;;
+        carl.body.ignoreGravity = true;
         carl.setVelocity(-300, 400);
         
         maja = this.physics.add.sprite(0, 30, 'maja');
