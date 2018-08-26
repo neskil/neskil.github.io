@@ -4,9 +4,11 @@
  * @license      {@link https://github.com/photonstorm/phaser/blob/master/license.txt|MIT License}
  */
 
+var SnapFloor = require('../../math/snap/SnapFloor');
+var SnapCeil = require('../../math/snap/SnapCeil');
+
 /**
- * Returns the tiles in the given layer that are within the camera's viewport. This is used
- * internally.
+ * Returns the tiles in the given layer that are within the camera's viewport. This is used internally.
  *
  * @function Phaser.Tilemaps.Components.CullTiles
  * @private
@@ -18,44 +20,130 @@
  *
  * @return {Phaser.Tilemaps.Tile[]} An array of Tile objects.
  */
-var CullTiles = function (layer, camera, outputArray)
+var CullTiles = function (layer, camera, outputArray, renderOrder)
 {
     if (outputArray === undefined) { outputArray = []; }
+    if (renderOrder === undefined) { renderOrder = 0; }
 
     outputArray.length = 0;
 
+    var tilemap = layer.tilemapLayer.tilemap;
     var tilemapLayer = layer.tilemapLayer;
+
     var mapData = layer.data;
     var mapWidth = layer.width;
     var mapHeight = layer.height;
-    var left = (camera.scrollX * camera.zoom * tilemapLayer.scrollFactorX) - tilemapLayer.x;
-    var top = (camera.scrollY * camera.zoom * tilemapLayer.scrollFactorY) - tilemapLayer.y;
-    var sx = tilemapLayer.scaleX;
-    var sy = tilemapLayer.scaleY;
-    var tileWidth = layer.tileWidth * sx;
-    var tileHeight = layer.tileHeight * sy;
 
-    for (var row = 0; row < mapHeight; ++row)
+    //  We need to use the tile sizes defined for the map as a whole, not the layer,
+    //  in order to calculate the bounds correctly. As different sized tiles may be
+    //  placed on the grid and we cannot trust layer.baseTileWidth to give us the true size.
+    var tileW = Math.floor(tilemap.tileWidth * tilemapLayer.scaleX);
+    var tileH = Math.floor(tilemap.tileHeight * tilemapLayer.scaleY);
+
+    var drawLeft = 0;
+    var drawRight = mapWidth;
+    var drawTop = 0;
+    var drawBottom = mapHeight;
+
+    if (!tilemapLayer.skipCull && tilemapLayer.scrollFactorX === 1 && tilemapLayer.scrollFactorY === 1)
     {
-        for (var col = 0; col < mapWidth; ++col)
+        //  Camera world view bounds, snapped for scaled tile size
+        //  Cull Padding values are given in tiles, not pixels
+
+        var boundsLeft = SnapFloor(camera.worldView.x - tilemapLayer.x, tileW, 0, true) - tilemapLayer.cullPaddingX;
+        var boundsRight = SnapCeil(camera.worldView.right - tilemapLayer.x, tileW, 0, true) + tilemapLayer.cullPaddingX;
+        var boundsTop = SnapFloor(camera.worldView.y - tilemapLayer.y, tileH, 0, true) - tilemapLayer.cullPaddingY;
+        var boundsBottom = SnapCeil(camera.worldView.bottom - tilemapLayer.y, tileH, 0, true) + tilemapLayer.cullPaddingY;
+
+        drawLeft = Math.max(0, boundsLeft);
+        drawRight = Math.min(mapWidth, boundsRight);
+        drawTop = Math.max(0, boundsTop);
+        drawBottom = Math.min(mapHeight, boundsBottom);
+    }
+
+    var x;
+    var y;
+    var tile;
+
+    if (renderOrder === 0)
+    {
+        //  right-down
+
+        for (y = drawTop; y < drawBottom; y++)
         {
-            var tile = mapData[row][col];
-
-            if (tile === null || tile.index === -1) { continue; }
-
-            var tileX = tile.pixelX * sx - left;
-            var tileY = tile.pixelY * sy - top;
-            var cullW = camera.width + tileWidth;
-            var cullH = camera.height + tileHeight;
-
-            if (tile.visible &&
-                tileX > -tileWidth && tileY > -tileHeight &&
-                tileX < cullW && tileY < cullH)
+            for (x = drawLeft; x < drawRight; x++)
             {
+                tile = mapData[y][x];
+    
+                if (!tile || tile.index === -1 || !tile.visible || tile.alpha === 0)
+                {
+                    continue;
+                }
+    
                 outputArray.push(tile);
             }
         }
     }
+    else if (renderOrder === 1)
+    {
+        //  left-down
+
+        for (y = drawTop; y < drawBottom; y++)
+        {
+            for (x = drawRight; x >= drawLeft; x--)
+            {
+                tile = mapData[y][x];
+    
+                if (!tile || tile.index === -1 || !tile.visible || tile.alpha === 0)
+                {
+                    continue;
+                }
+    
+                outputArray.push(tile);
+            }
+        }
+    }
+    else if (renderOrder === 2)
+    {
+        //  right-up
+
+        for (y = drawBottom; y >= drawTop; y--)
+        {
+            for (x = drawLeft; x < drawRight; x++)
+            {
+                tile = mapData[y][x];
+    
+                if (!tile || tile.index === -1 || !tile.visible || tile.alpha === 0)
+                {
+                    continue;
+                }
+    
+                outputArray.push(tile);
+            }
+        }
+    }
+    else if (renderOrder === 3)
+    {
+        //  left-up
+
+        for (y = drawBottom; y >= drawTop; y--)
+        {
+            for (x = drawRight; x >= drawLeft; x--)
+            {
+                tile = mapData[y][x];
+    
+                if (!tile || tile.index === -1 || !tile.visible || tile.alpha === 0)
+                {
+                    continue;
+                }
+    
+                outputArray.push(tile);
+            }
+        }
+    }
+
+    tilemapLayer.tilesDrawn = outputArray.length;
+    tilemapLayer.tilesTotal = mapWidth * mapHeight;
 
     return outputArray;
 };

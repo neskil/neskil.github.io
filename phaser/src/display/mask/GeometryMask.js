@@ -53,7 +53,7 @@ var GeometryMask = new Class({
      * @method Phaser.Display.Masks.GeometryMask#preRenderWebGL
      * @since 3.0.0
      *
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - [description]
+     * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - [description]
      * @param {Phaser.GameObjects.GameObject} mask - [description]
      * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
      */
@@ -79,7 +79,7 @@ var GeometryMask = new Class({
         // Use stencil buffer to affect next rendering object
         gl.colorMask(true, true, true, true);
         gl.stencilFunc(gl.EQUAL, 1, 1);
-        gl.stencilOp(gl.INVERT, gl.INVERT, gl.INVERT);
+        gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
     },
 
     /**
@@ -88,7 +88,7 @@ var GeometryMask = new Class({
      * @method Phaser.Display.Masks.GeometryMask#postRenderWebGL
      * @since 3.0.0
      *
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - [description]
+     * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - [description]
      */
     postRenderWebGL: function (renderer)
     {
@@ -105,7 +105,7 @@ var GeometryMask = new Class({
      * @method Phaser.Display.Masks.GeometryMask#preRenderCanvas
      * @since 3.0.0
      *
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - [description]
+     * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - [description]
      * @param {Phaser.GameObjects.GameObject} mask - [description]
      * @param {Phaser.Cameras.Scene2D.Camera} camera - [description]
      */
@@ -115,7 +115,7 @@ var GeometryMask = new Class({
 
         renderer.currentContext.save();
 
-        geometryMask.renderCanvas(renderer, geometryMask, 0.0, camera, undefined, null, true);
+        geometryMask.renderCanvas(renderer, geometryMask, 0, camera, null, null, true);
 
         renderer.currentContext.clip();
     },
@@ -126,11 +126,25 @@ var GeometryMask = new Class({
      * @method Phaser.Display.Masks.GeometryMask#postRenderCanvas
      * @since 3.0.0
      *
-     * @param {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)} renderer - [description]
+     * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - [description]
      */
     postRenderCanvas: function (renderer)
     {
         renderer.currentContext.restore();
+    },
+
+    /**
+     * Destroys this GeometryMask and nulls any references it holds.
+     * 
+     * Note that if a Game Object is currently using this mask it will _not_ automatically detect you have destroyed it,
+     * so be sure to call `clearMask` on any Game Object using it, before destroying it.
+     *
+     * @method Phaser.Display.Masks.GeometryMask#destroy
+     * @since 3.7.0
+     */
+    destroy: function ()
+    {
+        this.geometryMask = null;
     }
 
 });

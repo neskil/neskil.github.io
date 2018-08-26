@@ -10,7 +10,8 @@ var DistanceBetween = require('../../math/distance/DistanceBetween');
 
 /**
  * @classdesc
- * [description]
+ * A Particle is a simple Game Object controlled by a Particle Emitter and Manager, and rendered by the Manager.
+ * It uses its own lightweight physics system, and can interact only with its Emitter's bounds and zones.
  *
  * @class Particle
  * @memberOf Phaser.GameObjects.Particles
@@ -37,7 +38,7 @@ var Particle = new Class({
         this.emitter = emitter;
 
         /**
-         * [description]
+         * The texture frame used to render this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#frame
          * @type {Phaser.Textures.Frame}
@@ -47,7 +48,7 @@ var Particle = new Class({
         this.frame = null;
 
         /**
-         * [description]
+         * The position of this Particle within its Emitter's particle pool.
          *
          * @name Phaser.GameObjects.Particles.Particle#index
          * @type {number}
@@ -150,7 +151,7 @@ var Particle = new Class({
          * The horizontal scale of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#scaleX
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -160,7 +161,7 @@ var Particle = new Class({
          * The vertical scale of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#scaleY
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -170,7 +171,7 @@ var Particle = new Class({
          * The alpha value of this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#alpha
-         * @type {float}
+         * @type {number}
          * @default 1
          * @since 3.0.0
          */
@@ -200,20 +201,11 @@ var Particle = new Class({
          * The tint applied to this Particle.
          *
          * @name Phaser.GameObjects.Particles.Particle#tint
-         * @type {number}
+         * @type {integer}
          * @webglOnly
          * @since 3.0.0
          */
-        this.tint = 0xffffffff;
-
-        /**
-         * [description]
-         *
-         * @name Phaser.GameObjects.Particles.Particle#color
-         * @type {number}
-         * @since 3.0.0
-         */
-        this.color = 0xffffffff;
+        this.tint = 0xffffff;
 
         /**
          * The lifespan of this Particle in ms.
@@ -246,10 +238,10 @@ var Particle = new Class({
         this.delayCurrent = 0;
 
         /**
-         * The normalized lifespan T value.
+         * The normalized lifespan T value, where 0 is the start and 1 is the end.
          *
          * @name Phaser.GameObjects.Particles.Particle#lifeT
-         * @type {float}
+         * @type {number}
          * @default 0
          * @since 3.0.0
          */
@@ -391,8 +383,6 @@ var Particle = new Class({
 
         this.tint = emitter.tint.onEmit(this, 'tint');
 
-        this.color = (this.tint & 0x00FFFFFF) | (((this.alpha * 0xFF) | 0) << 24);
-
         this.index = emitter.alive.length;
     },
 
@@ -404,8 +394,8 @@ var Particle = new Class({
      *
      * @param {Phaser.GameObjects.Particles.ParticleEmitter} emitter - The Emitter that is updating this Particle.
      * @param {number} delta - The delta time in ms.
-     * @param {float} step - The delta value divided by 1000.
-     * @param {array} processors - [description]
+     * @param {number} step - The delta value divided by 1000.
+     * @param {array} processors - Particle processors (gravity wells).
      */
     computeVelocity: function (emitter, delta, step, processors)
     {
@@ -506,7 +496,7 @@ var Particle = new Class({
      * @since 3.0.0
      *
      * @param {number} delta - The delta time in ms.
-     * @param {float} step - The delta value divided by 1000.
+     * @param {number} step - The delta value divided by 1000.
      * @param {array} processors - An optional array of update processors.
      *
      * @return {boolean} Returns `true` if this Particle has now expired and should be removed, otherwise `false` if still active.
@@ -562,8 +552,6 @@ var Particle = new Class({
         this.alpha = emitter.alpha.onUpdate(this, 'alpha', t, this.alpha);
 
         this.tint = emitter.tint.onUpdate(this, 'tint', t, this.tint);
-
-        this.color = (this.tint & 0x00FFFFFF) | (((this.alpha * 0xFF) | 0) << 24);
 
         this.lifeCurrent -= delta;
 

@@ -27,6 +27,15 @@ var BitmapMask = new Class({
         var renderer = scene.sys.game.renderer;
 
         /**
+         * A reference to either the Canvas or WebGL Renderer that this Mask is using.
+         *
+         * @name Phaser.Display.Masks.BitmapMask#renderer
+         * @type {(Phaser.Renderer.Canvas.CanvasRenderer|Phaser.Renderer.WebGL.WebGLRenderer)}
+         * @since 3.11.0
+         */
+        this.renderer = renderer;
+
+        /**
          * A renderable Game Object that uses a texture, such as a Sprite.
          *
          * @name Phaser.Display.Masks.BitmapMask#bitmapMask
@@ -191,6 +200,36 @@ var BitmapMask = new Class({
     postRenderCanvas: function ()
     {
         // NOOP
+    },
+
+    /**
+     * Destroys this BitmapMask and nulls any references it holds.
+     * 
+     * Note that if a Game Object is currently using this mask it will _not_ automatically detect you have destroyed it,
+     * so be sure to call `clearMask` on any Game Object using it, before destroying it.
+     *
+     * @method Phaser.Display.Masks.BitmapMask#destroy
+     * @since 3.7.0
+     */
+    destroy: function ()
+    {
+        this.bitmapMask = null;
+
+        var renderer = this.renderer;
+
+        if (renderer && renderer.gl)
+        {
+            renderer.deleteTexture(this.mainTexture);
+            renderer.deleteTexture(this.maskTexture);
+            renderer.deleteFramebuffer(this.mainFramebuffer);
+            renderer.deleteFramebuffer(this.maskFramebuffer);
+        }
+
+        this.mainTexture = null;
+        this.maskTexture = null;
+        this.mainFramebuffer = null;
+        this.maskFramebuffer = null;
+        this.renderer = null;
     }
 
 });

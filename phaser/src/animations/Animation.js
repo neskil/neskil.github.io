@@ -13,7 +13,7 @@ var GetValue = require('../utils/object/GetValue');
 /**
  * @typedef {object} JSONAnimation
  *
- * @property {string} key - [description]
+ * @property {string} key - The key that the animation will be associated with. i.e. sprite.animations.play(key)
  * @property {string} type - A frame based animation (as opposed to a bone based animation)
  * @property {JSONAnimationFrame[]} frames - [description]
  * @property {integer} frameRate - The frame rate of playback in frames per second (default 24 if duration is null)
@@ -30,17 +30,18 @@ var GetValue = require('../utils/object/GetValue');
 /**
  * @typedef {object} AnimationFrameConfig
  *
- * @property {string} key - [description]
+ * @property {string} key - The key that the animation will be associated with. i.e. sprite.animations.play(key)
  * @property {(string|number)} frame - [description]
- * @property {float} [duration=0] - [description]
+ * @property {number} [duration=0] - [description]
  * @property {boolean} [visible] - [description]
  */
 
 /**
  * @typedef {object} AnimationConfig
  *
- * @property {AnimationFrameConfig[]} [frames] - [description]
- * @property {string} [defaultTextureKey=null] - [description]
+ * @property {string} [key] - The key that the animation will be associated with. i.e. sprite.animations.play(key)
+ * @property {AnimationFrameConfig[]} [frames] - An object containing data used to generate the frames for the animation
+ * @property {string} [defaultTextureKey=null] - The key of the texture all frames of the animation will use. Can be overridden on a per frame basis.
  * @property {integer} [frameRate] - The frame rate of playback in frames per second (default 24 if duration is null)
  * @property {integer} [duration] - How long the animation should play for in milliseconds. If not given its derived from frameRate.
  * @property {boolean} [skipMissedFrames=true] - Skip frames if the time lags, or always advanced anyway?
@@ -78,7 +79,7 @@ var Animation = new Class({
     function Animation (manager, key, config)
     {
         /**
-         * [description]
+         * A reference to the global Animation Manager
          *
          * @name Phaser.Animations.Animation#manager
          * @type {Phaser.Animations.AnimationManager}
@@ -87,7 +88,7 @@ var Animation = new Class({
         this.manager = manager;
 
         /**
-         * [description]
+         * The unique identifying string for this animation
          *
          * @name Phaser.Animations.Animation#key
          * @type {string}
@@ -366,15 +367,15 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Returns the AnimationFrame at the provided index
      *
      * @method Phaser.Animations.Animation#getFrameAt
      * @protected
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
+     * @param {integer} index - The index in the AnimationFrame array
      *
-     * @return {Phaser.Animations.AnimationFrame} [description]
+     * @return {Phaser.Animations.AnimationFrame} The frame at the index provided from the animation sequence
      */
     getFrameAt: function (index)
     {
@@ -509,8 +510,8 @@ var Animation = new Class({
      * @private
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Components.Animation} component - [description]
-     * @param {integer} startFrame - [description]
+     * @param {Phaser.GameObjects.Components.Animation} component - The Animation Component to load values into.
+     * @param {integer} startFrame - The start frame of the animation to load.
      */
     load: function (component, startFrame)
     {
@@ -535,7 +536,14 @@ var Animation = new Class({
             component._yoyo = this.yoyo;
         }
 
-        component.updateFrame(this.frames[startFrame]);
+        var frame = this.frames[startFrame];
+
+        if (startFrame === 0 && !component.forward)
+        {
+            frame = this.getLastFrame();
+        }
+
+        component.updateFrame(frame);
     },
 
     /**
@@ -544,9 +552,9 @@ var Animation = new Class({
      * @method Phaser.Animations.Animation#getFrameByProgress
      * @since 3.4.0
      *
-     * @param {float} value - A value between 0 and 1.
+     * @param {number} value - A value between 0 and 1.
      *
-     * @return {Phaser.Animations.AnimationFrame} [description]
+     * @return {Phaser.Animations.AnimationFrame} The frame closest to the given progress value.
      */
     getFrameByProgress: function (value)
     {
@@ -556,12 +564,12 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Advance the animation frame.
      *
      * @method Phaser.Animations.Animation#nextFrame
      * @since 3.0.0
      *
-     * @param {Phaser.GameObjects.Components.Animation} component - [description]
+     * @param {Phaser.GameObjects.Components.Animation} component - The Animation Component to advance.
      */
     nextFrame: function (component)
     {
@@ -574,19 +582,23 @@ var Animation = new Class({
             //  We're at the end of the animation
 
             //  Yoyo? (happens before repeat)
-            if (component.yoyo)
+            if (component._yoyo)
             {
                 component.forward = false;
-
-                component.updateFrame(frame.prevFrame);
-
-                //  Delay for the current frame
-                this.getNextTick(component);
+                this._updateAndGetNextTick(component, frame.prevFrame);
             }
             else if (component.repeatCounter > 0)
             {
                 //  Repeat (happens before complete)
-                this.repeatAnimation(component);
+
+                if (component._reverse && component.forward)
+                {
+                    component.forward = false;
+                }
+                else
+                {
+                    this.repeatAnimation(component);
+                }
             }
             else
             {
@@ -595,10 +607,21 @@ var Animation = new Class({
         }
         else
         {
-            component.updateFrame(frame.nextFrame);
-
-            this.getNextTick(component);
+            this._updateAndGetNextTick(component, frame.nextFrame);
         }
+    },
+
+    /**
+     * Returns the animation last frame.
+     *
+     * @method Phaser.Animations.Animation#getLastFrame
+     * @since 3.12.0
+     *
+     * @return {Phaser.Animations.AnimationFrame} component - The Animation Last Frame.
+     */
+    getLastFrame: function ()
+    {
+        return this.frames[this.frames.length - 1];
     },
 
     /**
@@ -619,10 +642,24 @@ var Animation = new Class({
         {
             //  We're at the start of the animation
 
-            if (component.repeatCounter > 0)
+            if (component._yoyo)
             {
-                //  Repeat (happens before complete)
-                this.repeatAnimation(component);
+                component.forward = true;
+                this._updateAndGetNextTick(component, frame.nextFrame);
+            }
+            else if (component.repeatCounter > 0)
+            {
+                if (component._reverse && !component.forward)
+                {
+                    component.currentFrame = this.getLastFrame();
+                    this._updateAndGetNextTick(component, component.currentFrame);
+                }
+                else
+                {
+                    //  Repeat (happens before complete)
+                    component.forward = true;
+                    this.repeatAnimation(component);
+                }
             }
             else
             {
@@ -631,10 +668,23 @@ var Animation = new Class({
         }
         else
         {
-            component.updateFrame(frame.prevFrame);
-
-            this.getNextTick(component);
+            this._updateAndGetNextTick(component, frame.prevFrame);
         }
+    },
+
+    /**
+     * Update Frame and Wait next tick
+     *
+     * @method Phaser.Animations.Animation#_updateAndGetNextTick
+     * @since 3.12.0
+     *
+     * @param {Phaser.Animations.AnimationFrame} frame - An Animation frame
+     *
+     */
+    _updateAndGetNextTick: function (component, frame)
+    {
+        component.updateFrame(frame);
+        this.getNextTick(component);
     },
 
     /**
@@ -660,12 +710,13 @@ var Animation = new Class({
     },
 
     /**
-     * [description]
+     * Removes a frame from the AnimationFrame array at the provided index
+     * and updates the animation accordingly.
      *
      * @method Phaser.Animations.Animation#removeFrameAt
      * @since 3.0.0
      *
-     * @param {integer} index - [description]
+     * @param {integer} index - The index in the AnimationFrame array
      *
      * @return {Phaser.Animations.Animation} This Animation object.
      */
@@ -703,9 +754,7 @@ var Animation = new Class({
         {
             component.repeatCounter--;
 
-            component.forward = true;
-
-            component.updateFrame(component.currentFrame.nextFrame);
+            component.updateFrame(component.currentFrame[(component.forward) ? 'nextFrame' : 'prevFrame']);
 
             if (component.isPlaying)
             {

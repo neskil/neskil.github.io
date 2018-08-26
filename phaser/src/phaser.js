@@ -25,7 +25,7 @@ var Phaser = {
     Data: require('./data'),
     Display: require('./display'),
     DOM: require('./dom'),
-    EventEmitter: require('./events/EventEmitter'),
+    Events: require('./events'),
     Game: require('./boot/Game'),
     GameObjects: require('./gameobjects'),
     Geom: require('./geom'),
@@ -33,6 +33,7 @@ var Phaser = {
     Loader: require('./loader'),
     Math: require('./math'),
     Physics: require('./physics'),
+    Plugins: require('./plugins'),
     Renderer: require('./renderer'),
     Scene: require('./scene/Scene'),
     Scenes: require('./scene'),
@@ -45,6 +46,21 @@ var Phaser = {
     Utils: require('./utils')
 
 };
+
+//  Merge in the optional plugins
+
+if (typeof PLUGIN_CAMERA3D)
+{
+    Phaser.Cameras.Sprite3D = require('../plugins/camera3d/src');
+    Phaser.GameObjects.Sprite3D = require('../plugins/camera3d/src/sprite3d/Sprite3D');
+    Phaser.GameObjects.Factories.Sprite3D = require('../plugins/camera3d/src/sprite3d/Sprite3DFactory');
+    Phaser.GameObjects.Creators.Sprite3D = require('../plugins/camera3d/src/sprite3d/Sprite3DCreator');
+}
+
+if (typeof PLUGIN_FBINSTANT)
+{
+    Phaser.FBInstant = require('../plugins/fbinstant/src/FacebookInstantGamesPlugin');
+}
 
 //   Merge in the consts
 

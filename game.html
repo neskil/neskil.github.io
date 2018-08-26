@@ -56,7 +56,7 @@ var config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 300 },
-            debug: false
+            debug: true
         }
     },
     scene: {
@@ -75,7 +75,7 @@ var score = 0;
 var gameOver = false;
 var scoreText;
 var r1 = randI(0.4,1.5);
-var r2 = randI(0.6,2);
+var r2 = randI(0.6,1.5);
 
 var game = new Phaser.Game(config);
 
@@ -180,7 +180,7 @@ function create ()
         rotate: { start: 0, end: 90 },
         on: false
     });
-
+console.log(player.texture)
 
     
         this.input.on('pointerdown', function (pointer) {
@@ -195,10 +195,11 @@ function create ()
         player2.setVelocity(randX(-800,800),-randX(-800,800));
         score += 1;
         scoreText.setText('# klixx: ' + score);
-        player.texture.key = randImg(slumplista);
-        player.setScale(r1,r1);
-        player.setScale(r2,r2);
-        console.log(player);
+        player.setTexture(randImg(slumplista),0);
+        player2.setTexture(randImg(slumplista),0);
+        //player.setScale(r1,r1);
+        //player2.setScale(r2,r2);
+        console.log(player.texture);
     });
     
        ///END CREATE 

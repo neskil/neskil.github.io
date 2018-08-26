@@ -55,7 +55,7 @@ var AddAt = function (array, item, index, limit, callback, context)
 
             if (callback)
             {
-                callback.call(context, entry);
+                callback.call(context, item);
             }
 
             return item;
@@ -98,7 +98,7 @@ var AddAt = function (array, item, index, limit, callback, context)
         itemLength = remaining;
     }
 
-    for (var i = itemLength; i > 0; i--)
+    for (var i = itemLength - 1; i >= 0; i--)
     {
         var entry = item[i];
 

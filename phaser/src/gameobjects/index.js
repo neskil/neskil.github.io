@@ -31,7 +31,6 @@ var GameObjects = {
     PathFollower: require('./pathfollower/PathFollower'),
     RenderTexture: require('./rendertexture/RenderTexture'),
     RetroFont: require('./bitmaptext/RetroFont'),
-    Sprite3D: require('./sprite3d/Sprite3D'),
     Sprite: require('./sprite/Sprite'),
     Text: require('./text/static/Text'),
     TileSprite: require('./tilesprite/TileSprite'),
@@ -49,7 +48,6 @@ var GameObjects = {
         Particles: require('./particles/ParticleManagerFactory'),
         PathFollower: require('./pathfollower/PathFollowerFactory'),
         RenderTexture: require('./rendertexture/RenderTextureFactory'),
-        Sprite3D: require('./sprite3d/Sprite3DFactory'),
         Sprite: require('./sprite/SpriteFactory'),
         StaticBitmapText: require('./bitmaptext/static/BitmapTextFactory'),
         Text: require('./text/static/TextFactory'),
@@ -66,7 +64,6 @@ var GameObjects = {
         Image: require('./image/ImageCreator'),
         Particles: require('./particles/ParticleManagerCreator'),
         RenderTexture: require('./rendertexture/RenderTextureCreator'),
-        Sprite3D: require('./sprite3d/Sprite3DCreator'),
         Sprite: require('./sprite/SpriteCreator'),
         StaticBitmapText: require('./bitmaptext/static/BitmapTextCreator'),
         Text: require('./text/static/TextCreator'),
@@ -76,7 +73,13 @@ var GameObjects = {
 
 };
 
-if (WEBGL_RENDERER)
+if (typeof EXPERIMENTAL)
+{
+    GameObjects.DOMElement = require('./domelement/DOMElement');
+    GameObjects.Factories.DOMElement = require('./domelement/DOMElementFactory');
+}
+
+if (typeof WEBGL_RENDERER)
 {
     //  WebGL only Game Objects
     GameObjects.Mesh = require('./mesh/Mesh');

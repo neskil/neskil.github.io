@@ -6,9 +6,8 @@
 
 var Clamp = require('../math/Clamp');
 var Class = require('../utils/Class');
-var CONST = require('./const');
 var GetFastValue = require('../utils/object/GetFastValue');
-var PluginManager = require('../boot/PluginManager');
+var PluginCache = require('../plugins/PluginCache');
 
 /**
  * @classdesc
@@ -77,7 +76,7 @@ var ScenePlugin = new Class({
          * the current percentage of the transition progress, between 0 and 1.
          *
          * @name Phaser.Scenes.ScenePlugin#transitionProgress
-         * @type {float}
+         * @type {number}
          * @since 3.5.0
          */
         this.transitionProgress = 0;
@@ -191,7 +190,7 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#start
      * @since 3.0.0
      *
-     * @param {string} key - The Scene to start.
+     * @param {string} [key] - The Scene to start.
      * @param {object} [data] - The Scene data.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
@@ -200,16 +199,8 @@ var ScenePlugin = new Class({
     {
         if (key === undefined) { key = this.key; }
 
-        if (this.settings.status !== CONST.RUNNING)
-        {
-            this.manager.queueOp('stop', this.key);
-            this.manager.queueOp('start', key, data);
-        }
-        else
-        {
-            this.manager.stop(this.key);
-            this.manager.start(key, data);
-        }
+        this.manager.queueOp('stop', this.key);
+        this.manager.queueOp('start', key, data);
 
         return this;
     },
@@ -228,16 +219,8 @@ var ScenePlugin = new Class({
     {
         var key = this.key;
 
-        if (this.settings.status !== CONST.RUNNING)
-        {
-            this.manager.queueOp('stop', key);
-            this.manager.queueOp('start', key, data);
-        }
-        else
-        {
-            this.manager.stop(key);
-            this.manager.start(key, data);
-        }
+        this.manager.queueOp('stop', key);
+        this.manager.queueOp('start', key, data);
 
         return this;
     },
@@ -249,8 +232,8 @@ var ScenePlugin = new Class({
      * @property {integer} [duration=1000] - The duration, in ms, for the transition to last.
      * @property {boolean} [sleep=false] - Will the Scene responsible for the transition be sent to sleep on completion (`true`), or stopped? (`false`)
      * @property {boolean} [allowInput=false] - Will the Scenes Input system be able to process events while it is transitioning in or out?
-     * @property {boolean} [moveAbove] - More the target Scene to be above this one before the transition starts.
-     * @property {boolean} [moveBelow] - More the target Scene to be below this one before the transition starts.
+     * @property {boolean} [moveAbove] - Move the target Scene to be above this one before the transition starts.
+     * @property {boolean} [moveBelow] - Move the target Scene to be below this one before the transition starts.
      * @property {function} [onUpdate] - This callback is invoked every frame for the duration of the transition.
      * @property {any} [onUpdateScope] - The context in which the callback is invoked.
      * @property {any} [data] - An object containing any data you wish to be passed to the target Scenes init / create methods.
@@ -485,14 +468,34 @@ var ScenePlugin = new Class({
     {
         if (key && key !== this.key)
         {
-            if (this.settings.status !== CONST.RUNNING)
-            {
-                this.manager.queueOp('start', key, data);
-            }
-            else
-            {
-                this.manager.start(key, data);
-            }
+            this.manager.queueOp('start', key, data);
+        }
+
+        return this;
+    },
+
+    /**
+     * Runs the given Scene, but does not change the state of this Scene.
+     * 
+     * If the given Scene is paused, it will resume it. If sleeping, it will wake it.
+     * If not running at all, it will be started.
+     *
+     * Use this if you wish to open a modal Scene by calling `pause` on the current
+     * Scene, then `run` on the modal Scene.
+     *
+     * @method Phaser.Scenes.ScenePlugin#run
+     * @since 3.10.0
+     *
+     * @param {string} key - The Scene to run.
+     * @param {object} [data] - A data object that will be passed to the Scene and emitted in its ready, wake, or resume events.
+     *
+     * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
+     */
+    run: function (key, data)
+    {
+        if (key && key !== this.key)
+        {
+            this.manager.queueOp('run', key, data);
         }
 
         return this;
@@ -504,15 +507,16 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#pause
      * @since 3.0.0
      *
-     * @param {string} key - The Scene to pause.
+     * @param {string} [key] - The Scene to pause.
+     * @param {object} [data] - An optional data object that will be passed to the Scene and emitted in its pause event.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    pause: function (key)
+    pause: function (key, data)
     {
         if (key === undefined) { key = this.key; }
 
-        this.manager.pause(key);
+        this.manager.queueOp('pause', key, data);
 
         return this;
     },
@@ -523,15 +527,16 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#resume
      * @since 3.0.0
      *
-     * @param {string} key - The Scene to resume.
+     * @param {string} [key] - The Scene to resume.
+     * @param {object} [data] - An optional data object that will be passed to the Scene and emitted in its resume event.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    resume: function (key)
+    resume: function (key, data)
     {
         if (key === undefined) { key = this.key; }
 
-        this.manager.resume(key);
+        this.manager.queueOp('resume', key, data);
 
         return this;
     },
@@ -542,15 +547,16 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#sleep
      * @since 3.0.0
      *
-     * @param {string} key - The Scene to put to sleep.
+     * @param {string} [key] - The Scene to put to sleep.
+     * @param {object} [data] - An optional data object that will be passed to the Scene and emitted in its sleep event.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    sleep: function (key)
+    sleep: function (key, data)
     {
         if (key === undefined) { key = this.key; }
 
-        this.manager.sleep(key);
+        this.manager.queueOp('sleep', key, data);
 
         return this;
     },
@@ -561,15 +567,16 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#wake
      * @since 3.0.0
      *
-     * @param {string} key - The Scene to wake up.
+     * @param {string} [key] - The Scene to wake up.
+     * @param {object} [data] - An optional data object that will be passed to the Scene and emitted in its wake event.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    wake: function (key)
+    wake: function (key, data)
     {
         if (key === undefined) { key = this.key; }
 
-        this.manager.wake(key);
+        this.manager.queueOp('wake', key, data);
 
         return this;
     },
@@ -588,14 +595,7 @@ var ScenePlugin = new Class({
     {
         if (key !== this.key)
         {
-            if (this.settings.status !== CONST.RUNNING)
-            {
-                this.manager.queueOp('switch', this.key, key);
-            }
-            else
-            {
-                this.manager.switch(this.key, key);
-            }
+            this.manager.queueOp('switch', this.key, key);
         }
 
         return this;
@@ -615,7 +615,7 @@ var ScenePlugin = new Class({
     {
         if (key === undefined) { key = this.key; }
 
-        this.manager.stop(key);
+        this.manager.queueOp('stop', key);
 
         return this;
     },
@@ -626,13 +626,22 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#setActive
      * @since 3.0.0
      *
-     * @param {boolean} value - The Scene to set the active state for.
+     * @param {boolean} value - If `true` the Scene will be resumed. If `false` it will be paused.
+     * @param {string} [key] - The Scene to set the active state of.
+     * @param {object} [data] - An optional data object that will be passed to the Scene and emitted with its events.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    setActive: function (value)
+    setActive: function (value, key, data)
     {
-        this.settings.active = value;
+        if (key === undefined) { key = this.key; }
+
+        var scene = this.manager.getScene(key);
+
+        if (scene)
+        {
+            scene.sys.setActive(value, data);
+        }
 
         return this;
     },
@@ -643,13 +652,21 @@ var ScenePlugin = new Class({
      * @method Phaser.Scenes.ScenePlugin#setVisible
      * @since 3.0.0
      *
-     * @param {boolean} value - The Scene to set the visible state for.
+     * @param {boolean} value - The visible value.
+     * @param {string} [key] - The Scene to set the visible state for.
      *
      * @return {Phaser.Scenes.ScenePlugin} This ScenePlugin object.
      */
-    setVisible: function (value)
+    setVisible: function (value, key)
     {
-        this.settings.visible = value;
+        if (key === undefined) { key = this.key; }
+
+        var scene = this.manager.getScene(key);
+
+        if (scene)
+        {
+            scene.sys.setVisible(value);
+        }
 
         return this;
     },
@@ -901,6 +918,23 @@ var ScenePlugin = new Class({
     },
 
     /**
+     * Retrieves the numeric index of a Scene in the Scenes list.
+     *
+     * @method Phaser.Scenes.ScenePlugin#getIndex
+     * @since 3.7.0
+     *
+     * @param {(string|Phaser.Scene)} [key] - The Scene to get the index of.
+     *
+     * @return {integer} The index of the Scene.
+     */
+    getIndex: function (key)
+    {
+        if (key === undefined) { key = this.key; }
+
+        return this.manager.getIndex(key);
+    },
+
+    /**
      * The Scene that owns this plugin is shutting down.
      * We need to kill and reset all internal properties as well as stop listening to Scene events.
      *
@@ -939,6 +973,6 @@ var ScenePlugin = new Class({
 
 });
 
-PluginManager.register('ScenePlugin', ScenePlugin, 'scenePlugin');
+PluginCache.register('ScenePlugin', ScenePlugin, 'scenePlugin');
 
 module.exports = ScenePlugin;

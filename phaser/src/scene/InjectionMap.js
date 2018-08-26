@@ -20,13 +20,13 @@ var InjectionMap = {
 
     anims: 'anims',
     cache: 'cache',
+    plugins: 'plugins',
     registry: 'registry',
     sound: 'sound',
     textures: 'textures',
 
     events: 'events',
     cameras: 'cameras',
-    cameras3d: 'cameras3d',
     add: 'add',
     make: 'make',
     scenePlugin: 'scene',
@@ -44,5 +44,15 @@ var InjectionMap = {
     matterPhysics: 'matter'
 
 };
+
+if (typeof PLUGIN_CAMERA3D)
+{
+    InjectionMap.cameras3d = 'cameras3d';
+}
+
+if (typeof PLUGIN_FBINSTANT)
+{
+    InjectionMap.facebook = 'facebook';
+}
 
 module.exports = InjectionMap;
