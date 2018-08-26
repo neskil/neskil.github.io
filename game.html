@@ -29,7 +29,7 @@ function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
 }
 function randI(min, max) {
-    return Math.random((max - min) + min);
+    return (Math.random()*(max - min) + min);
 }
 
 function randImg(listan) {
@@ -74,6 +74,8 @@ var cursors;
 var score = 0;
 var gameOver = false;
 var scoreText;
+var r1 = randI(0.4,1.5);
+var r2 = randI(0.6,2);
 
 var game = new Phaser.Game(config);
 
@@ -158,8 +160,7 @@ function create ()
         scale: 0.5,
         blendMode: 'ADD',
     });
-    console.log('geh')
-
+    
     var particles2 = this.add.particles('explosion');
     
     particles2.createEmitter({
@@ -180,16 +181,23 @@ function create ()
         on: false
     });
 
+
     
         this.input.on('pointerdown', function (pointer) {
+        r1 = randI(0.4,1.5);
+        r2 = randI(0.6,2.5);
+        console.log(r1)
+        console.log(r2)
         player.setPosition(pointer.x+20, pointer.y);
         player2.setPosition(pointer.x-30, pointer.y);
         particles2.emitParticleAt(pointer.x, pointer.y);
-        player.setVelocity(randX(-1000,1000),randX(-1000,1000));
-        player2.setVelocity(randX(-1000,1000),-randX(-1000,1000));
+        player.setVelocity(randX(-800,800),randX(-800,800));
+        player2.setVelocity(randX(-800,800),-randX(-800,800));
         score += 1;
         scoreText.setText('# klixx: ' + score);
         player.texture.key = randImg(slumplista);
+        player.setScale(r1,r1);
+        player.setScale(r2,r2);
         console.log(player);
     });
     
