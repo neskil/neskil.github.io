@@ -19,6 +19,8 @@
   gtag('config', 'UA-65179286-3');
 </script>
 
+    
+
 </head>
 <Body>
 <script type="text/javascript">
@@ -26,7 +28,26 @@
 function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
 }
+function randI(min, max) {
+    return Math.random((max - min) + min);
+}
 
+function randImg(listan) {
+    var randomNumber = Math.floor(Math.random()*listan.length);
+    return listan[randomNumber];  
+}
+
+var slumplista = [
+    'asa',
+    'daniel',
+    'maja',
+    'carl',
+];
+  
+        
+    
+    
+    
 var config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
@@ -92,8 +113,10 @@ function create ()
     // The player and its settings
     player = this.physics.add.group();
     
-    player = this.physics.add.sprite(100, 450, 'asa');
-    player2 = this.physics.add.sprite(100, 050, 'asa');
+    player = this.physics.add.sprite(100, 450, randImg(slumplista));
+    player2 = this.physics.add.sprite(100, 050, randImg(slumplista));
+    
+    console.log(player)
     
 
     //  Player physics properties. Give the little guy a slight bounce.
@@ -166,6 +189,8 @@ function create ()
         player2.setVelocity(randX(-1000,1000),-randX(-1000,1000));
         score += 1;
         scoreText.setText('# klixx: ' + score);
+        player.texture.key = randImg(slumplista);
+        console.log(player);
     });
     
        ///END CREATE 
