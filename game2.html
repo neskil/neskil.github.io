@@ -119,7 +119,7 @@ function create ()
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
-    var antal = Math.floor((window.innerWidth*window.innerHeight)/40000);
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/30000);
 
     this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
     
@@ -153,15 +153,15 @@ function create ()
     //var ground = this.matter.add.Bodies.rectangle(395, 600, 815, 50, { isStatic: true });
     var rockOptions = { density: 0.004, isStatic: false};
     var rockOptions2 = {isStatic: true, isSensor: true};
-    rock = this.matter.add.image(0, 0, randImg(sllist), rockOptions);
-    rock3 = this.matter.add.image(100, 100, randImg(sllist), rockOptions);
+    rock = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
+    rock3 = this.matter.add.image(0, 0, randImg(sllist), rockOptions);
     rock2 = this.matter.add.image(middleX, middleY, 'red',0, rockOptions2);
     
     var anchor = { x: middleX, y: middleY };
     console.log(anchor)
     console.log(anchor.x)
     this.matter.add.constraint(rock,rock2,Math.floor(middleX/3),0.02);
-    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/2),0.02);
+    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/1.5),0.002);
     
     
     
@@ -234,7 +234,7 @@ function create ()
     //f1.add(help, 'line3');
     f1.close();
 
-    timedEvent = this.time.addEvent({ delay: 4000, callback: onEvent, callbackScope: this, loop: true });  
+    timedEvent = this.time.addEvent({ delay: 5000, callback: onEvent, callbackScope: this, loop: true });  
 
     graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } });
     
@@ -255,7 +255,7 @@ function update (time, delta)
 function onEvent()
     {
         console.log("hej")
-        rock.setVelocity(randX(-200,200),randX(-200,200));
+        rock.setVelocity(randX(-100,100),randX(-100,100));
     }
     
 </script>
