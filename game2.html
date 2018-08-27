@@ -20,8 +20,9 @@
     <link rel="manifest" href="/site.webmanifest">
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#f3ff21">
-    <script>function getRandomRGBValue() {
+    <meta name="theme-color" content="">
+    <script>
+function getRandomRGBValue() {
     return Math.min(Math.floor(Math.random() * 255 + 1), 255);
 }
 
@@ -90,10 +91,12 @@ var sllist = [
     'maja',
     'carl',
 ];
-
+    
+var alpha = 0.3;
 var rock;    
 var timedEvent;
 var line;
+var line2;
 var graphics;
 var rock2;
 var rock3;
@@ -119,7 +122,7 @@ function create ()
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
-    var antal = Math.floor((window.innerWidth*window.innerHeight)/30000);
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/40000);
 
     this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
     
@@ -236,24 +239,32 @@ function create ()
 
     timedEvent = this.time.addEvent({ delay: 5000, callback: onEvent, callbackScope: this, loop: true });  
 
-    graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } });
+    graphics = this.add.graphics();
+    //graphics2 = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } })
     
     
 }
 
 function update (time, delta)
 {
+    if(alpha > 0.05) {
+    alpha = alpha - 0.01;}
     controls.update(delta);
-    
-    graphics.clear();
+    graphics.lineStyle(alpha*5,0xda532c,alpha);
+    //graphics.clear();
+    //graphics.clear();
 
     line = new Phaser.Geom.Line(rock.x, rock.y, rock2.x, rock2.y)
+    //line2 = new Phaser.Geom.Line(rock3.x, rock3.y, rock2.x, rock2.y)
+    //graphics.lineStyle.a(alphaa);
     graphics.strokeLineShape(line);
+    //graphics2.strokeLineShape(line);
 
-    graphics.fillStyle(0xaa0000);
 }
 function onEvent()
     {
+        alpha = 0.5;
+        graphics.clear();
         console.log("hej")
         rock.setVelocity(randX(-100,100),randX(-100,100));
     }
