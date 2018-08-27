@@ -20,7 +20,7 @@
     <link rel="manifest" href="/site.webmanifest">
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="#ff00f2">
+    <meta name="theme-color" content="#f3ff21">
     <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
 <script>
@@ -88,8 +88,9 @@ function create ()
     
     var antal = Math.floor((window.innerWidth*window.innerHeight)/30000);
 
-    this.matter.world.setBounds(0, 0, worldWidth, worldHeight);
-    console.log(antal)
+    this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
+                                
+    console.log(antal);
 
     //  Create loads of random bodies
     for (var i = 0; i < antal; i++)
