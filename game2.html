@@ -263,7 +263,7 @@ function create ()
     tween = this.tweens.addCounter({
         from: 1,
         to: 2,
-        duration: 10000,
+        duration: 20000,
         ease: 'Sine.easeInOut',
         yoyo: true,
         repeat: -1
@@ -292,11 +292,11 @@ function update (time, delta)
     graphics2.strokeLineShape(line2);
     
     
-    image0.tilePositionX = Math.cos(iter) * 300;
-    image0.tilePositionY = Math.sin(iter) * 200;
+    image0.tilePositionX = Math.cos(iter) * 100;
+    image0.tilePositionY = Math.sin(iter) * 50;
 
-    //image0.tileScaleX = tween.getValue();
-    //image0.tileScaleY = tween.getValue();
+    image0.tileScaleX = tween.getValue();
+    image0.tileScaleY = tween.getValue();
 
     iter += 0.01;
 
