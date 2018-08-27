@@ -28,8 +28,8 @@
 <script type="text/javascript">
 var config = {
     type: Phaser.WEBGL,
-    width: 800,
-    height: 600,
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: 'phaser-example',
     pixelArt: true,
     physics: {
@@ -38,46 +38,72 @@ var config = {
             gravity: {
                 y: 0
             },
-            debug: true
+            debug: false
         }
     },
     scene: {
+        preload: preload,
         create: create,
         update: update
     }
 };
 
+    function randImg(listan) {
+    var randomNumber = Math.floor(Math.random()*listan.length);
+    return listan[randomNumber];  
+}
+
+var sllist = [
+    'asa',
+    'daniel',
+    'maja',
+    'carl',
+];
+
+function preload ()
+{
+
+    this.load.image('maja', 'img/maja.png');
+    this.load.image('carl', 'img/carl.png');
+    this.load.image('daniel', 'img/daniel.png');
+    this.load.image('asa', 'img/asa.png');
+}
+    
+    
 var controls;
 
 var game = new Phaser.Game(config);
 
 function create ()
 {
-    var worldWidth = 1600;
-    var worldHeight = 1200;
+    var worldWidth = window.innerWidth;
+    var worldHeight = window.innerHeight;
+    
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/30000);
 
     this.matter.world.setBounds(0, 0, worldWidth, worldHeight);
+    console.log(antal)
 
     //  Create loads of random bodies
-    for (var i = 0; i < 100; i++)
+    for (var i = 0; i < antal; i++)
     {
         var x = Phaser.Math.Between(0, worldWidth);
         var y = Phaser.Math.Between(0, worldHeight);
+        //var width = Phaser.Math.Between(16, 128);
+        //var height = Phaser.Math.Between(8, 64);
 
-        if (Math.random() < 0.7)
-        {
-            var sides = Phaser.Math.Between(3, 14);
-            var radius = Phaser.Math.Between(8, 50);
+        this.matter.add.image(x, y, randImg(sllist), { restitution: 0.9 });
+        
+        //if (Math.random() < 0.7)
+        //{
+        //    var sides = Phaser.Math.Between(3, 14);
+        //    var radius = Phaser.Math.Between(8, 50);
 
-            this.matter.add.polygon(x, y, sides, radius, { restitution: 0.9 });
-        }
-        else
-        {
-            var width = Phaser.Math.Between(16, 128);
-            var height = Phaser.Math.Between(8, 64);
-
-            this.matter.add.rectangle(x, y, width, height, { restitution: 0.9 });
-        }
+        //    this.matter.add.polygon(x, y, sides, radius, { restitution: 0.9 });
+        //}
+        //else
+        //{
+        
     }
 
     this.matter.add.mouseSpring();
@@ -115,10 +141,10 @@ function create ()
 
     gui = new dat.GUI();
 
-    var p1 = gui.addFolder('Pointer');
-    p1.add(this.input, 'x').listen();
-    p1.add(this.input, 'y').listen();
-    p1.open();
+    //var p1 = gui.addFolder('Pointer');
+    //p1.add(this.input, 'x').listen();
+    //p1.add(this.input, 'y').listen();
+    //p1.open();
 
     var help = {
         line1: 'Cursors to move',
@@ -127,15 +153,15 @@ function create ()
     }
 
     var f1 = gui.addFolder('Camera');
-    f1.add(cam, 'x').listen();
-    f1.add(cam, 'y').listen();
+   // f1.add(cam, 'x').listen();
+    //f1.add(cam, 'y').listen();
     f1.add(cam, 'scrollX').listen();
     f1.add(cam, 'scrollY').listen();
     f1.add(cam, 'rotation').min(0).step(0.01).listen();
     f1.add(cam, 'zoom', 0.1, 2).step(0.1).listen();
     f1.add(help, 'line1');
     f1.add(help, 'line2');
-    f1.add(help, 'line3');
+    //f1.add(help, 'line3');
     f1.open();
 
 }
