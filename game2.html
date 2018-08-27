@@ -19,9 +19,24 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
-    <meta name="msapplication-TileColor" content="#da532c">
-    <meta name="theme-color" content="">
-    <script>
+    <meta name="theme-color" content="#84db94">
+
+    
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-65179286-3');
+</script>
+</head>
+    
+    
+<Body>
+<script>
 function getRandomRGBValue() {
     return Math.min(Math.floor(Math.random() * 255 + 1), 255);
 }
@@ -39,22 +54,13 @@ function changeThemeColor() {
     setTimeout(function() {
         changeThemeColor();
     }, 3000);
-}</script>
-    
+    console.log('updated color')
 
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'UA-65179286-3');
-</script>
-</head>
+}
+changeThemeColor(); 
     
+    </script>
     
-<Body>
 <script type="text/javascript">
 var config = {
     type: Phaser.WEBGL,
@@ -66,7 +72,7 @@ var config = {
         default: 'matter',
         matter: {
             gravity: {
-                y: 0
+                y: 0.1
             },
             debug: false
         }
@@ -125,7 +131,7 @@ function create ()
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
-    var antal = Math.floor((window.innerWidth*window.innerHeight)/40000);
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/35000);
 
     this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
     
@@ -133,7 +139,7 @@ function create ()
     var middleY = Math.floor(worldHeight/2)
     
                             
-    image0 = this.add.tileSprite(middleX, middleY, worldWidth, worldHeight, 'image0');
+    image0 = this.add.tileSprite(middleX, middleY, worldWidth*1.3, worldHeight*1.3, 'image0');
         
     console.log(antal);
 
@@ -159,17 +165,17 @@ function create ()
         
     }
     //var ground = this.matter.add.Bodies.rectangle(395, 600, 815, 50, { isStatic: true });
-    var rockOptions = { density: 0.004, isStatic: false};
+    var rockOptions = { density: 0.001, isStatic: false};
     var rockOptions2 = {isStatic: true, isSensor: true};
     rock = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
-    rock3 = this.matter.add.image(0, 0, randImg(sllist), rockOptions);
+    rock3 = this.matter.add.image(worldHeight-100, worldWidth-100, randImg(sllist), rockOptions);
     rock2 = this.matter.add.image(middleX, middleY, 'red',0, rockOptions2);
     
     var anchor = { x: middleX, y: middleY };
     console.log(anchor)
     console.log(anchor.x)
-    this.matter.add.constraint(rock,rock2,Math.floor(middleX/3),0.02);
-    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/1.5),0.002);
+    this.matter.add.constraint(rock,rock2,Math.floor(middleY/1.2),0.015);
+    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/5),0.0005);
     
     
     
@@ -200,6 +206,7 @@ function create ()
         maxSpeed: 1.0
     };
 
+    this.cameras.main.zoom = 0.8;
     controls = new Phaser.Cameras.Controls.SmoothedKeyControl(controlConfig);
 
     this.input.keyboard.on('KEY_DOWN_Z', function (event) {
@@ -245,6 +252,7 @@ function create ()
     timedEvent = this.time.addEvent({ delay: 5000, callback: onEvent, callbackScope: this, loop: true });  
 
     graphics = this.add.graphics();
+    graphics2 = this.add.graphics();
     //graphics2 = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } })
     
     
@@ -255,7 +263,7 @@ function create ()
     tween = this.tweens.addCounter({
         from: 1,
         to: 2,
-        duration: 5000,
+        duration: 10000,
         ease: 'Sine.easeInOut',
         yoyo: true,
         repeat: -1
@@ -272,21 +280,23 @@ function update (time, delta)
     alpha = alpha - 0.01;}
     controls.update(delta);
     graphics.lineStyle(alpha*5,0xda532c,alpha);
-    //graphics.clear();
+    graphics2.clear();
+    
+    graphics2.lineStyle(2,0x2c9eda,1);
     //graphics.clear();
 
     line = new Phaser.Geom.Line(rock.x, rock.y, rock2.x, rock2.y)
-    //line2 = new Phaser.Geom.Line(rock3.x, rock3.y, rock2.x, rock2.y)
+    line2 = new Phaser.Geom.Line(rock3.x, rock3.y, rock2.x, rock2.y)
     //graphics.lineStyle.a(alphaa);
     graphics.strokeLineShape(line);
-    //graphics2.strokeLineShape(line);
+    graphics2.strokeLineShape(line2);
     
     
-    image0.tilePositionX = Math.cos(iter) * 700;
-    image0.tilePositionY = Math.sin(iter) * 500;
+    image0.tilePositionX = Math.cos(iter) * 300;
+    image0.tilePositionY = Math.sin(iter) * 200;
 
-    image0.tileScaleX = tween.getValue();
-    image0.tileScaleY = tween.getValue();
+    //image0.tileScaleX = tween.getValue();
+    //image0.tileScaleY = tween.getValue();
 
     iter += 0.01;
 
@@ -296,7 +306,7 @@ function onEvent()
         alpha = 0.5;
         graphics.clear();
         console.log("hej")
-        rock.setVelocity(randX(-100,100),randX(-100,100));
+        rock.setVelocity(randX(-200,200),randX(-100,100));
     }
     
 </script>
