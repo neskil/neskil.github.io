@@ -100,10 +100,13 @@ var line2;
 var graphics;
 var rock2;
 var rock3;
-    
+var image0;
+var tween;
+var iter = 0;
     
 function preload ()
 {
+    this.load.image('image0', 'img/bg.jpg');
 
     this.load.image('maja', 'img/maja.png');
     this.load.image('carl', 'img/carl.png');
@@ -118,7 +121,7 @@ var controls;
 var game = new Phaser.Game(config);
 
 function create ()
-{
+{ ///// .-------------------------------------------------- create- --------------
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
@@ -129,7 +132,9 @@ function create ()
     var middleX = Math.floor(worldWidth/2)
     var middleY = Math.floor(worldHeight/2)
     
-                                
+                            
+    image0 = this.add.tileSprite(middleX, middleY, worldWidth, worldHeight, 'image0');
+        
     console.log(antal);
 
     //  Create loads of random bodies
@@ -243,6 +248,22 @@ function create ()
     //graphics2 = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } })
     
     
+    
+    
+    
+    
+    tween = this.tweens.addCounter({
+        from: 1,
+        to: 2,
+        duration: 5000,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+    });
+    
+    
+    // ---------------------------------------------------------
+    
 }
 
 function update (time, delta)
@@ -259,6 +280,15 @@ function update (time, delta)
     //graphics.lineStyle.a(alphaa);
     graphics.strokeLineShape(line);
     //graphics2.strokeLineShape(line);
+    
+    
+    image0.tilePositionX = Math.cos(iter) * 700;
+    image0.tilePositionY = Math.sin(iter) * 500;
+
+    image0.tileScaleX = tween.getValue();
+    image0.tileScaleY = tween.getValue();
+
+    iter += 0.01;
 
 }
 function onEvent()
