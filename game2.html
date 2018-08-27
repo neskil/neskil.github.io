@@ -21,6 +21,26 @@
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
     <meta name="theme-color" content="#f3ff21">
+    <script>function getRandomRGBValue() {
+    return Math.min(Math.floor(Math.random() * 255 + 1), 255);
+}
+
+function getRandomColor() {
+    var r = getRandomRGBValue(),
+        g = getRandomRGBValue(),
+        b = getRandomRGBValue();
+    return "#" + (((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1));
+}
+
+function changeThemeColor() {
+    var metaThemeColor = document.querySelector("meta[name=theme-color]");
+    metaThemeColor.setAttribute("content", getRandomColor());
+    setTimeout(function() {
+        changeThemeColor();
+    }, 3000);
+}</script>
+    
+
     <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
 <script>
@@ -31,6 +51,8 @@
   gtag('config', 'UA-65179286-3');
 </script>
 </head>
+    
+    
 <Body>
 <script type="text/javascript">
 var config = {
@@ -59,7 +81,9 @@ var config = {
     var randomNumber = Math.floor(Math.random()*listan.length);
     return listan[randomNumber];  
 }
-
+function randX(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
 var sllist = [
     'asa',
     'daniel',
@@ -67,6 +91,14 @@ var sllist = [
     'carl',
 ];
 
+var rock;    
+var timedEvent;
+var line;
+var graphics;
+var rock2;
+var rock3;
+    
+    
 function preload ()
 {
 
@@ -74,6 +106,7 @@ function preload ()
     this.load.image('carl', 'img/carl.png');
     this.load.image('daniel', 'img/daniel.png');
     this.load.image('asa', 'img/asa.png');
+    this.load.image('red', 'img/red.png');
 }
     
     
@@ -86,9 +119,13 @@ function create ()
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
-    var antal = Math.floor((window.innerWidth*window.innerHeight)/30000);
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/40000);
 
     this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
+    
+    var middleX = Math.floor(worldWidth/2)
+    var middleY = Math.floor(worldHeight/2)
+    
                                 
     console.log(antal);
 
@@ -113,7 +150,31 @@ function create ()
         //{
         
     }
+    //var ground = this.matter.add.Bodies.rectangle(395, 600, 815, 50, { isStatic: true });
+    var rockOptions = { density: 0.004, isStatic: false};
+    var rockOptions2 = {isStatic: true, isSensor: true};
+    rock = this.matter.add.image(0, 0, randImg(sllist), rockOptions);
+    rock3 = this.matter.add.image(100, 100, randImg(sllist), rockOptions);
+    rock2 = this.matter.add.image(middleX, middleY, 'red',0, rockOptions2);
+    
+    var anchor = { x: middleX, y: middleY };
+    console.log(anchor)
+    console.log(anchor.x)
+    this.matter.add.constraint(rock,rock2,Math.floor(middleX/3),0.02);
+    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/2),0.02);
+    
+    
+    
 
+    
+    //var constraint = Phaser.Physics.Matter.Matter.Constraint.create({bodapointA: anchor
+    //    pointA: anchor.body,
+    //    bodyB: rock.body,
+    //    stiffness: 0.2
+    //});
+    console.log("HIASHDIHASD")
+    //this.matter.world.add(constraint);
+    
     this.matter.add.mouseSpring();
 
     var cursors = this.input.keyboard.createCursorKeys();
@@ -134,6 +195,7 @@ function create ()
     controls = new Phaser.Cameras.Controls.SmoothedKeyControl(controlConfig);
 
     this.input.keyboard.on('KEY_DOWN_Z', function (event) {
+         rock.setVelocity(randX(-200,200),randX(-200,200));
 
         this.cameras.main.rotation += 0.01;
 
@@ -170,14 +232,32 @@ function create ()
     f1.add(help, 'line1');
     f1.add(help, 'line2');
     //f1.add(help, 'line3');
-    f1.open();
+    f1.close();
 
+    timedEvent = this.time.addEvent({ delay: 4000, callback: onEvent, callbackScope: this, loop: true });  
+
+    graphics = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } });
+    
+    
 }
 
 function update (time, delta)
 {
     controls.update(delta);
+    
+    graphics.clear();
+
+    line = new Phaser.Geom.Line(rock.x, rock.y, rock2.x, rock2.y)
+    graphics.strokeLineShape(line);
+
+    graphics.fillStyle(0xaa0000);
 }
+function onEvent()
+    {
+        console.log("hej")
+        rock.setVelocity(randX(-200,200),randX(-200,200));
+    }
+    
 </script>
 </Body>
 </html>
