@@ -53,7 +53,7 @@ function changeThemeColor() {
     metaThemeColor.setAttribute("content", getRandomColor());
     setTimeout(function() {
         changeThemeColor();
-    }, 3000);
+    }, 4000);
  //   console.log('updated color')
 
 }
@@ -168,7 +168,7 @@ function create ()
     var rockOptions = { density: 0.001, isStatic: false};
     var rockOptions2 = {isStatic: true, isSensor: true};
     rock = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
-    rock3 = this.matter.add.image(worldHeight-100, worldWidth-100, randImg(sllist), rockOptions);
+    rock3 = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
     rock2 = this.matter.add.image(middleX, middleY, 'red',0, rockOptions2);
     
     var anchor = { x: middleX, y: middleY };
