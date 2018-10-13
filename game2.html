@@ -66,7 +66,7 @@ var config = {
     type: Phaser.WEBGL,
     width: window.innerWidth,
     height: window.innerHeight,
-    parent: 'phaser-example',
+    parent: 'game',
     pixelArt: true,
     physics: {
         default: 'matter',
@@ -91,11 +91,16 @@ var config = {
 function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
 }
+function randF(min, max) {
+    return Math.random() * (max - min) + min;
+}    
 var sllist = [
     'asa',
     'daniel',
     'maja',
     'carl',
+    'lollo',
+    'naes'
 ];
     
 var alpha = 0.3;
@@ -119,6 +124,8 @@ function preload ()
     this.load.image('daniel', 'img/daniel.png');
     this.load.image('asa', 'img/asa.png');
     this.load.image('red', 'img/red.png');
+    this.load.image('lollo', 'img/lollo.png');
+    this.load.image('naes', 'img/naes.png');
 }
     
     
@@ -307,6 +314,7 @@ function onEvent()
         graphics.clear();
         console.log("hej")
         rock.setVelocity(randX(-200,200),randX(-100,100));
+        this.matter.world.setGravity(randF(-1,1),randF(-1,1));
     }
     
 </script>

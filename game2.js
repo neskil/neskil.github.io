@@ -47,6 +47,8 @@ var config =   {
         this.load.image('purp', 'img/purp.png');
         this.load.image('green', 'img/green.png');
         this.load.image('daniel', 'img/daniel.png');
+        this.load.image('lollo', 'img/lollo.png');
+        this.load.image('naes', 'img/naes.png');
         
         this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
 
