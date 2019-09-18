@@ -40,6 +40,12 @@ var config =   {
 
     var game = new Phaser.Game(config);
 
+var emitter
+var emitter2
+var emitter3
+
+
+// FUNCITON PRELOAD ---------------------------------------------------------
     function preload ()
     {
        
@@ -77,97 +83,99 @@ var config =   {
 var particles4 = this.add.particles('flares');
 
 var emitter4 = particles4.createEmitter({
-        frame: 'blue',
-        x: 10,
-        y: 440,
+        frame: ['blue', 'red'],
+        x: 0,
+        y: 450,
         lifespan: 2000,
-        speed: { min: 200, max: 600 },
-        angle: 270+5,
+        speed: { min: 200, max: 700 },
+        angle: { min: 270 , max: 285 },
         gravityY: 400,
         scale: { start: 0.3, end: 0.1 },
         quantity: 1,
-        collideWorldBounds:true,
+        blendMode: 'ADD',
         bounce: 0.9,
-        collideBottom: false,
-        blendMode: 'ADD'
+        bounds: { x: 0, y: 0, w: xWidth, h: 450 },
+        collideTop: true,
+        collideBottom: true
 });
 
 var emitter4 = particles4.createEmitter({
-        frame: 'blue',
-        x: xWidth-20,
-        y: 440,
+        frame: ['blue', 'green'],
+        x: xWidth,
+        y: 450,
         lifespan: 2000,
-        speed: { min: 200, max: 600 },
-        angle: 270-5,
+        speed: { min: 200, max: 700 },
+        angle: { min: 255 , max: 270 },
         gravityY: 400,
         scale: { start: 0.3, end: 0.1 },
         quantity: 1,
-        blendMode: 'ADD'
+        blendMode: 'ADD',
+        bounce: 0.9,
+        bounds: { x: 0, y: 0, w: xWidth, h: 450 },
+        collideTop: true,
+        collideBottom: true
 });
         
         
-
-        var particles = this.add.particles('red');
+    var particles = this.add.particles('red');
         var particles2 = this.add.particles('purp');
         var particles3 = this.add.particles('green');
 
-        var emitter = particles.createEmitter({
+        emitter = particles.createEmitter({
             speed: 0,
             scale: { start: 0.3, end: 0 },
             x: 50,
             y: 50,
             blendMode: 'ADD'
         });
-        var emitter2 = particles2.createEmitter({
+        emitter2 = particles2.createEmitter({
             speed: 500,
             scale: { start: 0.2, end: 0.0 },
             x: 50,
             y: 50,
             blendMode: 'ADD'
         });
-        var emitter3 = particles3.createEmitter({
+        emitter3 = particles3.createEmitter({
             speed: 50,
             scale: { start: 0.5, end: 0 },
-            x: 50,
+            x: 400,
             y: 50,
             blendMode: 'ADD'
         });
 
-        carl = this.physics.add.sprite(0, 0, 'carl');
-        carl.setBounce(1)
+
+        carl = this.physics.add.sprite(0, 0, 'carl').setOrigin(0.5, 0.5);
+        carl.setVelocity(randX(-500,500), randX(-500,500));
+        carl.setBounce(1, 1);
         carl.setCollideWorldBounds(true);
-        carl.body.ignoreGravity = true;
-        carl.setVelocity(-300, 400);
-        //carl.displayOriginX = 0.5;
-        //carl.displayOriginY = 0.5;
-        carl.setScale(randY(0.4,0.7));
-        //carl.displayWidth = 100;
-        //carl.displayHeight = 100;
+        carl.displayOriginX = 0.5;
+        carl.displayOriginY = 0.5;
+        carl.setScale(randY(0.4,0.9));
         
-        maja = this.physics.add.sprite(0, 30, 'maja');
+        maja = this.physics.add.sprite(0, 30, 'maja').setOrigin(0.5, 0.5);
         maja.setVelocity(randX(-500,500), randX(-500,500));
         maja.setBounce(1, 1);
         maja.setCollideWorldBounds(true);
-        //maja.displayOriginX = 0.5;
-        //maja.displayOriginY = 0.5;
-        maja.setScale(randY(0.4,0.7));
-        //maja.displayWidth = 100;
-        //maja.displayHeight = 100;
+        maja.displayOriginX = 0.5;
+        maja.displayOriginY = 0.5;
+        maja.setScale(randY(0.4,0.9));
         
-        daniel = this.physics.add.sprite(xWidth, 30, 'daniel');
+        daniel = this.physics.add.sprite(xWidth, 30, 'daniel').setOrigin(0.5, 0.5);
         daniel.setVelocity(randX(-500,500), randX(-500,500));
         daniel.setBounce(1, 1);
         daniel.setCollideWorldBounds(true);
-        //daniel.displayOriginX = 0.5;
-        //daniel.displayOriginY = 0.5;
-        daniel.setScale(randY(0.4,0.7));
+        daniel.displayOriginX = 0.5;
+        daniel.displayOriginY = 0.5;
+        daniel.orignX = 0.5;
+        daniel.setScale(randY(0.4,0.9));
         //daniel.displayWidth = 100;
         //daniel.displayHeight = 130;
 
+    
         
-        emitter.startFollow(carl);
-        emitter2.startFollow(maja);
-        emitter3.startFollow(daniel);
+        //emitter.startFollow(carl);
+        //emitter2.startFollow(maja);
+        //emitter3.startFollow(daniel);
         
         
         cursors = this.input.keyboard.createCursorKeys();
@@ -182,6 +190,7 @@ var emitter4 = particles4.createEmitter({
             maja.setScale(randY(0.2,0.7));
             daniel.setScale(randY(0.2,0.7));
             carl.setScale(randY(0.2,0.7));
+
             
             ;}, this);
         
@@ -221,25 +230,23 @@ var emitter4 = particles4.createEmitter({
         emitter10.explode();
         emitter11.explode();
     });
+        
+        
 this.physics.add.collider(daniel, maja);
 this.physics.add.collider(maja, carl);              
 this.physics.add.collider(carl, daniel);              
-        
-//this.physics.add.collider(daniel,maja,carl);
 
+        
 //Slut av Funciton Create
 }
 
 function update (){
-    
-//if (cursors.up.isDown)
-//{
-//maja.setVelocityY(-200);
-//daniel.setVelocityY(500);
-//carl.setVelocityY(-500);
-//}
 
     
+    emitter.setPosition(carl.x+(carl.displayWidth/2), carl.y+(carl.displayHeight/2));
+    emitter2.setPosition(maja.x+(maja.displayWidth/2), maja.y+(maja.displayHeight/2));
+    emitter3.setPosition(daniel.x+(daniel.displayWidth/2), daniel.y+(daniel.displayHeight/2));
+
     
 }
 
