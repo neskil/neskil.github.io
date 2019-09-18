@@ -84,9 +84,11 @@ var config = {
     }
 };
 
-    function randImg(listan) {
-    var randomNumber = Math.floor(Math.random()*listan.length);
-    return listan[randomNumber];  
+function randImg(items) {
+    //var randomNumber = Math.floor(Math.random()*listan.length);
+    //return listan[randomNumber];
+    var item = items[Math.floor(Math.random()*items.length)];
+    return item
 }
 function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
@@ -100,7 +102,11 @@ var sllist = [
     'maja',
     'carl',
     'lollo',
-    'naes'
+    'naes',
+    'bild1',
+    'bild2',
+    'bild3',
+    'bild4',
 ];
     
 var alpha = 0.3;
@@ -126,6 +132,11 @@ function preload ()
     this.load.image('red', 'img/red.png');
     this.load.image('lollo', 'img/lollo.png');
     this.load.image('naes', 'img/naes.png');
+    
+    this.load.image('bild1', 'img/bild1.png');
+    this.load.image('bild2', 'img/bild2.png');
+    this.load.image('bild3', 'img/bild3.png');
+    this.load.image('bild4', 'img/bild4.png');
 }
     
     
@@ -138,7 +149,7 @@ function create ()
     var worldWidth = window.innerWidth;
     var worldHeight = window.innerHeight;
     
-    var antal = Math.floor((window.innerWidth*window.innerHeight)/35000);
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/13000);
 
     this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
     
@@ -155,10 +166,13 @@ function create ()
     {
         var x = Phaser.Math.Between(0, worldWidth);
         var y = Phaser.Math.Between(0, worldHeight);
+       
+        var sizeVar = randF(0.3, 1.1)
+         console.log(sizeVar)
         //var width = Phaser.Math.Between(16, 128);
         //var height = Phaser.Math.Between(8, 64);
 
-        this.matter.add.image(x, y, randImg(sllist), { restitution: 0.9 });
+        this.matter.add.image(x, y, randImg(sllist), { restitution: 0.9 }).setScale(sizeVar);
         
         //if (Math.random() < 0.7)
         //{
