@@ -81,7 +81,7 @@ a:hover {
 #wrapper {
 	width:969px;
 	margin:0 auto;
-	margin-top:60px;
+	margin-top:30px;
 	margin-bottom:100px;
 }
 
@@ -733,20 +733,34 @@ label.error {
 
 
 /* Reset */
+
+.testdiv {
+    
+ animation: focus-in-expand 2s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
 .testing {
+
+
   background: transparent;
   border: 0;
   padding: 0;
   cursor: pointer;
   outline: 0;
   -webkit-appearance: none;
+
+
 }
 
 /* Custom */
 .testing {
-  display: inline-block;
+
+  display: inline-;
   position: relative;
-  padding: 10px 20px;
+  /* padding: 10px 20px;*/
+    width: 100%;
+    margin: auto;
+    padding-top: 15px;
+    padding-bottom: 15px;
   top: 0;
   font-size: 15px;
   font-family: "Open Sans", Helvetica;
@@ -757,34 +771,212 @@ label.error {
   color: #fff;
   box-shadow: 0px 0px 0px rgba(123, 144, 181, 0.38);
   
-  -webkit-transform: translateZ(0);
-     -moz-transform: translateZ(0);
-      -ms-transform: translateZ(0);
-          transform: translateZ(0);
+
   
-  -webkit-transition: all 0.2s ease;
-     -moz-transition: all 0.2s ease;
-      -ms-transition: all 0.2s ease;
-          transition: all 0.2s ease;
+  -webkit-transition: all 3s ease;
+     -moz-transition: all 3s ease;
+      -ms-transition: all 3s ease;
+          transition: all 3s ease;
     
     -webkit-user-select: none; /* Safari */        
-    -moz-user-select: none; /* Firefox */
-    -ms-user-select: none; /* IE10+/Edge */
+    
+    /*-moz-user-select: none; /* Firefox */
+    /*-ms-user-select: none; /* IE10+/Edge */
     user-select: none; /* Standard */
+
 }
 
 .testing:hover {
-  top: -6px;
+  /*top: -6px;*/
   box-shadow: 0px 4px 10px rgba(168, 195, 242, 0.55);
+    
+    -webkit-animation: jello-horizontal 1.2s cubic-bezier(0.645, 0.045, 0.355, 1.000) infinite both;
+	animation: jello-horizontal 1s cubic-bezier(0.645, 0.045, 0.355, 1.000) infinite both;
+    
+	/*-webkit-animation: vibrate-1 0.3s linear infinite both;
+	        animation: vibrate-1 0.3s linear infinite both;*/
   
-  -webkit-transform: rotateX(20deg);
-     -moz-transform: rotateX(20deg);
-      -ms-transform: rotateX(20deg);
-          transform: rotateX(20deg);
+ /* -webkit-transform: rotateZ(-50deg);
+     -moz-transform: rotateZ(-50deg);
+      -ms-transform: rotateZ(-50deg);
+        transition: all 0.2s ease;
+          transition: rotateZ(350deg);*/
 }
 
 .testing:active {
   top: 0px;
   box-shadow: 0px 0px 0px rgba( 15, 165, 60, 0.0 );
   background: #2eb4bf;
+}
+
+#but-div {
+ animation: focus-in-expand 5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+    margin: auto;
+    margin-top: 30px;
+    width: 828px;
+
+}
+
+#form-div-text {
+
+    margin: auto;
+    width: 80%;
+}
+
+
+@-webkit-keyframes jello-horizontal {
+  0% {
+    -webkit-transform: scale3d(1, 1, 1);
+            transform: scale3d(1, 1, 1);
+  }
+  30% {
+    -webkit-transform: scale3d(1.25, 0.75, 1);
+            transform: scale3d(1.25, 0.75, 1);
+  }
+  40% {
+    -webkit-transform: scale3d(0.75, 1.25, 1);
+            transform: scale3d(0.75, 1.25, 1);
+  }
+  50% {
+    -webkit-transform: scale3d(1.15, 0.85, 1);
+            transform: scale3d(1.15, 0.85, 1);
+  }
+  65% {
+    -webkit-transform: scale3d(0.95, 1.05, 1);
+            transform: scale3d(0.95, 1.05, 1);
+  }
+  75% {
+    -webkit-transform: scale3d(1.05, 0.95, 1);
+            transform: scale3d(1.05, 0.95, 1);
+  }
+  100% {
+    -webkit-transform: scale3d(1, 1, 1);
+            transform: scale3d(1, 1, 1);
+  }
+}
+@keyframes jello-horizontal {
+  0% {
+    -webkit-transform: scale3d(1, 1, 1);
+            transform: scale3d(1, 1, 1);
+  }
+  30% {
+    -webkit-transform: scale3d(1.25, 0.75, 1);
+            transform: scale3d(1.25, 0.75, 1);
+  }
+  40% {
+    -webkit-transform: scale3d(0.75, 1.25, 1);
+            transform: scale3d(0.75, 1.25, 1);
+  }
+  50% {
+    -webkit-transform: scale3d(1.15, 0.85, 1);
+            transform: scale3d(1.15, 0.85, 1);
+  }
+  65% {
+    -webkit-transform: scale3d(0.95, 1.05, 1);
+            transform: scale3d(0.95, 1.05, 1);
+  }
+  75% {
+    -webkit-transform: scale3d(1.05, 0.95, 1);
+            transform: scale3d(1.05, 0.95, 1);
+  }
+  100% {
+    -webkit-transform: scale3d(1, 1, 1);
+            transform: scale3d(1, 1, 1);
+  }
+}
+
+
+
+
+
+@-webkit-keyframes vibrate-1 {
+  0% {
+    -webkit-transform: translate(0);
+            transform: translate(0);
+  }
+  20% {
+    -webkit-transform: translate(-2px, 2px);
+            transform: translate(-2px, 2px);
+  }
+  40% {
+    -webkit-transform: translate(-2px, -2px);
+            transform: translate(-2px, -2px);
+  }
+  60% {
+    -webkit-transform: translate(2px, 2px);
+            transform: translate(2px, 2px);
+  }
+  80% {
+    -webkit-transform: translate(2px, -2px);
+            transform: translate(2px, -2px);
+  }
+  100% {
+    -webkit-transform: translate(0);
+            transform: translate(0);
+  }
+}
+@keyframes vibrate-1 {
+  0% {
+    -webkit-transform: translate(0);
+            transform: translate(0);
+  }
+  20% {
+    -webkit-transform: translate(-2px, 2px);
+            transform: translate(-2px, 2px);
+  }
+  40% {
+    -webkit-transform: translate(-2px, -2px);
+            transform: translate(-2px, -2px);
+  }
+  60% {
+    -webkit-transform: translate(2px, 2px);
+            transform: translate(2px, 2px);
+  }
+  80% {
+    -webkit-transform: translate(2px, -2px);
+            transform: translate(2px, -2px);
+  }
+  100% {
+    -webkit-transform: translate(0);
+            transform: translate(0);
+  }
+}
+
+/* ----------------------------------------------
+ * Generated by Animista on 2019-9-18 14:8:20
+ * Licensed under FreeBSD License.
+ * See http://animista.net/license for more info. 
+ * w: http://animista.net, t: @cssanimista
+ * ---------------------------------------------- */
+
+/**
+ * ----------------------------------------
+ * animation focus-in-expand
+ * ----------------------------------------
+ */
+@-webkit-keyframes focus-in-expand {
+  0% {
+    letter-spacing: -0.5em;
+    -webkit-filter: blur(12px);
+            filter: blur(12px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-filter: blur(0px);
+            filter: blur(0px);
+    opacity: 1;
+  }
+}
+@keyframes focus-in-expand {
+  0% {
+    letter-spacing: -0.5em;
+    -webkit-filter: blur(12px);
+            filter: blur(12px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-filter: blur(0px);
+            filter: blur(0px);
+    opacity: 1;
+  }
 }
