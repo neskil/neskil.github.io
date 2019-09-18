@@ -41,7 +41,7 @@ var config =   {
        
         this.load.setBaseURL('http://neskilsson.se');
         this.load.image('sky', 'img/designer-photo.jpg');
-        this.load.image('maja', 'img/maja.png');
+        this.load.image('maja', 'img/bild1.png');
         this.load.image('carl', 'img/carl.png');
         this.load.image('red', 'img/red.png');
         this.load.image('purp', 'img/purp.png');
