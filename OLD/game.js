@@ -3,6 +3,10 @@ function randX(min, max) {
     return Math.floor(Math.random() * (max - min) ) + min;
 }
 
+function randY(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
 //Screen width
 var xWidth = 500
 
@@ -42,11 +46,11 @@ var config =   {
         this.load.setBaseURL('http://neskilsson.se');
         this.load.image('sky', 'img/designer-photo.jpg');
         this.load.image('maja', 'img/bild1.png');
-        this.load.image('carl', 'img/carl.png');
+        this.load.image('carl', 'img/bild2.png');
         this.load.image('red', 'img/red.png');
         this.load.image('purp', 'img/purp.png');
         this.load.image('green', 'img/green.png');
-        this.load.image('daniel', 'img/daniel.png');
+        this.load.image('daniel', 'img/bild3.png');
         
         this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
         this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
@@ -130,36 +134,35 @@ var emitter4 = particles4.createEmitter({
         });
 
         carl = this.physics.add.sprite(0, 0, 'carl');
-        carl.displayOriginX = -20;
-        carl.displayOriginY = 20;
-        carl.displayWidth = 100;
-        carl.displayHeight = 100;
-        carl.setBounce(1).setCollideWorldBounds(true);
+        carl.setBounce(1)
+        carl.setCollideWorldBounds(true);
         carl.body.ignoreGravity = true;
         carl.setVelocity(-300, 400);
+        carl.displayOriginX = 0.5;
+        carl.displayOriginY = 0.5;
+        carl.setScale(.5);
+        //carl.displayWidth = 100;
+        //carl.displayHeight = 100;
         
         maja = this.physics.add.sprite(0, 30, 'maja');
-        daniel = this.physics.add.sprite(xWidth, 30, 'daniel');
-
-
-        
-        
         maja.setVelocity(randX(-500,500), randX(-500,500));
         maja.setBounce(1, 1);
         maja.setCollideWorldBounds(true);
-        maja.displayOriginX = 0;
-        maja.displayOriginY = 0;
-        maja.displayWidth = 100;
-        maja.displayHeight = 100;
+        maja.displayOriginX = 0.5;
+        maja.displayOriginY = 0.5;
+        maja.setScale(.5);
+        //maja.displayWidth = 100;
+        //maja.displayHeight = 100;
         
-        
+        daniel = this.physics.add.sprite(xWidth, 30, 'daniel');
         daniel.setVelocity(randX(-500,500), randX(-500,500));
         daniel.setBounce(1, 1);
         daniel.setCollideWorldBounds(true);
-        daniel.displayOriginX = 0;
-        daniel.displayOriginY = 0;
-        daniel.displayWidth = 100;
-        daniel.displayHeight = 130;
+        daniel.displayOriginX = 0.5;
+        daniel.displayOriginY = 0.5;
+        daniel.setScale(.5);
+        //daniel.displayWidth = 100;
+        //daniel.displayHeight = 130;
 
         
         emitter.startFollow(carl);
@@ -175,6 +178,10 @@ var emitter4 = particles4.createEmitter({
             daniel.setVelocity(randX(-500,500),-randX(-500,500));
 
             carl.setVelocity(randX(-800,800),randX(-800,800));
+            
+            maja.setScale(randY(0.2,0.7));
+            daniel.setScale(randY(0.2,0.7));
+            carl.setScale(randY(0.2,0.7));
             
             ;}, this);
         
