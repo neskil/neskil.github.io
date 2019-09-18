@@ -156,6 +156,7 @@ a:hover {
 	padding-top:55px;
 	clear: both;
 	margin-left:4px;
+
 }
 
 h1  {
@@ -164,7 +165,6 @@ h1  {
 	color:#1b4491;
 	margin-bottom:3px;
 	clear:both;
-    animation: focus-in-expand 5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
 }
 
 h1 span {
@@ -206,6 +206,7 @@ div.content {
 	overflow: hidden;
 	display:block;
 	padding-top:32px;
+        animation: focus-in-expand 3s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
 }
 
 h3 {
@@ -387,7 +388,7 @@ ul.works li img:hover {
 }
 
 img.portrait {
-    animation: focus-in-expand 2s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+    animation: focus-in-expand 3s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
 	background-image:url(../images/frame.jpg);
 	background-repeat: no-repeat;
 	width:109px;
