@@ -187,9 +187,9 @@ var emitter4 = particles4.createEmitter({
 
             carl.setVelocity(randX(-800,800),randX(-800,800));
             
-            maja.setScale(randY(0.2,0.7));
-            daniel.setScale(randY(0.2,0.7));
-            carl.setScale(randY(0.2,0.7));
+            maja.setScale(randY(0.2,0.9));
+            daniel.setScale(randY(0.2,0.9));
+            carl.setScale(randY(0.2,0.9));
 
             
             ;}, this);
