@@ -23,6 +23,12 @@
 
           gtag('config', 'UA-65179286-3');
         </script>
+    <!-- Chrome, Firefox OS and Opera -->
+    <meta name="theme-color" content="#00ff80">
+    <!-- Windows Phone -->
+    <meta name="msapplication-navbutton-color" content="#00ff80">
+    <!-- iOS Safari -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="#00ff80">
     <link rel="apple-touch-icon" sizes="180x180" href="/OLD/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/OLD/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/OLD/favicon-16x16.png">
@@ -42,6 +48,8 @@ function getRandomColor() {
     return "#" + (((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1));
 }
 
+
+        
 function changeThemeColor() {
     var metaThemeColor = document.querySelector("meta[name=theme-color]");
     metaThemeColor.setAttribute("content", getRandomColor());
@@ -52,6 +60,8 @@ function changeThemeColor() {
 }
 changeThemeColor();
         </script>
+        
+        
 	</head>
 	<body>
 
