@@ -56,7 +56,7 @@ var emitter3
         this.load.image('red', 'img/red.png');
         this.load.image('purp', 'img/purp.png');
         this.load.image('green', 'img/green.png');
-        this.load.image('daniel', 'img/bild3.png');
+        this.load.image('daniel', 'img/bild4.png');
         
         this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
         this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
