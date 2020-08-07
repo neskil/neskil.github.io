@@ -57,6 +57,7 @@ var emitter3
         this.load.image('purp', 'img/purp.png');
         this.load.image('green', 'img/green.png');
         this.load.image('daniel', 'img/bild4.png');
+        this.load.image('spark1', 'img/bild4.png');
         
         this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
         this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
@@ -223,12 +224,15 @@ var emitter4 = particles4.createEmitter({
         gravityY: 1200,
         quantity: 30
     });
+        
+
 
     this.input.on('pointerdown', function (pointer) {
         emitter10.setPosition(pointer.x, pointer.y);
         emitter11.setPosition(pointer.x, pointer.y);
         emitter10.explode();
         emitter11.explode();
+
     });
         
         
