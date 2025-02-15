@@ -49,7 +49,7 @@ var emitter3
     function preload ()
     {
        
-        this.load.setBaseURL('http://neskilsson.se');
+        this.load.setBaseURL('https://neskil.github.io');
         this.load.image('sky', 'img/designer-photo.jpg');
         this.load.image('maja', 'img/bild1.png');
         this.load.image('carl', 'img/bild2.png');

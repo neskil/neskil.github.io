@@ -39,7 +39,7 @@ var config =   {
     function preload ()
     {
        
-        this.load.setBaseURL('http://neskilsson.se');
+        this.load.setBaseURL('https://neskil.github.io');
         this.load.image('sky', 'img/designer-photo.jpg');
         this.load.image('maja', 'img/maja.png');
         this.load.image('carl', 'img/carl.png');
