@@ -366,6 +366,27 @@
         const itemsPerPage = 60;
         let filteredGames = [];
 
+        const genreBackgrounds = {
+            "Action Adventure": "../images/genres/action_adventure.png",
+            "Co-op Party Multiplayer": "../images/genres/coop_party.png",
+            "Fighting Beat Em Up": "../images/genres/fighting.png",
+            "Horror Survival": "../images/genres/horror_survival.png",
+            "Indie Puzzle Experimental": "../images/genres/indie_puzzle.png",
+            "Narrative Walking Sim": "../images/genres/narrative_walking.png",
+            "Open World Sandbox": "../images/genres/open_world.png",
+            "Platformer Precision": "../images/genres/platformer_precision.png",
+            "Racing Sports Driving": "../images/genres/racing_sports.png",
+            "Retro Classic": "../images/genres/retro_classic.png",
+            "Roguelike Roguelite": "../images/genres/roguelike_roguelite.png",
+            "RPG Story Rich": "../images/genres/rpg_story_rich.png",
+            "RTS Grand Strategy": "../images/genres/rts_grand_strategy.png",
+            "Shooter FPS Tactical": "../images/genres/shooter_fps.png",
+            "Simulation Builder Tycoon": "../images/genres/simulation_builder.png",
+            "Soulslike Hardcore Combat": "../images/genres/soulslike.png",
+            "Turn-Based Strategy Tactics": "../images/genres/turn_based_tactics.png"
+        };
+
+
         // --- DOM ELEMENTS ---
         const gameContainer = document.getElementById('gameContainer');
         const statsDisplay = document.getElementById('statsDisplay');
@@ -429,15 +450,10 @@
         function handleImageError(img, category, title) {
             img.onerror = null; // Prevent infinite loop
             
-            const genreBackgrounds = {
-                "Action Adventure": "../images/genres/action_adventure.png",
-                "Co-op Party Multiplayer": "../images/genres/coop_party.png",
-                "Fighting Beat Em Up": "../images/genres/fighting.png"
-            };
-            
             const fallbackBg = genreBackgrounds[category] || "../images/genres/action_adventure.png";
             
             img.src = fallbackBg;
+
             
             const container = img.parentElement;
             container.classList.add('has-fallback');
@@ -468,16 +484,18 @@
             scoreEl.className = 'card-score ' + getScoreClass(game.score);
 
             const encodedTitle = encodeURIComponent(game.title);
-            const imageUrl = game.imgUrl || "../images/genres/action_adventure.png";
+            const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "../images/genres/action_adventure.png");
             
-            imgContainer.innerHTML = `<img src="${imageUrl}" alt="${game.title}" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');">`;
-            
-            if (!game.imgUrl) {
-                setTimeout(() => {
-                    const img = imgContainer.querySelector('img');
-                    if (img) handleImageError(img, game.category, game.title);
-                }, 50);
-            }
+            let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
+            let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
+
+            imgContainer.innerHTML = `
+                <div class="${fallbackClass}" style="position: relative; width: 100%; height: 100%;">
+                    <img src="${imageUrl}" alt="${game.title}" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');" style="width:100%; height:100%; object-fit:cover;">
+                    ${fallbackTitleHTML}
+                </div>
+            `;
+
 
             // Populate Feature Tags in Modal
             const featuresContainer = document.getElementById('modalFeatures');
@@ -578,7 +596,11 @@
                 card.onclick = () => openModal(game);
                 
                 const encodedTitle = encodeURIComponent(game.title);
-                const imageUrl = game.imgUrl || `https://placehold.co/400x300/222222/FFFFFF?text=${encodedTitle}`;
+                const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "../images/genres/action_adventure.png");
+                
+                let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
+                let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
+
 
                 // Tiny feature icons for the card view
                 let iconsHTML = '';
@@ -589,7 +611,11 @@
                 if (game.controller) iconsHTML += '<span title="Controller Supported">🎮</span>';
 
                 card.innerHTML = `
-                    <div class="card-image"><img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');"></div>
+                    <div class="card-image ${fallbackClass}">
+                        <img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');">
+                        ${fallbackTitleHTML}
+                    </div>
+
                     <div class="card-content">
                         <div class="card-category">${game.category}</div>
                         <div class="card-header">
