@@ -51,7 +51,17 @@
             border: 1px solid var(--border-color);
         }
 
+        @media (min-width: 1024px) {
+            .controls-container {
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            }
+        }
+
         .controls {
+
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
@@ -196,7 +206,7 @@
         /* Grid View */
         .view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
         .view-grid .card { flex-direction: column; }
-        .view-grid .card-image { height: 320px; width: 100%; border-bottom: 1px solid var(--border-color); }
+        .view-grid .card-image { height: 250px; width: 100%; border-bottom: 1px solid var(--border-color); }
 
         /* List View */
         .view-list { display: flex; flex-direction: column; gap: 12px; }
@@ -210,6 +220,8 @@
         .view-list .card-genre { width: 180px; font-size: 0.95em; color: var(--text-color); opacity: 0.7; margin: 0; }
         .view-list .card-desc { display: none; }
         .view-list .fallback-title { display: none; }
+        .view-list .card-image.has-fallback::after { background: rgba(0,0,0,0.25); }
+
 
 
 
@@ -229,8 +241,18 @@
             position: absolute;
             bottom: 12px;
             right: 15px;
-            opacity: 0.8;
+            opacity: 0.9;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            padding: 4px 8px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        body.dark-mode .card-icons {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
 
         .card-score { background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
         .score-high { background: #d4edda; color: #155724; }
@@ -314,6 +336,12 @@
                 <option value="score_desc">Score: Highest First</option>
                 <option value="score_asc">Score: Lowest First</option>
             </select>
+
+            <div class="view-toggles" style="margin-bottom: 0;">
+                <button id="btnGrid" class="active">Grid View</button>
+                <button id="btnList">List View</button>
+                <button id="btnDark">🌙 Dark Mode</button>
+            </div>
         </div>
         
         <div class="feature-filters">
@@ -322,12 +350,6 @@
             <label><input type="checkbox" id="chkLocal" value="localCoop"> 🛋️ Local Co-op</label>
             <label><input type="checkbox" id="chkOnline" value="onlineCoop"> 🌐 Online Co-op</label>
             <label><input type="checkbox" id="chkController" value="controller"> 🎮 Controller</label>
-        </div>
-
-        <div class="view-toggles">
-            <button id="btnGrid" class="active">Grid View</button>
-            <button id="btnList">List View</button>
-            <button id="btnDark">🌙 Dark Mode</button>
         </div>
     </div>
 
@@ -387,7 +409,28 @@
         };
 
 
+        const categoryColors = {
+            "Action Adventure": "rgba(220, 53, 69, 0.3)",
+            "Co-op Party Multiplayer": "rgba(40, 167, 69, 0.3)",
+            "Fighting Beat Em Up": "rgba(253, 126, 20, 0.3)",
+            "Horror Survival": "rgba(102, 16, 242, 0.3)",
+            "Indie Puzzle Experimental": "rgba(23, 162, 184, 0.3)",
+            "Narrative Walking Sim": "rgba(232, 62, 140, 0.3)",
+            "Open World Sandbox": "rgba(255, 193, 7, 0.3)",
+            "Platformer Precision": "rgba(111, 66, 193, 0.3)",
+            "Racing Sports Driving": "rgba(32, 201, 151, 0.3)",
+            "Retro Classic": "rgba(108, 117, 125, 0.3)",
+            "Roguelike Roguelite": "rgba(220, 53, 69, 0.3)",
+            "RPG Story Rich": "rgba(0, 123, 255, 0.3)",
+            "RTS Grand Strategy": "rgba(21, 87, 36, 0.3)",
+            "Shooter FPS Tactical": "rgba(147, 43, 43, 0.3)",
+            "Simulation Builder Tycoon": "rgba(64, 165, 120, 0.3)",
+            "Soulslike Hardcore Combat": "rgba(100, 100, 100, 0.3)",
+            "Turn-Based Strategy Tactics": "rgba(74, 20, 140, 0.3)"
+        };
+
         // --- DOM ELEMENTS ---
+
         const gameContainer = document.getElementById('gameContainer');
         const statsDisplay = document.getElementById('statsDisplay');
         const searchInput = document.getElementById('searchInput');
@@ -612,8 +655,10 @@
                 card.innerHTML = `
                     <div class="card-image ${fallbackClass}">
                         <img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');">
+                        <div class="color-overlay" style="background-color: ${categoryColors[game.category] || 'transparent'}; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color; z-index: 0;"></div>
                         ${fallbackTitleHTML}
                     </div>
+
 
                     <div class="card-content">
                         <div class="card-category">${game.category}</div>
