@@ -200,14 +200,18 @@
 
         /* List View */
         .view-list { display: flex; flex-direction: column; gap: 12px; }
-        .view-list .card { flex-direction: row; align-items: stretch; height: 100px; }
-        .view-list .card-image { width: 75px; min-width: 75px; border-right: 1px solid var(--border-color); }
-        .view-list .card-content { flex-direction: row; align-items: center; padding: 10px 20px; }
-        .view-list .card-category { width: 150px; border-right: 1px solid var(--border-color); margin-right: 15px; border-bottom: none; padding-bottom: 0; }
-        .view-list .card-header { width: 250px; margin-bottom: 0; margin-right: 15px; }
-        .view-list .card-genre { width: 200px; margin-bottom: 0; margin-right: 15px; }
+        .view-list .card { flex-direction: row; align-items: stretch; min-height: 80px; height: auto; }
+        .view-list .card-image { width: 80px; min-width: 80px; border-right: 1px solid var(--border-color); position: relative; }
+        .view-list .card-content { display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex: 1; padding: 10px 20px; flex-wrap: wrap; gap: 15px; }
+        .view-list .card-category { width: 160px; font-weight: 600; font-size: 0.9em; opacity: 0.8; margin: 0; padding: 0; border: none; }
+        .view-list .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 1; min-width: 250px; margin: 0; }
+        .view-list .card-header > div { flex: 1; min-width: 0; }
+        .view-list .card-title { font-size: 1.1em; white-space: normal; word-break: break-word; margin: 0; }
+        .view-list .card-genre { width: 180px; font-size: 0.95em; color: var(--text-color); opacity: 0.7; margin: 0; }
         .view-list .card-desc { display: none; }
-        .view-list .card-icons { display: none; }
+        .view-list .fallback-title { display: none; }
+
+
 
         /* Typography */
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
@@ -571,7 +575,7 @@
         function renderPage() {
             gameContainer.innerHTML = '';
             startIndex = 0;
-            statsDisplay.textContent = `Showing ${filteredGames.length} of ${gameLibrary.length} games`;
+            statsDisplay.textContent = `Showing 0 of ${filteredGames.length} games`;
 
             if (filteredGames.length === 0) {
                 gameContainer.innerHTML = '<div style="text-align:center; padding: 40px; grid-column: 1/-1;">No games found matching these filters.</div>';
@@ -629,6 +633,7 @@
             });
             
             startIndex += itemsPerPage;
+            statsDisplay.textContent = `Showing ${Math.min(startIndex, filteredGames.length)} of ${filteredGames.length} games`;
         }
 
         // Infinite Scroll Observer
