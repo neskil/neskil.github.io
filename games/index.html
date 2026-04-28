@@ -330,11 +330,7 @@
     <div class="stats" id="statsDisplay">Loading games...</div>
     <div id="gameContainer" class="view-grid"></div>
 
-    <div class="pagination" id="paginationControls" style="display: none;">
-        <button id="btnPrev">Previous</button>
-        <span id="pageIndicator">Page 1 of 1</span>
-        <button id="btnNext">Next</button>
-    </div>
+    <div id="scrollSentinel" style="height: 20px; margin-bottom: 50px;"></div>
 
     <div class="modal-overlay" id="gameModal">
         <div class="modal">
@@ -355,7 +351,7 @@
         </div>
     </div>
 
-    <script src="data.js"></script>
+    <script src="data.js?v=202604281"></script>
     <script>
         if (typeof gameLibrary === 'undefined') {
             document.getElementById('gameContainer').innerHTML = '<div style="color:red; text-align:center;">Error: data.js not found. Ensure both files are in the same folder.</div>';
@@ -402,10 +398,7 @@
         const chkOnline = document.getElementById('chkOnline');
         const chkController = document.getElementById('chkController');
         
-        const btnPrev = document.getElementById('btnPrev');
-        const btnNext = document.getElementById('btnNext');
-        const pageIndicator = document.getElementById('pageIndicator');
-        const paginationControls = document.getElementById('paginationControls');
+
 
         // Modal Elements
         const modalOverlay = document.getElementById('gameModal');
@@ -573,23 +566,26 @@
             renderPage();
         }
 
+        let startIndex = 0;
+
         function renderPage() {
             gameContainer.innerHTML = '';
-            
-            const totalPages = Math.ceil(filteredGames.length / itemsPerPage);
+            startIndex = 0;
             statsDisplay.textContent = `Showing ${filteredGames.length} of ${gameLibrary.length} games`;
 
             if (filteredGames.length === 0) {
                 gameContainer.innerHTML = '<div style="text-align:center; padding: 40px; grid-column: 1/-1;">No games found matching these filters.</div>';
-                paginationControls.style.display = 'none';
                 return;
             }
 
-            // Pagination Math
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = startIndex + itemsPerPage;
-            const gamesToShow = filteredGames.slice(startIndex, endIndex);
+            loadMoreGames();
+        }
 
+        function loadMoreGames() {
+            if (startIndex >= filteredGames.length) return;
+            
+            const gamesToShow = filteredGames.slice(startIndex, startIndex + itemsPerPage);
+            
             gamesToShow.forEach(game => {
                 const card = document.createElement('div');
                 card.className = 'card';
@@ -600,7 +596,6 @@
                 
                 let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
                 let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
-
 
                 // Tiny feature icons for the card view
                 let iconsHTML = '';
@@ -632,21 +627,19 @@
                 `;
                 gameContainer.appendChild(card);
             });
-
-            // Update Pagination UI
-            if(totalPages > 1) {
-                paginationControls.style.display = 'flex';
-                pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
-                btnPrev.disabled = currentPage === 1;
-                btnNext.disabled = currentPage === totalPages;
-            } else {
-                paginationControls.style.display = 'none';
-            }
+            
+            startIndex += itemsPerPage;
         }
 
-        // Pagination Buttons
-        btnPrev.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderPage(); window.scrollTo(0,0); } });
-        btnNext.addEventListener('click', () => { const totalPages = Math.ceil(filteredGames.length / itemsPerPage); if(currentPage < totalPages) { currentPage++; renderPage(); window.scrollTo(0,0); } });
+        // Infinite Scroll Observer
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                loadMoreGames();
+            }
+        }, { rootMargin: '400px' });
+        
+        const sentinel = document.getElementById('scrollSentinel');
+        if (sentinel) observer.observe(sentinel);
 
         // Event Listeners for Filters
         searchInput.addEventListener('input', applyFiltersAndSort);
