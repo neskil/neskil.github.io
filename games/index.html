@@ -164,6 +164,34 @@
         }
 
         .card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        /* Fallback Styles */
+        .card-image { position: relative; }
+        .card-image.has-fallback::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8));
+            z-index: 1;
+        }
+        .fallback-title {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 15px;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            word-break: break-word;
+            line-height: 1.2;
+            z-index: 2;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
 
         /* Grid View */
         .view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
@@ -398,6 +426,29 @@
         });
 
         // --- HELPER FUNCTIONS ---
+        function handleImageError(img, category, title) {
+            img.onerror = null; // Prevent infinite loop
+            
+            const genreBackgrounds = {
+                "Action Adventure": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80",
+                "Co-op Party Multiplayer": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80",
+                "Fighting Beat Em Up": "https://images.unsplash.com/photo-1553481187-be93c21490a9?auto=format&fit=crop&w=600&q=80"
+            };
+            
+            const fallbackBg = genreBackgrounds[category] || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80";
+            
+            img.src = fallbackBg;
+            
+            const container = img.parentElement;
+            container.classList.add('has-fallback');
+            
+            if (!container.querySelector('.fallback-title')) {
+                const titleEl = document.createElement('div');
+                titleEl.className = 'fallback-title';
+                titleEl.textContent = title;
+                container.appendChild(titleEl);
+            }
+        }
         function getScoreClass(score) {
             if (score === "TBD" || score === "N/A") return "score-tbd";
             const num = parseInt(score);
@@ -416,12 +467,16 @@
             scoreEl.textContent = game.score;
             scoreEl.className = 'card-score ' + getScoreClass(game.score);
 
-            const imgContainer = document.getElementById('modalImageContainer');
-            if (game.imgUrl) {
-                imgContainer.innerHTML = `<img src="${game.imgUrl}" alt="${game.title}" onerror="this.onerror=null; this.src='https://placehold.co/400x400/222222/FFFFFF?text=' + encodeURIComponent('${game.title.replace(/'/g, "\\'")}');">`;
-            } else {
-                const encodedTitle = encodeURIComponent(game.title);
-                imgContainer.innerHTML = `<img src="https://placehold.co/400x400/222222/FFFFFF?text=${encodedTitle}" alt="Placeholder">`;
+            const encodedTitle = encodeURIComponent(game.title);
+            const imageUrl = game.imgUrl || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80";
+            
+            imgContainer.innerHTML = `<img src="${imageUrl}" alt="${game.title}" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');">`;
+            
+            if (!game.imgUrl) {
+                setTimeout(() => {
+                    const img = imgContainer.querySelector('img');
+                    if (img) handleImageError(img, game.category, game.title);
+                }, 50);
             }
 
             // Populate Feature Tags in Modal
@@ -534,7 +589,7 @@
                 if (game.controller) iconsHTML += '<span title="Controller Supported">🎮</span>';
 
                 card.innerHTML = `
-                    <div class="card-image"><img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/400x300/222222/FFFFFF?text=' + encodeURIComponent('${game.title.replace(/'/g, "\\'")}');"></div>
+                    <div class="card-image"><img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');"></div>
                     <div class="card-content">
                         <div class="card-category">${game.category}</div>
                         <div class="card-header">
