@@ -654,11 +654,11 @@
 
                 // Tiny feature icons for the card view
                 let iconsHTML = '';
-                if (game.sp) iconsHTML += '<span title="Singleplayer">👤</span>';
-                if (game.mp) iconsHTML += '<span title="Multiplayer">👥</span>';
-                if (game.localCoop) iconsHTML += '<span title="Local Co-op">🛋️</span>';
-                if (game.onlineCoop) iconsHTML += '<span title="Online Co-op">🌐</span>';
-                if (game.controller) iconsHTML += '<span title="Controller Supported">🎮</span>';
+                if (game.sp) iconsHTML += '<span class="feature-icon" title="Singleplayer">👤</span>';
+                if (game.mp) iconsHTML += '<span class="feature-icon" title="Multiplayer">👥</span>';
+                if (game.localCoop) iconsHTML += '<span class="feature-icon" title="Local Co-op">🛋️</span>';
+                if (game.onlineCoop) iconsHTML += '<span class="feature-icon" title="Online Co-op">🌐</span>';
+                if (game.controller) iconsHTML += '<span class="feature-icon" title="Controller Supported">🎮</span>';
 
                 card.innerHTML = `
                     <div class="card-image ${fallbackClass}">
@@ -667,21 +667,25 @@
                         ${fallbackTitleHTML}
                     </div>
 
-
                     <div class="card-content">
-                        <div class="card-category">${game.category}</div>
-                        <div class="card-header">
-                            <div>
+                        <div class="card-top-line">
+                            <div class="card-icons">${iconsHTML}</div>
+                            <div class="card-category">${game.category}</div>
+                        </div>
+                        
+                        <div class="card-main-line">
+                            <span class="card-score ${getScoreClass(game.score)}">${game.score}</span>
+                            <div class="card-header-group">
                                 <h3 class="card-title">${game.title}</h3>
                                 <span class="card-year">${game.year}</span>
                             </div>
-                            <span class="card-score ${getScoreClass(game.score)}">${game.score}</span>
                         </div>
+                        
                         <div class="card-genre">${game.genre}</div>
                         <div class="card-desc">${game.desc}</div>
-                        <div class="card-icons">${iconsHTML}</div>
                     </div>
                 `;
+
                 gameContainer.appendChild(card);
             });
             
