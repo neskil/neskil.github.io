@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Game Library</title>
+    <style>
+        /* CSS Variables for Light/Dark Mode */
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --primary-color: #0056b3;
+            --border-color: #ddd;
+            --modal-overlay: rgba(0,0,0,0.6);
+            --tag-bg: #e9ecef;
+            --tag-text: #495057;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --primary-color: #66b2ff;
+            --border-color: #333;
+            --modal-overlay: rgba(0,0,0,0.8);
+            --tag-bg: #2d2d2d;
+            --tag-text: #ccc;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h1 { text-align: center; color: var(--primary-color); }
+
+        /* Top Controls */
+        .controls-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            outline: none;
+            flex: 1;
+            min-width: 150px;
+            max-width: 250px;
+        }
+
+        /* Feature Checkboxes */
+        .feature-filters {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+        }
+
+        .feature-filters label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .feature-filters label:hover {
+            border-color: var(--primary-color);
+        }
+
+        .feature-filters input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .view-toggles {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            border-radius: 4px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        button.active, button:hover {
+            background: var(--primary-color);
+            color: var(--bg-color);
+        }
+
+        .stats { text-align: center; margin-bottom: 20px; font-weight: bold; color: #888; }
+
+        /* Card Layouts */
+        #gameContainer { transition: all 0.3s ease; }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .card-content { padding: 15px 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        
+        .card-image {
+            background: #2a2a2a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* Grid View */
+        .view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .view-grid .card { flex-direction: column; }
+        .view-grid .card-image { height: 320px; width: 100%; border-bottom: 1px solid var(--border-color); }
+
+        /* List View */
+        .view-list { display: flex; flex-direction: column; gap: 12px; }
+        .view-list .card { flex-direction: row; align-items: stretch; height: 100px; }
+        .view-list .card-image { width: 75px; min-width: 75px; border-right: 1px solid var(--border-color); }
+        .view-list .card-content { flex-direction: row; align-items: center; padding: 10px 20px; }
+        .view-list .card-category { width: 150px; border-right: 1px solid var(--border-color); margin-right: 15px; border-bottom: none; padding-bottom: 0; }
+        .view-list .card-header { width: 250px; margin-bottom: 0; margin-right: 15px; }
+        .view-list .card-genre { width: 200px; margin-bottom: 0; margin-right: 15px; }
+        .view-list .card-desc { display: none; }
+        .view-list .card-icons { display: none; }
+
+        /* Typography */
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .card-title { font-size: 1.1em; font-weight: bold; color: var(--primary-color); margin: 0; }
+        .card-year { font-size: 0.9em; color: #888; }
+        .card-category { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
+        .card-genre { font-style: italic; font-size: 0.9em; margin-bottom: 10px; color: #666; }
+        .card-desc { font-size: 0.9em; flex-grow: 1; padding-bottom: 20px; }
+
+        /* Feature Icons on Card */
+        .card-icons {
+            display: flex;
+            gap: 5px;
+            font-size: 1.1em;
+            position: absolute;
+            bottom: 12px;
+            right: 15px;
+            opacity: 0.8;
+        }
+
+        .card-score { background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
+        .score-high { background: #d4edda; color: #155724; }
+        .score-mid { background: #fff3cd; color: #856404; }
+        .score-low { background: #f8d7da; color: #721c24; }
+        .score-tbd { background: #e2e3e5; color: #383d41; }
+        body.dark-mode .score-tbd { background: #333; color: #aaa; }
+
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 30px; }
+        .pagination span { font-weight: bold; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: var(--modal-overlay);
+            z-index: 1000; justify-content: center; align-items: center; padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .modal {
+            background: var(--card-bg); width: 100%; max-width: 850px; border-radius: 12px;
+            display: flex; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color); position: relative;
+        }
+        .modal-close {
+            position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer;
+            color: var(--text-color); font-weight: bold; border: none; background: none;
+        }
+        .modal-image { width: 40%; background: #222; display: flex; align-items: center; justify-content: center;}
+        .modal-image img { width: 100%; height: 100%; object-fit: cover; }
+        .modal-details { padding: 30px; width: 60%; display: flex; flex-direction: column; }
+        .modal-title { font-size: 2em; color: var(--primary-color); margin: 0 0 5px 0; }
+        .modal-meta { display: flex; gap: 15px; margin-bottom: 15px; font-size: 0.9em; color: #888; align-items: center;}
+        .modal-desc { font-size: 1.1em; line-height: 1.6; border-top: 1px solid var(--border-color); padding-top: 20px; margin-bottom: 20px;}
+        
+        /* Modal Feature Tags */
+        .modal-feature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: auto; /* Pushes tags to the bottom */
+        }
+        .feature-tag {
+            background: var(--tag-bg);
+            color: var(--tag-text);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .view-list .card { height: auto; flex-direction: column; align-items: flex-start; }
+            .view-list .card-image { width: 100%; height: 120px; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .view-list .card-content { flex-direction: column; align-items: flex-start; width: 100%; box-sizing: border-box; }
+            .modal { flex-direction: column; max-height: 90vh; overflow-y: auto; }
+            .modal-image { width: 100%; height: 300px; }
+            .modal-details { width: 100%; box-sizing: border-box; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive Game Library</h1>
+
+    <div class="controls-container">
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Search title, genre, desc...">
+            <select id="categoryFilter"><option value="All">All Categories</option></select>
+            <select id="scoreFilter">
+                <option value="All">All Scores</option>
+                <option value="90">90+ (Masterpiece)</option>
+                <option value="80">80+ (Great)</option>
+                <option value="70">70+ (Good)</option>
+                <option value="TBD">TBD Only</option>
+            </select>
+            <select id="sortFilter">
+                <option value="title_asc">Title: A-Z</option>
+                <option value="title_desc">Title: Z-A</option>
+                <option value="year_desc">Year: Newest First</option>
+                <option value="year_asc">Year: Oldest First</option>
+                <option value="score_desc">Score: Highest First</option>
+                <option value="score_asc">Score: Lowest First</option>
+            </select>
+        </div>
+        
+        <div class="feature-filters">
+            <label><input type="checkbox" id="chkSp" value="sp"> 👤 Singleplayer</label>
+            <label><input type="checkbox" id="chkMp" value="mp"> 👥 Multiplayer</label>
+            <label><input type="checkbox" id="chkLocal" value="localCoop"> 🛋️ Local Co-op</label>
+            <label><input type="checkbox" id="chkOnline" value="onlineCoop"> 🌐 Online Co-op</label>
+            <label><input type="checkbox" id="chkController" value="controller"> 🎮 Controller</label>
+        </div>
+
+        <div class="view-toggles">
+            <button id="btnGrid" class="active">Grid View</button>
+            <button id="btnList">List View</button>
+            <button id="btnDark">🌙 Dark Mode</button>
+        </div>
+    </div>
+
+    <div class="stats" id="statsDisplay">Loading games...</div>
+    <div id="gameContainer" class="view-grid"></div>
+
+    <div class="pagination" id="paginationControls" style="display: none;">
+        <button id="btnPrev">Previous</button>
+        <span id="pageIndicator">Page 1 of 1</span>
+        <button id="btnNext">Next</button>
+    </div>
+
+    <div class="modal-overlay" id="gameModal">
+        <div class="modal">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <div class="modal-image" id="modalImageContainer"></div>
+            <div class="modal-details">
+                <div class="card-category" id="modalCat">Category</div>
+                <h2 class="modal-title" id="modalTitle">Game Title</h2>
+                <div class="modal-meta">
+                    <span id="modalYear">Year</span> | 
+                    <span id="modalGenre">Genre</span> | 
+                    <span id="modalScore" class="card-score">Score</span>
+                </div>
+                <div class="modal-desc" id="modalDesc">Description goes here.</div>
+                
+                <div class="modal-feature-tags" id="modalFeatures"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        if (typeof gameLibrary === 'undefined') {
+            document.getElementById('gameContainer').innerHTML = '<div style="color:red; text-align:center;">Error: data.js not found. Ensure both files are in the same folder.</div>';
+        }
+
+        // --- STATE VARIABLES ---
+        let currentPage = 1;
+        const itemsPerPage = 24;
+        let filteredGames = [];
+
+        // --- DOM ELEMENTS ---
+        const gameContainer = document.getElementById('gameContainer');
+        const statsDisplay = document.getElementById('statsDisplay');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const scoreFilter = document.getElementById('scoreFilter');
+        const sortFilter = document.getElementById('sortFilter');
+        
+        // Feature Checkboxes
+        const chkSp = document.getElementById('chkSp');
+        const chkMp = document.getElementById('chkMp');
+        const chkLocal = document.getElementById('chkLocal');
+        const chkOnline = document.getElementById('chkOnline');
+        const chkController = document.getElementById('chkController');
+        
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const pageIndicator = document.getElementById('pageIndicator');
+        const paginationControls = document.getElementById('paginationControls');
+
+        // Modal Elements
+        const modalOverlay = document.getElementById('gameModal');
+        const closeModal = document.getElementById('closeModal');
+
+        // --- SETUP CATEGORIES ---
+        const categories = [...new Set(gameLibrary.map(g => g.category))].sort();
+        categories.forEach(cat => {
+            const option = document.createElement('option'); option.value = cat; option.textContent = cat; categoryFilter.appendChild(option);
+        });
+
+        // --- VIEW & THEME TOGGLES ---
+        document.getElementById('btnGrid').addEventListener('click', (e) => {
+            gameContainer.className = 'view-grid'; e.target.classList.add('active'); document.getElementById('btnList').classList.remove('active');
+        });
+        document.getElementById('btnList').addEventListener('click', (e) => {
+            gameContainer.className = 'view-list'; e.target.classList.add('active'); document.getElementById('btnGrid').classList.remove('active');
+        });
+
+        const btnDark = document.getElementById('btnDark');
+        if(localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+            btnDark.textContent = '☀️ Light Mode';
+        }
+        btnDark.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            if(document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('theme', 'dark');
+                btnDark.textContent = '☀️ Light Mode';
+            } else {
+                localStorage.setItem('theme', 'light');
+                btnDark.textContent = '🌙 Dark Mode';
+            }
+        });
+
+        // --- HELPER FUNCTIONS ---
+        function getScoreClass(score) {
+            if (score === "TBD" || score === "N/A") return "score-tbd";
+            const num = parseInt(score);
+            return num >= 80 ? "score-high" : (num >= 70 ? "score-mid" : "score-low");
+        }
+
+        // --- MODAL LOGIC ---
+        function openModal(game) {
+            document.getElementById('modalTitle').textContent = game.title;
+            document.getElementById('modalCat').textContent = game.category;
+            document.getElementById('modalYear').textContent = game.year;
+            document.getElementById('modalGenre').textContent = game.genre;
+            document.getElementById('modalDesc').textContent = game.desc;
+            
+            const scoreEl = document.getElementById('modalScore');
+            scoreEl.textContent = game.score;
+            scoreEl.className = 'card-score ' + getScoreClass(game.score);
+
+            const imgContainer = document.getElementById('modalImageContainer');
+            if(game.imgUrl) {
+                imgContainer.innerHTML = `<img src="${game.imgUrl}" alt="${game.title}">`;
+            } else {
+                const encodedTitle = encodeURIComponent(game.title);
+                imgContainer.innerHTML = `<img src="https://placehold.co/400x400/222222/FFFFFF?text=${encodedTitle}" alt="Placeholder">`;
+            }
+
+            // Populate Feature Tags in Modal
+            const featuresContainer = document.getElementById('modalFeatures');
+            featuresContainer.innerHTML = '';
+            if (game.sp) featuresContainer.innerHTML += `<span class="feature-tag">👤 Singleplayer</span>`;
+            if (game.mp) featuresContainer.innerHTML += `<span class="feature-tag">👥 Multiplayer</span>`;
+            if (game.localCoop) featuresContainer.innerHTML += `<span class="feature-tag">🛋️ Local Co-op</span>`;
+            if (game.onlineCoop) featuresContainer.innerHTML += `<span class="feature-tag">🌐 Online Co-op</span>`;
+            if (game.controller) featuresContainer.innerHTML += `<span class="feature-tag">🎮 Controller Supported</span>`;
+
+            modalOverlay.style.display = 'flex';
+        }
+
+        closeModal.addEventListener('click', () => modalOverlay.style.display = 'none');
+        modalOverlay.addEventListener('click', (e) => {
+            if(e.target === modalOverlay) modalOverlay.style.display = 'none';
+        });
+
+        // --- FILTER, SORT, AND RENDER LOGIC ---
+        function applyFiltersAndSort() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedCat = categoryFilter.value;
+            const selectedScore = scoreFilter.value;
+            const sortMethod = sortFilter.value;
+            
+            // Checkbox states
+            const requireSp = chkSp.checked;
+            const requireMp = chkMp.checked;
+            const requireLocal = chkLocal.checked;
+            const requireOnline = chkOnline.checked;
+            const requireController = chkController.checked;
+
+            filteredGames = gameLibrary.filter(game => {
+                // Text Match
+                const matchesSearch = game.title.toLowerCase().includes(searchTerm) || game.genre.toLowerCase().includes(searchTerm) || game.desc.toLowerCase().includes(searchTerm);
+                
+                // Category Match
+                const matchesCat = selectedCat === "All" || game.category === selectedCat;
+                
+                // Score Match
+                let matchesScore = true;
+                if (selectedScore !== "All") {
+                    if (selectedScore === "TBD") matchesScore = game.score === "TBD";
+                    else matchesScore = !isNaN(parseInt(game.score)) && parseInt(game.score) >= parseInt(selectedScore);
+                }
+
+                // Feature Box Matches
+                let matchesFeatures = true;
+                if (requireSp && !game.sp) matchesFeatures = false;
+                if (requireMp && !game.mp) matchesFeatures = false;
+                if (requireLocal && !game.localCoop) matchesFeatures = false;
+                if (requireOnline && !game.onlineCoop) matchesFeatures = false;
+                if (requireController && !game.controller) matchesFeatures = false;
+
+                return matchesSearch && matchesCat && matchesScore && matchesFeatures;
+            });
+
+            filteredGames.sort((a, b) => {
+                if (sortMethod === "title_asc") return a.title.localeCompare(b.title);
+                if (sortMethod === "title_desc") return b.title.localeCompare(a.title);
+                if (sortMethod.startsWith("score")) {
+                    const scoreA = isNaN(parseInt(a.score)) ? -1 : parseInt(a.score);
+                    const scoreB = isNaN(parseInt(b.score)) ? -1 : parseInt(b.score);
+                    return sortMethod === "score_desc" ? scoreB - scoreA : scoreA - scoreB;
+                }
+                if (sortMethod.startsWith("year")) {
+                    const yearA = isNaN(parseInt(a.year)) ? 0 : parseInt(a.year);
+                    const yearB = isNaN(parseInt(b.year)) ? 0 : parseInt(b.year);
+                    return sortMethod === "year_desc" ? yearB - yearA : yearA - yearB;
+                }
+                return 0;
+            });
+
+            currentPage = 1; // Reset to page 1 on new filter
+            renderPage();
+        }
+
+        function renderPage() {
+            gameContainer.innerHTML = '';
+            
+            const totalPages = Math.ceil(filteredGames.length / itemsPerPage);
+            statsDisplay.textContent = `Showing ${filteredGames.length} of ${gameLibrary.length} games`;
+
+            if (filteredGames.length === 0) {
+                gameContainer.innerHTML = '<div style="text-align:center; padding: 40px; grid-column: 1/-1;">No games found matching these filters.</div>';
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            // Pagination Math
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const gamesToShow = filteredGames.slice(startIndex, endIndex);
+
+            gamesToShow.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => openModal(game);
+                
+                const encodedTitle = encodeURIComponent(game.title);
+                const imageUrl = game.imgUrl || `https://placehold.co/400x300/222222/FFFFFF?text=${encodedTitle}`;
+
+                // Tiny feature icons for the card view
+                let iconsHTML = '';
+                if (game.sp) iconsHTML += '<span title="Singleplayer">👤</span>';
+                if (game.mp) iconsHTML += '<span title="Multiplayer">👥</span>';
+                if (game.localCoop) iconsHTML += '<span title="Local Co-op">🛋️</span>';
+                if (game.onlineCoop) iconsHTML += '<span title="Online Co-op">🌐</span>';
+                if (game.controller) iconsHTML += '<span title="Controller Supported">🎮</span>';
+
+                card.innerHTML = `
+                    <div class="card-image"><img src="${imageUrl}" alt="${game.title}" loading="lazy"></div>
+                    <div class="card-content">
+                        <div class="card-category">${game.category}</div>
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">${game.title}</h3>
+                                <span class="card-year">${game.year}</span>
+                            </div>
+                            <span class="card-score ${getScoreClass(game.score)}">${game.score}</span>
+                        </div>
+                        <div class="card-genre">${game.genre}</div>
+                        <div class="card-desc">${game.desc}</div>
+                        <div class="card-icons">${iconsHTML}</div>
+                    </div>
+                `;
+                gameContainer.appendChild(card);
+            });
+
+            // Update Pagination UI
+            if(totalPages > 1) {
+                paginationControls.style.display = 'flex';
+                pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+                btnPrev.disabled = currentPage === 1;
+                btnNext.disabled = currentPage === totalPages;
+            } else {
+                paginationControls.style.display = 'none';
+            }
+        }
+
+        // Pagination Buttons
+        btnPrev.addEventListener('click', () => { if(currentPage > 1) { currentPage--; renderPage(); window.scrollTo(0,0); } });
+        btnNext.addEventListener('click', () => { const totalPages = Math.ceil(filteredGames.length / itemsPerPage); if(currentPage < totalPages) { currentPage++; renderPage(); window.scrollTo(0,0); } });
+
+        // Event Listeners for Filters
+        searchInput.addEventListener('input', applyFiltersAndSort);
+        categoryFilter.addEventListener('change', applyFiltersAndSort);
+        scoreFilter.addEventListener('change', applyFiltersAndSort);
+        sortFilter.addEventListener('change', applyFiltersAndSort);
+        
+        // Listeners for Checkboxes
+        chkSp.addEventListener('change', applyFiltersAndSort);
+        chkMp.addEventListener('change', applyFiltersAndSort);
+        chkLocal.addEventListener('change', applyFiltersAndSort);
+        chkOnline.addEventListener('change', applyFiltersAndSort);
+        chkController.addEventListener('change', applyFiltersAndSort);
+
+        // Init
+        if (typeof gameLibrary !== 'undefined') applyFiltersAndSort();
+    </script>
+</body>
+</html>
