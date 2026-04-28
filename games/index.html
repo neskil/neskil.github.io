@@ -204,60 +204,65 @@
         }
 
         /* Grid View */
-        .view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .view-grid .card { flex-direction: column; }
-        .view-grid .card-image { height: 250px; width: 100%; border-bottom: 1px solid var(--border-color); }
+        .view-grid .card-image { height: 200px; width: 100%; border-bottom: 1px solid var(--border-color); }
+        .view-grid .card-content { display: flex; flex-direction: column; padding: 15px; }
+        .view-grid .card-top-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .view-grid .card-category { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+        .view-grid .card-icons { display: flex; gap: 6px; }
+        .view-grid .card-main-line { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+        .view-grid .card-header-group { display: flex; flex-direction: column; }
+        .view-grid .card-title { font-size: 1.1em; font-weight: bold; color: var(--primary-color); margin: 0; }
+        .view-grid .card-year { font-size: 0.85em; color: #888; }
+        .view-grid .card-genre { font-style: italic; font-size: 0.85em; color: #666; margin-bottom: 8px; }
+        .view-grid .card-desc { font-size: 0.85em; opacity: 0.8; }
 
         /* List View */
         .view-list { display: flex; flex-direction: column; gap: 12px; }
         .view-list .card { flex-direction: row; align-items: stretch; min-height: 80px; height: auto; }
         .view-list .card-image { width: 80px; min-width: 80px; border-right: 1px solid var(--border-color); position: relative; }
-        .view-list .card-content { display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex: 1; padding: 10px 20px; flex-wrap: wrap; gap: 15px; }
-        .view-list .card-category { width: 160px; font-weight: 600; font-size: 0.9em; opacity: 0.8; margin: 0; padding: 0; border: none; }
-        .view-list .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 1; min-width: 250px; margin: 0; }
-        .view-list .card-header > div { flex: 1; min-width: 0; }
-        .view-list .card-title { font-size: 1.1em; white-space: normal; word-break: break-word; margin: 0; }
-        .view-list .card-genre { width: 180px; font-size: 0.95em; color: var(--text-color); opacity: 0.7; margin: 0; }
+        .view-list .card-content { display: flex; flex-direction: row; align-items: center; flex: 1; padding: 10px 20px; gap: 20px; flex-wrap: nowrap; }
+        .view-list .card-top-line { display: flex; flex-direction: row; align-items: center; gap: 15px; width: 220px; order: 1; }
+        .view-list .card-category { font-size: 0.85em; font-weight: 600; color: #888; text-transform: uppercase; }
+        .view-list .card-icons { display: flex; gap: 6px; }
+        .view-list .card-main-line { display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px; order: 2; }
+        .view-list .card-header-group { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+        .view-list .card-title { font-size: 1.1em; font-weight: bold; color: var(--primary-color); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .view-list .card-year { font-size: 0.85em; color: #888; }
+        .view-list .card-genre { width: 180px; font-size: 0.9em; color: #888; font-style: italic; margin: 0; order: 3; }
         .view-list .card-desc { display: none; }
-        .view-list .fallback-title { display: none; }
-        .view-list .card-image.has-fallback::after { display: none; }
-        .view-list .color-overlay { display: none; }
-        .view-list .card-icons { position: static; background: transparent; backdrop-filter: none; padding: 0; border: none; margin-left: auto; opacity: 1; display: flex; }
 
-
-
-
-
-        /* Typography */
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .card-title { font-size: 1.1em; font-weight: bold; color: var(--primary-color); margin: 0; }
-        .card-year { font-size: 0.9em; color: #888; }
-        .card-category { font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-        .card-genre { font-style: italic; font-size: 0.9em; margin-bottom: 10px; color: #666; }
-        .card-desc { font-size: 0.9em; flex-grow: 1; padding-bottom: 20px; }
-
-        /* Feature Icons on Card */
-        .card-icons {
-            display: flex;
-            gap: 5px;
-            font-size: 1.1em;
-            position: absolute;
-            bottom: 12px;
-            right: 15px;
-            opacity: 0.9;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            padding: 4px 8px;
-            border-radius: 20px;
+        /* Feature Icons Glow Up */
+        .feature-icon {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+            padding: 3px 6px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        body.dark-mode .feature-icon {
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        body.dark-mode .card-icons {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+
+        /* Typography & Scores */
+        .card-score { 
+            background: #eee; 
+            padding: 6px 10px; 
+            border-radius: 6px; 
+            font-weight: 800; 
+            font-size: 1.1em; 
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 45px;
+            height: 45px;
+            box-sizing: border-box;
         }
-
-
-        .card-score { background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9em; }
         .score-high { background: #d4edda; color: #155724; }
         .score-mid { background: #fff3cd; color: #856404; }
         .score-low { background: #f8d7da; color: #721c24; }
