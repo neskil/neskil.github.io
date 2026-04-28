@@ -430,12 +430,12 @@
             img.onerror = null; // Prevent infinite loop
             
             const genreBackgrounds = {
-                "Action Adventure": "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80",
-                "Co-op Party Multiplayer": "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80",
-                "Fighting Beat Em Up": "https://images.unsplash.com/photo-1553481187-be93c21490a9?auto=format&fit=crop&w=600&q=80"
+                "Action Adventure": "../images/genres/action_adventure.png",
+                "Co-op Party Multiplayer": "../images/genres/coop_party.png",
+                "Fighting Beat Em Up": "../images/genres/fighting.png"
             };
             
-            const fallbackBg = genreBackgrounds[category] || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80";
+            const fallbackBg = genreBackgrounds[category] || "../images/genres/action_adventure.png";
             
             img.src = fallbackBg;
             
@@ -468,7 +468,7 @@
             scoreEl.className = 'card-score ' + getScoreClass(game.score);
 
             const encodedTitle = encodeURIComponent(game.title);
-            const imageUrl = game.imgUrl || "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80";
+            const imageUrl = game.imgUrl || "../images/genres/action_adventure.png";
             
             imgContainer.innerHTML = `<img src="${imageUrl}" alt="${game.title}" onerror="handleImageError(this, '${game.category}', '${game.title.replace(/'/g, "\\'")}');">`;
             
