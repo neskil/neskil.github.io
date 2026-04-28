@@ -1,168 +1,262 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="sv">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title>Resume</title>
-<link type="text/css" rel="stylesheet" href="css/blue.css" />
-<link type="text/css" rel="stylesheet" href="css/print.css" media="print"/>
-<!--[if IE 7]>
-<link href="css/ie7.css" rel="stylesheet" type="text/css" />
-<![endif]-->
-<!--[if IE 6]>
-<link href="css/ie6.css" rel="stylesheet" type="text/css" />
-<![endif]-->
-<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
-<script type="text/javascript" src="js/jquery.tipsy.js"></script>
-<script type="text/javascript" src="js/cufon.yui.js"></script>
-<script type="text/javascript" src="js/scrollTo.js"></script>
-<script type="text/javascript" src="js/myriad.js"></script>
-<script type="text/javascript" src="js/jquery.colorbox.js"></script>
-<script type="text/javascript" src="js/custom.js"></script>
-<script type="text/javascript">
-		Cufon.replace('h1,h2');
-</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Niklas Eskilsson | Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-hover-bg: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #6366f1;
+            --accent-hover: #4f46e5;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background Elements */
+        .bg-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
+            top: -200px;
+            left: -200px;
+            z-index: -1;
+            animation: float 10s ease-in-out infinite alternate;
+        }
+
+        .bg-glow-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0) 70%);
+            bottom: -200px;
+            right: -200px;
+            z-index: -1;
+            animation: float 12s ease-in-out infinite alternate-reverse;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 50px) scale(1.1); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1000px;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            background: var(--card-hover-bg);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            transition: transform 0.4s ease;
+        }
+
+        .card:hover .card-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        .card-desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 2rem;
+        }
+
+        .card-link {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s ease;
+        }
+
+        .card:hover .card-link {
+            color: var(--text-primary);
+        }
+
+        .card-link svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover .card-link svg {
+            transform: translateX(4px);
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            margin-top: auto;
+            padding-top: 3rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 2.25rem; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
-    <div id="but-div">
-         <form method="get" action="OLD/index.html">
-        <button class="testing" title="Klicka gärna - tveka inte" type="submit">Klicka för att bli överaskad</button>
-        </form>
-    </div>
-<!-- Begin Wrapper -->
-<div id="wrapper">
-  <div class="wrapper-top"></div>
-  <div class="wrapper-mid">
-    <!-- Begin Paper -->
-    <div id="paper">
-      <div class="paper-top"></div>
-      <div id="paper-mid">
-        <div class="entry">
-          <!-- Begin Image -->
-          <img class="portrait" src="images/image.jpg" alt="John Smith" />
-          <!-- End Image -->
-          <!-- Begin Personal Information -->
-          <div class="self">
-            <h1 class="name">Niklas Eskilsson <br />
-              <span>M.Sc. Industrial Engineering and Management</span></h1>
-           <!--  <ul>-->
-              <!-- <li class="tel">Se CV</li> -->
-           <!-- </ul> -->
-          </div>
-          <!-- End Personal Information -->
-          <!-- Begin Social -->
-          <div class="social">
-            <ul>
-              <li><a class='north' href="images/CV_NiklasEskilsson_eng_190127.pdf" title="CV.pdf"><img src="images/icn-save.jpg" alt="Download the pdf version" /></a></li>
-              <li><a class='north' href="javascript:window.print()" title="Print"><img src="images/icn-print.jpg" alt="" /></a></li>
-              <li><a class='north' id="contact" href="contact/index.html" title="Contact Me"><img src="images/icn-contact.jpg" alt="" /></a></li>
-            </ul>
-          </div>
-          <!-- End Social -->
-        </div>
-        <!-- Begin 1st Row -->
-        <!-- End 1st Row -->
-        <!-- Begin 2nd Row -->
-        <div class="entry">
-          <h2>EDUCATION</h2>
-            <div class="content">
-            <h3>jan 2019 - jun 2019</h3>
-            <p>Epiroc Rock Drills AB<br />
-              <em>Master Thesis work</em></p>
-          </div>
-            <div class="content">
-            <h3>2016 - 2019</h3>
-            <p>Linköping university<br />
-              <em>M.Sc. student in Industrial Engineering and Management<br>
-                Master profile in Logistics and Supply Chain Management - planned exam June 2019</em></p>
-          </div>
-          <div class="content">
-            <h3>2013 - 2015</h3>
-            <p>Linköping university<br />
-              <em>B.Sc. in Mechanical Engineering - Bachelor profile in Mechatronics</em></p>
-          </div>
-          <div class="content">
-            <h3>2009 - 2012</h3>
-            <p>High school - Katedralskolan Linköping<br />
-              <em>Natural Science Program</em></p>
-          </div>
-        </div>
-        <!-- End 2nd Row -->
-        <!-- Begin 3rd Row -->
-        <div class="entry">
-          <h2>EXPERIENCE</h2>
-            
-                     <div class="content">
-            <h3>aug 2019 - ongoing</h3>
-            <p>Exsitec AB<br />
-              <em>Trainee ERP</em></p>
-            <ul class="info">
-              <li><em>Affärssystemskonsult.</em></li>
-            </ul>
-          </div>
-            
-          <div class="content">
-            <h3>sep 2015 - nov 2018</h3>
-            <p>Flamman Pub&Disco<br />
-              <em>Managing Director - Head of Finance & Marketing</em></p>
-            <ul class="info">
-              <li><em class="filler">A student bar and night club with an annual turnover of over 6 million SEK and about 90
-employees. Responsibilities included accounting and investment planning, operational
-activities leading 25 employees during opening hour as well as hiring and supervision
-of personnel.
-</em></li>
-              <li><em class="filler">Lead the strategic planning and digitalization of the organization as well as the design
-and implementation of a new accounting system and a new marketing role in the mana-
-gement team. Part of the result of the optimization project and marketing efforts I led,
-was a growth of operations by approximately 25% in terms of number visitors and
-over 60% in terms of sales turnover. Changed to an advisory role in May of 2018.</em></li>
-            </ul>
-          </div>
-          <div class="content">
-            <h3>aug 2012 - aug 2014</h3>
-            <p>Tekniska verken AB<br />
-              <em>System Development & Configuration</em></p>
-            <ul class="info">
-              <li><em class="filler">Worked independently in planning and implenting a centralization and platform
-change of the control and monitoring systems for Linköpings wastewater pump
-stations. Also designed the corrsponding end user interface. Full time employee during
-                  2012-2013 and later part time employee during 2013-2014.</em></li>
-            </ul>
-          </div>
-        </div>
-        <!-- End 3rd Row -->
-        <!-- Begin 4th Row -->
-        <div class="entry">
-          <h2>SKILLS</h2>
-          <div class="content">
-            <h3>Software Knowledge</h3>
-            <ul class="skills">
-              <li>Office suite</li>
-              <li>Illustrator</li>
-              <li>Photoshop</li>
-              <li>Python</li>
-              <li>SQL</li>
-              <li>JavaScript</li>
-              <li>HTML5</li>
-              <li>CSS3</li>
-              <li>Arena Simulation</li>
-              <li>Matlab</li>
-            </ul>
-          </div>
-          <div class="content">
-            <h3>Languages</h3>
-            <ul class="skills">
-              <li>Swedish</li>
-              <li>English</li>
-            </ul>
-          </div>
-        </div>
-    </div>
-    <!-- End Paper -->
-    <div class="paper-bottom"></div>
-  </div>
-  <div class="wrapper-bottom"></div>
-</div>
-<div id="message"><a href="#top" id="top-link">Go to Top</a></div>
-<!-- End Wrapper -->
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <header>
+        <h1>Niklas Eskilsson</h1>
+        <p class="subtitle">Välkommen till min personliga webbplats</p>
+    </header>
+
+    <main class="grid">
+        <a href="cv.html" class="card" id="card-cv">
+            <div>
+                <div class="card-icon">📄</div>
+                <h2 class="card-title">Curriculum Vitae</h2>
+                <p class="card-desc">Läs mer om min utbildning, erfarenhet och kompetens inom logistik och utveckling.</p>
+            </div>
+            <span class="card-link">Visa CV <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a href="games/game_library_v20250428.html" class="card" id="card-games">
+            <div>
+                <div class="card-icon">🎮</div>
+                <h2 class="card-title">Spelbibliotek</h2>
+                <p class="card-desc">Utforska ett interaktivt bibliotek av spel med filtrering och detaljerad information.</p>
+            </div>
+            <span class="card-link">Öppna biblioteket <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a href="OLD/index.html" class="card" id="card-old">
+            <div>
+                <div class="card-icon">✨</div>
+                <h2 class="card-title">Överraskning</h2>
+                <p class="card-desc">Klicka här för att se äldre experiment och roliga javascript-animationer.</p>
+            </div>
+            <span class="card-link">Bli överraskad <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Niklas Eskilsson. Alla rättigheter förbehållna.</p>
+    </footer>
 </body>
 </html>

@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Game Library Index</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --text-color: #333;
+            --card-bg: #fff;
+            --primary-color: #0056b3;
+            --border-color: #ddd;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            outline: none;
+            min-width: 180px;
+            flex: 1;
+            max-width: 250px;
+        }
+
+        .view-toggles {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .view-toggles button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            border-radius: 4px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .view-toggles button.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .stats {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        /* Card Base Styles */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            overflow: hidden; /* Keeps images inside borders */
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .card-content {
+            padding: 15px 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Grid View Specifics */
+        .view-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        
+        .view-grid .card {
+            flex-direction: column;
+        }
+
+        .view-grid .card-image {
+            height: 200px; /* Fixed height for tile images */
+            width: 100%;
+            border-bottom: 1px solid var(--border-color);
+            background: #222; /* Fallback background */
+        }
+
+        /* List View Specifics */
+        .view-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .view-list .card {
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        .view-list .card-image {
+            width: 80px; /* Small thumbnail for list view */
+            min-width: 80px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .view-list .card-content {
+            flex-direction: row;
+            align-items: center;
+            padding: 15px 20px;
+        }
+        
+        .view-list .card-category {
+            width: 150px;
+            border-bottom: none;
+            border-right: 1px solid var(--border-color);
+            padding-bottom: 0;
+            padding-right: 15px;
+            margin-bottom: 0;
+            margin-right: 15px;
+        }
+
+        .view-list .card-header {
+            width: 250px;
+            margin-bottom: 0;
+            align-items: center;
+            margin-right: 15px;
+        }
+
+        .view-list .card-genre {
+            width: 200px;
+            margin-bottom: 0;
+            margin-right: 15px;
+        }
+
+        /* Typography & Internal Layout */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 0;
+        }
+
+        .card-year {
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        .card-score {
+            background: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+            white-space: nowrap;
+        }
+
+        .score-high { background: #d4edda; color: #155724; }
+        .score-mid { background: #fff3cd; color: #856404; }
+        .score-low { background: #f8d7da; color: #721c24; }
+        .score-tbd { background: #e2e3e5; color: #383d41; }
+
+        .card-category {
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .card-genre {
+            font-style: italic;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .card-desc { font-size: 0.95em; flex-grow: 1; }
+
+        @media (max-width: 900px) {
+            .view-list .card-content { flex-direction: column; align-items: flex-start; }
+            .view-list .card-category { width: auto; border-right: none; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px; margin-right: 0; }
+            .view-list .card-header { width: 100%; margin-bottom: 10px; }
+            .view-list .card-genre { width: 100%; margin-bottom: 10px; }
+            .view-list .card-image { display: none; } /* Hide thumbnails on very small screens to save space */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive Game Library</h1>
+
+    <div class="controls">
+        <input type="text" id="searchInput" placeholder="Search title, genre, desc...">
+        <select id="categoryFilter"><option value="All">All Categories</option></select>
+        <select id="scoreFilter">
+            <option value="All">All Scores</option>
+            <option value="90">90+ (Masterpiece)</option>
+            <option value="80">80+ (Great)</option>
+            <option value="70">70+ (Good)</option>
+            <option value="TBD">TBD Only</option>
+        </select>
+        <select id="sortFilter">
+            <option value="title_asc">Title: A-Z</option>
+            <option value="title_desc">Title: Z-A</option>
+            <option value="year_desc">Year: Newest First</option>
+            <option value="year_asc">Year: Oldest First</option>
+            <option value="score_desc">Score: Highest First</option>
+            <option value="score_asc">Score: Lowest First</option>
+        </select>
+    </div>
+
+    <div class="view-toggles">
+        <button id="btnGrid" class="active">Grid View</button>
+        <button id="btnList">List View</button>
+    </div>
+
+    <div class="stats" id="statsDisplay">Loading games...</div>
+    <div id="gameContainer" class="view-grid"></div>
+
+    <script src="data.js"></script>
+    <script>
+// --- MODAL LOGIC ---
+        function openModal(game) {
+            document.getElementById('modalTitle').textContent = game.title;
+            document.getElementById('modalCat').textContent = game.category;
+            document.getElementById('modalYear').textContent = game.year;
+            document.getElementById('modalGenre').textContent = game.genre;
+            document.getElementById('modalDesc').textContent = game.desc;
+            
+            const scoreEl = document.getElementById('modalScore');
+            scoreEl.textContent = game.score;
+            scoreEl.className = 'card-score ' + getScoreClass(game.score);
+
+            const imgContainer = document.getElementById('modalImageContainer');
+            const encodedTitle = encodeURIComponent(game.title);
+            const fallbackUrl = `https://placehold.co/400x400/222222/FFFFFF?text=${encodedTitle}`;
+
+            if(game.imgUrl) {
+                // Added the onerror fallback here
+                imgContainer.innerHTML = `<img src="${game.imgUrl}" alt="${game.title}" onerror="this.onerror=null; this.src='${fallbackUrl}';">`;
+            } else {
+                imgContainer.innerHTML = `<img src="${fallbackUrl}" alt="Placeholder">`;
+            }
+
+            // Populate Feature Tags in Modal
+            const featuresContainer = document.getElementById('modalFeatures');
+            featuresContainer.innerHTML = '';
+            if (game.sp) featuresContainer.innerHTML += `<span class="feature-tag">👤 Singleplayer</span>`;
+            if (game.mp) featuresContainer.innerHTML += `<span class="feature-tag">👥 Multiplayer</span>`;
+            if (game.localCoop) featuresContainer.innerHTML += `<span class="feature-tag">🛋️ Local Co-op</span>`;
+            if (game.onlineCoop) featuresContainer.innerHTML += `<span class="feature-tag">🌐 Online Co-op</span>`;
+            if (game.controller) featuresContainer.innerHTML += `<span class="feature-tag">🎮 Controller Supported</span>`;
+
+            modalOverlay.style.display = 'flex';
+        }
+
+        closeModal.addEventListener('click', () => modalOverlay.style.display = 'none');
+        modalOverlay.addEventListener('click', (e) => {
+            if(e.target === modalOverlay) modalOverlay.style.display = 'none';
+        });
+
+        // --- FILTER, SORT, AND RENDER LOGIC ---
+        // (Keep your applyFiltersAndSort function exactly as it is)
+        function applyFiltersAndSort() {
+            // ... (keep existing applyFiltersAndSort code) ...
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedCat = categoryFilter.value;
+            const selectedScore = scoreFilter.value;
+            const sortMethod = sortFilter.value;
+            
+            const requireSp = chkSp.checked;
+            const requireMp = chkMp.checked;
+            const requireLocal = chkLocal.checked;
+            const requireOnline = chkOnline.checked;
+            const requireController = chkController.checked;
+
+            filteredGames = gameLibrary.filter(game => {
+                const matchesSearch = game.title.toLowerCase().includes(searchTerm) || game.genre.toLowerCase().includes(searchTerm) || game.desc.toLowerCase().includes(searchTerm);
+                const matchesCat = selectedCat === "All" || game.category === selectedCat;
+                
+                let matchesScore = true;
+                if (selectedScore !== "All") {
+                    if (selectedScore === "TBD") matchesScore = game.score === "TBD";
+                    else matchesScore = !isNaN(parseInt(game.score)) && parseInt(game.score) >= parseInt(selectedScore);
+                }
+
+                let matchesFeatures = true;
+                if (requireSp && !game.sp) matchesFeatures = false;
+                if (requireMp && !game.mp) matchesFeatures = false;
+                if (requireLocal && !game.localCoop) matchesFeatures = false;
+                if (requireOnline && !game.onlineCoop) matchesFeatures = false;
+                if (requireController && !game.controller) matchesFeatures = false;
+
+                return matchesSearch && matchesCat && matchesScore && matchesFeatures;
+            });
+
+            filteredGames.sort((a, b) => {
+                if (sortMethod === "title_asc") return a.title.localeCompare(b.title);
+                if (sortMethod === "title_desc") return b.title.localeCompare(a.title);
+                if (sortMethod.startsWith("score")) {
+                    const scoreA = isNaN(parseInt(a.score)) ? -1 : parseInt(a.score);
+                    const scoreB = isNaN(parseInt(b.score)) ? -1 : parseInt(b.score);
+                    return sortMethod === "score_desc" ? scoreB - scoreA : scoreA - scoreB;
+                }
+                if (sortMethod.startsWith("year")) {
+                    const yearA = isNaN(parseInt(a.year)) ? 0 : parseInt(a.year);
+                    const yearB = isNaN(parseInt(b.year)) ? 0 : parseInt(b.year);
+                    return sortMethod === "year_desc" ? yearB - yearA : yearA - yearB;
+                }
+                return 0;
+            });
+
+            currentPage = 1; 
+            renderPage();
+        }
+
+        function renderPage() {
+            gameContainer.innerHTML = '';
+            
+            const totalPages = Math.ceil(filteredGames.length / itemsPerPage);
+            statsDisplay.textContent = `Showing ${filteredGames.length} of ${gameLibrary.length} games`;
+
+            if (filteredGames.length === 0) {
+                gameContainer.innerHTML = '<div style="text-align:center; padding: 40px; grid-column: 1/-1;">No games found matching these filters.</div>';
+                paginationControls.style.display = 'none';
+                return;
+            }
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const gamesToShow = filteredGames.slice(startIndex, endIndex);
+
+            gamesToShow.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => openModal(game);
+                
+                const encodedTitle = encodeURIComponent(game.title);
+                const fallbackUrl = `https://placehold.co/400x300/222222/FFFFFF?text=${encodedTitle}`;
+                const imageUrl = game.imgUrl || fallbackUrl;
+
+                let iconsHTML = '';
+                if (game.sp) iconsHTML += '<span title="Singleplayer">👤</span>';
+                if (game.mp) iconsHTML += '<span title="Multiplayer">👥</span>';
+                if (game.localCoop) iconsHTML += '<span title="Local Co-op">🛋️</span>';
+                if (game.onlineCoop) iconsHTML += '<span title="Online Co-op">🌐</span>';
+                if (game.controller) iconsHTML += '<span title="Controller Supported">🎮</span>';
+
+                // Added the onerror fallback directly into the img tag here!
+                card.innerHTML = `
+                    <div class="card-image"><img src="${imageUrl}" alt="${game.title}" loading="lazy" onerror="this.onerror=null; this.src='${fallbackUrl}';"></div>
+                    <div class="card-content">
+                        <div class="card-category">${game.category}</div>
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">${game.title}</h3>
+                                <span class="card-year">${game.year}</span>
+                            </div>
+                            <span class="card-score ${getScoreClass(game.score)}">${game.score}</span>
+                        </div>
+                        <div class="card-genre">${game.genre}</div>
+                        <div class="card-desc">${game.desc}</div>
+                        <div class="card-icons">${iconsHTML}</div>
+                    </div>
+                `;
+                gameContainer.appendChild(card);
+            });
+
+            if(totalPages > 1) {
+                paginationControls.style.display = 'flex';
+                pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+                btnPrev.disabled = currentPage === 1;
+                btnNext.disabled = currentPage === totalPages;
+            } else {
+                paginationControls.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
+
