@@ -12,7 +12,17 @@
     let isPortrait = false;
     let scale = 1; // Visual scale factor for mobile
 
-    function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+    let dpr = window.devicePixelRatio || 1;
+    function resize() {
+        dpr = window.devicePixelRatio || 1;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
     window.addEventListener('resize', resize);
     resize();
 
@@ -339,6 +349,7 @@
     window.addEventListener('scroll', () => { scrollOffset = window.scrollY; });
 
     function animate() {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
         seaTime += 0.005 * config.speedMultiplier;
 
@@ -440,7 +451,7 @@
 
         // Generate demand (burst at start, then settle)
         frameCount++;
-        let startupBoost = frameCount < 300 ? 8 : frameCount < 600 ? 3 : 1; // ~5s burst then ease
+        let startupBoost = frameCount < 120 ? 15 : frameCount < 300 ? 6 : frameCount < 600 ? 3 : 1;
         if (Math.random()<config.demandFrequency*startupBoost&&packages.length<150) {
             let consumers=nodes.filter(n=>n.type==='consumer');
             if (consumers.length>0) {
