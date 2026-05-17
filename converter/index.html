@@ -576,6 +576,37 @@
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
+        .primary-result-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 5px 0 10px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .result-equals {
+            font-size: 2.2rem;
+            font-weight: 300;
+            color: var(--text-mute);
+        }
+
+        .primary-result-val {
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: var(--violet);
+            text-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.04em;
+        }
+
+        .primary-result-unit {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+
         footer {
             margin-top: 20px;
             font-family: 'JetBrains Mono', monospace;
@@ -666,13 +697,20 @@
         <!-- Input & Scale panel -->
         <div class="panel">
             <div class="panel-title">
-                <span>3. Enter Value</span>
+                <span>3. Enter Value &amp; Result</span>
             </div>
             <div class="calculator-wrapper">
                 <!-- Numeric input box -->
                 <div class="input-box">
                     <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="20" oninput="calculate()">
                     <span class="input-unit" id="input-unit-label">°C</span>
+                </div>
+
+                <!-- Giant real-time precise conversion result -->
+                <div class="primary-result-box">
+                    <span class="result-equals">=</span>
+                    <span class="primary-result-val" id="primary-exact-val">68.0</span>
+                    <span class="primary-result-unit" id="primary-result-unit-label">°F</span>
                 </div>
 
                 <!-- Presets / Quick targets row -->
@@ -698,7 +736,7 @@
         <!-- Results panel -->
         <div class="panel">
             <div class="panel-title">
-                <span>4. Conversions</span>
+                <span>🧠 Memory Helper &amp; Shortcut</span>
             </div>
             <div class="results-box">
                 <!-- Formula shortcut card -->
@@ -713,28 +751,17 @@
                         <strong>Mental Estimate</strong>
                         <span class="sub" id="approx-label-sub">Double the input, add 30</span>
                     </div>
-                    <div class="result-val">
+                    <div class="result-val" style="color: var(--accent-soft);">
                         <span id="approx-val">70.0</span>
                         <span class="unit" id="result-unit-label-approx">°F</span>
-                    </div>
-                </div>
-
-                <!-- Exact physical conversion -->
-                <div class="result-row">
-                    <div class="result-label">
-                        <strong>Exact Value</strong>
-                        <span class="sub">Standard scientific formula</span>
-                    </div>
-                    <div class="result-val" style="color: var(--violet);">
-                        <span id="exact-val">68.0</span>
-                        <span class="unit" id="result-unit-label-exact">°F</span>
                     </div>
                 </div>
 
                 <!-- Accuracy Assessment -->
                 <div class="result-row">
                     <div class="result-label">
-                        <strong>Difference / Drift</strong>
+                        <strong>Shortcut Accuracy</strong>
+                        <span class="sub">How close the shortcut is to the real value</span>
                     </div>
                     <div class="accuracy-badge success" id="accuracy-rating">
                         <span>🔥 97.1% ACCURATE</span>
@@ -1101,8 +1128,8 @@
             
             // Set units in label UI
             document.getElementById("input-unit-label").innerText = spec.inputUnit;
+            document.getElementById("primary-result-unit-label").innerText = spec.outputUnit;
             document.getElementById("result-unit-label-approx").innerText = spec.outputUnit;
-            document.getElementById("result-unit-label-exact").innerText = spec.outputUnit;
             
             // Set default value in input
             const inputField = document.getElementById("conv-input");
@@ -1152,7 +1179,7 @@
             
             // Update results UI
             document.getElementById("approx-val").innerText = formatNumber(approxVal);
-            document.getElementById("exact-val").innerText = formatNumber(exactVal);
+            document.getElementById("primary-exact-val").innerText = formatNumber(exactVal);
             
             // Calculate accuracy rate
             let accuracyText = "";
@@ -1221,8 +1248,12 @@
             document.getElementById("scale-label-top").innerText = "US (" + (spec.inputIsMetric ? spec.outputUnit : spec.inputUnit) + ")";
             document.getElementById("scale-label-bottom").innerText = "Metric (" + (spec.inputIsMetric ? spec.inputUnit : spec.outputUnit) + ")";
             
+            // Sort anchors by US value first to make sure they are in physical order
+            let sortedAnchors = [...spec.anchors].sort((a, b) => a.us - b.us);
+            let lastPlottedPct = -100; // Track the last text label position to avoid overlap
+
             // Map anchors relative to bounds
-            spec.anchors.forEach(anch => {
+            sortedAnchors.forEach(anch => {
                 const pct = ((anch.us - minUs) / range) * 100;
                 
                 // Keep anchor markers visually spaced within viewport bounds
@@ -1236,11 +1267,22 @@
                         anchDiv.classList.add("star");
                     }
                     
-                    anchDiv.innerHTML = `
-                        <div class="scale-anchor-top">${formatNumber(anch.us)}</div>
-                        <div class="scale-anchor-bottom">${formatNumber(anch.metric)}</div>
-                        <div class="scale-anchor-label">${anch.label}</div>
-                    `;
+                    // Only render labels if they are not overlapping (at least 12% space)
+                    // If it is a star or anchor landmark, we give it higher priority to show
+                    const isImportant = anchDiv.classList.contains("star");
+                    const showLabels = (pct - lastPlottedPct) > 12 || isImportant;
+                    
+                    if (showLabels) {
+                        anchDiv.innerHTML = `
+                            <div class="scale-anchor-top">${formatNumber(anch.us)}</div>
+                            <div class="scale-anchor-bottom">${formatNumber(anch.metric)}</div>
+                            <div class="scale-anchor-label">${anch.label}</div>
+                        `;
+                        lastPlottedPct = pct;
+                    } else {
+                        // Just show the tick mark, omit the text to avoid overlap
+                        anchDiv.innerHTML = ``;
+                    }
                     container.appendChild(anchDiv);
                 }
             });
