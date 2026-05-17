@@ -341,6 +341,21 @@
 
     generateNetwork();
 
+    // Pre-seed initial activity so animation starts immediately
+    (function seedInitial() {
+        let consumers = nodes.filter(n => n.type === 'consumer');
+        let count = Math.min(consumers.length, 8);
+        for (let i = 0; i < count; i++) {
+            let consumer = consumers[Math.floor(Math.random() * consumers.length)];
+            let dc = MIX_COLORS[Math.floor(Math.random() * MIX_COLORS.length)];
+            let path = findPath(consumer, 'factory', dc);
+            if (path && path.length > 1) {
+                consumer.demands.push(dc);
+                signals.push({path, pathIndex: 0, progress: Math.random() * 0.5, color: dc, speed: 0.02 * config.speedMultiplier, payload: {type: 'demand_factory', finalMixColor: dc, targetConsumer: consumer}});
+            }
+        }
+    })();
+
     // Animation variables
     let seaTime = 0;
     let frameCount = 0;
