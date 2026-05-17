@@ -7,7 +7,7 @@
     const config = window.SupplyChainConfig || {
         density: 25000,
         speedMultiplier: 1.0,
-        demandFrequency: 0.005 // Lowered default frequency for readability
+        demandFrequency: 0.005
     };
 
     let width, height;
@@ -15,6 +15,7 @@
     let lines = [];
     let packages = [];
     let continents = [];
+    let signals = []; // Used for the crawling light paths
 
     function resize() {
         width = canvas.width = window.innerWidth;
@@ -48,6 +49,7 @@
         lines = [];
         packages = [];
         continents = [];
+        signals = [];
         
         const numNodes = Math.floor((width * height) / config.density); 
         
@@ -72,8 +74,8 @@
             let nx = cont.x + Math.cos(angle) * r_dist;
             let ny = cont.y + Math.sin(angle) * r_dist;
             
-            nx = Math.max(20, Math.min(width - 20, nx));
-            ny = Math.max(20, Math.min(height - 20, ny));
+            nx = Math.max(30, Math.min(width - 30, nx));
+            ny = Math.max(30, Math.min(height - 30, ny));
 
             let type = 'normal';
             let radius = 2;
@@ -81,20 +83,13 @@
             let factoryColor = null;
             
             const r = Math.random();
-            if (r < 0.10) { 
-                type = 'supplier'; 
-                radius = 5; 
-                supplierColor = RAW_COLORS[sCount % 3]; 
-                sCount++;
-            } 
-            else if (r < 0.25) { type = 'warehouse'; radius = 6; } 
-            else if (r < 0.40) { 
-                type = 'factory'; 
-                radius = 6; 
-                factoryColor = MIX_COLORS[fCount % 3]; 
-                fCount++;
-            } 
-            else if (r < 0.50) { type = 'consumer'; radius = 7; } 
+            if (r < 0.15) { 
+                type = 'supplier'; radius = 5; 
+                supplierColor = RAW_COLORS[sCount % 3]; sCount++;
+            } else if (r < 0.35) { 
+                type = 'factory'; radius = 6; 
+                factoryColor = MIX_COLORS[fCount % 3]; fCount++;
+            } else if (r < 0.60) { type = 'consumer'; radius = 7; } 
             
             nodes.push({ 
                 id: i, type, x: nx, y: ny, radius,
@@ -121,7 +116,7 @@
             }
         });
 
-        // Establish Global Connections (Sea Lanes)
+        // Establish Global Connections (Sea / Air)
         for(let i=0; i<continents.length; i++) {
             let c1 = continents[i];
             let c1Nodes = nodes.filter(n => n.continent === c1);
@@ -132,21 +127,30 @@
                 let c2Nodes = nodes.filter(n => n.continent === c2);
                 if (c2Nodes.length === 0) continue;
                 
-                let numRoutes = Math.floor(Math.random() * 2) + 1; // 1 or 2 shipping lanes between pairs
+                let numRoutes = Math.floor(Math.random() * 2) + 1; // 1 or 2 inter-continent lanes
                 for(let k=0; k<numRoutes; k++) {
                     let port1 = c1Nodes[Math.floor(Math.random() * c1Nodes.length)];
                     let port2 = c2Nodes[Math.floor(Math.random() * c2Nodes.length)];
+                    
                     if(!port1.edges.includes(port2)) {
                         port1.edges.push(port2);
                         port2.edges.push(port1);
-                        lines.push({ n1: port1, n2: port2, type: 'sea', glow: 0, glowColor: null });
+                        
+                        let isAir = Math.random() < 0.2; // 20% chance of air route
+                        lines.push({ n1: port1, n2: port2, type: isAir ? 'air' : 'sea', glow: 0, glowColor: null });
+                        
+                        // Convert inter-continent connection points to ports (warehouses)
+                        port1.type = 'warehouse';
+                        port1.radius = 6;
+                        port2.type = 'warehouse';
+                        port2.radius = 6;
                     }
                 }
             }
         }
     }
 
-    // BFS Pathfinding (Specialized)
+    // BFS Pathfinding
     function findPath(startNode, targetType, targetColor) {
         let queue = [[startNode]];
         let visited = new Set([startNode]);
@@ -161,7 +165,6 @@
                 if (!targetColor) return path;
             }
             
-            // Shuffle edges for organic routing variation
             let edges = [...current.edges].sort(() => Math.random() - 0.5);
             for(let neighbor of edges) {
                 if (!visited.has(neighbor)) {
@@ -188,18 +191,6 @@
             }
         }
         return null;
-    }
-
-    function highlightPath(path, color) {
-        for (let i = 0; i < path.length - 1; i++) {
-            let n1 = path[i];
-            let n2 = path[i+1];
-            let line = lines.find(l => (l.n1 === n1 && l.n2 === n2) || (l.n1 === n2 && l.n2 === n1));
-            if (line) {
-                line.glow = 1.0;
-                line.glowColor = color;
-            }
-        }
     }
 
     // Shapes
@@ -234,44 +225,101 @@
         generateNetwork();
     };
 
-    generateNetwork(); // Initial generation
+    generateNetwork();
 
     function animate() {
         ctx.clearRect(0, 0, width, height);
 
-        // Draw Continent Backgrounds (Landmasses)
-        ctx.save();
-        continents.forEach(c => {
-            let gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.radius * 1.2);
-            gradient.addColorStop(0, 'rgba(30, 41, 59, 0.6)'); // Solid land color
-            gradient.addColorStop(0.7, 'rgba(30, 41, 59, 0.3)');
-            gradient.addColorStop(1, 'rgba(15, 23, 42, 0)'); // Fades into sea
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(c.x, c.y, c.radius * 1.2, 0, Math.PI * 2);
-            ctx.fill();
+        // Draw Continent Backgrounds (Sharp Landmass Break)
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
+        ctx.beginPath();
+        nodes.forEach(n => {
+            ctx.moveTo(n.x, n.y);
+            ctx.arc(n.x, n.y, 40, 0, Math.PI * 2); // Creates sharp clustered blobs
         });
-        ctx.restore();
+        ctx.fill();
+
+        // Crawling Signals (Path Illumination)
+        for (let i = signals.length - 1; i >= 0; i--) {
+            let s = signals[i];
+            s.progress += s.speed;
+            
+            let startNode = s.path[s.pathIndex];
+            let endNode = s.path[s.pathIndex + 1];
+            
+            // Illumniate line as signal crawls over it
+            let line = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
+            if (line) {
+                line.glow = Math.max(line.glow || 0, s.progress);
+                line.glowColor = s.color;
+            }
+            
+            if (s.progress >= 1) {
+                if (line) line.glow = 1.0;
+                s.pathIndex++;
+                s.progress = 0;
+                
+                if (s.pathIndex >= s.path.length - 1) {
+                    // Reached destination
+                    let finalNode = s.path[s.path.length - 1];
+                    
+                    if (s.payload && s.payload.type === 'demand_factory') {
+                        let bom = getBOM(s.payload.finalMixColor);
+                        bom.forEach(rawColor => {
+                            let pathToSupplier = findPath(finalNode, 'supplier', rawColor);
+                            if (pathToSupplier && pathToSupplier.length > 1) {
+                                signals.push({
+                                    path: pathToSupplier,
+                                    pathIndex: 0,
+                                    progress: 0,
+                                    color: rawColor,
+                                    speed: 0.02 * config.speedMultiplier,
+                                    payload: {
+                                        type: 'demand_raw',
+                                        targetFactory: finalNode,
+                                        targetConsumer: s.payload.targetConsumer,
+                                        finalMixColor: s.payload.finalMixColor,
+                                        color: rawColor
+                                    }
+                                });
+                            }
+                        });
+                    } else if (s.payload && s.payload.type === 'demand_raw') {
+                        // Dispatch package using the EXACT reversed path for visual consistency
+                        let returnPath = [...s.path].reverse();
+                        packages.push({
+                            path: returnPath,
+                            pathIndex: 0,
+                            progress: 0,
+                            color: s.payload.color,
+                            payload: s.payload
+                        });
+                    }
+                    signals.splice(i, 1);
+                }
+            }
+        }
 
         // Draw lines
         lines.forEach(l => {
-            const dist = Math.hypot(l.n1.x - l.n2.x, l.n1.y - l.n2.y);
-            const opacity = Math.max(0, 1 - dist / 600) * 0.2; // Sea lanes can be long
+            const opacity = 0.2;
             
             ctx.beginPath();
             if (l.type === 'sea') {
-                ctx.setLineDash([8, 12]); // Dashed lines for shipping lanes
+                ctx.setLineDash([8, 12]); // Shipping lanes
+            } else if (l.type === 'air') {
+                ctx.setLineDash([2, 6]); // Air routes
             } else {
-                ctx.setLineDash([]);
+                ctx.setLineDash([]); // Roads
             }
 
             if (l.glow && l.glow > 0) {
                 ctx.strokeStyle = l.glowColor;
-                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.7));
+                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.8)); // Keep light
                 ctx.lineWidth = 1 + (l.glow * 1.5);
-                ctx.shadowBlur = l.glow * 8;
+                ctx.shadowBlur = l.glow * 6;
                 ctx.shadowColor = l.glowColor;
-                l.glow -= 0.015 * config.speedMultiplier;
+                l.glow -= 0.002 * config.speedMultiplier; // Very slow fade!
             } else {
                 ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
                 ctx.globalAlpha = 1.0;
@@ -297,31 +345,18 @@
                 
                 const path = findPath(consumer, 'factory', demandedColor);
                 if (path && path.length > 1) {
-                    const factory = path[path.length - 1];
                     consumer.demands.push(demandedColor);
                     
-                    highlightPath(path, demandedColor);
-                    
-                    const bom = getBOM(demandedColor);
-                    bom.forEach(rawColor => {
-                        let pathToSupplier = findPath(factory, 'supplier', rawColor);
-                        if (pathToSupplier && pathToSupplier.length > 1) {
-                            highlightPath(pathToSupplier, rawColor);
-                            
-                            let returnPath = [...pathToSupplier].reverse();
-                            packages.push({
-                                path: returnPath,
-                                pathIndex: 0,
-                                progress: 0,
-                                baseSpeed: Math.random() * 0.003 + 0.002, // Slower base speed
-                                color: rawColor,
-                                payload: {
-                                    type: 'demand_raw',
-                                    targetFactory: factory,
-                                    targetConsumer: consumer,
-                                    finalMixColor: demandedColor
-                                }
-                            });
+                    signals.push({
+                        path: path,
+                        pathIndex: 0,
+                        progress: 0,
+                        color: demandedColor,
+                        speed: 0.02 * config.speedMultiplier, // Crawling light
+                        payload: {
+                            type: 'demand_factory',
+                            targetConsumer: consumer,
+                            finalMixColor: demandedColor
                         }
                     });
                 }
@@ -344,18 +379,20 @@
         });
 
         // Manage and draw moving packages
+        const BASE_SPEED = 0.003;
+
         for(let i = packages.length - 1; i >= 0; i--) {
             let p = packages[i];
             
             let startNode = p.path[p.pathIndex];
             let endNode = p.path[p.pathIndex + 1];
             
-            // Determine line type for speed and visual
             let currentLine = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
             let edgeType = currentLine ? currentLine.type : 'land';
             
-            let actualSpeed = p.baseSpeed * config.speedMultiplier;
-            if (edgeType === 'sea') actualSpeed *= 0.3; // Ships are slow
+            let actualSpeed = BASE_SPEED * config.speedMultiplier;
+            if (edgeType === 'sea') actualSpeed *= 0.6; // Boats slower
+            if (edgeType === 'air') actualSpeed *= 1.4; // Air faster
             
             p.progress += actualSpeed;
             
@@ -389,7 +426,6 @@
                                     path: returnPath,
                                     pathIndex: 0,
                                     progress: 0,
-                                    baseSpeed: Math.random() * 0.003 + 0.002,
                                     color: p.payload.finalMixColor,
                                     payload: {
                                         type: 'fulfill_demand',
@@ -409,9 +445,10 @@
                 } else {
                     let currNode = p.path[p.pathIndex];
                     if (currNode.type === 'warehouse') {
+                        // Wait at ports before continuing across sea
                         currNode.inventory.push({
                             pkg: p,
-                            waitFrames: Math.floor((Math.random() * 100 + 50) / config.speedMultiplier)
+                            waitFrames: Math.floor((Math.random() * 80 + 40) / config.speedMultiplier)
                         });
                         packages.splice(i, 1);
                         continue;
@@ -435,95 +472,70 @@
             ctx.rotate(angle);
             
             ctx.fillStyle = p.color;
-            ctx.shadowBlur = 8;
+            ctx.shadowBlur = 6;
             ctx.shadowColor = p.color;
             
             if (edgeType === 'sea') {
-                // Minimalist Cargo Ship
-                ctx.fillRect(-6, -3, 12, 6); // Hull
-                
+                ctx.fillRect(-6, -3, 12, 6); 
                 ctx.fillStyle = '#ffffff';
                 ctx.shadowBlur = 0;
-                ctx.fillRect(-5, -2, 3, 4); // Bridge
-                
+                ctx.fillRect(-5, -2, 3, 4); 
                 ctx.fillStyle = p.color;
-                ctx.fillRect(0, -2, 2, 4);  // Cargo Block 1
-                ctx.fillRect(3, -2, 2, 4);  // Cargo Block 2
+                ctx.fillRect(0, -2, 2, 4);  
+                ctx.fillRect(3, -2, 2, 4);  
+            } else if (edgeType === 'air') {
+                // Minimalist Plane
+                ctx.beginPath();
+                ctx.moveTo(4, 0);
+                ctx.lineTo(-4, -4);
+                ctx.lineTo(-4, 4);
+                ctx.fill();
             } else {
                 // Minimalist Truck
-                ctx.fillRect(4, -2, 4, 4);  // Cab
-                ctx.fillRect(-2, -2.5, 5, 5); // Cargo 1
-                ctx.fillRect(-8, -2.5, 5, 5); // Cargo 2
+                ctx.fillRect(4, -2, 4, 4);  
+                ctx.fillRect(-2, -2.5, 5, 5); 
+                ctx.fillRect(-8, -2.5, 5, 5); 
             }
             
             ctx.restore();
         }
 
-        // Draw nodes
+        // Draw nodes - Simplified colors
         nodes.forEach(n => {
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)'; // Universal grey border
             ctx.lineWidth = 1.5;
+            
             if (n.type === 'supplier') {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
-                ctx.strokeStyle = n.supplierColor; 
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = n.supplierColor;
+                ctx.fillStyle = n.supplierColor;
+                ctx.globalAlpha = 0.3; // Faint color fill
                 drawHexagon(n.x, n.y, n.radius);
-                ctx.fill(); ctx.stroke();
-                ctx.shadowBlur = 0;
+                ctx.fill(); 
+                ctx.globalAlpha = 1.0;
+                ctx.stroke();
             } else if (n.type === 'warehouse') {
-                ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
-                ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
                 drawTriangle(n.x, n.y, n.radius);
                 ctx.fill(); ctx.stroke();
-                
-                if (n.inventory.length > 0) {
-                    n.inventory.forEach((item, idx) => {
-                        ctx.fillStyle = item.pkg.color;
-                        ctx.fillRect(n.x + n.radius + 2, n.y - n.radius + (idx * 4), 3, 3);
-                    });
-                }
             } else if (n.type === 'factory') {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
-                ctx.strokeStyle = n.factoryColor; 
-                ctx.lineWidth = 2;
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = n.factoryColor;
+                ctx.fillStyle = n.factoryColor;
+                ctx.globalAlpha = 0.3; // Faint color fill
                 drawSquare(n.x, n.y, n.radius);
-                ctx.fill(); ctx.stroke();
-                ctx.shadowBlur = 0;
-                
-                n.inventory.forEach((item, idx) => {
-                    ctx.fillStyle = item.color;
-                    ctx.beginPath();
-                    ctx.arc(n.x - n.radius + 3 + (idx*5), n.y + n.radius + 5, 2, 0, Math.PI*2);
-                    ctx.fill();
-                });
-            } else if (n.type === 'consumer') {
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
-                ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'rgba(239, 68, 68, 0.4)';
+                ctx.fill(); 
+                ctx.globalAlpha = 1.0;
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
                 ctx.beginPath();
                 ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
                 ctx.fill(); ctx.stroke();
-                ctx.shadowBlur = 0;
-
-                if (n.demands.length > 0) {
-                    ctx.font = 'bold 12px sans-serif';
+                
+                if (n.type === 'consumer' && n.demands.length > 0) {
+                    ctx.font = 'bold 16px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.shadowBlur = 6;
-                    ctx.shadowColor = n.demands[0]; 
-                    ctx.fillText('!', n.x, n.y - 12);
-                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = n.demands[0]; // Actual text is the color
+                    ctx.fillText('!', n.x, n.y - 14);
                 }
-            } else {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.3)';
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
-                ctx.fill();
             }
         });
 
