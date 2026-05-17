@@ -1302,10 +1302,26 @@
 
         // The main conversion calculation and plotting logic
         function calculate() {
+            if (currentSpecIndex === -1) return;
             const spec = activeSpecsList[currentSpecIndex];
             const inputField = document.getElementById("conv-input");
-            let inputVal = parseFloat(inputField.value);
+            const inputValueStr = inputField.value.trim();
             
+            if (inputValueStr === "") {
+                // Show clean placeholders when input is blank
+                document.getElementById("approx-val").innerText = "-";
+                document.getElementById("primary-exact-val").innerText = "-";
+                
+                const badge = document.getElementById("accuracy-rating");
+                badge.innerText = "Enter a value to check accuracy";
+                badge.className = "accuracy-badge success";
+                badge.style.opacity = "0.5";
+                
+                renderScale(spec, 0, 0, true); // Plot blank state
+                return;
+            }
+            
+            let inputVal = parseFloat(inputValueStr);
             if (isNaN(inputVal)) {
                 inputVal = 0;
             }
@@ -1321,6 +1337,7 @@
             // Calculate accuracy rate
             let accuracyText = "";
             let accuracyClass = "success";
+            document.getElementById("accuracy-rating").style.opacity = "1";
             
             if (exactVal === 0 && approxVal === 0) {
                 accuracyText = "🎯 100% Accurate";
@@ -1347,7 +1364,7 @@
             badge.className = `accuracy-badge ${accuracyClass}`;
             
             // Render the dual scale visualizer
-            renderScale(spec, inputVal, exactVal);
+            renderScale(spec, inputVal, exactVal, false);
         }
 
         // Format float values cleanly
@@ -1358,7 +1375,7 @@
         }
 
         // Render visual dual-scale ruler
-        function renderScale(spec, inputVal, exactVal) {
+        function renderScale(spec, inputVal, exactVal, isBlank) {
             const container = document.getElementById("scale-anchors-container");
             container.innerHTML = "";
             
@@ -1373,10 +1390,12 @@
             let maxUs = Math.max(...usVals);
             
             // Scale dynamically if the input value extends beyond typical bounds
-            if (currentUsValue > maxUs) {
-                maxUs = currentUsValue * 1.15; // padding
-            } else if (currentUsValue < minUs) {
-                minUs = currentUsValue * 1.15;
+            if (!isBlank) {
+                if (currentUsValue > maxUs) {
+                    maxUs = currentUsValue * 1.15; // padding
+                } else if (currentUsValue < minUs) {
+                    minUs = currentUsValue * 1.15;
+                }
             }
             
             const range = maxUs - minUs || 100;
@@ -1424,18 +1443,23 @@
                 }
             });
             
-            // Plot user input point
-            let inputPct = ((currentUsValue - minUs) / range) * 100;
-            
-            // Constrain pointer between 0% and 100% physically so it doesn't break the container layout
-            let constrainedPct = Math.max(0, Math.min(100, inputPct));
-            
             const pin = document.getElementById("scale-pin");
-            pin.style.left = `${constrainedPct}%`;
-            
-            // Render active progress background glowing bar
             const prog = document.getElementById("scale-progress");
-            prog.style.width = `${constrainedPct}%`;
+            
+            if (isBlank) {
+                pin.style.opacity = "0";
+                prog.style.width = "0%";
+            } else {
+                pin.style.opacity = "1";
+                // Plot user input point
+                let inputPct = ((currentUsValue - minUs) / range) * 100;
+                
+                // Constrain pointer between 0% and 100% physically so it doesn't break the container layout
+                let constrainedPct = Math.max(0, Math.min(100, inputPct));
+                
+                pin.style.left = `${constrainedPct}%`;
+                prog.style.width = `${constrainedPct}%`;
+            }
             
             // Cache boundaries in global scope for interactive drags
             currentMinUs = minUs;
