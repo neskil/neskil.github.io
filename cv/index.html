@@ -284,10 +284,9 @@
             opacity: 1;
         }
 
-        #back-btn {
+        #back-btn, #sim-btn {
             position: fixed;
             top: 20px;
-            left: 20px;
             z-index: 9999;
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
@@ -304,8 +303,10 @@
             transition: all 0.2s;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
+        #back-btn { left: 20px; }
+        #sim-btn { right: 20px; font-size: 16px; }
 
-        #back-btn:hover {
+        #back-btn:hover, #sim-btn:hover {
             background: rgba(56,189,248,0.2);
             border-color: var(--accent-color);
             transform: translateY(-2px);
@@ -372,6 +373,7 @@
     <div class="bg-glow"></div>
 
     <a href="../index.html" id="back-btn" title="Back to Home">←</a>
+    <a href="../supply-chain/index.html" id="sim-btn" title="Supply Chain Simulation">⚡</a>
 
     <div class="container">
         <header>

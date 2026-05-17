@@ -425,7 +425,7 @@
         // Draw lines
         lines.forEach(l => {
             ctx.beginPath();
-            ctx.setLineDash(l.type==='sea'?[8,12]:l.type==='air'?[2,6]:[]);
+            ctx.setLineDash(l.type==='sea'?[8,12]:[]);
             if (l.glow&&l.glow>0) {
                 ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.globalAlpha=Math.min(0.7, 0.2+l.glow*0.5);
                 ctx.lineWidth=1+l.glow*0.8; ctx.shadowBlur=l.glow*3; ctx.shadowColor='rgba(255,255,255,0.3)';
