@@ -343,7 +343,7 @@
         /* Dual-Scale Timeline Component */
         .scale-container {
             position: relative;
-            height: 80px; /* Ultra-compact fixed height */
+            height: 96px; /* Expanded height to fit angled labels */
             margin-top: 8px;
             background: rgba(0, 0, 0, 0.15);
             border-radius: 12px;
@@ -429,17 +429,20 @@
             white-space: nowrap;
         }
 
-        /* Landmark label tag: positioned below the bottom metric value */
+        /* Landmark label tag: positioned below the bottom metric value and angled to prevent overlap */
         .scale-anchor-label {
             position: absolute;
-            top: 62px; /* Increased vertical spacing from metric value */
-            font-size: 0.65rem; /* Highly readable */
-            color: var(--accent-soft); /* Warm cream orange */
+            top: 60px;
+            left: -8px; /* Slightly offset left to account for rotation pivot point */
+            font-size: 0.65rem;
+            color: var(--accent-soft);
             white-space: nowrap;
             text-transform: uppercase;
             letter-spacing: 0.06em;
             font-weight: 800;
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            transform: rotate(-25deg);
+            transform-origin: left top;
         }
 
         /* Axis Header/Footer Flex Rows (No absolute positioning!) */
@@ -591,23 +594,40 @@
             border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
-        .primary-result-box {
+        .conversion-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 5px 0 10px;
+            gap: 14px;
+            width: 100%;
+            padding: 8px 0;
             animation: fadeIn 0.4s ease-out;
         }
 
+        .conversion-side {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .conversion-input-side {
+            justify-content: flex-end;
+        }
+
+        .conversion-output-side {
+            justify-content: flex-start;
+        }
+
         .result-equals {
-            font-size: 2.2rem;
+            font-size: 2.0rem;
             font-weight: 300;
             color: var(--text-mute);
         }
 
         .primary-result-val {
-            font-size: 3.2rem;
+            font-size: 2.8rem;
             font-weight: 800;
             color: var(--violet);
             text-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
@@ -616,10 +636,37 @@
         }
 
         .primary-result-unit {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: var(--text-secondary);
-            margin-top: 8px;
+        }
+
+        .input-field {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--violet);
+            text-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
+            text-align: right;
+            width: 100%;
+            max-width: 180px;
+            font-size: 2.8rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: -0.04em;
+            transition: color 0.3s ease, text-shadow 0.3s ease;
+        }
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-field[type=number] {
+            -moz-appearance: textfield;
+        }
+        .input-field::placeholder {
+            color: rgba(255, 255, 255, 0.15);
+            text-shadow: none;
         }
 
         /* Collapsible Panels styles */
@@ -798,8 +845,14 @@
             .category-btn .icon {
                 font-size: 1.4rem;
             }
-            .input-field {
-                font-size: 1.8rem;
+            .input-field, .primary-result-val {
+                font-size: 1.9rem !important;
+            }
+            .primary-result-unit {
+                font-size: 1.0rem !important;
+            }
+            .result-equals {
+                font-size: 1.5rem !important;
             }
             .result-val {
                 font-size: 1.2rem;
@@ -879,17 +932,22 @@
                 <button id="swap-dir-btn" class="swap-direction-btn" onclick="swapDirection()">⇅ Swap</button>
             </div>
             <div class="calculator-wrapper">
-                <!-- Numeric input box -->
-                <div class="input-box">
-                    <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="" oninput="calculate()">
-                    <span class="input-unit" id="input-unit-label">°C</span>
-                </div>
+                <!-- Symmetrical side-by-side single-row input and output display -->
+                <div class="conversion-row">
+                    <!-- Left side: Symmetrical Input -->
+                    <div class="conversion-side conversion-input-side">
+                        <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="" placeholder="0" oninput="calculate()">
+                        <span class="primary-result-unit" id="input-unit-label">°C</span>
+                    </div>
 
-                <!-- Giant real-time precise conversion result -->
-                <div class="primary-result-box">
+                    <!-- Equals Separator -->
                     <span class="result-equals">=</span>
-                    <span class="primary-result-val" id="primary-exact-val">-</span>
-                    <span class="primary-result-unit" id="primary-result-unit-label">°F</span>
+
+                    <!-- Right side: Symmetrical Output -->
+                    <div class="conversion-side conversion-output-side">
+                        <span class="primary-result-val" id="primary-exact-val">-</span>
+                        <span class="primary-result-unit" id="primary-result-unit-label">°F</span>
+                    </div>
                 </div>
 
                 <!-- Presets / Quick targets row -->
@@ -1696,6 +1754,8 @@
                 // Reset colors to brand default
                 primaryExactValEl.style.color = "var(--violet)";
                 primaryExactValEl.style.textShadow = "0 0 25px rgba(99, 102, 241, 0.45)";
+                inputField.style.color = "var(--violet)";
+                inputField.style.textShadow = "0 0 25px rgba(99, 102, 241, 0.45)";
                 approxValEl.style.color = "var(--accent-soft)";
                 approxValEl.style.textShadow = "none";
                 
@@ -1728,6 +1788,8 @@
             const styleInfo = getResultColorAndGlow(spec, inputVal, exactVal, false);
             primaryExactValEl.style.color = styleInfo.color;
             primaryExactValEl.style.textShadow = styleInfo.glow;
+            inputField.style.color = styleInfo.color;
+            inputField.style.textShadow = styleInfo.glow;
             approxValEl.style.color = styleInfo.color;
             
             // Calculate accuracy rate
@@ -1841,10 +1903,9 @@
                         anchDiv.classList.add("star");
                     }
                     
-                    // Only render labels if they are not overlapping (at least 22% space on mobile)
-                    // If it is a star landmark, we allow a tighter 14% gap, but never let them overlap!
+                    // Only render labels if they are not overlapping. Angled labels allow tighter thresholds.
                     const isImportant = anchDiv.classList.contains("star");
-                    const threshold = isImportant ? 14 : 22;
+                    const threshold = isImportant ? 10 : 16;
                     const showLabels = (pct - lastPlottedPct) > threshold;
                     
                     if (showLabels) {
