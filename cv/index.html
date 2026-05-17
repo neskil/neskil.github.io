@@ -1,210 +1,629 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title>Resume</title>
-<link type="text/css" rel="stylesheet" href="css/blue.css" />
-<link type="text/css" rel="stylesheet" href="css/print.css" media="print"/>
-<!--[if IE 7]>
-<link href="css/ie7.css" rel="stylesheet" type="text/css" />
-<![endif]-->
-<!--[if IE 6]>
-<link href="css/ie6.css" rel="stylesheet" type="text/css" />
-<![endif]-->
-<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
-<script type="text/javascript" src="js/jquery.tipsy.js"></script>
-<script type="text/javascript" src="js/cufon.yui.js"></script>
-<script type="text/javascript" src="js/scrollTo.js"></script>
-<script type="text/javascript" src="js/myriad.js"></script>
-<script type="text/javascript" src="js/jquery.colorbox.js"></script>
-<script type="text/javascript" src="js/custom.js"></script>
-<script type="text/javascript">
-		Cufon.replace('h1,h2');
-</script>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curriculum Vitae · Niklas Billgren</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a; /* Slate 900 */
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #38bdf8; /* Light Blue */
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
 
-  gtag('config', 'G-9GP823TGLB');
-</script>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        canvas#supplyChainCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+
+        .bg-glow {
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            border-radius: 50%;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #ffffff, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--accent-color);
+            font-weight: 500;
+        }
+
+        .contact-links {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .contact-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .contact-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .section {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: fadeInUp 1s ease-out both;
+        }
+
+        .section:nth-child(2) { animation-delay: 0.1s; }
+        .section:nth-child(3) { animation-delay: 0.2s; }
+        .section:nth-child(4) { animation-delay: 0.3s; }
+        .section:nth-child(5) { animation-delay: 0.4s; }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.75rem;
+            color: var(--accent-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        h2::after {
+            content: '';
+            height: 1px;
+            flex: 1;
+            background: linear-gradient(to right, var(--glass-border), transparent);
+        }
+
+        .profile-text {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+        }
+
+        .entry {
+            margin-bottom: 2rem;
+            position: relative;
+            padding-left: 1.5rem;
+            border-left: 2px solid rgba(56,189,248,0.2);
+        }
+
+        .entry:last-child {
+            margin-bottom: 0;
+        }
+
+        .entry::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .entry-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .entry-role {
+            font-size: 1rem;
+            color: var(--accent-color);
+            font-style: italic;
+        }
+
+        .entry-date {
+            font-family: 'JetBrains Mono', monospace, sans-serif;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: rgba(255,255,255,0.05);
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+        }
+
+        .entry-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .skill-item {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            position: relative;
+            cursor: default;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .skill-item::before {
+            content: '⚡';
+            font-size: 0.8rem;
+            opacity: 0.5;
+        }
+
+        .skill-item:hover {
+            border-color: var(--accent-color);
+            background: rgba(56,189,248,0.05);
+            transform: translateY(-2px);
+        }
+
+        /* Tooltip */
+        .skill-item .tooltip {
+            visibility: hidden;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            text-align: center;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 250px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85rem;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .skill-item .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1e293b transparent transparent transparent;
+        }
+
+        .skill-item:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            text-decoration: none;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        #back-btn:hover {
+            background: rgba(56,189,248,0.2);
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+            color: var(--accent-color);
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 4rem 1rem; }
+            h1 { font-size: 2.5rem; }
+            .section { padding: 1.5rem; }
+            .entry-header { flex-direction: column; gap: 0.25rem; }
+        }
+
+        @media print {
+            body { background: white; color: black; }
+            canvas, .bg-glow, #back-btn { display: none; }
+            .section { 
+                background: none; 
+                border: none; 
+                box-shadow: none; 
+                padding: 0; 
+                margin-bottom: 2rem; 
+                filter: none;
+                backdrop-filter: none;
+            }
+            h1 { color: black; background: none; -webkit-text-fill-color: black; }
+            h2 { color: #000; }
+            h2::after { display: none; }
+            .subtitle { color: #333; }
+            .entry { border-left: 2px solid #ccc; }
+            .entry::before { background: #333; box-shadow: none; }
+            .entry-title { color: #000; }
+            .entry-role { color: #333; }
+            .entry-date { background: #eee; color: #333; }
+            .skill-item { border-color: #ccc; background: #fff; break-inside: avoid; }
+            .skill-item::before { display: none; }
+            .contact-links a { color: #000; }
+            .tooltip { display: none !important; }
+        }
+    </style>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
 </head>
 <body>
-    <a href="../index.html" style="position: fixed; top: 15px; left: 15px; z-index: 9999; background: rgba(0,0,0,0.6); color: #fff; text-decoration: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 20px; font-family: sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.3); backdrop-filter: blur(5px); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.8)'" onmouseout="this.style.background='rgba(0,0,0,0.6)'" title="Back to Home">&#8592;</a>
-    <!-- Wrapper buttons removed, handled by landing page -->
-<!-- Begin Wrapper -->
-<div id="wrapper">
-  <div class="wrapper-top"></div>
-  <div class="wrapper-mid">
-    <!-- Begin Paper -->
-    <div id="paper">
-      <div class="paper-top"></div>
-      <div id="paper-mid">
-        <div class="entry">
-          <!-- Begin Image -->
-          <img class="portrait" src="images/image.jpg" alt="John Smith" />
-          <!-- End Image -->
-          <!-- Begin Personal Information -->
-          <div class="self">
-            <h1 class="name">Niklas Billgren <br />
-              <span>M.Sc. Industrial Engineering and Management</span></h1>
-           <!--  <ul>-->
-              <!-- <li class="tel">Se CV</li> -->
-           <!-- </ul> -->
-          </div>
-          <!-- End Personal Information -->
-          <!-- Begin Social -->
-          <div class="social">
-            <ul>
-              <li><a class='north' href="javascript:window.print()" title="Print"><img src="images/icn-print.jpg" alt="" /></a></li>
-              <li><a class='north' id="contact" href="#" onclick="window.location.href=atob('bWFpbHR'+'vOm4uZXN'+'raWxzc2'+'9uQGdtYW'+'lsLmNvbQ==');return false;" title="Contact Me"><img src="images/icn-contact.jpg" alt="" /></a></li>
-            </ul>
-          </div>
-          <!-- End Social -->
-        </div>
-        <!-- Begin 1st Row -->
-        <div class="entry">
-          <h2>PROFILE</h2>
-          <div class="content">
-            <p>Energetic and result oriented person intrigued by the possibilities of digitalization in the logistics field. Analytical and pragmatic are descriptors used by colleagues to describe me. In general, I'd say I'm perceptive, level headed and hold myself to high work standards. Naturally curious in life, technology and the people I surround myself with. Love to read, watch, play anything even remotely related to Sci-Fi.</p>
-          </div>
-        </div>
-        <!-- End 1st Row -->
-        <!-- Begin 2nd Row -->
-        <div class="entry">
-          <h2>EDUCATION</h2>
-          <div class="content">
-            <h3>2016 - 2019</h3>
-            <p>Linköping University<br />
-              <em>M.Sc. in Industrial Engineering and Management<br>
-                Master profile in Logistics and Supply Chain Management</em></p>
-          </div>
-          <div class="content">
-            <h3>2013 - 2015</h3>
-            <p>Linköping University<br />
-              <em>B.Sc. in Mechanical Engineering - Bachelor profile in Mechatronics</em></p>
-          </div>
-          <div class="content">
-            <h3>2009 - 2012</h3>
-            <p>Katedralskolan Linköping<br />
-              <em>High School - Natural Science Program</em></p>
-          </div>
-        </div>
-        <!-- End 2nd Row -->
-        <!-- Begin 3rd Row -->
-        <div class="entry">
-          <h2>EXPERIENCE</h2>
-          
-          <div class="content">
-            <h3>Mar 2023 - Present</h3>
-            <p>RELEX Solutions (acquired Optimity AB, Jan 2024)<br />
-              <em>Senior Solution Consultant & Team Lead</em></p>
-            <ul class="info">
-              <li><em class="filler">Joined Optimity AB prior to its acquisition by RELEX Solutions in 2024, working on supply chain planning projects for retail, wholesale, and manufacturing clients. Focused on implementation and pre-sales activities, including solution design and demonstrations for production, inventory, and replenishment optimization using RELEX's AI-driven platform. Promoted to Team Lead in Aug 2024, now managing nine consultants and overseeing project delivery, personnel development, and cross-functional collaboration to deliver scalable, data-driven planning solutions.</em></li>
-            </ul>
-          </div>
+    <canvas id="supplyChainCanvas"></canvas>
+    <div class="bg-glow"></div>
 
-          <div class="content">
-            <h3>Aug 2019 - Mar 2023</h3>
-            <p>Exsitec AB<br />
-              <em>ERP Consultant</em></p>
-            <ul class="info">
-              <li><em class="filler">Implemented ERP, WMS, EDI, and tailored supply chain solutions, and supported sales through pre-studies and product demonstrations. Served as Solution Architect for an ERP–logistics project at one of the largest regional healthcare authorities, overseeing and leading requirements and process analysis, integrations, and implementation.</em></li>
-            </ul>
-          </div>
+    <a href="../index.html" id="back-btn" title="Back to Home">←</a>
 
-          <div class="content">
-            <h3>Sep 2015 - Nov 2018</h3>
-            <p>Flamman Pub&Disco<br />
-              <em>Managing Director - Head of Finance & Marketing</em></p>
-            <ul class="info">
-              <li><em class="filler">Oversaw accounting, investments, and nightly operations for an independent student nightclub (6 MSEK revenue). Supervised up to 25 bartenders and staff; boosted visitors 25% and turnover 60% via marketing and new student union partnership initiatives.</em></li>
-            </ul>
-          </div>
+    <div class="container">
+        <header>
+            <h1>Niklas Billgren</h1>
+            <p class="subtitle">M.Sc. Industrial Engineering and Management</p>
+            <div class="contact-links">
+                <a href="#" onclick="window.location.href=atob('bWFpbHR'+'vOm4uZXN'+'raWxzc2'+'9uQGdtYW'+'lsLmNvbQ==');return false;" title="Contact Me">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    n.eskilsson@gmail.com
+                </a>
+                <a href="javascript:window.print()" title="Print CV">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Print
+                </a>
+            </div>
+        </header>
 
-          <div class="content">
-            <h3>Jun 2017 - Aug 2017</h3>
-            <p>FKP Scorpio Sverige AB<br />
-              <em>Bar Manager</em></p>
-            <ul class="info">
-              <li><em class="filler">Bar manager for Håkan Hellström's tour "Rullande Åska" and the festival Bråvalla. Managed up to 40 bartenders and logistic support staff.</em></li>
-            </ul>
-          </div>
+        <section class="section">
+            <h2>Profile</h2>
+            <p class="profile-text">Energetic and result-oriented professional intrigued by the possibilities of digitalization and artificial intelligence in the logistics field. Analytical and pragmatic, I actively leverage modern AI tools (including Claude and AntiGravity) to accelerate development, write logic, and optimize project workflows. I'm perceptive, level-headed, and hold myself to high work standards, constantly exploring how emerging technologies can drastically increase implementation efficiency. Naturally curious about life, tech, and anything remotely related to Sci-Fi.</p>
+        </section>
 
-          <div class="content">
-            <h3>Aug 2012 - Aug 2014</h3>
-            <p>Tekniska verken AB<br />
-              <em>System Configuration</em></p>
-            <ul class="info">
-              <li><em class="filler">System migration for control and monitoring systems (SCADA) for Linköping's wastewater plant. UX configuration for end users. Full time employee during 2012-2013, and later part time. Worked with SQL and PLC-programming.</em></li>
-            </ul>
-          </div>
-        </div>
-        <!-- End 3rd Row -->
-        <!-- Begin 4th Row -->
-        <div class="entry">
-          <h2>NON-PROFIT POSITIONS</h2>
-          <div class="content">
-            <h3>2017 - 2018</h3>
-            <p>Student café Baljan<br />
-              <em>Project Manager</em></p>
-            <ul class="info">
-              <li><em class="filler">Led procurement and long-term projects for a student-run café with annual revenue of 3 MSEK and 120 volunteers. Negotiated supplier and payment deals, introduced a tap payment system, and optimized operations serving 1,700+ cups of coffee daily.</em></li>
-            </ul>
-          </div>
-          <div class="content">
-            <h3>2017 - 2018</h3>
-            <p>LinTek - Linköpings Teknologers Studentkår<br />
-              <em>Representative Assembly</em></p>
-            <ul class="info">
-              <li><em class="filler">Elected representative for the student union of the technical faculty at Linköping University. Discussed and voted on policies, budgets and election of positions at LinTek.</em></li>
-            </ul>
-          </div>
-          <div class="content">
-            <h3>2014 - 2015</h3>
-            <p>Mechanical Engineering Student Body<br />
-              <em>Director of Communications (Reception Committee)</em></p>
-            <ul class="info">
-              <li><em class="filler">Project team member for the 3-week reception welcoming 300 new students. Organized over 20 events, built the website mpire.nu, and managed communications, graphic design, and tickets.</em></li>
-            </ul>
-          </div>
-        </div>
-        <!-- End 4th Row -->
-        <!-- Begin 5th Row -->
-        <div class="entry">
-          <h2>SKILLS</h2>
-          <div class="content">
-            <h3>Software Knowledge</h3>
-            <ul class="skills">
-              <li>Visma Business ERP</li>
-              <li>MS Office suite</li>
-              <li>SC Master Planning</li>
-              <li>RELEX Plan</li>
-              <li>Bitlog WMS</li>
-              <li>Microsoft SQL</li>
-              <li>Infor M3 ERP</li>
-              <li>Dynamics 365 ERP</li>
-              <li>Python</li>
-              <li>Driver's license</li>
-            </ul>
-          </div>
-          <div class="content">
-            <h3>Languages</h3>
-            <ul class="skills">
-              <li>Swedish: Native</li>
-              <li>English: Professional</li>
-            </ul>
-          </div>
-        </div>
+        <section class="section">
+            <h2>Experience</h2>
+            
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">RELEX Solutions (acquired Optimity AB, Jan 2024)</div>
+                        <div class="entry-role">Senior Solution Consultant & Team Lead</div>
+                    </div>
+                    <div class="entry-date">Mar 2023 - Present</div>
+                </div>
+                <div class="entry-desc">
+                    Joined Optimity AB prior to its acquisition by RELEX Solutions in 2024, working on supply chain planning projects for retail, wholesale, and manufacturing clients. Focused on implementation and pre-sales activities using RELEX's AI-driven platform. Promoted to Team Lead in Aug 2024, managing nine consultants. I actively lead initiatives in building internal AI tools and prompt-engineering workflows to massively increase project implementation efficiency and deliver scalable, data-driven planning solutions.
+                </div>
+            </div>
+
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">Exsitec AB</div>
+                        <div class="entry-role">ERP Consultant</div>
+                    </div>
+                    <div class="entry-date">Aug 2019 - Mar 2023</div>
+                </div>
+                <div class="entry-desc">
+                    Implemented ERP, WMS, EDI, and tailored supply chain solutions, and supported sales through pre-studies and product demonstrations. Served as Solution Architect for an ERP–logistics project at one of the largest regional healthcare authorities, overseeing and leading requirements and process analysis, integrations, and implementation.
+                </div>
+            </div>
+
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">Flamman Pub&Disco</div>
+                        <div class="entry-role">Managing Director - Head of Finance & Marketing</div>
+                    </div>
+                    <div class="entry-date">Sep 2015 - Nov 2018</div>
+                </div>
+                <div class="entry-desc">
+                    Oversaw accounting, investments, and nightly operations for an independent student nightclub (6 MSEK revenue). Supervised up to 25 bartenders and staff; boosted visitors 25% and turnover 60% via marketing and new student union partnership initiatives.
+                </div>
+            </div>
+            
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">Tekniska verken AB</div>
+                        <div class="entry-role">System Configuration</div>
+                    </div>
+                    <div class="entry-date">Aug 2012 - Aug 2014</div>
+                </div>
+                <div class="entry-desc">
+                    System migration for control and monitoring systems (SCADA) for Linköping's wastewater plant. UX configuration for end users. Worked with SQL and PLC-programming.
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Education</h2>
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">Linköping University</div>
+                        <div class="entry-role">M.Sc. in Industrial Engineering and Management</div>
+                    </div>
+                    <div class="entry-date">2016 - 2019</div>
+                </div>
+                <div class="entry-desc">Master profile in Logistics and Supply Chain Management.</div>
+            </div>
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        <div class="entry-title">Linköping University</div>
+                        <div class="entry-role">B.Sc. in Mechanical Engineering</div>
+                    </div>
+                    <div class="entry-date">2013 - 2015</div>
+                </div>
+                <div class="entry-desc">Bachelor profile in Mechatronics.</div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Skills & Expertise</h2>
+            <div class="skills-grid">
+                <div class="skill-item">
+                    AI Tooling & Automation
+                    <span class="tooltip">Extensive use of Claude, AntiGravity, and internal AI tools for rapid prototyping, logic creation, and workflow efficiency.</span>
+                </div>
+                <div class="skill-item">
+                    RELEX Plan
+                    <span class="tooltip">Implementing AI-driven forecasting, inventory optimization, and replenishment strategies.</span>
+                </div>
+                <div class="skill-item">
+                    SC Master Planning
+                    <span class="tooltip">Deep domain knowledge in end-to-end supply chain optimization and network design.</span>
+                </div>
+                <div class="skill-item">
+                    Visma Business ERP
+                    <span class="tooltip">Extensive experience customizing and integrating complex ERP workflows.</span>
+                </div>
+                <div class="skill-item">
+                    Bitlog WMS
+                    <span class="tooltip">Warehouse management system configuration, optimization, and integration.</span>
+                </div>
+                <div class="skill-item">
+                    Microsoft SQL
+                    <span class="tooltip">Complex querying, data migrations, and database design for logistics systems.</span>
+                </div>
+                <div class="skill-item">
+                    Python
+                    <span class="tooltip">Scripting, data analysis, and automation. Often augmented with AI code generation.</span>
+                </div>
+                <div class="skill-item">
+                    Dynamics 365 ERP
+                    <span class="tooltip">Experience with implementation and architecture in the Microsoft ecosystem.</span>
+                </div>
+                <div class="skill-item">
+                    Infor M3 ERP
+                    <span class="tooltip">Experience with supply chain operations within Infor M3.</span>
+                </div>
+                <div class="skill-item">
+                    MS Office Suite
+                    <span class="tooltip">Advanced Excel modeling, macros, and business data analysis.</span>
+                </div>
+            </div>
+        </section>
+
     </div>
-    <!-- End Paper -->
-    <div class="paper-bottom"></div>
-  </div>
-  <div class="wrapper-bottom"></div>
-</div>
-<div id="message"><a href="#top" id="top-link">Go to Top</a></div>
-<!-- End Wrapper -->
+
+    <!-- Supply Chain Background Animation -->
+    <script>
+        const canvas = document.getElementById('supplyChainCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        const nodes = [];
+        const lines = [];
+        const packages = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Create Nodes (Factories, Warehouses, Stores)
+        const numNodes = Math.floor(width * height / 30000);
+        for(let i=0; i<numNodes; i++) {
+            nodes.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 3 + 2,
+                vx: (Math.random() - 0.5) * 0.2,
+                vy: (Math.random() - 0.5) * 0.2
+            });
+        }
+
+        // Establish connections (supply routes)
+        nodes.forEach((node, i) => {
+            // connect to 2-3 closest nodes
+            let distances = nodes.map((n, idx) => ({ idx, d: Math.hypot(n.x - node.x, n.y - node.y) }));
+            distances.sort((a,b) => a.d - b.d);
+            for(let j=1; j<=3; j++) {
+                if(distances[j]) {
+                    // avoid duplicate lines
+                    const exists = lines.some(l => (l.n1 === node && l.n2 === nodes[distances[j].idx]) || (l.n2 === node && l.n1 === nodes[distances[j].idx]));
+                    if(!exists) {
+                        lines.push({ n1: node, n2: nodes[distances[j].idx] });
+                    }
+                }
+            }
+        });
+
+        function spawnPackage() {
+            if(lines.length === 0) return;
+            const line = lines[Math.floor(Math.random() * lines.length)];
+            // chance to go backwards
+            const reverse = Math.random() > 0.5;
+            packages.push({
+                start: reverse ? line.n2 : line.n1,
+                end: reverse ? line.n1 : line.n2,
+                progress: 0,
+                speed: Math.random() * 0.005 + 0.002
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Move nodes slightly
+            nodes.forEach(n => {
+                n.x += n.vx;
+                n.y += n.vy;
+                if(n.x < 0 || n.x > width) n.vx *= -1;
+                if(n.y < 0 || n.y > height) n.vy *= -1;
+            });
+
+            // Draw supply lines
+            ctx.lineWidth = 1;
+            lines.forEach(l => {
+                const dist = Math.hypot(l.n1.x - l.n2.x, l.n1.y - l.n2.y);
+                const opacity = Math.max(0, 1 - dist / 300) * 0.15;
+                ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
+                ctx.beginPath();
+                ctx.moveTo(l.n1.x, l.n1.y);
+                ctx.lineTo(l.n2.x, l.n2.y);
+                ctx.stroke();
+            });
+
+            // Draw nodes
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+            nodes.forEach(n => {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Manage and draw moving packages
+            if(Math.random() < 0.1 && packages.length < 50) spawnPackage();
+
+            for(let i = packages.length - 1; i >= 0; i--) {
+                let p = packages[i];
+                p.progress += p.speed;
+                if(p.progress >= 1) {
+                    packages.splice(i, 1);
+                    continue;
+                }
+                
+                const curX = p.start.x + (p.end.x - p.start.x) * p.progress;
+                const curY = p.start.y + (p.end.y - p.start.y) * p.progress;
+                
+                // Package glow
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(56, 189, 248, 1)';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#38bdf8';
+                ctx.arc(curX, curY, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0; // reset
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
 </body>
 </html>
