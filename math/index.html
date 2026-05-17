@@ -611,6 +611,16 @@
     </div>
 
     <div class="game-setting">
+      <label>Categories</label>
+      <div class="toggle-group" style="flex-wrap: wrap;">
+        <button class="toggle-btn active" id="btn-cat-all" onclick="setCategory('all')">All</button>
+        <button class="toggle-btn" id="btn-cat-temp" onclick="setCategory('temp')">Temp</button>
+        <button class="toggle-btn" id="btn-cat-dist" onclick="setCategory('dist')">Distance</button>
+        <button class="toggle-btn" id="btn-cat-weight" onclick="setCategory('weight')">Weight</button>
+      </div>
+    </div>
+
+    <div class="game-setting">
       <label>Hints / Tips</label>
       <div class="toggle-group">
         <button class="toggle-btn active" id="btn-h1" onclick="setHintsMode(true)">Show</button>
@@ -652,6 +662,7 @@ let gMode = 'mc';
 let gDiff = 'easy';
 let gTime = 60;
 let gHints = true;
+let gCat = 'all';
 let score = 0;
 let timeLeft = 60;
 let timerInt = null;
@@ -693,6 +704,14 @@ function setHintsMode(h) {
   gHints = h;
   document.getElementById('btn-h1').classList.toggle('active', h === true);
   document.getElementById('btn-h0').classList.toggle('active', h === false);
+}
+
+function setCategory(cat) {
+  gCat = cat;
+  document.getElementById('btn-cat-all').classList.toggle('active', cat === 'all');
+  document.getElementById('btn-cat-temp').classList.toggle('active', cat === 'temp');
+  document.getElementById('btn-cat-dist').classList.toggle('active', cat === 'dist');
+  document.getElementById('btn-cat-weight').classList.toggle('active', cat === 'weight');
 }
 
 function startGame() {
@@ -783,7 +802,18 @@ function nextQuestion() {
   document.getElementById('answer-input').value = '';
   isAccepting = true;
   
-  const pool = gDiff === 'easy' ? [generators.tempEasy, generators.distEasy, generators.weightEasy] : [generators.tempHard, generators.distHard, generators.weightHard];
+  let pool = [];
+  if (gDiff === 'easy') {
+    if (gCat === 'all' || gCat === 'temp') pool.push(generators.tempEasy);
+    if (gCat === 'all' || gCat === 'dist') pool.push(generators.distEasy);
+    if (gCat === 'all' || gCat === 'weight') pool.push(generators.weightEasy);
+  } else {
+    if (gCat === 'all' || gCat === 'temp') pool.push(generators.tempHard);
+    if (gCat === 'all' || gCat === 'dist') pool.push(generators.distHard);
+    if (gCat === 'all' || gCat === 'weight') pool.push(generators.weightHard);
+  }
+  if(pool.length === 0) pool = [generators.tempEasy]; // Fallback
+  
   const gen = pool[Math.floor(Math.random()*pool.length)];
   currentQ = gen();
   
