@@ -712,6 +712,7 @@
         .selectors-wrapper.side-by-side .panel {
             padding: 8px 12px !important;
             border-radius: 12px;
+            overflow: hidden !important; /* Strictly lock width and clip overflow */
         }
 
         .selectors-wrapper.side-by-side .panel-header {
@@ -1835,4 +1836,15 @@
 
         // On document load, load states and configure page events
         window.addEventListener("DOMContentLoaded", () => {
-  
+            loadState();
+            initDragEvents();
+            
+            // Focus input automatically for PC/Desktop convenience (but let mobile prompt naturally)
+            if (window.innerWidth > 600) {
+                document.getElementById("conv-input").focus();
+                document.getElementById("conv-input").select();
+            }
+        });
+    </script>
+</body>
+</html>
