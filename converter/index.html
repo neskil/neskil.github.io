@@ -76,19 +76,37 @@
             gap: 10px; /* Reduced gap */
         }
 
-        /* Back Navigation */
-        .back-nav {
-            align-self: flex-start;
+        /* Compact Navigation Header Bar */
+        .header-bar {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 4px;
+            padding: 4px 2px;
+        }
+
+        .header-title {
+            font-size: 1.15rem !important; /* Elegant modern bar sizing */
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 !important;
+        }
+
+        /* Back Navigation Button */
+        .back-nav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             color: var(--text-secondary);
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.9rem; /* Slightly smaller */
+            font-size: 0.8rem;
             transition: all 0.2s ease;
-            margin-bottom: 2px;
-            padding: 6px 14px; /* More compact */
+            padding: 6px 12px;
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
             border-radius: 100px;
@@ -101,27 +119,6 @@
             background: var(--card-hover-bg);
             border-color: rgba(255, 255, 255, 0.15);
             transform: translateX(-3px);
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 2px;
-        }
-
-        header h1 {
-            font-size: 2.0rem; /* Slightly smaller */
-            font-weight: 800;
-            letter-spacing: -0.04em;
-            background: linear-gradient(to right, #ffffff, #cbd5e1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 2px;
-        }
-
-        header p {
-            color: var(--text-secondary);
-            font-size: 0.85rem; /* More compact text */
-            font-weight: 300;
         }
 
         /* Glassmorphic Panel Base */
@@ -682,7 +679,7 @@
 
         /* Collapsed state modifier */
         .panel.collapsible.collapsed {
-            padding: 12px 20px;
+            padding: 10px 16px;
         }
 
         .panel.collapsible.collapsed .panel-summary {
@@ -695,6 +692,47 @@
             opacity: 0;
             overflow: hidden;
             pointer-events: none;
+        }
+
+        /* Dynamic Selectors side-by-side grid when both collapsed */
+        .selectors-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .selectors-wrapper.side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .selectors-wrapper.side-by-side .panel {
+            padding: 8px 12px !important;
+            border-radius: 12px;
+        }
+
+        .selectors-wrapper.side-by-side .panel-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .selectors-wrapper.side-by-side .panel-title {
+            display: none !important; /* Hide step headers for side-by-side to save massive vertical space */
+        }
+
+        .selectors-wrapper.side-by-side .panel-summary {
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+            padding: 4px 10px !important;
+            font-size: 0.8rem !important;
+        }
+
+        .selectors-wrapper.side-by-side .panel-toggle-btn {
+            padding: 4px 8px !important;
+            font-size: 0.65rem !important;
         }
 
         /* Fade-in animation helper */
@@ -739,61 +777,62 @@
     <div class="bg-glow-2"></div>
 
     <div class="container">
-        <!-- Back navigation button -->
-        <a href="../index.html" class="back-nav">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"></line>
-                <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            Back to Home
-        </a>
-
-        <header>
-            <h1>Quick Converter</h1>
-            <p>Interactive mental math calculator optimized for mobile</p>
+        <!-- Compact Navigation Header Bar -->
+        <header class="header-bar">
+            <a href="../index.html" class="back-nav">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back
+            </a>
+            <h1 class="header-title">Quick Converter</h1>
         </header>
 
-        <!-- Category selector panel -->
-        <div class="panel collapsible" id="panel-category">
-            <div class="panel-header" onclick="togglePanel('category')">
-                <div class="panel-title" style="margin-bottom: 0;">
-                    <span>1. Measurement Type</span>
+        <!-- Grouped Selectors Wrapper for side-by-side rendering -->
+        <div class="selectors-wrapper" id="selectors-wrapper">
+            <!-- Category selector panel -->
+            <div class="panel collapsible" id="panel-category">
+                <div class="panel-header" onclick="togglePanel('category')">
+                    <div class="panel-title" style="margin-bottom: 0;">
+                        <span>1. Measurement Type</span>
+                    </div>
+                    <div class="panel-summary" id="category-summary">None Selected</div>
+                    <button class="panel-toggle-btn" id="category-toggle-btn" onclick="event.stopPropagation(); togglePanel('category')">Change</button>
                 </div>
-                <div class="panel-summary" id="category-summary">None Selected</div>
-                <button class="panel-toggle-btn" id="category-toggle-btn" onclick="event.stopPropagation(); togglePanel('category')">Change</button>
+                <div class="panel-content category-grid">
+                    <button class="category-btn" id="cat-temp" onclick="changeCategory('temp')">
+                        <span class="icon">🌡️</span>
+                        <span>Temp</span>
+                    </button>
+                    <button class="category-btn" id="cat-dist" onclick="changeCategory('dist')">
+                        <span class="icon">🚗</span>
+                        <span>Distance</span>
+                    </button>
+                    <button class="category-btn" id="cat-weight" onclick="changeCategory('weight')">
+                        <span class="icon">⚖️</span>
+                        <span>Weight</span>
+                    </button>
+                    <button class="category-btn" id="cat-vol" onclick="changeCategory('vol')">
+                        <span class="icon">🧪</span>
+                        <span>Volume</span>
+                    </button>
+                </div>
             </div>
-            <div class="panel-content category-grid">
-                <button class="category-btn" id="cat-temp" onclick="changeCategory('temp')">
-                    <span class="icon">🌡️</span>
-                    <span>Temp</span>
-                </button>
-                <button class="category-btn" id="cat-dist" onclick="changeCategory('dist')">
-                    <span class="icon">🚗</span>
-                    <span>Distance</span>
-                </button>
-                <button class="category-btn" id="cat-weight" onclick="changeCategory('weight')">
-                    <span class="icon">⚖️</span>
-                    <span>Weight</span>
-                </button>
-                <button class="category-btn" id="cat-vol" onclick="changeCategory('vol')">
-                    <span class="icon">🧪</span>
-                    <span>Volume</span>
-                </button>
-            </div>
-        </div>
 
-        <!-- Direction selector panel -->
-        <div class="panel collapsible" id="panel-direction">
-            <div class="panel-header" onclick="togglePanel('direction')">
-                <div class="panel-title" style="margin-bottom: 0;">
-                    <span>2. Direction</span>
+            <!-- Direction selector panel -->
+            <div class="panel collapsible" id="panel-direction">
+                <div class="panel-header" onclick="togglePanel('direction')">
+                    <div class="panel-title" style="margin-bottom: 0;">
+                        <span>2. Direction</span>
+                    </div>
+                    <div class="panel-summary" id="direction-summary">None Selected</div>
+                    <button class="panel-toggle-btn" id="direction-toggle-btn" onclick="event.stopPropagation(); togglePanel('direction')">Change</button>
                 </div>
-                <div class="panel-summary" id="direction-summary">None Selected</div>
-                <button class="panel-toggle-btn" id="direction-toggle-btn" onclick="event.stopPropagation(); togglePanel('direction')">Change</button>
-            </div>
-            <div class="panel-content direction-container">
-                <div class="direction-scroll" id="direction-list">
-                    <!-- Dynamic buttons injected here -->
+                <div class="panel-content direction-container">
+                    <div class="direction-scroll" id="direction-list">
+                        <!-- Dynamic buttons injected here -->
+                    </div>
                 </div>
             </div>
         </div>
