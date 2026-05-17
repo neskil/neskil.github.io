@@ -73,7 +73,7 @@
             max-width: 500px;
             display: flex;
             flex-direction: column;
-            gap: 10px; /* Reduced gap */
+            gap: 6px; /* High-density vertical panel spacing */
         }
 
         /* Compact Navigation Header Bar */
@@ -126,7 +126,7 @@
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
             border-radius: 16px; /* Slightly tighter border radius */
-            padding: 14px 18px; /* Compact padding */
+            padding: 11px 14px; /* Ultra-compact panel padding */
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
@@ -371,7 +371,7 @@
         /* Top tick label: positioned fully above the track */
         .scale-anchor-top {
             position: absolute;
-            bottom: 54px;
+            bottom: 58px; /* Increased padding off the line */
             transform: translateY(50%);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Supreme readability */
@@ -385,8 +385,8 @@
         .scale-anchor::before {
             content: '';
             position: absolute;
-            top: 26px;
-            height: 12px;
+            top: 28px; /* Centered cleanly on 32px line */
+            height: 8px; /* Compact height to avoid labels completely */
             width: 1px;
             background: rgba(255, 255, 255, 0.45); /* Solid tick lines */
         }
@@ -400,7 +400,7 @@
         /* Bottom tick label: positioned fully below the track */
         .scale-anchor-bottom {
             position: absolute;
-            top: 42px;
+            top: 46px; /* Increased margin below the line */
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Larger font size */
             color: #cbd5e1; /* Clear bright gray */
@@ -412,7 +412,7 @@
         /* Landmark label tag: positioned below the bottom metric value */
         .scale-anchor-label {
             position: absolute;
-            top: 58px;
+            top: 62px; /* Increased vertical spacing from metric value */
             font-size: 0.65rem; /* Highly readable */
             color: var(--accent-soft); /* Warm cream orange */
             white-space: nowrap;
@@ -448,41 +448,20 @@
             text-transform: uppercase;
         }
 
-        /* Custom Input Pointer Pin (Matches the mathematically centered track) */
+        /* Circular Glowing interactive handle centered perfectly on the 32px track line */
         .scale-pointer {
             position: absolute;
-            top: 20px; /* Centered around the 32px track line */
-            height: 24px;
-            width: 2px;
-            background: #cbd5e1; /* Sleek slate vertical indicator */
-            transform: translateX(-50%);
+            top: 50%; /* Centered relative to the parent .scale-track height */
+            transform: translate(-50%, -50%); /* Perfectly center-offset */
+            width: 18px;
+            height: 18px;
+            background: #ffffff; /* Bright white core */
+            border: 3px solid var(--accent); /* Thick premium orange border */
+            border-radius: 50%;
             z-index: 10;
+            box-shadow: 0 0 12px rgba(255, 106, 61, 0.7), 0 2px 5px rgba(0, 0, 0, 0.5);
             transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease;
             pointer-events: none;
-        }
-
-        .scale-pointer::before {
-            content: '';
-            position: absolute;
-            top: -5px;
-            left: -5px;
-            width: 12px;
-            height: 12px;
-            background: var(--accent); /* Solid orange core */
-            border-radius: 50%;
-            border: 2px solid #cbd5e1;
-        }
-
-        .scale-pointer::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: -5px;
-            width: 12px;
-            height: 12px;
-            background: var(--accent);
-            border-radius: 50%;
-            border: 2px solid #cbd5e1;
         }
 
         /* Results Box Component */
