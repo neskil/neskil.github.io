@@ -8,7 +8,8 @@
     };
 
     let width, height, nodes = [], lines = [], packages = [], signals = [];
-    let seaLeftEdge = [], seaRightEdge = []; // Sea polygon edges
+    let seaLeftEdge = [], seaRightEdge = []; // Sea polygon edges (or top/bottom on mobile)
+    let isPortrait = false;
 
     function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
@@ -39,21 +40,46 @@
     // Point-in-sea test: check if x is between left and right edge at given y
     function isInSea(x, y) {
         if (seaLeftEdge.length < 2) return false;
-        // Find the two edge points bracketing this y
-        for (let i = 0; i < seaLeftEdge.length - 1; i++) {
-            let ly1 = seaLeftEdge[i].y, ly2 = seaLeftEdge[i+1].y;
-            if (y >= ly1 && y <= ly2) {
-                let t = (y - ly1) / (ly2 - ly1);
-                let lx = seaLeftEdge[i].x + t * (seaLeftEdge[i+1].x - seaLeftEdge[i].x);
-                let rx = seaRightEdge[i].x + t * (seaRightEdge[i+1].x - seaRightEdge[i].x);
-                return x >= lx && x <= rx;
+        if (isPortrait) {
+            // Horizontal sea: interpolate along x-axis
+            for (let i = 0; i < seaLeftEdge.length - 1; i++) {
+                let x1 = seaLeftEdge[i].x, x2 = seaLeftEdge[i+1].x;
+                if (x >= x1 && x <= x2) {
+                    let t = (x - x1) / (x2 - x1);
+                    let topY = seaLeftEdge[i].y + t * (seaLeftEdge[i+1].y - seaLeftEdge[i].y);
+                    let botY = seaRightEdge[i].y + t * (seaRightEdge[i+1].y - seaRightEdge[i].y);
+                    return y >= topY && y <= botY;
+                }
+            }
+        } else {
+            for (let i = 0; i < seaLeftEdge.length - 1; i++) {
+                let ly1 = seaLeftEdge[i].y, ly2 = seaLeftEdge[i+1].y;
+                if (y >= ly1 && y <= ly2) {
+                    let t = (y - ly1) / (ly2 - ly1);
+                    let lx = seaLeftEdge[i].x + t * (seaLeftEdge[i+1].x - seaLeftEdge[i].x);
+                    let rx = seaRightEdge[i].x + t * (seaRightEdge[i+1].x - seaRightEdge[i].x);
+                    return x >= lx && x <= rx;
+                }
             }
         }
         return false;
     }
 
     function whichSide(x, y) {
-        // Returns 'left' or 'right' of the sea center
+        if (isPortrait) {
+            // Horizontal sea: above=top, below=bottom
+            for (let i = 0; i < seaLeftEdge.length - 1; i++) {
+                let x1 = seaLeftEdge[i].x, x2 = seaLeftEdge[i+1].x;
+                if (x >= x1 && x <= x2) {
+                    let t = (x - x1) / (x2 - x1);
+                    let topY = seaLeftEdge[i].y + t * (seaLeftEdge[i+1].y - seaLeftEdge[i].y);
+                    let botY = seaRightEdge[i].y + t * (seaRightEdge[i+1].y - seaRightEdge[i].y);
+                    let mid = (topY + botY) / 2;
+                    return y < mid ? 'left' : 'right'; // 'left'=top, 'right'=bottom
+                }
+            }
+            return y < height / 2 ? 'left' : 'right';
+        }
         for (let i = 0; i < seaLeftEdge.length - 1; i++) {
             let ly1 = seaLeftEdge[i].y, ly2 = seaLeftEdge[i+1].y;
             if (y >= ly1 && y <= ly2) {
@@ -72,18 +98,35 @@
         seaLeftEdge=[]; seaRightEdge=[];
 
         const numNodes = Math.floor((width * height) / config.density);
+        isPortrait = height > width * 1.2; // Detect portrait/mobile
 
         // 1. Generate meandering sea river polygon
-        let seaCenter = width * (0.35 + Math.random() * 0.3); // Start somewhere in middle 30%
-        let seaWidth = width * (0.08 + Math.random() * 0.06); // 8-14% width
-        let steps = 12;
-        for (let i = 0; i <= steps; i++) {
-            let y = (i / steps) * height;
-            seaCenter += (Math.random() - 0.5) * width * 0.08; // Meander
-            seaCenter = Math.max(width * 0.2, Math.min(width * 0.8, seaCenter));
-            let halfW = seaWidth / 2 + (Math.random() - 0.5) * seaWidth * 0.3; // Vary width
-            seaLeftEdge.push({ x: seaCenter - halfW, y });
-            seaRightEdge.push({ x: seaCenter + halfW, y });
+        if (isPortrait) {
+            // HORIZONTAL sea on portrait screens (splits top/bottom)
+            let seaCenter = height * (0.35 + Math.random() * 0.3);
+            let seaW = height * (0.06 + Math.random() * 0.04); // narrower on mobile
+            let steps = 12;
+            for (let i = 0; i <= steps; i++) {
+                let x = (i / steps) * width;
+                seaCenter += (Math.random() - 0.5) * height * 0.06;
+                seaCenter = Math.max(height * 0.25, Math.min(height * 0.75, seaCenter));
+                let halfW = seaW / 2 + (Math.random() - 0.5) * seaW * 0.3;
+                seaLeftEdge.push({ x, y: seaCenter - halfW });  // top edge of sea
+                seaRightEdge.push({ x, y: seaCenter + halfW }); // bottom edge of sea
+            }
+        } else {
+            // VERTICAL sea on landscape screens (splits left/right)
+            let seaCenter = width * (0.35 + Math.random() * 0.3);
+            let seaW = width * (0.08 + Math.random() * 0.06);
+            let steps = 12;
+            for (let i = 0; i <= steps; i++) {
+                let y = (i / steps) * height;
+                seaCenter += (Math.random() - 0.5) * width * 0.08;
+                seaCenter = Math.max(width * 0.2, Math.min(width * 0.8, seaCenter));
+                let halfW = seaW / 2 + (Math.random() - 0.5) * seaW * 0.3;
+                seaLeftEdge.push({ x: seaCenter - halfW, y });
+                seaRightEdge.push({ x: seaCenter + halfW, y });
+            }
         }
 
         // 2. Spawn nodes only on land
