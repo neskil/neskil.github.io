@@ -324,12 +324,13 @@
         }
 
         /* Dual-Scale Timeline Component */
+        /* Dual-Scale Timeline Component */
         .scale-container {
             position: relative;
-            padding: 30px 10px 40px;
+            height: 90px; /* Fixed height for clean, no-overlap rendering */
             margin-top: 10px;
             background: rgba(0, 0, 0, 0.15);
-            border-radius: 16px;
+            border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.03);
             overflow: hidden;
             cursor: ew-resize;
@@ -338,42 +339,59 @@
         }
 
         .scale-track {
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
+            position: absolute;
+            top: 36px; /* Centered horizontal track line */
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.12);
             border-radius: 100px;
-            position: relative;
-            margin: 15px 0;
             pointer-events: none;
         }
 
         .scale-track-progress {
             height: 100%;
-            background: linear-gradient(90deg, var(--violet) 0%, var(--accent) 100%);
+            background: var(--accent); /* Solid orange progress */
             border-radius: 100px;
             position: absolute;
             left: 0;
             width: 0%;
-            opacity: 0.7;
+            opacity: 0.6;
             pointer-events: none;
         }
 
         .scale-anchor {
             position: absolute;
-            transform: translateX(-50%);
+            top: 0;
+            bottom: 0;
+            width: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
             pointer-events: none;
+            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
         }
 
+        /* Top tick label: positioned fully above the track */
+        .scale-anchor-top {
+            position: absolute;
+            bottom: 60px;
+            transform: translateY(50%);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Tick mark spanning through the horizontal track line */
         .scale-anchor::before {
             content: '';
-            width: 2px;
-            height: 14px;
-            background: rgba(255, 255, 255, 0.2);
             position: absolute;
-            top: -4px;
+            top: 30px;
+            height: 16px;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .scale-anchor.star::before {
@@ -382,62 +400,62 @@
             box-shadow: 0 0 6px var(--accent);
         }
 
-        .scale-anchor-top {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            position: absolute;
-            bottom: 12px;
-            white-space: nowrap;
-            font-weight: 600;
-        }
-
+        /* Bottom tick label: positioned fully below the track */
         .scale-anchor-bottom {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
             position: absolute;
-            top: 12px;
-            white-space: nowrap;
+            top: 48px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
             font-weight: 600;
+            white-space: nowrap;
         }
 
+        /* Landmark label tag: positioned below the bottom metric value */
         .scale-anchor-label {
-            font-size: 0.55rem;
-            color: var(--text-mute);
             position: absolute;
-            top: 28px;
+            top: 66px;
+            font-size: 0.52rem;
+            color: var(--text-mute);
             white-space: nowrap;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            font-weight: 600;
+            font-weight: 700;
         }
 
-        .scale-axis-label {
-            position: absolute;
-            font-size: 0.65rem;
+        /* Axis Header/Footer Flex Rows (No absolute positioning!) */
+        .scale-axis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            margin-bottom: 2px;
+            padding: 0 4px;
+        }
+
+        .scale-axis-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+            padding: 0 4px;
+        }
+
+        .scale-axis-label-text {
+            font-size: 0.7rem;
             font-weight: 700;
             color: var(--text-mute);
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            left: 10px;
         }
 
-        .scale-axis-label.top {
-            top: 6px;
-        }
-
-        .scale-axis-label.bottom {
-            bottom: 6px;
-        }
-
-        /* Custom Input Pointer Pin */
+        /* Custom Input Pointer Pin (Matches the mathematically centered track) */
         .scale-pointer {
             position: absolute;
-            top: -12px;
-            height: 38px;
+            top: 24px; /* Centered around the 36px track line */
+            height: 28px;
             width: 2px;
-            background: #cbd5e1; /* Elegant slate line instead of bright neon */
+            background: #cbd5e1; /* Sleek slate vertical indicator */
             transform: translateX(-50%);
             z-index: 10;
             transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease;
@@ -451,9 +469,9 @@
             left: -5px;
             width: 12px;
             height: 12px;
-            background: var(--accent); /* Solid orange core matching theme */
+            background: var(--accent); /* Solid orange core */
             border-radius: 50%;
-            border: 2px solid #cbd5e1; /* Clear alignment border */
+            border: 2px solid #cbd5e1;
         }
 
         .scale-pointer::after {
@@ -804,8 +822,10 @@
                     <!-- Preset buttons dynamically loaded -->
                 </div>
 
-                <!-- Dynamic scale timeline visualizer -->
-                <div class="scale-axis-label top" id="scale-label-top">US</div>
+                <!-- Sleek Axis Row (Top) -->
+                <div class="scale-axis-header">
+                    <span id="scale-label-top" class="scale-axis-label-text">US</span>
+                </div>
                 <div class="scale-container">
                     <div class="scale-track">
                         <div class="scale-track-progress" id="scale-progress"></div>
@@ -815,7 +835,10 @@
                     <!-- Dynamic anchors are placed here -->
                     <div id="scale-anchors-container"></div>
                 </div>
-                <div class="scale-axis-label bottom" id="scale-label-bottom">Metric</div>
+                <!-- Sleek Axis Row (Bottom) -->
+                <div class="scale-axis-footer">
+                    <span id="scale-label-bottom" class="scale-axis-label-text">Metric</span>
+                </div>
             </div>
         </div>
 
