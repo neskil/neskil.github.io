@@ -332,6 +332,9 @@
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.03);
             overflow: hidden;
+            cursor: ew-resize;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .scale-track {
@@ -340,6 +343,7 @@
             border-radius: 100px;
             position: relative;
             margin: 15px 0;
+            pointer-events: none;
         }
 
         .scale-track-progress {
@@ -350,6 +354,7 @@
             left: 0;
             width: 0%;
             opacity: 0.7;
+            pointer-events: none;
         }
 
         .scale-anchor {
@@ -359,6 +364,7 @@
             flex-direction: column;
             align-items: center;
             transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            pointer-events: none;
         }
 
         .scale-anchor::before {
@@ -436,6 +442,7 @@
             z-index: 10;
             transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
             box-shadow: 0 0 10px var(--accent);
+            pointer-events: none;
         }
 
         .scale-pointer::before {
@@ -607,6 +614,85 @@
             margin-top: 8px;
         }
 
+        /* Collapsible Panels styles */
+        .panel.collapsible {
+            transition: all 0.3s ease;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            width: 100%;
+        }
+
+        .panel-summary {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-soft);
+            background: rgba(255, 106, 61, 0.1);
+            border: 1px solid rgba(255, 106, 61, 0.15);
+            padding: 4px 12px;
+            border-radius: 100px;
+            display: none; /* Hidden when expanded */
+            animation: fadeIn 0.2s ease-out;
+            margin-left: auto;
+            margin-right: 12px;
+        }
+
+        .panel-toggle-btn {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            padding: 6px 12px;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .panel-toggle-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .panel-content {
+            margin-top: 15px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            opacity: 1;
+            max-height: 500px;
+        }
+
+        /* Collapsed state modifier */
+        .panel.collapsible.collapsed {
+            padding: 12px 20px;
+        }
+
+        .panel.collapsible.collapsed .panel-summary {
+            display: block;
+        }
+
+        .panel.collapsible.collapsed .panel-content {
+            margin-top: 0;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* Fade-in animation helper */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(2px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         footer {
             margin-top: 20px;
             font-family: 'JetBrains Mono', monospace;
@@ -658,11 +744,15 @@
         </header>
 
         <!-- Category selector panel -->
-        <div class="panel">
-            <div class="panel-title">
-                <span>1. Select Measurement Type</span>
+        <div class="panel collapsible" id="panel-category">
+            <div class="panel-header" onclick="togglePanel('category')">
+                <div class="panel-title" style="margin-bottom: 0;">
+                    <span>1. Measurement Type</span>
+                </div>
+                <div class="panel-summary" id="category-summary">Temp 🌡️</div>
+                <button class="panel-toggle-btn" id="category-toggle-btn" onclick="event.stopPropagation(); togglePanel('category')">Change</button>
             </div>
-            <div class="category-grid">
+            <div class="panel-content category-grid">
                 <button class="category-btn active" id="cat-temp" onclick="changeCategory('temp')">
                     <span class="icon">🌡️</span>
                     <span>Temp</span>
@@ -683,11 +773,15 @@
         </div>
 
         <!-- Direction selector panel -->
-        <div class="panel">
-            <div class="panel-title">
-                <span>2. Select Direction</span>
+        <div class="panel collapsible" id="panel-direction">
+            <div class="panel-header" onclick="togglePanel('direction')">
+                <div class="panel-title" style="margin-bottom: 0;">
+                    <span>2. Direction</span>
+                </div>
+                <div class="panel-summary" id="direction-summary">°C → °F</div>
+                <button class="panel-toggle-btn" id="direction-toggle-btn" onclick="event.stopPropagation(); togglePanel('direction')">Change</button>
             </div>
-            <div class="direction-container">
+            <div class="panel-content direction-container">
                 <div class="direction-scroll" id="direction-list">
                     <!-- Dynamic buttons injected here -->
                 </div>
@@ -1049,6 +1143,11 @@
         let activeSpecsList = [];
         let currentSpecIndex = 0;
 
+        // Scale boundaries for interactive dragging
+        let currentMinUs = 0;
+        let currentMaxUs = 100;
+        let isDragging = false;
+
         // Initialize state from local storage if available
         function loadState() {
             const savedCat = localStorage.getItem("converter_cat");
@@ -1074,6 +1173,16 @@
                 }
             }
             
+            // Collapse panels by default on load to save screen estate
+            document.getElementById("panel-category").classList.add("collapsed");
+            document.getElementById("category-toggle-btn").innerText = "Change";
+            
+            document.getElementById("panel-direction").classList.add("collapsed");
+            document.getElementById("direction-toggle-btn").innerText = "Change";
+            
+            const catEmojis = { temp: "Temp 🌡️", dist: "Distance 🚗", weight: "Weight ⚖️", vol: "Volume 🧪" };
+            document.getElementById("category-summary").innerText = catEmojis[currentCategory] || currentCategory;
+            
             renderDirections();
         }
 
@@ -1081,6 +1190,23 @@
         function saveState() {
             localStorage.setItem("converter_cat", currentCategory);
             localStorage.setItem("converter_spec_id", activeSpecsList[currentSpecIndex].id);
+        }
+
+        // Collapsible Panel Toggler
+        function togglePanel(panelId) {
+            const panel = document.getElementById(`panel-${panelId}`);
+            const btn = document.getElementById(`${panelId}-toggle-btn`);
+            const isCollapsed = panel.classList.contains("collapsed");
+            
+            if (isCollapsed) {
+                // Expand this panel
+                panel.classList.remove("collapsed");
+                btn.innerText = "Done";
+            } else {
+                // Collapse this panel
+                panel.classList.add("collapsed");
+                btn.innerText = "Change";
+            }
         }
 
         // Change the active top-level measurement category
@@ -1093,6 +1219,16 @@
             document.querySelectorAll(".category-btn").forEach(btn => {
                 btn.classList.toggle("active", btn.id === `cat-${catId}`);
             });
+            
+            const catEmojis = { temp: "Temp 🌡️", dist: "Distance 🚗", weight: "Weight ⚖️", vol: "Volume 🧪" };
+            document.getElementById("category-summary").innerText = catEmojis[catId] || catId;
+            
+            // Auto collapse Category and expand Direction panel
+            document.getElementById("panel-category").classList.add("collapsed");
+            document.getElementById("category-toggle-btn").innerText = "Change";
+            
+            document.getElementById("panel-direction").classList.remove("collapsed");
+            document.getElementById("direction-toggle-btn").innerText = "Done";
             
             saveState();
             renderDirections();
@@ -1113,11 +1249,22 @@
                     document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
                         dBtn.classList.toggle("active", dIdx === index);
                     });
+                    
+                    // Update direction summary text
+                    document.getElementById("direction-summary").innerText = spec.name;
+                    
+                    // Collapse direction panel auto-smoothly
+                    document.getElementById("panel-direction").classList.add("collapsed");
+                    document.getElementById("direction-toggle-btn").innerText = "Change";
+                    
                     saveState();
                     initCalculatorSpec();
                 };
                 dirContainer.appendChild(btn);
             });
+            
+            // Set initial summary for direction
+            document.getElementById("direction-summary").innerText = activeSpecsList[currentSpecIndex].name;
             
             initCalculatorSpec();
         }
@@ -1299,11 +1446,94 @@
             // Render active progress background glowing bar
             const prog = document.getElementById("scale-progress");
             prog.style.width = `${constrainedPct}%`;
+            
+            // Cache boundaries in global scope for interactive drags
+            currentMinUs = minUs;
+            currentMaxUs = maxUs;
+        }
+
+        // Scale pointer dragging control logic
+        function initDragEvents() {
+            const scaleContainer = document.querySelector(".scale-container");
+            
+            function handleDrag(e) {
+                const rect = scaleContainer.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                
+                // Relative slider width percentage (0 to 1)
+                let pct = (clientX - rect.left) / rect.width;
+                pct = Math.max(0, Math.min(1, pct));
+                
+                // Plotted US value
+                const range = currentMaxUs - currentMinUs;
+                let draggedUsVal = currentMinUs + (pct * range);
+                
+                // Map the US scale coordinate back to the target input category value
+                const spec = activeSpecsList[currentSpecIndex];
+                let inputVal;
+                
+                if (!spec.inputIsMetric) {
+                    inputVal = draggedUsVal;
+                } else {
+                    if (spec.id === "c_to_f") {
+                        inputVal = (draggedUsVal - 32) * 5 / 9;
+                    } else if (spec.id === "km_to_mi") {
+                        inputVal = draggedUsVal / 0.621371;
+                    } else if (spec.id === "kg_to_lbs") {
+                        inputVal = draggedUsVal / 2.20462;
+                    } else {
+                        inputVal = draggedUsVal;
+                    }
+                }
+                
+                // Smart rounding for clean numeric feedback
+                let roundedVal;
+                if (inputVal < 10) {
+                    roundedVal = parseFloat(inputVal.toFixed(1));
+                } else {
+                    roundedVal = Math.round(inputVal);
+                }
+                
+                // Update and convert in real-time
+                document.getElementById("conv-input").value = roundedVal;
+                calculate();
+            }
+            
+            function onDragStart(e) {
+                isDragging = true;
+                handleDrag(e);
+                
+                // Disable text highlighting or scrolling while dragging
+                if (e.cancelable) e.preventDefault();
+            }
+            
+            function onDragMove(e) {
+                if (isDragging) {
+                    handleDrag(e);
+                    if (e.cancelable) e.preventDefault();
+                }
+            }
+            
+            function onDragEnd() {
+                isDragging = false;
+            }
+            
+            // Mouse listener bindings
+            scaleContainer.addEventListener("mousedown", onDragStart);
+            window.addEventListener("mousemove", onDragMove);
+            window.addEventListener("mouseup", onDragEnd);
+            
+            // Touch listener bindings (mobile-responsive)
+            scaleContainer.addEventListener("touchstart", onDragStart, { passive: false });
+            window.addEventListener("touchmove", onDragMove, { passive: false });
+            window.addEventListener("touchend", onDragEnd);
+            window.addEventListener("touchcancel", onDragEnd);
         }
 
         // On document load, load states and configure page events
         window.addEventListener("DOMContentLoaded", () => {
             loadState();
+            initDragEvents();
             
             // Focus input automatically for PC/Desktop convenience (but let mobile prompt naturally)
             if (window.innerWidth > 600) {
