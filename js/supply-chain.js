@@ -8,8 +8,9 @@
     };
 
     let width, height, nodes = [], lines = [], packages = [], signals = [];
-    let seaLeftEdge = [], seaRightEdge = []; // Sea polygon edges (or top/bottom on mobile)
+    let seaLeftEdge = [], seaRightEdge = [];
     let isPortrait = false;
+    let scale = 1; // Visual scale factor for mobile
 
     function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
@@ -100,8 +101,10 @@
         // Generate in a taller area for parallax headroom
         let genHeight = height * 1.3;
         let genWidth = width;
-        const numNodes = Math.floor((genWidth * genHeight) / config.density);
-        isPortrait = height > width * 1.2; // Detect portrait/mobile
+        isPortrait = height > width * 1.2;
+        scale = Math.min(width, height) < 600 ? 0.55 : Math.min(width, height) < 900 ? 0.75 : 1;
+        let mobileDensity = isPortrait ? config.density * 0.6 : config.density; // More nodes on mobile
+        const numNodes = Math.floor((genWidth * genHeight) / mobileDensity);
 
         // 1. Generate meandering sea river polygon
         if (isPortrait) {
@@ -143,23 +146,20 @@
             } while (isInSea(nx, ny) && attempts < 50);
             if (attempts >= 50) continue;
 
-            let type = 'normal', radius = 2, supplierColor = null, factoryColor = null;
+            let type = 'normal', radius = 2 * scale, supplierColor = null, factoryColor = null;
             // Vertical position bias: top=consumers, middle=factories, bottom=suppliers
             let yRatio = ny / genHeight; // 0=top, 1=bottom
             let r = Math.random();
             if (yRatio < 0.35) {
-                // Top third: mostly consumers
-                if (r < 0.35) { type='consumer'; radius=7; }
-                else if (r < 0.45) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+                if (r < 0.35) { type='consumer'; radius=7*scale; }
+                else if (r < 0.45) { type='factory'; radius=6*scale; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
             } else if (yRatio < 0.65) {
-                // Middle third: mostly factories
-                if (r < 0.30) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
-                else if (r < 0.45) { type='consumer'; radius=7; }
-                else if (r < 0.55) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
+                if (r < 0.30) { type='factory'; radius=6*scale; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+                else if (r < 0.45) { type='consumer'; radius=7*scale; }
+                else if (r < 0.55) { type='supplier'; radius=5*scale; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
             } else {
-                // Bottom third: mostly suppliers
-                if (r < 0.35) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
-                else if (r < 0.45) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+                if (r < 0.35) { type='supplier'; radius=5*scale; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
+                else if (r < 0.45) { type='factory'; radius=6*scale; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
             }
 
             nodes.push({
@@ -277,8 +277,8 @@
                 }
                 bestL.edges.push(bestR); bestR.edges.push(bestL);
                 lines.push({ n1: bestL, n2: bestR, type: 'sea', glow: 0, glowColor: null });
-                bestL.isPort = true; bestL.type = 'warehouse'; bestL.radius = 6;
-                bestR.isPort = true; bestR.type = 'warehouse'; bestR.radius = 6;
+                bestL.isPort = true; bestL.type = 'warehouse'; bestL.radius = 6*scale;
+                bestR.isPort = true; bestR.type = 'warehouse'; bestR.radius = 6*scale;
             }
         }
     }
@@ -506,20 +506,19 @@
 
             let cx=sn.x+(en.x-sn.x)*p.progress, cy=sn.y+(en.y-sn.y)*p.progress;
             let angle=Math.atan2(en.y-sn.y,en.x-sn.x);
-            ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle);
-            ctx.fillStyle=p.color; ctx.shadowBlur=6; ctx.shadowColor=p.color;
+            let s=scale; // shorthand
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle); ctx.scale(s,s);
+            ctx.fillStyle=p.color; ctx.shadowBlur=4*s; ctx.shadowColor=p.color;
             if(et==='sea'){
-                // Larger cargo ship only on sea crossings
-                ctx.fillRect(-9,-4,18,8); // Wide hull
+                ctx.fillRect(-9,-4,18,8);
                 ctx.fillStyle='#fff'; ctx.shadowBlur=0;
-                ctx.fillRect(-7,-3,4,6); // Bridge
+                ctx.fillRect(-7,-3,4,6);
                 ctx.fillStyle=p.color;
-                ctx.fillRect(-1,-3,3,6); // Cargo 1
-                ctx.fillRect(4,-3,3,6);  // Cargo 2
+                ctx.fillRect(-1,-3,3,6);
+                ctx.fillRect(4,-3,3,6);
             } else if(et==='air'){
                 ctx.beginPath(); ctx.moveTo(5,0); ctx.lineTo(-5,-5); ctx.lineTo(-5,5); ctx.fill();
             } else {
-                // Truck on land
                 ctx.fillRect(4,-2,4,4); ctx.fillRect(-2,-2.5,5,5); ctx.fillRect(-8,-2.5,5,5);
             }
             ctx.restore();
@@ -527,13 +526,13 @@
 
         // Draw nodes
         nodes.forEach(n => {
-            ctx.strokeStyle='rgba(148,163,184,0.8)'; ctx.lineWidth=1.5;
-            if(n.isPort){ctx.beginPath();ctx.strokeStyle='rgba(56,189,248,0.5)';ctx.lineWidth=1;ctx.arc(n.x,n.y,n.radius+4,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='rgba(148,163,184,0.8)';ctx.lineWidth=1.5;}
+            ctx.strokeStyle='rgba(148,163,184,0.8)'; ctx.lineWidth=1.5*scale;
+            if(n.isPort){ctx.beginPath();ctx.strokeStyle='rgba(56,189,248,0.5)';ctx.lineWidth=1*scale;ctx.arc(n.x,n.y,n.radius+3*scale,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='rgba(148,163,184,0.8)';ctx.lineWidth=1.5*scale;}
             if(n.type==='supplier'){ctx.fillStyle=n.supplierColor;ctx.globalAlpha=0.3;drawHexagon(n.x,n.y,n.radius);ctx.fill();ctx.globalAlpha=1;ctx.stroke();}
             else if(n.type==='warehouse'){ctx.fillStyle='rgba(148,163,184,0.2)';drawTriangle(n.x,n.y,n.radius);ctx.fill();ctx.stroke();}
             else if(n.type==='factory'){ctx.fillStyle=n.factoryColor;ctx.globalAlpha=0.3;drawSquare(n.x,n.y,n.radius);ctx.fill();ctx.globalAlpha=1;ctx.stroke();}
             else{ctx.fillStyle='rgba(148,163,184,0.2)';ctx.beginPath();ctx.arc(n.x,n.y,n.radius,0,Math.PI*2);ctx.fill();ctx.stroke();
-                if(n.type==='consumer'&&n.demands.length>0){ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=n.demands[0];ctx.fillText('!',n.x,n.y-14);}
+                if(n.type==='consumer'&&n.demands.length>0){ctx.font=`bold ${Math.round(14*scale)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=n.demands[0];ctx.fillText('!',n.x,n.y-12*scale);}
             }
         });
 
