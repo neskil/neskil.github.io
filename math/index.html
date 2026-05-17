@@ -293,7 +293,9 @@
     border-radius: 16px;
     padding: 32px 24px;
     max-width: 400px;
-    width: 100%;
+    width: 95%;
+    max-height: 95vh;
+    overflow-y: auto;
     text-align: center;
     box-shadow: 0 20px 40px rgba(0,0,0,0.5);
   }
@@ -318,7 +320,7 @@
   .hint { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-mute); margin-bottom: 32px; }
   
   .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .mc-btn { padding: 16px; background: var(--card-2); border: 1px solid var(--rule); border-radius: 12px; font-size: 20px; font-weight: 700; color: var(--ink); cursor: pointer; transition: all 0.1s; }
+  .mc-btn { padding: 16px; background: var(--card-2); border: 1px solid var(--rule); border-radius: 12px; font-size: 20px; font-weight: 700; color: var(--ink); cursor: pointer; transition: all 0.1s; touch-action: manipulation; }
   .mc-btn:hover { background: rgba(255,106,61,0.1); border-color: var(--accent); color: var(--accent); }
   .mc-btn:active { transform: scale(0.95); }
   .mc-btn.correct { background: #4caf50 !important; border-color: #4caf50 !important; color: #fff !important; }
@@ -327,7 +329,7 @@
   .text-input-group { display: flex; gap: 8px; }
   .text-input-group input { flex: 1; padding: 16px; background: var(--bg); border: 1px solid var(--rule); border-radius: 12px; font-size: 24px; font-weight: 700; color: var(--ink); text-align: center; outline: none; width: 100%; }
   .text-input-group input:focus { border-color: var(--accent); }
-  .text-input-group .submit-btn { padding: 0 24px; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .text-input-group .submit-btn { padding: 0 24px; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
 
   .feedback { margin-top: 16px; height: 24px; font-weight: 600; font-size: 15px; }
   .feedback.correct { color: #4caf50; }
@@ -599,7 +601,24 @@
       </div>
     </div>
 
-    <button class="start-btn" onclick="startGame()">Start 60s Timer</button>
+    <div class="game-setting">
+      <label>Time Limit</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" id="btn-t30" onclick="setTimeMode(30)">30s</button>
+        <button class="toggle-btn active" id="btn-t60" onclick="setTimeMode(60)">60s</button>
+        <button class="toggle-btn" id="btn-t120" onclick="setTimeMode(120)">120s</button>
+      </div>
+    </div>
+
+    <div class="game-setting">
+      <label>Hints / Tips</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-h1" onclick="setHintsMode(true)">Show</button>
+        <button class="toggle-btn" id="btn-h0" onclick="setHintsMode(false)">Hide</button>
+      </div>
+    </div>
+
+    <button class="start-btn" onclick="startGame()">Start Timer</button>
     <button class="close-btn" onclick="closeGameModal()">Cancel</button>
   </div>
 
@@ -614,7 +633,7 @@
     <div class="mc-grid" id="mc-options"></div>
 
     <div class="text-input-group" id="text-options" style="display:none;">
-       <input type="number" id="answer-input" placeholder="Value..." autocomplete="off">
+       <input type="number" inputmode="decimal" id="answer-input" placeholder="Value..." autocomplete="off">
        <button class="submit-btn" onclick="checkTextAnswer()">Go</button>
     </div>
     <div id="feedback-msg" class="feedback"></div>
@@ -631,6 +650,8 @@
 <script>
 let gMode = 'mc';
 let gDiff = 'easy';
+let gTime = 60;
+let gHints = true;
 let score = 0;
 let timeLeft = 60;
 let timerInt = null;
@@ -661,9 +682,22 @@ function setDiff(diff) {
   document.getElementById('btn-hard').classList.toggle('active', diff === 'hard');
 }
 
+function setTimeMode(t) {
+  gTime = t;
+  document.getElementById('btn-t30').classList.toggle('active', t === 30);
+  document.getElementById('btn-t60').classList.toggle('active', t === 60);
+  document.getElementById('btn-t120').classList.toggle('active', t === 120);
+}
+
+function setHintsMode(h) {
+  gHints = h;
+  document.getElementById('btn-h1').classList.toggle('active', h === true);
+  document.getElementById('btn-h0').classList.toggle('active', h === false);
+}
+
 function startGame() {
   score = 0;
-  timeLeft = 60;
+  timeLeft = gTime;
   document.getElementById('score-val').innerText = score;
   document.getElementById('time-val').innerText = timeLeft;
   document.getElementById('game-setup').style.display = 'none';
@@ -755,6 +789,7 @@ function nextQuestion() {
   
   document.getElementById('question-text').innerText = currentQ.q;
   document.getElementById('question-hint').innerText = currentQ.hint;
+  document.getElementById('question-hint').style.display = gHints ? 'block' : 'none';
   
   if (gMode === 'mc') {
     let opts = new Set([currentQ.a]);
@@ -785,7 +820,7 @@ function checkMcAnswer(btn, val) {
   isAccepting = false;
   if (val === currentQ.a) {
     btn.classList.add('correct');
-    score++;
+    score += 10;
     document.getElementById('score-val').innerText = score;
     showFeedback(true);
     setTimeout(nextQuestion, 400);
@@ -803,18 +838,32 @@ function checkMcAnswer(btn, val) {
 function checkTextAnswer() {
   if(!isAccepting) return;
   const input = document.getElementById('answer-input');
-  const val = parseFloat(input.value);
+  // allow comma or dot
+  const val = parseFloat(input.value.replace(',', '.'));
   if(isNaN(val)) return;
   isAccepting = false;
   
   if (val === currentQ.a) {
-    score++;
+    score += 10;
     document.getElementById('score-val').innerText = score;
     showFeedback(true);
     setTimeout(nextQuestion, 400);
   } else {
-    showFeedback(false, currentQ.a);
-    setTimeout(nextQuestion, 1500);
+    const diff = Math.abs(val - currentQ.a);
+    const percentOff = currentQ.a !== 0 ? diff / Math.abs(currentQ.a) : diff;
+    
+    if (percentOff <= 0.20 && currentQ.a !== 0) {
+       let pts = Math.max(1, 10 - Math.floor(percentOff * 100)); // up to 20% off gives points
+       score += pts;
+       document.getElementById('score-val').innerText = score;
+       const fb = document.getElementById('feedback-msg');
+       fb.innerText = `Close! Correct was ${currentQ.a}. +${pts} pts`;
+       fb.className = 'feedback correct';
+       setTimeout(nextQuestion, 1200);
+    } else {
+       showFeedback(false, currentQ.a);
+       setTimeout(nextQuestion, 1500);
+    }
   }
 }
 
