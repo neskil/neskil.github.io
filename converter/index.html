@@ -41,7 +41,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 16px 60px;
+            padding: 10px 12px 30px; /* More compact on mobile */
             overflow-x: hidden;
         }
 
@@ -73,7 +73,7 @@
             max-width: 500px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 10px; /* Reduced gap */
         }
 
         /* Back Navigation */
@@ -85,10 +85,10 @@
             color: var(--text-secondary);
             text-decoration: none;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.9rem; /* Slightly smaller */
             transition: all 0.2s ease;
-            margin-bottom: 5px;
-            padding: 8px 16px;
+            margin-bottom: 2px;
+            padding: 6px 14px; /* More compact */
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
             border-radius: 100px;
@@ -105,22 +105,22 @@
 
         header {
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }
 
         header h1 {
-            font-size: 2.2rem;
+            font-size: 2.0rem; /* Slightly smaller */
             font-weight: 800;
             letter-spacing: -0.04em;
             background: linear-gradient(to right, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         header p {
             color: var(--text-secondary);
-            font-size: 0.95rem;
+            font-size: 0.85rem; /* More compact text */
             font-weight: 300;
         }
 
@@ -128,21 +128,21 @@
         .panel {
             background: var(--card-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 20px;
+            border-radius: 16px; /* Slightly tighter border radius */
+            padding: 14px 18px; /* Compact padding */
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
         }
 
         .panel-title {
-            font-size: 0.8rem;
+            font-size: 0.75rem; /* Tighter title */
             font-weight: 700;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             color: var(--text-mute);
-            margin-bottom: 12px;
+            margin-bottom: 8px; /* Reduced margin */
             display: flex;
             align-items: center;
             gap: 6px;
@@ -437,43 +437,35 @@
             top: -12px;
             height: 38px;
             width: 2px;
-            background: var(--accent);
+            background: #cbd5e1; /* Elegant slate line instead of bright neon */
             transform: translateX(-50%);
             z-index: 10;
-            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            box-shadow: 0 0 10px var(--accent);
+            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s ease;
             pointer-events: none;
         }
 
         .scale-pointer::before {
             content: '';
             position: absolute;
-            top: -6px;
+            top: -5px;
             left: -5px;
             width: 12px;
             height: 12px;
-            background: var(--accent);
+            background: var(--accent); /* Solid orange core matching theme */
             border-radius: 50%;
-            box-shadow: 0 0 12px var(--accent);
-            animation: pulse 1.8s infinite alternate;
+            border: 2px solid #cbd5e1; /* Clear alignment border */
         }
 
         .scale-pointer::after {
             content: '';
             position: absolute;
-            bottom: -6px;
+            bottom: -5px;
             left: -5px;
             width: 12px;
             height: 12px;
             background: var(--accent);
             border-radius: 50%;
-            box-shadow: 0 0 12px var(--accent);
-            animation: pulse 1.8s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 4px var(--accent); }
-            100% { transform: scale(1.3); box-shadow: 0 0 12px var(--accent); }
+            border: 2px solid #cbd5e1;
         }
 
         /* Results Box Component */
@@ -749,11 +741,11 @@
                 <div class="panel-title" style="margin-bottom: 0;">
                     <span>1. Measurement Type</span>
                 </div>
-                <div class="panel-summary" id="category-summary">Temp 🌡️</div>
+                <div class="panel-summary" id="category-summary">None Selected</div>
                 <button class="panel-toggle-btn" id="category-toggle-btn" onclick="event.stopPropagation(); togglePanel('category')">Change</button>
             </div>
             <div class="panel-content category-grid">
-                <button class="category-btn active" id="cat-temp" onclick="changeCategory('temp')">
+                <button class="category-btn" id="cat-temp" onclick="changeCategory('temp')">
                     <span class="icon">🌡️</span>
                     <span>Temp</span>
                 </button>
@@ -778,7 +770,7 @@
                 <div class="panel-title" style="margin-bottom: 0;">
                     <span>2. Direction</span>
                 </div>
-                <div class="panel-summary" id="direction-summary">°C → °F</div>
+                <div class="panel-summary" id="direction-summary">None Selected</div>
                 <button class="panel-toggle-btn" id="direction-toggle-btn" onclick="event.stopPropagation(); togglePanel('direction')">Change</button>
             </div>
             <div class="panel-content direction-container">
@@ -789,21 +781,21 @@
         </div>
 
         <!-- Input & Scale panel -->
-        <div class="panel">
+        <div class="panel" id="panel-input">
             <div class="panel-title">
                 <span>3. Enter Value &amp; Result</span>
             </div>
             <div class="calculator-wrapper">
                 <!-- Numeric input box -->
                 <div class="input-box">
-                    <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="20" oninput="calculate()">
+                    <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="" oninput="calculate()">
                     <span class="input-unit" id="input-unit-label">°C</span>
                 </div>
 
                 <!-- Giant real-time precise conversion result -->
                 <div class="primary-result-box">
                     <span class="result-equals">=</span>
-                    <span class="primary-result-val" id="primary-exact-val">68.0</span>
+                    <span class="primary-result-val" id="primary-exact-val">-</span>
                     <span class="primary-result-unit" id="primary-result-unit-label">°F</span>
                 </div>
 
@@ -828,7 +820,7 @@
         </div>
 
         <!-- Results panel -->
-        <div class="panel">
+        <div class="panel" id="panel-results">
             <div class="panel-title">
                 <span>🧠 Memory Helper &amp; Shortcut</span>
             </div>
@@ -1139,57 +1131,48 @@
         };
 
         // App state
-        let currentCategory = "temp";
+        let currentCategory = null;
         let activeSpecsList = [];
-        let currentSpecIndex = 0;
+        let currentSpecIndex = -1;
 
         // Scale boundaries for interactive dragging
         let currentMinUs = 0;
         let currentMaxUs = 100;
         let isDragging = false;
 
-        // Initialize state from local storage if available
+        // Initialize state: Start with NO measurement category pre-selected
         function loadState() {
-            const savedCat = localStorage.getItem("converter_cat");
-            const savedSpecId = localStorage.getItem("converter_spec_id");
+            currentCategory = null;
+            currentSpecIndex = -1;
+            activeSpecsList = [];
             
-            if (savedCat && conversionDB[savedCat]) {
-                currentCategory = savedCat;
-            }
-            
-            // Set active buttons
+            // Remove active classes from buttons
             document.querySelectorAll(".category-btn").forEach(btn => {
-                btn.classList.toggle("active", btn.id === `cat-${currentCategory}`);
+                btn.classList.remove("active");
             });
             
-            activeSpecsList = conversionDB[currentCategory];
+            // Reset text summary fields
+            document.getElementById("category-summary").innerText = "None Selected";
+            document.getElementById("direction-summary").innerText = "None Selected";
             
-            // Determine active specs index
-            currentSpecIndex = 0;
-            if (savedSpecId) {
-                const foundIndex = activeSpecsList.findIndex(s => s.id === savedSpecId);
-                if (foundIndex !== -1) {
-                    currentSpecIndex = foundIndex;
-                }
-            }
-            
-            // Collapse panels by default on load to save screen estate
-            document.getElementById("panel-category").classList.add("collapsed");
-            document.getElementById("category-toggle-btn").innerText = "Change";
+            // Initial collapsible wizard states: expanded first, others hidden
+            document.getElementById("panel-category").classList.remove("collapsed");
+            document.getElementById("category-toggle-btn").innerText = "Done";
             
             document.getElementById("panel-direction").classList.add("collapsed");
+            document.getElementById("panel-direction").style.display = "none";
             document.getElementById("direction-toggle-btn").innerText = "Change";
             
-            const catEmojis = { temp: "Temp 🌡️", dist: "Distance 🚗", weight: "Weight ⚖️", vol: "Volume 🧪" };
-            document.getElementById("category-summary").innerText = catEmojis[currentCategory] || currentCategory;
-            
-            renderDirections();
+            document.getElementById("panel-input").style.display = "none";
+            document.getElementById("panel-results").style.display = "none";
         }
 
-        // Save state to local storage
+        // Save state to local storage (only when fully configured)
         function saveState() {
-            localStorage.setItem("converter_cat", currentCategory);
-            localStorage.setItem("converter_spec_id", activeSpecsList[currentSpecIndex].id);
+            if (currentCategory && currentSpecIndex !== -1) {
+                localStorage.setItem("converter_cat", currentCategory);
+                localStorage.setItem("converter_spec_id", activeSpecsList[currentSpecIndex].id);
+            }
         }
 
         // Collapsible Panel Toggler
@@ -1213,7 +1196,7 @@
         function changeCategory(catId) {
             currentCategory = catId;
             activeSpecsList = conversionDB[catId];
-            currentSpecIndex = 0;
+            currentSpecIndex = -1; // Reset direction index to force selection!
             
             // Toggle active visual class
             document.querySelectorAll(".category-btn").forEach(btn => {
@@ -1227,10 +1210,14 @@
             document.getElementById("panel-category").classList.add("collapsed");
             document.getElementById("category-toggle-btn").innerText = "Change";
             
+            document.getElementById("panel-direction").style.display = "block";
             document.getElementById("panel-direction").classList.remove("collapsed");
             document.getElementById("direction-toggle-btn").innerText = "Done";
             
-            saveState();
+            // Hide Input and Results panels until direction is selected
+            document.getElementById("panel-input").style.display = "none";
+            document.getElementById("panel-results").style.display = "none";
+            
             renderDirections();
         }
 
@@ -1241,7 +1228,7 @@
             
             activeSpecsList.forEach((spec, index) => {
                 const btn = document.createElement("button");
-                btn.className = `direction-btn ${index === currentSpecIndex ? "active" : ""}`;
+                btn.className = `direction-btn`;
                 btn.innerText = spec.name;
                 btn.onclick = () => {
                     // Update active direction
@@ -1257,20 +1244,23 @@
                     document.getElementById("panel-direction").classList.add("collapsed");
                     document.getElementById("direction-toggle-btn").innerText = "Change";
                     
+                    // Reveal the calculator interface
+                    document.getElementById("panel-input").style.display = "block";
+                    document.getElementById("panel-results").style.display = "block";
+                    
                     saveState();
                     initCalculatorSpec();
                 };
                 dirContainer.appendChild(btn);
             });
             
-            // Set initial summary for direction
-            document.getElementById("direction-summary").innerText = activeSpecsList[currentSpecIndex].name;
-            
-            initCalculatorSpec();
+            // Reset direction summary initially
+            document.getElementById("direction-summary").innerText = "None Selected";
         }
 
         // Setup the calculator with the selected specification
         function initCalculatorSpec() {
+            if (currentSpecIndex === -1) return;
             const spec = activeSpecsList[currentSpecIndex];
             
             // Set units in label UI
@@ -1278,9 +1268,9 @@
             document.getElementById("primary-result-unit-label").innerText = spec.outputUnit;
             document.getElementById("result-unit-label-approx").innerText = spec.outputUnit;
             
-            // Set default value in input
+            // Set blank value in input so user doesn't have to clear anything
             const inputField = document.getElementById("conv-input");
-            inputField.value = spec.defaultVal;
+            inputField.value = "";
             
             // Render shortcut rule titles
             document.getElementById("shortcut-rule").innerText = spec.rule;
