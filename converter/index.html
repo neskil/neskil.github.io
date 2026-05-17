@@ -374,9 +374,10 @@
             bottom: 54px;
             transform: translateY(50%);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.68rem; /* Ultra-compact size */
-            color: var(--text-secondary);
-            font-weight: 600;
+            font-size: 0.76rem; /* Supreme readability */
+            color: #ffffff; /* Crisp white */
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
             white-space: nowrap;
         }
 
@@ -387,13 +388,13 @@
             top: 26px;
             height: 12px;
             width: 1px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.45); /* Solid tick lines */
         }
 
         .scale-anchor.star::before {
             background: var(--accent);
             width: 2px;
-            box-shadow: 0 0 6px var(--accent);
+            box-shadow: 0 0 8px var(--accent);
         }
 
         /* Bottom tick label: positioned fully below the track */
@@ -401,9 +402,10 @@
             position: absolute;
             top: 42px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.68rem;
-            color: var(--text-secondary);
-            font-weight: 600;
+            font-size: 0.76rem; /* Larger font size */
+            color: #cbd5e1; /* Clear bright gray */
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
             white-space: nowrap;
         }
 
@@ -411,12 +413,13 @@
         .scale-anchor-label {
             position: absolute;
             top: 58px;
-            font-size: 0.5rem;
-            color: var(--text-mute);
+            font-size: 0.65rem; /* Highly readable */
+            color: var(--accent-soft); /* Warm cream orange */
             white-space: nowrap;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 700;
+            letter-spacing: 0.06em;
+            font-weight: 800;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
         }
 
         /* Axis Header/Footer Flex Rows (No absolute positioning!) */
@@ -728,11 +731,43 @@
             padding: 3px 8px !important;
             font-size: 0.7rem !important; /* Smaller, ultra-compact font once selected */
             white-space: nowrap !important; /* Guarantee emoji never breaks onto a new line! */
+            overflow: hidden !important; /* Prevent text from spilling out and causing viewport scrollbars */
+            text-overflow: ellipsis !important; /* Add dynamic ... fallback */
+            max-width: calc(100% - 55px) !important; /* Reserve exact space for the Change button */
+            display: inline-block !important; /* Support ellipsis and max-width boundaries perfectly */
         }
 
         .selectors-wrapper.side-by-side .panel-toggle-btn {
             padding: 4px 8px !important;
             font-size: 0.65rem !important;
+        }
+
+        /* Swap direction floating button styling */
+        .swap-direction-btn {
+            background: rgba(255, 106, 61, 0.08);
+            border: 1px solid rgba(255, 106, 61, 0.25);
+            color: var(--accent-soft);
+            border-radius: 100px;
+            padding: 3px 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            outline: none;
+        }
+        .swap-direction-btn:hover {
+            background: rgba(255, 106, 61, 0.16);
+            border-color: var(--accent);
+            color: var(--text-primary);
+            box-shadow: 0 0 10px rgba(255, 106, 61, 0.25);
+        }
+        .swap-direction-btn:active {
+            transform: scale(0.92);
         }
 
         /* Fade-in animation helper */
@@ -839,8 +874,9 @@
 
         <!-- Input & Scale panel -->
         <div class="panel" id="panel-input">
-            <div class="panel-title">
+            <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <span>3. Enter Value &amp; Result</span>
+                <button id="swap-dir-btn" class="swap-direction-btn" onclick="swapDirection()">⇅ Swap</button>
             </div>
             <div class="calculator-wrapper">
                 <!-- Numeric input box -->
@@ -1390,6 +1426,40 @@
             }
         }
 
+        // Swaps the active conversion direction to its inverse (e.g. L -> gal to gal -> L)
+        function swapDirection() {
+            if (currentSpecIndex === -1) return;
+            const currentSpec = activeSpecsList[currentSpecIndex];
+            
+            // Find a counterpart spec in activeSpecsList where input/output units are swapped
+            const counterpartIndex = activeSpecsList.findIndex(spec => 
+                spec.inputUnit === currentSpec.outputUnit && 
+                spec.outputUnit === currentSpec.inputUnit
+            );
+            
+            if (counterpartIndex !== -1) {
+                // Switch to this direction!
+                currentSpecIndex = counterpartIndex;
+                
+                // Update direction buttons active class
+                document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
+                    dBtn.classList.toggle("active", dIdx === counterpartIndex);
+                });
+                
+                // Update summary text
+                const spec = activeSpecsList[counterpartIndex];
+                document.getElementById("direction-summary").innerText = spec.name;
+                
+                // Save state and re-initialize
+                saveState();
+                initCalculatorSpec();
+                updateSelectorsLayout();
+                
+                // Trigger real-time calculation
+                calculate();
+            }
+        }
+
         // Collapsible Panel Toggler
         function togglePanel(panelId) {
             const panel = document.getElementById(`panel-${panelId}`);
@@ -1642,10 +1712,10 @@
                         anchDiv.classList.add("star");
                     }
                     
-                    // Only render labels if they are not overlapping (at least 12% space)
+                    // Only render labels if they are not overlapping (at least 22% space on mobile)
                     // If it is a star or anchor landmark, we give it higher priority to show
                     const isImportant = anchDiv.classList.contains("star");
-                    const showLabels = (pct - lastPlottedPct) > 12 || isImportant;
+                    const showLabels = (pct - lastPlottedPct) > 22 || isImportant;
                     
                     if (showLabels) {
                         anchDiv.innerHTML = `
@@ -1765,15 +1835,4 @@
 
         // On document load, load states and configure page events
         window.addEventListener("DOMContentLoaded", () => {
-            loadState();
-            initDragEvents();
-            
-            // Focus input automatically for PC/Desktop convenience (but let mobile prompt naturally)
-            if (window.innerWidth > 600) {
-                document.getElementById("conv-input").focus();
-                document.getElementById("conv-input").select();
-            }
-        });
-    </script>
-</body>
-</html>
+  
