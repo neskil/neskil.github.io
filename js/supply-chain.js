@@ -3,7 +3,7 @@
     if (!canvas) return; // Only run if canvas exists
     const ctx = canvas.getContext('2d');
 
-    // Default configuration (can be overridden by window.SupplyChainConfig)
+    // Default configuration
     const config = window.SupplyChainConfig || {
         density: 25000,
         speedMultiplier: 1.0,
@@ -14,7 +14,6 @@
     let nodes = [];
     let lines = [];
     let packages = [];
-    let signals = [];
 
     function resize() {
         width = canvas.width = window.innerWidth;
@@ -42,24 +41,38 @@
         return [COLOR_RAW_RED, COLOR_RAW_BLUE]; // fallback
     }
 
-    // 1. Generate Nodes
+    // 1. Generate Balanced Network
     function generateNetwork() {
         nodes = [];
         lines = [];
         packages = [];
-        signals = [];
         
         const numNodes = Math.floor((width * height) / config.density); 
         
+        let sCount = 0;
+        let fCount = 0;
+
         for(let i=0; i<numNodes; i++) {
             let type = 'normal';
             let radius = 2;
+            let supplierColor = null;
+            let factoryColor = null;
             
             const r = Math.random();
-            if (r < 0.10) { type = 'supplier'; radius = 5; } // Hexagon
-            else if (r < 0.25) { type = 'warehouse'; radius = 6; } // Triangle
-            else if (r < 0.40) { type = 'factory'; radius = 6; } // Square
-            else if (r < 0.50) { type = 'consumer'; radius = 7; } // Big Circle
+            if (r < 0.10) { 
+                type = 'supplier'; 
+                radius = 5; 
+                supplierColor = RAW_COLORS[sCount % 3]; // Balance colors
+                sCount++;
+            } 
+            else if (r < 0.25) { type = 'warehouse'; radius = 6; } 
+            else if (r < 0.40) { 
+                type = 'factory'; 
+                radius = 6; 
+                factoryColor = MIX_COLORS[fCount % 3]; // Balance colors
+                fCount++;
+            } 
+            else if (r < 0.50) { type = 'consumer'; radius = 7; } 
             
             nodes.push({ 
                 id: i,
@@ -67,6 +80,8 @@
                 x: Math.random() * width, 
                 y: Math.random() * height, 
                 radius,
+                supplierColor,
+                factoryColor,
                 edges: [],
                 inventory: [], // Holds waiting packages or raw materials
                 demands: [] // For consumers: list of colors currently requested
@@ -84,15 +99,15 @@
                     if(!node.edges.includes(neighbor)) {
                         node.edges.push(neighbor);
                         neighbor.edges.push(node);
-                        lines.push({ n1: node, n2: neighbor });
+                        lines.push({ n1: node, n2: neighbor, glow: 0, glowColor: null });
                     }
                 }
             }
         });
     }
 
-    // BFS Pathfinding
-    function findPath(startNode, targetType) {
+    // BFS Pathfinding (Specialized)
+    function findPath(startNode, targetType, targetColor) {
         let queue = [[startNode]];
         let visited = new Set([startNode]);
         
@@ -101,7 +116,9 @@
             let current = path[path.length - 1];
             
             if (current.type === targetType && current !== startNode) {
-                return path;
+                if (targetType === 'factory' && current.factoryColor === targetColor) return path;
+                if (targetType === 'supplier' && current.supplierColor === targetColor) return path;
+                if (!targetColor) return path;
             }
             
             // Shuffle edges for organic routing variation
@@ -133,6 +150,19 @@
         return null;
     }
 
+    // Highlight Network Route
+    function highlightPath(path, color) {
+        for (let i = 0; i < path.length - 1; i++) {
+            let n1 = path[i];
+            let n2 = path[i+1];
+            let line = lines.find(l => (l.n1 === n1 && l.n2 === n2) || (l.n1 === n2 && l.n2 === n1));
+            if (line) {
+                line.glow = 1.0;
+                line.glowColor = color;
+            }
+        }
+    }
+
     // Shapes
     function drawHexagon(x, y, r) {
         ctx.beginPath();
@@ -158,7 +188,6 @@
         ctx.closePath();
     }
 
-    // Expose a method to re-init network from UI
     window.reinitSupplyChain = function(newConfig) {
         if (newConfig.density) config.density = newConfig.density;
         if (newConfig.speedMultiplier) config.speedMultiplier = newConfig.speedMultiplier;
@@ -172,118 +201,74 @@
         ctx.clearRect(0, 0, width, height);
 
         // Draw lines
-        ctx.lineWidth = 1;
         lines.forEach(l => {
             const dist = Math.hypot(l.n1.x - l.n2.x, l.n1.y - l.n2.y);
             const opacity = Math.max(0, 1 - dist / 300) * 0.15;
-            ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
+            
             ctx.beginPath();
+            if (l.glow && l.glow > 0) {
+                ctx.strokeStyle = l.glowColor;
+                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.7)); // Brighter route
+                ctx.lineWidth = 1 + (l.glow * 1.5);
+                ctx.shadowBlur = l.glow * 8;
+                ctx.shadowColor = l.glowColor;
+                l.glow -= 0.015 * config.speedMultiplier; // fade out over time
+            } else {
+                ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
+                ctx.globalAlpha = 1.0;
+                ctx.lineWidth = 1;
+                ctx.shadowBlur = 0;
+            }
+            
             ctx.moveTo(l.n1.x, l.n1.y);
             ctx.lineTo(l.n2.x, l.n2.y);
             ctx.stroke();
+            
+            ctx.globalAlpha = 1.0;
+            ctx.shadowBlur = 0;
         });
 
         // Generate Demand (Pull System)
-        if (Math.random() < config.demandFrequency && packages.length < 80) {
+        if (Math.random() < config.demandFrequency && packages.length < 150) {
             const consumers = nodes.filter(n => n.type === 'consumer');
             if (consumers.length > 0) {
                 const consumer = consumers[Math.floor(Math.random() * consumers.length)];
-                // Consumer demands a random mixed color
                 const demandedColor = MIX_COLORS[Math.floor(Math.random() * MIX_COLORS.length)];
                 
-                // Find a factory to fulfill this
-                const path = findPath(consumer, 'factory');
+                // Find a factory specialized in this color
+                const path = findPath(consumer, 'factory', demandedColor);
                 if (path && path.length > 1) {
+                    const factory = path[path.length - 1];
                     consumer.demands.push(demandedColor);
                     
-                    // Send a fast signal to the factory
-                    signals.push({
-                        path: path,
-                        pathIndex: 0,
-                        progress: 0,
-                        speed: (Math.random() * 0.015 + 0.01) * config.speedMultiplier, // Signals are very fast
-                        color: demandedColor,
-                        payload: {
-                            type: 'demand_finished',
-                            targetConsumer: consumer,
-                            color: demandedColor
-                        }
-                    });
-                }
-            }
-        }
-
-        // Process Signals
-        for (let i = signals.length - 1; i >= 0; i--) {
-            let s = signals[i];
-            s.progress += s.speed;
-            
-            let startNode = s.path[s.pathIndex];
-            let endNode = s.path[s.pathIndex + 1];
-            
-            if (s.progress >= 1) {
-                s.pathIndex++;
-                s.progress = 0;
-                
-                if (s.pathIndex >= s.path.length - 1) {
-                    // Signal Reached Destination
-                    let finalNode = s.path[s.path.length - 1];
+                    highlightPath(path, demandedColor); // Route Consumer -> Factory
                     
-                    if (s.payload.type === 'demand_finished' && finalNode.type === 'factory') {
-                        // Factory receives demand. It needs raw materials.
-                        let bom = getBOM(s.payload.color);
-                        
-                        // Factory requests raw materials from suppliers
-                        bom.forEach(rawColor => {
-                            let pathToSupplier = findPath(finalNode, 'supplier');
-                            if (pathToSupplier && pathToSupplier.length > 1) {
-                                signals.push({
-                                    path: pathToSupplier,
-                                    pathIndex: 0,
-                                    progress: 0,
-                                    speed: (Math.random() * 0.015 + 0.01) * config.speedMultiplier,
-                                    color: rawColor,
-                                    payload: {
-                                        type: 'demand_raw',
-                                        targetFactory: finalNode,
-                                        targetConsumer: s.payload.targetConsumer,
-                                        finalMixColor: s.payload.color,
-                                        color: rawColor
-                                    }
-                                });
-                            }
-                        });
-                    } else if (s.payload.type === 'demand_raw' && finalNode.type === 'supplier') {
-                        // Supplier receives demand. It dispatches the raw material package.
-                        let returnPath = findPathToSpecificNode(finalNode, s.payload.targetFactory);
-                        if (returnPath) {
+                    const bom = getBOM(demandedColor);
+                    bom.forEach(rawColor => {
+                        // Find a supplier specialized in this raw material
+                        let pathToSupplier = findPath(factory, 'supplier', rawColor);
+                        if (pathToSupplier && pathToSupplier.length > 1) {
+                            highlightPath(pathToSupplier, rawColor); // Route Factory -> Supplier
+                            
+                            // Instantly request and dispatch raw material from supplier
+                            let returnPath = [...pathToSupplier].reverse();
                             packages.push({
                                 path: returnPath,
                                 pathIndex: 0,
                                 progress: 0,
                                 speed: (Math.random() * 0.005 + 0.003) * config.speedMultiplier,
-                                color: s.payload.color,
-                                payload: s.payload // Pass payload forward so factory knows what to do
+                                color: rawColor,
+                                payload: {
+                                    type: 'demand_raw',
+                                    targetFactory: factory,
+                                    targetConsumer: consumer,
+                                    finalMixColor: demandedColor
+                                }
                             });
                         }
-                    }
-                    signals.splice(i, 1);
-                    continue;
+                    });
                 }
-                startNode = s.path[s.pathIndex];
-                endNode = s.path[s.pathIndex + 1];
             }
-            
-            // Draw Signal (Faint fast dashed pulse)
-            const curX = startNode.x + (endNode.x - startNode.x) * s.progress;
-            const curY = startNode.y + (endNode.y - startNode.y) * s.progress;
-            
-            ctx.beginPath();
-            ctx.fillStyle = s.color;
-            ctx.globalAlpha = 0.6;
-            ctx.arc(curX, curY, 2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
         }
 
         // Process Warehouse logic
@@ -301,7 +286,7 @@
             }
         });
 
-        // Manage and draw moving packages
+        // Manage and draw moving packages (Trucks)
         for(let i = packages.length - 1; i >= 0; i--) {
             let p = packages[i];
             p.progress += p.speed;
@@ -354,7 +339,6 @@
                         }
                     } else if (finalNode.type === 'consumer') {
                         // Consumer received finished good
-                        // Remove demand ! indicator
                         let demandIdx = finalNode.demands.indexOf(p.color);
                         if (demandIdx !== -1) {
                             finalNode.demands.splice(demandIdx, 1);
@@ -381,31 +365,42 @@
             const curX = startNode.x + (endNode.x - startNode.x) * p.progress;
             const curY = startNode.y + (endNode.y - startNode.y) * p.progress;
             
-            const tailLength = p.speed * 12;
-            const prevProg = Math.max(0, p.progress - tailLength);
-            const tailX = startNode.x + (endNode.x - startNode.x) * prevProg;
-            const tailY = startNode.y + (endNode.y - startNode.y) * prevProg;
+            // Calculate direction angle for truck orientation
+            const dx = endNode.x - startNode.x;
+            const dy = endNode.y - startNode.y;
+            const angle = Math.atan2(dy, dx);
             
-            ctx.beginPath();
-            ctx.strokeStyle = p.color;
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 12;
+            ctx.save();
+            ctx.translate(curX, curY);
+            ctx.rotate(angle);
+            
+            ctx.fillStyle = p.color;
+            ctx.shadowBlur = 8;
             ctx.shadowColor = p.color;
-            ctx.lineCap = 'round';
-            ctx.moveTo(tailX, tailY);
-            ctx.lineTo(curX, curY);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
+            
+            // Draw Truck (Constant size, simulating a convoy/truck with cargo)
+            // Front Cab
+            ctx.fillRect(4, -2, 4, 4);
+            // Middle Cargo
+            ctx.fillRect(-2, -2.5, 5, 5);
+            // Rear Cargo
+            ctx.fillRect(-8, -2.5, 5, 5);
+            
+            ctx.restore();
         }
 
         // Draw nodes
         nodes.forEach(n => {
             ctx.lineWidth = 1.5;
             if (n.type === 'supplier') {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
-                ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+                ctx.strokeStyle = n.supplierColor; // Specialized color border
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = n.supplierColor;
                 drawHexagon(n.x, n.y, n.radius);
                 ctx.fill(); ctx.stroke();
+                ctx.shadowBlur = 0;
             } else if (n.type === 'warehouse') {
                 ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
                 ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
@@ -419,10 +414,14 @@
                     });
                 }
             } else if (n.type === 'factory') {
-                ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
-                ctx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
+                ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+                ctx.strokeStyle = n.factoryColor; // Specialized color border
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = n.factoryColor;
                 drawSquare(n.x, n.y, n.radius);
                 ctx.fill(); ctx.stroke();
+                ctx.shadowBlur = 0;
                 
                 n.inventory.forEach((item, idx) => {
                     ctx.fillStyle = item.color;
@@ -446,7 +445,7 @@
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#ffffff';
-                    ctx.shadowBlur = 4;
+                    ctx.shadowBlur = 6;
                     ctx.shadowColor = n.demands[0]; // Glow in the requested color
                     ctx.fillText('!', n.x, n.y - 12);
                     ctx.shadowBlur = 0;
