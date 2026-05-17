@@ -322,6 +322,7 @@
     </style>
 </head>
 <body>
+    <a href="../index.html" style="position: fixed; top: 15px; left: 15px; z-index: 9999; background: rgba(0,0,0,0.6); color: #fff; text-decoration: none; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 20px; font-family: sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.3); backdrop-filter: blur(5px); transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.8)'" onmouseout="this.style.background='rgba(0,0,0,0.6)'" title="Back to Home">&#8592;</a>
 
     <h1>Interactive Game Library</h1>
 
@@ -397,23 +398,23 @@
         let filteredGames = [];
 
         const genreBackgrounds = {
-            "Action Adventure": "../images/genres/action_adventure.png",
-            "Co-op Party Multiplayer": "../images/genres/coop_party.png",
-            "Fighting Beat Em Up": "../images/genres/fighting.png",
-            "Horror Survival": "../images/genres/horror_survival.png",
-            "Indie Puzzle Experimental": "../images/genres/indie_puzzle.png",
-            "Narrative Walking Sim": "../images/genres/narrative_walking.png",
-            "Open World Sandbox": "../images/genres/open_world.png",
-            "Platformer Precision": "../images/genres/platformer_precision.png",
-            "Racing Sports Driving": "../images/genres/racing_sports.png",
-            "Retro Classic": "../images/genres/retro_classic.png",
-            "Roguelike Roguelite": "../images/genres/roguelike_roguelite.png",
-            "RPG Story Rich": "../images/genres/rpg_story_rich.png",
-            "RTS Grand Strategy": "../images/genres/rts_grand_strategy.png",
-            "Shooter FPS Tactical": "../images/genres/shooter_fps.png",
-            "Simulation Builder Tycoon": "../images/genres/simulation_builder.png",
-            "Soulslike Hardcore Combat": "../images/genres/soulslike.png",
-            "Turn-Based Strategy Tactics": "../images/genres/turn_based_tactics.png"
+            "Action Adventure": "images/genres/action_adventure.png",
+            "Co-op Party Multiplayer": "images/genres/coop_party.png",
+            "Fighting Beat Em Up": "images/genres/fighting.png",
+            "Horror Survival": "images/genres/horror_survival.png",
+            "Indie Puzzle Experimental": "images/genres/indie_puzzle.png",
+            "Narrative Walking Sim": "images/genres/narrative_walking.png",
+            "Open World Sandbox": "images/genres/open_world.png",
+            "Platformer Precision": "images/genres/platformer_precision.png",
+            "Racing Sports Driving": "images/genres/racing_sports.png",
+            "Retro Classic": "images/genres/retro_classic.png",
+            "Roguelike Roguelite": "images/genres/roguelike_roguelite.png",
+            "RPG Story Rich": "images/genres/rpg_story_rich.png",
+            "RTS Grand Strategy": "images/genres/rts_grand_strategy.png",
+            "Shooter FPS Tactical": "images/genres/shooter_fps.png",
+            "Simulation Builder Tycoon": "images/genres/simulation_builder.png",
+            "Soulslike Hardcore Combat": "images/genres/soulslike.png",
+            "Turn-Based Strategy Tactics": "images/genres/turn_based_tactics.png"
         };
 
 
@@ -498,7 +499,7 @@
         function handleImageError(img, category, title) {
             img.onerror = null; // Prevent infinite loop
             
-            const fallbackBg = genreBackgrounds[category] || "../images/genres/action_adventure.png";
+            const fallbackBg = genreBackgrounds[category] || "images/genres/action_adventure.png";
             
             img.src = fallbackBg;
 
@@ -532,7 +533,7 @@
             scoreEl.className = 'card-score ' + getScoreClass(game.score);
 
             const encodedTitle = encodeURIComponent(game.title);
-            const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "../images/genres/action_adventure.png");
+            const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.png");
             
             let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
             let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
@@ -647,7 +648,7 @@
                 card.onclick = () => openModal(game);
                 
                 const encodedTitle = encodeURIComponent(game.title);
-                const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "../images/genres/action_adventure.png");
+                const imageUrl = game.imgUrl || (genreBackgrounds[game.category] || "images/genres/action_adventure.png");
                 
                 let fallbackClass = !game.imgUrl ? 'has-fallback' : '';
                 let fallbackTitleHTML = !game.imgUrl ? `<div class="fallback-title">${game.title}</div>` : '';
