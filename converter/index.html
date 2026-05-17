@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Mental Converter | Niklas Billgren</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #090d16 0%, #110e24 100%);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-hover-bg: rgba(255, 255, 255, 0.06);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-mute: #64748b;
+            --accent: #ff6a3d;
+            --accent-glow: rgba(255, 106, 61, 0.4);
+            --accent-soft: #ffb38a;
+            --secondary-glow: rgba(99, 102, 241, 0.2);
+            --violet: #6366f1;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px 60px;
+            overflow-x: hidden;
+        }
+
+        /* Animated background glows */
+        .bg-glow {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 70%);
+            top: -100px;
+            left: -100px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .bg-glow-2 {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255, 106, 61, 0.08) 0%, rgba(255, 106, 61, 0) 70%);
+            bottom: -100px;
+            right: -100px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Back Navigation */
+        .back-nav {
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            margin-bottom: 5px;
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .back-nav:hover {
+            color: var(--text-primary);
+            background: var(--card-hover-bg);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(-3px);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            font-weight: 300;
+        }
+
+        /* Glassmorphic Panel Base */
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Category Select Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .category-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .category-btn .icon {
+            font-size: 1.6rem;
+            transition: transform 0.3s ease;
+        }
+
+        .category-btn:hover {
+            background: var(--card-hover-bg);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+        }
+
+        .category-btn:hover .icon {
+            transform: scale(1.15) translateY(-2px);
+        }
+
+        .category-btn.active {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: var(--violet);
+            color: var(--text-primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.25);
+        }
+
+        /* Direction Segment Selector */
+        .direction-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .direction-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+        }
+
+        .direction-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .direction-btn {
+            flex: 0 0 auto;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .direction-btn:hover {
+            background: var(--card-hover-bg);
+            color: var(--text-primary);
+        }
+
+        .direction-btn.active {
+            background: rgba(255, 106, 61, 0.15);
+            border-color: var(--accent);
+            color: var(--accent-soft);
+            box-shadow: 0 0 12px rgba(255, 106, 61, 0.15);
+        }
+
+        /* Calculator Input Layout */
+        .calculator-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .input-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 8px 16px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(255, 106, 61, 0.15);
+        }
+
+        .input-field {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 2.2rem;
+            font-weight: 800;
+            padding-right: 60px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Hiding chrome numeric arrows */
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-field[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .input-unit {
+            position: absolute;
+            right: 18px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+            pointer-events: none;
+        }
+
+        /* Mobile Presets Buttons */
+        .presets-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            min-width: 60px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            background: var(--card-hover-bg);
+            color: var(--text-primary);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .preset-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Dual-Scale Timeline Component */
+        .scale-container {
+            position: relative;
+            padding: 30px 10px 40px;
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            overflow: hidden;
+        }
+
+        .scale-track {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 100px;
+            position: relative;
+            margin: 15px 0;
+        }
+
+        .scale-track-progress {
+            height: 100%;
+            background: linear-gradient(90deg, var(--violet) 0%, var(--accent) 100%);
+            border-radius: 100px;
+            position: absolute;
+            left: 0;
+            width: 0%;
+            opacity: 0.7;
+        }
+
+        .scale-anchor {
+            position: absolute;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .scale-anchor::before {
+            content: '';
+            width: 2px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            position: absolute;
+            top: -4px;
+        }
+
+        .scale-anchor.star::before {
+            background: var(--accent);
+            width: 2px;
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        .scale-anchor-top {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            position: absolute;
+            bottom: 12px;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .scale-anchor-bottom {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            position: absolute;
+            top: 12px;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .scale-anchor-label {
+            font-size: 0.55rem;
+            color: var(--text-mute);
+            position: absolute;
+            top: 28px;
+            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .scale-axis-label {
+            position: absolute;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-mute);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            left: 10px;
+        }
+
+        .scale-axis-label.top {
+            top: 6px;
+        }
+
+        .scale-axis-label.bottom {
+            bottom: 6px;
+        }
+
+        /* Custom Input Pointer Pin */
+        .scale-pointer {
+            position: absolute;
+            top: -12px;
+            height: 38px;
+            width: 2px;
+            background: var(--accent);
+            transform: translateX(-50%);
+            z-index: 10;
+            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .scale-pointer::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -5px;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent);
+            animation: pulse 1.8s infinite alternate;
+        }
+
+        .scale-pointer::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: -5px;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent);
+            animation: pulse 1.8s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 4px var(--accent); }
+            100% { transform: scale(1.3); box-shadow: 0 0 12px var(--accent); }
+        }
+
+        /* Results Box Component */
+        .results-box {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .result-label span.sub {
+            font-size: 0.75rem;
+            color: var(--text-mute);
+        }
+
+        .result-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .result-val span.unit {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* Formula Cheat Badge */
+        .formula-card {
+            background: rgba(255, 106, 61, 0.05);
+            border: 1px solid rgba(255, 106, 61, 0.15);
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .formula-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .formula-text {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--accent-soft);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Accuracy Indicator Badge */
+        .accuracy-badge {
+            align-self: flex-start;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .accuracy-badge.success {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .accuracy-badge.warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .accuracy-badge.danger {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        footer {
+            margin-top: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-mute);
+            text-align: center;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        /* Responsiveness & Touch optimization */
+        @media (max-width: 400px) {
+            header h1 {
+                font-size: 1.8rem;
+            }
+            .category-btn {
+                padding: 10px 4px;
+                font-size: 0.7rem;
+            }
+            .category-btn .icon {
+                font-size: 1.4rem;
+            }
+            .input-field {
+                font-size: 1.8rem;
+            }
+            .result-val {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <div class="container">
+        <!-- Back navigation button -->
+        <a href="../index.html" class="back-nav">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Home
+        </a>
+
+        <header>
+            <h1>Quick Converter</h1>
+            <p>Interactive mental math calculator optimized for mobile</p>
+        </header>
+
+        <!-- Category selector panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>1. Select Measurement Type</span>
+            </div>
+            <div class="category-grid">
+                <button class="category-btn active" id="cat-temp" onclick="changeCategory('temp')">
+                    <span class="icon">🌡️</span>
+                    <span>Temp</span>
+                </button>
+                <button class="category-btn" id="cat-dist" onclick="changeCategory('dist')">
+                    <span class="icon">🚗</span>
+                    <span>Distance</span>
+                </button>
+                <button class="category-btn" id="cat-weight" onclick="changeCategory('weight')">
+                    <span class="icon">⚖️</span>
+                    <span>Weight</span>
+                </button>
+                <button class="category-btn" id="cat-vol" onclick="changeCategory('vol')">
+                    <span class="icon">🧪</span>
+                    <span>Volume</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Direction selector panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>2. Select Direction</span>
+            </div>
+            <div class="direction-container">
+                <div class="direction-scroll" id="direction-list">
+                    <!-- Dynamic buttons injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Input & Scale panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>3. Enter Value</span>
+            </div>
+            <div class="calculator-wrapper">
+                <!-- Numeric input box -->
+                <div class="input-box">
+                    <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="20" oninput="calculate()">
+                    <span class="input-unit" id="input-unit-label">°C</span>
+                </div>
+
+                <!-- Presets / Quick targets row -->
+                <div class="presets-row" id="presets-list">
+                    <!-- Preset buttons dynamically loaded -->
+                </div>
+
+                <!-- Dynamic scale timeline visualizer -->
+                <div class="scale-axis-label top" id="scale-label-top">US</div>
+                <div class="scale-container">
+                    <div class="scale-track">
+                        <div class="scale-track-progress" id="scale-progress"></div>
+                        <!-- Live pointer pin -->
+                        <div class="scale-pointer" id="scale-pin" style="left: 50%;"></div>
+                    </div>
+                    <!-- Dynamic anchors are placed here -->
+                    <div id="scale-anchors-container"></div>
+                </div>
+                <div class="scale-axis-label bottom" id="scale-label-bottom">Metric</div>
+            </div>
+        </div>
+
+        <!-- Results panel -->
+        <div class="panel">
+            <div class="panel-title">
+                <span>4. Conversions</span>
+            </div>
+            <div class="results-box">
+                <!-- Formula shortcut card -->
+                <div class="formula-card">
+                    <div class="formula-title">Mental Math Rule</div>
+                    <div class="formula-text" id="shortcut-rule">double + 30</div>
+                </div>
+
+                <!-- Mental shortcut calculation -->
+                <div class="result-row">
+                    <div class="result-label">
+                        <strong>Mental Estimate</strong>
+                        <span class="sub" id="approx-label-sub">Double the input, add 30</span>
+                    </div>
+                    <div class="result-val">
+                        <span id="approx-val">70.0</span>
+                        <span class="unit" id="result-unit-label-approx">°F</span>
+                    </div>
+                </div>
+
+                <!-- Exact physical conversion -->
+                <div class="result-row">
+                    <div class="result-label">
+                        <strong>Exact Value</strong>
+                        <span class="sub">Standard scientific formula</span>
+                    </div>
+                    <div class="result-val" style="color: var(--violet);">
+                        <span id="exact-val">68.0</span>
+                        <span class="unit" id="result-unit-label-exact">°F</span>
+                    </div>
+                </div>
+
+                <!-- Accuracy Assessment -->
+                <div class="result-row">
+                    <div class="result-label">
+                        <strong>Difference / Drift</strong>
+                    </div>
+                    <div class="accuracy-badge success" id="accuracy-rating">
+                        <span>🔥 97.1% ACCURATE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>v2.1 · ATLANTA 2026</footer>
+    </div>
+
+    <script>
+        // Database of conversion specs, formulas, anchors and presets
+        const conversionDB = {
+            temp: [
+                {
+                    id: "c_to_f",
+                    name: "°C → °F",
+                    inputUnit: "°C",
+                    outputUnit: "°F",
+                    presets: [0, 10, 20, 30, 37, 100],
+                    rule: "double + 30",
+                    ruleDesc: "Double the Celsius value and add 30",
+                    approxFn: (v) => (v * 2) + 30,
+                    exactFn: (v) => (v * 9 / 5) + 32,
+                    // Anchors array: [US (°F) value, Metric (°C) value, label]
+                    anchors: [
+                        { us: 32, metric: 0, label: "Freezing" },
+                        { us: 50, metric: 10, label: "Cool Day" },
+                        { us: 68, metric: 20, label: "Room Temp" },
+                        { us: 86, metric: 30, label: "Summer" },
+                        { us: 98.6, metric: 37, label: "Body Temp" },
+                        { us: 212, metric: 100, label: "Boiling" }
+                    ],
+                    defaultVal: 20,
+                    inputIsMetric: true
+                },
+                {
+                    id: "f_to_c",
+                    name: "°F → °C",
+                    inputUnit: "°F",
+                    outputUnit: "°C",
+                    presets: [32, 50, 68, 86, 98, 212],
+                    rule: "-30, then halve",
+                    ruleDesc: "Subtract 30, then divide by 2",
+                    approxFn: (v) => (v - 30) / 2,
+                    exactFn: (v) => (v - 32) * 5 / 9,
+                    anchors: [
+                        { us: 32, metric: 0, label: "Freezing" },
+                        { us: 50, metric: 10, label: "Cool Day" },
+                        { us: 68, metric: 20, label: "Room Temp" },
+                        { us: 86, metric: 30, label: "Summer" },
+                        { us: 98.6, metric: 37, label: "Body Temp" },
+                        { us: 212, metric: 100, label: "Boiling" }
+                    ],
+                    defaultVal: 68,
+                    inputIsMetric: false
+                }
+            ],
+            dist: [
+                {
+                    id: "mi_to_km",
+                    name: "Miles → km",
+                    inputUnit: "mi",
+                    outputUnit: "km",
+                    presets: [1, 3, 5, 8, 13, 26, 60],
+                    rule: "× 1.6",
+                    ruleDesc: "Multiply by 1.6 (add half, then add another 10%)",
+                    approxFn: (v) => v * 1.6,
+                    exactFn: (v) => v * 1.609344,
+                    anchors: [
+                        { us: 1, metric: 1.6, label: "1 Mile" },
+                        { us: 3.1, metric: 5, label: "5k Run" },
+                        { us: 5, metric: 8, label: "8k Run" },
+                        { us: 13.1, metric: 21.1, label: "Half-M" },
+                        { us: 26.2, metric: 42.2, label: "Marathon" },
+                        { us: 60, metric: 96.6, label: "Highway" }
+                    ],
+                    defaultVal: 5,
+                    inputIsMetric: false
+                },
+                {
+                    id: "km_to_mi",
+                    name: "km → Miles",
+                    inputUnit: "km",
+                    outputUnit: "mi",
+                    presets: [5, 10, 21, 42, 80, 100],
+                    rule: "halve, then +10%",
+                    ruleDesc: "Divide by 2, then add 10% of the result (e.g. 50 + 5 = 55)",
+                    approxFn: (v) => (v / 2) * 1.1,
+                    exactFn: (v) => v * 0.621371,
+                    anchors: [
+                        { us: 1, metric: 1.6, label: "1 Mile" },
+                        { us: 3.1, metric: 5, label: "5k Run" },
+                        { us: 5, metric: 8, label: "8k Run" },
+                        { us: 13.1, metric: 21.1, label: "Half-M" },
+                        { us: 26.2, metric: 42.2, label: "Marathon" },
+                        { us: 62.1, metric: 100, label: "100k" }
+                    ],
+                    defaultVal: 10,
+                    inputIsMetric: true
+                },
+                {
+                    id: "mph_to_kmh",
+                    name: "mph → km/h",
+                    inputUnit: "mph",
+                    outputUnit: "km/h",
+                    presets: [25, 45, 60, 70, 80],
+                    rule: "× 1.6",
+                    ruleDesc: "Multiply by 1.6",
+                    approxFn: (v) => v * 1.6,
+                    exactFn: (v) => v * 1.609344,
+                    anchors: [
+                        { us: 25, metric: 40.2, label: "School" },
+                        { us: 45, metric: 72.4, label: "City Road" },
+                        { us: 60, metric: 96.6, label: "Highway" },
+                        { us: 70, metric: 112.7, label: "Interstate" }
+                    ],
+                    defaultVal: 60,
+                    inputIsMetric: false
+                },
+                {
+                    id: "ft_to_m",
+                    name: "Feet → meters",
+                    inputUnit: "ft",
+                    outputUnit: "m",
+                    presets: [3, 6, 10, 30, 50, 100],
+                    rule: "÷ 3 (roughly)",
+                    ruleDesc: "Divide feet by 3",
+                    approxFn: (v) => v / 3,
+                    exactFn: (v) => v / 3.28084,
+                    anchors: [
+                        { us: 3.3, metric: 1, label: "Meter" },
+                        { us: 6, metric: 1.8, label: "Human" },
+                        { us: 10, metric: 3, label: "Ceiling" },
+                        { us: 30, metric: 9.1, label: "3-Story" },
+                        { us: 100, metric: 30.5, label: "Blue Whale" }
+                    ],
+                    defaultVal: 6,
+                    inputIsMetric: false
+                },
+                {
+                    id: "in_to_cm",
+                    name: "Inches → cm",
+                    inputUnit: "in",
+                    outputUnit: "cm",
+                    presets: [1, 6, 12, 32, 36, 40],
+                    rule: "× 2.5",
+                    ruleDesc: "Multiply inches by 2.5",
+                    approxFn: (v) => v * 2.5,
+                    exactFn: (v) => v * 2.54,
+                    anchors: [
+                        { us: 1, metric: 2.54, label: "Paperclip" },
+                        { us: 6, metric: 15.2, label: "Dollar Bill" },
+                        { us: 12, metric: 30.5, label: "Ruler" },
+                        { us: 32, metric: 81.3, label: "Waist Size" },
+                        { us: 39.4, metric: 100, label: "Meter Stick" }
+                    ],
+                    defaultVal: 12,
+                    inputIsMetric: false
+                },
+                {
+                    id: "yd_to_m",
+                    name: "Yards → meters",
+                    inputUnit: "yd",
+                    outputUnit: "m",
+                    presets: [10, 50, 100, 200, 500],
+                    rule: "subtract 10%",
+                    ruleDesc: "Subtract 10% from the yard value",
+                    approxFn: (v) => v * 0.9,
+                    exactFn: (v) => v * 0.9144,
+                    anchors: [
+                        { us: 10, metric: 9.1, label: "First Down" },
+                        { us: 50, metric: 45.7, label: "Half Field" },
+                        { us: 100, metric: 91.4, label: "Football Field" }
+                    ],
+                    defaultVal: 100,
+                    inputIsMetric: false
+                }
+            ],
+            weight: [
+                {
+                    id: "lbs_to_kg",
+                    name: "Pounds → kg",
+                    inputUnit: "lb",
+                    outputUnit: "kg",
+                    presets: [5, 10, 100, 150, 180, 200, 250],
+                    rule: "halve, then -10%",
+                    ruleDesc: "Divide by 2, then subtract 10% of that (e.g. 100 -> 90)",
+                    approxFn: (v) => (v / 2) * 0.9,
+                    exactFn: (v) => v * 0.45359237,
+                    anchors: [
+                        { us: 1, metric: 0.45, label: "Bread Loaf" },
+                        { us: 10, metric: 4.5, label: "Cat" },
+                        { us: 150, metric: 68, label: "Avg Adult" },
+                        { us: 200, metric: 90.7, label: "Heavyweight" },
+                        { us: 500, metric: 226.8, label: "Motorcycle" }
+                    ],
+                    defaultVal: 150,
+                    inputIsMetric: false
+                },
+                {
+                    id: "kg_to_lbs",
+                    name: "kg → Pounds",
+                    inputUnit: "kg",
+                    outputUnit: "lb",
+                    presets: [5, 10, 50, 70, 80, 100, 120],
+                    rule: "double, then +10%",
+                    ruleDesc: "Multiply by 2, then add 10% of that (e.g. 200 -> 220)",
+                    approxFn: (v) => (v * 2) * 1.1,
+                    exactFn: (v) => v * 2.20462,
+                    anchors: [
+                        { us: 1, metric: 0.45, label: "Bread Loaf" },
+                        { us: 10, metric: 4.5, label: "Cat" },
+                        { us: 150, metric: 68, label: "Avg Adult" },
+                        { us: 200, metric: 90.7, label: "Heavyweight" },
+                        { us: 500, metric: 226.8, label: "Motorcycle" }
+                    ],
+                    defaultVal: 70,
+                    inputIsMetric: true
+                },
+                {
+                    id: "oz_to_g",
+                    name: "Ounces → grams",
+                    inputUnit: "oz",
+                    outputUnit: "g",
+                    presets: [1, 4, 8, 12, 16, 24],
+                    rule: "× 30",
+                    ruleDesc: "Multiply ounces by 30",
+                    approxFn: (v) => v * 30,
+                    exactFn: (v) => v * 28.34952,
+                    anchors: [
+                        { us: 1, metric: 28.3, label: "Letter" },
+                        { us: 8, metric: 226.8, label: "Steak" },
+                        { us: 16, metric: 453.6, label: "1 Pound" }
+                    ],
+                    defaultVal: 8,
+                    inputIsMetric: false
+                }
+            ],
+            vol: [
+                {
+                    id: "floz_to_ml",
+                    name: "Fluid oz → ml",
+                    inputUnit: "fl oz",
+                    outputUnit: "ml",
+                    presets: [1, 8, 12, 16, 20, 32],
+                    rule: "× 30",
+                    ruleDesc: "Multiply fluid ounces by 30",
+                    approxFn: (v) => v * 30,
+                    exactFn: (v) => v * 29.57353,
+                    anchors: [
+                        { us: 1, metric: 29.6, label: "Espresso" },
+                        { us: 8, metric: 236.6, label: "Coffee Cup" },
+                        { us: 12, metric: 354.9, label: "Soda Can" },
+                        { us: 16, metric: 473.2, label: "Pint" }
+                    ],
+                    defaultVal: 12,
+                    inputIsMetric: false
+                },
+                {
+                    id: "gal_to_l",
+                    name: "Gallons → liters",
+                    inputUnit: "gal",
+                    outputUnit: "L",
+                    presets: [1, 5, 10, 15, 20, 50],
+                    rule: "× 4, then -5%",
+                    ruleDesc: "Multiply gallons by 4, then subtract 5% of that result",
+                    approxFn: (v) => (v * 4) * 0.95,
+                    exactFn: (v) => v * 3.78541,
+                    anchors: [
+                        { us: 1, metric: 3.8, label: "Milk Jug" },
+                        { us: 5, metric: 18.9, label: "Water Cooler" },
+                        { us: 10, metric: 37.9, label: "Fish Tank" },
+                        { us: 15, metric: 56.8, label: "Car Fuel Tank" }
+                    ],
+                    defaultVal: 10,
+                    inputIsMetric: false
+                }
+            ]
+        };
+
+        // App state
+        let currentCategory = "temp";
+        let activeSpecsList = [];
+        let currentSpecIndex = 0;
+
+        // Initialize state from local storage if available
+        function loadState() {
+            const savedCat = localStorage.getItem("converter_cat");
+            const savedSpecId = localStorage.getItem("converter_spec_id");
+            
+            if (savedCat && conversionDB[savedCat]) {
+                currentCategory = savedCat;
+            }
+            
+            // Set active buttons
+            document.querySelectorAll(".category-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.id === `cat-${currentCategory}`);
+            });
+            
+            activeSpecsList = conversionDB[currentCategory];
+            
+            // Determine active specs index
+            currentSpecIndex = 0;
+            if (savedSpecId) {
+                const foundIndex = activeSpecsList.findIndex(s => s.id === savedSpecId);
+                if (foundIndex !== -1) {
+                    currentSpecIndex = foundIndex;
+                }
+            }
+            
+            renderDirections();
+        }
+
+        // Save state to local storage
+        function saveState() {
+            localStorage.setItem("converter_cat", currentCategory);
+            localStorage.setItem("converter_spec_id", activeSpecsList[currentSpecIndex].id);
+        }
+
+        // Change the active top-level measurement category
+        function changeCategory(catId) {
+            currentCategory = catId;
+            activeSpecsList = conversionDB[catId];
+            currentSpecIndex = 0;
+            
+            // Toggle active visual class
+            document.querySelectorAll(".category-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.id === `cat-${catId}`);
+            });
+            
+            saveState();
+            renderDirections();
+        }
+
+        // Render direction select sub-switches based on the active category
+        function renderDirections() {
+            const dirContainer = document.getElementById("direction-list");
+            dirContainer.innerHTML = "";
+            
+            activeSpecsList.forEach((spec, index) => {
+                const btn = document.createElement("button");
+                btn.className = `direction-btn ${index === currentSpecIndex ? "active" : ""}`;
+                btn.innerText = spec.name;
+                btn.onclick = () => {
+                    // Update active direction
+                    currentSpecIndex = index;
+                    document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
+                        dBtn.classList.toggle("active", dIdx === index);
+                    });
+                    saveState();
+                    initCalculatorSpec();
+                };
+                dirContainer.appendChild(btn);
+            });
+            
+            initCalculatorSpec();
+        }
+
+        // Setup the calculator with the selected specification
+        function initCalculatorSpec() {
+            const spec = activeSpecsList[currentSpecIndex];
+            
+            // Set units in label UI
+            document.getElementById("input-unit-label").innerText = spec.inputUnit;
+            document.getElementById("result-unit-label-approx").innerText = spec.outputUnit;
+            document.getElementById("result-unit-label-exact").innerText = spec.outputUnit;
+            
+            // Set default value in input
+            const inputField = document.getElementById("conv-input");
+            inputField.value = spec.defaultVal;
+            
+            // Render shortcut rule titles
+            document.getElementById("shortcut-rule").innerText = spec.rule;
+            document.getElementById("approx-label-sub").innerText = spec.ruleDesc;
+            
+            // Build preset helper pills
+            renderPresets(spec);
+            
+            // Recalculate everything
+            calculate();
+        }
+
+        // Draw quick-touch preset value badges
+        function renderPresets(spec) {
+            const presetsContainer = document.getElementById("presets-list");
+            presetsContainer.innerHTML = "";
+            
+            spec.presets.forEach(pVal => {
+                const btn = document.createElement("button");
+                btn.className = "preset-btn";
+                btn.innerText = pVal;
+                btn.onclick = () => {
+                    document.getElementById("conv-input").value = pVal;
+                    calculate();
+                };
+                presetsContainer.appendChild(btn);
+            });
+        }
+
+        // The main conversion calculation and plotting logic
+        function calculate() {
+            const spec = activeSpecsList[currentSpecIndex];
+            const inputField = document.getElementById("conv-input");
+            let inputVal = parseFloat(inputField.value);
+            
+            if (isNaN(inputVal)) {
+                inputVal = 0;
+            }
+            
+            // Compute values
+            const approxVal = spec.approxFn(inputVal);
+            const exactVal = spec.exactFn(inputVal);
+            
+            // Update results UI
+            document.getElementById("approx-val").innerText = formatNumber(approxVal);
+            document.getElementById("exact-val").innerText = formatNumber(exactVal);
+            
+            // Calculate accuracy rate
+            let accuracyText = "";
+            let accuracyClass = "success";
+            
+            if (exactVal === 0 && approxVal === 0) {
+                accuracyText = "🎯 100% Accurate";
+            } else {
+                const diff = Math.abs(exactVal - approxVal);
+                const base = Math.abs(exactVal) || 1;
+                const pctErr = (diff / base) * 100;
+                
+                if (pctErr <= 1) {
+                    accuracyText = "🎯 99%+ Accurate";
+                } else if (pctErr <= 5) {
+                    accuracyText = `🔥 ${formatNumber(100 - pctErr)}% Accurate`;
+                } else if (pctErr <= 15) {
+                    accuracyText = `👍 ${formatNumber(100 - pctErr)}% Decent Approx`;
+                    accuracyClass = "warning";
+                } else {
+                    accuracyText = `⚠️ ${formatNumber(100 - pctErr)}% Drift Hazard`;
+                    accuracyClass = "danger";
+                }
+            }
+            
+            const badge = document.getElementById("accuracy-rating");
+            badge.innerText = accuracyText;
+            badge.className = `accuracy-badge ${accuracyClass}`;
+            
+            // Render the dual scale visualizer
+            renderScale(spec, inputVal, exactVal);
+        }
+
+        // Format float values cleanly
+        function formatNumber(num) {
+            if (Number.isInteger(num)) return num.toString();
+            // Up to 2 decimal places, trimming trailing zeros
+            return parseFloat(num.toFixed(2)).toString();
+        }
+
+        // Render visual dual-scale ruler
+        function renderScale(spec, inputVal, exactVal) {
+            const container = document.getElementById("scale-anchors-container");
+            container.innerHTML = "";
+            
+            // Determine active axis values depending on conversion direction
+            let valToPlot = spec.inputIsMetric ? exactVal : inputVal; // Always plot in US system linearly
+            let currentUsValue = spec.inputIsMetric ? exactVal : inputVal;
+            let currentMetricValue = spec.inputIsMetric ? inputVal : exactVal;
+            
+            // Find bounds for scaling: min & max anchor values
+            let usVals = spec.anchors.map(a => a.us);
+            let minUs = Math.min(...usVals, 0);
+            let maxUs = Math.max(...usVals);
+            
+            // Scale dynamically if the input value extends beyond typical bounds
+            if (currentUsValue > maxUs) {
+                maxUs = currentUsValue * 1.15; // padding
+            } else if (currentUsValue < minUs) {
+                minUs = currentUsValue * 1.15;
+            }
+            
+            const range = maxUs - minUs || 100;
+            
+            // Setup axis labels on top and bottom headers
+            document.getElementById("scale-label-top").innerText = "US (" + (spec.inputIsMetric ? spec.outputUnit : spec.inputUnit) + ")";
+            document.getElementById("scale-label-bottom").innerText = "Metric (" + (spec.inputIsMetric ? spec.inputUnit : spec.outputUnit) + ")";
+            
+            // Map anchors relative to bounds
+            spec.anchors.forEach(anch => {
+                const pct = ((anch.us - minUs) / range) * 100;
+                
+                // Keep anchor markers visually spaced within viewport bounds
+                if (pct >= -5 && pct <= 105) {
+                    const anchDiv = document.createElement("div");
+                    anchDiv.className = "scale-anchor";
+                    anchDiv.style.left = `${pct}%`;
+                    
+                    // Mark as 'star' (highlighted) if it matches a primary landmark point
+                    if (anch.label === "Room Temp" || anch.label === "Body Temp" || anch.label === "Marathon" || anch.label === "Football Field") {
+                        anchDiv.classList.add("star");
+                    }
+                    
+                    anchDiv.innerHTML = `
+                        <div class="scale-anchor-top">${formatNumber(anch.us)}</div>
+                        <div class="scale-anchor-bottom">${formatNumber(anch.metric)}</div>
+                        <div class="scale-anchor-label">${anch.label}</div>
+                    `;
+                    container.appendChild(anchDiv);
+                }
+            });
+            
+            // Plot user input point
+            let inputPct = ((currentUsValue - minUs) / range) * 100;
+            
+            // Constrain pointer between 0% and 100% physically so it doesn't break the container layout
+            let constrainedPct = Math.max(0, Math.min(100, inputPct));
+            
+            const pin = document.getElementById("scale-pin");
+            pin.style.left = `${constrainedPct}%`;
+            
+            // Render active progress background glowing bar
+            const prog = document.getElementById("scale-progress");
+            prog.style.width = `${constrainedPct}%`;
+        }
+
+        // On document load, load states and configure page events
+        window.addEventListener("DOMContentLoaded", () => {
+            loadState();
+            
+            // Focus input automatically for PC/Desktop convenience (but let mobile prompt naturally)
+            if (window.innerWidth > 600) {
+                document.getElementById("conv-input").focus();
+                document.getElementById("conv-input").select();
+            }
+        });
+    </script>
+</body>
+</html>
