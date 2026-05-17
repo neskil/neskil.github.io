@@ -1217,6 +1217,7 @@
             document.getElementById("direction-summary").innerText = "None Selected";
             
             // Initial collapsible wizard states: expanded first, others hidden
+            // Initial collapsible wizard states: expanded first, others hidden
             document.getElementById("panel-category").classList.remove("collapsed");
             document.getElementById("category-toggle-btn").innerText = "Done";
             
@@ -1226,6 +1227,8 @@
             
             document.getElementById("panel-input").style.display = "none";
             document.getElementById("panel-results").style.display = "none";
+            
+            updateSelectorsLayout(); // Sync layout initially
         }
 
         // Save state to local storage (only when fully configured)
@@ -1233,6 +1236,23 @@
             if (currentCategory && currentSpecIndex !== -1) {
                 localStorage.setItem("converter_cat", currentCategory);
                 localStorage.setItem("converter_spec_id", activeSpecsList[currentSpecIndex].id);
+            }
+        }
+
+        // Update the select panels side-by-side grid when both are collapsed
+        function updateSelectorsLayout() {
+            const wrapper = document.getElementById("selectors-wrapper");
+            const catPanel = document.getElementById("panel-category");
+            const dirPanel = document.getElementById("panel-direction");
+            
+            const catCollapsed = catPanel.classList.contains("collapsed");
+            const dirCollapsed = dirPanel.classList.contains("collapsed");
+            const dirVisible = dirPanel.style.display === "block" || dirPanel.style.display === "";
+            
+            if (catCollapsed && dirCollapsed && dirVisible) {
+                wrapper.classList.add("side-by-side");
+            } else {
+                wrapper.classList.remove("side-by-side");
             }
         }
 
@@ -1251,6 +1271,7 @@
                 panel.classList.add("collapsed");
                 btn.innerText = "Change";
             }
+            updateSelectorsLayout(); // Sync layout on toggle
         }
 
         // Change the active top-level measurement category
@@ -1280,6 +1301,7 @@
             document.getElementById("panel-results").style.display = "none";
             
             renderDirections();
+            updateSelectorsLayout(); // Sync layout on change
         }
 
         // Render direction select sub-switches based on the active category
@@ -1311,12 +1333,14 @@
                     
                     saveState();
                     initCalculatorSpec();
+                    updateSelectorsLayout(); // Sync layout on select direction
                 };
                 dirContainer.appendChild(btn);
             });
             
             // Reset direction summary initially
             document.getElementById("direction-summary").innerText = "None Selected";
+            updateSelectorsLayout(); // Sync layout on dynamic render
         }
 
         // Setup the calculator with the selected specification
