@@ -417,10 +417,28 @@
             }
         }
 
+        let scrollY = 0, lastScrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
+        window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+
         function animate() {
             ctx.clearRect(0, 0, width, height);
             
+            // Smooth scroll tracking + velocity
+            let prevSmooth = smoothScrollY;
+            smoothScrollY += (scrollY - smoothScrollY) * 0.08;
+            scrollVelocity = smoothScrollY - prevSmooth;
+            
+            // Parallax shift
+            ctx.save();
+            ctx.translate(0, -smoothScrollY * 0.15);
+            
             for (let i = 0; i < particles.length; i++) {
+                // Apply scroll inertia as a gentle push (like mouse repel)
+                if (Math.abs(scrollVelocity) > 0.5) {
+                    particles[i].y -= scrollVelocity * 0.3;
+                    particles[i].x += (Math.random() - 0.5) * Math.abs(scrollVelocity) * 0.5;
+                }
+
                 particles[i].update();
                 particles[i].draw();
 
@@ -439,6 +457,7 @@
                     }
                 }
             }
+            ctx.restore();
             requestAnimationFrame(animate);
         }
 

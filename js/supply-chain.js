@@ -106,26 +106,26 @@
         // 1. Generate meandering sea river polygon
         if (isPortrait) {
             // HORIZONTAL sea on portrait screens (splits top/bottom)
-            let seaCenter = height * (0.35 + Math.random() * 0.3);
-            let seaW = height * (0.06 + Math.random() * 0.04); // narrower on mobile
+            let seaCenter = genHeight * (0.35 + Math.random() * 0.3);
+            let seaW = genHeight * (0.06 + Math.random() * 0.04);
             let steps = 12;
             for (let i = 0; i <= steps; i++) {
-                let x = (i / steps) * width;
-                seaCenter += (Math.random() - 0.5) * height * 0.06;
-                seaCenter = Math.max(height * 0.25, Math.min(height * 0.75, seaCenter));
+                let x = (i / steps) * genWidth;
+                seaCenter += (Math.random() - 0.5) * genHeight * 0.06;
+                seaCenter = Math.max(genHeight * 0.25, Math.min(genHeight * 0.75, seaCenter));
                 let halfW = seaW / 2 + (Math.random() - 0.5) * seaW * 0.3;
-                seaLeftEdge.push({ x, y: seaCenter - halfW });  // top edge of sea
-                seaRightEdge.push({ x, y: seaCenter + halfW }); // bottom edge of sea
+                seaLeftEdge.push({ x, y: seaCenter - halfW });
+                seaRightEdge.push({ x, y: seaCenter + halfW });
             }
         } else {
             // VERTICAL sea on landscape screens (splits left/right)
-            let seaCenter = width * (0.35 + Math.random() * 0.3);
-            let seaW = width * (0.08 + Math.random() * 0.06);
+            let seaCenter = genWidth * (0.35 + Math.random() * 0.3);
+            let seaW = genWidth * (0.08 + Math.random() * 0.06);
             let steps = 12;
             for (let i = 0; i <= steps; i++) {
-                let y = (i / steps) * height;
-                seaCenter += (Math.random() - 0.5) * width * 0.08;
-                seaCenter = Math.max(width * 0.2, Math.min(width * 0.8, seaCenter));
+                let y = (i / steps) * genHeight;
+                seaCenter += (Math.random() - 0.5) * genWidth * 0.08;
+                seaCenter = Math.max(genWidth * 0.2, Math.min(genWidth * 0.8, seaCenter));
                 let halfW = seaW / 2 + (Math.random() - 0.5) * seaW * 0.3;
                 seaLeftEdge.push({ x: seaCenter - halfW, y });
                 seaRightEdge.push({ x: seaCenter + halfW, y });
@@ -137,15 +137,15 @@
         for (let i = 0; i < numNodes; i++) {
             let nx, ny, attempts = 0;
             do {
-                nx = 30 + Math.random() * (width - 60);
-                ny = 30 + Math.random() * (height - 60);
+                nx = 30 + Math.random() * (genWidth - 60);
+                ny = 30 + Math.random() * (genHeight - 60);
                 attempts++;
             } while (isInSea(nx, ny) && attempts < 50);
             if (attempts >= 50) continue;
 
             let type = 'normal', radius = 2, supplierColor = null, factoryColor = null;
             // Vertical position bias: top=consumers, middle=factories, bottom=suppliers
-            let yRatio = ny / height; // 0=top, 1=bottom
+            let yRatio = ny / genHeight; // 0=top, 1=bottom
             let r = Math.random();
             if (yRatio < 0.35) {
                 // Top third: mostly consumers
