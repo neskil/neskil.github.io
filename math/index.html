@@ -273,6 +273,65 @@
     h2 { font-size: 26px; }
     .fib-row { font-size: 19px; }
   }
+
+  /* Game Modal Styles */
+  .game-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 14, 12, 0.95);
+    z-index: 10000;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .game-modal {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    padding: 32px 24px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  }
+  .game-modal h2 { font-family: 'Instrument Serif', serif; font-size: 32px; font-weight: 400; margin-bottom: 8px; }
+  .game-modal p { color: var(--ink-dim); margin-bottom: 24px; font-size: 15px; }
+  
+  .game-setting { margin-bottom: 24px; text-align: left; }
+  .game-setting label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+  
+  .toggle-group { display: flex; gap: 8px; background: var(--bg); padding: 4px; border-radius: 8px; border: 1px solid var(--rule); }
+  .toggle-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--ink-dim); border-radius: 6px; font-family: 'Inter Tight', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .toggle-btn.active { background: var(--card-2); color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+  
+  .start-btn { width: 100%; padding: 14px; background: var(--accent); color: var(--bg); border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.2s, background 0.2s; margin-bottom: 12px; }
+  .start-btn:hover { background: var(--accent-soft); transform: translateY(-2px); }
+  
+  .close-btn { width: 100%; padding: 14px; background: transparent; color: var(--ink-mute); border: 1px solid var(--rule); border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .close-btn:hover { background: var(--rule); color: var(--ink); }
+
+  .game-header { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--accent); margin-bottom: 32px; border-bottom: 1px dashed var(--rule); padding-bottom: 12px; }
+  .question { font-size: 32px; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+  .hint { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-mute); margin-bottom: 32px; }
+  
+  .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mc-btn { padding: 16px; background: var(--card-2); border: 1px solid var(--rule); border-radius: 12px; font-size: 20px; font-weight: 700; color: var(--ink); cursor: pointer; transition: all 0.1s; }
+  .mc-btn:hover { background: rgba(255,106,61,0.1); border-color: var(--accent); color: var(--accent); }
+  .mc-btn:active { transform: scale(0.95); }
+  .mc-btn.correct { background: #4caf50 !important; border-color: #4caf50 !important; color: #fff !important; }
+  .mc-btn.wrong { background: #f44336 !important; border-color: #f44336 !important; color: #fff !important; }
+
+  .text-input-group { display: flex; gap: 8px; }
+  .text-input-group input { flex: 1; padding: 16px; background: var(--bg); border: 1px solid var(--rule); border-radius: 12px; font-size: 24px; font-weight: 700; color: var(--ink); text-align: center; outline: none; width: 100%; }
+  .text-input-group input:focus { border-color: var(--accent); }
+  .text-input-group .submit-btn { padding: 0 24px; background: var(--accent); color: var(--bg); border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+
+  .feedback { margin-top: 16px; height: 24px; font-weight: 600; font-size: 15px; }
+  .feedback.correct { color: #4caf50; }
+  .feedback.wrong { color: #f44336; }
 </style>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -295,11 +354,12 @@
 </header>
 
 <nav class="toc">
-  <a href="file:///C:/Users/NiklasEskilsson/Downloads/us-to-metric-cheatsheet_2.html#temp">Temp</a>
-  <a href="file:///C:/Users/NiklasEskilsson/Downloads/us-to-metric-cheatsheet_2.html#dist">Distance</a>
-  <a href="file:///C:/Users/NiklasEskilsson/Downloads/us-to-metric-cheatsheet_2.html#weight">Weight</a>
-  <a href="file:///C:/Users/NiklasEskilsson/Downloads/us-to-metric-cheatsheet_2.html#vol">Volume</a>
-  <a href="file:///C:/Users/NiklasEskilsson/Downloads/us-to-metric-cheatsheet_2.html#oven">Oven</a>
+  <a href="#" onclick="openGameModal(); return false;" style="background: rgba(255,106,61,0.1); color: var(--accent); border-color: var(--accent);">Practice Game</a>
+  <a href="#temp">Temp</a>
+  <a href="#dist">Distance</a>
+  <a href="#weight">Weight</a>
+  <a href="#vol">Volume</a>
+  <a href="#oven">Oven</a>
 </nav>
 
 <section id="temp">
@@ -518,5 +578,256 @@
 
 </div>
 
+<div class="game-overlay" id="game-overlay">
+  <div class="game-modal" id="game-setup">
+    <h2>Practice Mode</h2>
+    <p>Test your mental math skills!</p>
+    
+    <div class="game-setting">
+      <label>Input Method</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-mc" onclick="setMode('mc')">Multiple Choice</button>
+        <button class="toggle-btn" id="btn-text" onclick="setMode('text')">Type Answer</button>
+      </div>
+    </div>
+
+    <div class="game-setting">
+      <label>Difficulty</label>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-easy" onclick="setDiff('easy')">Easy (Anchors)</button>
+        <button class="toggle-btn" id="btn-hard" onclick="setDiff('hard')">Hard (Random)</button>
+      </div>
+    </div>
+
+    <button class="start-btn" onclick="startGame()">Start 60s Timer</button>
+    <button class="close-btn" onclick="closeGameModal()">Cancel</button>
+  </div>
+
+  <div class="game-modal" id="game-active" style="display:none;">
+    <div class="game-header">
+      <div class="score">Score: <span id="score-val">0</span></div>
+      <div class="timer">Time: <span id="time-val">60</span>s</div>
+    </div>
+    <div class="question" id="question-text"></div>
+    <div class="hint" id="question-hint"></div>
+    
+    <div class="mc-grid" id="mc-options"></div>
+
+    <div class="text-input-group" id="text-options" style="display:none;">
+       <input type="number" id="answer-input" placeholder="Value..." autocomplete="off">
+       <button class="submit-btn" onclick="checkTextAnswer()">Go</button>
+    </div>
+    <div id="feedback-msg" class="feedback"></div>
+  </div>
+
+  <div class="game-modal" id="game-over" style="display:none;">
+    <h2>Time's Up!</h2>
+    <p>You scored <span id="final-score-val" style="font-size: 32px; color: var(--accent); font-weight: 700; display: block; margin-top: 8px;">0</span></p>
+    <button class="start-btn" onclick="startGame()">Play Again</button>
+    <button class="close-btn" onclick="closeGameModal()">Back to Cheatsheet</button>
+  </div>
+</div>
+
+<script>
+let gMode = 'mc';
+let gDiff = 'easy';
+let score = 0;
+let timeLeft = 60;
+let timerInt = null;
+let currentQ = null;
+let isAccepting = false;
+
+function openGameModal() {
+  document.getElementById('game-overlay').style.display = 'flex';
+  document.getElementById('game-setup').style.display = 'block';
+  document.getElementById('game-active').style.display = 'none';
+  document.getElementById('game-over').style.display = 'none';
+}
+
+function closeGameModal() {
+  document.getElementById('game-overlay').style.display = 'none';
+  clearInterval(timerInt);
+}
+
+function setMode(mode) {
+  gMode = mode;
+  document.getElementById('btn-mc').classList.toggle('active', mode === 'mc');
+  document.getElementById('btn-text').classList.toggle('active', mode === 'text');
+}
+
+function setDiff(diff) {
+  gDiff = diff;
+  document.getElementById('btn-easy').classList.toggle('active', diff === 'easy');
+  document.getElementById('btn-hard').classList.toggle('active', diff === 'hard');
+}
+
+function startGame() {
+  score = 0;
+  timeLeft = 60;
+  document.getElementById('score-val').innerText = score;
+  document.getElementById('time-val').innerText = timeLeft;
+  document.getElementById('game-setup').style.display = 'none';
+  document.getElementById('game-over').style.display = 'none';
+  document.getElementById('game-active').style.display = 'block';
+  
+  if (gMode === 'mc') {
+    document.getElementById('mc-options').style.display = 'grid';
+    document.getElementById('text-options').style.display = 'none';
+  } else {
+    document.getElementById('mc-options').style.display = 'none';
+    document.getElementById('text-options').style.display = 'flex';
+  }
+
+  nextQuestion();
+  
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    timeLeft--;
+    document.getElementById('time-val').innerText = timeLeft;
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+  
+  const input = document.getElementById('answer-input');
+  // clear old listeners by replacing clone
+  const new_input = input.cloneNode(true);
+  input.parentNode.replaceChild(new_input, input);
+  new_input.addEventListener("keypress", function(event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      checkTextAnswer();
+    }
+  });
+}
+
+function endGame() {
+  clearInterval(timerInt);
+  document.getElementById('game-active').style.display = 'none';
+  document.getElementById('game-over').style.display = 'block';
+  document.getElementById('final-score-val').innerText = score;
+}
+
+const generators = {
+  tempEasy: () => {
+    const anchors = [[32,0], [50,10], [68,20], [86,30], [212,100]];
+    const pair = anchors[Math.floor(Math.random()*anchors.length)];
+    if(Math.random()>0.5) return { q: `${pair[1]}°C to °F`, a: pair[0], hint: "Double + 30" };
+    else return { q: `${pair[0]}°F to °C`, a: pair[1], hint: "-30 then halve" };
+  },
+  tempHard: () => {
+    const c = Math.floor(Math.random()*40); // 0 to 40 C
+    const isCtoF = Math.random()>0.5;
+    if(isCtoF) {
+      return { q: `${c}°C to °F`, a: (c*2)+30, hint: "Double + 30" };
+    } else {
+      const f = c*2+30;
+      return { q: `${f}°F to °C`, a: c, hint: "-30 then halve" };
+    }
+  },
+  distEasy: () => {
+    const fib = [[3,5], [5,8], [8,13], [13,21], [21,34], [34,55], [55,89]];
+    const pair = fib[Math.floor(Math.random()*fib.length)];
+    if(Math.random()>0.5) return { q: `${pair[0]} mi to km`, a: pair[1], hint: "Fibonacci next" };
+    else return { q: `${pair[1]} km to mi`, a: pair[0], hint: "Fibonacci prev" };
+  },
+  distHard: () => {
+    const m = (Math.floor(Math.random()*10)+1)*10;
+    return { q: `${m} mi to km`, a: Math.round(m*1.6), hint: "x 1.6" };
+  },
+  weightEasy: () => {
+    const lbs = [100, 150, 200, 250];
+    const val = lbs[Math.floor(Math.random()*lbs.length)];
+    return { q: `${val} lbs to kg`, a: (val/2)*0.9, hint: "Halve then -10%" };
+  },
+  weightHard: () => {
+    const kgs = (Math.floor(Math.random()*10)+2)*10; // 20 to 110 kg
+    return { q: `${kgs} kg to lbs`, a: Math.round(kgs*2 + (kgs*2)*0.1), hint: "Double then +10%" };
+  }
+};
+
+function nextQuestion() {
+  document.getElementById('feedback-msg').innerText = '';
+  document.getElementById('answer-input').value = '';
+  isAccepting = true;
+  
+  const pool = gDiff === 'easy' ? [generators.tempEasy, generators.distEasy, generators.weightEasy] : [generators.tempHard, generators.distHard, generators.weightHard];
+  const gen = pool[Math.floor(Math.random()*pool.length)];
+  currentQ = gen();
+  
+  document.getElementById('question-text').innerText = currentQ.q;
+  document.getElementById('question-hint').innerText = currentQ.hint;
+  
+  if (gMode === 'mc') {
+    let opts = new Set([currentQ.a]);
+    while(opts.size < 4) {
+      let variance = Math.floor(Math.random()*20) - 10;
+      if (variance === 0) variance = 5;
+      let wrong = currentQ.a + variance;
+      if (wrong < 0) wrong = Math.abs(wrong); // ensure no negative answers for simplicity
+      opts.add(wrong);
+    }
+    const optArr = Array.from(opts).sort(() => Math.random() - 0.5);
+    const mcGrid = document.getElementById('mc-options');
+    mcGrid.innerHTML = '';
+    optArr.forEach(o => {
+      const b = document.createElement('button');
+      b.className = 'mc-btn';
+      b.innerText = o;
+      b.onclick = () => checkMcAnswer(b, o);
+      mcGrid.appendChild(b);
+    });
+  } else {
+    document.getElementById('answer-input').focus();
+  }
+}
+
+function checkMcAnswer(btn, val) {
+  if(!isAccepting) return;
+  isAccepting = false;
+  if (val === currentQ.a) {
+    btn.classList.add('correct');
+    score++;
+    document.getElementById('score-val').innerText = score;
+    showFeedback(true);
+    setTimeout(nextQuestion, 400);
+  } else {
+    btn.classList.add('wrong');
+    const btns = document.getElementById('mc-options').children;
+    for(let b of btns) {
+      if(parseFloat(b.innerText) === currentQ.a) b.classList.add('correct');
+    }
+    showFeedback(false, currentQ.a);
+    setTimeout(nextQuestion, 1500);
+  }
+}
+
+function checkTextAnswer() {
+  if(!isAccepting) return;
+  const input = document.getElementById('answer-input');
+  const val = parseFloat(input.value);
+  if(isNaN(val)) return;
+  isAccepting = false;
+  
+  if (val === currentQ.a) {
+    score++;
+    document.getElementById('score-val').innerText = score;
+    showFeedback(true);
+    setTimeout(nextQuestion, 400);
+  } else {
+    showFeedback(false, currentQ.a);
+    setTimeout(nextQuestion, 1500);
+  }
+}
+
+function showFeedback(isCorrect, rightAnswer) {
+  const fb = document.getElementById('feedback-msg');
+  if(isCorrect) {
+    fb.innerText = 'Correct!';
+    fb.className = 'feedback correct';
+  } else {
+    fb.innerText = `Wrong! Correct was ${rightAnswer}`;
+    fb.className = 'feedback wrong';
+  }
+}
+</script>
 
 </body></html>
