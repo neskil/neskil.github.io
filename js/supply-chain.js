@@ -97,7 +97,10 @@
         nodes=[]; lines=[]; packages=[]; signals=[];
         seaLeftEdge=[]; seaRightEdge=[];
 
-        const numNodes = Math.floor((width * height) / config.density);
+        // Generate in a taller area for parallax headroom
+        let genHeight = height * 1.3;
+        let genWidth = width;
+        const numNodes = Math.floor((genWidth * genHeight) / config.density);
         isPortrait = height > width * 1.2; // Detect portrait/mobile
 
         // 1. Generate meandering sea river polygon
@@ -534,6 +537,7 @@
             }
         });
 
+        ctx.restore(); // End parallax transform
         requestAnimationFrame(animate);
     }
     animate();
