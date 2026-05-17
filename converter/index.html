@@ -1734,9 +1734,10 @@
                     }
                     
                     // Only render labels if they are not overlapping (at least 22% space on mobile)
-                    // If it is a star or anchor landmark, we give it higher priority to show
+                    // If it is a star landmark, we allow a tighter 14% gap, but never let them overlap!
                     const isImportant = anchDiv.classList.contains("star");
-                    const showLabels = (pct - lastPlottedPct) > 22 || isImportant;
+                    const threshold = isImportant ? 14 : 22;
+                    const showLabels = (pct - lastPlottedPct) > threshold;
                     
                     if (showLabels) {
                         anchDiv.innerHTML = `
