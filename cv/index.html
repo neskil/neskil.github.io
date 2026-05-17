@@ -135,6 +135,26 @@
             background: linear-gradient(to right, var(--glass-border), transparent);
         }
 
+        .profile-pic {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            margin-bottom: 1.5rem;
+            object-fit: cover;
+            filter: grayscale(100%) contrast(1.2) opacity(0.85);
+            mix-blend-mode: luminosity;
+            border: 2px solid rgba(56,189,248,0.3);
+            box-shadow: 0 0 20px rgba(56,189,248,0.2);
+            transition: all 0.4s ease;
+        }
+        .profile-pic:hover {
+            filter: grayscale(20%) contrast(1.1) opacity(1);
+            mix-blend-mode: normal;
+            transform: scale(1.05);
+            border-color: rgba(56,189,248,0.8);
+            box-shadow: 0 0 30px rgba(56,189,248,0.5);
+        }
+
         .profile-text {
             font-size: 1.05rem;
             color: var(--text-secondary);
@@ -340,6 +360,7 @@
             .skill-item::before { display: none; }
             .contact-links a { color: #000; }
             .tooltip { display: none !important; }
+            .profile-pic { filter: none; mix-blend-mode: normal; border: none; box-shadow: none; width: 100px; height: 100px; }
         }
     </style>
     <!-- Google tag (gtag.js) -->
@@ -360,6 +381,7 @@
 
     <div class="container">
         <header>
+            <img src="../surprise/cv_legacy/images/image.jpg" alt="Niklas Billgren" class="profile-pic">
             <h1>Niklas Billgren</h1>
             <p class="subtitle">M.Sc. Industrial Engineering and Management</p>
             <div class="contact-links">
@@ -411,19 +433,6 @@
             <div class="entry">
                 <div class="entry-header">
                     <div>
-                        <div class="entry-title">Flamman Pub&Disco</div>
-                        <div class="entry-role">Managing Director - Head of Finance & Marketing</div>
-                    </div>
-                    <div class="entry-date">Sep 2015 - Nov 2018</div>
-                </div>
-                <div class="entry-desc">
-                    Oversaw accounting, investments, and nightly operations for an independent student nightclub (6 MSEK revenue). Supervised up to 25 bartenders and staff; boosted visitors 25% and turnover 60% via marketing and new student union partnership initiatives.
-                </div>
-            </div>
-            
-            <div class="entry">
-                <div class="entry-header">
-                    <div>
                         <div class="entry-title">Tekniska verken AB</div>
                         <div class="entry-role">System Configuration</div>
                     </div>
@@ -436,32 +445,55 @@
         </section>
 
         <section class="section">
-            <h2>Education</h2>
+            <h2>Education & Leadership</h2>
             <div class="entry">
                 <div class="entry-header">
                     <div>
                         <div class="entry-title">Linköping University</div>
-                        <div class="entry-role">M.Sc. in Industrial Engineering and Management</div>
+                        <div class="entry-role">Engineering Degrees</div>
                     </div>
-                    <div class="entry-date">2016 - 2019</div>
+                    <div class="entry-date">2013 - 2019</div>
                 </div>
-                <div class="entry-desc">Master profile in Logistics and Supply Chain Management.</div>
-            </div>
-            <div class="entry">
-                <div class="entry-header">
+                <div class="entry-desc">
+                    <ul style="list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; color: var(--text-primary);">
+                        <li><strong>M.Sc. Industrial Engineering and Management</strong> (Profile: Logistics & Supply Chain Management)</li>
+                        <li><strong>B.Sc. Mechanical Engineering</strong> (Profile: Mechatronics)</li>
+                    </ul>
+                </div>
+                
+                <div class="entry-header" style="margin-top: 1.5rem;">
                     <div>
-                        <div class="entry-title">Linköping University</div>
-                        <div class="entry-role">B.Sc. in Mechanical Engineering</div>
+                        <div class="entry-title" style="font-size: 1.15rem; color: var(--accent-color);">Non-Profit & Student Union Engagements</div>
                     </div>
-                    <div class="entry-date">2013 - 2015</div>
                 </div>
-                <div class="entry-desc">Bachelor profile in Mechatronics.</div>
+                <div class="entry-desc">
+                    <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
+                        <li><strong>Flamman Pub&Disco (Head of Finance & Marketing):</strong> Managed 25+ staff, oversaw accounting, and revamped marketing strategy to boost turnover by 60%.</li>
+                        <li><strong>LinTek (Student Union):</strong> Council member and various organizational roles supporting the engineering student body.</li>
+                    </ul>
+                </div>
             </div>
         </section>
 
         <section class="section">
             <h2>Skills & Expertise</h2>
             <div class="skills-grid">
+                <div class="skill-item">
+                    Solution Design
+                    <span class="tooltip">Leading design workshops and mapping complex business requirements to technical architectures.</span>
+                </div>
+                <div class="skill-item">
+                    Technical Pre-Sales
+                    <span class="tooltip">Conducting proof-of-concepts and executive product demonstrations.</span>
+                </div>
+                <div class="skill-item">
+                    Optimization Modeling
+                    <span class="tooltip">Designing multi-echelon inventory and supply chain network optimization models.</span>
+                </div>
+                <div class="skill-item">
+                    LLMs & GenAI
+                    <span class="tooltip">Advanced prompt engineering and integration with ChatGPT, Codex, and enterprise AI assistants.</span>
+                </div>
                 <div class="skill-item">
                     AI Tooling & Automation
                     <span class="tooltip">Extensive use of Claude, AntiGravity, and internal AI tools for rapid prototyping, logic creation, and workflow efficiency.</span>
@@ -524,16 +556,26 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Create Nodes (Factories, Warehouses, Stores)
         const numNodes = Math.floor(width * height / 30000);
         for(let i=0; i<numNodes; i++) {
-            nodes.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                radius: Math.random() * 3 + 2,
-                vx: (Math.random() - 0.5) * 0.2,
-                vy: (Math.random() - 0.5) * 0.2
-            });
+            let type = 'normal';
+            let radius = Math.random() * 3 + 2;
+            let vx = (Math.random() - 0.5) * 0.2;
+            let vy = (Math.random() - 0.5) * 0.2;
+            let inventory = 0;
+            
+            const r = Math.random();
+            if (r < 0.05) {
+                type = 'hub';
+                radius = Math.random() * 3 + 6;
+                vx = 0; vy = 0;
+            } else if (r < 0.15) {
+                type = 'factory';
+                radius = Math.random() * 2 + 4;
+                vx = vx * 0.2; vy = vy * 0.2; // very slow
+            }
+            
+            nodes.push({ type, x: Math.random() * width, y: Math.random() * height, radius, vx, vy, inventory });
         }
 
         // Establish connections (supply routes)
@@ -557,11 +599,13 @@
             const line = lines[Math.floor(Math.random() * lines.length)];
             // chance to go backwards
             const reverse = Math.random() > 0.5;
+            const colors = ['#38bdf8', '#7dd3fc', '#0ea5e9', '#f8fafc', '#e0f2fe'];
             packages.push({
                 start: reverse ? line.n2 : line.n1,
                 end: reverse ? line.n1 : line.n2,
                 progress: 0,
-                speed: Math.random() * 0.005 + 0.002
+                speed: Math.random() * 0.005 + 0.003,
+                color: colors[Math.floor(Math.random() * colors.length)]
             });
         }
 
@@ -589,11 +633,34 @@
             });
 
             // Draw nodes
-            ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
             nodes.forEach(n => {
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-                ctx.fill();
+                if (n.type === 'hub') {
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = 'rgba(148, 163, 184, 0.5)';
+                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else if (n.type === 'factory') {
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+                    ctx.lineWidth = 1.5;
+                    ctx.rect(n.x - n.radius, n.y - n.radius, n.radius*2, n.radius*2);
+                    ctx.fill();
+                    ctx.stroke();
+                    // Draw inventory pip
+                    if (n.inventory > 0) {
+                        ctx.beginPath();
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.arc(n.x, n.y, n.radius * 0.4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else {
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
+                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             });
 
             // Manage and draw moving packages
@@ -603,6 +670,23 @@
                 let p = packages[i];
                 p.progress += p.speed;
                 if(p.progress >= 1) {
+                    if (p.end.type === 'factory' && p.color !== '#f59e0b') {
+                        p.end.inventory++;
+                        if (p.end.inventory >= 3) {
+                            p.end.inventory = 0;
+                            const outgoing = lines.filter(l => l.n1 === p.end || l.n2 === p.end);
+                            if (outgoing.length > 0) {
+                                const outLine = outgoing[Math.floor(Math.random() * outgoing.length)];
+                                packages.push({
+                                    start: p.end,
+                                    end: outLine.n1 === p.end ? outLine.n2 : outLine.n1,
+                                    progress: 0,
+                                    speed: Math.random() * 0.003 + 0.002,
+                                    color: '#f59e0b'
+                                });
+                            }
+                        }
+                    }
                     packages.splice(i, 1);
                     continue;
                 }
@@ -610,13 +694,21 @@
                 const curX = p.start.x + (p.end.x - p.start.x) * p.progress;
                 const curY = p.start.y + (p.end.y - p.start.y) * p.progress;
                 
-                // Package glow
+                const tailLength = p.speed * 12; // length of motion blur tail
+                const prevProg = Math.max(0, p.progress - tailLength);
+                const tailX = p.start.x + (p.end.x - p.start.x) * prevProg;
+                const tailY = p.start.y + (p.end.y - p.start.y) * prevProg;
+                
+                // Package motion blur trail
                 ctx.beginPath();
-                ctx.fillStyle = 'rgba(56, 189, 248, 1)';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#38bdf8';
-                ctx.arc(curX, curY, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = p.color;
+                ctx.lineCap = 'round';
+                ctx.moveTo(tailX, tailY);
+                ctx.lineTo(curX, curY);
+                ctx.stroke();
                 ctx.shadowBlur = 0; // reset
             }
 
