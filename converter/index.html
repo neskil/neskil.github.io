@@ -372,7 +372,7 @@
         /* Dual-Scale Timeline Component */
         .scale-container {
             position: relative;
-            height: 78px; /* Compact: just enough for stacked numbers + angled labels */
+            height: 82px; /* Stacked: label-above / top-num / track / bottom-num / label-below */
             margin-top: 2px;
             background: rgba(0, 0, 0, 0.15);
             border-radius: 12px;
@@ -385,7 +385,7 @@
 
         .scale-track {
             position: absolute;
-            top: 22px; /* Compact: track line near upper third of container */
+            top: 38px; /* Center line of the 82px container (room for labels both above and below) */
             left: 0;
             right: 0;
             height: 4px;
@@ -420,8 +420,8 @@
         /* Top tick label: positioned fully above the track */
         .scale-anchor-top {
             position: absolute;
-            bottom: 50px; /* Sits just above the track */
-            transform: translateY(50%);
+            top: 20px; /* Sits between label-above and the track */
+            transform: translateY(0);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Supreme readability */
             color: #ffffff; /* Crisp white */
@@ -434,10 +434,10 @@
         .scale-anchor::before {
             content: '';
             position: absolute;
-            top: 18px; /* Centered cleanly on the 22px track line */
-            height: 8px; /* Compact height to avoid labels completely */
+            top: 34px; /* Centered cleanly on the 38px track line */
+            height: 8px;
             width: 1px;
-            background: rgba(255, 255, 255, 0.45); /* Solid tick lines */
+            background: rgba(255, 255, 255, 0.45);
         }
 
         .scale-anchor.star::before {
@@ -449,7 +449,7 @@
         /* Bottom tick label: positioned fully below the track */
         .scale-anchor-bottom {
             position: absolute;
-            top: 32px; /* Sits just below the track */
+            top: 46px; /* Sits between the track and label-below */
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Larger font size */
             color: #cbd5e1; /* Clear bright gray */
@@ -458,38 +458,42 @@
             white-space: nowrap;
         }
 
-        /* Landmark label tag: positioned below the bottom metric value and angled to prevent overlap */
+        /* Landmark label tag: straight horizontal text. Default position is below the bottom number.
+           Alternating anchors get .label-above which moves the label above the top number instead.
+           This avoids label-to-label collisions without resorting to rotation. */
         .scale-anchor-label {
             position: absolute;
-            top: 44px;
-            left: -8px; /* Slightly offset left to account for rotation pivot point */
-            font-size: 0.65rem;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
             color: var(--accent-soft);
             white-space: nowrap;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            font-weight: 800;
+            letter-spacing: 0.04em;
+            font-weight: 700;
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-            transform: rotate(-25deg);
-            transform-origin: left top;
         }
 
-        /* Right-edge anchors flip the angled label so it leans left and stays inside the container.
-           The numeric top/bottom tags are also right-aligned so wide numbers like "212" don't get clipped. */
-        .scale-anchor.flip-label .scale-anchor-label {
-            left: auto;
-            right: -8px;
-            transform: rotate(25deg);
-            transform-origin: right top;
+        .scale-anchor.label-above .scale-anchor-label {
+            top: 2px;
         }
-        .scale-anchor.flip-label .scale-anchor-top {
+
+        /* Right-edge anchors right-anchor their text so wide numbers and labels don't clip. */
+        .scale-anchor.edge-right .scale-anchor-label,
+        .scale-anchor.edge-right .scale-anchor-top,
+        .scale-anchor.edge-right .scale-anchor-bottom {
             left: auto;
             right: 0;
-            transform: translateY(50%);
+            transform: none;
         }
-        .scale-anchor.flip-label .scale-anchor-bottom {
-            left: auto;
-            right: 0;
+
+        /* Left-edge anchors left-anchor their text so wide numbers and labels don't clip on the left. */
+        .scale-anchor.edge-left .scale-anchor-label,
+        .scale-anchor.edge-left .scale-anchor-top,
+        .scale-anchor.edge-left .scale-anchor-bottom {
+            left: 0;
+            right: auto;
             transform: none;
         }
 
@@ -1079,11 +1083,15 @@
                     exactFn: (v) => (v * 9 / 5) + 32,
                     // Anchors array: [US (°F) value, Metric (°C) value, label]
                     anchors: [
+                        { us: 14, metric: -10, label: "Cold Snap" },
                         { us: 32, metric: 0, label: "Freezing" },
                         { us: 50, metric: 10, label: "Cool Day" },
                         { us: 68, metric: 20, label: "Room Temp" },
+                        { us: 77, metric: 25, label: "Warm" },
                         { us: 86, metric: 30, label: "Summer" },
                         { us: 98.6, metric: 37, label: "Body Temp" },
+                        { us: 104, metric: 40, label: "Hot Day" },
+                        { us: 140, metric: 60, label: "Sauna" },
                         { us: 212, metric: 100, label: "Boiling" }
                     ],
                     defaultVal: 20,
@@ -1100,11 +1108,15 @@
                     approxFn: (v) => (v - 30) / 2,
                     exactFn: (v) => (v - 32) * 5 / 9,
                     anchors: [
+                        { us: 14, metric: -10, label: "Cold Snap" },
                         { us: 32, metric: 0, label: "Freezing" },
                         { us: 50, metric: 10, label: "Cool Day" },
                         { us: 68, metric: 20, label: "Room Temp" },
+                        { us: 77, metric: 25, label: "Warm" },
                         { us: 86, metric: 30, label: "Summer" },
                         { us: 98.6, metric: 37, label: "Body Temp" },
+                        { us: 104, metric: 40, label: "Hot Day" },
+                        { us: 140, metric: 60, label: "Sauna" },
                         { us: 212, metric: 100, label: "Boiling" }
                     ],
                     defaultVal: 68,
@@ -1124,10 +1136,7 @@
                     exactFn: (v) => v * 1.609344,
                     anchors: [
                         { us: 1.5, metric: 2.4, label: "Walk 30m" },
-                        { us: 4, metric: 6.4, label: "Bike 20m" },
-                        { us: 10, metric: 16.1, label: "Car 10m" },
-                        { us: 30, metric: 48.3, label: "Car 30m" },
-                        { us: 60, metric: 96.6, label: "Car 1h" }
+                        { us: 4, metric: 6.4, label: "Bike 20m" }
                     ],
                     defaultVal: 10,
                     inputIsMetric: false
@@ -1144,10 +1153,7 @@
                     exactFn: (v) => v * 0.621371,
                     anchors: [
                         { us: 1.5, metric: 2.4, label: "Walk 30m" },
-                        { us: 4, metric: 6.4, label: "Bike 20m" },
-                        { us: 10, metric: 16.1, label: "Car 10m" },
-                        { us: 30, metric: 48.3, label: "Car 30m" },
-                        { us: 60, metric: 96.6, label: "Car 1h" }
+                        { us: 4, metric: 6.4, label: "Bike 20m" }
                     ],
                     defaultVal: 16,
                     inputIsMetric: true
@@ -1163,10 +1169,13 @@
                     approxFn: (v) => v * 1.6,
                     exactFn: (v) => v * 1.609344,
                     anchors: [
+                        { us: 15, metric: 24.1, label: "Bike" },
                         { us: 25, metric: 40.2, label: "School" },
+                        { us: 35, metric: 56.3, label: "Town" },
                         { us: 45, metric: 72.4, label: "City Road" },
                         { us: 60, metric: 96.6, label: "Highway" },
-                        { us: 70, metric: 112.7, label: "Interstate" }
+                        { us: 70, metric: 112.7, label: "Interstate" },
+                        { us: 80, metric: 128.7, label: "Autobahn" }
                     ],
                     defaultVal: 60,
                     inputIsMetric: false
@@ -1182,10 +1191,13 @@
                     approxFn: (v) => (v / 2) * 1.25,
                     exactFn: (v) => v * 0.621371,
                     anchors: [
+                        { us: 15, metric: 24.1, label: "Bike" },
                         { us: 25, metric: 40.2, label: "School" },
+                        { us: 35, metric: 56.3, label: "Town" },
                         { us: 45, metric: 72.4, label: "City Road" },
                         { us: 60, metric: 96.6, label: "Highway" },
-                        { us: 70, metric: 112.7, label: "Interstate" }
+                        { us: 70, metric: 112.7, label: "Interstate" },
+                        { us: 80, metric: 128.7, label: "Autobahn" }
                     ],
                     defaultVal: 100,
                     inputIsMetric: true
@@ -1282,8 +1294,10 @@
                     exactFn: (v) => v * 0.9144,
                     anchors: [
                         { us: 10, metric: 9.1, label: "First Down" },
+                        { us: 25, metric: 22.9, label: "Pool Length" },
                         { us: 50, metric: 45.7, label: "Half Field" },
-                        { us: 100, metric: 91.4, label: "Football Field" }
+                        { us: 100, metric: 91.4, label: "Football Field" },
+                        { us: 200, metric: 182.9, label: "Two Fields" }
                     ],
                     defaultVal: 100,
                     inputIsMetric: false
@@ -1300,8 +1314,10 @@
                     exactFn: (v) => v * 1.09361,
                     anchors: [
                         { us: 10, metric: 9.1, label: "First Down" },
+                        { us: 25, metric: 22.9, label: "Pool Length" },
                         { us: 50, metric: 45.7, label: "Half Field" },
-                        { us: 100, metric: 91.4, label: "Football Field" }
+                        { us: 100, metric: 91.4, label: "Football Field" },
+                        { us: 200, metric: 182.9, label: "Two Fields" }
                     ],
                     defaultVal: 91,
                     inputIsMetric: true
@@ -1360,8 +1376,10 @@
                     exactFn: (v) => v * 28.34952,
                     anchors: [
                         { us: 1, metric: 28.3, label: "Letter" },
+                        { us: 4, metric: 113.4, label: "Choc Bar" },
                         { us: 8, metric: 226.8, label: "Steak" },
-                        { us: 16, metric: 453.6, label: "1 Pound" }
+                        { us: 16, metric: 453.6, label: "1 Pound" },
+                        { us: 32, metric: 907.2, label: "Sugar Bag" }
                     ],
                     defaultVal: 8,
                     inputIsMetric: false
@@ -1378,8 +1396,10 @@
                     exactFn: (v) => v / 28.34952,
                     anchors: [
                         { us: 1, metric: 28.3, label: "Letter" },
+                        { us: 4, metric: 113.4, label: "Choc Bar" },
                         { us: 8, metric: 226.8, label: "Steak" },
-                        { us: 16, metric: 453.6, label: "1 Pound" }
+                        { us: 16, metric: 453.6, label: "1 Pound" },
+                        { us: 32, metric: 907.2, label: "Sugar Bag" }
                     ],
                     defaultVal: 250,
                     inputIsMetric: true
@@ -1398,9 +1418,11 @@
                     exactFn: (v) => v * 29.57353,
                     anchors: [
                         { us: 1, metric: 29.6, label: "Espresso" },
+                        { us: 5, metric: 147.9, label: "Wine Glass" },
                         { us: 8, metric: 236.6, label: "Coffee Cup" },
                         { us: 12, metric: 354.9, label: "Soda Can" },
-                        { us: 16, metric: 473.2, label: "Pint" }
+                        { us: 16, metric: 473.2, label: "Pint" },
+                        { us: 33.8, metric: 1000, label: "1 Liter" }
                     ],
                     defaultVal: 12,
                     inputIsMetric: false
@@ -1417,9 +1439,11 @@
                     exactFn: (v) => v / 29.57353,
                     anchors: [
                         { us: 1, metric: 29.6, label: "Espresso" },
+                        { us: 5, metric: 147.9, label: "Wine Glass" },
                         { us: 8, metric: 236.6, label: "Coffee Cup" },
                         { us: 12, metric: 354.9, label: "Soda Can" },
-                        { us: 16, metric: 473.2, label: "Pint" }
+                        { us: 16, metric: 473.2, label: "Pint" },
+                        { us: 33.8, metric: 1000, label: "1 Liter" }
                     ],
                     defaultVal: 250,
                     inputIsMetric: true
@@ -1435,10 +1459,13 @@
                     approxFn: (v) => (v * 4) * 0.95,
                     exactFn: (v) => v * 3.78541,
                     anchors: [
+                        { us: 0.5, metric: 1.9, label: "Half Gal" },
                         { us: 1, metric: 3.8, label: "Milk Jug" },
+                        { us: 2.5, metric: 9.5, label: "Bucket" },
                         { us: 5, metric: 18.9, label: "Water Cooler" },
                         { us: 10, metric: 37.9, label: "Fish Tank" },
-                        { us: 15, metric: 56.8, label: "Car Fuel Tank" }
+                        { us: 15, metric: 56.8, label: "Car Fuel Tank" },
+                        { us: 50, metric: 189.3, label: "Barrel" }
                     ],
                     defaultVal: 10,
                     inputIsMetric: false
@@ -1454,10 +1481,13 @@
                     approxFn: (v) => (v / 4) * 1.05,
                     exactFn: (v) => v * 0.264172,
                     anchors: [
+                        { us: 0.5, metric: 1.9, label: "Half Gal" },
                         { us: 1, metric: 3.8, label: "Milk Jug" },
+                        { us: 2.5, metric: 9.5, label: "Bucket" },
                         { us: 5, metric: 18.9, label: "Water Cooler" },
                         { us: 10, metric: 37.9, label: "Fish Tank" },
-                        { us: 15, metric: 56.8, label: "Car Fuel Tank" }
+                        { us: 15, metric: 56.8, label: "Car Fuel Tank" },
+                        { us: 50, metric: 189.3, label: "Barrel" }
                     ],
                     defaultVal: 10,
                     inputIsMetric: true
@@ -1998,46 +2028,77 @@
                 "Football Field", "Ruler", "Meter", "Human"
             ]);
 
-            // Sort anchors by US value first to make sure they are in physical order
-            let sortedAnchors = [...spec.anchors].sort((a, b) => a.us - b.us);
-            let lastPlottedPct = -100; // Track the last text label position to avoid overlap
+            // Sort anchors by US value first so they march left -> right ascending.
+            const sortedAnchors = [...spec.anchors].sort((a, b) => a.us - b.us);
 
-            // Map anchors relative to bounds
-            sortedAnchors.forEach((anch, idx) => {
+            // Which value goes on top depends on direction (input axis is on top).
+            const topValOf = (a) => spec.inputIsMetric ? a.metric : a.us;
+            const botValOf = (a) => spec.inputIsMetric ? a.us : a.metric;
+
+            // Pre-compute per-anchor metadata once.
+            const items = sortedAnchors.map((anch, idx) => {
                 const pct = ((anch.us - minUs) / range) * 100;
+                const isStar = KEY_LANDMARK_LABELS.has(anch.label) ||
+                    anch.label.includes("Walk") || anch.label.includes("Bike") || anch.label.includes("Car");
+                const above = (idx % 2 === 1);
+                return { anch, idx, pct, isStar, above };
+            }).filter(it => it.pct >= -5 && it.pct <= 105);
 
-                // Keep anchor markers visually spaced within viewport bounds
-                if (pct >= -5 && pct <= 105) {
-                    const anchDiv = document.createElement("div");
-                    anchDiv.className = "scale-anchor";
-                    anchDiv.style.left = `${pct}%`;
+            // Two-pass label placement: stars get first dibs, non-stars fill gaps. This guarantees
+            // canonical landmarks (Freezing, Room Temp, Body Temp, Boiling, etc.) never lose their
+            // label to a less-important neighbor.
+            const showLabel = new Array(items.length).fill(false);
+            const placedLabels = []; // [{above, pct}]
+            const STAR_LABEL_GAP = 14;     // % min between two stars in the same lane
+            const NONSTAR_LABEL_GAP = 22;  // % min from any placed label in the same lane
 
-                    // Mark as 'star' for primary landmark points (data-driven, falls back to legacy heuristic)
-                    const isStar = KEY_LANDMARK_LABELS.has(anch.label) ||
-                        anch.label.includes("Walk") || anch.label.includes("Bike") || anch.label.includes("Car");
-                    if (isStar) anchDiv.classList.add("star");
-
-                    // Right-edge anchors flip their angled label so it leans left (stays inside the container)
-                    if (pct >= 75) anchDiv.classList.add("flip-label");
-
-                    // Overlap threshold: angled labels are visually wide, so use roomier thresholds.
-                    // Important anchors win ties by virtue of a tighter threshold.
-                    const threshold = isStar ? 14 : 22;
-                    const showLabels = (pct - lastPlottedPct) > threshold;
-
-                    if (showLabels) {
-                        anchDiv.innerHTML = `
-                            <div class="scale-anchor-top">${formatNumber(anch.us)}</div>
-                            <div class="scale-anchor-bottom">${formatNumber(anch.metric)}</div>
-                            <div class="scale-anchor-label">${anch.label}</div>
-                        `;
-                        lastPlottedPct = pct;
-                    } else {
-                        // Just show the tick mark, omit the text to avoid overlap
-                        anchDiv.innerHTML = ``;
-                    }
-                    container.appendChild(anchDiv);
+            function tryPlaceLabel(i, minGap) {
+                const it = items[i];
+                const collides = placedLabels.some(p => p.above === it.above && Math.abs(p.pct - it.pct) < minGap);
+                if (!collides) {
+                    placedLabels.push({ above: it.above, pct: it.pct });
+                    showLabel[i] = true;
                 }
+            }
+            items.forEach((it, i) => { if (it.isStar) tryPlaceLabel(i, STAR_LABEL_GAP); });
+            items.forEach((it, i) => { if (!it.isStar) tryPlaceLabel(i, NONSTAR_LABEL_GAP); });
+
+            // Number throttling: numbers sit in two horizontal lanes (above and below the track).
+            // To keep the strip sparse, suppress non-star numbers when they fall within 10% of the
+            // previous shown number. Stars always show their numbers.
+            const NUMBER_MIN_GAP = 10;
+            const showNumbers = new Array(items.length).fill(false);
+            let lastNumPct = -100;
+            items.forEach((it, i) => {
+                if (it.isStar || (it.pct - lastNumPct) >= NUMBER_MIN_GAP) {
+                    showNumbers[i] = true;
+                    lastNumPct = it.pct;
+                }
+            });
+
+            // Render all anchors. Ticks always appear (preserves the physical landmark grid even
+            // when its number/label are hidden), numbers and labels appear per the rules above.
+            items.forEach((it, i) => {
+                const { anch, pct, isStar, above } = it;
+                const anchDiv = document.createElement("div");
+                anchDiv.className = "scale-anchor";
+                anchDiv.style.left = `${pct}%`;
+
+                if (isStar) anchDiv.classList.add("star");
+                if (pct >= 88) anchDiv.classList.add("edge-right");
+                else if (pct <= 6) anchDiv.classList.add("edge-left");
+                if (above) anchDiv.classList.add("label-above");
+
+                let html = "";
+                if (showNumbers[i]) {
+                    html += `<div class="scale-anchor-top">${formatNumber(topValOf(anch))}</div>`;
+                    html += `<div class="scale-anchor-bottom">${formatNumber(botValOf(anch))}</div>`;
+                }
+                if (showLabel[i]) {
+                    html += `<div class="scale-anchor-label">${anch.label}</div>`;
+                }
+                anchDiv.innerHTML = html;
+                container.appendChild(anchDiv);
             });
             
             const pin = document.getElementById("scale-pin");
