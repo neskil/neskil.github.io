@@ -223,7 +223,11 @@
 
         @media (max-width: 640px) {
             h1 { font-size: 2.25rem; }
-            .grid { grid-template-columns: 1fr; }
+            .grid { grid-template-columns: 1fr; gap: 1rem; }
+            .card { padding: 1.5rem; border-radius: 16px; }
+            .card-icon { font-size: 2rem; width: 48px; height: 48px; margin-bottom: 1rem; }
+            .card-title { font-size: 1.25rem; margin-bottom: 0.5rem; }
+            .card-desc { font-size: 0.9rem; margin-bottom: 1.25rem; }
         }
     </style>
     <!-- Google tag (gtag.js) -->
@@ -290,6 +294,15 @@
                 <p class="card-desc">Click here to see older experiments and fun JavaScript animations (manual coding from the pre-AI era!).</p>
             </div>
             <span class="card-link">Be surprised <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+
+        <a href="surprise/cv_legacy/index.html" class="card" id="card-legacy-cv">
+            <div>
+                <div class="card-icon">📜</div>
+                <h2 class="card-title">Legacy CV</h2>
+                <p class="card-desc">Step back in time to view the original, hand-coded 2010s HTML/CSS version of my CV.</p>
+            </div>
+            <span class="card-link">Time travel <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
 
     </main>
