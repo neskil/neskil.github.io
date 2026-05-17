@@ -1567,6 +1567,97 @@
             });
         }
 
+        // Helper to dynamically calculate color based on value & category
+        function getResultColorAndGlow(spec, inputVal, exactVal, isBlank) {
+            if (isBlank) {
+                return {
+                    color: "var(--violet)",
+                    glow: "0 0 25px rgba(99, 102, 241, 0.45)"
+                };
+            }
+
+            // 1. Temperature Category
+            if (spec.id === "c_to_f" || spec.id === "f_to_c") {
+                const cVal = spec.inputIsMetric ? inputVal : exactVal;
+                if (cVal <= 0) {
+                    return {
+                        color: "#60a5fa", // Ice blue
+                        glow: "0 0 25px rgba(96, 165, 250, 0.5)"
+                    };
+                } else if (cVal <= 12) {
+                    return {
+                        color: "#93c5fd", // Light cool blue
+                        glow: "0 0 25px rgba(147, 197, 253, 0.4)"
+                    };
+                } else if (cVal <= 22) {
+                    return {
+                        color: "#10b981", // Comfortable green
+                        glow: "0 0 25px rgba(16, 185, 129, 0.5)"
+                    };
+                } else if (cVal <= 30) {
+                    return {
+                        color: "#f59e0b", // Warm yellow-orange
+                        glow: "0 0 25px rgba(245, 158, 11, 0.5)"
+                    };
+                } else {
+                    return {
+                        color: "#ef4444", // Hot red
+                        glow: "0 0 25px rgba(239, 68, 68, 0.6)"
+                    };
+                }
+            }
+
+            // 2. Speed Category
+            if (spec.id === "mph_to_kmh" || spec.id === "kmh_to_mph") {
+                const mphVal = spec.inputIsMetric ? exactVal : inputVal;
+                if (mphVal <= 30) {
+                    return {
+                        color: "#10b981", // Safe green
+                        glow: "0 0 25px rgba(16, 185, 129, 0.5)"
+                    };
+                } else if (mphVal <= 60) {
+                    return {
+                        color: "#eab308", // Warning yellow
+                        glow: "0 0 25px rgba(234, 179, 8, 0.5)"
+                    };
+                } else if (mphVal <= 75) {
+                    return {
+                        color: "#f97316", // Expressway orange
+                        glow: "0 0 25px rgba(249, 115, 22, 0.5)"
+                    };
+                } else {
+                    return {
+                        color: "#ef4444", // High speed red
+                        glow: "0 0 25px rgba(239, 68, 68, 0.6)"
+                    };
+                }
+            }
+
+            // 3. General Categories: Interpolate along purple -> orange brand spectrum
+            const minUs = spec.presets[0];
+            const maxUs = spec.presets[spec.presets.length - 1];
+            const range = maxUs - minUs || 1;
+            const currentUsValue = spec.inputIsMetric ? exactVal : inputVal;
+            const pct = Math.min(Math.max(((currentUsValue - minUs) / range) * 100, 0), 100);
+
+            if (pct <= 25) {
+                return {
+                    color: "#818cf8", // Indigo-purple
+                    glow: "0 0 25px rgba(129, 140, 248, 0.45)"
+                };
+            } else if (pct <= 75) {
+                return {
+                    color: "#a78bfa", // Soft purple
+                    glow: "0 0 25px rgba(167, 139, 250, 0.45)"
+                };
+            } else {
+                return {
+                    color: "#ff6a3d", // Signature orange
+                    glow: "0 0 25px rgba(255, 106, 61, 0.55)"
+                };
+            }
+        }
+
         // The main conversion calculation and plotting logic
         function calculate() {
             if (currentSpecIndex === -1) return;
@@ -1576,8 +1667,17 @@
             
             if (inputValueStr === "") {
                 // Show clean placeholders when input is blank
-                document.getElementById("approx-val").innerText = "-";
-                document.getElementById("primary-exact-val").innerText = "-";
+                const approxValEl = document.getElementById("approx-val");
+                const primaryExactValEl = document.getElementById("primary-exact-val");
+                
+                approxValEl.innerText = "-";
+                primaryExactValEl.innerText = "-";
+                
+                // Reset colors to brand default
+                primaryExactValEl.style.color = "var(--violet)";
+                primaryExactValEl.style.textShadow = "0 0 25px rgba(99, 102, 241, 0.45)";
+                approxValEl.style.color = "var(--accent-soft)";
+                approxValEl.style.textShadow = "none";
                 
                 const badge = document.getElementById("accuracy-rating");
                 badge.innerText = "Enter a value to check accuracy";
@@ -1598,8 +1698,17 @@
             const exactVal = spec.exactFn(inputVal);
             
             // Update results UI
-            document.getElementById("approx-val").innerText = formatNumber(approxVal);
-            document.getElementById("primary-exact-val").innerText = formatNumber(exactVal);
+            const approxValEl = document.getElementById("approx-val");
+            const primaryExactValEl = document.getElementById("primary-exact-val");
+            
+            approxValEl.innerText = formatNumber(approxVal);
+            primaryExactValEl.innerText = formatNumber(exactVal);
+            
+            // Dynamic Result Color & Shadow Glow mapping
+            const styleInfo = getResultColorAndGlow(spec, inputVal, exactVal, false);
+            primaryExactValEl.style.color = styleInfo.color;
+            primaryExactValEl.style.textShadow = styleInfo.glow;
+            approxValEl.style.color = styleInfo.color;
             
             // Calculate accuracy rate
             let accuracyText = "";
