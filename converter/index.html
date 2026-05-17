@@ -241,51 +241,71 @@
             gap: 16px;
         }
 
-        .input-box {
+        .dual-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+
+        .dual-input-card {
+            flex: 1;
             position: relative;
             display: flex;
             align-items: center;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 8px 16px;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 8px 12px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+            height: 48px; /* High-density horizontal height */
         }
 
-        .input-box:focus-within {
+        .dual-input-card:focus-within {
             border-color: var(--accent);
-            box-shadow: 0 0 10px rgba(255, 106, 61, 0.15);
+            box-shadow: 0 0 12px rgba(255, 106, 61, 0.25);
         }
 
-        .input-field {
+        .dual-input-field {
             width: 100%;
             background: transparent;
             border: none;
             outline: none;
             color: var(--text-primary);
-            font-size: 2.2rem;
+            font-size: 1.5rem; /* Clean premium size */
             font-weight: 800;
-            padding-right: 60px;
+            padding-right: 42px; /* Space for unit badge */
             font-family: 'JetBrains Mono', monospace;
+            transition: color 0.3s ease, text-shadow 0.3s ease;
         }
 
         /* Hiding chrome numeric arrows */
-        .input-field::-webkit-outer-spin-button,
-        .input-field::-webkit-inner-spin-button {
+        .dual-input-field::-webkit-outer-spin-button,
+        .dual-input-field::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
         }
-        .input-field[type=number] {
+        .dual-input-field[type=number] {
             -moz-appearance: textfield;
         }
 
-        .input-unit {
+        .dual-input-unit {
             position: absolute;
-            right: 18px;
-            font-size: 1.1rem;
+            right: 12px;
+            font-size: 0.9rem;
             font-weight: 700;
-            color: var(--accent);
+            color: var(--text-secondary);
             pointer-events: none;
+            text-transform: uppercase;
+        }
+
+        .dual-equals-symbol {
+            font-size: 1.6rem;
+            font-weight: 300;
+            color: var(--text-mute);
+            padding: 0 2px;
         }
 
         /* Mobile Presets Buttons */
