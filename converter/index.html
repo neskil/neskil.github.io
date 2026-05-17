@@ -1031,6 +1031,25 @@
                     inputIsMetric: false
                 },
                 {
+                    id: "kmh_to_mph",
+                    name: "km/h → mph",
+                    inputUnit: "km/h",
+                    outputUnit: "mph",
+                    presets: [40, 70, 100, 110, 130],
+                    rule: "halve, then +25% of that",
+                    ruleDesc: "Divide by 2, then add a quarter of the result",
+                    approxFn: (v) => (v / 2) * 1.25,
+                    exactFn: (v) => v * 0.621371,
+                    anchors: [
+                        { us: 25, metric: 40.2, label: "School" },
+                        { us: 45, metric: 72.4, label: "City Road" },
+                        { us: 60, metric: 96.6, label: "Highway" },
+                        { us: 70, metric: 112.7, label: "Interstate" }
+                    ],
+                    defaultVal: 100,
+                    inputIsMetric: true
+                },
+                {
                     id: "ft_to_m",
                     name: "Feet → meters",
                     inputUnit: "ft",
@@ -1049,6 +1068,26 @@
                     ],
                     defaultVal: 6,
                     inputIsMetric: false
+                },
+                {
+                    id: "m_to_ft",
+                    name: "meters → Feet",
+                    inputUnit: "m",
+                    outputUnit: "ft",
+                    presets: [1, 2, 5, 10, 20, 30],
+                    rule: "× 3, then +10%",
+                    ruleDesc: "Multiply by 3, then add 10% of the result",
+                    approxFn: (v) => (v * 3) * 1.1,
+                    exactFn: (v) => v * 3.28084,
+                    anchors: [
+                        { us: 3.3, metric: 1, label: "Meter" },
+                        { us: 6, metric: 1.8, label: "Human" },
+                        { us: 10, metric: 3, label: "Ceiling" },
+                        { us: 30, metric: 9.1, label: "3-Story" },
+                        { us: 100, metric: 30.5, label: "Blue Whale" }
+                    ],
+                    defaultVal: 2,
+                    inputIsMetric: true
                 },
                 {
                     id: "in_to_cm",
@@ -1071,6 +1110,26 @@
                     inputIsMetric: false
                 },
                 {
+                    id: "cm_to_in",
+                    name: "cm → Inches",
+                    inputUnit: "cm",
+                    outputUnit: "in",
+                    presets: [5, 10, 25, 30, 50, 100],
+                    rule: "× 4, then ÷ 10",
+                    ruleDesc: "Multiply by 4, then divide by 10 (or divide by 2.5)",
+                    approxFn: (v) => (v * 4) / 10,
+                    exactFn: (v) => v / 2.54,
+                    anchors: [
+                        { us: 1, metric: 2.54, label: "Paperclip" },
+                        { us: 6, metric: 15.2, label: "Dollar Bill" },
+                        { us: 12, metric: 30.5, label: "Ruler" },
+                        { us: 32, metric: 81.3, label: "Waist Size" },
+                        { us: 39.4, metric: 100, label: "Meter Stick" }
+                    ],
+                    defaultVal: 30,
+                    inputIsMetric: true
+                },
+                {
                     id: "yd_to_m",
                     name: "Yards → meters",
                     inputUnit: "yd",
@@ -1087,6 +1146,24 @@
                     ],
                     defaultVal: 100,
                     inputIsMetric: false
+                },
+                {
+                    id: "m_to_yd",
+                    name: "meters → Yards",
+                    inputUnit: "m",
+                    outputUnit: "yd",
+                    presets: [10, 50, 100, 200, 500],
+                    rule: "add 10%",
+                    ruleDesc: "Add 10% of the meters value",
+                    approxFn: (v) => v * 1.1,
+                    exactFn: (v) => v * 1.09361,
+                    anchors: [
+                        { us: 10, metric: 9.1, label: "First Down" },
+                        { us: 50, metric: 45.7, label: "Half Field" },
+                        { us: 100, metric: 91.4, label: "Football Field" }
+                    ],
+                    defaultVal: 91,
+                    inputIsMetric: true
                 }
             ],
             weight: [
@@ -1147,6 +1224,24 @@
                     ],
                     defaultVal: 8,
                     inputIsMetric: false
+                },
+                {
+                    id: "g_to_oz",
+                    name: "grams → Ounces",
+                    inputUnit: "g",
+                    outputUnit: "oz",
+                    presets: [30, 100, 250, 500, 750],
+                    rule: "divide by 30",
+                    ruleDesc: "Divide grams by 30",
+                    approxFn: (v) => v / 30,
+                    exactFn: (v) => v / 28.34952,
+                    anchors: [
+                        { us: 1, metric: 28.3, label: "Letter" },
+                        { us: 8, metric: 226.8, label: "Steak" },
+                        { us: 16, metric: 453.6, label: "1 Pound" }
+                    ],
+                    defaultVal: 250,
+                    inputIsMetric: true
                 }
             ],
             vol: [
@@ -1170,6 +1265,25 @@
                     inputIsMetric: false
                 },
                 {
+                    id: "ml_to_floz",
+                    name: "ml → Fluid oz",
+                    inputUnit: "ml",
+                    outputUnit: "fl oz",
+                    presets: [30, 100, 250, 500, 750, 1000],
+                    rule: "divide by 30",
+                    ruleDesc: "Divide ml by 30",
+                    approxFn: (v) => v / 30,
+                    exactFn: (v) => v / 29.57353,
+                    anchors: [
+                        { us: 1, metric: 29.6, label: "Espresso" },
+                        { us: 8, metric: 236.6, label: "Coffee Cup" },
+                        { us: 12, metric: 354.9, label: "Soda Can" },
+                        { us: 16, metric: 473.2, label: "Pint" }
+                    ],
+                    defaultVal: 250,
+                    inputIsMetric: true
+                },
+                {
                     id: "gal_to_l",
                     name: "Gallons → liters",
                     inputUnit: "gal",
@@ -1187,6 +1301,25 @@
                     ],
                     defaultVal: 10,
                     inputIsMetric: false
+                },
+                {
+                    id: "l_to_gal",
+                    name: "liters → Gallons",
+                    inputUnit: "L",
+                    outputUnit: "gal",
+                    presets: [4, 10, 20, 40, 50],
+                    rule: "quarter, then +5%",
+                    ruleDesc: "Divide liters by 4, then add 5% of the result",
+                    approxFn: (v) => (v / 4) * 1.05,
+                    exactFn: (v) => v * 0.264172,
+                    anchors: [
+                        { us: 1, metric: 3.8, label: "Milk Jug" },
+                        { us: 5, metric: 18.9, label: "Water Cooler" },
+                        { us: 10, metric: 37.9, label: "Fish Tank" },
+                        { us: 15, metric: 56.8, label: "Car Fuel Tank" }
+                    ],
+                    defaultVal: 10,
+                    inputIsMetric: true
                 }
             ]
         };
