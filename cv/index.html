@@ -433,6 +433,19 @@
             <div class="entry">
                 <div class="entry-header">
                     <div>
+                        <div class="entry-title">Flamman Pub&Disco</div>
+                        <div class="entry-role">Managing Director - Head of Finance & Marketing</div>
+                    </div>
+                    <div class="entry-date">Sep 2015 - Nov 2018</div>
+                </div>
+                <div class="entry-desc">
+                    Oversaw accounting, investments, and nightly operations for an independent student nightclub (6 MSEK revenue). Supervised up to 25 bartenders and staff; boosted visitors 25% and turnover 60% via marketing and new student union partnership initiatives.
+                </div>
+            </div>
+
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
                         <div class="entry-title">Tekniska verken AB</div>
                         <div class="entry-role">System Configuration</div>
                     </div>
@@ -467,9 +480,10 @@
                     </div>
                 </div>
                 <div class="entry-desc">
-                    <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary);">
-                        <li><strong>Flamman Pub&Disco (Head of Finance & Marketing):</strong> Managed 25+ staff, oversaw accounting, and revamped marketing strategy to boost turnover by 60%.</li>
-                        <li><strong>LinTek (Student Union):</strong> Council member and various organizational roles supporting the engineering student body.</li>
+                    <ul style="list-style-type: disc; margin-left: 1.5rem; color: var(--text-secondary); line-height: 1.6;">
+                        <li><strong>Student café Baljan (Project Manager):</strong> Led procurement and long-term projects for a student-run café with annual revenue of 3 MSEK and 120 volunteers.</li>
+                        <li><strong>LinTek (Representative Assembly):</strong> Elected representative for the technical faculty student union, voting on policies and budgets.</li>
+                        <li><strong>Mechanical Engineering Student Body (Director of Communications):</strong> Organized a 3-week reception for 300 new students, managing communications, web design, and events.</li>
                     </ul>
                 </div>
             </div>
@@ -556,71 +570,149 @@
         window.addEventListener('resize', resize);
         resize();
 
-        const numNodes = Math.floor(width * height / 30000);
+        // Constants
+        const COLOR_RAW_RED = '#ef4444';
+        const COLOR_RAW_BLUE = '#3b82f6';
+        const COLOR_RAW_YELLOW = '#eab308';
+        
+        const COLOR_MIX_PURPLE = '#d946ef'; // Red + Blue
+        const COLOR_MIX_GREEN = '#10b981'; // Yellow + Blue
+        const COLOR_MIX_ORANGE = '#f97316'; // Red + Yellow
+        
+        const RAW_COLORS = [COLOR_RAW_RED, COLOR_RAW_BLUE, COLOR_RAW_YELLOW];
+
+        // 1. Generate Nodes (Static for stable paths)
+        const numNodes = Math.floor(width * height / 25000); 
+        
         for(let i=0; i<numNodes; i++) {
             let type = 'normal';
-            let radius = Math.random() * 3 + 2;
-            let vx = (Math.random() - 0.5) * 0.2;
-            let vy = (Math.random() - 0.5) * 0.2;
-            let inventory = 0;
+            let radius = 2;
             
             const r = Math.random();
-            if (r < 0.05) {
-                type = 'hub';
-                radius = Math.random() * 3 + 6;
-                vx = 0; vy = 0;
-            } else if (r < 0.15) {
-                type = 'factory';
-                radius = Math.random() * 2 + 4;
-                vx = vx * 0.2; vy = vy * 0.2; // very slow
-            }
+            if (r < 0.10) { type = 'supplier'; radius = 5; } // Hexagon
+            else if (r < 0.25) { type = 'warehouse'; radius = 6; } // Triangle
+            else if (r < 0.40) { type = 'factory'; radius = 6; } // Square
+            else if (r < 0.50) { type = 'consumer'; radius = 7; } // Big Circle
             
-            nodes.push({ type, x: Math.random() * width, y: Math.random() * height, radius, vx, vy, inventory });
+            nodes.push({ 
+                id: i,
+                type, 
+                x: Math.random() * width, 
+                y: Math.random() * height, 
+                radius,
+                edges: [],
+                inventory: [] // Holds waiting packages or raw materials
+            });
         }
 
-        // Establish connections (supply routes)
-        nodes.forEach((node, i) => {
-            // connect to 2-3 closest nodes
-            let distances = nodes.map((n, idx) => ({ idx, d: Math.hypot(n.x - node.x, n.y - node.y) }));
+        // 2. Establish connections (edges)
+        nodes.forEach((node) => {
+            let distances = nodes.map(n => ({ node: n, d: Math.hypot(n.x - node.x, n.y - node.y) }));
             distances.sort((a,b) => a.d - b.d);
+            // Connect to 3 nearest to form graph
             for(let j=1; j<=3; j++) {
                 if(distances[j]) {
-                    // avoid duplicate lines
-                    const exists = lines.some(l => (l.n1 === node && l.n2 === nodes[distances[j].idx]) || (l.n2 === node && l.n1 === nodes[distances[j].idx]));
-                    if(!exists) {
-                        lines.push({ n1: node, n2: nodes[distances[j].idx] });
+                    const neighbor = distances[j].node;
+                    if(!node.edges.includes(neighbor)) {
+                        node.edges.push(neighbor);
+                        neighbor.edges.push(node);
+                        lines.push({ n1: node, n2: neighbor });
                     }
                 }
             }
         });
 
-        function spawnPackage() {
-            if(lines.length === 0) return;
-            const line = lines[Math.floor(Math.random() * lines.length)];
-            // chance to go backwards
-            const reverse = Math.random() > 0.5;
-            const colors = ['#38bdf8', '#7dd3fc', '#0ea5e9', '#f8fafc', '#e0f2fe'];
-            packages.push({
-                start: reverse ? line.n2 : line.n1,
-                end: reverse ? line.n1 : line.n2,
-                progress: 0,
-                speed: Math.random() * 0.005 + 0.003,
-                color: colors[Math.floor(Math.random() * colors.length)]
-            });
+        // BFS Pathfinding
+        function findPath(startNode, targetType) {
+            let queue = [[startNode]];
+            let visited = new Set([startNode]);
+            
+            while(queue.length > 0) {
+                let path = queue.shift();
+                let current = path[path.length - 1];
+                
+                if (current.type === targetType && current !== startNode) {
+                    return path;
+                }
+                
+                // Shuffle edges for organic routing variation
+                let edges = [...current.edges].sort(() => Math.random() - 0.5);
+                for(let neighbor of edges) {
+                    if (!visited.has(neighbor)) {
+                        visited.add(neighbor);
+                        queue.push([...path, neighbor]);
+                    }
+                }
+            }
+            return null;
+        }
+
+        // 3. Spawning Logic
+        function spawnRawMaterial() {
+            const suppliers = nodes.filter(n => n.type === 'supplier');
+            if (suppliers.length === 0) return;
+            const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+            
+            const path = findPath(supplier, 'factory');
+            if (path && path.length > 1) {
+                packages.push({
+                    path: path,
+                    pathIndex: 0,
+                    progress: 0,
+                    speed: Math.random() * 0.005 + 0.003,
+                    color: RAW_COLORS[Math.floor(Math.random() * RAW_COLORS.length)]
+                });
+            }
+        }
+
+        function spawnFinishedGood(factory, color1, color2) {
+            let mixedColor = color1;
+            let mix = [color1, color2].sort().join('');
+            if (mix.includes(COLOR_RAW_RED) && mix.includes(COLOR_RAW_BLUE)) mixedColor = COLOR_MIX_PURPLE;
+            else if (mix.includes(COLOR_RAW_YELLOW) && mix.includes(COLOR_RAW_BLUE)) mixedColor = COLOR_MIX_GREEN;
+            else if (mix.includes(COLOR_RAW_RED) && mix.includes(COLOR_RAW_YELLOW)) mixedColor = COLOR_MIX_ORANGE;
+            
+            const path = findPath(factory, 'consumer');
+            if (path && path.length > 1) {
+                packages.push({
+                    path: path,
+                    pathIndex: 0,
+                    progress: 0,
+                    speed: Math.random() * 0.005 + 0.003,
+                    color: mixedColor
+                });
+            }
+        }
+
+        // Shapes
+        function drawHexagon(x, y, r) {
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = i * Math.PI / 3;
+                if (i===0) ctx.moveTo(x + r*Math.cos(angle), y + r*Math.sin(angle));
+                else ctx.lineTo(x + r*Math.cos(angle), y + r*Math.sin(angle));
+            }
+            ctx.closePath();
+        }
+
+        function drawTriangle(x, y, r) {
+            ctx.beginPath();
+            ctx.moveTo(x - r, y - r*0.5);
+            ctx.lineTo(x + r, y - r*0.5);
+            ctx.lineTo(x, y + r);
+            ctx.closePath();
+        }
+        
+        function drawSquare(x, y, r) {
+            ctx.beginPath();
+            ctx.rect(x - r, y - r, r*2, r*2);
+            ctx.closePath();
         }
 
         function animate() {
             ctx.clearRect(0, 0, width, height);
 
-            // Move nodes slightly
-            nodes.forEach(n => {
-                n.x += n.vx;
-                n.y += n.vy;
-                if(n.x < 0 || n.x > width) n.vx *= -1;
-                if(n.y < 0 || n.y > height) n.vy *= -1;
-            });
-
-            // Draw supply lines
+            // Draw lines
             ctx.lineWidth = 1;
             lines.forEach(l => {
                 const dist = Math.hypot(l.n1.x - l.n2.x, l.n1.y - l.n2.y);
@@ -632,74 +724,74 @@
                 ctx.stroke();
             });
 
-            // Draw nodes
+            // Process Queues and Manufacturing
             nodes.forEach(n => {
-                ctx.beginPath();
-                if (n.type === 'hub') {
-                    ctx.fillStyle = 'rgba(148, 163, 184, 0.8)';
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = 'rgba(148, 163, 184, 0.5)';
-                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                } else if (n.type === 'factory') {
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
-                    ctx.lineWidth = 1.5;
-                    ctx.rect(n.x - n.radius, n.y - n.radius, n.radius*2, n.radius*2);
-                    ctx.fill();
-                    ctx.stroke();
-                    // Draw inventory pip
-                    if (n.inventory > 0) {
-                        ctx.beginPath();
-                        ctx.fillStyle = '#f59e0b';
-                        ctx.arc(n.x, n.y, n.radius * 0.4, 0, Math.PI * 2);
-                        ctx.fill();
+                if (n.type === 'warehouse') {
+                    for(let i = n.inventory.length - 1; i >= 0; i--) {
+                        let item = n.inventory[i];
+                        item.waitFrames--;
+                        if (item.waitFrames <= 0) {
+                            item.pkg.progress = 0;
+                            packages.push(item.pkg);
+                            n.inventory.splice(i, 1);
+                        }
                     }
-                } else {
-                    ctx.fillStyle = 'rgba(148, 163, 184, 0.4)';
-                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
-                    ctx.fill();
+                } else if (n.type === 'factory') {
+                    if (n.inventory.length >= 2) {
+                        const c1 = n.inventory.shift();
+                        const c2 = n.inventory.shift();
+                        spawnFinishedGood(n, c1.color, c2.color);
+                    }
                 }
             });
 
             // Manage and draw moving packages
-            if(Math.random() < 0.1 && packages.length < 50) spawnPackage();
+            if(Math.random() < 0.1 && packages.length < 80) spawnRawMaterial();
 
             for(let i = packages.length - 1; i >= 0; i--) {
                 let p = packages[i];
                 p.progress += p.speed;
+                
+                let startNode = p.path[p.pathIndex];
+                let endNode = p.path[p.pathIndex + 1];
+                
                 if(p.progress >= 1) {
-                    if (p.end.type === 'factory' && p.color !== '#f59e0b') {
-                        p.end.inventory++;
-                        if (p.end.inventory >= 3) {
-                            p.end.inventory = 0;
-                            const outgoing = lines.filter(l => l.n1 === p.end || l.n2 === p.end);
-                            if (outgoing.length > 0) {
-                                const outLine = outgoing[Math.floor(Math.random() * outgoing.length)];
-                                packages.push({
-                                    start: p.end,
-                                    end: outLine.n1 === p.end ? outLine.n2 : outLine.n1,
-                                    progress: 0,
-                                    speed: Math.random() * 0.003 + 0.002,
-                                    color: '#f59e0b'
-                                });
-                            }
+                    p.pathIndex++;
+                    p.progress = 0;
+                    
+                    if (p.pathIndex >= p.path.length - 1) {
+                        // Reached final destination
+                        let finalNode = p.path[p.path.length - 1];
+                        if (finalNode.type === 'factory') {
+                            finalNode.inventory.push({color: p.color});
+                        }
+                        // If consumer, it's just consumed (removed)
+                        packages.splice(i, 1);
+                        continue;
+                    } else {
+                        // Reached an intermediate node
+                        let currNode = p.path[p.pathIndex];
+                        if (currNode.type === 'warehouse') {
+                            currNode.inventory.push({
+                                pkg: p,
+                                waitFrames: Math.floor(Math.random() * 100 + 50)
+                            });
+                            packages.splice(i, 1);
+                            continue;
                         }
                     }
-                    packages.splice(i, 1);
-                    continue;
+                    startNode = p.path[p.pathIndex];
+                    endNode = p.path[p.pathIndex + 1];
                 }
                 
-                const curX = p.start.x + (p.end.x - p.start.x) * p.progress;
-                const curY = p.start.y + (p.end.y - p.start.y) * p.progress;
+                const curX = startNode.x + (endNode.x - startNode.x) * p.progress;
+                const curY = startNode.y + (endNode.y - startNode.y) * p.progress;
                 
-                const tailLength = p.speed * 12; // length of motion blur tail
+                const tailLength = p.speed * 12;
                 const prevProg = Math.max(0, p.progress - tailLength);
-                const tailX = p.start.x + (p.end.x - p.start.x) * prevProg;
-                const tailY = p.start.y + (p.end.y - p.start.y) * prevProg;
+                const tailX = startNode.x + (endNode.x - startNode.x) * prevProg;
+                const tailY = startNode.y + (endNode.y - startNode.y) * prevProg;
                 
-                // Package motion blur trail
                 ctx.beginPath();
                 ctx.strokeStyle = p.color;
                 ctx.lineWidth = 3;
@@ -709,8 +801,57 @@
                 ctx.moveTo(tailX, tailY);
                 ctx.lineTo(curX, curY);
                 ctx.stroke();
-                ctx.shadowBlur = 0; // reset
+                ctx.shadowBlur = 0;
             }
+
+            // Draw nodes
+            nodes.forEach(n => {
+                ctx.lineWidth = 1.5;
+                if (n.type === 'supplier') {
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
+                    drawHexagon(n.x, n.y, n.radius);
+                    ctx.fill(); ctx.stroke();
+                } else if (n.type === 'warehouse') {
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.2)';
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+                    drawTriangle(n.x, n.y, n.radius);
+                    ctx.fill(); ctx.stroke();
+                    
+                    if (n.inventory.length > 0) {
+                        n.inventory.forEach((item, idx) => {
+                            ctx.fillStyle = item.pkg.color;
+                            ctx.fillRect(n.x + n.radius + 2, n.y - n.radius + (idx * 4), 3, 3);
+                        });
+                    }
+                } else if (n.type === 'factory') {
+                    ctx.fillStyle = 'rgba(139, 92, 246, 0.2)';
+                    ctx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
+                    drawSquare(n.x, n.y, n.radius);
+                    ctx.fill(); ctx.stroke();
+                    
+                    n.inventory.forEach((item, idx) => {
+                        ctx.fillStyle = item.color;
+                        ctx.beginPath();
+                        ctx.arc(n.x - n.radius + 3 + (idx*5), n.y + n.radius + 5, 2, 0, Math.PI*2);
+                        ctx.fill();
+                    });
+                } else if (n.type === 'consumer') {
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(239, 68, 68, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            });
 
             requestAnimationFrame(animate);
         }
