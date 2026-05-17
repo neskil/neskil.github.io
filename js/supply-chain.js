@@ -326,12 +326,12 @@
         });
 
         // Packages
-        const BASE_SPEED=0.003;
+        const BASE_SPEED=0.006; // Faster trucks
         for(let i=packages.length-1;i>=0;i--) {
             let p=packages[i], sn=p.path[p.pathIndex], en=p.path[p.pathIndex+1];
             let cl=lines.find(l=>(l.n1===sn&&l.n2===en)||(l.n1===en&&l.n2===sn));
             let et=cl?cl.type:'land';
-            let spd=BASE_SPEED*config.speedMultiplier*(et==='sea'?0.6:et==='air'?1.4:1);
+            let spd=BASE_SPEED*config.speedMultiplier*(et==='sea'?0.35:et==='air'?1.3:1);
             p.progress+=spd;
 
             if(p.progress>=1){
@@ -369,11 +369,17 @@
             ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle);
             ctx.fillStyle=p.color; ctx.shadowBlur=6; ctx.shadowColor=p.color;
             if(et==='sea'){
-                ctx.fillRect(-6,-3,12,6); ctx.fillStyle='#fff'; ctx.shadowBlur=0;
-                ctx.fillRect(-5,-2,3,4); ctx.fillStyle=p.color; ctx.fillRect(0,-2,2,4); ctx.fillRect(3,-2,2,4);
+                // Larger cargo ship only on sea crossings
+                ctx.fillRect(-9,-4,18,8); // Wide hull
+                ctx.fillStyle='#fff'; ctx.shadowBlur=0;
+                ctx.fillRect(-7,-3,4,6); // Bridge
+                ctx.fillStyle=p.color;
+                ctx.fillRect(-1,-3,3,6); // Cargo 1
+                ctx.fillRect(4,-3,3,6);  // Cargo 2
             } else if(et==='air'){
-                ctx.beginPath(); ctx.moveTo(4,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(5,0); ctx.lineTo(-5,-5); ctx.lineTo(-5,5); ctx.fill();
             } else {
+                // Truck on land
                 ctx.fillRect(4,-2,4,4); ctx.fillRect(-2,-2.5,5,5); ctx.fillRect(-8,-2.5,5,5);
             }
             ctx.restore();
