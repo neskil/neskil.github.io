@@ -828,6 +828,12 @@ function showFeedback(isCorrect, rightAnswer) {
     fb.className = 'feedback wrong';
   }
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.location.hash === '#game') {
+    openGameModal();
+  }
+});
 </script>
 
 </body></html>
