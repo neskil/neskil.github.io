@@ -331,10 +331,19 @@
     // Animation variables
     let seaTime = 0;
     let frameCount = 0;
+    let scrollOffset = 0;
+    let smoothScrollOffset = 0;
+    window.addEventListener('scroll', () => { scrollOffset = window.scrollY; });
 
     function animate() {
         ctx.clearRect(0, 0, width, height);
         seaTime += 0.005 * config.speedMultiplier;
+
+        // Smooth parallax from scroll inertia
+        smoothScrollOffset += (scrollOffset - smoothScrollOffset) * 0.08;
+        let parallaxY = -smoothScrollOffset * 0.15; // Subtle shift
+        ctx.save();
+        ctx.translate(0, parallaxY);
 
         // Draw Land polygons
         ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
