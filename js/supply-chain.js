@@ -7,13 +7,14 @@
     const config = window.SupplyChainConfig || {
         density: 25000,
         speedMultiplier: 1.0,
-        demandFrequency: 0.02
+        demandFrequency: 0.005 // Lowered default frequency for readability
     };
 
     let width, height;
     let nodes = [];
     let lines = [];
     let packages = [];
+    let continents = [];
 
     function resize() {
         width = canvas.width = window.innerWidth;
@@ -41,18 +42,39 @@
         return [COLOR_RAW_RED, COLOR_RAW_BLUE]; // fallback
     }
 
-    // 1. Generate Balanced Network
+    // 1. Generate Clustered Network
     function generateNetwork() {
         nodes = [];
         lines = [];
         packages = [];
+        continents = [];
         
         const numNodes = Math.floor((width * height) / config.density); 
         
+        // Generate Continents
+        const numContinents = Math.floor(Math.random() * 3) + 3; // 3 to 5 continents
+        for(let i=0; i<numContinents; i++) {
+            continents.push({
+                x: width * 0.15 + Math.random() * (width * 0.7),
+                y: height * 0.15 + Math.random() * (height * 0.7),
+                radius: Math.min(width, height) * (0.15 + Math.random() * 0.1)
+            });
+        }
+
         let sCount = 0;
         let fCount = 0;
 
         for(let i=0; i<numNodes; i++) {
+            let cont = continents[Math.floor(Math.random() * continents.length)];
+            let angle = Math.random() * Math.PI * 2;
+            let r_dist = cont.radius * Math.sqrt(Math.random()); 
+            
+            let nx = cont.x + Math.cos(angle) * r_dist;
+            let ny = cont.y + Math.sin(angle) * r_dist;
+            
+            nx = Math.max(20, Math.min(width - 20, nx));
+            ny = Math.max(20, Math.min(height - 20, ny));
+
             let type = 'normal';
             let radius = 2;
             let supplierColor = null;
@@ -62,48 +84,66 @@
             if (r < 0.10) { 
                 type = 'supplier'; 
                 radius = 5; 
-                supplierColor = RAW_COLORS[sCount % 3]; // Balance colors
+                supplierColor = RAW_COLORS[sCount % 3]; 
                 sCount++;
             } 
             else if (r < 0.25) { type = 'warehouse'; radius = 6; } 
             else if (r < 0.40) { 
                 type = 'factory'; 
                 radius = 6; 
-                factoryColor = MIX_COLORS[fCount % 3]; // Balance colors
+                factoryColor = MIX_COLORS[fCount % 3]; 
                 fCount++;
             } 
             else if (r < 0.50) { type = 'consumer'; radius = 7; } 
             
             nodes.push({ 
-                id: i,
-                type, 
-                x: Math.random() * width, 
-                y: Math.random() * height, 
-                radius,
-                supplierColor,
-                factoryColor,
-                edges: [],
-                inventory: [], // Holds waiting packages or raw materials
-                demands: [] // For consumers: list of colors currently requested
+                id: i, type, x: nx, y: ny, radius,
+                supplierColor, factoryColor, continent: cont,
+                edges: [], inventory: [], demands: []
             });
         }
 
-        // Establish connections (edges)
+        // Establish Local Connections (Land)
         nodes.forEach((node) => {
-            let distances = nodes.map(n => ({ node: n, d: Math.hypot(n.x - node.x, n.y - node.y) }));
+            let localNodes = nodes.filter(n => n.continent === node.continent);
+            let distances = localNodes.map(n => ({ node: n, d: Math.hypot(n.x - node.x, n.y - node.y) }));
             distances.sort((a,b) => a.d - b.d);
-            // Connect to 3 nearest to form graph
+            
             for(let j=1; j<=3; j++) {
                 if(distances[j]) {
                     const neighbor = distances[j].node;
                     if(!node.edges.includes(neighbor)) {
                         node.edges.push(neighbor);
                         neighbor.edges.push(node);
-                        lines.push({ n1: node, n2: neighbor, glow: 0, glowColor: null });
+                        lines.push({ n1: node, n2: neighbor, type: 'land', glow: 0, glowColor: null });
                     }
                 }
             }
         });
+
+        // Establish Global Connections (Sea Lanes)
+        for(let i=0; i<continents.length; i++) {
+            let c1 = continents[i];
+            let c1Nodes = nodes.filter(n => n.continent === c1);
+            if (c1Nodes.length === 0) continue;
+            
+            for(let j=i+1; j<continents.length; j++) {
+                let c2 = continents[j];
+                let c2Nodes = nodes.filter(n => n.continent === c2);
+                if (c2Nodes.length === 0) continue;
+                
+                let numRoutes = Math.floor(Math.random() * 2) + 1; // 1 or 2 shipping lanes between pairs
+                for(let k=0; k<numRoutes; k++) {
+                    let port1 = c1Nodes[Math.floor(Math.random() * c1Nodes.length)];
+                    let port2 = c2Nodes[Math.floor(Math.random() * c2Nodes.length)];
+                    if(!port1.edges.includes(port2)) {
+                        port1.edges.push(port2);
+                        port2.edges.push(port1);
+                        lines.push({ n1: port1, n2: port2, type: 'sea', glow: 0, glowColor: null });
+                    }
+                }
+            }
+        }
     }
 
     // BFS Pathfinding (Specialized)
@@ -150,7 +190,6 @@
         return null;
     }
 
-    // Highlight Network Route
     function highlightPath(path, color) {
         for (let i = 0; i < path.length - 1; i++) {
             let n1 = path[i];
@@ -200,19 +239,39 @@
     function animate() {
         ctx.clearRect(0, 0, width, height);
 
+        // Draw Continent Backgrounds (Landmasses)
+        ctx.save();
+        continents.forEach(c => {
+            let gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.radius * 1.2);
+            gradient.addColorStop(0, 'rgba(30, 41, 59, 0.6)'); // Solid land color
+            gradient.addColorStop(0.7, 'rgba(30, 41, 59, 0.3)');
+            gradient.addColorStop(1, 'rgba(15, 23, 42, 0)'); // Fades into sea
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, c.radius * 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
         // Draw lines
         lines.forEach(l => {
             const dist = Math.hypot(l.n1.x - l.n2.x, l.n1.y - l.n2.y);
-            const opacity = Math.max(0, 1 - dist / 300) * 0.15;
+            const opacity = Math.max(0, 1 - dist / 600) * 0.2; // Sea lanes can be long
             
             ctx.beginPath();
+            if (l.type === 'sea') {
+                ctx.setLineDash([8, 12]); // Dashed lines for shipping lanes
+            } else {
+                ctx.setLineDash([]);
+            }
+
             if (l.glow && l.glow > 0) {
                 ctx.strokeStyle = l.glowColor;
-                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.7)); // Brighter route
+                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.7));
                 ctx.lineWidth = 1 + (l.glow * 1.5);
                 ctx.shadowBlur = l.glow * 8;
                 ctx.shadowColor = l.glowColor;
-                l.glow -= 0.015 * config.speedMultiplier; // fade out over time
+                l.glow -= 0.015 * config.speedMultiplier;
             } else {
                 ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
                 ctx.globalAlpha = 1.0;
@@ -224,39 +283,37 @@
             ctx.lineTo(l.n2.x, l.n2.y);
             ctx.stroke();
             
+            ctx.setLineDash([]);
             ctx.globalAlpha = 1.0;
             ctx.shadowBlur = 0;
         });
 
-        // Generate Demand (Pull System)
+        // Generate Demand
         if (Math.random() < config.demandFrequency && packages.length < 150) {
             const consumers = nodes.filter(n => n.type === 'consumer');
             if (consumers.length > 0) {
                 const consumer = consumers[Math.floor(Math.random() * consumers.length)];
                 const demandedColor = MIX_COLORS[Math.floor(Math.random() * MIX_COLORS.length)];
                 
-                // Find a factory specialized in this color
                 const path = findPath(consumer, 'factory', demandedColor);
                 if (path && path.length > 1) {
                     const factory = path[path.length - 1];
                     consumer.demands.push(demandedColor);
                     
-                    highlightPath(path, demandedColor); // Route Consumer -> Factory
+                    highlightPath(path, demandedColor);
                     
                     const bom = getBOM(demandedColor);
                     bom.forEach(rawColor => {
-                        // Find a supplier specialized in this raw material
                         let pathToSupplier = findPath(factory, 'supplier', rawColor);
                         if (pathToSupplier && pathToSupplier.length > 1) {
-                            highlightPath(pathToSupplier, rawColor); // Route Factory -> Supplier
+                            highlightPath(pathToSupplier, rawColor);
                             
-                            // Instantly request and dispatch raw material from supplier
                             let returnPath = [...pathToSupplier].reverse();
                             packages.push({
                                 path: returnPath,
                                 pathIndex: 0,
                                 progress: 0,
-                                speed: (Math.random() * 0.005 + 0.003) * config.speedMultiplier,
+                                baseSpeed: Math.random() * 0.003 + 0.002, // Slower base speed
                                 color: rawColor,
                                 payload: {
                                     type: 'demand_raw',
@@ -286,13 +343,21 @@
             }
         });
 
-        // Manage and draw moving packages (Trucks)
+        // Manage and draw moving packages
         for(let i = packages.length - 1; i >= 0; i--) {
             let p = packages[i];
-            p.progress += p.speed;
             
             let startNode = p.path[p.pathIndex];
             let endNode = p.path[p.pathIndex + 1];
+            
+            // Determine line type for speed and visual
+            let currentLine = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
+            let edgeType = currentLine ? currentLine.type : 'land';
+            
+            let actualSpeed = p.baseSpeed * config.speedMultiplier;
+            if (edgeType === 'sea') actualSpeed *= 0.3; // Ships are slow
+            
+            p.progress += actualSpeed;
             
             if(p.progress >= 1) {
                 p.pathIndex++;
@@ -303,10 +368,8 @@
                     let finalNode = p.path[p.path.length - 1];
                     
                     if (finalNode.type === 'factory' && p.payload && p.payload.type === 'demand_raw') {
-                        // Raw material arrived at factory
                         finalNode.inventory.push(p);
                         
-                        // Check if factory can fulfill the finished good
                         let bom = getBOM(p.payload.finalMixColor);
                         let hasMat1 = finalNode.inventory.findIndex(item => item.color === bom[0]);
                         let hasMat2 = -1;
@@ -315,20 +378,18 @@
                         }
                         
                         if (hasMat1 !== -1 && hasMat2 !== -1) {
-                            // Consume materials
                             let highest = Math.max(hasMat1, hasMat2);
                             let lowest = Math.min(hasMat1, hasMat2);
                             finalNode.inventory.splice(highest, 1);
                             finalNode.inventory.splice(lowest, 1);
                             
-                            // Ship Finished Good
                             let returnPath = findPathToSpecificNode(finalNode, p.payload.targetConsumer);
                             if (returnPath) {
                                 packages.push({
                                     path: returnPath,
                                     pathIndex: 0,
                                     progress: 0,
-                                    speed: (Math.random() * 0.005 + 0.003) * config.speedMultiplier,
+                                    baseSpeed: Math.random() * 0.003 + 0.002,
                                     color: p.payload.finalMixColor,
                                     payload: {
                                         type: 'fulfill_demand',
@@ -338,7 +399,6 @@
                             }
                         }
                     } else if (finalNode.type === 'consumer') {
-                        // Consumer received finished good
                         let demandIdx = finalNode.demands.indexOf(p.color);
                         if (demandIdx !== -1) {
                             finalNode.demands.splice(demandIdx, 1);
@@ -347,7 +407,6 @@
                     packages.splice(i, 1);
                     continue;
                 } else {
-                    // Reached an intermediate node
                     let currNode = p.path[p.pathIndex];
                     if (currNode.type === 'warehouse') {
                         currNode.inventory.push({
@@ -360,12 +419,13 @@
                 }
                 startNode = p.path[p.pathIndex];
                 endNode = p.path[p.pathIndex + 1];
+                currentLine = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
+                edgeType = currentLine ? currentLine.type : 'land';
             }
             
             const curX = startNode.x + (endNode.x - startNode.x) * p.progress;
             const curY = startNode.y + (endNode.y - startNode.y) * p.progress;
             
-            // Calculate direction angle for truck orientation
             const dx = endNode.x - startNode.x;
             const dy = endNode.y - startNode.y;
             const angle = Math.atan2(dy, dx);
@@ -378,13 +438,23 @@
             ctx.shadowBlur = 8;
             ctx.shadowColor = p.color;
             
-            // Draw Truck (Constant size, simulating a convoy/truck with cargo)
-            // Front Cab
-            ctx.fillRect(4, -2, 4, 4);
-            // Middle Cargo
-            ctx.fillRect(-2, -2.5, 5, 5);
-            // Rear Cargo
-            ctx.fillRect(-8, -2.5, 5, 5);
+            if (edgeType === 'sea') {
+                // Minimalist Cargo Ship
+                ctx.fillRect(-6, -3, 12, 6); // Hull
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowBlur = 0;
+                ctx.fillRect(-5, -2, 3, 4); // Bridge
+                
+                ctx.fillStyle = p.color;
+                ctx.fillRect(0, -2, 2, 4);  // Cargo Block 1
+                ctx.fillRect(3, -2, 2, 4);  // Cargo Block 2
+            } else {
+                // Minimalist Truck
+                ctx.fillRect(4, -2, 4, 4);  // Cab
+                ctx.fillRect(-2, -2.5, 5, 5); // Cargo 1
+                ctx.fillRect(-8, -2.5, 5, 5); // Cargo 2
+            }
             
             ctx.restore();
         }
@@ -394,7 +464,7 @@
             ctx.lineWidth = 1.5;
             if (n.type === 'supplier') {
                 ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
-                ctx.strokeStyle = n.supplierColor; // Specialized color border
+                ctx.strokeStyle = n.supplierColor; 
                 ctx.lineWidth = 2;
                 ctx.shadowBlur = 4;
                 ctx.shadowColor = n.supplierColor;
@@ -415,7 +485,7 @@
                 }
             } else if (n.type === 'factory') {
                 ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
-                ctx.strokeStyle = n.factoryColor; // Specialized color border
+                ctx.strokeStyle = n.factoryColor; 
                 ctx.lineWidth = 2;
                 ctx.shadowBlur = 4;
                 ctx.shadowColor = n.factoryColor;
@@ -439,14 +509,13 @@
                 ctx.fill(); ctx.stroke();
                 ctx.shadowBlur = 0;
 
-                // Draw demand indicators
                 if (n.demands.length > 0) {
                     ctx.font = 'bold 12px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#ffffff';
                     ctx.shadowBlur = 6;
-                    ctx.shadowColor = n.demands[0]; // Glow in the requested color
+                    ctx.shadowColor = n.demands[0]; 
                     ctx.fillText('!', n.x, n.y - 12);
                     ctx.shadowBlur = 0;
                 }
