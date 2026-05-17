@@ -559,7 +559,7 @@
             else if(n.type==='warehouse'){ctx.fillStyle='rgba(148,163,184,0.2)';drawTriangle(n.x,n.y,n.radius);ctx.fill();ctx.stroke();}
             else if(n.type==='factory'){ctx.fillStyle=n.factoryColor;ctx.globalAlpha=0.3;drawSquare(n.x,n.y,n.radius);ctx.fill();ctx.globalAlpha=1;ctx.stroke();}
             else{ctx.fillStyle='rgba(148,163,184,0.2)';ctx.beginPath();ctx.arc(n.x,n.y,n.radius,0,Math.PI*2);ctx.fill();ctx.stroke();
-                if(n.type==='consumer'&&n.demands.length>0){ctx.font=`bold ${Math.round(14*scale)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=n.demands[0];ctx.fillText('!',n.x,n.y-12*scale);}
+                if(n.type==='consumer'&&n.demands.length>0){ctx.font=`bold ${Math.round(20*scale)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=n.demands[0];ctx.fillText('!',n.x,n.y-14*scale);}
             }
         });
 
