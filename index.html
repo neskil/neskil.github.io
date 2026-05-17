@@ -26,6 +26,10 @@
             font-family: 'Outfit', sans-serif;
         }
 
+        html {
+            overflow-x: hidden;
+        }
+
         body {
             background: var(--bg-gradient);
             color: var(--text-primary);
@@ -49,24 +53,26 @@
 
         /* Animated Background Elements */
         .bg-glow {
-            position: absolute;
+            position: fixed;
             width: 600px;
             height: 600px;
             background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 70%);
             top: -200px;
             left: -200px;
             z-index: -1;
+            pointer-events: none;
             animation: float 10s ease-in-out infinite alternate;
         }
 
         .bg-glow-2 {
-            position: absolute;
+            position: fixed;
             width: 500px;
             height: 500px;
             background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0) 70%);
             bottom: -200px;
             right: -200px;
             z-index: -1;
+            pointer-events: none;
             animation: float 12s ease-in-out infinite alternate-reverse;
         }
 
