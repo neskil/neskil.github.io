@@ -4,7 +4,7 @@
     const ctx = canvas.getContext('2d');
 
     const config = window.SupplyChainConfig || {
-        density: 35000, speedMultiplier: 1.0, demandFrequency: 0.005
+        density: 22000, speedMultiplier: 1.0, demandFrequency: 0.005
     };
 
     let width, height, nodes = [], lines = [], packages = [], signals = [];
@@ -14,8 +14,10 @@
     window.addEventListener('resize', resize);
     resize();
 
-    const COLOR_RAW_RED = '#fca5a5', COLOR_RAW_BLUE = '#93c5fd', COLOR_RAW_YELLOW = '#fde047';
-    const COLOR_MIX_PURPLE = '#d8b4fe', COLOR_MIX_GREEN = '#6ee7b7', COLOR_MIX_ORANGE = '#fdba74';
+    // Raw materials: desaturated, muted tones
+    const COLOR_RAW_RED = '#c4a0a0', COLOR_RAW_BLUE = '#8fa8bf', COLOR_RAW_YELLOW = '#bfb87a';
+    // Finished goods: vivid, saturated tones
+    const COLOR_MIX_PURPLE = '#b07cd8', COLOR_MIX_GREEN = '#34d399', COLOR_MIX_ORANGE = '#f59e0b';
     const RAW_COLORS = [COLOR_RAW_RED, COLOR_RAW_BLUE, COLOR_RAW_YELLOW];
     const MIX_COLORS = [COLOR_MIX_PURPLE, COLOR_MIX_GREEN, COLOR_MIX_ORANGE];
 
@@ -96,10 +98,23 @@
             if (attempts >= 50) continue;
 
             let type = 'normal', radius = 2, supplierColor = null, factoryColor = null;
+            // Vertical position bias: top=consumers, middle=factories, bottom=suppliers
+            let yRatio = ny / height; // 0=top, 1=bottom
             let r = Math.random();
-            if (r < 0.15) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
-            else if (r < 0.35) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
-            else if (r < 0.55) { type='consumer'; radius=7; }
+            if (yRatio < 0.35) {
+                // Top third: mostly consumers
+                if (r < 0.35) { type='consumer'; radius=7; }
+                else if (r < 0.45) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+            } else if (yRatio < 0.65) {
+                // Middle third: mostly factories
+                if (r < 0.30) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+                else if (r < 0.45) { type='consumer'; radius=7; }
+                else if (r < 0.55) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
+            } else {
+                // Bottom third: mostly suppliers
+                if (r < 0.35) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
+                else if (r < 0.45) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+            }
 
             nodes.push({
                 id: i, type, x: nx, y: ny, radius,
@@ -169,6 +184,20 @@
             }
 
             if (bestL && bestR && !bestL.edges.includes(bestR)) {
+                // Move port nodes close to sea edge (with 15px margin)
+                let sliceY = (yMin + yMax) / 2;
+                for (let si = 0; si < seaLeftEdge.length - 1; si++) {
+                    if (sliceY >= seaLeftEdge[si].y && sliceY <= seaLeftEdge[si+1].y) {
+                        let t = (sliceY - seaLeftEdge[si].y) / (seaLeftEdge[si+1].y - seaLeftEdge[si].y);
+                        let lEdge = seaLeftEdge[si].x + t * (seaLeftEdge[si+1].x - seaLeftEdge[si].x);
+                        let rEdge = seaRightEdge[si].x + t * (seaRightEdge[si+1].x - seaRightEdge[si].x);
+                        bestL.x = lEdge - 20; // 20px margin outside sea
+                        bestL.y = sliceY;
+                        bestR.x = rEdge + 20;
+                        bestR.y = sliceY;
+                        break;
+                    }
+                }
                 bestL.edges.push(bestR); bestR.edges.push(bestL);
                 lines.push({ n1: bestL, n2: bestR, type: 'sea', glow: 0, glowColor: null });
                 bestL.isPort = true; bestL.type = 'warehouse'; bestL.radius = 6;
@@ -325,13 +354,15 @@
             }
         });
 
-        // Packages
-        const BASE_SPEED=0.006; // Faster trucks
+        // Packages - constant PIXEL speed regardless of edge length
+        const PIXEL_SPEED = 1.5; // pixels per frame
         for(let i=packages.length-1;i>=0;i--) {
             let p=packages[i], sn=p.path[p.pathIndex], en=p.path[p.pathIndex+1];
             let cl=lines.find(l=>(l.n1===sn&&l.n2===en)||(l.n1===en&&l.n2===sn));
             let et=cl?cl.type:'land';
-            let spd=BASE_SPEED*config.speedMultiplier*(et==='sea'?0.35:et==='air'?1.3:1);
+            let edgeLen = Math.hypot(en.x-sn.x, en.y-sn.y) || 1;
+            let speedMult = et==='sea'?0.5:et==='air'?1.3:1;
+            let spd = (PIXEL_SPEED * speedMult * config.speedMultiplier) / edgeLen;
             p.progress+=spd;
 
             if(p.progress>=1){
