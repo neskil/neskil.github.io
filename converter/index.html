@@ -725,8 +725,9 @@
         .selectors-wrapper.side-by-side .panel-summary {
             margin-right: 0 !important;
             margin-left: 0 !important;
-            padding: 4px 10px !important;
-            font-size: 0.8rem !important;
+            padding: 3px 8px !important;
+            font-size: 0.7rem !important; /* Smaller, ultra-compact font once selected */
+            white-space: nowrap !important; /* Guarantee emoji never breaks onto a new line! */
         }
 
         .selectors-wrapper.side-by-side .panel-toggle-btn {
@@ -1418,7 +1419,7 @@
                 btn.classList.toggle("active", btn.id === `cat-${catId}`);
             });
             
-            const catEmojis = { temp: "Temp 🌡️", dist: "Distance 🚗", weight: "Weight ⚖️", vol: "Volume 🧪" };
+            const catEmojis = { temp: "Temp\u00A0🌡️", dist: "Distance\u00A0🚗", weight: "Weight\u00A0⚖️", vol: "Volume\u00A0🧪" };
             document.getElementById("category-summary").innerText = catEmojis[catId] || catId;
             
             // Auto collapse Category and expand Direction panel
