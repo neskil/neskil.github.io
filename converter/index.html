@@ -321,11 +321,10 @@
         }
 
         /* Dual-Scale Timeline Component */
-        /* Dual-Scale Timeline Component */
         .scale-container {
             position: relative;
-            height: 90px; /* Fixed height for clean, no-overlap rendering */
-            margin-top: 10px;
+            height: 80px; /* Ultra-compact fixed height */
+            margin-top: 8px;
             background: rgba(0, 0, 0, 0.15);
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.03);
@@ -337,7 +336,7 @@
 
         .scale-track {
             position: absolute;
-            top: 36px; /* Centered horizontal track line */
+            top: 32px; /* Centered horizontal track line at 32px */
             left: 0;
             right: 0;
             height: 4px;
@@ -372,10 +371,10 @@
         /* Top tick label: positioned fully above the track */
         .scale-anchor-top {
             position: absolute;
-            bottom: 60px;
+            bottom: 54px;
             transform: translateY(50%);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
+            font-size: 0.68rem; /* Ultra-compact size */
             color: var(--text-secondary);
             font-weight: 600;
             white-space: nowrap;
@@ -385,8 +384,8 @@
         .scale-anchor::before {
             content: '';
             position: absolute;
-            top: 30px;
-            height: 16px;
+            top: 26px;
+            height: 12px;
             width: 1px;
             background: rgba(255, 255, 255, 0.2);
         }
@@ -400,9 +399,9 @@
         /* Bottom tick label: positioned fully below the track */
         .scale-anchor-bottom {
             position: absolute;
-            top: 48px;
+            top: 42px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
             color: var(--text-secondary);
             font-weight: 600;
             white-space: nowrap;
@@ -411,8 +410,8 @@
         /* Landmark label tag: positioned below the bottom metric value */
         .scale-anchor-label {
             position: absolute;
-            top: 66px;
-            font-size: 0.52rem;
+            top: 58px;
+            font-size: 0.5rem;
             color: var(--text-mute);
             white-space: nowrap;
             text-transform: uppercase;
@@ -425,7 +424,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 15px;
+            margin-top: 10px;
             margin-bottom: 2px;
             padding: 0 4px;
         }
@@ -434,12 +433,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 4px;
+            margin-top: 2px;
             padding: 0 4px;
         }
 
         .scale-axis-label-text {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 700;
             color: var(--text-mute);
             letter-spacing: 0.08em;
@@ -449,8 +448,8 @@
         /* Custom Input Pointer Pin (Matches the mathematically centered track) */
         .scale-pointer {
             position: absolute;
-            top: 24px; /* Centered around the 36px track line */
-            height: 28px;
+            top: 20px; /* Centered around the 32px track line */
+            height: 24px;
             width: 2px;
             background: #cbd5e1; /* Sleek slate vertical indicator */
             transform: translateX(-50%);
@@ -918,7 +917,7 @@
             </div>
         </div>
 
-        <footer>v2.1 · ATLANTA 2026</footer>
+        <footer>&copy; 2026 Niklas Billgren. All rights reserved.</footer>
     </div>
 
     <script>
