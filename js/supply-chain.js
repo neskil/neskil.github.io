@@ -205,16 +205,29 @@
             });
         });
 
-        // 4. Sea connections: slice screen into 5 horizontal bands
-        let leftNodes = nodes.filter(n => n.side === 'left');
-        let rightNodes = nodes.filter(n => n.side === 'right');
+        // 4. Sea connections: slice screen into bands
+        let topSideNodes = nodes.filter(n => n.side === 'left');  // top on portrait, left on landscape
+        let botSideNodes = nodes.filter(n => n.side === 'right'); // bottom on portrait, right on landscape
+        let numSlices = isPortrait ? 3 : 5;
 
-        for (let slice = 0; slice < 5; slice++) {
-            let yMin = (slice / 5) * height;
-            let yMax = ((slice + 1) / 5) * height;
+        for (let slice = 0; slice < numSlices; slice++) {
+            let lCandidates, rCandidates, sliceMid;
 
-            let lCandidates = leftNodes.filter(n => n.y >= yMin && n.y < yMax);
-            let rCandidates = rightNodes.filter(n => n.y >= yMin && n.y < yMax);
+            if (isPortrait) {
+                // Vertical slices on portrait
+                let xMin = (slice / numSlices) * width;
+                let xMax = ((slice + 1) / numSlices) * width;
+                sliceMid = (xMin + xMax) / 2;
+                lCandidates = topSideNodes.filter(n => n.x >= xMin && n.x < xMax);
+                rCandidates = botSideNodes.filter(n => n.x >= xMin && n.x < xMax);
+            } else {
+                // Horizontal slices on landscape
+                let yMin = (slice / numSlices) * height;
+                let yMax = ((slice + 1) / numSlices) * height;
+                sliceMid = (yMin + yMax) / 2;
+                lCandidates = topSideNodes.filter(n => n.y >= yMin && n.y < yMax);
+                rCandidates = botSideNodes.filter(n => n.y >= yMin && n.y < yMax);
+            }
             if (lCandidates.length === 0 || rCandidates.length === 0) continue;
 
             // Find closest pair across the sea
@@ -227,18 +240,36 @@
             }
 
             if (bestL && bestR && !bestL.edges.includes(bestR)) {
-                // Move port nodes close to sea edge (with 15px margin)
-                let sliceY = (yMin + yMax) / 2;
-                for (let si = 0; si < seaLeftEdge.length - 1; si++) {
-                    if (sliceY >= seaLeftEdge[si].y && sliceY <= seaLeftEdge[si+1].y) {
-                        let t = (sliceY - seaLeftEdge[si].y) / (seaLeftEdge[si+1].y - seaLeftEdge[si].y);
-                        let lEdge = seaLeftEdge[si].x + t * (seaLeftEdge[si+1].x - seaLeftEdge[si].x);
-                        let rEdge = seaRightEdge[si].x + t * (seaRightEdge[si+1].x - seaRightEdge[si].x);
-                        bestL.x = lEdge - (20 + Math.random() * 40); // 20-60px margin
-                        bestL.y = sliceY + (Math.random() - 0.5) * 30;
-                        bestR.x = rEdge + (20 + Math.random() * 40);
-                        bestR.y = sliceY + (Math.random() - 0.5) * 30;
-                        break;
+                // Move port nodes close to sea edge
+                let margin1 = 20 + Math.random() * 40;
+                let margin2 = 20 + Math.random() * 40;
+                let jitter = (Math.random() - 0.5) * 30;
+
+                if (isPortrait) {
+                    for (let si = 0; si < seaLeftEdge.length - 1; si++) {
+                        if (sliceMid >= seaLeftEdge[si].x && sliceMid <= seaLeftEdge[si+1].x) {
+                            let t = (sliceMid - seaLeftEdge[si].x) / (seaLeftEdge[si+1].x - seaLeftEdge[si].x);
+                            let topEdge = seaLeftEdge[si].y + t * (seaLeftEdge[si+1].y - seaLeftEdge[si].y);
+                            let botEdge = seaRightEdge[si].y + t * (seaRightEdge[si+1].y - seaRightEdge[si].y);
+                            bestL.y = topEdge - margin1;
+                            bestL.x = sliceMid + jitter;
+                            bestR.y = botEdge + margin2;
+                            bestR.x = sliceMid + jitter;
+                            break;
+                        }
+                    }
+                } else {
+                    for (let si = 0; si < seaLeftEdge.length - 1; si++) {
+                        if (sliceMid >= seaLeftEdge[si].y && sliceMid <= seaLeftEdge[si+1].y) {
+                            let t = (sliceMid - seaLeftEdge[si].y) / (seaLeftEdge[si+1].y - seaLeftEdge[si].y);
+                            let lEdge = seaLeftEdge[si].x + t * (seaLeftEdge[si+1].x - seaLeftEdge[si].x);
+                            let rEdge = seaRightEdge[si].x + t * (seaRightEdge[si+1].x - seaRightEdge[si].x);
+                            bestL.x = lEdge - margin1;
+                            bestL.y = sliceMid + jitter;
+                            bestR.x = rEdge + margin2;
+                            bestR.y = sliceMid + jitter;
+                            break;
+                        }
                     }
                 }
                 bestL.edges.push(bestR); bestR.edges.push(bestL);
@@ -305,18 +336,31 @@
         ctx.clearRect(0, 0, width, height);
         seaTime += 0.005 * config.speedMultiplier;
 
-        // Draw Land polygons (left and right)
+        // Draw Land polygons
         ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
-        // Left landmass
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        for (let i = 0; i < seaLeftEdge.length; i++) ctx.lineTo(seaLeftEdge[i].x, seaLeftEdge[i].y);
-        ctx.lineTo(0, height); ctx.closePath(); ctx.fill();
-        // Right landmass
-        ctx.beginPath();
-        ctx.moveTo(width, 0);
-        for (let i = 0; i < seaRightEdge.length; i++) ctx.lineTo(seaRightEdge[i].x, seaRightEdge[i].y);
-        ctx.lineTo(width, height); ctx.closePath(); ctx.fill();
+        if (isPortrait) {
+            // Top landmass
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            for (let i = 0; i < seaLeftEdge.length; i++) ctx.lineTo(seaLeftEdge[i].x, seaLeftEdge[i].y);
+            ctx.lineTo(width, 0); ctx.closePath(); ctx.fill();
+            // Bottom landmass
+            ctx.beginPath();
+            ctx.moveTo(0, height);
+            for (let i = 0; i < seaRightEdge.length; i++) ctx.lineTo(seaRightEdge[i].x, seaRightEdge[i].y);
+            ctx.lineTo(width, height); ctx.closePath(); ctx.fill();
+        } else {
+            // Left landmass
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            for (let i = 0; i < seaLeftEdge.length; i++) ctx.lineTo(seaLeftEdge[i].x, seaLeftEdge[i].y);
+            ctx.lineTo(0, height); ctx.closePath(); ctx.fill();
+            // Right landmass
+            ctx.beginPath();
+            ctx.moveTo(width, 0);
+            for (let i = 0; i < seaRightEdge.length; i++) ctx.lineTo(seaRightEdge[i].x, seaRightEdge[i].y);
+            ctx.lineTo(width, height); ctx.closePath(); ctx.fill();
+        }
 
         // Draw subtle sea waves
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
@@ -325,10 +369,17 @@
             ctx.beginPath();
             for (let i = 0; i < seaLeftEdge.length; i++) {
                 let t = i / (seaLeftEdge.length - 1);
-                let lx = seaLeftEdge[i].x, rx = seaRightEdge[i].x;
-                let x = lx + (rx - lx) * ((w + 1) / 9) + Math.sin(seaTime * 3 + t * 8 + w) * 5;
-                let y = seaLeftEdge[i].y;
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                if (isPortrait) {
+                    let ty = seaLeftEdge[i].y, by = seaRightEdge[i].y;
+                    let y = ty + (by - ty) * ((w + 1) / 9) + Math.sin(seaTime * 3 + t * 8 + w) * 5;
+                    let x = seaLeftEdge[i].x;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                } else {
+                    let lx = seaLeftEdge[i].x, rx = seaRightEdge[i].x;
+                    let x = lx + (rx - lx) * ((w + 1) / 9) + Math.sin(seaTime * 3 + t * 8 + w) * 5;
+                    let y = seaLeftEdge[i].y;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
             }
             ctx.stroke();
         }
