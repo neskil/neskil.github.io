@@ -191,10 +191,10 @@
                         let t = (sliceY - seaLeftEdge[si].y) / (seaLeftEdge[si+1].y - seaLeftEdge[si].y);
                         let lEdge = seaLeftEdge[si].x + t * (seaLeftEdge[si+1].x - seaLeftEdge[si].x);
                         let rEdge = seaRightEdge[si].x + t * (seaRightEdge[si+1].x - seaRightEdge[si].x);
-                        bestL.x = lEdge - 20; // 20px margin outside sea
-                        bestL.y = sliceY;
-                        bestR.x = rEdge + 20;
-                        bestR.y = sliceY;
+                        bestL.x = lEdge - (20 + Math.random() * 40); // 20-60px margin
+                        bestL.y = sliceY + (Math.random() - 0.5) * 30;
+                        bestR.x = rEdge + (20 + Math.random() * 40);
+                        bestR.y = sliceY + (Math.random() - 0.5) * 30;
                         break;
                     }
                 }
@@ -254,8 +254,9 @@
 
     generateNetwork();
 
-    // Animation variables for sea
+    // Animation variables
     let seaTime = 0;
+    let frameCount = 0;
 
     function animate() {
         ctx.clearRect(0, 0, width, height);
@@ -330,8 +331,10 @@
             ctx.setLineDash([]); ctx.globalAlpha=1; ctx.shadowBlur=0;
         });
 
-        // Generate demand
-        if (Math.random()<config.demandFrequency&&packages.length<150) {
+        // Generate demand (burst at start, then settle)
+        frameCount++;
+        let startupBoost = frameCount < 300 ? 8 : frameCount < 600 ? 3 : 1; // ~5s burst then ease
+        if (Math.random()<config.demandFrequency*startupBoost&&packages.length<150) {
             let consumers=nodes.filter(n=>n.type==='consumer');
             if (consumers.length>0) {
                 let consumer=consumers[Math.floor(Math.random()*consumers.length)];
