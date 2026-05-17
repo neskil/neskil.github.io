@@ -1,299 +1,285 @@
 (function() {
     const canvas = document.getElementById('supplyChainCanvas');
-    if (!canvas) return; // Only run if canvas exists
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Default configuration
     const config = window.SupplyChainConfig || {
-        density: 25000,
-        speedMultiplier: 1.0,
-        demandFrequency: 0.005
+        density: 35000, speedMultiplier: 1.0, demandFrequency: 0.005
     };
 
-    let width, height;
-    let nodes = [];
-    let lines = [];
-    let packages = [];
-    let continents = [];
-    let signals = []; // Used for the crawling light paths
+    let width, height, nodes = [], lines = [], packages = [], signals = [];
+    let seaLeftEdge = [], seaRightEdge = []; // Sea polygon edges
 
-    function resize() {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-    }
+    function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
     resize();
 
-    // Constants (Muted Colors)
-    const COLOR_RAW_RED = '#fca5a5';
-    const COLOR_RAW_BLUE = '#93c5fd';
-    const COLOR_RAW_YELLOW = '#fde047';
-    
-    const COLOR_MIX_PURPLE = '#d8b4fe'; // Red + Blue
-    const COLOR_MIX_GREEN = '#6ee7b7'; // Yellow + Blue
-    const COLOR_MIX_ORANGE = '#fdba74'; // Red + Yellow
-    
+    const COLOR_RAW_RED = '#fca5a5', COLOR_RAW_BLUE = '#93c5fd', COLOR_RAW_YELLOW = '#fde047';
+    const COLOR_MIX_PURPLE = '#d8b4fe', COLOR_MIX_GREEN = '#6ee7b7', COLOR_MIX_ORANGE = '#fdba74';
     const RAW_COLORS = [COLOR_RAW_RED, COLOR_RAW_BLUE, COLOR_RAW_YELLOW];
     const MIX_COLORS = [COLOR_MIX_PURPLE, COLOR_MIX_GREEN, COLOR_MIX_ORANGE];
 
-    function getBOM(mixedColor) {
-        if (mixedColor === COLOR_MIX_PURPLE) return [COLOR_RAW_RED, COLOR_RAW_BLUE];
-        if (mixedColor === COLOR_MIX_GREEN) return [COLOR_RAW_YELLOW, COLOR_RAW_BLUE];
-        if (mixedColor === COLOR_MIX_ORANGE) return [COLOR_RAW_RED, COLOR_RAW_YELLOW];
-        return [COLOR_RAW_RED, COLOR_RAW_BLUE]; // fallback
+    function getBOM(c) {
+        if (c === COLOR_MIX_PURPLE) return [COLOR_RAW_RED, COLOR_RAW_BLUE];
+        if (c === COLOR_MIX_GREEN) return [COLOR_RAW_YELLOW, COLOR_RAW_BLUE];
+        if (c === COLOR_MIX_ORANGE) return [COLOR_RAW_RED, COLOR_RAW_YELLOW];
+        return [COLOR_RAW_RED, COLOR_RAW_BLUE];
     }
 
-    // 1. Generate Clustered Network
+    function linesCross(ax,ay,bx,by,cx,cy,dx,dy) {
+        let s1x=bx-ax, s1y=by-ay, s2x=dx-cx, s2y=dy-cy;
+        let d=(-s2x*s1y+s1x*s2y); if(d===0) return false;
+        let s=(-s1y*(ax-cx)+s1x*(ay-cy))/d;
+        let t=(s2x*(ay-cy)-s2y*(ax-cx))/d;
+        return s>0.01&&s<0.99&&t>0.01&&t<0.99;
+    }
+
+    // Point-in-sea test: check if x is between left and right edge at given y
+    function isInSea(x, y) {
+        if (seaLeftEdge.length < 2) return false;
+        // Find the two edge points bracketing this y
+        for (let i = 0; i < seaLeftEdge.length - 1; i++) {
+            let ly1 = seaLeftEdge[i].y, ly2 = seaLeftEdge[i+1].y;
+            if (y >= ly1 && y <= ly2) {
+                let t = (y - ly1) / (ly2 - ly1);
+                let lx = seaLeftEdge[i].x + t * (seaLeftEdge[i+1].x - seaLeftEdge[i].x);
+                let rx = seaRightEdge[i].x + t * (seaRightEdge[i+1].x - seaRightEdge[i].x);
+                return x >= lx && x <= rx;
+            }
+        }
+        return false;
+    }
+
+    function whichSide(x, y) {
+        // Returns 'left' or 'right' of the sea center
+        for (let i = 0; i < seaLeftEdge.length - 1; i++) {
+            let ly1 = seaLeftEdge[i].y, ly2 = seaLeftEdge[i+1].y;
+            if (y >= ly1 && y <= ly2) {
+                let t = (y - ly1) / (ly2 - ly1);
+                let lx = seaLeftEdge[i].x + t * (seaLeftEdge[i+1].x - seaLeftEdge[i].x);
+                let rx = seaRightEdge[i].x + t * (seaRightEdge[i+1].x - seaRightEdge[i].x);
+                let mid = (lx + rx) / 2;
+                return x < mid ? 'left' : 'right';
+            }
+        }
+        return x < width / 2 ? 'left' : 'right';
+    }
+
     function generateNetwork() {
-        nodes = [];
-        lines = [];
-        packages = [];
-        continents = [];
-        signals = [];
-        
-        const numNodes = Math.floor((width * height) / config.density); 
-        
-        // Generate Continents
-        const numContinents = Math.floor(Math.random() * 3) + 3; // 3 to 5 continents
-        for(let i=0; i<numContinents; i++) {
-            continents.push({
-                x: width * 0.15 + Math.random() * (width * 0.7),
-                y: height * 0.15 + Math.random() * (height * 0.7),
-                radius: Math.min(width, height) * (0.15 + Math.random() * 0.1)
-            });
+        nodes=[]; lines=[]; packages=[]; signals=[];
+        seaLeftEdge=[]; seaRightEdge=[];
+
+        const numNodes = Math.floor((width * height) / config.density);
+
+        // 1. Generate meandering sea river polygon
+        let seaCenter = width * (0.35 + Math.random() * 0.3); // Start somewhere in middle 30%
+        let seaWidth = width * (0.08 + Math.random() * 0.06); // 8-14% width
+        let steps = 12;
+        for (let i = 0; i <= steps; i++) {
+            let y = (i / steps) * height;
+            seaCenter += (Math.random() - 0.5) * width * 0.08; // Meander
+            seaCenter = Math.max(width * 0.2, Math.min(width * 0.8, seaCenter));
+            let halfW = seaWidth / 2 + (Math.random() - 0.5) * seaWidth * 0.3; // Vary width
+            seaLeftEdge.push({ x: seaCenter - halfW, y });
+            seaRightEdge.push({ x: seaCenter + halfW, y });
         }
 
-        let sCount = 0;
-        let fCount = 0;
+        // 2. Spawn nodes only on land
+        let sCount = 0, fCount = 0;
+        for (let i = 0; i < numNodes; i++) {
+            let nx, ny, attempts = 0;
+            do {
+                nx = 30 + Math.random() * (width - 60);
+                ny = 30 + Math.random() * (height - 60);
+                attempts++;
+            } while (isInSea(nx, ny) && attempts < 50);
+            if (attempts >= 50) continue;
 
-        for(let i=0; i<numNodes; i++) {
-            let cont = continents[Math.floor(Math.random() * continents.length)];
-            let angle = Math.random() * Math.PI * 2;
-            let r_dist = cont.radius * Math.sqrt(Math.random()); 
-            
-            let nx = cont.x + Math.cos(angle) * r_dist;
-            let ny = cont.y + Math.sin(angle) * r_dist;
-            
-            nx = Math.max(30, Math.min(width - 30, nx));
-            ny = Math.max(30, Math.min(height - 30, ny));
+            let type = 'normal', radius = 2, supplierColor = null, factoryColor = null;
+            let r = Math.random();
+            if (r < 0.15) { type='supplier'; radius=5; supplierColor=RAW_COLORS[sCount%3]; sCount++; }
+            else if (r < 0.35) { type='factory'; radius=6; factoryColor=MIX_COLORS[fCount%3]; fCount++; }
+            else if (r < 0.55) { type='consumer'; radius=7; }
 
-            let type = 'normal';
-            let radius = 2;
-            let supplierColor = null;
-            let factoryColor = null;
-            
-            const r = Math.random();
-            if (r < 0.15) { 
-                type = 'supplier'; radius = 5; 
-                supplierColor = RAW_COLORS[sCount % 3]; sCount++;
-            } else if (r < 0.35) { 
-                type = 'factory'; radius = 6; 
-                factoryColor = MIX_COLORS[fCount % 3]; fCount++;
-            } else if (r < 0.60) { type = 'consumer'; radius = 7; } 
-            
-            nodes.push({ 
+            nodes.push({
                 id: i, type, x: nx, y: ny, radius,
-                supplierColor, factoryColor, continent: cont,
-                edges: [], inventory: [], demands: []
+                supplierColor, factoryColor, side: whichSide(nx, ny),
+                edges: [], inventory: [], demands: [], isPort: false
             });
         }
 
-        // Establish Local Connections (Land)
-        nodes.forEach((node) => {
-            let localNodes = nodes.filter(n => n.continent === node.continent);
-            let distances = localNodes.map(n => ({ node: n, d: Math.hypot(n.x - node.x, n.y - node.y) }));
-            distances.sort((a,b) => a.d - b.d);
-            
-            for(let j=1; j<=3; j++) {
-                if(distances[j]) {
-                    const neighbor = distances[j].node;
-                    if(!node.edges.includes(neighbor)) {
-                        node.edges.push(neighbor);
-                        neighbor.edges.push(node);
-                        lines.push({ n1: node, n2: neighbor, type: 'land', glow: 0, glowColor: null });
+        // 3. Build MST per side (non-overlapping tree)
+        ['left', 'right'].forEach(side => {
+            let sNodes = nodes.filter(n => n.side === side);
+            if (sNodes.length < 2) return;
+
+            let connected = [sNodes[0]], unconnected = sNodes.slice(1);
+            while (unconnected.length > 0) {
+                let bestD = Infinity, bestA = null, bestB = null, bestIdx = -1;
+                for (let a of connected) {
+                    for (let i = 0; i < unconnected.length; i++) {
+                        let b = unconnected[i];
+                        let d = Math.hypot(a.x - b.x, a.y - b.y);
+                        if (d < bestD) { bestD=d; bestA=a; bestB=b; bestIdx=i; }
                     }
                 }
+                bestA.edges.push(bestB); bestB.edges.push(bestA);
+                lines.push({ n1: bestA, n2: bestB, type: 'land', glow: 0, glowColor: null });
+                connected.push(bestB); unconnected.splice(bestIdx, 1);
             }
+
+            // Sparse extra loops (~15%)
+            sNodes.forEach(n1 => {
+                if (Math.random() < 0.15) {
+                    let sorted = sNodes.map(n=>({n,d:Math.hypot(n1.x-n.x,n1.y-n.y)})).sort((a,b)=>a.d-b.d);
+                    for (let k = 1; k < Math.min(5, sorted.length); k++) {
+                        let n2 = sorted[k].n;
+                        if (!n1.edges.includes(n2)) {
+                            let crosses = lines.some(l => linesCross(n1.x,n1.y,n2.x,n2.y,l.n1.x,l.n1.y,l.n2.x,l.n2.y));
+                            if (!crosses) {
+                                n1.edges.push(n2); n2.edges.push(n1);
+                                lines.push({ n1, n2, type: 'land', glow: 0, glowColor: null });
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
         });
 
-        // Establish Global Connections (Sea / Air)
-        for(let i=0; i<continents.length; i++) {
-            let c1 = continents[i];
-            let c1Nodes = nodes.filter(n => n.continent === c1);
-            if (c1Nodes.length === 0) continue;
-            
-            for(let j=i+1; j<continents.length; j++) {
-                let c2 = continents[j];
-                let c2Nodes = nodes.filter(n => n.continent === c2);
-                if (c2Nodes.length === 0) continue;
-                
-                let numRoutes = Math.floor(Math.random() * 2) + 1; // 1 or 2 inter-continent lanes
-                for(let k=0; k<numRoutes; k++) {
-                    let port1 = c1Nodes[Math.floor(Math.random() * c1Nodes.length)];
-                    let port2 = c2Nodes[Math.floor(Math.random() * c2Nodes.length)];
-                    
-                    if(!port1.edges.includes(port2)) {
-                        port1.edges.push(port2);
-                        port2.edges.push(port1);
-                        
-                        let isAir = Math.random() < 0.2; // 20% chance of air route
-                        lines.push({ n1: port1, n2: port2, type: isAir ? 'air' : 'sea', glow: 0, glowColor: null });
-                        
-                        // Convert inter-continent connection points to ports (warehouses)
-                        port1.type = 'warehouse';
-                        port1.radius = 6;
-                        port2.type = 'warehouse';
-                        port2.radius = 6;
-                    }
+        // 4. Sea connections: slice screen into 5 horizontal bands
+        let leftNodes = nodes.filter(n => n.side === 'left');
+        let rightNodes = nodes.filter(n => n.side === 'right');
+
+        for (let slice = 0; slice < 5; slice++) {
+            let yMin = (slice / 5) * height;
+            let yMax = ((slice + 1) / 5) * height;
+
+            let lCandidates = leftNodes.filter(n => n.y >= yMin && n.y < yMax);
+            let rCandidates = rightNodes.filter(n => n.y >= yMin && n.y < yMax);
+            if (lCandidates.length === 0 || rCandidates.length === 0) continue;
+
+            // Find closest pair across the sea
+            let bestD = Infinity, bestL = null, bestR = null;
+            for (let l of lCandidates) {
+                for (let r of rCandidates) {
+                    let d = Math.hypot(l.x - r.x, l.y - r.y);
+                    if (d < bestD) { bestD=d; bestL=l; bestR=r; }
                 }
+            }
+
+            if (bestL && bestR && !bestL.edges.includes(bestR)) {
+                bestL.edges.push(bestR); bestR.edges.push(bestL);
+                lines.push({ n1: bestL, n2: bestR, type: 'sea', glow: 0, glowColor: null });
+                bestL.isPort = true; bestL.type = 'warehouse'; bestL.radius = 6;
+                bestR.isPort = true; bestR.type = 'warehouse'; bestR.radius = 6;
             }
         }
     }
 
     // BFS Pathfinding
-    function findPath(startNode, targetType, targetColor) {
-        let queue = [[startNode]];
-        let visited = new Set([startNode]);
-        
-        while(queue.length > 0) {
-            let path = queue.shift();
-            let current = path[path.length - 1];
-            
-            if (current.type === targetType && current !== startNode) {
-                if (targetType === 'factory' && current.factoryColor === targetColor) return path;
-                if (targetType === 'supplier' && current.supplierColor === targetColor) return path;
+    function findPath(start, targetType, targetColor) {
+        let queue = [[start]], visited = new Set([start]);
+        while (queue.length > 0) {
+            let path = queue.shift(), cur = path[path.length-1];
+            if (cur.type === targetType && cur !== start) {
+                if (targetType==='factory' && cur.factoryColor===targetColor) return path;
+                if (targetType==='supplier' && cur.supplierColor===targetColor) return path;
                 if (!targetColor) return path;
             }
-            
-            let edges = [...current.edges].sort(() => Math.random() - 0.5);
-            for(let neighbor of edges) {
-                if (!visited.has(neighbor)) {
-                    visited.add(neighbor);
-                    queue.push([...path, neighbor]);
-                }
+            let edges = [...cur.edges].sort(()=>Math.random()-0.5);
+            for (let nb of edges) {
+                if (!visited.has(nb)) { visited.add(nb); queue.push([...path, nb]); }
             }
         }
         return null;
     }
 
-    function findPathToSpecificNode(startNode, endNode) {
-        let queue = [[startNode]];
-        let visited = new Set([startNode]);
-        while(queue.length > 0) {
-            let path = queue.shift();
-            let current = path[path.length - 1];
-            if (current === endNode) return path;
-            for(let neighbor of current.edges) {
-                if (!visited.has(neighbor)) {
-                    visited.add(neighbor);
-                    queue.push([...path, neighbor]);
-                }
+    function findPathTo(start, end) {
+        let queue = [[start]], visited = new Set([start]);
+        while (queue.length > 0) {
+            let path = queue.shift(), cur = path[path.length-1];
+            if (cur === end) return path;
+            for (let nb of cur.edges) {
+                if (!visited.has(nb)) { visited.add(nb); queue.push([...path, nb]); }
             }
         }
         return null;
     }
 
     // Shapes
-    function drawHexagon(x, y, r) {
+    function drawHexagon(x,y,r) {
         ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-            const angle = i * Math.PI / 3;
-            if (i===0) ctx.moveTo(x + r*Math.cos(angle), y + r*Math.sin(angle));
-            else ctx.lineTo(x + r*Math.cos(angle), y + r*Math.sin(angle));
-        }
+        for(let i=0;i<6;i++){let a=i*Math.PI/3; i===0?ctx.moveTo(x+r*Math.cos(a),y+r*Math.sin(a)):ctx.lineTo(x+r*Math.cos(a),y+r*Math.sin(a));}
         ctx.closePath();
     }
+    function drawTriangle(x,y,r) { ctx.beginPath(); ctx.moveTo(x-r,y-r*0.5); ctx.lineTo(x+r,y-r*0.5); ctx.lineTo(x,y+r); ctx.closePath(); }
+    function drawSquare(x,y,r) { ctx.beginPath(); ctx.rect(x-r,y-r,r*2,r*2); ctx.closePath(); }
 
-    function drawTriangle(x, y, r) {
-        ctx.beginPath();
-        ctx.moveTo(x - r, y - r*0.5);
-        ctx.lineTo(x + r, y - r*0.5);
-        ctx.lineTo(x, y + r);
-        ctx.closePath();
-    }
-    
-    function drawSquare(x, y, r) {
-        ctx.beginPath();
-        ctx.rect(x - r, y - r, r*2, r*2);
-        ctx.closePath();
-    }
-
-    window.reinitSupplyChain = function(newConfig) {
-        if (newConfig.density) config.density = newConfig.density;
-        if (newConfig.speedMultiplier) config.speedMultiplier = newConfig.speedMultiplier;
-        if (newConfig.demandFrequency) config.demandFrequency = newConfig.demandFrequency;
+    window.reinitSupplyChain = function(nc) {
+        if(nc.density) config.density=nc.density;
+        if(nc.speedMultiplier) config.speedMultiplier=nc.speedMultiplier;
+        if(nc.demandFrequency) config.demandFrequency=nc.demandFrequency;
         generateNetwork();
     };
 
     generateNetwork();
 
+    // Animation variables for sea
+    let seaTime = 0;
+
     function animate() {
         ctx.clearRect(0, 0, width, height);
+        seaTime += 0.005 * config.speedMultiplier;
 
-        // Draw Continent Backgrounds (Sharp Landmass Break)
-        ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
+        // Draw Land polygons (left and right)
+        ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
+        // Left landmass
         ctx.beginPath();
-        nodes.forEach(n => {
-            ctx.moveTo(n.x, n.y);
-            ctx.arc(n.x, n.y, 40, 0, Math.PI * 2); // Creates sharp clustered blobs
-        });
-        ctx.fill();
+        ctx.moveTo(0, 0);
+        for (let i = 0; i < seaLeftEdge.length; i++) ctx.lineTo(seaLeftEdge[i].x, seaLeftEdge[i].y);
+        ctx.lineTo(0, height); ctx.closePath(); ctx.fill();
+        // Right landmass
+        ctx.beginPath();
+        ctx.moveTo(width, 0);
+        for (let i = 0; i < seaRightEdge.length; i++) ctx.lineTo(seaRightEdge[i].x, seaRightEdge[i].y);
+        ctx.lineTo(width, height); ctx.closePath(); ctx.fill();
 
-        // Crawling Signals (Path Illumination)
+        // Draw subtle sea waves
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
+        ctx.lineWidth = 1;
+        for (let w = 0; w < 8; w++) {
+            ctx.beginPath();
+            for (let i = 0; i < seaLeftEdge.length; i++) {
+                let t = i / (seaLeftEdge.length - 1);
+                let lx = seaLeftEdge[i].x, rx = seaRightEdge[i].x;
+                let x = lx + (rx - lx) * ((w + 1) / 9) + Math.sin(seaTime * 3 + t * 8 + w) * 5;
+                let y = seaLeftEdge[i].y;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // Crawling signals
         for (let i = signals.length - 1; i >= 0; i--) {
             let s = signals[i];
             s.progress += s.speed;
-            
-            let startNode = s.path[s.pathIndex];
-            let endNode = s.path[s.pathIndex + 1];
-            
-            // Illumniate line as signal crawls over it
-            let line = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
-            if (line) {
-                line.glow = Math.max(line.glow || 0, s.progress);
-                line.glowColor = s.color;
-            }
-            
+            let sn = s.path[s.pathIndex], en = s.path[s.pathIndex + 1];
+            let line = lines.find(l => (l.n1===sn&&l.n2===en)||(l.n1===en&&l.n2===sn));
+            if (line) { line.glow = Math.max(line.glow||0, s.progress); line.glowColor = 'rgba(255,255,255,0.9)'; }
+
             if (s.progress >= 1) {
                 if (line) line.glow = 1.0;
-                s.pathIndex++;
-                s.progress = 0;
-                
+                s.pathIndex++; s.progress = 0;
                 if (s.pathIndex >= s.path.length - 1) {
-                    // Reached destination
-                    let finalNode = s.path[s.path.length - 1];
-                    
-                    if (s.payload && s.payload.type === 'demand_factory') {
-                        let bom = getBOM(s.payload.finalMixColor);
-                        bom.forEach(rawColor => {
-                            let pathToSupplier = findPath(finalNode, 'supplier', rawColor);
-                            if (pathToSupplier && pathToSupplier.length > 1) {
-                                signals.push({
-                                    path: pathToSupplier,
-                                    pathIndex: 0,
-                                    progress: 0,
-                                    color: rawColor,
-                                    speed: 0.02 * config.speedMultiplier,
-                                    payload: {
-                                        type: 'demand_raw',
-                                        targetFactory: finalNode,
-                                        targetConsumer: s.payload.targetConsumer,
-                                        finalMixColor: s.payload.finalMixColor,
-                                        color: rawColor
-                                    }
-                                });
-                            }
+                    let fn = s.path[s.path.length-1];
+                    if (s.payload&&s.payload.type==='demand_factory') {
+                        getBOM(s.payload.finalMixColor).forEach(rc => {
+                            let p2s = findPath(fn, 'supplier', rc);
+                            if (p2s&&p2s.length>1) signals.push({path:p2s,pathIndex:0,progress:0,color:rc,speed:0.02*config.speedMultiplier,payload:{type:'demand_raw',targetFactory:fn,targetConsumer:s.payload.targetConsumer,finalMixColor:s.payload.finalMixColor,color:rc}});
                         });
-                    } else if (s.payload && s.payload.type === 'demand_raw') {
-                        // Dispatch package using the EXACT reversed path for visual consistency
-                        let returnPath = [...s.path].reverse();
-                        packages.push({
-                            path: returnPath,
-                            pathIndex: 0,
-                            progress: 0,
-                            color: s.payload.color,
-                            payload: s.payload
-                        });
+                    } else if (s.payload&&s.payload.type==='demand_raw') {
+                        packages.push({path:[...s.path].reverse(),pathIndex:0,progress:0,color:s.payload.color,payload:s.payload});
                     }
                     signals.splice(i, 1);
                 }
@@ -302,245 +288,110 @@
 
         // Draw lines
         lines.forEach(l => {
-            const opacity = 0.2;
-            
             ctx.beginPath();
-            if (l.type === 'sea') {
-                ctx.setLineDash([8, 12]); // Shipping lanes
-            } else if (l.type === 'air') {
-                ctx.setLineDash([2, 6]); // Air routes
+            ctx.setLineDash(l.type==='sea'?[8,12]:l.type==='air'?[2,6]:[]);
+            if (l.glow&&l.glow>0) {
+                ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.globalAlpha=Math.min(0.7, 0.2+l.glow*0.5);
+                ctx.lineWidth=1+l.glow*0.8; ctx.shadowBlur=l.glow*3; ctx.shadowColor='rgba(255,255,255,0.3)';
+                l.glow -= 0.003*config.speedMultiplier;
             } else {
-                ctx.setLineDash([]); // Roads
+                ctx.strokeStyle='rgba(148,163,184,0.3)'; ctx.globalAlpha=1; ctx.lineWidth=1; ctx.shadowBlur=0;
             }
-
-            if (l.glow && l.glow > 0) {
-                ctx.strokeStyle = l.glowColor;
-                ctx.globalAlpha = Math.min(1.0, opacity + (l.glow * 0.8)); // Keep light
-                ctx.lineWidth = 1 + (l.glow * 1.5);
-                ctx.shadowBlur = l.glow * 6;
-                ctx.shadowColor = l.glowColor;
-                l.glow -= 0.002 * config.speedMultiplier; // Very slow fade!
-            } else {
-                ctx.strokeStyle = `rgba(148, 163, 184, ${opacity})`;
-                ctx.globalAlpha = 1.0;
-                ctx.lineWidth = 1;
-                ctx.shadowBlur = 0;
-            }
-            
-            ctx.moveTo(l.n1.x, l.n1.y);
-            ctx.lineTo(l.n2.x, l.n2.y);
-            ctx.stroke();
-            
-            ctx.setLineDash([]);
-            ctx.globalAlpha = 1.0;
-            ctx.shadowBlur = 0;
+            ctx.moveTo(l.n1.x,l.n1.y); ctx.lineTo(l.n2.x,l.n2.y); ctx.stroke();
+            ctx.setLineDash([]); ctx.globalAlpha=1; ctx.shadowBlur=0;
         });
 
-        // Generate Demand
-        if (Math.random() < config.demandFrequency && packages.length < 150) {
-            const consumers = nodes.filter(n => n.type === 'consumer');
-            if (consumers.length > 0) {
-                const consumer = consumers[Math.floor(Math.random() * consumers.length)];
-                const demandedColor = MIX_COLORS[Math.floor(Math.random() * MIX_COLORS.length)];
-                
-                const path = findPath(consumer, 'factory', demandedColor);
-                if (path && path.length > 1) {
-                    consumer.demands.push(demandedColor);
-                    
-                    signals.push({
-                        path: path,
-                        pathIndex: 0,
-                        progress: 0,
-                        color: demandedColor,
-                        speed: 0.02 * config.speedMultiplier, // Crawling light
-                        payload: {
-                            type: 'demand_factory',
-                            targetConsumer: consumer,
-                            finalMixColor: demandedColor
-                        }
-                    });
+        // Generate demand
+        if (Math.random()<config.demandFrequency&&packages.length<150) {
+            let consumers=nodes.filter(n=>n.type==='consumer');
+            if (consumers.length>0) {
+                let consumer=consumers[Math.floor(Math.random()*consumers.length)];
+                let dc=MIX_COLORS[Math.floor(Math.random()*MIX_COLORS.length)];
+                let path=findPath(consumer,'factory',dc);
+                if (path&&path.length>1) {
+                    consumer.demands.push(dc);
+                    signals.push({path,pathIndex:0,progress:0,color:dc,speed:0.02*config.speedMultiplier,payload:{type:'demand_factory',targetConsumer:consumer,finalMixColor:dc}});
                 }
             }
         }
 
-        // Process Warehouse logic
+        // Process port/warehouse wait
         nodes.forEach(n => {
-            if (n.type === 'warehouse') {
-                for(let i = n.inventory.length - 1; i >= 0; i--) {
-                    let item = n.inventory[i];
-                    item.waitFrames--;
-                    if (item.waitFrames <= 0) {
-                        item.pkg.progress = 0;
-                        packages.push(item.pkg);
-                        n.inventory.splice(i, 1);
-                    }
+            if (n.isPort||n.type==='warehouse') {
+                for(let i=n.inventory.length-1;i>=0;i--) {
+                    n.inventory[i].waitFrames--;
+                    if(n.inventory[i].waitFrames<=0){n.inventory[i].pkg.progress=0;packages.push(n.inventory[i].pkg);n.inventory.splice(i,1);}
                 }
             }
         });
 
-        // Manage and draw moving packages
-        const BASE_SPEED = 0.003;
+        // Packages
+        const BASE_SPEED=0.003;
+        for(let i=packages.length-1;i>=0;i--) {
+            let p=packages[i], sn=p.path[p.pathIndex], en=p.path[p.pathIndex+1];
+            let cl=lines.find(l=>(l.n1===sn&&l.n2===en)||(l.n1===en&&l.n2===sn));
+            let et=cl?cl.type:'land';
+            let spd=BASE_SPEED*config.speedMultiplier*(et==='sea'?0.6:et==='air'?1.4:1);
+            p.progress+=spd;
 
-        for(let i = packages.length - 1; i >= 0; i--) {
-            let p = packages[i];
-            
-            let startNode = p.path[p.pathIndex];
-            let endNode = p.path[p.pathIndex + 1];
-            
-            let currentLine = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
-            let edgeType = currentLine ? currentLine.type : 'land';
-            
-            let actualSpeed = BASE_SPEED * config.speedMultiplier;
-            if (edgeType === 'sea') actualSpeed *= 0.6; // Boats slower
-            if (edgeType === 'air') actualSpeed *= 1.4; // Air faster
-            
-            p.progress += actualSpeed;
-            
-            if(p.progress >= 1) {
-                p.pathIndex++;
-                p.progress = 0;
-                
-                if (p.pathIndex >= p.path.length - 1) {
-                    // Reached final destination
-                    let finalNode = p.path[p.path.length - 1];
-                    
-                    if (finalNode.type === 'factory' && p.payload && p.payload.type === 'demand_raw') {
-                        finalNode.inventory.push(p);
-                        
-                        let bom = getBOM(p.payload.finalMixColor);
-                        let hasMat1 = finalNode.inventory.findIndex(item => item.color === bom[0]);
-                        let hasMat2 = -1;
-                        if (hasMat1 !== -1) {
-                            hasMat2 = finalNode.inventory.findIndex((item, idx) => item.color === bom[1] && idx !== hasMat1);
+            if(p.progress>=1){
+                p.pathIndex++; p.progress=0;
+                if(p.pathIndex>=p.path.length-1){
+                    let fn=p.path[p.path.length-1];
+                    if(fn.type==='factory'&&p.payload&&p.payload.type==='demand_raw'){
+                        fn.inventory.push(p);
+                        let bom=getBOM(p.payload.finalMixColor);
+                        let h1=fn.inventory.findIndex(it=>it.color===bom[0]);
+                        let h2=h1!==-1?fn.inventory.findIndex((it,idx)=>it.color===bom[1]&&idx!==h1):-1;
+                        if(h1!==-1&&h2!==-1){
+                            fn.inventory.splice(Math.max(h1,h2),1); fn.inventory.splice(Math.min(h1,h2),1);
+                            let rp=findPathTo(fn,p.payload.targetConsumer);
+                            if(rp) packages.push({path:rp,pathIndex:0,progress:0,color:p.payload.finalMixColor,payload:{type:'fulfill_demand',color:p.payload.finalMixColor}});
                         }
-                        
-                        if (hasMat1 !== -1 && hasMat2 !== -1) {
-                            let highest = Math.max(hasMat1, hasMat2);
-                            let lowest = Math.min(hasMat1, hasMat2);
-                            finalNode.inventory.splice(highest, 1);
-                            finalNode.inventory.splice(lowest, 1);
-                            
-                            let returnPath = findPathToSpecificNode(finalNode, p.payload.targetConsumer);
-                            if (returnPath) {
-                                packages.push({
-                                    path: returnPath,
-                                    pathIndex: 0,
-                                    progress: 0,
-                                    color: p.payload.finalMixColor,
-                                    payload: {
-                                        type: 'fulfill_demand',
-                                        color: p.payload.finalMixColor
-                                    }
-                                });
-                            }
-                        }
-                    } else if (finalNode.type === 'consumer') {
-                        let demandIdx = finalNode.demands.indexOf(p.color);
-                        if (demandIdx !== -1) {
-                            finalNode.demands.splice(demandIdx, 1);
-                        }
+                    } else if(fn.type==='consumer'){
+                        let di=fn.demands.indexOf(p.color); if(di!==-1) fn.demands.splice(di,1);
                     }
-                    packages.splice(i, 1);
-                    continue;
+                    packages.splice(i,1); continue;
                 } else {
-                    let currNode = p.path[p.pathIndex];
-                    if (currNode.type === 'warehouse') {
-                        // Wait at ports before continuing across sea
-                        currNode.inventory.push({
-                            pkg: p,
-                            waitFrames: Math.floor((Math.random() * 80 + 40) / config.speedMultiplier)
-                        });
-                        packages.splice(i, 1);
-                        continue;
+                    let cn=p.path[p.pathIndex];
+                    if(cn.isPort||cn.type==='warehouse'){
+                        cn.inventory.push({pkg:p,waitFrames:Math.floor((Math.random()*80+40)/config.speedMultiplier)});
+                        packages.splice(i,1); continue;
                     }
                 }
-                startNode = p.path[p.pathIndex];
-                endNode = p.path[p.pathIndex + 1];
-                currentLine = lines.find(l => (l.n1 === startNode && l.n2 === endNode) || (l.n1 === endNode && l.n2 === startNode));
-                edgeType = currentLine ? currentLine.type : 'land';
+                sn=p.path[p.pathIndex]; en=p.path[p.pathIndex+1];
+                cl=lines.find(l=>(l.n1===sn&&l.n2===en)||(l.n1===en&&l.n2===sn));
+                et=cl?cl.type:'land';
             }
-            
-            const curX = startNode.x + (endNode.x - startNode.x) * p.progress;
-            const curY = startNode.y + (endNode.y - startNode.y) * p.progress;
-            
-            const dx = endNode.x - startNode.x;
-            const dy = endNode.y - startNode.y;
-            const angle = Math.atan2(dy, dx);
-            
-            ctx.save();
-            ctx.translate(curX, curY);
-            ctx.rotate(angle);
-            
-            ctx.fillStyle = p.color;
-            ctx.shadowBlur = 6;
-            ctx.shadowColor = p.color;
-            
-            if (edgeType === 'sea') {
-                ctx.fillRect(-6, -3, 12, 6); 
-                ctx.fillStyle = '#ffffff';
-                ctx.shadowBlur = 0;
-                ctx.fillRect(-5, -2, 3, 4); 
-                ctx.fillStyle = p.color;
-                ctx.fillRect(0, -2, 2, 4);  
-                ctx.fillRect(3, -2, 2, 4);  
-            } else if (edgeType === 'air') {
-                // Minimalist Plane
-                ctx.beginPath();
-                ctx.moveTo(4, 0);
-                ctx.lineTo(-4, -4);
-                ctx.lineTo(-4, 4);
-                ctx.fill();
+
+            let cx=sn.x+(en.x-sn.x)*p.progress, cy=sn.y+(en.y-sn.y)*p.progress;
+            let angle=Math.atan2(en.y-sn.y,en.x-sn.x);
+            ctx.save(); ctx.translate(cx,cy); ctx.rotate(angle);
+            ctx.fillStyle=p.color; ctx.shadowBlur=6; ctx.shadowColor=p.color;
+            if(et==='sea'){
+                ctx.fillRect(-6,-3,12,6); ctx.fillStyle='#fff'; ctx.shadowBlur=0;
+                ctx.fillRect(-5,-2,3,4); ctx.fillStyle=p.color; ctx.fillRect(0,-2,2,4); ctx.fillRect(3,-2,2,4);
+            } else if(et==='air'){
+                ctx.beginPath(); ctx.moveTo(4,0); ctx.lineTo(-4,-4); ctx.lineTo(-4,4); ctx.fill();
             } else {
-                // Minimalist Truck
-                ctx.fillRect(4, -2, 4, 4);  
-                ctx.fillRect(-2, -2.5, 5, 5); 
-                ctx.fillRect(-8, -2.5, 5, 5); 
+                ctx.fillRect(4,-2,4,4); ctx.fillRect(-2,-2.5,5,5); ctx.fillRect(-8,-2.5,5,5);
             }
-            
             ctx.restore();
         }
 
-        // Draw nodes - Simplified colors
+        // Draw nodes
         nodes.forEach(n => {
-            ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)'; // Universal grey border
-            ctx.lineWidth = 1.5;
-            
-            if (n.type === 'supplier') {
-                ctx.fillStyle = n.supplierColor;
-                ctx.globalAlpha = 0.3; // Faint color fill
-                drawHexagon(n.x, n.y, n.radius);
-                ctx.fill(); 
-                ctx.globalAlpha = 1.0;
-                ctx.stroke();
-            } else if (n.type === 'warehouse') {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
-                drawTriangle(n.x, n.y, n.radius);
-                ctx.fill(); ctx.stroke();
-            } else if (n.type === 'factory') {
-                ctx.fillStyle = n.factoryColor;
-                ctx.globalAlpha = 0.3; // Faint color fill
-                drawSquare(n.x, n.y, n.radius);
-                ctx.fill(); 
-                ctx.globalAlpha = 1.0;
-                ctx.stroke();
-            } else {
-                ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, n.radius, 0, Math.PI*2);
-                ctx.fill(); ctx.stroke();
-                
-                if (n.type === 'consumer' && n.demands.length > 0) {
-                    ctx.font = 'bold 16px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillStyle = n.demands[0]; // Actual text is the color
-                    ctx.fillText('!', n.x, n.y - 14);
-                }
+            ctx.strokeStyle='rgba(148,163,184,0.8)'; ctx.lineWidth=1.5;
+            if(n.isPort){ctx.beginPath();ctx.strokeStyle='rgba(56,189,248,0.5)';ctx.lineWidth=1;ctx.arc(n.x,n.y,n.radius+4,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='rgba(148,163,184,0.8)';ctx.lineWidth=1.5;}
+            if(n.type==='supplier'){ctx.fillStyle=n.supplierColor;ctx.globalAlpha=0.3;drawHexagon(n.x,n.y,n.radius);ctx.fill();ctx.globalAlpha=1;ctx.stroke();}
+            else if(n.type==='warehouse'){ctx.fillStyle='rgba(148,163,184,0.2)';drawTriangle(n.x,n.y,n.radius);ctx.fill();ctx.stroke();}
+            else if(n.type==='factory'){ctx.fillStyle=n.factoryColor;ctx.globalAlpha=0.3;drawSquare(n.x,n.y,n.radius);ctx.fill();ctx.globalAlpha=1;ctx.stroke();}
+            else{ctx.fillStyle='rgba(148,163,184,0.2)';ctx.beginPath();ctx.arc(n.x,n.y,n.radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+                if(n.type==='consumer'&&n.demands.length>0){ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=n.demands[0];ctx.fillText('!',n.x,n.y-14);}
             }
         });
 
         requestAnimationFrame(animate);
     }
-
     animate();
 })();
