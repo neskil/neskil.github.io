@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quick Mental Converter | Niklas Billgren</title>
+    <meta name="description" content="Convert between metric and US units in your head. Mental-math shortcuts, accuracy ratings, and a visual scale for temperature, distance, weight, and volume.">
+    <meta name="theme-color" content="#090d16">
+    <meta name="color-scheme" content="dark">
+    <meta property="og:title" content="Quick Mental Converter">
+    <meta property="og:description" content="Mental-math shortcuts and visual scale for everyday metric/US conversions.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -32,6 +40,27 @@
             box-sizing: border-box;
             font-family: 'Outfit', sans-serif;
             -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Keyboard focus ring (suppressed for mouse, visible for keyboard nav) */
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 6px;
+        }
+        button:focus:not(:focus-visible),
+        a:focus:not(:focus-visible) {
+            outline: none;
+        }
+
+        /* Respect users who prefer reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
         }
 
         body {
@@ -238,7 +267,7 @@
         .calculator-wrapper {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 10px;
         }
 
         .dual-input-row {
@@ -343,8 +372,8 @@
         /* Dual-Scale Timeline Component */
         .scale-container {
             position: relative;
-            height: 96px; /* Expanded height to fit angled labels */
-            margin-top: 8px;
+            height: 78px; /* Compact: just enough for stacked numbers + angled labels */
+            margin-top: 2px;
             background: rgba(0, 0, 0, 0.15);
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.03);
@@ -356,7 +385,7 @@
 
         .scale-track {
             position: absolute;
-            top: 32px; /* Centered horizontal track line at 32px */
+            top: 22px; /* Compact: track line near upper third of container */
             left: 0;
             right: 0;
             height: 4px;
@@ -391,7 +420,7 @@
         /* Top tick label: positioned fully above the track */
         .scale-anchor-top {
             position: absolute;
-            bottom: 58px; /* Increased padding off the line */
+            bottom: 50px; /* Sits just above the track */
             transform: translateY(50%);
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Supreme readability */
@@ -405,7 +434,7 @@
         .scale-anchor::before {
             content: '';
             position: absolute;
-            top: 28px; /* Centered cleanly on 32px line */
+            top: 18px; /* Centered cleanly on the 22px track line */
             height: 8px; /* Compact height to avoid labels completely */
             width: 1px;
             background: rgba(255, 255, 255, 0.45); /* Solid tick lines */
@@ -420,7 +449,7 @@
         /* Bottom tick label: positioned fully below the track */
         .scale-anchor-bottom {
             position: absolute;
-            top: 46px; /* Increased margin below the line */
+            top: 32px; /* Sits just below the track */
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.76rem; /* Larger font size */
             color: #cbd5e1; /* Clear bright gray */
@@ -432,7 +461,7 @@
         /* Landmark label tag: positioned below the bottom metric value and angled to prevent overlap */
         .scale-anchor-label {
             position: absolute;
-            top: 60px;
+            top: 44px;
             left: -8px; /* Slightly offset left to account for rotation pivot point */
             font-size: 0.65rem;
             color: var(--accent-soft);
@@ -445,13 +474,32 @@
             transform-origin: left top;
         }
 
+        /* Right-edge anchors flip the angled label so it leans left and stays inside the container.
+           The numeric top/bottom tags are also right-aligned so wide numbers like "212" don't get clipped. */
+        .scale-anchor.flip-label .scale-anchor-label {
+            left: auto;
+            right: -8px;
+            transform: rotate(25deg);
+            transform-origin: right top;
+        }
+        .scale-anchor.flip-label .scale-anchor-top {
+            left: auto;
+            right: 0;
+            transform: translateY(50%);
+        }
+        .scale-anchor.flip-label .scale-anchor-bottom {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+
         /* Axis Header/Footer Flex Rows (No absolute positioning!) */
         .scale-axis-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 10px;
-            margin-bottom: 2px;
+            margin-top: 4px;
+            margin-bottom: 1px;
             padding: 0 4px;
         }
 
@@ -459,7 +507,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 2px;
+            margin-top: 1px;
             padding: 0 4px;
         }
 
@@ -888,21 +936,21 @@
                     <div class="panel-summary" id="category-summary">None Selected</div>
                     <button class="panel-toggle-btn" id="category-toggle-btn" onclick="event.stopPropagation(); togglePanel('category')">Change</button>
                 </div>
-                <div class="panel-content category-grid">
-                    <button class="category-btn" id="cat-temp" onclick="changeCategory('temp')">
-                        <span class="icon">🌡️</span>
+                <div class="panel-content category-grid" role="group" aria-label="Measurement type">
+                    <button class="category-btn" id="cat-temp" onclick="changeCategory('temp')" aria-label="Temperature" aria-pressed="false">
+                        <span class="icon" aria-hidden="true">🌡️</span>
                         <span>Temp</span>
                     </button>
-                    <button class="category-btn" id="cat-dist" onclick="changeCategory('dist')">
-                        <span class="icon">🚗</span>
+                    <button class="category-btn" id="cat-dist" onclick="changeCategory('dist')" aria-label="Distance" aria-pressed="false">
+                        <span class="icon" aria-hidden="true">🚗</span>
                         <span>Distance</span>
                     </button>
-                    <button class="category-btn" id="cat-weight" onclick="changeCategory('weight')">
-                        <span class="icon">⚖️</span>
+                    <button class="category-btn" id="cat-weight" onclick="changeCategory('weight')" aria-label="Weight" aria-pressed="false">
+                        <span class="icon" aria-hidden="true">⚖️</span>
                         <span>Weight</span>
                     </button>
-                    <button class="category-btn" id="cat-vol" onclick="changeCategory('vol')">
-                        <span class="icon">🧪</span>
+                    <button class="category-btn" id="cat-vol" onclick="changeCategory('vol')" aria-label="Volume" aria-pressed="false">
+                        <span class="icon" aria-hidden="true">🧪</span>
                         <span>Volume</span>
                     </button>
                 </div>
@@ -918,7 +966,7 @@
                     <button class="panel-toggle-btn" id="direction-toggle-btn" onclick="event.stopPropagation(); togglePanel('direction')">Change</button>
                 </div>
                 <div class="panel-content direction-container">
-                    <div class="direction-scroll" id="direction-list">
+                    <div class="direction-scroll" id="direction-list" role="group" aria-label="Conversion direction">
                         <!-- Dynamic buttons injected here -->
                     </div>
                 </div>
@@ -929,14 +977,14 @@
         <div class="panel" id="panel-input">
             <div class="panel-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <span>3. Enter Value &amp; Result</span>
-                <button id="swap-dir-btn" class="swap-direction-btn" onclick="swapDirection()">⇅ Swap</button>
+                <button id="swap-dir-btn" class="swap-direction-btn" onclick="swapDirection()" aria-label="Swap conversion direction and keep the current value">⇅ Swap</button>
             </div>
             <div class="calculator-wrapper">
                 <!-- Symmetrical side-by-side single-row input and output display -->
                 <div class="conversion-row">
                     <!-- Left side: Symmetrical Input -->
                     <div class="conversion-side conversion-input-side">
-                        <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="" placeholder="0" oninput="calculate()">
+                        <input type="number" inputmode="decimal" pattern="[0-9]*" id="conv-input" class="input-field" value="" placeholder="0" oninput="calculate()" aria-label="Value to convert">
                         <span class="primary-result-unit" id="input-unit-label">°C</span>
                     </div>
 
@@ -944,7 +992,7 @@
                     <span class="result-equals">=</span>
 
                     <!-- Right side: Symmetrical Output -->
-                    <div class="conversion-side conversion-output-side">
+                    <div class="conversion-side conversion-output-side" aria-live="polite" aria-atomic="true">
                         <span class="primary-result-val" id="primary-exact-val">-</span>
                         <span class="primary-result-unit" id="primary-result-unit-label">°F</span>
                     </div>
@@ -959,7 +1007,7 @@
                 <div class="scale-axis-header">
                     <span id="scale-label-top" class="scale-axis-label-text">US</span>
                 </div>
-                <div class="scale-container">
+                <div class="scale-container" role="slider" aria-label="Drag to adjust conversion value" tabindex="0">
                     <div class="scale-track">
                         <div class="scale-track-progress" id="scale-progress"></div>
                         <!-- Live pointer pin -->
@@ -1427,33 +1475,61 @@
         let currentMaxUs = 100;
         let isDragging = false;
 
-        // Initialize state: Start with NO measurement category pre-selected
+        // Initialize state: restore last selection from localStorage if available,
+        // otherwise start with NO measurement category pre-selected.
         function loadState() {
             currentCategory = null;
             currentSpecIndex = -1;
             activeSpecsList = [];
-            
+
             // Remove active classes from buttons
             document.querySelectorAll(".category-btn").forEach(btn => {
                 btn.classList.remove("active");
+                btn.setAttribute("aria-pressed", "false");
             });
-            
+
             // Reset text summary fields
             document.getElementById("category-summary").innerText = "None Selected";
             document.getElementById("direction-summary").innerText = "None Selected";
-            
-            // Initial collapsible wizard states: expanded first, others hidden
+
             // Initial collapsible wizard states: expanded first, others hidden
             document.getElementById("panel-category").classList.remove("collapsed");
             document.getElementById("category-toggle-btn").innerText = "Done";
-            
+
             document.getElementById("panel-direction").classList.add("collapsed");
             document.getElementById("panel-direction").style.display = "none";
             document.getElementById("direction-toggle-btn").innerText = "Change";
-            
+
             document.getElementById("panel-input").style.display = "none";
             document.getElementById("panel-results").style.display = "none";
-            
+
+            // Attempt to restore last selection
+            try {
+                const savedCat = localStorage.getItem("converter_cat");
+                const savedSpecId = localStorage.getItem("converter_spec_id");
+                if (savedCat && conversionDB[savedCat]) {
+                    changeCategory(savedCat);
+                    if (savedSpecId) {
+                        const idx = activeSpecsList.findIndex(s => s.id === savedSpecId);
+                        if (idx !== -1) {
+                            // Programmatically activate the saved direction
+                            currentSpecIndex = idx;
+                            document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
+                                dBtn.classList.toggle("active", dIdx === idx);
+                            });
+                            document.getElementById("direction-summary").innerText = activeSpecsList[idx].name;
+                            document.getElementById("panel-direction").classList.add("collapsed");
+                            document.getElementById("direction-toggle-btn").innerText = "Change";
+                            document.getElementById("panel-input").style.display = "block";
+                            document.getElementById("panel-results").style.display = "block";
+                            initCalculatorSpec();
+                        }
+                    }
+                }
+            } catch (e) {
+                // localStorage unavailable (private mode, sandboxed iframe) — fall through to default
+            }
+
             updateSelectorsLayout(); // Sync layout initially
         }
 
@@ -1482,38 +1558,59 @@
             }
         }
 
-        // Swaps the active conversion direction to its inverse (e.g. L -> gal to gal -> L)
+        // Swaps the active conversion direction to its inverse (e.g. L -> gal to gal -> L).
+        // The current value is round-tripped: the exact output becomes the new input,
+        // so the displayed pair (input + output) stays numerically consistent.
         function swapDirection() {
             if (currentSpecIndex === -1) return;
             const currentSpec = activeSpecsList[currentSpecIndex];
-            
+
             // Find a counterpart spec in activeSpecsList where input/output units are swapped
-            const counterpartIndex = activeSpecsList.findIndex(spec => 
-                spec.inputUnit === currentSpec.outputUnit && 
+            const counterpartIndex = activeSpecsList.findIndex(spec =>
+                spec.inputUnit === currentSpec.outputUnit &&
                 spec.outputUnit === currentSpec.inputUnit
             );
-            
-            if (counterpartIndex !== -1) {
-                // Switch to this direction!
-                currentSpecIndex = counterpartIndex;
-                
-                // Update direction buttons active class
-                document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
-                    dBtn.classList.toggle("active", dIdx === counterpartIndex);
-                });
-                
-                // Update summary text
-                const spec = activeSpecsList[counterpartIndex];
-                document.getElementById("direction-summary").innerText = spec.name;
-                
-                // Save state and re-initialize
-                saveState();
-                initCalculatorSpec();
-                updateSelectorsLayout();
-                
-                // Trigger real-time calculation
-                calculate();
+
+            if (counterpartIndex === -1) return;
+
+            // Capture the current input numerically so we can carry the value across the swap.
+            const inputField = document.getElementById("conv-input");
+            const inputStr = inputField.value.trim();
+            let carriedValue = "";
+            if (inputStr !== "") {
+                const inputVal = parseFloat(inputStr);
+                if (!isNaN(inputVal)) {
+                    // The new input should be the previous EXACT output (round-trip),
+                    // so swapping is reversible without drifting through the mental-math shortcut.
+                    const newInput = currentSpec.exactFn(inputVal);
+                    carriedValue = formatNumber(newInput);
+                }
             }
+
+            // Switch to this direction!
+            currentSpecIndex = counterpartIndex;
+
+            // Update direction buttons active class
+            document.querySelectorAll(".direction-btn").forEach((dBtn, dIdx) => {
+                dBtn.classList.toggle("active", dIdx === counterpartIndex);
+            });
+
+            // Update summary text
+            const spec = activeSpecsList[counterpartIndex];
+            document.getElementById("direction-summary").innerText = spec.name;
+
+            // Save state and re-initialize (this clears the input field)
+            saveState();
+            initCalculatorSpec();
+
+            // Restore the carried value after init wiped it
+            if (carriedValue !== "") {
+                inputField.value = carriedValue;
+            }
+
+            updateSelectorsLayout();
+            // Trigger real-time calculation against the carried value
+            calculate();
         }
 
         // Collapsible Panel Toggler
@@ -1542,7 +1639,9 @@
             
             // Toggle active visual class
             document.querySelectorAll(".category-btn").forEach(btn => {
-                btn.classList.toggle("active", btn.id === `cat-${catId}`);
+                const isActive = btn.id === `cat-${catId}`;
+                btn.classList.toggle("active", isActive);
+                btn.setAttribute("aria-pressed", isActive ? "true" : "false");
             });
             
             const catEmojis = { temp: "Temp\u00A0🌡️", dist: "Distance\u00A0🚗", weight: "Weight\u00A0⚖️", vol: "Volume\u00A0🧪" };
@@ -1803,16 +1902,18 @@
                 const diff = Math.abs(exactVal - approxVal);
                 const base = Math.abs(exactVal) || 1;
                 const pctErr = (diff / base) * 100;
-                
+                // Floor at 0 so extreme drift never displays as a negative percentage
+                const accuracyPct = Math.max(0, 100 - pctErr);
+
                 if (pctErr <= 1) {
                     accuracyText = "🎯 99%+ Accurate";
                 } else if (pctErr <= 5) {
-                    accuracyText = `🔥 ${formatNumber(100 - pctErr)}% Accurate`;
+                    accuracyText = `🔥 ${formatNumber(accuracyPct)}% Accurate`;
                 } else if (pctErr <= 15) {
-                    accuracyText = `👍 ${formatNumber(100 - pctErr)}% Decent Approx`;
+                    accuracyText = `👍 ${formatNumber(accuracyPct)}% Decent Approx`;
                     accuracyClass = "warning";
                 } else {
-                    accuracyText = `⚠️ ${formatNumber(100 - pctErr)}% Drift Hazard`;
+                    accuracyText = `⚠️ ${formatNumber(accuracyPct)}% Drift Hazard`;
                     accuracyClass = "danger";
                 }
             }
@@ -1880,34 +1981,50 @@
             
             const range = maxUs - minUs || 100;
             
-            // Setup axis labels on top and bottom headers
-            document.getElementById("scale-label-top").innerText = "US (" + (spec.inputIsMetric ? spec.outputUnit : spec.inputUnit) + ")";
-            document.getElementById("scale-label-bottom").innerText = "Metric (" + (spec.inputIsMetric ? spec.inputUnit : spec.outputUnit) + ")";
+            // Axis labels: INPUT unit on top, OUTPUT unit on bottom (reads left-to-right / top-to-bottom).
+            const topSystem = spec.inputIsMetric ? "Metric" : "US";
+            const bottomSystem = spec.inputIsMetric ? "US" : "Metric";
+            document.getElementById("scale-label-top").innerText = topSystem + " (" + spec.inputUnit + ")";
+            document.getElementById("scale-label-bottom").innerText = bottomSystem + " (" + spec.outputUnit + ")";
             
+            // Data-driven set of "key" landmarks that should be visually highlighted (star tick)
+            // and granted a tighter overlap threshold so they survive crowding.
+            const KEY_LANDMARK_LABELS = new Set([
+                "Freezing", "Room Temp", "Body Temp", "Boiling",
+                "Walk 30m", "Bike 20m", "Car 10m", "Car 30m", "Car 1h",
+                "Highway", "Interstate",
+                "Avg Adult", "Heavyweight",
+                "Coffee Cup", "Pint", "Milk Jug", "Car Fuel Tank",
+                "Football Field", "Ruler", "Meter", "Human"
+            ]);
+
             // Sort anchors by US value first to make sure they are in physical order
             let sortedAnchors = [...spec.anchors].sort((a, b) => a.us - b.us);
             let lastPlottedPct = -100; // Track the last text label position to avoid overlap
 
             // Map anchors relative to bounds
-            sortedAnchors.forEach(anch => {
+            sortedAnchors.forEach((anch, idx) => {
                 const pct = ((anch.us - minUs) / range) * 100;
-                
+
                 // Keep anchor markers visually spaced within viewport bounds
                 if (pct >= -5 && pct <= 105) {
                     const anchDiv = document.createElement("div");
                     anchDiv.className = "scale-anchor";
                     anchDiv.style.left = `${pct}%`;
-                    
-                    // Mark as 'star' (highlighted) if it matches a primary landmark point
-                    if (anch.label.includes("Walk") || anch.label.includes("Bike") || anch.label.includes("Car") || anch.label === "Room Temp" || anch.label === "Body Temp" || anch.label === "Boiling" || anch.label === "Freezing") {
-                        anchDiv.classList.add("star");
-                    }
-                    
-                    // Only render labels if they are not overlapping. Angled labels allow tighter thresholds.
-                    const isImportant = anchDiv.classList.contains("star");
-                    const threshold = isImportant ? 10 : 16;
+
+                    // Mark as 'star' for primary landmark points (data-driven, falls back to legacy heuristic)
+                    const isStar = KEY_LANDMARK_LABELS.has(anch.label) ||
+                        anch.label.includes("Walk") || anch.label.includes("Bike") || anch.label.includes("Car");
+                    if (isStar) anchDiv.classList.add("star");
+
+                    // Right-edge anchors flip their angled label so it leans left (stays inside the container)
+                    if (pct >= 75) anchDiv.classList.add("flip-label");
+
+                    // Overlap threshold: angled labels are visually wide, so use roomier thresholds.
+                    // Important anchors win ties by virtue of a tighter threshold.
+                    const threshold = isStar ? 14 : 22;
                     const showLabels = (pct - lastPlottedPct) > threshold;
-                    
+
                     if (showLabels) {
                         anchDiv.innerHTML = `
                             <div class="scale-anchor-top">${formatNumber(anch.us)}</div>
@@ -1962,22 +2079,20 @@
                 const range = currentMaxUs - currentMinUs;
                 let draggedUsVal = currentMinUs + (pct * range);
                 
-                // Map the US scale coordinate back to the target input category value
+                // Map the US scale coordinate back to the target input category value.
+                // For metric-input specs we look up the counterpart (US -> metric) spec and use
+                // its exactFn, so every category works without hardcoded conversion constants.
                 const spec = activeSpecsList[currentSpecIndex];
                 let inputVal;
-                
+
                 if (!spec.inputIsMetric) {
                     inputVal = draggedUsVal;
                 } else {
-                    if (spec.id === "c_to_f") {
-                        inputVal = (draggedUsVal - 32) * 5 / 9;
-                    } else if (spec.id === "km_to_mi") {
-                        inputVal = draggedUsVal / 0.621371;
-                    } else if (spec.id === "kg_to_lbs") {
-                        inputVal = draggedUsVal / 2.20462;
-                    } else {
-                        inputVal = draggedUsVal;
-                    }
+                    const counterpart = activeSpecsList.find(s =>
+                        s.inputUnit === spec.outputUnit &&
+                        s.outputUnit === spec.inputUnit
+                    );
+                    inputVal = counterpart ? counterpart.exactFn(draggedUsVal) : draggedUsVal;
                 }
                 
                 // Smart rounding for clean numeric feedback
