@@ -1,0 +1,290 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Wooop</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.1.1/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-65179286-3');
+</script>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#20ffc0">
+    
+
+</head>
+<Body>
+    <script>
+    function getRandomRGBValue() {
+    return Math.min(Math.floor(Math.random() * 255 + 1), 255);
+}
+
+function getRandomColor() {
+    var r = getRandomRGBValue(),
+        g = getRandomRGBValue(),
+        b = getRandomRGBValue();
+    return "#" + (((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1));
+}
+
+function changeThemeColor() {
+    var metaThemeColor = document.querySelector("meta[name=theme-color]");
+    metaThemeColor.setAttribute("content", getRandomColor());
+    setTimeout(function() {
+        changeThemeColor();
+    }, 2000);
+//console.log('update')    
+}
+changeThemeColor();
+        </script>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+<script type="text/javascript">
+//General funcitons    
+function randX(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
+function randI(min, max) {
+    return (Math.random()*(max - min) + min);
+}
+
+function randImg(listan) {
+    var randomNumber = Math.floor(Math.random()*listan.length);
+    return listan[randomNumber];  
+}
+
+var slumplista = [
+    'asa',
+    'daniel',
+    'maja',
+    'carl',
+];
+  
+        
+    
+    
+    
+var config = {
+    type: Phaser.AUTO,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 300 },
+            debug: false
+        }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+var player;
+var huvud;
+var stars;
+var platforms;
+var cursors;
+var score = 0;
+var gameOver = false;
+var scoreText;
+var r1 = randI(0.4,1.5);
+var r2 = randI(0.6,1.5);
+
+var game = new Phaser.Game(config);
+
+function preload ()
+{
+    this.load.image('ground', 'src/games/firstgame/assets/platform.png');
+    this.load.image('star', 'src/games/firstgame/assets/star.png');
+    this.load.image('bomb', 'src/games/firstgame/assets/bomb.png');
+    this.load.spritesheet('dude', 'src/games/firstgame/assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.image('sky', 'img/bg.jpg');
+    this.load.image('maja', 'img/maja.png');
+    this.load.image('carl', 'img/carl.png');
+    this.load.image('red', 'img/red.png');
+    this.load.image('purp', 'img/purp.png');
+    this.load.image('green', 'img/green.png');
+    this.load.image('daniel', 'img/daniel.png');
+    this.load.image('asa', 'img/asa.png');
+
+    this.load.atlas('flares', 'phaser/src/particles/flares.png', 'phaser/src/particles/flares.json');
+    this.load.atlas('explosion', 'phaser/src/particles/explosion.png', 'phaser/src/particles/explosion.json');
+}
+
+function create ()
+{
+    var particles = this.add.particles('flares');
+    //  A simple background for our game
+    //this.add.image(600, 600, 'sky');
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = this.physics.add.staticGroup();
+
+    //  Here we create the ground.
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    //platforms.create(600, 600, 'ground').setScale(2).refreshBody();
+
+
+    // The player and its settings
+    player = this.physics.add.group();
+    
+    player = this.physics.add.sprite(100, 450, randImg(slumplista));
+    player2 = this.physics.add.sprite(100, 050, randImg(slumplista));
+    
+    console.log(player)
+    
+
+    //  Player physics properties. Give the little guy a slight bounce.
+    player.setBounce(1);
+    player.setCollideWorldBounds(true);
+    player.setVelocity(randX(-500,500),randX(-500,500));
+    
+    player2.setBounce(1);
+    player2.setCollideWorldBounds(true);
+    player2.setVelocity(randX(-500,500),randX(-500,500));
+
+
+    //  The score
+    scoreText = this.add.text(16, 16, 'Klicka med muspekaren.', { fontSize: '32px', fill: '#FFF' });
+
+    //  Collide the player and the stars with the platforms
+    this.physics.add.collider(player, platforms);
+    this.physics.add.collider(player, player2);
+
+    
+    
+
+    particles.createEmitter({
+        frame: { frames: [ 'red', 'blue', 'green', 'yellow' ], cycle: true },
+        x: window.innerWidth/2,
+        y: { min: -32, max: window.innerHeight+32, steps: 32 },
+        lifespan: 4000,
+        accelerationX: 300,
+        scale: 0.5,
+        blendMode: 'ADD'
+    });
+
+    particles.createEmitter({
+        frame: { frames: [ 'red', 'blue', 'green', 'yellow' ], cycle: true },
+        x: window.innerWidth/2,
+        y: { min: window.innerHeight+32, max: -32, steps: 32 },
+        lifespan: 4000,
+        accelerationX: -300,
+        scale: 0.5,
+        blendMode: 'ADD',
+    });
+    
+    var particles2 = this.add.particles('explosion');
+    
+    particles2.createEmitter({
+        frame: [ 'smoke-puff', 'cloud', 'smoke-puff' ],
+        angle: { min: 240, max: 300 },
+        speed: { min: 200, max: 300 },
+        quantity: 12,
+        lifespan: 2000,
+        alpha: { start: 1, end: 0 },
+        scale: { start: 1.5, end: 0.5 },
+        on: false
+    });
+        particles2.createEmitter({
+        frame: 'muzzleflash2',
+        lifespan: 300,
+        scale: { start: 4, end: 0 },
+        rotate: { start: 0, end: 90 },
+        on: false
+    });
+console.log(player.texture)
+
+    
+        this.input.on('pointerdown', function (pointer) {
+        r1 = randI(0.4,1.5);
+        r2 = randI(0.6,2.5);
+        console.log(r1)
+        console.log(r2)
+        player.setPosition(pointer.x+20, pointer.y);
+        player2.setPosition(pointer.x-30, pointer.y);
+        particles2.emitParticleAt(pointer.x, pointer.y);
+        player.setVelocity(randX(-800,800),randX(-800,800));
+        player2.setVelocity(randX(-800,800),-randX(-800,800));
+        score += 1;
+        scoreText.setText('# klixx: ' + score);
+        player.setTexture(randImg(slumplista),0);
+        player2.setTexture(randImg(slumplista),0);
+        //player.setScale(r1,r1);
+        //player2.setScale(r2,r2);
+        console.log(player.texture);
+    });
+    
+       ///END CREATE 
+    
+}
+
+function update ()
+{
+
+
+}
+
+function collectStar (player, star)
+{
+        //  Add and update the score
+    score += 1;
+    scoreText.setText('Antal klixx:: ' + score);
+
+    //if (stars.countActive(true) === 0)
+    //{
+        //  A new batch of stars to collect
+    //    stars.children.iterate(function (child) {
+
+    //        child.enableBody(true, child.x, 0, true, true);
+
+    //    });
+
+
+        var bomb = bombs.create(x, 16, 'bomb');
+        bomb.setBounce(1);
+        bomb.setCollideWorldBounds(true);
+        bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        bomb.allowGravity = false;
+
+}
+
+function hitBomb (player, bomb)
+{
+    this.physics.pause();
+
+    player.setTint(0xff0000);
+
+    player.anims.play('turn');
+
+    gameOver = true;
+}
+
+</script>
+</Body>
+</html>

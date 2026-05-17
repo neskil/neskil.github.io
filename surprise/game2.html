@@ -1,0 +1,334 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>YEAH</title>
+    <script src="phaser/dist/phaser.js"></script>
+    <script src="./js/getQueryString.js"></script>
+    <script src="./js/jquery-3.1.1.min.js"></script>
+    <script src="./js/datgui.js"></script>        
+    <script src="./js/TweenMax.min.js"></script> 
+    <script src="./js/labs.js"></script> 
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="theme-color" content="#84db94">
+
+    
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-65179286-3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-65179286-3');
+</script>
+</head>
+    
+    
+<Body>
+<script>
+function getRandomRGBValue() {
+    return Math.min(Math.floor(Math.random() * 255 + 1), 255);
+}
+
+function getRandomColor() {
+    var r = getRandomRGBValue(),
+        g = getRandomRGBValue(),
+        b = getRandomRGBValue();
+    return "#" + (((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1));
+}
+
+function changeThemeColor() {
+    var metaThemeColor = document.querySelector("meta[name=theme-color]");
+    metaThemeColor.setAttribute("content", getRandomColor());
+    setTimeout(function() {
+        changeThemeColor();
+    }, 4000);
+ //   console.log('updated color')
+
+}
+changeThemeColor(); 
+    
+    </script>
+    
+<script type="text/javascript">
+var config = {
+    type: Phaser.WEBGL,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    parent: 'game',
+    pixelArt: true,
+    physics: {
+        default: 'matter',
+        matter: {
+            gravity: {
+                y: 0.1
+            },
+            debug: false
+        }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+function randImg(items) {
+    //var randomNumber = Math.floor(Math.random()*listan.length);
+    //return listan[randomNumber];
+    var item = items[Math.floor(Math.random()*items.length)];
+    return item
+}
+function randX(min, max) {
+    return Math.floor(Math.random() * (max - min) ) + min;
+}
+function randF(min, max) {
+    return Math.random() * (max - min) + min;
+}    
+var sllist = [
+    'asa',
+    'daniel',
+    'maja',
+    'carl',
+    'lollo',
+    'naes',
+    'bild1',
+    'bild2',
+    'bild4',
+];
+    
+var alpha = 0.3;
+var rock;    
+var timedEvent;
+var line;
+var line2;
+var graphics;
+var rock2;
+var rock3;
+var image0;
+var tween;
+var iter = 0;
+    
+function preload ()
+{
+    this.load.image('image0', 'img/designer-photo.jpg');
+
+    this.load.image('maja', 'img/maja.png');
+    this.load.image('carl', 'img/carl.png');
+    this.load.image('daniel', 'img/daniel.png');
+    this.load.image('asa', 'img/asa.png');
+    this.load.image('red', 'img/red.png');
+    this.load.image('lollo', 'img/lollo.png');
+    this.load.image('naes', 'img/naes.png');
+    
+    this.load.image('bild1', 'img/bild1.png');
+    this.load.image('bild2', 'img/bild2.png');
+    this.load.image('bild4', 'img/bild4.png');
+}
+    
+    
+var controls;
+
+var game = new Phaser.Game(config);
+
+function create ()
+{ ///// .-------------------------------------------------- create- --------------
+    var worldWidth = window.innerWidth;
+    var worldHeight = window.innerHeight;
+    
+    var antal = Math.floor((window.innerWidth*window.innerHeight)/13000);
+
+    this.matter.world.setBounds(Math.floor(worldWidth)-Math.floor(worldWidth*1.2), Math.floor(worldHeight)-Math.floor(worldHeight*1.2), Math.floor(worldWidth*1.4), Math.floor(worldHeight*1.4));
+    
+    var middleX = Math.floor(worldWidth/2)
+    var middleY = Math.floor(worldHeight/2)
+    
+                            
+    image0 = this.add.tileSprite(middleX, middleY, worldWidth*1.3, worldHeight*1.3, 'image0');
+        
+    console.log(antal);
+
+    //  Create loads of random bodies
+    for (var i = 0; i < antal; i++)
+    {
+        var x = Phaser.Math.Between(0, worldWidth);
+        var y = Phaser.Math.Between(0, worldHeight);
+       
+        var sizeVar = randF(0.3, 1.1)
+         console.log(sizeVar)
+        //var width = Phaser.Math.Between(16, 128);
+        //var height = Phaser.Math.Between(8, 64);
+
+        this.matter.add.image(x, y, randImg(sllist), { restitution: 0.9 }).setScale(sizeVar);
+        
+        //if (Math.random() < 0.7)
+        //{
+        //    var sides = Phaser.Math.Between(3, 14);
+        //    var radius = Phaser.Math.Between(8, 50);
+
+        //    this.matter.add.polygon(x, y, sides, radius, { restitution: 0.9 });
+        //}
+        //else
+        //{
+        
+    }
+    //var ground = this.matter.add.Bodies.rectangle(395, 600, 815, 50, { isStatic: true });
+    var rockOptions = { density: 0.001, isStatic: false};
+    var rockOptions2 = {isStatic: true, isSensor: true};
+    rock = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
+    rock3 = this.matter.add.image(middleX, middleY, randImg(sllist), rockOptions);
+    rock2 = this.matter.add.image(middleX, middleY, 'red',0, rockOptions2);
+    
+    var anchor = { x: middleX, y: middleY };
+    console.log(anchor)
+    console.log(anchor.x)
+    this.matter.add.constraint(rock,rock2,Math.floor(middleY/1.2),0.015);
+    this.matter.add.constraint(rock3,rock2,Math.floor(middleX/5),0.0005);
+    
+    
+    
+
+    
+    //var constraint = Phaser.Physics.Matter.Matter.Constraint.create({bodapointA: anchor
+    //    pointA: anchor.body,
+    //    bodyB: rock.body,
+    //    stiffness: 0.2
+    //});
+    console.log("HIASHDIHASD")
+    //this.matter.world.add(constraint);
+    
+    this.matter.add.mouseSpring();
+
+    var cursors = this.input.keyboard.createCursorKeys();
+
+    var controlConfig = {
+        camera: this.cameras.main,
+        left: cursors.left,
+        right: cursors.right,
+        up: cursors.up,
+        down: cursors.down,
+        zoomIn: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q),
+        zoomOut: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E),
+        acceleration: 0.06,
+        drag: 0.0005,
+        maxSpeed: 1.0
+    };
+
+    this.cameras.main.zoom = 0.8;
+    controls = new Phaser.Cameras.Controls.SmoothedKeyControl(controlConfig);
+
+    this.input.keyboard.on('KEY_DOWN_Z', function (event) {
+         rock.setVelocity(randX(-200,200),randX(-200,200));
+
+        this.cameras.main.rotation += 0.01;
+
+    }, 0, this);
+
+    this.input.keyboard.on('KEY_DOWN_X', function (event) {
+
+        this.cameras.main.rotation -= 0.01;
+
+    }, 0, this);
+
+    var cam = this.cameras.main;
+
+    gui = new dat.GUI();
+
+    //var p1 = gui.addFolder('Pointer');
+    //p1.add(this.input, 'x').listen();
+    //p1.add(this.input, 'y').listen();
+    //p1.open();
+
+    var help = {
+        line1: 'Cursors to move',
+        line2: 'Q & E to zoom',
+        line3: 'Z & X to rotate',
+    }
+
+    var f1 = gui.addFolder('Camera');
+   // f1.add(cam, 'x').listen();
+    //f1.add(cam, 'y').listen();
+    f1.add(cam, 'scrollX').listen();
+    f1.add(cam, 'scrollY').listen();
+    f1.add(cam, 'rotation').min(0).step(0.01).listen();
+    f1.add(cam, 'zoom', 0.1, 2).step(0.1).listen();
+    f1.add(help, 'line1');
+    f1.add(help, 'line2');
+    //f1.add(help, 'line3');
+    f1.close();
+
+    timedEvent = this.time.addEvent({ delay: 5000, callback: onEvent, callbackScope: this, loop: true });  
+
+    graphics = this.add.graphics();
+    graphics2 = this.add.graphics();
+    //graphics2 = this.add.graphics({ lineStyle: { width: 2, color: 0xda532c } })
+    
+    
+    
+    
+    
+    
+    tween = this.tweens.addCounter({
+        from: 1,
+        to: 2,
+        duration: 20000,
+        ease: 'Sine.easeInOut',
+        yoyo: true,
+        repeat: -1
+    });
+    
+    
+    // ---------------------------------------------------------
+    
+}
+
+function update (time, delta)
+{
+    if(alpha > 0.05) {
+    alpha = alpha - 0.01;}
+    controls.update(delta);
+    graphics.lineStyle(alpha*5,0xda532c,alpha);
+    graphics2.clear();
+    
+    graphics2.lineStyle(2,0x2c9eda,1);
+    //graphics.clear();
+
+    line = new Phaser.Geom.Line(rock.x, rock.y, rock2.x, rock2.y)
+    line2 = new Phaser.Geom.Line(rock3.x, rock3.y, rock2.x, rock2.y)
+    //graphics.lineStyle.a(alphaa);
+    graphics.strokeLineShape(line);
+    graphics2.strokeLineShape(line2);
+    
+    
+    image0.tilePositionX = Math.cos(iter) * 100;
+    image0.tilePositionY = Math.sin(iter) * 50;
+
+    image0.tileScaleX = tween.getValue();
+    image0.tileScaleY = tween.getValue();
+
+    iter += 0.01;
+
+}
+function onEvent()
+    {
+        alpha = 0.5;
+        graphics.clear();
+        console.log("hej")
+        rock.setVelocity(randX(-200,200),randX(-100,100));
+        this.matter.world.setGravity(randF(-0.1,0.1),randF(-1,1));
+    }
+    
+</script>
+</Body>
+</html>
