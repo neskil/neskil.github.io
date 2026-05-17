@@ -342,11 +342,12 @@
         ctx.clearRect(0, 0, width, height);
         seaTime += 0.005 * config.speedMultiplier;
 
-        // Smooth parallax from scroll inertia
-        smoothScrollOffset += (scrollOffset - smoothScrollOffset) * 0.08;
-        let parallaxY = -smoothScrollOffset * 0.15; // Subtle shift
+        // Smooth parallax from scroll inertia (desktop only)
         ctx.save();
-        ctx.translate(0, parallaxY);
+        if (!isPortrait) {
+            smoothScrollOffset += (scrollOffset - smoothScrollOffset) * 0.08;
+            ctx.translate(0, -smoothScrollOffset * 0.15);
+        }
 
         // Draw Land polygons
         ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
