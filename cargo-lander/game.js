@@ -630,7 +630,7 @@ class CargoGame {
 
         // Holographic dispenser prompt when landed on it
         const lander = this.physics.lander;
-        if (lander.landed && lander.currentPad === 'sourcing') {
+        if (lander && lander.landed && lander.currentPad === 'sourcing') {
             ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
             ctx.font = '600 13px sans-serif';
             ctx.textAlign = 'center';
@@ -671,7 +671,7 @@ class CargoGame {
         const S = this.physics.BOX_SIZE;
         const halfS = S / 2;
 
-        for (const box of this.boxes) {
+        for (const box of this.physics.boxes) {
             ctx.save();
             ctx.translate(box.x, box.y);
 
@@ -721,7 +721,7 @@ class CargoGame {
     drawLander() {
         const ctx = this.ctx;
         const lander = this.physics.lander;
-        if (lander.crashed) return;
+        if (!lander || lander.crashed) return;
 
         ctx.save();
         ctx.translate(lander.x, lander.y);
