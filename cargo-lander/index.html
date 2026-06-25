@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CargoLander: Supply Chain Physics | Niklas Billgren</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030712;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #6366f1;
+            --accent-hover: #4f46e5;
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --neon-blue: #38bdf8;
+            --neon-red: #ef4444;
+            --neon-green: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 50%, #0f172a 0%, #030712 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        #game-container {
+            position: relative;
+            width: 1000px;
+            height: 600px;
+            max-width: 100%;
+            aspect-ratio: 1000/600;
+            height: auto;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Glass HUD Overlays */
+        .hud-panel {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #hud-overlay {
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: none; /* Shown dynamically during play */
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hud-group {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            pointer-events: auto;
+        }
+
+        .hud-stat {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .gauge-container {
+            width: 100px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.1s ease, background 0.3s ease;
+        }
+
+        #fuel-fill { background: var(--neon-blue); width: 100%; }
+        #health-fill { background: var(--neon-green); width: 100%; }
+
+        /* Game Screens */
+        .screen-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .screen-content {
+            max-width: 540px;
+            width: 100%;
+            animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 50%, var(--accent-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        .btn-level {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 14px;
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .btn-level span.num {
+            font-size: 0.75rem;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-level:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            padding: 14px 28px;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .control-help {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-around;
+            text-align: left;
+        }
+
+        .control-help div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kbd-key {
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-primary);
+            box-shadow: 0 2px 0 #0f172a;
+        }
+
+        /* Top Bar Navigation */
+        #nav-header {
+            width: 1000px;
+            max-width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .nav-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .utility-btn {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .utility-btn:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* Mobile Controller Overlay */
+        #mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 10;
+            display: none; /* Toggled on touch screens */
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        .ctrl-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            touch-action: manipulation;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+
+        .ctrl-btn:active {
+            transform: scale(0.9);
+            background-color: var(--accent-color);
+        }
+
+        #action-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .btn-wide {
+            border-radius: 12px;
+            width: 100px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Tips ticker */
+        #hint-ticker {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: none;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 1024px) {
+            #game-container {
+                width: 100%;
+                border-radius: 12px;
+            }
+            #nav-header {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 2.2rem; }
+            h2 { font-size: 1.5rem; }
+            p.subtitle { font-size: 0.9rem; }
+            .level-grid { grid-template-columns: 1fr; }
+            .btn-primary { width: 100%; justify-content: center; }
+            .btn-secondary { width: 100%; justify-content: center; margin-left: 0; margin-top: 10px; }
+            #hud-overlay { flex-direction: column; gap: 8px; align-items: stretch; }
+            .hud-group { justify-content: space-between; }
+        }
+    </style>
+</head>
+<body>
+
+    <header id="nav-header">
+        <a href="../index.html" class="nav-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back to Home
+        </a>
+        <button id="mute-btn" class="utility-btn" onclick="game.toggleMute()">🔇</button>
+    </header>
+
+    <main id="game-container">
+        
+        <!-- Canvas Elements -->
+        <canvas id="cargoCanvas"></canvas>
+
+        <!-- Floating HUD during gameplay -->
+        <div id="hud-overlay" class="hud-panel">
+            <div class="hud-group">
+                <div class="hud-stat" id="hud-cargo">Cargo: 0/3</div>
+                <div class="hud-stat" id="hud-cash">Cash: $0</div>
+                <div class="hud-stat" id="hud-efficiency">Efficiency: 100%</div>
+            </div>
+            
+            <div class="hud-group">
+                <div class="hud-stat">Fuel</div>
+                <div class="gauge-container">
+                    <div id="fuel-fill" class="gauge-fill"></div>
+                </div>
+                <div class="hud-stat" style="margin-left: 10px;">Shield</div>
+                <div class="gauge-container">
+                    <div id="health-fill" class="gauge-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hint-ticker"><span id="level-hint">Tip: Land slowly</span></div>
+
+        <!-- Touch Controls for Mobile/Tablets -->
+        <div id="mobile-controls">
+            <div style="display:flex; gap: 12px;">
+                <div id="ctrl-left" class="ctrl-btn">◀</div>
+                <div id="ctrl-right" class="ctrl-btn">▶</div>
+            </div>
+            <div id="action-controls">
+                <div id="ctrl-dispense" class="ctrl-btn btn-wide">Load</div>
+                <div id="ctrl-thrust" class="ctrl-btn">▲</div>
+            </div>
+        </div>
+
+        <!-- SCREEN OVERLAY: MENU SCREEN -->
+        <div id="menu-screen" class="screen-overlay">
+            <div class="screen-content">
+                <h1>CargoLander</h1>
+                <p class="subtitle">Supply Chain Physics Simulation. Transport cargo from Sourcing Depots to matching color-coded Delivery Hubs. Don't drop the payload!</p>
+                
+                <h2 style="font-size: 1.1rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; text-align: left;">Select Mission</h2>
+                <div class="level-grid">
+                    <button class="btn-level" onclick="game.startLevel(0)">
+                        <span class="num">Mission 1</span>
+                        Normal Distribution
+                    </button>
+                    <button class="btn-level" onclick="game.startLevel(1)">
+                        <span class="num">Mission 2</span>
+                        Cross-Dock Sorting
+                    </button>
+                    <button class="btn-level" onclick="game.startLevel(2)">
+                        <span class="num">Mission 3</span>
+                        Gale-Force Winds
+                    </button>
+                    <button class="btn-level" onclick="game.startLevel(3)">
+                        <span class="num">Mission 4</span>
+                        Gravity Anomaly
+                    </button>
+                </div>
+
+                <div class="control-help">
+                    <div>
+                        <span class="kbd-key">W</span> / <span class="kbd-key">▲</span>
+                        <span>Thrusters</span>
+                    </div>
+                    <div>
+                        <span class="kbd-key">A</span> / <span class="kbd-key">D</span>
+                        <span>Rotate</span>
+                    </div>
+                    <div>
+                        <span class="kbd-key">Space</span>
+                        <span>Dispense Cargo</span>
+                    </div>
+                    <div>
+                        <span class="kbd-key">R</span>
+                        <span>Reset Mission</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN OVERLAY: LEVEL COMPLETE SCREEN -->
+        <div id="complete-screen" class="screen-overlay" style="display: none;">
+            <div class="screen-content">
+                <h2 id="lvl-complete-title" style="color: var(--neon-green)">Mission Success!</h2>
+                <p class="subtitle" style="margin-bottom: 1.5rem;">The supply chain delivers on time. Packages received safely at destination terminals.</p>
+                
+                <div id="lvl-complete-details" style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 20px; border-radius: 16px; margin-bottom: 2rem; text-align: left; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Filled dynamically -->
+                </div>
+
+                <button class="btn-primary" onclick="game.nextLevel()">Next Mission ➔</button>
+                <button class="btn-secondary" onclick="game.restartLevel()">Replay</button>
+            </div>
+        </div>
+
+        <!-- SCREEN OVERLAY: FAIL SCREEN -->
+        <div id="fail-screen" class="screen-overlay" style="display: none;">
+            <div class="screen-content">
+                <h2 style="color: var(--neon-red)">Cargo Dispatch Failed</h2>
+                <p class="subtitle" style="margin-bottom: 2rem;">Lander structure was compromised or ran completely out of fuel. Logistics efficiency dropped to zero.</p>
+                
+                <button class="btn-primary" onclick="game.restartLevel()">Restart Mission</button>
+                <button class="btn-secondary" onclick="document.getElementById('fail-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'">Exit to Menu</button>
+            </div>
+        </div>
+
+        <!-- SCREEN OVERLAY: VICTORY SCREEN -->
+        <div id="victory-screen" class="screen-overlay" style="display: none;">
+            <div class="screen-content">
+                <h2 style="color: var(--neon-blue); font-size: 2.5rem;">Supply Chain Master!</h2>
+                <p class="subtitle" style="margin-bottom: 2rem;">All global delivery channels are fully optimized. You have completed every mission with outstanding logistics efficiency!</p>
+                
+                <button class="btn-primary" onclick="game.cash=0; game.startLevel(0)">Play Again</button>
+                <button class="btn-secondary" onclick="document.getElementById('victory-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'">Main Menu</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Script imports -->
+    <script src="audio.js"></script>
+    <script src="physics.js"></script>
+    <script src="game.js"></script>
+    
+    <script>
+        // Start the game!
+        game.init('cargoCanvas');
+
+        // Detect touch interface and toggle visual buttons
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            document.getElementById('mobile-controls').style.display = 'flex';
+            document.getElementById('hint-ticker').style.display = 'block';
+
+            // Connect touch buttons to game keys
+            const touchControls = [
+                { id: 'ctrl-left', key: 'a' },
+                { id: 'ctrl-right', key: 'd' },
+                { id: 'ctrl-thrust', key: 'w' }
+            ];
+
+            touchControls.forEach(ctrl => {
+                const el = document.getElementById(ctrl.id);
+                
+                el.addEventListener('touchstart', (e) => {
+                    game.keys[ctrl.key] = true;
+                    e.preventDefault();
+                }, {passive: false});
+
+                el.addEventListener('touchend', (e) => {
+                    game.keys[ctrl.key] = false;
+                    e.preventDefault();
+                }, {passive: false});
+            });
+
+            // Action button for cargo load
+            document.getElementById('ctrl-dispense').addEventListener('touchstart', (e) => {
+                game.triggerCargoDispense();
+                e.preventDefault();
+            }, {passive: false});
+        }
+    </script>
+</body>
+</html>
