@@ -158,7 +158,8 @@ class CargoGame {
         
         // Hide menus, show HUD
         document.getElementById('menu-screen').style.display = 'none';
-        document.getElementById('level-complete-screen').style.display = 'none';
+        const completeScreen = document.getElementById('complete-screen');
+        if (completeScreen) completeScreen.style.display = 'none';
         const failScreen = document.getElementById('fail-screen');
         if (failScreen) failScreen.style.display = 'none';
         const gameOverScreen = document.getElementById('game-over-screen');
