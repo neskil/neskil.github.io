@@ -45,9 +45,9 @@
 
         #game-container {
             position: relative;
-            width: 1000px;
-            height: 600px;
-            max-width: 100%;
+            width: 95vw;
+            max-width: 1400px;
+            height: auto;
             aspect-ratio: 1000/600;
             height: auto;
             border-radius: 20px;
@@ -412,6 +412,20 @@
     </style>
 </head>
 <body>
+    <!-- On-Screen Error Logger for Debugging -->
+    <div id="error-log" style="position: absolute; top: 0; left: 0; z-index: 9999; background: rgba(255,0,0,0.8); color: white; padding: 10px; width: 100%; display: none; font-family: monospace; font-size: 14px; pointer-events: none;"></div>
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerHTML += `<b>Error:</b> ${msg} <br><b>Line:</b> ${line}:${col}<br><b>Stack:</b> ${error ? error.stack : ''}<hr>`;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerHTML += `<b>Unhandled Promise:</b> ${event.reason}<hr>`;
+        });
+    </script>
 
     <header id="nav-header">
         <a href="../index.html" class="nav-btn">
@@ -526,13 +540,25 @@
         </div>
 
         <!-- SCREEN OVERLAY: FAIL SCREEN -->
-        <div id="fail-screen" class="screen-overlay" style="display: none;">
-            <div class="screen-content">
-                <h2 style="color: var(--neon-red)">Cargo Dispatch Failed</h2>
-                <p class="subtitle" style="margin-bottom: 2rem;">Lander structure was compromised or ran completely out of fuel. Logistics efficiency dropped to zero.</p>
-                
-                <button class="btn-primary" onclick="game.restartLevel()">Restart Mission</button>
-                <button class="btn-secondary" onclick="document.getElementById('fail-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'">Exit to Menu</button>
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="menu-overlay hidden">
+            <h2 style="color:#ef4444; font-size: 2.5rem;">Cargo Dispatch Failed</h2>
+            <p style="margin-bottom: 2rem; color: var(--text-secondary);">Lander structure was compromised or ran completely out of fuel.<br>Logistics efficiency dropped to zero.</p>
+            
+            <div style="display:flex; gap:15px;">
+                <button class="btn-primary" onclick="game.startLevel(game.currentLevelIndex)">Restart Mission</button>
+                <button class="btn-secondary" onclick="game.returnToMenu()">Exit to Menu</button>
+            </div>
+        </div>
+
+        <!-- Respawn Screen -->
+        <div id="respawn-screen" class="menu-overlay hidden">
+            <h2 style="color:#ef4444; font-size: 2.5rem; text-shadow: 0 0 15px rgba(239, 68, 68, 0.5);">Lander Destroyed</h2>
+            <p style="margin-bottom: 2rem; color: var(--text-secondary);">Structure compromised. Deploy a replacement lander?</p>
+            
+            <div style="display:flex; gap:15px;">
+                <button class="btn-primary" onclick="game.respawnLander()">Deploy New Lander ($200)</button>
+                <button class="btn-secondary" onclick="game.returnToMenu()">Exit to Menu</button>
             </div>
         </div>
 

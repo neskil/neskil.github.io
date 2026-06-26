@@ -5,7 +5,7 @@ class CargoPhysics {
         this.wind = 0;
         this.terrainPoints = [];
         this.deliveryHubs = [];
-        this.sourcingDepot = null;
+        this.collectionPoint = null;
         this.lander = null;
         this.boxes = [];
         this.particles = [];
@@ -38,9 +38,17 @@ class CargoPhysics {
         const w = this.canvasWidth;
         const h = this.canvasHeight;
 
-        // Define Sourcing Depot (Start Pad)
-        this.sourcingDepot = {
+        // Define Start Depot (Spawn Point)
+        this.startDepot = {
             x: 80,
+            y: h - 100,
+            width: 80,
+            height: 15
+        };
+
+        // Define Collection Point (Loading Pad)
+        this.collectionPoint = {
+            x: config.collectionX || 280,
             y: h - 100,
             width: 100,
             height: 15
@@ -53,40 +61,36 @@ class CargoPhysics {
             width: hub.width || 80,
             height: 15,
             color: hub.color, // 'red', 'blue', 'green'
-            type: hub.type
+            type: hub.type,
+            name: hub.name || 'Terminal'
         }));
 
         // Generate heightmap nodes
-        // Make sure we have flat areas at the sourcing depot and delivery hubs
-        const depotLeft = this.sourcingDepot.x - 20;
-        const depotRight = this.sourcingDepot.x + this.sourcingDepot.width + 20;
+        // Make sure we have flat areas at the pads
+        const pads = [
+            { left: this.startDepot.x - 20, right: this.startDepot.x + this.startDepot.width + 20, y: this.startDepot.y },
+            { left: this.collectionPoint.x - 20, right: this.collectionPoint.x + this.collectionPoint.width + 20, y: this.collectionPoint.y }
+        ];
 
-        const hubPads = this.deliveryHubs.map(hub => ({
-            left: hub.x - 20,
-            right: hub.x + hub.width + 20,
-            y: hub.y
-        }));
+        for (const hub of this.deliveryHubs) {
+            pads.push({ left: hub.x - 20, right: hub.x + hub.width + 20, y: hub.y });
+        }
 
         // Terrain resolution: point every 20 pixels
         const step = 20;
         for (let x = 0; x <= w; x += step) {
             let y = h - 60; // Default flat-ish height
 
-            // Check if inside Sourcing Depot
-            if (x >= depotLeft && x <= depotRight) {
-                y = this.sourcingDepot.y;
-            } else {
-                // Check if inside any Delivery Hub
-                let inHub = false;
-                for (const pad of hubPads) {
-                    if (x >= pad.left && x <= pad.right) {
-                        y = pad.y;
-                        inHub = true;
-                        break;
-                    }
+            let inPad = false;
+            for (const pad of pads) {
+                if (x >= pad.left && x <= pad.right) {
+                    y = pad.y;
+                    inPad = true;
+                    break;
                 }
+            }
 
-                if (!inHub) {
+            if (!inPad) {
                     // Generate landscape geometry based on level config
                     if (config.terrainType === 'mountain') {
                         // High mountain in the middle
@@ -122,18 +126,19 @@ class CargoPhysics {
     }
 
     spawnLander(config) {
-        // Position lander centered above Sourcing Depot
+        // Position lander centered on Start Depot pad
         this.lander = {
-            x: this.sourcingDepot.x + this.sourcingDepot.width / 2,
-            y: this.sourcingDepot.y - 40,
+            x: this.startDepot.x + this.startDepot.width / 2,
+            y: this.startDepot.y - 16,
             vx: 0,
             vy: 0,
             angle: 0,
             angularVelocity: 0,
             width: 48,
             height: 32,
-            deckWidth: 40, // Cargo platform size
+            deckWidth: 80, // Larger basket size
             deckOffset: 12, // Pixels above center
+            basketHeight: 25, // Side wall height for the basket
             fuel: 100,
             maxFuel: 100,
             integrity: 100,
@@ -148,17 +153,27 @@ class CargoPhysics {
     }
 
     spawnCargo(type) {
-        // Drop box from dispenser above Sourcing Depot
+        const emojis = {
+            'red': ['🧨', '🧲', '🛢️', '🩸'],
+            'blue': ['❄️', '🐟', '🧊', '💉'],
+            'green': ['🍏', '🌿', '🔋', '🥑'],
+            'normal': ['🍎', '🍌', '🔨', '🔧', '📦', '🧸']
+        };
+        const typeList = emojis[type] || emojis['normal'];
+        const randomEmoji = typeList[Math.floor(Math.random() * typeList.length)];
+
+        // Drop box gently from just above the collection point
         const newBox = {
             id: Math.random().toString(36).substr(2, 9),
-            x: this.sourcingDepot.x + this.sourcingDepot.width / 2 + (Math.random() - 0.5) * 10,
-            y: this.sourcingDepot.y - 180,
+            x: this.collectionPoint.x + this.collectionPoint.width / 2 + (Math.random() - 0.5) * 10,
+            y: this.collectionPoint.y - 60,
             vx: 0,
-            vy: 2,
+            vy: 0,
             type: type, // 'red', 'blue', 'green'
             size: this.BOX_SIZE,
             mass: 1.0,
-            onDeck: false
+            onDeck: false,
+            emoji: randomEmoji
         };
         this.boxes.push(newBox);
     }
@@ -221,7 +236,7 @@ class CargoPhysics {
         if (lander.crashed) return;
 
         // Rotation
-        const torque = 0.004;
+        const torque = 0.012; // Increased for higher responsiveness
         if (lander.rotatingLeft) {
             lander.angularVelocity -= torque;
             lander.landed = false;
@@ -231,12 +246,12 @@ class CargoPhysics {
             lander.landed = false;
         }
 
-        // Apply angular damping
-        lander.angularVelocity *= 0.96;
+        // Apply angular damping (stronger damping for stability)
+        lander.angularVelocity *= 0.90;
         lander.angle += lander.angularVelocity;
 
         // Thrust
-        const thrustForce = 0.32;
+        const thrustForce = 0.55; // Much stronger thrust for agile flight
         lander.thrusting = false;
         
         if (lander.thrustingActive && lander.fuel > 0) {
@@ -354,11 +369,16 @@ class CargoPhysics {
             let onPad = false;
             let padType = null;
             
-            // Check if landed at sourcing depot
-            if (groundPt.x >= this.sourcingDepot.x && groundPt.x <= this.sourcingDepot.x + this.sourcingDepot.width) {
-                if (Math.abs(groundPt.y - this.sourcingDepot.y) < 5) {
+            // Check if landed at start depot or collection point
+            if (groundPt.x >= this.startDepot.x && groundPt.x <= this.startDepot.x + this.startDepot.width) {
+                if (Math.abs(groundPt.y - this.startDepot.y) < 5) {
                     onPad = true;
-                    padType = 'sourcing';
+                    padType = 'start';
+                }
+            } else if (groundPt.x >= this.collectionPoint.x && groundPt.x <= this.collectionPoint.x + this.collectionPoint.width) {
+                if (Math.abs(groundPt.y - this.collectionPoint.y) < 5) {
+                    onPad = true;
+                    padType = 'collection';
                 }
             } else {
                 // Check delivery hubs
@@ -390,8 +410,8 @@ class CargoPhysics {
                 lander.landed = true;
                 lander.currentPad = padType;
                 
-                // Slowly repair small damage when parked at sourcing depot
-                if (padType === 'sourcing' && lander.integrity < lander.maxIntegrity) {
+                // Slowly repair small damage when parked at start depot
+                if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
                     lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
                     // Slow fuel refill
                     lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
@@ -574,36 +594,69 @@ class CargoPhysics {
 
             // Collision check: box overlaps with deck segment horizontally & vertically
             if (Math.abs(projT) < halfW + halfS && projN > -halfS && projN < halfS + 5) {
-                // We have a collision!
-                // Penetration depth from above
+                // Deck Floor Collision!
                 const pen = halfS - projN;
                 if (pen > 0) {
-                    // Push out along lander deck normal
                     box.x += nx * pen;
                     box.y += ny * pen;
 
-                    // Lander linear velocity at deck (ignoring rotation factor for simplicity,
-                    // but we can add linear transfer)
                     const lvx = lander.vx;
                     const lvy = lander.vy;
-
-                    // Rel velocity
                     const rvx = box.vx - lvx;
                     const rvy = box.vy - lvy;
 
-                    // Normal relative velocity
                     const rvn = rvx * nx + rvy * ny;
                     if (rvn < 0) {
-                        // Apply restitution impulse
                         const imp = -(1 + this.BOX_RESTITUTION) * rvn;
                         box.vx += imp * nx;
                         box.vy += imp * ny;
 
-                        // Apply friction along deck tangent
                         const rvt = rvx * tx + rvy * ty;
                         const fImp = -this.BOX_FRICTION * rvt;
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
+                    }
+                }
+            }
+
+            // Left Wall Collision
+            // The left wall goes from x = -halfW, up to y = basketHeight
+            if (projT > -halfW - halfS && projT < -halfW + halfS && projN > -halfS && projN < lander.basketHeight) {
+                const pen = (halfS) - Math.abs(projT + halfW);
+                if (pen > 0) {
+                    // Push out along tangent (positive x relative to lander)
+                    box.x += tx * pen;
+                    box.y += ty * pen;
+                    
+                    const rvx = box.vx - lander.vx;
+                    const rvy = box.vy - lander.vy;
+                    const rvt = rvx * tx + rvy * ty;
+                    
+                    if (rvt < 0) {
+                        const imp = -(1 + this.BOX_RESTITUTION) * rvt;
+                        box.vx += imp * tx;
+                        box.vy += imp * ty;
+                    }
+                }
+            }
+
+            // Right Wall Collision
+            // The right wall goes from x = halfW, up to y = basketHeight
+            if (projT > halfW - halfS && projT < halfW + halfS && projN > -halfS && projN < lander.basketHeight) {
+                const pen = (halfS) - Math.abs(projT - halfW);
+                if (pen > 0) {
+                    // Push out along negative tangent
+                    box.x -= tx * pen;
+                    box.y -= ty * pen;
+                    
+                    const rvx = box.vx - lander.vx;
+                    const rvy = box.vy - lander.vy;
+                    const rvt = rvx * tx + rvy * ty;
+                    
+                    if (rvt > 0) {
+                        const imp = -(1 + this.BOX_RESTITUTION) * rvt;
+                        box.vx += imp * tx;
+                        box.vy += imp * ty;
                     }
                 }
             }
