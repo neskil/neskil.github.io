@@ -12,13 +12,17 @@ Load order: `audio.js → shaders.js → physics.js → game.js`, then `game.ini
 
 ## Key Conventions
 - `dt` = `elapsedMs / 16.666` (normalized to 60fps). Most physics constants are per-frame at 60fps.
-- Vehicle types: `'basic'` (upright arcade), `'advanced'` (mouse-aimed rotation), `'drone'` (winch)
+- Vehicle types: `'basic'` (upright arcade), `'advanced'` (mouse-aimed rotation, removed from UI), `'drone'` (winch)
+- `'advanced'` vehicle type still exists in physics code but has been removed from the vehicle selector UI
 - `this.lander.deckWidth = 66` → `hw = 33` used throughout for layout (width 40, height 28)
 - `currentPad` set when speed ≤ 2.0, angle ≤ 8°, proximity check; also used proximity check for cargo dispense
 - Level color themes: each level has `palette: { skyTop, skyMid, skyBot, terrainFill, rockEdge, rockGlow, fog }`
 - `rockGlow` is a **partial CSS rgba string** like `'rgba(34,197,94,'` — append opacity e.g. `${pal.rockGlow}0.10)`
 - `localStorage` keys: `cargoLanderCash`, `cargoLanderUpgrades`, `cargoLanderCareer`, `cargoLanderHighscores`
 - `padScale` on level config scales all pad widths: L1=1.5, L2=1.2, L3=0.85, L4=0.70 (L5 has explicit narrow hub)
+- `BOX_SIZE = 28` (was 20)
+- Biome palette themes: L1=grassland, L2=desert/amber, L3=arctic/ice, L4=volcanic/orange, L5=crystal cave/purple
+- Underground easter eggs: L4 has server racks 60px below terrain surface; L5 has crystal formations underground
 
 ## Security: `.claude/` Must NEVER Be Committed
 The `.claude/` folder contains machine-specific Windows absolute paths. Add to `.gitignore` if missing.
@@ -62,6 +66,11 @@ Score = `(ownedUpgradeLevels / 13) * 0.55 + (levelsMastered / numLevels) * 0.45`
 - [ ] Procedural map generator
 
 ## Recent Completed Features
+- Biome-themed level palettes (grassland/desert/ice/volcanic/crystal cave)
+- Damage flash: red vignette + HULL DAMAGE text + screen shake on integrity hit
+- Underground easter eggs: data center visible through L4 cave terrain; crystal formations on L5
+- Cargo box visual improvements: BOX_SIZE 20→28, type-specific emoji (⚠️❄️♻️📦, 15px font) + STD/type label fallback
+- Lander redesign: bounce offset lifts body on landing, clearer flatbed deck with ribbing + rails, nozzle glows when thrusting, flame/nozzle coords aligned to new body geometry
 - Level color palettes (5 levels, sky gradient + terrain + rock glow)
 - Instant thruster cut-off, fly-up = OOB trigger, moving gravity well, leg spring on landing
 - Space truck traffic: both directions, tilt-and-fly-off-into-space, varied hull colors

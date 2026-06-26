@@ -13,7 +13,7 @@ class CargoPhysics {
         this.canvasHeight = 600;
 
         // Physics constants
-        this.BOX_SIZE = 20;
+        this.BOX_SIZE = 28;
         this.BOX_RESTITUTION = 0.2;
         this.BOX_FRICTION = 0.4;
         this.LANDER_RESTITUTION = 0.15;
