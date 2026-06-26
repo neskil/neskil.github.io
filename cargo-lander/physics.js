@@ -69,11 +69,13 @@ class CargoPhysics {
         const w = this.levelWidth;
         const h = this.levelHeight;
 
+        const ps = config.padScale || 1.0;
+
         // Define Start Depot (Spawn Point) template
         this.startDepot = {
             x: 80,
             y: h - 100, // Updated dynamically
-            width: 80,
+            width: Math.round(80 * ps),
             height: 15
         };
 
@@ -81,7 +83,7 @@ class CargoPhysics {
         this.collectionPoint = {
             x: config.collectionX || 280,
             y: h - 100, // Updated dynamically
-            width: 100,
+            width: Math.round(100 * ps),
             height: 15
         };
 
@@ -89,7 +91,7 @@ class CargoPhysics {
         this.deliveryHubs = config.deliveryHubs.map(hub => ({
             x: hub.x,
             y: h - 100, // Updated dynamically
-            width: hub.width || 80,
+            width: Math.round((hub.width || 80) * ps),
             height: 15,
             color: hub.color,
             type: hub.type,
@@ -157,9 +159,9 @@ class CargoPhysics {
             vy: 0,
             angle: 0,
             angularVelocity: 0,
-            width: vehicleType === 'drone' ? 32 : 48,
-            height: vehicleType === 'drone' ? 16 : 32,
-            deckWidth: 80, // Larger basket size
+            width: vehicleType === 'drone' ? 32 : 40,
+            height: vehicleType === 'drone' ? 16 : 28,
+            deckWidth: 66,
             deckOffset: 12, // Pixels above center
             basketHeight: 25, // Side wall height for the basket
             fuel: 100,
@@ -311,7 +313,7 @@ class CargoPhysics {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
         }
 
-        if (!this.monster && this.outOfBoundsTimer > 120) { // 2 seconds at 60fps
+        if (!this.monster && this.outOfBoundsTimer > 50) { // ~0.8 seconds at 60fps
             // Spawn monster from the deep below
             this.monster = {
                 x: lander.x < -150 ? lander.x - 400 : lander.x + 400,
@@ -648,7 +650,7 @@ class CargoPhysics {
 
             if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
                 // Safe Landing!
-                if (!lander.landed) lander.legCompress = Math.min(1, speed * 0.5); // spring on first touch
+                if (!lander.landed && onPad) lander.legCompress = Math.min(1, speed * 0.5);
                 lander.y -= minPen;
                 lander.vy = 0;
                 lander.vx = 0;
