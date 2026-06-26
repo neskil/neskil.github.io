@@ -298,9 +298,10 @@ class CargoPhysics {
                 vx: 0,
                 vy: -5,
                 size: 80,
-                roarTimer: 60
+                roarTimer: 60,
+                trail: [] // body segment trail
             };
-            if (window.CargoAudio) CargoAudio.playCrash(); // Use crash as a temporary roar
+            if (window.CargoAudio) CargoAudio.playCrash();
         }
 
         if (this.monster) {
@@ -312,22 +313,31 @@ class CargoPhysics {
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 0) {
-                const speed = 0.25; // Scary fast acceleration
+                const speed = 0.25;
                 m.vx += (dx / dist) * speed * dt;
                 m.vy += (dy / dist) * speed * dt;
             }
             
-            // Dampen velocity to prevent infinite acceleration (max speed limit)
+            // Dampen velocity
             m.vx *= Math.pow(0.98, dt);
             m.vy *= Math.pow(0.98, dt);
             
             m.x += m.vx * dt;
             m.y += m.vy * dt;
 
+            // Record trail for body segments (distance-based, every 2px)
+            if (!m.trail) m.trail = [];
+            const lastTP = m.trail[0];
+            if (!lastTP || Math.hypot(m.x - lastTP.x, m.y - lastTP.y) >= 2) {
+                m.trail.unshift({ x: m.x, y: m.y });
+                if (m.trail.length > 800) m.trail.pop();
+            }
+
             // Lethal Contact — eat the lander then vanish
             if (dist < m.size / 2 + lander.width / 2) {
                 this.triggerExplosion();
-                this.monster = null; // Monster despawns after eating
+                this.monster = null;
+
                 this.outOfBoundsTimer = 0; // Reset so it can't immediately respawn
             }
         }
