@@ -518,6 +518,194 @@
         .hidden {
             display: none !important;
         }
+
+        /* ===== Menu layout: mission selector + pilot license ===== */
+        .menu-panes {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 24px;
+            text-align: left;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .menu-panes {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .menu-right {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Pilot license card */
+        .pilot-card {
+            background: linear-gradient(160deg, rgba(56,189,248,0.08), rgba(99,102,241,0.05));
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .license-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pilot-avatar {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            border-radius: 12px;
+            background: rgba(56,189,248,0.12);
+            border: 1px solid rgba(56,189,248,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .license-title-block {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .license-eyebrow {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-secondary);
+        }
+
+        .license-name-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed rgba(56,189,248,0.4);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.05rem;
+            width: 100%;
+            padding: 2px 0;
+            margin: 2px 0;
+            outline: none;
+            font-family: 'Outfit', sans-serif;
+        }
+        .license-name-input:focus {
+            border-bottom-color: var(--neon-blue);
+        }
+
+        .license-rank {
+            font-size: 0.78rem;
+            color: var(--neon-blue);
+            font-weight: 600;
+        }
+
+        .license-badge {
+            background: rgba(245,158,11,0.15);
+            border: 1px solid rgba(245,158,11,0.4);
+            color: #f59e0b;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 4px 8px;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .stat-cell {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+
+        .stat-cell-label {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .stat-cell-value {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-top: 2px;
+        }
+        .stat-cell-value.green { color: var(--neon-green); }
+        .stat-cell-value.blue  { color: var(--neon-blue); }
+        .stat-cell-value.amber { color: #f59e0b; }
+        .stat-cell-value.red   { color: var(--neon-red); }
+
+        .upgrade-chip {
+            background: rgba(99,102,241,0.15);
+            border: 1px solid rgba(99,102,241,0.35);
+            color: #c7d2fe;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 999px;
+        }
+
+        /* Highscores card */
+        .highscores-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 14px 16px;
+        }
+
+        .hs-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .hs-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 0.8rem;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-secondary);
+        }
+        .hs-row:last-child { border-bottom: none; }
+        .hs-val { color: var(--neon-green); font-weight: 600; }
+
+        /* Career action buttons */
+        .career-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-career {
+            flex: 1;
+            border: 1px solid var(--glass-border);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-career:hover { background: rgba(255,255,255,0.09); }
+        .btn-career.amber { border-color: rgba(245,158,11,0.4); color: #f59e0b; }
+        .btn-career.amber:hover { background: rgba(245,158,11,0.12); }
+        .btn-career.red { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+        .btn-career.red:hover { background: rgba(239,68,68,0.12); }
     </style>
 </head>
 <body>
@@ -815,8 +1003,8 @@
                 <h2 style="color: var(--neon-blue); font-size: 2.5rem;">Supply Chain Master!</h2>
                 <p class="subtitle" style="margin-bottom: 2rem;">All global delivery channels are fully optimized. You have completed every mission with outstanding logistics efficiency!</p>
                 
-                <button class="btn-primary" onclick="game.cash=0; game.startLevel(0)">Play Again</button>
-                <button class="btn-secondary" onclick="document.getElementById('victory-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'">Main Menu</button>
+                <button class="btn-primary" onclick="game.startLevel(0)">Play Again</button>
+                <button class="btn-secondary" onclick="game.goToMenu()">Main Menu</button>
             </div>
         </div>
 

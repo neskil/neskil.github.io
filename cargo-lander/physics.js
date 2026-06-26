@@ -247,8 +247,8 @@ class CargoPhysics {
         
         const dx = delta * 2;
         const dy = y2 - y1;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+
         return {
             tx: dx / len,
             ty: dy / len,
@@ -759,7 +759,7 @@ class CargoPhysics {
             box.y += box.vy * dt;
             
             // Magnetic Deck Physics
-            if (this.lander && this.lander.vehicleType === 'lander' && this.lander.magneticDeckActive && !this.lander.crashed) {
+            if (this.lander && this.lander.vehicleType !== 'drone' && this.lander.magneticDeckActive && !this.lander.crashed) {
                 const deckX = this.lander.x - Math.sin(this.lander.angle) * this.lander.deckOffset;
                 const deckY = this.lander.y - Math.cos(this.lander.angle) * this.lander.deckOffset;
                 

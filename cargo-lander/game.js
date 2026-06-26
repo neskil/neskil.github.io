@@ -110,7 +110,19 @@ class CargoGame {
         };
         this.missionBudget = 0;
         this.missionTimer = 0;
-        
+
+        // Persistent career stats (pilot license card + highscores)
+        this.career = JSON.parse(localStorage.getItem('cargoLanderCareer')) || {
+            pilotName: '',
+            totalDeliveries: 0,
+            missionsComplete: 0,
+            crashes: 0
+        };
+        this.highscores = JSON.parse(localStorage.getItem('cargoLanderHighscores')) || {};
+
+        // Last-selected vehicle, reused by Replay / Next Mission / Restart
+        this.currentVehicle = 'basic';
+
         this.score = 100; // Efficiency rating %
         this.deliveredCount = 0;
         this.deliveredTypes = {}; 
@@ -149,6 +161,7 @@ class CargoGame {
         
         // Initialize UI display values
         this.updateHUD();
+        this.refreshMenuUI();
 
         // Initialize WebGL Shaders overlay
         if (typeof ShaderOverlay !== 'undefined') {
@@ -242,8 +255,6 @@ class CargoGame {
         
         const completeScreen = document.getElementById('complete-screen');
         if (completeScreen) completeScreen.style.display = 'none';
-        const failScreen = document.getElementById('fail-screen');
-        if (failScreen) failScreen.style.display = 'none';
         const gameOverScreen = document.getElementById('game-over-screen');
         if (gameOverScreen) gameOverScreen.classList.add('hidden');
         const respawnScreen = document.getElementById('respawn-screen');
@@ -252,6 +263,146 @@ class CargoGame {
         if (upgradeScreen) upgradeScreen.style.display = 'none';
         const vehicleScreen = document.getElementById('vehicle-screen');
         if (vehicleScreen) vehicleScreen.style.display = 'none';
+        const victoryScreen = document.getElementById('victory-screen');
+        if (victoryScreen) victoryScreen.style.display = 'none';
+        const settingsScreen = document.getElementById('settings-screen');
+        if (settingsScreen) settingsScreen.style.display = 'none';
+
+        this.refreshMenuUI();
+    }
+
+    // ---- Persistent career helpers ----
+    saveCareer() {
+        localStorage.setItem('cargoLanderCareer', JSON.stringify(this.career));
+    }
+
+    saveHighscores() {
+        localStorage.setItem('cargoLanderHighscores', JSON.stringify(this.highscores));
+    }
+
+    setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    // Populate the pilot-license card, upgrade chips, highscore list & badges
+    refreshMenuUI() {
+        // Pilot name (don't clobber while the user is typing in it)
+        const nameInput = document.getElementById('pilot-name-input');
+        if (nameInput && document.activeElement !== nameInput) {
+            nameInput.value = this.career.pilotName || '';
+        }
+
+        // Career stat cells
+        this.setText('lc-cash', '$' + this.globalCash.toLocaleString());
+        this.setText('lc-deliveries', this.career.totalDeliveries);
+        this.setText('lc-missions', this.career.missionsComplete);
+        this.setText('lc-crashes', this.career.crashes);
+        this.updatePilotRank();
+
+        // Installed upgrade chips
+        const upgEl = document.getElementById('lc-upgrades');
+        if (upgEl) {
+            const owned = upgradeCatalog.filter(u => (this.upgrades[u.id] || 0) > 0);
+            upgEl.innerHTML = owned.length
+                ? owned.map(u => `<span class="upgrade-chip">${u.name} L${this.upgrades[u.id]}</span>`).join('')
+                : '<span style="color:var(--text-secondary); font-size:0.75rem;">None installed yet</span>';
+        }
+
+        // Highscores list + per-mission badges
+        const hsList = document.getElementById('hs-list');
+        if (hsList) {
+            hsList.innerHTML = levels.map((lv, i) => {
+                const best = this.highscores[i];
+                return `<div class="hs-row"><span>${lv.name}</span><span class="hs-val">${best ? '$' + best.toLocaleString() : '—'}</span></div>`;
+            }).join('');
+        }
+        levels.forEach((lv, i) => {
+            const badge = document.getElementById('hs-badge-' + i);
+            if (badge) badge.textContent = this.highscores[i] ? 'Best: $' + this.highscores[i].toLocaleString() : '';
+        });
+    }
+
+    updatePilotRank() {
+        const m = this.career.missionsComplete;
+        let rank = 'Rookie Hauler', tier = 'CLASS F';
+        if (m >= 20)      { rank = 'Logistics Legend'; tier = 'CLASS S'; }
+        else if (m >= 12) { rank = 'Fleet Commander';  tier = 'CLASS A'; }
+        else if (m >= 6)  { rank = 'Senior Pilot';     tier = 'CLASS B'; }
+        else if (m >= 3)  { rank = 'Cargo Pilot';      tier = 'CLASS C'; }
+        else if (m >= 1)  { rank = 'Junior Hauler';    tier = 'CLASS D'; }
+        this.setText('pilot-rank', rank);
+        this.setText('pilot-tier', tier);
+    }
+
+    updatePilotName(value) {
+        this.career.pilotName = value;
+        this.saveCareer();
+    }
+
+    confirmResetCareer() {
+        if (!confirm('Reset your entire career? This wipes cash, upgrades, deliveries, and high scores. This cannot be undone.')) {
+            return;
+        }
+        this.globalCash = 1000;
+        this.upgrades = {
+            thrusterEfficiency: 0,
+            boostMode: 0,
+            magneticDeck: 0,
+            winchExtender: 0,
+            hullPlating: 0
+        };
+        this.career = { pilotName: this.career.pilotName, totalDeliveries: 0, missionsComplete: 0, crashes: 0 };
+        this.highscores = {};
+
+        localStorage.setItem('cargoLanderCash', this.globalCash);
+        localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
+        this.saveCareer();
+        this.saveHighscores();
+
+        this.refreshMenuUI();
+    }
+
+    // ---- Audio settings modal ----
+    openSettings() {
+        const s = document.getElementById('settings-screen');
+        if (!s) return;
+        // Sync controls to the actual current audio state
+        const muteCb = document.getElementById('setting-mute');
+        if (muteCb) muteCb.checked = this.isMuted;
+
+        const mv = Math.round(CargoAudio.musicVolume * 100);
+        const sv = Math.round(CargoAudio.sfxVolume * 100);
+        const musicSlider = document.getElementById('setting-music-vol');
+        const sfxSlider = document.getElementById('setting-sfx-vol');
+        if (musicSlider) musicSlider.value = mv;
+        if (sfxSlider) sfxSlider.value = sv;
+        this.setText('music-vol-val', mv + '%');
+        this.setText('sfx-vol-val', sv + '%');
+
+        s.style.display = 'flex';
+    }
+
+    closeSettings() {
+        const s = document.getElementById('settings-screen');
+        if (s) s.style.display = 'none';
+    }
+
+    toggleMuteFromCheckbox(checked) {
+        this.isMuted = checked;
+        if (window.CargoAudio) CargoAudio.setMuted(checked);
+    }
+
+    setMusicVolume(value) {
+        const v = parseInt(value, 10);
+        this.setText('music-vol-val', v + '%');
+        if (window.CargoAudio) CargoAudio.setMusicVolume(v / 100);
+    }
+
+    setSFXVolume(value) {
+        const v = parseInt(value, 10);
+        this.setText('sfx-vol-val', v + '%');
+        if (window.CargoAudio) CargoAudio.setSFXVolume(v / 100);
     }
 
     showVehicleSelection(idx) {
@@ -313,8 +464,9 @@ class CargoGame {
         }
     }
 
-    startLevel(idx, vehicleType = 'basic') {
+    startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
         this.currentLevelIndex = idx;
+        this.currentVehicle = vehicleType; // Remember for Replay / Next Mission / Restart
         this.crashHandled = false;
         const level = levels[idx];
         level.vehicle = vehicleType; // Inject selected vehicle
@@ -346,12 +498,12 @@ class CargoGame {
         document.getElementById('menu-screen').style.display = 'none';
         const completeScreen = document.getElementById('complete-screen');
         if (completeScreen) completeScreen.style.display = 'none';
-        const failScreen = document.getElementById('fail-screen');
-        if (failScreen) failScreen.style.display = 'none';
         const gameOverScreen = document.getElementById('game-over-screen');
         if (gameOverScreen) gameOverScreen.classList.add('hidden');
         const respawnScreen = document.getElementById('respawn-screen');
         if (respawnScreen) respawnScreen.classList.add('hidden');
+        const victoryScreen = document.getElementById('victory-screen');
+        if (victoryScreen) victoryScreen.style.display = 'none';
         document.getElementById('hud-overlay').style.display = 'flex';
         document.getElementById('level-hint').textContent = level.hint || '';
 
@@ -637,7 +789,7 @@ class CargoGame {
 
         // Sound effect triggers for thrust
         if (!this.isMuted) {
-            if (lander.thrustingActive && lander.fuel > 0 && !lander.crashed) {
+            if (lander.thrusting && lander.fuel > 0 && !lander.crashed) {
                 CargoAudio.setThruster(1.0);
             } else {
                 CargoAudio.setThruster(0);
@@ -659,7 +811,10 @@ class CargoGame {
         if (lander.crashed && !this.crashHandled) {
             this.crashHandled = true;
             if (!this.isMuted) CargoAudio.setWarning(false);
-            
+
+            this.career.crashes++;
+            this.saveCareer();
+
             this.missionBudget -= 400;
             this.addMessage("Lander Destroyed: -$400", "#ef4444");
             
@@ -727,8 +882,7 @@ class CargoGame {
             // Let's sweep boxes that are within the horizontal bounds of the hub's landing zone
             for (let i = boxes.length - 1; i >= 0; i--) {
                 const box = boxes[i];
-                const dx = box.x - hub.x;
-                
+
                 // If box is near the hub center (and close to the hub platform height)
                 if (box.x >= hub.x - 30 && box.x <= hub.x + hub.width + 30 && box.y > hub.y - 60) {
                     // Check if cargo matches the hub's requirement
@@ -738,10 +892,13 @@ class CargoGame {
                         boxes.splice(i, 1);
 
                         this.deliveredCount++;
+                        this.career.totalDeliveries++;
+                        this.saveCareer();
                         // Economy Loop: Deliveries grant cash instantly!
                         const deliveryReward = 200;
                         this.globalCash += deliveryReward;
                         localStorage.setItem('cargoLanderCash', this.globalCash);
+                        if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
                         this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
                     } else {
                         // Warning: Incorrect Cargo type
@@ -803,9 +960,18 @@ class CargoGame {
         
         const timeBonus = Math.floor(this.missionTimer) * 10;
         const totalPayout = this.missionBudget + timeBonus;
-        
+
         this.globalCash += totalPayout;
         localStorage.setItem('cargoLanderCash', this.globalCash);
+
+        // Career + highscore tracking
+        this.career.missionsComplete++;
+        this.saveCareer();
+        const prevBest = this.highscores[this.currentLevelIndex] || 0;
+        if (totalPayout > prevBest) {
+            this.highscores[this.currentLevelIndex] = totalPayout;
+            this.saveHighscores();
+        }
         
         document.getElementById('complete-screen').style.display = 'flex';
         document.getElementById('lvl-complete-title').textContent = "Extraction Successful!";
