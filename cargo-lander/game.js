@@ -411,7 +411,7 @@ class CargoGame {
         if (respawnScreen) respawnScreen.classList.add('hidden');
         
         const levelConfig = levels[this.currentLevelIndex];
-        this.physics.spawnLander(levelConfig);
+        this.physics.spawnLander(levelConfig, this.upgrades);
     }
 
     toggleGrapple() {
@@ -517,6 +517,32 @@ class CargoGame {
                 healthFill.style.background = '#10b981';
             }
         }
+
+        // Update Cargo & Budget stats
+        const cargoEl = document.getElementById('hud-cargo');
+        if (cargoEl) {
+            cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
+        }
+        const budgetEl = document.getElementById('hud-budget');
+        if (budgetEl) {
+            budgetEl.textContent = `Budget: $${this.missionBudget}`;
+        }
+        const timeEl = document.getElementById('hud-time');
+        if (timeEl) {
+            const mins = Math.floor(this.missionTimer / 60);
+            const secs = Math.floor(this.missionTimer % 60);
+            timeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Toggle extraction button
+        const btnExtract = document.getElementById('btn-extract');
+        if (btnExtract) {
+            if (this.deliveredCount >= level.targetCargo) {
+                btnExtract.classList.remove('hidden');
+            } else {
+                btnExtract.classList.add('hidden');
+            }
+        }
     }
 
     loop(timestamp) {
@@ -570,36 +596,34 @@ class CargoGame {
         const cw = this.canvas.width;
         const ch = this.canvas.height;
         const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
+        let desiredZoom = 1.3;
+        if (lander.vehicleType === 'drone') {
+            desiredZoom -= (lander.ropeLength * 0.003);
+        }
+        desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
 
         if (this.introTimer > 0) {
-            this.introTimer -= dt / 60; // Assuming dt is frames
+            this.introTimer -= dt / 60; 
+            const progress = Math.max(0, Math.min(1, (2.0 - this.introTimer) / 2.0));
+            // Spline curve: smoothstep ease-in-out
+            const s = progress * progress * (3 - 2 * progress);
+            
+            // Interpolate directly via spline
+            this.camera.zoom = minZoom + s * (desiredZoom - minZoom);
+            this.camera.x = (this.physics.levelWidth / 2) + s * (lander.x - (this.physics.levelWidth / 2));
+            this.camera.y = (this.physics.levelHeight / 2) + s * (lander.y - (this.physics.levelHeight / 2));
         } else {
-            // Static base zoom, minus slight zoom if extending rope
-            let desiredZoom = 1.3;
-            
-            // If drone is extending rope, zoom out to see cargo
-            if (lander.vehicleType === 'drone') {
-                desiredZoom -= (lander.ropeLength * 0.003);
-            }
-            
-            desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
             this.camera.targetZoom = desiredZoom;
+            // Smoothly interpolate zoom (frame-rate independent using dt)
+            this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
+
+            // Track target (look slightly ahead of velocity)
+            let targetX = lander.x + (lander.vx * 15);
+            let targetY = lander.y + (lander.vy * 15);
+            
+            this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
+            this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
         }
-
-        // Smoothly interpolate zoom
-        this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05;
-
-        // Track target (look slightly ahead of velocity)
-        let targetX = lander.x + (lander.vx * 15);
-        let targetY = lander.y + (lander.vy * 15);
-        
-        if (this.introTimer > 0) {
-            targetX = this.physics.levelWidth / 2;
-            targetY = this.physics.levelHeight / 2;
-        }
-
-        this.camera.x += (targetX - this.camera.x) * 0.08;
-        this.camera.y += (targetY - this.camera.y) * 0.08;
         // -------------------------------
 
         // Sound effect triggers for thrust
@@ -653,7 +677,9 @@ class CargoGame {
             setTimeout(() => {
                 if (this.gameState === 'playing') {
                     const respawnScreen = document.getElementById('respawn-screen');
-                    if (respawnScreen) respawnScreen.classList.remove('hidden');
+                    if (respawnScreen && this.physics.lander && this.physics.lander.crashed) {
+                        respawnScreen.classList.remove('hidden');
+                    }
                 }
             }, 1000);
         }
