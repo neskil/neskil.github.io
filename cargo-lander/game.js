@@ -926,50 +926,55 @@ class CargoGame {
     drawMinimap() {
         const ctx = this.ctx;
         const cw = this.canvas.width;
-        const ch = this.canvas.height;
-        
-        // Minimap size — wider and taller, anchored to bottom-right
+
+        // Minimap: top-right corner, below the HUD bars
         const mmWidth  = 280;
-        const mmHeight = Math.min(180, Math.max(140, mmWidth * (this.physics.levelHeight / this.physics.levelWidth)));
+        const mmHeight = 160;
         const mmX = cw - mmWidth - 20;
-        const mmY = ch - mmHeight - 20;
-        
-        // Premium Radar Background
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-        ctx.lineWidth = 2;
+        const mmY = 80; // clears the fuel/shield bar row
+
+        // ── Background ────────────────────────────────────────────────────
+        ctx.save();
+
+        // Draw rounded rect background + border
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.82)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 10);
-        } else {
-            ctx.rect(mmX, mmY, mmWidth, mmHeight);
-        }
+        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8);
+        else ctx.rect(mmX, mmY, mmWidth, mmHeight);
         ctx.fill();
         ctx.stroke();
 
-        // Subtle Grid Lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        // ── Clip everything to the minimap box ────────────────────────────
+        // This prevents the lander dot / viewport rect from ever leaking outside
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8);
+        else ctx.rect(mmX, mmY, mmWidth, mmHeight);
+        ctx.clip();
+
+        // Subtle grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        for(let i = 1; i < 4; i++) {
-            ctx.moveTo(mmX + (mmWidth/4)*i, mmY);
-            ctx.lineTo(mmX + (mmWidth/4)*i, mmY + mmHeight);
-            ctx.moveTo(mmX, mmY + (mmHeight/4)*i);
-            ctx.lineTo(mmX + mmWidth, mmY + (mmHeight/4)*i);
+        for (let i = 1; i < 4; i++) {
+            ctx.moveTo(mmX + (mmWidth / 4) * i, mmY);
+            ctx.lineTo(mmX + (mmWidth / 4) * i, mmY + mmHeight);
+            ctx.moveTo(mmX, mmY + (mmHeight / 4) * i);
+            ctx.lineTo(mmX + mmWidth, mmY + (mmHeight / 4) * i);
         }
         ctx.stroke();
-        
-        // Scale factor
-        const scaleX = mmWidth / this.physics.levelWidth;
+
+        // ── World → minimap transform ──────────────────────────────────────
+        const scaleX = mmWidth  / this.physics.levelWidth;
         const scaleY = mmHeight / this.physics.levelHeight;
-        
-        ctx.save();
+
         ctx.translate(mmX, mmY);
         ctx.scale(scaleX, scaleY);
-        
-        // Draw Terrain Silhouette
-        if (this.physics.terrainPoints.length > 0) {
-            ctx.fillStyle = 'rgba(51, 65, 85, 0.6)';
+
+        // ── Terrain silhouette ─────────────────────────────────────────────
+        if (this.physics.terrainPoints && this.physics.terrainPoints.length > 0) {
+            ctx.fillStyle = 'rgba(51, 65, 85, 0.7)';
             ctx.beginPath();
             ctx.moveTo(0, this.physics.levelHeight);
             for (const pt of this.physics.terrainPoints) {
@@ -980,54 +985,90 @@ class CargoGame {
             ctx.fill();
         }
 
-        // Draw pads
-        ctx.fillStyle = '#94a3b8';
+        // ── Pads / hubs ────────────────────────────────────────────────────
+        // Min size in world units so they're visible on the minimap
+        const minW = 6 / scaleX;
+        const minH = 6 / scaleY;
+
         if (this.physics.startDepot) {
             const d = this.physics.startDepot;
-            ctx.fillRect(d.x, d.y, d.width, Math.max(10, d.height)); // Ensures it's visible
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(d.x, d.y - minH, Math.max(d.width, minW), minH * 2);
         }
         if (this.physics.collectionPoint) {
             const cp = this.physics.collectionPoint;
-            ctx.fillStyle = '#fbbf24'; // Yellow
-            ctx.fillRect(cp.x, cp.y, cp.width, Math.max(10, cp.height));
+            ctx.fillStyle = '#fbbf24';
+            ctx.fillRect(cp.x, cp.y - minH, Math.max(cp.width, minW), minH * 2);
         }
         for (const hub of this.physics.deliveryHubs) {
             ctx.fillStyle = hub.color || '#38bdf8';
-            ctx.fillRect(hub.x, hub.y, hub.width, 20); // slightly thicker on radar
+            ctx.fillRect(hub.x, hub.y - minH, Math.max(hub.width, minW), minH * 2);
         }
-        
-        // Draw Boxes
+
+        // ── Cargo boxes ────────────────────────────────────────────────────
+        const boxR = 12 / Math.max(scaleX, scaleY); // world-space radius
         for (const box of this.physics.boxes) {
             ctx.fillStyle = box.color || '#fff';
-            ctx.fillRect(box.x - 20, box.y - 20, 40, 40); // 40px in world space is nice on radar
-        }
-        
-        // Draw Monster Blip
-        if (this.physics.monster) {
-            const m = this.physics.monster;
-            ctx.fillStyle = `rgba(239, 68, 68, ${0.5 + Math.sin(Date.now()/50)*0.5})`; // Fast strobe
             ctx.beginPath();
-            ctx.arc(m.x, m.y, m.size, 0, Math.PI*2);
+            ctx.arc(box.x, box.y, boxR, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Draw Lander
-        if (this.physics.lander) {
-            ctx.fillStyle = '#10b981';
+        // ── Monster blip ───────────────────────────────────────────────────
+        if (this.physics.monster) {
+            const m = this.physics.monster;
+            const mR = 22 / Math.max(scaleX, scaleY);
+            ctx.fillStyle = `rgba(239,68,68,${0.6 + Math.sin(Date.now() / 80) * 0.4})`;
             ctx.beginPath();
-            ctx.arc(this.physics.lander.x, this.physics.lander.y, 35, 0, Math.PI*2);
+            ctx.arc(m.x, m.y, mR, 0, Math.PI * 2);
             ctx.fill();
-            
-            // Draw Viewport Rect
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.lineWidth = 2 / scaleX; 
-            const viewW = cw / this.camera.zoom;
-            const viewH = this.canvas.height / this.camera.zoom;
-            const viewX = this.camera.x - viewW / 2;
-            const viewY = this.camera.y - viewH / 2;
-            ctx.strokeRect(viewX, viewY, viewW, viewH);
         }
-        
+
+        // ── Camera viewport rect ───────────────────────────────────────────
+        const viewW = cw / this.camera.zoom;
+        const viewH = this.canvas.height / this.camera.zoom;
+        const viewX = this.camera.x - viewW / 2;
+        const viewY = this.camera.y - viewH / 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.lineWidth = 1 / Math.max(scaleX, scaleY);
+        ctx.strokeRect(viewX, viewY, viewW, viewH);
+
+        // ── Lander dot (clamped to be always inside minimap) ───────────────
+        if (this.physics.lander) {
+            const l = this.physics.lander;
+            // Clamp world position to level bounds so dot stays inside minimap
+            const clampedX = Math.max(0, Math.min(this.physics.levelWidth,  l.x));
+            const clampedY = Math.max(0, Math.min(this.physics.levelHeight, l.y));
+
+            const dotR = 14 / Math.max(scaleX, scaleY);
+            ctx.fillStyle = l.crashed ? '#ef4444' : '#10b981';
+            ctx.beginPath();
+            ctx.arc(clampedX, clampedY, dotR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Small heading tick
+            if (!l.crashed) {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 5 / Math.max(scaleX, scaleY);
+                ctx.beginPath();
+                ctx.moveTo(clampedX, clampedY);
+                ctx.lineTo(
+                    clampedX + Math.sin(l.angle) * dotR * 2.2,
+                    clampedY - Math.cos(l.angle) * dotR * 2.2
+                );
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore();
+
+        // ── Label ──────────────────────────────────────────────────────────
+        ctx.save();
+        ctx.font = '600 9px Outfit, sans-serif';
+        ctx.letterSpacing = '0.1em';
+        ctx.fillStyle = 'rgba(56,189,248,0.6)';
+        ctx.textAlign = 'left';
+        ctx.fillText('RADAR', mmX + 8, mmY + 13);
         ctx.restore();
     }
 
