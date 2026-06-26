@@ -1144,192 +1144,252 @@ class CargoGame {
 
     drawMonster() {
         if (!this.physics.monster) return;
-
         const m = this.physics.monster;
         const ctx = this.ctx;
-        const t = Date.now() / 1000; // seconds
+        const t = Date.now() / 1000;
 
-        // Track age for entrance animation
-        m.age = (m.age || 0) + 0.016;
-        const entrance = Math.min(1, m.age / 1.5); // 1.5 s fade-in scale
+        const trail = m.trail;
+        if (!trail || trail.length < 4) return;
 
+        // ── Helper: sample a world position + forward angle along trail by arc distance ──
+        function trailSample(dist) {
+            let walked = 0;
+            for (let i = 1; i < trail.length; i++) {
+                const dx = trail[i].x - trail[i-1].x;
+                const dy = trail[i].y - trail[i-1].y;
+                const d = Math.sqrt(dx*dx + dy*dy);
+                if (walked + d >= dist) {
+                    const f = d < 0.001 ? 0 : (dist - walked) / d;
+                    return {
+                        x: trail[i-1].x + dx * f,
+                        y: trail[i-1].y + dy * f,
+                        angle: Math.atan2(dy, dx)
+                    };
+                }
+                walked += d;
+            }
+            const p = trail[trail.length - 1];
+            return { x: p.x, y: p.y, angle: 0 };
+        }
+
+        // ── Segment definitions: distance along trail, circle radius ──
+        //    Index 0 = head, then body, then tapering tail
+        const SEGS = [
+            { d: 0,   r: 36 }, // HEAD
+            { d: 44,  r: 31 },
+            { d: 82,  r: 28 },
+            { d: 114, r: 25 },
+            { d: 143, r: 22 },
+            { d: 168, r: 19 },
+            { d: 190, r: 16 },
+            { d: 209, r: 13 },
+            { d: 224, r: 10 },
+            { d: 236, r: 7.5 },
+            { d: 245, r: 5.5 },
+        ];
+
+        const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
+        const head = positions[0];
+
+        // Head faces toward the lander
+        const lander = this.physics.lander;
+        const hdx = lander ? lander.x - m.x : m.vx;
+        const hdy = lander ? lander.y - m.y : m.vy;
+        const headAngle = Math.atan2(hdy, hdx);
+        // Perpendicular "up" relative to head facing
+        const upAngle = headAngle - Math.PI / 2;
+
+        // ══ PASS 1: LEGS (drawn first, behind everything) ══════════════════
         ctx.save();
-        ctx.translate(m.x, m.y);
-        ctx.scale(entrance, entrance);
+        ctx.lineCap = 'round';
+        for (let i = 1; i <= 7; i++) {
+            const seg = positions[i];
+            const legPhase = t * 3.8 + i * 1.05;
+            const sideWobble = Math.sin(legPhase) * 8;
 
-        const R = m.size / 2; // core radius
+            for (const side of [-1, 1]) {
+                // Root point at the underside of the segment
+                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.55) * seg.r * 0.8;
+                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.55) * seg.r * 0.8;
 
-        // ─── 1. Outer void glow (massive, soft) ───────────────────────────
-        const outerGlow = ctx.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 3.5);
-        outerGlow.addColorStop(0,   `hsla(270, 80%, 20%, ${0.55 + Math.sin(t * 1.3) * 0.1})`);
-        outerGlow.addColorStop(0.35, `hsla(300, 70%, 12%, ${0.35 + Math.sin(t * 0.7) * 0.08})`);
-        outerGlow.addColorStop(0.7,  'hsla(0, 80%, 10%, 0.15)');
-        outerGlow.addColorStop(1,    'hsla(0, 0%, 0%, 0)');
-        ctx.fillStyle = outerGlow;
-        ctx.beginPath();
-        ctx.arc(0, 0, R * 3.5, 0, Math.PI * 2);
-        ctx.fill();
+                // Knee — goes outward
+                const kneeX = rootX + side * (seg.r * 0.9 + 6) + Math.sin(legPhase * side * 0.8) * 5;
+                const kneeY = rootY + seg.r * 0.5 + sideWobble * 0.4;
 
-        // ─── 2. Writhing tentacles (12, layered glow) ────────────────────
-        const tentacleCount = 12;
-        for (let layer = 0; layer < 2; layer++) {
-            const isGlow = layer === 0;
-            ctx.lineWidth = isGlow ? 10 : 3;
-            ctx.lineCap = 'round';
+                // Foot — drops down further
+                const footX = kneeX + side * 10 + Math.sin(legPhase * 1.3 + side) * 6;
+                const footY = kneeY + seg.r + 14 + Math.cos(legPhase * 0.9) * 5 * side;
 
-            for (let i = 0; i < tentacleCount; i++) {
-                const baseAngle = (i / tentacleCount) * Math.PI * 2;
-                const wobble  = Math.sin(t * 2.1 + i * 1.3) * 0.45;
-                const angle   = baseAngle + wobble;
-                const lenMod  = 1 + Math.sin(t * 1.7 + i * 0.9) * 0.35;
-                const len     = R * (2.2 + i % 3 * 0.4) * lenMod;
-
-                // Control points for cubic bezier
-                const cpAngle1 = angle - 0.5 + Math.sin(t + i) * 0.3;
-                const cpAngle2 = angle + 0.4 + Math.cos(t * 1.4 + i) * 0.3;
-                const cp1x = Math.cos(cpAngle1) * len * 0.4;
-                const cp1y = Math.sin(cpAngle1) * len * 0.4;
-                const cp2x = Math.cos(cpAngle2) * len * 0.75;
-                const cp2y = Math.sin(cpAngle2) * len * 0.75;
-                const ex = Math.cos(angle) * len;
-                const ey = Math.sin(angle) * len;
-
-                // Color shifts from purple core to blood-red tips
-                const hue  = 270 + (i / tentacleCount) * 90 + Math.sin(t + i) * 20;
-                const lite = isGlow ? 30 : 55;
-                const alp  = isGlow ? 0.18 : 0.85;
-                ctx.strokeStyle = `hsla(${hue}, 90%, ${lite}%, ${alp})`;
-
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.88)';
+                ctx.lineWidth = 1.8;
                 ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
+                ctx.moveTo(rootX, rootY);
+                ctx.quadraticCurveTo(kneeX, kneeY, footX, footY);
                 ctx.stroke();
 
-                // Crackling arc tips — small bright branch near the end
-                if (!isGlow && Math.sin(t * 7 + i * 2.7) > 0.6) {
-                    const sparkLen = R * 0.4;
-                    const sparkAngle = angle + (Math.random() - 0.5) * 1.2;
-                    ctx.strokeStyle = `hsla(${hue + 60}, 100%, 80%, 0.9)`;
+                // Foot tip — small angled stroke
+                const tipLen = 8;
+                ctx.beginPath();
+                ctx.moveTo(footX - side * 3, footY - 1);
+                ctx.lineTo(footX + side * tipLen, footY + 4);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+
+        // ══ PASS 2: ANTENNAE from head top (drawn before head circle) ══════
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (const side of [-1, 1]) {
+            // Start from top of head, offset left/right
+            const startX = head.x + Math.cos(upAngle) * head.r * 0.7 + Math.cos(headAngle - Math.PI) * head.r * 0.25 + Math.cos(upAngle + side * 0.6) * head.r * 0.3;
+            const startY = head.y + Math.sin(upAngle) * head.r * 0.7 + Math.sin(headAngle - Math.PI) * head.r * 0.25 + Math.sin(upAngle + side * 0.6) * head.r * 0.3;
+
+            // Antenna tip — wiggles over time
+            const wiggleA = Math.sin(t * 2.5 + side * 1.7) * 22;
+            const wiggleB = Math.cos(t * 1.9 + side * 0.9) * 16;
+            const tipX = startX + Math.cos(headAngle - Math.PI) * head.r * 1.5 + wiggleA;
+            const tipY = startY + Math.sin(headAngle - Math.PI) * head.r * 0.4 - head.r * 0.6 + wiggleB;
+
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.82)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.bezierCurveTo(
+                startX + Math.cos(headAngle - Math.PI) * head.r * 0.5 + side * 10,
+                startY - head.r * 0.3,
+                tipX + Math.sin(t * 3 + side) * 12,
+                tipY + Math.cos(t * 2.2 + side) * 10,
+                tipX, tipY
+            );
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // ══ PASS 3: SEGMENT CIRCLES (tail → head, so head renders on top) ══
+        ctx.save();
+        for (let i = positions.length - 1; i >= 0; i--) {
+            const seg = positions[i];
+            const isHead = i === 0;
+
+            // Fill
+            ctx.fillStyle = '#dc2626';
+            ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+            ctx.lineWidth = isHead ? 2.5 : 1.8;
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (isHead) {
+                // ── HORNS ────────────────────────────────────────────
+                const hornDefs = [
+                    { sideOff: -0.4, upScale: 1.1, tilt:  0.15 }, // left horn
+                    { sideOff:  0.2, upScale: 1.45, tilt: -0.12 }, // right horn (taller)
+                ];
+                for (const h of hornDefs) {
+                    // Base of horn sits on top of head circle
+                    const baseCx = seg.x + Math.cos(headAngle - Math.PI) * seg.r * 0.22 + Math.cos(upAngle) * seg.r * 0.72 + Math.cos(upAngle + Math.PI/2) * seg.r * h.sideOff;
+                    const baseCy = seg.y + Math.sin(headAngle - Math.PI) * seg.r * 0.22 + Math.sin(upAngle) * seg.r * 0.72 + Math.sin(upAngle + Math.PI/2) * seg.r * h.sideOff;
+                    // Tip
+                    const tipX = baseCx + Math.cos(upAngle + h.tilt) * seg.r * h.upScale;
+                    const tipY = baseCy + Math.sin(upAngle + h.tilt) * seg.r * h.upScale;
+                    // Width direction
+                    const wA = upAngle + Math.PI / 2;
+                    const hw = 6;
+                    ctx.fillStyle = '#dc2626';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
-                    ctx.moveTo(ex, ey);
-                    ctx.lineTo(ex + Math.cos(sparkAngle) * sparkLen, ey + Math.sin(sparkAngle) * sparkLen);
+                    ctx.moveTo(baseCx + Math.cos(wA) * hw,  baseCy + Math.sin(wA) * hw);
+                    ctx.lineTo(tipX, tipY);
+                    ctx.lineTo(baseCx - Math.cos(wA) * hw, baseCy - Math.sin(wA) * hw);
+                    ctx.closePath();
+                    ctx.fill();
                     ctx.stroke();
+                }
+
+                // ── MOUTH ────────────────────────────────────────────
+                // Positioned on the front face of the head
+                const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.58;
+                const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.58;
+                const mW = 16, mH = 11;
+
+                ctx.save();
+                ctx.translate(mCx, mCy);
+                ctx.rotate(headAngle);
+
+                // Dark mouth interior
+                ctx.fillStyle = '#0a0000';
+                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Zigzag teeth — top row
+                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+                ctx.lineWidth = 1.4;
+                ctx.lineCap = 'square';
+                const toothCount = 5;
+                ctx.beginPath();
+                for (let ti = 0; ti <= toothCount; ti++) {
+                    const tx = -mW + (ti / toothCount) * mW * 2;
+                    const ty = ti % 2 === 0 ? -mH * 0.55 : -mH * 0.1;
+                    ti === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+                }
+                ctx.stroke();
+
+                // Zigzag teeth — bottom row (mirrored)
+                ctx.beginPath();
+                for (let ti = 0; ti <= toothCount; ti++) {
+                    const tx = -mW + (ti / toothCount) * mW * 2;
+                    const ty = ti % 2 === 0 ? mH * 0.55 : mH * 0.1;
+                    ti === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+                }
+                ctx.stroke();
+                ctx.lineCap = 'round';
+                ctx.restore();
+
+                // ── EYES (two on the forehead) ────────────────────────
+                const eyeDefs = [
+                    { u: 0.3, s: -0.45, r: 0.18 },
+                    { u: 0.3, s:  0.45, r: 0.15 },
+                ];
+                for (const e of eyeDefs) {
+                    const ex = seg.x + Math.cos(upAngle) * seg.r * e.u + Math.cos(upAngle + Math.PI/2) * seg.r * e.s;
+                    const ey = seg.y + Math.sin(upAngle) * seg.r * e.u + Math.sin(upAngle + Math.PI/2) * seg.r * e.s;
+                    const er = seg.r * e.r;
+
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, er, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glowing amber iris
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, er * 0.65, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Pupil
+                    const pAngle = Math.atan2(hdy, hdx);
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(ex + Math.cos(pAngle) * er * 0.22, ey + Math.sin(pAngle) * er * 0.22, er * 0.35, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glint
+                    ctx.fillStyle = 'rgba(255,220,120,0.85)';
+                    ctx.beginPath();
+                    ctx.arc(ex - er * 0.2, ey - er * 0.2, er * 0.18, 0, Math.PI * 2);
+                    ctx.fill();
                 }
             }
         }
-
-        // ─── 3. Pulsing nebula body ───────────────────────────────────────
-        const pulse  = 1 + Math.sin(t * 3.5) * 0.07;
-        const bodyGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, R * pulse);
-        bodyGrad.addColorStop(0,   '#000010');
-        bodyGrad.addColorStop(0.3, `hsla(280, 90%, 18%, 1)`);
-        bodyGrad.addColorStop(0.65, `hsla(310, 80%, 14%, 1)`);
-        bodyGrad.addColorStop(0.85, `hsla(0,   80%, 15%, 1)`);
-        bodyGrad.addColorStop(1,   '#1a0010');
-        ctx.fillStyle = bodyGrad;
-        ctx.beginPath();
-        // Slightly warped blob shape using sin offsets
-        ctx.save();
-        ctx.scale(1 + Math.sin(t * 2.3) * 0.04, 1 + Math.cos(t * 1.9) * 0.04);
-        ctx.arc(0, 0, R * pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // ─── 4. Inner swirling vortex rings ──────────────────────────────
-        for (let ring = 0; ring < 3; ring++) {
-            const ringR = R * (0.25 + ring * 0.22);
-            const ringAlpha = 0.6 - ring * 0.15;
-            const ringHue   = 270 + ring * 30 + Math.sin(t * 2 + ring) * 20;
-            ctx.strokeStyle = `hsla(${ringHue}, 90%, 55%, ${ringAlpha})`;
-            ctx.lineWidth = 2 - ring * 0.4;
-            ctx.beginPath();
-            ctx.save();
-            ctx.rotate(t * (1.5 + ring * 0.6) * (ring % 2 === 0 ? 1 : -1));
-            // Elliptical ring for depth illusion
-            ctx.scale(1, 0.35 + ring * 0.1);
-            ctx.arc(0, 0, ringR, 0, Math.PI * 2);
-            ctx.restore();
-            ctx.stroke();
-        }
-
-        // ─── 5. Eye cluster ──────────────────────────────────────────────
-        // Direction the monster is facing
-        const speed = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
-        const faceAngle = speed > 0.1 ? Math.atan2(m.vy, m.vx) : 0;
-
-        const eyePositions = [
-            { ox: -0.28, oy: -0.18, r: 0.22 }, // left eye
-            { ox:  0.3,  oy: -0.12, r: 0.28 }, // right eye (bigger)
-            { ox:  0.05, oy:  0.25, r: 0.16 }, // lower center (third eye)
-        ];
-
-        for (const ep of eyePositions) {
-            const ex = ep.ox * R;
-            const ey = ep.oy * R;
-            const er = ep.r  * R;
-
-            // Sclera — pure void black
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(ex, ey, er, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Iris gradient — molten amber/orange
-            const irisGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, er);
-            irisGrad.addColorStop(0,   '#ff8c00');
-            irisGrad.addColorStop(0.4, '#b91c1c');
-            irisGrad.addColorStop(0.8, '#450a0a');
-            irisGrad.addColorStop(1,   '#000');
-            ctx.fillStyle = irisGrad;
-            ctx.beginPath();
-            ctx.arc(ex, ey, er * 0.85, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Pupil — tracks movement direction
-            const pupilX = ex + Math.cos(faceAngle) * er * 0.3;
-            const pupilY = ey + Math.sin(faceAngle) * er * 0.3;
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(pupilX, pupilY, er * 0.38, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Glint
-            ctx.fillStyle = `rgba(255,220,120,${0.7 + Math.sin(t * 4 + ep.r * 10) * 0.3})`;
-            ctx.beginPath();
-            ctx.arc(ex - er * 0.25, ey - er * 0.25, er * 0.15, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Eye glow ring
-            ctx.strokeStyle = `hsla(30, 100%, 60%, ${0.4 + Math.sin(t * 5 + ep.ox * 10) * 0.3})`;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(ex, ey, er * 1.1, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-
-        // ─── 6. Orbiting debris fragments ────────────────────────────────
-        const debrisCount = 6;
-        for (let i = 0; i < debrisCount; i++) {
-            const debrisAngle = t * (1.2 + i * 0.15) + (i / debrisCount) * Math.PI * 2;
-            const debrisR  = R * (1.35 + Math.sin(t * 2 + i * 1.4) * 0.2);
-            const debrisX  = Math.cos(debrisAngle) * debrisR;
-            const debrisY  = Math.sin(debrisAngle) * debrisR;
-            const debrisSz = 3 + (i % 3) * 2;
-            const debrisHue = 0 + Math.sin(t + i) * 30;
-            ctx.fillStyle = `hsla(${debrisHue}, 90%, 55%, 0.8)`;
-            ctx.beginPath();
-            ctx.save();
-            ctx.translate(debrisX, debrisY);
-            ctx.rotate(debrisAngle * 2);
-            ctx.fillRect(-debrisSz / 2, -debrisSz / 2, debrisSz, debrisSz);
-            ctx.restore();
-        }
-
         ctx.restore();
     }
-
-
 
     drawTerrain() {
         const ctx = this.ctx;
