@@ -30,6 +30,8 @@ class CargoPhysics {
         this.boxes = [];
         this.particles = [];
         this.monster = null; // The Out-Of-Bounds cosmic horror
+        this.ambientTraffic = [];
+        this.trafficSpawnTimer = 0;
         this.generateTerrain(levelConfig);
         this.spawnLander(levelConfig, upgrades);
     }
@@ -272,6 +274,7 @@ class CargoPhysics {
 
         this.updateBoxes(dt);
         this.updateMonster(dt);
+        this.updateAmbientTraffic(dt);
         this.updateParticles();
     }
 
@@ -315,7 +318,7 @@ class CargoPhysics {
                 y: this.levelHeight + 200,
                 vx: 0,
                 vy: -5,
-                size: 80,
+                size: 130,
                 roarTimer: 60,
                 trail: [] // body segment trail
             };
@@ -1013,6 +1016,71 @@ class CargoPhysics {
                             b2.vx -= fImp;
                         }
                     }
+                }
+            }
+        }
+    }
+
+    updateAmbientTraffic(dt) {
+        if (!this.ambientTraffic) this.ambientTraffic = [];
+
+        // Spawn a new truck periodically (max 4 on screen)
+        this.trafficSpawnTimer = (this.trafficSpawnTimer || 0) + dt;
+        if (this.trafficSpawnTimer > 500 && this.ambientTraffic.length < 4) {
+            this.trafficSpawnTimer = 0;
+            const fromRight = Math.random() > 0.5;
+            // Find rough sky height: top of terrain minus some vertical range
+            const minTerrainY = Math.min(...this.terrainPoints.map(p => p.y));
+            const skyY = minTerrainY - 100 - Math.random() * 350;
+            const truckW = 90 + Math.random() * 70;
+            const truckH = 22 + Math.random() * 14;
+            const speed = 0.25 + Math.random() * 0.45;
+            const palette = [
+                { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
+                { body: '#2d1b4e', accent: '#a78bfa', light: '#c4b5fd' },
+                { body: '#1a3a2a', accent: '#10b981', light: '#6ee7b7' },
+                { body: '#3a2000', accent: '#f97316', light: '#fed7aa' },
+            ];
+            const col = palette[Math.floor(Math.random() * palette.length)];
+            this.ambientTraffic.push({
+                x: fromRight ? this.levelWidth + truckW + 50 : -truckW - 50,
+                y: Math.max(80, skyY),
+                vx: fromRight ? -speed : speed,
+                w: truckW,
+                h: truckH,
+                lightPhase: Math.random() * Math.PI * 2,
+                bodyColor: col.body,
+                accentColor: col.accent,
+                lightColor: col.light,
+                engineGlow: Math.random() > 0.5,
+            });
+        }
+
+        for (let i = this.ambientTraffic.length - 1; i >= 0; i--) {
+            const t = this.ambientTraffic[i];
+            t.x += t.vx * dt;
+            t.lightPhase += 0.05 * dt;
+
+            // Despawn once fully off-screen
+            if (t.x < -t.w - 200 || t.x > this.levelWidth + t.w + 200) {
+                this.ambientTraffic.splice(i, 1);
+                continue;
+            }
+
+            // Mild collision push (doesn't crash the player, just nudges)
+            if (this.lander && !this.lander.crashed) {
+                const l = this.lander;
+                const tx = t.x + t.w / 2;
+                const ty = t.y;
+                const overlapX = (t.w / 2 + l.width / 2) - Math.abs(l.x - tx);
+                const overlapY = (t.h / 2 + l.height / 2) - Math.abs(l.y - ty);
+                if (overlapX > 0 && overlapY > 0) {
+                    const impact = Math.abs(l.vx - t.vx) + Math.abs(l.vy);
+                    l.integrity -= impact * 4;
+                    // Shove lander away
+                    l.vx += (l.x > tx ? 1 : -1) * 2;
+                    l.vy -= 1.5;
+                    if (l.integrity <= 0) this.triggerExplosion();
                 }
             }
         }
