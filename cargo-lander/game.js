@@ -159,7 +159,9 @@ class CargoGame {
     }
 
     startLevel(idx) {
+        this.cash = 0;
         this.currentLevelIndex = idx;
+        this.crashHandled = false;
         const level = levels[idx];
         
         this.physics.initLevel(level, this.canvas.width, this.canvas.height);
@@ -173,9 +175,13 @@ class CargoGame {
         
         // Hide menus, show HUD
         document.getElementById('menu-screen').style.display = 'none';
-        document.getElementById('complete-screen').style.display = 'none';
-        document.getElementById('fail-screen').style.display = 'none';
-        document.getElementById('victory-screen').style.display = 'none';
+        document.getElementById('level-complete-screen').style.display = 'none';
+        const failScreen = document.getElementById('fail-screen');
+        if (failScreen) failScreen.style.display = 'none';
+        const gameOverScreen = document.getElementById('game-over-screen');
+        if (gameOverScreen) gameOverScreen.classList.add('hidden');
+        const respawnScreen = document.getElementById('respawn-screen');
+        if (respawnScreen) respawnScreen.classList.add('hidden');
         document.getElementById('hud-overlay').style.display = 'flex';
         document.getElementById('level-hint').textContent = level.hint || '';
 
@@ -225,17 +231,32 @@ class CargoGame {
         }
     }
 
-    triggerCargoDispense() {
-        if (this.gameState !== 'playing') return;
-        const lander = this.physics.lander;
+    respawnLander() {
+        if (this.cash >= 200) {
+            this.cash -= 200;
+        } else {
+            this.cash = 0;
+        }
         
-        // Can only dispense if lander is parked at sourcing depot
-        if (lander.landed && lander.currentPad === 'sourcing' && this.cargoSpawnCooldown <= 0) {
-            const level = levels[this.currentLevelIndex];
+        this.crashHandled = false;
+        
+        const respawnScreen = document.getElementById('respawn-screen');
+        if (respawnScreen) respawnScreen.classList.add('hidden');
+        
+        const levelConfig = levels[this.currentLevelIndex];
+        this.physics.spawnLander(levelConfig);
+    }
+
+    triggerCargoDispense() {
+        if (!this.physics.lander) return;
+        
+        // Can only dispense if parked at the collection point
+        if (this.physics.lander.landed && this.physics.lander.currentPad === 'collection') {
+            const levelConfig = levels[this.currentLevelIndex];
             
-            // Randomly select an allowed cargo type for this level
-            const allowed = level.allowedTypes;
-            const type = allowed[Math.floor(Math.random() * allowed.length)];
+            // Randomly select one of the allowed types for this level
+            const types = levelConfig.allowedTypes || ['normal'];
+            const t = types[Math.floor(Math.random() * types.length)];
             
             // Limit cargo count on screen to prevent extreme physics lag or overflow
             if (this.physics.boxes.length >= 6) {
@@ -243,13 +264,13 @@ class CargoGame {
                 return;
             }
 
-            this.physics.spawnCargo(type);
+            this.physics.spawnCargo(t);
             this.cargoSpawnCooldown = 30; // Cooldown frames
             
             if (!this.isMuted) {
                 CargoAudio.playLoad();
             }
-            this.addMessage("Cargo Dispensed: " + type.toUpperCase(), "#f8fafc");
+            this.addMessage("Cargo Dispensed: " + t.toUpperCase(), "#f8fafc");
         }
     }
 
@@ -344,11 +365,32 @@ class CargoGame {
         }
 
         // Handle game over if crashed
-        if (lander.crashed) {
-            this.gameState = 'game_over';
+        if (lander.crashed && !this.crashHandled) {
+            this.crashHandled = true;
             if (!this.isMuted) CargoAudio.setWarning(false);
-            document.getElementById('fail-screen').style.display = 'flex';
-            document.getElementById('hud-overlay').style.display = 'none';
+            
+            // Generate explosion particles
+            for (let i = 0; i < 50; i++) {
+                this.physics.particles.push({
+                    x: lander.x,
+                    y: lander.y,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15,
+                    life: 1.0,
+                    decay: 0.01 + Math.random() * 0.03,
+                    color: `hsla(${10 + Math.random() * 40}, 100%, 50%, 0.9)`,
+                    size: 3 + Math.random() * 8
+                });
+            }
+            if (!this.isMuted && window.CargoAudio) CargoAudio.playCollision(10);
+            
+            // Show respawn screen after short delay, keep game state playing for physics
+            setTimeout(() => {
+                if (this.gameState === 'playing') {
+                    const respawnScreen = document.getElementById('respawn-screen');
+                    if (respawnScreen) respawnScreen.classList.remove('hidden');
+                }
+            }, 1000);
         }
 
         // Refill alert sound check
@@ -577,8 +619,8 @@ class CargoGame {
         ctx.closePath();
         ctx.fill();
 
-        // Glowing border line
-        ctx.strokeStyle = '#4f46e5';
+        // Glowing hazard border line
+        ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -588,7 +630,7 @@ class CargoGame {
         ctx.stroke();
 
         // Ground texture lines
-        ctx.strokeStyle = 'rgba(79, 70, 229, 0.15)';
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
         ctx.lineWidth = 1;
         for (let i = 0; i < pts.length; i += 4) {
             if (i >= pts.length) break;
@@ -601,40 +643,54 @@ class CargoGame {
 
     drawSourcingDepot() {
         const ctx = this.ctx;
-        const depot = this.physics.sourcingDepot;
-        if (!depot) return;
+        const start = this.physics.startDepot;
+        const collection = this.physics.collectionPoint;
 
-        // Platform base
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(depot.x, depot.y, depot.width, depot.height);
-
-        // Platform edge glow
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(depot.x, depot.y, depot.width, 3);
-
-        // Dispenser crane
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(depot.x + depot.width / 2, depot.y - 120);
-        ctx.lineTo(depot.x + depot.width / 2, depot.y - 180);
-        ctx.lineTo(depot.x + depot.width / 2 - 25, depot.y - 180);
-        ctx.stroke();
-
-        // Dispenser box container
-        ctx.fillStyle = '#1e293b';
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 2;
-        ctx.fillRect(depot.x + depot.width / 2 - 20, depot.y - 200, 40, 30);
-        ctx.strokeRect(depot.x + depot.width / 2 - 20, depot.y - 200, 40, 30);
-
-        // Holographic dispenser prompt when landed on it
-        const lander = this.physics.lander;
-        if (lander && lander.landed && lander.currentPad === 'sourcing') {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-            ctx.font = '600 13px sans-serif';
+        // Draw Start Depot
+        if (start) {
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(start.x, start.y, start.width, start.height);
+            ctx.fillStyle = '#94a3b8'; // Neutral gray for start
+            ctx.fillRect(start.x, start.y, start.width, 3);
+            
+            // Label
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '10px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText("PRESS [SPACE] TO DISPENSE CARGO", depot.x + depot.width / 2, depot.y - 45);
+            ctx.fillText("HQ", start.x + start.width / 2, start.y + 11);
+        }
+
+        // Draw Collection Point
+        if (collection) {
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(collection.x, collection.y, collection.width, collection.height);
+            ctx.fillStyle = '#fbbf24'; // Yellow for collection
+            ctx.fillRect(collection.x, collection.y, collection.width, 3);
+
+            // Dispenser crane
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(collection.x + collection.width / 2, collection.y - 60);
+            ctx.lineTo(collection.x + collection.width / 2, collection.y - 120);
+            ctx.lineTo(collection.x + collection.width / 2 - 25, collection.y - 120);
+            ctx.stroke();
+
+            // Dispenser box container
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.fillRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
+            ctx.strokeRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
+
+            // Holographic dispenser prompt when landed on it
+            const lander = this.physics.lander;
+            if (lander && lander.landed && lander.currentPad === 'collection') {
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
+                ctx.font = '600 13px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText("PRESS [SPACE] TO DISPENSE CARGO", collection.x + collection.width / 2, collection.y - 45);
+            }
         }
     }
 
@@ -677,42 +733,40 @@ class CargoGame {
 
             // Set color based on cargo sorting type
             let color = '#38bdf8'; // Blue (normal)
-            let iconText = '📦';
+            let iconText = box.emoji || '📦';
             
             if (box.type === 'red') {
                 color = '#ef4444'; // Red (hazmat)
-                iconText = '☣️';
             } else if (box.type === 'blue') {
                 color = '#3b82f6'; // Cold Chain
-                iconText = '❄️';
             } else if (box.type === 'green') {
                 color = '#10b981'; // Eco/Green
-                iconText = '🌱';
             }
 
-            // Draw box background
-            ctx.fillStyle = color;
+            // Draw cardboard box background
+            ctx.fillStyle = '#b45309';
             ctx.fillRect(-halfS, -halfS, S, S);
 
-            // Draw black tape/border
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 1.5;
+            // Draw darker brown border
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 2;
             ctx.strokeRect(-halfS, -halfS, S, S);
 
-            // Draw inner packing straps
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-halfS + 5, -halfS); ctx.lineTo(-halfS + 5, halfS);
-            ctx.moveTo(halfS - 5, -halfS); ctx.lineTo(halfS - 5, halfS);
-            ctx.stroke();
+            // Draw packing tape across the middle
+            ctx.fillStyle = 'rgba(253, 230, 138, 0.7)';
+            ctx.fillRect(-halfS, -2, S, 4);
 
-            // Draw icon inside cargo
-            ctx.fillStyle = '#0f172a';
-            ctx.font = '10px Arial';
+            // Outline the whole box in its type-color glow
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-halfS - 1, -halfS - 1, S + 2, S + 2);
+
+            // Draw random content emoji inside cargo
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '11px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(iconText, 0, 0);
+            ctx.fillText(iconText, 0, 1);
 
             ctx.restore();
         }
@@ -729,6 +783,31 @@ class CargoGame {
 
         const w = lander.width;
         const h = lander.height;
+
+        // Draw Cargo Deck (Basket)
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 3;
+        const deckY = -lander.deckOffset;
+        const hw = lander.deckWidth / 2;
+        const bh = lander.basketHeight;
+
+        ctx.beginPath();
+        // Left wall top to left wall bottom
+        ctx.moveTo(-hw, deckY - bh);
+        ctx.lineTo(-hw, deckY);
+        // Floor
+        ctx.lineTo(hw, deckY);
+        // Right wall bottom to right wall top
+        ctx.lineTo(hw, deckY - bh);
+        ctx.stroke();
+
+        // Neon deck glow
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-hw + 1, deckY);
+        ctx.lineTo(hw - 1, deckY);
+        ctx.stroke();
 
         // Lander Pod Body (sleek glass/shielding dome)
         const radGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, w/2);
