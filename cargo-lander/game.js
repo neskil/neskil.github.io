@@ -14,46 +14,34 @@ const levels = [
         hint: "Tip: Land slowly (< 2.0 m/s) and keep your lander level (< 8 degrees) to land safely."
     },
     {
-        name: "L2: Cross-Dock Sorting",
-        description: "Sort the packages! Red cargo goes to the Red Hub (x=500), Blue cargo goes to the Blue Hub (x=800).",
-        gravity: 0.16,
-        wind: 0,
-        terrainType: "mountain",
-        targetCargo: 4,
-        allowedTypes: ["red", "blue"],
-        deliveryHubs: [
-            { x: 500, color: "#ef4444", type: "red", name: "Red Factory" },
-            { x: 800, color: "#3b82f6", type: "blue", name: "Blue Warehouse" }
-        ],
-        hint: "Tip: Don't load too many boxes at once - stacking them makes your flight highly unstable!"
-    },
-    {
-        name: "L3: Gale-Force Winds",
-        description: "High winds are blowing to the left! Deliver 3 green eco-friendly containers to the Eco-Terminal (x=780).",
-        gravity: 0.14,
-        wind: -0.7, // Strong wind blowing left
-        terrainType: "canyon",
-        targetCargo: 3,
-        allowedTypes: ["green"],
-        deliveryHubs: [
-            { x: 780, color: "#10b981", type: "green", name: "Eco-Hub" }
-        ],
-        hint: "Tip: Tilt slightly to the right to counteract the strong leftward wind."
-    },
-    {
         name: "L4: Gravity Anomaly",
-        description: "A spatial anomaly creates a strong gravity pull in the center of the map. Deliver 4 sorted packages.",
+        description: "Warning: Unstable spacetime detected. A gravitational vortex is pulling you in. Counter the force and deliver safely.",
         gravity: 0.15,
-        wind: 0.1,
-        terrainType: "caves",
-        targetCargo: 4,
+        wind: 0,
+        terrainType: "cave",
+        targetCargo: 3,
         allowedTypes: ["red", "blue"],
-        gravityWell: { x: 500, y: 250, radius: 220, strength: 0.08 },
         deliveryHubs: [
-            { x: 460, color: "#ef4444", type: "red", name: "Inner Factory" },
-            { x: 820, color: "#3b82f6", type: "blue", name: "Outer Dock" }
+            { x: 750, color: "#ef4444", type: "red", name: "Sector 4" },
+            { x: 900, color: "#3b82f6", type: "blue", name: "Deep Storage" }
         ],
-        hint: "Warning: Avoid the swirling gravity anomaly in the center; it will pull you in!"
+        gravityWell: { x: 500, y: 400, strength: 0.8, radius: 200 },
+        hint: "Fly around the vortex's event horizon!"
+    },
+    {
+        name: "L5: The Needle's Eye",
+        description: "The delivery hub is at the bottom of a shaft too narrow for your drone. Hover, extend your rope (E/Q), and drop the cargo in!",
+        vehicle: "drone",
+        gravity: 0.10,
+        wind: 0,
+        terrainType: "needle",
+        targetCargo: 1,
+        allowedTypes: ["normal"],
+        collectionX: 180,
+        deliveryHubs: [
+            { x: 700, width: 25, color: "#38bdf8", type: "normal", name: "The Pit" }
+        ],
+        hint: "Hover over the pit. Use E to extend rope, Q to retract. SPACE drops cargo!"
     }
 ];
 
@@ -126,32 +114,27 @@ class CargoGame {
     }
 
     setupEventListeners() {
-        // Key down
         window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            if (key === 'w' || e.key === 'ArrowUp') this.keys.w = true;
-            if (key === 'a' || e.key === 'ArrowLeft') this.keys.a = true;
-            if (key === 'd' || e.key === 'ArrowRight') this.keys.d = true;
+            this.keys[e.key.toLowerCase()] = true;
+            // Prevent default scrolling for game keys
+            if (['w', 'a', 's', 'd', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
+                e.preventDefault();
+            }
             if (e.key === ' ') {
-                this.keys.space = true;
-                e.preventDefault(); // Prevent page scrolling
-                this.triggerCargoDispense();
+                if (this.physics.lander && this.physics.lander.vehicleType === 'drone') {
+                    this.toggleGrapple();
+                } else {
+                    this.triggerCargoDispense();
+                }
             }
-            if (key === 'r') {
-                this.restartLevel();
-            }
-            if (key === 'm') {
-                this.toggleMute();
+            if (e.key.toLowerCase() === 'r' && this.physics.lander && this.physics.lander.crashed) {
+                this.respawnLander();
             }
         });
 
         // Key up
         window.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            if (key === 'w' || e.key === 'ArrowUp') this.keys.w = false;
-            if (key === 'a' || e.key === 'ArrowLeft') this.keys.a = false;
-            if (key === 'd' || e.key === 'ArrowRight') this.keys.d = false;
-            if (e.key === ' ') this.keys.space = false;
+            this.keys[e.key.toLowerCase()] = false;
         });
 
         // Mobile touch controls (will bind HTML button events to keys in UI file)
@@ -186,9 +169,7 @@ class CargoGame {
         document.getElementById('level-hint').textContent = level.hint || '';
 
         // Reset inputs
-        this.keys.w = false;
-        this.keys.a = false;
-        this.keys.d = false;
+        this.keys = {};
 
         this.updateHUD();
     }
@@ -249,6 +230,18 @@ class CargoGame {
 
     triggerCargoDispense() {
         if (!this.physics.lander) return;
+        
+        // Drone loading logic
+        if (this.physics.lander.vehicleType === 'drone') {
+            if (this.physics.lander.landed && this.physics.lander.currentPad === 'collection') {
+                const levelConfig = levels[this.currentLevelIndex];
+                const types = levelConfig.allowedTypes || ['normal'];
+                const t = types[Math.floor(Math.random() * types.length)];
+                this.physics.spawnCargo(t);
+                if (!this.isMuted) CargoAudio.playLoad();
+            }
+            return;
+        }
         
         // Can only dispense if parked at the collection point
         if (this.physics.lander.landed && this.physics.lander.currentPad === 'collection') {
@@ -336,10 +329,16 @@ class CargoGame {
         const lander = this.physics.lander;
         const level = levels[this.currentLevelIndex];
 
-        // Apply keyboard bindings to physics lander
-        this.physics.lander.thrustingActive = this.keys.w;
-        this.physics.lander.rotatingLeft = this.keys.a;
-        this.physics.lander.rotatingRight = this.keys.d;
+        const keys = this.keys;
+
+        // Apply inputs to physics lander
+        lander.thrustingActive = keys['w'] || keys['arrowup'];
+        lander.rotatingLeft = keys['a'] || keys['arrowleft'];
+        lander.rotatingRight = keys['d'] || keys['arrowright'];
+        lander.extendingRope = keys['e'];
+        lander.retractingRope = keys['q'];
+
+        this.physics.update(dt, levels[this.currentLevelIndex]);
 
         // Sound effect triggers for thrust
         if (!this.isMuted) {
@@ -349,9 +348,6 @@ class CargoGame {
                 CargoAudio.setThruster(0);
             }
         }
-
-        // Core physics update
-        this.physics.update(dt, level);
 
         // Cooldowns
         if (this.cargoSpawnCooldown > 0) this.cargoSpawnCooldown--;
@@ -777,6 +773,24 @@ class CargoGame {
         const lander = this.physics.lander;
         if (!lander || lander.crashed) return;
 
+        if (lander.vehicleType === 'drone') {
+            // Drone Rope (drawn in world space before translation)
+            if (lander.ropeLength > 0) {
+                ctx.strokeStyle = '#94a3b8'; // Rope color
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(lander.x, lander.y);
+                ctx.lineTo(lander.grappleX || lander.x, lander.grappleY || lander.y + lander.ropeLength);
+                ctx.stroke();
+
+                // Grapple hook claw
+                ctx.fillStyle = lander.grabbedBoxId ? '#ef4444' : '#e2e8f0';
+                ctx.beginPath();
+                ctx.arc(lander.grappleX || lander.x, lander.grappleY || lander.y + lander.ropeLength, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
         ctx.save();
         ctx.translate(lander.x, lander.y);
         ctx.rotate(lander.angle);
@@ -784,95 +798,102 @@ class CargoGame {
         const w = lander.width;
         const h = lander.height;
 
-        // Draw Cargo Deck (Basket)
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 3;
-        const deckY = -lander.deckOffset;
-        const hw = lander.deckWidth / 2;
-        const bh = lander.basketHeight;
+        if (lander.vehicleType === 'drone') {
+            // Draw Drone
+            ctx.fillStyle = '#cbd5e1';
+            ctx.fillRect(-16, -6, 32, 12);
+            
+            // Rotors
+            ctx.fillStyle = '#64748b';
+            ctx.fillRect(-22, -8, 8, 4); // Left motor
+            ctx.fillRect(14, -8, 8, 4); // Right motor
+            
+            // Spinning blades
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const spin = Date.now() / 20;
+            ctx.moveTo(-18 - Math.sin(spin)*8, -10);
+            ctx.lineTo(-18 + Math.sin(spin)*8, -10);
+            ctx.moveTo(18 - Math.sin(spin)*8, -10);
+            ctx.lineTo(18 + Math.sin(spin)*8, -10);
+            ctx.stroke();
+            
+            // Center eye
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
 
-        ctx.beginPath();
-        // Left wall top to left wall bottom
-        ctx.moveTo(-hw, deckY - bh);
-        ctx.lineTo(-hw, deckY);
-        // Floor
-        ctx.lineTo(hw, deckY);
-        // Right wall bottom to right wall top
-        ctx.lineTo(hw, deckY - bh);
-        ctx.stroke();
+        } else {
+            // Draw Cargo Deck (Basket)
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            const deckY = -lander.deckOffset;
+            const hw = lander.deckWidth / 2;
+            const bh = lander.basketHeight;
 
-        // Neon deck glow
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-hw + 1, deckY);
-        ctx.lineTo(hw - 1, deckY);
-        ctx.stroke();
+            ctx.beginPath();
+            // Left wall top to left wall bottom
+            ctx.moveTo(-hw, deckY - bh);
+            ctx.lineTo(-hw, deckY);
+            // Floor
+            ctx.lineTo(hw, deckY);
+            // Right wall bottom to right wall top
+            ctx.lineTo(hw, deckY - bh);
+            ctx.stroke();
 
-        // Lander Pod Body (sleek glass/shielding dome)
-        const radGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, w/2);
-        radGrad.addColorStop(0, '#1e293b');
-        radGrad.addColorStop(1, '#0f172a');
-        ctx.fillStyle = radGrad;
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        // Capsule shape
-        ctx.arc(0, 4, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+            // Neon deck glow
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-hw + 1, deckY);
+            ctx.lineTo(hw - 1, deckY);
+            ctx.stroke();
 
-        // Cockpit window glow
-        ctx.fillStyle = '#6366f1';
-        ctx.beginPath();
-        ctx.arc(0, -2, 6, Math.PI, 0);
-        ctx.fill();
+            // Lander Pod Body
+            const radGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, w/2);
+            radGrad.addColorStop(0, '#1e293b');
+            radGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = radGrad;
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            ctx.arc(0, 4, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
 
-        // Draw Landing Legs
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 2.5;
+            ctx.fillStyle = '#6366f1';
+            ctx.beginPath();
+            ctx.arc(0, -2, 6, Math.PI, 0);
+            ctx.fill();
 
-        // Left Leg
-        ctx.beginPath();
-        ctx.moveTo(-10, 8);
-        ctx.lineTo(-20, 16);
-        ctx.lineTo(-24, 16); // Foot pad
-        ctx.stroke();
+            // Draw Landing Legs
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2.5;
 
-        // Right Leg
-        ctx.beginPath();
-        ctx.moveTo(10, 8);
-        ctx.lineTo(20, 16);
-        ctx.lineTo(24, 16); // Foot pad
-        ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(-10, 8);
+            ctx.lineTo(-20, 16);
+            ctx.lineTo(-24, 16);
+            ctx.stroke();
 
-        // Bottom Thruster bell
-        ctx.fillStyle = '#475569';
-        ctx.beginPath();
-        ctx.moveTo(-6, 12);
-        ctx.lineTo(6, 12);
-        ctx.lineTo(4, 16);
-        ctx.lineTo(-4, 16);
-        ctx.closePath();
-        ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(10, 8);
+            ctx.lineTo(20, 16);
+            ctx.lineTo(24, 16);
+            ctx.stroke();
 
-        // Cargo Platform (Deck) on top of the lander
-        ctx.fillStyle = '#334155';
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 2;
-        
-        // Draw flat deck: y = -lander.deckOffset (e.g. -12 relative to center)
-        const dy = -lander.deckOffset;
-        const dw = lander.deckWidth;
-        
-        ctx.fillRect(-dw/2, dy, dw, 4);
-        ctx.strokeRect(-dw/2, dy, dw, 4);
-
-        // Deck side rails (minor side bars to give visual framing)
-        ctx.fillStyle = '#64748b';
-        ctx.fillRect(-dw/2, dy - 5, 2, 5);
-        ctx.fillRect(dw/2 - 2, dy - 5, 2, 5);
+            // Bottom Thruster bell
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(-6, 12);
+            ctx.lineTo(6, 12);
+            ctx.lineTo(10, 20);
+            ctx.lineTo(-10, 20);
+            ctx.fill();
+        }
 
         ctx.restore();
     }

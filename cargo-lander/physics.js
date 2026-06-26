@@ -110,13 +110,21 @@ class CargoPhysics {
                             canyonDepth = (150 - dist) * 1.8;
                         }
                         y = h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
+                    } else if (config.terrainType === 'needle') {
+                        // A flat terrain with a very narrow, deep pit for the delivery hub
+                        // The pit is essentially a 40px wide shaft going down
+                        const mid = w / 2;
+                        const dist = Math.abs(x - mid);
+                        if (x >= 650 && x <= 750) {
+                            y = h - 40; // bottom of pit (where delivery hub will flatten it out)
+                        } else {
+                            y = h - 400; // high plateau
+                        }
                     } else {
                         // Standard rolling hills
                         y = h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
                     }
                 }
-            }
-
             // Clamping y within canvas bounds
             y = Math.max(100, Math.min(y, h - 10));
             points.push({ x, y });
@@ -126,16 +134,19 @@ class CargoPhysics {
     }
 
     spawnLander(config) {
+        const vehicleType = config.vehicle || 'lander';
+
         // Position lander centered on Start Depot pad
         this.lander = {
+            vehicleType: vehicleType,
             x: this.startDepot.x + this.startDepot.width / 2,
             y: this.startDepot.y - 16,
             vx: 0,
             vy: 0,
             angle: 0,
             angularVelocity: 0,
-            width: 48,
-            height: 32,
+            width: vehicleType === 'drone' ? 32 : 48,
+            height: vehicleType === 'drone' ? 16 : 32,
             deckWidth: 80, // Larger basket size
             deckOffset: 12, // Pixels above center
             basketHeight: 25, // Side wall height for the basket
@@ -146,9 +157,15 @@ class CargoPhysics {
             thrusting: false,
             rotatingLeft: false,
             rotatingRight: false,
+            extendingRope: false,
+            retractingRope: false,
+            ropeLength: 60,
+            ropeMin: 20,
+            ropeMax: 150,
+            grabbedBoxId: null,
             crashed: false,
             landed: true,
-            currentPad: 'sourcing'
+            currentPad: 'start'
         };
     }
 
@@ -235,54 +252,103 @@ class CargoPhysics {
         const lander = this.lander;
         if (lander.crashed) return;
 
-        // Rotation
-        const torque = 0.012; // Increased for higher responsiveness
-        if (lander.rotatingLeft) {
-            lander.angularVelocity -= torque;
-            lander.landed = false;
-        }
-        if (lander.rotatingRight) {
-            lander.angularVelocity += torque;
-            lander.landed = false;
-        }
+        if (lander.vehicleType === 'drone') {
+            // Drone Kinematics
+            lander.angularVelocity *= 0.8;
+            lander.angle -= lander.angle * 0.1; // Self-stabilize
 
-        // Apply angular damping (stronger damping for stability)
-        lander.angularVelocity *= 0.90;
-        lander.angle += lander.angularVelocity;
+            if (lander.rotatingLeft) {
+                lander.vx -= 0.15;
+                lander.angle = Math.max(-0.4, lander.angle - 0.08); // Visual tilt
+                lander.landed = false;
+            }
+            if (lander.rotatingRight) {
+                lander.vx += 0.15;
+                lander.angle = Math.min(0.4, lander.angle + 0.08);
+                lander.landed = false;
+            }
 
-        // Thrust
-        const thrustForce = 0.55; // Much stronger thrust for agile flight
-        lander.thrusting = false;
-        
-        if (lander.thrustingActive && lander.fuel > 0) {
-            lander.thrusting = true;
-            lander.landed = false;
-            lander.fuel -= 0.12; // Consume fuel
+            lander.thrusting = false;
+            // Auto-hover counters most gravity
+            if (!lander.landed) {
+                lander.vy -= this.gravity * 0.95; // Slight downward drift
+            }
 
-            // Add forces in lander up direction (-sin(angle), -cos(angle))
-            const ax = Math.sin(lander.angle) * thrustForce;
-            const ay = -Math.cos(lander.angle) * thrustForce;
+            if (lander.thrustingActive && lander.fuel > 0) {
+                lander.thrusting = true;
+                lander.landed = false;
+                lander.fuel -= 0.06;
+                lander.vy -= 0.3; // Ascend
+            }
 
-            lander.vx += ax;
-            lander.vy += ay;
+            // Rope mechanics
+            if (lander.extendingRope) {
+                lander.ropeLength = Math.min(lander.ropeMax, lander.ropeLength + 3);
+            }
+            if (lander.retractingRope) {
+                lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3);
+            }
 
-            // Spawn exhaust particles
-            if (Math.random() < 0.7) {
-                const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-                const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-                const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-                const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-                
+            // Exhaust particles
+            if (lander.thrusting && Math.random() < 0.5) {
                 this.particles.push({
-                    x: ex,
-                    y: ey,
-                    vx: evx,
-                    vy: evy,
+                    x: lander.x + (Math.random() - 0.5) * 10,
+                    y: lander.y + 8,
+                    vx: lander.vx + (Math.random() - 0.5) * 2,
+                    vy: lander.vy + 2 + Math.random() * 2,
                     life: 1.0,
-                    decay: 0.04 + Math.random() * 0.03,
-                    color: `hsla(${20 + Math.random() * 30}, 100%, 60%, 0.8)`,
-                    size: 4 + Math.random() * 4
+                    decay: 0.05 + Math.random() * 0.05,
+                    color: `hsla(180, 100%, 70%, 0.6)`,
+                    size: 2 + Math.random() * 3
                 });
+            }
+
+        } else {
+            // Standard Lander Mechanics
+            const torque = 0.012; 
+            if (lander.rotatingLeft) {
+                lander.angularVelocity -= torque;
+                lander.landed = false;
+            }
+            if (lander.rotatingRight) {
+                lander.angularVelocity += torque;
+                lander.landed = false;
+            }
+
+            lander.angularVelocity *= 0.90;
+            lander.angle += lander.angularVelocity;
+
+            const thrustForce = 0.55; 
+            lander.thrusting = false;
+            
+            if (lander.thrustingActive && lander.fuel > 0) {
+                lander.thrusting = true;
+                lander.landed = false;
+                lander.fuel -= 0.12; 
+
+                const ax = Math.sin(lander.angle) * thrustForce;
+                const ay = -Math.cos(lander.angle) * thrustForce;
+
+                lander.vx += ax;
+                lander.vy += ay;
+
+                if (Math.random() < 0.7) {
+                    const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
+                    const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
+                    const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
+                    const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
+                    
+                    this.particles.push({
+                        x: ex,
+                        y: ey,
+                        vx: evx,
+                        vy: evy,
+                        life: 1.0,
+                        decay: 0.04 + Math.random() * 0.03,
+                        color: `hsla(${20 + Math.random() * 30}, 100%, 60%, 0.8)`,
+                        size: 4 + Math.random() * 4
+                    });
+                }
             }
         }
     }
@@ -505,17 +571,44 @@ class CargoPhysics {
 
         // Apply physical movements to all boxes in world space
         for (const box of this.boxes) {
-            // Gravity
             box.vy += this.gravity;
+            
+            // Grapple physics (Distance Constraint)
+            if (this.lander && this.lander.vehicleType === 'drone' && this.lander.grabbedBoxId === box.id) {
+                const attachX = this.lander.x;
+                const attachY = this.lander.y;
+                const dx = box.x - attachX;
+                const dy = box.y - attachY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > this.lander.ropeLength) {
+                    const diff = dist - this.lander.ropeLength;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    
+                    // Pull box
+                    box.x -= nx * diff;
+                    box.y -= ny * diff;
+                    
+                    // Transfer velocity to emulate pendulum swinging
+                    const rvx = box.vx - this.lander.vx;
+                    const rvy = box.vy - this.lander.vy;
+                    const rvn = rvx * nx + rvy * ny;
+                    if (rvn > 0) {
+                        box.vx -= rvn * nx;
+                        box.vy -= rvn * ny;
+                    }
+                }
+            }
+            
+            box.x += box.vx;
+            box.y += box.vy;
+            
             // Wind
             box.vx += this.wind * 0.01;
             // Drag
             box.vx *= 0.99;
             box.vy *= 0.99;
-
-            // Integrate
-            box.x += box.vx;
-            box.y += box.vy;
         }
 
         // Solve collisions multiple times to ensure stability of stacked elements
