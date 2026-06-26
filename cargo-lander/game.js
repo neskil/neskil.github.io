@@ -1354,8 +1354,9 @@ class CargoGame {
         this.drawDeliveryHubs();
 
         // 5. Draw Terrain Landscape
-        this.drawLake();
+        this.drawGroundParallax();
         this.drawTerrain();
+        this.drawLake();
 
         // 6. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();
@@ -2127,7 +2128,8 @@ class CargoGame {
         if (this.currentLevelIndex > 1) return;
         if (!(this.physics.levelHeight > 0)) return;
         const ctx = this.ctx;
-        const lx = 350, ly = this.physics.levelHeight * 0.55, lw = 280, ld = 60;
+        const lx = 530, lw = 240, ld = 52;
+        const ly = this.physics.getTerrainHeight(lx + lw / 2) - ld + 10;
         const now = Date.now();
 
         const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
@@ -2205,6 +2207,40 @@ class CargoGame {
         ctx.stroke();
     }
 
+    drawGroundParallax() {
+        const ctx = this.ctx;
+        if (this.physics.terrainPoints.length === 0) return;
+        const lv = levels[this.currentLevelIndex] || {};
+        const pal = lv.palette || { terrainFill: '#0b0f19' };
+        const zoom = this.camera.zoom;
+        const w = this.canvas.width;
+        const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
+        const endX = this.camera.x + (w / 2 / zoom) + 200;
+        const lh = this.physics.levelHeight;
+
+        const hexToRgb = (hex) => {
+            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+            return [r,g,b];
+        };
+        const [tr, tg, tb] = hexToRgb(pal.terrainFill);
+
+        const layers = [
+            { shift: 60, alpha: 0.55, darken: 0.45 },
+            { shift: 28, alpha: 0.40, darken: 0.65 },
+        ];
+        for (const layer of layers) {
+            ctx.fillStyle = `rgba(${Math.floor(tr*layer.darken)},${Math.floor(tg*layer.darken)},${Math.floor(tb*layer.darken)},${layer.alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(startX, lh + 1000);
+            for (let x = startX; x <= endX; x += 24) {
+                ctx.lineTo(x, this.physics.getTerrainHeight(x) + layer.shift);
+            }
+            ctx.lineTo(endX, lh + 1000);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
     drawTerrain() {
         const ctx = this.ctx;
         if (this.physics.terrainPoints.length === 0) return;
@@ -2271,57 +2307,19 @@ class CargoGame {
         ctx.closePath();
         ctx.fill();
 
-        ctx.lineJoin = 'round';
+        // Subtle noise texture on the edge — small deterministic bumps, no discrete rocks
+        ctx.strokeStyle = pal.rockEdge + 'aa';
         ctx.lineWidth = 1.2;
-
-        let rx = startX;
-        while (rx <= endX) {
-            if (isOverPad(rx)) { rx += 20; continue; }
-
-            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9), r4 = hash(rx * 2.3 + 17);
-            const spacing = 60 + r4 * 40;
-            const bw = 12 + r2 * 16;
-            const bh = 6 + r1 * 10;
-            const lean = (r3 - 0.5) * bw * 0.4;
-
-            const bx = rx + r4 * 10;
-            const by = getH(bx + bw * 0.5);
-
-            const x0 = bx, x4 = bx + bw;
-            const x1 = bx + bw * 0.18, y1 = by - bh * 0.65;
-            const x2 = bx + bw * 0.45 + lean, y2 = by - bh;
-            const x3 = bx + bw * 0.82 + lean * 0.5, y3 = by - bh * 0.55;
-
-            ctx.fillStyle = pal.terrainFill;
-            ctx.strokeStyle = pal.rockEdge + 'aa';
-            ctx.beginPath();
-            ctx.moveTo(x0, by);
-            ctx.quadraticCurveTo(x0 - 2, y1 + bh * 0.3, x1, y1);
-            ctx.quadraticCurveTo((x1 + x2) * 0.5, y2 - 2, x2, y2);
-            ctx.quadraticCurveTo((x2 + x3) * 0.5, y2 - 1, x3, y3);
-            ctx.quadraticCurveTo(x4 + 2, y3 + bh * 0.25, x4, by);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            if (r1 > 0.8) {
-                const cx = bx + bw * 0.85 + r2 * 8;
-                const cby = getH(cx);
-                const cw2 = bw * 0.4, ch2 = bh * 0.45;
-                ctx.fillStyle = pal.terrainFill;
-                ctx.strokeStyle = pal.rockEdge + 'aa';
-                ctx.beginPath();
-                ctx.moveTo(cx, cby);
-                ctx.quadraticCurveTo(cx - 1, cby - ch2 * 0.5, cx + cw2 * 0.2, cby - ch2);
-                ctx.quadraticCurveTo(cx + cw2 * 0.5, cby - ch2 - 2, cx + cw2 * 0.8, cby - ch2 * 0.6);
-                ctx.quadraticCurveTo(cx + cw2 + 1, cby - ch2 * 0.3, cx + cw2, cby);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-            }
-
-            rx += spacing;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        let nStarted = false;
+        for (let x = startX; x <= endX; x += 3) {
+            const baseY = getH(x);
+            const noise = isOverPad(x) ? 0 : (hash(x) - 0.5) * 4;
+            if (!nStarted) { ctx.moveTo(x, baseY + noise); nStarted = true; }
+            else ctx.lineTo(x, baseY + noise);
         }
+        ctx.stroke();
 
         // Subtle surface grain lines
         ctx.strokeStyle = `${pal.rockGlow}0.12)`;
@@ -2948,11 +2946,10 @@ class CargoGame {
             }
 
             // ── Landing legs — spring-compressed on touchdown ──────────────
-            const lc = lander.legCompress || 0; // 0 = relaxed, 1 = fully compressed
-            // legSink: how much the foot drops down (visually), springs back
-            const legSink = lc * 6; // max 6px compression
-            const legSpreadX = hw + 10 - lc * 5; // legs pull inward when compressed
-            const footY = 24 - legSink;
+            const lc = lander.legCompress || 0;
+            const legSink = lc * 16;
+            const legSpreadX = hw + 12 - lc * 8;
+            const footY = 27 - legSink;
 
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 3;
