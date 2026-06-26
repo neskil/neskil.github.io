@@ -34,46 +34,83 @@ class CargoPhysics {
         this.spawnLander(levelConfig, upgrades);
     }
 
+    getRawTerrainHeight(x, terrainType, w, h) {
+        if (terrainType === 'mountain') {
+            const mid = w / 2;
+            const dist = Math.abs(x - mid);
+            const mountainH = Math.max(0, (w/2.5 - dist) * 1.5);
+            return h - 60 - mountainH + Math.sin(x * 0.05) * 15;
+        } else if (terrainType === 'caves' || terrainType === 'cave') {
+            return h - 100 + Math.sin(x * 0.02) * 80 + Math.cos(x * 0.08) * 30;
+        } else if (terrainType === 'canyon') {
+            const mid = w / 2;
+            const dist = Math.abs(x - mid);
+            let canyonDepth = 0;
+            if (dist < 150) {
+                canyonDepth = (150 - dist) * 1.8;
+            }
+            return h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
+        } else if (terrainType === 'needle') {
+            if (x >= 650 && x <= 750) {
+                return h - 40; // bottom of pit
+            } else {
+                return h - 400; // plateau
+            }
+        } else {
+            // Standard rolling hills
+            return h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
+        }
+    }
+
     generateTerrain(config) {
         const points = [];
         const w = this.levelWidth;
         const h = this.levelHeight;
 
-        // Define Start Depot (Spawn Point)
+        // Define Start Depot (Spawn Point) template
         this.startDepot = {
             x: 80,
-            y: h - 100,
+            y: h - 100, // Updated dynamically
             width: 80,
             height: 15
         };
 
-        // Define Collection Point (Loading Pad)
+        // Define Collection Point (Loading Pad) template
         this.collectionPoint = {
             x: config.collectionX || 280,
-            y: h - 100,
+            y: h - 100, // Updated dynamically
             width: 100,
             height: 15
         };
 
-        // Define Delivery Hubs
+        // Define Delivery Hubs templates
         this.deliveryHubs = config.deliveryHubs.map(hub => ({
             x: hub.x,
-            y: h - 100,
+            y: h - 100, // Updated dynamically
             width: hub.width || 80,
             height: 15,
-            color: hub.color, // 'red', 'blue', 'green'
+            color: hub.color,
             type: hub.type,
             name: hub.name || 'Terminal'
         }));
 
-        // Generate heightmap nodes
-        // Make sure we have flat areas at the pads
-        const pads = [
-            { left: this.startDepot.x - 20, right: this.startDepot.x + this.startDepot.width + 20, y: this.startDepot.y },
-            { left: this.collectionPoint.x - 20, right: this.collectionPoint.x + this.collectionPoint.width + 20, y: this.collectionPoint.y }
-        ];
+        // Dynamically compute y coordinates for all pads based on raw terrain height at their center
+        const pads = [];
+        
+        // 1. Start Depot
+        const startRawY = this.getRawTerrainHeight(this.startDepot.x + this.startDepot.width / 2, config.terrainType, w, h);
+        this.startDepot.y = Math.max(100, Math.min(startRawY, h - 10));
+        pads.push({ left: this.startDepot.x - 20, right: this.startDepot.x + this.startDepot.width + 20, y: this.startDepot.y });
 
+        // 2. Collection Point
+        const colRawY = this.getRawTerrainHeight(this.collectionPoint.x + this.collectionPoint.width / 2, config.terrainType, w, h);
+        this.collectionPoint.y = Math.max(100, Math.min(colRawY, h - 10));
+        pads.push({ left: this.collectionPoint.x - 20, right: this.collectionPoint.x + this.collectionPoint.width + 20, y: this.collectionPoint.y });
+
+        // 3. Delivery Hubs
         for (const hub of this.deliveryHubs) {
+            const hubRawY = this.getRawTerrainHeight(hub.x + hub.width / 2, config.terrainType, w, h);
+            hub.y = Math.max(100, Math.min(hubRawY, h - 10));
             pads.push({ left: hub.x - 20, right: hub.x + hub.width + 20, y: hub.y });
         }
 
@@ -92,40 +129,9 @@ class CargoPhysics {
             }
 
             if (!inPad) {
-                    // Generate landscape geometry based on level config
-                    if (config.terrainType === 'mountain') {
-                        // High mountain in the middle
-                        const mid = w / 2;
-                        const dist = Math.abs(x - mid);
-                        const mountainH = Math.max(0, (w/2.5 - dist) * 1.5);
-                        y = h - 60 - mountainH + Math.sin(x * 0.05) * 15;
-                    } else if (config.terrainType === 'caves') {
-                        // Jagged sharp pillars
-                        y = h - 100 + Math.sin(x * 0.02) * 80 + Math.cos(x * 0.08) * 30;
-                    } else if (config.terrainType === 'canyon') {
-                        // Deep trench in the middle
-                        const mid = w / 2;
-                        const dist = Math.abs(x - mid);
-                        let canyonDepth = 0;
-                        if (dist < 150) {
-                            canyonDepth = (150 - dist) * 1.8;
-                        }
-                        y = h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
-                    } else if (config.terrainType === 'needle') {
-                        // A flat terrain with a very narrow, deep pit for the delivery hub
-                        // The pit is essentially a 40px wide shaft going down
-                        const mid = w / 2;
-                        const dist = Math.abs(x - mid);
-                        if (x >= 650 && x <= 750) {
-                            y = h - 40; // bottom of pit (where delivery hub will flatten it out)
-                        } else {
-                            y = h - 400; // high plateau
-                        }
-                    } else {
-                        // Standard rolling hills
-                        y = h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
-                    }
-                }
+                y = this.getRawTerrainHeight(x, config.terrainType, w, h);
+            }
+            
             // Clamping y within canvas bounds
             y = Math.max(100, Math.min(y, h - 10));
             points.push({ x, y });
@@ -261,7 +267,7 @@ class CargoPhysics {
         this.applyGravityAndWind(dt);
         this.integrateLander(dt);
         this.resolveLanderCollisions();
-        this.applyGravityWell(levelConfig);
+        this.applyGravityWell(levelConfig, dt);
 
         this.updateBoxes(dt);
         this.updateMonster(dt);
@@ -272,8 +278,14 @@ class CargoPhysics {
         const lander = this.lander;
         if (lander.crashed) return;
 
-        // Spawn logic: Trigger if lander strays 150px out of bounds
-        if (!this.monster && (lander.x < -150 || lander.x > this.levelWidth + 150)) {
+        // Spawn logic: Trigger if lander strays out of bounds
+        if (lander.x < -500 || lander.x > this.levelWidth + 500) {
+            this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
+        } else {
+            this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
+        }
+
+        if (!this.monster && this.outOfBoundsTimer > 120) { // 2 seconds at 60fps
             // Spawn monster from the deep below
             this.monster = {
                 x: lander.x < -150 ? lander.x - 400 : lander.x + 400,
@@ -296,16 +308,16 @@ class CargoPhysics {
             
             if (dist > 0) {
                 const speed = 0.25; // Scary fast acceleration
-                m.vx += (dx / dist) * speed;
-                m.vy += (dy / dist) * speed;
+                m.vx += (dx / dist) * speed * dt;
+                m.vy += (dy / dist) * speed * dt;
             }
             
             // Dampen velocity to prevent infinite acceleration (max speed limit)
-            m.vx *= 0.98;
-            m.vy *= 0.98;
+            m.vx *= Math.pow(0.98, dt);
+            m.vy *= Math.pow(0.98, dt);
             
-            m.x += m.vx;
-            m.y += m.vy;
+            m.x += m.vx * dt;
+            m.y += m.vy * dt;
 
             // Lethal Contact!
             if (dist < m.size / 2 + lander.width / 2) {
@@ -319,51 +331,58 @@ class CargoPhysics {
         if (lander.crashed) return;
 
         // Thrust Spooling Interpolation (0 to 1)
-        const spoolSpeed = 0.05;
+        const spoolSpeed = 0.05 * dt;
         const thrustInput = (inputState.up || inputState.mouseLeft) ? 1.0 : 0.0;
-        lander.enginePower += (thrustInput - lander.enginePower) * spoolSpeed;
+        lander.enginePower += (thrustInput - lander.enginePower) * Math.min(1, spoolSpeed);
 
         let strafeInput = 0;
         if (inputState.left || inputState.q) strafeInput = -1.0;
         if (inputState.right || inputState.e || inputState.mouseRight) strafeInput = 1.0;
-        lander.strafePower += (strafeInput - lander.strafePower) * spoolSpeed;
+        lander.strafePower += (strafeInput - lander.strafePower) * Math.min(1, spoolSpeed);
 
         const maxThrust = 0.55 * (lander.thrustMultiplier || 1.0);
         lander.thrusting = lander.enginePower > 0.1;
 
         if (lander.vehicleType === 'drone') {
             // DRONE KINEMATICS (Vertical specialist, rope mechanics)
-            lander.angularVelocity *= 0.8;
-            lander.angle -= lander.angle * 0.1; // Self-stabilize
+            lander.angularVelocity *= Math.pow(0.8, dt);
+            lander.angle -= lander.angle * Math.min(1, 0.1 * dt); // Self-stabilize
 
             if (inputState.left) {
-                lander.vx -= 0.15;
-                lander.angle = Math.max(-0.4, lander.angle - 0.08); // Visual tilt
+                lander.vx -= 0.15 * dt;
+                lander.angle = Math.max(-0.4, lander.angle - 0.08 * dt); // Visual tilt
                 lander.landed = false;
             }
             if (inputState.right) {
-                lander.vx += 0.15;
-                lander.angle = Math.min(0.4, lander.angle + 0.08);
+                lander.vx += 0.15 * dt;
+                lander.angle = Math.min(0.4, lander.angle + 0.08 * dt);
                 lander.landed = false;
             }
 
             // Auto-hover counters most gravity
             if (!lander.landed) {
-                lander.vy -= this.gravity * 0.95; // Slight downward drift
+                lander.vy -= this.gravity * 0.95 * dt; // Slight downward drift
             }
 
             if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * lander.enginePower;
-                lander.vy -= 0.3 * (lander.thrustMultiplier || 1.0) * lander.enginePower; // Ascend
+                lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt;
+                lander.vy -= 0.15 * (lander.thrustMultiplier || 1.0) * lander.enginePower * dt; // Ascend (slower)
+            }
+            
+            // Descent control (Task 5)
+            if (inputState.down && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.03 * (lander.fuelEfficiency || 1.0) * dt;
+                lander.vy += 0.25 * (lander.thrustMultiplier || 1.0) * dt; // Descend (faster)
             }
 
             // Rope mechanics
             if (inputState.e) {
-                lander.ropeLength = Math.min(lander.ropeMax, lander.ropeLength + 3);
+                lander.ropeLength = Math.min(lander.ropeMax, lander.ropeLength + 3 * dt);
             }
             if (inputState.q) {
-                lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3);
+                lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3 * dt);
             }
             
             // Track grapple hook position in world space
@@ -377,13 +396,14 @@ class CargoPhysics {
             
             if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * lander.enginePower;
-                lander.vy -= maxThrust * lander.enginePower;
+                lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt;
+                lander.vy -= maxThrust * lander.enginePower * dt;
             }
             if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower);
-                lander.vx += (maxThrust * 0.6) * lander.strafePower;
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower) * dt;
+                // Slower acceleration, keeps inertia
+                lander.vx += (maxThrust * 0.2) * lander.strafePower * dt;
             }
 
         } else {
@@ -398,19 +418,19 @@ class CargoPhysics {
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 
                 // Apply torque towards cursor
-                lander.angularVelocity += diff * 0.05;
+                lander.angularVelocity += diff * 0.05 * dt;
                 lander.landed = false;
             }
 
-            lander.angularVelocity *= 0.85; // Dampening
-            lander.angle += lander.angularVelocity;
+            lander.angularVelocity *= Math.pow(0.85, dt); // Dampening
+            lander.angle += lander.angularVelocity * dt;
 
             if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.12 * (lander.fuelEfficiency || 1.0) * lander.enginePower; 
+                lander.fuel -= 0.12 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt; 
 
-                const ax = Math.sin(lander.angle) * maxThrust * lander.enginePower;
-                const ay = -Math.cos(lander.angle) * maxThrust * lander.enginePower;
+                const ax = Math.sin(lander.angle) * maxThrust * lander.enginePower * dt;
+                const ay = -Math.cos(lander.angle) * maxThrust * lander.enginePower * dt;
 
                 lander.vx += ax;
                 lander.vy += ay;
@@ -418,17 +438,17 @@ class CargoPhysics {
             
             if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower);
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower) * dt;
                 // Strafe is perpendicular to facing angle
-                const sx = Math.cos(lander.angle) * maxThrust * 0.4 * lander.strafePower;
-                const sy = Math.sin(lander.angle) * maxThrust * 0.4 * lander.strafePower;
+                const sx = Math.cos(lander.angle) * maxThrust * 0.4 * lander.strafePower * dt;
+                const sy = Math.sin(lander.angle) * maxThrust * 0.4 * lander.strafePower * dt;
                 lander.vx += sx;
                 lander.vy += sy;
             }
         }
         
         // Universal Exhaust particles (scaled by engine power)
-        if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower) {
+        if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower * dt) {
             const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
             const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
             const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
@@ -440,7 +460,7 @@ class CargoPhysics {
                 vx: evx,
                 vy: evy,
                 life: 1.0,
-                decay: 0.04 + Math.random() * 0.03,
+                decay: (0.04 + Math.random() * 0.03) * dt,
                 color: `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
                 size: 4 + Math.random() * 6 * lander.enginePower
             });
@@ -452,17 +472,23 @@ class CargoPhysics {
         if (lander.landed) return;
 
         // Apply gravity
-        lander.vy += this.gravity;
+        lander.vy += this.gravity * dt;
 
         // Apply wind (force proportional to lander area, simplified)
-        lander.vx += this.wind * 0.02;
+        lander.vx += this.wind * 0.02 * dt;
+
+        // Minor random drifting for drone
+        if (lander.vehicleType === 'drone') {
+            lander.vx += (Math.random() - 0.5) * 0.02 * dt;
+            lander.vy += (Math.random() - 0.5) * 0.01 * dt;
+        }
 
         // Air resistance damping
-        lander.vx *= 0.995;
-        lander.vy *= 0.995;
+        lander.vx *= Math.pow(0.995, dt);
+        lander.vy *= Math.pow(0.995, dt);
     }
 
-    applyGravityWell(levelConfig) {
+    applyGravityWell(levelConfig, dt) {
         if (!levelConfig.gravityWell) return;
         const well = levelConfig.gravityWell;
         const dx = well.x - this.lander.x;
@@ -471,15 +497,15 @@ class CargoPhysics {
         if (dist > 20 && dist < well.radius) {
             // Force inverse proportional to distance
             const force = (well.strength * 10) / (dist * 0.1);
-            this.lander.vx += (dx / dist) * force;
-            this.lander.vy += (dy / dist) * force;
+            this.lander.vx += (dx / dist) * force * dt;
+            this.lander.vy += (dy / dist) * force * dt;
         }
     }
 
     integrateLander(dt) {
         const lander = this.lander;
-        lander.x += lander.vx;
-        lander.y += lander.vy;
+        lander.x += lander.vx * dt;
+        lander.y += lander.vy * dt;
 
         // Wrap around screen edges vertically/horizontally
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
@@ -579,9 +605,10 @@ class CargoPhysics {
                 const impactVel = speed;
                 lander.landed = false;
 
-                // Push out along slope normal
-                lander.x += slope.nx * minPen;
-                lander.y += slope.ny * minPen;
+                // Push out along slope normal to completely resolve vertical penetration
+                const pushDist = minPen / Math.abs(slope.ny);
+                lander.x += slope.nx * pushDist;
+                lander.y += slope.ny * pushDist;
 
                 // Reflect velocity with restitution
                 const vn = lander.vx * slope.nx + lander.vy * slope.ny;
@@ -663,7 +690,7 @@ class CargoPhysics {
 
         // Apply physical movements to all boxes in world space
         for (const box of this.boxes) {
-            box.vy += this.gravity;
+            box.vy += this.gravity * dt;
             
             // Grapple physics (Distance Constraint)
             if (this.lander && this.lander.vehicleType === 'drone' && this.lander.grabbedBoxId === box.id) {
@@ -694,8 +721,8 @@ class CargoPhysics {
                 }
             }
             
-            box.x += box.vx;
-            box.y += box.vy;
+            box.x += box.vx * dt;
+            box.y += box.vy * dt;
             
             // Magnetic Deck Physics
             if (this.lander && this.lander.vehicleType === 'lander' && this.lander.magneticDeckActive && !this.lander.crashed) {
@@ -708,17 +735,17 @@ class CargoPhysics {
                 
                 // Pull range: 120 pixels
                 if (dist > 0 && dist < 120) {
-                    const pullFactor = (1 - dist / 120) * this.lander.magneticStrength;
+                    const pullFactor = (1 - dist / 120) * this.lander.magneticStrength * dt;
                     box.vx += (dx / dist) * pullFactor;
                     box.vy += (dy / dist) * pullFactor;
                 }
             }
             
             // Wind
-            box.vx += this.wind * 0.01;
+            box.vx += this.wind * 0.01 * dt;
             // Drag
-            box.vx *= 0.99;
-            box.vy *= 0.99;
+            box.vx *= Math.pow(0.99, dt);
+            box.vy *= Math.pow(0.99, dt);
         }
 
         // Solve collisions multiple times to ensure stability of stacked elements
@@ -741,9 +768,10 @@ class CargoPhysics {
                 const pen = (box.y + halfS) - gy;
                 const slope = this.getTerrainSlope(box.x);
 
-                // Push out along slope normal
-                box.x += slope.nx * pen;
-                box.y += slope.ny * pen;
+                // Push out along slope normal to resolve vertical penetration
+                const pushDist = pen / Math.abs(slope.ny);
+                box.x += slope.nx * pushDist;
+                box.y += slope.ny * pushDist;
 
                 // Decompose and reflect velocity
                 const vn = box.vx * slope.nx + box.vy * slope.ny;
