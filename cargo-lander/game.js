@@ -2,7 +2,8 @@
 const levels = [
     {
         name: "L1: Local Distribution",
-        description: "Transport 3 standard packages to the Delivery Pad. Fly carefully - tilt too much and cargo will slide off!",
+        missionTitle: "Local Distribution Contract",
+        description: "Transport standard packages to the Delivery Pad. Fly carefully — tilt too much and cargo will slide off!",
         gravity: 0.15,
         wind: 0,
         terrainType: "flat",
@@ -13,11 +14,17 @@ const levels = [
         deliveryHubs: [
             { x: 750, color: "#38bdf8", type: "normal", name: "Hub Alpha" }
         ],
-        hint: "Tip: Land slowly (< 2.0 m/s) and keep your lander level (< 8 degrees) to land safely."
+        hint: "Tip: Land slowly (< 2.0 m/s) and return to HQ to extract.",
+        quests: [
+            { id: 'primary',       text: 'Deliver 2 cargo to Hub Alpha',   type: 'primary' },
+            { id: 'no_crash',      text: 'Zero crashes',                   type: 'bonus', reward: 300 },
+            { id: 'quick',         text: 'Finish with 1+ min remaining',   type: 'bonus', reward: 200, timeGoal: 60 },
+        ]
     },
     {
         name: "L2: Cross-Dock Sorting",
-        description: "Sort the cargo. Normal (white) packages go to the central Hub. Fragile (red) go to the far Hub. Don't drop fragile cargo from high up!",
+        missionTitle: "Cross-Dock Sorting Contract",
+        description: "Sort the cargo. Normal packages → Main Processing. Fragile (red) → Fragile Handling. Don't drop fragile cargo!",
         gravity: 0.15,
         wind: 0,
         terrainType: "canyon",
@@ -29,13 +36,19 @@ const levels = [
             { x: 500, color: "#38bdf8", type: "normal", name: "Main Processing" },
             { x: 800, color: "#ef4444", type: "red", name: "Fragile Handling" }
         ],
-        hint: "Fragile (Red) cargo breaks if dropped too hard!"
+        hint: "Sort correctly and return to HQ to extract.",
+        quests: [
+            { id: 'primary',         text: 'Sort & deliver 2 cargo',       type: 'primary' },
+            { id: 'no_cargo_lost',   text: 'No cargo lost',                type: 'bonus', reward: 250 },
+            { id: 'no_crash',        text: 'Zero crashes',                  type: 'bonus', reward: 300 },
+        ]
     },
     {
         name: "L3: Gale-Force Winds",
-        description: "High altitude delivery. Strong crosswinds will push your lander and cargo. Compensate by thrusting into the wind.",
+        missionTitle: "High-Altitude Wind Contract",
+        description: "Strong crosswinds push your lander and cargo. Compensate by thrusting into the wind.",
         gravity: 0.15,
-        wind: 0.08, // Constant rightward wind
+        wind: 0.08,
         terrainType: "mountain",
         targetCargo: 2,
         budget: 1500,
@@ -44,11 +57,17 @@ const levels = [
         deliveryHubs: [
             { x: 650, color: "#38bdf8", type: "normal", name: "Peak Station" }
         ],
-        hint: "Tilt into the wind to maintain position."
+        hint: "Tilt into the wind. Return to HQ to extract.",
+        quests: [
+            { id: 'primary',    text: 'Deliver 2 cargo to Peak Station', type: 'primary' },
+            { id: 'no_crash',   text: 'Zero crashes',                    type: 'bonus', reward: 400 },
+            { id: 'quick',      text: 'Finish with 30+ sec remaining',   type: 'bonus', reward: 200, timeGoal: 30 },
+        ]
     },
     {
         name: "L4: Gravity Anomaly",
-        description: "Warning: Unstable spacetime detected. A gravitational vortex is pulling you in. Counter the force and deliver safely.",
+        missionTitle: "Anomaly Zone Delivery",
+        description: "A gravitational vortex is pulling you in. Counter the force and sort red/blue cargo to their correct hubs.",
         gravity: 0.15,
         wind: 0,
         terrainType: "cave",
@@ -61,11 +80,17 @@ const levels = [
             { x: 900, color: "#3b82f6", type: "blue", name: "Deep Storage" }
         ],
         gravityWell: { x: 500, y: 400, strength: 0.8, radius: 200 },
-        hint: "Fly around the vortex's event horizon!"
+        hint: "Avoid the vortex! Return to HQ to extract.",
+        quests: [
+            { id: 'primary',         text: 'Deliver red & blue cargo',    type: 'primary' },
+            { id: 'no_cargo_lost',   text: 'No cargo sucked in',          type: 'bonus', reward: 350 },
+            { id: 'no_crash',        text: 'Zero crashes',                type: 'bonus', reward: 300 },
+        ]
     },
     {
         name: "L5: The Needle's Eye",
-        description: "The delivery hub is at the bottom of a shaft too narrow for your drone. Hover, extend your rope (E/Q), and drop the cargo in!",
+        missionTitle: "Needle's Eye Precision Drop",
+        description: "The hub is at the bottom of a shaft too narrow for your drone. Hover, extend your rope (E/Q), and lower cargo in!",
         gravity: 0.10,
         wind: 0,
         terrainType: "needle",
@@ -77,7 +102,12 @@ const levels = [
         deliveryHubs: [
             { x: 700, width: 25, color: "#38bdf8", type: "normal", name: "The Pit" }
         ],
-        hint: "Hover over the pit. Use E to extend rope, Q to retract. SPACE drops cargo!"
+        hint: "E/Q to extend/retract rope. SPACE drops cargo. Return to HQ to extract.",
+        quests: [
+            { id: 'primary',         text: 'Lower 2 cargo into The Pit',  type: 'primary' },
+            { id: 'no_cargo_lost',   text: 'No cargo lost',               type: 'bonus', reward: 400 },
+            { id: 'quick',           text: 'Finish with 2+ min remaining',type: 'bonus', reward: 200, timeGoal: 120 },
+        ]
     }
 ];
 
@@ -125,7 +155,10 @@ class CargoGame {
 
         this.score = 100; // Efficiency rating %
         this.deliveredCount = 0;
-        this.deliveredTypes = {}; 
+        this.deliveredTypes = {};
+        this.questState = {};   // { questId: { completed, failed } }
+        this.hadCrash = false;
+        this.cargoLostCount = 0;
         this.cargoSpawnCooldown = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
@@ -182,18 +215,70 @@ class CargoGame {
     }
 
     generateStars() {
-        this.stars = [];
-        for (let i = 0; i < 180; i++) {
-            const bright = i < 14;
-            this.stars.push({
-                x: Math.random() * 1800,
-                y: Math.random() * 650,
-                size: bright ? (1.8 + Math.random() * 1.8) : (Math.random() * 1.2 + 0.2),
-                twinkleSpeed: bright ? (0.007 + Math.random() * 0.012) : (0.012 + Math.random() * 0.04),
+        // Three parallax depths of stars + nebulae
+        this.bgLayers = [
+            { objects: [], parallax: 0.018 }, // Deep — barely moves
+            { objects: [], parallax: 0.055 }, // Mid
+            { objects: [], parallax: 0.13  }, // Near
+        ];
+
+        // Deep: many tiny dim stars
+        for (let i = 0; i < 260; i++) {
+            this.bgLayers[0].objects.push({
+                x: Math.random() * 5000,
+                y: Math.random() * 1800 - 500,
+                size: Math.random() * 0.75 + 0.15,
+                alpha: 0.25 + Math.random() * 0.5,
                 phase: Math.random() * Math.PI * 2,
-                r: Math.floor(220 + Math.random() * 35),
-                g: Math.floor(225 + Math.random() * 30),
-                b: Math.floor(210 + Math.random() * 45),
+                speed: 0.006 + Math.random() * 0.012,
+                r: 210, g: 220, b: 230,
+            });
+        }
+        // Mid: moderate stars with color tints
+        for (let i = 0; i < 90; i++) {
+            const hue = [
+                [230, 230, 255], [255, 230, 210], [210, 240, 255],
+                [255, 255, 220], [240, 210, 255]
+            ][i % 5];
+            this.bgLayers[1].objects.push({
+                x: Math.random() * 5000,
+                y: Math.random() * 1800 - 500,
+                size: 0.5 + Math.random() * 1.3,
+                alpha: 0.35 + Math.random() * 0.55,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.008 + Math.random() * 0.018,
+                r: hue[0], g: hue[1], b: hue[2],
+            });
+        }
+        // Near: bright stars with soft halos
+        for (let i = 0; i < 30; i++) {
+            this.bgLayers[2].objects.push({
+                x: Math.random() * 5000,
+                y: Math.random() * 1800 - 500,
+                size: 1.4 + Math.random() * 2.2,
+                alpha: 0.6 + Math.random() * 0.4,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.004 + Math.random() * 0.01,
+                r: 235, g: 240, b: 250,
+                halo: true,
+            });
+        }
+
+        // Nebulae — large color clouds
+        const nebulaColors = [
+            [59, 130, 246], [139, 92, 246], [236, 72, 153],
+            [16, 185, 129], [245, 158, 11],
+        ];
+        this.bgNebulae = [];
+        for (let i = 0; i < 6; i++) {
+            const col = nebulaColors[i % nebulaColors.length];
+            this.bgNebulae.push({
+                x: 300 + Math.random() * 4400,
+                y: -300 + Math.random() * 1000,
+                r: 220 + Math.random() * 450,
+                alpha: 0.025 + Math.random() * 0.035,
+                parallax: 0.025 + Math.random() * 0.025,
+                col,
             });
         }
     }
@@ -486,6 +571,9 @@ class CargoGame {
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
         this.deliveredCount = 0;
         this.deliveredTypes = {};
+        this.questState = {};
+        this.hadCrash = false;
+        this.cargoLostCount = 0;
         this.score = 100; // Reset level efficiency
         this.messages = [];
         
@@ -704,13 +792,25 @@ class CargoGame {
             timeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Toggle extraction button
+        // Toggle extraction button — must be at HQ to activate
         const btnExtract = document.getElementById('btn-extract');
         if (btnExtract) {
-            if (this.deliveredCount >= level.targetCargo) {
-                btnExtract.classList.remove('hidden');
-            } else {
+            const allDelivered = this.deliveredCount >= level.targetCargo;
+            const atHQ = lander && lander.landed && lander.currentPad === 'start';
+            if (!allDelivered) {
                 btnExtract.classList.add('hidden');
+            } else if (atHQ) {
+                btnExtract.classList.remove('hidden');
+                btnExtract.textContent = '✓ EXTRACT NOW';
+                btnExtract.style.background = '#10b981';
+                btnExtract.style.opacity = '1';
+                btnExtract.style.cursor = 'pointer';
+            } else {
+                btnExtract.classList.remove('hidden');
+                btnExtract.textContent = 'Return to HQ';
+                btnExtract.style.background = '#334155';
+                btnExtract.style.opacity = '0.7';
+                btnExtract.style.cursor = 'default';
             }
         }
     }
@@ -830,6 +930,11 @@ class CargoGame {
             this.crashHandled = true;
             if (!this.isMuted) CargoAudio.setWarning(false);
 
+            this.hadCrash = true;
+            if (this.questState['no_crash'] === undefined) {
+                this.questState['no_crash'] = { failed: true };
+            }
+
             this.career.crashes++;
             this.saveCareer();
 
@@ -940,6 +1045,10 @@ class CargoGame {
                 
                 // Penalize Mission Budget
                 this.missionBudget -= 100;
+                this.cargoLostCount++;
+                if (this.questState['no_cargo_lost'] === undefined) {
+                    this.questState['no_cargo_lost'] = { failed: true };
+                }
                 this.addMessage("Cargo Lost! -$100 Budget", "#ef4444");
                 
                 if (this.missionBudget < 0) {
@@ -972,13 +1081,51 @@ class CargoGame {
     }
 
     completeMission() {
+        // Must be landed at HQ to extract
+        const lander = this.physics.lander;
+        if (!lander || !lander.landed || lander.currentPad !== 'start') {
+            this.addMessage("Return to HQ pad to extract!", "#f59e0b");
+            return;
+        }
+
         this.gameState = 'level_complete';
         if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
-        
+
         document.getElementById('hud-overlay').style.display = 'none';
-        
+
+        const level = levels[this.currentLevelIndex];
+
+        // Evaluate time-gated bonus quests now
+        if (level.quests) {
+            for (const q of level.quests) {
+                if (q.id === 'quick' && q.timeGoal !== undefined) {
+                    if (this.missionTimer > q.timeGoal && !this.questState['quick']?.failed) {
+                        this.questState['quick'] = { completed: true };
+                    }
+                }
+                if (q.id === 'no_crash' && !this.questState['no_crash']?.failed) {
+                    this.questState['no_crash'] = { completed: true };
+                }
+                if (q.id === 'no_cargo_lost' && !this.questState['no_cargo_lost']?.failed) {
+                    this.questState['no_cargo_lost'] = { completed: true };
+                }
+            }
+        }
+
+        // Tally quest bonuses
+        let questBonus = 0;
+        let questLines = '';
+        if (level.quests) {
+            for (const q of level.quests) {
+                if (q.reward && this.questState[q.id]?.completed) {
+                    questBonus += q.reward;
+                    questLines += `<p>${q.text}: <span style="color:#10b981;font-weight:600;">+$${q.reward}</span></p>`;
+                }
+            }
+        }
+
         const timeBonus = Math.floor(this.missionTimer) * 10;
-        const totalPayout = this.missionBudget + timeBonus;
+        const totalPayout = this.missionBudget + timeBonus + questBonus;
 
         this.globalCash += totalPayout;
         localStorage.setItem('cargoLanderCash', this.globalCash);
@@ -991,12 +1138,13 @@ class CargoGame {
             this.highscores[this.currentLevelIndex] = totalPayout;
             this.saveHighscores();
         }
-        
+
         document.getElementById('complete-screen').style.display = 'flex';
         document.getElementById('lvl-complete-title').textContent = "Extraction Successful!";
         document.getElementById('lvl-complete-details').innerHTML = `
             <p>Base Contract Payout: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
             <p>Time Bonus: <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>
+            ${questLines}
             <hr style="border:1px solid rgba(255,255,255,0.1);">
             <p>Total Global Cash: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
         `;
@@ -1015,27 +1163,51 @@ class CargoGame {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
 
-        // 2. Draw Twinkling Stars
-        for (const star of this.stars) {
-            star.phase += star.twinkleSpeed;
-            const alpha = 0.18 + Math.abs(Math.sin(star.phase)) * 0.82;
-            ctx.fillStyle = `rgba(${star.r}, ${star.g}, ${star.b}, ${alpha})`;
-            ctx.beginPath();
-            ctx.arc(star.x % w, star.y % h, star.size, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        // 2. Parallax background layers
+        if (this.bgLayers) {
+            const camX = this.gameState === 'playing' ? this.camera.x : 0;
+            const camY = this.gameState === 'playing' ? this.camera.y : 0;
 
-        // Faint nebula clouds (fixed screen-space, very subtle)
-        const n1 = ctx.createRadialGradient(w * 0.18, h * 0.55, 0, w * 0.18, h * 0.55, 380);
-        n1.addColorStop(0, 'rgba(59, 130, 246, 0.045)');
-        n1.addColorStop(1, 'rgba(59, 130, 246, 0)');
-        ctx.fillStyle = n1;
-        ctx.fillRect(0, 0, w, h);
-        const n2 = ctx.createRadialGradient(w * 0.82, h * 0.28, 0, w * 0.82, h * 0.28, 300);
-        n2.addColorStop(0, 'rgba(139, 92, 246, 0.04)');
-        n2.addColorStop(1, 'rgba(139, 92, 246, 0)');
-        ctx.fillStyle = n2;
-        ctx.fillRect(0, 0, w, h);
+            // Nebulae (drawn first, behind stars)
+            for (const neb of this.bgNebulae) {
+                const sx = neb.x - camX * neb.parallax;
+                const sy = neb.y - camY * neb.parallax;
+                if (sx < -neb.r - 100 || sx > w + neb.r + 100) continue;
+                const ng = ctx.createRadialGradient(sx, sy, 0, sx, sy, neb.r);
+                const [r, g, b] = neb.col;
+                ng.addColorStop(0, `rgba(${r},${g},${b},${neb.alpha})`);
+                ng.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                ctx.fillStyle = ng;
+                ctx.fillRect(sx - neb.r, sy - neb.r, neb.r * 2, neb.r * 2);
+            }
+
+            // Star layers
+            for (const layer of this.bgLayers) {
+                for (const star of layer.objects) {
+                    star.phase += star.speed;
+                    const pulse = 0.4 + Math.abs(Math.sin(star.phase)) * 0.6;
+                    const sx = star.x - camX * layer.parallax;
+                    const sy = star.y - camY * layer.parallax;
+                    if (sx < -4 || sx > w + 4 || sy < -4 || sy > h + 4) continue;
+                    const a = star.alpha * pulse;
+                    ctx.fillStyle = `rgba(${star.r},${star.g},${star.b},${a})`;
+                    // Bright stars get a soft halo first
+                    if (star.halo) {
+                        const hg = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size * 3.5);
+                        hg.addColorStop(0, `rgba(${star.r},${star.g},${star.b},${a * 0.35})`);
+                        hg.addColorStop(1, `rgba(${star.r},${star.g},${star.b},0)`);
+                        ctx.fillStyle = hg;
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, star.size * 3.5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = `rgba(${star.r},${star.g},${star.b},${a})`;
+                    }
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
 
         // Top HUD breathing room — dark-to-transparent band so game elements sit below the HTML HUD
         if (this.gameState !== 'menu') {
@@ -1101,10 +1273,11 @@ class CargoGame {
         // 10. Draw UI Notifications directly on canvas
         this.drawNotifications();
 
-        // 11. Draw Wind Indicator & Minimap
+        // 11. Draw Wind Indicator, Minimap, Quest Panel
         if (this.gameState === 'playing') {
             this.drawWindIndicator();
             this.drawMinimap();
+            this.drawQuestPanel();
             
             // 12. Draw Monster Threat Vignette
             if (this.physics.outOfBoundsTimer && this.physics.outOfBoundsTimer > 0) {
@@ -1286,6 +1459,79 @@ class CargoGame {
         ctx.fillStyle = 'rgba(56,189,248,0.6)';
         ctx.textAlign = 'left';
         ctx.fillText('RADAR', mmX + 8, mmY + 13);
+        ctx.restore();
+    }
+
+    drawQuestPanel() {
+        const ctx = this.ctx;
+        const level = levels[this.currentLevelIndex];
+        if (!level || !level.quests) return;
+
+        const px = 20, py = 92;
+        const panelW = 230, lineH = 20;
+        const panelH = 14 + 18 + 4 + level.quests.length * lineH + 10;
+
+        ctx.save();
+
+        // Panel background
+        ctx.fillStyle = 'rgba(10, 15, 30, 0.78)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(px, py, panelW, panelH, 8);
+        else ctx.rect(px, py, panelW, panelH);
+        ctx.fill();
+        ctx.stroke();
+
+        // Mission title
+        ctx.font = '500 9px Outfit, sans-serif';
+        ctx.letterSpacing = '0.08em';
+        ctx.fillStyle = 'rgba(56,189,248,0.65)';
+        ctx.textAlign = 'left';
+        ctx.fillText('MISSION', px + 10, py + 13);
+
+        ctx.font = '600 11px Outfit, sans-serif';
+        ctx.letterSpacing = '0';
+        ctx.fillStyle = 'rgba(248,250,252,0.9)';
+        ctx.fillText(level.missionTitle || level.name, px + 10, py + 28, panelW - 20);
+
+        // Divider
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 8, py + 34);
+        ctx.lineTo(px + panelW - 8, py + 34);
+        ctx.stroke();
+
+        // Quest items
+        for (let i = 0; i < level.quests.length; i++) {
+            const q = level.quests[i];
+            const qy = py + 34 + 6 + i * lineH + 12;
+            const state = this.questState[q.id];
+            const isPrimary = q.type === 'primary';
+
+            let icon, iconColor;
+            if (q.id === 'primary' && this.deliveredCount >= level.targetCargo) {
+                icon = '✓'; iconColor = '#10b981';
+            } else if (state?.completed) {
+                icon = '✓'; iconColor = '#10b981';
+            } else if (state?.failed) {
+                icon = '✗'; iconColor = '#ef4444';
+            } else {
+                icon = isPrimary ? '◆' : '◇'; iconColor = isPrimary ? '#38bdf8' : '#94a3b8';
+            }
+
+            ctx.font = '600 11px monospace';
+            ctx.fillStyle = iconColor;
+            ctx.fillText(icon, px + 10, qy);
+
+            ctx.font = isPrimary ? '600 10px Outfit, sans-serif' : '400 10px Outfit, sans-serif';
+            ctx.fillStyle = state?.failed ? 'rgba(239,68,68,0.6)' :
+                            (state?.completed ? 'rgba(16,185,129,0.85)' :
+                            (isPrimary ? 'rgba(248,250,252,0.88)' : 'rgba(148,163,184,0.8)'));
+            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + 24, qy, panelW - 34);
+        }
+
         ctx.restore();
     }
 
@@ -1776,25 +2022,92 @@ class CargoGame {
         const ctx = this.ctx;
         const start = this.physics.startDepot;
         const collection = this.physics.collectionPoint;
+        const level = levels[this.currentLevelIndex];
+        const allDelivered = level && this.deliveredCount >= level.targetCargo;
 
-        // Draw Start Depot
+        // Draw Start Depot (HQ)
         if (start) {
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = '#1e293b';
             ctx.fillRect(start.x, start.y, start.width, start.height);
-            ctx.fillStyle = '#94a3b8'; // Neutral gray for start
+
+            // Warning stripes on pad surface
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(start.x, start.y, start.width, start.height);
+            ctx.clip();
+            const stripeW = 14;
+            ctx.fillStyle = 'rgba(100, 120, 160, 0.25)';
+            for (let sx = start.x - start.height; sx < start.x + start.width + start.height; sx += stripeW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(sx, start.y + start.height);
+                ctx.lineTo(sx + start.height, start.y);
+                ctx.lineTo(sx + start.height + stripeW, start.y);
+                ctx.lineTo(sx + stripeW, start.y + start.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Top accent bar — pulses green when extraction ready
+            if (allDelivered) {
+                const pulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.005)) * 0.4;
+                ctx.fillStyle = `rgba(16, 185, 129, ${pulse})`;
+            } else {
+                ctx.fillStyle = '#94a3b8';
+            }
             ctx.fillRect(start.x, start.y, start.width, 3);
-            
+
             // Label
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.font = '10px Arial';
+            ctx.fillStyle = allDelivered ? 'rgba(16,185,129,0.9)' : 'rgba(255,255,255,0.5)';
+            ctx.font = '600 10px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText("HQ", start.x + start.width / 2, start.y + 11);
+            ctx.fillText('HQ', start.x + start.width / 2, start.y + 11);
+
+            // "EXTRACT HERE" beacon when all cargo delivered
+            if (allDelivered) {
+                const bpulse = 0.7 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.3;
+                ctx.save();
+                ctx.fillStyle = `rgba(16, 185, 129, ${bpulse})`;
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('▼ EXTRACT HERE ▼', start.x + start.width / 2, start.y - 28);
+
+                // Pulsing ring
+                const ringT = (Date.now() % 1800) / 1800;
+                const ringR = start.width * (0.5 + ringT * 2.5);
+                ctx.strokeStyle = '#10b981';
+                ctx.globalAlpha = Math.max(0, (1 - ringT) * 0.6);
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.ellipse(start.x + start.width / 2, start.y + 2, ringR, ringR * 0.28, 0, Math.PI, 0);
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
         // Draw Collection Point
         if (collection) {
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = '#1e293b';
             ctx.fillRect(collection.x, collection.y, collection.width, collection.height);
+
+            // Warning stripes (yellow tint)
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(collection.x, collection.y, collection.width, collection.height);
+            ctx.clip();
+            const csW = 14;
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.18)';
+            for (let sx = collection.x - collection.height; sx < collection.x + collection.width + collection.height; sx += csW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(sx, collection.y + collection.height);
+                ctx.lineTo(sx + collection.height, collection.y);
+                ctx.lineTo(sx + collection.height + csW, collection.y);
+                ctx.lineTo(sx + csW, collection.y + collection.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
             ctx.fillStyle = '#fbbf24'; // Yellow for collection
             ctx.fillRect(collection.x, collection.y, collection.width, 3);
 
@@ -1852,13 +2165,31 @@ class CargoGame {
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(hub.x, hub.y, hub.width, hub.height);
 
-            // Glowing boundary lines
+            // Hub stripe texture
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(hub.x, hub.y, hub.width, hub.height);
+            ctx.clip();
+            const hsW = 12;
+            ctx.fillStyle = 'rgba(255,255,255,0.04)';
+            for (let sx = hub.x - hub.height; sx < hub.x + hub.width + hub.height; sx += hsW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(sx, hub.y + hub.height);
+                ctx.lineTo(sx + hub.height, hub.y);
+                ctx.lineTo(sx + hub.height + hsW, hub.y);
+                ctx.lineTo(sx + hsW, hub.y + hub.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Glowing boundary line
             ctx.fillStyle = hub.color;
             ctx.fillRect(hub.x, hub.y, hub.width, 3);
 
-            // Draw hub logo text
+            // Hub name label
             ctx.fillStyle = '#f8fafc';
-            ctx.font = 'bold 10px sans-serif';
+            ctx.font = '600 10px Outfit, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(hub.name.toUpperCase(), hub.x + hub.width / 2, hub.y + 11);
         }
@@ -1885,25 +2216,40 @@ class CargoGame {
                 color = '#10b981'; // Eco/Green
             }
 
-            // Draw cardboard box background
-            ctx.fillStyle = '#b45309';
+            // Box gradient fill (lighter top-left, darker bottom-right)
+            const boxGrad = ctx.createLinearGradient(-halfS, -halfS, halfS, halfS);
+            boxGrad.addColorStop(0, '#c2620a');
+            boxGrad.addColorStop(0.5, '#b45309');
+            boxGrad.addColorStop(1, '#7c3209');
+            ctx.fillStyle = boxGrad;
             ctx.fillRect(-halfS, -halfS, S, S);
 
-            // Draw darker brown border
+            // Inner bevel highlight (top + left edge)
+            ctx.strokeStyle = 'rgba(255,200,100,0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-halfS + 1, halfS - 1);
+            ctx.lineTo(-halfS + 1, -halfS + 1);
+            ctx.lineTo(halfS - 1, -halfS + 1);
+            ctx.stroke();
+
+            // Outer border
             ctx.strokeStyle = '#78350f';
             ctx.lineWidth = 2;
             ctx.strokeRect(-halfS, -halfS, S, S);
 
-            // Draw packing tape across the middle
-            ctx.fillStyle = 'rgba(253, 230, 138, 0.7)';
+            // Packing tape across the middle
+            ctx.fillStyle = 'rgba(253, 230, 138, 0.65)';
             ctx.fillRect(-halfS, -2, S, 4);
+            // Tape cross piece
+            ctx.fillRect(-2, -halfS, 4, S);
 
-            // Outline the whole box in its type-color glow
+            // Type-color glow outline
             ctx.strokeStyle = color;
             ctx.lineWidth = 1.5;
             ctx.strokeRect(-halfS - 1, -halfS - 1, S + 2, S + 2);
 
-            // Draw random content emoji inside cargo
+            // Emoji
             ctx.fillStyle = '#ffffff';
             ctx.font = '11px Arial';
             ctx.textAlign = 'center';
