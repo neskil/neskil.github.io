@@ -926,12 +926,13 @@ class CargoGame {
     drawMinimap() {
         const ctx = this.ctx;
         const cw = this.canvas.width;
+        const ch = this.canvas.height;
         
-        // Minimap size and position
-        const mmWidth = 240;
-        const mmHeight = Math.max(120, mmWidth * (this.physics.levelHeight / this.physics.levelWidth));
+        // Minimap size — wider and taller, anchored to bottom-right
+        const mmWidth  = 280;
+        const mmHeight = Math.min(180, Math.max(140, mmWidth * (this.physics.levelHeight / this.physics.levelWidth)));
         const mmX = cw - mmWidth - 20;
-        const mmY = 20;
+        const mmY = ch - mmHeight - 20;
         
         // Premium Radar Background
         ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
