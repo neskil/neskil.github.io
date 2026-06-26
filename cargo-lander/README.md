@@ -131,21 +131,42 @@ console + on-screen error logger report no errors.
 ## Recent additions
 
 ### Visual & atmosphere
-- **Level color palettes** — each of the 5 levels has its own `palette` object (`skyTop/skyMid/skyBot`, `terrainFill`, `rockEdge`, `rockGlow`). Level 1 is a friendly green; Levels 4-5 use deep reds and near-black skies.
-- **Ambient space-truck traffic** — NPC ships fly across the sky in both directions. 30 % chance a truck will tilt and rocket off into space mid-flight. Varied hull palette (6 color schemes), speed, and size.
-- **Decorative surface buildings** — antenna towers, silos, and refineries generated on the terrain surface at level start.
+- **Level color palettes** — each of the 5 levels has its own `palette` object. Level 1 is a friendly green; Levels 4–5 use deep reds and near-black skies.
+- **Parallax background mountains** — 3 silhouette layers drawn in screen space, each at a different parallax factor (0.12 / 0.28 / 0.45). Colors derived from each level's `skyBot` palette entry.
+- **Lake on L1/L2** — animated water body with shimmering surface, 4 swimming fish with sine-phase motion, and a bobbing fishing boat with mast and line.
+- **Terrain edge** — rounded boulder shapes with a surface shadow band replace the old sharp triangle spikes. Boulders are deterministic (stable frame-to-frame), placed every 60–100 px, skipped over landing pads.
+- **Ambient space-truck traffic** — NPC ships fly both directions; 30% chance to tilt and rocket off into space. Varied hull palette, speed, and size.
+- **Decorative surface buildings** — antenna towers, silos, and refineries on the terrain surface.
 
 ### Physics & controls
-- **Instant thruster cut-off** — releasing the thrust key drops engine power to zero immediately; only spool-up is gradual.
-- **Fly upward = out-of-bounds** — going above `y < -600` triggers the same OOB monster warning as leaving horizontally.
-- **Moving gravity well** — the gravity anomaly orbits its base position using a Lissajous-like phase, visible as a subtle pull on the lander.
-- **Landing-leg spring** — legs compress and bounce back on touchdown (`lander.legCompress` animated).
+- **Instant thruster cut-off** — engine power drops to zero immediately on key release; only spool-up is gradual.
+- **Leg spring on pads only** — legs compress and bounce back on pad touchdowns; rough terrain collisions don't trigger the spring.
+- **Fly upward = out-of-bounds** — `y < −600` triggers the same OOB monster warning as leaving horizontally.
+- **Moving gravity well** — the L4 anomaly orbits its base position with a Lissajous-like phase.
+
+### Difficulty scaling
+- **Pad scale by level** — landing pads shrink as difficulty increases: L1 = 1.5× base, L2 = 1.2×, L3 = 0.85×, L4 = 0.70×, L5 explicit narrow hub. Bigger pads on beginner levels, much smaller on hard ones.
+- **Smaller player truck** — vehicle width reduced from 48 → 40 px, deckWidth 80 → 66 px, making precise landings require more care.
+
+### Monster & threat system
+- **Monster spawns on extraction timeout** — if all cargo is delivered but the player doesn't return to HQ before the clock hits zero, the monster spawns instead of an instant fail. Rush back!
+- **Faster OOB spawn** — monster appears after ~0.8 s out of bounds (was 2 s).
+- **Off-screen radar indicator** — when the monster exists but is outside the viewport, a pulsing red arrow appears at the screen edge pointing toward it, with a live distance readout. Paired with a two-tone radar ping sound.
+
+### Navigation & HUD
+- **Next-objective arrow** — bouncing yellow ▼ chevron above the active objective (PICK UP or DELIVER HERE).
+- **Collection pad** — sky-blue accent bar + animated glow border + prominent CARGO label.
+- **Delivery hubs** — pulsing colored border activates when carrying matching cargo; hub type label below pad.
+- **Mission panel** — larger font (12–13 px), wider panel, more opaque background.
+- **Separate mute button** — 🔊/🔇 quick-toggle in the nav header.
 
 ### Progression
-- **Pilot rank system** — rank (CLASS F → CLASS S) now scales with *both* upgrade investment (55 % weight) and mastering each level with a 5 000+ score (45 % weight), not just mission count.
+- **Pilot rank** — scales with upgrade investment (55%) + mastering each level with 5 000+ score (45%).
 
-### HUD
-- **Mission panel legibility** — larger font (12-13 px instead of 9-11 px), wider panel, more opaque background.
+### Quality
+- **Browser test suite** — `tests.html`: 133 tests across level defs, upgrade catalog, physics simulation, rank formula, economy, smoke tests, and draw-method existence.
+- **WebGL null-guard** — `ShaderOverlay` no longer crashes on hardware without WebGL support.
+- **Fuel clamp** — `lander.fuel` clamped to 0 after each thrust tick to prevent fractional underflow.
 
 ---
 
@@ -153,12 +174,16 @@ console + on-screen error logger report no errors.
 
 | Priority | Feature |
 |----------|---------|
-| High | **Mobile viewport scaling** — narrow screens need a CSS `transform: scale(…)` applied to the game container |
-| High | **Space mountains** — floating static rock obstacles to navigate around |
-| High | **Minimap resize** — radar should grow both horizontally and vertically to reflect actual level dimensions |
+| High | **Mobile viewport scaling** — CSS `transform: scale(…)` on `#game-container` for narrow screens |
+| High | **Cargo spawning countdown** — stand on loading pad → cargo appears with increasing delays (risk/reward) |
+| High | **Cargo box personality** — bigger boxes, visible emoji/label, animated loading sequence |
+| High | **NPC truck redesign** — cab + wheels + flatbed; can carry and drop cargo |
+| High | **Base geometry** — HQ and pads need structure, depth, lights |
+| Medium | **Monster head lerp** — mouth angle snaps too fast; needs smoothed `targetAngle` interpolation |
+| Medium | **Space mountains** — floating rock obstacles in the play field |
+| Medium | **Minimap resize** — radar should reflect actual level dimensions |
 | Medium | **Flora & fauna** — decorative terrain elements (alien plants, critters) |
-| Medium | **Mouse aiming polish** — basic & advanced lander aim can lag; consider direct angle interpolation |
-| Medium | **Terrain edge flicker** — investigate sub-pixel stroke rounding on terrain redraw |
-| Medium | **Upgrade verification** — audit all 5 upgrade types end-to-end in gameplay |
-| Low | **More levels** — larger maps, escalating difficulty, new hazard types (asteroid belts, moving platforms) |
-| Low | **Procedural map generator** — runtime terrain + pad placement instead of hardcoded points |
+| Medium | **Mouse aiming polish** — basic & advanced lander aim can lag |
+| Medium | **Upgrade verification** — audit all 5 upgrade types end-to-end |
+| Low | **More levels** — larger maps, escalating difficulty, new hazards |
+| Low | **Procedural map generator** — runtime terrain + pad placement |

@@ -252,6 +252,15 @@ class CargoAudioController {
         }
     }
 
+    playRadarPing() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        this.playTone(660, 0.06, 0.07, now);
+        this.playTone(440, 0.08, 0.05, now + 0.07);
+    }
+
     playSuccess() {
         if (this.muted) return;
         this.init();

@@ -7,6 +7,7 @@ const levels = [
         gravity: 0.15,
         wind: 0,
         terrainType: "flat",
+        padScale: 1.5,
         targetCargo: 2,
         budget: 1000,
         timeLimit: 180,
@@ -33,6 +34,7 @@ const levels = [
         gravity: 0.15,
         wind: 0,
         terrainType: "canyon",
+        padScale: 1.2,
         targetCargo: 2,
         budget: 1200,
         timeLimit: 240,
@@ -60,6 +62,7 @@ const levels = [
         gravity: 0.15,
         wind: 0.08,
         terrainType: "mountain",
+        padScale: 0.85,
         targetCargo: 2,
         budget: 1500,
         timeLimit: 200,
@@ -86,6 +89,7 @@ const levels = [
         gravity: 0.15,
         wind: 0,
         terrainType: "cave",
+        padScale: 0.70,
         targetCargo: 2,
         budget: 2000,
         timeLimit: 180,
@@ -941,14 +945,40 @@ class CargoGame {
 
         // --- Mission Clock Update ---
         if (this.missionTimer > 0 && this.gameState === 'playing' && !lander.crashed) {
-            this.missionTimer -= (dt / 60); 
+            this.missionTimer -= (dt / 60);
             if (this.missionTimer <= 0) {
                 this.missionTimer = 0;
-                this.failMission("Time's Up! Contract expired.");
+                const allDelivered = this.deliveredCount >= (levels[this.currentLevelIndex]?.targetCargo || 2);
+                if (allDelivered && !this.physics.monster) {
+                    this.physics.monster = {
+                        x: lander.x + (lander.x < this.physics.levelWidth / 2 ? -600 : 600),
+                        y: this.physics.levelHeight + 200,
+                        vx: 0, vy: 0, size: 130, speed: 1.8,
+                        angle: 0, targetAngle: 0, spawnTime: Date.now(),
+                        segments: Array.from({ length: 8 }, (_, i) => ({
+                            x: lander.x, y: this.physics.levelHeight + 200 + i * 30,
+                            vx: 0, vy: 0, r: 20 - i * 0.8
+                        }))
+                    };
+                    CargoAudio.playWarning?.();
+                } else {
+                    this.failMission("Time's Up! Contract expired.");
+                }
             }
         }
 
         this.physics.update(dt, levels[this.currentLevelIndex], inputState);
+
+        // --- Off-screen monster radar ping ---
+        if (this.physics.monster && this.gameState === 'playing') {
+            this.radarPingTimer = (this.radarPingTimer || 0) + dt;
+            if (this.radarPingTimer >= 90) {
+                this.radarPingTimer = 0;
+                CargoAudio.playRadarPing?.();
+            }
+        } else {
+            this.radarPingTimer = 0;
+        }
 
         // --- Cinematic Camera Update ---
         const cw = this.canvas.width;
@@ -1393,7 +1423,49 @@ class CargoGame {
             }
         }
 
-        // 13. FPS counter (bottom-left corner)
+        // 13. Off-screen monster radar indicator
+        if (this.physics.monster && this.gameState === 'playing') {
+            const m = this.physics.monster;
+            const zoom = this.camera.zoom;
+            const screenMX = (m.x - this.camera.x) * zoom + w / 2;
+            const screenMY = (m.y - this.camera.y) * zoom + h / 2;
+            const offLeft = screenMX < 0, offRight = screenMX > w;
+            const offTop = screenMY < 0, offBottom = screenMY > h;
+            if (offLeft || offRight || offTop || offBottom) {
+                const margin = 28;
+                const clampedX = Math.max(margin, Math.min(w - margin, screenMX));
+                const clampedY = Math.max(margin, Math.min(h - margin, screenMY));
+                const angle = Math.atan2(screenMY - h / 2, screenMX - w / 2);
+                const edgeX = w / 2 + Math.cos(angle) * (Math.min(w, h) / 2 - margin);
+                const edgeY = h / 2 + Math.sin(angle) * (Math.min(w, h) / 2 - margin);
+                const pulse = 0.6 + Math.abs(Math.sin(Date.now() / 200)) * 0.4;
+
+                ctx.save();
+                ctx.translate(Math.max(margin, Math.min(w - margin, edgeX)),
+                               Math.max(margin, Math.min(h - margin, edgeY)));
+                ctx.rotate(angle + Math.PI / 2);
+                ctx.fillStyle = `rgba(239,68,68,${pulse})`;
+                ctx.beginPath();
+                ctx.moveTo(0, -12);
+                ctx.lineTo(8, 6);
+                ctx.lineTo(-8, 6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+
+                ctx.save();
+                ctx.font = 'bold 10px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `rgba(239,68,68,${pulse * 0.9})`;
+                const labelX = Math.max(margin, Math.min(w - margin, edgeX));
+                const labelY = Math.max(margin, Math.min(h - margin, edgeY));
+                const dist = Math.round(Math.hypot(m.x - lander.x, m.y - lander.y));
+                ctx.fillText(`${dist}m`, labelX, labelY + 20);
+                ctx.restore();
+            }
+        }
+
+        // 14. FPS counter (bottom-left corner)
         if (this.displayFps !== undefined) {
             ctx.save();
             ctx.font = '600 11px "Courier New", monospace';
@@ -1682,9 +1754,9 @@ class CargoGame {
                 x: e.x, y: e.y, angle: e.vx > 0 ? 0.2 : -0.2,
                 vehicleType: e.type === 'advanced' ? 'basic' : e.type,
                 thrusting: true, fuel: 100, strafePower: 0,
-                width: e.type === 'drone' ? 32 : 48,
-                height: e.type === 'drone' ? 16 : 32,
-                deckWidth: 50, deckOffset: 12, basketHeight: 20,
+                width: e.type === 'drone' ? 32 : 40,
+                height: e.type === 'drone' ? 16 : 28,
+                deckWidth: 42, deckOffset: 12, basketHeight: 20,
                 magneticDeckActive: false
             };
             
@@ -2175,52 +2247,80 @@ class CargoGame {
         }
         ctx.stroke();
 
-        // Really jagged rocks along the raw terrain (skipped over flat landing pads).
         const padRanges = this.getPadRanges();
         const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
         const getH = (x) => this.physics.getTerrainHeight(x);
-        // Deterministic pseudo-random so rocks are stable frame-to-frame
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
-        ctx.fillStyle = pal.terrainFill;
-        ctx.strokeStyle = pal.rockEdge;
-        ctx.lineWidth = 1.5;
-        ctx.lineJoin = 'miter';
+        const hexToRgb = (hex) => {
+            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+            return [r,g,b];
+        };
+        const [tr, tg, tb] = hexToRgb(pal.terrainFill);
+        const shadowColor = `rgba(${Math.floor(tr*0.5)},${Math.floor(tg*0.5)},${Math.floor(tb*0.5)},0.7)`;
+
+        ctx.fillStyle = shadowColor;
+        ctx.beginPath();
+        ctx.moveTo(startX, getH(startX) + 5);
+        for (let x = startX; x <= endX; x += 8) {
+            ctx.lineTo(x, getH(x) + 5);
+        }
+        for (let x = endX; x >= startX; x -= 8) {
+            ctx.lineTo(x, getH(x));
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 1.2;
 
         let rx = startX;
         while (rx <= endX) {
-            if (isOverPad(rx)) { rx += 10; continue; }
+            if (isOverPad(rx)) { rx += 20; continue; }
 
-            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9);
-            const baseW = 6 + r2 * 14;            // varied footprint
-            const peakH = 5 + r1 * 22;            // some tiny, some tall
-            const lean = (r3 - 0.5) * baseW * 1.1; // asymmetric, leaning peaks
+            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9), r4 = hash(rx * 2.3 + 17);
+            const spacing = 60 + r4 * 40;
+            const bw = 12 + r2 * 16;
+            const bh = 6 + r1 * 10;
+            const lean = (r3 - 0.5) * bw * 0.4;
 
-            const xL = rx;
-            const xR = rx + baseW;
-            const yL = getH(xL);
-            const yR = getH(xR);
-            const apexX = rx + baseW * 0.5 + lean;
-            const apexY = Math.min(yL, yR) - peakH;
+            const bx = rx + r4 * 10;
+            const by = getH(bx + bw * 0.5);
 
-            // Occasional notched (double) peak for extra jaggedness
+            const x0 = bx, x4 = bx + bw;
+            const x1 = bx + bw * 0.18, y1 = by - bh * 0.65;
+            const x2 = bx + bw * 0.45 + lean, y2 = by - bh;
+            const x3 = bx + bw * 0.82 + lean * 0.5, y3 = by - bh * 0.55;
+
+            ctx.fillStyle = pal.terrainFill;
+            ctx.strokeStyle = pal.rockEdge + 'aa';
             ctx.beginPath();
-            ctx.moveTo(xL, yL);
-            if (r2 > 0.62) {
-                const midX = rx + baseW * 0.5;
-                const midY = Math.min(yL, yR) - peakH * 0.35;
-                ctx.lineTo(rx + baseW * 0.3 + lean * 0.5, apexY);
-                ctx.lineTo(midX, midY);
-                ctx.lineTo(rx + baseW * 0.72 + lean * 0.3, apexY - peakH * 0.15);
-            } else {
-                ctx.lineTo(apexX, apexY);
-            }
-            ctx.lineTo(xR, yR);
+            ctx.moveTo(x0, by);
+            ctx.quadraticCurveTo(x0 - 2, y1 + bh * 0.3, x1, y1);
+            ctx.quadraticCurveTo((x1 + x2) * 0.5, y2 - 2, x2, y2);
+            ctx.quadraticCurveTo((x2 + x3) * 0.5, y2 - 1, x3, y3);
+            ctx.quadraticCurveTo(x4 + 2, y3 + bh * 0.25, x4, by);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            rx += baseW * (0.45 + r1 * 0.5);      // irregular, overlapping spacing
+            if (r1 > 0.8) {
+                const cx = bx + bw * 0.85 + r2 * 8;
+                const cby = getH(cx);
+                const cw2 = bw * 0.4, ch2 = bh * 0.45;
+                ctx.fillStyle = pal.terrainFill;
+                ctx.strokeStyle = pal.rockEdge + 'aa';
+                ctx.beginPath();
+                ctx.moveTo(cx, cby);
+                ctx.quadraticCurveTo(cx - 1, cby - ch2 * 0.5, cx + cw2 * 0.2, cby - ch2);
+                ctx.quadraticCurveTo(cx + cw2 * 0.5, cby - ch2 - 2, cx + cw2 * 0.8, cby - ch2 * 0.6);
+                ctx.quadraticCurveTo(cx + cw2 + 1, cby - ch2 * 0.3, cx + cw2, cby);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            rx += spacing;
         }
 
         // Subtle surface grain lines
