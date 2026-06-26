@@ -42,14 +42,21 @@ Score = `(ownedUpgradeLevels / 13) * 0.55 + (levelsMastered / numLevels) * 0.45`
 
 ## Pending Tasks / Ideas
 ### High priority
-- [ ] Mobile viewport: canvas needs to scale down on narrow screens (CSS transform scale on `#game-container` based on window.innerWidth)
-- [ ] Space mountains: floating rock obstacles (static `floatingRocks[]` in physics, drawn in game.js after terrain)
-- [ ] Radar/minimap: should grow both vertically and horizontally as level height/width increases (currently fixed-size)
+- [ ] Mobile viewport: CSS `transform: scale()` on `#game-container` based on `window.innerWidth`
+- [ ] Parallax background mountains: 2-3 silhouette layers with different camera parallax factors
+- [ ] Lake at mid-elevation: water surface with fish + fishing boat; drawn in `drawTerrain()` or new `drawLake()`
+- [ ] Cargo drop zone clarity: arrows pointing to collection pad + delivery hubs, next-objective indicator
+- [ ] Cargo spawning countdown: stand still on pad → cargo spawns with increasing delays (risk/reward)
+- [ ] Cargo boxes: bigger, show emoji/label, more visual personality
+- [ ] NPC trucks: look like real trucks (cab, wheels, flat bed), can carry/drop cargo
+- [ ] Base geometry: HQ + pads need more visual interest (structure, depth, lights)
 
 ### Medium priority
-- [ ] Flora/fauna: visual decoration elements (cacti, space algae, alien critters on terrain surface)
+- [ ] Monster head rotation: mouth snaps too fast to lander direction, needs smoothed angle lerp
+- [ ] Space mountains: floating rock obstacles (`floatingRocks[]` in physics, drawn after terrain)
+- [ ] Radar/minimap: grow both axes as level height/width increases
+- [ ] Flora/fauna: terrain surface decorations (alien plants, critters)
 - [ ] Improve mouse aiming for basic & advanced lander (task #1)
-- [ ] Fix jagged/flickering terrain edges on redraw (task #2)
 - [ ] Verify all upgrades work correctly (task #6)
 
 ### Low priority / future

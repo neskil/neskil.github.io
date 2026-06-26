@@ -704,6 +704,12 @@ class CargoGame {
         }
     }
 
+    toggleMuteQuick() {
+        this.isMuted = CargoAudio.toggleMute();
+        const btn = document.getElementById('mute-toggle-btn');
+        if (btn) btn.textContent = this.isMuted ? '🔇' : '🔊';
+    }
+
     addMessage(text, color = '#f8fafc') {
         this.messages.push({
             text: text,
@@ -1372,12 +1378,13 @@ class CargoGame {
                 ctx.fillStyle = vignetteGrad;
                 ctx.fillRect(0, 0, w, h);
                 
-                // Warning text
+                // Warning text at 25% from top
                 if (threatLevel > 0.3) {
-                    ctx.fillStyle = `rgba(239, 68, 68, ${threatLevel * (0.5 + Math.sin(Date.now() / 100) * 0.5)})`;
-                    ctx.font = 'bold 24px sans-serif';
+                    const pulse = 0.5 + Math.sin(Date.now() / 100) * 0.5;
+                    ctx.fillStyle = `rgba(239, 68, 68, ${threatLevel * pulse})`;
+                    ctx.font = `bold ${Math.round(18 + threatLevel * 8)}px sans-serif`;
                     ctx.textAlign = 'center';
-                    ctx.fillText("WARNING: LEAVING SAFE ZONE", w/2, h/2 - 100);
+                    ctx.fillText("⚠ WARNING: LEAVING SAFE ZONE", w / 2, h * 0.25);
                 }
             }
         }
@@ -1796,173 +1803,119 @@ class CargoGame {
         ctx.fill();
         ctx.restore();
 
-        // ══ PASS 1: TENTACLES (long, multi-joint, scary) ══════════════════
+        // ══ PASS 1: LEGS — randomised per segment, organic scuttle ══════════
         ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        // Per-segment deterministic "DNA" so legs keep their character frame-to-frame
+        const legDNA = [
+            { sides: [-1,1], count: 1, spread: 0.45, len: 1.6, thick: 3.8 },
+            { sides: [-1,1], count: 2, spread: 0.55, len: 1.3, thick: 3.2 },
+            { sides: [-1],   count: 1, spread: 0.38, len: 2.0, thick: 2.8 },
+            { sides: [-1,1], count: 1, spread: 0.60, len: 1.1, thick: 3.5 },
+            { sides: [1],    count: 2, spread: 0.42, len: 1.8, thick: 2.5 },
+            { sides: [-1,1], count: 1, spread: 0.50, len: 1.4, thick: 3.0 },
+            { sides: [-1,1], count: 1, spread: 0.35, len: 2.2, thick: 2.2 },
+            { sides: [1],    count: 1, spread: 0.48, len: 1.2, thick: 2.8 },
+        ];
         for (let i = 1; i <= 8; i++) {
             const seg = positions[i];
             if (!seg) continue;
-            const legPhase = t * 2.6 + i * 1.3;
-            // Random "moment" burst — occasionally one leg spasms
-            const spasm = Math.sin(t * 7.4 + i * 2.1) > 0.85 ? 2.5 : 1.0;
+            const dna = legDNA[i - 1] || legDNA[0];
+            const basePhase = t * (1.8 + i * 0.3) + i * 1.7;
+            const spasm = Math.sin(t * 6.5 + i * 2.8) > 0.88 ? 2.2 : 1.0;
 
-            for (const side of [-1, 1]) {
-                // Root at segment equator
-                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.52) * seg.r * 0.85;
-                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.52) * seg.r * 0.85;
+            for (const side of dna.sides) {
+                for (let li = 0; li < dna.count; li++) {
+                    const legPhase = basePhase + li * 1.1;
+                    const spreadAngle = dna.spread + li * 0.18;
+                    const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * spreadAngle) * seg.r * 0.8;
+                    const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * spreadAngle) * seg.r * 0.8;
 
-                // Three-joint tentacle for more organic movement
-                const j1X = rootX + side * (seg.r * 1.1 + 8) + Math.sin(legPhase * 0.9) * 9 * spasm;
-                const j1Y = rootY + seg.r * 0.6 + Math.cos(legPhase * 1.2) * 7 * spasm;
+                    const reach = seg.r * dna.len;
+                    const j1X = rootX + side * reach * 0.45 + Math.sin(legPhase * 0.8) * 8 * spasm;
+                    const j1Y = rootY + reach * 0.35 + Math.cos(legPhase) * 6 * spasm;
+                    const j2X = j1X + side * reach * 0.38 + Math.sin(legPhase * 1.3 + 0.9) * 10 * spasm;
+                    const j2Y = j1Y + reach * 0.45 + Math.cos(legPhase * 0.9 + 1.2) * 7 * spasm;
+                    const footX = j2X + side * reach * 0.22 + Math.sin(legPhase * 1.7) * 8 * spasm;
+                    const footY = j2Y + reach * 0.25 + Math.cos(legPhase * 1.1) * 5;
 
-                const j2X = j1X + side * (seg.r * 0.8 + 6) + Math.sin(legPhase * 1.4 + 0.8) * 11 * spasm;
-                const j2Y = j1Y + seg.r * 0.9 + Math.cos(legPhase * 0.8 + 1.1) * 8 * spasm;
-
-                const footX = j2X + side * 12 + Math.sin(legPhase * 1.8 + side) * 10 * spasm;
-                const footY = j2Y + seg.r * 0.7 + Math.cos(legPhase * 1.3) * 6 * side;
-
-                // Outer dark shadow stroke
-                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-                ctx.lineWidth = 3.5;
-                ctx.beginPath();
-                ctx.moveTo(rootX, rootY);
-                ctx.bezierCurveTo(j1X, j1Y, j2X, j2Y, footX, footY);
-                ctx.stroke();
-
-                // Inner red tint
-                ctx.strokeStyle = 'rgba(160,20,20,0.6)';
-                ctx.lineWidth = 1.6;
-                ctx.stroke();
-
-                // Claw at foot tip
-                for (const clawSide of [-1, 1]) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.88)';
+                    ctx.lineWidth = dna.thick;
                     ctx.beginPath();
-                    ctx.moveTo(footX, footY);
-                    ctx.lineTo(footX + side * 7 + clawSide * 5, footY + 9);
+                    ctx.moveTo(rootX, rootY);
+                    ctx.bezierCurveTo(j1X, j1Y, j2X, j2Y, footX, footY);
                     ctx.stroke();
+
+                    ctx.strokeStyle = `rgba(140,15,15,0.55)`;
+                    ctx.lineWidth = dna.thick * 0.45;
+                    ctx.stroke();
+
+                    // Claw — 2 tines of random length
+                    const clawLen = 6 + (i % 3) * 3;
+                    for (const cs of [-1, 1]) {
+                        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                        ctx.lineWidth = 1.4;
+                        ctx.beginPath();
+                        ctx.moveTo(footX, footY);
+                        ctx.lineTo(footX + side * clawLen * 0.6 + cs * 4, footY + clawLen);
+                        ctx.stroke();
+                    }
                 }
             }
         }
         ctx.restore();
 
-        // ══ PASS 2: ANTENNAE from top of head ═════════════════════════════
-        ctx.save();
-        ctx.lineCap = 'round';
-        for (const side of [-1, 1]) {
-            // Base on the crown of the head (world-up direction from head center)
-            const startX = head.x + Math.cos(upAngle) * head.r * 0.6 + side * head.r * 0.35;
-            const startY = head.y + Math.sin(upAngle) * head.r * 0.6;
-
-            const wiggleA = Math.sin(t * 2.2 + side * 1.8) * 28;
-            const wiggleB = Math.cos(t * 1.6 + side * 0.7) * 20;
-            const tipX = startX + side * head.r * 0.5 + wiggleA;
-            const tipY = startY - head.r * 1.2 + wiggleB;
-
-            // Shadow
-            ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            ctx.bezierCurveTo(
-                startX + side * 15 + Math.sin(t * 2.8 + side) * 10, startY - head.r * 0.5,
-                tipX + Math.sin(t * 3.2 + side) * 14, tipY + Math.cos(t * 2.4 + side) * 12,
-                tipX, tipY
-            );
-            ctx.stroke();
-
-            // Glowing tip ball
-            const tGlow = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 7);
-            tGlow.addColorStop(0, 'rgba(255,60,60,0.9)');
-            tGlow.addColorStop(1, 'rgba(255,0,0,0)');
-            ctx.fillStyle = tGlow;
-            ctx.beginPath();
-            ctx.arc(tipX, tipY, 7, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.restore();
-
-        // ══ PASS 3: SEGMENT CIRCLES with per-segment glow ═════════════════
+        // ══ PASS 3: SEGMENT CIRCLES — dark void body, glowing crimson rim ═══
         ctx.save();
         for (let i = positions.length - 1; i >= 0; i--) {
             const seg = positions[i];
             const isHead = i === 0;
 
-            // Per-segment glow halo
-            const segGlow = ctx.createRadialGradient(seg.x, seg.y, seg.r * 0.3, seg.x, seg.y, seg.r * 2.2);
-            segGlow.addColorStop(0, `rgba(220, 40, 40, ${0.28 * glowPulse})`);
-            segGlow.addColorStop(1, 'rgba(180, 0, 0, 0)');
-            ctx.fillStyle = segGlow;
+            // Outer ember glow — brightest just outside the rim, dark at center
+            const rimGlow = ctx.createRadialGradient(seg.x, seg.y, seg.r * 0.7, seg.x, seg.y, seg.r * 2.6);
+            rimGlow.addColorStop(0, `rgba(160, 10, 10, ${0.35 * glowPulse})`);
+            rimGlow.addColorStop(0.45, `rgba(200, 20, 20, ${0.18 * glowPulse})`);
+            rimGlow.addColorStop(1, 'rgba(80, 0, 0, 0)');
+            ctx.fillStyle = rimGlow;
             ctx.beginPath();
-            ctx.arc(seg.x, seg.y, seg.r * 2.2, 0, Math.PI * 2);
+            ctx.arc(seg.x, seg.y, seg.r * 2.6, 0, Math.PI * 2);
             ctx.fill();
 
-            // Body circle — dark-to-red radial for 3D look
-            const bGrad = ctx.createRadialGradient(seg.x - seg.r * 0.25, seg.y - seg.r * 0.25, seg.r * 0.1, seg.x, seg.y, seg.r);
-            bGrad.addColorStop(0, '#ff3a3a');
-            bGrad.addColorStop(0.5, '#c01818');
-            bGrad.addColorStop(1, '#6b0000');
+            // Body — void center fading to hot crimson rim (inverted shading = no plastic-ball look)
+            const bGrad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r);
+            bGrad.addColorStop(0, '#060000');
+            bGrad.addColorStop(0.45, '#1a0303');
+            bGrad.addColorStop(0.72, '#540808');
+            bGrad.addColorStop(0.88, '#8b1010');
+            bGrad.addColorStop(1, '#c21414');
             ctx.fillStyle = bGrad;
-            ctx.strokeStyle = isHead ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.65)';
-            ctx.lineWidth = isHead ? 3 : 2;
+            ctx.strokeStyle = `rgba(220, 20, 20, ${0.55 + glowPulse * 0.25})`;
+            ctx.lineWidth = isHead ? 2.5 : 1.8;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            // Specular highlight
-            const specGrad = ctx.createRadialGradient(seg.x - seg.r * 0.3, seg.y - seg.r * 0.35, 0, seg.x - seg.r * 0.2, seg.y - seg.r * 0.2, seg.r * 0.6);
-            specGrad.addColorStop(0, 'rgba(255,180,180,0.35)');
-            specGrad.addColorStop(1, 'rgba(255,80,80,0)');
-            ctx.fillStyle = specGrad;
-            ctx.beginPath();
-            ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
-            ctx.fill();
+            // Veins/cracks — thin glowing lines on surface (skip tail segments)
+            if (i < 7 && seg.r > 14) {
+                const crackPhase = i * 2.4 + t * 0.4;
+                ctx.strokeStyle = `rgba(255, 40, 0, ${0.18 + Math.abs(Math.sin(crackPhase)) * 0.14})`;
+                ctx.lineWidth = 0.8;
+                for (let c = 0; c < 2; c++) {
+                    const ca = crackPhase + c * Math.PI;
+                    ctx.beginPath();
+                    ctx.moveTo(seg.x + Math.cos(ca) * seg.r * 0.25, seg.y + Math.sin(ca) * seg.r * 0.25);
+                    ctx.bezierCurveTo(
+                        seg.x + Math.cos(ca + 0.5) * seg.r * 0.55, seg.y + Math.sin(ca + 0.5) * seg.r * 0.55,
+                        seg.x + Math.cos(ca + 0.9) * seg.r * 0.7,  seg.y + Math.sin(ca + 0.9) * seg.r * 0.7,
+                        seg.x + Math.cos(ca + 1.2) * seg.r * 0.82, seg.y + Math.sin(ca + 1.2) * seg.r * 0.82
+                    );
+                    ctx.stroke();
+                }
+            }
 
             if (isHead) {
-                // ── HORNS — always point world-up regardless of head rotation ──
-                const hornDefs = [
-                    { xOff: -seg.r * 0.38, len: seg.r * 1.55, lean: -0.18, baseW: 8.5 },
-                    { xOff:  seg.r * 0.28, len: seg.r * 1.95, lean:  0.12, baseW: 7.5 },
-                ];
-                for (const h of hornDefs) {
-                    // Base sits on top of the head circle (world-up = negative Y)
-                    const baseCx = seg.x + h.xOff;
-                    const baseCy = seg.y - seg.r * 0.72;
-                    // Tip always goes upward with a slight lean
-                    const tipX = baseCx + Math.sin(h.lean) * h.len;
-                    const tipY = baseCy - Math.cos(h.lean) * h.len;
-
-                    // Horn glow
-                    const hornGlow = ctx.createLinearGradient(baseCx, baseCy, tipX, tipY);
-                    hornGlow.addColorStop(0, 'rgba(200,0,0,0.4)');
-                    hornGlow.addColorStop(1, 'rgba(255,80,80,0)');
-                    ctx.fillStyle = hornGlow;
-                    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(baseCx - h.baseW, baseCy);
-                    ctx.lineTo(tipX, tipY);
-                    ctx.lineTo(baseCx + h.baseW, baseCy);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // Horn base fill (solid)
-                    const hGrad = ctx.createLinearGradient(baseCx, baseCy, tipX, tipY);
-                    hGrad.addColorStop(0, '#b91c1c');
-                    hGrad.addColorStop(1, '#7f0000');
-                    ctx.fillStyle = hGrad;
-                    ctx.beginPath();
-                    ctx.moveTo(baseCx - h.baseW * 0.8, baseCy);
-                    ctx.lineTo(tipX, tipY);
-                    ctx.lineTo(baseCx + h.baseW * 0.8, baseCy);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-
                 // ── MOUTH — massive oval taking up most of the face ────────
                 const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.52;
                 const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.52;
@@ -1995,16 +1948,19 @@ class CargoGame {
                 ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Teeth — top row (sharp triangles)
+                // Teeth — top row (sharp triangles, bone-yellowed not cartoon-white)
                 const toothCount = 7;
                 for (let ti = 0; ti < toothCount; ti++) {
                     const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
-                    ctx.fillStyle = 'rgba(240, 235, 220, 0.92)';
-                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    const tGrad = ctx.createLinearGradient(tx, -mH * 0.85, tx, -mH * 0.15);
+                    tGrad.addColorStop(0, 'rgba(200, 185, 140, 0.9)');
+                    tGrad.addColorStop(1, 'rgba(120, 80, 60, 0.85)');
+                    ctx.fillStyle = tGrad;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.moveTo(tx - mW * 0.07, -mH * 0.85);
-                    ctx.lineTo(tx, -mH * 0.15);
+                    ctx.lineTo(tx, -mH * 0.12);
                     ctx.lineTo(tx + mW * 0.07, -mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
@@ -2013,10 +1969,13 @@ class CargoGame {
                 // Bottom row (offset half a tooth)
                 for (let ti = 0; ti < toothCount - 1; ti++) {
                     const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
-                    ctx.fillStyle = 'rgba(220, 215, 200, 0.88)';
+                    const tGrad2 = ctx.createLinearGradient(tx, mH * 0.85, tx, mH * 0.18);
+                    tGrad2.addColorStop(0, 'rgba(190, 175, 130, 0.88)');
+                    tGrad2.addColorStop(1, 'rgba(110, 70, 50, 0.82)');
+                    ctx.fillStyle = tGrad2;
                     ctx.beginPath();
                     ctx.moveTo(tx - mW * 0.065, mH * 0.85);
-                    ctx.lineTo(tx, mH * 0.18);
+                    ctx.lineTo(tx, mH * 0.15);
                     ctx.lineTo(tx + mW * 0.065, mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
@@ -2024,56 +1983,6 @@ class CargoGame {
                 }
                 ctx.restore();
 
-                // ── EYES ────────────────────────────────────────────────────
-                const eyeDefs = [
-                    { u: 0.32, s: -0.42, r: 0.22 },
-                    { u: 0.32, s:  0.42, r: 0.19 },
-                ];
-                for (const e of eyeDefs) {
-                    const ex = seg.x + Math.cos(upAngle) * seg.r * e.u + Math.cos(upAngle + Math.PI/2) * seg.r * e.s;
-                    const ey = seg.y + Math.sin(upAngle) * seg.r * e.u + Math.sin(upAngle + Math.PI/2) * seg.r * e.s;
-                    const er = seg.r * e.r;
-
-                    // Eye glow halo
-                    const eGlow = ctx.createRadialGradient(ex, ey, 0, ex, ey, er * 2.5);
-                    eGlow.addColorStop(0, 'rgba(255,120,0,0.35)');
-                    eGlow.addColorStop(1, 'rgba(255,60,0,0)');
-                    ctx.fillStyle = eGlow;
-                    ctx.beginPath();
-                    ctx.arc(ex, ey, er * 2.5, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.fillStyle = '#111';
-                    ctx.beginPath();
-                    ctx.arc(ex, ey, er, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Glowing iris
-                    const irisGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, er * 0.8);
-                    irisGrad.addColorStop(0, '#ff8800');
-                    irisGrad.addColorStop(0.6, '#cc4400');
-                    irisGrad.addColorStop(1, '#880000');
-                    ctx.fillStyle = irisGrad;
-                    ctx.beginPath();
-                    ctx.arc(ex, ey, er * 0.8, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Slit pupil
-                    ctx.fillStyle = '#000';
-                    ctx.save();
-                    ctx.translate(ex, ey);
-                    ctx.rotate(Math.atan2(hdy, hdx));
-                    ctx.beginPath();
-                    ctx.ellipse(er * 0.15, 0, er * 0.18, er * 0.45, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
-
-                    // Glint
-                    ctx.fillStyle = 'rgba(255,230,140,0.9)';
-                    ctx.beginPath();
-                    ctx.arc(ex - er * 0.28, ey - er * 0.3, er * 0.2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
             }
         }
         ctx.restore();
@@ -2118,31 +2027,16 @@ class CargoGame {
         ctx.closePath();
         ctx.fill();
 
-        // Glowing hazard border — bloom pass first, then sharp edge
+        // Single crisp terrain edge — no bloom (reduces flickering + visual noise)
+        ctx.strokeStyle = pal.rockEdge + (pal.rockEdge.length === 7 ? 'aa' : '');
+        ctx.lineWidth = 1.8;
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = `${pal.rockGlow}0.10)`;
-        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        for (let x = startX; x <= endX; x += 20) {
-            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
-            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
-        }
-        ctx.stroke();
-        ctx.strokeStyle = `${pal.rockGlow}0.24)`;
-        ctx.lineWidth = 7;
-        ctx.beginPath();
-        for (let x = startX; x <= endX; x += 20) {
-            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
-            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
-        }
-        ctx.stroke();
-        ctx.strokeStyle = pal.rockEdge;
-        ctx.lineWidth = 2.5;
-        ctx.lineJoin = 'miter';
-        ctx.beginPath();
-        for (let x = startX; x <= endX; x += 20) {
-            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
-            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
+        for (let x = startX; x <= endX; x += 8) {
+            const y = this.physics.getTerrainHeight(x);
+            if (x === startX) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
         ctx.stroke();
 
@@ -2194,14 +2088,14 @@ class CargoGame {
             rx += baseW * (0.45 + r1 * 0.5);      // irregular, overlapping spacing
         }
 
-        // Ground texture lines
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
-        ctx.lineWidth = 1;
-        for (let x = startX; x <= endX; x += 60) {
+        // Subtle surface grain lines
+        ctx.strokeStyle = `${pal.rockGlow}0.12)`;
+        ctx.lineWidth = 0.8;
+        for (let x = startX; x <= endX; x += 50) {
             const y = this.physics.getTerrainHeight(x);
             ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x - 10, y + 20 + (Math.abs(x) % 40));
+            ctx.moveTo(x, y + 2);
+            ctx.lineTo(x - 8, y + 18 + (Math.abs(x) % 30));
             ctx.stroke();
         }
     }
@@ -2469,20 +2363,60 @@ class CargoGame {
         if (!lander || lander.crashed) return;
 
         if (lander.vehicleType === 'drone') {
-            // Drone Rope (drawn in world space before translation)
+            // Drone Rope with catenary sag
             if (lander.ropeLength > 0) {
-                ctx.strokeStyle = '#94a3b8'; // Rope color
-                ctx.lineWidth = 1.5;
+                const rx0 = lander.x;
+                const ry0 = lander.y + 8; // attach point below drone body
+                const rx1 = lander.grappleX ?? lander.x;
+                const ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
+
+                // Sag mid-point: pull midpoint down by a fraction of rope length
+                const sag = Math.min(lander.ropeLength * 0.12, 18);
+                const midX = (rx0 + rx1) / 2;
+                const midY = (ry0 + ry1) / 2 + sag;
+
+                // Shadow rope (depth)
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(lander.x, lander.y);
-                ctx.lineTo(lander.grappleX || lander.x, lander.grappleY || lander.y + lander.ropeLength);
+                ctx.moveTo(rx0 + 1, ry0 + 1);
+                ctx.quadraticCurveTo(midX + 1, midY + 1, rx1 + 1, ry1 + 1);
                 ctx.stroke();
 
-                // Grapple hook claw
-                ctx.fillStyle = lander.grabbedBoxId ? '#ef4444' : '#e2e8f0';
+                // Main rope
+                ctx.strokeStyle = lander.grabbedBoxId ? '#f97316' : '#94a3b8';
+                ctx.lineWidth = 1.8;
                 ctx.beginPath();
-                ctx.arc(lander.grappleX || lander.x, lander.grappleY || lander.y + lander.ropeLength, 4, 0, Math.PI * 2);
+                ctx.moveTo(rx0, ry0);
+                ctx.quadraticCurveTo(midX, midY, rx1, ry1);
+                ctx.stroke();
+
+                // Thin highlight along rope
+                ctx.strokeStyle = 'rgba(203,213,225,0.35)';
+                ctx.lineWidth = 0.7;
+                ctx.beginPath();
+                ctx.moveTo(rx0, ry0);
+                ctx.quadraticCurveTo(midX, midY, rx1, ry1);
+                ctx.stroke();
+
+                // Hook/magnet end
+                const hooked = !!lander.grabbedBoxId;
+                const hGlow = ctx.createRadialGradient(rx1, ry1, 0, rx1, ry1, hooked ? 10 : 6);
+                hGlow.addColorStop(0, hooked ? 'rgba(249,115,22,0.8)' : 'rgba(148,163,184,0.6)');
+                hGlow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = hGlow;
+                ctx.beginPath();
+                ctx.arc(rx1, ry1, hooked ? 10 : 6, 0, Math.PI * 2);
                 ctx.fill();
+
+                ctx.fillStyle = hooked ? '#f97316' : '#cbd5e1';
+                ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(rx1, ry1, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
             }
         }
 

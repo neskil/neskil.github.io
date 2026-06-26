@@ -563,8 +563,12 @@ class CargoPhysics {
         lander.x += lander.vx * dt;
         lander.y += lander.vy * dt;
 
-        // Wrap around screen edges vertically/horizontally
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
+
+        // Leg spring decay
+        if (lander.legCompress > 0) {
+            lander.legCompress = Math.max(0, lander.legCompress - 0.04 * dt);
+        }
     }
 
     resolveLanderCollisions() {
@@ -736,10 +740,6 @@ class CargoPhysics {
             lander.currentPad = null;
         }
 
-        // Leg spring decay — always spring back toward relaxed position
-        if (lander.legCompress > 0) {
-            lander.legCompress = Math.max(0, lander.legCompress - 0.04 * dt);
-        }
     }
 
     triggerExplosion() {
