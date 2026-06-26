@@ -620,6 +620,22 @@ class CargoPhysics {
                     const vt = lander.vx * slope.tx + lander.vy * slope.ty;
                     lander.vx -= this.LANDER_FRICTION * vt * slope.tx;
                     lander.vy -= this.LANDER_FRICTION * vt * slope.ty;
+
+                    // Spawn scraping dust/sparks when sliding
+                    if (Math.abs(vt) > 0.8) {
+                        if (Math.random() < 0.25) {
+                            this.particles.push({
+                                x: cWorld.x,
+                                y: cWorld.y,
+                                vx: -slope.tx * vt * 0.3 + (Math.random() - 0.5) * 1.5,
+                                vy: -slope.ty * vt * 0.3 - Math.random() * 2,
+                                life: 0.8,
+                                decay: 0.04 + Math.random() * 0.04,
+                                color: Math.random() > 0.4 ? '#f97316' : '#64748b', // sparks & dust
+                                size: 1.5 + Math.random() * 2
+                            });
+                        }
+                    }
                 }
 
                 // Apply hull damage
@@ -633,16 +649,16 @@ class CargoPhysics {
                     }
 
                     // Spark particles
-                    for (let i = 0; i < 8; i++) {
+                    for (let i = 0; i < 12; i++) {
                         this.particles.push({
                             x: cWorld.x,
                             y: cWorld.y,
-                            vx: (Math.random() - 0.5) * 6,
-                            vy: (Math.random() - 0.5) * 6 - 2,
+                            vx: (Math.random() - 0.5) * 7,
+                            vy: (Math.random() - 0.5) * 7 - 2,
                             life: 1.0,
-                            decay: 0.05 + Math.random() * 0.05,
-                            color: '#e2e8f0',
-                            size: 2 + Math.random() * 2
+                            decay: 0.04 + Math.random() * 0.04,
+                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316', // Yellow and Orange sparks
+                            size: 2.5 + Math.random() * 2.5
                         });
                     }
 
