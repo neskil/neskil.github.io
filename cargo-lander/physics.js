@@ -571,7 +571,7 @@ class CargoPhysics {
 
         // Leg spring decay
         if (lander.legCompress > 0) {
-            lander.legCompress = Math.max(0, lander.legCompress - 0.025 * dt);
+            lander.legCompress = Math.max(0, lander.legCompress - 0.014 * dt);
         }
     }
 
@@ -654,7 +654,7 @@ class CargoPhysics {
 
             if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
                 // Safe Landing!
-                if (!lander.landed && onPad) lander.legCompress = Math.min(1, Math.max(0.35, speed * 0.5));
+                if (!lander.landed && onPad) lander.legCompress = Math.min(1, Math.max(0.55, speed * 0.6));
                 lander.y -= minPen;
                 lander.vy = 0;
                 lander.vx = 0;
