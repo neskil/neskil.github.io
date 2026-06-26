@@ -307,6 +307,24 @@ class CargoAudioController {
         return this.muted;
     }
 
+    setMuted(muted) {
+        this.muted = muted;
+        if (muted) {
+            this.setThruster(0);
+            this.stopWarningBeeps();
+            this.isWarningPlaying = false;
+            if (this.musicGain && this.ctx) {
+                this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+            }
+        } else {
+            this.init();
+            if (this.musicGain && this.ctx) {
+                this.musicGain.gain.setTargetAtTime(this.musicVolume * 0.1, this.ctx.currentTime, 0.1);
+            }
+        }
+        return this.muted;
+    }
+
     setMusicVolume(volume) {
         this.musicVolume = volume;
         if (this.ctx && this.musicGain && !this.muted) {
