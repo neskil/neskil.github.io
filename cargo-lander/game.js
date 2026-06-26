@@ -2940,7 +2940,47 @@ class CargoGame {
         ctx.translate(lander.x, lander.y);
         ctx.rotate(lander.angle);
 
-        const bounceY = -(lander.legCompress || 0) * 10;
+        // ── Landing legs drawn BEFORE bounce so they stay at ground level ──
+        const lc0 = lander.legCompress || 0;
+        if (lander.vehicleType !== 'drone') {
+            const hw0 = (lander.deckWidth || 66) / 2;
+            // Foot stays at hh=14 (terrain level when landed). Spread pulls in as compressed.
+            const footY0 = 14 + (1 - lc0) * 7;          // 21 relaxed → 14 fully compressed
+            const legSpread0 = hw0 + 12 - lc0 * 8;
+
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-hw0 + 2, 10);
+            ctx.lineTo(-legSpread0, footY0);
+            ctx.lineTo(-legSpread0 - 8, footY0 + 1);
+            ctx.stroke();
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-hw0 + 4, 4);
+            ctx.lineTo(-legSpread0, footY0 - 1);
+            ctx.stroke();
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(hw0 - 2, 10);
+            ctx.lineTo(legSpread0, footY0);
+            ctx.lineTo(legSpread0 + 8, footY0 + 1);
+            ctx.stroke();
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(hw0 - 4, 4);
+            ctx.lineTo(legSpread0, footY0 - 1);
+            ctx.stroke();
+
+            const navPulse0 = 0.6 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
+            ctx.fillStyle = `rgba(239,68,68,${navPulse0})`;
+            ctx.beginPath(); ctx.arc(-legSpread0 - 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = `rgba(16,185,129,${navPulse0})`;
+            ctx.beginPath(); ctx.arc(legSpread0 + 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Body lifts when legs compress — makes spring visible
+        const bounceY = -lc0 * 22;
         ctx.translate(0, bounceY);
 
         const maxIntegrity = lander.maxIntegrity || 100;
@@ -3211,53 +3251,6 @@ class CargoGame {
                 ctx.ellipse(nx, 16, 5, 2, 0, 0, Math.PI * 2);
                 ctx.stroke();
             }
-
-            // ── Landing legs — extend from chassis bottom ─────────────────────────
-            const lc = lander.legCompress || 0;
-            // When lc=0 (flying, relaxed): legs extend 14px below body
-            // When lc=1 (just landed): legs close to body (bounceY lifts body instead)
-            const legExtend = 14 * (1 - lc * 0.3);  // 14px relaxed, 9.8px compressed
-            const footY = 14 + legExtend;             // body hh=14, feet below
-            const legSpreadX = hw + 10 - lc * 4;     // spread out slightly, pull in when compressed
-
-            ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 2.5;
-            // Left leg
-            ctx.beginPath();
-            ctx.moveTo(-hw + 2, 12);
-            ctx.lineTo(-legSpreadX, footY);
-            ctx.lineTo(-legSpreadX - 7, footY + 1);
-            ctx.stroke();
-            // Left cross brace
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(-hw + 4, 6);
-            ctx.lineTo(-legSpreadX, footY - 1);
-            ctx.stroke();
-            // Right leg
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.moveTo(hw - 2, 12);
-            ctx.lineTo(legSpreadX, footY);
-            ctx.lineTo(legSpreadX + 7, footY + 1);
-            ctx.stroke();
-            // Right cross brace
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(hw - 4, 6);
-            ctx.lineTo(legSpreadX, footY - 1);
-            ctx.stroke();
-
-            // ── Navigation lights ─────────────────────────────────────────
-            const navPulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
-            ctx.fillStyle = `rgba(239, 68, 68, ${navPulse})`;
-            ctx.beginPath();
-            ctx.arc(-legSpreadX - 7, footY, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = `rgba(16, 185, 129, ${navPulse})`;
-            ctx.beginPath();
-            ctx.arc(legSpreadX + 7, footY, 2.5, 0, Math.PI * 2);
-            ctx.fill();
 
             // ── Side thruster nozzles (visible even when idle) ────────────
             for (const side of [-1, 1]) {
