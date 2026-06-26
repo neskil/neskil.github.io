@@ -183,13 +183,17 @@ class CargoGame {
 
     generateStars() {
         this.stars = [];
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 180; i++) {
+            const bright = i < 14;
             this.stars.push({
-                x: Math.random() * 1000,
-                y: Math.random() * 400,
-                size: Math.random() * 1.5 + 0.5,
-                twinkleSpeed: 0.02 + Math.random() * 0.05,
-                phase: Math.random() * Math.PI
+                x: Math.random() * 1800,
+                y: Math.random() * 650,
+                size: bright ? (1.8 + Math.random() * 1.8) : (Math.random() * 1.2 + 0.2),
+                twinkleSpeed: bright ? (0.007 + Math.random() * 0.012) : (0.012 + Math.random() * 0.04),
+                phase: Math.random() * Math.PI * 2,
+                r: Math.floor(220 + Math.random() * 35),
+                g: Math.floor(225 + Math.random() * 30),
+                b: Math.floor(210 + Math.random() * 45),
             });
         }
     }
@@ -222,6 +226,11 @@ class CargoGame {
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
         window.addEventListener('keydown', (e) => {
+            // Don't hijack typing when a text field (e.g. the callsign input) is focused
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+                return;
+            }
             this.keys[e.key.toLowerCase()] = true;
             // Prevent default scrolling for game keys
             if (['w', 'a', 's', 'd', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
@@ -543,8 +552,8 @@ class CargoGame {
         this.messages.push({
             text: text,
             color: color,
-            life: 1.0, // fades out
-            y: 120
+            life: 1.0,
+            y: 175
         });
         if (this.messages.length > 4) {
             this.messages.shift();
@@ -711,6 +720,15 @@ class CargoGame {
         const dt = (timestamp - this.lastTime) / 16.666; // Normalized to 60fps
         this.lastTime = timestamp;
 
+        // FPS tracking (sampled every 600 ms)
+        this.fpsFrames = (this.fpsFrames || 0) + 1;
+        if (!this.fpsSampleTs) this.fpsSampleTs = timestamp;
+        if (timestamp - this.fpsSampleTs >= 600) {
+            this.displayFps = Math.round(this.fpsFrames * 1000 / (timestamp - this.fpsSampleTs));
+            this.fpsFrames = 0;
+            this.fpsSampleTs = timestamp;
+        }
+
         if (this.gameState === 'playing') {
             this.update(dt);
         }
@@ -871,11 +889,12 @@ class CargoGame {
         const hubs = this.physics.deliveryHubs;
         const boxes = this.physics.boxes;
 
-        // We check if the lander has landed safely on a delivery pad
-        if (lander.landed && lander.currentPad && lander.currentPad !== 'sourcing') {
-            const padType = lander.currentPad; // Matches the target color type, e.g. 'red', 'blue', 'green', 'normal'
-            const hub = hubs.find(h => h.type === padType);
-            
+        // We check if the lander has landed safely on a delivery pad.
+        // Only delivery hubs count here — the 'start' and 'collection' pads aren't hubs.
+        const padType = lander.currentPad; // e.g. 'red', 'blue', 'green', 'normal'
+        const hub = hubs.find(h => h.type === padType);
+        if (lander.landed && hub) {
+
             // Search cargo boxes that are lying on the deck (close to the deck coordinates)
             const S = this.physics.BOX_SIZE;
             
@@ -999,11 +1018,32 @@ class CargoGame {
         // 2. Draw Twinkling Stars
         for (const star of this.stars) {
             star.phase += star.twinkleSpeed;
-            const alpha = 0.3 + Math.abs(Math.sin(star.phase)) * 0.7;
-            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            const alpha = 0.18 + Math.abs(Math.sin(star.phase)) * 0.82;
+            ctx.fillStyle = `rgba(${star.r}, ${star.g}, ${star.b}, ${alpha})`;
             ctx.beginPath();
             ctx.arc(star.x % w, star.y % h, star.size, 0, Math.PI * 2);
             ctx.fill();
+        }
+
+        // Faint nebula clouds (fixed screen-space, very subtle)
+        const n1 = ctx.createRadialGradient(w * 0.18, h * 0.55, 0, w * 0.18, h * 0.55, 380);
+        n1.addColorStop(0, 'rgba(59, 130, 246, 0.045)');
+        n1.addColorStop(1, 'rgba(59, 130, 246, 0)');
+        ctx.fillStyle = n1;
+        ctx.fillRect(0, 0, w, h);
+        const n2 = ctx.createRadialGradient(w * 0.82, h * 0.28, 0, w * 0.82, h * 0.28, 300);
+        n2.addColorStop(0, 'rgba(139, 92, 246, 0.04)');
+        n2.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        ctx.fillStyle = n2;
+        ctx.fillRect(0, 0, w, h);
+
+        // Top HUD breathing room — dark-to-transparent band so game elements sit below the HTML HUD
+        if (this.gameState !== 'menu') {
+            const topGrad = ctx.createLinearGradient(0, 0, 0, 88);
+            topGrad.addColorStop(0, 'rgba(5, 8, 18, 0.65)');
+            topGrad.addColorStop(1, 'rgba(5, 8, 18, 0)');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(0, 0, w, 88);
         }
 
         // --- Menu Specific Background Rendering ---
@@ -1043,19 +1083,20 @@ class CargoGame {
 
         ctx.restore();
 
-        // 9. WebGL Render for Particles and Monster
+        // 9. WebGL Render for Particles (the monster shader is intentionally skipped —
+        //    the detailed hand-drawn monster is rendered in Canvas2D below)
         if (this.shaders) {
             this.shaders.render(this.physics, this.camera);
-        } else {
-            // Fallback
-            ctx.save();
-            ctx.translate(w / 2, h / 2);
-            ctx.scale(this.camera.zoom, this.camera.zoom);
-            ctx.translate(-this.camera.x, -this.camera.y);
-            this.drawMonster();
-            this.drawParticles();
-            ctx.restore();
         }
+
+        // 9b. Draw the detailed Canvas2D monster (and particles when WebGL is unavailable)
+        ctx.save();
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(this.camera.zoom, this.camera.zoom);
+        ctx.translate(-this.camera.x, -this.camera.y);
+        this.drawMonster();
+        if (!this.shaders) this.drawParticles();
+        ctx.restore();
 
         // 10. Draw UI Notifications directly on canvas
         this.drawNotifications();
@@ -1087,6 +1128,16 @@ class CargoGame {
                 }
             }
         }
+
+        // 13. FPS counter (bottom-left corner)
+        if (this.displayFps !== undefined) {
+            ctx.save();
+            ctx.font = '600 11px "Courier New", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
+            ctx.fillText(`${this.displayFps} FPS`, 14, h - 14);
+            ctx.restore();
+        }
     }
 
     drawMinimap() {
@@ -1094,10 +1145,10 @@ class CargoGame {
         const cw = this.canvas.width;
 
         // Minimap: top-right corner, below the HUD bars
-        const mmWidth  = 280;
-        const mmHeight = 160;
+        const mmWidth  = 340;
+        const mmHeight = 200;
         const mmX = cw - mmWidth - 20;
-        const mmY = 80; // clears the fuel/shield bar row
+        const mmY = 92; // clears the fuel/shield bar row
 
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
@@ -1206,7 +1257,7 @@ class CargoGame {
             const clampedX = Math.max(0, Math.min(this.physics.levelWidth,  l.x));
             const clampedY = Math.max(0, Math.min(this.physics.levelHeight, l.y));
 
-            const dotR = 14 / Math.max(scaleX, scaleY);
+            const dotR = 8 / Math.max(scaleX, scaleY);
             ctx.fillStyle = l.crashed ? '#ef4444' : '#10b981';
             ctx.beginPath();
             ctx.arc(clampedX, clampedY, dotR, 0, Math.PI * 2);
@@ -1215,7 +1266,7 @@ class CargoGame {
             // Small heading tick
             if (!l.crashed) {
                 ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 5 / Math.max(scaleX, scaleY);
+                ctx.lineWidth = 4 / Math.max(scaleX, scaleY);
                 ctx.beginPath();
                 ctx.moveTo(clampedX, clampedY);
                 ctx.lineTo(
@@ -1599,6 +1650,16 @@ class CargoGame {
         ctx.restore();
     }
 
+    // Horizontal x-ranges of the flat landing pads (start depot, collection, hubs)
+    getPadRanges() {
+        const p = this.physics;
+        const ranges = [];
+        if (p.startDepot) ranges.push({ left: p.startDepot.x, right: p.startDepot.x + p.startDepot.width });
+        if (p.collectionPoint) ranges.push({ left: p.collectionPoint.x, right: p.collectionPoint.x + p.collectionPoint.width });
+        for (const hub of p.deliveryHubs) ranges.push({ left: hub.x, right: hub.x + hub.width });
+        return ranges;
+    }
+
     drawTerrain() {
         const ctx = this.ctx;
         if (this.physics.terrainPoints.length === 0) return;
@@ -1622,15 +1683,82 @@ class CargoGame {
         ctx.closePath();
         ctx.fill();
 
-        // Glowing hazard border line
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 3;
+        // Glowing hazard border — bloom pass first, then sharp edge
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.10)';
+        ctx.lineWidth = 18;
         ctx.beginPath();
         for (let x = startX; x <= endX; x += 20) {
             if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
             else ctx.lineTo(x, this.physics.getTerrainHeight(x));
         }
         ctx.stroke();
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.24)';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += 20) {
+            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
+            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
+        }
+        ctx.stroke();
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'miter';
+        ctx.beginPath();
+        for (let x = startX; x <= endX; x += 20) {
+            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
+            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
+        }
+        ctx.stroke();
+
+        // Really jagged rocks along the raw terrain (skipped over flat landing pads).
+        // Irregular width / height / lean + overlapping teeth -> rocky ridge, not a sawblade.
+        const padRanges = this.getPadRanges();
+        const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
+        const getH = (x) => this.physics.getTerrainHeight(x);
+        // Deterministic pseudo-random so rocks are stable frame-to-frame
+        const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+
+        ctx.fillStyle = '#0b0f19';        // dark rock body, same as terrain fill
+        ctx.strokeStyle = '#ef4444';      // glowing red edges
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'miter';
+
+        let rx = startX;
+        while (rx <= endX) {
+            if (isOverPad(rx)) { rx += 10; continue; }
+
+            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9);
+            const baseW = 6 + r2 * 14;            // varied footprint
+            const peakH = 5 + r1 * 22;            // some tiny, some tall
+            const lean = (r3 - 0.5) * baseW * 1.1; // asymmetric, leaning peaks
+
+            const xL = rx;
+            const xR = rx + baseW;
+            const yL = getH(xL);
+            const yR = getH(xR);
+            const apexX = rx + baseW * 0.5 + lean;
+            const apexY = Math.min(yL, yR) - peakH;
+
+            // Occasional notched (double) peak for extra jaggedness
+            ctx.beginPath();
+            ctx.moveTo(xL, yL);
+            if (r2 > 0.62) {
+                const midX = rx + baseW * 0.5;
+                const midY = Math.min(yL, yR) - peakH * 0.35;
+                ctx.lineTo(rx + baseW * 0.3 + lean * 0.5, apexY);
+                ctx.lineTo(midX, midY);
+                ctx.lineTo(rx + baseW * 0.72 + lean * 0.3, apexY - peakH * 0.15);
+            } else {
+                ctx.lineTo(apexX, apexY);
+            }
+            ctx.lineTo(xR, yR);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            rx += baseW * (0.45 + r1 * 0.5);      // irregular, overlapping spacing
+        }
 
         // Ground texture lines
         ctx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
@@ -1707,6 +1835,17 @@ class CargoGame {
             ctx.fillStyle = hub.color;
             ctx.globalAlpha = pulse;
             ctx.fillRect(hub.x - 5, hub.y - 200, hub.width + 10, 200);
+            ctx.globalAlpha = 1.0;
+
+            // Expanding pulse ring at landing surface
+            const rpT = (Date.now() % 2800) / 2800;
+            const rpR = hub.width * (0.5 + rpT * 2.8);
+            ctx.strokeStyle = hub.color;
+            ctx.globalAlpha = Math.max(0, (1 - rpT) * 0.55);
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.ellipse(hub.x + hub.width / 2, hub.y + 2, rpR, rpR * 0.28, 0, Math.PI, 0);
+            ctx.stroke();
             ctx.globalAlpha = 1.0;
 
             // Hub base
@@ -1833,6 +1972,31 @@ class CargoGame {
             ctx.fill();
 
         } else {
+            // Thruster flame (drawn first, behind body)
+            if (lander.thrusting && lander.fuel > 0) {
+                const fl = 14 + Math.random() * 20;
+                const fGrad = ctx.createLinearGradient(0, 18, 0, 18 + fl);
+                fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.95)');
+                fGrad.addColorStop(0.45, 'rgba(239, 68, 68, 0.65)');
+                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = fGrad;
+                const fw = 4.5 + Math.random() * 3;
+                ctx.beginPath();
+                ctx.moveTo(-fw, 18);
+                ctx.bezierCurveTo(-fw * 0.4, 18 + fl * 0.55, (Math.random() - 0.5) * 5, 18 + fl * 0.9, 0, 18 + fl);
+                ctx.bezierCurveTo((Math.random() - 0.5) * 5, 18 + fl * 0.9, fw * 0.4, 18 + fl * 0.55, fw, 18);
+                ctx.closePath();
+                ctx.fill();
+                // Heat bloom
+                const bGrad = ctx.createRadialGradient(0, 22, 0, 0, 26, 24);
+                bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.32)');
+                bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = bGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 26, 20, 26, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
             // Draw Cargo Deck (Basket)
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 3;
@@ -1876,6 +2040,12 @@ class CargoGame {
             ctx.arc(0, -2, 6, Math.PI, 0);
             ctx.fill();
 
+            // Porthole glint
+            ctx.fillStyle = 'rgba(147, 197, 253, 0.55)';
+            ctx.beginPath();
+            ctx.arc(-1.5, -4, 2.2, Math.PI, 0);
+            ctx.fill();
+
             // Draw Landing Legs
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 2.5;
@@ -1900,6 +2070,16 @@ class CargoGame {
             ctx.lineTo(10, 20);
             ctx.lineTo(-10, 20);
             ctx.fill();
+
+            // Navigation lights
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(-hw, deckY - bh * 0.5, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(hw, deckY - bh * 0.5, 2.2, 0, Math.PI * 2);
+            ctx.fill();
         }
 
         ctx.restore();
@@ -1920,13 +2100,27 @@ class CargoGame {
     drawNotifications() {
         const ctx = this.ctx;
         ctx.textAlign = 'center';
-        
+        ctx.font = 'bold 14px sans-serif';
+
         for (let i = 0; i < this.messages.length; i++) {
             const m = this.messages[i];
-            ctx.fillStyle = m.color;
+            const y = m.y - (i * 28);
+            const tw = ctx.measureText(m.text).width;
+
+            // Backdrop pill
+            ctx.globalAlpha = m.life * 0.72;
+            ctx.fillStyle = 'rgba(5, 8, 18, 0.82)';
+            const pw = tw + 26, ph = 22;
+            const px = this.canvas.width / 2 - pw / 2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(px, y - ph + 5, pw, ph, 11);
+            else ctx.rect(px, y - ph + 5, pw, ph);
+            ctx.fill();
+
+            // Text
             ctx.globalAlpha = m.life;
-            ctx.font = 'bold 15px sans-serif';
-            ctx.fillText(m.text, this.canvas.width / 2, m.y - (i * 24));
+            ctx.fillStyle = m.color;
+            ctx.fillText(m.text, this.canvas.width / 2, y);
         }
         ctx.globalAlpha = 1.0;
     }
@@ -1936,9 +2130,9 @@ class CargoGame {
         const wind = this.physics.wind;
         if (Math.abs(wind) < 0.05) return;
 
-        // Position at top center
+        // Position at top center, below HUD bar
         const cx = this.canvas.width / 2;
-        const cy = 40;
+        const cy = 65;
 
         ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
         ctx.font = '600 12px sans-serif';

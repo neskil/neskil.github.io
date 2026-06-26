@@ -259,6 +259,7 @@ class CargoPhysics {
 
     update(dt, levelConfig, inputState) {
         if (this.lander.crashed) {
+            this.updateMonster(dt); // let the monster dive away & despawn
             this.updateParticles();
             return;
         }
@@ -277,9 +278,26 @@ class CargoPhysics {
     updateMonster(dt) {
         const lander = this.lander;
 
-        // If lander already crashed, just let any living monster fade out
+        // Once the lander is gone, the monster dives back into the depths and despawns.
         if (lander.crashed) {
-            this.monster = null;
+            this.outOfBoundsTimer = 0;
+            if (this.monster) {
+                const m = this.monster;
+                m.vy += 0.5 * dt;              // accelerate downward, retreating
+                m.vx *= Math.pow(0.94, dt);
+                m.x += m.vx * dt;
+                m.y += m.vy * dt;
+
+                if (!m.trail) m.trail = [];
+                const lastTP = m.trail[0];
+                if (!lastTP || Math.hypot(m.x - lastTP.x, m.y - lastTP.y) >= 2) {
+                    m.trail.unshift({ x: m.x, y: m.y });
+                    if (m.trail.length > 800) m.trail.pop();
+                }
+
+                // Fully gone once it has dived well below the level
+                if (m.y > this.levelHeight + 400) this.monster = null;
+            }
             return;
         }
 
@@ -333,12 +351,12 @@ class CargoPhysics {
                 if (m.trail.length > 800) m.trail.pop();
             }
 
-            // Lethal Contact — eat the lander then vanish
+            // Lethal Contact — eat the lander. The crashed-state handler (above)
+            // then makes the monster dive away and despawn on following frames.
             if (dist < m.size / 2 + lander.width / 2) {
                 this.triggerExplosion();
-                this.monster = null;
-
-                this.outOfBoundsTimer = 0; // Reset so it can't immediately respawn
+                m.vy = Math.abs(m.vy) + 4; // kick it downward so the retreat reads clearly
+                this.outOfBoundsTimer = 0;
             }
         }
     }
@@ -656,18 +674,24 @@ class CargoPhysics {
                     }
                 }
 
-                // Apply hull damage
-                if (impactVel > 1.2) {
-                    const damage = Math.pow(impactVel - 1.2, 1.8) * 12;
+                // Apply hull damage.
+                // Landing pads are forgiving (high threshold, low multiplier);
+                // the jagged red terrain is unforgiving and bites hard.
+                const damageThreshold = onPad ? 1.8 : 1.0;
+                const surfaceMultiplier = onPad ? 3.5 : 16;
+
+                if (impactVel > damageThreshold) {
+                    const damage = Math.pow(impactVel - damageThreshold, 1.8) * surfaceMultiplier;
                     lander.integrity -= damage;
-                    
+
                     // Trigger sound in controller
                     if (window.CargoAudio) {
                         CargoAudio.playCollision(impactVel);
                     }
 
-                    // Spark particles
-                    for (let i = 0; i < 12; i++) {
+                    // Spark particles (more violent on raw terrain)
+                    const sparkCount = onPad ? 6 : 16;
+                    for (let i = 0; i < sparkCount; i++) {
                         this.particles.push({
                             x: cWorld.x,
                             y: cWorld.y,

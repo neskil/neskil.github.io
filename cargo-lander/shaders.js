@@ -218,7 +218,9 @@ class ShaderOverlay {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
         // --- Render Monster ---
-        if (physics.monster) {
+        // Disabled: the detailed monster is now drawn in Canvas2D (game.js drawMonster).
+        // The WebGL blob shader is kept for reference but no longer rendered.
+        if (false && physics.monster) {
             gl.useProgram(this.monsterProgram);
             
             gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
