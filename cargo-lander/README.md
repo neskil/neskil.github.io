@@ -130,43 +130,57 @@ console + on-screen error logger report no errors.
 
 ## Recent additions
 
-### Visual & atmosphere
-- **Level color palettes** — each of the 5 levels has its own `palette` object. Level 1 is a friendly green; Levels 4–5 use deep reds and near-black skies.
-- **Parallax background mountains** — 3 silhouette layers drawn in screen space, each at a different parallax factor (0.12 / 0.28 / 0.45). Colors derived from each level's `skyBot` palette entry.
-- **Lake on L1/L2** — animated water body with shimmering surface, 4 swimming fish with sine-phase motion, and a bobbing fishing boat with mast and line.
-- **Terrain edge** — rounded boulder shapes with a surface shadow band replace the old sharp triangle spikes. Boulders are deterministic (stable frame-to-frame), placed every 60–100 px, skipped over landing pads.
-- **Ambient space-truck traffic** — NPC ships fly both directions; 30% chance to tilt and rocket off into space. Varied hull palette, speed, and size.
-- **Decorative surface buildings** — antenna towers, silos, and refineries on the terrain surface.
+### Biome worlds
+- **5 distinct biomes** — each level has its own alien environment: L1 Grasslands (lush green), L2 Desert Wastes (amber sand), L3 Arctic Expanse (ice blue), L4 Volcanic Zone (orange-red lava rock), L5 Crystal Caverns (deep purple).
+- **Terrain edge noise** — deterministic ±4 px jitter every 3 px on the terrain surface edge (no discrete boulders) — organic and fast.
+- **Ground parallax** — two darker terrain silhouette layers shifted 28 px and 60 px below the real surface, creating depth.
+- **Lake on L1/L2** — animated water body with shimmering surface, 4 swimming fish, and a bobbing fishing boat.
 
-### Physics & controls
+### Underground easter eggs
+- **L4 data center** — a blinking server rack cluster with status lights and fibre cables lives just below the volcanic terrain surface, visible through cave gaps.
+- **L5 crystal formations** — pulsing purple crystal stalagmites pulse beneath the cave floor.
+
+### Visual & atmosphere
+- **Parallax background mountains** — 3 silhouette layers drawn in screen space.
+- **Ambient space-truck traffic** — NPC ships fly both directions; 30% chance to tilt and rocket off into space.
+- **Decorative surface buildings** — antenna towers, silos, and refineries.
+
+### Lander & physics
+- **Redesigned space truck** — clearer flatbed cargo deck with ribbing, side rails, and a glowing deck line; thruster nozzles glow amber when firing; legs extend from the body bottom.
+- **Bounce offset on landing** — the vehicle body lifts up to 10 px on touchdown and settles back, so the spring effect is visible without legs clipping underground.
 - **Instant thruster cut-off** — engine power drops to zero immediately on key release; only spool-up is gradual.
-- **Leg spring on pads only** — legs compress and bounce back on pad touchdowns; rough terrain collisions don't trigger the spring.
-- **Fly upward = out-of-bounds** — `y < −600` triggers the same OOB monster warning as leaving horizontally.
+- **Fly upward = out-of-bounds** — `y < −600` triggers the OOB monster warning.
 - **Moving gravity well** — the L4 anomaly orbits its base position with a Lissajous-like phase.
 
-### Difficulty scaling
-- **Pad scale by level** — landing pads shrink as difficulty increases: L1 = 1.5× base, L2 = 1.2×, L3 = 0.85×, L4 = 0.70×, L5 explicit narrow hub. Bigger pads on beginner levels, much smaller on hard ones.
-- **Smaller player truck** — vehicle width reduced from 48 → 40 px, deckWidth 80 → 66 px, making precise landings require more care.
+### Cargo boxes
+- **Bigger boxes** — `BOX_SIZE` 20 → 28 px; emoji rendered at 15 px font.
+- **Type icons** — 📦 standard, ⚠️ hazmat (red), ❄️ cold-chain (blue), ♻️ eco (green); 7 px type-label below emoji as a fallback.
 
-### Monster & threat system
-- **Monster spawns on extraction timeout** — if all cargo is delivered but the player doesn't return to HQ before the clock hits zero, the monster spawns instead of an instant fail. Rush back!
-- **Faster OOB spawn** — monster appears after ~0.8 s out of bounds (was 2 s).
-- **Off-screen radar indicator** — when the monster exists but is outside the viewport, a pulsing red arrow appears at the screen edge pointing toward it, with a live distance readout. Paired with a two-tone radar ping sound.
+### Damage & threat
+- **Damage flash** — hull hit triggers a red vignette + "⚠ HULL DAMAGE" text that fades over ~1 s.
+- **Screen shake** — camera jolts on impact, decaying exponentially.
+- **Monster spawns on extraction timeout** — if all cargo is delivered but you don't extract in time, the monster spawns instead of instant fail.
+- **Faster OOB spawn** — monster appears after ~0.8 s out of bounds.
+- **Off-screen radar indicator** — pulsing red arrow + distance readout + two-tone radar ping.
 
 ### Navigation & HUD
-- **Next-objective arrow** — bouncing yellow ▼ chevron above the active objective (PICK UP or DELIVER HERE).
-- **Collection pad** — sky-blue accent bar + animated glow border + prominent CARGO label.
-- **Delivery hubs** — pulsing colored border activates when carrying matching cargo; hub type label below pad.
-- **Mission panel** — larger font (12–13 px), wider panel, more opaque background.
-- **Separate mute button** — 🔊/🔇 quick-toggle in the nav header.
+- **Next-objective arrow** — bouncing ▼ above active PICK UP / DELIVER HERE pad.
+- **Collection pad** — sky-blue accent + pulsing glow border.
+- **Delivery hubs** — pulse when carrying matching cargo.
+- **Mute button** — state correctly synced to actual audio state on startup.
+
+### Difficulty scaling
+- **Pad scale by level** — L1 = 1.5×, L2 = 1.2×, L3 = 0.85×, L4 = 0.70×, L5 explicit narrow hub.
 
 ### Progression
-- **Pilot rank** — scales with upgrade investment (55%) + mastering each level with 5 000+ score (45%).
+- **Pilot rank** — upgrade progress (55%) + per-level 5 000+ score mastery (45%).
 
 ### Quality
-- **Browser test suite** — `tests.html`: 133 tests across level defs, upgrade catalog, physics simulation, rank formula, economy, smoke tests, and draw-method existence.
-- **WebGL null-guard** — `ShaderOverlay` no longer crashes on hardware without WebGL support.
-- **Fuel clamp** — `lander.fuel` clamped to 0 after each thrust tick to prevent fractional underflow.
+- **Browser test suite** — `tests.html`: 133 tests across all systems.
+- **WebGL null-guard** — `ShaderOverlay` no longer crashes without WebGL.
+- **Fuel clamp** — `lander.fuel` clamped ≥ 0 after each thrust tick.
+- **Monster radar crash fix** — undefined `lander` variable in draw scope resolved.
+- **Mouse steering removed** — Advanced Lander removed from vehicle selector; Basic + Drone only.
 
 ---
 
@@ -176,14 +190,12 @@ console + on-screen error logger report no errors.
 |----------|---------|
 | High | **Mobile viewport scaling** — CSS `transform: scale(…)` on `#game-container` for narrow screens |
 | High | **Cargo spawning countdown** — stand on loading pad → cargo appears with increasing delays (risk/reward) |
-| High | **Cargo box personality** — bigger boxes, visible emoji/label, animated loading sequence |
-| High | **NPC truck redesign** — cab + wheels + flatbed; can carry and drop cargo |
-| High | **Base geometry** — HQ and pads need structure, depth, lights |
+| High | **Base geometry** — HQ and pads need structure, depth, ambient lights |
+| High | **NPC trucks** — cab + wheels + flatbed; can carry and drop cargo |
 | Medium | **Monster head lerp** — mouth angle snaps too fast; needs smoothed `targetAngle` interpolation |
-| Medium | **Space mountains** — floating rock obstacles in the play field |
+| Medium | **Space mountains** — floating rock obstacles |
 | Medium | **Minimap resize** — radar should reflect actual level dimensions |
-| Medium | **Flora & fauna** — decorative terrain elements (alien plants, critters) |
-| Medium | **Mouse aiming polish** — basic & advanced lander aim can lag |
+| Medium | **Flora & fauna** — terrain surface decorations (alien plants, critters) |
 | Medium | **Upgrade verification** — audit all 5 upgrade types end-to-end |
 | Low | **More levels** — larger maps, escalating difficulty, new hazards |
 | Low | **Procedural map generator** — runtime terrain + pad placement |
