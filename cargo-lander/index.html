@@ -84,9 +84,16 @@
         }
 
         canvas {
-            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+        }
+
+        #webglCanvas {
+            pointer-events: none;
+            z-index: 5;
         }
 
         /* Glass HUD Overlays */
@@ -502,6 +509,7 @@
         
         <!-- Canvas Elements -->
         <canvas id="cargoCanvas"></canvas>
+        <canvas id="webglCanvas"></canvas>
 
         <!-- Mobile Touch Controls -->
         <div id="mobile-controls">
@@ -713,6 +721,7 @@
 
     <!-- Script imports -->
     <script src="audio.js"></script>
+    <script src="shaders.js"></script>
     <script src="physics.js"></script>
     <script src="game.js"></script>
     

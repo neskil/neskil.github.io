@@ -150,6 +150,12 @@ class CargoGame {
         // Initialize UI display values
         this.updateHUD();
 
+        // Initialize WebGL Shaders overlay
+        if (typeof ShaderOverlay !== 'undefined') {
+            this.shaders = new ShaderOverlay('webglCanvas');
+            this.shaders.resize(this.canvas.width, this.canvas.height);
+        }
+
         // Start game loop
         requestAnimationFrame((t) => this.loop(t));
     }
@@ -157,6 +163,9 @@ class CargoGame {
     resizeCanvas() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        if (this.shaders) {
+            this.shaders.resize(this.canvas.width, this.canvas.height);
+        }
     }
 
     generateStars() {
@@ -856,24 +865,54 @@ class CargoGame {
         // 7. Draw Boxes
         this.drawBoxes();
 
-        // 8. Draw Monster
-        this.drawMonster();
-
-        // 9. Draw Lander
+        // 8. Draw Lander
         this.drawLander();
 
-        // 9. Draw Particles
-        this.drawParticles();
-        
         ctx.restore();
+
+        // 9. WebGL Render for Particles and Monster
+        if (this.shaders) {
+            this.shaders.render(this.physics, this.camera);
+        } else {
+            // Fallback
+            ctx.save();
+            ctx.translate(w / 2, h / 2);
+            ctx.scale(this.camera.zoom, this.camera.zoom);
+            ctx.translate(-this.camera.x, -this.camera.y);
+            this.drawMonster();
+            this.drawParticles();
+            ctx.restore();
+        }
 
         // 10. Draw UI Notifications directly on canvas
         this.drawNotifications();
 
-        // 11. Draw Wind Indicator
+        // 11. Draw Wind Indicator & Minimap
         if (this.gameState === 'playing') {
             this.drawWindIndicator();
             this.drawMinimap();
+            
+            // 12. Draw Monster Threat Vignette
+            if (this.physics.outOfBoundsTimer && this.physics.outOfBoundsTimer > 0) {
+                const threatLevel = Math.min(1.0, this.physics.outOfBoundsTimer / 120);
+                
+                // Draw pulsing red/black vignette
+                const vignetteGrad = ctx.createRadialGradient(w/2, h/2, h/3, w/2, h/2, h/1.2);
+                vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                vignetteGrad.addColorStop(0.7, `rgba(60, 0, 0, ${threatLevel * 0.4})`);
+                vignetteGrad.addColorStop(1, `rgba(0, 0, 0, ${threatLevel * 0.9})`);
+                
+                ctx.fillStyle = vignetteGrad;
+                ctx.fillRect(0, 0, w, h);
+                
+                // Warning text
+                if (threatLevel > 0.3) {
+                    ctx.fillStyle = `rgba(239, 68, 68, ${threatLevel * (0.5 + Math.sin(Date.now() / 100) * 0.5)})`;
+                    ctx.font = 'bold 24px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("WARNING: LEAVING SAFE ZONE", w/2, h/2 - 100);
+                }
+            }
         }
     }
 
@@ -882,18 +921,34 @@ class CargoGame {
         const cw = this.canvas.width;
         
         // Minimap size and position
-        const mmWidth = 200;
-        const mmHeight = mmWidth * (this.physics.levelHeight / this.physics.levelWidth);
+        const mmWidth = 240;
+        const mmHeight = Math.max(120, mmWidth * (this.physics.levelHeight / this.physics.levelWidth));
         const mmX = cw - mmWidth - 20;
         const mmY = 20;
         
-        // Background
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        // Premium Radar Background
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8) : ctx.rect(mmX, mmY, mmWidth, mmHeight);
+        if (ctx.roundRect) {
+            ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 10);
+        } else {
+            ctx.rect(mmX, mmY, mmWidth, mmHeight);
+        }
         ctx.fill();
+        ctx.stroke();
+
+        // Subtle Grid Lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(let i = 1; i < 4; i++) {
+            ctx.moveTo(mmX + (mmWidth/4)*i, mmY);
+            ctx.lineTo(mmX + (mmWidth/4)*i, mmY + mmHeight);
+            ctx.moveTo(mmX, mmY + (mmHeight/4)*i);
+            ctx.lineTo(mmX + mmWidth, mmY + (mmHeight/4)*i);
+        }
         ctx.stroke();
         
         // Scale factor
@@ -904,80 +959,143 @@ class CargoGame {
         ctx.translate(mmX, mmY);
         ctx.scale(scaleX, scaleY);
         
+        // Draw Terrain Silhouette
+        if (this.physics.terrainPoints.length > 0) {
+            ctx.fillStyle = 'rgba(51, 65, 85, 0.6)';
+            ctx.beginPath();
+            ctx.moveTo(0, this.physics.levelHeight);
+            for (const pt of this.physics.terrainPoints) {
+                ctx.lineTo(pt.x, pt.y);
+            }
+            ctx.lineTo(this.physics.levelWidth, this.physics.levelHeight);
+            ctx.closePath();
+            ctx.fill();
+        }
+
         // Draw pads
-        ctx.fillStyle = '#64748b';
+        ctx.fillStyle = '#94a3b8';
         if (this.physics.startDepot) {
             const d = this.physics.startDepot;
-            ctx.fillRect(d.x, d.y, d.width, d.height);
+            ctx.fillRect(d.x, d.y, d.width, Math.max(10, d.height)); // Ensures it's visible
         }
         if (this.physics.collectionPoint) {
             const cp = this.physics.collectionPoint;
-            ctx.fillRect(cp.x, cp.y, cp.width, cp.height);
+            ctx.fillStyle = '#fbbf24'; // Yellow
+            ctx.fillRect(cp.x, cp.y, cp.width, Math.max(10, cp.height));
         }
         for (const hub of this.physics.deliveryHubs) {
             ctx.fillStyle = hub.color || '#38bdf8';
-            ctx.fillRect(hub.x, hub.y, hub.width || 100, 15);
+            ctx.fillRect(hub.x, hub.y, hub.width, 20); // slightly thicker on radar
         }
         
-        // Draw Boxes (scaled up slightly for visibility)
+        // Draw Boxes
         for (const box of this.physics.boxes) {
             ctx.fillStyle = box.color || '#fff';
-            ctx.fillRect(box.x - 20, box.y - 20, 40, 40); 
+            ctx.fillRect(box.x - 20, box.y - 20, 40, 40); // 40px in world space is nice on radar
         }
         
+        // Draw Monster Blip
+        if (this.physics.monster) {
+            const m = this.physics.monster;
+            ctx.fillStyle = `rgba(239, 68, 68, ${0.5 + Math.sin(Date.now()/50)*0.5})`; // Fast strobe
+            ctx.beginPath();
+            ctx.arc(m.x, m.y, m.size, 0, Math.PI*2);
+            ctx.fill();
+        }
+
         // Draw Lander
         if (this.physics.lander) {
             ctx.fillStyle = '#10b981';
             ctx.beginPath();
-            ctx.arc(this.physics.lander.x, this.physics.lander.y, 40, 0, Math.PI*2);
+            ctx.arc(this.physics.lander.x, this.physics.lander.y, 35, 0, Math.PI*2);
             ctx.fill();
+            
+            // Draw Viewport Rect
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2 / scaleX; 
+            const viewW = cw / this.camera.zoom;
+            const viewH = this.canvas.height / this.camera.zoom;
+            const viewX = this.camera.x - viewW / 2;
+            const viewY = this.camera.y - viewH / 2;
+            ctx.strokeRect(viewX, viewY, viewW, viewH);
         }
-        
-        // Draw Camera Viewport Rect
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 2 / scaleX; 
-        const viewW = cw / this.camera.zoom;
-        const viewH = this.canvas.height / this.camera.zoom;
-        const viewX = this.camera.x - viewW / 2;
-        const viewY = this.camera.y - viewH / 2;
-        ctx.strokeRect(viewX, viewY, viewW, viewH);
         
         ctx.restore();
     }
 
     drawMenuBackgroundEntity() {
-        if (!this.menuEntity) {
-            this.menuEntity = { x: -100, y: this.canvas.height / 3, vx: 3, type: 'lander' };
+        if (!this.menuEntities) {
+            this.menuEntities = [
+                { x: -100, y: this.canvas.height / 3, vx: 3, type: 'lander', scale: 1.0, offset: 0 },
+                { x: this.canvas.width + 200, y: this.canvas.height / 5, vx: -1.5, type: 'drone', scale: 0.6, offset: 1000 },
+                { x: -400, y: this.canvas.height / 1.5, vx: 4, type: 'advanced', scale: 1.2, offset: 2000 }
+            ];
         }
-        
-        const e = this.menuEntity;
-        e.x += e.vx;
-        e.y += Math.sin(Date.now() / 500) * 1.5;
-        
-        if (e.x > this.canvas.width + 100) {
-            e.x = -100;
-            e.y = this.canvas.height * 0.2 + Math.random() * (this.canvas.height * 0.6);
-            e.type = Math.random() > 0.5 ? 'lander' : 'drone';
-            e.vx = 2 + Math.random() * 3;
-        }
-        
+
         const ctx = this.ctx;
-        ctx.save();
         
-        // Mock lander for the draw method
-        const tempLander = this.physics.lander;
-        this.physics.lander = { 
-            x: e.x, y: e.y, angle: 0.2, 
-            vehicleType: e.type, thrusting: true, 
-            width: e.type === 'drone' ? 32 : 48, 
-            height: e.type === 'drone' ? 16 : 32,
-            magneticDeckActive: false
-        };
-        
-        this.drawLander();
-        this.physics.lander = tempLander; // Restore
-        
-        ctx.restore();
+        // Draw some glowing nebulas for the menu
+        const time = Date.now() * 0.0005;
+        const grad1 = ctx.createRadialGradient(this.canvas.width * 0.2, this.canvas.height * 0.3, 0, this.canvas.width * 0.2, this.canvas.height * 0.3, 400);
+        grad1.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
+        grad1.addColorStop(1, 'rgba(99, 102, 241, 0)');
+        ctx.fillStyle = grad1;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const grad2 = ctx.createRadialGradient(this.canvas.width * 0.8, this.canvas.height * 0.7, 0, this.canvas.width * 0.8, this.canvas.height * 0.7, 500);
+        grad2.addColorStop(0, 'rgba(236, 72, 153, 0.1)');
+        grad2.addColorStop(1, 'rgba(236, 72, 153, 0)');
+        ctx.fillStyle = grad2;
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (const e of this.menuEntities) {
+            e.x += e.vx;
+            e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale);
+            
+            if (e.vx > 0 && e.x > this.canvas.width + 200) {
+                e.x = -200;
+                e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
+                e.type = ['lander', 'drone', 'advanced'][Math.floor(Math.random() * 3)];
+                e.vx = 2 + Math.random() * 3;
+                e.scale = 0.6 + Math.random() * 0.8;
+            } else if (e.vx < 0 && e.x < -200) {
+                e.x = this.canvas.width + 200;
+                e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
+                e.type = ['lander', 'drone', 'advanced'][Math.floor(Math.random() * 3)];
+                e.vx = -(2 + Math.random() * 3);
+                e.scale = 0.6 + Math.random() * 0.8;
+            }
+            
+            ctx.save();
+            // Scale and draw
+            ctx.translate(e.x, e.y);
+            ctx.scale(e.scale, e.scale);
+            ctx.translate(-e.x, -e.y);
+            
+            // Mock lander for the draw method
+            const tempLander = this.physics.lander;
+            this.physics.lander = { 
+                x: e.x, y: e.y, angle: e.vx > 0 ? 0.2 : -0.2, 
+                vehicleType: e.type === 'advanced' ? 'lander' : e.type, thrusting: true, 
+                width: e.type === 'drone' ? 32 : 48, 
+                height: e.type === 'drone' ? 16 : 32,
+                magneticDeckActive: false
+            };
+            
+            this.drawLander();
+            
+            // If advanced, maybe draw some extra glowing bits
+            if (e.type === 'advanced') {
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
+                ctx.beginPath();
+                ctx.arc(e.x, e.y - 10, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            this.physics.lander = tempLander; // Restore
+            
+            ctx.restore();
+        }
     }
 
     drawGravityWell(well) {
