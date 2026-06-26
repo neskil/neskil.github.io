@@ -398,6 +398,10 @@ class CargoGame {
         const settingsScreen = document.getElementById('settings-screen');
         if (settingsScreen) settingsScreen.style.display = 'none';
 
+        this.menuOpenTime = Date.now();
+        this.menuMonster = null;
+        this.nextMenuMonsterTime = Date.now() + 20000 + Math.random() * 30000;
+
         this.refreshMenuUI();
     }
 
@@ -1766,6 +1770,79 @@ class CargoGame {
         ctx.fillStyle = grad2;
         ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Rare menu monster drive-by (only after 20s on menu, then every 45-90s)
+        if (!this.menuOpenTime) this.menuOpenTime = Date.now();
+        if (!this.menuMonster) this.menuMonster = null;
+        if (!this.nextMenuMonsterTime) this.nextMenuMonsterTime = Date.now() + 20000 + Math.random() * 30000;
+
+        const now2 = Date.now();
+        if (!this.menuMonster && now2 > this.nextMenuMonsterTime) {
+            const fromLeft = Math.random() > 0.5;
+            this.menuMonster = {
+                x: fromLeft ? -120 : this.canvas.width + 120,
+                y: this.canvas.height * (0.3 + Math.random() * 0.5),
+                vx: fromLeft ? 1.8 : -1.8,
+                size: 60 + Math.random() * 40,
+                t: 0,
+            };
+        }
+
+        if (this.menuMonster) {
+            const mm = this.menuMonster;
+            mm.x += mm.vx;
+            mm.t += 0.04;
+
+            // Draw simplified monster silhouette
+            const t3 = Date.now() / 1000;
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, Math.min(mm.t * 2, (1 - (Math.abs(mm.x - this.canvas.width/2) / (this.canvas.width/2 + 100))) * 3 + 0.1));
+
+            // Body glow
+            const mg = ctx.createRadialGradient(mm.x, mm.y, 0, mm.x, mm.y, mm.size);
+            mg.addColorStop(0, 'rgba(180,0,0,0.4)');
+            mg.addColorStop(0.5, 'rgba(100,0,0,0.2)');
+            mg.addColorStop(1, 'rgba(60,0,0,0)');
+            ctx.fillStyle = mg;
+            ctx.beginPath();
+            ctx.ellipse(mm.x, mm.y, mm.size * 1.2, mm.size * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Monster eyes
+            for (const ex of [-mm.size * 0.2, mm.size * 0.2]) {
+                const eyePulse = 0.7 + Math.sin(t3 * 4 + ex) * 0.3;
+                ctx.fillStyle = `rgba(255,50,0,${eyePulse})`;
+                ctx.beginPath();
+                ctx.ellipse(mm.x + ex, mm.y - mm.size * 0.15, mm.size * 0.08, mm.size * 0.12, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Tentacles
+            for (let ti = 0; ti < 5; ti++) {
+                const ta = (ti / 4 - 0.5) * Math.PI * 0.9;
+                const tx = mm.x + Math.sin(ta) * mm.size * 0.7;
+                const ty = mm.y + mm.size * 0.4 + Math.cos(t3 * 2 + ti) * 12;
+                ctx.strokeStyle = `rgba(120,0,0,0.6)`;
+                ctx.lineWidth = 3 + (4-ti)*0.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(mm.x, mm.y + mm.size * 0.2);
+                ctx.quadraticCurveTo(
+                    mm.x + Math.sin(ta * 0.5) * mm.size * 0.4, mm.y + mm.size * 0.6 + Math.sin(t3 + ti) * 20,
+                    tx, ty + 30
+                );
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+            }
+
+            ctx.restore();
+
+            // Remove when off screen
+            if ((mm.vx > 0 && mm.x > this.canvas.width + 150) || (mm.vx < 0 && mm.x < -150)) {
+                this.menuMonster = null;
+                this.nextMenuMonsterTime = Date.now() + 45000 + Math.random() * 45000;
+            }
+        }
+
         for (const e of this.menuEntities) {
             e.x += e.vx;
             e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale);
@@ -2362,16 +2439,6 @@ class CargoGame {
         }
         ctx.stroke();
 
-        // Subtle surface grain lines
-        ctx.strokeStyle = `${pal.rockGlow}0.12)`;
-        ctx.lineWidth = 0.8;
-        for (let x = startX; x <= endX; x += 50) {
-            const y = this.physics.getTerrainHeight(x);
-            ctx.beginPath();
-            ctx.moveTo(x, y + 2);
-            ctx.lineTo(x - 8, y + 18 + (Math.abs(x) % 30));
-            ctx.stroke();
-        }
     }
 
     drawUnderground() {
@@ -2793,60 +2860,79 @@ class CargoGame {
         if (!lander || lander.crashed) return;
 
         if (lander.vehicleType === 'drone') {
-            // Drone Rope with catenary sag
             if (lander.ropeLength > 0) {
                 const rx0 = lander.x;
-                const ry0 = lander.y + 8; // attach point below drone body
+                const ry0 = lander.y + 10;
                 const rx1 = lander.grappleX ?? lander.x;
                 const ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
 
-                // Sag mid-point: pull midpoint down by a fraction of rope length
-                const sag = Math.min(lander.ropeLength * 0.12, 18);
-                const midX = (rx0 + rx1) / 2;
-                const midY = (ry0 + ry1) / 2 + sag;
+                // Build chain link positions along a catenary curve
+                const numLinks = Math.max(4, Math.floor(lander.ropeLength / 14));
+                const sag = Math.min(lander.ropeLength * 0.18, 30);
+                const links = [];
+                for (let i = 0; i <= numLinks; i++) {
+                    const t = i / numLinks;
+                    const parabola = 4 * sag * t * (1 - t);
+                    const x = rx0 + (rx1 - rx0) * t;
+                    const y = ry0 + (ry1 - ry0) * t + parabola;
+                    links.push({ x, y });
+                }
 
-                // Shadow rope (depth)
-                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(rx0 + 1, ry0 + 1);
-                ctx.quadraticCurveTo(midX + 1, midY + 1, rx1 + 1, ry1 + 1);
-                ctx.stroke();
+                // Draw chain links
+                const linkColor = lander.grabbedBoxId ? '#f97316' : '#94a3b8';
+                const linkColorDark = lander.grabbedBoxId ? '#c2410c' : '#475569';
+                for (let i = 0; i < links.length - 1; i++) {
+                    const a = links[i], b = links[i + 1];
+                    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                    const dx = b.x - a.x, dy = b.y - a.y;
+                    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+                    const nx = -dy/len * 2.5, ny = dx/len * 2.5; // normal offset
 
-                // Main rope
-                ctx.strokeStyle = lander.grabbedBoxId ? '#f97316' : '#94a3b8';
-                ctx.lineWidth = 1.8;
-                ctx.beginPath();
-                ctx.moveTo(rx0, ry0);
-                ctx.quadraticCurveTo(midX, midY, rx1, ry1);
-                ctx.stroke();
+                    // Oval link shape (two half-arcs)
+                    ctx.strokeStyle = linkColorDark;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.ellipse(mx, my, len/2 + 1, 2.5, Math.atan2(dy, dx), 0, Math.PI * 2);
+                    ctx.stroke();
 
-                // Thin highlight along rope
-                ctx.strokeStyle = 'rgba(203,213,225,0.35)';
-                ctx.lineWidth = 0.7;
-                ctx.beginPath();
-                ctx.moveTo(rx0, ry0);
-                ctx.quadraticCurveTo(midX, midY, rx1, ry1);
-                ctx.stroke();
+                    ctx.strokeStyle = linkColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.ellipse(mx, my, len/2, 2, Math.atan2(dy, dx), 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Highlight on top half of each link
+                    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.ellipse(mx - nx*0.5, my - ny*0.5, len/2, 1.2, Math.atan2(dy, dx), Math.PI, Math.PI * 2);
+                    ctx.stroke();
+                }
 
                 // Hook/magnet end
+                const tip = links[links.length - 1];
                 const hooked = !!lander.grabbedBoxId;
-                const hGlow = ctx.createRadialGradient(rx1, ry1, 0, rx1, ry1, hooked ? 10 : 6);
-                hGlow.addColorStop(0, hooked ? 'rgba(249,115,22,0.8)' : 'rgba(148,163,184,0.6)');
+                const hGlow = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, hooked ? 12 : 7);
+                hGlow.addColorStop(0, hooked ? 'rgba(249,115,22,0.85)' : 'rgba(148,163,184,0.65)');
                 hGlow.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = hGlow;
                 ctx.beginPath();
-                ctx.arc(rx1, ry1, hooked ? 10 : 6, 0, Math.PI * 2);
+                ctx.arc(tip.x, tip.y, hooked ? 12 : 7, 0, Math.PI * 2);
                 ctx.fill();
 
                 ctx.fillStyle = hooked ? '#f97316' : '#cbd5e1';
                 ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-                ctx.lineWidth = 1.2;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.arc(rx1, ry1, 4, 0, Math.PI * 2);
+                ctx.arc(tip.x, tip.y, 4.5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+
+                // Attachment point at drone body
+                ctx.fillStyle = 'rgba(100,116,139,0.9)';
+                ctx.beginPath();
+                ctx.arc(rx0, ry0, 3, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
@@ -2856,6 +2942,12 @@ class CargoGame {
 
         const bounceY = -(lander.legCompress || 0) * 10;
         ctx.translate(0, bounceY);
+
+        const maxIntegrity = lander.maxIntegrity || 100;
+        const healthPct = Math.max(0, Math.min(1, (lander.integrity ?? maxIntegrity) / maxIntegrity));
+        const damaged = healthPct < 0.85;
+        const heavy = healthPct < 0.4;
+        const critical = healthPct < 0.2;
 
         const w = lander.width;
         const h = lander.height;
@@ -2886,6 +2978,40 @@ class CargoGame {
             ctx.beginPath();
             ctx.arc(0, 0, 4, 0, Math.PI * 2);
             ctx.fill();
+
+            // Drone landing legs (fold-down style, two per side)
+            const dlc = lander.legCompress || 0;
+            const dBounceY = -dlc * 6;
+            // Skids extend downward from the motor pods
+            for (const side of [-1, 1]) {
+                const legX = side * 18;
+                const legTopY = 0;
+                const legBotY = 14 - dlc * 5 + dBounceY; // compress up on landing
+                const skidOutX = side * (22 + 4 - dlc * 2);
+
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 1.8;
+                // Vertical strut from motor pod
+                ctx.beginPath();
+                ctx.moveTo(legX, legTopY);
+                ctx.lineTo(legX, legBotY);
+                ctx.stroke();
+                // Diagonal brace
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(legX - side * 4, legTopY);
+                ctx.lineTo(skidOutX, legBotY);
+                ctx.stroke();
+                // Skid pad (horizontal)
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(legX - side * 5, legBotY);
+                ctx.lineTo(skidOutX + side * 6, legBotY);
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+            }
 
         } else {
             // ─── SPACE TRUCK DESIGN ───────────────────────────────────────
@@ -3147,6 +3273,74 @@ class CargoGame {
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+            }
+        }
+
+        // === Hull Damage Visual Overlays ===
+        if (damaged) {
+            const dmg = 1 - healthPct;
+            const hw2 = (lander.vehicleType === 'drone') ? 22 : (lander.deckWidth / 2 || 33);
+            const hh2 = (lander.vehicleType === 'drone') ? 8 : 14;
+
+            // Brown/rust tint overlay
+            ctx.fillStyle = `rgba(120,50,10,${dmg * 0.35})`;
+            ctx.beginPath();
+            if (lander.vehicleType === 'drone') {
+                ctx.ellipse(0, 0, hw2, hh2, 0, 0, Math.PI * 2);
+            } else {
+                ctx.rect(-hw2, -hh2, hw2 * 2, hh2 * 2);
+            }
+            ctx.fill();
+
+            // Crack lines (deterministic, based on damage level)
+            if (dmg > 0.2) {
+                ctx.strokeStyle = `rgba(60,20,0,${Math.min(1, dmg * 1.2)})`;
+                ctx.lineWidth = 0.8;
+                const cracks = [
+                    [[-hw2*0.3, -hh2*0.5], [-hw2*0.1, hh2*0.2], [hw2*0.2, hh2*0.6]],
+                    [[hw2*0.4, -hh2*0.3], [hw2*0.1, 0], [hw2*0.5, hh2*0.5]],
+                    [[-hw2*0.6, hh2*0.1], [-hw2*0.2, hh2*0.4]],
+                ];
+                for (const crack of cracks) {
+                    ctx.beginPath();
+                    ctx.moveTo(crack[0][0], crack[0][1]);
+                    for (let ci = 1; ci < crack.length; ci++) ctx.lineTo(crack[ci][0], crack[ci][1]);
+                    ctx.stroke();
+                }
+            }
+
+            // Smoke wisps at heavy damage
+            if (heavy) {
+                const smokeT = Date.now() / 800;
+                for (let si = 0; si < 3; si++) {
+                    const sx = (si - 1) * hw2 * 0.4;
+                    const sy = -hh2 - 4 - ((smokeT * 12 + si * 7) % 18);
+                    const sa = Math.max(0, 0.5 - ((smokeT * 12 + si * 7) % 18) / 36) * dmg;
+                    ctx.fillStyle = `rgba(80,60,40,${sa})`;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 4 + si * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Critical: blinking red warning light
+            if (critical) {
+                const warningBlink = Math.sin(Date.now() * 0.012) > 0;
+                if (warningBlink) {
+                    ctx.fillStyle = 'rgba(255,50,50,0.9)';
+                    const wlx = lander.vehicleType === 'drone' ? 0 : -hw2 * 0.6;
+                    ctx.beginPath();
+                    ctx.arc(wlx, -hh2 - 6, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Warning light glow
+                    const wg = ctx.createRadialGradient(wlx, -hh2-6, 0, wlx, -hh2-6, 10);
+                    wg.addColorStop(0, 'rgba(255,50,50,0.5)');
+                    wg.addColorStop(1, 'rgba(255,50,50,0)');
+                    ctx.fillStyle = wg;
+                    ctx.beginPath();
+                    ctx.arc(wlx, -hh2-6, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
 
