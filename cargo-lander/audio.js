@@ -9,6 +9,16 @@ class CargoAudioController {
         this.warningOsc = null;
         this.isWarningPlaying = false;
         this.muted = true;
+
+        // Settings & Music
+        this.musicVolume = 0.5;
+        this.sfxVolume = 0.7;
+        this.musicOsc1 = null;
+        this.musicOsc2 = null;
+        this.musicFilter = null;
+        this.musicLfo = null;
+        this.musicLfoGain = null;
+        this.musicGain = null;
     }
 
     init() {
@@ -18,6 +28,7 @@ class CargoAudioController {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.ctx = new AudioContext();
             this.setupThruster();
+            this.setupMusic();
         } catch (e) {
             console.warn("Web Audio API is not supported in this browser", e);
         }
@@ -64,7 +75,7 @@ class CargoAudioController {
         this.init(); // Ensure initialized on first interaction
 
         if (this.thrusterGain && this.thrusterFilter) {
-            const targetGain = intensity * 0.15;
+            const targetGain = intensity * 0.15 * this.sfxVolume;
             const targetFreq = 80 + intensity * 250; // Pitch rises with thrust
             
             const now = this.ctx.currentTime;
@@ -100,7 +111,7 @@ class CargoAudioController {
         this.init();
 
         const now = this.ctx.currentTime;
-        const volume = Math.min(impactSpeed / 15, 1.0) * 0.4;
+        const volume = Math.min(impactSpeed / 15, 1.0) * 0.4 * this.sfxVolume;
         if (volume < 0.02) return;
 
         // Synthesize a crash: low noise burst combined with a low frequency sine wave
@@ -169,7 +180,7 @@ class CargoAudioController {
             filter.frequency.exponentialRampToValueAtTime(50, now + 1.2);
 
             const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.6, now);
+            gain.gain.setValueAtTime(0.6 * this.sfxVolume, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
 
             noise.connect(filter);
@@ -185,7 +196,7 @@ class CargoAudioController {
             osc.frequency.setValueAtTime(80, now);
             osc.frequency.linearRampToValueAtTime(20, now + 1.0);
 
-            oscGain.gain.setValueAtTime(0.5, now);
+            oscGain.gain.setValueAtTime(0.5 * this.sfxVolume, now);
             oscGain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
 
             osc.connect(oscGain);

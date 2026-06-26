@@ -523,7 +523,7 @@
             </svg>
             Back to Home
         </a>
-        <button id="mute-btn" class="utility-btn" onclick="game.toggleMute()">🔇</button>
+        <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">⚙️ Audio</button>
     </header>
 
     <main id="game-container">
@@ -739,6 +739,43 @@
                 
                 <button class="btn-primary" onclick="game.cash=0; game.startLevel(0)">Play Again</button>
                 <button class="btn-secondary" onclick="document.getElementById('victory-screen').style.display='none'; document.getElementById('menu-screen').style.display='flex'">Main Menu</button>
+            </div>
+        </div>
+
+        <!-- SCREEN OVERLAY: SETTINGS / AUDIO MODAL -->
+        <div id="settings-screen" class="screen-overlay" style="display: none;">
+            <div class="screen-content" style="max-width: 450px;">
+                <h2 style="color: var(--neon-blue); margin-bottom: 1.5rem;">Audio Settings</h2>
+                
+                <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 2rem; text-align: left;">
+                    <!-- Master Mute -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: var(--text-primary);">Mute Audio</span>
+                        <input type="checkbox" id="setting-mute" onchange="game.toggleMuteFromCheckbox(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+                    </div>
+                    
+                    <!-- Music Volume -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">Music Volume</span>
+                            <span id="music-vol-val" style="font-size: 0.9rem; font-family: monospace; color: var(--text-primary);">50%</span>
+                        </div>
+                        <input type="range" id="setting-music-vol" min="0" max="100" value="50" oninput="game.setMusicVolume(this.value)" style="width: 100%; accent-color: var(--accent-color); cursor: pointer;">
+                    </div>
+                    
+                    <!-- SFX Volume -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">SFX Volume</span>
+                            <span id="sfx-vol-val" style="font-size: 0.9rem; font-family: monospace; color: var(--text-primary);">70%</span>
+                        </div>
+                        <input type="range" id="setting-sfx-vol" min="0" max="100" value="70" oninput="game.setSFXVolume(this.value)" style="width: 100%; accent-color: var(--accent-color); cursor: pointer;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="game.closeSettings()" style="flex: 1; justify-content: center;">Save & Close</button>
+                </div>
             </div>
         </div>
 
