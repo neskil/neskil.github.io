@@ -6,7 +6,9 @@ const levels = [
         gravity: 0.15,
         wind: 0,
         terrainType: "flat",
-        targetCargo: 3,
+        targetCargo: 2,
+        budget: 1000,
+        timeLimit: 180,
         allowedTypes: ["normal"],
         deliveryHubs: [
             { x: 750, color: "#38bdf8", type: "normal", name: "Hub Alpha" }
@@ -14,12 +16,45 @@ const levels = [
         hint: "Tip: Land slowly (< 2.0 m/s) and keep your lander level (< 8 degrees) to land safely."
     },
     {
+        name: "L2: Cross-Dock Sorting",
+        description: "Sort the cargo. Normal (white) packages go to the central Hub. Fragile (red) go to the far Hub. Don't drop fragile cargo from high up!",
+        gravity: 0.15,
+        wind: 0,
+        terrainType: "canyon",
+        targetCargo: 2,
+        budget: 1200,
+        timeLimit: 240,
+        allowedTypes: ["normal", "red"],
+        deliveryHubs: [
+            { x: 500, color: "#38bdf8", type: "normal", name: "Main Processing" },
+            { x: 800, color: "#ef4444", type: "red", name: "Fragile Handling" }
+        ],
+        hint: "Fragile (Red) cargo breaks if dropped too hard!"
+    },
+    {
+        name: "L3: Gale-Force Winds",
+        description: "High altitude delivery. Strong crosswinds will push your lander and cargo. Compensate by thrusting into the wind.",
+        gravity: 0.15,
+        wind: 0.08, // Constant rightward wind
+        terrainType: "mountain",
+        targetCargo: 2,
+        budget: 1500,
+        timeLimit: 200,
+        allowedTypes: ["normal"],
+        deliveryHubs: [
+            { x: 650, color: "#38bdf8", type: "normal", name: "Peak Station" }
+        ],
+        hint: "Tilt into the wind to maintain position."
+    },
+    {
         name: "L4: Gravity Anomaly",
         description: "Warning: Unstable spacetime detected. A gravitational vortex is pulling you in. Counter the force and deliver safely.",
         gravity: 0.15,
         wind: 0,
         terrainType: "cave",
-        targetCargo: 3,
+        targetCargo: 2,
+        budget: 2000,
+        timeLimit: 180,
         allowedTypes: ["red", "blue"],
         deliveryHubs: [
             { x: 750, color: "#ef4444", type: "red", name: "Sector 4" },
@@ -31,11 +66,12 @@ const levels = [
     {
         name: "L5: The Needle's Eye",
         description: "The delivery hub is at the bottom of a shaft too narrow for your drone. Hover, extend your rope (E/Q), and drop the cargo in!",
-        vehicle: "drone",
         gravity: 0.10,
         wind: 0,
         terrainType: "needle",
-        targetCargo: 1,
+        targetCargo: 2,
+        budget: 1800,
+        timeLimit: 300,
         allowedTypes: ["normal"],
         collectionX: 180,
         deliveryHubs: [
@@ -45,6 +81,14 @@ const levels = [
     }
 ];
 
+const upgradeCatalog = [
+    { id: 'thrusterEfficiency', name: 'Thruster Efficiency', desc: 'Reduces fuel consumption by 15% per level.', maxLevel: 3, basePrice: 500 },
+    { id: 'boostMode', name: 'Engine Boost', desc: 'Increases main thruster power by 20% per level.', maxLevel: 3, basePrice: 800 },
+    { id: 'magneticDeck', name: 'Magnetic Deck', desc: 'Automatically pulls nearby cargo into the basket.', maxLevel: 2, basePrice: 1200 },
+    { id: 'winchExtender', name: 'Winch Extender', desc: 'Increases maximum drone rope length by 50m.', maxLevel: 2, basePrice: 600 },
+    { id: 'hullPlating', name: 'Hull Plating', desc: 'Increases lander max integrity and impact resistance.', maxLevel: 3, basePrice: 400 }
+];
+
 class CargoGame {
     constructor() {
         this.canvas = null;
@@ -52,15 +96,31 @@ class CargoGame {
         this.physics = new CargoPhysics();
         
         // Game State
-        this.gameState = 'menu'; // 'menu', 'playing', 'level_complete', 'game_over', 'victory'
+        this.gameState = 'menu';
         this.currentLevelIndex = 0;
+        
+        // Economy & Progression
+        this.globalCash = parseInt(localStorage.getItem('cargoLanderCash')) || 1000;
+        this.upgrades = JSON.parse(localStorage.getItem('cargoLanderUpgrades')) || {
+            thrusterEfficiency: 0,
+            boostMode: 0,
+            magneticDeck: 0,
+            winchExtender: 0,
+            hullPlating: 0
+        };
+        this.missionBudget = 0;
+        this.missionTimer = 0;
+        
         this.score = 100; // Efficiency rating %
-        this.cash = 0;
         this.deliveredCount = 0;
-        this.deliveredTypes = {}; // Tracks delivered cargo by type
+        this.deliveredTypes = {}; 
         this.cargoSpawnCooldown = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
+        
+        // Dynamic Camera
+        this.camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
+        this.introTimer = 0;
         
         // Settings
         this.isMuted = true;
@@ -95,9 +155,8 @@ class CargoGame {
     }
 
     resizeCanvas() {
-        // Fix coordinates to standard 1000x600 layout
-        this.canvas.width = 1000;
-        this.canvas.height = 600;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
     }
 
     generateStars() {
@@ -114,6 +173,32 @@ class CargoGame {
     }
 
     setupEventListeners() {
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.mouseLeft = false;
+        this.mouseRight = false;
+
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (!this.camera) return;
+            const rect = this.canvas.getBoundingClientRect();
+            const screenX = e.clientX - rect.left - this.canvas.width / 2;
+            const screenY = e.clientY - rect.top - this.canvas.height / 2;
+            this.mouseX = (screenX / this.camera.zoom) + this.camera.x;
+            this.mouseY = (screenY / this.camera.zoom) + this.camera.y;
+        });
+        
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) this.mouseLeft = true;
+            if (e.button === 2) this.mouseRight = true;
+        });
+        
+        this.canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) this.mouseLeft = false;
+            if (e.button === 2) this.mouseRight = false;
+        });
+        
+        this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+
         window.addEventListener('keydown', (e) => {
             this.keys[e.key.toLowerCase()] = true;
             // Prevent default scrolling for game keys
@@ -141,13 +226,94 @@ class CargoGame {
         window.addEventListener('resize', () => this.resizeCanvas());
     }
 
-    startLevel(idx) {
-        this.cash = 0;
+    goToMenu() {
+        this.gameState = 'menu';
+        document.getElementById('menu-screen').style.display = 'flex';
+        document.getElementById('hud-overlay').style.display = 'none';
+        
+        const completeScreen = document.getElementById('complete-screen');
+        if (completeScreen) completeScreen.style.display = 'none';
+        const failScreen = document.getElementById('fail-screen');
+        if (failScreen) failScreen.style.display = 'none';
+        const gameOverScreen = document.getElementById('game-over-screen');
+        if (gameOverScreen) gameOverScreen.classList.add('hidden');
+        const respawnScreen = document.getElementById('respawn-screen');
+        if (respawnScreen) respawnScreen.classList.add('hidden');
+        const upgradeScreen = document.getElementById('upgrade-screen');
+        if (upgradeScreen) upgradeScreen.style.display = 'none';
+        const vehicleScreen = document.getElementById('vehicle-screen');
+        if (vehicleScreen) vehicleScreen.style.display = 'none';
+    }
+
+    showVehicleSelection(idx) {
+        this.selectedLevelIndex = idx;
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('vehicle-screen').style.display = 'flex';
+    }
+
+    startLevelWithVehicle(vehicleType) {
+        document.getElementById('vehicle-screen').style.display = 'none';
+        this.startLevel(this.selectedLevelIndex, vehicleType);
+    }
+
+    openUpgradeShop() {
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('upgrade-screen').style.display = 'flex';
+        this.renderUpgradeShop();
+    }
+
+    renderUpgradeShop() {
+        document.getElementById('shop-cash-display').textContent = this.globalCash;
+        const grid = document.getElementById('upgrade-grid');
+        grid.innerHTML = '';
+        
+        upgradeCatalog.forEach(upg => {
+            const currentLvl = this.upgrades[upg.id] || 0;
+            const cost = upg.basePrice * Math.pow(1.5, currentLvl);
+            const isMax = currentLvl >= upg.maxLevel;
+            const canAfford = this.globalCash >= cost;
+            
+            const btnHtml = isMax ? 
+                `<button class="btn-level" disabled style="opacity: 0.5; border-color: #64748b; cursor: not-allowed; padding: 8px 16px;">Maxed</button>` :
+                `<button class="btn-primary" onclick="game.purchaseUpgrade('${upg.id}', ${cost})" ${!canAfford ? 'disabled style="opacity:0.5; cursor:not-allowed; padding: 8px 16px;"' : 'style="background: #10b981; padding: 8px 16px;"'}>Buy $${Math.floor(cost)}</button>`;
+                
+            grid.innerHTML += `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; color: #f8fafc;">${upg.name} <span style="color: #38bdf8; font-size: 0.9em;">(Lvl ${currentLvl}/${upg.maxLevel})</span></h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${upg.desc}</p>
+                    </div>
+                    <div>
+                        ${btnHtml}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    purchaseUpgrade(id, cost) {
+        if (this.globalCash >= cost) {
+            this.globalCash -= Math.floor(cost);
+            this.upgrades[id] = (this.upgrades[id] || 0) + 1;
+            
+            localStorage.setItem('cargoLanderCash', this.globalCash);
+            localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
+            
+            this.renderUpgradeShop();
+            if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
+        }
+    }
+
+    startLevel(idx, vehicleType = 'basic') {
         this.currentLevelIndex = idx;
         this.crashHandled = false;
         const level = levels[idx];
+        level.vehicle = vehicleType; // Inject selected vehicle
         
-        this.physics.initLevel(level, this.canvas.width, this.canvas.height);
+        this.missionBudget = level.budget || 1000;
+        this.missionTimer = level.timeLimit || 180;
+        
+        this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
         this.deliveredCount = 0;
         this.deliveredTypes = {};
         this.score = 100; // Reset level efficiency
@@ -155,6 +321,17 @@ class CargoGame {
         
         this.gameState = 'playing';
         this.addMessage("Level Started: " + level.name, "#6366f1");
+        
+        // Setup Cinematic Camera Intro
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95; // Slightly padded
+        
+        this.camera.zoom = minZoom;
+        this.camera.targetZoom = minZoom;
+        this.introTimer = 2.0; 
+        this.camera.x = this.physics.levelWidth / 2;
+        this.camera.y = this.physics.levelHeight / 2;
         
         // Hide menus, show HUD
         document.getElementById('menu-screen').style.display = 'none';
@@ -213,13 +390,21 @@ class CargoGame {
         }
     }
 
-    respawnLander() {
-        if (this.cash >= 200) {
-            this.cash -= 200;
-        } else {
-            this.cash = 0;
+    failMission(reason) {
+        this.gameState = 'game_over';
+        document.getElementById('hud-overlay').style.display = 'none';
+        const failScreen = document.getElementById('game-over-screen');
+        if (failScreen) {
+            failScreen.classList.remove('hidden');
+            const reasonEl = document.getElementById('fail-reason');
+            if (reasonEl) reasonEl.textContent = reason;
         }
         
+        const respawnScreen = document.getElementById('respawn-screen');
+        if (respawnScreen) respawnScreen.classList.add('hidden');
+    }
+
+    respawnLander() {
         this.crashHandled = false;
         
         const respawnScreen = document.getElementById('respawn-screen');
@@ -229,12 +414,44 @@ class CargoGame {
         this.physics.spawnLander(levelConfig);
     }
 
+    toggleGrapple() {
+        const lander = this.physics.lander;
+        if (!lander || lander.vehicleType !== 'drone') return;
+
+        if (lander.grabbedBoxId) {
+            // Release cargo
+            lander.grabbedBoxId = null;
+            if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+        } else {
+            // Try to grab cargo
+            let closestBox = null;
+            let minDist = 40; // Grab radius
+
+            for (const box of this.physics.boxes) {
+                const dist = Math.sqrt(Math.pow(box.x - lander.grappleX, 2) + Math.pow(box.y - lander.grappleY, 2));
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestBox = box;
+                }
+            }
+
+            if (closestBox) {
+                lander.grabbedBoxId = closestBox.id;
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+            } else {
+                // If we didn't grab anything, try to dispense cargo if we're near the collection point
+                this.triggerCargoDispense();
+            }
+        }
+    }
+
     triggerCargoDispense() {
         if (!this.physics.lander) return;
         
-        // Drone loading logic
+        // Drone loading logic (can dispense while hovering near collection point)
         if (this.physics.lander.vehicleType === 'drone') {
-            if (this.physics.lander.landed && this.physics.lander.currentPad === 'collection') {
+            const cp = this.physics.collectionPoint;
+            if (this.physics.lander.landed || (Math.abs(this.physics.lander.x - (cp.x + cp.width/2)) < 60)) {
                 const levelConfig = levels[this.currentLevelIndex];
                 const types = levelConfig.allowedTypes || ['normal'];
                 const t = types[Math.floor(Math.random() * types.length)];
@@ -300,16 +517,6 @@ class CargoGame {
                 healthFill.style.background = '#10b981';
             }
         }
-
-        // Cash & Efficiency Text
-        const efficiencyEl = document.getElementById('hud-efficiency');
-        if (efficiencyEl) efficiencyEl.textContent = `Efficiency: ${Math.round(this.score)}%`;
-
-        const cashEl = document.getElementById('hud-cash');
-        if (cashEl) cashEl.textContent = `Cash: $${this.cash}`;
-
-        const cargoEl = document.getElementById('hud-cargo');
-        if (cargoEl) cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
     }
 
     loop(timestamp) {
@@ -328,18 +535,72 @@ class CargoGame {
 
     update(dt) {
         const lander = this.physics.lander;
+        if (!lander) return;
+
         const level = levels[this.currentLevelIndex];
 
         const keys = this.keys;
 
-        // Apply inputs to physics lander
-        lander.thrustingActive = keys['w'] || keys['arrowup'];
-        lander.rotatingLeft = keys['a'] || keys['arrowleft'];
-        lander.rotatingRight = keys['d'] || keys['arrowright'];
-        lander.extendingRope = keys['e'];
-        lander.retractingRope = keys['q'];
+        // Bundle inputs
+        const inputState = {
+            up: keys['w'] || keys['arrowup'],
+            down: keys['s'] || keys['arrowdown'],
+            left: keys['a'] || keys['arrowleft'],
+            right: keys['d'] || keys['arrowright'],
+            q: keys['q'],
+            e: keys['e'],
+            mouseX: this.mouseX,
+            mouseY: this.mouseY,
+            mouseLeft: this.mouseLeft,
+            mouseRight: this.mouseRight
+        };
 
-        this.physics.update(dt, levels[this.currentLevelIndex]);
+        // --- Mission Clock Update ---
+        if (this.missionTimer > 0 && this.gameState === 'playing' && !lander.crashed) {
+            this.missionTimer -= (dt / 60); 
+            if (this.missionTimer <= 0) {
+                this.missionTimer = 0;
+                this.failMission("Time's Up! Contract expired.");
+            }
+        }
+
+        this.physics.update(dt, levels[this.currentLevelIndex], inputState);
+
+        // --- Cinematic Camera Update ---
+        const cw = this.canvas.width;
+        const ch = this.canvas.height;
+        const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
+
+        if (this.introTimer > 0) {
+            this.introTimer -= dt / 60; // Assuming dt is frames
+        } else {
+            // Static base zoom, minus slight zoom if extending rope
+            let desiredZoom = 1.3;
+            
+            // If drone is extending rope, zoom out to see cargo
+            if (lander.vehicleType === 'drone') {
+                desiredZoom -= (lander.ropeLength * 0.003);
+            }
+            
+            desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
+            this.camera.targetZoom = desiredZoom;
+        }
+
+        // Smoothly interpolate zoom
+        this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05;
+
+        // Track target (look slightly ahead of velocity)
+        let targetX = lander.x + (lander.vx * 15);
+        let targetY = lander.y + (lander.vy * 15);
+        
+        if (this.introTimer > 0) {
+            targetX = this.physics.levelWidth / 2;
+            targetY = this.physics.levelHeight / 2;
+        }
+
+        this.camera.x += (targetX - this.camera.x) * 0.08;
+        this.camera.y += (targetY - this.camera.y) * 0.08;
+        // -------------------------------
 
         // Sound effect triggers for thrust
         if (!this.isMuted) {
@@ -365,6 +626,13 @@ class CargoGame {
         if (lander.crashed && !this.crashHandled) {
             this.crashHandled = true;
             if (!this.isMuted) CargoAudio.setWarning(false);
+            
+            this.missionBudget -= 400;
+            this.addMessage("Lander Destroyed: -$400", "#ef4444");
+            
+            if (this.missionBudget < 0) {
+                this.failMission("Bankrupt! Budget exceeded.");
+            }
             
             // Generate explosion particles
             for (let i = 0; i < 50; i++) {
@@ -435,16 +703,11 @@ class CargoGame {
                         boxes.splice(i, 1);
 
                         this.deliveredCount++;
-                        this.cash += 200;
-                        this.score = Math.min(100, this.score + 8); // boost efficiency
-                        
-                        if (!this.isMuted) CargoAudio.playUnload();
-                        this.addMessage(`Package Delivered! +$200`, "#10b981");
-
-                        // Check Level Completion
-                        if (this.deliveredCount >= level.targetCargo) {
-                            this.triggerLevelComplete();
-                        }
+                        // Economy Loop: Deliveries grant cash instantly!
+                        const deliveryReward = 200;
+                        this.globalCash += deliveryReward;
+                        localStorage.setItem('cargoLanderCash', this.globalCash);
+                        this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
                     } else {
                         // Warning: Incorrect Cargo type
                         this.addMessage(`Warning: Hub rejects ${box.type.toUpperCase()} package!`, "#ef4444");
@@ -459,15 +722,18 @@ class CargoGame {
             const terrainY = this.physics.getTerrainHeight(box.x);
 
             // If box fell below the terrain height by a buffer, or off screen bottom
-            if (box.y > terrainY + 50 || box.y > 620) {
+            if (box.y > terrainY + 50 || box.y > this.physics.levelHeight) {
                 // Spawn smoke particles
                 this.spawnDeliveryParticles(box.x, terrainY, "#475569");
                 boxes.splice(i, 1);
                 
-                // Penalize score and cash
-                this.score = Math.max(10, this.score - 10);
-                this.cash = Math.max(0, this.cash - 50);
-                this.addMessage("Cargo Damaged & Lost! -$50", "#ef4444");
+                // Penalize Mission Budget
+                this.missionBudget -= 100;
+                this.addMessage("Cargo Lost! -$100 Budget", "#ef4444");
+                
+                if (this.missionBudget < 0) {
+                    this.failMission("Bankrupt! Too much cargo lost.");
+                }
             }
         }
     }
@@ -487,22 +753,26 @@ class CargoGame {
         }
     }
 
-    triggerLevelComplete() {
+    completeMission() {
         this.gameState = 'level_complete';
-        if (!this.isMuted) CargoAudio.playSuccess();
+        if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
         
-        document.getElementById('complete-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
         
-        // Calculate efficiency rating
-        const scorePercent = Math.round(this.score);
-        document.getElementById('lvl-complete-title').textContent = "LEVEL COMPLETED!";
-        document.getElementById('lvl-complete-details').innerHTML = `
-            <p>Sourcing efficiency: <span style="color: #10b981; font-weight:600;">${scorePercent}%</span></p>
-            <p>Cash bonus earned: <span style="color: #38bdf8; font-weight:600;">+$${scorePercent * 5}</span></p>
-        `;
+        const timeBonus = Math.floor(this.missionTimer) * 10;
+        const totalPayout = this.missionBudget + timeBonus;
         
-        this.cash += scorePercent * 5;
+        this.globalCash += totalPayout;
+        localStorage.setItem('cargoLanderCash', this.globalCash);
+        
+        document.getElementById('complete-screen').style.display = 'flex';
+        document.getElementById('lvl-complete-title').textContent = "Extraction Successful!";
+        document.getElementById('lvl-complete-details').innerHTML = `
+            <p>Base Contract Payout: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
+            <p>Time Bonus: <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>
+            <hr style="border:1px solid rgba(255,255,255,0.1);">
+            <p>Total Global Cash: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
+        `;
     }
 
     draw() {
@@ -524,9 +794,23 @@ class CargoGame {
             const alpha = 0.3 + Math.abs(Math.sin(star.phase)) * 0.7;
             ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+            ctx.arc(star.x % w, star.y % h, star.size, 0, Math.PI * 2);
             ctx.fill();
         }
+
+        // --- Menu Specific Background Rendering ---
+        if (this.gameState === 'menu') {
+            this.drawMenuBackgroundEntity();
+            return; // Don't draw the level geometry
+        }
+
+        // Apply Camera Transform for Level rendering
+        ctx.save();
+        
+        // Move to screen center, scale, then move by camera offset
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(this.camera.zoom, this.camera.zoom);
+        ctx.translate(-this.camera.x, -this.camera.y);
 
         // 3. Draw Gravity Well Anomaly
         const level = levels[this.currentLevelIndex];
@@ -546,11 +830,16 @@ class CargoGame {
         // 7. Draw Boxes
         this.drawBoxes();
 
-        // 8. Draw Lander
+        // 8. Draw Monster
+        this.drawMonster();
+
+        // 9. Draw Lander
         this.drawLander();
 
         // 9. Draw Particles
         this.drawParticles();
+        
+        ctx.restore();
 
         // 10. Draw UI Notifications directly on canvas
         this.drawNotifications();
@@ -558,7 +847,111 @@ class CargoGame {
         // 11. Draw Wind Indicator
         if (this.gameState === 'playing') {
             this.drawWindIndicator();
+            this.drawMinimap();
         }
+    }
+
+    drawMinimap() {
+        const ctx = this.ctx;
+        const cw = this.canvas.width;
+        
+        // Minimap size and position
+        const mmWidth = 200;
+        const mmHeight = mmWidth * (this.physics.levelHeight / this.physics.levelWidth);
+        const mmX = cw - mmWidth - 20;
+        const mmY = 20;
+        
+        // Background
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect ? ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8) : ctx.rect(mmX, mmY, mmWidth, mmHeight);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Scale factor
+        const scaleX = mmWidth / this.physics.levelWidth;
+        const scaleY = mmHeight / this.physics.levelHeight;
+        
+        ctx.save();
+        ctx.translate(mmX, mmY);
+        ctx.scale(scaleX, scaleY);
+        
+        // Draw pads
+        ctx.fillStyle = '#64748b';
+        if (this.physics.startDepot) {
+            const d = this.physics.startDepot;
+            ctx.fillRect(d.x, d.y, d.width, d.height);
+        }
+        if (this.physics.collectionPoint) {
+            const cp = this.physics.collectionPoint;
+            ctx.fillRect(cp.x, cp.y, cp.width, cp.height);
+        }
+        for (const hub of this.physics.deliveryHubs) {
+            ctx.fillStyle = hub.color || '#38bdf8';
+            ctx.fillRect(hub.x, hub.y, hub.width || 100, 15);
+        }
+        
+        // Draw Boxes (scaled up slightly for visibility)
+        for (const box of this.physics.boxes) {
+            ctx.fillStyle = box.color || '#fff';
+            ctx.fillRect(box.x - 20, box.y - 20, 40, 40); 
+        }
+        
+        // Draw Lander
+        if (this.physics.lander) {
+            ctx.fillStyle = '#10b981';
+            ctx.beginPath();
+            ctx.arc(this.physics.lander.x, this.physics.lander.y, 40, 0, Math.PI*2);
+            ctx.fill();
+        }
+        
+        // Draw Camera Viewport Rect
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 2 / scaleX; 
+        const viewW = cw / this.camera.zoom;
+        const viewH = this.canvas.height / this.camera.zoom;
+        const viewX = this.camera.x - viewW / 2;
+        const viewY = this.camera.y - viewH / 2;
+        ctx.strokeRect(viewX, viewY, viewW, viewH);
+        
+        ctx.restore();
+    }
+
+    drawMenuBackgroundEntity() {
+        if (!this.menuEntity) {
+            this.menuEntity = { x: -100, y: this.canvas.height / 3, vx: 3, type: 'lander' };
+        }
+        
+        const e = this.menuEntity;
+        e.x += e.vx;
+        e.y += Math.sin(Date.now() / 500) * 1.5;
+        
+        if (e.x > this.canvas.width + 100) {
+            e.x = -100;
+            e.y = this.canvas.height * 0.2 + Math.random() * (this.canvas.height * 0.6);
+            e.type = Math.random() > 0.5 ? 'lander' : 'drone';
+            e.vx = 2 + Math.random() * 3;
+        }
+        
+        const ctx = this.ctx;
+        ctx.save();
+        
+        // Mock lander for the draw method
+        const tempLander = this.physics.lander;
+        this.physics.lander = { 
+            x: e.x, y: e.y, angle: 0.2, 
+            vehicleType: e.type, thrusting: true, 
+            width: e.type === 'drone' ? 32 : 48, 
+            height: e.type === 'drone' ? 16 : 32,
+            magneticDeckActive: false
+        };
+        
+        this.drawLander();
+        this.physics.lander = tempLander; // Restore
+        
+        ctx.restore();
     }
 
     drawGravityWell(well) {
@@ -598,21 +991,73 @@ class CargoGame {
         ctx.restore();
     }
 
+    drawMonster() {
+        if (!this.physics.monster) return;
+        
+        const m = this.physics.monster;
+        const ctx = this.ctx;
+        
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        
+        // Draw chaotic, terrifying energy mass
+        ctx.fillStyle = '#991b1b'; // Dark blood red
+        ctx.beginPath();
+        ctx.arc(0, 0, m.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Writhing tentacles
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 4;
+        const time = Date.now() / 200;
+        
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2 + Math.sin(time + i);
+            const length = m.size + Math.sin(time * 2 + i) * 30;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            
+            // Bezier tentacle
+            ctx.quadraticCurveTo(
+                Math.cos(angle - 0.5) * length * 0.5, 
+                Math.sin(angle - 0.5) * length * 0.5,
+                Math.cos(angle) * length, 
+                Math.sin(angle) * length
+            );
+            ctx.stroke();
+        }
+        
+        // Glowing red eyes
+        ctx.fillStyle = '#fca5a5';
+        ctx.beginPath();
+        ctx.arc(m.vx * 2 - 10, m.vy * 2 - 5, 8, 0, Math.PI * 2);
+        ctx.arc(m.vx * 2 + 10, m.vy * 2 - 5, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     drawTerrain() {
         const ctx = this.ctx;
-        const pts = this.physics.terrainPoints;
-        if (pts.length === 0) return;
+        if (this.physics.terrainPoints.length === 0) return;
 
+        // Determine visible X range based on camera
+        const zoom = this.camera.zoom;
+        const w = this.canvas.width;
+        const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 100) / 20) * 20;
+        const endX = this.camera.x + (w / 2 / zoom) + 100;
+        
         // Main fill
         ctx.fillStyle = '#0b0f19';
         ctx.beginPath();
-        ctx.moveTo(pts[0].x, this.canvas.height);
+        ctx.moveTo(startX, this.physics.levelHeight + 1000);
         
-        for (const pt of pts) {
-            ctx.lineTo(pt.x, pt.y);
+        for (let x = startX; x <= endX; x += 20) {
+            ctx.lineTo(x, this.physics.getTerrainHeight(x));
         }
         
-        ctx.lineTo(pts[pts.length - 1].x, this.canvas.height);
+        ctx.lineTo(endX, this.physics.levelHeight + 1000);
         ctx.closePath();
         ctx.fill();
 
@@ -620,20 +1065,20 @@ class CargoGame {
         ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) {
-            ctx.lineTo(pts[i].x, pts[i].y);
+        for (let x = startX; x <= endX; x += 20) {
+            if (x === startX) ctx.moveTo(x, this.physics.getTerrainHeight(x));
+            else ctx.lineTo(x, this.physics.getTerrainHeight(x));
         }
         ctx.stroke();
 
         // Ground texture lines
         ctx.strokeStyle = 'rgba(239, 68, 68, 0.15)';
         ctx.lineWidth = 1;
-        for (let i = 0; i < pts.length; i += 4) {
-            if (i >= pts.length) break;
+        for (let x = startX; x <= endX; x += 60) {
+            const y = this.physics.getTerrainHeight(x);
             ctx.beginPath();
-            ctx.moveTo(pts[i].x, pts[i].y);
-            ctx.lineTo(pts[i].x, this.canvas.height);
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - 10, y + 20 + (Math.abs(x) % 40));
             ctx.stroke();
         }
     }

@@ -21,22 +21,23 @@ class CargoPhysics {
         this.SOLVER_ITERATIONS = 5; // Iterations for box-box stacking stability
     }
 
-    initLevel(levelConfig, width, height) {
-        this.canvasWidth = width;
-        this.canvasHeight = height;
+    initLevel(levelConfig, width, height, upgrades = {}) {
+        this.levelWidth = 1600; // Huge horizontal space
+        this.levelHeight = 900; // Huge vertical space
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.15;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         
         this.boxes = [];
         this.particles = [];
+        this.monster = null; // The Out-Of-Bounds cosmic horror
         this.generateTerrain(levelConfig);
-        this.spawnLander(levelConfig);
+        this.spawnLander(levelConfig, upgrades);
     }
 
     generateTerrain(config) {
         const points = [];
-        const w = this.canvasWidth;
-        const h = this.canvasHeight;
+        const w = this.levelWidth;
+        const h = this.levelHeight;
 
         // Define Start Depot (Spawn Point)
         this.startDepot = {
@@ -133,8 +134,11 @@ class CargoPhysics {
         this.terrainPoints = points;
     }
 
-    spawnLander(config) {
+    spawnLander(config, upgrades = {}) {
         const vehicleType = config.vehicle || 'lander';
+        
+        const ropeMax = 150 + (upgrades.winchExtender || 0) * 50;
+        const maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
 
         // Position lander centered on Start Depot pad
         this.lander = {
@@ -152,8 +156,14 @@ class CargoPhysics {
             basketHeight: 25, // Side wall height for the basket
             fuel: 100,
             maxFuel: 100,
-            integrity: 100,
-            maxIntegrity: 100,
+            integrity: maxIntegrity,
+            maxIntegrity: maxIntegrity,
+            thrustMultiplier: 1.0 + (upgrades.boostMode || 0) * 0.2,
+            fuelEfficiency: 1.0 - (upgrades.thrusterEfficiency || 0) * 0.15,
+            enginePower: 0, // Used for thrust interpolation
+            strafePower: 0,
+            magneticDeckActive: upgrades.magneticDeck > 0,
+            magneticStrength: upgrades.magneticDeck > 0 ? (upgrades.magneticDeck * 0.2) : 0,
             thrusting: false,
             rotatingLeft: false,
             rotatingRight: false,
@@ -161,7 +171,7 @@ class CargoPhysics {
             retractingRope: false,
             ropeLength: 60,
             ropeMin: 20,
-            ropeMax: 150,
+            ropeMax: ropeMax,
             grabbedBoxId: null,
             crashed: false,
             landed: true,
@@ -196,8 +206,17 @@ class CargoPhysics {
     }
 
     getTerrainHeight(x) {
-        if (x < 0) x = 0;
-        if (x > this.canvasWidth) x = this.canvasWidth;
+        if (x < 0) {
+            const anchorY = this.terrainPoints[0].y;
+            // Generate rising procedural mountains to the left
+            return anchorY + Math.sin(x * 0.02) * 50 - (1 - Math.cos(x * 0.005)) * 150;
+        }
+        if (x > this.levelWidth) {
+            const anchorY = this.terrainPoints[this.terrainPoints.length - 1].y;
+            const dx = x - this.levelWidth;
+            // Generate rising procedural mountains to the right
+            return anchorY + Math.sin(dx * 0.02) * 50 - (1 - Math.cos(dx * 0.005)) * 150;
+        }
 
         // Find containing segment
         let leftPt = this.terrainPoints[0];
@@ -227,65 +246,123 @@ class CargoPhysics {
         return {
             tx: dx / len,
             ty: dy / len,
-            nx: -dy / len,
-            ny: dx / len
+            nx: dy / len,      // Normal X
+            ny: -dx / len      // Normal Y (points UP)
         };
     }
 
-    update(dt, levelConfig) {
+    update(dt, levelConfig, inputState) {
         if (this.lander.crashed) {
             this.updateParticles();
             return;
         }
 
-        this.applyControls(dt);
+        this.applyControls(dt, inputState);
         this.applyGravityAndWind(dt);
         this.integrateLander(dt);
         this.resolveLanderCollisions();
         this.applyGravityWell(levelConfig);
 
         this.updateBoxes(dt);
+        this.updateMonster(dt);
         this.updateParticles();
     }
 
-    applyControls(dt) {
+    updateMonster(dt) {
         const lander = this.lander;
         if (lander.crashed) return;
 
+        // Spawn logic: Trigger if lander strays 150px out of bounds
+        if (!this.monster && (lander.x < -150 || lander.x > this.levelWidth + 150)) {
+            // Spawn monster from the deep below
+            this.monster = {
+                x: lander.x < -150 ? lander.x - 400 : lander.x + 400,
+                y: this.levelHeight + 200,
+                vx: 0,
+                vy: -5,
+                size: 80,
+                roarTimer: 60
+            };
+            if (window.CargoAudio) CargoAudio.playCrash(); // Use crash as a temporary roar
+        }
+
+        if (this.monster) {
+            const m = this.monster;
+            
+            // AI Chase Logic: Accelerate toward lander
+            const dx = lander.x - m.x;
+            const dy = lander.y - m.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist > 0) {
+                const speed = 0.25; // Scary fast acceleration
+                m.vx += (dx / dist) * speed;
+                m.vy += (dy / dist) * speed;
+            }
+            
+            // Dampen velocity to prevent infinite acceleration (max speed limit)
+            m.vx *= 0.98;
+            m.vy *= 0.98;
+            
+            m.x += m.vx;
+            m.y += m.vy;
+
+            // Lethal Contact!
+            if (dist < m.size / 2 + lander.width / 2) {
+                this.triggerExplosion();
+            }
+        }
+    }
+
+    applyControls(dt, inputState) {
+        const lander = this.lander;
+        if (lander.crashed) return;
+
+        // Thrust Spooling Interpolation (0 to 1)
+        const spoolSpeed = 0.05;
+        const thrustInput = (inputState.up || inputState.mouseLeft) ? 1.0 : 0.0;
+        lander.enginePower += (thrustInput - lander.enginePower) * spoolSpeed;
+
+        let strafeInput = 0;
+        if (inputState.left || inputState.q) strafeInput = -1.0;
+        if (inputState.right || inputState.e || inputState.mouseRight) strafeInput = 1.0;
+        lander.strafePower += (strafeInput - lander.strafePower) * spoolSpeed;
+
+        const maxThrust = 0.55 * (lander.thrustMultiplier || 1.0);
+        lander.thrusting = lander.enginePower > 0.1;
+
         if (lander.vehicleType === 'drone') {
-            // Drone Kinematics
+            // DRONE KINEMATICS (Vertical specialist, rope mechanics)
             lander.angularVelocity *= 0.8;
             lander.angle -= lander.angle * 0.1; // Self-stabilize
 
-            if (lander.rotatingLeft) {
+            if (inputState.left) {
                 lander.vx -= 0.15;
                 lander.angle = Math.max(-0.4, lander.angle - 0.08); // Visual tilt
                 lander.landed = false;
             }
-            if (lander.rotatingRight) {
+            if (inputState.right) {
                 lander.vx += 0.15;
                 lander.angle = Math.min(0.4, lander.angle + 0.08);
                 lander.landed = false;
             }
 
-            lander.thrusting = false;
             // Auto-hover counters most gravity
             if (!lander.landed) {
                 lander.vy -= this.gravity * 0.95; // Slight downward drift
             }
 
-            if (lander.thrustingActive && lander.fuel > 0) {
-                lander.thrusting = true;
+            if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.06;
-                lander.vy -= 0.3; // Ascend
+                lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * lander.enginePower;
+                lander.vy -= 0.3 * (lander.thrustMultiplier || 1.0) * lander.enginePower; // Ascend
             }
 
             // Rope mechanics
-            if (lander.extendingRope) {
+            if (inputState.e) {
                 lander.ropeLength = Math.min(lander.ropeMax, lander.ropeLength + 3);
             }
-            if (lander.retractingRope) {
+            if (inputState.q) {
                 lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3);
             }
             
@@ -293,67 +370,80 @@ class CargoPhysics {
             lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.height/2) + Math.sin(lander.angle) * lander.ropeLength;
             lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.height/2) + Math.cos(lander.angle) * lander.ropeLength;
 
-            // Exhaust particles
-            if (lander.thrusting && Math.random() < 0.5) {
-                this.particles.push({
-                    x: lander.x + (Math.random() - 0.5) * 10,
-                    y: lander.y + 8,
-                    vx: lander.vx + (Math.random() - 0.5) * 2,
-                    vy: lander.vy + 2 + Math.random() * 2,
-                    life: 1.0,
-                    decay: 0.05 + Math.random() * 0.05,
-                    color: `hsla(180, 100%, 70%, 0.6)`,
-                    size: 2 + Math.random() * 3
-                });
+        } else if (lander.vehicleType === 'basic') {
+            // BASIC LANDER (Upright stabilization, arcade movement)
+            lander.angle = 0;
+            lander.angularVelocity = 0;
+            
+            if (lander.thrusting && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * lander.enginePower;
+                lander.vy -= maxThrust * lander.enginePower;
+            }
+            if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower);
+                lander.vx += (maxThrust * 0.6) * lander.strafePower;
             }
 
         } else {
-            // Standard Lander Mechanics
-            const torque = 0.012; 
-            if (lander.rotatingLeft) {
-                lander.angularVelocity -= torque;
-                lander.landed = false;
-            }
-            if (lander.rotatingRight) {
-                lander.angularVelocity += torque;
+            // ADVANCED LANDER (Mouse aim steering, high skill ceiling)
+            if (inputState.mouseX !== undefined && inputState.mouseY !== undefined) {
+                // Angle 0 is straight UP (y is negative)
+                let targetAngle = Math.atan2(inputState.mouseX - lander.x, -(inputState.mouseY - lander.y));
+                
+                // Calculate shortest rotational distance
+                let diff = targetAngle - lander.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                
+                // Apply torque towards cursor
+                lander.angularVelocity += diff * 0.05;
                 lander.landed = false;
             }
 
-            lander.angularVelocity *= 0.90;
+            lander.angularVelocity *= 0.85; // Dampening
             lander.angle += lander.angularVelocity;
 
-            const thrustForce = 0.55; 
-            lander.thrusting = false;
-            
-            if (lander.thrustingActive && lander.fuel > 0) {
-                lander.thrusting = true;
+            if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.12; 
+                lander.fuel -= 0.12 * (lander.fuelEfficiency || 1.0) * lander.enginePower; 
 
-                const ax = Math.sin(lander.angle) * thrustForce;
-                const ay = -Math.cos(lander.angle) * thrustForce;
+                const ax = Math.sin(lander.angle) * maxThrust * lander.enginePower;
+                const ay = -Math.cos(lander.angle) * maxThrust * lander.enginePower;
 
                 lander.vx += ax;
                 lander.vy += ay;
-
-                if (Math.random() < 0.7) {
-                    const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-                    const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-                    const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-                    const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-                    
-                    this.particles.push({
-                        x: ex,
-                        y: ey,
-                        vx: evx,
-                        vy: evy,
-                        life: 1.0,
-                        decay: 0.04 + Math.random() * 0.03,
-                        color: `hsla(${20 + Math.random() * 30}, 100%, 60%, 0.8)`,
-                        size: 4 + Math.random() * 4
-                    });
-                }
             }
+            
+            if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower);
+                // Strafe is perpendicular to facing angle
+                const sx = Math.cos(lander.angle) * maxThrust * 0.4 * lander.strafePower;
+                const sy = Math.sin(lander.angle) * maxThrust * 0.4 * lander.strafePower;
+                lander.vx += sx;
+                lander.vy += sy;
+            }
+        }
+        
+        // Universal Exhaust particles (scaled by engine power)
+        if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower) {
+            const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
+            const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
+            const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
+            const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
+            
+            this.particles.push({
+                x: ex,
+                y: ey,
+                vx: evx,
+                vy: evy,
+                life: 1.0,
+                decay: 0.04 + Math.random() * 0.03,
+                color: `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
+                size: 4 + Math.random() * 6 * lander.enginePower
+            });
         }
     }
 
@@ -392,8 +482,6 @@ class CargoPhysics {
         lander.y += lander.vy;
 
         // Wrap around screen edges vertically/horizontally
-        if (lander.x < 10) { lander.x = 10; lander.vx = 0; }
-        if (lander.x > this.canvasWidth - 10) { lander.x = this.canvasWidth - 10; lander.vx = 0; }
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
     }
 
@@ -579,8 +667,9 @@ class CargoPhysics {
             
             // Grapple physics (Distance Constraint)
             if (this.lander && this.lander.vehicleType === 'drone' && this.lander.grabbedBoxId === box.id) {
-                const attachX = this.lander.x;
-                const attachY = this.lander.y;
+                // Attach point is the bottom center of the drone
+                const attachX = this.lander.x - Math.sin(this.lander.angle) * (this.lander.height/2);
+                const attachY = this.lander.y + Math.cos(this.lander.angle) * (this.lander.height/2);
                 const dx = box.x - attachX;
                 const dy = box.y - attachY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -607,6 +696,23 @@ class CargoPhysics {
             
             box.x += box.vx;
             box.y += box.vy;
+            
+            // Magnetic Deck Physics
+            if (this.lander && this.lander.vehicleType === 'lander' && this.lander.magneticDeckActive && !this.lander.crashed) {
+                const deckX = this.lander.x - Math.sin(this.lander.angle) * this.lander.deckOffset;
+                const deckY = this.lander.y - Math.cos(this.lander.angle) * this.lander.deckOffset;
+                
+                const dx = deckX - box.x;
+                const dy = deckY - box.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Pull range: 120 pixels
+                if (dist > 0 && dist < 120) {
+                    const pullFactor = (1 - dist / 120) * this.lander.magneticStrength;
+                    box.vx += (dx / dist) * pullFactor;
+                    box.vy += (dy / dist) * pullFactor;
+                }
+            }
             
             // Wind
             box.vx += this.wind * 0.01;
