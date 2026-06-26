@@ -197,7 +197,7 @@ class CargoGame {
         this.introTimer = 0;
         
         // Settings
-        this.isMuted = true;
+        this.isMuted = false;
 
         // Keys State
         this.keys = {
