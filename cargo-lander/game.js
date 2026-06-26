@@ -17,9 +17,9 @@ const levels = [
         ],
         hint: "Tip: Land slowly (< 2.0 m/s) and return to HQ to extract.",
         palette: {
-            skyTop: '#04071a', skyMid: '#0a1628', skyBot: '#1a2d1a',
-            terrainFill: '#0b1a0e', rockEdge: '#22c55e', rockGlow: 'rgba(34,197,94,',
-            fog: 'rgba(34,197,94,0.04)',
+            skyTop: '#04071a', skyMid: '#0a1628', skyBot: '#0d2010',
+            terrainFill: '#0a1a08', rockEdge: '#4ade80', rockGlow: 'rgba(74,222,128,',
+            fog: 'rgba(74,222,128,0.04)',
         },
         quests: [
             { id: 'primary',       text: 'Deliver 2 cargo to Hub Alpha',   type: 'primary' },
@@ -45,9 +45,9 @@ const levels = [
         ],
         hint: "Sort correctly and return to HQ to extract.",
         palette: {
-            skyTop: '#04071a', skyMid: '#0d1a2e', skyBot: '#1a1a0e',
-            terrainFill: '#0b0f14', rockEdge: '#f59e0b', rockGlow: 'rgba(245,158,11,',
-            fog: 'rgba(245,158,11,0.04)',
+            skyTop: '#120a02', skyMid: '#1e1005', skyBot: '#2e1a06',
+            terrainFill: '#1a0f04', rockEdge: '#d97706', rockGlow: 'rgba(217,119,6,',
+            fog: 'rgba(217,119,6,0.06)',
         },
         quests: [
             { id: 'primary',         text: 'Sort & deliver 2 cargo',       type: 'primary' },
@@ -72,9 +72,9 @@ const levels = [
         ],
         hint: "Tilt into the wind. Return to HQ to extract.",
         palette: {
-            skyTop: '#050818', skyMid: '#0e1530', skyBot: '#1a1228',
-            terrainFill: '#0b0f19', rockEdge: '#a78bfa', rockGlow: 'rgba(167,139,250,',
-            fog: 'rgba(167,139,250,0.05)',
+            skyTop: '#020810', skyMid: '#061828', skyBot: '#0a1e2e',
+            terrainFill: '#08121c', rockEdge: '#7dd3fc', rockGlow: 'rgba(125,211,252,',
+            fog: 'rgba(125,211,252,0.06)',
         },
         quests: [
             { id: 'primary',    text: 'Deliver 2 cargo to Peak Station', type: 'primary' },
@@ -101,9 +101,9 @@ const levels = [
         gravityWell: { x: 500, y: 400, strength: 0.8, radius: 200, orbitRadius: 200 },
         hint: "Avoid the vortex! Return to HQ to extract.",
         palette: {
-            skyTop: '#0a0510', skyMid: '#150828', skyBot: '#250c10',
-            terrainFill: '#100806', rockEdge: '#ef4444', rockGlow: 'rgba(239,68,68,',
-            fog: 'rgba(239,68,68,0.06)',
+            skyTop: '#0e0403', skyMid: '#1a0602', skyBot: '#2a0a04',
+            terrainFill: '#120402', rockEdge: '#f97316', rockGlow: 'rgba(249,115,22,',
+            fog: 'rgba(249,115,22,0.08)',
         },
         quests: [
             { id: 'primary',         text: 'Deliver red & blue cargo',    type: 'primary' },
@@ -128,9 +128,9 @@ const levels = [
         ],
         hint: "E/Q to extend/retract rope. SPACE drops cargo. Return to HQ to extract.",
         palette: {
-            skyTop: '#080508', skyMid: '#100a18', skyBot: '#1a0808',
-            terrainFill: '#0d0508', rockEdge: '#dc2626', rockGlow: 'rgba(220,38,38,',
-            fog: 'rgba(220,38,38,0.08)',
+            skyTop: '#040210', skyMid: '#080420', skyBot: '#0c0630',
+            terrainFill: '#060418', rockEdge: '#a855f7', rockGlow: 'rgba(168,85,247,',
+            fog: 'rgba(168,85,247,0.08)',
         },
         quests: [
             { id: 'primary',         text: 'Lower 2 cargo into The Pit',  type: 'primary' },
@@ -211,6 +211,9 @@ class CargoGame {
         };
 
         this.lastTime = 0;
+
+        this.damageFlash = 0;
+        this.screenShake = { x: 0, y: 0, intensity: 0 };
     }
 
     init(canvasId) {
@@ -230,6 +233,10 @@ class CargoGame {
             this.shaders = new ShaderOverlay('webglCanvas');
             this.shaders.resize(this.canvas.width, this.canvas.height);
         }
+
+        // Sync mute button to initial state
+        const muteBtn = document.getElementById('mute-toggle-btn');
+        if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
 
         // Start game loop
         requestAnimationFrame((t) => this.loop(t));
@@ -925,6 +932,21 @@ class CargoGame {
         const lander = this.physics.lander;
         if (!lander) return;
 
+        const prevIntegrity = this._lastIntegrity ?? lander.integrity;
+        this._lastIntegrity = lander.integrity;
+        if (lander.integrity < prevIntegrity - 1) {
+            const dmg = prevIntegrity - lander.integrity;
+            this.damageFlash = Math.min(1, dmg / 20);
+            this.screenShake.intensity = Math.min(12, dmg * 0.8);
+        }
+        this.damageFlash = Math.max(0, this.damageFlash - 0.04 * dt);
+        if (this.screenShake.intensity > 0) {
+            this.screenShake.x = (Math.random() - 0.5) * this.screenShake.intensity;
+            this.screenShake.y = (Math.random() - 0.5) * this.screenShake.intensity;
+            this.screenShake.intensity *= Math.pow(0.75, dt);
+            if (this.screenShake.intensity < 0.5) this.screenShake.intensity = 0;
+        }
+
         const level = levels[this.currentLevelIndex];
 
         const keys = this.keys;
@@ -1340,7 +1362,7 @@ class CargoGame {
         ctx.save();
 
         // Move to screen center, scale, then move by camera offset
-        ctx.translate(w / 2, h / 2);
+        ctx.translate(w / 2 + (this.screenShake?.x || 0), h / 2 + (this.screenShake?.y || 0));
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
 
@@ -1354,6 +1376,7 @@ class CargoGame {
         this.drawDeliveryHubs();
 
         // 5. Draw Terrain Landscape
+        this.drawUnderground();
         this.drawGroundParallax();
         this.drawTerrain();
         this.drawLake();
@@ -1384,7 +1407,7 @@ class CargoGame {
 
         // 9b. Draw the detailed Canvas2D monster (and particles when WebGL is unavailable)
         ctx.save();
-        ctx.translate(w / 2, h / 2);
+        ctx.translate(w / 2 + (this.screenShake?.x || 0), h / 2 + (this.screenShake?.y || 0));
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
         this.drawMonster();
@@ -1425,7 +1448,7 @@ class CargoGame {
         }
 
         // 13. Off-screen monster radar indicator
-        if (this.physics.monster && this.gameState === 'playing') {
+        if (this.physics.monster && this.physics.lander && this.gameState === 'playing') {
             const m = this.physics.monster;
             const zoom = this.camera.zoom;
             const screenMX = (m.x - this.camera.x) * zoom + w / 2;
@@ -1460,8 +1483,26 @@ class CargoGame {
                 ctx.fillStyle = `rgba(239,68,68,${pulse * 0.9})`;
                 const labelX = Math.max(margin, Math.min(w - margin, edgeX));
                 const labelY = Math.max(margin, Math.min(h - margin, edgeY));
-                const dist = Math.round(Math.hypot(m.x - lander.x, m.y - lander.y));
+                const dist = Math.round(Math.hypot(m.x - this.physics.lander.x, m.y - this.physics.lander.y));
                 ctx.fillText(`${dist}m`, labelX, labelY + 20);
+                ctx.restore();
+            }
+        }
+
+        // 13b. Damage flash overlay
+        if (this.damageFlash > 0) {
+            const flashGrad = ctx.createRadialGradient(w/2, h/2, h/4, w/2, h/2, h * 0.8);
+            flashGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            flashGrad.addColorStop(0.6, `rgba(200,20,0,${this.damageFlash * 0.35})`);
+            flashGrad.addColorStop(1, `rgba(255,0,0,${this.damageFlash * 0.7})`);
+            ctx.fillStyle = flashGrad;
+            ctx.fillRect(0, 0, w, h);
+            if (this.damageFlash > 0.3) {
+                ctx.save();
+                ctx.font = 'bold 20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `rgba(255,80,80,${this.damageFlash})`;
+                ctx.fillText('⚠ HULL DAMAGE', w / 2, h / 2 - 60);
                 ctx.restore();
             }
         }
@@ -2333,6 +2374,89 @@ class CargoGame {
         }
     }
 
+    drawUnderground() {
+        const ctx = this.ctx;
+        const lv = levels[this.currentLevelIndex] || {};
+        const zoom = this.camera.zoom;
+        const w = this.canvas.width;
+        const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
+        const endX = this.camera.x + (w / 2 / zoom) + 200;
+        const lh = this.physics.levelHeight;
+        const t = Date.now() / 1000;
+
+        if (this.currentLevelIndex === 3) {
+            // L4 Volcanic: hidden underground data center, visible through cave gaps
+            const racks = [
+                { x: 320, label: 'SRV-01' }, { x: 420, label: 'DB-03' },
+                { x: 520, label: 'SRV-07' }, { x: 620, label: 'CACHE' },
+                { x: 720, label: 'NET-02' },
+            ];
+            for (const rack of racks) {
+                if (rack.x < startX - 30 || rack.x > endX + 30) continue;
+                const ry = this.physics.getTerrainHeight(rack.x) + 60; // 60px underground
+                const blink = Math.sin(t * 3.7 + rack.x * 0.1) > 0.7;
+                // Server rack silhouette
+                ctx.fillStyle = 'rgba(20,10,30,0.9)';
+                ctx.fillRect(rack.x - 10, ry - 28, 20, 28);
+                ctx.strokeStyle = 'rgba(168,85,247,0.6)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(rack.x - 10, ry - 28, 20, 28);
+                // Blinking status lights
+                for (let li = 0; li < 5; li++) {
+                    const lbOn = Math.sin(t * (4 + li * 1.3) + rack.x * 0.2) > 0.5;
+                    ctx.fillStyle = lbOn ? `rgba(${li % 2 === 0 ? '0,255,128' : '255,60,60'},0.9)` : 'rgba(20,40,20,0.5)';
+                    ctx.beginPath();
+                    ctx.arc(rack.x - 7 + li * 3.5, ry - 8, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = `rgba(168,85,247,${0.3 + (blink ? 0.4 : 0)})`;
+                ctx.font = '5px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText(rack.label, rack.x, ry - 32);
+            }
+            // Connecting cables between racks
+            ctx.strokeStyle = 'rgba(168,85,247,0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 6]);
+            for (let i = 0; i < racks.length - 1; i++) {
+                const ay = this.physics.getTerrainHeight(racks[i].x) + 50;
+                const by = this.physics.getTerrainHeight(racks[i+1].x) + 50;
+                ctx.beginPath();
+                ctx.moveTo(racks[i].x, ay);
+                ctx.lineTo(racks[i+1].x, by);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+        }
+
+        if (this.currentLevelIndex === 4) {
+            // L5 Crystal cave: glowing crystal formations underground
+            const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
+            for (let cx = Math.floor(startX / 40) * 40; cx < endX; cx += 40) {
+                const terrY = this.physics.getTerrainHeight(cx);
+                const depth = 30 + hash(cx) * 50;
+                const cy = terrY + depth;
+                const ch = 15 + hash(cx + 1) * 25;
+                const pulse = 0.4 + Math.sin(t * 1.5 + cx * 0.05) * 0.3;
+                ctx.fillStyle = `rgba(168,85,247,${pulse * 0.6})`;
+                ctx.beginPath();
+                ctx.moveTo(cx - 4, cy);
+                ctx.lineTo(cx, cy - ch);
+                ctx.lineTo(cx + 4, cy);
+                ctx.closePath();
+                ctx.fill();
+                // Glow
+                const cg = ctx.createRadialGradient(cx, cy - ch * 0.5, 0, cx, cy - ch * 0.5, ch);
+                cg.addColorStop(0, `rgba(168,85,247,${pulse * 0.3})`);
+                cg.addColorStop(1, 'rgba(168,85,247,0)');
+                ctx.fillStyle = cg;
+                ctx.beginPath();
+                ctx.arc(cx, cy - ch * 0.5, ch, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
     drawNextObjectiveArrow() {
         const ctx = this.ctx;
         const level = levels[this.currentLevelIndex];
@@ -2609,15 +2733,10 @@ class CargoGame {
 
             // Set color based on cargo sorting type
             let color = '#38bdf8'; // Blue (normal)
-            let iconText = box.emoji || '📦';
-            
-            if (box.type === 'red') {
-                color = '#ef4444'; // Red (hazmat)
-            } else if (box.type === 'blue') {
-                color = '#3b82f6'; // Cold Chain
-            } else if (box.type === 'green') {
-                color = '#10b981'; // Eco/Green
-            }
+            let iconText = '📦';
+            if (box.type === 'red') { color = '#ef4444'; iconText = '⚠️'; }
+            else if (box.type === 'blue') { color = '#3b82f6'; iconText = '❄️'; }
+            else if (box.type === 'green') { color = '#10b981'; iconText = '♻️'; }
 
             // Box gradient fill (lighter top-left, darker bottom-right)
             const boxGrad = ctx.createLinearGradient(-halfS, -halfS, halfS, halfS);
@@ -2654,10 +2773,15 @@ class CargoGame {
 
             // Emoji
             ctx.fillStyle = '#ffffff';
-            ctx.font = '11px Arial';
+            ctx.font = 'bold 15px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(iconText, 0, 1);
+
+            // Type label fallback (in case emoji fails on canvas)
+            ctx.font = 'bold 7px Arial';
+            const typeLabel = box.type === 'normal' ? 'STD' : box.type.toUpperCase();
+            ctx.fillText(typeLabel, 0, halfS - 3);
 
             ctx.restore();
         }
@@ -2730,6 +2854,9 @@ class CargoGame {
         ctx.translate(lander.x, lander.y);
         ctx.rotate(lander.angle);
 
+        const bounceY = -(lander.legCompress || 0) * 10;
+        ctx.translate(0, bounceY);
+
         const w = lander.width;
         const h = lander.height;
 
@@ -2769,33 +2896,33 @@ class CargoGame {
             // ── Main thruster flame (bottom) ──────────────────────────────
             if (lander.thrusting && lander.fuel > 0) {
                 const fl = 18 + Math.random() * 26;
-                const fGrad = ctx.createLinearGradient(0, 20, 0, 20 + fl);
+                const fGrad = ctx.createLinearGradient(0, 16, 0, 16 + fl);
                 fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.98)');
                 fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)');
                 fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                 ctx.fillStyle = fGrad;
-                // Left nozzle flame
                 const fw = 3.5 + Math.random() * 2.5;
+                // Left nozzle flame
                 ctx.beginPath();
-                ctx.moveTo(-8 - fw, 20);
-                ctx.bezierCurveTo(-8 - fw * 0.3, 20 + fl * 0.5, (Math.random()-0.5)*4 - 8, 20 + fl * 0.88, -8, 20 + fl);
-                ctx.bezierCurveTo((Math.random()-0.5)*4 - 8, 20 + fl * 0.88, -8 + fw * 0.3, 20 + fl * 0.5, -8 + fw, 20);
+                ctx.moveTo(-9 - fw, 16);
+                ctx.bezierCurveTo(-9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9, 16 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9 + fw * 0.3, 16 + fl * 0.5, -9 + fw, 16);
                 ctx.closePath();
                 ctx.fill();
                 // Right nozzle flame
                 ctx.beginPath();
-                ctx.moveTo(8 - fw, 20);
-                ctx.bezierCurveTo(8 - fw * 0.3, 20 + fl * 0.5, (Math.random()-0.5)*4 + 8, 20 + fl * 0.88, 8, 20 + fl);
-                ctx.bezierCurveTo((Math.random()-0.5)*4 + 8, 20 + fl * 0.88, 8 + fw * 0.3, 20 + fl * 0.5, 8 + fw, 20);
+                ctx.moveTo(9 - fw, 16);
+                ctx.bezierCurveTo(9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9, 16 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9 + fw * 0.3, 16 + fl * 0.5, 9 + fw, 16);
                 ctx.closePath();
                 ctx.fill();
                 // Shared bloom
-                const bGrad = ctx.createRadialGradient(0, 24, 0, 0, 28, 28);
+                const bGrad = ctx.createRadialGradient(0, 20, 0, 0, 24, 26);
                 bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.3)');
                 bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                 ctx.fillStyle = bGrad;
                 ctx.beginPath();
-                ctx.ellipse(0, 28, 22, 28, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 22, 20, 26, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -2837,19 +2964,33 @@ class CargoGame {
                 ctx.fill();
             }
 
-            // ── Cargo Deck (flat-bed style) ────────────────────────────────
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 2.5;
+            // ── Cargo Deck (flat-bed: open back of the truck) ─────────────────────
+            // Bed floor
+            ctx.fillStyle = 'rgba(15,25,40,0.9)';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(-hw, deckY - bh);
-            ctx.lineTo(-hw, deckY);
-            ctx.lineTo(hw, deckY);
-            ctx.lineTo(hw, deckY - bh);
+            ctx.rect(-hw, deckY - bh, hw * 2, bh + 2);
+            ctx.fill();
             ctx.stroke();
 
-            // Deck floor plate
-            const deckGrad = ctx.createLinearGradient(-hw, deckY - 3, hw, deckY);
-            deckGrad.addColorStop(0, 'rgba(56,189,248,0.7)');
+            // Deck ribbing (3 cross-members to make it look like a flatbed)
+            ctx.strokeStyle = 'rgba(100,116,139,0.6)';
+            ctx.lineWidth = 1;
+            for (let ri = 1; ri <= 3; ri++) {
+                const rx = -hw + (hw * 2 / 4) * ri;
+                ctx.beginPath();
+                ctx.moveTo(rx, deckY - bh);
+                ctx.lineTo(rx, deckY);
+                ctx.stroke();
+            }
+            // Side rails (raised edges to contain cargo)
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(-hw - 2, deckY - bh - 3, 4, bh + 3);     // left rail
+            ctx.fillRect(hw - 2, deckY - bh - 3, 4, bh + 3);       // right rail
+            // Deck surface glow line
+            const deckGrad = ctx.createLinearGradient(-hw, deckY - 1, hw, deckY);
+            deckGrad.addColorStop(0, 'rgba(56,189,248,0.8)');
             deckGrad.addColorStop(1, 'rgba(56,189,248,0.3)');
             ctx.strokeStyle = deckGrad;
             ctx.lineWidth = 1.5;
@@ -2925,69 +3066,71 @@ class CargoGame {
             ctx.fill();
 
             // ── Dual thruster nozzles ──────────────────────────────────────
-            for (const nx of [-8, 8]) {
+            for (const nx of [-9, 9]) {
                 ctx.fillStyle = '#1e293b';
                 ctx.strokeStyle = '#475569';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.moveTo(nx - 4, 19);
-                ctx.lineTo(nx + 4, 19);
-                ctx.lineTo(nx + 6, 27);
-                ctx.lineTo(nx - 6, 27);
+                ctx.moveTo(nx - 4, 10);
+                ctx.lineTo(nx + 4, 10);
+                ctx.lineTo(nx + 5, 16);
+                ctx.lineTo(nx - 5, 16);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-                // Nozzle ring
-                ctx.strokeStyle = '#64748b';
-                ctx.lineWidth = 1;
+                // Nozzle ring glow
+                ctx.strokeStyle = lander.thrusting && lander.fuel > 0 ? 'rgba(251,191,36,0.8)' : '#64748b';
+                ctx.lineWidth = 1.2;
                 ctx.beginPath();
-                ctx.ellipse(nx, 27, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.ellipse(nx, 16, 5, 2, 0, 0, Math.PI * 2);
                 ctx.stroke();
             }
 
-            // ── Landing legs — spring-compressed on touchdown ──────────────
+            // ── Landing legs — extend from chassis bottom ─────────────────────────
             const lc = lander.legCompress || 0;
-            const legSink = lc * 16;
-            const legSpreadX = hw + 12 - lc * 8;
-            const footY = 27 - legSink;
+            // When lc=0 (flying, relaxed): legs extend 14px below body
+            // When lc=1 (just landed): legs close to body (bounceY lifts body instead)
+            const legExtend = 14 * (1 - lc * 0.3);  // 14px relaxed, 9.8px compressed
+            const footY = 14 + legExtend;             // body hh=14, feet below
+            const legSpreadX = hw + 10 - lc * 4;     // spread out slightly, pull in when compressed
 
             ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2.5;
             // Left leg
             ctx.beginPath();
-            ctx.moveTo(-hw + 4, 8);
+            ctx.moveTo(-hw + 2, 12);
             ctx.lineTo(-legSpreadX, footY);
-            ctx.lineTo(-legSpreadX - 6, footY);
+            ctx.lineTo(-legSpreadX - 7, footY + 1);
             ctx.stroke();
             // Left cross brace
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(-hw + 1, 15);
-            ctx.lineTo(-legSpreadX, footY - 2);
+            ctx.moveTo(-hw + 4, 6);
+            ctx.lineTo(-legSpreadX, footY - 1);
             ctx.stroke();
             // Right leg
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            ctx.moveTo(hw - 4, 8);
+            ctx.moveTo(hw - 2, 12);
             ctx.lineTo(legSpreadX, footY);
-            ctx.lineTo(legSpreadX + 6, footY);
+            ctx.lineTo(legSpreadX + 7, footY + 1);
             ctx.stroke();
             // Right cross brace
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(hw - 1, 15);
-            ctx.lineTo(legSpreadX, footY - 2);
+            ctx.moveTo(hw - 4, 6);
+            ctx.lineTo(legSpreadX, footY - 1);
             ctx.stroke();
 
             // ── Navigation lights ─────────────────────────────────────────
             const navPulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
             ctx.fillStyle = `rgba(239, 68, 68, ${navPulse})`;
             ctx.beginPath();
-            ctx.arc(-legSpreadX - 6, footY, 2.5, 0, Math.PI * 2);
+            ctx.arc(-legSpreadX - 7, footY, 2.5, 0, Math.PI * 2);
             ctx.fill();
             ctx.fillStyle = `rgba(16, 185, 129, ${navPulse})`;
             ctx.beginPath();
-            ctx.arc(legSpreadX + 6, footY, 2.5, 0, Math.PI * 2);
+            ctx.arc(legSpreadX + 7, footY, 2.5, 0, Math.PI * 2);
             ctx.fill();
 
             // ── Side thruster nozzles (visible even when idle) ────────────
