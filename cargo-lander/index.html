@@ -409,6 +409,46 @@
             #hud-overlay { flex-direction: column; gap: 8px; align-items: stretch; }
             .hud-group { justify-content: space-between; }
         }
+        
+        /* Mobile Touch Controls */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            justify-content: space-between;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .mobile-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        .mobile-btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: flex;
+            }
+        }
     </style>
 </head>
 <body>
@@ -442,6 +482,37 @@
         
         <!-- Canvas Elements -->
         <canvas id="cargoCanvas"></canvas>
+
+        <!-- Mobile Touch Controls -->
+        <div id="mobile-controls">
+            <!-- Movement -->
+            <div style="display: flex; gap: 15px;">
+                <button class="mobile-btn" id="btn-left" onpointerdown="game.keys['a']=true" onpointerup="game.keys['a']=false" onpointerleave="game.keys['a']=false">◀</button>
+                <button class="mobile-btn" id="btn-right" onpointerdown="game.keys['d']=true" onpointerup="game.keys['d']=false" onpointerleave="game.keys['d']=false">▶</button>
+            </div>
+            <!-- Actions -->
+            <div style="display: flex; flex-direction: column; gap: 15px; align-items: flex-end;">
+                <div style="display: flex; gap: 15px;">
+                    <button class="mobile-btn" id="btn-rope-up" style="font-size:16px;" onpointerdown="game.keys['q']=true" onpointerup="game.keys['q']=false" onpointerleave="game.keys['q']=false">Q UP</button>
+                    <button class="mobile-btn" id="btn-rope-down" style="font-size:16px;" onpointerdown="game.keys['e']=true" onpointerup="game.keys['e']=false" onpointerleave="game.keys['e']=false">E DN</button>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <button class="mobile-btn" id="btn-action" onpointerdown="triggerAction()">🎯</button>
+                    <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);" onpointerdown="game.keys['w']=true" onpointerup="game.keys['w']=false" onpointerleave="game.keys['w']=false">🔥</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            function triggerAction() {
+                if (game && game.physics && game.physics.lander) {
+                    if (game.physics.lander.vehicleType === 'drone') {
+                        game.toggleGrapple();
+                    } else {
+                        game.triggerCargoDispense();
+                    }
+                }
+            }
+        </script>
 
         <!-- Floating HUD during gameplay -->
         <div id="hud-overlay" class="hud-panel">
