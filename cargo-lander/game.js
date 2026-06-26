@@ -774,16 +774,23 @@ class CargoGame {
     }
 
     spawnDeliveryParticles(x, y, color) {
-        for (let i = 0; i < 15; i++) {
+        const isSuccess = color !== "#475569";
+        const count = isSuccess ? 45 : 15;
+        
+        for (let i = 0; i < count; i++) {
+            const pColor = isSuccess 
+                ? (Math.random() > 0.4 ? color : ['#f43f5e', '#10b981', '#38bdf8', '#fbbf24', '#a855f7'][Math.floor(Math.random() * 5)])
+                : color;
+
             this.physics.particles.push({
                 x: x,
                 y: y,
-                vx: (Math.random() - 0.5) * 4,
-                vy: -Math.random() * 4 - 1,
+                vx: (Math.random() - 0.5) * (isSuccess ? 8 : 4),
+                vy: isSuccess ? (-Math.random() * 6 - 2) : (-Math.random() * 4 - 1),
                 life: 1.0,
-                decay: 0.03 + Math.random() * 0.03,
-                color: color,
-                size: 2 + Math.random() * 4
+                decay: isSuccess ? (0.015 + Math.random() * 0.025) : (0.03 + Math.random() * 0.03),
+                color: pColor,
+                size: isSuccess ? (3 + Math.random() * 5) : (2 + Math.random() * 4)
             });
         }
     }
