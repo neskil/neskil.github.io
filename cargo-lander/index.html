@@ -613,57 +613,114 @@
         <!-- SCREEN OVERLAY: MENU SCREEN -->
         <div id="menu-screen" class="screen-overlay">
             <div class="screen-content">
-                <h1>CargoLander</h1>
-                <p class="subtitle">Supply Chain Physics Simulation. Transport cargo from Sourcing Depots to matching color-coded Delivery Hubs. Don't drop the payload!</p>
-                
-                <h2 style="font-size: 1.1rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; text-align: left;">Select Mission</h2>
-                <div class="level-grid">
-                    <button class="btn-level" onclick="game.showVehicleSelection(0)">
-                        <span class="num">Mission 1</span>
-                        Normal Distribution
-                    </button>
-                    <button class="btn-level" onclick="game.showVehicleSelection(1)">
-                        <span class="num">Mission 2</span>
-                        Cross-Dock Sorting
-                    </button>
-                    <button class="btn-level" onclick="game.showVehicleSelection(2)">
-                        <span class="num">Mission 3</span>
-                        Gale-Force Winds
-                    </button>
-                    <button class="btn-level" onclick="game.showVehicleSelection(3)">
-                        <span class="num">Mission 4</span>
-                        Gravity Anomaly
-                    </button>
-                    <button class="btn-level" onclick="game.showVehicleSelection(4)" style="border-color: var(--neon-blue);">
-                        <span class="num" style="color: var(--neon-blue);">Mission 5</span>
-                        The Needle's Eye
-                    </button>
+                <div style="text-align: center; margin-bottom: 18px;">
+                    <h1>CargoLander</h1>
+                    <p class="subtitle" style="margin-bottom: 0;">Supply Chain Physics · Transport cargo to color-coded Delivery Hubs · Don&apos;t drop the payload!</p>
                 </div>
 
-                <div class="control-help">
-                    <div>
-                        <span class="kbd-key">W</span> / <span class="kbd-key">▲</span>
-                        <span>Thrusters</span>
-                    </div>
-                    <div>
-                        <span class="kbd-key">A</span> / <span class="kbd-key">D</span>
-                        <span>Rotate</span>
-                    </div>
-                    <div>
-                        <span class="kbd-key">Space</span>
-                        <span>Dispense Cargo</span>
-                    </div>
-                    <div>
-                        <span class="kbd-key">R</span>
-                        <span>Reset Mission</span>
-                    </div>
-                </div>
+                <div class="menu-panes">
+                    <!-- LEFT: Mission Selector -->
+                    <div class="menu-left">
+                        <h2 style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.12em;">📡 Select Mission</h2>
+                        <div class="level-grid" id="mission-grid">
+                            <button class="btn-level" onclick="game.showVehicleSelection(0)">
+                                <span class="num">Mission 1</span>
+                                Normal Distribution
+                                <span id="hs-badge-0" style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
+                            </button>
+                            <button class="btn-level" onclick="game.showVehicleSelection(1)">
+                                <span class="num">Mission 2</span>
+                                Cross-Dock Sorting
+                                <span id="hs-badge-1" style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
+                            </button>
+                            <button class="btn-level" onclick="game.showVehicleSelection(2)">
+                                <span class="num">Mission 3</span>
+                                Gale-Force Winds
+                                <span id="hs-badge-2" style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
+                            </button>
+                            <button class="btn-level" onclick="game.showVehicleSelection(3)">
+                                <span class="num">Mission 4</span>
+                                Gravity Anomaly
+                                <span id="hs-badge-3" style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
+                            </button>
+                            <button class="btn-level" onclick="game.showVehicleSelection(4)" style="border-color: var(--neon-blue); grid-column: span 2;">
+                                <span class="num" style="color: var(--neon-blue);">🔵 Mission 5 · Elite</span>
+                                The Needle's Eye
+                                <span id="hs-badge-4" style="font-size:0.65rem; color:#38bdf8; font-weight:600; margin-top:2px;"></span>
+                            </button>
+                        </div>
 
-                <div style="margin-top: 1.5rem; text-align: center;">
-                    <button class="btn-primary" onclick="game.openUpgradeShop()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">Upgrade Shop</button>
+                        <div class="control-help" style="margin-top: 1rem;">
+                            <div><span class="kbd-key">W</span> / <span class="kbd-key">▲</span> <span>Thrusters</span></div>
+                            <div><span class="kbd-key">A</span> / <span class="kbd-key">D</span> <span>Rotate</span></div>
+                            <div><span class="kbd-key">Space</span> <span>Drop Cargo</span></div>
+                            <div><span class="kbd-key">R</span> <span>Respawn</span></div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Pilot License + Highscores -->
+                    <div class="menu-right">
+                        <!-- Pilot License Card -->
+                        <div class="pilot-card">
+                            <div class="license-header">
+                                <div class="pilot-avatar" id="pilot-avatar">🚀</div>
+                                <div class="license-title-block">
+                                    <div class="license-eyebrow">Pilot ID · GCA-7749</div>
+                                    <input
+                                        class="license-name-input"
+                                        id="pilot-name-input"
+                                        type="text"
+                                        maxlength="22"
+                                        placeholder="Enter callsign…"
+                                        oninput="game.updatePilotName(this.value)"
+                                    >
+                                    <div class="license-rank" id="pilot-rank">Rookie Hauler</div>
+                                </div>
+                                <div class="license-badge" id="pilot-tier">CLASS F</div>
+                            </div>
+
+                            <div class="stat-grid">
+                                <div class="stat-cell">
+                                    <div class="stat-cell-label">💰 Global Cash</div>
+                                    <div class="stat-cell-value green" id="lc-cash">$1,000</div>
+                                </div>
+                                <div class="stat-cell">
+                                    <div class="stat-cell-label">📦 Deliveries</div>
+                                    <div class="stat-cell-value blue" id="lc-deliveries">0</div>
+                                </div>
+                                <div class="stat-cell">
+                                    <div class="stat-cell-label">✅ Missions</div>
+                                    <div class="stat-cell-value amber" id="lc-missions">0</div>
+                                </div>
+                                <div class="stat-cell">
+                                    <div class="stat-cell-label">💀 Crashes</div>
+                                    <div class="stat-cell-value red" id="lc-crashes">0</div>
+                                </div>
+                            </div>
+
+                            <!-- Upgrade bar -->
+                            <div style="margin-top: 4px;">
+                                <div class="stat-cell-label" style="margin-bottom:6px;">🔧 Installed Upgrades</div>
+                                <div id="lc-upgrades" style="display:flex; flex-wrap:wrap; gap:4px; min-height:24px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Personal Bests -->
+                        <div class="highscores-card">
+                            <div class="hs-title">🏆 Personal Best Payouts</div>
+                            <div id="hs-list"></div>
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div class="career-actions">
+                            <button class="btn-career amber" onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
+                            <button class="btn-career red" onclick="game.confirmResetCareer()">⚠ Reset Career</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+
 
         <!-- SCREEN OVERLAY: VEHICLE SELECTION -->
         <div id="vehicle-screen" class="screen-overlay" style="display: none;">

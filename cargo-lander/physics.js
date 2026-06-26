@@ -276,7 +276,12 @@ class CargoPhysics {
 
     updateMonster(dt) {
         const lander = this.lander;
-        if (lander.crashed) return;
+
+        // If lander already crashed, just let any living monster fade out
+        if (lander.crashed) {
+            this.monster = null;
+            return;
+        }
 
         // Spawn logic: Trigger if lander strays out of bounds
         if (lander.x < -500 || lander.x > this.levelWidth + 500) {
@@ -319,12 +324,15 @@ class CargoPhysics {
             m.x += m.vx * dt;
             m.y += m.vy * dt;
 
-            // Lethal Contact!
+            // Lethal Contact — eat the lander then vanish
             if (dist < m.size / 2 + lander.width / 2) {
                 this.triggerExplosion();
+                this.monster = null; // Monster despawns after eating
+                this.outOfBoundsTimer = 0; // Reset so it can't immediately respawn
             }
         }
     }
+
 
     applyControls(dt, inputState) {
         const lander = this.lander;
