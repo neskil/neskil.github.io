@@ -8,7 +8,7 @@ class CargoAudioController {
         this.warningInterval = null;
         this.warningOsc = null;
         this.isWarningPlaying = false;
-        this.muted = true;
+        this.muted = false;
 
         // Settings & Music
         this.musicVolume = 0.5;
