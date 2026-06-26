@@ -22,7 +22,12 @@ class CargoAudioController {
     }
 
     init() {
-        if (this.ctx) return; // Already initialized
+        if (this.ctx) {
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+            return;
+        }
 
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -71,8 +76,9 @@ class CargoAudioController {
     }
 
     setThruster(intensity) {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init(); // Ensure initialized on first interaction
+        if (!this.ctx) return;
 
         if (this.thrusterGain && this.thrusterFilter) {
             const targetGain = intensity * 0.15 * this.sfxVolume;
@@ -85,8 +91,9 @@ class CargoAudioController {
     }
 
     playLoad() {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
         
@@ -96,8 +103,9 @@ class CargoAudioController {
     }
 
     playUnload() {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
         
@@ -107,8 +115,9 @@ class CargoAudioController {
     }
 
     playCollision(impactSpeed) {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
         const volume = Math.min(impactSpeed / 15, 1.0) * 0.4 * this.sfxVolume;
@@ -156,8 +165,9 @@ class CargoAudioController {
     }
 
     playCrash() {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
 
@@ -209,8 +219,9 @@ class CargoAudioController {
     }
 
     setWarning(active) {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         if (active && !this.isWarningPlaying) {
             this.isWarningPlaying = true;
@@ -242,8 +253,9 @@ class CargoAudioController {
     }
 
     playSuccess() {
-        if (this.muted || !this.ctx) return;
+        if (this.muted) return;
         this.init();
+        if (!this.ctx) return;
 
         const now = this.ctx.currentTime;
 
@@ -264,7 +276,7 @@ class CargoAudioController {
             osc.type = 'sine';
             osc.frequency.setValueAtTime(frequency, time);
 
-            gain.gain.setValueAtTime(volume, time);
+            gain.gain.setValueAtTime(volume * this.sfxVolume, time);
             gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
             osc.connect(gain);
@@ -283,8 +295,80 @@ class CargoAudioController {
             this.setThruster(0);
             this.stopWarningBeeps();
             this.isWarningPlaying = false;
+            if (this.musicGain && this.ctx) {
+                this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+            }
+        } else {
+            this.init();
+            if (this.musicGain && this.ctx) {
+                this.musicGain.gain.setTargetAtTime(this.musicVolume * 0.1, this.ctx.currentTime, 0.1);
+            }
         }
         return this.muted;
+    }
+
+    setMusicVolume(volume) {
+        this.musicVolume = volume;
+        if (this.ctx && this.musicGain && !this.muted) {
+            this.musicGain.gain.setTargetAtTime(volume * 0.1, this.ctx.currentTime, 0.1);
+        }
+    }
+
+    setSFXVolume(volume) {
+        this.sfxVolume = volume;
+    }
+
+    setupMusic() {
+        if (!this.ctx) return;
+
+        try {
+            // Create main gain node for music
+            this.musicGain = this.ctx.createGain();
+            // Start at 0 if muted, otherwise scale by musicVolume
+            const initialVolume = this.muted ? 0 : this.musicVolume * 0.1;
+            this.musicGain.gain.setValueAtTime(initialVolume, this.ctx.currentTime);
+
+            // Lowpass filter for warm space drone
+            this.musicFilter = this.ctx.createBiquadFilter();
+            this.musicFilter.type = 'lowpass';
+            this.musicFilter.frequency.setValueAtTime(250, this.ctx.currentTime);
+            this.musicFilter.Q.setValueAtTime(2.0, this.ctx.currentTime);
+
+            // First oscillator (drone fundamental, e.g., C2 = 65.41 Hz)
+            this.musicOsc1 = this.ctx.createOscillator();
+            this.musicOsc1.type = 'sawtooth';
+            this.musicOsc1.frequency.setValueAtTime(65.41, this.ctx.currentTime); // C2
+
+            // Second oscillator (drone fifth, detuned, e.g., G2 = 98.00 Hz)
+            this.musicOsc2 = this.ctx.createOscillator();
+            this.musicOsc2.type = 'triangle';
+            this.musicOsc2.frequency.setValueAtTime(98.00, this.ctx.currentTime); // G2
+            this.musicOsc2.detune.setValueAtTime(10, this.ctx.currentTime); // 10 cents detuned
+
+            // LFO to slowly sweep the filter frequency (pulsing space feel)
+            this.musicLfo = this.ctx.createOscillator();
+            this.musicLfo.type = 'sine';
+            this.musicLfo.frequency.setValueAtTime(0.08, this.ctx.currentTime); // very slow: 0.08 Hz
+
+            this.musicLfoGain = this.ctx.createGain();
+            this.musicLfoGain.gain.setValueAtTime(80, this.ctx.currentTime); // modulate filter frequency by +/- 80 Hz
+
+            // Connections:
+            this.musicLfo.connect(this.musicLfoGain);
+            this.musicLfoGain.connect(this.musicFilter.frequency);
+
+            this.musicOsc1.connect(this.musicFilter);
+            this.musicOsc2.connect(this.musicFilter);
+            this.musicFilter.connect(this.musicGain);
+            this.musicGain.connect(this.ctx.destination);
+
+            // Start everything
+            this.musicOsc1.start(0);
+            this.musicOsc2.start(0);
+            this.musicLfo.start(0);
+        } catch (e) {
+            console.error("Failed to setup ambient music drone", e);
+        }
     }
 }
 
