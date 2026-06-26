@@ -304,8 +304,8 @@ class CargoPhysics {
             return;
         }
 
-        // Spawn logic: Trigger if lander strays out of bounds
-        if (lander.x < -500 || lander.x > this.levelWidth + 500) {
+        // Spawn logic: Trigger if lander strays out of bounds (including flying too high)
+        if (lander.x < -500 || lander.x > this.levelWidth + 500 || lander.y < -600) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
@@ -369,15 +369,23 @@ class CargoPhysics {
         const lander = this.lander;
         if (lander.crashed) return;
 
-        // Thrust Spooling Interpolation (0 to 1)
-        const spoolSpeed = 0.05 * dt;
+        // Thrust: slow spool-up, instant cut-off
+        const spoolSpeed = 0.06 * dt;
         const thrustInput = (inputState.up || inputState.mouseLeft) ? 1.0 : 0.0;
-        lander.enginePower += (thrustInput - lander.enginePower) * Math.min(1, spoolSpeed);
+        if (thrustInput === 0) {
+            lander.enginePower = 0; // Instant cut
+        } else {
+            lander.enginePower = Math.min(1, lander.enginePower + spoolSpeed);
+        }
 
         let strafeInput = 0;
         if (inputState.left || inputState.q) strafeInput = -1.0;
         if (inputState.right || inputState.e || inputState.mouseRight) strafeInput = 1.0;
-        lander.strafePower += (strafeInput - lander.strafePower) * Math.min(1, spoolSpeed);
+        if (strafeInput === 0) {
+            lander.strafePower = 0; // Instant cut
+        } else {
+            lander.strafePower = Math.max(-1, Math.min(1, lander.strafePower + strafeInput * spoolSpeed));
+        }
 
         const maxThrust = 0.55 * (lander.thrustMultiplier || 1.0);
         lander.thrusting = lander.enginePower > 0.1;
@@ -530,11 +538,20 @@ class CargoPhysics {
     applyGravityWell(levelConfig, dt) {
         if (!levelConfig.gravityWell) return;
         const well = levelConfig.gravityWell;
-        const dx = well.x - this.lander.x;
-        const dy = well.y - this.lander.y;
+
+        // Animate the well position so it drifts around its origin
+        this.gravityWellTime = (this.gravityWellTime || 0) + dt * 0.008;
+        const orbitR = well.orbitRadius || 180;
+        const wx = well.x + Math.sin(this.gravityWellTime) * orbitR;
+        const wy = well.y + Math.cos(this.gravityWellTime * 0.65) * orbitR * 0.55;
+
+        // Expose current position so renderer can draw it
+        this.gravityWellPos = { x: wx, y: wy, radius: well.radius, strength: well.strength };
+
+        const dx = wx - this.lander.x;
+        const dy = wy - this.lander.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist > 20 && dist < well.radius) {
-            // Force inverse proportional to distance
             const force = (well.strength * 10) / (dist * 0.1);
             this.lander.vx += (dx / dist) * force * dt;
             this.lander.vy += (dy / dist) * force * dt;
@@ -625,6 +642,7 @@ class CargoPhysics {
 
             if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
                 // Safe Landing!
+                if (!lander.landed) lander.legCompress = Math.min(1, speed * 0.5); // spring on first touch
                 lander.y -= minPen;
                 lander.vy = 0;
                 lander.vx = 0;
@@ -716,6 +734,11 @@ class CargoPhysics {
             // Lander is in mid-air
             lander.landed = false;
             lander.currentPad = null;
+        }
+
+        // Leg spring decay — always spring back toward relaxed position
+        if (lander.legCompress > 0) {
+            lander.legCompress = Math.max(0, lander.legCompress - 0.04 * dt);
         }
     }
 
@@ -1024,60 +1047,82 @@ class CargoPhysics {
     updateAmbientTraffic(dt) {
         if (!this.ambientTraffic) this.ambientTraffic = [];
 
-        // Spawn a new truck periodically (max 4 on screen)
+        // Spawn a new truck periodically (max 5 on screen)
         this.trafficSpawnTimer = (this.trafficSpawnTimer || 0) + dt;
-        if (this.trafficSpawnTimer > 500 && this.ambientTraffic.length < 4) {
+        if (this.trafficSpawnTimer > 420 && this.ambientTraffic.length < 5) {
             this.trafficSpawnTimer = 0;
             const fromRight = Math.random() > 0.5;
-            // Find rough sky height: top of terrain minus some vertical range
             const minTerrainY = Math.min(...this.terrainPoints.map(p => p.y));
-            const skyY = minTerrainY - 100 - Math.random() * 350;
-            const truckW = 90 + Math.random() * 70;
-            const truckH = 22 + Math.random() * 14;
-            const speed = 0.25 + Math.random() * 0.45;
+            const skyY = minTerrainY - 80 - Math.random() * 450;
+            const truckW = 80 + Math.random() * 100;
+            const truckH = 18 + Math.random() * 18;
+            const speed = 0.2 + Math.random() * 0.55;
             const palette = [
                 { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
                 { body: '#2d1b4e', accent: '#a78bfa', light: '#c4b5fd' },
                 { body: '#1a3a2a', accent: '#10b981', light: '#6ee7b7' },
                 { body: '#3a2000', accent: '#f97316', light: '#fed7aa' },
+                { body: '#3a1a1a', accent: '#ef4444', light: '#fca5a5' },
+                { body: '#1a1a3a', accent: '#818cf8', light: '#c7d2fe' },
             ];
             const col = palette[Math.floor(Math.random() * palette.length)];
+            // willFlyOff: some trucks tilt and escape into space
+            const willFlyOff = Math.random() < 0.3;
+            const flyOffDelay = willFlyOff ? 300 + Math.random() * 600 : Infinity;
             this.ambientTraffic.push({
                 x: fromRight ? this.levelWidth + truckW + 50 : -truckW - 50,
                 y: Math.max(80, skyY),
+                vy: 0,
                 vx: fromRight ? -speed : speed,
                 w: truckW,
                 h: truckH,
+                angle: 0,
                 lightPhase: Math.random() * Math.PI * 2,
                 bodyColor: col.body,
                 accentColor: col.accent,
                 lightColor: col.light,
-                engineGlow: Math.random() > 0.5,
+                engineGlow: Math.random() > 0.4,
+                flyOffTimer: flyOffDelay,
+                flyingOff: false,
             });
         }
 
         for (let i = this.ambientTraffic.length - 1; i >= 0; i--) {
             const t = this.ambientTraffic[i];
+
+            // Tick fly-off timer
+            t.flyOffTimer -= dt;
+            if (t.flyOffTimer <= 0 && !t.flyingOff) {
+                t.flyingOff = true;
+                // Tilt and accelerate away
+                t.tiltTarget = (t.vx > 0 ? -1 : 1) * (0.4 + Math.random() * 0.6);
+            }
+
+            if (t.flyingOff) {
+                t.angle += (t.tiltTarget - t.angle) * 0.04 * dt;
+                t.vx *= 1 + 0.006 * dt;
+                t.vy -= 0.08 * dt; // drift upward into space
+            }
+
             t.x += t.vx * dt;
+            t.y += t.vy * dt;
             t.lightPhase += 0.05 * dt;
 
-            // Despawn once fully off-screen
-            if (t.x < -t.w - 200 || t.x > this.levelWidth + t.w + 200) {
+            // Despawn once far off-screen or far above level
+            if (t.x < -t.w - 400 || t.x > this.levelWidth + t.w + 400 || t.y < -600) {
                 this.ambientTraffic.splice(i, 1);
                 continue;
             }
 
-            // Mild collision push (doesn't crash the player, just nudges)
+            // Mild collision push
             if (this.lander && !this.lander.crashed) {
                 const l = this.lander;
                 const tx = t.x + t.w / 2;
-                const ty = t.y;
                 const overlapX = (t.w / 2 + l.width / 2) - Math.abs(l.x - tx);
-                const overlapY = (t.h / 2 + l.height / 2) - Math.abs(l.y - ty);
+                const overlapY = (t.h / 2 + l.height / 2) - Math.abs(l.y - t.y);
                 if (overlapX > 0 && overlapY > 0) {
                     const impact = Math.abs(l.vx - t.vx) + Math.abs(l.vy);
                     l.integrity -= impact * 4;
-                    // Shove lander away
                     l.vx += (l.x > tx ? 1 : -1) * 2;
                     l.vy -= 1.5;
                     if (l.integrity <= 0) this.triggerExplosion();

@@ -125,3 +125,40 @@ Changes were verified live against the local static server: the menu renders the
 fully-styled pilot-license card populated from `localStorage`, the Audio settings
 modal opens with controls synced to the real mute/volume state, and the browser
 console + on-screen error logger report no errors.
+
+---
+
+## Recent additions
+
+### Visual & atmosphere
+- **Level color palettes** — each of the 5 levels has its own `palette` object (`skyTop/skyMid/skyBot`, `terrainFill`, `rockEdge`, `rockGlow`). Level 1 is a friendly green; Levels 4-5 use deep reds and near-black skies.
+- **Ambient space-truck traffic** — NPC ships fly across the sky in both directions. 30 % chance a truck will tilt and rocket off into space mid-flight. Varied hull palette (6 color schemes), speed, and size.
+- **Decorative surface buildings** — antenna towers, silos, and refineries generated on the terrain surface at level start.
+
+### Physics & controls
+- **Instant thruster cut-off** — releasing the thrust key drops engine power to zero immediately; only spool-up is gradual.
+- **Fly upward = out-of-bounds** — going above `y < -600` triggers the same OOB monster warning as leaving horizontally.
+- **Moving gravity well** — the gravity anomaly orbits its base position using a Lissajous-like phase, visible as a subtle pull on the lander.
+- **Landing-leg spring** — legs compress and bounce back on touchdown (`lander.legCompress` animated).
+
+### Progression
+- **Pilot rank system** — rank (CLASS F → CLASS S) now scales with *both* upgrade investment (55 % weight) and mastering each level with a 5 000+ score (45 % weight), not just mission count.
+
+### HUD
+- **Mission panel legibility** — larger font (12-13 px instead of 9-11 px), wider panel, more opaque background.
+
+---
+
+## Next steps / potential improvements
+
+| Priority | Feature |
+|----------|---------|
+| High | **Mobile viewport scaling** — narrow screens need a CSS `transform: scale(…)` applied to the game container |
+| High | **Space mountains** — floating static rock obstacles to navigate around |
+| High | **Minimap resize** — radar should grow both horizontally and vertically to reflect actual level dimensions |
+| Medium | **Flora & fauna** — decorative terrain elements (alien plants, critters) |
+| Medium | **Mouse aiming polish** — basic & advanced lander aim can lag; consider direct angle interpolation |
+| Medium | **Terrain edge flicker** — investigate sub-pixel stroke rounding on terrain redraw |
+| Medium | **Upgrade verification** — audit all 5 upgrade types end-to-end in gameplay |
+| Low | **More levels** — larger maps, escalating difficulty, new hazard types (asteroid belts, moving platforms) |
+| Low | **Procedural map generator** — runtime terrain + pad placement instead of hardcoded points |
