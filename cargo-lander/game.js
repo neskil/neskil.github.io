@@ -719,14 +719,19 @@ class CargoGame {
             return;
         }
         
-        // Can only dispense if parked at the collection point
-        if (this.physics.lander.landed && this.physics.lander.currentPad === 'collection') {
+        // Allow dispense when lander is near/on the collection point pad
+        const cp = this.physics.collectionPoint;
+        const l = this.physics.lander;
+        const cpCenterX = cp.x + cp.width / 2;
+        const nearCollection = Math.abs(l.x - cpCenterX) < cp.width / 2 + 28
+                            && l.y >= cp.y - 60 && l.y <= cp.y + 12;
+        if (nearCollection) {
             const levelConfig = levels[this.currentLevelIndex];
-            
+
             // Randomly select one of the allowed types for this level
             const types = levelConfig.allowedTypes || ['normal'];
             const t = types[Math.floor(Math.random() * types.length)];
-            
+
             // Limit cargo count on screen to prevent extreme physics lag or overflow
             if (this.physics.boxes.length >= 6) {
                 this.addMessage("Cargo deck maximum reached!", "#ef4444");
@@ -735,7 +740,7 @@ class CargoGame {
 
             this.physics.spawnCargo(t);
             this.cargoSpawnCooldown = 30; // Cooldown frames
-            
+
             if (!this.isMuted) {
                 CargoAudio.playLoad();
             }
@@ -2127,13 +2132,28 @@ class CargoGame {
             ctx.fillRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
             ctx.strokeRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
 
-            // Holographic dispenser prompt when landed on it
+            // Dispenser prompt — visible whenever lander is in the loading zone
             const lander = this.physics.lander;
-            if (lander && lander.landed && lander.currentPad === 'collection') {
-                ctx.fillStyle = 'rgba(251, 191, 36, 0.85)';
-                ctx.font = '600 13px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText("PRESS [SPACE] TO DISPENSE CARGO", collection.x + collection.width / 2, collection.y - 45);
+            if (lander) {
+                const cpCx = collection.x + collection.width / 2;
+                const nearPad = Math.abs(lander.x - cpCx) < collection.width / 2 + 28
+                              && lander.y >= collection.y - 60 && lander.y <= collection.y + 12;
+                if (nearPad) {
+                    // Zone indicator: soft glow under the pad
+                    const zGrad = ctx.createRadialGradient(cpCx, collection.y, 0, cpCx, collection.y, collection.width * 0.75);
+                    zGrad.addColorStop(0, 'rgba(251,191,36,0.18)');
+                    zGrad.addColorStop(1, 'rgba(251,191,36,0)');
+                    ctx.fillStyle = zGrad;
+                    ctx.beginPath();
+                    ctx.ellipse(cpCx, collection.y + 4, collection.width * 0.75, 16, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    const pulse = 0.7 + Math.abs(Math.sin(Date.now() * 0.006)) * 0.3;
+                    ctx.fillStyle = `rgba(251, 191, 36, ${pulse})`;
+                    ctx.font = '600 13px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText("[ SPACE ] DISPENSE CARGO", cpCx, collection.y - 45);
+                }
             }
         }
     }
