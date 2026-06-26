@@ -494,6 +494,8 @@ class CargoPhysics {
             }
         }
         
+        lander.fuel = Math.max(0, lander.fuel);
+
         // Universal Exhaust particles (scaled by engine power)
         if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower * dt) {
             const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;

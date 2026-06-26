@@ -9,10 +9,11 @@ class ShaderOverlay {
     resize(w, h) {
         this.canvas.width = w;
         this.canvas.height = h;
-        this.gl.viewport(0, 0, w, h);
+        if (this.gl) this.gl.viewport(0, 0, w, h);
     }
 
     initShaders() {
+        if (!this.gl) return;
         const gl = this.gl;
 
         // Particle Shader (Point Sprites)
@@ -130,8 +131,9 @@ class ShaderOverlay {
     }
 
     initBuffers() {
+        if (!this.gl) return;
         const gl = this.gl;
-        
+
         // Quad buffer for monster
         this.quadBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -210,6 +212,7 @@ class ShaderOverlay {
     }
 
     render(physics, camera) {
+        if (!this.gl) return;
         const gl = this.gl;
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
