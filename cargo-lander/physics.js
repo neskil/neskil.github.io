@@ -617,22 +617,26 @@ class CargoPhysics {
             let onPad = false;
             let padType = null;
             
-            // Check if landed at start depot or collection point
-            if (groundPt.x >= this.startDepot.x && groundPt.x <= this.startDepot.x + this.startDepot.width) {
-                if (Math.abs(groundPt.y - this.startDepot.y) < 5) {
+            // Pad detection with generous x/y tolerance to prevent flickering
+            const xTol = 30; // extra px on each side
+            const yTol = 10;
+
+            if (groundPt.x >= this.startDepot.x - xTol && groundPt.x <= this.startDepot.x + this.startDepot.width + xTol) {
+                if (Math.abs(groundPt.y - this.startDepot.y) < yTol) {
                     onPad = true;
                     padType = 'start';
                 }
-            } else if (groundPt.x >= this.collectionPoint.x && groundPt.x <= this.collectionPoint.x + this.collectionPoint.width) {
-                if (Math.abs(groundPt.y - this.collectionPoint.y) < 5) {
+            }
+            if (!onPad && groundPt.x >= this.collectionPoint.x - xTol && groundPt.x <= this.collectionPoint.x + this.collectionPoint.width + xTol) {
+                if (Math.abs(groundPt.y - this.collectionPoint.y) < yTol) {
                     onPad = true;
                     padType = 'collection';
                 }
-            } else {
-                // Check delivery hubs
+            }
+            if (!onPad) {
                 for (const hub of this.deliveryHubs) {
-                    if (groundPt.x >= hub.x && groundPt.x <= hub.x + hub.width) {
-                        if (Math.abs(groundPt.y - hub.y) < 5) {
+                    if (groundPt.x >= hub.x - xTol && groundPt.x <= hub.x + hub.width + xTol) {
+                        if (Math.abs(groundPt.y - hub.y) < yTol) {
                             onPad = true;
                             padType = hub.type;
                             break;
