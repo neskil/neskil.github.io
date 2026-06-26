@@ -576,6 +576,36 @@ class CargoGame {
         this.cargoLostCount = 0;
         this.score = 100; // Reset level efficiency
         this.messages = [];
+
+        // Generate world buildings on terrain surface
+        this.buildings = [];
+        const bTypes = ['antenna', 'silo', 'refinery'];
+        const bSpacing = 180 + Math.random() * 80;
+        const bCount = 7 + Math.floor(Math.random() * 4);
+        const padZones = [
+            { x: this.physics.startDepot.x, w: this.physics.startDepot.width + 60 },
+            { x: this.physics.collectionPoint.x, w: this.physics.collectionPoint.width + 60 },
+        ];
+        for (const hub of this.physics.deliveryHubs) {
+            padZones.push({ x: hub.x - 30, w: hub.width + 60 });
+        }
+        let bx = 120;
+        while (this.buildings.length < bCount && bx < this.physics.levelWidth - 120) {
+            bx += bSpacing + (Math.random() - 0.5) * 80;
+            // Skip over pad zones
+            const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
+            if (blocked) continue;
+            const terrainY = this.physics.getTerrainHeight(bx);
+            const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
+            this.buildings.push({
+                type: btype,
+                x: bx,
+                y: terrainY,
+                w: btype === 'silo' ? 22 + Math.random() * 16 : btype === 'refinery' ? 45 + Math.random() * 20 : 6,
+                h: 60 + Math.random() * 100,
+                phase: Math.random() * Math.PI * 2,
+            });
+        }
         
         this.gameState = 'playing';
         this.addMessage("Level Started: " + level.name, "#6366f1");
@@ -1252,6 +1282,12 @@ class CargoGame {
         // 6. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();
 
+        // 6b. Draw world buildings
+        this.drawBuildings();
+
+        // 6c. Draw ambient space truck traffic
+        this.drawAmbientTraffic();
+
         // 7. Draw Boxes
         this.drawBoxes();
 
@@ -1591,11 +1627,13 @@ class CargoGame {
             
             // Mock lander for the draw method
             const tempLander = this.physics.lander;
-            this.physics.lander = { 
-                x: e.x, y: e.y, angle: e.vx > 0 ? 0.2 : -0.2, 
-                vehicleType: e.type === 'advanced' ? 'lander' : e.type, thrusting: true, 
-                width: e.type === 'drone' ? 32 : 48, 
+            this.physics.lander = {
+                x: e.x, y: e.y, angle: e.vx > 0 ? 0.2 : -0.2,
+                vehicleType: e.type === 'advanced' ? 'basic' : e.type,
+                thrusting: true, fuel: 100, strafePower: 0,
+                width: e.type === 'drone' ? 32 : 48,
                 height: e.type === 'drone' ? 16 : 32,
+                deckWidth: 50, deckOffset: 12, basketHeight: 20,
                 magneticDeckActive: false
             };
             
@@ -1661,7 +1699,7 @@ class CargoGame {
         const trail = m.trail;
         if (!trail || trail.length < 4) return;
 
-        // ── Helper: sample a world position + forward angle along trail by arc distance ──
+        // ── Helper: sample world position + forward angle along trail ──
         function trailSample(dist) {
             let walked = 0;
             for (let i = 1; i < trail.length; i++) {
@@ -1670,11 +1708,7 @@ class CargoGame {
                 const d = Math.sqrt(dx*dx + dy*dy);
                 if (walked + d >= dist) {
                     const f = d < 0.001 ? 0 : (dist - walked) / d;
-                    return {
-                        x: trail[i-1].x + dx * f,
-                        y: trail[i-1].y + dy * f,
-                        angle: Math.atan2(dy, dx)
-                    };
+                    return { x: trail[i-1].x + dx * f, y: trail[i-1].y + dy * f, angle: Math.atan2(dy, dx) };
                 }
                 walked += d;
             }
@@ -1682,218 +1716,322 @@ class CargoGame {
             return { x: p.x, y: p.y, angle: 0 };
         }
 
-        // ── Segment definitions: distance along trail, circle radius ──
-        //    Index 0 = head, then body, then tapering tail
+        // Bigger segments — ~40% larger than before
         const SEGS = [
-            { d: 0,   r: 36 }, // HEAD
-            { d: 44,  r: 31 },
-            { d: 82,  r: 28 },
-            { d: 114, r: 25 },
-            { d: 143, r: 22 },
-            { d: 168, r: 19 },
-            { d: 190, r: 16 },
-            { d: 209, r: 13 },
-            { d: 224, r: 10 },
-            { d: 236, r: 7.5 },
-            { d: 245, r: 5.5 },
+            { d: 0,   r: 50 }, // HEAD
+            { d: 60,  r: 43 },
+            { d: 112, r: 38 },
+            { d: 156, r: 34 },
+            { d: 194, r: 30 },
+            { d: 228, r: 26 },
+            { d: 258, r: 22 },
+            { d: 285, r: 18 },
+            { d: 308, r: 13 },
+            { d: 326, r: 10 },
+            { d: 339, r: 7  },
         ];
 
         const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
         const head = positions[0];
 
-        // Head faces toward the lander
         const lander = this.physics.lander;
         const hdx = lander ? lander.x - m.x : m.vx;
         const hdy = lander ? lander.y - m.y : m.vy;
         const headAngle = Math.atan2(hdy, hdx);
-        // Perpendicular "up" relative to head facing
+        // "Up" from the head's facing direction (perpendicular)
         const upAngle = headAngle - Math.PI / 2;
 
-        // ══ PASS 1: LEGS (drawn first, behind everything) ══════════════════
+        const glowPulse = 0.55 + Math.abs(Math.sin(t * 1.8)) * 0.45;
+
+        // ══ PASS 0: DEEP GLOW (drawn behind everything) ════════════════════
+        ctx.save();
+        // Overall body aura
+        const auraGrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, head.r * 4.5);
+        auraGrad.addColorStop(0, `rgba(200, 20, 20, ${0.22 * glowPulse})`);
+        auraGrad.addColorStop(0.5, `rgba(180, 10, 10, ${0.10 * glowPulse})`);
+        auraGrad.addColorStop(1, 'rgba(140, 0, 0, 0)');
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, head.r * 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // ══ PASS 1: TENTACLES (long, multi-joint, scary) ══════════════════
         ctx.save();
         ctx.lineCap = 'round';
-        for (let i = 1; i <= 7; i++) {
+        ctx.lineJoin = 'round';
+        for (let i = 1; i <= 8; i++) {
             const seg = positions[i];
-            const legPhase = t * 3.8 + i * 1.05;
-            const sideWobble = Math.sin(legPhase) * 8;
+            if (!seg) continue;
+            const legPhase = t * 2.6 + i * 1.3;
+            // Random "moment" burst — occasionally one leg spasms
+            const spasm = Math.sin(t * 7.4 + i * 2.1) > 0.85 ? 2.5 : 1.0;
 
             for (const side of [-1, 1]) {
-                // Root point at the underside of the segment
-                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.55) * seg.r * 0.8;
-                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.55) * seg.r * 0.8;
+                // Root at segment equator
+                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.52) * seg.r * 0.85;
+                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.52) * seg.r * 0.85;
 
-                // Knee — goes outward
-                const kneeX = rootX + side * (seg.r * 0.9 + 6) + Math.sin(legPhase * side * 0.8) * 5;
-                const kneeY = rootY + seg.r * 0.5 + sideWobble * 0.4;
+                // Three-joint tentacle for more organic movement
+                const j1X = rootX + side * (seg.r * 1.1 + 8) + Math.sin(legPhase * 0.9) * 9 * spasm;
+                const j1Y = rootY + seg.r * 0.6 + Math.cos(legPhase * 1.2) * 7 * spasm;
 
-                // Foot — drops down further
-                const footX = kneeX + side * 10 + Math.sin(legPhase * 1.3 + side) * 6;
-                const footY = kneeY + seg.r + 14 + Math.cos(legPhase * 0.9) * 5 * side;
+                const j2X = j1X + side * (seg.r * 0.8 + 6) + Math.sin(legPhase * 1.4 + 0.8) * 11 * spasm;
+                const j2Y = j1Y + seg.r * 0.9 + Math.cos(legPhase * 0.8 + 1.1) * 8 * spasm;
 
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.88)';
-                ctx.lineWidth = 1.8;
+                const footX = j2X + side * 12 + Math.sin(legPhase * 1.8 + side) * 10 * spasm;
+                const footY = j2Y + seg.r * 0.7 + Math.cos(legPhase * 1.3) * 6 * side;
+
+                // Outer dark shadow stroke
+                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                ctx.lineWidth = 3.5;
                 ctx.beginPath();
                 ctx.moveTo(rootX, rootY);
-                ctx.quadraticCurveTo(kneeX, kneeY, footX, footY);
+                ctx.bezierCurveTo(j1X, j1Y, j2X, j2Y, footX, footY);
                 ctx.stroke();
 
-                // Foot tip — small angled stroke
-                const tipLen = 8;
-                ctx.beginPath();
-                ctx.moveTo(footX - side * 3, footY - 1);
-                ctx.lineTo(footX + side * tipLen, footY + 4);
+                // Inner red tint
+                ctx.strokeStyle = 'rgba(160,20,20,0.6)';
+                ctx.lineWidth = 1.6;
                 ctx.stroke();
+
+                // Claw at foot tip
+                for (const clawSide of [-1, 1]) {
+                    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(footX, footY);
+                    ctx.lineTo(footX + side * 7 + clawSide * 5, footY + 9);
+                    ctx.stroke();
+                }
             }
         }
         ctx.restore();
 
-        // ══ PASS 2: ANTENNAE from head top (drawn before head circle) ══════
+        // ══ PASS 2: ANTENNAE from top of head ═════════════════════════════
         ctx.save();
         ctx.lineCap = 'round';
         for (const side of [-1, 1]) {
-            // Start from top of head, offset left/right
-            const startX = head.x + Math.cos(upAngle) * head.r * 0.7 + Math.cos(headAngle - Math.PI) * head.r * 0.25 + Math.cos(upAngle + side * 0.6) * head.r * 0.3;
-            const startY = head.y + Math.sin(upAngle) * head.r * 0.7 + Math.sin(headAngle - Math.PI) * head.r * 0.25 + Math.sin(upAngle + side * 0.6) * head.r * 0.3;
+            // Base on the crown of the head (world-up direction from head center)
+            const startX = head.x + Math.cos(upAngle) * head.r * 0.6 + side * head.r * 0.35;
+            const startY = head.y + Math.sin(upAngle) * head.r * 0.6;
 
-            // Antenna tip — wiggles over time
-            const wiggleA = Math.sin(t * 2.5 + side * 1.7) * 22;
-            const wiggleB = Math.cos(t * 1.9 + side * 0.9) * 16;
-            const tipX = startX + Math.cos(headAngle - Math.PI) * head.r * 1.5 + wiggleA;
-            const tipY = startY + Math.sin(headAngle - Math.PI) * head.r * 0.4 - head.r * 0.6 + wiggleB;
+            const wiggleA = Math.sin(t * 2.2 + side * 1.8) * 28;
+            const wiggleB = Math.cos(t * 1.6 + side * 0.7) * 20;
+            const tipX = startX + side * head.r * 0.5 + wiggleA;
+            const tipY = startY - head.r * 1.2 + wiggleB;
 
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.82)';
-            ctx.lineWidth = 1.6;
+            // Shadow
+            ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+            ctx.lineWidth = 2.2;
             ctx.beginPath();
             ctx.moveTo(startX, startY);
             ctx.bezierCurveTo(
-                startX + Math.cos(headAngle - Math.PI) * head.r * 0.5 + side * 10,
-                startY - head.r * 0.3,
-                tipX + Math.sin(t * 3 + side) * 12,
-                tipY + Math.cos(t * 2.2 + side) * 10,
+                startX + side * 15 + Math.sin(t * 2.8 + side) * 10, startY - head.r * 0.5,
+                tipX + Math.sin(t * 3.2 + side) * 14, tipY + Math.cos(t * 2.4 + side) * 12,
                 tipX, tipY
             );
             ctx.stroke();
+
+            // Glowing tip ball
+            const tGlow = ctx.createRadialGradient(tipX, tipY, 0, tipX, tipY, 7);
+            tGlow.addColorStop(0, 'rgba(255,60,60,0.9)');
+            tGlow.addColorStop(1, 'rgba(255,0,0,0)');
+            ctx.fillStyle = tGlow;
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 7, 0, Math.PI * 2);
+            ctx.fill();
         }
         ctx.restore();
 
-        // ══ PASS 3: SEGMENT CIRCLES (tail → head, so head renders on top) ══
+        // ══ PASS 3: SEGMENT CIRCLES with per-segment glow ═════════════════
         ctx.save();
         for (let i = positions.length - 1; i >= 0; i--) {
             const seg = positions[i];
             const isHead = i === 0;
 
-            // Fill
-            ctx.fillStyle = '#dc2626';
-            ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-            ctx.lineWidth = isHead ? 2.5 : 1.8;
+            // Per-segment glow halo
+            const segGlow = ctx.createRadialGradient(seg.x, seg.y, seg.r * 0.3, seg.x, seg.y, seg.r * 2.2);
+            segGlow.addColorStop(0, `rgba(220, 40, 40, ${0.28 * glowPulse})`);
+            segGlow.addColorStop(1, 'rgba(180, 0, 0, 0)');
+            ctx.fillStyle = segGlow;
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, seg.r * 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Body circle — dark-to-red radial for 3D look
+            const bGrad = ctx.createRadialGradient(seg.x - seg.r * 0.25, seg.y - seg.r * 0.25, seg.r * 0.1, seg.x, seg.y, seg.r);
+            bGrad.addColorStop(0, '#ff3a3a');
+            bGrad.addColorStop(0.5, '#c01818');
+            bGrad.addColorStop(1, '#6b0000');
+            ctx.fillStyle = bGrad;
+            ctx.strokeStyle = isHead ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.65)';
+            ctx.lineWidth = isHead ? 3 : 2;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
+            // Specular highlight
+            const specGrad = ctx.createRadialGradient(seg.x - seg.r * 0.3, seg.y - seg.r * 0.35, 0, seg.x - seg.r * 0.2, seg.y - seg.r * 0.2, seg.r * 0.6);
+            specGrad.addColorStop(0, 'rgba(255,180,180,0.35)');
+            specGrad.addColorStop(1, 'rgba(255,80,80,0)');
+            ctx.fillStyle = specGrad;
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
+            ctx.fill();
+
             if (isHead) {
-                // ── HORNS ────────────────────────────────────────────
+                // ── HORNS — always point world-up regardless of head rotation ──
                 const hornDefs = [
-                    { sideOff: -0.4, upScale: 1.1, tilt:  0.15 }, // left horn
-                    { sideOff:  0.2, upScale: 1.45, tilt: -0.12 }, // right horn (taller)
+                    { xOff: -seg.r * 0.38, len: seg.r * 1.55, lean: -0.18, baseW: 8.5 },
+                    { xOff:  seg.r * 0.28, len: seg.r * 1.95, lean:  0.12, baseW: 7.5 },
                 ];
                 for (const h of hornDefs) {
-                    // Base of horn sits on top of head circle
-                    const baseCx = seg.x + Math.cos(headAngle - Math.PI) * seg.r * 0.22 + Math.cos(upAngle) * seg.r * 0.72 + Math.cos(upAngle + Math.PI/2) * seg.r * h.sideOff;
-                    const baseCy = seg.y + Math.sin(headAngle - Math.PI) * seg.r * 0.22 + Math.sin(upAngle) * seg.r * 0.72 + Math.sin(upAngle + Math.PI/2) * seg.r * h.sideOff;
-                    // Tip
-                    const tipX = baseCx + Math.cos(upAngle + h.tilt) * seg.r * h.upScale;
-                    const tipY = baseCy + Math.sin(upAngle + h.tilt) * seg.r * h.upScale;
-                    // Width direction
-                    const wA = upAngle + Math.PI / 2;
-                    const hw = 6;
-                    ctx.fillStyle = '#dc2626';
-                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-                    ctx.lineWidth = 1.5;
+                    // Base sits on top of the head circle (world-up = negative Y)
+                    const baseCx = seg.x + h.xOff;
+                    const baseCy = seg.y - seg.r * 0.72;
+                    // Tip always goes upward with a slight lean
+                    const tipX = baseCx + Math.sin(h.lean) * h.len;
+                    const tipY = baseCy - Math.cos(h.lean) * h.len;
+
+                    // Horn glow
+                    const hornGlow = ctx.createLinearGradient(baseCx, baseCy, tipX, tipY);
+                    hornGlow.addColorStop(0, 'rgba(200,0,0,0.4)');
+                    hornGlow.addColorStop(1, 'rgba(255,80,80,0)');
+                    ctx.fillStyle = hornGlow;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.moveTo(baseCx + Math.cos(wA) * hw,  baseCy + Math.sin(wA) * hw);
+                    ctx.moveTo(baseCx - h.baseW, baseCy);
                     ctx.lineTo(tipX, tipY);
-                    ctx.lineTo(baseCx - Math.cos(wA) * hw, baseCy - Math.sin(wA) * hw);
+                    ctx.lineTo(baseCx + h.baseW, baseCy);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
+
+                    // Horn base fill (solid)
+                    const hGrad = ctx.createLinearGradient(baseCx, baseCy, tipX, tipY);
+                    hGrad.addColorStop(0, '#b91c1c');
+                    hGrad.addColorStop(1, '#7f0000');
+                    ctx.fillStyle = hGrad;
+                    ctx.beginPath();
+                    ctx.moveTo(baseCx - h.baseW * 0.8, baseCy);
+                    ctx.lineTo(tipX, tipY);
+                    ctx.lineTo(baseCx + h.baseW * 0.8, baseCy);
+                    ctx.closePath();
+                    ctx.fill();
                 }
 
-                // ── MOUTH ────────────────────────────────────────────
-                // Positioned on the front face of the head
-                const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.58;
-                const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.58;
-                const mW = 16, mH = 11;
+                // ── MOUTH — massive oval taking up most of the face ────────
+                const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.52;
+                const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.52;
+                const mW = seg.r * 0.72, mH = seg.r * 0.48;
 
                 ctx.save();
                 ctx.translate(mCx, mCy);
                 ctx.rotate(headAngle);
 
-                // Dark mouth interior
-                ctx.fillStyle = '#0a0000';
-                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-                ctx.lineWidth = 2;
+                // Mouth void
+                const mouthGrad = ctx.createRadialGradient(0, 0, 0, 0, mH * 0.3, mW);
+                mouthGrad.addColorStop(0, '#1a0000');
+                mouthGrad.addColorStop(0.6, '#0a0000');
+                mouthGrad.addColorStop(1, '#050000');
+                ctx.fillStyle = mouthGrad;
+                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+                ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
 
-                // Zigzag teeth — top row
-                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
-                ctx.lineWidth = 1.4;
-                ctx.lineCap = 'square';
-                const toothCount = 5;
+                // Inner throat glow (pulsing red from depth)
+                const throatPulse = 0.3 + Math.abs(Math.sin(t * 2.1)) * 0.35;
+                const throatGrad = ctx.createRadialGradient(0, 2, 0, 0, 2, mW * 0.7);
+                throatGrad.addColorStop(0, `rgba(255,30,0,${throatPulse})`);
+                throatGrad.addColorStop(1, 'rgba(255,0,0,0)');
+                ctx.fillStyle = throatGrad;
                 ctx.beginPath();
-                for (let ti = 0; ti <= toothCount; ti++) {
-                    const tx = -mW + (ti / toothCount) * mW * 2;
-                    const ty = ti % 2 === 0 ? -mH * 0.55 : -mH * 0.1;
-                    ti === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
-                }
-                ctx.stroke();
+                ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
+                ctx.fill();
 
-                // Zigzag teeth — bottom row (mirrored)
-                ctx.beginPath();
-                for (let ti = 0; ti <= toothCount; ti++) {
-                    const tx = -mW + (ti / toothCount) * mW * 2;
-                    const ty = ti % 2 === 0 ? mH * 0.55 : mH * 0.1;
-                    ti === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+                // Teeth — top row (sharp triangles)
+                const toothCount = 7;
+                for (let ti = 0; ti < toothCount; ti++) {
+                    const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
+                    ctx.fillStyle = 'rgba(240, 235, 220, 0.92)';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(tx - mW * 0.07, -mH * 0.85);
+                    ctx.lineTo(tx, -mH * 0.15);
+                    ctx.lineTo(tx + mW * 0.07, -mH * 0.85);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
                 }
-                ctx.stroke();
-                ctx.lineCap = 'round';
+                // Bottom row (offset half a tooth)
+                for (let ti = 0; ti < toothCount - 1; ti++) {
+                    const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
+                    ctx.fillStyle = 'rgba(220, 215, 200, 0.88)';
+                    ctx.beginPath();
+                    ctx.moveTo(tx - mW * 0.065, mH * 0.85);
+                    ctx.lineTo(tx, mH * 0.18);
+                    ctx.lineTo(tx + mW * 0.065, mH * 0.85);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
                 ctx.restore();
 
-                // ── EYES (two on the forehead) ────────────────────────
+                // ── EYES ────────────────────────────────────────────────────
                 const eyeDefs = [
-                    { u: 0.3, s: -0.45, r: 0.18 },
-                    { u: 0.3, s:  0.45, r: 0.15 },
+                    { u: 0.32, s: -0.42, r: 0.22 },
+                    { u: 0.32, s:  0.42, r: 0.19 },
                 ];
                 for (const e of eyeDefs) {
                     const ex = seg.x + Math.cos(upAngle) * seg.r * e.u + Math.cos(upAngle + Math.PI/2) * seg.r * e.s;
                     const ey = seg.y + Math.sin(upAngle) * seg.r * e.u + Math.sin(upAngle + Math.PI/2) * seg.r * e.s;
                     const er = seg.r * e.r;
 
-                    ctx.fillStyle = '#000';
+                    // Eye glow halo
+                    const eGlow = ctx.createRadialGradient(ex, ey, 0, ex, ey, er * 2.5);
+                    eGlow.addColorStop(0, 'rgba(255,120,0,0.35)');
+                    eGlow.addColorStop(1, 'rgba(255,60,0,0)');
+                    ctx.fillStyle = eGlow;
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, er * 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#111';
                     ctx.beginPath();
                     ctx.arc(ex, ey, er, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Glowing amber iris
-                    ctx.fillStyle = '#ff6600';
+                    // Glowing iris
+                    const irisGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, er * 0.8);
+                    irisGrad.addColorStop(0, '#ff8800');
+                    irisGrad.addColorStop(0.6, '#cc4400');
+                    irisGrad.addColorStop(1, '#880000');
+                    ctx.fillStyle = irisGrad;
                     ctx.beginPath();
-                    ctx.arc(ex, ey, er * 0.65, 0, Math.PI * 2);
+                    ctx.arc(ex, ey, er * 0.8, 0, Math.PI * 2);
                     ctx.fill();
 
-                    // Pupil
-                    const pAngle = Math.atan2(hdy, hdx);
+                    // Slit pupil
                     ctx.fillStyle = '#000';
+                    ctx.save();
+                    ctx.translate(ex, ey);
+                    ctx.rotate(Math.atan2(hdy, hdx));
                     ctx.beginPath();
-                    ctx.arc(ex + Math.cos(pAngle) * er * 0.22, ey + Math.sin(pAngle) * er * 0.22, er * 0.35, 0, Math.PI * 2);
+                    ctx.ellipse(er * 0.15, 0, er * 0.18, er * 0.45, 0, 0, Math.PI * 2);
                     ctx.fill();
+                    ctx.restore();
 
                     // Glint
-                    ctx.fillStyle = 'rgba(255,220,120,0.85)';
+                    ctx.fillStyle = 'rgba(255,230,140,0.9)';
                     ctx.beginPath();
-                    ctx.arc(ex - er * 0.2, ey - er * 0.2, er * 0.18, 0, Math.PI * 2);
+                    ctx.arc(ex - er * 0.28, ey - er * 0.3, er * 0.2, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
@@ -2338,114 +2476,244 @@ class CargoGame {
             ctx.fill();
 
         } else {
-            // Thruster flame (drawn first, behind body)
-            if (lander.thrusting && lander.fuel > 0) {
-                const fl = 14 + Math.random() * 20;
-                const fGrad = ctx.createLinearGradient(0, 18, 0, 18 + fl);
-                fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.95)');
-                fGrad.addColorStop(0.45, 'rgba(239, 68, 68, 0.65)');
-                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-                ctx.fillStyle = fGrad;
-                const fw = 4.5 + Math.random() * 3;
-                ctx.beginPath();
-                ctx.moveTo(-fw, 18);
-                ctx.bezierCurveTo(-fw * 0.4, 18 + fl * 0.55, (Math.random() - 0.5) * 5, 18 + fl * 0.9, 0, 18 + fl);
-                ctx.bezierCurveTo((Math.random() - 0.5) * 5, 18 + fl * 0.9, fw * 0.4, 18 + fl * 0.55, fw, 18);
-                ctx.closePath();
-                ctx.fill();
-                // Heat bloom
-                const bGrad = ctx.createRadialGradient(0, 22, 0, 0, 26, 24);
-                bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.32)');
-                bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-                ctx.fillStyle = bGrad;
-                ctx.beginPath();
-                ctx.ellipse(0, 26, 20, 26, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Draw Cargo Deck (Basket)
-            ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 3;
+            // ─── SPACE TRUCK DESIGN ───────────────────────────────────────
             const deckY = -lander.deckOffset;
             const hw = lander.deckWidth / 2;
             const bh = lander.basketHeight;
 
+            // ── Main thruster flame (bottom) ──────────────────────────────
+            if (lander.thrusting && lander.fuel > 0) {
+                const fl = 18 + Math.random() * 26;
+                const fGrad = ctx.createLinearGradient(0, 20, 0, 20 + fl);
+                fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.98)');
+                fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)');
+                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = fGrad;
+                // Left nozzle flame
+                const fw = 3.5 + Math.random() * 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-8 - fw, 20);
+                ctx.bezierCurveTo(-8 - fw * 0.3, 20 + fl * 0.5, (Math.random()-0.5)*4 - 8, 20 + fl * 0.88, -8, 20 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 - 8, 20 + fl * 0.88, -8 + fw * 0.3, 20 + fl * 0.5, -8 + fw, 20);
+                ctx.closePath();
+                ctx.fill();
+                // Right nozzle flame
+                ctx.beginPath();
+                ctx.moveTo(8 - fw, 20);
+                ctx.bezierCurveTo(8 - fw * 0.3, 20 + fl * 0.5, (Math.random()-0.5)*4 + 8, 20 + fl * 0.88, 8, 20 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 + 8, 20 + fl * 0.88, 8 + fw * 0.3, 20 + fl * 0.5, 8 + fw, 20);
+                ctx.closePath();
+                ctx.fill();
+                // Shared bloom
+                const bGrad = ctx.createRadialGradient(0, 24, 0, 0, 28, 28);
+                bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.3)');
+                bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = bGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 28, 22, 28, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // ── Side thruster flames ───────────────────────────────────────
+            const strafe = lander.strafePower || 0;
+            if (Math.abs(strafe) > 0.08) {
+                const sl = (8 + Math.abs(strafe) * 16 + Math.random() * 6) * Math.abs(strafe);
+                const sGrad = ctx.createLinearGradient(0, 0, strafe < 0 ? sl : -sl, 0);
+                sGrad.addColorStop(0, 'rgba(56, 189, 248, 0.9)');
+                sGrad.addColorStop(0.4, 'rgba(99, 102, 241, 0.6)');
+                sGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
+                ctx.fillStyle = sGrad;
+                // Flame shoots from the OPPOSITE side of direction of travel
+                const flameX = strafe < 0 ? hw + 1 : -hw - 1;
+                const flameDir = strafe < 0 ? 1 : -1;
+                const fw2 = 2.8 + Math.random() * 1.8;
+                ctx.beginPath();
+                ctx.moveTo(flameX, -fw2);
+                ctx.bezierCurveTo(
+                    flameX + flameDir * sl * 0.45, -fw2 * 0.3,
+                    flameX + flameDir * sl * 0.82 + (Math.random()-0.5)*4, (Math.random()-0.5)*3,
+                    flameX + flameDir * sl, 0
+                );
+                ctx.bezierCurveTo(
+                    flameX + flameDir * sl * 0.82 + (Math.random()-0.5)*4, (Math.random()-0.5)*3,
+                    flameX + flameDir * sl * 0.45, fw2 * 0.3,
+                    flameX, fw2
+                );
+                ctx.closePath();
+                ctx.fill();
+                // Heat glow
+                const sbGrad = ctx.createRadialGradient(flameX, 0, 0, flameX, 0, sl * 0.5);
+                sbGrad.addColorStop(0, 'rgba(56,189,248,0.25)');
+                sbGrad.addColorStop(1, 'rgba(56,189,248,0)');
+                ctx.fillStyle = sbGrad;
+                ctx.beginPath();
+                ctx.arc(flameX, 0, sl * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // ── Cargo Deck (flat-bed style) ────────────────────────────────
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2.5;
             ctx.beginPath();
-            // Left wall top to left wall bottom
             ctx.moveTo(-hw, deckY - bh);
             ctx.lineTo(-hw, deckY);
-            // Floor
             ctx.lineTo(hw, deckY);
-            // Right wall bottom to right wall top
             ctx.lineTo(hw, deckY - bh);
             ctx.stroke();
 
-            // Neon deck glow
+            // Deck floor plate
+            const deckGrad = ctx.createLinearGradient(-hw, deckY - 3, hw, deckY);
+            deckGrad.addColorStop(0, 'rgba(56,189,248,0.7)');
+            deckGrad.addColorStop(1, 'rgba(56,189,248,0.3)');
+            ctx.strokeStyle = deckGrad;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-hw + 2, deckY);
+            ctx.lineTo(hw - 2, deckY);
+            ctx.stroke();
+
+            // ── Engine block (boxy industrial bottom) ──────────────────────
+            // Main chassis rectangle
+            const chassisGrad = ctx.createLinearGradient(-hw, -6, hw, 20);
+            chassisGrad.addColorStop(0, '#1e3a5f');
+            chassisGrad.addColorStop(0.5, '#162840');
+            chassisGrad.addColorStop(1, '#0c1825');
+            ctx.fillStyle = chassisGrad;
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(-hw + 2, -5, (hw - 2) * 2, 25, 3)
+                          : ctx.rect(-hw + 2, -5, (hw - 2) * 2, 25);
+            ctx.fill();
+            ctx.stroke();
+
+            // Panel lines / detail strips
+            ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(-hw + 5, 2);
+            ctx.lineTo(hw - 5, 2);
+            ctx.moveTo(-hw + 5, 10);
+            ctx.lineTo(hw - 5, 10);
+            ctx.stroke();
+
+            // ── Cab / cockpit (top section) ─────────────────────────────────
+            const cabW = hw * 0.65, cabH = 14;
+            const cabGrad = ctx.createLinearGradient(-cabW, -5 - cabH, cabW, -5);
+            cabGrad.addColorStop(0, '#1e3a5f');
+            cabGrad.addColorStop(1, '#0f2035');
+            ctx.fillStyle = cabGrad;
             ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            // Slightly tapered cab
+            ctx.moveTo(-cabW, -5);
+            ctx.lineTo(-cabW * 0.8, -5 - cabH);
+            ctx.lineTo(cabW * 0.8, -5 - cabH);
+            ctx.lineTo(cabW, -5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Cab window (wide visor)
+            ctx.fillStyle = 'rgba(147,197,253,0.45)';
+            ctx.strokeStyle = 'rgba(147,197,253,0.7)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-hw + 1, deckY);
-            ctx.lineTo(hw - 1, deckY);
-            ctx.stroke();
-
-            // Lander Pod Body
-            const radGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, w/2);
-            radGrad.addColorStop(0, '#1e293b');
-            radGrad.addColorStop(1, '#0f172a');
-            ctx.fillStyle = radGrad;
-            ctx.strokeStyle = '#6366f1';
-            ctx.lineWidth = 2;
-            
-            ctx.beginPath();
-            ctx.arc(0, 4, 15, 0, Math.PI * 2);
+            ctx.moveTo(-cabW * 0.62, -5 - 3);
+            ctx.lineTo(-cabW * 0.48, -5 - cabH + 3);
+            ctx.lineTo(cabW * 0.48, -5 - cabH + 3);
+            ctx.lineTo(cabW * 0.62, -5 - 3);
+            ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            ctx.fillStyle = '#6366f1';
+            // Window glint
+            ctx.fillStyle = 'rgba(255,255,255,0.25)';
             ctx.beginPath();
-            ctx.arc(0, -2, 6, Math.PI, 0);
+            ctx.moveTo(-cabW * 0.55, -5 - 4);
+            ctx.lineTo(-cabW * 0.38, -5 - cabH + 5);
+            ctx.lineTo(-cabW * 0.12, -5 - cabH + 5);
+            ctx.lineTo(-cabW * 0.28, -5 - 4);
+            ctx.closePath();
             ctx.fill();
 
-            // Porthole glint
-            ctx.fillStyle = 'rgba(147, 197, 253, 0.55)';
-            ctx.beginPath();
-            ctx.arc(-1.5, -4, 2.2, Math.PI, 0);
-            ctx.fill();
+            // ── Dual thruster nozzles ──────────────────────────────────────
+            for (const nx of [-8, 8]) {
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(nx - 4, 19);
+                ctx.lineTo(nx + 4, 19);
+                ctx.lineTo(nx + 6, 27);
+                ctx.lineTo(nx - 6, 27);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                // Nozzle ring
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(nx, 27, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
 
-            // Draw Landing Legs
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 2.5;
-
+            // ── Landing legs (heavier, more structural) ────────────────────
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            // Left leg: upper strut + foot
             ctx.beginPath();
-            ctx.moveTo(-10, 8);
-            ctx.lineTo(-20, 16);
-            ctx.lineTo(-24, 16);
+            ctx.moveTo(-hw + 4, 8);
+            ctx.lineTo(-hw - 10, 24);
+            ctx.lineTo(-hw - 16, 24);
+            ctx.stroke();
+            // Left cross brace
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(-hw + 1, 15);
+            ctx.lineTo(-hw - 10, 22);
+            ctx.stroke();
+            // Right leg
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(hw - 4, 8);
+            ctx.lineTo(hw + 10, 24);
+            ctx.lineTo(hw + 16, 24);
+            ctx.stroke();
+            // Right cross brace
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(hw - 1, 15);
+            ctx.lineTo(hw + 10, 22);
             ctx.stroke();
 
+            // ── Navigation lights ─────────────────────────────────────────
+            const navPulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
+            ctx.fillStyle = `rgba(239, 68, 68, ${navPulse})`;
             ctx.beginPath();
-            ctx.moveTo(10, 8);
-            ctx.lineTo(20, 16);
-            ctx.lineTo(24, 16);
-            ctx.stroke();
-
-            // Bottom Thruster bell
-            ctx.fillStyle = '#475569';
+            ctx.arc(-hw - 14, 24, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(16, 185, 129, ${navPulse})`;
             ctx.beginPath();
-            ctx.moveTo(-6, 12);
-            ctx.lineTo(6, 12);
-            ctx.lineTo(10, 20);
-            ctx.lineTo(-10, 20);
+            ctx.arc(hw + 14, 24, 2.5, 0, Math.PI * 2);
             ctx.fill();
 
-            // Navigation lights
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.arc(-hw, deckY - bh * 0.5, 2.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#10b981';
-            ctx.beginPath();
-            ctx.arc(hw, deckY - bh * 0.5, 2.2, 0, Math.PI * 2);
-            ctx.fill();
+            // ── Side thruster nozzles (visible even when idle) ────────────
+            for (const side of [-1, 1]) {
+                const snx = side * (hw + 1);
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(snx, -2);
+                ctx.lineTo(snx + side * 6, 0);
+                ctx.lineTo(snx + side * 6, 4);
+                ctx.lineTo(snx, 6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
         }
 
         ctx.restore();
@@ -2491,6 +2759,255 @@ class CargoGame {
         ctx.globalAlpha = 1.0;
     }
 
+    drawBuildings() {
+        if (!this.buildings || this.buildings.length === 0) return;
+        const ctx = this.ctx;
+
+        for (const b of this.buildings) {
+            ctx.save();
+            ctx.translate(b.x, b.y);
+
+            if (b.type === 'antenna') {
+                // Antenna tower: tall mast with cross-arms and blinking beacon
+                const mh = b.h;
+                // Mast
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -mh);
+                ctx.stroke();
+                // Cross-arms at intervals
+                for (let ay = mh * 0.3; ay < mh; ay += mh * 0.22) {
+                    const aw = (mh - ay) * 0.55;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-aw, -mh + ay);
+                    ctx.lineTo(aw, -mh + ay);
+                    ctx.stroke();
+                    // Guy wires
+                    ctx.strokeStyle = 'rgba(71,85,105,0.5)';
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(-aw, -mh + ay);
+                    ctx.lineTo(0, 0);
+                    ctx.moveTo(aw, -mh + ay);
+                    ctx.lineTo(0, 0);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#334155';
+                }
+                // Blinking beacon at top
+                const blink = Math.sin(Date.now() * 0.004 + b.phase) > 0.2;
+                if (blink) {
+                    const bg = ctx.createRadialGradient(0, -mh, 0, 0, -mh, 8);
+                    bg.addColorStop(0, 'rgba(239,68,68,0.9)');
+                    bg.addColorStop(1, 'rgba(239,68,68,0)');
+                    ctx.fillStyle = bg;
+                    ctx.beginPath();
+                    ctx.arc(0, -mh, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.arc(0, -mh, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            } else if (b.type === 'silo') {
+                // Industrial storage silo (cylindrical tower)
+                const sw = b.w, sh = b.h;
+                // Body
+                const siloGrad = ctx.createLinearGradient(-sw/2, 0, sw/2, 0);
+                siloGrad.addColorStop(0, '#1e293b');
+                siloGrad.addColorStop(0.4, '#334155');
+                siloGrad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = siloGrad;
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.rect(-sw/2, -sh, sw, sh);
+                ctx.fill();
+                ctx.stroke();
+                // Dome cap
+                ctx.beginPath();
+                ctx.ellipse(0, -sh, sw/2, sw * 0.22, 0, Math.PI, 0);
+                ctx.fillStyle = '#334155';
+                ctx.fill();
+                ctx.stroke();
+                // Horizontal band stripes
+                ctx.strokeStyle = 'rgba(56,189,248,0.2)';
+                ctx.lineWidth = 1;
+                for (let bh2 = sh * 0.2; bh2 < sh; bh2 += sh * 0.22) {
+                    ctx.beginPath();
+                    ctx.moveTo(-sw/2, -bh2);
+                    ctx.lineTo(sw/2, -bh2);
+                    ctx.stroke();
+                }
+                // Warning lights at corners
+                const wl = Math.sin(Date.now() * 0.003 + b.phase + 1) > 0;
+                if (wl) {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.arc(-sw/2, -sh, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(sw/2, -sh, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            } else if (b.type === 'refinery') {
+                // Industrial refinery cluster: multiple vertical pipes + platform
+                const rw = b.w;
+                // Base platform
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.fillRect(-rw/2, -8, rw, 8);
+                ctx.strokeRect(-rw/2, -8, rw, 8);
+                // Three pipes of varying height
+                const pipes = [
+                    { ox: -rw * 0.32, pw: 8, ph: b.h * 0.9 },
+                    { ox:  0,         pw: 11, ph: b.h },
+                    { ox:  rw * 0.3,  pw: 7, ph: b.h * 0.65 },
+                ];
+                for (const p of pipes) {
+                    const pg = ctx.createLinearGradient(p.ox - p.pw/2, 0, p.ox + p.pw/2, 0);
+                    pg.addColorStop(0, '#0f172a');
+                    pg.addColorStop(0.5, '#334155');
+                    pg.addColorStop(1, '#0f172a');
+                    ctx.fillStyle = pg;
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(p.ox - p.pw/2, -8 - p.ph, p.pw, p.ph);
+                    ctx.strokeRect(p.ox - p.pw/2, -8 - p.ph, p.pw, p.ph);
+                    // Pipe cap
+                    ctx.fillStyle = '#334155';
+                    ctx.beginPath();
+                    ctx.ellipse(p.ox, -8 - p.ph, p.pw/2 + 1, 3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Steam vent (random flicker)
+                    if (Math.sin(Date.now() * 0.005 + p.ox + b.phase) > 0.5) {
+                        ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+                        ctx.lineWidth = p.pw * 0.6;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(p.ox, -8 - p.ph - 2);
+                        ctx.lineTo(p.ox + (Math.random() - 0.5) * 6, -8 - p.ph - 14 - Math.random() * 8);
+                        ctx.stroke();
+                        ctx.lineCap = 'butt';
+                    }
+                }
+                // Connecting walkway
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-rw * 0.32, -8 - b.h * 0.4);
+                ctx.lineTo(rw * 0.3, -8 - b.h * 0.4);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+    }
+
+    drawAmbientTraffic() {
+        const traffic = this.physics.ambientTraffic;
+        if (!traffic || traffic.length === 0) return;
+        const ctx = this.ctx;
+
+        for (const t of traffic) {
+            const cx = t.x + t.w / 2;
+            const cy = t.y;
+            const tw = t.w, th = t.h;
+            const movingLeft = t.vx < 0;
+
+            ctx.save();
+            // Flip drawing for direction of travel
+            ctx.translate(cx, cy);
+            if (movingLeft) ctx.scale(-1, 1);
+
+            // Engine glow trail
+            if (t.engineGlow) {
+                const eg = ctx.createRadialGradient(-tw/2 - 10, 0, 0, -tw/2 - 10, 0, 40);
+                eg.addColorStop(0, `rgba(${t.accentColor.includes('bdf8') ? '56,189,248' : t.accentColor.includes('f97') ? '249,115,22' : '167,139,250'},0.35)`);
+                eg.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = eg;
+                ctx.beginPath();
+                ctx.arc(-tw/2 - 10, 0, 40, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Hull — elongated rectangular body
+            const hullGrad = ctx.createLinearGradient(0, -th/2, 0, th/2);
+            hullGrad.addColorStop(0, t.bodyColor);
+            hullGrad.addColorStop(0.5, shadeColor(t.bodyColor, 20));
+            hullGrad.addColorStop(1, shadeColor(t.bodyColor, -20));
+            ctx.fillStyle = hullGrad;
+            ctx.strokeStyle = t.accentColor;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-tw/2, -th/2, tw, th, 4);
+            else ctx.rect(-tw/2, -th/2, tw, th);
+            ctx.fill();
+            ctx.stroke();
+
+            // Nose cone (front = right)
+            ctx.fillStyle = shadeColor(t.bodyColor, 15);
+            ctx.strokeStyle = t.accentColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tw/2, -th/2);
+            ctx.lineTo(tw/2 + th * 0.7, 0);
+            ctx.lineTo(tw/2, th/2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Engine pods (rear = left)
+            for (const ey of [-th * 0.3, th * 0.3]) {
+                ctx.fillStyle = shadeColor(t.bodyColor, -15);
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1;
+                ctx.fillRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
+                ctx.strokeRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
+                // Engine nozzle glow
+                const fl = 6 + Math.abs(Math.sin(t.lightPhase * 3)) * 8;
+                const eg2 = ctx.createLinearGradient(-tw/2 - 12, 0, -tw/2 - 12 - fl, 0);
+                eg2.addColorStop(0, `rgba(56,189,248,0.8)`);
+                eg2.addColorStop(1, 'rgba(56,189,248,0)');
+                ctx.fillStyle = eg2;
+                ctx.beginPath();
+                ctx.moveTo(-tw/2 - 12, ey - th * 0.12);
+                ctx.lineTo(-tw/2 - 12 - fl, ey);
+                ctx.lineTo(-tw/2 - 12, ey + th * 0.12);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Window strip
+            ctx.fillStyle = 'rgba(147,197,253,0.3)';
+            ctx.strokeStyle = 'rgba(147,197,253,0.5)';
+            ctx.lineWidth = 0.8;
+            const winStart = -tw * 0.1;
+            const winLen = tw * 0.45;
+            ctx.fillRect(winStart, -th * 0.3, winLen, th * 0.6);
+            ctx.strokeRect(winStart, -th * 0.3, winLen, th * 0.6);
+
+            // Running lights — blink at own phase
+            const blinkA = Math.sin(t.lightPhase) > 0;
+            const blinkB = Math.sin(t.lightPhase + Math.PI) > 0;
+            ctx.fillStyle = blinkA ? t.lightColor : 'rgba(0,0,0,0.5)';
+            ctx.beginPath();
+            ctx.arc(tw/2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = blinkB ? '#ef4444' : 'rgba(0,0,0,0.5)';
+            ctx.beginPath();
+            ctx.arc(-tw/2 - 8, th * 0.1, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+    }
+
     drawWindIndicator() {
         const ctx = this.ctx;
         const wind = this.physics.wind;
@@ -2522,6 +3039,15 @@ class CargoGame {
         
         ctx.stroke();
     }
+}
+
+// ── Utility: lighten (+) or darken (-) a hex color by amount 0-100 ──────────
+function shadeColor(hex, amount) {
+    const n = parseInt(hex.replace('#',''), 16);
+    const r = Math.min(255, Math.max(0, (n >> 16) + amount));
+    const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + amount));
+    const b = Math.min(255, Math.max(0, (n & 0xff) + amount));
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2,'0')).join('');
 }
 
 // Global game singleton
