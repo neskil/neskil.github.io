@@ -288,6 +288,10 @@ class CargoPhysics {
             if (lander.retractingRope) {
                 lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3);
             }
+            
+            // Track grapple hook position in world space
+            lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.height/2) + Math.sin(lander.angle) * lander.ropeLength;
+            lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.height/2) + Math.cos(lander.angle) * lander.ropeLength;
 
             // Exhaust particles
             if (lander.thrusting && Math.random() < 0.5) {
