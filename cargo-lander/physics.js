@@ -23,7 +23,7 @@ class CargoPhysics {
 
     initLevel(levelConfig, width, height, upgrades = {}) {
         this.levelWidth = 1600; // Huge horizontal space
-        this.levelHeight = 900; // Huge vertical space
+        this.levelHeight = 1300; // Tall enough to fly well above terrain
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.15;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         
