@@ -289,6 +289,13 @@
         </a>
 
         <a href="cv/index.html" class="card" id="card-cv">
+            <div>
+                <div class="card-icon">📄</div>
+                <h2 class="card-title">Curriculum Vitae</h2>
+                <p class="card-desc">Read more about my education, experience, and skills in logistics and development.</p>
+            </div>
+            <span class="card-link">View CV <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
 
         <a href="converter/index.html" class="card" id="card-converter">
             <div>
@@ -375,6 +382,7 @@
 
         let width, height;
         let particles = [];
+        let landers = [];
         const mouse = { x: null, y: null, radius: 150 };
 
         function resize() {
@@ -442,8 +450,131 @@
             }
         }
 
+        class MenuLander {
+            constructor(x, y) {
+                this.x = x || (Math.random() * width);
+                this.y = y || -50;
+                this.vy = Math.random() * 2 + 1; // Falling speed
+                this.rotation = (Math.random() - 0.5) * 0.2; // Slight rotation drift
+                this.angle = 0;
+                this.active = true;
+            }
+            update() {
+                this.y += this.vy;
+                this.vy += 0.05; // Gravity
+                this.angle += this.rotation * 0.1;
+                
+                // Add scroll velocity influence
+                if (Math.abs(scrollVelocity) > 0.5) {
+                    this.y -= scrollVelocity * 0.5;
+                }
+
+                if (this.y > height + 100) this.active = false;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.scale(1.2, 1.2); // Slightly larger for visibility
+
+                // ─── SPACE TRUCK DESIGN (Borrowed from actual game) ───
+                const hw = 14;
+                const bh = 14;
+                const deckY = -5;
+
+                // Main thruster flames
+                const fl = 18 + Math.random() * 26;
+                const fGrad = ctx.createLinearGradient(0, 16, 0, 16 + fl);
+                fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.98)');
+                fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)');
+                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = fGrad;
+                const fw = 3.5 + Math.random() * 2.5;
+                
+                // Left nozzle flame
+                ctx.beginPath();
+                ctx.moveTo(-9 - fw, 16);
+                ctx.bezierCurveTo(-9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9, 16 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9 + fw * 0.3, 16 + fl * 0.5, -9 + fw, 16);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Right nozzle flame
+                ctx.beginPath();
+                ctx.moveTo(9 - fw, 16);
+                ctx.bezierCurveTo(9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9, 16 + fl);
+                ctx.bezierCurveTo((Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9 + fw * 0.3, 16 + fl * 0.5, 9 + fw, 16);
+                ctx.closePath();
+                ctx.fill();
+
+                // Shared bloom
+                const bGrad = ctx.createRadialGradient(0, 20, 0, 0, 24, 26);
+                bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.3)');
+                bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = bGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 22, 20, 26, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Cargo Deck
+                ctx.fillStyle = 'rgba(15,25,40,0.9)';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(-hw, deckY - bh, hw * 2, bh + 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Deck ribbing
+                ctx.strokeStyle = 'rgba(100,116,139,0.6)';
+                ctx.lineWidth = 1;
+                for (let ri = 1; ri <= 3; ri++) {
+                    const rx = -hw + (hw * 2 / 4) * ri;
+                    ctx.beginPath();
+                    ctx.moveTo(rx, deckY - bh);
+                    ctx.lineTo(rx, deckY);
+                    ctx.stroke();
+                }
+
+                // Side rails
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(-hw - 2, deckY - bh - 3, 4, bh + 3);     
+                ctx.fillRect(hw - 2, deckY - bh - 3, 4, bh + 3);       
+
+                // Engine block
+                const chassisGrad = ctx.createLinearGradient(-hw, -6, hw, 20);
+                chassisGrad.addColorStop(0, '#1e3a5f');
+                chassisGrad.addColorStop(0.5, '#162840');
+                chassisGrad.addColorStop(1, '#0c1825');
+                ctx.fillStyle = chassisGrad;
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(-hw + 2, -5, (hw - 2) * 2, 25, 3);
+                } else {
+                    ctx.rect(-hw + 2, -5, (hw - 2) * 2, 25);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // Panel lines
+                ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(-hw + 5, 2);
+                ctx.lineTo(hw - 5, 2);
+                ctx.moveTo(-hw + 5, 10);
+                ctx.lineTo(hw - 5, 10);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
         function init() {
             particles = [];
+            landers = [];
             // Responsive amount of particles based on screen size
             let numberOfParticles = Math.min((width * height) / 12000, 150);
             for (let i = 0; i < numberOfParticles; i++) {
@@ -465,6 +596,15 @@
             // Parallax shift
             ctx.save();
             ctx.translate(0, -smoothScrollY * 0.15);
+            
+            // Update and draw landers
+            for (let i = landers.length - 1; i >= 0; i--) {
+                landers[i].update();
+                landers[i].draw();
+                if (!landers[i].active) {
+                    landers.splice(i, 1);
+                }
+            }
             
             for (let i = 0; i < particles.length; i++) {
                 // Apply scroll inertia as a gentle push (like mouse repel)
@@ -498,50 +638,45 @@
         init();
         animate();
 
-        // Cargo Lander spawn effect on click
-        document.getElementById('card-cargo-lander').addEventListener('click', function(e) {
-            e.preventDefault();
-            const href = this.getAttribute('href');
-            const rect = this.getBoundingClientRect();
-            
-            // Create lander element (borrowing the visual concept)
-            const lander = document.createElement('div');
-            // Draw a basic lander shape using CSS borders (borrowing from game's polygon rendering idea)
-            lander.innerHTML = `
-                <div style="position: relative; width: 40px; height: 40px; display: flex; flex-direction: column; align-items: center;">
-                    <div style="width: 24px; height: 16px; background: #94a3b8; border-radius: 12px 12px 0 0; border: 2px solid #fff;"></div>
-                    <div style="width: 32px; height: 12px; background: #334155; border-radius: 4px; border: 2px solid #fff;"></div>
-                    <div style="position: absolute; bottom: -12px; width: 10px; height: 16px; background: linear-gradient(to bottom, #fbbf24, #ef4444, transparent); border-radius: 5px; animation: flicker 0.1s infinite;"></div>
-                    <div style="position: absolute; bottom: -8px; left: 0; width: 4px; height: 12px; background: #cbd5e1; transform: rotate(20deg);"></div>
-                    <div style="position: absolute; bottom: -8px; right: 0; width: 4px; height: 12px; background: #cbd5e1; transform: rotate(-20deg);"></div>
-                </div>
-                <style>
-                    @keyframes flicker {
-                        0% { opacity: 0.8; transform: scaleY(0.9); }
-                        50% { opacity: 1; transform: scaleY(1.2); }
-                        100% { opacity: 0.9; transform: scaleY(1); }
-                    }
-                </style>
-            `;
-            lander.style.position = 'fixed';
-            lander.style.left = (e.clientX - 20) + 'px';
-            lander.style.top = (e.clientY - 20) + 'px';
-            lander.style.zIndex = '9999';
-            lander.style.pointerEvents = 'none';
-            lander.style.transition = 'top 1.2s cubic-bezier(0.5, 0, 1, 1), transform 1.2s ease-in';
-            document.body.appendChild(lander);
-            
-            // Start falling animation
-            setTimeout(() => {
-                lander.style.top = (window.innerHeight + 100) + 'px';
-                lander.style.transform = 'rotate(' + (Math.random() * 40 - 20) + 'deg)';
-            }, 50);
+        // Cargo Lander spawn effects
+        const cargoCard = document.getElementById('card-cargo-lander');
+        let lastHoverSpawn = 0;
 
-            // Navigate after it falls out of view
-            setTimeout(() => {
-                window.location.href = href;
-            }, 900);
+        cargoCard.addEventListener('mouseenter', function(e) {
+            const now = Date.now();
+            if (now - lastHoverSpawn > 500) { // Limit spawning rate
+                const rect = this.getBoundingClientRect();
+                // Spawn lander near the top of the card
+                landers.push(new MenuLander(rect.left + rect.width / 2, rect.top + smoothScrollY - 50));
+                lastHoverSpawn = now;
+            }
         });
+
+        cargoCard.addEventListener('click', function(e) {
+            // Optional: navigate normally on click. We remove the custom timeout so navigation is snappy,
+            // while the landers can still be observed via hover and random spawns.
+            // Spawning a lot of them on click as a fun explosion!
+            const rect = this.getBoundingClientRect();
+            for (let i = 0; i < 5; i++) {
+                let l = new MenuLander(rect.left + rect.width / 2 + (Math.random() * 60 - 30), rect.top + smoothScrollY - 50);
+                l.vy = -(Math.random() * 5 + 3); // Shoot up first
+                l.rotation = (Math.random() - 0.5) * 0.5;
+                landers.push(l);
+            }
+        });
+
+        // Random idle spawns
+        function scheduleRandomLander() {
+            const delay = Math.random() * 15000 + 5000; // Between 5 and 20 seconds
+            setTimeout(() => {
+                if (document.visibilityState === 'visible') {
+                    landers.push(new MenuLander());
+                }
+                scheduleRandomLander();
+            }, delay);
+        }
+        scheduleRandomLander();
+
     </script>
 </body>
 </html>
