@@ -166,7 +166,8 @@ class CargoGame {
             boostMode: 0,
             magneticDeck: 0,
             winchExtender: 0,
-            hullPlating: 0
+            hullPlating: 0,
+            shieldRegen: 0
         };
         this.missionBudget = 0;
         this.missionTimer = 0;
@@ -498,7 +499,8 @@ class CargoGame {
             boostMode: 0,
             magneticDeck: 0,
             winchExtender: 0,
-            hullPlating: 0
+            hullPlating: 0,
+            shieldRegen: 0
         };
         this.career = { pilotName: this.career.pilotName, totalDeliveries: 0, missionsComplete: 0, crashes: 0 };
         this.highscores = {};

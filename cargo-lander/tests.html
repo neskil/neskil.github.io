@@ -398,13 +398,13 @@ test('upgradeCatalog exists and is accessible', () => {
   assert(Array.isArray(upgradeCatalog), 'upgradeCatalog should be an array');
 });
 
-test('exactly 5 upgrades in catalog', () => {
-  assertEquals(upgradeCatalog.length, 5, 'upgradeCatalog.length');
+test('exactly 6 upgrades in catalog', () => {
+  assertEquals(upgradeCatalog.length, 6, 'upgradeCatalog.length');
 });
 
-test('total maxLevel across all upgrades equals 13', () => {
+test('total maxLevel across all upgrades equals 15', () => {
   const total = upgradeCatalog.reduce((s, u) => s + u.maxLevel, 0);
-  assertEquals(total, 13, 'sum of maxLevel');
+  assertEquals(total, 15, 'sum of maxLevel');
 });
 
 test('each upgrade has id, name, maxLevel, basePrice, desc', () => {
@@ -424,7 +424,7 @@ test('upgrade IDs are unique', () => {
 
 test('known upgrade IDs present', () => {
   const ids = upgradeCatalog.map(u => u.id);
-  for (const expected of ['thrusterEfficiency', 'boostMode', 'magneticDeck', 'winchExtender', 'hullPlating']) {
+  for (const expected of ['thrusterEfficiency', 'boostMode', 'magneticDeck', 'winchExtender', 'hullPlating', 'shieldRegen']) {
     assert(ids.includes(expected), `upgrade '${expected}' not found in catalog`);
   }
 });
@@ -727,7 +727,7 @@ test('score formula matches specification', () => {
   // No upgrades, no mastered levels -> score = 0
   assertClose(computeRankScore({}, {}), 0.0, 1e-9, 'score with nothing');
   // All upgrades, no mastered
-  const allUpg = { thrusterEfficiency: 3, boostMode: 3, magneticDeck: 2, winchExtender: 2, hullPlating: 3 };
+  const allUpg = { thrusterEfficiency: 3, boostMode: 3, magneticDeck: 2, winchExtender: 2, hullPlating: 3, shieldRegen: 2 };
   assertClose(computeRankScore(allUpg, {}), 0.55, 1e-9, 'score with max upgrades');
   // No upgrades, all mastered
   const allHigh = { 0: 9999, 1: 9999, 2: 9999, 3: 9999, 4: 9999 };
@@ -739,7 +739,7 @@ test('score formula matches specification', () => {
 test('rank CLASS F when score is 0', () => {
   // Temporarily set game state to all zeros and call updatePilotRank
   const g = new CargoGame();
-  g.upgrades = { thrusterEfficiency: 0, boostMode: 0, magneticDeck: 0, winchExtender: 0, hullPlating: 0 };
+  g.upgrades = { thrusterEfficiency: 0, boostMode: 0, magneticDeck: 0, winchExtender: 0, hullPlating: 0, shieldRegen: 0 };
   g.highscores = {};
   // updatePilotRank sets textContent via setText() which calls getElementById(id)
   // The mock just captures calls; we verify the logic via the score thresholds:
@@ -793,9 +793,9 @@ test('tier thresholds produce correct rank strings', () => {
   }
 });
 
-test('max upgrades 13 matches upgradeCatalog sum', () => {
+test('max upgrades 15 matches upgradeCatalog sum', () => {
   const maxUpgrades = upgradeCatalog.reduce((s, u) => s + u.maxLevel, 0);
-  assertEquals(maxUpgrades, 13, 'sum of maxLevel must be 13 (rank formula relies on this)');
+  assertEquals(maxUpgrades, 15, 'sum of maxLevel must be 15 (rank formula relies on this)');
 });
 
 // ── E. Economy / localStorage ────────────────────────────────────────────────
@@ -816,7 +816,7 @@ test('CargoGame defaults to 1000 when localStorage is empty', () => {
 
 test('CargoGame reads upgrades from localStorage', () => {
   mockLocalStorage.clear();
-  const stored = { thrusterEfficiency: 2, boostMode: 1, magneticDeck: 0, winchExtender: 0, hullPlating: 0 };
+  const stored = { thrusterEfficiency: 2, boostMode: 1, magneticDeck: 0, winchExtender: 0, hullPlating: 0, shieldRegen: 0 };
   mockLocalStorage.setItem('cargoLanderUpgrades', JSON.stringify(stored));
   const g = new CargoGame();
   assertEquals(g.upgrades.thrusterEfficiency, 2, 'should load thrusterEfficiency from localStorage');
@@ -1266,8 +1266,9 @@ test('CargoAudio sound methods do not throw when muted/init', () => {
       passed++;
     } catch (e) {
       status = 'fail';
-      error = e.message || String(e);
+      error = e.stack || e.message || String(e);
       failed++;
+      console.error(`[TEST FAILURE] Category: "${t.category}", Test: "${t.name}"\nError: ${error}`);
     }
     byCategory[t.category].push({ name: t.name, status, error });
   }
