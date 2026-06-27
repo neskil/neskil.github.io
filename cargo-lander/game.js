@@ -1303,6 +1303,7 @@ class CargoGame {
 
     updateBoxFireState(dt) {
         const boxes = this.physics.boxes;
+        if (!boxes.length) return;
         const cp = this.physics.collectionPoint;
         const sd = this.physics.startDepot;
 
@@ -4481,13 +4482,22 @@ class CargoGame {
         ctx.restore();
     }
     drawParticles() {
+        const particles = this.physics.particles;
+        if (!particles.length) return;
         const ctx = this.ctx;
-        for (const p of this.physics.particles) {
-            ctx.fillStyle = p.color;
-            ctx.globalAlpha = p.life;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-            ctx.fill();
+        // Batch by color to minimise fillStyle state changes
+        const byColor = {};
+        for (const p of particles) {
+            (byColor[p.color] || (byColor[p.color] = [])).push(p);
+        }
+        for (const color in byColor) {
+            ctx.fillStyle = color;
+            for (const p of byColor[color]) {
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
         ctx.globalAlpha = 1.0;
     }
