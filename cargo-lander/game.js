@@ -283,12 +283,7 @@ class CargoGame {
         if (container) {
             const scaleX = window.innerWidth / targetW;
             const scaleY = window.innerHeight / targetH;
-            let scale = Math.min(scaleX, scaleY);
-            
-            // Scale down slightly on PC so it's not overwhelmingly large
-            if (window.innerWidth >= 1024) {
-                scale = Math.min(scale * 0.92, 1.25);
-            }
+            const scale = Math.min(scaleX, scaleY);
             
             container.style.transform = `translate(-50%, -50%) scale(${scale})`;
         }
