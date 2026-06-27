@@ -831,8 +831,6 @@ class CargoGame {
 
             this.physics.spawnCargo(t);
             this.cargoSpawnCooldown = 30; // Cooldown frames
-            // Trigger pickup crane animation
-            this.physics.collectionPoint.craneAnim = { timer: 0, lx: l.x };
 
             if (!this.isMuted) {
                 CargoAudio.playLoad();
@@ -1074,11 +1072,48 @@ class CargoGame {
         // Cooldowns
         if (this.cargoSpawnCooldown > 0) this.cargoSpawnCooldown--;
 
-        // Tick crane animations (timer 0→1 over ~120 frames)
-        const cp = this.physics.collectionPoint;
-        if (cp.craneAnim) { cp.craneAnim.timer += dt / 120; if (cp.craneAnim.timer >= 1) cp.craneAnim = null; }
+        // Delivery hub crane animations
         for (const h of this.physics.deliveryHubs) {
             if (h.craneAnim) { h.craneAnim.timer += dt / 120; if (h.craneAnim.timer >= 1) h.craneAnim = null; }
+        }
+
+        // Auto-load sequence at collection point
+        const _col = this.physics.collectionPoint;
+        const _lndr = this.physics.lander;
+        if (_lndr && _lndr.landed && _lndr.currentPad === 'collection' && !_col.loadSeq) {
+            const onDeck = this.physics.boxes.filter(b => b.onDeck).length;
+            const toLoad = Math.max(0, 3 - onDeck);
+            if (toLoad > 0) {
+                _col.loadSeq = { phase: 'loading', t: 0, cycle: 0, total: toLoad, lx: _lndr.x, spawned: false, roofOpen: 0 };
+            }
+        }
+        if (_col.loadSeq) {
+            const _seq = _col.loadSeq;
+            if (_seq.phase === 'loading') {
+                _seq.t += dt / 55;
+                _seq.roofOpen = _seq.cycle === 0 ? Math.min(1, _seq.t / 0.15) : 1;
+                if (!_seq.spawned && _seq.t >= 0.83) {
+                    _seq.spawned = true;
+                    const _lc = levels[this.currentLevelIndex];
+                    const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
+                    const _t = _types[Math.floor(Math.random() * _types.length)];
+                    if (this.physics.boxes.length < 6) {
+                        this.physics.spawnCargo(_t);
+                        if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+                    }
+                }
+                if (_seq.t >= 1.0) {
+                    _seq.cycle++;
+                    // Only continue if lander is still here; otherwise close
+                    const _stillHere = _lndr && _lndr.landed && _lndr.currentPad === 'collection';
+                    if (_seq.cycle >= _seq.total || !_stillHere) { _seq.phase = 'closing'; _seq.t = 0; }
+                    else { _seq.t = 0; _seq.spawned = false; }
+                }
+            } else if (_seq.phase === 'closing') {
+                _seq.t += dt / 25;
+                _seq.roofOpen = Math.max(0, 1 - _seq.t);
+                if (_seq.t >= 1.0) _col.loadSeq = null;
+            }
         }
 
         // Check cargo positions for unloading and delivery
@@ -2736,7 +2771,7 @@ class CargoGame {
         if (cargoOnDeck.length === 0) {
             const collection = this.physics.collectionPoint;
             if (collection) {
-                drawArrow(collection.x + collection.width / 2, collection.y, 'PICK UP');
+                drawArrow(collection.x + collection.width / 2, collection.y - 80, 'PICK UP');
             }
         } else {
             const box = cargoOnDeck[0];
@@ -2845,6 +2880,7 @@ class CargoGame {
             const cpCx = cx + cw / 2;
             const now = Date.now();
             const cpulse = 0.4 + Math.abs(Math.sin(now * 0.003)) * 0.4;
+            const _col = collection;
 
             // ── Warehouse building behind pad ─────────────────────────────
             const wbX = cx - 18, wbW = cw + 36, wbH = 80, wbY = cy - wbH;
@@ -2870,12 +2906,6 @@ class CargoGame {
                 ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2);
                 ctx.stroke();
             }
-
-            // Roof edge accent
-            ctx.fillStyle = '#1e3a5f';
-            ctx.fillRect(wbX, wbY, wbW, 4);
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(wbX, wbY, wbW, 2);
 
             // Loading dock doors (2 large rectangular openings)
             const doorW = wbW * 0.32, doorH = wbH * 0.52;
@@ -2912,6 +2942,35 @@ class CargoGame {
             const craneBaseX = cx + cw * 0.72;
             const craneTopY = wbY - 2;
             const craneArmEnd = cx - 10;
+            const hatchX = wbX + wbW * 0.42;  // where crane picks up from
+            const hatchHalfW = 22;
+
+            // Roof hatch panels (slide apart when loading sequence active)
+            const _roofOpen = (_col.loadSeq ? _col.loadSeq.roofOpen : 0);
+            const _hatchGap = hatchHalfW * 2 * _roofOpen;
+            // Draw roof as two sections around the gap
+            ctx.fillStyle = '#1e3a5f';
+            if (_hatchGap > 2) {
+                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 4);
+                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 4);
+                // Hatch interior glow
+                const _hg = ctx.createLinearGradient(hatchX - hatchHalfW, wbY, hatchX + hatchHalfW, wbY);
+                _hg.addColorStop(0, 'rgba(56,189,248,0)');
+                _hg.addColorStop(0.5, 'rgba(56,189,248,0.35)');
+                _hg.addColorStop(1, 'rgba(56,189,248,0)');
+                ctx.fillStyle = _hg;
+                ctx.fillRect(hatchX - hatchHalfW, wbY, _hatchGap, 10);
+            } else {
+                ctx.fillRect(wbX, wbY, wbW, 4);
+            }
+            // Blue accent line
+            ctx.fillStyle = '#38bdf8';
+            if (_hatchGap > 2) {
+                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 2);
+                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 2);
+            } else {
+                ctx.fillRect(wbX, wbY, wbW, 2);
+            }
 
             // Vertical mast
             ctx.strokeStyle = '#334155';
@@ -2934,48 +2993,88 @@ class CargoGame {
             ctx.stroke();
             ctx.lineCap = 'butt';
 
-            // Trolley on arm + cable (animated horizontal position)
-            const _cpAnim = collection && collection.craneAnim;
-            let trolleyX, cableLen;
-            if (_cpAnim) {
-                const t = _cpAnim.timer;
-                const idleX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
-                const targX = Math.max(craneArmEnd, Math.min(craneBaseX, _cpAnim.lx));
-                if (t < 0.25) { // slide trolley over lander
-                    trolleyX = idleX + (targX - idleX) * (t / 0.25);
-                    cableLen = 30;
-                } else if (t < 0.65) { // drop cable
-                    trolleyX = targX;
-                    const maxLen = (cy - craneTopY + 18) * 0.9;
-                    cableLen = 30 + ((t - 0.25) / 0.4) * maxLen;
-                } else { // retract and return
-                    const r = (t - 0.65) / 0.35;
-                    trolleyX = targX + (idleX - targX) * r;
-                    const maxLen = (cy - craneTopY + 18) * 0.9;
-                    cableLen = maxLen * (1 - r) + 30 * r;
+            // Compute trolley and cable from loadSeq
+            const _cableTop = craneTopY - 18;
+            const _intoWarehouse = wbH * 0.38;
+            const _shortLen = 18;
+            const _toDeck = (cy - _cableTop) + 22;
+            let _trolleyX, _cableLen, _showBox = false, _boxX = 0, _boxY = 0;
+
+            if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
+                const _st = _col.loadSeq.t;
+                const _lx = Math.max(craneArmEnd, Math.min(craneBaseX, _col.loadSeq.lx));
+                const _lerp = (a, b, f) => a + (b - a) * Math.max(0, Math.min(1, f));
+
+                if (_st < 0.20) {
+                    _trolleyX = hatchX;
+                    _cableLen = _shortLen;
+                } else if (_st < 0.40) {
+                    _trolleyX = hatchX;
+                    _cableLen = _lerp(_shortLen, _intoWarehouse, (_st - 0.20) / 0.20);
+                    // Box rising inside warehouse toward opening
+                    const _bf = (_st - 0.20) / 0.20;
+                    _showBox = true;
+                    _boxX = hatchX;
+                    _boxY = _lerp(wbY + wbH * 0.5, wbY + 2, _bf);
+                } else if (_st < 0.55) {
+                    _trolleyX = hatchX;
+                    _cableLen = _lerp(_intoWarehouse, _shortLen, (_st - 0.40) / 0.15);
+                    _showBox = true;
+                    _boxX = hatchX;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else if (_st < 0.70) {
+                    _trolleyX = _lerp(hatchX, _lx, (_st - 0.55) / 0.15);
+                    _cableLen = _shortLen;
+                    _showBox = true;
+                    _boxX = _trolleyX;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else if (_st < 0.85) {
+                    _trolleyX = _lx;
+                    _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
+                    _showBox = _st < 0.83;
+                    _boxX = _lx;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else {
+                    _trolleyX = _lerp(_lx, hatchX, (_st - 0.85) / 0.15);
+                    _cableLen = _lerp(_shortLen, _shortLen * 0.5, (_st - 0.85) / 0.15);
                 }
             } else {
-                trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
-                cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+                // Idle animation
+                _trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+                _cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
             }
+
             // Trolley block
-            ctx.fillStyle = '#475569';
-            ctx.fillRect(trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.fillStyle = (_col.loadSeq && _col.loadSeq.phase === 'loading') ? '#38bdf8' : '#475569';
+            ctx.fillRect(_trolleyX - 6, craneTopY - 26, 12, 8);
             ctx.strokeStyle = '#64748b';
             ctx.lineWidth = 1.2;
-            ctx.strokeRect(trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.strokeRect(_trolleyX - 6, craneTopY - 26, 12, 8);
             // Cable
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(trolleyX, craneTopY - 18); ctx.lineTo(trolleyX, craneTopY - 18 + cableLen);
+            ctx.moveTo(_trolleyX, _cableTop); ctx.lineTo(_trolleyX, _cableTop + _cableLen);
             ctx.stroke();
             // Hook
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(trolleyX, craneTopY - 18 + cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
+            ctx.arc(_trolleyX, _cableTop + _cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
             ctx.stroke();
+
+            // Animated phantom box
+            if (_showBox) {
+                ctx.save();
+                ctx.fillStyle = '#f59e0b';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 1;
+                ctx.fillRect(_boxX - 9, _boxY - 9, 18, 18);
+                ctx.strokeRect(_boxX - 9, _boxY - 9, 18, 18);
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
+                ctx.restore();
+            }
 
             // ── Landing pad surface ───────────────────────────────────────
             ctx.fillStyle = '#1e293b';
@@ -3013,26 +3112,13 @@ class CargoGame {
             ctx.textAlign = 'center';
             ctx.fillText('CARGO', cpCx, cy + 12);
 
-            // Proximity prompt
-            const lander = this.physics.lander;
-            if (lander) {
-                const nearPad = Math.abs(lander.x - cpCx) < cw / 2 + 28
-                              && lander.y >= cy - 60 && lander.y <= cy + 12;
-                if (nearPad) {
-                    const zGrad = ctx.createRadialGradient(cpCx, cy, 0, cpCx, cy, cw * 0.75);
-                    zGrad.addColorStop(0, 'rgba(251,191,36,0.2)');
-                    zGrad.addColorStop(1, 'rgba(251,191,36,0)');
-                    ctx.fillStyle = zGrad;
-                    ctx.beginPath();
-                    ctx.ellipse(cpCx, cy + 4, cw * 0.75, 16, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    const pp = 0.7 + Math.abs(Math.sin(now * 0.006)) * 0.3;
-                    ctx.fillStyle = `rgba(251,191,36,${pp})`;
-                    ctx.font = '600 12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('[ SPACE ] DISPENSE CARGO', cpCx, cy - 48);
-                }
+            // Loading status indicator
+            if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
+                const _pp = 0.7 + Math.abs(Math.sin(now * 0.008)) * 0.3;
+                ctx.fillStyle = `rgba(56,189,248,${_pp})`;
+                ctx.font = '600 11px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`LOADING ${_col.loadSeq.cycle + 1} / ${_col.loadSeq.total}`, cpCx, cy - 30);
             }
         }
     }
