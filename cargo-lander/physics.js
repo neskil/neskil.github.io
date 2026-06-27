@@ -524,9 +524,10 @@ class CargoPhysics {
         // O(1) index lookup — points are evenly spaced by terrainStep
         const step = this.terrainStep || 40;
         const pts = this.terrainPoints;
-        const idx = Math.floor(x / step);
-        const leftPt  = pts[Math.min(idx, pts.length - 2)];
-        const rightPt = pts[Math.min(idx + 1, pts.length - 1)];
+        if (!pts || pts.length < 2) return this.levelHeight * 0.7;
+        const idx = Math.max(0, Math.min(Math.floor(x / step), pts.length - 2));
+        const leftPt  = pts[idx];
+        const rightPt = pts[idx + 1];
 
         const ratio = (x - leftPt.x) / (rightPt.x - leftPt.x || 1);
         return leftPt.y + ratio * (rightPt.y - leftPt.y);

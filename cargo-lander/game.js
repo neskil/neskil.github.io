@@ -581,18 +581,21 @@ class CargoGame {
     }
 
     startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
+        console.trace('[startLevel] begin ' + idx + ' ' + vehicleType);
         this.currentLevelIndex = idx;
-        this.currentVehicle = vehicleType; // Remember for Replay / Next Mission / Restart
+        this.currentVehicle = vehicleType;
         this.crashHandled = false;
         const level = levels[idx];
-        level.vehicle = vehicleType; // Inject selected vehicle
+        level.vehicle = vehicleType;
         
         this.missionBudget = level.budget || 1000;
         this.missionTimer = level.timeLimit || 180;
         this.overtimeActive = false;
         this.overtimeTimer = 0;
         
+        console.log('[startLevel] calling initLevel');
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
+        console.log('[startLevel] initLevel done, building placement next');
         this.deliveredCount = 0;
         this.deliveredTypes = {};
         this.questState = {};
@@ -631,6 +634,7 @@ class CargoGame {
             });
         }
         
+        console.log('[startLevel] building placement done, setting gameState');
         this.gameState = 'playing';
         this.addMessage("Level Started: " + level.name, "#6366f1");
         
@@ -937,7 +941,7 @@ class CargoGame {
 
     loop(timestamp) {
         if (!this.lastTime) this.lastTime = timestamp;
-        const dt = (timestamp - this.lastTime) / 16.666; // Normalized to 60fps
+        const dt = Math.min((timestamp - this.lastTime) / 16.666, 3); // cap at 3× frame, prevents blowup after tab sleep
         this.lastTime = timestamp;
 
         // FPS tracking (sampled every 600 ms)
@@ -1087,8 +1091,8 @@ class CargoGame {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
 
-            let targetX = lander.x + (lander.vx * 15);
-            let targetY = lander.y + (lander.vy * 15);
+            let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
+            let targetY = lander.y + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15);
             const viewH = this.canvas.height / this.camera.targetZoom;
             const maxCamY = this.physics.levelHeight - (viewH / 2) + 120;
             targetY = Math.min(targetY, maxCamY);
@@ -1543,25 +1547,17 @@ class CargoGame {
         this.drawDeliveryHubs();
 
         // 5. Draw Terrain Landscape
-        this.drawUnderground();
-        this.drawGroundParallax();
-        this.drawTerrain();
-        this.drawSegments();
-        this.drawLake();
-        this.drawWormDangerZone();
-
-        // 6. Draw Cargo Sourcing Depot Building
-        this.drawSourcingDepot();
-        this.drawNextObjectiveArrow();
-
-        // 6b. Draw world buildings
-        this.drawBuildings();
-
-        // 6c. Draw ambient space truck traffic
-        this.drawAmbientTraffic();
-
-        // 7. Draw Boxes
-        this.drawBoxes();
+        console.log('[draw] underground'); this.drawUnderground();
+        console.log('[draw] groundParallax'); this.drawGroundParallax();
+        console.log('[draw] terrain'); this.drawTerrain();
+        console.log('[draw] segments'); this.drawSegments();
+        console.log('[draw] lake'); this.drawLake();
+        console.log('[draw] worm'); this.drawWormDangerZone();
+        console.log('[draw] depot'); this.drawSourcingDepot();
+        console.log('[draw] arrow'); this.drawNextObjectiveArrow();
+        console.log('[draw] buildings'); this.drawBuildings();
+        console.log('[draw] traffic'); this.drawAmbientTraffic();
+        console.log('[draw] boxes'); this.drawBoxes();
 
         // 8. Draw Lander
         this.drawLander();
@@ -2898,10 +2894,11 @@ class CargoGame {
         if (this.physics.terrainPoints.length === 0) return;
         const lv = levels[this.currentLevelIndex] || {};
         const pal = lv.palette || { terrainFill: '#0b0f19' };
-        const zoom = this.camera.zoom;
+        const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
         const w = this.canvas.width;
         const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
         const endX = this.camera.x + (w / 2 / zoom) + 200;
+        if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
         const lh = this.physics.levelHeight;
 
         const hexToRgb = (hex) => {
@@ -2938,10 +2935,11 @@ class CargoGame {
         };
 
         // Determine visible X range based on camera
-        const zoom = this.camera.zoom;
+        const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
         const w = this.canvas.width;
         const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 100) / 20) * 20;
         const endX = this.camera.x + (w / 2 / zoom) + 100;
+        if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
 
         // Main fill
         ctx.fillStyle = pal.terrainFill;
@@ -3106,10 +3104,11 @@ class CargoGame {
     drawUnderground() {
         const ctx = this.ctx;
         const lv = levels[this.currentLevelIndex] || {};
-        const zoom = this.camera.zoom;
+        const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
         const w = this.canvas.width;
         const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
         const endX = this.camera.x + (w / 2 / zoom) + 200;
+        if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
         const lh = this.physics.levelHeight;
         const t = Date.now() / 1000;
 
@@ -4256,142 +4255,86 @@ class CargoGame {
                 // Draw space truck sprite body
                 ctx.drawImage(sprite, -28, -19, 56, 35);
             } else {
-                // ── Cargo Deck (flat-bed: open back of the truck) ─────────────────────
-                // Bed floor
-                ctx.fillStyle = 'rgba(15,25,40,0.9)';
-                ctx.strokeStyle = '#475569';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.rect(-hw, deckY - bh, hw * 2, bh + 2);
-                ctx.fill();
-                ctx.stroke();
+                const firing = lander.thrusting && lander.fuel > 0;
 
-                // Deck ribbing (3 cross-members to make it look like a flatbed)
-                ctx.strokeStyle = 'rgba(100,116,139,0.6)';
-                ctx.lineWidth = 1;
-                for (let ri = 1; ri <= 3; ri++) {
-                    const rx = -hw + (hw * 2 / 4) * ri;
-                    ctx.beginPath();
-                    ctx.moveTo(rx, deckY - bh);
-                    ctx.lineTo(rx, deckY);
-                    ctx.stroke();
-                }
-                // Side rails (raised edges to contain cargo)
-                ctx.fillStyle = '#334155';
-                ctx.fillRect(-hw - 2, deckY - bh - 3, 4, bh + 3);     // left rail
-                ctx.fillRect(hw - 2, deckY - bh - 3, 4, bh + 3);       // right rail
-                // Deck surface glow line
-                const deckGrad = ctx.createLinearGradient(-hw, deckY - 1, hw, deckY);
-                deckGrad.addColorStop(0, 'rgba(56,189,248,0.8)');
-                deckGrad.addColorStop(1, 'rgba(56,189,248,0.3)');
-                ctx.strokeStyle = deckGrad;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(-hw + 2, deckY);
-                ctx.lineTo(hw - 2, deckY);
-                ctx.stroke();
-
-                // ── Engine block (boxy industrial bottom) ──────────────────────
-                // Main chassis rectangle
-                const chassisGrad = ctx.createLinearGradient(-hw, -6, hw, 20);
-                chassisGrad.addColorStop(0, '#1e3a5f');
-                chassisGrad.addColorStop(0.5, '#162840');
-                chassisGrad.addColorStop(1, '#0c1825');
-                ctx.fillStyle = chassisGrad;
-                ctx.strokeStyle = '#334155';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.roundRect ? ctx.roundRect(-hw + 2, -5, (hw - 2) * 2, 25, 3)
-                              : ctx.rect(-hw + 2, -5, (hw - 2) * 2, 25);
-                ctx.fill();
-                ctx.stroke();
-
-                // Panel lines / detail strips
-                ctx.strokeStyle = 'rgba(56,189,248,0.3)';
-                ctx.lineWidth = 0.8;
-                ctx.beginPath();
-                ctx.moveTo(-hw + 5, 2);
-                ctx.lineTo(hw - 5, 2);
-                ctx.moveTo(-hw + 5, 10);
-                ctx.lineTo(hw - 5, 10);
-                ctx.stroke();
-
-                // ── Cab / cockpit (top section) ─────────────────────────────────
-                const cabW = hw * 0.65, cabH = 14;
-                const cabGrad = ctx.createLinearGradient(-cabW, -5 - cabH, cabW, -5);
-                cabGrad.addColorStop(0, '#1e3a5f');
-                cabGrad.addColorStop(1, '#0f2035');
-                ctx.fillStyle = cabGrad;
+                // ── Cargo deck ─────────────────────────────────────────────────
+                ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = '#38bdf8';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                // Slightly tapered cab
-                ctx.moveTo(-cabW, -5);
-                ctx.lineTo(-cabW * 0.8, -5 - cabH);
-                ctx.lineTo(cabW * 0.8, -5 - cabH);
-                ctx.lineTo(cabW, -5);
-                ctx.closePath();
+                ctx.rect(-hw, deckY - bh, hw * 2, bh);
                 ctx.fill();
                 ctx.stroke();
-
-                // Cab window — compact visor, inset from cab edges
-                ctx.fillStyle = 'rgba(147,197,253,0.45)';
-                ctx.strokeStyle = 'rgba(147,197,253,0.7)';
+                // Deck accent line
+                ctx.strokeStyle = 'rgba(56,189,248,0.5)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.40, -5 - 4);
-                ctx.lineTo(-cabW * 0.30, -5 - cabH + 5);
-                ctx.lineTo(cabW * 0.30, -5 - cabH + 5);
-                ctx.lineTo(cabW * 0.40, -5 - 4);
+                ctx.moveTo(-hw + 3, deckY - 1);
+                ctx.lineTo(hw - 3, deckY - 1);
+                ctx.stroke();
+
+                // ── Main body ─────────────────────────────────────────────────
+                ctx.fillStyle = '#1e3a5f';
+                ctx.strokeStyle = critical ? '#ef4444' : '#334155';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(-hw + 2, -4, (hw - 2) * 2, 20);
+                ctx.fill();
+                ctx.stroke();
+
+                // ── Cockpit dome ──────────────────────────────────────────────
+                const cabW = hw * 0.55;
+                ctx.fillStyle = '#162840';
+                ctx.strokeStyle = critical ? '#ef4444' : '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-cabW, -4);
+                ctx.lineTo(-cabW * 0.75, -4 - 12);
+                ctx.lineTo(cabW * 0.75, -4 - 12);
+                ctx.lineTo(cabW, -4);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Window glint
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                // Window
+                ctx.fillStyle = 'rgba(147,197,253,0.5)';
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.36, -5 - 5);
-                ctx.lineTo(-cabW * 0.22, -5 - cabH + 6);
-                ctx.lineTo(-cabW * 0.06, -5 - cabH + 6);
-                ctx.lineTo(-cabW * 0.18, -5 - 5);
+                ctx.moveTo(-cabW * 0.45, -4 - 3);
+                ctx.lineTo(-cabW * 0.3, -4 - 10);
+                ctx.lineTo(cabW * 0.3, -4 - 10);
+                ctx.lineTo(cabW * 0.45, -4 - 3);
+                ctx.closePath();
+                ctx.fill();
+                // Window glint
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.moveTo(-cabW * 0.4, -4 - 4);
+                ctx.lineTo(-cabW * 0.2, -4 - 10);
+                ctx.lineTo(-cabW * 0.05, -4 - 10);
+                ctx.lineTo(-cabW * 0.22, -4 - 4);
                 ctx.closePath();
                 ctx.fill();
 
-                // ── Dual thruster nozzles ──────────────────────────────────────
+                // ── Nozzles ──────────────────────────────────────────────────
                 for (const nx of [-9, 9]) {
-                    ctx.fillStyle = '#1e293b';
-                    ctx.strokeStyle = '#475569';
+                    ctx.fillStyle = '#0f172a';
+                    ctx.strokeStyle = firing ? 'rgba(251,191,36,0.9)' : '#475569';
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
-                    ctx.moveTo(nx - 4, 10);
-                    ctx.lineTo(nx + 4, 10);
-                    ctx.lineTo(nx + 5, 16);
-                    ctx.lineTo(nx - 5, 16);
+                    ctx.moveTo(nx - 4, 12); ctx.lineTo(nx + 4, 12);
+                    ctx.lineTo(nx + 5, 17); ctx.lineTo(nx - 5, 17);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
-                    // Nozzle ring glow
-                    ctx.strokeStyle = lander.thrusting && lander.fuel > 0 ? 'rgba(251,191,36,0.8)' : '#64748b';
-                    ctx.lineWidth = 1.2;
-                    ctx.beginPath();
-                    ctx.ellipse(nx, 16, 5, 2, 0, 0, Math.PI * 2);
-                    ctx.stroke();
+                    ctx.fill(); ctx.stroke();
                 }
 
-                // ── Side thruster nozzles (visible even when idle) ────────────
+                // ── Side RCS ports ────────────────────────────────────────────
                 for (const side of [-1, 1]) {
-                    const snx = side * (hw + 1);
-                    ctx.fillStyle = '#1e293b';
+                    ctx.fillStyle = '#0f172a';
                     ctx.strokeStyle = '#334155';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(snx, -2);
-                    ctx.lineTo(snx + side * 6, 0);
-                    ctx.lineTo(snx + side * 6, 4);
-                    ctx.lineTo(snx, 6);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
+                    ctx.rect(side * (hw - 1), 0, side * 5, 6);
+                    ctx.fill(); ctx.stroke();
                 }
             }
         }
