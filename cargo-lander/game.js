@@ -1316,6 +1316,7 @@ class CargoGame {
         this.drawDeliveryHubs();
 
         // 5. Draw Terrain Landscape
+        this.drawLake();
         this.drawTerrain();
 
         // 6. Draw Cargo Sourcing Depot Building
@@ -2087,6 +2088,87 @@ class CargoGame {
         if (p.collectionPoint) ranges.push({ left: p.collectionPoint.x, right: p.collectionPoint.x + p.collectionPoint.width });
         for (const hub of p.deliveryHubs) ranges.push({ left: hub.x, right: hub.x + hub.width });
         return ranges;
+    }
+
+    drawLake() {
+        if (this.currentLevelIndex > 1) return;
+        if (!(this.physics.levelHeight > 0)) return;
+        const ctx = this.ctx;
+        const lx = 350, ly = this.physics.levelHeight * 0.55, lw = 280, ld = 60;
+        const now = Date.now();
+
+        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
+        depthGrad.addColorStop(0, 'rgba(20,60,100,0.75)');
+        depthGrad.addColorStop(1, 'rgba(5,10,25,0.92)');
+        ctx.fillStyle = depthGrad;
+        ctx.fillRect(lx, ly, lw, ld);
+
+        ctx.fillStyle = 'rgba(100,180,255,0.15)';
+        ctx.fillRect(lx, ly, lw, 6);
+
+        ctx.strokeStyle = 'rgba(120,200,255,0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let wx = 0; wx <= lw; wx += 4) {
+            const wy = Math.sin(now / 800 + (lx + wx) * 0.05) * 1.5;
+            if (wx === 0) ctx.moveTo(lx + wx, ly + wy);
+            else ctx.lineTo(lx + wx, ly + wy);
+        }
+        ctx.stroke();
+
+        const fish = [
+            { phase: 0.0, depth: 0.35, size: 1.0 },
+            { phase: 2.1, depth: 0.55, size: 0.85 },
+            { phase: 4.3, depth: 0.70, size: 1.1 },
+            { phase: 1.5, depth: 0.45, size: 0.9 },
+        ];
+        ctx.save();
+        ctx.rect(lx, ly, lw, ld);
+        ctx.clip();
+        for (const f of fish) {
+            const t = now / 1200 + f.phase;
+            const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(t) * (lw * 0.38), lx + 10), lx + lw - 10);
+            const fy = ly + ld * f.depth;
+            const dir = Math.cos(t) >= 0 ? 1 : -1;
+            const bw = 14 * f.size, bh = 6 * f.size;
+            ctx.fillStyle = 'rgba(80,180,120,0.85)';
+            ctx.beginPath();
+            ctx.ellipse(fx, fy, bw / 2, bh / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            const tx = fx - dir * (bw / 2);
+            ctx.beginPath();
+            ctx.moveTo(tx, fy);
+            ctx.lineTo(tx - dir * bh * 0.9, fy - bh * 0.7);
+            ctx.lineTo(tx - dir * bh * 0.9, fy + bh * 0.7);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+
+        const bx = lx + 180 + Math.sin(now / 2000) * 8;
+        const by = ly - 1;
+        ctx.fillStyle = '#4a3728';
+        ctx.beginPath();
+        ctx.moveTo(bx - 20, by);
+        ctx.lineTo(bx + 20, by);
+        ctx.lineTo(bx + 16, by + 12);
+        ctx.lineTo(bx - 16, by + 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(bx - 20, by + 1, 40, 3);
+        ctx.strokeStyle = '#8a7060';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, by);
+        ctx.lineTo(bx - 6, by - 20);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(180,180,180,0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, by - 20);
+        ctx.lineTo(bx - 6 + 10, by + 10 + Math.sin(now / 2000) * 3);
+        ctx.stroke();
     }
 
     drawTerrain() {
