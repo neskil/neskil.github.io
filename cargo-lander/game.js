@@ -2262,7 +2262,7 @@ class CargoGame {
     drawWormDangerZone() {
         if (this.currentLevelIndex !== 5) return;
         const ctx = this.ctx;
-        const cx = 1075, cy = 1200, r = 200;
+        const cx = 1075, cy = 1100, r = 300;
         const t = Date.now() / 1000;
         const pulse = 0.5 + 0.5 * Math.sin(t * 1.8);
 
@@ -3607,47 +3607,56 @@ class CargoGame {
 
     drawBoxes() {
         for (const box of this.physics.boxes) {
-            this.drawSingleBox(box.x, box.y, box.type);
+            this.drawSingleBox(box.x, box.y, box.type, box.emoji);
         }
     }
 
-    drawSingleBox(x, y, type) {
+    drawSingleBox(x, y, type, emoji) {
         const ctx = this.ctx;
         const S = this.physics.BOX_SIZE;
         const halfS = S / 2;
 
+        // Only colour-code when the level has multiple cargo types
+        const allowedTypes = this.physics.currentLevelConfig?.allowedTypes;
+        const multiType = allowedTypes && allowedTypes.length > 1;
+
+        let fillColor   = '#334155'; // neutral slate when single-type
+        let borderColor = '#64748b';
+        if (multiType) {
+            if      (type === 'normal') { fillColor = '#0369a1'; borderColor = '#38bdf8'; }
+            else if (type === 'red')    { fillColor = '#991b1b'; borderColor = '#f87171'; }
+            else if (type === 'blue')   { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
+            else if (type === 'green')  { fillColor = '#14532d'; borderColor = '#4ade80'; }
+        }
+
+        // Fallback icon if no emoji passed (e.g. crane animation)
+        const iconText = emoji || (type === 'red' ? '⚠️' : type === 'blue' ? '❄️' : type === 'green' ? '♻️' : '📦');
+
         ctx.save();
         ctx.translate(x, y);
 
-        // Type-specific color and icon
-        let fillColor = '#0ea5e9'; // normal = sky blue
-        let borderColor = '#38bdf8';
-        let iconText = '📦';
-        if (type === 'red')   { fillColor = '#dc2626'; borderColor = '#f87171'; iconText = '⚠️'; }
-        else if (type === 'blue')  { fillColor = '#1d4ed8'; borderColor = '#60a5fa'; iconText = '❄️'; }
-        else if (type === 'green') { fillColor = '#15803d'; borderColor = '#4ade80'; iconText = '♻️'; }
-
-        // Solid color fill with subtle top-highlight
-        const grad = ctx.createLinearGradient(-halfS, -halfS, 0, halfS);
-        grad.addColorStop(0, fillColor + 'ee');
-        grad.addColorStop(1, fillColor + '99');
+        // Solid fill + subtle top highlight
+        const grad = ctx.createLinearGradient(0, -halfS, 0, halfS);
+        grad.addColorStop(0, fillColor + 'f0');
+        grad.addColorStop(1, fillColor + 'aa');
         ctx.fillStyle = grad;
         ctx.fillRect(-halfS, -halfS, S, S);
 
-        // Top-edge highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
         ctx.fillRect(-halfS, -halfS, S, 4);
 
-        // Border
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-halfS, -halfS, S, S);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-halfS + 0.75, -halfS + 0.75, S - 1.5, S - 1.5);
 
-        // Emoji — large and centered
-        ctx.font = `bold ${Math.round(S * 0.72)}px Arial`;
+        // Emoji with white shadow so it pops on any background
+        ctx.font = `${Math.round(S * 0.82)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(255,255,255,0.85)';
+        ctx.shadowBlur = 4;
         ctx.fillText(iconText, 0, 1);
+        ctx.shadowBlur = 0;
 
         ctx.restore();
     }
