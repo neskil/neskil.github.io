@@ -24,6 +24,7 @@ class CargoPhysics {
     initLevel(levelConfig, width, height, upgrades = {}) {
         this.levelWidth = 1600; // Huge horizontal space
         this.levelHeight = 1300; // Tall enough to fly well above terrain
+        this.currentLevelConfig = levelConfig; // Store for ceiling/terrain queries
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.15;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         
@@ -53,18 +54,18 @@ class CargoPhysics {
             }
             return h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
         } else if (terrainType === 'worm-lair') {
-            // X: 0 - 200: Plateau
-            if (x < 200) return h - 400 + Math.sin(x * 0.05) * 10;
-            // X: 200 - 450: Deep Pit for Cargo
-            if (x >= 200 && x < 450) return h - 50 + Math.sin(x * 0.1) * 5;
-            // X: 450 - 650: Lake Basin
-            if (x >= 450 && x < 650) return h - 200 + Math.sin(x * 0.02) * 5;
-            // X: 650 - 730: Central Plateau
-            if (x >= 650 && x < 730) return h - 300 + Math.sin(x * 0.04) * 10;
-            // X: 730 - 850: Sand Worm Pit
-            if (x >= 730 && x < 850) return h - 100 + Math.cos(x * 0.05) * 15;
-            // X: 850+: Slope to Drop-off
-            return h - 350 + Math.sin(x * 0.03) * 15;
+            const cosBlend = (a, b, x1, x2) => {
+                const t = Math.max(0, Math.min(1, (x - x1) / (x2 - x1)));
+                const s = 0.5 - 0.5 * Math.cos(t * Math.PI);
+                return a + (b - a) * s;
+            };
+            if (x < 300)  return h - 460 + Math.sin(x * 0.04) * 8;          // high left plateau
+            if (x < 430)  return cosBlend(h - 460, h - 110, 300, 430);       // slope down
+            if (x < 600)  return h - 110 + Math.sin(x * 0.08) * 4;           // low valley (cargo)
+            if (x < 790)  return h - 75;                                      // lake basin
+            if (x < 960)  return h - 155 + Math.sin(x * 0.05) * 12;          // sandy plain (worm zone)
+            if (x < 1080) return cosBlend(h - 155, h - 330, 960, 1080);      // slope up
+            return h - 330 + Math.sin(x * 0.04) * 8;                         // right plateau (drop-off)
         } else if (terrainType === 'needle') {
             if (x >= 650 && x <= 750) {
                 return h - 40; // bottom of pit
@@ -83,6 +84,28 @@ class CargoPhysics {
             }
             return y;
         }
+    }
+
+    // Returns the Y coordinate of a cave ceiling at x, or null if open sky.
+    // Add cases here for terrain types that have ceilings/overhangs.
+    getRawTerrainCeiling(x, terrainType, w, h) {
+        return null; // No terrain type uses ceilings yet
+    }
+
+    // Convenience wrapper using current level config.
+    getTerrainCeiling(x) {
+        if (!this.currentLevelConfig) return null;
+        return this.getRawTerrainCeiling(x, this.currentLevelConfig.terrainType, this.levelWidth, this.levelHeight);
+    }
+
+    // True if the current terrain type has any ceiling areas.
+    hasCeiling() {
+        if (!this.currentLevelConfig) return false;
+        // Sample a few points across the map — a single x=0 sample misses mid-map ceilings.
+        for (const sx of [0, 400, 800, 1200]) {
+            if (this.getRawTerrainCeiling(sx, this.currentLevelConfig.terrainType, this.levelWidth, this.levelHeight) !== null) return true;
+        }
+        return false;
     }
 
     generateTerrain(config) {
@@ -400,24 +423,29 @@ class CargoPhysics {
 
         // --- Level 6: Sand Worm Logic ---
         if (this.currentLevelIndex === 5) {
-            // Check Sand Worm trigger
+            // Check Sand Worm trigger — circular danger zone
             if (!this.sandWorm && !lander.crashed) {
-                const wormPitCenter = 790;
-                const distToPit = Math.abs(lander.x - wormPitCenter);
-                if (distToPit < 500 && lander.y > this.levelHeight - 400) {
-                    // Logarithmic drop-off for risk
-                    const risk = Math.max(0, 1 - Math.log(Math.max(1, distToPit)) / Math.log(500));
-                    const chance = risk * 0.005 * dt; // Random chance per frame
+                const WORM_ZONE_CX = 875;
+                const WORM_ZONE_CY = 560;
+                const WORM_ZONE_R  = 220;
+                const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
+                if (distToZone < WORM_ZONE_R) {
+                    const risk = Math.max(0, 1 - Math.log(Math.max(1, distToZone)) / Math.log(WORM_ZONE_R));
+                    const chance = risk * 0.005 * dt;
                     if (Math.random() < chance) {
+                        const spawnX = lander.x + (Math.random() - 0.5) * 30;
+                        const spawnY = this.levelHeight + 120;
+                        const angle = Math.atan2(lander.y - spawnY, lander.x - spawnX);
+                        const speed = 22;
                         this.sandWorm = {
-                            x: wormPitCenter + (Math.random() - 0.5) * 40,
-                            y: this.levelHeight + 150,
-                            vx: (lander.x - wormPitCenter) * 0.035, // Slight predictive angle
-                            vy: -22, // Fast upward lunge
-                            state: 'lunging', // 'lunging' or 'retracting'
+                            x: spawnX,
+                            y: spawnY,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            state: 'lunging',
                             trail: []
                         };
-                        if (window.CargoAudio) CargoAudio.playCrash(); // Use crash sound for roar
+                        if (window.CargoAudio) CargoAudio.playCrash();
                     }
                 }
             }
@@ -892,6 +920,44 @@ class CargoPhysics {
             lander.currentPad = null;
         }
 
+        // --- Ceiling collision ---
+        const corners = [
+            { x: -lander.width / 2, y: -lander.height / 2 },
+            { x:  lander.width / 2, y: -lander.height / 2 },
+            { x: -lander.width / 2, y:  lander.height / 2 },
+            { x:  lander.width / 2, y:  lander.height / 2 },
+        ];
+        for (const pt of corners) {
+            const wx = lander.x + pt.x * Math.cos(lander.angle) - pt.y * Math.sin(lander.angle);
+            const wy = lander.y + pt.x * Math.sin(lander.angle) + pt.y * Math.cos(lander.angle);
+            const ceilingY = this.getTerrainCeiling(wx);
+            if (ceilingY === null) continue;
+            const pen = ceilingY - wy;
+            if (pen > 0) {
+                lander.y += pen;
+                if (lander.vy < 0) {
+                    const impactVel = Math.abs(lander.vy);
+                    lander.vy = impactVel * this.LANDER_RESTITUTION;
+                    if (impactVel > 1.0) {
+                        const damage = Math.pow(impactVel - 1.0, 1.8) * 16;
+                        lander.integrity -= damage;
+                        if (window.CargoAudio) CargoAudio.playCollision(impactVel);
+                        for (let i = 0; i < 12; i++) {
+                            this.particles.push({
+                                x: wx, y: wy,
+                                vx: (Math.random() - 0.5) * 7,
+                                vy: (Math.random() - 0.5) * 7 + 2,
+                                life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                                color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                                size: 2.5 + Math.random() * 2.5
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
+                }
+                break;
+            }
+        }
     }
 
     triggerExplosion() {
@@ -1074,6 +1140,14 @@ class CargoPhysics {
                     box.vx -= this.BOX_FRICTION * vt * slope.tx;
                     box.vy -= this.BOX_FRICTION * vt * slope.ty;
                 }
+            }
+
+            // Ceiling collision for cargo box
+            const ceilingY = this.getTerrainCeiling(box.x);
+            if (ceilingY !== null && box.y - halfS < ceilingY) {
+                const pen = ceilingY - (box.y - halfS);
+                box.y += pen;
+                if (box.vy < 0) box.vy = Math.abs(box.vy) * this.BOX_RESTITUTION;
             }
         }
     }
