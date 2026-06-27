@@ -154,16 +154,16 @@ class CargoPhysics {
         this.lander = {
             vehicleType: vehicleType,
             x: this.startDepot.x + this.startDepot.width / 2,
-            y: this.startDepot.y - 16,
+            y: this.startDepot.y - 90,
             vx: 0,
             vy: 0,
             angle: 0,
             angularVelocity: 0,
-            width: vehicleType === 'drone' ? 32 : 40,
-            height: vehicleType === 'drone' ? 16 : 28,
-            deckWidth: 66,
+            width: vehicleType === 'drone' ? 28 : 34,
+            height: vehicleType === 'drone' ? 14 : 22,
+            deckWidth: 56,
             deckOffset: 12, // Pixels above center
-            basketHeight: 25, // Side wall height for the basket
+            basketHeight: 24, // Side wall height for the basket
             fuel: 100,
             maxFuel: 100,
             integrity: maxIntegrity,
@@ -184,8 +184,8 @@ class CargoPhysics {
             ropeMax: ropeMax,
             grabbedBoxId: null,
             crashed: false,
-            landed: true,
-            currentPad: 'start'
+            landed: false,
+            currentPad: null
         };
     }
 
