@@ -313,7 +313,7 @@ class CargoPhysics {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
         }
 
-        if (!this.monster && this.outOfBoundsTimer > 50) { // ~0.8 seconds at 60fps
+        if (!this.monster && this.outOfBoundsTimer > 150) { // ~2.5 seconds at 60fps
             // Spawn monster from the deep below
             this.monster = {
                 x: lander.x < -150 ? lander.x - 400 : lander.x + 400,
@@ -322,25 +322,36 @@ class CargoPhysics {
                 vy: -5,
                 size: 130,
                 roarTimer: 60,
-                trail: [] // body segment trail
+                trail: [],
+                speedIntegral: 0,
             };
             if (window.CargoAudio) CargoAudio.playCrash();
         }
 
         if (this.monster) {
             const m = this.monster;
-            
+
             // AI Chase Logic: Accelerate toward lander
             const dx = lander.x - m.x;
             const dy = lander.y - m.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            
+
             if (dist > 0) {
-                const speed = 0.25;
+                // Integral accumulator: builds up when lander is escaping (moving away)
+                const relVx = lander.vx - m.vx;
+                const relVy = lander.vy - m.vy;
+                const escapeDot = (relVx * dx + relVy * dy) / dist;
+                m.speedIntegral = m.speedIntegral || 0;
+                if (escapeDot > 0) {
+                    m.speedIntegral = Math.min(1.2, m.speedIntegral + 0.003 * dt);
+                } else {
+                    m.speedIntegral = Math.max(0, m.speedIntegral - 0.001 * dt);
+                }
+                const speed = 0.25 + m.speedIntegral * 0.55;
                 m.vx += (dx / dist) * speed * dt;
                 m.vy += (dy / dist) * speed * dt;
             }
-            
+
             // Dampen velocity
             m.vx *= Math.pow(0.98, dt);
             m.vy *= Math.pow(0.98, dt);
@@ -1062,9 +1073,10 @@ class CargoPhysics {
             const fromRight = Math.random() > 0.5;
             const minTerrainY = Math.min(...this.terrainPoints.map(p => p.y));
             const skyY = minTerrainY - 80 - Math.random() * 450;
-            const truckW = 80 + Math.random() * 100;
-            const truckH = 18 + Math.random() * 18;
-            const speed = 0.2 + Math.random() * 0.55;
+            const model = Math.random() < 0.42 ? 'pickup' : 'freighter';
+            const truckW = model === 'pickup' ? 55 + Math.random() * 50 : 80 + Math.random() * 120;
+            const truckH = model === 'pickup' ? 20 + Math.random() * 10 : 16 + Math.random() * 18;
+            const speed = 0.15 + Math.random() * 0.75;
             const palette = [
                 { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
                 { body: '#2d1b4e', accent: '#a78bfa', light: '#c4b5fd' },
@@ -1072,9 +1084,9 @@ class CargoPhysics {
                 { body: '#3a2000', accent: '#f97316', light: '#fed7aa' },
                 { body: '#3a1a1a', accent: '#ef4444', light: '#fca5a5' },
                 { body: '#1a1a3a', accent: '#818cf8', light: '#c7d2fe' },
+                { body: '#2a1a0a', accent: '#f59e0b', light: '#fde68a' },
             ];
             const col = palette[Math.floor(Math.random() * palette.length)];
-            // willFlyOff: some trucks tilt and escape into space
             const willFlyOff = Math.random() < 0.3;
             const flyOffDelay = willFlyOff ? 300 + Math.random() * 600 : Infinity;
             this.ambientTraffic.push({
@@ -1084,12 +1096,14 @@ class CargoPhysics {
                 vx: fromRight ? -speed : speed,
                 w: truckW,
                 h: truckH,
+                model,
                 angle: 0,
                 lightPhase: Math.random() * Math.PI * 2,
                 bodyColor: col.body,
                 accentColor: col.accent,
                 lightColor: col.light,
                 engineGlow: Math.random() > 0.4,
+                hasCargoBox: model === 'pickup' && Math.random() < 0.45,
                 flyOffTimer: flyOffDelay,
                 flyingOff: false,
             });
