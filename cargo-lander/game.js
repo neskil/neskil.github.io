@@ -283,7 +283,12 @@ class CargoGame {
         if (container) {
             const scaleX = window.innerWidth / targetW;
             const scaleY = window.innerHeight / targetH;
-            const scale = Math.min(scaleX, scaleY);
+            let scale = Math.min(scaleX, scaleY);
+            
+            // Scale down slightly on PC so it's not overwhelmingly large
+            if (window.innerWidth >= 1024) {
+                scale = Math.min(scale * 0.92, 1.25);
+            }
             
             container.style.transform = `translate(-50%, -50%) scale(${scale})`;
         }
@@ -4669,5 +4674,5 @@ function shadeColor(hex, amount) {
     return '#' + [r, g, b].map(v => v.toString(16).padStart(2,'0')).join('');
 }
 
-// Global game singleton
-const game = new CargoGame();
+// Global game singleton — must be on window so inline HTML handlers can access it
+window.game = new CargoGame();

@@ -551,6 +551,11 @@ class CargoPhysics {
                 lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * lander.enginePower * dt;
                 lander.vy -= maxThrust * lander.enginePower * dt;
             }
+            if (inputState.down && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * dt;
+                lander.vy += maxThrust * 0.5 * dt;
+            }
             if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
                 lander.landed = false;
                 lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * Math.abs(lander.strafePower) * dt;
@@ -585,6 +590,14 @@ class CargoPhysics {
 
                 lander.vx += ax;
                 lander.vy += ay;
+            }
+            if (inputState.down && lander.fuel > 0) {
+                lander.landed = false;
+                lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * dt;
+                const ax = Math.sin(lander.angle) * maxThrust * 0.5 * dt;
+                const ay = -Math.cos(lander.angle) * maxThrust * 0.5 * dt;
+                lander.vx -= ax;
+                lander.vy -= ay;
             }
             
             if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
@@ -882,6 +895,14 @@ class CargoPhysics {
     }
 
     triggerExplosion() {
+        if (window.DEV_INVULNERABLE) {
+            if (this.lander) {
+                this.lander.integrity = 100;
+                // Add a small bounce if hitting the ground or ceiling
+                if (this.lander.vy > 1) this.lander.vy = -this.lander.vy * 0.5;
+            }
+            return;
+        }
         const lander = this.lander;
         lander.crashed = true;
         lander.integrity = 0;
