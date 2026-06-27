@@ -1168,6 +1168,17 @@
                 <button onclick="game.toggleDevPanel()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
             </div>
 
+            <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:0 0 6px;">LEVEL</div>
+            <div class="dev-row" style="justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                <button onclick="game.startTestLevel()" style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.5);color:#fbbf24;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;">▶ Test Sandbox</button>
+                <button onclick="game.startLevel(0)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L1</button>
+                <button onclick="game.startLevel(1)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L2</button>
+                <button onclick="game.startLevel(2)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L3</button>
+                <button onclick="game.startLevel(3)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L4</button>
+                <button onclick="game.startLevel(4)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L5</button>
+                <button onclick="game.startLevel(5)" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L6</button>
+            </div>
+
             <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:8px 0 4px;">CAMERA</div>
             <div class="dev-row" style="justify-content: flex-start; gap: 8px; margin-bottom: 5px;">
                 <input type="checkbox" id="dev-freecam" onchange="game.freeCam=this.checked" style="width:auto; cursor:pointer;">
@@ -1197,7 +1208,19 @@
         </div>
 
 
-    <!-- Script imports -->
+    <!-- Matter.js physics engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
+    <script src="levels.js"></script>
+    <!-- Individual level configs (each calls registerLevel) -->
+    <script src="level1.js"></script>
+    <script src="level2.js"></script>
+    <script src="level3.js"></script>
+    <script src="level4.js"></script>
+    <script src="level5.js"></script>
+    <script src="level6.js"></script>
+    <script src="levelTest.js"></script>
+    <!-- Engine -->
     <script src="audio.js"></script>
     <script src="shaders.js"></script>
     <script src="physics.js"></script>

@@ -1,181 +1,11 @@
 // CargoLander - Game Core Loop & Renderer
-const levels = [
-    {
-        name: "L1: Local Distribution",
-        missionTitle: "Local Distribution Contract",
-        description: "Transport standard packages to the Delivery Pad. Fly carefully — tilt too much and cargo will slide off!",
-        gravity: 0.15,
-        wind: 0,
-        terrainType: "flat",
-        padScale: 1.5,
-        targetCargo: 2,
-        budget: 1000,
-        timeLimit: 180,
-        allowedTypes: ["normal"],
-        deliveryHubs: [
-            { x: 750, color: "#38bdf8", type: "normal", name: "Hub Alpha" }
-        ],
-        hint: "Tip: Land slowly (< 2.0 m/s) and return to HQ to extract.",
-        palette: {
-            skyTop: '#04071a', skyMid: '#0a1628', skyBot: '#0d2010',
-            terrainFill: '#0a1a08', rockEdge: '#4ade80', rockGlow: 'rgba(74,222,128,',
-            fog: 'rgba(74,222,128,0.04)',
-        },
-        quests: [
-            { id: 'primary',       text: 'Deliver 2 cargo to Hub Alpha',   type: 'primary' },
-            { id: 'no_crash',      text: 'Zero crashes',                   type: 'bonus', reward: 300 },
-            { id: 'quick',         text: 'Finish with 1+ min remaining',   type: 'bonus', reward: 200, timeGoal: 60 },
-        ]
-    },
-    {
-        name: "L2: Cross-Dock Sorting",
-        missionTitle: "Cross-Dock Sorting Contract",
-        description: "Sort the cargo. Normal packages → Main Processing. Fragile (red) → Fragile Handling. Don't drop fragile cargo!",
-        gravity: 0.15,
-        wind: 0,
-        terrainType: "canyon",
-        padScale: 1.2,
-        targetCargo: 2,
-        budget: 1200,
-        timeLimit: 240,
-        allowedTypes: ["normal", "red"],
-        deliveryHubs: [
-            { x: 500, color: "#38bdf8", type: "normal", name: "Main Processing" },
-            { x: 800, color: "#ef4444", type: "red", name: "Fragile Handling" }
-        ],
-        hint: "Sort correctly and return to HQ to extract.",
-        palette: {
-            skyTop: '#120a02', skyMid: '#1e1005', skyBot: '#2e1a06',
-            terrainFill: '#1a0f04', rockEdge: '#d97706', rockGlow: 'rgba(217,119,6,',
-            fog: 'rgba(217,119,6,0.06)',
-        },
-        quests: [
-            { id: 'primary',         text: 'Sort & deliver 2 cargo',       type: 'primary' },
-            { id: 'no_cargo_lost',   text: 'No cargo lost',                type: 'bonus', reward: 250 },
-            { id: 'no_crash',        text: 'Zero crashes',                  type: 'bonus', reward: 300 },
-        ]
-    },
-    {
-        name: "L3: Gale-Force Winds",
-        missionTitle: "High-Altitude Wind Contract",
-        description: "Strong crosswinds push your lander and cargo. Compensate by thrusting into the wind.",
-        gravity: 0.15,
-        wind: 0.08,
-        terrainType: "mountain",
-        padScale: 0.85,
-        targetCargo: 2,
-        budget: 1500,
-        timeLimit: 200,
-        allowedTypes: ["normal"],
-        deliveryHubs: [
-            { x: 650, color: "#38bdf8", type: "normal", name: "Peak Station" }
-        ],
-        hint: "Tilt into the wind. Return to HQ to extract.",
-        palette: {
-            skyTop: '#020810', skyMid: '#061828', skyBot: '#0a1e2e',
-            terrainFill: '#08121c', rockEdge: '#7dd3fc', rockGlow: 'rgba(125,211,252,',
-            fog: 'rgba(125,211,252,0.06)',
-        },
-        quests: [
-            { id: 'primary',    text: 'Deliver 2 cargo to Peak Station', type: 'primary' },
-            { id: 'no_crash',   text: 'Zero crashes',                    type: 'bonus', reward: 400 },
-            { id: 'quick',      text: 'Finish with 30+ sec remaining',   type: 'bonus', reward: 200, timeGoal: 30 },
-        ]
-    },
-    {
-        name: "L4: Gravity Anomaly",
-        missionTitle: "Anomaly Zone Delivery",
-        description: "A gravitational vortex is pulling you in. Counter the force and sort red/blue cargo to their correct hubs.",
-        gravity: 0.15,
-        wind: 0,
-        terrainType: "cave",
-        padScale: 0.70,
-        targetCargo: 2,
-        budget: 2000,
-        timeLimit: 180,
-        allowedTypes: ["red", "blue"],
-        deliveryHubs: [
-            { x: 750, color: "#ef4444", type: "red", name: "Sector 4" },
-            { x: 900, color: "#3b82f6", type: "blue", name: "Deep Storage" }
-        ],
-        gravityWell: { x: 500, y: 400, strength: 0.8, radius: 200, orbitRadius: 200 },
-        hint: "Avoid the vortex! Return to HQ to extract.",
-        palette: {
-            skyTop: '#0e0403', skyMid: '#1a0602', skyBot: '#2a0a04',
-            terrainFill: '#120402', rockEdge: '#f97316', rockGlow: 'rgba(249,115,22,',
-            fog: 'rgba(249,115,22,0.08)',
-        },
-        quests: [
-            { id: 'primary',         text: 'Deliver red & blue cargo',    type: 'primary' },
-            { id: 'no_cargo_lost',   text: 'No cargo sucked in',          type: 'bonus', reward: 350 },
-            { id: 'no_crash',        text: 'Zero crashes',                type: 'bonus', reward: 300 },
-        ]
-    },
-    {
-        name: "L5: The Needle's Eye",
-        missionTitle: "Needle's Eye Precision Drop",
-        description: "The hub is at the bottom of a shaft too narrow for your drone. Hover, extend your rope (E/Q), and lower cargo in!",
-        gravity: 0.10,
-        wind: 0,
-        terrainType: "needle",
-        targetCargo: 2,
-        budget: 1800,
-        timeLimit: 300,
-        allowedTypes: ["normal"],
-        collectionX: 180,
-        deliveryHubs: [
-            { x: 700, width: 25, color: "#38bdf8", type: "normal", name: "The Pit" }
-        ],
-        hint: "E/Q to extend/retract rope. SPACE drops cargo. Return to HQ to extract.",
-        palette: {
-            skyTop: '#040210', skyMid: '#080420', skyBot: '#0c0630',
-            terrainFill: '#060418', rockEdge: '#a855f7', rockGlow: 'rgba(168,85,247,',
-            fog: 'rgba(168,85,247,0.08)',
-        },
-        quests: [
-            { id: 'primary',         text: 'Lower 2 cargo into The Pit',  type: 'primary' },
-            { id: 'no_cargo_lost',   text: 'No cargo lost',               type: 'bonus', reward: 400 },
-            { id: 'quick',           text: 'Finish with 2+ min remaining',type: 'bonus', reward: 200, timeGoal: 120 },
-        ]
-    },
-    {
-        name: "L6: The Sand Worm's Lair",
-        missionTitle: "Sand Worm Extraction",
-        description: "A colossal sand worm lurks beneath the dunes. Deliver the cargo quickly before it strikes!",
-        gravity: 0.12,
-        wind: 0,
-        terrainType: "worm-lair",
-        targetCargo: 1,
-        budget: 2000,
-        timeLimit: 180,
-        allowedTypes: ["normal", "red"],
-        collectionX: 60,
-        deliveryHubs: [
-            { x: 1370, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }
-        ],
-        hint: "The sand worm is more likely to attack if you linger near its pit. Move fast!",
-        palette: {
-            skyTop: '#1a1005', skyMid: '#3a2010', skyBot: '#5a3015',
-            terrainFill: '#1a1005', rockEdge: '#d97706', rockGlow: 'rgba(217,119,6,',
-            fog: 'rgba(217,119,6,0.15)',
-        },
-        quests: [
-            { id: 'primary',         text: 'Deliver cargo to Dune Base',  type: 'primary' },
-            { id: 'survive_worm',    text: 'Survive the worm',            type: 'bonus', reward: 500 }
-        ]
-    }
-];
-
-const upgradeCatalog = [
-    { id: 'thrusterEfficiency', name: 'Thruster Efficiency', desc: 'Reduces fuel consumption by 15% per level.', maxLevel: 3, basePrice: 500 },
-    { id: 'boostMode', name: 'Engine Boost', desc: 'Increases main thruster power by 20% per level.', maxLevel: 3, basePrice: 800 },
-    { id: 'magneticDeck', name: 'Magnetic Deck', desc: 'Automatically pulls nearby cargo into the basket.', maxLevel: 2, basePrice: 1200 },
-    { id: 'winchExtender', name: 'Winch Extender', desc: 'Increases maximum drone rope length by 50m.', maxLevel: 2, basePrice: 600 },
-    { id: 'hullPlating', name: 'Hull Plating', desc: 'Increases lander max integrity and impact resistance.', maxLevel: 3, basePrice: 400 },
-    { id: 'shieldRegen', name: 'Shield Generator', desc: 'Slowly regenerates integrity and adds a protective energy bubble.', maxLevel: 2, basePrice: 1500 }
-];
+// Level configs: level1.js – level6.js  (each calls registerLevel)
+// Level registry + upgradeCatalog: levels.js
+// Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
+    static VERSION = '0.1.0';
+
     constructor() {
         this.canvas = null;
         this.ctx = null;
@@ -407,6 +237,9 @@ class CargoGame {
         // Mobile touch controls (will bind HTML button events to keys in UI file)
         window.addEventListener('resize', () => this.resizeCanvas());
     }
+
+    // Quick console shortcut: game.startTestLevel()
+    startTestLevel() { this.startLevel(levels.length - 1); }
 
     goToMenu() {
         this.gameState = 'menu';
@@ -1549,6 +1382,7 @@ class CargoGame {
         this.drawUnderground();
         this.drawGroundParallax();
         this.drawTerrain();
+        this.drawSegments();
         this.drawLake();
         this.drawWormDangerZone();
 
@@ -1688,15 +1522,17 @@ class CargoGame {
             }
         }
 
-        // 14. FPS counter (bottom-left corner)
+        // 14. Version + FPS counter (bottom-left corner)
+        ctx.save();
+        ctx.font = '600 11px "Courier New", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+        ctx.fillText(`v${CargoGame.VERSION}`, 14, h - 14);
         if (this.displayFps !== undefined) {
-            ctx.save();
-            ctx.font = '600 11px "Courier New", monospace';
-            ctx.textAlign = 'left';
             ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
-            ctx.fillText(`${this.displayFps} FPS`, 14, h - 14);
-            ctx.restore();
+            ctx.fillText(`${this.displayFps} FPS`, 14 + 48, h - 14);
         }
+        ctx.restore();
     }
 
     drawMinimap() {
@@ -2694,6 +2530,59 @@ class CargoGame {
         }
     }
 
+    drawSegments() {
+        const segs = this.physics.segments;
+        if (!segs || segs.length === 0) return;
+
+        const ctx = this.ctx;
+        const lv = levels[this.currentLevelIndex] || {};
+        const pal = lv.palette || {};
+        const now = performance.now();
+
+        ctx.save();
+
+        for (const seg of segs) {
+            const color = seg.color || pal.rockEdge || '#f97316';
+            const pulse = 0.7 + 0.3 * Math.sin(now * 0.002 + (seg.x1 + seg.y1) * 0.01);
+
+            // Glow halo
+            ctx.strokeStyle = (pal.rockGlow || 'rgba(249,115,22,') + (0.18 * pulse) + ')';
+            ctx.lineWidth = 14;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(seg.x1, seg.y1);
+            ctx.lineTo(seg.x2, seg.y2);
+            ctx.stroke();
+
+            // Core line
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(seg.x1, seg.y1);
+            ctx.lineTo(seg.x2, seg.y2);
+            ctx.stroke();
+
+            // Bright highlight edge
+            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(seg.x1, seg.y1);
+            ctx.lineTo(seg.x2, seg.y2);
+            ctx.stroke();
+
+            // End-cap dots
+            for (const [ex, ey] of [[seg.x1, seg.y1], [seg.x2, seg.y2]]) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        ctx.lineCap = 'butt';
+        ctx.restore();
+    }
+
     drawLake() {
         if (this.currentLevelIndex !== 0) return;
         if (!(this.physics.levelHeight > 0)) return;
@@ -3366,20 +3255,27 @@ class CargoGame {
             }
 
             // Vertical mast
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 7;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
             ctx.stroke();
+            // Mast highlight stripe
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX - 1, cy); ctx.lineTo(craneBaseX - 1, craneTopY - 20);
+            ctx.stroke();
             // Horizontal arm
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 6;
             ctx.beginPath();
             ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
             ctx.stroke();
             // Support diagonal
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#d97706';
             ctx.beginPath();
             ctx.moveTo(craneBaseX - 20, craneTopY - 20);
             ctx.lineTo(craneBaseX, cy - 20);
@@ -3575,18 +3471,24 @@ class CargoGame {
             const craneTopY = wbY - 2;
             const craneArmLeft = hub.x - 6;
 
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 6;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(craneX, hub.y); ctx.lineTo(craneX, craneTopY - 16);
             ctx.stroke();
-            ctx.lineWidth = 3.5;
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(craneX - 1, hub.y); ctx.lineTo(craneX - 1, craneTopY - 16);
+            ctx.stroke();
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 5;
             ctx.beginPath();
             ctx.moveTo(craneX, craneTopY - 16); ctx.lineTo(craneArmLeft, craneTopY - 16);
             ctx.stroke();
-            ctx.lineWidth = 1.8;
-            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = '#d97706';
             ctx.beginPath();
             ctx.moveTo(craneX - 16, craneTopY - 16); ctx.lineTo(craneX, hub.y - 16);
             ctx.stroke();
@@ -3717,56 +3619,35 @@ class CargoGame {
         ctx.save();
         ctx.translate(x, y);
 
-        // Set color based on cargo sorting type
-        let color = '#38bdf8'; // Blue (normal)
+        // Type-specific color and icon
+        let fillColor = '#0ea5e9'; // normal = sky blue
+        let borderColor = '#38bdf8';
         let iconText = '📦';
-        if (type === 'red') { color = '#ef4444'; iconText = '⚠️'; }
-        else if (type === 'blue') { color = '#3b82f6'; iconText = '❄️'; }
-        else if (type === 'green') { color = '#10b981'; iconText = '♻️'; }
+        if (type === 'red')   { fillColor = '#dc2626'; borderColor = '#f87171'; iconText = '⚠️'; }
+        else if (type === 'blue')  { fillColor = '#1d4ed8'; borderColor = '#60a5fa'; iconText = '❄️'; }
+        else if (type === 'green') { fillColor = '#15803d'; borderColor = '#4ade80'; iconText = '♻️'; }
 
-        // Box gradient fill
-        const boxGrad = ctx.createLinearGradient(-halfS, -halfS, halfS, halfS);
-        boxGrad.addColorStop(0, '#c2620a');
-        boxGrad.addColorStop(0.5, '#b45309');
-        boxGrad.addColorStop(1, '#7c3209');
-        ctx.fillStyle = boxGrad;
+        // Solid color fill with subtle top-highlight
+        const grad = ctx.createLinearGradient(-halfS, -halfS, 0, halfS);
+        grad.addColorStop(0, fillColor + 'ee');
+        grad.addColorStop(1, fillColor + '99');
+        ctx.fillStyle = grad;
         ctx.fillRect(-halfS, -halfS, S, S);
 
-        // Inner bevel highlight
-        ctx.strokeStyle = 'rgba(255,200,100,0.35)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-halfS + 1, halfS - 1);
-        ctx.lineTo(-halfS + 1, -halfS + 1);
-        ctx.lineTo(halfS - 1, -halfS + 1);
-        ctx.stroke();
+        // Top-edge highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(-halfS, -halfS, S, 4);
 
-        // Outer border
-        ctx.strokeStyle = '#78350f';
+        // Border
+        ctx.strokeStyle = borderColor;
         ctx.lineWidth = 2;
         ctx.strokeRect(-halfS, -halfS, S, S);
 
-        // Packing tape across the middle
-        ctx.fillStyle = 'rgba(253, 230, 138, 0.65)';
-        ctx.fillRect(-halfS, -2, S, 4);
-        ctx.fillRect(-2, -halfS, 4, S);
-
-        // Type-color glow outline
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(-halfS - 1, -halfS - 1, S + 2, S + 2);
-
-        // Emoji
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 15px Arial';
+        // Emoji — large and centered
+        ctx.font = `bold ${Math.round(S * 0.72)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(iconText, 0, 1);
-
-        // Type label fallback
-        ctx.font = 'bold 7px Arial';
-        const typeLabel = type === 'normal' ? 'STD' : type.toUpperCase();
-        ctx.fillText(typeLabel, 0, halfS - 3);
 
         ctx.restore();
     }
