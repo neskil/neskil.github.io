@@ -20,10 +20,11 @@ class CargoPhysics {
         this.LANDER_FRICTION = 0.6;
         this.segments = []; // Arbitrary line-segment obstacles defined per level
 
-        // Matter.js — handles box/terrain/segment collision and stacking
+        // Matter.js — handles box/terrain/segment/lander collision
         this.matterEngine = null;
         this.matterWorld = null;
         this.boxBodyMap = new Map(); // box.id → Matter.Body
+        this.landerBody = null;      // lander rigid body
         // Force scale: converts game velocity-per-frame to Matter force units.
         // Derived from delta_v = (force/mass) * deltaTime² with fixed 16.666ms step.
         this.MATTER_FORCE_SCALE = 1 / (16.666 * 16.666);
@@ -164,7 +165,7 @@ class CargoPhysics {
                     friction: this.LANDER_FRICTION,
                     restitution: this.BOX_RESTITUTION,
                     label: 'terrain',
-                    collisionFilter: { category: 0x0002, mask: 0x0001 },
+                    collisionFilter: { category: 0x0002, mask: 0x0001 | 0x0008 },
                 }
             );
             Matter.Composite.add(this.matterWorld, body);
@@ -177,7 +178,7 @@ class CargoPhysics {
             Matter.Bodies.rectangle(-60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
             Matter.Bodies.rectangle(W + 60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
         ].forEach(b => {
-            b.collisionFilter = { category: 0x0002, mask: 0x0001 };
+            b.collisionFilter = { category: 0x0002, mask: 0x0001 | 0x0008 };
             Matter.Composite.add(this.matterWorld, b);
         });
 
@@ -194,7 +195,7 @@ class CargoPhysics {
                 friction: this.BOX_FRICTION,
                 restitution: this.BOX_RESTITUTION,
                 label: 'segment',
-                collisionFilter: { category: 0x0004, mask: 0x0001 },
+                collisionFilter: { category: 0x0004, mask: 0x0001 | 0x0008 },
             });
             Matter.Composite.add(this.matterWorld, body);
         }
@@ -319,6 +320,149 @@ class CargoPhysics {
             landed: false,
             currentPad: null
         };
+        this._spawnLanderBody();
+    }
+
+    _spawnLanderBody() {
+        if (!this.matterWorld) return;
+        if (this.landerBody) {
+            Matter.Composite.remove(this.matterWorld, this.landerBody);
+            this.landerBody = null;
+        }
+        const l = this.lander;
+        this.landerBody = Matter.Bodies.rectangle(l.x, l.y, l.width, l.height, {
+            frictionAir: 0,
+            friction: this.LANDER_FRICTION,
+            restitution: this.LANDER_RESTITUTION,
+            label: 'lander',
+            collisionFilter: { category: 0x0008, mask: 0x0002 | 0x0004 },
+        });
+        Matter.Body.setInertia(this.landerBody, Infinity);
+        Matter.Composite.add(this.matterWorld, this.landerBody);
+
+        // One damage event per engine step (deduplicate multiple terrain pairs)
+        Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
+            if (!this.lander || this.lander.crashed || window.DEV_INVULNERABLE) return;
+            let processed = false;
+            for (const pair of event.pairs) {
+                if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
+                if (processed) continue;
+                processed = true;
+                const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
+                const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
+                if (impactSpeed < 1.0) continue;
+                const onPad = this._getLanderPad() !== null;
+                const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
+                const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
+                if (impactSpeed > damageThreshold) {
+                    const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
+                    this.lander.integrity -= damage;
+                    if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
+                    const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
+                    const sparkCount = onPad ? 6 : 16;
+                    for (let i = 0; i < sparkCount; i++) {
+                        this.particles.push({
+                            x: sup.x, y: sup.y,
+                            vx: (Math.random() - 0.5) * 7,
+                            vy: (Math.random() - 0.5) * 7 - 2,
+                            life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                            size: 2.5 + Math.random() * 2.5,
+                        });
+                    }
+                    if (this.lander.integrity <= 0) this.triggerExplosion();
+                }
+            }
+        });
+    }
+
+    _getLanderPad() {
+        const l = this.lander;
+        if (!l) return null;
+        const xTol = 30;
+        if (l.x >= this.startDepot.x - xTol && l.x <= this.startDepot.x + this.startDepot.width + xTol) return 'start';
+        if (l.x >= this.collectionPoint.x - xTol && l.x <= this.collectionPoint.x + this.collectionPoint.width + xTol) return 'collection';
+        for (const hub of this.deliveryHubs) {
+            if (l.x >= hub.x - xTol && l.x <= hub.x + hub.width + xTol) return hub.type;
+        }
+        return null;
+    }
+
+    _detectLanding() {
+        const lander = this.lander;
+        if (lander.crashed) return;
+
+        const hw = lander.width / 2;
+        const hh = lander.height / 2;
+        const bottom = lander.y + hh;
+
+        // Check bottom edge against terrain
+        const gyL = this.getTerrainHeight(lander.x - hw);
+        const gyR = this.getTerrainHeight(lander.x + hw);
+        const groundY = Math.min(gyL, gyR);
+        const distToGround = groundY - bottom;
+
+        const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
+        const angleDeg = Math.abs(lander.angle * 180 / Math.PI);
+        const _baseLandSpd = window.DEV_LANDSPD ?? 2.0;
+        const maxLandingSpeed = lander.legsDeployed ? _baseLandSpd * 2.25 : _baseLandSpd;
+        const maxLandingAngle = lander.legsDeployed ? 18.0 : 8.0;
+
+        const padType = this._getLanderPad();
+        const nearGround = distToGround > -8 && distToGround < 6;
+
+        if (nearGround && padType !== null && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
+            if (!lander.landed) {
+                lander.legCompress = Math.min(1, Math.max(0.4, speed * 0.5));
+            }
+            lander.vx = 0;
+            lander.vy = 0;
+            lander.angle = 0;
+            lander.landed = true;
+            lander.currentPad = padType;
+            if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
+                lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
+                lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
+            }
+            // Leg spring decay while parked
+            lander.legCompress = Math.max(0, lander.legCompress - 0.04);
+        } else {
+            lander.landed = false;
+            lander.currentPad = null;
+            lander.legCompress = nearGround ? Math.max(0, lander.legCompress - 0.04) : 0;
+        }
+
+        // Ceiling check (custom: terrain ceiling isn't a Matter body)
+        for (const ptX of [lander.x - hw, lander.x + hw]) {
+            const ceilingY = this.getTerrainCeiling(ptX);
+            if (ceilingY === null) continue;
+            const topY = lander.y - hh;
+            const pen = ceilingY - topY;
+            if (pen > 0) {
+                lander.y += pen;
+                if (lander.vy < 0) {
+                    const impactVel = Math.abs(lander.vy);
+                    lander.vy = impactVel * this.LANDER_RESTITUTION;
+                    if (impactVel > 1.0 && !window.DEV_INVULNERABLE) {
+                        const damage = Math.pow(impactVel - 1.0, 1.8) * 16;
+                        lander.integrity -= damage;
+                        if (window.CargoAudio) CargoAudio.playCollision(impactVel);
+                        for (let i = 0; i < 12; i++) {
+                            this.particles.push({
+                                x: ptX, y: topY,
+                                vx: (Math.random() - 0.5) * 7,
+                                vy: (Math.random() - 0.5) * 7 + 2,
+                                life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                                color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                                size: 2.5 + Math.random() * 2.5,
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
+                }
+                break;
+            }
+        }
     }
 
     spawnCargo(type) {
@@ -501,21 +645,49 @@ class CargoPhysics {
     }
 
     update(dt, levelConfig, inputState) {
+        // Cap dt so slow render frames don't cause physics to explode
+        dt = Math.min(dt, 1.5);
+
         if (this.lander.crashed) {
-            this.updateMonster(dt); // let the monster dive away & despawn
+            this.updateMonster(dt);
             this.updateParticles();
             return;
         }
 
         this.applyControls(dt, inputState);
         this.applyGravityAndWind(dt);
-        this.integrateLander(dt);
         this._updateLegsDeployed();
-        this.resolveLanderCollisions();
-        this.resolveSegmentCollisions();
         this.applyGravityWell(levelConfig, dt);
 
-        this.updateBoxes(dt);
+        if (this.landerBody) {
+            if (this.lander.landed) {
+                // Freeze on pad — prevents Matter position corrections from bouncing it
+                if (!this.landerBody.isStatic) Matter.Body.setStatic(this.landerBody, true);
+            } else {
+                if (this.landerBody.isStatic) Matter.Body.setStatic(this.landerBody, false);
+                Matter.Body.setPosition(this.landerBody, { x: this.lander.x, y: this.lander.y });
+                Matter.Body.setVelocity(this.landerBody, { x: this.lander.vx, y: this.lander.vy });
+                Matter.Body.setAngle(this.landerBody, 0);
+                Matter.Body.setAngularVelocity(this.landerBody, 0);
+            }
+        }
+
+        this.updateBoxes(dt); // steps Matter engine → lander + boxes collide with terrain
+
+        if (this.landerBody && !this.lander.landed) {
+            // Only sync back when airborne; landed body is static and doesn't move
+            this.lander.x = this.landerBody.position.x;
+            this.lander.y = this.landerBody.position.y;
+            this.lander.vx = this.landerBody.velocity.x;
+            this.lander.vy = this.landerBody.velocity.y;
+            if (this.lander.y < 10) { this.lander.y = 10; this.lander.vy = 0; }
+        } else if (!this.landerBody) {
+            this.integrateLander(dt);
+            this.resolveLanderCollisions();
+            this.resolveSegmentCollisions();
+        }
+
+        this._detectLanding();
         this.updateMonster(dt);
         this.updateAmbientTraffic(dt);
         this.updateParticles();
