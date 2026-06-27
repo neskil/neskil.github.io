@@ -149,9 +149,9 @@ const levels = [
         budget: 2000,
         timeLimit: 180,
         allowedTypes: ["normal", "red"],
-        collectionX: 510,
+        collectionX: 60,
         deliveryHubs: [
-            { x: 1150, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }
+            { x: 1370, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }
         ],
         hint: "The sand worm is more likely to attack if you linger near its pit. Move fast!",
         palette: {
@@ -1129,30 +1129,31 @@ class CargoGame {
         }
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
 
-        if (this.introTimer > 0) {
-            this.introTimer -= dt / 60; 
+        if (this.freeCam) {
+            // Free camera: WASD/arrows pan, Q/E zoom
+            const spd = (500 / this.camera.zoom) * (dt / 60);
+            if (this.keys['ArrowLeft']  || this.keys['ArrowLeft'])  this.camera.x -= spd;
+            if (this.keys['ArrowRight']) this.camera.x += spd;
+            if (this.keys['ArrowUp'])   this.camera.y -= spd;
+            if (this.keys['ArrowDown']) this.camera.y += spd;
+            if (this.keys['q']) this.camera.zoom = Math.min(2.5, this.camera.zoom + 0.02 * dt);
+            if (this.keys['e']) this.camera.zoom = Math.max(0.15, this.camera.zoom - 0.02 * dt);
+        } else if (this.introTimer > 0) {
+            this.introTimer -= dt / 60;
             const progress = Math.max(0, Math.min(1, (2.0 - this.introTimer) / 2.0));
-            // Spline curve: smoothstep ease-in-out
             const s = progress * progress * (3 - 2 * progress);
-            
-            // Interpolate directly via spline
             this.camera.zoom = minZoom + s * (desiredZoom - minZoom);
             this.camera.x = (this.physics.levelWidth / 2) + s * (lander.x - (this.physics.levelWidth / 2));
             this.camera.y = (this.physics.levelHeight / 2) + s * (lander.y - (this.physics.levelHeight / 2));
         } else {
             this.camera.targetZoom = desiredZoom;
-            // Smoothly interpolate zoom (frame-rate independent using dt)
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
 
-            // Track target (look slightly ahead of velocity)
             let targetX = lander.x + (lander.vx * 15);
             let targetY = lander.y + (lander.vy * 15);
-            
-            // Floor panning constraint
             const viewH = this.canvas.height / this.camera.targetZoom;
             const maxCamY = this.physics.levelHeight - (viewH / 2) + 120;
             targetY = Math.min(targetY, maxCamY);
-            
             this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
             this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
         }
@@ -2425,7 +2426,7 @@ class CargoGame {
     drawWormDangerZone() {
         if (this.currentLevelIndex !== 5) return;
         const ctx = this.ctx;
-        const cx = 875, cy = 560, r = 220;
+        const cx = 1075, cy = 1200, r = 200;
         const t = Date.now() / 1000;
         const pulse = 0.5 + 0.5 * Math.sin(t * 1.8);
 
@@ -2989,8 +2990,8 @@ class CargoGame {
 
         // ── Level 6: Lake Rendering ─────────────────────────────────────────
         if (this.currentLevelIndex === 5) {
-            const lakeX1 = 600, lakeX2 = 790;
-            const lakeY = this.physics.levelHeight - 75; // matches terrain flat basin
+            const lakeX1 = 560, lakeX2 = 880;
+            const lakeY = this.physics.levelHeight - 90; // matches terrain flat basin
             if (startX < lakeX2 && endX > lakeX1) {
                 ctx.fillStyle = 'rgba(29, 78, 216, 0.55)';
                 ctx.beginPath();
