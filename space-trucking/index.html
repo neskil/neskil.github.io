@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space-Trucking</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Matter.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- poly-decomp for concave polygons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/poly-decomp.js/0.3.0/decomp.min.js"></script>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="uiLayer">
+        <div id="fuelBarContainer"><div id="fuelBar"></div></div>
+        <div id="timerDisplay">00:00</div>
+        <div id="devTools">
+            <h3>Dev Tools</h3>
+            <label>Gravity: <input type="range" id="gravitySlider" min="0" max="2" step="0.1" value="1"></label>
+            <label>Thrust: <input type="range" id="thrustSlider" min="0" max="0.01" step="0.0001" value="0.003"></label>
+            <button id="btnReloadLevel">Reload Level</button>
+            <button id="btnDebugDraw">Toggle Debug</button>
+        </div>
+        <div id="startScreen">
+            <h1>Space-Trucking</h1>
+            <p>Press SPACE to start engine</p>
+        </div>
+    </div>
+    <script src="js/level-loader.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/render.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/dev-tools.js"></script>
+</body>
+</html>

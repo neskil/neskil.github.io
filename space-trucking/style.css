@@ -1,0 +1,78 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #e6d8c8; /* Sand/desert background */
+    font-family: 'Courier New', Courier, monospace;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#uiLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+#fuelBarContainer {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 200px;
+    height: 20px;
+    background: #333;
+    border: 2px solid #222;
+}
+#fuelBar {
+    width: 100%;
+    height: 100%;
+    background: #4caf50;
+    transition: width 0.1s linear, background-color 0.2s;
+}
+#timerDisplay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #222;
+    color: #4caf50;
+    padding: 5px 15px;
+    font-size: 24px;
+    border: 2px solid #111;
+    border-radius: 5px;
+}
+#devTools {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.9);
+    padding: 15px;
+    border: 1px solid #999;
+    pointer-events: auto;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+#devTools h3 { margin: 0 0 10px 0; font-size: 16px; }
+#devTools label { display: block; margin-bottom: 8px; font-size: 14px; }
+#devTools button { margin-top: 10px; width: 100%; padding: 5px; cursor: pointer; }
+#startScreen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 40px;
+    border-radius: 10px;
+    border: 2px solid #555;
+}
+#startScreen.hidden {
+    display: none;
+}
