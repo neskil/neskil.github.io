@@ -727,6 +727,42 @@ class CargoGame {
         if (btn) btn.textContent = this.isMuted ? '🔇' : '🔊';
     }
 
+    toggleDevPanel() {
+        const panel = document.getElementById('dev-panel');
+        if (!panel) return;
+        const open = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = open ? 'block' : 'none';
+        // Sync slider values to current physics state when opening
+        if (open && this.physics) {
+            const set = (id, val, dispId) => {
+                const el = document.getElementById(id);
+                if (el) { el.value = val; document.getElementById(dispId).textContent = +val; }
+            };
+            set('dev-gravity', this.physics.gravity ?? 0.12, 'dv-gravity');
+            set('dev-thrust', this.physics.lander?.thrustMultiplier ?? 1, 'dv-thrust');
+            set('dev-fuel', this.physics.lander?.maxFuel ?? 100, 'dv-fuel');
+        }
+    }
+
+    _updateDevReadout(dt) {
+        const el = document.getElementById('dev-readout');
+        if (!el || el.closest('#dev-panel').style.display === 'none') return;
+        const l = this.physics?.lander;
+        if (!l) { el.textContent = 'No lander'; return; }
+        const spd = Math.sqrt(l.vx * l.vx + l.vy * l.vy);
+        el.textContent =
+            `pos   ${l.x.toFixed(1)}, ${l.y.toFixed(1)}\n` +
+            `vel   ${l.vx.toFixed(2)}, ${l.vy.toFixed(2)}  spd:${spd.toFixed(2)}\n` +
+            `angle ${(l.angle * 180 / Math.PI).toFixed(1)}°  ω:${(l.angularVelocity||0).toFixed(3)}\n` +
+            `fuel  ${(l.fuel||0).toFixed(0)} / ${l.maxFuel||100}\n` +
+            `hull  ${(l.integrity||0).toFixed(0)} / ${l.maxIntegrity||100}\n` +
+            `landed ${l.landed}  pad:${l.currentPad||'–'}\n` +
+            `legs  deployed:${l.legsDeployed||false}  lc:${(l.legCompress||0).toFixed(2)}\n` +
+            `eng   ${(l.enginePower||0).toFixed(2)}  thrust:${l.thrustMultiplier||1}\n` +
+            `grav  ${this.physics.gravity?.toFixed(3)}  dt:${dt.toFixed(2)}\n` +
+            `drag  ${window.DEV_DRAG ?? 0.995}  spool:${window.DEV_SPOOL ?? 0.08}`;
+    }
+
     addMessage(text, color = '#f8fafc') {
         this.messages.push({
             text: text,
@@ -936,6 +972,7 @@ class CargoGame {
             this.update(dt);
         }
 
+        this._updateDevReadout(dt);
         this.draw();
         
         requestAnimationFrame((t) => this.loop(t));
@@ -3498,8 +3535,8 @@ class CargoGame {
             ctx.beginPath(); ctx.arc(legSpread0 + 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
         }
 
-        // Subtle body dip on landing impact
-        const bounceY = -lc0 * 5;
+        // No body movement on landing — legs absorb visually only
+        const bounceY = 0;
         ctx.translate(0, bounceY);
 
         const maxIntegrity = lander.maxIntegrity || 100;

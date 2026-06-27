@@ -383,8 +383,8 @@ class CargoPhysics {
         const lander = this.lander;
         if (lander.crashed) return;
 
-        // Thrust: slow spool-up, instant cut-off
-        const spoolSpeed = 0.06 * dt;
+        // Thrust: slow spool-up, instant cut-off (DEV_SPOOL overrides default)
+        const spoolSpeed = (window.DEV_SPOOL ?? 0.06) * dt;
         const thrustInput = (inputState.up || inputState.mouseLeft) ? 1.0 : 0.0;
         if (thrustInput === 0) {
             lander.enginePower = 0; // Instant cut
@@ -457,14 +457,13 @@ class CargoPhysics {
             
             if (lander.thrusting && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt;
+                lander.fuel -= 0.10 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * lander.enginePower * dt;
                 lander.vy -= maxThrust * lander.enginePower * dt;
             }
             if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
                 lander.landed = false;
-                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower) * dt;
-                // Slower acceleration, keeps inertia
-                lander.vx += (maxThrust * 0.2) * lander.strafePower * dt;
+                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * Math.abs(lander.strafePower) * dt;
+                lander.vx += (maxThrust * 0.2) * (window.DEV_STRAFE ?? 1) * lander.strafePower * dt;
             }
 
         } else {
@@ -547,8 +546,9 @@ class CargoPhysics {
         }
 
         // Air resistance damping
-        lander.vx *= Math.pow(0.995, dt);
-        lander.vy *= Math.pow(0.995, dt);
+        const _drag = window.DEV_DRAG ?? 0.995;
+        lander.vx *= Math.pow(_drag, dt);
+        lander.vy *= Math.pow(_drag, dt);
     }
 
     applyGravityWell(levelConfig, dt) {
@@ -686,13 +686,16 @@ class CargoPhysics {
             const angleDeg = Math.abs(lander.angle * 180 / Math.PI);
             
             // Spring legs deployed near a pad — much more forgiving thresholds
-            const maxLandingSpeed = lander.legsDeployed ? 4.5 : 2.0;
+            const _baseLandSpd = window.DEV_LANDSPD ?? 2.0;
+            const maxLandingSpeed = lander.legsDeployed ? _baseLandSpd * 2.25 : _baseLandSpd;
             const maxLandingAngle = lander.legsDeployed ? 18.0 : 8.0;
 
             if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
-                // Safe Landing!
-                if (!lander.landed && onPad) lander.legCompress = Math.min(1, Math.max(0.55, speed * 0.6));
-                lander.y -= minPen;
+                // Safe Landing — snap to pad on first contact only, then hold fixed
+                if (!lander.landed) {
+                    lander.y -= minPen;
+                    lander.legCompress = Math.min(1, Math.max(0.4, speed * 0.5));
+                }
                 lander.vy = 0;
                 lander.vx = 0;
                 lander.angularVelocity = 0;
