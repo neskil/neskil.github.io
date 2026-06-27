@@ -3942,10 +3942,24 @@ class CargoGame {
                 }
             }
         }
+        // Shield Bubble
+        const shieldLvl = this.career?.upgrades?.['shieldRegen'] || 0;
+        if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
+            const shieldRatio = lander.integrity / lander.maxIntegrity;
+            if (shieldRatio > 0.2) {
+                ctx.beginPath();
+                ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.85, 0, Math.PI * 2);
+                const alpha = 0.15 + 0.1 * shieldLvl + (Math.sin(Date.now() * 0.005) * 0.05);
+                ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+                ctx.fill();
+                ctx.strokeStyle = `rgba(186, 230, 253, ${alpha + 0.2})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
 
         ctx.restore();
     }
-
     drawParticles() {
         const ctx = this.ctx;
         for (const p of this.physics.particles) {
