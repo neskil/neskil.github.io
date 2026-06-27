@@ -1168,6 +1168,16 @@
                 <button onclick="game.toggleDevPanel()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
             </div>
 
+            <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:8px 0 4px;">CAMERA</div>
+            <div class="dev-row" style="justify-content: flex-start; gap: 8px; margin-bottom: 5px;">
+                <input type="checkbox" id="dev-freecam" onchange="game.freeCam=this.checked" style="width:auto; cursor:pointer;">
+                <label for="dev-freecam" style="width:auto; cursor:pointer; color:#38bdf8;">Free Camera (Arrows + Q/E zoom)</label>
+            </div>
+            <div class="dev-row" style="justify-content:flex-start;gap:8px;margin-bottom:8px;">
+                <button onclick="(function(){const l=game.physics.lander;if(l){l.x=+prompt('X?',Math.round(l.x));l.y=+prompt('Y?',Math.round(l.y));l.vx=0;l.vy=0;}})()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#a5b4fc;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Teleport Lander</button>
+                <button onclick="game.physics.lander&&(game.physics.lander.fuel=game.physics.lander.maxFuel)" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10b981;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Refuel</button>
+            </div>
+
             <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:8px 0 4px;">PHYSICS</div>
             <div class="dev-row" style="justify-content: flex-start; gap: 8px; margin-bottom: 5px;">
                 <input type="checkbox" id="dev-invuln" onchange="window.DEV_INVULNERABLE=this.checked" style="width:auto; cursor:pointer;">
