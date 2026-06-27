@@ -1031,6 +1031,13 @@ class CargoGame {
     }
 
     update(dt) {
+        // Toggle mobile controls visibility dynamically
+        const mobileControls = document.getElementById('mobile-controls');
+        if (mobileControls) {
+            const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+            mobileControls.style.display = (isTouch && this.gameState === 'playing') ? 'flex' : 'none';
+        }
+
         const lander = this.physics.lander;
         if (!lander) return;
 
