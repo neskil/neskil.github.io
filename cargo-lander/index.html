@@ -1118,13 +1118,19 @@
         <!-- SCREEN OVERLAY: SETTINGS / AUDIO MODAL -->
         <div id="settings-screen" class="screen-overlay" style="display: none;">
             <div class="screen-content" style="max-width: 450px;">
-                <h2 style="color: var(--neon-blue); margin-bottom: 1.5rem;">Audio Settings</h2>
+                <h2 style="color: var(--neon-blue); margin-bottom: 1.5rem;">Settings</h2>
                 
                 <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 2rem; text-align: left;">
                     <!-- Master Mute -->
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 600; color: var(--text-primary);">Mute Audio</span>
                         <input type="checkbox" id="setting-mute" onchange="game.toggleMuteFromCheckbox(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
+                    </div>
+
+                    <!-- 2D Sprites Mode -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; color: var(--text-primary);">2D Sprites Mode</span>
+                        <input type="checkbox" id="setting-use-sprites" onchange="game.toggleSpritesFromCheckbox(this.checked)" style="width: 20px; height: 20px; cursor: pointer;">
                     </div>
                     
                     <!-- Music Volume -->
