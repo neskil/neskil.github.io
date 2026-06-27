@@ -741,6 +741,18 @@ class CargoGame {
         if (btn) btn.textContent = this.isMuted ? '🔇' : '🔊';
     }
 
+    toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
     toggleDevPanel() {
         const panel = document.getElementById('dev-panel');
         if (!panel) return;
@@ -1271,8 +1283,8 @@ class CargoGame {
                         // Sucked into the delivery intake (spark animations)
                         this.spawnDeliveryParticles(box.x, box.y, hub.color);
                         boxes.splice(i, 1);
-                        // Trigger delivery crane animation
-                        hub.craneAnim = { timer: 0, lx: lander.x };
+                        // Trigger delivery crane animation (physically lifting box)
+                        hub.craneAnim = { timer: 0, lx: box.x, boxType: padType };
 
                         this.deliveredCount++;
                         this.career.totalDeliveries++;
@@ -1660,8 +1672,9 @@ class CargoGame {
         const cw = this.canvas.width;
 
         // Minimap: top-right corner, below the HUD bars
-        const mmWidth  = 340;
-        const mmHeight = 200;
+        const mapScale = 0.16;
+        const mmWidth = Math.min(this.physics.levelWidth * mapScale, 380);
+        const mmHeight = Math.min(this.physics.levelHeight * mapScale, 260);
         const mmX = cw - mmWidth - 20;
         const mmY = 92; // clears the fuel/shield bar row
 
@@ -2112,7 +2125,20 @@ class CargoGame {
         const lander = this.physics.lander;
         const hdx = lander ? lander.x - m.x : m.vx;
         const hdy = lander ? lander.y - m.y : m.vy;
-        const headAngle = Math.atan2(hdy, hdx);
+        const targetHeadAngle = Math.atan2(hdy, hdx);
+        
+        // Smoothly interpolate the head angle (shortest path)
+        if (m.currentHeadAngle === undefined) {
+            m.currentHeadAngle = targetHeadAngle;
+        } else {
+            let diff = targetHeadAngle - m.currentHeadAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            // Lerp factor: 0.08 for smooth, natural rotation
+            m.currentHeadAngle += diff * 0.08;
+        }
+        
+        const headAngle = m.currentHeadAngle;
         // "Up" from the head's facing direction (perpendicular)
         const upAngle = headAngle - Math.PI / 2;
 
@@ -2683,7 +2709,9 @@ class CargoGame {
                 if (h0 < 0.15) continue; // sparse — skip some spots
                 const baseY = getH(x);
                 const height = 3 + hash(x + 5) * 5;
-                const lean = (hash(x + 13) - 0.5) * 4;
+                // Add procedural wind sway to the lean
+                const sway = Math.sin(Date.now() * 0.002 + x * 0.02) * 2;
+                const lean = (hash(x + 13) - 0.5) * 4 + sway;
                 // Main blade
                 ctx.beginPath();
                 ctx.moveTo(x, baseY);
@@ -3297,6 +3325,12 @@ class CargoGame {
             ctx.arc(trolleyX, craneTopY - 15 + cableLen + 4, 3.5, Math.PI * 0.1, Math.PI * 0.9);
             ctx.stroke();
 
+            // Draw lifting cargo box if retracting
+            if (_hubAnim && _hubAnim.timer >= 0.65) {
+                const S = this.physics.BOX_SIZE;
+                this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + S/2 + 2, _hubAnim.boxType);
+            }
+
             // Glow column beacon
             const pulse = 0.15 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.15;
             ctx.fillStyle = hub.color;
@@ -3365,68 +3399,71 @@ class CargoGame {
     }
 
     drawBoxes() {
+        for (const box of this.physics.boxes) {
+            this.drawSingleBox(box.x, box.y, box.type);
+        }
+    }
+
+    drawSingleBox(x, y, type) {
         const ctx = this.ctx;
         const S = this.physics.BOX_SIZE;
         const halfS = S / 2;
 
-        for (const box of this.physics.boxes) {
-            ctx.save();
-            ctx.translate(box.x, box.y);
+        ctx.save();
+        ctx.translate(x, y);
 
-            // Set color based on cargo sorting type
-            let color = '#38bdf8'; // Blue (normal)
-            let iconText = '📦';
-            if (box.type === 'red') { color = '#ef4444'; iconText = '⚠️'; }
-            else if (box.type === 'blue') { color = '#3b82f6'; iconText = '❄️'; }
-            else if (box.type === 'green') { color = '#10b981'; iconText = '♻️'; }
+        // Set color based on cargo sorting type
+        let color = '#38bdf8'; // Blue (normal)
+        let iconText = '📦';
+        if (type === 'red') { color = '#ef4444'; iconText = '⚠️'; }
+        else if (type === 'blue') { color = '#3b82f6'; iconText = '❄️'; }
+        else if (type === 'green') { color = '#10b981'; iconText = '♻️'; }
 
-            // Box gradient fill (lighter top-left, darker bottom-right)
-            const boxGrad = ctx.createLinearGradient(-halfS, -halfS, halfS, halfS);
-            boxGrad.addColorStop(0, '#c2620a');
-            boxGrad.addColorStop(0.5, '#b45309');
-            boxGrad.addColorStop(1, '#7c3209');
-            ctx.fillStyle = boxGrad;
-            ctx.fillRect(-halfS, -halfS, S, S);
+        // Box gradient fill
+        const boxGrad = ctx.createLinearGradient(-halfS, -halfS, halfS, halfS);
+        boxGrad.addColorStop(0, '#c2620a');
+        boxGrad.addColorStop(0.5, '#b45309');
+        boxGrad.addColorStop(1, '#7c3209');
+        ctx.fillStyle = boxGrad;
+        ctx.fillRect(-halfS, -halfS, S, S);
 
-            // Inner bevel highlight (top + left edge)
-            ctx.strokeStyle = 'rgba(255,200,100,0.35)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(-halfS + 1, halfS - 1);
-            ctx.lineTo(-halfS + 1, -halfS + 1);
-            ctx.lineTo(halfS - 1, -halfS + 1);
-            ctx.stroke();
+        // Inner bevel highlight
+        ctx.strokeStyle = 'rgba(255,200,100,0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-halfS + 1, halfS - 1);
+        ctx.lineTo(-halfS + 1, -halfS + 1);
+        ctx.lineTo(halfS - 1, -halfS + 1);
+        ctx.stroke();
 
-            // Outer border
-            ctx.strokeStyle = '#78350f';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-halfS, -halfS, S, S);
+        // Outer border
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-halfS, -halfS, S, S);
 
-            // Packing tape across the middle
-            ctx.fillStyle = 'rgba(253, 230, 138, 0.65)';
-            ctx.fillRect(-halfS, -2, S, 4);
-            // Tape cross piece
-            ctx.fillRect(-2, -halfS, 4, S);
+        // Packing tape across the middle
+        ctx.fillStyle = 'rgba(253, 230, 138, 0.65)';
+        ctx.fillRect(-halfS, -2, S, 4);
+        ctx.fillRect(-2, -halfS, 4, S);
 
-            // Type-color glow outline
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(-halfS - 1, -halfS - 1, S + 2, S + 2);
+        // Type-color glow outline
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-halfS - 1, -halfS - 1, S + 2, S + 2);
 
-            // Emoji
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 15px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(iconText, 0, 1);
+        // Emoji
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(iconText, 0, 1);
 
-            // Type label fallback (in case emoji fails on canvas)
-            ctx.font = 'bold 7px Arial';
-            const typeLabel = box.type === 'normal' ? 'STD' : box.type.toUpperCase();
-            ctx.fillText(typeLabel, 0, halfS - 3);
+        // Type label fallback
+        ctx.font = 'bold 7px Arial';
+        const typeLabel = type === 'normal' ? 'STD' : type.toUpperCase();
+        ctx.fillText(typeLabel, 0, halfS - 3);
 
-            ctx.restore();
-        }
+        ctx.restore();
     }
 
     drawLander() {
