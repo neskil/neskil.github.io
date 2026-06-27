@@ -831,6 +831,8 @@ class CargoGame {
 
             this.physics.spawnCargo(t);
             this.cargoSpawnCooldown = 30; // Cooldown frames
+            // Trigger pickup crane animation
+            this.physics.collectionPoint.craneAnim = { timer: 0, lx: l.x };
 
             if (!this.isMuted) {
                 CargoAudio.playLoad();
@@ -1072,6 +1074,13 @@ class CargoGame {
         // Cooldowns
         if (this.cargoSpawnCooldown > 0) this.cargoSpawnCooldown--;
 
+        // Tick crane animations (timer 0→1 over ~120 frames)
+        const cp = this.physics.collectionPoint;
+        if (cp.craneAnim) { cp.craneAnim.timer += dt / 120; if (cp.craneAnim.timer >= 1) cp.craneAnim = null; }
+        for (const h of this.physics.deliveryHubs) {
+            if (h.craneAnim) { h.craneAnim.timer += dt / 120; if (h.craneAnim.timer >= 1) h.craneAnim = null; }
+        }
+
         // Check cargo positions for unloading and delivery
         this.checkCargoDelivery();
 
@@ -1169,6 +1178,8 @@ class CargoGame {
                         // Sucked into the delivery intake (spark animations)
                         this.spawnDeliveryParticles(box.x, box.y, hub.color);
                         boxes.splice(i, 1);
+                        // Trigger delivery crane animation
+                        hub.craneAnim = { timer: 0, lx: lander.x };
 
                         this.deliveredCount++;
                         this.career.totalDeliveries++;
@@ -2743,6 +2754,30 @@ class CargoGame {
         const level = levels[this.currentLevelIndex];
         const allDelivered = level && this.deliveredCount >= level.targetCargo;
 
+        // Draw landing-zone deployment circles around all pads
+        const DEPLOY_R = 110;
+        const lander = this.physics.lander;
+        const _drawDeployCircle = (cx, padY, color) => {
+            const rx = DEPLOY_R;
+            const ry = 14;
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 5]);
+            ctx.globalAlpha = 0.45;
+            ctx.beginPath();
+            ctx.ellipse(cx, padY, rx, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        };
+
+        if (start) _drawDeployCircle(start.x + start.width / 2, start.y, '#60a5fa');
+        if (collection) _drawDeployCircle(collection.x + collection.width / 2, collection.y, '#34d399');
+        for (const hub of this.physics.deliveryHubs) {
+            _drawDeployCircle(hub.x + hub.width / 2, hub.y, hub.color || '#f59e0b');
+        }
+
         // Draw Start Depot (HQ)
         if (start) {
             ctx.fillStyle = '#1e293b';
@@ -2900,8 +2935,29 @@ class CargoGame {
             ctx.lineCap = 'butt';
 
             // Trolley on arm + cable (animated horizontal position)
-            const trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
-            const cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+            const _cpAnim = collection && collection.craneAnim;
+            let trolleyX, cableLen;
+            if (_cpAnim) {
+                const t = _cpAnim.timer;
+                const idleX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+                const targX = Math.max(craneArmEnd, Math.min(craneBaseX, _cpAnim.lx));
+                if (t < 0.25) { // slide trolley over lander
+                    trolleyX = idleX + (targX - idleX) * (t / 0.25);
+                    cableLen = 30;
+                } else if (t < 0.65) { // drop cable
+                    trolleyX = targX;
+                    const maxLen = (cy - craneTopY + 18) * 0.9;
+                    cableLen = 30 + ((t - 0.25) / 0.4) * maxLen;
+                } else { // retract and return
+                    const r = (t - 0.65) / 0.35;
+                    trolleyX = targX + (idleX - targX) * r;
+                    const maxLen = (cy - craneTopY + 18) * 0.9;
+                    cableLen = maxLen * (1 - r) + 30 * r;
+                }
+            } else {
+                trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+                cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+            }
             // Trolley block
             ctx.fillStyle = '#475569';
             ctx.fillRect(trolleyX - 6, craneTopY - 26, 12, 8);
@@ -3058,8 +3114,29 @@ class CargoGame {
             ctx.lineCap = 'butt';
 
             // Animated trolley + cable
-            const trolleyX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
-            const cableLen = 22 + Math.abs(Math.sin(now * 0.0007)) * 16;
+            const _hubAnim = hub.craneAnim;
+            let trolleyX, cableLen;
+            if (_hubAnim) {
+                const t = _hubAnim.timer;
+                const idleX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
+                const targX = Math.max(craneArmLeft, Math.min(craneX, _hubAnim.lx));
+                if (t < 0.25) { // slide trolley over lander
+                    trolleyX = idleX + (targX - idleX) * (t / 0.25);
+                    cableLen = 22;
+                } else if (t < 0.65) { // drop cable to lander deck
+                    trolleyX = targX;
+                    const maxLen = (hub.y - craneTopY + 15) * 0.85;
+                    cableLen = 22 + ((t - 0.25) / 0.4) * maxLen;
+                } else { // retract and return
+                    const r = (t - 0.65) / 0.35;
+                    trolleyX = targX + (idleX - targX) * r;
+                    const maxLen = (hub.y - craneTopY + 15) * 0.85;
+                    cableLen = maxLen * (1 - r) + 22 * r;
+                }
+            } else {
+                trolleyX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
+                cableLen = 22 + Math.abs(Math.sin(now * 0.0007)) * 16;
+            }
             ctx.fillStyle = '#475569';
             ctx.fillRect(trolleyX - 5, craneTopY - 22, 10, 7);
             ctx.strokeStyle = '#94a3b8';
@@ -3293,14 +3370,18 @@ class CargoGame {
         ctx.rotate(lander.angle);
 
         // ── Landing legs drawn BEFORE bounce so they stay at ground level ──
-        const lc0 = lander.legCompress || 0;
+        // Only show spring compression while grounded — never during flight/takeoff
+        const lc0 = lander.landed ? (lander.legCompress || 0) : 0;
         if (lander.vehicleType !== 'drone') {
             const hw0 = (lander.deckWidth || 66) / 2;
             // Foot stays at hh=14 (terrain level when landed). Spread pulls in as compressed.
-            const footY0 = 14 + (1 - lc0) * 7;          // 21 relaxed → 14 fully compressed
-            const legSpread0 = hw0 + 12 - lc0 * 8;
+            // When legs are deployed (near pad), extend them slightly wider/lower for visual readiness
+            const legDeploy = (!lander.landed && lander.legsDeployed) ? 1 : 0;
+            const footY0 = 14 + (1 - lc0) * 7 + legDeploy * 4;
+            const legSpread0 = hw0 + 12 - lc0 * 8 + legDeploy * 5;
 
-            ctx.strokeStyle = '#475569';
+            const legColor = lander.legsDeployed ? '#4ade80' : '#475569';
+            ctx.strokeStyle = legColor;
             ctx.lineWidth = 2.5;
             ctx.beginPath();
             ctx.moveTo(-hw0 + 2, 10);
@@ -3331,8 +3412,8 @@ class CargoGame {
             ctx.beginPath(); ctx.arc(legSpread0 + 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
         }
 
-        // Body lifts when legs compress — makes spring visible
-        const bounceY = -lc0 * 22;
+        // Subtle body dip on landing impact
+        const bounceY = -lc0 * 5;
         ctx.translate(0, bounceY);
 
         const maxIntegrity = lander.maxIntegrity || 100;
@@ -3372,7 +3453,7 @@ class CargoGame {
             ctx.fill();
 
             // Drone landing legs (fold-down style, two per side)
-            const dlc = lander.legCompress || 0;
+            const dlc = lander.landed ? (lander.legCompress || 0) : 0;
             const dBounceY = -dlc * 6;
             // Skids extend downward from the motor pods
             for (const side of [-1, 1]) {
