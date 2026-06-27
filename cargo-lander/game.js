@@ -2819,6 +2819,48 @@ class CargoGame {
         }
     }
 
+    drawNextObjectiveArrow() {
+        const ctx = this.ctx;
+        const level = levels[this.currentLevelIndex];
+        if (!level || this.gameState !== 'playing') return;
+        const allDelivered = this.deliveredCount >= (level.targetCargo || 2);
+        if (allDelivered) return;
+
+        const cargoOnDeck = this.physics.boxes.filter(b => b.onDeck);
+        const t = Date.now();
+        const bounce = Math.sin(t / 400) * 8;
+
+        const drawArrow = (wx, padY, label) => {
+            const ax = wx;
+            const ay = padY - 50 + bounce;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.fillStyle = 'rgba(255,230,0,0.95)';
+            ctx.shadowColor = 'rgba(255,200,0,0.7)';
+            ctx.shadowBlur = 8;
+            ctx.fillText('▼', ax, ay);
+            ctx.shadowBlur = 0;
+            ctx.font = 'bold 11px Outfit, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillText(label, ax, ay + 16);
+            ctx.restore();
+        };
+
+        if (cargoOnDeck.length === 0) {
+            const collection = this.physics.collectionPoint;
+            if (collection) {
+                drawArrow(collection.x + collection.width / 2, collection.y, 'PICK UP');
+            }
+        } else {
+            const box = cargoOnDeck[0];
+            const hub = this.physics.deliveryHubs.find(h => h.type === box.type);
+            if (hub) {
+                drawArrow(hub.x + hub.width / 2, hub.y, 'DELIVER HERE');
+            }
+        }
+    }
+
     drawSourcingDepot() {
         const ctx = this.ctx;
         const start = this.physics.startDepot;
