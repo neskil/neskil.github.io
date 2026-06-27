@@ -617,75 +617,83 @@ class CargoPhysics {
             }
         }
 
-        // --- Level 6: Sand Worm Logic ---
-        if (this.currentLevelIndex === 5) {
-            // Check Sand Worm trigger — circular danger zone
+        // --- Sand Worm Logic (worm-lair terrain only) ---
+        if (this.currentLevelConfig?.terrainType === 'worm-lair') {
+            // Worm pit is at x≈1075, floor at levelHeight-60 ≈ 1240.
+            // The danger zone is centered above the pit where the player actually flies.
+            const WORM_PIT_CX   = 1075;
+            const WORM_ZONE_CX  = 1075;
+            const WORM_ZONE_CY  = 1100; // above the pit floor, where player crosses
+            const WORM_ZONE_R   = 300;
+
             if (!this.sandWorm && !lander.crashed) {
-                const WORM_ZONE_CX = 1075; // center of the worm pit
-                const WORM_ZONE_CY = 1200; // near pit floor in world coords
-                const WORM_ZONE_R  = 200;
                 const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
                 if (distToZone < WORM_ZONE_R) {
-                    const risk = Math.max(0, 1 - Math.log(Math.max(1, distToZone)) / Math.log(WORM_ZONE_R));
-                    const chance = risk * 0.005 * dt;
-                    if (Math.random() < chance) {
-                        const spawnX = lander.x + (Math.random() - 0.5) * 30;
-                        const spawnY = this.levelHeight + 120;
-                        const angle = Math.atan2(lander.y - spawnY, lander.x - spawnX);
-                        const speed = 22;
+                    // Logarithmic risk: very low at the edge, spiking near center
+                    const norm = distToZone / WORM_ZONE_R; // 0 = center, 1 = edge
+                    const risk = Math.pow(1 - norm, 2.5);   // 0 at edge, 1 at center
+                    if (Math.random() < risk * 0.004 * dt) {
+                        // Emerge from just below the worm pit floor, aimed at lander
+                        const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 60;
+                        const spawnY = this.levelHeight - 55; // just below pit surface
+                        const angle  = Math.atan2(lander.y - spawnY, lander.x - spawnX);
+                        const speed  = 26;
                         this.sandWorm = {
-                            x: spawnX,
-                            y: spawnY,
+                            x: spawnX, y: spawnY,
                             vx: Math.cos(angle) * speed,
                             vy: Math.sin(angle) * speed,
                             state: 'lunging',
-                            trail: []
+                            trail: [],
+                            lungeTargetX: lander.x,
+                            lungeTargetY: lander.y,
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
                 }
             }
 
-            // Update Sand Worm
             if (this.sandWorm) {
                 const w = this.sandWorm;
-                
+
                 if (w.state === 'lunging') {
-                    w.vy += 0.3 * dt; // Gravity pulling it back down
+                    w.vy += 0.3 * dt;
                     if (w.vy > 0) w.state = 'retracting';
                 } else {
-                    w.vy += 0.8 * dt; // Fall faster when retracting
+                    w.vy += 0.8 * dt;
                 }
-                
+
                 w.x += w.vx * dt;
                 w.y += w.vy * dt;
-                
-                // Record trail
-                if (!w.trail) w.trail = [];
+
                 const lastTP = w.trail[0];
                 if (!lastTP || Math.hypot(w.x - lastTP.x, w.y - lastTP.y) >= 2) {
                     w.trail.unshift({ x: w.x, y: w.y });
                     if (w.trail.length > 500) w.trail.pop();
                 }
 
-                // Collision with lander (survivable, but damaging and knocks back)
+                // Survivable hit: knock back and deal moderate damage
                 const dx = lander.x - w.x;
                 const dy = lander.y - w.y;
-                if (Math.hypot(dx, dy) < 70 && !lander.crashed) {
-                    lander.vx += (dx / Math.hypot(dx, dy)) * 6;
-                    lander.vy += -4; // Knock upwards
-                    lander.integrity -= 30 * dt; // Damage over time while in contact
+                const dist = Math.hypot(dx, dy);
+                if (dist < 70 && !lander.crashed) {
+                    const nx = dx / dist, ny = dy / dist;
+                    lander.vx += nx * 5;
+                    lander.vy += ny * 5 - 2; // push away + extra upward
+                    lander.integrity -= 6 * dt; // survivable — ~1 second kills at full HP
                     if (window.CargoAudio) CargoAudio.playCrash();
-                    
-                    // Add sparks
-                    if (this.onCollision) {
-                        for (let i = 0; i < 3; i++) {
-                            this.onCollision(lander.x + (Math.random() - 0.5) * 20, lander.y + (Math.random() - 0.5) * 20, 2);
-                        }
+                    for (let i = 0; i < 4; i++) {
+                        this.particles.push({
+                            x: lander.x + (Math.random() - 0.5) * 24,
+                            y: lander.y + (Math.random() - 0.5) * 24,
+                            vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 1,
+                            life: 0.9, decay: 0.05 + Math.random() * 0.04,
+                            color: Math.random() > 0.4 ? '#f97316' : '#854d0e',
+                            size: 2 + Math.random() * 2,
+                        });
                     }
+                    if (lander.integrity <= 0) this.triggerExplosion();
                 }
 
-                // Despawn if retracted deep enough
                 if (w.y > this.levelHeight + 400 && w.state === 'retracting') {
                     this.sandWorm = null;
                 }
