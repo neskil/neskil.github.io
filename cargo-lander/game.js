@@ -1012,40 +1012,43 @@ class CargoGame {
         // Auto-load sequence at collection point
         const _col = this.physics.collectionPoint;
         const _lndr = this.physics.lander;
+        // First arrival: spawn first box immediately, open hatch, start countdown
         if (_lndr && _lndr.landed && _lndr.currentPad === 'collection' && !_col.loadSeq) {
-            const onDeck = this.physics.boxes.filter(b => b.onDeck).length;
-            const toLoad = Math.max(0, 3 - onDeck);
-            if (toLoad > 0) {
-                _col.loadSeq = { phase: 'loading', t: 0, cycle: 0, total: toLoad, lx: _lndr.x, spawned: false, roofOpen: 0 };
+            if (this.physics.boxes.length < 3) {
+                const _lc = levels[this.currentLevelIndex];
+                const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
+                const _t = _types[Math.floor(Math.random() * _types.length)];
+                this.physics.spawnCargo(_t);
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+                _col.loadSeq = { phase: 'countdown', countdown: 240, countdownMax: 240, spawned: 1, roofOpen: 1 };
             }
         }
         if (_col.loadSeq) {
             const _seq = _col.loadSeq;
-            if (_seq.phase === 'loading') {
-                const delayScale = 55 + (_seq.cycle * 30);
-                _seq.t += dt / delayScale;
-                _seq.roofOpen = _seq.cycle === 0 ? Math.min(1, _seq.t / 0.15) : 1;
-                if (!_seq.spawned && _seq.t >= 0.83) {
-                    _seq.spawned = true;
-                    const _lc = levels[this.currentLevelIndex];
-                    const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
-                    const _t = _types[Math.floor(Math.random() * _types.length)];
-                    if (this.physics.boxes.length < 6) {
+            const _stillHere = _lndr && _lndr.landed && _lndr.currentPad === 'collection';
+            if (!_stillHere && _seq.phase === 'countdown') _seq.phase = 'closing';
+
+            if (_seq.phase === 'countdown') {
+                _seq.countdown -= dt;
+                if (_seq.countdown <= 0) {
+                    if (this.physics.boxes.length < 3 && _seq.spawned < 3) {
+                        const _lc = levels[this.currentLevelIndex];
+                        const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
+                        const _t = _types[Math.floor(Math.random() * _types.length)];
                         this.physics.spawnCargo(_t);
                         if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+                        _seq.spawned++;
+                        if (_seq.spawned >= 3 || this.physics.boxes.length >= 3) _seq.phase = 'closing';
+                        else _seq.countdown = _seq.countdownMax;
+                    } else {
+                        _seq.phase = 'closing';
                     }
                 }
-                if (_seq.t >= 1.0) {
-                    _seq.cycle++;
-                    // Only continue if lander is still here; otherwise close
-                    const _stillHere = _lndr && _lndr.landed && _lndr.currentPad === 'collection';
-                    if (_seq.cycle >= _seq.total || !_stillHere) { _seq.phase = 'closing'; _seq.t = 0; }
-                    else { _seq.t = 0; _seq.spawned = false; }
-                }
-            } else if (_seq.phase === 'closing') {
-                _seq.t += dt / 25;
-                _seq.roofOpen = Math.max(0, 1 - _seq.t);
-                if (_seq.t >= 1.0) _col.loadSeq = null;
+            }
+
+            if (_seq.phase === 'closing') {
+                _seq.roofOpen = Math.max(0, _seq.roofOpen - dt / 25);
+                if (_seq.roofOpen <= 0) _col.loadSeq = null;
             }
         }
 
@@ -3401,13 +3404,19 @@ class CargoGame {
             ctx.textAlign = 'center';
             ctx.fillText('CARGO', cpCx, cy + 12);
 
-            // Loading status indicator
-            if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
-                const _pp = 0.7 + Math.abs(Math.sin(now * 0.008)) * 0.3;
-                ctx.fillStyle = `rgba(56,189,248,${_pp})`;
-                ctx.font = '600 11px Outfit, sans-serif';
+            // Next-cargo countdown bar
+            if (_col.loadSeq && _col.loadSeq.phase === 'countdown') {
+                const _secs = Math.ceil(_col.loadSeq.countdown / 60);
+                const _pct = 1 - _col.loadSeq.countdown / _col.loadSeq.countdownMax;
+                ctx.fillStyle = 'rgba(10,20,35,0.85)';
+                ctx.fillRect(cpCx - 38, cy - 48, 76, 14);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(cpCx - 38, cy - 48, 76 * _pct, 14);
+                const _pp = 0.8 + Math.abs(Math.sin(now * 0.006)) * 0.2;
+                ctx.fillStyle = `rgba(255,255,255,${_pp})`;
+                ctx.font = '600 9px Outfit, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`LOADING ${_col.loadSeq.cycle + 1} / ${_col.loadSeq.total}`, cpCx, cy - 30);
+                ctx.fillText(`NEXT CARGO  ${_secs}s`, cpCx, cy - 38);
             }
         }
     }
@@ -3804,63 +3813,93 @@ class CargoGame {
         const h = lander.height;
 
         if (lander.vehicleType === 'drone') {
-            // Draw Drone
-            ctx.fillStyle = '#cbd5e1';
-            ctx.fillRect(-16, -6, 32, 12);
-            
-            // Rotors
-            ctx.fillStyle = '#64748b';
-            ctx.fillRect(-22, -8, 8, 4); // Left motor
-            ctx.fillRect(14, -8, 8, 4); // Right motor
-            
-            // Spinning blades
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            const spin = Date.now() / 20;
-            ctx.moveTo(-18 - Math.sin(spin)*8, -10);
-            ctx.lineTo(-18 + Math.sin(spin)*8, -10);
-            ctx.moveTo(18 - Math.sin(spin)*8, -10);
-            ctx.lineTo(18 + Math.sin(spin)*8, -10);
-            ctx.stroke();
-            
-            // Center eye
-            ctx.fillStyle = '#38bdf8';
-            ctx.beginPath();
-            ctx.arc(0, 0, 4, 0, Math.PI * 2);
-            ctx.fill();
+            const spin = Date.now() / 16;
+            const thrust = lander.thrusting && lander.fuel > 0;
 
-            // Drone landing legs (fold-down style, two per side)
+            // Rotor wash glow (4 corners)
+            if (thrust) {
+                for (const [px, py] of [[-21, -10], [21, -10], [-21, 10], [21, 10]]) {
+                    const wg = ctx.createRadialGradient(px, py + 5, 0, px, py + 5, 11);
+                    wg.addColorStop(0, 'rgba(120,200,255,0.22)');
+                    wg.addColorStop(1, 'rgba(120,200,255,0)');
+                    ctx.fillStyle = wg;
+                    ctx.beginPath(); ctx.arc(px, py + 5, 11, 0, Math.PI * 2); ctx.fill();
+                }
+            }
+
+            // X-frame arms
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+                ctx.beginPath();
+                ctx.moveTo(dx * 4, dy * 4);
+                ctx.lineTo(dx * 19, dy * 9);
+                ctx.stroke();
+            }
+            ctx.lineCap = 'butt';
+
+            // Central hex body
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+                i === 0 ? ctx.moveTo(Math.cos(a) * 9, Math.sin(a) * 9)
+                        : ctx.lineTo(Math.cos(a) * 9, Math.sin(a) * 9);
+            }
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+
+            // Sensor eye
+            ctx.fillStyle = critical ? '#ef4444' : '#38bdf8';
+            ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath(); ctx.arc(-1, -1, 1.2, 0, Math.PI * 2); ctx.fill();
+
+            // Motor pods + spinning blades
+            for (let i = 0; i < 4; i++) {
+                const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
+                // Pod housing
+                ctx.fillStyle = '#253548';
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                // Counter-rotating pairs (0,2 vs 1,3)
+                const a = spin + (i % 2 === 0 ? 0 : Math.PI / 2);
+                ctx.strokeStyle = thrust ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                for (let b = 0; b < 2; b++) {
+                    const ba = a + b * Math.PI;
+                    ctx.beginPath();
+                    ctx.moveTo(px + Math.cos(ba) * 9, py + Math.sin(ba) * 2.5);
+                    ctx.lineTo(px + Math.cos(ba + Math.PI) * 9, py + Math.sin(ba + Math.PI) * 2.5);
+                    ctx.stroke();
+                }
+                ctx.lineCap = 'butt';
+            }
+
+            // Nav lights (red left, green right)
+            ctx.fillStyle = (Date.now() % 1400 < 700) ? '#ef4444' : 'rgba(80,20,20,0.5)';
+            ctx.beginPath(); ctx.arc(-21, -10, 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = (Date.now() % 1400 < 700) ? '#22c55e' : 'rgba(10,50,20,0.5)';
+            ctx.beginPath(); ctx.arc(21, -10, 2, 0, Math.PI * 2); ctx.fill();
+
+            // Landing legs
             const dlc = lander.landed ? (lander.legCompress || 0) : 0;
-            const dBounceY = -dlc * 6;
-            // Skids extend downward from the motor pods
             for (const side of [-1, 1]) {
-                const legX = side * 18;
-                const legTopY = 0;
-                const legBotY = 14 - dlc * 5 + dBounceY; // compress up on landing
-                const skidOutX = side * (22 + 4 - dlc * 2);
-
-                ctx.strokeStyle = '#64748b';
-                ctx.lineWidth = 1.8;
-                // Vertical strut from motor pod
-                ctx.beginPath();
-                ctx.moveTo(legX, legTopY);
-                ctx.lineTo(legX, legBotY);
-                ctx.stroke();
-                // Diagonal brace
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.moveTo(legX - side * 4, legTopY);
-                ctx.lineTo(skidOutX, legBotY);
-                ctx.stroke();
-                // Skid pad (horizontal)
+                const lx = side * 17;
+                const ly = 13 - dlc * 4;
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(lx, 7); ctx.lineTo(lx, ly); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(lx - side * 3, 5); ctx.lineTo(lx + side * 5, ly); ctx.stroke();
                 ctx.strokeStyle = '#94a3b8';
                 ctx.lineWidth = 2.5;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(legX - side * 5, legBotY);
-                ctx.lineTo(skidOutX + side * 6, legBotY);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(lx - side * 6, ly); ctx.lineTo(lx + side * 6, ly); ctx.stroke();
                 ctx.lineCap = 'butt';
             }
 

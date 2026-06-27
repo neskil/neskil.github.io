@@ -475,13 +475,16 @@ class CargoPhysics {
         const typeList = emojis[type] || emojis['normal'];
         const randomEmoji = typeList[Math.floor(Math.random() * typeList.length)];
 
-        // Drop box gently from just above the collection point
+        // Spawn from hatch at top of the warehouse building
+        const _wbX = this.collectionPoint.x - 18;
+        const _wbW = this.collectionPoint.width + 36;
+        const _hatchX = _wbX + _wbW * 0.42;
         const newBox = {
             id: Math.random().toString(36).substr(2, 9),
-            x: this.collectionPoint.x + this.collectionPoint.width / 2 + (Math.random() - 0.5) * 10,
-            y: this.collectionPoint.y - 60,
-            vx: 0,
-            vy: 0,
+            x: _hatchX + (Math.random() - 0.5) * 8,
+            y: this.collectionPoint.y - 88,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: 0.5,
             type: type, // 'red', 'blue', 'green'
             size: this.BOX_SIZE,
             mass: 1.0,
