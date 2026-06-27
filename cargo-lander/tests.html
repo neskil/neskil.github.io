@@ -524,9 +524,9 @@ test('lander starts with correct defaults', () => {
   assertClose(l.vy, 0, 1e-9, 'initial vy');
   assertClose(l.angle, 0, 1e-9, 'initial angle');
   assertEquals(l.crashed, false, 'initial crashed');
-  assertEquals(l.deckWidth, 66, 'deckWidth');
+  assertEquals(l.deckWidth, 56, 'deckWidth');
   assertEquals(l.deckOffset, 12, 'deckOffset');
-  assertEquals(l.basketHeight, 25, 'basketHeight');
+  assertEquals(l.basketHeight, 24, 'basketHeight');
   assertEquals(l.fuel, 100, 'initial fuel');
   assertEquals(l.maxFuel, 100, 'maxFuel');
 });
@@ -689,10 +689,10 @@ test('update() with very large dt does not produce NaN positions', () => {
   assertFinite(p.lander.y, 'y after large dt');
 });
 
-test('monster starts spawning after OOB timer exceeds 120', () => {
+test('monster starts spawning after OOB timer exceeds 150', () => {
   // Place lander in horizontal OOB (x < -500) and zero gravity so it floats
-  // in place for 130+ frames without crashing. The outOfBoundsTimer counts up
-  // by dt each frame; at frame 121 it exceeds 120 and the monster spawns.
+  // in place for 160+ frames without crashing. The outOfBoundsTimer counts up
+  // by dt each frame; at frame 151 it exceeds 150 and the monster spawns.
   const p = new CargoPhysics();
   const lvl = getLevel0();
   p.initLevel(lvl, 1280, 720);
@@ -702,7 +702,7 @@ test('monster starts spawning after OOB timer exceeds 120', () => {
   p.lander.vx = 0;
   p.lander.vy = 0;
   p.lander.landed = false;
-  for (let i = 0; i < 135; i++) {
+  for (let i = 0; i < 165; i++) {
     p.update(1.0, lvl, makeInput());
     if (p.monster !== null) break;
     if (p.lander.crashed) break;
@@ -1108,8 +1108,8 @@ test('drone vehicle type spawns with correct dimensions', () => {
   const p = new CargoPhysics();
   const lvl = Object.assign({}, getLevel0(), { vehicle: 'drone' });
   p.initLevel(lvl, 1280, 720);
-  assertEquals(p.lander.width, 32, 'drone width');
-  assertEquals(p.lander.height, 16, 'drone height');
+  assertEquals(p.lander.width, 28, 'drone width');
+  assertEquals(p.lander.height, 14, 'drone height');
 });
 
 test('basic/advanced vehicle type spawns with correct dimensions', () => {
@@ -1117,8 +1117,8 @@ test('basic/advanced vehicle type spawns with correct dimensions', () => {
     const p = new CargoPhysics();
     const lvl = Object.assign({}, getLevel0(), { vehicle: type });
     p.initLevel(lvl, 1280, 720);
-    assertEquals(p.lander.width, 40, `${type} width`);
-    assertEquals(p.lander.height, 28, `${type} height`);
+    assertEquals(p.lander.width, 34, `${type} width`);
+    assertEquals(p.lander.height, 22, `${type} height`);
   }
 });
 
