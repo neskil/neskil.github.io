@@ -445,9 +445,9 @@ class CargoPhysics {
                 lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3 * dt);
             }
             
-            // Track grapple hook position in world space
-            lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.height/2) + Math.sin(lander.angle) * lander.ropeLength;
-            lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.height/2) + Math.cos(lander.angle) * lander.ropeLength;
+            // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
+            lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
+            lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
 
         } else if (lander.vehicleType === 'basic') {
             // BASIC LANDER (Upright stabilization, arcade movement)
@@ -580,9 +580,13 @@ class CargoPhysics {
 
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
 
-        // Leg spring decay
+        // Leg spring decay — only while on the ground; snap to 0 instantly when airborne
         if (lander.legCompress > 0) {
-            lander.legCompress = Math.max(0, lander.legCompress - 0.014 * dt);
+            if (lander.landed) {
+                lander.legCompress = Math.max(0, lander.legCompress - 0.014 * dt);
+            } else {
+                lander.legCompress = 0;
+            }
         }
     }
 

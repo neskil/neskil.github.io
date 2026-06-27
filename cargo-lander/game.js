@@ -620,6 +620,8 @@ class CargoGame {
         
         this.missionBudget = level.budget || 1000;
         this.missionTimer = level.timeLimit || 180;
+        this.overtimeActive = false;
+        this.overtimeTimer = 0;
         
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
         this.deliveredCount = 0;
@@ -881,9 +883,16 @@ class CargoGame {
         }
         const timeEl = document.getElementById('hud-time');
         if (timeEl) {
-            const mins = Math.floor(this.missionTimer / 60);
-            const secs = Math.floor(this.missionTimer % 60);
-            timeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            if (this.overtimeActive) {
+                const ot = Math.ceil(this.overtimeTimer);
+                timeEl.textContent = `⚠ ${ot}s`;
+                timeEl.style.color = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
+            } else {
+                const mins = Math.floor(this.missionTimer / 60);
+                const secs = Math.floor(this.missionTimer % 60);
+                timeEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                timeEl.style.color = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
+            }
         }
 
         // Toggle extraction button — must be at HQ to activate
@@ -974,22 +983,33 @@ class CargoGame {
             this.missionTimer -= (dt / 60);
             if (this.missionTimer <= 0) {
                 this.missionTimer = 0;
-                const allDelivered = this.deliveredCount >= (levels[this.currentLevelIndex]?.targetCargo || 2);
-                if (allDelivered && !this.physics.monster) {
-                    this.physics.monster = {
-                        x: lander.x + (lander.x < this.physics.levelWidth / 2 ? -600 : 600),
-                        y: this.physics.levelHeight + 200,
-                        vx: 0, vy: 0, size: 130, speed: 1.8,
-                        angle: 0, targetAngle: 0, spawnTime: Date.now(),
-                        segments: Array.from({ length: 8 }, (_, i) => ({
-                            x: lander.x, y: this.physics.levelHeight + 200 + i * 30,
-                            vx: 0, vy: 0, r: 20 - i * 0.8
-                        }))
-                    };
-                    CargoAudio.playWarning?.();
-                } else {
-                    this.failMission("Time's Up! Contract expired.");
+                // Don't end immediately — trigger overtime: monster warning + 15s to reach HQ
+                if (!this.overtimeActive) {
+                    this.overtimeActive = true;
+                    this.overtimeTimer = 15;
+                    this.physics.outOfBoundsTimer = 999; // force monster spawn immediately
+                    this.addMessage('⚠ TIME UP — GET BACK TO HQ! 15s', '#ef4444');
+                    if (window.CargoAudio) CargoAudio.playWarning?.();
                 }
+            }
+        }
+
+        // --- Overtime countdown ---
+        if (this.overtimeActive && this.gameState === 'playing' && !lander.crashed) {
+            this.overtimeTimer -= (dt / 60);
+            // Check if player made it back to HQ
+            if (lander.currentPad === 'start') {
+                this.overtimeActive = false;
+                this.physics.outOfBoundsTimer = 0;
+                this.completeMission(); // safe extraction
+            } else if (this.overtimeTimer <= 0) {
+                // Out of time — monster attacks instantly
+                this.overtimeActive = false;
+                this.physics.outOfBoundsTimer = 999;
+                this.addMessage('CONTRACT FAILED — EXTRACTED BY FORCE', '#ef4444');
+                // Cash penalty if not already crashing
+                this.globalCash = Math.max(0, this.globalCash - 500);
+                localStorage.setItem('cargoLanderCash', this.globalCash);
             }
         }
 
@@ -1493,19 +1513,28 @@ class CargoGame {
             }
         }
 
-        // 13b. Damage flash overlay
+        // 13b. Damage flash overlay — strong red vignette + bold text
         if (this.damageFlash > 0) {
-            const flashGrad = ctx.createRadialGradient(w/2, h/2, h/4, w/2, h/2, h * 0.8);
+            // Solid edge flash
+            const flashGrad = ctx.createRadialGradient(w/2, h/2, h * 0.15, w/2, h/2, h * 0.9);
             flashGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            flashGrad.addColorStop(0.6, `rgba(200,20,0,${this.damageFlash * 0.35})`);
-            flashGrad.addColorStop(1, `rgba(255,0,0,${this.damageFlash * 0.7})`);
+            flashGrad.addColorStop(0.5, `rgba(220,10,0,${this.damageFlash * 0.5})`);
+            flashGrad.addColorStop(1, `rgba(255,0,0,${this.damageFlash * 0.92})`);
             ctx.fillStyle = flashGrad;
             ctx.fillRect(0, 0, w, h);
-            if (this.damageFlash > 0.3) {
+            // Full-width top + bottom bars
+            ctx.fillStyle = `rgba(255,0,0,${this.damageFlash * 0.55})`;
+            ctx.fillRect(0, 0, w, 6);
+            ctx.fillRect(0, h - 6, w, 6);
+            if (this.damageFlash > 0.2) {
                 ctx.save();
-                ctx.font = 'bold 20px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillStyle = `rgba(255,80,80,${this.damageFlash})`;
+                // Shadow
+                ctx.font = 'bold 24px sans-serif';
+                ctx.fillStyle = `rgba(0,0,0,${this.damageFlash * 0.8})`;
+                ctx.fillText('⚠ HULL DAMAGE', w / 2 + 2, h / 2 - 58);
+                // Text
+                ctx.fillStyle = `rgba(255,80,80,${Math.min(1, this.damageFlash * 1.5)})`;
                 ctx.fillText('⚠ HULL DAMAGE', w / 2, h / 2 - 60);
                 ctx.restore();
             }
@@ -2536,11 +2565,13 @@ class CargoGame {
         ctx.fill();
 
         if (this.currentLevelIndex === 0) {
-            // ── L1: Grass tufts — small V/Y shapes at terrain surface ─────
-            ctx.strokeStyle = '#86efac'; // light green
+            // ── L1: Grass tufts — snap to world-space grid so they never shift ──
+            ctx.strokeStyle = '#86efac';
             ctx.lineWidth = 1.3;
             ctx.lineCap = 'round';
-            for (let x = startX; x <= endX; x += 10) {
+            const grassStep = 10;
+            const grassStart = Math.floor(startX / grassStep) * grassStep;
+            for (let x = grassStart; x <= endX; x += grassStep) {
                 if (isOverPad(x)) continue;
                 const h0 = hash(x);
                 if (h0 < 0.15) continue; // sparse — skip some spots
@@ -2953,9 +2984,95 @@ class CargoGame {
     drawDeliveryHubs() {
         const ctx = this.ctx;
         const hubs = this.physics.deliveryHubs;
-        
+        const now = Date.now();
+
         for (const hub of hubs) {
             const hasMatchingCargo = this.physics.boxes.some(b => b.onDeck && b.type === hub.type);
+            const hcx = hub.x + hub.width / 2;
+
+            // ── Receiving warehouse structure ─────────────────────────────
+            const wbH = 64, wbW = hub.width + 28;
+            const wbX = hub.x - 14, wbY = hub.y - wbH;
+
+            // Building body
+            ctx.fillStyle = '#0d1a28';
+            ctx.strokeStyle = '#1e3a5f';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(wbX, wbY, wbW, wbH, [3, 3, 0, 0]);
+            else ctx.rect(wbX, wbY, wbW, wbH);
+            ctx.fill(); ctx.stroke();
+
+            // Vertical ribs
+            ctx.strokeStyle = 'rgba(30,58,94,0.7)';
+            ctx.lineWidth = 1;
+            for (let rx = wbX + 10; rx < wbX + wbW - 4; rx += 10) {
+                ctx.beginPath(); ctx.moveTo(rx, wbY + 3); ctx.lineTo(rx, wbY + wbH - 2); ctx.stroke();
+            }
+            // Roof stripe in hub color
+            ctx.fillStyle = hub.color;
+            ctx.fillRect(wbX, wbY, wbW, 2);
+            // Intake door
+            const doorW = wbW * 0.55, doorH = wbH * 0.55;
+            const doorX = wbX + (wbW - doorW) / 2, doorY = wbY + wbH - doorH;
+            ctx.fillStyle = '#020c18';
+            ctx.fillRect(doorX, doorY, doorW, doorH);
+            const doorPulse = 0.3 + Math.abs(Math.sin(now * 0.003)) * 0.4;
+            ctx.strokeStyle = `rgba(${hub.color.slice(1,3) ? parseInt(hub.color.slice(1,3),16) : 56},${parseInt(hub.color.slice(3,5)||'bd',16)},${parseInt(hub.color.slice(5,7)||'f8',16)},${doorPulse})`;
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(doorX + 2, doorY + 2, doorW - 4, doorH - 4);
+            // Intake glow when matching cargo aboard
+            if (hasMatchingCargo) {
+                const ig = ctx.createRadialGradient(hcx, doorY + doorH/2, 0, hcx, doorY + doorH/2, doorW * 0.7);
+                ig.addColorStop(0, hub.color + '55');
+                ig.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = ig;
+                ctx.fillRect(doorX - 10, doorY - 5, doorW + 20, doorH + 10);
+            }
+            // Warning strobe
+            const strobeOn = (now % 1400) < 700;
+            ctx.fillStyle = strobeOn ? hub.color : 'rgba(0,0,0,0.4)';
+            ctx.beginPath(); ctx.arc(wbX + 6, wbY + 8, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(wbX + wbW - 6, wbY + 8, 3, 0, Math.PI * 2); ctx.fill();
+
+            // ── Overhead crane on hub ─────────────────────────────────────
+            const craneX = hcx + hub.width * 0.28;
+            const craneTopY = wbY - 2;
+            const craneArmLeft = hub.x - 6;
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(craneX, hub.y); ctx.lineTo(craneX, craneTopY - 16);
+            ctx.stroke();
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(craneX, craneTopY - 16); ctx.lineTo(craneArmLeft, craneTopY - 16);
+            ctx.stroke();
+            ctx.lineWidth = 1.8;
+            ctx.strokeStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(craneX - 16, craneTopY - 16); ctx.lineTo(craneX, hub.y - 16);
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+
+            // Animated trolley + cable
+            const trolleyX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
+            const cableLen = 22 + Math.abs(Math.sin(now * 0.0007)) * 16;
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(trolleyX - 5, craneTopY - 22, 10, 7);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.1;
+            ctx.beginPath();
+            ctx.moveTo(trolleyX, craneTopY - 15); ctx.lineTo(trolleyX, craneTopY - 15 + cableLen);
+            ctx.stroke();
+            // Hook
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.arc(trolleyX, craneTopY - 15 + cableLen + 4, 3.5, Math.PI * 0.1, Math.PI * 0.9);
+            ctx.stroke();
 
             // Glow column beacon
             const pulse = 0.15 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.15;
