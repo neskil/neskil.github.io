@@ -1320,6 +1320,7 @@ class CargoGame {
 
         // 6. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();
+        this.drawNextObjectiveArrow();
 
         // 6b. Draw world buildings
         this.drawBuildings();
@@ -2206,6 +2207,48 @@ class CargoGame {
         }
     }
 
+    drawNextObjectiveArrow() {
+        const ctx = this.ctx;
+        const level = levels[this.currentLevelIndex];
+        if (!level || this.gameState !== 'playing') return;
+        const allDelivered = this.deliveredCount >= (level.targetCargo || 2);
+        if (allDelivered) return;
+
+        const cargoOnDeck = this.physics.boxes.filter(b => b.onDeck);
+        const t = Date.now();
+        const bounce = Math.sin(t / 400) * 8;
+
+        const drawArrow = (wx, padY, label) => {
+            const ax = wx;
+            const ay = padY - 50 + bounce;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 22px sans-serif';
+            ctx.fillStyle = 'rgba(255,230,0,0.95)';
+            ctx.shadowColor = 'rgba(255,200,0,0.7)';
+            ctx.shadowBlur = 8;
+            ctx.fillText('▼', ax, ay);
+            ctx.shadowBlur = 0;
+            ctx.font = 'bold 11px Outfit, sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillText(label, ax, ay + 16);
+            ctx.restore();
+        };
+
+        if (cargoOnDeck.length === 0) {
+            const collection = this.physics.collectionPoint;
+            if (collection) {
+                drawArrow(collection.x + collection.width / 2, collection.y, 'PICK UP');
+            }
+        } else {
+            const box = cargoOnDeck[0];
+            const hub = this.physics.deliveryHubs.find(h => h.type === box.type);
+            if (hub) {
+                drawArrow(hub.x + hub.width / 2, hub.y, 'DELIVER HERE');
+            }
+        }
+    }
+
     drawSourcingDepot() {
         const ctx = this.ctx;
         const start = this.physics.startDepot;
@@ -2296,8 +2339,22 @@ class CargoGame {
             }
             ctx.restore();
 
-            ctx.fillStyle = '#fbbf24'; // Yellow for collection
+            const cpulse = 0.3 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
+            const cGlow = ctx.createLinearGradient(collection.x, 0, collection.x + collection.width, 0);
+            cGlow.addColorStop(0, `rgba(56,189,248,0)`);
+            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse})`);
+            cGlow.addColorStop(1, `rgba(56,189,248,0)`);
+            ctx.strokeStyle = cGlow;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(collection.x, collection.y, collection.width, collection.height);
+
+            ctx.fillStyle = '#38bdf8';
             ctx.fillRect(collection.x, collection.y, collection.width, 3);
+
+            ctx.fillStyle = 'rgba(56,189,248,0.9)';
+            ctx.font = 'bold 14px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CARGO', collection.x + collection.width / 2, collection.y + 13);
 
             // Dispenser crane
             ctx.strokeStyle = '#475569';
@@ -2344,8 +2401,10 @@ class CargoGame {
     drawDeliveryHubs() {
         const ctx = this.ctx;
         const hubs = this.physics.deliveryHubs;
-        
+
         for (const hub of hubs) {
+            const hasMatchingCargo = this.physics.boxes.some(b => b.onDeck && b.type === hub.type);
+
             // Glow column beacon
             const pulse = 0.15 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.15;
             ctx.fillStyle = hub.color;
@@ -2386,15 +2445,30 @@ class CargoGame {
             }
             ctx.restore();
 
+            if (hasMatchingCargo) {
+                const bpulse = 0.5 + Math.abs(Math.sin(Date.now() * 0.006)) * 0.5;
+                ctx.strokeStyle = hub.color;
+                ctx.globalAlpha = bpulse;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(hub.x, hub.y, hub.width, hub.height);
+                ctx.globalAlpha = 1.0;
+            }
+
             // Glowing boundary line
             ctx.fillStyle = hub.color;
             ctx.fillRect(hub.x, hub.y, hub.width, 3);
 
-            // Hub name label
+            // Hub name label (inside pad)
             ctx.fillStyle = '#f8fafc';
             ctx.font = '600 10px Outfit, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(hub.name.toUpperCase(), hub.x + hub.width / 2, hub.y + 11);
+
+            // Hub type label (below pad)
+            ctx.fillStyle = hub.color;
+            ctx.font = '500 9px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(hub.type ? hub.type.toUpperCase() : '', hub.x + hub.width / 2, hub.y + hub.height + 11);
         }
     }
 
