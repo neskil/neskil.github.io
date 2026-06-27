@@ -2175,52 +2175,85 @@ class CargoGame {
         }
         ctx.stroke();
 
-        // Really jagged rocks along the raw terrain (skipped over flat landing pads).
         const padRanges = this.getPadRanges();
         const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
         const getH = (x) => this.physics.getTerrainHeight(x);
-        // Deterministic pseudo-random so rocks are stable frame-to-frame
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
-        ctx.fillStyle = pal.terrainFill;
-        ctx.strokeStyle = pal.rockEdge;
-        ctx.lineWidth = 1.5;
-        ctx.lineJoin = 'miter';
+        const hexToRgb = (hex) => {
+            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+            return [r,g,b];
+        };
+        const [tr, tg, tb] = hexToRgb(pal.terrainFill);
+        const shadowColor = `rgba(${Math.floor(tr*0.5)},${Math.floor(tg*0.5)},${Math.floor(tb*0.5)},0.7)`;
+
+        ctx.fillStyle = shadowColor;
+        ctx.beginPath();
+        ctx.moveTo(startX, getH(startX) + 5);
+        for (let x = startX; x <= endX; x += 8) {
+            ctx.lineTo(x, getH(x) + 5);
+        }
+        for (let x = endX; x >= startX; x -= 8) {
+            ctx.lineTo(x, getH(x));
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 1.2;
 
         let rx = startX;
         while (rx <= endX) {
-            if (isOverPad(rx)) { rx += 10; continue; }
+            if (isOverPad(rx)) { rx += 20; continue; }
 
-            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9);
-            const baseW = 6 + r2 * 14;            // varied footprint
-            const peakH = 5 + r1 * 22;            // some tiny, some tall
-            const lean = (r3 - 0.5) * baseW * 1.1; // asymmetric, leaning peaks
+            const r1 = hash(rx), r2 = hash(rx * 1.7 + 3), r3 = hash(rx * 0.31 + 9), r4 = hash(rx * 2.3 + 17);
+            const spacing = 60 + r4 * 40;
+            const bw = 12 + r2 * 16;
+            const bh = 6 + r1 * 10;
+            const lean = (r3 - 0.5) * bw * 0.4;
 
-            const xL = rx;
-            const xR = rx + baseW;
-            const yL = getH(xL);
-            const yR = getH(xR);
-            const apexX = rx + baseW * 0.5 + lean;
-            const apexY = Math.min(yL, yR) - peakH;
+            const bx = rx + r4 * 10;
+            const by = getH(bx + bw * 0.5);
 
-            // Occasional notched (double) peak for extra jaggedness
+            const x0 = bx;
+            const x4 = bx + bw;
+            const x1 = bx + bw * 0.18;
+            const y1 = by - bh * 0.65;
+            const x2 = bx + bw * 0.45 + lean;
+            const y2 = by - bh;
+            const x3 = bx + bw * 0.82 + lean * 0.5;
+            const y3 = by - bh * 0.55;
+
+            ctx.fillStyle = pal.terrainFill;
+            ctx.strokeStyle = pal.rockEdge + 'aa';
             ctx.beginPath();
-            ctx.moveTo(xL, yL);
-            if (r2 > 0.62) {
-                const midX = rx + baseW * 0.5;
-                const midY = Math.min(yL, yR) - peakH * 0.35;
-                ctx.lineTo(rx + baseW * 0.3 + lean * 0.5, apexY);
-                ctx.lineTo(midX, midY);
-                ctx.lineTo(rx + baseW * 0.72 + lean * 0.3, apexY - peakH * 0.15);
-            } else {
-                ctx.lineTo(apexX, apexY);
-            }
-            ctx.lineTo(xR, yR);
+            ctx.moveTo(x0, by);
+            ctx.quadraticCurveTo(x0 - 2, y1 + bh * 0.3, x1, y1);
+            ctx.quadraticCurveTo((x1 + x2) * 0.5, y2 - 2, x2, y2);
+            ctx.quadraticCurveTo((x2 + x3) * 0.5, y2 - 1, x3, y3);
+            ctx.quadraticCurveTo(x4 + 2, y3 + bh * 0.25, x4, by);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
 
-            rx += baseW * (0.45 + r1 * 0.5);      // irregular, overlapping spacing
+            if (r1 > 0.8) {
+                const cx = bx + bw * 0.85 + r2 * 8;
+                const cby = getH(cx);
+                const cw = bw * 0.4;
+                const ch = bh * 0.45;
+                ctx.fillStyle = pal.terrainFill;
+                ctx.strokeStyle = pal.rockEdge + 'aa';
+                ctx.beginPath();
+                ctx.moveTo(cx, cby);
+                ctx.quadraticCurveTo(cx - 1, cby - ch * 0.5, cx + cw * 0.2, cby - ch);
+                ctx.quadraticCurveTo(cx + cw * 0.5, cby - ch - 2, cx + cw * 0.8, cby - ch * 0.6);
+                ctx.quadraticCurveTo(cx + cw + 1, cby - ch * 0.3, cx + cw, cby);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            rx += spacing;
         }
 
         // Subtle surface grain lines
