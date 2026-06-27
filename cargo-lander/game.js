@@ -56,6 +56,7 @@ class CargoGame {
         
         // Settings
         this.isMuted = false;
+        this.useSprites = localStorage.getItem('cargoLanderUseSprites') !== 'false';
 
         // Keys State
         this.keys = {
@@ -72,6 +73,65 @@ class CargoGame {
 
         this.damageFlash = 0;
         this.screenShake = { x: 0, y: 0, intensity: 0 };
+        this.loadSprites();
+    }
+
+    loadSprites() {
+        this.sprites = {
+            landerBasic: null,
+            landerDrone: null,
+            boxStandard: null,
+            boxRed: null,
+            boxBlue: null,
+            boxGreen: null
+        };
+
+        const spriteFiles = {
+            landerBasic: 'assets/lander_basic.png',
+            landerDrone: 'assets/lander_drone.png',
+            boxStandard: 'assets/box_standard.png',
+            boxRed: 'assets/box_red.png',
+            boxBlue: 'assets/box_blue.png',
+            boxGreen: 'assets/box_green.png'
+        };
+
+        let loadedCount = 0;
+        const totalSprites = Object.keys(spriteFiles).length;
+
+        for (const [key, src] of Object.entries(spriteFiles)) {
+            const img = new Image();
+            img.onload = () => {
+                const offscreen = document.createElement('canvas');
+                offscreen.width = img.width;
+                offscreen.height = img.height;
+                const oCtx = offscreen.getContext('2d');
+                oCtx.drawImage(img, 0, 0);
+                
+                try {
+                    const imgData = oCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i+1];
+                        const b = data[i+2];
+                        if (r < 10 && g < 10 && b < 10) {
+                            data[i+3] = 0;
+                        }
+                    }
+                    oCtx.putImageData(imgData, 0, 0);
+                    this.sprites[key] = offscreen;
+                } catch (e) {
+                    console.warn(`Chroma keying failed for ${key} (likely CORS on file://). Using raw image.`, e);
+                    this.sprites[key] = img;
+                }
+                
+                loadedCount++;
+            };
+            img.onerror = (e) => {
+                console.error(`Failed to load sprite: ${src}`, e);
+            };
+            img.src = src;
+        }
     }
 
     init(canvasId) {
@@ -382,6 +442,9 @@ class CargoGame {
         const muteCb = document.getElementById('setting-mute');
         if (muteCb) muteCb.checked = this.isMuted;
 
+        const spriteCb = document.getElementById('setting-use-sprites');
+        if (spriteCb) spriteCb.checked = this.useSprites;
+
         const mv = Math.round(CargoAudio.musicVolume * 100);
         const sv = Math.round(CargoAudio.sfxVolume * 100);
         const musicSlider = document.getElementById('setting-music-vol');
@@ -402,6 +465,11 @@ class CargoGame {
     toggleMuteFromCheckbox(checked) {
         this.isMuted = checked;
         if (window.CargoAudio) CargoAudio.setMuted(checked);
+    }
+
+    toggleSpritesFromCheckbox(checked) {
+        this.useSprites = checked;
+        localStorage.setItem('cargoLanderUseSprites', checked ? 'true' : 'false');
     }
 
     setMusicVolume(value) {
@@ -1054,6 +1122,7 @@ class CargoGame {
 
         // Check cargo positions for unloading and delivery
         this.checkCargoDelivery();
+        this.updateBoxFireState(dt);
 
         // Update score decay slightly for fuel/time consumption
         if (!lander.landed && this.score > 30) {
@@ -1190,6 +1259,60 @@ class CargoGame {
                 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
+                }
+            }
+        }
+    }
+
+    updateBoxFireState(dt) {
+        const boxes = this.physics.boxes;
+        const cp = this.physics.collectionPoint;
+        const sd = this.physics.startDepot;
+
+        for (let i = boxes.length - 1; i >= 0; i--) {
+            const box = boxes[i];
+            if (box.onDeck) { box.fireTimer = 0; continue; }
+
+            // Safe pads: collection point, start depot, delivery hubs
+            const onSafe =
+                (cp && box.x >= cp.x - 20 && box.x <= cp.x + cp.width + 20 && Math.abs(box.y - cp.y) < 50) ||
+                (sd && box.x >= sd.x - 20 && box.x <= sd.x + sd.width + 20 && Math.abs(box.y - sd.y) < 50) ||
+                this.physics.deliveryHubs.some(h => box.x >= h.x - 20 && box.x <= h.x + h.width + 20 && box.y > h.y - 50);
+
+            if (onSafe) { box.fireTimer = 0; continue; }
+
+            // Box is loose on terrain — accumulate fire timer when mostly settled
+            const speed = Math.sqrt(box.vx * box.vx + box.vy * box.vy);
+            if (speed < 2) {
+                box.fireTimer = (box.fireTimer || 0) + dt;
+            } else {
+                box.fireTimer = Math.max(0, (box.fireTimer || 0) - dt);
+            }
+
+            // Explode after ~3 seconds of burning (180 frames at 60fps)
+            if (box.fireTimer > 180) {
+                // Explosion particles
+                for (let p = 0; p < 30; p++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const spd = 2 + Math.random() * 8;
+                    this.physics.particles.push({
+                        x: box.x, y: box.y,
+                        vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd - 2,
+                        life: 0.9 + Math.random() * 0.1,
+                        decay: 0.025 + Math.random() * 0.02,
+                        size: 2 + Math.random() * 4,
+                        color: ['#f97316','#ef4444','#fbbf24','#94a3b8'][Math.floor(Math.random() * 4)],
+                    });
+                }
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playCollision();
+                this.addMessage('Cargo destroyed! -$150', '#ef4444');
+                this.missionBudget -= 150;
+                boxes.splice(i, 1);
+                // Remove matching Matter body
+                const body = this.physics.boxBodyMap?.get(box.id);
+                if (body) {
+                    Matter.Composite.remove(this.physics.matterWorld, body);
+                    this.physics.boxBodyMap.delete(box.id);
                 }
             }
         }
@@ -3616,57 +3739,122 @@ class CargoGame {
 
     drawBoxes() {
         for (const box of this.physics.boxes) {
-            this.drawSingleBox(box.x, box.y, box.type, box.emoji);
+            this.drawSingleBox(box.x, box.y, box.type, box.emoji, box);
         }
     }
 
-    drawSingleBox(x, y, type, emoji) {
+    drawSingleBox(x, y, type, emoji, box) {
         const ctx = this.ctx;
         const S = this.physics.BOX_SIZE;
         const halfS = S / 2;
 
-        // Only colour-code when the level has multiple cargo types
-        const allowedTypes = this.physics.currentLevelConfig?.allowedTypes;
-        const multiType = allowedTypes && allowedTypes.length > 1;
-
-        let fillColor   = '#334155'; // neutral slate when single-type
-        let borderColor = '#64748b';
-        if (multiType) {
-            if      (type === 'normal') { fillColor = '#0369a1'; borderColor = '#38bdf8'; }
-            else if (type === 'red')    { fillColor = '#991b1b'; borderColor = '#f87171'; }
-            else if (type === 'blue')   { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
-            else if (type === 'green')  { fillColor = '#14532d'; borderColor = '#4ade80'; }
-        }
-
-        // Fallback icon if no emoji passed (e.g. crane animation)
-        const iconText = emoji || (type === 'red' ? '⚠️' : type === 'blue' ? '❄️' : type === 'green' ? '♻️' : '📦');
+        const C = {
+            normal: { bg: '#5c3d11', hi: '#7c5520', border: '#f59e0b', sym: '#fef3c7' },
+            red:    { bg: '#7f1d1d', hi: '#991b1b', border: '#f87171', sym: '#fecaca' },
+            blue:   { bg: '#1e3a8a', hi: '#2563eb', border: '#60a5fa', sym: '#bfdbfe' },
+            green:  { bg: '#14532d', hi: '#166534', border: '#4ade80', sym: '#bbf7d0' },
+        };
+        const c = C[type] || C.normal;
 
         ctx.save();
         ctx.translate(x, y);
 
-        // Solid fill + subtle top highlight
+        // Container body gradient
         const grad = ctx.createLinearGradient(0, -halfS, 0, halfS);
-        grad.addColorStop(0, fillColor + 'f0');
-        grad.addColorStop(1, fillColor + 'aa');
+        grad.addColorStop(0, c.hi);
+        grad.addColorStop(1, c.bg);
         ctx.fillStyle = grad;
         ctx.fillRect(-halfS, -halfS, S, S);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.fillRect(-halfS, -halfS, S, 4);
+        // Corrugated vertical ribs
+        ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+        ctx.lineWidth = 1;
+        for (let rx = -halfS + 5; rx < halfS - 2; rx += 5) {
+            ctx.beginPath(); ctx.moveTo(rx, -halfS + 1); ctx.lineTo(rx, halfS - 1); ctx.stroke();
+        }
 
-        ctx.strokeStyle = borderColor;
+        // Top shine
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(-halfS, -halfS, S, 3);
+
+        // Border
+        ctx.strokeStyle = c.border;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-halfS + 0.75, -halfS + 0.75, S - 1.5, S - 1.5);
 
-        // Emoji with white shadow so it pops on any background
-        ctx.font = `${Math.round(S * 0.82)}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(255,255,255,0.85)';
-        ctx.shadowBlur = 4;
-        ctx.fillText(iconText, 0, 1);
-        ctx.shadowBlur = 0;
+        // Type symbol (canvas-drawn, no emoji)
+        ctx.fillStyle = c.sym;
+        ctx.strokeStyle = c.sym;
+        const sym = halfS * 0.58;
 
+        if (type === 'red') {
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, -sym * 0.9); ctx.lineTo(sym * 0.85, sym * 0.55); ctx.lineTo(-sym * 0.85, sym * 0.55);
+            ctx.closePath(); ctx.stroke();
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, -sym * 0.28); ctx.lineTo(0, sym * 0.18); ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, sym * 0.38, 1.2, 0, Math.PI * 2); ctx.fill();
+        } else if (type === 'blue') {
+            ctx.lineWidth = 1.3;
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * sym, Math.sin(a) * sym); ctx.stroke();
+                const tc = 0.55, ta = a + Math.PI / 2;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a)*sym*tc - Math.cos(ta)*2.5, Math.sin(a)*sym*tc - Math.sin(ta)*2.5);
+                ctx.lineTo(Math.cos(a)*sym*tc + Math.cos(ta)*2.5, Math.sin(a)*sym*tc + Math.sin(ta)*2.5);
+                ctx.stroke();
+            }
+        } else if (type === 'green') {
+            ctx.lineWidth = 1.4;
+            for (let i = 0; i < 3; i++) {
+                const a0 = (i / 3) * Math.PI * 2 - Math.PI / 2;
+                const a1 = a0 + (Math.PI * 2 / 3) * 0.75;
+                ctx.beginPath(); ctx.arc(0, 0, sym * 0.72, a0, a1); ctx.stroke();
+                const ax = Math.cos(a1) * sym * 0.72, ay = Math.sin(a1) * sym * 0.72;
+                const ah = a1 + 0.35;
+                ctx.beginPath();
+                ctx.moveTo(ax, ay);
+                ctx.lineTo(ax + Math.cos(ah + 2.5) * 4, ay + Math.sin(ah + 2.5) * 4);
+                ctx.lineTo(ax + Math.cos(ah - 2.5) * 4, ay + Math.sin(ah - 2.5) * 4);
+                ctx.closePath(); ctx.fill();
+            }
+        } else {
+            // Normal: package cross-strap icon
+            ctx.lineWidth = 1.4;
+            const pw = sym * 0.78;
+            ctx.strokeRect(-pw, -pw * 0.7, pw * 2, pw * 1.4);
+            ctx.beginPath(); ctx.moveTo(-pw, 0); ctx.lineTo(pw, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, -pw * 0.7); ctx.lineTo(0, pw * 0.7); ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Fire overlay when burning
+        if (box && (box.fireTimer || 0) > 30) {
+            this._drawBoxFire(ctx, x, y, halfS, Math.min(1, (box.fireTimer - 30) / 90));
+        }
+    }
+
+    _drawBoxFire(ctx, x, y, halfS, intensity) {
+        const now = Date.now();
+        ctx.save();
+        ctx.translate(x, y - halfS);
+        for (let f = 0; f < 4; f++) {
+            const fx = (f / 3 - 0.5) * halfS * 1.4 + Math.sin(now * 0.009 + f * 1.7) * halfS * 0.4;
+            const fh = halfS * 2.2 * intensity * (0.6 + Math.sin(now * 0.012 + f * 2.3) * 0.4);
+            const fg = ctx.createLinearGradient(fx, 0, fx, -fh);
+            fg.addColorStop(0,   `rgba(239,68,68,${intensity * 0.95})`);
+            fg.addColorStop(0.4, `rgba(251,146,60,${intensity * 0.75})`);
+            fg.addColorStop(1,   'rgba(253,224,71,0)');
+            ctx.fillStyle = fg;
+            ctx.beginPath();
+            ctx.moveTo(fx - halfS * 0.45, 0);
+            ctx.quadraticCurveTo(fx - halfS * 0.1, -fh * 0.5, fx, -fh);
+            ctx.quadraticCurveTo(fx + halfS * 0.1, -fh * 0.5, fx + halfS * 0.45, 0);
+            ctx.closePath(); ctx.fill();
+        }
         ctx.restore();
     }
 
@@ -3827,58 +4015,81 @@ class CargoGame {
                 }
             }
 
-            // X-frame arms
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-                ctx.beginPath();
-                ctx.moveTo(dx * 4, dy * 4);
-                ctx.lineTo(dx * 19, dy * 9);
-                ctx.stroke();
-            }
-            ctx.lineCap = 'butt';
-
-            // Central hex body
-            ctx.fillStyle = '#1e293b';
-            ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
-                i === 0 ? ctx.moveTo(Math.cos(a) * 9, Math.sin(a) * 9)
-                        : ctx.lineTo(Math.cos(a) * 9, Math.sin(a) * 9);
-            }
-            ctx.closePath(); ctx.fill(); ctx.stroke();
-
-            // Sensor eye
-            ctx.fillStyle = critical ? '#ef4444' : '#38bdf8';
-            ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.beginPath(); ctx.arc(-1, -1, 1.2, 0, Math.PI * 2); ctx.fill();
-
-            // Motor pods + spinning blades
-            for (let i = 0; i < 4; i++) {
-                const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
-                // Pod housing
-                ctx.fillStyle = '#253548';
-                ctx.strokeStyle = '#475569';
-                ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI * 2);
-                ctx.fill(); ctx.stroke();
-                // Counter-rotating pairs (0,2 vs 1,3)
-                const a = spin + (i % 2 === 0 ? 0 : Math.PI / 2);
-                ctx.strokeStyle = thrust ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1.5;
+            let sprite = (this.useSprites && this.sprites) ? this.sprites.landerDrone : null;
+            if (sprite) {
+                // Draw drone sprite body
+                ctx.drawImage(sprite, -26.5, -15.5, 53, 31);
+                
+                // Draw spinning blades on top of the sprite's motor pods
+                for (let i = 0; i < 4; i++) {
+                    const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
+                    const a = spin + (i % 2 === 0 ? 0 : Math.PI / 2);
+                    ctx.strokeStyle = thrust ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                    for (let b = 0; b < 2; b++) {
+                        const ba = a + b * Math.PI;
+                        ctx.beginPath();
+                        ctx.moveTo(px + Math.cos(ba) * 9, py + Math.sin(ba) * 2.5);
+                        ctx.lineTo(px + Math.cos(ba + Math.PI) * 9, py + Math.sin(ba + Math.PI) * 2.5);
+                        ctx.stroke();
+                    }
+                    ctx.lineCap = 'butt';
+                }
+            } else {
+                // X-frame arms
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 3;
                 ctx.lineCap = 'round';
-                for (let b = 0; b < 2; b++) {
-                    const ba = a + b * Math.PI;
+                for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
                     ctx.beginPath();
-                    ctx.moveTo(px + Math.cos(ba) * 9, py + Math.sin(ba) * 2.5);
-                    ctx.lineTo(px + Math.cos(ba + Math.PI) * 9, py + Math.sin(ba + Math.PI) * 2.5);
+                    ctx.moveTo(dx * 4, dy * 4);
+                    ctx.lineTo(dx * 19, dy * 9);
                     ctx.stroke();
                 }
                 ctx.lineCap = 'butt';
+
+                // Central hex body
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+                    i === 0 ? ctx.moveTo(Math.cos(a) * 9, Math.sin(a) * 9)
+                            : ctx.lineTo(Math.cos(a) * 9, Math.sin(a) * 9);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+
+                // Sensor eye
+                ctx.fillStyle = critical ? '#ef4444' : '#38bdf8';
+                ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.beginPath(); ctx.arc(-1, -1, 1.2, 0, Math.PI * 2); ctx.fill();
+
+                // Motor pods + spinning blades
+                for (let i = 0; i < 4; i++) {
+                    const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
+                    // Pod housing
+                    ctx.fillStyle = '#253548';
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI * 2);
+                    ctx.fill(); ctx.stroke();
+                    // Counter-rotating pairs (0,2 vs 1,3)
+                    const a = spin + (i % 2 === 0 ? 0 : Math.PI / 2);
+                    ctx.strokeStyle = thrust ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                    for (let b = 0; b < 2; b++) {
+                        const ba = a + b * Math.PI;
+                        ctx.beginPath();
+                        ctx.moveTo(px + Math.cos(ba) * 9, py + Math.sin(ba) * 2.5);
+                        ctx.lineTo(px + Math.cos(ba + Math.PI) * 9, py + Math.sin(ba + Math.PI) * 2.5);
+                        ctx.stroke();
+                    }
+                    ctx.lineCap = 'butt';
+                }
             }
 
             // Nav lights (red left, green right)
@@ -3946,10 +4157,8 @@ class CargoGame {
             const strafe = lander.strafePower || 0;
             if (Math.abs(strafe) > 0.08) {
                 const sl = 10 + Math.abs(strafe) * 22 + Math.random() * 8;
-                // Flame shoots from the OPPOSITE side of direction of travel
                 const flameX = strafe < 0 ? hw + 2 : -hw - 2;
                 const flameDir = strafe < 0 ? 1 : -1;
-                // Gradient from nozzle outward (must reference flameX)
                 const sGrad = ctx.createLinearGradient(flameX, 0, flameX + flameDir * sl, 0);
                 sGrad.addColorStop(0, 'rgba(56, 189, 248, 0.92)');
                 sGrad.addColorStop(0.45, 'rgba(99, 102, 241, 0.65)');
@@ -3980,142 +4189,148 @@ class CargoGame {
                 ctx.fill();
             }
 
-            // ── Cargo Deck (flat-bed: open back of the truck) ─────────────────────
-            // Bed floor
-            ctx.fillStyle = 'rgba(15,25,40,0.9)';
-            ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.rect(-hw, deckY - bh, hw * 2, bh + 2);
-            ctx.fill();
-            ctx.stroke();
-
-            // Deck ribbing (3 cross-members to make it look like a flatbed)
-            ctx.strokeStyle = 'rgba(100,116,139,0.6)';
-            ctx.lineWidth = 1;
-            for (let ri = 1; ri <= 3; ri++) {
-                const rx = -hw + (hw * 2 / 4) * ri;
-                ctx.beginPath();
-                ctx.moveTo(rx, deckY - bh);
-                ctx.lineTo(rx, deckY);
-                ctx.stroke();
-            }
-            // Side rails (raised edges to contain cargo)
-            ctx.fillStyle = '#334155';
-            ctx.fillRect(-hw - 2, deckY - bh - 3, 4, bh + 3);     // left rail
-            ctx.fillRect(hw - 2, deckY - bh - 3, 4, bh + 3);       // right rail
-            // Deck surface glow line
-            const deckGrad = ctx.createLinearGradient(-hw, deckY - 1, hw, deckY);
-            deckGrad.addColorStop(0, 'rgba(56,189,248,0.8)');
-            deckGrad.addColorStop(1, 'rgba(56,189,248,0.3)');
-            ctx.strokeStyle = deckGrad;
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(-hw + 2, deckY);
-            ctx.lineTo(hw - 2, deckY);
-            ctx.stroke();
-
-            // ── Engine block (boxy industrial bottom) ──────────────────────
-            // Main chassis rectangle
-            const chassisGrad = ctx.createLinearGradient(-hw, -6, hw, 20);
-            chassisGrad.addColorStop(0, '#1e3a5f');
-            chassisGrad.addColorStop(0.5, '#162840');
-            chassisGrad.addColorStop(1, '#0c1825');
-            ctx.fillStyle = chassisGrad;
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.roundRect ? ctx.roundRect(-hw + 2, -5, (hw - 2) * 2, 25, 3)
-                          : ctx.rect(-hw + 2, -5, (hw - 2) * 2, 25);
-            ctx.fill();
-            ctx.stroke();
-
-            // Panel lines / detail strips
-            ctx.strokeStyle = 'rgba(56,189,248,0.3)';
-            ctx.lineWidth = 0.8;
-            ctx.beginPath();
-            ctx.moveTo(-hw + 5, 2);
-            ctx.lineTo(hw - 5, 2);
-            ctx.moveTo(-hw + 5, 10);
-            ctx.lineTo(hw - 5, 10);
-            ctx.stroke();
-
-            // ── Cab / cockpit (top section) ─────────────────────────────────
-            const cabW = hw * 0.65, cabH = 14;
-            const cabGrad = ctx.createLinearGradient(-cabW, -5 - cabH, cabW, -5);
-            cabGrad.addColorStop(0, '#1e3a5f');
-            cabGrad.addColorStop(1, '#0f2035');
-            ctx.fillStyle = cabGrad;
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            // Slightly tapered cab
-            ctx.moveTo(-cabW, -5);
-            ctx.lineTo(-cabW * 0.8, -5 - cabH);
-            ctx.lineTo(cabW * 0.8, -5 - cabH);
-            ctx.lineTo(cabW, -5);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Cab window — compact visor, inset from cab edges
-            ctx.fillStyle = 'rgba(147,197,253,0.45)';
-            ctx.strokeStyle = 'rgba(147,197,253,0.7)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(-cabW * 0.40, -5 - 4);
-            ctx.lineTo(-cabW * 0.30, -5 - cabH + 5);
-            ctx.lineTo(cabW * 0.30, -5 - cabH + 5);
-            ctx.lineTo(cabW * 0.40, -5 - 4);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Window glint
-            ctx.fillStyle = 'rgba(255,255,255,0.25)';
-            ctx.beginPath();
-            ctx.moveTo(-cabW * 0.36, -5 - 5);
-            ctx.lineTo(-cabW * 0.22, -5 - cabH + 6);
-            ctx.lineTo(-cabW * 0.06, -5 - cabH + 6);
-            ctx.lineTo(-cabW * 0.18, -5 - 5);
-            ctx.closePath();
-            ctx.fill();
-
-            // ── Dual thruster nozzles ──────────────────────────────────────
-            for (const nx of [-9, 9]) {
-                ctx.fillStyle = '#1e293b';
+            let sprite = (this.useSprites && this.sprites) ? this.sprites.landerBasic : null;
+            if (sprite) {
+                // Draw space truck sprite body
+                ctx.drawImage(sprite, -28, -19, 56, 35);
+            } else {
+                // ── Cargo Deck (flat-bed: open back of the truck) ─────────────────────
+                // Bed floor
+                ctx.fillStyle = 'rgba(15,25,40,0.9)';
                 ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.rect(-hw, deckY - bh, hw * 2, bh + 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Deck ribbing (3 cross-members to make it look like a flatbed)
+                ctx.strokeStyle = 'rgba(100,116,139,0.6)';
+                ctx.lineWidth = 1;
+                for (let ri = 1; ri <= 3; ri++) {
+                    const rx = -hw + (hw * 2 / 4) * ri;
+                    ctx.beginPath();
+                    ctx.moveTo(rx, deckY - bh);
+                    ctx.lineTo(rx, deckY);
+                    ctx.stroke();
+                }
+                // Side rails (raised edges to contain cargo)
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(-hw - 2, deckY - bh - 3, 4, bh + 3);     // left rail
+                ctx.fillRect(hw - 2, deckY - bh - 3, 4, bh + 3);       // right rail
+                // Deck surface glow line
+                const deckGrad = ctx.createLinearGradient(-hw, deckY - 1, hw, deckY);
+                deckGrad.addColorStop(0, 'rgba(56,189,248,0.8)');
+                deckGrad.addColorStop(1, 'rgba(56,189,248,0.3)');
+                ctx.strokeStyle = deckGrad;
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.moveTo(nx - 4, 10);
-                ctx.lineTo(nx + 4, 10);
-                ctx.lineTo(nx + 5, 16);
-                ctx.lineTo(nx - 5, 16);
+                ctx.moveTo(-hw + 2, deckY);
+                ctx.lineTo(hw - 2, deckY);
+                ctx.stroke();
+
+                // ── Engine block (boxy industrial bottom) ──────────────────────
+                // Main chassis rectangle
+                const chassisGrad = ctx.createLinearGradient(-hw, -6, hw, 20);
+                chassisGrad.addColorStop(0, '#1e3a5f');
+                chassisGrad.addColorStop(0.5, '#162840');
+                chassisGrad.addColorStop(1, '#0c1825');
+                ctx.fillStyle = chassisGrad;
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(-hw + 2, -5, (hw - 2) * 2, 25, 3)
+                              : ctx.rect(-hw + 2, -5, (hw - 2) * 2, 25);
+                ctx.fill();
+                ctx.stroke();
+
+                // Panel lines / detail strips
+                ctx.strokeStyle = 'rgba(56,189,248,0.3)';
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(-hw + 5, 2);
+                ctx.lineTo(hw - 5, 2);
+                ctx.moveTo(-hw + 5, 10);
+                ctx.lineTo(hw - 5, 10);
+                ctx.stroke();
+
+                // ── Cab / cockpit (top section) ─────────────────────────────────
+                const cabW = hw * 0.65, cabH = 14;
+                const cabGrad = ctx.createLinearGradient(-cabW, -5 - cabH, cabW, -5);
+                cabGrad.addColorStop(0, '#1e3a5f');
+                cabGrad.addColorStop(1, '#0f2035');
+                ctx.fillStyle = cabGrad;
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                // Slightly tapered cab
+                ctx.moveTo(-cabW, -5);
+                ctx.lineTo(-cabW * 0.8, -5 - cabH);
+                ctx.lineTo(cabW * 0.8, -5 - cabH);
+                ctx.lineTo(cabW, -5);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-                // Nozzle ring glow
-                ctx.strokeStyle = lander.thrusting && lander.fuel > 0 ? 'rgba(251,191,36,0.8)' : '#64748b';
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.ellipse(nx, 16, 5, 2, 0, 0, Math.PI * 2);
-                ctx.stroke();
-            }
 
-            // ── Side thruster nozzles (visible even when idle) ────────────
-            for (const side of [-1, 1]) {
-                const snx = side * (hw + 1);
-                ctx.fillStyle = '#1e293b';
-                ctx.strokeStyle = '#334155';
+                // Cab window — compact visor, inset from cab edges
+                ctx.fillStyle = 'rgba(147,197,253,0.45)';
+                ctx.strokeStyle = 'rgba(147,197,253,0.7)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(snx, -2);
-                ctx.lineTo(snx + side * 6, 0);
-                ctx.lineTo(snx + side * 6, 4);
-                ctx.lineTo(snx, 6);
+                ctx.moveTo(-cabW * 0.40, -5 - 4);
+                ctx.lineTo(-cabW * 0.30, -5 - cabH + 5);
+                ctx.lineTo(cabW * 0.30, -5 - cabH + 5);
+                ctx.lineTo(cabW * 0.40, -5 - 4);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+
+                // Window glint
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.beginPath();
+                ctx.moveTo(-cabW * 0.36, -5 - 5);
+                ctx.lineTo(-cabW * 0.22, -5 - cabH + 6);
+                ctx.lineTo(-cabW * 0.06, -5 - cabH + 6);
+                ctx.lineTo(-cabW * 0.18, -5 - 5);
+                ctx.closePath();
+                ctx.fill();
+
+                // ── Dual thruster nozzles ──────────────────────────────────────
+                for (const nx of [-9, 9]) {
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#475569';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(nx - 4, 10);
+                    ctx.lineTo(nx + 4, 10);
+                    ctx.lineTo(nx + 5, 16);
+                    ctx.lineTo(nx - 5, 16);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                    // Nozzle ring glow
+                    ctx.strokeStyle = lander.thrusting && lander.fuel > 0 ? 'rgba(251,191,36,0.8)' : '#64748b';
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath();
+                    ctx.ellipse(nx, 16, 5, 2, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // ── Side thruster nozzles (visible even when idle) ────────────
+                for (const side of [-1, 1]) {
+                    const snx = side * (hw + 1);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(snx, -2);
+                    ctx.lineTo(snx + side * 6, 0);
+                    ctx.lineTo(snx + side * 6, 4);
+                    ctx.lineTo(snx, 6);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
             }
         }
 
