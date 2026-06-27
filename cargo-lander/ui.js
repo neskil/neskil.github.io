@@ -179,7 +179,35 @@ const UIMixin = {
 
     startLevelWithVehicle(vehicleType) {
         document.getElementById('vehicle-screen').style.display = 'none';
-        this.startLevel(this.selectedLevelIndex, vehicleType);
+
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const alreadyFullscreen = !!document.fullscreenElement;
+
+        if (isTouchDevice && !alreadyFullscreen) {
+            const prompt = document.getElementById('fullscreen-prompt');
+            prompt.style.display = 'flex';
+
+            const onYes = () => {
+                cleanup();
+                document.documentElement.requestFullscreen().catch(() => {}).finally(() => {
+                    this.startLevel(this.selectedLevelIndex, vehicleType);
+                });
+            };
+            const onNo = () => {
+                cleanup();
+                this.startLevel(this.selectedLevelIndex, vehicleType);
+            };
+            const cleanup = () => {
+                prompt.style.display = 'none';
+                document.getElementById('fullscreen-yes').removeEventListener('click', onYes);
+                document.getElementById('fullscreen-no').removeEventListener('click', onNo);
+            };
+
+            document.getElementById('fullscreen-yes').addEventListener('click', onYes);
+            document.getElementById('fullscreen-no').addEventListener('click', onNo);
+        } else {
+            this.startLevel(this.selectedLevelIndex, vehicleType);
+        }
     }
 
     openUpgradeShop() {
