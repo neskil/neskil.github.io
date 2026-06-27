@@ -4019,15 +4019,15 @@ class CargoGame {
             ctx.fill();
             ctx.stroke();
 
-            // Cab window (wide visor)
+            // Cab window — compact visor, inset from cab edges
             ctx.fillStyle = 'rgba(147,197,253,0.45)';
             ctx.strokeStyle = 'rgba(147,197,253,0.7)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-cabW * 0.62, -5 - 3);
-            ctx.lineTo(-cabW * 0.48, -5 - cabH + 3);
-            ctx.lineTo(cabW * 0.48, -5 - cabH + 3);
-            ctx.lineTo(cabW * 0.62, -5 - 3);
+            ctx.moveTo(-cabW * 0.40, -5 - 4);
+            ctx.lineTo(-cabW * 0.30, -5 - cabH + 5);
+            ctx.lineTo(cabW * 0.30, -5 - cabH + 5);
+            ctx.lineTo(cabW * 0.40, -5 - 4);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -4035,10 +4035,10 @@ class CargoGame {
             // Window glint
             ctx.fillStyle = 'rgba(255,255,255,0.25)';
             ctx.beginPath();
-            ctx.moveTo(-cabW * 0.55, -5 - 4);
-            ctx.lineTo(-cabW * 0.38, -5 - cabH + 5);
-            ctx.lineTo(-cabW * 0.12, -5 - cabH + 5);
-            ctx.lineTo(-cabW * 0.28, -5 - 4);
+            ctx.moveTo(-cabW * 0.36, -5 - 5);
+            ctx.lineTo(-cabW * 0.22, -5 - cabH + 6);
+            ctx.lineTo(-cabW * 0.06, -5 - cabH + 6);
+            ctx.lineTo(-cabW * 0.18, -5 - 5);
             ctx.closePath();
             ctx.fill();
 
