@@ -2178,6 +2178,55 @@ class CargoGame {
                 }
                 ctx.restore();
 
+                // ── ARMS — two large forward-reaching clawed appendages ──────
+                for (const side of [-1, 1]) {
+                    const armPhase = t * 1.2 + side * 1.4;
+                    const baseAng = headAngle + side * 1.1;
+                    const rootX = seg.x + Math.cos(baseAng) * seg.r * 0.75;
+                    const rootY = seg.y + Math.sin(baseAng) * seg.r * 0.75;
+
+                    const elbow1X = rootX + Math.cos(headAngle + side * 0.5) * seg.r * 1.0 + Math.sin(armPhase) * 12;
+                    const elbow1Y = rootY + Math.sin(headAngle + side * 0.5) * seg.r * 1.0 + Math.cos(armPhase) * 10;
+                    const elbow2X = elbow1X + Math.cos(headAngle + side * 0.2) * seg.r * 0.9 + Math.sin(armPhase * 1.3 + 0.7) * 10;
+                    const elbow2Y = elbow1Y + Math.sin(headAngle + side * 0.2) * seg.r * 0.9 + Math.cos(armPhase * 1.3 + 0.7) * 8;
+                    const tipX = elbow2X + Math.cos(headAngle) * seg.r * 0.55;
+                    const tipY = elbow2Y + Math.sin(headAngle) * seg.r * 0.55;
+
+                    // Arm shadow
+                    ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                    ctx.lineWidth = 7;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(rootX, rootY);
+                    ctx.bezierCurveTo(elbow1X, elbow1Y, elbow2X, elbow2Y, tipX, tipY);
+                    ctx.stroke();
+                    // Arm flesh
+                    ctx.strokeStyle = `rgba(160,10,10,0.85)`;
+                    ctx.lineWidth = 4.5;
+                    ctx.stroke();
+                    // Arm highlight
+                    ctx.strokeStyle = `rgba(220,30,20,0.4)`;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // Claw — three tines at tip
+                    const clawLen = seg.r * 0.48;
+                    for (let ci = -1; ci <= 1; ci++) {
+                        const clawAng = headAngle + ci * 0.45;
+                        ctx.strokeStyle = 'rgba(0,0,0,0.88)';
+                        ctx.lineWidth = 3.2;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(tipX, tipY);
+                        ctx.lineTo(tipX + Math.cos(clawAng) * clawLen, tipY + Math.sin(clawAng) * clawLen);
+                        ctx.stroke();
+                        ctx.strokeStyle = 'rgba(180,15,15,0.75)';
+                        ctx.lineWidth = 1.8;
+                        ctx.stroke();
+                    }
+                }
+                ctx.lineCap = 'butt';
             }
         }
         ctx.restore();
@@ -2243,86 +2292,147 @@ class CargoGame {
     }
 
     drawLake() {
-        if (this.currentLevelIndex > 1) return;
+        if (this.currentLevelIndex !== 0) return;
         if (!(this.physics.levelHeight > 0)) return;
         const ctx = this.ctx;
-        const lx = 530, lw = 240, ld = 52;
-        const ly = this.physics.getTerrainHeight(lx + lw / 2) - ld + 10;
+        const lx = 530, lw = 240, ld = 50;
+        // Sample terrain across full lake width to find the highest surface point
+        let minTerrainY = Infinity;
+        for (let sx = lx; sx <= lx + lw; sx += 10) {
+            const ty = this.physics.getTerrainHeight(sx);
+            if (ty < minTerrainY) minTerrainY = ty;
+        }
+        const ly = minTerrainY - ld; // lake top is ld px above the terrain peak
         const now = Date.now();
 
-        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
-        depthGrad.addColorStop(0, 'rgba(20,60,100,0.75)');
-        depthGrad.addColorStop(1, 'rgba(5,10,25,0.92)');
-        ctx.fillStyle = depthGrad;
-        ctx.fillRect(lx, ly, lw, ld);
+        // Build a path: top = water surface, sides vertical, bottom follows terrain
+        const terrainBottom = [];
+        for (let sx = lx; sx <= lx + lw; sx += 8) {
+            terrainBottom.push({ x: sx, y: this.physics.getTerrainHeight(sx) });
+        }
 
-        ctx.fillStyle = 'rgba(100,180,255,0.15)';
-        ctx.fillRect(lx, ly, lw, 6);
+        ctx.save();
 
-        ctx.strokeStyle = 'rgba(120,200,255,0.35)';
-        ctx.lineWidth = 1.5;
+        // Water body — filled with depth gradient, clipped to terrain-following shape
         ctx.beginPath();
-        for (let wx = 0; wx <= lw; wx += 4) {
-            const wy = Math.sin(now / 800 + (lx + wx) * 0.05) * 1.5;
-            if (wx === 0) ctx.moveTo(lx + wx, ly + wy);
-            else ctx.lineTo(lx + wx, ly + wy);
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx + lw, ly);
+        for (let i = terrainBottom.length - 1; i >= 0; i--) {
+            ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
+        }
+        ctx.closePath();
+
+        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld + 20);
+        depthGrad.addColorStop(0, 'rgba(14,45,90,0.82)');
+        depthGrad.addColorStop(0.5, 'rgba(8,25,60,0.90)');
+        depthGrad.addColorStop(1, 'rgba(2,6,20,0.96)');
+        ctx.fillStyle = depthGrad;
+        ctx.fill();
+
+        // Clip all inner content to this same water shape
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx + lw, ly);
+        for (let i = terrainBottom.length - 1; i >= 0; i--) {
+            ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
+        }
+        ctx.closePath();
+        ctx.clip();
+
+        // Shimmer layer near surface
+        ctx.fillStyle = 'rgba(56,130,220,0.12)';
+        ctx.fillRect(lx, ly, lw, 14);
+
+        // Animated surface ripples
+        ctx.strokeStyle = 'rgba(100,180,255,0.30)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        for (let wx = 0; wx <= lw; wx += 5) {
+            const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.8;
+            if (wx === 0) ctx.moveTo(lx + wx, ly + 4 + wy);
+            else ctx.lineTo(lx + wx, ly + 4 + wy);
+        }
+        ctx.stroke();
+        ctx.beginPath();
+        for (let wx = 0; wx <= lw; wx += 5) {
+            const wy = Math.sin(now / 650 + (lx + wx) * 0.065 + 1.2) * 1.3;
+            if (wx === 0) ctx.moveTo(lx + wx, ly + 9 + wy);
+            else ctx.lineTo(lx + wx, ly + 9 + wy);
         }
         ctx.stroke();
 
+        // Fish (clipped to water automatically)
         const fish = [
-            { phase: 0.0, depth: 0.35, size: 1.0 },
-            { phase: 2.1, depth: 0.55, size: 0.85 },
-            { phase: 4.3, depth: 0.70, size: 1.1 },
-            { phase: 1.5, depth: 0.45, size: 0.9 },
+            { phase: 0.0, depth: 0.30, size: 1.0 },
+            { phase: 2.1, depth: 0.52, size: 0.85 },
+            { phase: 4.3, depth: 0.68, size: 1.1 },
+            { phase: 1.5, depth: 0.40, size: 0.9 },
         ];
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(lx, ly, lw, ld);
-        ctx.clip();
         for (const f of fish) {
-            const t = now / 1200 + f.phase;
-            const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(t) * (lw * 0.38), lx + 10), lx + lw - 10);
+            const ft = now / 1200 + f.phase;
+            const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(ft) * (lw * 0.36), lx + 12), lx + lw - 12);
             const fy = ly + ld * f.depth;
-            const dir = Math.cos(t) >= 0 ? 1 : -1;
+            const dir = Math.cos(ft) >= 0 ? 1 : -1;
             const bw = 14 * f.size, bh = 6 * f.size;
-            ctx.fillStyle = 'rgba(80,180,120,0.85)';
+            ctx.fillStyle = 'rgba(60,180,110,0.88)';
             ctx.beginPath();
             ctx.ellipse(fx, fy, bw / 2, bh / 2, 0, 0, Math.PI * 2);
             ctx.fill();
-            const tx = fx - dir * (bw / 2);
+            const tail = fx - dir * (bw / 2);
             ctx.beginPath();
-            ctx.moveTo(tx, fy);
-            ctx.lineTo(tx - dir * bh * 0.9, fy - bh * 0.7);
-            ctx.lineTo(tx - dir * bh * 0.9, fy + bh * 0.7);
+            ctx.moveTo(tail, fy);
+            ctx.lineTo(tail - dir * bh * 0.9, fy - bh * 0.75);
+            ctx.lineTo(tail - dir * bh * 0.9, fy + bh * 0.75);
             ctx.closePath();
             ctx.fill();
         }
+
         ctx.restore();
 
-        const bx = lx + 180 + Math.sin(now / 2000) * 8;
-        const by = ly - 1;
-        ctx.fillStyle = '#4a3728';
+        // Water surface edge line — soft blue-white
+        ctx.strokeStyle = 'rgba(120,200,255,0.55)';
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(bx - 20, by);
-        ctx.lineTo(bx + 20, by);
-        ctx.lineTo(bx + 16, by + 12);
-        ctx.lineTo(bx - 16, by + 12);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(bx - 20, by + 1, 40, 3);
-        ctx.strokeStyle = '#8a7060';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(bx - 6, by);
-        ctx.lineTo(bx - 6, by - 20);
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(lx + lw, ly);
         ctx.stroke();
-        ctx.strokeStyle = 'rgba(180,180,180,0.7)';
+
+        // Fishing boat — bobs on the water surface
+        const bx = lx + 185 + Math.sin(now / 2000) * 7;
+        const by = ly - 1;
+        // Hull
+        ctx.fillStyle = '#4a3728';
+        ctx.strokeStyle = '#6b5240';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(bx - 6, by - 20);
-        ctx.lineTo(bx - 6 + 10, by + 10 + Math.sin(now / 2000) * 3);
+        ctx.moveTo(bx - 18, by);
+        ctx.lineTo(bx + 18, by);
+        ctx.lineTo(bx + 14, by + 10);
+        ctx.lineTo(bx - 14, by + 10);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        // Deck stripe
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(bx - 18, by + 1, 36, 2.5);
+        // Mast + pole
+        ctx.strokeStyle = '#7a6050';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(bx - 5, by); ctx.lineTo(bx - 5, by - 22);
+        ctx.moveTo(bx - 5, by - 22); ctx.lineTo(bx - 5 + 14, by - 22);
         ctx.stroke();
+        // Fishing line
+        ctx.strokeStyle = 'rgba(180,180,180,0.65)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(bx + 9, by - 22);
+        ctx.lineTo(bx + 9 + 6, by + 8 + Math.sin(now / 2000) * 3);
+        ctx.stroke();
+        // Float
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(bx + 15, by + 8 + Math.sin(now / 2000) * 3, 2.5, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     drawGroundParallax() {
@@ -2425,20 +2535,49 @@ class CargoGame {
         ctx.closePath();
         ctx.fill();
 
-        // Subtle noise texture on the edge — small deterministic bumps, no discrete rocks
-        ctx.strokeStyle = pal.rockEdge + 'aa';
-        ctx.lineWidth = 1.2;
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        let nStarted = false;
-        for (let x = startX; x <= endX; x += 3) {
-            const baseY = getH(x);
-            const noise = isOverPad(x) ? 0 : (hash(x) - 0.5) * 4;
-            if (!nStarted) { ctx.moveTo(x, baseY + noise); nStarted = true; }
-            else ctx.lineTo(x, baseY + noise);
+        if (this.currentLevelIndex === 0) {
+            // ── L1: Grass tufts — small V/Y shapes at terrain surface ─────
+            ctx.strokeStyle = '#86efac'; // light green
+            ctx.lineWidth = 1.3;
+            ctx.lineCap = 'round';
+            for (let x = startX; x <= endX; x += 10) {
+                if (isOverPad(x)) continue;
+                const h0 = hash(x);
+                if (h0 < 0.15) continue; // sparse — skip some spots
+                const baseY = getH(x);
+                const height = 3 + hash(x + 5) * 5;
+                const lean = (hash(x + 13) - 0.5) * 4;
+                // Main blade
+                ctx.beginPath();
+                ctx.moveTo(x, baseY);
+                ctx.lineTo(x + lean, baseY - height);
+                ctx.stroke();
+                // Side blade
+                if (h0 > 0.5) {
+                    ctx.strokeStyle = '#4ade80';
+                    ctx.beginPath();
+                    ctx.moveTo(x, baseY - 1);
+                    ctx.lineTo(x + lean - 3, baseY - height * 0.75);
+                    ctx.stroke();
+                    ctx.strokeStyle = '#86efac';
+                }
+            }
+            ctx.lineCap = 'butt';
+        } else {
+            // ── Other levels: rock edge noise ──────────────────────────────
+            ctx.strokeStyle = pal.rockEdge + '99';
+            ctx.lineWidth = 1.2;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            let nStarted = false;
+            for (let x = startX; x <= endX; x += 4) {
+                const baseY = getH(x);
+                const noise = isOverPad(x) ? 0 : (hash(x) - 0.5) * 3.5;
+                if (!nStarted) { ctx.moveTo(x, baseY + noise); nStarted = true; }
+                else ctx.lineTo(x, baseY + noise);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
-
     }
 
     drawUnderground() {
@@ -2633,83 +2772,179 @@ class CargoGame {
             }
         }
 
-        // Draw Collection Point
+        // Draw Collection Point — Space Warehouse
         if (collection) {
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(collection.x, collection.y, collection.width, collection.height);
+            const cx = collection.x, cy = collection.y;
+            const cw = collection.width, ch = collection.height;
+            const cpCx = cx + cw / 2;
+            const now = Date.now();
+            const cpulse = 0.4 + Math.abs(Math.sin(now * 0.003)) * 0.4;
 
-            // Warning stripes (yellow tint)
-            ctx.save();
+            // ── Warehouse building behind pad ─────────────────────────────
+            const wbX = cx - 18, wbW = cw + 36, wbH = 80, wbY = cy - wbH;
+
+            // Building shell — corrugated panel look
+            const bldGrad = ctx.createLinearGradient(wbX, wbY, wbX + wbW, wbY);
+            bldGrad.addColorStop(0, '#0f1e2e');
+            bldGrad.addColorStop(0.5, '#152434');
+            bldGrad.addColorStop(1, '#0c1a28');
+            ctx.fillStyle = bldGrad;
+            ctx.strokeStyle = '#1e3a5f';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.rect(collection.x, collection.y, collection.width, collection.height);
-            ctx.clip();
-            const csW = 14;
-            ctx.fillStyle = 'rgba(251, 191, 36, 0.18)';
-            for (let sx = collection.x - collection.height; sx < collection.x + collection.width + collection.height; sx += csW * 2) {
+            if (ctx.roundRect) ctx.roundRect(wbX, wbY, wbW, wbH, [4, 4, 0, 0]);
+            else ctx.rect(wbX, wbY, wbW, wbH);
+            ctx.fill(); ctx.stroke();
+
+            // Corrugated panels — vertical ribs
+            ctx.strokeStyle = 'rgba(30,58,94,0.8)';
+            ctx.lineWidth = 1;
+            for (let rx = wbX + 12; rx < wbX + wbW - 4; rx += 12) {
                 ctx.beginPath();
-                ctx.moveTo(sx, collection.y + collection.height);
-                ctx.lineTo(sx + collection.height, collection.y);
-                ctx.lineTo(sx + collection.height + csW, collection.y);
-                ctx.lineTo(sx + csW, collection.y + collection.height);
-                ctx.closePath();
-                ctx.fill();
+                ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2);
+                ctx.stroke();
+            }
+
+            // Roof edge accent
+            ctx.fillStyle = '#1e3a5f';
+            ctx.fillRect(wbX, wbY, wbW, 4);
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(wbX, wbY, wbW, 2);
+
+            // Loading dock doors (2 large rectangular openings)
+            const doorW = wbW * 0.32, doorH = wbH * 0.52;
+            for (const dOff of [0.18, 0.57]) {
+                const dx = wbX + wbW * dOff, dy = wbY + wbH - doorH;
+                ctx.fillStyle = '#060e18';
+                ctx.strokeStyle = '#1e3a5f';
+                ctx.lineWidth = 1.2;
+                ctx.fillRect(dx, dy, doorW, doorH);
+                ctx.strokeRect(dx, dy, doorW, doorH);
+                // Door frame light
+                ctx.strokeStyle = `rgba(56,189,248,${cpulse * 0.6})`;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(dx + 2, dy + 2, doorW - 4, doorH - 4);
+                // Loading light strip above door
+                ctx.fillStyle = `rgba(251,191,36,${cpulse * 0.7})`;
+                ctx.fillRect(dx + 2, dy - 4, doorW - 4, 3);
+            }
+
+            // Warning strobe lights on building corners
+            const strobeOn = (now % 1200) < 600;
+            ctx.fillStyle = strobeOn ? 'rgba(251,191,36,0.95)' : 'rgba(80,60,10,0.6)';
+            for (const bx2 of [wbX + 5, wbX + wbW - 5]) {
+                ctx.beginPath(); ctx.arc(bx2, wbY + 8, 3.5, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Building label
+            ctx.fillStyle = 'rgba(148,163,184,0.7)';
+            ctx.font = '600 8px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CARGO TERMINAL', cpCx, wbY + 14);
+
+            // ── Overhead crane ────────────────────────────────────────────
+            const craneBaseX = cx + cw * 0.72;
+            const craneTopY = wbY - 2;
+            const craneArmEnd = cx - 10;
+
+            // Vertical mast
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
+            ctx.stroke();
+            // Horizontal arm
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
+            ctx.stroke();
+            // Support diagonal
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX - 20, craneTopY - 20);
+            ctx.lineTo(craneBaseX, cy - 20);
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+
+            // Trolley on arm + cable (animated horizontal position)
+            const trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+            const cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+            // Trolley block
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(trolleyX - 6, craneTopY - 26, 12, 8);
+            // Cable
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(trolleyX, craneTopY - 18); ctx.lineTo(trolleyX, craneTopY - 18 + cableLen);
+            ctx.stroke();
+            // Hook
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(trolleyX, craneTopY - 18 + cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
+            ctx.stroke();
+
+            // ── Landing pad surface ───────────────────────────────────────
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx, cy, cw, ch);
+
+            // Yellow hazard stripes on pad
+            ctx.save();
+            ctx.beginPath(); ctx.rect(cx, cy, cw, ch); ctx.clip();
+            const csW = 13;
+            ctx.fillStyle = 'rgba(251,191,36,0.2)';
+            for (let sx = cx - ch; sx < cx + cw + ch; sx += csW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(sx, cy + ch); ctx.lineTo(sx + ch, cy);
+                ctx.lineTo(sx + ch + csW, cy); ctx.lineTo(sx + csW, cy + ch);
+                ctx.closePath(); ctx.fill();
             }
             ctx.restore();
 
-            const cpulse = 0.3 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
-            const cGlow = ctx.createLinearGradient(collection.x, 0, collection.x + collection.width, 0);
+            // Cyan top accent bar
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(cx, cy, cw, 3);
+
+            // Pad glow
+            const cGlow = ctx.createLinearGradient(cx, 0, cx + cw, 0);
             cGlow.addColorStop(0, `rgba(56,189,248,0)`);
-            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse})`);
+            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse * 0.55})`);
             cGlow.addColorStop(1, `rgba(56,189,248,0)`);
             ctx.strokeStyle = cGlow;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(collection.x, collection.y, collection.width, collection.height);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(cx, cy, cw, ch);
 
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(collection.x, collection.y, collection.width, 3);
-
+            // CARGO label on pad
             ctx.fillStyle = 'rgba(56,189,248,0.9)';
-            ctx.font = 'bold 14px Outfit, sans-serif';
+            ctx.font = 'bold 12px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CARGO', collection.x + collection.width / 2, collection.y + 13);
+            ctx.fillText('CARGO', cpCx, cy + 12);
 
-            // Dispenser crane
-            ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(collection.x + collection.width / 2, collection.y - 60);
-            ctx.lineTo(collection.x + collection.width / 2, collection.y - 120);
-            ctx.lineTo(collection.x + collection.width / 2 - 25, collection.y - 120);
-            ctx.stroke();
-
-            // Dispenser box container
-            ctx.fillStyle = '#1e293b';
-            ctx.strokeStyle = '#64748b';
-            ctx.lineWidth = 2;
-            ctx.fillRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
-            ctx.strokeRect(collection.x + collection.width / 2 - 20, collection.y - 140, 40, 30);
-
-            // Dispenser prompt — visible whenever lander is in the loading zone
+            // Proximity prompt
             const lander = this.physics.lander;
             if (lander) {
-                const cpCx = collection.x + collection.width / 2;
-                const nearPad = Math.abs(lander.x - cpCx) < collection.width / 2 + 28
-                              && lander.y >= collection.y - 60 && lander.y <= collection.y + 12;
+                const nearPad = Math.abs(lander.x - cpCx) < cw / 2 + 28
+                              && lander.y >= cy - 60 && lander.y <= cy + 12;
                 if (nearPad) {
-                    // Zone indicator: soft glow under the pad
-                    const zGrad = ctx.createRadialGradient(cpCx, collection.y, 0, cpCx, collection.y, collection.width * 0.75);
-                    zGrad.addColorStop(0, 'rgba(251,191,36,0.18)');
+                    const zGrad = ctx.createRadialGradient(cpCx, cy, 0, cpCx, cy, cw * 0.75);
+                    zGrad.addColorStop(0, 'rgba(251,191,36,0.2)');
                     zGrad.addColorStop(1, 'rgba(251,191,36,0)');
                     ctx.fillStyle = zGrad;
                     ctx.beginPath();
-                    ctx.ellipse(cpCx, collection.y + 4, collection.width * 0.75, 16, 0, 0, Math.PI * 2);
+                    ctx.ellipse(cpCx, cy + 4, cw * 0.75, 16, 0, 0, Math.PI * 2);
                     ctx.fill();
 
-                    const pulse = 0.7 + Math.abs(Math.sin(Date.now() * 0.006)) * 0.3;
-                    ctx.fillStyle = `rgba(251, 191, 36, ${pulse})`;
-                    ctx.font = '600 13px sans-serif';
+                    const pp = 0.7 + Math.abs(Math.sin(now * 0.006)) * 0.3;
+                    ctx.fillStyle = `rgba(251,191,36,${pp})`;
+                    ctx.font = '600 12px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText("[ SPACE ] DISPENSE CARGO", cpCx, collection.y - 45);
+                    ctx.fillText('[ SPACE ] DISPENSE CARGO', cpCx, cy - 48);
                 }
             }
         }
@@ -3546,87 +3781,213 @@ class CargoGame {
             if (t.angle) ctx.rotate(t.angle);
             if (movingLeft) ctx.scale(-1, 1);
 
-            // Engine glow trail
-            if (t.engineGlow) {
-                const eg = ctx.createRadialGradient(-tw/2 - 10, 0, 0, -tw/2 - 10, 0, 40);
-                eg.addColorStop(0, t.accentColor + '59'); // 35% opacity hex
-                eg.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = eg;
-                ctx.beginPath();
-                ctx.arc(-tw/2 - 10, 0, 40, 0, Math.PI * 2);
-                ctx.fill();
+            if (t.model === 'pickup') {
+                this._drawPickupTruck(ctx, t, tw, th);
+            } else {
+                this._drawFreighterTruck(ctx, t, tw, th);
             }
-
-            // Hull — elongated rectangular body
-            const hullGrad = ctx.createLinearGradient(0, -th/2, 0, th/2);
-            hullGrad.addColorStop(0, t.bodyColor);
-            hullGrad.addColorStop(0.5, shadeColor(t.bodyColor, 20));
-            hullGrad.addColorStop(1, shadeColor(t.bodyColor, -20));
-            ctx.fillStyle = hullGrad;
-            ctx.strokeStyle = t.accentColor;
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(-tw/2, -th/2, tw, th, 4);
-            else ctx.rect(-tw/2, -th/2, tw, th);
-            ctx.fill();
-            ctx.stroke();
-
-            // Nose cone (front = right)
-            ctx.fillStyle = shadeColor(t.bodyColor, 15);
-            ctx.strokeStyle = t.accentColor;
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(tw/2, -th/2);
-            ctx.lineTo(tw/2 + th * 0.7, 0);
-            ctx.lineTo(tw/2, th/2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Engine pods (rear = left)
-            for (const ey of [-th * 0.3, th * 0.3]) {
-                ctx.fillStyle = shadeColor(t.bodyColor, -15);
-                ctx.strokeStyle = '#475569';
-                ctx.lineWidth = 1;
-                ctx.fillRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
-                ctx.strokeRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
-                // Engine nozzle glow
-                const fl = 6 + Math.abs(Math.sin(t.lightPhase * 3)) * 8;
-                const eg2 = ctx.createLinearGradient(-tw/2 - 12, 0, -tw/2 - 12 - fl, 0);
-                eg2.addColorStop(0, `rgba(56,189,248,0.8)`);
-                eg2.addColorStop(1, 'rgba(56,189,248,0)');
-                ctx.fillStyle = eg2;
-                ctx.beginPath();
-                ctx.moveTo(-tw/2 - 12, ey - th * 0.12);
-                ctx.lineTo(-tw/2 - 12 - fl, ey);
-                ctx.lineTo(-tw/2 - 12, ey + th * 0.12);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            // Window strip
-            ctx.fillStyle = 'rgba(147,197,253,0.3)';
-            ctx.strokeStyle = 'rgba(147,197,253,0.5)';
-            ctx.lineWidth = 0.8;
-            const winStart = -tw * 0.1;
-            const winLen = tw * 0.45;
-            ctx.fillRect(winStart, -th * 0.3, winLen, th * 0.6);
-            ctx.strokeRect(winStart, -th * 0.3, winLen, th * 0.6);
-
-            // Running lights — blink at own phase
-            const blinkA = Math.sin(t.lightPhase) > 0;
-            const blinkB = Math.sin(t.lightPhase + Math.PI) > 0;
-            ctx.fillStyle = blinkA ? t.lightColor : 'rgba(0,0,0,0.5)';
-            ctx.beginPath();
-            ctx.arc(tw/2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = blinkB ? '#ef4444' : 'rgba(0,0,0,0.5)';
-            ctx.beginPath();
-            ctx.arc(-tw/2 - 8, th * 0.1, 2.5, 0, Math.PI * 2);
-            ctx.fill();
 
             ctx.restore();
         }
+    }
+
+    _drawFreighterTruck(ctx, t, tw, th) {
+        // Engine glow trail
+        if (t.engineGlow) {
+            const eg = ctx.createRadialGradient(-tw/2 - 10, 0, 0, -tw/2 - 10, 0, 40);
+            eg.addColorStop(0, t.accentColor + '59');
+            eg.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = eg;
+            ctx.beginPath();
+            ctx.arc(-tw/2 - 10, 0, 40, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Hull
+        const hullGrad = ctx.createLinearGradient(0, -th/2, 0, th/2);
+        hullGrad.addColorStop(0, t.bodyColor);
+        hullGrad.addColorStop(0.5, shadeColor(t.bodyColor, 20));
+        hullGrad.addColorStop(1, shadeColor(t.bodyColor, -20));
+        ctx.fillStyle = hullGrad;
+        ctx.strokeStyle = t.accentColor;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-tw/2, -th/2, tw, th, 4);
+        else ctx.rect(-tw/2, -th/2, tw, th);
+        ctx.fill();
+        ctx.stroke();
+
+        // Nose cone
+        ctx.fillStyle = shadeColor(t.bodyColor, 15);
+        ctx.strokeStyle = t.accentColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tw/2, -th/2);
+        ctx.lineTo(tw/2 + th * 0.7, 0);
+        ctx.lineTo(tw/2, th/2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Engine pods (rear)
+        for (const ey of [-th * 0.3, th * 0.3]) {
+            ctx.fillStyle = shadeColor(t.bodyColor, -15);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1;
+            ctx.fillRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
+            ctx.strokeRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
+            const fl = 6 + Math.abs(Math.sin(t.lightPhase * 3)) * 8;
+            const eg2 = ctx.createLinearGradient(-tw/2 - 12, 0, -tw/2 - 12 - fl, 0);
+            eg2.addColorStop(0, `rgba(56,189,248,0.8)`);
+            eg2.addColorStop(1, 'rgba(56,189,248,0)');
+            ctx.fillStyle = eg2;
+            ctx.beginPath();
+            ctx.moveTo(-tw/2 - 12, ey - th * 0.12);
+            ctx.lineTo(-tw/2 - 12 - fl, ey);
+            ctx.lineTo(-tw/2 - 12, ey + th * 0.12);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Window strip
+        ctx.fillStyle = 'rgba(147,197,253,0.3)';
+        ctx.strokeStyle = 'rgba(147,197,253,0.5)';
+        ctx.lineWidth = 0.8;
+        ctx.fillRect(-tw * 0.1, -th * 0.3, tw * 0.45, th * 0.6);
+        ctx.strokeRect(-tw * 0.1, -th * 0.3, tw * 0.45, th * 0.6);
+
+        // Running lights
+        const blinkA = Math.sin(t.lightPhase) > 0;
+        const blinkB = Math.sin(t.lightPhase + Math.PI) > 0;
+        ctx.fillStyle = blinkA ? t.lightColor : 'rgba(0,0,0,0.5)';
+        ctx.beginPath(); ctx.arc(tw/2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = blinkB ? '#ef4444' : 'rgba(0,0,0,0.5)';
+        ctx.beginPath(); ctx.arc(-tw/2 - 8, th * 0.1, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    _drawPickupTruck(ctx, t, tw, th) {
+        // Space pickup — think F-150 silhouette in space:
+        // front = right (nose + cab), rear = left (flat bed with optional cargo)
+        const cabW = tw * 0.45;
+        const bedW = tw * 0.52;
+        const cabH = th * 1.05;   // cab taller than bed
+        const bedH = th * 0.68;
+        const cabX = tw/2 - cabW; // cab starts here (right side)
+        const bedX = -tw/2;       // bed starts at left
+
+        // Anti-grav pod glow (instead of wheels — two pods underneath)
+        for (const px of [-tw * 0.28, tw * 0.28]) {
+            const podGrad = ctx.createRadialGradient(px, th/2 + 4, 0, px, th/2 + 4, 10);
+            podGrad.addColorStop(0, t.accentColor + 'aa');
+            podGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = podGrad;
+            ctx.beginPath(); ctx.ellipse(px, th/2 + 4, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+            // Pod ring
+            ctx.strokeStyle = t.accentColor;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.ellipse(px, th/2 + 2, 8, 3, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+
+        // Flat bed (rear/left)
+        const bedGrad = ctx.createLinearGradient(0, -bedH/2, 0, bedH/2);
+        bedGrad.addColorStop(0, shadeColor(t.bodyColor, 10));
+        bedGrad.addColorStop(1, shadeColor(t.bodyColor, -25));
+        ctx.fillStyle = bedGrad;
+        ctx.strokeStyle = t.accentColor;
+        ctx.lineWidth = 1;
+        if (ctx.roundRect) ctx.roundRect(bedX, -bedH/2, bedW, bedH, [2, 0, 0, 2]);
+        else ctx.rect(bedX, -bedH/2, bedW, bedH);
+        ctx.fill(); ctx.stroke();
+
+        // Bed floor ribs
+        ctx.strokeStyle = 'rgba(100,116,139,0.5)';
+        ctx.lineWidth = 0.8;
+        for (let ri = 1; ri <= 3; ri++) {
+            const rx = bedX + (bedW / 4) * ri;
+            ctx.beginPath();
+            ctx.moveTo(rx, -bedH/2 + 2); ctx.lineTo(rx, bedH/2 - 2);
+            ctx.stroke();
+        }
+
+        // Bed walls (raised sides)
+        ctx.fillStyle = shadeColor(t.bodyColor, 15);
+        ctx.fillRect(bedX, -bedH/2 - 3, bedW, 3);
+        ctx.fillRect(bedX, bedH/2, bedW, 3);
+
+        // Optional cargo box on bed
+        if (t.hasCargoBox) {
+            const bw = bedW * 0.55, bh = bedH * 0.85;
+            const bx = bedX + bedW * 0.1;
+            const by = -bedH/2 - bh;
+            ctx.fillStyle = shadeColor(t.bodyColor, -10);
+            ctx.strokeStyle = t.accentColor;
+            ctx.lineWidth = 1;
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeRect(bx, by, bw, bh);
+            // Cargo straps
+            ctx.strokeStyle = 'rgba(251,191,36,0.7)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(bx + bw * 0.3, by); ctx.lineTo(bx + bw * 0.3, by + bh);
+            ctx.moveTo(bx + bw * 0.65, by); ctx.lineTo(bx + bw * 0.65, by + bh);
+            ctx.stroke();
+        }
+
+        // Cab (front/right) — taller, with visor window
+        const cabGrad = ctx.createLinearGradient(cabX, -cabH/2, cabX + cabW, cabH/2);
+        cabGrad.addColorStop(0, shadeColor(t.bodyColor, 25));
+        cabGrad.addColorStop(1, shadeColor(t.bodyColor, 5));
+        ctx.fillStyle = cabGrad;
+        ctx.strokeStyle = t.accentColor;
+        ctx.lineWidth = 1.2;
+        if (ctx.roundRect) ctx.roundRect(cabX, -cabH/2, cabW, cabH, [2, 4, 4, 2]);
+        else ctx.rect(cabX, -cabH/2, cabW, cabH);
+        ctx.fill(); ctx.stroke();
+
+        // Windscreen
+        ctx.fillStyle = 'rgba(147,197,253,0.4)';
+        ctx.strokeStyle = 'rgba(147,197,253,0.7)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cabX + cabW * 0.08, -cabH * 0.42);
+        ctx.lineTo(cabX + cabW * 0.18, -cabH * 0.48);
+        ctx.lineTo(cabX + cabW * 0.82, -cabH * 0.48);
+        ctx.lineTo(cabX + cabW * 0.88, -cabH * 0.42);
+        ctx.lineTo(cabX + cabW * 0.88, cabH * 0.1);
+        ctx.lineTo(cabX + cabW * 0.08, cabH * 0.1);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // Headlights (front of cab)
+        const blink = Math.sin(t.lightPhase) > 0;
+        ctx.fillStyle = blink ? '#fde68a' : 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.arc(tw/2, -cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tw/2, cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
+        // Headlight glow
+        if (blink) {
+            const hlg = ctx.createRadialGradient(tw/2 + 4, 0, 0, tw/2 + 4, 0, 18);
+            hlg.addColorStop(0, 'rgba(253,230,138,0.5)');
+            hlg.addColorStop(1, 'rgba(253,230,138,0)');
+            ctx.fillStyle = hlg;
+            ctx.beginPath(); ctx.ellipse(tw/2 + 4, 0, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Exhaust (rear)
+        const fl = 5 + Math.abs(Math.sin(t.lightPhase * 2)) * 10;
+        const exGrad = ctx.createLinearGradient(-tw/2, 0, -tw/2 - fl, 0);
+        exGrad.addColorStop(0, 'rgba(56,189,248,0.85)');
+        exGrad.addColorStop(1, 'rgba(56,189,248,0)');
+        ctx.fillStyle = exGrad;
+        ctx.beginPath();
+        ctx.moveTo(-tw/2, -bedH * 0.25);
+        ctx.lineTo(-tw/2 - fl, 0);
+        ctx.lineTo(-tw/2, bedH * 0.25);
+        ctx.closePath();
+        ctx.fill();
+
+        // Tail light
+        ctx.fillStyle = 'rgba(239,68,68,0.9)';
+        ctx.beginPath(); ctx.arc(-tw/2 + 2, 0, 2.5, 0, Math.PI * 2); ctx.fill();
     }
 
     drawWindIndicator() {
