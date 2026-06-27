@@ -74,16 +74,12 @@ The `.claude/` folder contains machine-specific Windows absolute paths. Add to `
 - Grass tufts (L1): x positions snapped to `Math.floor(startX/10)*10` to prevent camera-jitter
 
 ## Pilot Rank System
-Score = `(ownedUpgradeLevels / 13) * 0.55 + (levelsMastered / numLevels) * 0.45`
+Score = `(ownedUpgradeLevels / 15) * 0.55 + (levelsMastered / numLevels) * 0.45`
 "Mastered" = highscore ≥ 5000 on that level. Tiers: F → E → D → C → B → A → S
 
 ## Pending Tasks / Ideas
 ### High priority
-- [ ] Mobile viewport: CSS `transform: scale()` on `#game-container` based on `window.innerWidth`
-- [ ] Cargo spawning countdown: stand still on pad → cargo spawns with increasing delays (risk/reward)
 - [ ] Crane pickup/delivery animation: cargo box physically lifted/lowered by crane arm
-- [ ] Actual shield bubble visual around lander (separate from hull integrity bar)
-- [ ] Upgrade: add shield regen upgrade to upgradeCatalog
 
 ### Medium priority
 - [ ] Monster head rotation: mouth snaps too fast to lander direction, needs smoothed angle lerp
@@ -99,6 +95,11 @@ Score = `(ownedUpgradeLevels / 13) * 0.55 + (levelsMastered / numLevels) * 0.45`
 - [ ] Procedural map generator
 
 ## Recent Completed Features
+- **Mobile Viewport Scaling**: CSS `transform: scale()` automatically scales the fixed 1280x720 layout to fit the browser viewport width/height on mobile and desktop screens.
+- **Cargo Spawning Delays**: Stands still on loading pad → cargo spawns with escalating delays (`55 + cycle * 30`) to balance risk/reward.
+- **Shield Generator Upgrade**: Adds a defensive `shieldRegen` upgrade to the catalog which slowly recovers hull integrity.
+- **Visual Shield Bubble**: Renders a pulsing blue energy bubble around the lander when the shield generator is active and integrity is > 20%.
+- **CI Test Error Logging**: Test suite (`tests.html`) logs individual test failures with stack/category/name details to `console.error`.
 - Biome-themed level palettes (grassland/desert/ice/volcanic/crystal cave)
 - Damage flash: stronger red vignette + top/bottom bars + HULL DAMAGE text + screen shake
 - HUD: renamed "Shield" → "Hull"; overtime timer blinks red when active
