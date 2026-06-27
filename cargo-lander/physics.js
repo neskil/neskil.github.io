@@ -18,7 +18,15 @@ class CargoPhysics {
         this.BOX_FRICTION = 0.4;
         this.LANDER_RESTITUTION = 0.15;
         this.LANDER_FRICTION = 0.6;
-        this.SOLVER_ITERATIONS = 5; // Iterations for box-box stacking stability
+        this.segments = []; // Arbitrary line-segment obstacles defined per level
+
+        // Matter.js — handles box/terrain/segment collision and stacking
+        this.matterEngine = null;
+        this.matterWorld = null;
+        this.boxBodyMap = new Map(); // box.id → Matter.Body
+        // Force scale: converts game velocity-per-frame to Matter force units.
+        // Derived from delta_v = (force/mass) * deltaTime² with fixed 16.666ms step.
+        this.MATTER_FORCE_SCALE = 1 / (16.666 * 16.666);
     }
 
     initLevel(levelConfig, width, height, upgrades = {}) {
@@ -33,7 +41,9 @@ class CargoPhysics {
         this.monster = null; // The Out-Of-Bounds cosmic horror
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
+        this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this.generateTerrain(levelConfig);
+        this._buildMatterWorld();
         this.spawnLander(levelConfig, upgrades);
     }
 
@@ -120,6 +130,76 @@ class CargoPhysics {
         return false;
     }
 
+    _buildMatterWorld() {
+        // Recreate the Matter engine for this level
+        if (this.matterEngine) {
+            Matter.World.clear(this.matterWorld);
+            Matter.Engine.clear(this.matterEngine);
+        }
+        this.matterEngine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
+        this.matterWorld = this.matterEngine.world;
+        this.boxBodyMap = new Map();
+
+        const THICKNESS = 40;
+
+        // Terrain surface — one static rectangle per adjacent pair of terrain points
+        const pts = this.terrainPoints;
+        for (let i = 0; i < pts.length - 1; i++) {
+            const x1 = pts[i].x, y1 = pts[i].y;
+            const x2 = pts[i + 1].x, y2 = pts[i + 1].y;
+            const cx = (x1 + x2) / 2;
+            const cy = (y1 + y2) / 2;
+            const dx = x2 - x1, dy = y2 - y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            // Perpendicular pointing INTO terrain (downward side of surface)
+            const normX = -Math.sin(angle);
+            const normY = Math.cos(angle);
+            const body = Matter.Bodies.rectangle(
+                cx + normX * THICKNESS / 2,
+                cy + normY * THICKNESS / 2,
+                len + 4, THICKNESS, {
+                    isStatic: true,
+                    angle: angle,
+                    friction: this.LANDER_FRICTION,
+                    restitution: this.BOX_RESTITUTION,
+                    label: 'terrain',
+                    collisionFilter: { category: 0x0002, mask: 0x0001 },
+                }
+            );
+            Matter.Composite.add(this.matterWorld, body);
+        }
+
+        // Bounding walls (keep boxes from falling out of the world)
+        const W = this.levelWidth, H = this.levelHeight;
+        [
+            Matter.Bodies.rectangle(W / 2, H + 60, W + 400, 120, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(-60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(W + 60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
+        ].forEach(b => {
+            b.collisionFilter = { category: 0x0002, mask: 0x0001 };
+            Matter.Composite.add(this.matterWorld, b);
+        });
+
+        // Segment obstacles
+        for (const seg of this.segments) {
+            const cx = (seg.x1 + seg.x2) / 2;
+            const cy = (seg.y1 + seg.y2) / 2;
+            const dx = seg.x2 - seg.x1, dy = seg.y2 - seg.y1;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            const body = Matter.Bodies.rectangle(cx, cy, len, 10, {
+                isStatic: true,
+                angle: angle,
+                friction: this.BOX_FRICTION,
+                restitution: this.BOX_RESTITUTION,
+                label: 'segment',
+                collisionFilter: { category: 0x0004, mask: 0x0001 },
+            });
+            Matter.Composite.add(this.matterWorld, body);
+        }
+    }
+
     generateTerrain(config) {
         const points = [];
         const w = this.levelWidth;
@@ -203,7 +283,7 @@ class CargoPhysics {
     spawnLander(config, upgrades = {}) {
         const vehicleType = config.vehicle || 'lander';
         
-        const ropeMax = 150 + (upgrades.winchExtender || 0) * 50;
+        const ropeMax = config.ropeLength || 120;
         const maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
 
         // Position lander centered on Start Depot pad
@@ -233,11 +313,7 @@ class CargoPhysics {
             thrusting: false,
             rotatingLeft: false,
             rotatingRight: false,
-            extendingRope: false,
-            retractingRope: false,
-            ropeLength: 60,
-            ropeMin: 20,
-            ropeMax: ropeMax,
+            ropeLength: ropeMax,
             grabbedBoxId: null,
             crashed: false,
             landed: false,
@@ -269,6 +345,19 @@ class CargoPhysics {
             emoji: randomEmoji
         };
         this.boxes.push(newBox);
+
+        // Create Matter.js rigid body for this box
+        if (this.matterWorld) {
+            const body = Matter.Bodies.rectangle(newBox.x, newBox.y, newBox.size, newBox.size, {
+                friction: this.BOX_FRICTION,
+                restitution: this.BOX_RESTITUTION,
+                frictionAir: 0.01, // matches box.vx *= 0.99 per-frame drag
+                label: 'box',
+                collisionFilter: { category: 0x0001, mask: 0x0001 | 0x0002 | 0x0004 },
+            });
+            Matter.Composite.add(this.matterWorld, body);
+            this.boxBodyMap.set(newBox.id, body);
+        }
     }
 
     getTerrainHeight(x) {
@@ -317,6 +406,100 @@ class CargoPhysics {
         };
     }
 
+    // ── Segment collision helpers ──────────────────────────────────────────────
+
+    // Returns { cx, cy, t } — closest point on segment (x1,y1)→(x2,y2) to (px,py)
+    _closestPointOnSeg(px, py, x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return { cx: x1, cy: y1, t: 0 };
+        const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+        return { cx: x1 + t * dx, cy: y1 + t * dy, t };
+    }
+
+    // Tests point (px,py) against all segments. Returns strongest hit { pen, nx, ny } or null.
+    // skin = collision radius around the segment line
+    _testPointVsSegments(px, py, skin) {
+        let best = null;
+        for (const seg of this.segments) {
+            const { cx, cy } = this._closestPointOnSeg(px, py, seg.x1, seg.y1, seg.x2, seg.y2);
+            const dx = px - cx, dy = py - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < skin) {
+                const pen = skin - dist;
+                // Normal points from segment surface toward the body point
+                const nx = dist > 0.001 ? dx / dist : 0;
+                const ny = dist > 0.001 ? dy / dist : -1;
+                if (!best || pen > best.pen) best = { pen, nx, ny, cx, cy };
+            }
+        }
+        return best;
+    }
+
+    // Resolve lander corners against all segments
+    resolveSegmentCollisions() {
+        const lander = this.lander;
+        if (lander.crashed || this.segments.length === 0) return;
+
+        const hw = lander.width / 2;
+        const hh = lander.height / 2;
+        const SKIN = 5;
+
+        const localPts = [
+            { x: -hw, y:  hh },
+            { x:  hw, y:  hh },
+            { x: -hw, y: -hh },
+            { x:  hw, y: -hh },
+        ];
+
+        let maxPen = 0, hit = null;
+        for (const pt of localPts) {
+            const wx = lander.x + pt.x * Math.cos(lander.angle) - pt.y * Math.sin(lander.angle);
+            const wy = lander.y + pt.x * Math.sin(lander.angle) + pt.y * Math.cos(lander.angle);
+            const h = this._testPointVsSegments(wx, wy, SKIN);
+            if (h && h.pen > maxPen) { maxPen = h.pen; hit = h; }
+        }
+
+        if (!hit) return;
+
+        // Push center out along normal
+        lander.x += hit.nx * hit.pen;
+        lander.y += hit.ny * hit.pen;
+
+        // Reflect velocity
+        const vn = lander.vx * hit.nx + lander.vy * hit.ny;
+        if (vn < 0) {
+            lander.vx -= (1 + this.LANDER_RESTITUTION) * vn * hit.nx;
+            lander.vy -= (1 + this.LANDER_RESTITUTION) * vn * hit.ny;
+            // Friction on tangential component
+            const tx = -hit.ny, ty = hit.nx;
+            const vt = lander.vx * tx + lander.vy * ty;
+            lander.vx -= this.LANDER_FRICTION * vt * tx;
+            lander.vy -= this.LANDER_FRICTION * vt * ty;
+
+            const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
+            if (speed > 1.5 && window.CargoAudio) CargoAudio.playCollision(speed);
+
+            const damage = Math.max(0, Math.pow(Math.max(0, speed - 1.2), 1.8) * 12);
+            if (damage > 0) {
+                lander.integrity -= damage;
+                // Sparks
+                for (let i = 0; i < 10; i++) {
+                    this.particles.push({
+                        x: hit.cx, y: hit.cy,
+                        vx: (Math.random() - 0.5) * 6,
+                        vy: (Math.random() - 0.5) * 6 - 1,
+                        life: 0.9, decay: 0.05 + Math.random() * 0.04,
+                        color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                        size: 2 + Math.random() * 2,
+                    });
+                }
+                if (lander.integrity <= 0) this.triggerExplosion();
+            }
+        }
+        lander.landed = false;
+    }
+
     update(dt, levelConfig, inputState) {
         if (this.lander.crashed) {
             this.updateMonster(dt); // let the monster dive away & despawn
@@ -329,6 +512,7 @@ class CargoPhysics {
         this.integrateLander(dt);
         this._updateLegsDeployed();
         this.resolveLanderCollisions();
+        this.resolveSegmentCollisions();
         this.applyGravityWell(levelConfig, dt);
 
         this.updateBoxes(dt);
@@ -569,14 +753,6 @@ class CargoPhysics {
                 lander.vy += 0.25 * (lander.thrustMultiplier || 1.0) * dt; // Descend (faster)
             }
 
-            // Rope mechanics
-            if (inputState.e) {
-                lander.ropeLength = Math.min(lander.ropeMax, lander.ropeLength + 3 * dt);
-            }
-            if (inputState.q) {
-                lander.ropeLength = Math.max(lander.ropeMin, lander.ropeLength - 3 * dt);
-            }
-            
             // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
             lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
             lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
@@ -1003,74 +1179,93 @@ class CargoPhysics {
 
     updateBoxes(dt) {
         const lander = this.lander;
+        const FS = this.MATTER_FORCE_SCALE; // converts vel/frame to Matter force
 
-        // Apply physical movements to all boxes in world space
         for (const box of this.boxes) {
-            box.vy += this.gravity * dt;
-            
-            // Grapple physics (Distance Constraint)
-            if (this.lander && this.lander.vehicleType === 'drone' && this.lander.grabbedBoxId === box.id) {
-                // Attach point is the bottom center of the drone
-                const attachX = this.lander.x - Math.sin(this.lander.angle) * (this.lander.height/2);
-                const attachY = this.lander.y + Math.cos(this.lander.angle) * (this.lander.height/2);
-                const dx = box.x - attachX;
-                const dy = box.y - attachY;
+            const body = this.boxBodyMap.get(box.id);
+            if (!body) continue;
+
+            // Drone grapple: distance constraint (lander is not a Matter body)
+            if (lander && lander.vehicleType === 'drone' && lander.grabbedBoxId === box.id) {
+                const attachX = lander.x - Math.sin(lander.angle) * (lander.height / 2);
+                const attachY = lander.y + Math.cos(lander.angle) * (lander.height / 2);
+                const dx = body.position.x - attachX;
+                const dy = body.position.y - attachY;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist > this.lander.ropeLength) {
-                    const diff = dist - this.lander.ropeLength;
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    
-                    // Pull box
-                    box.x -= nx * diff;
-                    box.y -= ny * diff;
-                    
-                    // Transfer velocity to emulate pendulum swinging
-                    const rvx = box.vx - this.lander.vx;
-                    const rvy = box.vy - this.lander.vy;
-                    const rvn = rvx * nx + rvy * ny;
-                    if (rvn > 0) {
-                        box.vx -= rvn * nx;
-                        box.vy -= rvn * ny;
-                    }
+                if (dist > lander.ropeLength) {
+                    const diff = dist - lander.ropeLength;
+                    const nx = dx / dist, ny = dy / dist;
+                    Matter.Body.setPosition(body, { x: body.position.x - nx * diff, y: body.position.y - ny * diff });
+                    const vel = body.velocity;
+                    const rvn = (vel.x - lander.vx) * nx + (vel.y - lander.vy) * ny;
+                    if (rvn > 0) Matter.Body.setVelocity(body, { x: vel.x - rvn * nx, y: vel.y - rvn * ny });
+                }
+                // Apply gravity so rope swings naturally
+                Matter.Body.applyForce(body, body.position, { x: 0, y: this.gravity * body.mass * FS });
+                continue;
+            }
+
+            if (box.onDeck) continue; // Kinematic — positioned by deck resolver below
+
+            // Gravity + wind as Matter forces (scale matches vel-per-frame game units)
+            Matter.Body.applyForce(body, body.position, {
+                x: this.wind * 0.01 * body.mass * FS,
+                y: this.gravity * body.mass * FS,
+            });
+
+            // Gravity well
+            if (this.gravityWellPos) {
+                const gw = this.gravityWellPos;
+                const dx = gw.x - body.position.x;
+                const dy = gw.y - body.position.y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d > 20 && d < gw.radius) {
+                    const fMag = (gw.strength * 10) / (d * 0.1) * FS * dt;
+                    Matter.Body.applyForce(body, body.position, { x: (dx / d) * fMag * body.mass, y: (dy / d) * fMag * body.mass });
                 }
             }
-            
-            box.x += box.vx * dt;
-            box.y += box.vy * dt;
-            
-            // Magnetic Deck Physics
-            if (this.lander && this.lander.vehicleType !== 'drone' && this.lander.magneticDeckActive && !this.lander.crashed) {
-                const deckX = this.lander.x - Math.sin(this.lander.angle) * this.lander.deckOffset;
-                const deckY = this.lander.y - Math.cos(this.lander.angle) * this.lander.deckOffset;
-                
-                const dx = deckX - box.x;
-                const dy = deckY - box.y;
+
+            // Magnetic deck pull
+            if (lander && lander.vehicleType !== 'drone' && lander.magneticDeckActive && !lander.crashed) {
+                const deckX = lander.x - Math.sin(lander.angle) * lander.deckOffset;
+                const deckY = lander.y - Math.cos(lander.angle) * lander.deckOffset;
+                const dx = deckX - body.position.x;
+                const dy = deckY - body.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                // Pull range: 120 pixels
                 if (dist > 0 && dist < 120) {
-                    const pullFactor = (1 - dist / 120) * this.lander.magneticStrength * dt;
-                    box.vx += (dx / dist) * pullFactor;
-                    box.vy += (dy / dist) * pullFactor;
+                    const fMag = (1 - dist / 120) * lander.magneticStrength * FS * dt;
+                    Matter.Body.applyForce(body, body.position, { x: (dx / dist) * fMag * body.mass, y: (dy / dist) * fMag * body.mass });
                 }
             }
-            
-            // Wind
-            box.vx += this.wind * 0.01 * dt;
-            // Drag
-            box.vx *= Math.pow(0.99, dt);
-            box.vy *= Math.pow(0.99, dt);
         }
 
-        // Solve collisions multiple times to ensure stability of stacked elements
-        for (let iter = 0; iter < this.SOLVER_ITERATIONS; iter++) {
-            this.resolveBoxTerrainCollisions();
-            this.resolveBoxLanderDeckCollisions();
-            this.resolveBoxBoxCollisions();
+        // Step the Matter.js engine at a fixed 60 fps timestep for stability
+        Matter.Engine.update(this.matterEngine, 16.666);
+
+        // Sync non-deck box game state from Matter bodies
+        for (const box of this.boxes) {
+            if (box.onDeck) continue;
+            const body = this.boxBodyMap.get(box.id);
+            if (!body) continue;
+            box.x = body.position.x;
+            box.y = body.position.y;
+            box.vx = body.velocity.x;
+            box.vy = body.velocity.y;
         }
+
+        // Lander basket containment (lander is kinematic, not in the Matter world)
+        this.resolveBoxLanderDeckCollisions();
         this.updateOnDeckStates();
+
+        // Sync on-deck Matter bodies to follow the lander kinematically
+        for (const box of this.boxes) {
+            if (!box.onDeck) continue;
+            const body = this.boxBodyMap.get(box.id);
+            if (!body) continue;
+            Matter.Body.setPosition(body, { x: box.x, y: box.y });
+            Matter.Body.setVelocity(body, { x: box.vx, y: box.vy });
+            Matter.Body.setAngularVelocity(body, 0);
+        }
     }
 
     updateOnDeckStates() {
@@ -1115,46 +1310,6 @@ class CargoPhysics {
             }
 
             box.onDeck = false;
-        }
-    }
-
-    resolveBoxTerrainCollisions() {
-        const S = this.BOX_SIZE;
-        const halfS = S / 2;
-
-        for (const box of this.boxes) {
-            const gy = this.getTerrainHeight(box.x);
-            
-            // Simple point check: if bottom of box goes under terrain
-            if (box.y + halfS > gy) {
-                const pen = (box.y + halfS) - gy;
-                const slope = this.getTerrainSlope(box.x);
-
-                // Push out along slope normal to resolve vertical penetration
-                const pushDist = pen / Math.abs(slope.ny);
-                box.x += slope.nx * pushDist;
-                box.y += slope.ny * pushDist;
-
-                // Decompose and reflect velocity
-                const vn = box.vx * slope.nx + box.vy * slope.ny;
-                if (vn < 0) {
-                    box.vx -= (1 + this.BOX_RESTITUTION) * vn * slope.nx;
-                    box.vy -= (1 + this.BOX_RESTITUTION) * vn * slope.ny;
-
-                    // Apply friction
-                    const vt = box.vx * slope.tx + box.vy * slope.ty;
-                    box.vx -= this.BOX_FRICTION * vt * slope.tx;
-                    box.vy -= this.BOX_FRICTION * vt * slope.ty;
-                }
-            }
-
-            // Ceiling collision for cargo box
-            const ceilingY = this.getTerrainCeiling(box.x);
-            if (ceilingY !== null && box.y - halfS < ceilingY) {
-                const pen = ceilingY - (box.y - halfS);
-                box.y += pen;
-                if (box.vy < 0) box.vy = Math.abs(box.vy) * this.BOX_RESTITUTION;
-            }
         }
     }
 
@@ -1258,72 +1413,6 @@ class CargoPhysics {
                         const imp = -(1 + this.BOX_RESTITUTION) * rvt;
                         box.vx += imp * tx;
                         box.vy += imp * ty;
-                    }
-                }
-            }
-        }
-    }
-
-    resolveBoxBoxCollisions() {
-        const S = this.BOX_SIZE;
-        const len = this.boxes.length;
-        
-        for (let i = 0; i < len; i++) {
-            const b1 = this.boxes[i];
-            for (let j = i + 1; j < len; j++) {
-                const b2 = this.boxes[j];
-
-                const dx = b2.x - b1.x;
-                const dy = b2.y - b1.y;
-                
-                const overlapX = S - Math.abs(dx);
-                const overlapY = S - Math.abs(dy);
-
-                if (overlapX > 0 && overlapY > 0) {
-                    // Box-box overlap detected!
-                    // Resolve along axis of minimum penetration
-                    if (overlapX < overlapY) {
-                        // Resolve on X
-                        const dir = dx > 0 ? 1 : -1;
-                        const push = overlapX / 2;
-                        
-                        b1.x -= dir * push;
-                        b2.x += dir * push;
-
-                        // Swap/distribute velocities on X
-                        const rvx = b2.vx - b1.vx;
-                        if (rvx * dir < 0) {
-                            const imp = -(1 + this.BOX_RESTITUTION) * rvx / 2;
-                            b1.vx -= imp;
-                            b2.vx += imp;
-
-                            // Apply friction on Y
-                            const rvy = b2.vy - b1.vy;
-                            const fImp = this.BOX_FRICTION * rvy / 2;
-                            b1.vy += fImp;
-                            b2.vy -= fImp;
-                        }
-                    } else {
-                        // Resolve on Y
-                        const dir = dy > 0 ? 1 : -1;
-                        const push = overlapY / 2;
-
-                        b1.y -= dir * push;
-                        b2.y += dir * push;
-
-                        // Swap/distribute velocities on Y
-                        const rvy = b2.vy - b1.vy;
-                        if (rvy * dir < 0) {
-                            const imp = -(1 + this.BOX_RESTITUTION) * rvy / 2;
-                            b1.vy -= imp;
-                            b2.vy += imp;
-
-                            // Apply friction on X
-                            const rvx = b2.vx - b1.vx;
-                            const fImp = this.BOX_FRICTION * rvx / 2;
-                            b1.vx += fImp;
-                            b2.vx -= fImp;
-                        }
                     }
                 }
             }

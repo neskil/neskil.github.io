@@ -282,6 +282,15 @@ window.confirm = () => true;
   CargoGame constructor reads localStorage (our mock) and creates CargoPhysics.
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="levels.js"></script>
+<script src="level1.js"></script>
+<script src="level2.js"></script>
+<script src="level3.js"></script>
+<script src="level4.js"></script>
+<script src="level5.js"></script>
+<script src="level6.js"></script>
+<script src="levelTest.js"></script>
 <script src="audio.js"></script>
 <script src="shaders.js"></script>
 <script>
@@ -357,8 +366,8 @@ test('levels array exists and is accessible', () => {
   assert(Array.isArray(levels), 'levels should be an array');
 });
 
-test('exactly 5 levels exist', () => {
-  assertEquals(levels.length, 5, 'levels.length');
+test('at least 6 campaign levels exist (plus test level)', () => {
+  assert(levels.length >= 7, 'expected 6 campaign + 1 test level, got ' + levels.length);
 });
 
 const REQUIRED_LEVEL_FIELDS = ['name', 'targetCargo', 'deliveryHubs', 'palette', 'gravity', 'terrainType', 'budget', 'timeLimit'];
@@ -400,8 +409,46 @@ test('level IDs / names are unique', () => {
   assertEquals(unique.size, names.length, 'level names should be unique');
 });
 
-// ── B. UPGRADE CATALOG ───────────────────────────────────────────────────────
-category('B. Upgrade Catalog');
+// ── B. LEVEL INITIALISATION ───────────────────────────────────────────────────
+// For each level: run physics.initLevel() then verify no crash and key state is valid.
+category('B. Level Initialisation');
+
+levels && levels.forEach((level, i) => {
+  test(`level[${i}] "${level.name}" — physics.initLevel() runs without error`, () => {
+    const p = new CargoPhysics();
+    p.initLevel(level);
+    assert(p.lander !== null, 'lander should exist after initLevel');
+    assert(Array.isArray(p.terrainPoints) && p.terrainPoints.length > 0, 'terrainPoints should be populated');
+    assert(Array.isArray(p.deliveryHubs) && p.deliveryHubs.length > 0, 'deliveryHubs should be populated');
+    assertFinite(p.lander.x, 'lander.x');
+    assertFinite(p.lander.y, 'lander.y');
+  });
+
+  test(`level[${i}] "${level.name}" — physics.update() survives one tick`, () => {
+    const p = new CargoPhysics();
+    p.initLevel(level);
+    const input = { up: false, down: false, left: false, right: false,
+                    mouseLeft: false, mouseRight: false, q: false, e: false,
+                    mouseX: 0, mouseY: 0 };
+    p.update(1, level, input);
+    assertFinite(p.lander.x, 'lander.x after update');
+    assertFinite(p.lander.y, 'lander.y after update');
+    assertFinite(p.lander.vx, 'lander.vx after update');
+    assertFinite(p.lander.vy, 'lander.vy after update');
+  });
+
+  test(`level[${i}] "${level.name}" — collectionPoint is positioned on terrain`, () => {
+    const p = new CargoPhysics();
+    p.initLevel(level);
+    assert(p.collectionPoint !== null && p.collectionPoint !== undefined, 'collectionPoint should exist');
+    assertFinite(p.collectionPoint.x, 'collectionPoint.x');
+    assertFinite(p.collectionPoint.y, 'collectionPoint.y');
+    assert(p.collectionPoint.y > 0 && p.collectionPoint.y < 2000, 'collectionPoint.y in plausible range');
+  });
+});
+
+// ── C. UPGRADE CATALOG ───────────────────────────────────────────────────────
+category('C. Upgrade Catalog');
 
 test('upgradeCatalog exists and is accessible', () => {
   assert(typeof upgradeCatalog !== 'undefined', 'upgradeCatalog is not defined');
@@ -440,7 +487,7 @@ test('known upgrade IDs present', () => {
 });
 
 // ── C. CargoPhysics ──────────────────────────────────────────────────────────
-category('C. CargoPhysics');
+category('D. CargoPhysics');
 
 test('CargoPhysics can be instantiated', () => {
   const p = new CargoPhysics();
@@ -721,7 +768,7 @@ test('monster starts spawning after OOB timer exceeds 150', () => {
 });
 
 // ── D. updatePilotRank ───────────────────────────────────────────────────────
-category('D. updatePilotRank');
+category('E. updatePilotRank');
 
 // Helper: compute rank score the same way the game does
 function computeRankScore(upgrades, highscores) {
@@ -739,8 +786,8 @@ test('score formula matches specification', () => {
   // All upgrades, no mastered
   const allUpg = { thrusterEfficiency: 3, boostMode: 3, magneticDeck: 2, winchExtender: 2, hullPlating: 3, shieldRegen: 2 };
   assertClose(computeRankScore(allUpg, {}), 0.55, 1e-9, 'score with max upgrades');
-  // No upgrades, all mastered
-  const allHigh = { 0: 9999, 1: 9999, 2: 9999, 3: 9999, 4: 9999 };
+  // No upgrades, all mastered (one entry per level — must match levels.length)
+  const allHigh = Object.fromEntries(levels.map((_, i) => [i, 9999]));
   assertClose(computeRankScore({}, allHigh), 0.45, 1e-9, 'score with all mastered');
   // Both maxed
   assertClose(computeRankScore(allUpg, allHigh), 1.0, 1e-9, 'score with everything maxed');
@@ -809,7 +856,7 @@ test('max upgrades 15 matches upgradeCatalog sum', () => {
 });
 
 // ── E. Economy / localStorage ────────────────────────────────────────────────
-category('E. Economy & localStorage');
+category('F. Economy & localStorage');
 
 test('CargoGame reads globalCash from localStorage', () => {
   mockLocalStorage.clear();
@@ -892,7 +939,7 @@ test('loading with empty localStorage gives default career stats', () => {
 });
 
 // ── F. CargoGame smoke tests ─────────────────────────────────────────────────
-category('F. CargoGame Smoke Tests');
+category('G. CargoGame Smoke Tests');
 
 test('CargoGame can be instantiated without throwing', () => {
   const g = new CargoGame();
@@ -988,7 +1035,7 @@ test('camera object initialized after init()', () => {
 });
 
 // ── G. Draw method existence ──────────────────────────────────────────────────
-category('G. Draw Method Existence');
+category('H. Draw Method Existence');
 
 // drawHUD does not exist as a prototype method — HUD is updated via updateHUD().
 // Verified by inspecting CargoGame.prototype at runtime.
@@ -1028,7 +1075,7 @@ test('drawNotifications is a function', () => {
 });
 
 // ── H. Physics edge cases ─────────────────────────────────────────────────────
-category('H. Physics Edge Cases');
+category('I. Physics Edge Cases');
 
 test('all 5 terrain types initialize without throwing', () => {
   const terrainTypes = ['flat', 'canyon', 'mountain', 'cave', 'needle'];
@@ -1175,7 +1222,7 @@ test('winchExtender upgrade increases ropeMax', () => {
 });
 
 // ── I. Utility & shadeColor ───────────────────────────────────────────────────
-category('I. Utility Functions');
+category('J. Utility Functions');
 
 test('shadeColor is accessible globally', () => {
   assert(typeof shadeColor === 'function', 'shadeColor should be a global function');
@@ -1205,7 +1252,7 @@ test('shadeColor clamps to 0-255 per channel', () => {
 });
 
 // ── J. CargoAudio ─────────────────────────────────────────────────────────────
-category('J. CargoAudio');
+category('K. CargoAudio');
 
 test('CargoAudio singleton exists', () => {
   assert(typeof CargoAudio !== 'undefined', 'CargoAudio should be defined');
