@@ -149,9 +149,9 @@ const levels = [
         budget: 2000,
         timeLimit: 180,
         allowedTypes: ["normal", "red"],
-        collectionX: 300,
+        collectionX: 510,
         deliveryHubs: [
-            { x: 950, width: 80, color: "#10b981", type: "normal", name: "Dune Base" }
+            { x: 1150, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }
         ],
         hint: "The sand worm is more likely to attack if you linger near its pit. Move fast!",
         palette: {
@@ -1549,6 +1549,7 @@ class CargoGame {
         this.drawGroundParallax();
         this.drawTerrain();
         this.drawLake();
+        this.drawWormDangerZone();
 
         // 6. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();
@@ -2421,6 +2422,35 @@ class CargoGame {
         ctx.restore();
     }
 
+    drawWormDangerZone() {
+        if (this.currentLevelIndex !== 5) return;
+        const ctx = this.ctx;
+        const cx = 875, cy = 560, r = 220;
+        const t = Date.now() / 1000;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 1.8);
+
+        // Pulsing sand-orange ground glow
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0,   `rgba(217, 119, 6, ${0.22 + pulse * 0.12})`);
+        grad.addColorStop(0.6, `rgba(217, 119, 6, ${0.08 + pulse * 0.06})`);
+        grad.addColorStop(1,   'rgba(217, 119, 6, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dashed orange border
+        ctx.save();
+        ctx.setLineDash([12, 8]);
+        ctx.strokeStyle = `rgba(217, 119, 6, ${0.4 + pulse * 0.25})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+
     drawSandWorm() {
         if (!this.physics.sandWorm) return;
         const m = this.physics.sandWorm;
@@ -2959,29 +2989,63 @@ class CargoGame {
 
         // ── Level 6: Lake Rendering ─────────────────────────────────────────
         if (this.currentLevelIndex === 5) {
-            ctx.fillStyle = 'rgba(29, 78, 216, 0.45)';
-            const lakeY = this.physics.levelHeight - 160;
-            if (startX < 650 && endX > 450) {
+            const lakeX1 = 600, lakeX2 = 790;
+            const lakeY = this.physics.levelHeight - 75; // matches terrain flat basin
+            if (startX < lakeX2 && endX > lakeX1) {
+                ctx.fillStyle = 'rgba(29, 78, 216, 0.55)';
                 ctx.beginPath();
-                ctx.moveTo(Math.max(startX, 450), lakeY);
-                for (let x = Math.max(startX, 450); x <= Math.min(endX, 650); x += 10) {
-                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 4;
+                ctx.moveTo(Math.max(startX, lakeX1), lakeY);
+                for (let x = Math.max(startX, lakeX1); x <= Math.min(endX, lakeX2); x += 10) {
+                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 3;
                     ctx.lineTo(x, lakeY + wave);
                 }
-                ctx.lineTo(Math.min(endX, 650), this.physics.levelHeight);
-                ctx.lineTo(Math.max(startX, 450), this.physics.levelHeight);
+                ctx.lineTo(Math.min(endX, lakeX2), this.physics.levelHeight);
+                ctx.lineTo(Math.max(startX, lakeX1), this.physics.levelHeight);
                 ctx.fill();
-                
+
                 ctx.strokeStyle = 'rgba(96, 165, 250, 0.6)';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                for (let x = Math.max(startX, 450); x <= Math.min(endX, 650); x += 10) {
-                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 4;
-                    if (x === Math.max(startX, 450)) ctx.moveTo(x, lakeY + wave);
+                for (let x = Math.max(startX, lakeX1); x <= Math.min(endX, lakeX2); x += 10) {
+                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 3;
+                    if (x === Math.max(startX, lakeX1)) ctx.moveTo(x, lakeY + wave);
                     else ctx.lineTo(x, lakeY + wave);
                 }
                 ctx.stroke();
             }
+        }
+
+        // ── Cave ceiling rendering ───────────────────────────────────────────
+        if (this.physics.hasCeiling()) {
+            const terrainType = (levels[this.currentLevelIndex] || {}).terrainType;
+            const lw = this.physics.levelWidth, lh = this.physics.levelHeight;
+            ctx.fillStyle = pal.terrainFill;
+            ctx.beginPath();
+            ctx.moveTo(startX, -2000);
+            for (let x = startX; x <= endX; x += 20) {
+                const cy = this.physics.getRawTerrainCeiling(x, terrainType, lw, lh);
+                if (cy !== null) ctx.lineTo(x, cy);
+            }
+            ctx.lineTo(endX, -2000);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = pal.rockEdge + (pal.rockEdge.length === 7 ? 'aa' : '');
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            let ceilStarted = false;
+            for (let x = startX; x <= endX; x += 8) {
+                const cy = this.physics.getRawTerrainCeiling(x, terrainType, lw, lh);
+                if (cy !== null) {
+                    if (!ceilStarted) { ctx.moveTo(x, cy); ceilStarted = true; }
+                    else ctx.lineTo(x, cy);
+                } else if (ceilStarted) {
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ceilStarted = false;
+                }
+            }
+            if (ceilStarted) ctx.stroke();
         }
     }
 
