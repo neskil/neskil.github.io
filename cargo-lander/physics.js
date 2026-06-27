@@ -271,6 +271,7 @@ class CargoPhysics {
         this.applyControls(dt, inputState);
         this.applyGravityAndWind(dt);
         this.integrateLander(dt);
+        this._updateLegsDeployed();
         this.resolveLanderCollisions();
         this.applyGravityWell(levelConfig, dt);
 
@@ -583,9 +584,29 @@ class CargoPhysics {
         // Leg spring decay — only while on the ground; snap to 0 instantly when airborne
         if (lander.legCompress > 0) {
             if (lander.landed) {
-                lander.legCompress = Math.max(0, lander.legCompress - 0.014 * dt);
+                lander.legCompress = Math.max(0, lander.legCompress - 0.04 * dt);
             } else {
                 lander.legCompress = 0;
+            }
+        }
+    }
+
+    _updateLegsDeployed() {
+        const lander = this.lander;
+        const DEPLOY_H = 110;  // horizontal radius from pad center
+        const DEPLOY_V = 260;  // max height above pad to deploy
+
+        const pads = [
+            { cx: this.startDepot.x + this.startDepot.width / 2, y: this.startDepot.y, r: DEPLOY_H },
+            { cx: this.collectionPoint.x + this.collectionPoint.width / 2, y: this.collectionPoint.y, r: DEPLOY_H },
+            ...this.deliveryHubs.map(h => ({ cx: h.x + h.width / 2, y: h.y, r: DEPLOY_H }))
+        ];
+
+        lander.legsDeployed = false;
+        for (const pad of pads) {
+            if (Math.abs(lander.x - pad.cx) < pad.r && lander.y <= pad.y + 20 && lander.y >= pad.y - DEPLOY_V) {
+                lander.legsDeployed = true;
+                break;
             }
         }
     }
@@ -664,8 +685,9 @@ class CargoPhysics {
             const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
             const angleDeg = Math.abs(lander.angle * 180 / Math.PI);
             
-            const maxLandingSpeed = 2.0;
-            const maxLandingAngle = 8.0; // degrees
+            // Spring legs deployed near a pad — much more forgiving thresholds
+            const maxLandingSpeed = lander.legsDeployed ? 4.5 : 2.0;
+            const maxLandingAngle = lander.legsDeployed ? 18.0 : 8.0;
 
             if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
                 // Safe Landing!
@@ -725,8 +747,8 @@ class CargoPhysics {
                 // Apply hull damage.
                 // Landing pads are forgiving (high threshold, low multiplier);
                 // the jagged red terrain is unforgiving and bites hard.
-                const damageThreshold = onPad ? 1.8 : 1.0;
-                const surfaceMultiplier = onPad ? 3.5 : 16;
+                const damageThreshold = onPad ? (lander.legsDeployed ? 3.5 : 1.8) : 1.0;
+                const surfaceMultiplier = onPad ? (lander.legsDeployed ? 1.5 : 3.5) : 16;
 
                 if (impactVel > damageThreshold) {
                     const damage = Math.pow(impactVel - damageThreshold, 1.8) * surfaceMultiplier;
