@@ -1298,9 +1298,11 @@ class CargoGame {
             return; // Don't draw the level geometry
         }
 
+        this.drawParallax();
+
         // Apply Camera Transform for Level rendering
         ctx.save();
-        
+
         // Move to screen center, scale, then move by camera offset
         ctx.translate(w / 2, h / 2);
         ctx.scale(this.camera.zoom, this.camera.zoom);
@@ -2087,6 +2089,55 @@ class CargoGame {
         if (p.collectionPoint) ranges.push({ left: p.collectionPoint.x, right: p.collectionPoint.x + p.collectionPoint.width });
         for (const hub of p.deliveryHubs) ranges.push({ left: hub.x, right: hub.x + hub.width });
         return ranges;
+    }
+
+    drawParallax() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const lvPal = (levels[this.currentLevelIndex] || {}).palette;
+        const skyBot = lvPal ? lvPal.skyBot : '#0f172a';
+
+        const hexToRgb = (hex) => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b];
+        };
+        const [sr, sg, sb] = hexToRgb(skyBot.length === 7 ? skyBot : '#0f172a');
+
+        const layers = [
+            { factor: 0.12, freq: 0.0018, freq2: 0.0031, seed: 1.7, seed2: 4.2, yMin: 0.15, yMax: 0.55, alpha: 0.55, darken: 0.45 },
+            { factor: 0.28, freq: 0.0027, freq2: 0.0049, seed: 7.3, seed2: 2.9, yMin: 0.25, yMax: 0.60, alpha: 0.50, darken: 0.60 },
+            { factor: 0.45, freq: 0.0042, freq2: 0.0071, seed: 3.1, seed2: 8.6, yMin: 0.35, yMax: 0.62, alpha: 0.45, darken: 0.75 },
+        ];
+
+        const camX = this.camera ? this.camera.x : 0;
+
+        for (const layer of layers) {
+            const offsetX = camX * layer.factor;
+            const dr = Math.round(sr * layer.darken);
+            const dg = Math.round(sg * layer.darken);
+            const db = Math.round(sb * layer.darken);
+
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+
+            for (let sx = 0; sx <= w; sx += 3) {
+                const wx = sx + offsetX;
+                const n1 = Math.sin(wx * layer.freq + layer.seed);
+                const n2 = Math.sin(wx * layer.freq2 + layer.seed2);
+                const n3 = Math.sin(wx * layer.freq * 2.3 + layer.seed + 1.1);
+                const t = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
+                const y = h * (layer.yMin + t * (layer.yMax - layer.yMin));
+                ctx.lineTo(sx, y);
+            }
+
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(${dr},${dg},${db},${layer.alpha})`;
+            ctx.fill();
+        }
     }
 
     drawTerrain() {
