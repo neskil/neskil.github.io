@@ -581,7 +581,6 @@ class CargoGame {
     }
 
     startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
-        console.trace('[startLevel] begin ' + idx + ' ' + vehicleType);
         this.currentLevelIndex = idx;
         this.currentVehicle = vehicleType;
         this.crashHandled = false;
@@ -593,9 +592,7 @@ class CargoGame {
         this.overtimeActive = false;
         this.overtimeTimer = 0;
         
-        console.log('[startLevel] calling initLevel');
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
-        console.log('[startLevel] initLevel done, building placement next');
         this.deliveredCount = 0;
         this.deliveredTypes = {};
         this.questState = {};
@@ -634,7 +631,6 @@ class CargoGame {
             });
         }
         
-        console.log('[startLevel] building placement done, setting gameState');
         this.gameState = 'playing';
         this.addMessage("Level Started: " + level.name, "#6366f1");
         
@@ -1547,17 +1543,25 @@ class CargoGame {
         this.drawDeliveryHubs();
 
         // 5. Draw Terrain Landscape
-        console.log('[draw] underground'); this.drawUnderground();
-        console.log('[draw] groundParallax'); this.drawGroundParallax();
-        console.log('[draw] terrain'); this.drawTerrain();
-        console.log('[draw] segments'); this.drawSegments();
-        console.log('[draw] lake'); this.drawLake();
-        console.log('[draw] worm'); this.drawWormDangerZone();
-        console.log('[draw] depot'); this.drawSourcingDepot();
-        console.log('[draw] arrow'); this.drawNextObjectiveArrow();
-        console.log('[draw] buildings'); this.drawBuildings();
-        console.log('[draw] traffic'); this.drawAmbientTraffic();
-        console.log('[draw] boxes'); this.drawBoxes();
+        this.drawUnderground();
+        this.drawGroundParallax();
+        this.drawTerrain();
+        this.drawSegments();
+        this.drawLake();
+        this.drawWormDangerZone();
+
+        // 6. Draw Cargo Sourcing Depot Building
+        this.drawSourcingDepot();
+        this.drawNextObjectiveArrow();
+
+        // 6b. Draw world buildings
+        this.drawBuildings();
+
+        // 6c. Draw ambient space truck traffic
+        this.drawAmbientTraffic();
+
+        // 7. Draw Boxes
+        this.drawBoxes();
 
         // 8. Draw Lander
         this.drawLander();
