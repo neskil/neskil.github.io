@@ -54,18 +54,30 @@ class CargoPhysics {
             }
             return h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
         } else if (terrainType === 'worm-lair') {
-            const cosBlend = (a, b, x1, x2) => {
+            const cb = (a, b, x1, x2) => {
                 const t = Math.max(0, Math.min(1, (x - x1) / (x2 - x1)));
                 const s = 0.5 - 0.5 * Math.cos(t * Math.PI);
                 return a + (b - a) * s;
             };
-            if (x < 300)  return h - 460 + Math.sin(x * 0.04) * 8;          // high left plateau
-            if (x < 430)  return cosBlend(h - 460, h - 110, 300, 430);       // slope down
-            if (x < 600)  return h - 110 + Math.sin(x * 0.08) * 4;           // low valley (cargo)
-            if (x < 790)  return h - 75;                                      // lake basin
-            if (x < 960)  return h - 155 + Math.sin(x * 0.05) * 12;          // sandy plain (worm zone)
-            if (x < 1080) return cosBlend(h - 155, h - 330, 960, 1080);      // slope up
-            return h - 330 + Math.sin(x * 0.04) * 8;                         // right plateau (drop-off)
+            // Far-left low cove: cargo pickup lives here
+            if (x < 90)   return h - 95 + Math.sin(x * 0.07) * 6;
+            // Rise to the big hill (start HQ on top)
+            if (x < 240)  return cb(h - 95, h - 520, 90, 240);
+            // Hill top — start HQ plateau
+            if (x < 380)  return h - 520 + Math.sin(x * 0.035) * 10;
+            // Descend from hill into the lake basin
+            if (x < 560)  return cb(h - 520, h - 90, 380, 560);
+            // Wide lake basin — very flat bottom
+            if (x < 880)  return h - 90 + Math.sin(x * 0.015) * 4;
+            // Rise out of lake onto worm plateau
+            if (x < 980)  return cb(h - 90, h - 220, 880, 980);
+            // Worm pit: terrain dips into a crater where the worm lives
+            if (x < 1040) return cb(h - 220, h - 60, 980, 1040);
+            if (x < 1110) return h - 60 + Math.sin(x * 0.06) * 5;           // pit floor
+            if (x < 1210) return cb(h - 60, h - 215, 1110, 1210);           // pit right wall rises
+            if (x < 1300) return h - 215 + Math.sin(x * 0.05) * 8;         // short ridge after pit
+            if (x < 1370) return cb(h - 215, h - 185, 1300, 1370);         // step down to drop-off
+            return h - 185 + Math.sin(x * 0.015) * 5;                       // drop-off shelf (hub landing area)
         } else if (terrainType === 'needle') {
             if (x >= 650 && x <= 750) {
                 return h - 40; // bottom of pit
@@ -425,9 +437,9 @@ class CargoPhysics {
         if (this.currentLevelIndex === 5) {
             // Check Sand Worm trigger — circular danger zone
             if (!this.sandWorm && !lander.crashed) {
-                const WORM_ZONE_CX = 875;
-                const WORM_ZONE_CY = 560;
-                const WORM_ZONE_R  = 220;
+                const WORM_ZONE_CX = 1075; // center of the worm pit
+                const WORM_ZONE_CY = 1200; // near pit floor in world coords
+                const WORM_ZONE_R  = 200;
                 const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
                 if (distToZone < WORM_ZONE_R) {
                     const risk = Math.max(0, 1 - Math.log(Math.max(1, distToZone)) / Math.log(WORM_ZONE_R));
