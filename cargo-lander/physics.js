@@ -255,8 +255,9 @@ class CargoPhysics {
             pads.push({ left: hub.x - 20, right: hub.x + hub.width + 20, y: hub.y });
         }
 
-        // Terrain resolution: point every 20 pixels
-        const step = 20;
+        // Terrain resolution: point every 40 pixels (halves Matter body count vs 20)
+        const step = 40;
+        this.terrainStep = step;
         for (let x = 0; x <= w; x += step) {
             let y = h - 60; // Default flat-ish height
 
@@ -520,17 +521,12 @@ class CargoPhysics {
             return anchorY + Math.sin(dx * 0.02) * 50 - (1 - Math.cos(dx * 0.005)) * 150;
         }
 
-        // Find containing segment
-        let leftPt = this.terrainPoints[0];
-        let rightPt = this.terrainPoints[this.terrainPoints.length - 1];
-
-        for (let i = 0; i < this.terrainPoints.length - 1; i++) {
-            if (x >= this.terrainPoints[i].x && x <= this.terrainPoints[i+1].x) {
-                leftPt = this.terrainPoints[i];
-                rightPt = this.terrainPoints[i+1];
-                break;
-            }
-        }
+        // O(1) index lookup — points are evenly spaced by terrainStep
+        const step = this.terrainStep || 40;
+        const pts = this.terrainPoints;
+        const idx = Math.floor(x / step);
+        const leftPt  = pts[Math.min(idx, pts.length - 2)];
+        const rightPt = pts[Math.min(idx + 1, pts.length - 1)];
 
         const ratio = (x - leftPt.x) / (rightPt.x - leftPt.x || 1);
         return leftPt.y + ratio * (rightPt.y - leftPt.y);
@@ -1693,6 +1689,9 @@ class CargoPhysics {
     }
 
     updateParticles() {
+        // Cap total particles to avoid unbounded growth
+        if (this.particles.length > 300) this.particles.length = 300;
+
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
             p.x += p.vx;
@@ -1701,7 +1700,9 @@ class CargoPhysics {
             p.size = Math.max(0.5, p.size * 0.98);
 
             if (p.life <= 0) {
-                this.particles.splice(i, 1);
+                // O(1) swap-and-pop instead of O(n) splice
+                this.particles[i] = this.particles[this.particles.length - 1];
+                this.particles.pop();
             }
         }
     }
