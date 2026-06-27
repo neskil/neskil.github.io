@@ -160,9 +160,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
             text-align: center;
+            overflow-y: auto;
         }
 
         .screen-content {
@@ -174,9 +177,10 @@
             padding: 35px;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4),
                         inset 0 1px 0 rgba(255, 255, 255, 0.1);
             animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin: auto 0;
         }
 
         #menu-screen .screen-content {
@@ -482,12 +486,10 @@
             .level-grid { grid-template-columns: 1fr; }
             .btn-primary { width: 100%; justify-content: center; }
             .btn-secondary { width: 100%; justify-content: center; margin-left: 0; margin-top: 10px; }
-            #hud-overlay { flex-direction: column; gap: 8px; align-items: stretch; }
             .hud-group { justify-content: space-between; }
         }
-        
-        /* Mobile Touch Controls style merged above */
 
+        /* Mobile Touch Controls */
         .mobile-btn {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -503,6 +505,7 @@
             -webkit-user-select: none;
             pointer-events: auto;
             backdrop-filter: blur(4px);
+            touch-action: manipulation;
         }
 
         .mobile-btn:active {
@@ -514,6 +517,43 @@
             #mobile-controls {
                 display: flex;
             }
+        }
+
+        /* ===== Phone / narrow viewport ===== */
+        @media (max-width: 480px) {
+            /* Compact nav */
+            #nav-header { margin-top: 6px; margin-bottom: 6px; padding: 0 10px; }
+            .nav-btn { padding: 5px 10px; font-size: 0.78rem; }
+            .utility-btn { padding: 5px 8px; font-size: 0.78rem; }
+
+            /* Tighter overlay padding so content fits */
+            .screen-overlay { padding: 8px; }
+            .screen-content { padding: 16px; border-radius: 16px; }
+            #menu-screen .screen-content { padding: 14px; }
+
+            /* Smaller headings inside menus */
+            .screen-content h1 { font-size: 1.6rem; margin-bottom: 6px; }
+            .screen-content h2 { font-size: 1.1rem; }
+            .screen-content p.subtitle { font-size: 0.82rem; margin-bottom: 10px; }
+
+            /* Compact HUD: keep horizontal, shrink padding/fonts */
+            #hud-overlay { top: 8px; left: 6px; right: 6px; gap: 5px; flex-wrap: wrap; }
+            .hud-group { padding: 5px 8px; gap: 6px; border-radius: 8px; flex-wrap: wrap; }
+            .hud-stat { font-size: 0.68rem; }
+            .gauge-container { width: 55px; }
+            #btn-extract { font-size: 10px; padding: 3px 8px; }
+
+            /* Hide keyboard hints — irrelevant on touch */
+            .control-help { display: none; }
+
+            /* Larger touch targets */
+            .mobile-btn { width: 70px; height: 70px; font-size: 26px; }
+            #mobile-controls { bottom: max(16px, env(safe-area-inset-bottom)); }
+            #mobile-controls > div { gap: 10px; }
+
+            /* Level grid always single column */
+            .level-grid { grid-template-columns: 1fr !important; }
+            .btn-level[style*="grid-column"] { grid-column: span 1 !important; }
         }
 
         .hidden {

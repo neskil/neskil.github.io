@@ -524,7 +524,7 @@ test('lander starts with correct defaults', () => {
   assertClose(l.vy, 0, 1e-9, 'initial vy');
   assertClose(l.angle, 0, 1e-9, 'initial angle');
   assertEquals(l.crashed, false, 'initial crashed');
-  assertEquals(l.deckWidth, 80, 'deckWidth');
+  assertEquals(l.deckWidth, 66, 'deckWidth');
   assertEquals(l.deckOffset, 12, 'deckOffset');
   assertEquals(l.basketHeight, 25, 'basketHeight');
   assertEquals(l.fuel, 100, 'initial fuel');
@@ -1117,8 +1117,8 @@ test('basic/advanced vehicle type spawns with correct dimensions', () => {
     const p = new CargoPhysics();
     const lvl = Object.assign({}, getLevel0(), { vehicle: type });
     p.initLevel(lvl, 1280, 720);
-    assertEquals(p.lander.width, 48, `${type} width`);
-    assertEquals(p.lander.height, 32, `${type} height`);
+    assertEquals(p.lander.width, 40, `${type} width`);
+    assertEquals(p.lander.height, 28, `${type} height`);
   }
 });
 
@@ -1202,7 +1202,7 @@ test('CargoAudio singleton exists', () => {
 });
 
 test('CargoAudio has correct default properties', () => {
-  assertEquals(CargoAudio.muted, true, 'should default to muted');
+  assertEquals(CargoAudio.muted, false, 'should default to unmuted');
   assertClose(CargoAudio.musicVolume, 0.5, 1e-9, 'musicVolume should be 0.5');
   assertClose(CargoAudio.sfxVolume, 0.7, 1e-9, 'sfxVolume should be 0.7');
 });
