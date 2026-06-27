@@ -77,11 +77,18 @@ const Physics = {
         let startX = startPad ? startPad.x : 400;
         let startY = startPad ? startPad.y - 100 : 100;
 
-        this.lander = Matter.Bodies.rectangle(startX, startY, 40, 30, {
+        // Lander V3-PT: Basket/Pickup Style
+        const bedBottom = Matter.Bodies.rectangle(startX, startY, 60, 10);
+        const backWall = Matter.Bodies.rectangle(startX - 25, startY - 15, 10, 40);
+        const cabin = Matter.Bodies.rectangle(startX + 25, startY - 10, 20, 30);
+        
+        this.lander = Matter.Body.create({
+            parts: [bedBottom, backWall, cabin],
             density: 0.005,
-            friction: 0.5,
-            restitution: 0.2,
-            label: 'lander'
+            friction: 0.6, // Matches old game LANDER_FRICTION
+            restitution: 0.15, // Matches old game LANDER_RESTITUTION
+            label: 'lander',
+            frictionAir: 0.01 // Less drag
         });
         
         Matter.World.add(this.world, this.lander);
@@ -90,8 +97,8 @@ const Physics = {
     spawnBox: function(x, y) {
         const box = Matter.Bodies.rectangle(x, y, 20, 20, {
             density: 0.002,
-            friction: 0.6,
-            restitution: 0.1,
+            friction: 0.4, // Matches BOX_FRICTION
+            restitution: 0.2, // Matches BOX_RESTITUTION
             label: 'cargo'
         });
         this.boxes.push(box);

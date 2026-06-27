@@ -64,6 +64,9 @@ const LevelLoader = {
                 } else if (r < 100 && g < 150 && b > 200) {
                     // Blue pad (Delivery Hub)
                     pads.push({ type: 'hub_blue', x: x * this.SCALE, y: y * this.SCALE });
+                } else if (r > 200 && g < 100 && b > 200) {
+                    // Magenta pad (Hazard/Sandworm)
+                    pads.push({ type: 'hazard', x: x * this.SCALE, y: y * this.SCALE });
                 }
             }
         }

@@ -44,6 +44,43 @@ const Render = {
         }
     },
 
+    drawHazards: function(ctx, hazards) {
+        for (const hazard of hazards) {
+            // Draw Danger Zone
+            ctx.fillStyle = `rgba(255, 0, 0, ${0.1 + hazard.dangerLevel * 0.2})`;
+            ctx.beginPath();
+            ctx.arc(hazard.x, hazard.y, 300, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Sandworm if lunging
+            if (hazard.wormBody) {
+                const pos = hazard.wormBody.position;
+                ctx.fillStyle = '#8b4513'; // brown
+                ctx.strokeStyle = '#5c2e0b';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.rect(pos.x - 40, pos.y - 200, 80, 400); // 80x400
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw mouth/teeth
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y - 180, 25, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#fff';
+                for(let i=0; i<8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x + Math.cos(angle)*25, pos.y - 180 + Math.sin(angle)*25);
+                    ctx.lineTo(pos.x + Math.cos(angle)*15, pos.y - 180 + Math.sin(angle)*15);
+                    ctx.stroke();
+                }
+            }
+        }
+    },
+
     drawLander: function(ctx, landerBody, thrustersActive) {
         if (!landerBody) return;
         
@@ -54,47 +91,70 @@ const Render = {
         ctx.translate(pos.x, pos.y);
         ctx.rotate(angle);
         
-        // Draw hull
-        ctx.fillStyle = '#ccc';
-        ctx.fillRect(-20, -15, 40, 30);
+        // Offset because Matter.js moves the center of mass when combining parts
+        // Trial and error offset to align visuals with physics bodies
+        const ox = 0; 
+        const oy = 5;
+
+        // Draw back wall (engine block)
+        ctx.fillStyle = '#ff9900'; // Orange tanks
+        ctx.fillRect(-30 + ox, -25 + oy, 12, 35);
+        ctx.fillStyle = '#555';
+        ctx.fillRect(-35 + ox, -5 + oy, 5, 10); // exhaust port
         
+        // Draw bed bottom
+        ctx.fillStyle = '#888';
+        ctx.fillRect(-20 + ox, 0 + oy, 40, 10);
+        
+        // Draw cabin
+        ctx.fillStyle = '#ccc';
+        ctx.beginPath();
+        ctx.moveTo(20 + ox, 10 + oy);
+        ctx.lineTo(40 + ox, 10 + oy);
+        ctx.lineTo(35 + ox, -15 + oy);
+        ctx.lineTo(20 + ox, -20 + oy);
+        ctx.fill();
+
         // Draw cockpit window
         ctx.fillStyle = '#add8e6';
         ctx.beginPath();
-        ctx.arc(10, -5, 8, 0, Math.PI * 2);
+        ctx.moveTo(22 + ox, -15 + oy);
+        ctx.lineTo(32 + ox, -12 + oy);
+        ctx.lineTo(35 + ox, 0 + oy);
+        ctx.lineTo(22 + ox, 0 + oy);
         ctx.fill();
         
         // Draw landing gear
-        ctx.strokeStyle = '#555';
+        ctx.strokeStyle = '#333';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(-15, 15); ctx.lineTo(-20, 25);
-        ctx.moveTo(15, 15); ctx.lineTo(20, 25);
+        ctx.moveTo(-20 + ox, 10 + oy); ctx.lineTo(-25 + ox, 20 + oy);
+        ctx.moveTo(30 + ox, 10 + oy); ctx.lineTo(35 + ox, 20 + oy);
         ctx.stroke();
 
         // Draw thruster flames
         if (thrustersActive.main) {
-            ctx.fillStyle = '#ff9900';
+            ctx.fillStyle = '#00ffff'; // Blueish plasma flame
             ctx.beginPath();
-            ctx.moveTo(-10, 15);
-            ctx.lineTo(10, 15);
-            ctx.lineTo(0, 15 + Math.random() * 20 + 10);
+            ctx.moveTo(-15 + ox, 10 + oy);
+            ctx.lineTo(30 + ox, 10 + oy);
+            ctx.lineTo(10 + ox, 15 + Math.random() * 20 + oy);
             ctx.fill();
         }
-        if (thrustersActive.left) {
-            ctx.fillStyle = '#ff9900';
+        if (thrustersActive.left) { // Rotate left (fire right thruster)
+            ctx.fillStyle = '#00ffff';
             ctx.beginPath();
-            ctx.moveTo(-20, 5);
-            ctx.lineTo(-20, -5);
-            ctx.lineTo(-20 - (Math.random() * 15 + 5), 0);
+            ctx.moveTo(35 + ox, 15 + oy);
+            ctx.lineTo(35 + ox, 5 + oy);
+            ctx.lineTo(35 + (Math.random() * 15 + 5) + ox, 10 + oy);
             ctx.fill();
         }
-        if (thrustersActive.right) {
-            ctx.fillStyle = '#ff9900';
+        if (thrustersActive.right) { // Rotate right (fire left thruster)
+            ctx.fillStyle = '#00ffff';
             ctx.beginPath();
-            ctx.moveTo(20, 5);
-            ctx.lineTo(20, -5);
-            ctx.lineTo(20 + (Math.random() * 15 + 5), 0);
+            ctx.moveTo(-35 + ox, 5 + oy);
+            ctx.lineTo(-35 + ox, -5 + oy);
+            ctx.lineTo(-35 - (Math.random() * 15 + 5) + ox, 0 + oy);
             ctx.fill();
         }
 
