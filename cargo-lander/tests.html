@@ -121,6 +121,16 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // --- AudioContext mock ---
+class MockAudioParam {
+  constructor(initialValue = 0) {
+    this.value = initialValue;
+  }
+  setValueAtTime(val) { this.value = val; return this; }
+  setTargetAtTime(val) { this.value = val; return this; }
+  linearRampToValueAtTime(val) { this.value = val; return this; }
+  exponentialRampToValueAtTime(val) { this.value = val; return this; }
+}
+
 class MockAudioNode {
   connect() { return this; }
   disconnect() {}
@@ -129,8 +139,8 @@ class MockOscillatorNode extends MockAudioNode {
   constructor() {
     super();
     this.type = 'sine';
-    this.frequency = { value: 440, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {} };
-    this.detune = { value: 0 };
+    this.frequency = new MockAudioParam(440);
+    this.detune = new MockAudioParam(0);
   }
   start() {}
   stop() {}
@@ -138,16 +148,16 @@ class MockOscillatorNode extends MockAudioNode {
 class MockGainNode extends MockAudioNode {
   constructor() {
     super();
-    this.gain = { value: 1, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} };
+    this.gain = new MockAudioParam(1);
   }
 }
 class MockBiquadFilter extends MockAudioNode {
   constructor() {
     super();
     this.type = 'lowpass';
-    this.frequency = { value: 350, setValueAtTime() {}, setTargetAtTime() {}, linearRampToValueAtTime() {} };
-    this.Q = { value: 1 };
-    this.gain = { value: 0 };
+    this.frequency = new MockAudioParam(350);
+    this.Q = new MockAudioParam(1);
+    this.gain = new MockAudioParam(0);
   }
 }
 class MockBufferSource extends MockAudioNode {
