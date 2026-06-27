@@ -2417,14 +2417,13 @@ class CargoGame {
         if (this.currentLevelIndex !== 0) return;
         if (!(this.physics.levelHeight > 0)) return;
         const ctx = this.ctx;
-        const lx = 530, lw = 240, ld = 50;
-        // Sample terrain across full lake width to find the highest surface point
-        let minTerrainY = Infinity;
-        for (let sx = lx; sx <= lx + lw; sx += 10) {
-            const ty = this.physics.getTerrainHeight(sx);
-            if (ty < minTerrainY) minTerrainY = ty;
-        }
-        const ly = minTerrainY - ld; // lake top is ld px above the terrain peak
+        const lx = 480, lw = 240;
+        
+        // Find terrain height at the banks to set the water surface
+        const yLeft = this.physics.getTerrainHeight(lx);
+        const yRight = this.physics.getTerrainHeight(lx + lw);
+        const ly = Math.max(yLeft, yRight); // Water level is aligned with the lower bank
+        const ld = 48; // Maximum depth of the carved basin
         const now = Date.now();
 
         // Build a path: top = water surface, sides vertical, bottom follows terrain
@@ -2444,7 +2443,7 @@ class CargoGame {
         }
         ctx.closePath();
 
-        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld + 20);
+        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
         depthGrad.addColorStop(0, 'rgba(14,45,90,0.82)');
         depthGrad.addColorStop(0.5, 'rgba(8,25,60,0.90)');
         depthGrad.addColorStop(1, 'rgba(2,6,20,0.96)');
@@ -2515,12 +2514,15 @@ class CargoGame {
         ctx.strokeStyle = 'rgba(120,200,255,0.55)';
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(lx, ly);
-        ctx.lineTo(lx + lw, ly);
+        for (let wx = 0; wx <= lw; wx += 6) {
+            const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.5;
+            if (wx === 0) ctx.moveTo(lx + wx, ly + wy);
+            else ctx.lineTo(lx + wx, ly + wy);
+        }
         ctx.stroke();
 
         // Fishing boat — bobs on the water surface
-        const bx = lx + 185 + Math.sin(now / 2000) * 7;
+        const bx = lx + 145 + Math.sin(now / 2000) * 7;
         const by = ly - 1;
         // Hull
         ctx.fillStyle = '#4a3728';
@@ -2824,49 +2826,7 @@ class CargoGame {
             const box = cargoOnDeck[0];
             const hub = this.physics.deliveryHubs.find(h => h.type === box.type);
             if (hub) {
-                drawArrow(hub.x + hub.width / 2, hub.y, 'DELIVER HERE');
-            }
-        }
-    }
-
-    drawNextObjectiveArrow() {
-        const ctx = this.ctx;
-        const level = levels[this.currentLevelIndex];
-        if (!level || this.gameState !== 'playing') return;
-        const allDelivered = this.deliveredCount >= (level.targetCargo || 2);
-        if (allDelivered) return;
-
-        const cargoOnDeck = this.physics.boxes.filter(b => b.onDeck);
-        const t = Date.now();
-        const bounce = Math.sin(t / 400) * 8;
-
-        const drawArrow = (wx, padY, label) => {
-            const ax = wx;
-            const ay = padY - 50 + bounce;
-            ctx.save();
-            ctx.textAlign = 'center';
-            ctx.font = 'bold 22px sans-serif';
-            ctx.fillStyle = 'rgba(255,230,0,0.95)';
-            ctx.shadowColor = 'rgba(255,200,0,0.7)';
-            ctx.shadowBlur = 8;
-            ctx.fillText('▼', ax, ay);
-            ctx.shadowBlur = 0;
-            ctx.font = 'bold 11px Outfit, sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.fillText(label, ax, ay + 16);
-            ctx.restore();
-        };
-
-        if (cargoOnDeck.length === 0) {
-            const collection = this.physics.collectionPoint;
-            if (collection) {
-                drawArrow(collection.x + collection.width / 2, collection.y, 'PICK UP');
-            }
-        } else {
-            const box = cargoOnDeck[0];
-            const hub = this.physics.deliveryHubs.find(h => h.type === box.type);
-            if (hub) {
-                drawArrow(hub.x + hub.width / 2, hub.y, 'DELIVER HERE');
+                drawArrow(hub.x + hub.width / 2, hub.y - 80, 'DELIVER HERE');
             }
         }
     }

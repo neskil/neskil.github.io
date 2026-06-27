@@ -60,7 +60,15 @@ class CargoPhysics {
             }
         } else {
             // Standard rolling hills
-            return h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
+            let y = h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
+            if (terrainType === 'flat' && x >= 480 && x <= 720) {
+                const center = 600;
+                const radius = 120;
+                const dist = Math.abs(x - center);
+                const dip = (1 - dist / radius) * 48;
+                if (dip > 0) y += dip;
+            }
+            return y;
         }
     }
 
@@ -885,6 +893,52 @@ class CargoPhysics {
             this.resolveBoxTerrainCollisions();
             this.resolveBoxLanderDeckCollisions();
             this.resolveBoxBoxCollisions();
+        }
+        this.updateOnDeckStates();
+    }
+
+    updateOnDeckStates() {
+        const lander = this.lander;
+        if (!lander || lander.crashed) {
+            for (const box of this.boxes) {
+                box.onDeck = false;
+            }
+            return;
+        }
+
+        const cosA = Math.cos(lander.angle);
+        const sinA = Math.sin(lander.angle);
+        const dcx = lander.x - lander.deckOffset * sinA;
+        const dcy = lander.y - lander.deckOffset * cosA;
+        const tx = cosA;
+        const ty = sinA;
+        const nx = -sinA;
+        const ny = -cosA;
+        const halfW = lander.deckWidth / 2;
+        const halfS = this.BOX_SIZE / 2;
+
+        for (const box of this.boxes) {
+            // Check if grabbed by drone
+            if (lander.vehicleType === 'drone' && lander.grabbedBoxId === box.id) {
+                box.onDeck = true;
+                continue;
+            }
+
+            // Check if inside basic lander basket
+            if (lander.vehicleType !== 'drone') {
+                const rx = box.x - dcx;
+                const ry = box.y - dcy;
+                const projT = rx * tx + ry * ty;
+                const projN = rx * nx + ry * ny;
+
+                // Box center is within horizontal deck bounds and within a vertical zone above the deck floor
+                if (Math.abs(projT) < halfW + 10 && projN >= -5 && projN < 100) {
+                    box.onDeck = true;
+                    continue;
+                }
+            }
+
+            box.onDeck = false;
         }
     }
 
