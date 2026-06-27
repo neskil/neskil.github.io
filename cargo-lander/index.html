@@ -551,6 +551,10 @@
             .nav-btn { padding: 5px 10px; font-size: 0.78rem; }
             .utility-btn { padding: 5px 8px; font-size: 0.78rem; }
 
+            /* Hide labelled header buttons during mobile play — accessible from menu */
+            #mute-btn { display: none; }
+            #dev-btn { display: none; }
+
             /* Tighter overlay padding so content fits */
             .screen-overlay { padding: 8px; }
             .screen-content { padding: 16px; border-radius: 16px; }
@@ -820,15 +824,9 @@
                 <button class="mobile-btn" id="btn-right">▶</button>
             </div>
             <!-- Actions -->
-            <div style="display: flex; flex-direction: column; gap: 15px; align-items: flex-end;">
-                <div style="display: flex; gap: 15px;">
-                    <button class="mobile-btn" id="btn-rope-up" style="font-size:16px;">Q UP</button>
-                    <button class="mobile-btn" id="btn-rope-down" style="font-size:16px;">E DN</button>
-                </div>
-                <div style="display: flex; gap: 15px;">
-                    <button class="mobile-btn" id="btn-action">🎯</button>
-                    <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">🔥</button>
-                </div>
+            <div style="display: flex; gap: 15px; align-items: flex-end;">
+                <button class="mobile-btn" id="btn-action">🎯</button>
+                <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">🔥</button>
             </div>
         </div>
 
@@ -874,8 +872,6 @@
             function setupMobileControls() {
                 bindMobileBtn('btn-left',      'a');
                 bindMobileBtn('btn-right',     'd');
-                bindMobileBtn('btn-rope-up',   'q');
-                bindMobileBtn('btn-rope-down', 'e');
                 bindMobileBtn('btn-thrust',    'w');
                 bindMobileBtn('btn-action',    null, triggerAction);
             }
