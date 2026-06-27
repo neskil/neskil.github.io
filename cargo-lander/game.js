@@ -101,27 +101,64 @@ class CargoGame {
         for (const [key, src] of Object.entries(spriteFiles)) {
             const img = new Image();
             img.onload = () => {
-                const offscreen = document.createElement('canvas');
-                offscreen.width = img.width;
-                offscreen.height = img.height;
-                const oCtx = offscreen.getContext('2d');
-                oCtx.drawImage(img, 0, 0);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(img, 0, 0);
                 
                 try {
-                    const imgData = oCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+                    const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
                     const data = imgData.data;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const r = data[i];
-                        const g = data[i+1];
-                        const b = data[i+2];
-                        if (r < 10 && g < 10 && b < 10) {
-                            data[i+3] = 0;
+                    const w = tempCanvas.width;
+                    const h = tempCanvas.height;
+                    
+                    // Scan to find the bounding box of non-black pixels
+                    let minX = w, maxX = 0, minY = h, maxY = 0;
+                    let hasPixels = false;
+                    for (let y = 0; y < h; y++) {
+                        for (let x = 0; x < w; x++) {
+                            const idx = (y * w + x) * 4;
+                            const r = data[idx];
+                            const g = data[idx+1];
+                            const b = data[idx+2];
+                            if (r >= 10 || g >= 10 || b >= 10) {
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                                if (y < minY) minY = y;
+                                if (y > maxY) maxY = y;
+                                hasPixels = true;
+                            }
                         }
                     }
-                    oCtx.putImageData(imgData, 0, 0);
+                    
+                    if (!hasPixels) {
+                        minX = 0; maxX = w - 1; minY = 0; maxY = h - 1;
+                    }
+                    
+                    const cropW = maxX - minX + 1;
+                    const cropH = maxY - minY + 1;
+                    
+                    const offscreen = document.createElement('canvas');
+                    offscreen.width = cropW;
+                    offscreen.height = cropH;
+                    const oCtx = offscreen.getContext('2d');
+                    
+                    // Copy cropped area and perform chroma-keying
+                    const cropData = tempCtx.getImageData(minX, minY, cropW, cropH);
+                    const cData = cropData.data;
+                    for (let i = 0; i < cData.length; i += 4) {
+                        const r = cData[i];
+                        const g = cData[i+1];
+                        const b = cData[i+2];
+                        if (r < 10 && g < 10 && b < 10) {
+                            cData[i+3] = 0; // Set transparency
+                        }
+                    }
+                    oCtx.putImageData(cropData, 0, 0);
                     this.sprites[key] = offscreen;
                 } catch (e) {
-                    console.warn(`Chroma keying failed for ${key} (likely CORS on file://). Using raw image.`, e);
+                    console.warn(`Chroma keying & cropping failed for ${key} (likely CORS on file://). Using raw image.`, e);
                     this.sprites[key] = img;
                 }
                 
@@ -3347,7 +3384,7 @@ class CargoGame {
             ctx.fillText('CARGO TERMINAL', cpCx, wbY + 14);
 
             // ── Overhead crane ────────────────────────────────────────────
-            const craneBaseX = cx + cw * 0.72;
+            const craneBaseX = cx + cw + 12;
             const craneTopY = wbY - 2;
             const craneArmEnd = cx - 10;
             const hatchX = wbX + wbW * 0.42;  // where crane picks up from
@@ -3955,36 +3992,102 @@ class CargoGame {
             const footY0 = 14 + (1 - lc0) * 7 + legDeploy * 4;
             const legSpread0 = hw0 + 12 - lc0 * 8 + legDeploy * 5;
 
-            const legColor = lander.legsDeployed ? '#4ade80' : '#475569';
-            ctx.strokeStyle = legColor;
+            // Draw gold-plated struts with black outlines (matching the sprite style)
+            // Left Leg:
+            // Main strut black outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-hw0 + 2, 10);
+            ctx.lineTo(-legSpread0, footY0);
+            ctx.stroke();
+
+            // Main strut gold inner
+            ctx.strokeStyle = '#fbbf24';
             ctx.lineWidth = 2.5;
             ctx.beginPath();
             ctx.moveTo(-hw0 + 2, 10);
             ctx.lineTo(-legSpread0, footY0);
-            ctx.lineTo(-legSpread0 - 8, footY0 + 1);
             ctx.stroke();
-            ctx.lineWidth = 1.5;
+
+            // Secondary strut black outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3.5;
             ctx.beginPath();
             ctx.moveTo(-hw0 + 4, 4);
             ctx.lineTo(-legSpread0, footY0 - 1);
             ctx.stroke();
+
+            // Secondary strut gold inner
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-hw0 + 4, 4);
+            ctx.lineTo(-legSpread0, footY0 - 1);
+            ctx.stroke();
+
+            // Left foot dish (dark grey circle/oval with black outline)
+            ctx.fillStyle = '#475569';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(-legSpread0, footY0, 6, 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Right Leg:
+            // Main strut black outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(hw0 - 2, 10);
+            ctx.lineTo(legSpread0, footY0);
+            ctx.stroke();
+
+            // Main strut gold inner
+            ctx.strokeStyle = '#fbbf24';
             ctx.lineWidth = 2.5;
             ctx.beginPath();
             ctx.moveTo(hw0 - 2, 10);
             ctx.lineTo(legSpread0, footY0);
-            ctx.lineTo(legSpread0 + 8, footY0 + 1);
             ctx.stroke();
-            ctx.lineWidth = 1.5;
+
+            // Secondary strut black outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3.5;
             ctx.beginPath();
             ctx.moveTo(hw0 - 4, 4);
             ctx.lineTo(legSpread0, footY0 - 1);
             ctx.stroke();
 
+            // Secondary strut gold inner
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(hw0 - 4, 4);
+            ctx.lineTo(legSpread0, footY0 - 1);
+            ctx.stroke();
+
+            // Right foot dish (dark grey circle/oval with black outline)
+            ctx.fillStyle = '#475569';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.ellipse(legSpread0, footY0, 6, 3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.lineCap = 'butt';
+
+            // Navigation/Blinking lights centered on the feet
             const navPulse0 = 0.6 + Math.abs(Math.sin(Date.now() * 0.004)) * 0.4;
+            // Left light (red port light)
             ctx.fillStyle = `rgba(239,68,68,${navPulse0})`;
-            ctx.beginPath(); ctx.arc(-legSpread0 - 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(-legSpread0, footY0 - 2, 1.8, 0, Math.PI * 2); ctx.fill();
+            // Right light (green starboard light)
             ctx.fillStyle = `rgba(16,185,129,${navPulse0})`;
-            ctx.beginPath(); ctx.arc(legSpread0 + 8, footY0, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(legSpread0, footY0 - 2, 1.8, 0, Math.PI * 2); ctx.fill();
         }
 
         // No body movement on landing — legs absorb visually only
