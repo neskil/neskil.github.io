@@ -916,19 +916,21 @@
         cargoCard.addEventListener('mouseenter', function(e) {
             const now = Date.now();
             if (now - lastHoverSpawn > 500) { // Limit spawning rate
-                const rect = this.getBoundingClientRect();
-                const tx = rect.left + rect.width / 2;
-                const ty = rect.top + smoothScrollY * 0.15 - 60;
-                landers.push(new MenuLander(tx, ty, true));
+                if (landers.length === 0) {
+                    const rect = this.getBoundingClientRect();
+                    const tx = rect.left + rect.width / 2;
+                    const ty = rect.top + smoothScrollY * 0.15 - 60;
+                    landers.push(new MenuLander(tx, ty, true));
+                }
                 lastHoverSpawn = now;
             }
         });
 
         cargoCard.addEventListener('click', function(e) {
-            const rect = this.getBoundingClientRect();
-            for (let i = 0; i < 5; i++) {
-                const tx = rect.left + rect.width / 2 + (Math.random() * 60 - 30);
-                const ty = rect.top + smoothScrollY * 0.15 - 60 + (Math.random() * 40 - 20);
+            if (landers.length === 0) {
+                const rect = this.getBoundingClientRect();
+                const tx = rect.left + rect.width / 2;
+                const ty = rect.top + smoothScrollY * 0.15 - 60;
                 landers.push(new MenuLander(tx, ty, true));
             }
         });
@@ -937,7 +939,7 @@
         function scheduleRandomLander() {
             const delay = Math.random() * 15000 + 5000; // Between 5 and 20 seconds
             setTimeout(() => {
-                if (document.visibilityState === 'visible') {
+                if (document.visibilityState === 'visible' && landers.length === 0) {
                     landers.push(new MenuLander());
                 }
                 scheduleRandomLander();
