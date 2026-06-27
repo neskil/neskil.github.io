@@ -3785,86 +3785,44 @@ class CargoGame {
         const S = this.physics.BOX_SIZE;
         const halfS = S / 2;
 
-        const C = {
-            normal: { bg: '#5c3d11', hi: '#7c5520', border: '#f59e0b', sym: '#fef3c7' },
-            red:    { bg: '#7f1d1d', hi: '#991b1b', border: '#f87171', sym: '#fecaca' },
-            blue:   { bg: '#1e3a8a', hi: '#2563eb', border: '#60a5fa', sym: '#bfdbfe' },
-            green:  { bg: '#14532d', hi: '#166534', border: '#4ade80', sym: '#bbf7d0' },
-        };
-        const c = C[type] || C.normal;
+        // Only colour-code when the level has multiple cargo types
+        const allowedTypes = this.physics.currentLevelConfig?.allowedTypes;
+        const multiType = allowedTypes && allowedTypes.length > 1;
+
+        let fillColor   = '#334155';
+        let borderColor = '#64748b';
+        if (multiType) {
+            if      (type === 'normal') { fillColor = '#0369a1'; borderColor = '#38bdf8'; }
+            else if (type === 'red')    { fillColor = '#991b1b'; borderColor = '#f87171'; }
+            else if (type === 'blue')   { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
+            else if (type === 'green')  { fillColor = '#14532d'; borderColor = '#4ade80'; }
+        }
+
+        const iconText = emoji || (type === 'red' ? '⚠️' : type === 'blue' ? '❄️' : type === 'green' ? '♻️' : '📦');
 
         ctx.save();
         ctx.translate(x, y);
 
-        // Container body gradient
         const grad = ctx.createLinearGradient(0, -halfS, 0, halfS);
-        grad.addColorStop(0, c.hi);
-        grad.addColorStop(1, c.bg);
+        grad.addColorStop(0, fillColor + 'f0');
+        grad.addColorStop(1, fillColor + 'aa');
         ctx.fillStyle = grad;
         ctx.fillRect(-halfS, -halfS, S, S);
 
-        // Corrugated vertical ribs
-        ctx.strokeStyle = 'rgba(0,0,0,0.28)';
-        ctx.lineWidth = 1;
-        for (let rx = -halfS + 5; rx < halfS - 2; rx += 5) {
-            ctx.beginPath(); ctx.moveTo(rx, -halfS + 1); ctx.lineTo(rx, halfS - 1); ctx.stroke();
-        }
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(-halfS, -halfS, S, 4);
 
-        // Top shine
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
-        ctx.fillRect(-halfS, -halfS, S, 3);
-
-        // Border
-        ctx.strokeStyle = c.border;
+        ctx.strokeStyle = borderColor;
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-halfS + 0.75, -halfS + 0.75, S - 1.5, S - 1.5);
 
-        // Type symbol (canvas-drawn, no emoji)
-        ctx.fillStyle = c.sym;
-        ctx.strokeStyle = c.sym;
-        const sym = halfS * 0.58;
-
-        if (type === 'red') {
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(0, -sym * 0.9); ctx.lineTo(sym * 0.85, sym * 0.55); ctx.lineTo(-sym * 0.85, sym * 0.55);
-            ctx.closePath(); ctx.stroke();
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(0, -sym * 0.28); ctx.lineTo(0, sym * 0.18); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0, sym * 0.38, 1.2, 0, Math.PI * 2); ctx.fill();
-        } else if (type === 'blue') {
-            ctx.lineWidth = 1.3;
-            for (let i = 0; i < 6; i++) {
-                const a = (i / 6) * Math.PI * 2;
-                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * sym, Math.sin(a) * sym); ctx.stroke();
-                const tc = 0.55, ta = a + Math.PI / 2;
-                ctx.beginPath();
-                ctx.moveTo(Math.cos(a)*sym*tc - Math.cos(ta)*2.5, Math.sin(a)*sym*tc - Math.sin(ta)*2.5);
-                ctx.lineTo(Math.cos(a)*sym*tc + Math.cos(ta)*2.5, Math.sin(a)*sym*tc + Math.sin(ta)*2.5);
-                ctx.stroke();
-            }
-        } else if (type === 'green') {
-            ctx.lineWidth = 1.4;
-            for (let i = 0; i < 3; i++) {
-                const a0 = (i / 3) * Math.PI * 2 - Math.PI / 2;
-                const a1 = a0 + (Math.PI * 2 / 3) * 0.75;
-                ctx.beginPath(); ctx.arc(0, 0, sym * 0.72, a0, a1); ctx.stroke();
-                const ax = Math.cos(a1) * sym * 0.72, ay = Math.sin(a1) * sym * 0.72;
-                const ah = a1 + 0.35;
-                ctx.beginPath();
-                ctx.moveTo(ax, ay);
-                ctx.lineTo(ax + Math.cos(ah + 2.5) * 4, ay + Math.sin(ah + 2.5) * 4);
-                ctx.lineTo(ax + Math.cos(ah - 2.5) * 4, ay + Math.sin(ah - 2.5) * 4);
-                ctx.closePath(); ctx.fill();
-            }
-        } else {
-            // Normal: package cross-strap icon
-            ctx.lineWidth = 1.4;
-            const pw = sym * 0.78;
-            ctx.strokeRect(-pw, -pw * 0.7, pw * 2, pw * 1.4);
-            ctx.beginPath(); ctx.moveTo(-pw, 0); ctx.lineTo(pw, 0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, -pw * 0.7); ctx.lineTo(0, pw * 0.7); ctx.stroke();
-        }
+        ctx.font = `${Math.round(S * 0.82)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(255,255,255,0.85)';
+        ctx.shadowBlur = 4;
+        ctx.fillText(iconText, 0, 1);
+        ctx.shadowBlur = 0;
 
         ctx.restore();
 
