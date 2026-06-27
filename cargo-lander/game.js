@@ -56,7 +56,7 @@ class CargoGame {
         
         // Settings
         this.isMuted = false;
-        this.useSprites = localStorage.getItem('cargoLanderUseSprites') !== 'false';
+        this.useSprites = false;
 
         // Keys State
         this.keys = {
