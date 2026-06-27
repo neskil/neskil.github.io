@@ -137,6 +137,32 @@ const levels = [
             { id: 'no_cargo_lost',   text: 'No cargo lost',               type: 'bonus', reward: 400 },
             { id: 'quick',           text: 'Finish with 2+ min remaining',type: 'bonus', reward: 200, timeGoal: 120 },
         ]
+    },
+    {
+        name: "L6: The Sand Worm's Lair",
+        missionTitle: "Sand Worm Extraction",
+        description: "A colossal sand worm lurks beneath the dunes. Deliver the cargo quickly before it strikes!",
+        gravity: 0.12,
+        wind: 0,
+        terrainType: "worm-lair",
+        targetCargo: 1,
+        budget: 2000,
+        timeLimit: 180,
+        allowedTypes: ["normal", "red"],
+        collectionX: 300,
+        deliveryHubs: [
+            { x: 950, width: 80, color: "#10b981", type: "normal", name: "Dune Base" }
+        ],
+        hint: "The sand worm is more likely to attack if you linger near its pit. Move fast!",
+        palette: {
+            skyTop: '#1a1005', skyMid: '#3a2010', skyBot: '#5a3015',
+            terrainFill: '#1a1005', rockEdge: '#d97706', rockGlow: 'rgba(217,119,6,',
+            fog: 'rgba(217,119,6,0.15)',
+        },
+        quests: [
+            { id: 'primary',         text: 'Deliver cargo to Dune Base',  type: 'primary' },
+            { id: 'survive_worm',    text: 'Survive the worm',            type: 'bonus', reward: 500 }
+        ]
     }
 ];
 
@@ -1124,6 +1150,11 @@ class CargoGame {
             let targetX = lander.x + (lander.vx * 15);
             let targetY = lander.y + (lander.vy * 15);
             
+            // Floor panning constraint
+            const viewH = this.canvas.height / this.camera.targetZoom;
+            const maxCamY = this.physics.levelHeight - (viewH / 2) + 120;
+            targetY = Math.min(targetY, maxCamY);
+            
             this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
             this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
         }
@@ -1551,6 +1582,7 @@ class CargoGame {
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
         this.drawMonster();
+        this.drawSandWorm();
         if (!this.shaders) this.drawParticles();
         ctx.restore();
 
@@ -2391,6 +2423,189 @@ class CargoGame {
         ctx.restore();
     }
 
+    drawSandWorm() {
+        if (!this.physics.sandWorm) return;
+        const m = this.physics.sandWorm;
+        const ctx = this.ctx;
+        const t = Date.now() / 1000;
+
+        const trail = m.trail;
+        if (!trail || trail.length < 4) return;
+
+        // ── Helper: sample world position + forward angle along trail ──
+        function trailSample(dist) {
+            let walked = 0;
+            for (let i = 1; i < trail.length; i++) {
+                const dx = trail[i].x - trail[i-1].x;
+                const dy = trail[i].y - trail[i-1].y;
+                const d = Math.sqrt(dx*dx + dy*dy);
+                if (walked + d >= dist) {
+                    const f = d < 0.001 ? 0 : (dist - walked) / d;
+                    return { x: trail[i-1].x + dx * f, y: trail[i-1].y + dy * f, angle: Math.atan2(dy, dx) };
+                }
+                walked += d;
+            }
+            const p = trail[trail.length - 1];
+            return { x: p.x, y: p.y, angle: 0 };
+        }
+
+        // Slightly smaller segments than OOB monster
+        const SEGS = [
+            { d: 0,   r: 40 }, // HEAD
+            { d: 50,  r: 36 },
+            { d: 95,  r: 32 },
+            { d: 135, r: 28 },
+            { d: 170, r: 24 },
+            { d: 200, r: 20 },
+            { d: 225, r: 16 },
+            { d: 245, r: 12 },
+            { d: 260, r: 9  },
+            { d: 275, r: 6  },
+        ];
+
+        const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
+        const head = positions[0];
+
+        const lander = m.lungeTarget || this.physics.lander;
+        const hdx = lander ? lander.x - m.x : m.vx;
+        const hdy = lander ? lander.y - m.y : m.vy;
+        const targetHeadAngle = Math.atan2(hdy, hdx);
+        
+        // Smoothly interpolate the head angle
+        if (m.currentHeadAngle === undefined) {
+            m.currentHeadAngle = targetHeadAngle;
+        } else {
+            let diff = targetHeadAngle - m.currentHeadAngle;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            m.currentHeadAngle += diff * 0.15;
+        }
+        
+        const headAngle = m.currentHeadAngle;
+        const glowPulse = 0.55 + Math.abs(Math.sin(t * 1.8)) * 0.45;
+
+        // ══ PASS 0: DEEP GLOW ════════════════════
+        ctx.save();
+        const auraGrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, head.r * 4.5);
+        auraGrad.addColorStop(0, `rgba(200, 100, 20, ${0.22 * glowPulse})`);
+        auraGrad.addColorStop(0.5, `rgba(180, 80, 10, ${0.10 * glowPulse})`);
+        auraGrad.addColorStop(1, 'rgba(140, 60, 0, 0)');
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, head.r * 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // ══ PASS 1: SPIKES ══════════
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i <= 8; i++) {
+            const seg = positions[i];
+            if (!seg) continue;
+            for (const side of [-1, 1]) {
+                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
+                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
+                
+                const tipX = rootX + Math.cos(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
+                const tipY = rootY + Math.sin(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
+
+                ctx.strokeStyle = 'rgba(0,0,0,0.88)';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(rootX, rootY);
+                ctx.lineTo(tipX, tipY);
+                ctx.stroke();
+
+                ctx.strokeStyle = `rgba(180,100,30,0.8)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+
+        // ══ PASS 2: SEGMENTS ═══
+        ctx.save();
+        for (let i = positions.length - 1; i >= 0; i--) {
+            const seg = positions[i];
+            const isHead = i === 0;
+
+            const bGrad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r);
+            bGrad.addColorStop(0, '#1a0d00');
+            bGrad.addColorStop(0.45, '#331a00');
+            bGrad.addColorStop(0.72, '#663300');
+            bGrad.addColorStop(0.88, '#994c00');
+            bGrad.addColorStop(1, '#cc6600');
+            ctx.fillStyle = bGrad;
+            ctx.strokeStyle = `rgba(220, 120, 20, ${0.55 + glowPulse * 0.25})`;
+            ctx.lineWidth = isHead ? 2.5 : 1.8;
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            if (isHead) {
+                // ── MOUTH ────────
+                const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.52;
+                const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.52;
+                const mW = seg.r * 0.72, mH = seg.r * 0.48;
+
+                ctx.save();
+                ctx.translate(mCx, mCy);
+                ctx.rotate(headAngle);
+
+                const mouthGrad = ctx.createRadialGradient(0, 0, 0, 0, mH * 0.3, mW);
+                mouthGrad.addColorStop(0, '#1a0500');
+                mouthGrad.addColorStop(0.6, '#0a0200');
+                mouthGrad.addColorStop(1, '#050100');
+                ctx.fillStyle = mouthGrad;
+                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                const throatPulse = 0.3 + Math.abs(Math.sin(t * 2.1)) * 0.35;
+                const throatGrad = ctx.createRadialGradient(0, 2, 0, 0, 2, mW * 0.7);
+                throatGrad.addColorStop(0, `rgba(255,100,0,${throatPulse})`);
+                throatGrad.addColorStop(1, 'rgba(255,50,0,0)');
+                ctx.fillStyle = throatGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const toothCount = 7;
+                for (let ti = 0; ti < toothCount; ti++) {
+                    const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
+                    ctx.fillStyle = 'rgba(200, 185, 140, 0.9)';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(tx - mW * 0.07, -mH * 0.85);
+                    ctx.lineTo(tx, -mH * 0.12);
+                    ctx.lineTo(tx + mW * 0.07, -mH * 0.85);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+                for (let ti = 0; ti < toothCount - 1; ti++) {
+                    const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
+                    ctx.fillStyle = 'rgba(190, 175, 130, 0.88)';
+                    ctx.beginPath();
+                    ctx.moveTo(tx - mW * 0.065, mH * 0.85);
+                    ctx.lineTo(tx, mH * 0.15);
+                    ctx.lineTo(tx + mW * 0.065, mH * 0.85);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
+
     // Horizontal x-ranges of the flat landing pads (start depot, collection, hubs)
     getPadRanges() {
         const p = this.physics;
@@ -2742,6 +2957,33 @@ class CargoGame {
                 else ctx.lineTo(x, baseY + noise);
             }
             ctx.stroke();
+        }
+
+        // ── Level 6: Lake Rendering ─────────────────────────────────────────
+        if (this.currentLevelIndex === 5) {
+            ctx.fillStyle = 'rgba(29, 78, 216, 0.45)';
+            const lakeY = this.physics.levelHeight - 160;
+            if (startX < 650 && endX > 450) {
+                ctx.beginPath();
+                ctx.moveTo(Math.max(startX, 450), lakeY);
+                for (let x = Math.max(startX, 450); x <= Math.min(endX, 650); x += 10) {
+                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 4;
+                    ctx.lineTo(x, lakeY + wave);
+                }
+                ctx.lineTo(Math.min(endX, 650), this.physics.levelHeight);
+                ctx.lineTo(Math.max(startX, 450), this.physics.levelHeight);
+                ctx.fill();
+                
+                ctx.strokeStyle = 'rgba(96, 165, 250, 0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let x = Math.max(startX, 450); x <= Math.min(endX, 650); x += 10) {
+                    const wave = Math.sin(Date.now() * 0.002 + x * 0.03) * 4;
+                    if (x === Math.max(startX, 450)) ctx.moveTo(x, lakeY + wave);
+                    else ctx.lineTo(x, lakeY + wave);
+                }
+                ctx.stroke();
+            }
         }
     }
 

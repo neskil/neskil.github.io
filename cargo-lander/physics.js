@@ -52,6 +52,19 @@ class CargoPhysics {
                 canyonDepth = (150 - dist) * 1.8;
             }
             return h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
+        } else if (terrainType === 'worm-lair') {
+            // X: 0 - 200: Plateau
+            if (x < 200) return h - 400 + Math.sin(x * 0.05) * 10;
+            // X: 200 - 450: Deep Pit for Cargo
+            if (x >= 200 && x < 450) return h - 50 + Math.sin(x * 0.1) * 5;
+            // X: 450 - 650: Lake Basin
+            if (x >= 450 && x < 650) return h - 200 + Math.sin(x * 0.02) * 5;
+            // X: 650 - 730: Central Plateau
+            if (x >= 650 && x < 730) return h - 300 + Math.sin(x * 0.04) * 10;
+            // X: 730 - 850: Sand Worm Pit
+            if (x >= 730 && x < 850) return h - 100 + Math.cos(x * 0.05) * 15;
+            // X: 850+: Slope to Drop-off
+            return h - 350 + Math.sin(x * 0.03) * 15;
         } else if (terrainType === 'needle') {
             if (x >= 650 && x <= 750) {
                 return h - 40; // bottom of pit
@@ -382,6 +395,76 @@ class CargoPhysics {
                 this.triggerExplosion();
                 m.vy = Math.abs(m.vy) + 4; // kick it downward so the retreat reads clearly
                 this.outOfBoundsTimer = 0;
+            }
+        }
+
+        // --- Level 6: Sand Worm Logic ---
+        if (this.currentLevelIndex === 5) {
+            // Check Sand Worm trigger
+            if (!this.sandWorm && !lander.crashed) {
+                const wormPitCenter = 790;
+                const distToPit = Math.abs(lander.x - wormPitCenter);
+                if (distToPit < 500 && lander.y > this.levelHeight - 400) {
+                    // Logarithmic drop-off for risk
+                    const risk = Math.max(0, 1 - Math.log(Math.max(1, distToPit)) / Math.log(500));
+                    const chance = risk * 0.005 * dt; // Random chance per frame
+                    if (Math.random() < chance) {
+                        this.sandWorm = {
+                            x: wormPitCenter + (Math.random() - 0.5) * 40,
+                            y: this.levelHeight + 150,
+                            vx: (lander.x - wormPitCenter) * 0.035, // Slight predictive angle
+                            vy: -22, // Fast upward lunge
+                            state: 'lunging', // 'lunging' or 'retracting'
+                            trail: []
+                        };
+                        if (window.CargoAudio) CargoAudio.playCrash(); // Use crash sound for roar
+                    }
+                }
+            }
+
+            // Update Sand Worm
+            if (this.sandWorm) {
+                const w = this.sandWorm;
+                
+                if (w.state === 'lunging') {
+                    w.vy += 0.3 * dt; // Gravity pulling it back down
+                    if (w.vy > 0) w.state = 'retracting';
+                } else {
+                    w.vy += 0.8 * dt; // Fall faster when retracting
+                }
+                
+                w.x += w.vx * dt;
+                w.y += w.vy * dt;
+                
+                // Record trail
+                if (!w.trail) w.trail = [];
+                const lastTP = w.trail[0];
+                if (!lastTP || Math.hypot(w.x - lastTP.x, w.y - lastTP.y) >= 2) {
+                    w.trail.unshift({ x: w.x, y: w.y });
+                    if (w.trail.length > 500) w.trail.pop();
+                }
+
+                // Collision with lander (survivable, but damaging and knocks back)
+                const dx = lander.x - w.x;
+                const dy = lander.y - w.y;
+                if (Math.hypot(dx, dy) < 70 && !lander.crashed) {
+                    lander.vx += (dx / Math.hypot(dx, dy)) * 6;
+                    lander.vy += -4; // Knock upwards
+                    lander.integrity -= 30 * dt; // Damage over time while in contact
+                    if (window.CargoAudio) CargoAudio.playCrash();
+                    
+                    // Add sparks
+                    if (this.onCollision) {
+                        for (let i = 0; i < 3; i++) {
+                            this.onCollision(lander.x + (Math.random() - 0.5) * 20, lander.y + (Math.random() - 0.5) * 20, 2);
+                        }
+                    }
+                }
+
+                // Despawn if retracted deep enough
+                if (w.y > this.levelHeight + 400 && w.state === 'retracting') {
+                    this.sandWorm = null;
+                }
             }
         }
     }
