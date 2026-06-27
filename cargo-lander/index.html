@@ -787,7 +787,8 @@
             </svg>
             Back to Home
         </a>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
+            <button id="fullscreen-toggle-btn" class="utility-btn" onclick="game.toggleFullscreen()" title="Toggle Fullscreen" style="font-size:1.1rem;padding:6px 10px;">⛶</button>
             <button id="mute-toggle-btn" class="utility-btn" onclick="game.toggleMuteQuick()" title="Toggle Mute" style="font-size:1.1rem;padding:6px 10px;">🔊</button>
             <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">⚙️ Audio</button>
             <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">🛠 Dev</button>
