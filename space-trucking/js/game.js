@@ -20,7 +20,8 @@ const Game = {
     score: 0,
     lastPickupTime: 0,
     hazards: [],
-    
+    assets: {},
+
     init: function() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
@@ -48,8 +49,22 @@ const Game = {
         this.canvas.height = window.innerHeight;
     },
 
+    loadAssets: async function() {
+        const loadImg = (url) => new Promise((res, rej) => {
+            const img = new Image();
+            img.onload = () => res(img);
+            img.onerror = rej;
+            img.src = url;
+        });
+
+        this.assets.lander = await loadImg('assets/sprites/lander.png');
+        this.assets.cargo = await loadImg('assets/sprites/cargo.png');
+        this.assets.sandworm = await loadImg('assets/sprites/sandworm.png');
+    },
+
     start: async function() {
         try {
+            await this.loadAssets();
             const levelData = await LevelLoader.loadFromImage('levels/level_01.png');
             Physics.loadLevel(levelData);
             
@@ -231,12 +246,12 @@ const Game = {
         this.ctx.translate(-this.camera.x, -this.camera.y);
         
         // Draw hazards
-        Render.drawHazards(this.ctx, this.hazards);
+        Render.drawHazards(this.ctx, this.hazards, this.assets);
         
         Render.drawPads(this.ctx, state.pads);
         Render.drawTerrain(this.ctx, state.terrain);
-        Render.drawBoxes(this.ctx, state.boxes);
-        Render.drawLander(this.ctx, state.lander, this.thrusters);
+        Render.drawBoxes(this.ctx, state.boxes, this.assets);
+        Render.drawLander(this.ctx, state.lander, this.thrusters, this.assets);
         
         if (this.debugDraw) {
             Render.drawDebug(this.ctx, state);
