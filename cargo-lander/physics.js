@@ -920,13 +920,7 @@ class CargoPhysics {
             lander.currentPad = null;
         }
 
-        // --- Ceiling collision ---
-        const corners = [
-            { x: -lander.width / 2, y: -lander.height / 2 },
-            { x:  lander.width / 2, y: -lander.height / 2 },
-            { x: -lander.width / 2, y:  lander.height / 2 },
-            { x:  lander.width / 2, y:  lander.height / 2 },
-        ];
+        // --- Ceiling collision --- (reuses corners array defined above)
         for (const pt of corners) {
             const wx = lander.x + pt.x * Math.cos(lander.angle) - pt.y * Math.sin(lander.angle);
             const wy = lander.y + pt.x * Math.sin(lander.angle) + pt.y * Math.cos(lander.angle);
