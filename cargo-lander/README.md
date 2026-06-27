@@ -130,6 +130,13 @@ console + on-screen error logger report no errors.
 
 ## Recent additions
 
+### Mobile scaling & controls
+- **Mobile Viewport Scaling** — Uniform CSS `transform: scale()` automatically adjusts the fixed 1280x720 layout to fit the screen dimensions on mobile and desktop devices.
+- **Cargo Spawning Delays** — Balanced risk/reward spawning; waiting on a loading pad now triggers escalating delays (`55 + cycle * 30`) for subsequent boxes.
+- **Shield Generator Upgrade** — Added a defensive `shieldRegen` upgrade that slowly recovers hull integrity over time.
+- **Visual Shield Bubble** — Renders a pulsing blue energy field around the vehicle body when the shield generator is active and hull is above 20%.
+- **CI Test Error Logging** — Test runner (`tests.html`) prints detailed call stacks of failing tests directly to `console.error` for automated headless ingestion.
+
 ### Biome worlds
 - **5 distinct biomes** — each level has its own alien environment: L1 Grasslands (lush green), L2 Desert Wastes (amber sand), L3 Arctic Expanse (ice blue), L4 Volcanic Zone (orange-red lava rock), L5 Crystal Caverns (deep purple).
 - **Terrain edge noise** — deterministic ±4 px jitter every 3 px on the terrain surface edge (no discrete boulders) — organic and fast.
@@ -188,14 +195,12 @@ console + on-screen error logger report no errors.
 
 | Priority | Feature |
 |----------|---------|
-| High | **Mobile viewport scaling** — CSS `transform: scale(…)` on `#game-container` for narrow screens |
-| High | **Cargo spawning countdown** — stand on loading pad → cargo appears with increasing delays (risk/reward) |
 | High | **Base geometry** — HQ and pads need structure, depth, ambient lights |
 | High | **NPC trucks** — cab + wheels + flatbed; can carry and drop cargo |
 | Medium | **Monster head lerp** — mouth angle snaps too fast; needs smoothed `targetAngle` interpolation |
 | Medium | **Space mountains** — floating rock obstacles |
 | Medium | **Minimap resize** — radar should reflect actual level dimensions |
 | Medium | **Flora & fauna** — terrain surface decorations (alien plants, critters) |
-| Medium | **Upgrade verification** — audit all 5 upgrade types end-to-end |
+| Medium | **Upgrade verification** — audit all 6 upgrade types end-to-end |
 | Low | **More levels** — larger maps, escalating difficulty, new hazards |
 | Low | **Procedural map generator** — runtime terrain + pad placement |
