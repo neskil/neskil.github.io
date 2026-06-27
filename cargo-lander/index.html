@@ -1134,27 +1134,7 @@
         // Start the game!
         game.init('cargoCanvas');
 
-        // Viewport scaling
-        function resizeGame() {
-            const container = document.getElementById('game-container');
-            const targetRatio = 1280 / 720;
-            const windowRatio = window.innerWidth / window.innerHeight;
-            let scale = 1;
-            
-            if (windowRatio < targetRatio) {
-                scale = window.innerWidth / 1280;
-            } else {
-                scale = window.innerHeight / 720;
-            }
-            
-            // Optional: don't scale up past 1x if you want crisp pixels on desktop
-            // scale = Math.min(scale, 1);
-            
-            container.style.transform = `scale(${scale})`;
-            container.style.transformOrigin = 'center center';
-        }
-        window.addEventListener('resize', resizeGame);
-        resizeGame();
+        // Viewport scaling is handled by game.js resizeCanvas()
 
         // Detect touch interface and toggle visual buttons
         if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
