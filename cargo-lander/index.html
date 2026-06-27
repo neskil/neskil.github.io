@@ -76,12 +76,16 @@
         }
 
         #game-container {
-            position: relative;
+            position: absolute;
+            left: 50%;
+            top: 50%;
             width: 1280px;
             height: 720px;
             overflow: hidden;
             background: #000;
+            /* Transform is applied in game.js: translate(-50%, -50%) scale(X) */
         }
+
 
         canvas {
             position: absolute;
@@ -166,6 +170,11 @@
             padding-bottom: max(20px, env(safe-area-inset-bottom));
             text-align: center;
             overflow-y: auto;
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .screen-overlay::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
         }
 
         .screen-content {

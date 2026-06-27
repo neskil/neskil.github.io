@@ -245,10 +245,21 @@ class CargoGame {
     }
 
     resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        const targetW = 1280;
+        const targetH = 720;
+        this.canvas.width = targetW;
+        this.canvas.height = targetH;
         if (this.shaders) {
-            this.shaders.resize(this.canvas.width, this.canvas.height);
+            this.shaders.resize(targetW, targetH);
+        }
+
+        const container = document.getElementById('game-container');
+        if (container) {
+            const scaleX = window.innerWidth / targetW;
+            const scaleY = window.innerHeight / targetH;
+            const scale = Math.min(scaleX, scaleY);
+            
+            container.style.transform = `translate(-50%, -50%) scale(${scale})`;
         }
     }
 
