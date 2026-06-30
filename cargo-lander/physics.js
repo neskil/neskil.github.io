@@ -112,7 +112,7 @@ class CargoPhysics {
                 if (p1.x <= targetX && p2.x > targetX) {
                     const ratio = (targetX - p1.x) / (p2.x - p1.x);
                     const y = p1.y + ratio * (p2.y - p1.y);
-                    if (maxSurfaceY === 0 || y < maxSurfaceY) {
+                    if (maxSurfaceY === 0 || y > maxSurfaceY) {
                         maxSurfaceY = y;
                     }
                 }

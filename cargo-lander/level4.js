@@ -7,8 +7,9 @@ registerLevel({
     description: "A gravitational vortex is pulling you in. Counter the force and sort red/blue cargo to their correct hubs.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.15,
+    gravity: 0.28,           // Heavy gravity
     wind: 0,
+    heavyCargo: true, // Cargo weight affects lander handling
 
     // Moving gravity well — physics.js reads gravityWell config
     gravityWell: {
