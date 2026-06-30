@@ -58,6 +58,8 @@ class CargoPhysics {
         
         this.boxes = [];
         this.particles = [];
+        this.sandWorm = null;
+        this.sandWormSpawned = false;
         this.monster = null; // The Out-Of-Bounds cosmic horror
         this.sandWorm = null;
         this.outOfBoundsTimer = 0;
@@ -642,13 +644,14 @@ class CargoPhysics {
             const WORM_ZONE_CY  = this.currentLevelConfig.wormPitCY  ?? 1100;
             const WORM_ZONE_R   = this.currentLevelConfig.wormZoneR   ?? 300;
 
-            if (!this.sandWorm && !lander.crashed) {
+            if (!this.sandWorm && !lander.crashed && !this.sandWormSpawned) {
                 const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
                 if (distToZone < WORM_ZONE_R) {
                     // Logarithmic risk: very low at the edge, spiking near center
                     const norm = distToZone / WORM_ZONE_R; // 0 = center, 1 = edge
                     const risk = Math.pow(1 - norm, 2.5);   // 0 at edge, 1 at center
                     if (Math.random() < risk * 0.004 * dt) {
+                        this.sandWormSpawned = true;
                         // Emerge from just below the terrain at the worm mound, aimed at lander
                         const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 60;
                         const surfY  = this.getPolygonSurfaceY(spawnX);
