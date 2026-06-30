@@ -3770,37 +3770,7 @@ class CargoGame {
                 ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
                 ctx.restore();
             }
-            } else {
-                // ── Fuel Pump ────────────────────────────────────────────────
-                const pumpX = cx + cw + 12;
-                const pumpY = cy;
-                
-                // Main pump body
-                ctx.fillStyle = '#b45309';
-                ctx.fillRect(pumpX - 10, pumpY - 40, 20, 40);
-                ctx.fillStyle = '#d97706';
-                ctx.fillRect(pumpX - 8, pumpY - 38, 16, 36);
-                
-                // Pump screen (flashing if refueling)
-                const isRefueling = (this.physics.lander && this.physics.lander.landed && this.physics.lander.currentPad === 'refuel' && this.missionBudget > 0 && this.physics.lander.fuel < this.physics.lander.maxFuel);
-                ctx.fillStyle = isRefueling ? ((now % 200 > 100) ? '#10b981' : '#059669') : '#0f172a';
-                ctx.fillRect(pumpX - 5, pumpY - 32, 10, 8);
-                
-                // Fuel Hose
-                ctx.strokeStyle = '#334155';
-                ctx.lineWidth = 4;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(pumpX - 10, pumpY - 20);
-                ctx.quadraticCurveTo(pumpX - 25, pumpY - 10, pumpX - 15, pumpY);
-                ctx.stroke();
-                
-                // Hose Nozzle
-                ctx.fillStyle = '#94a3b8';
-                ctx.beginPath();
-                ctx.arc(pumpX - 15, pumpY, 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
+
 
             // ── Landing pad surface ───────────────────────────────────────
             ctx.fillStyle = '#1e293b';
@@ -3826,17 +3796,17 @@ class CargoGame {
             // Pad glow
             const cGlow = ctx.createLinearGradient(cx, 0, cx + cw, 0);
             cGlow.addColorStop(0, `rgba(56,189,248,0)`);
-            cGlow.addColorStop(0.5, hub.type === 'refuel' ? `rgba(245,158,11,${cpulse * 0.55})` : `rgba(56,189,248,${cpulse * 0.55})`);
+            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse * 0.55})`);
             cGlow.addColorStop(1, `rgba(56,189,248,0)`);
             ctx.strokeStyle = cGlow;
             ctx.lineWidth = 1.5;
             ctx.strokeRect(cx, cy, cw, ch);
 
             // CARGO label on pad
-            ctx.fillStyle = hub.type === 'refuel' ? 'rgba(245,158,11,0.9)' : 'rgba(56,189,248,0.9)';
+            ctx.fillStyle = 'rgba(56,189,248,0.9)';
             ctx.font = 'bold 12px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(hub.type === 'refuel' ? 'REFUEL' : 'CARGO', cpCx, cy + 12);
+            ctx.fillText('CARGO', cpCx, cy + 12);
 
             // Next-cargo countdown bar
             if (_col.loadSeq && _col.loadSeq.phase === 'countdown') {
