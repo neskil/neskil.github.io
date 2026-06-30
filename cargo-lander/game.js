@@ -1240,6 +1240,7 @@ class CargoGame {
 
             this.missionBudget -= 400;
             this.addMessage("Lander Destroyed: -$400", "#ef4444");
+            this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
             
             if (this.missionBudget < 0) {
                 this.failMission("Bankrupt! Budget exceeded.");
@@ -1268,7 +1269,7 @@ class CargoGame {
                         respawnScreen.classList.remove('hidden');
                     }
                 }
-            }, 6000);
+            }, 8500);
         }
 
         // Refill alert sound check
