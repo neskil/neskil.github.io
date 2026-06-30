@@ -104,7 +104,7 @@ class CargoGame {
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = img.width;
                 tempCanvas.height = img.height;
-                const tempCtx = tempCanvas.getContext('2d');
+                const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
                 tempCtx.drawImage(img, 0, 0);
                 
                 try {
@@ -1606,27 +1606,41 @@ class CargoGame {
             this.drawMinimap();
             this.drawQuestPanel();
             
-            // 12. Draw Monster Threat Vignette
+            // 12. Draw Lateral Mist and Fluid Bounds
+            if (this.currentLevelConfig?.outOfBounds) {
+                this.drawFluidBounds();
+                this.drawMistEdges();
+            }
+
+            // 12b. Draw Monster Threat Vignette
             if (this.physics.outOfBoundsTimer && this.physics.outOfBoundsTimer > 0) {
                 const threatLevel = Math.min(1.0, this.physics.outOfBoundsTimer / 120);
                 
-                // Draw pulsing red/black vignette
-                const vignetteGrad = ctx.createRadialGradient(w/2, h/2, h/3, w/2, h/2, h/1.2);
+                // Draw a more subtle pulsing red vignette
+                ctx.save();
+                const vignetteGrad = ctx.createRadialGradient(w/2, h/2, h/4, w/2, h/2, Math.max(w,h));
                 vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                vignetteGrad.addColorStop(0.7, `rgba(60, 0, 0, ${threatLevel * 0.4})`);
-                vignetteGrad.addColorStop(1, `rgba(0, 0, 0, ${threatLevel * 0.9})`);
+                vignetteGrad.addColorStop(0.5, `rgba(150, 0, 0, ${threatLevel * 0.1})`);
+                vignetteGrad.addColorStop(1, `rgba(200, 0, 0, ${threatLevel * 0.6})`);
                 
                 ctx.fillStyle = vignetteGrad;
                 ctx.fillRect(0, 0, w, h);
                 
-                // Warning text at 25% from top
+                // Warning text
                 if (threatLevel > 0.3) {
-                    const pulse = 0.5 + Math.sin(Date.now() / 100) * 0.5;
-                    ctx.fillStyle = `rgba(239, 68, 68, ${threatLevel * pulse})`;
-                    ctx.font = `bold ${Math.round(18 + threatLevel * 8)}px sans-serif`;
+                    const pulse = 0.5 + Math.sin(Date.now() / 150) * 0.5;
+                    ctx.font = `bold ${Math.round(20 + threatLevel * 6)}px sans-serif`;
                     ctx.textAlign = 'center';
+                    
+                    // Add stroke for readability
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${threatLevel})`;
+                    ctx.strokeText("⚠ WARNING: LEAVING SAFE ZONE", w / 2, h * 0.25);
+                    
+                    ctx.fillStyle = `rgba(255, 60, 60, ${threatLevel * 0.5 + pulse * 0.5})`;
                     ctx.fillText("⚠ WARNING: LEAVING SAFE ZONE", w / 2, h * 0.25);
                 }
+                ctx.restore();
             }
         }
 
@@ -2768,6 +2782,124 @@ class CargoGame {
         ctx.lineCap = 'butt';
         ctx.restore();
     }
+
+    drawFluidBounds() {
+        const oob = this.currentLevelConfig?.outOfBounds;
+        if (!oob || oob.type === 'void' || !oob.surfaceY) return;
+        
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const now = Date.now();
+        const zoom = this.camera.zoom;
+        const camX = this.camera.x;
+        const camY = this.camera.y;
+
+        // Screen coordinates for surfaceY
+        const screenSurfaceY = (oob.surfaceY - camY) * zoom + h / 2;
+        if (screenSurfaceY > h) return; // Entire fluid is below the screen
+
+        ctx.save();
+        ctx.fillStyle = oob.color || 'rgba(14, 165, 233, 0.6)';
+
+        if (oob.type === 'sand') {
+            // Draw overlapping static dunes
+            ctx.beginPath();
+            ctx.moveTo(0, screenSurfaceY + 20);
+            for (let px = 0; px <= w; px += 20) {
+                const worldX = (px - w / 2) / zoom + camX;
+                const duneY = Math.sin(worldX * 0.005) * 40 * zoom + Math.sin(worldX * 0.015) * 15 * zoom;
+                ctx.lineTo(px, screenSurfaceY + duneY);
+            }
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.fill();
+        } else {
+            // Draw animated waves (water, goo, acid)
+            ctx.beginPath();
+            ctx.moveTo(0, screenSurfaceY);
+            for (let px = 0; px <= w; px += 20) {
+                const worldX = (px - w / 2) / zoom + camX;
+                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
+                ctx.lineTo(px, screenSurfaceY + waveY);
+            }
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            ctx.fill();
+
+            // Shimmer layer near surface
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(0, screenSurfaceY);
+            for (let px = 0; px <= w; px += 20) {
+                const worldX = (px - w / 2) / zoom + camX;
+                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
+                ctx.lineTo(px, screenSurfaceY + waveY + 5 * zoom);
+            }
+            for (let px = w; px >= 0; px -= 20) {
+                const worldX = (px - w / 2) / zoom + camX;
+                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
+                ctx.lineTo(px, screenSurfaceY + waveY + 15 * zoom);
+            }
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    drawMistEdges() {
+        const oob = this.currentLevelConfig?.outOfBounds;
+        if (!oob || !oob.mistColor) return;
+
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const zoom = this.camera.zoom;
+        const camX = this.camera.x;
+        
+        // World coordinates of screen edges
+        const leftWorld = camX - (w / 2) / zoom;
+        const rightWorld = camX + (w / 2) / zoom;
+        
+        const EDGE_FADE_DIST = 400; // Distance over which mist goes from 0 to full
+        
+        ctx.save();
+        
+        // Left Edge Mist
+        if (leftWorld < 0) {
+            const mistIntensity = Math.min(1.0, (-leftWorld) / EDGE_FADE_DIST);
+            if (mistIntensity > 0) {
+                const mistW = (-leftWorld) * zoom;
+                const grad = ctx.createLinearGradient(0, 0, mistW, 0);
+                // Parse the base mistColor assuming it is rgba or #hex (simplified: we just draw it solid and use gradient alpha)
+                grad.addColorStop(0, oob.mistColor);
+                grad.addColorStop(1, 'transparent');
+                
+                ctx.globalAlpha = mistIntensity;
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, mistW, h);
+            }
+        }
+        
+        // Right Edge Mist
+        const levelW = this.physics.levelWidth;
+        if (rightWorld > levelW) {
+            const mistIntensity = Math.min(1.0, (rightWorld - levelW) / EDGE_FADE_DIST);
+            if (mistIntensity > 0) {
+                const mistW = (rightWorld - levelW) * zoom;
+                const startX = w - mistW;
+                const grad = ctx.createLinearGradient(startX, 0, w, 0);
+                grad.addColorStop(0, 'transparent');
+                grad.addColorStop(1, oob.mistColor);
+                
+                ctx.globalAlpha = mistIntensity;
+                ctx.fillStyle = grad;
+                ctx.fillRect(startX, 0, mistW, h);
+            }
+        }
+
+        ctx.restore();
+    };
 
     drawLake() {
         if (this.currentLevelIndex !== 0) return;

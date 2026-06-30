@@ -512,16 +512,26 @@ class CargoPhysics {
             return;
         }
 
-        // Spawn logic: Trigger if lander sinks below monsterDepth
+        // Spawn logic: Trigger if lander sinks below monsterDepth OR stays out of bounds too long
         const oob = levelConfig.outOfBounds;
-        if (oob && lander.y > oob.monsterDepth) {
+        const tooDeep = oob && lander.y > oob.monsterDepth;
+        if (tooDeep || this.outOfBoundsTimer > 250) { // ~4 seconds out of bounds
             if (!this.monster) {
-                // Spawn monster from the deep below
+                // Spawn monster
+                let spawnX = lander.x;
+                let spawnY = lander.y;
+                if (tooDeep) {
+                    spawnY = oob.monsterDepth + 400;
+                } else {
+                    spawnX = lander.x < -150 ? lander.x - 400 : (lander.x > this.levelWidth + 150 ? lander.x + 400 : lander.x);
+                    spawnY = lander.y > this.levelHeight ? lander.y + 200 : lander.y - 400;
+                }
+                
                 this.monster = {
-                    x: lander.x,
-                    y: oob.monsterDepth + 400,
+                    x: spawnX,
+                    y: spawnY,
                     vx: 0,
-                    vy: -5,
+                    vy: tooDeep ? -5 : 0,
                     size: 130,
                     roarTimer: 60,
                     trail: [],
@@ -853,15 +863,26 @@ class CargoPhysics {
             lander.vy *= Math.pow(oob.drag, dt);
         }
 
-        // Out-of-bounds Lateral push-back
-        const EDGE_MARGIN = 200;
+        // Track how far out we are for the vignette warning (1000px ~ 1 screen)
+        const VIGNETTE_MARGIN = 1000;
+        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -VIGNETTE_MARGIN) {
+            this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
+        } else {
+            this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
+        }
+
+        // Out-of-bounds Lateral push-back (Proportional, starting at 3 screens ~ 3000px)
+        const EDGE_MARGIN = 3000;
         if (lander.x < -EDGE_MARGIN) {
-            lander.vx += 0.05 * dt; // Gentle push right
+            const excess = (-EDGE_MARGIN) - lander.x;
+            lander.vx += (excess * 0.0001) * dt; 
         } else if (lander.x > this.levelWidth + EDGE_MARGIN) {
-            lander.vx -= 0.05 * dt; // Gentle push left
+            const excess = lander.x - (this.levelWidth + EDGE_MARGIN);
+            lander.vx -= (excess * 0.0001) * dt;
         }
         if (lander.y < -EDGE_MARGIN) {
-            lander.vy += 0.05 * dt; // Gentle push down
+            const excess = (-EDGE_MARGIN) - lander.y;
+            lander.vy += (excess * 0.0001) * dt;
         }
     }
 
