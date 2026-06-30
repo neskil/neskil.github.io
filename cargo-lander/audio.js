@@ -8,7 +8,9 @@ class CargoAudioController {
         this.warningInterval = null;
         this.warningOsc = null;
         this.isWarningPlaying = false;
-        this.muted = false;
+        
+        const savedMute = localStorage.getItem('cargoLanderMuted');
+        this.muted = savedMute ? savedMute === 'true' : false;
 
         // Settings & Music
         this.musicVolume = 0.5;
@@ -306,6 +308,7 @@ class CargoAudioController {
 
     toggleMute() {
         this.muted = !this.muted;
+        localStorage.setItem('cargoLanderMuted', this.muted);
         if (this.muted) {
             this.setThruster(0);
             this.stopWarningBeeps();
@@ -325,6 +328,7 @@ class CargoAudioController {
 
     setMuted(muted) {
         this.muted = muted;
+        localStorage.setItem('cargoLanderMuted', this.muted);
         if (muted) {
             this.setThruster(0);
             this.stopWarningBeeps();
