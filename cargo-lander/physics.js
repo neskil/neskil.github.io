@@ -1,7 +1,7 @@
 // CargoLander - Custom 2D Physics Engine
 class CargoPhysics {
     constructor() {
-        this.gravity = 0.15;
+        this.gravity = 0.11;
         this.wind = 0;
         this.terrainPoints = [];
         this.deliveryHubs = [];
@@ -13,8 +13,8 @@ class CargoPhysics {
         this.canvasHeight = 600;
 
         // Engine / Global Defaults
-        this.LANDER_THRUST = 0.10; // slightly slower thrust
-        this.LANDER_DRAG = 0.990;  // slightly more drag
+        this.LANDER_THRUST = 0.08;
+        this.LANDER_DRAG = 0.985;
         this.BOX_SIZE = 22;
         this.BOX_RESTITUTION = 0.2;
         this.BOX_FRICTION = 0.4;
@@ -334,13 +334,12 @@ class CargoPhysics {
         }
         const l = this.lander;
         this.landerBody = Matter.Bodies.rectangle(l.x, l.y, l.width, l.height, {
-            frictionAir: 0,
+            isStatic: true, // Acts as a kinematic body when we manually setPosition/Velocity
             friction: this.LANDER_FRICTION,
             restitution: this.LANDER_RESTITUTION,
             label: 'lander',
             collisionFilter: { category: 0x0008, mask: 0x0002 | 0x0004 },
         });
-        Matter.Body.setInertia(this.landerBody, Infinity);
         Matter.Composite.add(this.matterWorld, this.landerBody);
 
         // One damage event per engine step (deduplicate multiple terrain pairs)
@@ -658,33 +657,21 @@ class CargoPhysics {
         this.applyGravityAndWind(dt);
         this.applyGravityWell(levelConfig, dt);
 
+        // Step custom kinematics for the lander unconditionally
+        this.integrateLander(dt);
+        this.resolveLanderCollisions();
+        this.resolveSegmentCollisions();
+
         if (this.landerBody) {
-            if (this.lander.landed) {
-                // Freeze on pad — prevents Matter position corrections from bouncing it
-                if (!this.landerBody.isStatic) Matter.Body.setStatic(this.landerBody, true);
-            } else {
-                if (this.landerBody.isStatic) Matter.Body.setStatic(this.landerBody, false);
-                Matter.Body.setPosition(this.landerBody, { x: this.lander.x, y: this.lander.y });
-                Matter.Body.setVelocity(this.landerBody, { x: this.lander.vx, y: this.lander.vy });
-                Matter.Body.setAngle(this.landerBody, 0);
-                Matter.Body.setAngularVelocity(this.landerBody, 0);
-            }
+            // Sync kinematic state FORWARD to Matter.js so it can push dynamic boxes.
+            // landerBody is now permanently isStatic=true (kinematic).
+            Matter.Body.setPosition(this.landerBody, { x: this.lander.x, y: this.lander.y });
+            Matter.Body.setVelocity(this.landerBody, { x: this.lander.vx, y: this.lander.vy });
+            Matter.Body.setAngle(this.landerBody, 0);
+            Matter.Body.setAngularVelocity(this.landerBody, 0);
         }
 
         this.updateBoxes(dt); // steps Matter engine → lander + boxes collide with terrain
-
-        if (this.landerBody && !this.lander.landed) {
-            // Only sync back when airborne; landed body is static and doesn't move
-            this.lander.x = this.landerBody.position.x;
-            this.lander.y = this.landerBody.position.y;
-            this.lander.vx = this.landerBody.velocity.x;
-            this.lander.vy = this.landerBody.velocity.y;
-            if (this.lander.y < 10) { this.lander.y = 10; this.lander.vy = 0; }
-        } else if (!this.landerBody) {
-            this.integrateLander(dt);
-            this.resolveLanderCollisions();
-            this.resolveSegmentCollisions();
-        }
 
         this._detectLanding();
         this.updateMonster(dt);
