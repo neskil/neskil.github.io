@@ -3770,6 +3770,7 @@ class CargoGame {
                 ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
                 ctx.restore();
             }
+            }
 
 
             // ── Landing pad surface ───────────────────────────────────────
