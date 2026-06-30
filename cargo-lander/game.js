@@ -1222,7 +1222,7 @@ class CargoGame {
                         respawnScreen.classList.remove('hidden');
                     }
                 }
-            }, 1000);
+            }, 3000);
         }
 
         // Refill alert sound check
@@ -3870,7 +3870,7 @@ class CargoGame {
     drawLander() {
         const ctx = this.ctx;
         const lander = this.physics.lander;
-        if (!lander || lander.crashed) return;
+        if (!lander) return;
 
         if (lander.vehicleType === 'drone') {
             if (lander.ropeLength > 0) {
@@ -4434,6 +4434,25 @@ class CargoGame {
                 ctx.strokeStyle = `rgba(186, 230, 253, ${alpha + 0.2})`;
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
+            }
+        }
+
+        if (lander.crashed) {
+            // Dark charred overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.beginPath();
+            ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.5 + 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Flickering fire
+            const now = Date.now();
+            for (let i = -1; i <= 1; i++) {
+                const fx = i * 12 + Math.sin(now * 0.01 + i) * 4;
+                const fy = 5 - Math.abs(Math.cos(now * 0.02 + i)) * 15;
+                ctx.fillStyle = `rgba(239, 68, 68, ${0.6 + Math.sin(now * 0.015 + i)*0.3})`;
+                ctx.beginPath(); ctx.arc(fx, fy, 8, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = `rgba(251, 191, 36, ${0.6 + Math.cos(now * 0.012 + i)*0.3})`;
+                ctx.beginPath(); ctx.arc(fx, fy+4, 5, 0, Math.PI * 2); ctx.fill();
             }
         }
 
