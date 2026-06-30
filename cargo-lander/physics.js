@@ -552,8 +552,10 @@ class CargoPhysics {
         if (lander.crashed) {
             if (this.monster) {
                 const m = this.monster;
-                m.vy += 0.5 * dt;              // accelerate downward, retreating
-                m.vx *= Math.pow(0.94, dt);
+                // Force an aggressive turn downwards so it doesn't float into the sky
+                if (m.vy < 15) m.vy += 2.0 * dt; 
+                m.vy += 0.8 * dt;              // accelerate downward, retreating quickly
+                m.vx *= Math.pow(0.90, dt);
                 m.x += m.vx * dt;
                 m.y += m.vy * dt;
 
@@ -564,8 +566,11 @@ class CargoPhysics {
                     if (m.trail.length > 800) m.trail.pop();
                 }
 
-                // Fully gone once it has dived well below the level
-                if (m.y > this.levelHeight + 400) this.monster = null;
+                // Despawn once it has dived out of frame
+                const despawnDepth = lander.y + 1200; // Relative to the crash site to ensure it leaves the camera view
+                if (m.y > despawnDepth || m.y > this.levelHeight + 400) {
+                    this.monster = null;
+                }
             }
             return;
         }
