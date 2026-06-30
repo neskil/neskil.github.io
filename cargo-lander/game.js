@@ -1659,7 +1659,7 @@ class CargoGame {
 
         this.drawTerrain();
         this.drawSegments();
-        this.drawLake();
+        this.drawWaterBodies();
         this.drawRadarPingZone();
 
         // 6. Draw Cargo Sourcing Depot Building
