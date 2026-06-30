@@ -1661,6 +1661,7 @@ class CargoGame {
         this.drawTerrain();
         this.drawSegments();
         this.drawWaterBodies();
+        this.drawHazards();
         this.drawRadarPingZone();
 
         // 6. Draw Cargo Sourcing Depot Building
@@ -3253,6 +3254,52 @@ class CargoGame {
                 ctx.fill();
             }
         }
+    }
+
+    drawHazards() {
+        if (!this.physics.hazards || this.physics.hazards.length === 0) return;
+        const ctx = this.ctx;
+        const now = performance.now();
+        
+        ctx.save();
+        for (const haz of this.physics.hazards) {
+            const r = haz.radius || 20;
+            const px = haz.x;
+            const py = haz.y;
+            
+            // Render basic laser/plasma mine hazard
+            ctx.beginPath();
+            ctx.arc(px, py, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(239, 68, 68, ${0.1 + Math.sin(now / 200) * 0.05})`;
+            ctx.fill();
+            
+            ctx.strokeStyle = `rgba(239, 68, 68, ${0.5 + Math.sin(now / 100) * 0.3})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Inner core
+            ctx.beginPath();
+            ctx.arc(px, py, r * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = '#fca5a5';
+            ctx.fill();
+            
+            // Rotating spikes
+            ctx.translate(px, py);
+            ctx.rotate(now / 800);
+            ctx.fillStyle = '#ef4444';
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-4, -r * 0.2);
+                ctx.lineTo(4, -r * 0.2);
+                ctx.lineTo(0, -r - 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.rotate(Math.PI / 2);
+            }
+            ctx.rotate(-now / 800);
+            ctx.translate(-px, -py);
+        }
+        ctx.restore();
     }
 
     drawGroundParallax() {

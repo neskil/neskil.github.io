@@ -121,6 +121,16 @@ canvas{display:block}
     <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
   </div>
 
+  <div class="sec" style="padding: 6px 11px; border-top: 1px solid #30363d">
+    <div class="sec-title">Entities</div>
+    <div class="row" style="flex-wrap: wrap; gap: 4px;">
+      <button class="btn" onclick="toggleCollectionPoint()">Cargo Drop Off</button>
+      <button class="btn" onclick="addDeliveryHub()">+ Hub</button>
+      <button class="btn" onclick="addWaterBody()">+ Water Pond</button>
+      <button class="btn" onclick="addHazard()">+ Hazard</button>
+    </div>
+  </div>
+
   <div id="toolbar">
     <span style="font-size:10px;color:#8b949e">Mode:</span>
     <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
@@ -279,6 +289,8 @@ function applyConfig(cfg) {
   S.hubs      = cfg.deliveryHubs || [];
   S.gravWell  = cfg.gravityWell  || null;
   S.oob       = cfg.outOfBounds  || null;
+  S.hazards   = cfg.hazards      || [];
+  S.waterBodies = cfg.waterBodies || [];
   S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
   S.startX    = cfg.startX    || 0;
   S.collectionX = cfg.collectionX != null ? cfg.collectionX : null;
@@ -297,7 +309,7 @@ function applyConfig(cfg) {
 }
 
 function resetState() {
-  S.polygons=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null;
+  S.polygons=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null; S.hazards=[]; S.waterBodies=[];
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.collectionX=null;
   S.padScale=1; S.levelName=''; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -346,12 +358,14 @@ function draw() {
   const W=canvas.width, H=canvas.height;
   drawSky(W,H);
   drawOOB(W,H);
+  drawWaterBodies();
   drawGrid(W,H);
   drawSpawnMarkers();
   drawHubs();
   drawGravWell();
   drawSegments();
   drawPolygons();
+  drawHazards();
   drawEdgePreview();
 }
 
@@ -424,6 +438,65 @@ function drawOOB(W,H) {
       ctx.restore();
     }
   }
+}
+
+function drawWaterBodies() {
+  if (!S.waterBodies || S.waterBodies.length === 0) return;
+  ctx.save();
+  for (const body of S.waterBodies) {
+    const lx = body.x;
+    const lw = body.width;
+    
+    const {sx: xs, sy: ys} = w2s(lx, 0);
+    const {sx: xe} = w2s(lx + lw, 0);
+    
+    // Find terrain surface for left and right
+    const gyLeft = groundYAt(lx) || 0;
+    const gyRight = groundYAt(lx + lw) || 0;
+    const gy = Math.max(gyLeft, gyRight);
+    const {sy: surfaceSY} = w2s(lx, gy);
+    
+    const screenW = xe - xs;
+    const screenH = 48 * S.view.scale; // Visual depth representation
+    
+    // Draw simplified water pool body
+    ctx.fillStyle = 'rgba(14, 45, 90, 0.6)';
+    ctx.fillRect(xs, surfaceSY, screenW, screenH);
+    
+    // Outline and label
+    ctx.strokeStyle = '#0ea5e9';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(xs, surfaceSY, screenW, screenH);
+    ctx.fillStyle = '#0ea5e9';
+    ctx.font = '10px monospace';
+    ctx.fillText(`Water: x=${lx} w=${lw}`, xs + 4, surfaceSY + 12);
+  }
+  ctx.restore();
+}
+
+function drawHazards() {
+  if (!S.hazards || S.hazards.length === 0) return;
+  ctx.save();
+  for (const haz of S.hazards) {
+    const {sx, sy} = w2s(haz.x, haz.y);
+    const rad = (haz.radius || 20) * S.view.scale;
+    
+    ctx.beginPath();
+    ctx.arc(sx, sy, rad, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+    ctx.fill();
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    ctx.fillStyle = '#fca5a5';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(haz.type || 'Hazard', sx, sy - rad - 4);
+    ctx.font = '9px monospace';
+    ctx.fillText(`r=${haz.radius||20}`, sx, sy - rad + 6);
+  }
+  ctx.restore();
 }
 
 function drawGrid(W,H) {
@@ -858,6 +931,34 @@ function addPolygon() {
   renderSidebar(); draw(); updateOut();
 }
 
+function toggleCollectionPoint() {
+  if (S.collectionX == null) {
+    S.collectionX = snap(S.mouse.wx || 500);
+  } else {
+    S.collectionX = null;
+  }
+  draw(); updateOut();
+}
+
+function addDeliveryHub() {
+  const cx = snap(S.mouse.wx || 500);
+  S.hubs.push({ x: cx, color: "#38bdf8", type: "normal", name: "New Hub" });
+  draw(); updateOut();
+}
+
+function addWaterBody() {
+  const cx = snap(S.mouse.wx || 500);
+  S.waterBodies.push({ x: cx - 100, width: 200, hasBoat: false });
+  draw(); updateOut();
+}
+
+function addHazard() {
+  const cx = snap(S.mouse.wx || 500);
+  const cy = snap(S.mouse.wy || 400);
+  S.hazards.push({ x: cx, y: cy, radius: 40, type: "laser" });
+  draw(); updateOut();
+}
+
 function deletePoly() {
   if (S.selPoly<0||!confirm('Delete this polygon?')) return;
   S.polygons.splice(S.selPoly,1);
@@ -888,9 +989,26 @@ function buildOut() {
         .join(', ');
       lines.push(`    { ${fields} }${i<S.hubs.length-1?',':''}`);
     });
-    lines.push('],');
+    lines.push('  ],');
   }
-  lines.push('terrainPolygons: [');
+  
+  if (S.waterBodies && S.waterBodies.length) {
+    lines.push('  waterBodies: [');
+    S.waterBodies.forEach((wb, i) => {
+      lines.push(`    { x: ${Math.round(wb.x)}, width: ${Math.round(wb.width)}, hasBoat: ${wb.hasBoat} }${i<S.waterBodies.length-1?',':''}`);
+    });
+    lines.push('  ],');
+  }
+
+  if (S.hazards && S.hazards.length) {
+    lines.push('  hazards: [');
+    S.hazards.forEach((h, i) => {
+      lines.push(`    { x: ${Math.round(h.x)}, y: ${Math.round(h.y)}, radius: ${Math.round(h.radius||20)}, type: "${h.type}" }${i<S.hazards.length-1?',':''}`);
+    });
+    lines.push('  ],');
+  }
+
+  lines.push('  terrainPolygons: [');
   S.polygons.forEach((poly, pi) => {
     if (poly.comment) lines.push(`    // ${poly.comment}`);
     lines.push('    [');
@@ -958,6 +1076,28 @@ function hitMarker(sx, sy) {
       if (sx >= cx-padHalfWpx-8 && sx <= cx+padHalfWpx+8 && sy > 3 && sy < 38) return {hub:i};
     }
   }
+
+  // Hazards
+  if (S.hazards) {
+    for (let i=0; i<S.hazards.length; i++) {
+      const h = S.hazards[i];
+      const {sx:hx, sy:hy} = w2s(h.x, h.y);
+      if (Math.hypot(sx-hx, sy-hy) < (h.radius||20)*S.view.scale + 10) return {hazard:i};
+    }
+  }
+
+  // Water Bodies (Left edge)
+  if (S.waterBodies) {
+    for (let i=0; i<S.waterBodies.length; i++) {
+      const wb = S.waterBodies[i];
+      const {sx:wsx} = w2s(wb.x, 0);
+      const gy = groundYAt(wb.x) || 0;
+      const {sy:wsy} = w2s(wb.x, gy);
+      // Grab area near the left edge text
+      if (Math.abs(sx-wsx) < 20 && Math.abs(sy-wsy) < 30) return {water:i};
+    }
+  }
+
   return null;
 }
 
@@ -1012,9 +1152,15 @@ canvas.addEventListener('mousemove', e => {
   if (S.dragMarker) {
     const s=e.shiftKey?S.snap*5:S.snap;
     const snappedX=Math.round(wx/s)*s;
+    const snappedY=Math.round(wy/s)*s;
     if (S.dragMarker==='hq') S.startX=snappedX;
     else if (S.dragMarker==='depot') S.collectionX=snappedX;
     else if (S.dragMarker.hub!=null) S.hubs[S.dragMarker.hub].x=snappedX;
+    else if (S.dragMarker.hazard!=null) {
+      S.hazards[S.dragMarker.hazard].x=snappedX;
+      S.hazards[S.dragMarker.hazard].y=snappedY;
+    }
+    else if (S.dragMarker.water!=null) S.waterBodies[S.dragMarker.water].x=snappedX;
     draw(); updateOut(); return;
   }
 
