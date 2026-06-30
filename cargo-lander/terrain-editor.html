@@ -192,6 +192,10 @@ const S = {
   mouse: { wx:0, wy:0 },
 };
 
+// ── Transform ─────────────────────────────────────────────────────────────────
+const w2s = (wx,wy) => ({ sx: wx*S.view.scale + S.view.x, sy: wy*S.view.scale + S.view.y });
+const s2w = (sx,sy) => ({ wx: (sx-S.view.x)/S.view.scale, wy: (sy-S.view.y)/S.view.scale });
+
 // ── Resize ────────────────────────────────────────────────────────────────────
 function resize() {
   canvas.width  = wrap.clientWidth;
@@ -322,10 +326,6 @@ function renderLevelCard(cfg) {
     (cfg.gravityWell ? `<br>well @ (${cfg.gravityWell.x},${cfg.gravityWell.y}) r=${cfg.gravityWell.radius}` : '') +
     `</div>`;
 }
-
-// ── Transform ─────────────────────────────────────────────────────────────────
-const w2s = (wx,wy) => ({ sx: wx*S.view.scale + S.view.x, sy: wy*S.view.scale + S.view.y });
-const s2w = (sx,sy) => ({ wx: (sx-S.view.x)/S.view.scale, wy: (sy-S.view.y)/S.view.scale });
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function draw() {
