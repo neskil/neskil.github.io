@@ -3037,25 +3037,10 @@ class CargoGame {
         ctx.restore();
     };
 
-    drawLake() {
-        if (this.currentLevelIndex !== 0) return;
+    drawWaterBodies() {
+        const waterBodies = levels[this.currentLevelIndex]?.waterBodies;
+        if (!waterBodies || waterBodies.length === 0) return;
         if (!(this.physics.levelHeight > 0)) return;
-        const ctx = this.ctx;
-        const lx = 480, lw = 240;
-        
-        // Find terrain height at the banks to set the water surface
-        const yLeft = this.physics.getPolygonSurfaceY(lx);
-        const yRight = this.physics.getPolygonSurfaceY(lx + lw);
-        const ly = Math.max(yLeft, yRight); // Water level is aligned with the lower bank
-        const ld = 48; // Maximum depth of the carved basin
-        const now = Date.now();
-
-        // Build a path: top = water surface, sides vertical, bottom follows terrain
-        const terrainBottom = [];
-        for (let sx = lx; sx <= lx + lw; sx += 8) {
-            terrainBottom.push({ x: sx, y: this.physics.getPolygonSurfaceY(sx) });
-        }
-
         ctx.save();
 
         // Water body — filled with depth gradient, clipped to terrain-following shape
