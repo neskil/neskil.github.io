@@ -1834,13 +1834,17 @@ class CargoGame {
         const isMobile = cw < 768;
         const isTiny = cw < 500;
         
-        // Find objective bounds to cap minimap width
+        // Find objective bounds to cap minimap
         let objMinX = Infinity;
         let objMaxX = -Infinity;
+        let objMinY = Infinity;
+        let objMaxY = -Infinity;
         const addObj = (obj) => {
             if (!obj) return;
             if (obj.x < objMinX) objMinX = obj.x;
             if (obj.x + (obj.width || 0) > objMaxX) objMaxX = obj.x + (obj.width || 0);
+            if (obj.y < objMinY) objMinY = obj.y;
+            if (obj.y + (obj.height || 0) > objMaxY) objMaxY = obj.y + (obj.height || 0);
         };
         addObj(this.physics.startDepot);
         addObj(this.physics.collectionPoint);
@@ -1849,23 +1853,19 @@ class CargoGame {
         }
 
         if (objMinX === Infinity) {
-            objMinX = 0;
-            objMaxX = this.physics.levelWidth;
+            objMinX = 0; objMaxX = this.physics.levelWidth;
+            objMinY = 0; objMaxY = this.physics.levelHeight;
         } else {
-            objMinX -= 400; // margin
-            objMaxX += 400;
+            objMinX -= 400; objMaxX += 400; // padding
+            objMinY -= 300; objMaxY += 300;
         }
 
         const mapWorldWidth = Math.max(1000, objMaxX - objMinX);
-        const mapWorldHeight = this.physics.levelHeight; // keep height scale full to show verticality
+        const mapWorldHeight = Math.max(600, objMaxY - objMinY);
 
-        // Minimap: top-right corner, below the HUD bars
-        const mapScale = isTiny ? 0.06 : (isMobile ? 0.10 : 0.16);
-        const targetMaxWidth = isTiny ? 140 : (isMobile ? 220 : 380);
-        
-        // Base width off the capped mapWorldWidth, not the full levelWidth
-        const mmWidth = Math.min(mapWorldWidth * mapScale, targetMaxWidth);
-        const mmHeight = Math.min(mapWorldHeight * mapScale, isTiny ? 100 : (isMobile ? 160 : 260));
+        // Minimap: top-right corner, fixed landscape UI dimensions
+        const mmWidth = isTiny ? 150 : (isMobile ? 240 : 340);
+        const mmHeight = isTiny ? 100 : (isMobile ? 150 : 200);
         const mmX = cw - mmWidth - (isMobile ? 8 : 20);
         const mmY = isMobile ? 65 : 92; // clears the fuel/shield bar row
 
@@ -1902,12 +1902,17 @@ class CargoGame {
         ctx.stroke();
 
         // ── World → minimap transform ──────────────────────────────────────
-        const scaleX = mmWidth  / mapWorldWidth;
-        const scaleY = mmHeight / mapWorldHeight;
+        const scale = Math.min(mmWidth / mapWorldWidth, mmHeight / mapWorldHeight);
 
-        ctx.translate(mmX, mmY);
-        ctx.scale(scaleX, scaleY);
-        ctx.translate(-objMinX, 0);
+        // Center the scaled world in the minimap box
+        const contentW = mapWorldWidth * scale;
+        const contentH = mapWorldHeight * scale;
+        const offsetX = (mmWidth - contentW) / 2;
+        const offsetY = (mmHeight - contentH) / 2;
+
+        ctx.translate(mmX + offsetX, mmY + offsetY);
+        ctx.scale(scale, scale);
+        ctx.translate(-objMinX, -objMinY);
 
         // ── Terrain silhouette ─────────────────────────────────────────────
         if (this.physics.terrainPolygons && this.physics.terrainPolygons.length > 0) {
@@ -1926,8 +1931,8 @@ class CargoGame {
 
         // ── Pads / hubs ────────────────────────────────────────────────────
         // Min size in world units so they're visible on the minimap
-        const minW = 4 / scaleX;
-        const minH = 4 / scaleY;
+        const minW = 4 / scale;
+        const minH = 4 / scale;
 
         if (this.physics.startDepot) {
             const d = this.physics.startDepot;
@@ -1939,24 +1944,28 @@ class CargoGame {
             ctx.fillStyle = '#fbbf24';
             ctx.fillRect(cp.x, cp.y - minH, Math.max(cp.width, minW), minH * 2);
         }
-        for (const hub of this.physics.deliveryHubs) {
-            ctx.fillStyle = hub.color || '#38bdf8';
-            ctx.fillRect(hub.x, hub.y - minH, Math.max(hub.width, minW), minH * 2);
+        if (this.physics.deliveryHubs) {
+            for (const hub of this.physics.deliveryHubs) {
+                ctx.fillStyle = hub.color || '#38bdf8';
+                ctx.fillRect(hub.x, hub.y - minH, Math.max(hub.width, minW), minH * 2);
+            }
         }
 
         // ── Cargo boxes ────────────────────────────────────────────────────
-        const boxR = 6 / Math.max(scaleX, scaleY); // world-space radius
-        for (const box of this.physics.boxes) {
-            ctx.fillStyle = box.color || '#fff';
-            ctx.beginPath();
-            ctx.arc(box.x, box.y, boxR, 0, Math.PI * 2);
-            ctx.fill();
+        const boxR = 6 / scale; // world-space radius
+        if (this.physics.boxes) {
+            for (const box of this.physics.boxes) {
+                ctx.fillStyle = box.color || '#fff';
+                ctx.beginPath();
+                ctx.arc(box.x, box.y, boxR, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         // ── Monster blip ───────────────────────────────────────────────────
         if (this.physics.monster) {
             const m = this.physics.monster;
-            const mR = 22 / Math.max(scaleX, scaleY);
+            const mR = 22 / scale;
             ctx.fillStyle = `rgba(239,68,68,${0.6 + Math.sin(Date.now() / 80) * 0.4})`;
             ctx.beginPath();
             ctx.arc(m.x, m.y, mR, 0, Math.PI * 2);
@@ -1969,17 +1978,17 @@ class CargoGame {
         const viewX = this.camera.x - viewW / 2;
         const viewY = this.camera.y - viewH / 2;
         ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = 1 / Math.max(scaleX, scaleY);
+        ctx.lineWidth = 1 / scale;
         ctx.strokeRect(viewX, viewY, viewW, viewH);
 
         // ── Lander dot ─────────────────────────────────────────────────────
         if (this.physics.lander) {
             const l = this.physics.lander;
-            const dotR = 5 / Math.max(scaleX, scaleY);
+            const dotR = 5 / scale;
             
             // Clamp strictly to the minimap's coordinate bounds
             const clampedX = Math.max(objMinX, Math.min(objMaxX, l.x));
-            const clampedY = Math.max(0, Math.min(mapWorldHeight, l.y));
+            const clampedY = Math.max(objMinY, Math.min(objMaxY, l.y));
 
             ctx.fillStyle = l.crashed ? '#ef4444' : '#10b981';
             ctx.beginPath();

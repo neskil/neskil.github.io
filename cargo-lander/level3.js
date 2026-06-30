@@ -57,10 +57,10 @@ registerLevel({
 
     // ── Palette (Arctic / Ice Blue) ───────────────────────────────────────────
     palette: {
-        skyTop:      '#020810',
-        skyMid:      '#061828',
-        skyBot:      '#0a1e2e',
-        terrainFill: '#08121c',
+        skyTop:      '#030712',
+        skyMid:      '#0b1b36',
+        skyBot:      '#132b4b',
+        terrainFill: '#02050a',
         rockEdge:    '#7dd3fc',
         rockGlow:    'rgba(125,211,252,',
         fog:         'rgba(125,211,252,0.06)',
