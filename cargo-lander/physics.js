@@ -166,7 +166,17 @@ class CargoPhysics {
             }
         }
 
-        for (const poly of this.terrainPolygons) {
+        for (const rawPoly of this.terrainPolygons) {
+            let area = 0;
+            for (let i = 0; i < rawPoly.length; i++) {
+                const p1 = rawPoly[i];
+                const p2 = rawPoly[(i + 1) % rawPoly.length];
+                area += (p2.x - p1.x) * (p2.y + p1.y);
+            }
+            
+            // If area > 0, it's counter-clockwise. Reverse it to ensure normals point inwards!
+            const poly = area > 0 ? [...rawPoly].reverse() : rawPoly;
+            
             const THICKNESS = 40;
             for (let i = 0; i < poly.length; i++) {
                 const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
