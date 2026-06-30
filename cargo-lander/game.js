@@ -175,6 +175,18 @@ class CargoGame {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         
+        this.uiElements = {
+            mobileControls: document.getElementById('mobile-controls'),
+            healthFill: document.getElementById('health-fill'),
+            hudCargo: document.getElementById('hud-cargo'),
+            hudBudget: document.getElementById('hud-budget'),
+            hudTime: document.getElementById('hud-time'),
+            btnExtract: document.getElementById('btn-extract'),
+            fuelFill: document.getElementById('fuel-fill'),
+            devPanel: document.getElementById('dev-panel'),
+            devReadout: document.getElementById('dev-readout')
+        };
+        
         this.resizeCanvas();
         this.generateStars();
         this.setupEventListeners();
@@ -726,8 +738,9 @@ class CargoGame {
     }
 
     _updateDevReadout(dt) {
-        const el = document.getElementById('dev-readout');
-        if (!el || el.closest('#dev-panel').style.display === 'none') return;
+        const el = this.uiElements?.devReadout || document.getElementById('dev-readout');
+        const panel = this.uiElements?.devPanel || el?.closest('#dev-panel');
+        if (!el || (panel && panel.style.display === 'none')) return;
         const l = this.physics?.lander;
         if (!l) { el.textContent = 'No lander'; return; }
         const spd = Math.sqrt(l.vx * l.vx + l.vy * l.vy);
@@ -864,7 +877,7 @@ class CargoGame {
 
         // Set Fuel Gauge
         const fuelPercent = Math.max(0, (lander.fuel / lander.maxFuel) * 100);
-        const fuelFill = document.getElementById('fuel-fill');
+        const fuelFill = this.uiElements?.fuelFill || document.getElementById('fuel-fill');
         if (fuelFill) {
             fuelFill.style.width = `${fuelPercent}%`;
             // Change color if critical
@@ -879,7 +892,7 @@ class CargoGame {
 
         // Set Hull Health Gauge
         const healthPercent = Math.max(0, (lander.integrity / lander.maxIntegrity) * 100);
-        const healthFill = document.getElementById('health-fill');
+        const healthFill = this.uiElements?.healthFill || document.getElementById('health-fill');
         if (healthFill) {
             healthFill.style.width = `${healthPercent}%`;
             if (healthPercent < 30) {
@@ -890,15 +903,15 @@ class CargoGame {
         }
 
         // Update Cargo & Budget stats
-        const cargoEl = document.getElementById('hud-cargo');
+        const cargoEl = this.uiElements?.hudCargo || document.getElementById('hud-cargo');
         if (cargoEl) {
             cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
         }
-        const budgetEl = document.getElementById('hud-budget');
+        const budgetEl = this.uiElements?.hudBudget || document.getElementById('hud-budget');
         if (budgetEl) {
             budgetEl.textContent = `Budget: $${this.missionBudget}`;
         }
-        const timeEl = document.getElementById('hud-time');
+        const timeEl = this.uiElements?.hudTime || document.getElementById('hud-time');
         if (timeEl) {
             if (this.overtimeActive) {
                 const ot = Math.ceil(this.overtimeTimer);
@@ -913,7 +926,7 @@ class CargoGame {
         }
 
         // Toggle extraction button — must be at HQ to activate
-        const btnExtract = document.getElementById('btn-extract');
+        const btnExtract = this.uiElements?.btnExtract || document.getElementById('btn-extract');
         if (btnExtract) {
             const allDelivered = this.deliveredCount >= level.targetCargo;
             const atHQ = lander && lander.landed && lander.currentPad === 'start';
@@ -961,7 +974,7 @@ class CargoGame {
 
     update(dt) {
         // Toggle mobile controls visibility dynamically
-        const mobileControls = document.getElementById('mobile-controls');
+        const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
         if (mobileControls) {
             const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
             mobileControls.style.display = (isTouch && this.gameState === 'playing') ? 'flex' : 'none';
@@ -3808,8 +3821,8 @@ class CargoGame {
         ctx.translate(x, y);
 
         const grad = ctx.createLinearGradient(0, -halfS, 0, halfS);
-        grad.addColorStop(0, fillColor + 'f0');
-        grad.addColorStop(1, fillColor + 'aa');
+        grad.addColorStop(0, fillColor);
+        grad.addColorStop(1, fillColor);
         ctx.fillStyle = grad;
         ctx.fillRect(-halfS, -halfS, S, S);
 
@@ -3823,10 +3836,7 @@ class CargoGame {
         ctx.font = `${Math.round(S * 0.82)}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(255,255,255,0.85)';
-        ctx.shadowBlur = 4;
         ctx.fillText(iconText, 0, 1);
-        ctx.shadowBlur = 0;
 
         ctx.restore();
 
@@ -3951,8 +3961,8 @@ class CargoGame {
             // Foot stays at hh=14 (terrain level when landed). Spread pulls in as compressed.
             // When legs are deployed (near pad), extend them slightly wider/lower for visual readiness
             const legDeploy = (!lander.landed && lander.legsDeployed) ? 1 : 0;
-            const footY0 = 14 + (1 - lc0) * 7 + legDeploy * 4;
-            const legSpread0 = hw0 + 12 - lc0 * 8 + legDeploy * 5;
+            const footY0 = lander.landed ? 14 : (14 + legDeploy * 4);
+            const legSpread0 = hw0 + 12 + legDeploy * 5;
 
             // Draw gold-plated struts with black outlines (matching the sprite style)
             // Left Leg:
@@ -4052,8 +4062,8 @@ class CargoGame {
             ctx.beginPath(); ctx.arc(legSpread0, footY0 - 2, 1.8, 0, Math.PI * 2); ctx.fill();
         }
 
-        // No body movement on landing — legs absorb visually only
-        const bounceY = 0;
+        // Body movement on landing — legs stay planted, ship body compresses down
+        const bounceY = (lander.vehicleType !== 'drone' && lander.landed) ? (lander.legCompress || 0) * 5 : 0;
         ctx.translate(0, bounceY);
 
         const maxIntegrity = lander.maxIntegrity || 100;
@@ -4278,17 +4288,18 @@ class CargoGame {
                 ctx.stroke();
 
                 // ── Main body ─────────────────────────────────────────────────
-                ctx.fillStyle = '#1e3a5f';
-                ctx.strokeStyle = critical ? '#ef4444' : '#334155';
+                const bodyW = hw - 4;
+                ctx.fillStyle = 'rgba(30, 58, 95, 0.4)';
+                ctx.strokeStyle = critical ? '#ef4444' : 'rgba(51, 65, 85, 0.9)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.rect(-hw + 2, -4, (hw - 2) * 2, 20);
+                ctx.rect(-bodyW, -4, bodyW * 2, 20);
                 ctx.fill();
                 ctx.stroke();
 
                 // ── Cockpit dome ──────────────────────────────────────────────
-                const cabW = hw * 0.55;
-                ctx.fillStyle = '#162840';
+                const cabW = bodyW * 0.65;
+                ctx.fillStyle = 'rgba(22, 40, 64, 0.7)';
                 ctx.strokeStyle = critical ? '#ef4444' : '#38bdf8';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -4301,7 +4312,7 @@ class CargoGame {
                 ctx.stroke();
 
                 // Window
-                ctx.fillStyle = 'rgba(147,197,253,0.5)';
+                ctx.fillStyle = 'rgba(147,197,253,0.7)';
                 ctx.beginPath();
                 ctx.moveTo(-cabW * 0.45, -4 - 3);
                 ctx.lineTo(-cabW * 0.3, -4 - 10);

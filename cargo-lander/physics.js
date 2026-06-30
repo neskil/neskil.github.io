@@ -12,7 +12,9 @@ class CargoPhysics {
         this.canvasWidth = 1000;
         this.canvasHeight = 600;
 
-        // Physics constants
+        // Engine / Global Defaults
+        this.LANDER_THRUST = 0.10; // slightly slower thrust
+        this.LANDER_DRAG = 0.990;  // slightly more drag
         this.BOX_SIZE = 22;
         this.BOX_RESTITUTION = 0.2;
         this.BOX_FRICTION = 0.4;
@@ -174,9 +176,9 @@ class CargoPhysics {
         // Bounding walls (keep boxes from falling out of the world)
         const W = this.levelWidth, H = this.levelHeight;
         [
-            Matter.Bodies.rectangle(W / 2, H + 60, W + 400, 120, { isStatic: true, label: 'wall' }),
-            Matter.Bodies.rectangle(-60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
-            Matter.Bodies.rectangle(W + 60, H / 2, 120, H * 2, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(W / 2, H + 60, W + 4000, 120, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(-4000, H / 2, 120, H * 4, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(W + 4000, H / 2, 120, H * 4, { isStatic: true, label: 'wall' }),
         ].forEach(b => {
             b.collisionFilter = { category: 0x0002, mask: 0x0001 | 0x0008 };
             Matter.Composite.add(this.matterWorld, b);
@@ -343,7 +345,7 @@ class CargoPhysics {
 
         // One damage event per engine step (deduplicate multiple terrain pairs)
         Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
-            if (!this.lander || this.lander.crashed || window.DEV_INVULNERABLE) return;
+            if (!this.lander || window.DEV_INVULNERABLE) return;
             let processed = false;
             for (const pair of event.pairs) {
                 if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
@@ -371,7 +373,7 @@ class CargoPhysics {
                             size: 2.5 + Math.random() * 2.5,
                         });
                     }
-                    if (this.lander.integrity <= 0) this.triggerExplosion();
+                    if (this.lander.integrity <= 0) this.lander.crashed = true;
                 }
             }
         });
@@ -511,14 +513,14 @@ class CargoPhysics {
     getTerrainHeight(x) {
         if (x < 0) {
             const anchorY = this.terrainPoints[0].y;
-            // Generate rising procedural mountains to the left
-            return anchorY + Math.sin(x * 0.02) * 50 - (1 - Math.cos(x * 0.005)) * 150;
+            // Drop off into the void (steep cliff downward)
+            return anchorY - (x * 3);
         }
         if (x > this.levelWidth) {
             const anchorY = this.terrainPoints[this.terrainPoints.length - 1].y;
             const dx = x - this.levelWidth;
-            // Generate rising procedural mountains to the right
-            return anchorY + Math.sin(dx * 0.02) * 50 - (1 - Math.cos(dx * 0.005)) * 150;
+            // Drop off into the void (steep cliff downward)
+            return anchorY + (dx * 3);
         }
 
         // O(1) index lookup — points are evenly spaced by terrainStep
@@ -648,15 +650,12 @@ class CargoPhysics {
         // Cap dt so slow render frames don't cause physics to explode
         dt = Math.min(dt, 1.5);
 
-        if (this.lander.crashed) {
-            this.updateMonster(dt);
-            this.updateParticles();
-            return;
+        if (!this.lander.crashed) {
+            this.applyControls(dt, inputState);
+            this._updateLegsDeployed();
         }
-
-        this.applyControls(dt, inputState);
+        
         this.applyGravityAndWind(dt);
-        this._updateLegsDeployed();
         this.applyGravityWell(levelConfig, dt);
 
         if (this.landerBody) {
@@ -719,8 +718,8 @@ class CargoPhysics {
             return;
         }
 
-        // Spawn logic: Trigger if lander strays out of bounds (including flying too high)
-        if (lander.x < -500 || lander.x > this.levelWidth + 500 || lander.y < -600) {
+        // Spawn logic: Trigger if lander strays out of bounds (including flying too high or falling too low)
+        if (lander.x < -500 || lander.x > this.levelWidth + 500 || lander.y < -600 || lander.y > this.levelHeight + 200) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
@@ -1113,7 +1112,6 @@ class CargoPhysics {
 
     resolveLanderCollisions() {
         const lander = this.lander;
-        if (lander.crashed) return;
 
         // Check 4 landing gear/corner points of the lander
         const hw = lander.width / 2;
@@ -1331,6 +1329,7 @@ class CargoPhysics {
             }
             return;
         }
+        if (this.lander && this.lander.crashed) return; // Prevent multiple triggers
         const lander = this.lander;
         lander.crashed = true;
         lander.integrity = 0;
