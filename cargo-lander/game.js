@@ -950,8 +950,13 @@ class CargoGame {
 
     loop(timestamp) {
         if (!this.lastTime) this.lastTime = timestamp;
-        const dt = Math.min((timestamp - this.lastTime) / 16.666, 3); // cap at 3× frame, prevents blowup after tab sleep
+        let deltaTime = timestamp - this.lastTime;
+        // Cap deltaTime to avoid spiral of death on tab sleep
+        if (deltaTime > 250) deltaTime = 250;
         this.lastTime = timestamp;
+
+        this.physicsAccumulator = (this.physicsAccumulator || 0) + deltaTime;
+        const FIXED_TIME_STEP = 16.666; // 60fps target
 
         // FPS tracking (sampled every 600 ms)
         this.fpsFrames = (this.fpsFrames || 0) + 1;
@@ -962,11 +967,13 @@ class CargoGame {
             this.fpsSampleTs = timestamp;
         }
 
-        if (this.gameState === 'playing') {
-            this.update(dt);
+        // Step physics and logic at a fixed 60Hz rate
+        while (this.physicsAccumulator >= FIXED_TIME_STEP) {
+            this.update(1.0); // dt is always 1.0 since we step exactly 1/60th of a second
+            this.physicsAccumulator -= FIXED_TIME_STEP;
         }
 
-        this._updateDevReadout(dt);
+        this._updateDevReadout(1.0);
         this.draw();
         
         requestAnimationFrame((t) => this.loop(t));
