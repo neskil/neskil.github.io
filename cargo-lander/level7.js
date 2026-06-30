@@ -40,7 +40,7 @@ registerLevel({
     targetCargo: 3,
     budget: 4500,
     timeLimit: 360,
-    allowedTypes: ["normal", "blue", "green"],
+    allowedTypes: ["normal", "blue", "green", "tethered"],
     collectionX: 300,        // collection depot on the left side
 
     // ── Environment ───────────────────────────────────────────────────────────
@@ -58,7 +58,8 @@ registerLevel({
     deliveryHubs: [
         { x: 1200, width: 80, color: "#3b82f6", type: "blue", name: "Deep Node" },
         { x: 2100, width: 80, color: "#10b981", type: "green", name: "Valley Base" },
-        { x: 3400, width: 80, color: "#38bdf8", type: "normal", name: "Far East Depot" },
+        { x: 3300, width: 140, color: "#f59e0b", type: "chute", name: "Magma Chute" },
+        { x: 3500, width: 80, color: "#38bdf8", type: "normal", name: "Far East Depot" },
         { x: 1600, width: 60, color: "#f59e0b", type: "refuel", name: "Fuel Pump" }
     ],
 

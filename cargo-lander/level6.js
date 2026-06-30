@@ -28,7 +28,7 @@ registerLevel({
     targetCargo: 1,
     budget: 2000,
     timeLimit: 180,
-    allowedTypes: ["normal", "red"],
+    allowedTypes: ["normal", "red", "tethered"],
     collectionX: 60,        // collection depot on the far-left edge
 
     // ── Environment ───────────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ registerLevel({
 
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
+        { x: 1100, width: 100, color: "#f59e0b", type: "chute", name: "Dune Chute" },
         { x: 1370, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }
     ],
 
