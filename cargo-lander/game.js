@@ -2908,16 +2908,10 @@ class CargoGame {
 
     drawGroundParallax() {
         const ctx = this.ctx;
-        if (this.physics.terrainPoints.length === 0) return;
+        if (!this.physics.terrainPolygons || this.physics.terrainPolygons.length === 0) return;
         const lv = levels[this.currentLevelIndex] || {};
         const pal = lv.palette || { terrainFill: '#0b0f19' };
-        const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
-        const w = this.canvas.width;
-        const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 200) / 20) * 20;
-        const endX = this.camera.x + (w / 2 / zoom) + 200;
-        if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
-        const lh = this.physics.levelHeight;
-
+        
         const hexToRgb = (hex) => {
             const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
             return [r,g,b];
@@ -2930,20 +2924,22 @@ class CargoGame {
         ];
         for (const layer of layers) {
             ctx.fillStyle = `rgba(${Math.floor(tr*layer.darken)},${Math.floor(tg*layer.darken)},${Math.floor(tb*layer.darken)},${layer.alpha})`;
-            ctx.beginPath();
-            ctx.moveTo(startX, lh + 1000);
-            for (let x = startX; x <= endX; x += 24) {
-                ctx.lineTo(x, this.physics.getTerrainHeight(x) + layer.shift);
+            for (const poly of this.physics.terrainPolygons) {
+                if (!poly || poly.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(poly[0].x, poly[0].y + layer.shift);
+                for (let i = 1; i < poly.length; i++) {
+                    ctx.lineTo(poly[i].x, poly[i].y + layer.shift);
+                }
+                ctx.closePath();
+                ctx.fill();
             }
-            ctx.lineTo(endX, lh + 1000);
-            ctx.closePath();
-            ctx.fill();
         }
     }
 
     drawTerrain() {
         const ctx = this.ctx;
-        if (this.physics.terrainPoints.length === 0) return;
+        if (!this.physics.terrainPolygons || this.physics.terrainPolygons.length === 0) return;
 
         // Level colour palette (fallback to classic red if not defined)
         const lv = levels[this.currentLevelIndex] || {};
@@ -2958,35 +2954,38 @@ class CargoGame {
         const endX = this.camera.x + (w / 2 / zoom) + 100;
         if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
 
-        // Main fill
+        // Fill all terrain polygons
         ctx.fillStyle = pal.terrainFill;
-        ctx.beginPath();
-        ctx.moveTo(startX, this.physics.levelHeight + 1000);
-
-        for (let x = startX; x <= endX; x += 20) {
-            ctx.lineTo(x, this.physics.getTerrainHeight(x));
+        for (const poly of this.physics.terrainPolygons) {
+            if (!poly || poly.length < 3) continue;
+            ctx.beginPath();
+            ctx.moveTo(poly[0].x, poly[0].y);
+            for (let i = 1; i < poly.length; i++) {
+                ctx.lineTo(poly[i].x, poly[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
         }
 
-        ctx.lineTo(endX, this.physics.levelHeight + 1000);
-        ctx.closePath();
-        ctx.fill();
-
-        // Single crisp terrain edge — no bloom (reduces flickering + visual noise)
+        // Draw crisp edges
         ctx.strokeStyle = pal.rockEdge + (pal.rockEdge.length === 7 ? 'aa' : '');
         ctx.lineWidth = 1.8;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
-        ctx.beginPath();
-        for (let x = startX; x <= endX; x += 8) {
-            const y = this.physics.getTerrainHeight(x);
-            if (x === startX) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        for (const poly of this.physics.terrainPolygons) {
+            if (!poly || poly.length < 3) continue;
+            ctx.beginPath();
+            ctx.moveTo(poly[0].x, poly[0].y);
+            for (let i = 1; i < poly.length; i++) {
+                ctx.lineTo(poly[i].x, poly[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
         }
-        ctx.stroke();
 
         const padRanges = this.getPadRanges();
         const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
-        const getH = (x) => this.physics.getTerrainHeight(x);
+        const getH = (x) => this.physics.getPolygonSurfaceY(x);
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
         const hexToRgb = (hex) => {
@@ -3084,38 +3083,7 @@ class CargoGame {
             }
         }
 
-        // ── Cave ceiling rendering ───────────────────────────────────────────
-        if (this.physics.hasCeiling()) {
-            const terrainType = (levels[this.currentLevelIndex] || {}).terrainType;
-            const lw = this.physics.levelWidth, lh = this.physics.levelHeight;
-            ctx.fillStyle = pal.terrainFill;
-            ctx.beginPath();
-            ctx.moveTo(startX, -2000);
-            for (let x = startX; x <= endX; x += 20) {
-                const cy = this.physics.getRawTerrainCeiling(x, terrainType, lw, lh);
-                if (cy !== null) ctx.lineTo(x, cy);
-            }
-            ctx.lineTo(endX, -2000);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.strokeStyle = pal.rockEdge + (pal.rockEdge.length === 7 ? 'aa' : '');
-            ctx.lineWidth = 1.8;
-            ctx.beginPath();
-            let ceilStarted = false;
-            for (let x = startX; x <= endX; x += 8) {
-                const cy = this.physics.getRawTerrainCeiling(x, terrainType, lw, lh);
-                if (cy !== null) {
-                    if (!ceilStarted) { ctx.moveTo(x, cy); ceilStarted = true; }
-                    else ctx.lineTo(x, cy);
-                } else if (ceilStarted) {
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ceilStarted = false;
-                }
-            }
-            if (ceilStarted) ctx.stroke();
-        }
+        // Cave ceilings are now drawn as part of terrainPolygons
     }
 
     drawUnderground() {
@@ -3138,7 +3106,7 @@ class CargoGame {
             ];
             for (const rack of racks) {
                 if (rack.x < startX - 30 || rack.x > endX + 30) continue;
-                const ry = this.physics.getTerrainHeight(rack.x) + 60; // 60px underground
+                const ry = this.physics.getPolygonSurfaceY(rack.x) + 60; // 60px underground
                 const blink = Math.sin(t * 3.7 + rack.x * 0.1) > 0.7;
                 // Server rack silhouette
                 ctx.fillStyle = 'rgba(20,10,30,0.9)';
