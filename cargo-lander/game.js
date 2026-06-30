@@ -1637,7 +1637,8 @@ class CargoGame {
         this.drawUnderground();
         this.drawGroundParallax();
         
-        if (this.currentLevelConfig?.outOfBounds) {
+        const levelConfig = levels[this.currentLevelIndex];
+        if (levelConfig?.outOfBounds) {
             this.drawFluidBounds();
         }
 
@@ -1690,7 +1691,8 @@ class CargoGame {
             this.drawQuestPanel();
             
             // 12. Draw Lateral Mist
-            if (this.currentLevelConfig?.outOfBounds) {
+            const levelConfig = levels[this.currentLevelIndex];
+            if (levelConfig?.outOfBounds) {
                 this.drawMistEdges();
             }
 
@@ -2926,7 +2928,8 @@ class CargoGame {
     }
 
     drawFluidBounds() {
-        const oob = this.currentLevelConfig?.outOfBounds;
+        const levelConfig = levels[this.currentLevelIndex];
+        const oob = levelConfig?.outOfBounds;
         if (!oob || oob.type === 'void' || !oob.surfaceY) return;
         
         const ctx = this.ctx;
@@ -2980,7 +2983,8 @@ class CargoGame {
     }
 
     drawMistEdges() {
-        const oob = this.currentLevelConfig?.outOfBounds;
+        const levelConfig = levels[this.currentLevelIndex];
+        const oob = levelConfig?.outOfBounds;
         if (!oob || !oob.mistColor) return;
 
         const ctx = this.ctx;
