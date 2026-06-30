@@ -1716,12 +1716,15 @@ class CargoGame {
         const ctx = this.ctx;
         const cw = this.canvas.width;
 
+        const isMobile = cw < 768;
+        const isTiny = cw < 500;
+        
         // Minimap: top-right corner, below the HUD bars
-        const mapScale = 0.16;
-        const mmWidth = Math.min(this.physics.levelWidth * mapScale, 380);
-        const mmHeight = Math.min(this.physics.levelHeight * mapScale, 260);
-        const mmX = cw - mmWidth - 20;
-        const mmY = 92; // clears the fuel/shield bar row
+        const mapScale = isTiny ? 0.06 : (isMobile ? 0.10 : 0.16);
+        const mmWidth = Math.min(this.physics.levelWidth * mapScale, isTiny ? 140 : (isMobile ? 220 : 380));
+        const mmHeight = Math.min(this.physics.levelHeight * mapScale, isTiny ? 100 : (isMobile ? 160 : 260));
+        const mmX = cw - mmWidth - (isMobile ? 8 : 20);
+        const mmY = isMobile ? 65 : 92; // clears the fuel/shield bar row
 
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
