@@ -25,6 +25,17 @@ registerLevel({
     timeLimit: 240,
     allowedTypes: ["normal", "red"],
 
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'sand',
+        color: '#b45309',
+        mistColor: 'rgba(180, 83, 9, 0.4)',
+        surfaceY: 1700,
+        drag: 0.85,       // Quicksand: heavy drag
+        buoyancy: -0.2,   // Quicksand: strong push up, but hard to move
+        monsterDepth: 1900
+    },
+
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
         { x: 500, color: "#38bdf8", type: "normal", name: "Main Processing" },

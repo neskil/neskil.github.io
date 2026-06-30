@@ -31,6 +31,17 @@ registerLevel({
     allowedTypes: ["normal", "red"],
     collectionX: 60,        // collection depot on the far-left edge
 
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'sand',
+        color: '#78350f',
+        mistColor: 'rgba(120, 53, 15, 0.4)',
+        surfaceY: 1300,
+        drag: 0.8,        // Deep sand dunes
+        buoyancy: -0.15,
+        monsterDepth: 1450
+    },
+
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
         { x: 1370, width: 90, color: "#10b981", type: "normal", name: "Dune Base" }

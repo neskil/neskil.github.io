@@ -32,6 +32,14 @@ registerLevel({
     timeLimit: 200,
     allowedTypes: ["normal"],
 
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'void',     // No liquid bottom, just infinite freezing void
+        mistColor: 'rgba(125, 211, 252, 0.5)',
+        surfaceY: 3000,   // Basically unreachable
+        monsterDepth: 2500
+    },
+
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
         { x: 650, color: "#38bdf8", type: "normal", name: "Peak Station" }
