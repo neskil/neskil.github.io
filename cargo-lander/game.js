@@ -1870,9 +1870,15 @@ class CargoGame {
         const level = levels[this.currentLevelIndex];
         if (!level || !level.quests) return;
 
-        const px = 16, py = 92;
-        const panelW = 260, lineH = 24;
-        const panelH = 16 + 22 + 6 + level.quests.length * lineH + 12;
+        const cw = this.canvas.width;
+        const isMobile = cw < 768;
+        const isTiny = cw < 500;
+
+        const px = isMobile ? 8 : 16;
+        const py = isMobile ? 65 : 92;
+        const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
+        const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
+        const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12;
 
         ctx.save();
 
@@ -1887,30 +1893,30 @@ class CargoGame {
         ctx.stroke();
 
         // Mission label
-        ctx.font = '600 11px Outfit, sans-serif';
+        ctx.font = isTiny ? '600 9px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
         ctx.letterSpacing = '0.12em';
         ctx.fillStyle = 'rgba(56,189,248,0.75)';
         ctx.textAlign = 'left';
-        ctx.fillText('MISSION', px + 12, py + 15);
+        ctx.fillText('MISSION', px + (isTiny ? 8 : 12), py + (isTiny ? 12 : 15));
 
         // Mission name
-        ctx.font = '700 13px Outfit, sans-serif';
+        ctx.font = isTiny ? '700 11px Outfit, sans-serif' : '700 13px Outfit, sans-serif';
         ctx.letterSpacing = '0';
         ctx.fillStyle = 'rgba(248,250,252,0.95)';
-        ctx.fillText(level.missionTitle || level.name, px + 12, py + 33, panelW - 24);
+        ctx.fillText(level.missionTitle || level.name, px + (isTiny ? 8 : 12), py + (isTiny ? 25 : 33), panelW - (isTiny ? 16 : 24));
 
         // Divider
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(px + 10, py + 41);
-        ctx.lineTo(px + panelW - 10, py + 41);
+        ctx.moveTo(px + (isTiny ? 6 : 10), py + (isTiny ? 32 : 41));
+        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), py + (isTiny ? 32 : 41));
         ctx.stroke();
 
         // Quest items
         for (let i = 0; i < level.quests.length; i++) {
             const q = level.quests[i];
-            const qy = py + 41 + 8 + i * lineH + 13;
+            const qy = py + (isTiny ? 32 : 41) + 8 + i * lineH + (isTiny ? 10 : 13);
             const state = this.questState[q.id];
             const isPrimary = q.type === 'primary';
 
@@ -1925,15 +1931,15 @@ class CargoGame {
                 icon = isPrimary ? '◆' : '◇'; iconColor = isPrimary ? '#38bdf8' : '#94a3b8';
             }
 
-            ctx.font = '700 13px monospace';
+            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
             ctx.fillStyle = iconColor;
-            ctx.fillText(icon, px + 12, qy);
+            ctx.fillText(icon, px + (isTiny ? 8 : 12), qy);
 
-            ctx.font = isPrimary ? '600 12px Outfit, sans-serif' : '400 12px Outfit, sans-serif';
+            ctx.font = isPrimary ? (isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif') : (isTiny ? '400 10px Outfit, sans-serif' : '400 12px Outfit, sans-serif');
             ctx.fillStyle = state?.failed ? 'rgba(239,68,68,0.75)' :
                             (state?.completed ? 'rgba(16,185,129,0.9)' :
                             (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
-            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + 28, qy, panelW - 40);
+            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), qy, panelW - (isTiny ? 30 : 40));
         }
 
         ctx.restore();

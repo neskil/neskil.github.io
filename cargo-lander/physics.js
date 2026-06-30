@@ -104,8 +104,9 @@ class CargoPhysics {
             for (let i = 0; i < poly.length; i++) {
                 const p1 = poly[i];
                 const p2 = poly[(i + 1) % poly.length];
-                if ((p1.x <= targetX && p2.x >= targetX) || (p2.x <= targetX && p1.x >= targetX)) {
-                    if (p1.x === p2.x) continue;
+                
+                // Only consider upward-facing floor segments (p1.x <= p2.x) to avoid catching ceilings
+                if (p1.x <= targetX && p2.x > targetX) {
                     const ratio = (targetX - p1.x) / (p2.x - p1.x);
                     const y = p1.y + ratio * (p2.y - p1.y);
                     if (maxSurfaceY === 0 || y < maxSurfaceY) {
@@ -138,8 +139,8 @@ class CargoPhysics {
 
         for (const poly of this.terrainPolygons) {
             const THICKNESS = 40;
-            for (let i = 0; i < poly.length - 1; i++) {
-                const p1 = poly[i], p2 = poly[i+1];
+            for (let i = 0; i < poly.length; i++) {
+                const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
                 const cx = (p1.x + p2.x) / 2;
                 const cy = (p1.y + p2.y) / 2;
                 const dx = p2.x - p1.x, dy = p2.y - p1.y;
