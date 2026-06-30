@@ -20,6 +20,8 @@ registerLevel({
 
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 1.2,
+    startX: -100,
+    collectionX: 0,
     targetCargo: 2,
     budget: 1200,
     timeLimit: 240,

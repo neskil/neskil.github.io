@@ -31,6 +31,7 @@ registerLevel({
     budget: 1500,
     timeLimit: 200,
     allowedTypes: ["normal"],
+    collectionX: 320,
 
     // ── Environment ───────────────────────────────────────────────────────────
     outOfBounds: {

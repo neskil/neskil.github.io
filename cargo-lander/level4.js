@@ -44,6 +44,7 @@ registerLevel({
     budget: 2000,
     timeLimit: 180,
     allowedTypes: ["red", "blue"],
+    collectionX: -100,
 
     // ── Environment ───────────────────────────────────────────────────────────
     outOfBounds: {
@@ -58,8 +59,8 @@ registerLevel({
 
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
-        { x: 750, color: "#ef4444", type: "red",    name: "Sector 4"     },
-        { x: 900, color: "#3b82f6", type: "blue",   name: "Deep Storage" },
+        { x: 525, color: "#ef4444", type: "red",    name: "Sector 4"     },
+        { x: 975, color: "#3b82f6", type: "blue",   name: "Deep Storage" },
     ],
 
     // ── Palette (Volcanic / Orange-Red) ──────────────────────────────────────
