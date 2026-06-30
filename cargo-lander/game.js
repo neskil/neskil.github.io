@@ -631,7 +631,7 @@ class CargoGame {
             // Skip over pad zones
             const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
             if (blocked) continue;
-            const terrainY = this.physics.getTerrainHeight(bx);
+            const terrainY = this.physics.getPolygonSurfaceY(bx);
             const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
             this.buildings.push({
                 type: btype,
@@ -804,7 +804,7 @@ class CargoGame {
         } else {
             // Try to grab cargo
             let closestBox = null;
-            let minDist = 40; // Grab radius
+            let minDist = 65; // Grab radius
 
             for (const box of this.physics.boxes) {
                 const dist = Math.sqrt(Math.pow(box.x - lander.grappleX, 2) + Math.pow(box.y - lander.grappleY, 2));
@@ -1222,7 +1222,7 @@ class CargoGame {
                         respawnScreen.classList.remove('hidden');
                     }
                 }
-            }, 3000);
+            }, 6000);
         }
 
         // Refill alert sound check
@@ -1291,7 +1291,7 @@ class CargoGame {
         // Check if any cargo fell into the abyss
         for (let i = boxes.length - 1; i >= 0; i--) {
             const box = boxes[i];
-            const terrainY = this.physics.getTerrainHeight(box.x);
+            const terrainY = this.physics.getPolygonSurfaceY(box.x);
 
             // If box fell below the terrain height by a buffer, or off screen bottom
             if (box.y > terrainY + 50 || box.y > this.physics.levelHeight) {
@@ -2767,8 +2767,8 @@ class CargoGame {
         const lx = 480, lw = 240;
         
         // Find terrain height at the banks to set the water surface
-        const yLeft = this.physics.getTerrainHeight(lx);
-        const yRight = this.physics.getTerrainHeight(lx + lw);
+        const yLeft = this.physics.getPolygonSurfaceY(lx);
+        const yRight = this.physics.getPolygonSurfaceY(lx + lw);
         const ly = Math.max(yLeft, yRight); // Water level is aligned with the lower bank
         const ld = 48; // Maximum depth of the carved basin
         const now = Date.now();
@@ -2776,7 +2776,7 @@ class CargoGame {
         // Build a path: top = water surface, sides vertical, bottom follows terrain
         const terrainBottom = [];
         for (let sx = lx; sx <= lx + lw; sx += 8) {
-            terrainBottom.push({ x: sx, y: this.physics.getTerrainHeight(sx) });
+            terrainBottom.push({ x: sx, y: this.physics.getPolygonSurfaceY(sx) });
         }
 
         ctx.save();
@@ -3132,8 +3132,8 @@ class CargoGame {
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 6]);
             for (let i = 0; i < racks.length - 1; i++) {
-                const ay = this.physics.getTerrainHeight(racks[i].x) + 50;
-                const by = this.physics.getTerrainHeight(racks[i+1].x) + 50;
+                const ay = this.physics.getPolygonSurfaceY(racks[i].x) + 50;
+                const by = this.physics.getPolygonSurfaceY(racks[i+1].x) + 50;
                 ctx.beginPath();
                 ctx.moveTo(racks[i].x, ay);
                 ctx.lineTo(racks[i+1].x, by);
@@ -3146,7 +3146,7 @@ class CargoGame {
             // L5 Crystal cave: glowing crystal formations underground
             const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
             for (let cx = Math.floor(startX / 40) * 40; cx < endX; cx += 40) {
-                const terrY = this.physics.getTerrainHeight(cx);
+                const terrY = this.physics.getPolygonSurfaceY(cx);
                 const depth = 30 + hash(cx) * 50;
                 const cy = terrY + depth;
                 const ch = 15 + hash(cx + 1) * 25;
@@ -3801,10 +3801,13 @@ class CargoGame {
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-halfS + 0.75, -halfS + 0.75, S - 1.5, S - 1.5);
 
-        ctx.font = `${Math.round(S * 0.82)}px Arial`;
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        ctx.font = `${Math.round(S * 0.75)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(iconText, 0, 1);
+        ctx.fillText(iconText, 0, 1.5);
+        ctx.shadowBlur = 0;
 
         ctx.restore();
 
@@ -4256,45 +4259,45 @@ class CargoGame {
                 ctx.stroke();
 
                 // ── Main body ─────────────────────────────────────────────────
-                const bodyW = hw - 4;
-                ctx.fillStyle = 'rgba(30, 58, 95, 0.4)';
+                const bodyW = hw - 6;
+                ctx.fillStyle = 'rgba(30, 58, 95, 0.1)'; // Highly transparent
                 ctx.strokeStyle = critical ? '#ef4444' : 'rgba(51, 65, 85, 0.9)';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.rect(-bodyW, -4, bodyW * 2, 20);
+                ctx.rect(-bodyW, -4, bodyW * 2, 18);
                 ctx.fill();
                 ctx.stroke();
 
                 // ── Cockpit dome ──────────────────────────────────────────────
-                const cabW = bodyW * 0.65;
-                ctx.fillStyle = 'rgba(22, 40, 64, 0.7)';
+                const cabW = bodyW * 0.7; // Tighter cockpit
+                ctx.fillStyle = 'rgba(22, 40, 64, 0.15)'; // Highly transparent cockpit
                 ctx.strokeStyle = critical ? '#ef4444' : '#38bdf8';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(-cabW, -4);
-                ctx.lineTo(-cabW * 0.75, -4 - 12);
-                ctx.lineTo(cabW * 0.75, -4 - 12);
+                ctx.lineTo(-cabW * 0.7, -4 - 14);
+                ctx.lineTo(cabW * 0.7, -4 - 14);
                 ctx.lineTo(cabW, -4);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Window
-                ctx.fillStyle = 'rgba(147,197,253,0.7)';
+                // Window (moved more to the middle)
+                ctx.fillStyle = 'rgba(147,197,253,0.3)';
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.45, -4 - 3);
-                ctx.lineTo(-cabW * 0.3, -4 - 10);
-                ctx.lineTo(cabW * 0.3, -4 - 10);
-                ctx.lineTo(cabW * 0.45, -4 - 3);
+                ctx.moveTo(-cabW * 0.35, -4 - 4);
+                ctx.lineTo(-cabW * 0.2, -4 - 11);
+                ctx.lineTo(cabW * 0.2, -4 - 11);
+                ctx.lineTo(cabW * 0.35, -4 - 4);
                 ctx.closePath();
                 ctx.fill();
                 // Window glint
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.4, -4 - 4);
-                ctx.lineTo(-cabW * 0.2, -4 - 10);
-                ctx.lineTo(-cabW * 0.05, -4 - 10);
-                ctx.lineTo(-cabW * 0.22, -4 - 4);
+                ctx.moveTo(-cabW * 0.3, -4 - 5);
+                ctx.lineTo(-cabW * 0.15, -4 - 11);
+                ctx.lineTo(-cabW * 0.05, -4 - 11);
+                ctx.lineTo(-cabW * 0.15, -4 - 5);
                 ctx.closePath();
                 ctx.fill();
 
