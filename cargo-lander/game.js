@@ -10,11 +10,11 @@ class CargoGame {
         this.canvas = null;
         this.ctx = null;
         this.physics = new CargoPhysics();
-        
+
         // Game State
         this.gameState = 'menu';
         this.currentLevelIndex = 0;
-        
+
         // Economy & Progression
         this.globalCash = parseInt(localStorage.getItem('cargoLanderCash')) || 1000;
         this.upgrades = JSON.parse(localStorage.getItem('cargoLanderUpgrades')) || {
@@ -49,11 +49,11 @@ class CargoGame {
         this.cargoSpawnCooldown = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
-        
+
         // Dynamic Camera
         this.camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
         this.introTimer = 0;
-        
+
         // Settings
         const savedMute = localStorage.getItem('cargoLanderMuted');
         this.isMuted = savedMute ? savedMute === 'true' : false;
@@ -107,13 +107,13 @@ class CargoGame {
                 tempCanvas.height = img.height;
                 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
                 tempCtx.drawImage(img, 0, 0);
-                
+
                 try {
                     const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
                     const data = imgData.data;
                     const w = tempCanvas.width;
                     const h = tempCanvas.height;
-                    
+
                     // Scan to find the bounding box of non-black pixels
                     let minX = w, maxX = 0, minY = h, maxY = 0;
                     let hasPixels = false;
@@ -121,8 +121,8 @@ class CargoGame {
                         for (let x = 0; x < w; x++) {
                             const idx = (y * w + x) * 4;
                             const r = data[idx];
-                            const g = data[idx+1];
-                            const b = data[idx+2];
+                            const g = data[idx + 1];
+                            const b = data[idx + 2];
                             if (r >= 10 || g >= 10 || b >= 10) {
                                 if (x < minX) minX = x;
                                 if (x > maxX) maxX = x;
@@ -132,28 +132,28 @@ class CargoGame {
                             }
                         }
                     }
-                    
+
                     if (!hasPixels) {
                         minX = 0; maxX = w - 1; minY = 0; maxY = h - 1;
                     }
-                    
+
                     const cropW = maxX - minX + 1;
                     const cropH = maxY - minY + 1;
-                    
+
                     const offscreen = document.createElement('canvas');
                     offscreen.width = cropW;
                     offscreen.height = cropH;
                     const oCtx = offscreen.getContext('2d');
-                    
+
                     // Copy cropped area and perform chroma-keying
                     const cropData = tempCtx.getImageData(minX, minY, cropW, cropH);
                     const cData = cropData.data;
                     for (let i = 0; i < cData.length; i += 4) {
                         const r = cData[i];
-                        const g = cData[i+1];
-                        const b = cData[i+2];
+                        const g = cData[i + 1];
+                        const b = cData[i + 2];
                         if (r < 10 && g < 10 && b < 10) {
-                            cData[i+3] = 0; // Set transparency
+                            cData[i + 3] = 0; // Set transparency
                         }
                     }
                     oCtx.putImageData(cropData, 0, 0);
@@ -162,7 +162,7 @@ class CargoGame {
                     console.warn(`Chroma keying & cropping failed for ${key} (likely CORS on file://). Using raw image.`, e);
                     this.sprites[key] = img;
                 }
-                
+
                 loadedCount++;
             };
             img.onerror = (e) => {
@@ -175,7 +175,7 @@ class CargoGame {
     init(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        
+
         this.uiElements = {
             mobileControls: document.getElementById('mobile-controls'),
             healthFill: document.getElementById('health-fill'),
@@ -187,11 +187,11 @@ class CargoGame {
             devPanel: document.getElementById('dev-panel'),
             devReadout: document.getElementById('dev-readout')
         };
-        
+
         this.resizeCanvas();
         this.generateStars();
         this.setupEventListeners();
-        
+
         // Initialize UI display values
         this.updateHUD();
         this.refreshMenuUI();
@@ -225,7 +225,7 @@ class CargoGame {
         this.bgLayers = [
             { objects: [], parallax: 0.018 }, // Deep — barely moves
             { objects: [], parallax: 0.055 }, // Mid
-            { objects: [], parallax: 0.13  }, // Near
+            { objects: [], parallax: 0.13 }, // Near
         ];
 
         // Deep: many tiny dim stars
@@ -303,17 +303,17 @@ class CargoGame {
             this.mouseX = (screenX / this.camera.zoom) + this.camera.x;
             this.mouseY = (screenY / this.camera.zoom) + this.camera.y;
         });
-        
+
         this.canvas.addEventListener('mousedown', (e) => {
             if (e.button === 0) this.mouseLeft = true;
             if (e.button === 2) this.mouseRight = true;
         });
-        
+
         this.canvas.addEventListener('mouseup', (e) => {
             if (e.button === 0) this.mouseLeft = false;
             if (e.button === 2) this.mouseRight = false;
         });
-        
+
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
         window.addEventListener('keydown', (e) => {
@@ -353,7 +353,7 @@ class CargoGame {
         this.gameState = 'menu';
         document.getElementById('menu-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
-        
+
         const completeScreen = document.getElementById('complete-screen');
         if (completeScreen) completeScreen.style.display = 'none';
         const gameOverScreen = document.getElementById('game-over-screen');
@@ -441,13 +441,13 @@ class CargoGame {
         const score = upgScore * 0.55 + masterScore * 0.45;
 
         let rank, tier;
-        if (score >= 0.90)      { rank = 'Logistics Legend'; tier = 'CLASS S'; }
-        else if (score >= 0.70) { rank = 'Fleet Commander';  tier = 'CLASS A'; }
-        else if (score >= 0.50) { rank = 'Senior Pilot';     tier = 'CLASS B'; }
-        else if (score >= 0.30) { rank = 'Cargo Pilot';      tier = 'CLASS C'; }
-        else if (score >= 0.12) { rank = 'Junior Hauler';    tier = 'CLASS D'; }
-        else if (score >= 0.01) { rank = 'Cadet Hauler';     tier = 'CLASS E'; }
-        else                    { rank = 'Rookie Hauler';    tier = 'CLASS F'; }
+        if (score >= 0.90) { rank = 'Logistics Legend'; tier = 'CLASS S'; }
+        else if (score >= 0.70) { rank = 'Fleet Commander'; tier = 'CLASS A'; }
+        else if (score >= 0.50) { rank = 'Senior Pilot'; tier = 'CLASS B'; }
+        else if (score >= 0.30) { rank = 'Cargo Pilot'; tier = 'CLASS C'; }
+        else if (score >= 0.12) { rank = 'Junior Hauler'; tier = 'CLASS D'; }
+        else if (score >= 0.01) { rank = 'Cadet Hauler'; tier = 'CLASS E'; }
+        else { rank = 'Rookie Hauler'; tier = 'CLASS F'; }
 
         this.setText('pilot-rank', rank);
         this.setText('pilot-tier', tier);
@@ -553,17 +553,17 @@ class CargoGame {
         document.getElementById('shop-cash-display').textContent = this.globalCash;
         const grid = document.getElementById('upgrade-grid');
         grid.innerHTML = '';
-        
+
         upgradeCatalog.forEach(upg => {
             const currentLvl = this.upgrades[upg.id] || 0;
             const cost = upg.basePrice * Math.pow(1.5, currentLvl);
             const isMax = currentLvl >= upg.maxLevel;
             const canAfford = this.globalCash >= cost;
-            
-            const btnHtml = isMax ? 
+
+            const btnHtml = isMax ?
                 `<button class="btn-level" disabled style="opacity: 0.5; border-color: #64748b; cursor: not-allowed; padding: 8px 16px;">Maxed</button>` :
                 `<button class="btn-primary" onclick="game.purchaseUpgrade('${upg.id}', ${cost})" ${!canAfford ? 'disabled style="opacity:0.5; cursor:not-allowed; padding: 8px 16px;"' : 'style="background: #10b981; padding: 8px 16px;"'}>Buy $${Math.floor(cost)}</button>`;
-                
+
             grid.innerHTML += `
                 <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; text-align: left;">
                     <div>
@@ -582,10 +582,10 @@ class CargoGame {
         if (this.globalCash >= cost) {
             this.globalCash -= Math.floor(cost);
             this.upgrades[id] = (this.upgrades[id] || 0) + 1;
-            
+
             localStorage.setItem('cargoLanderCash', this.globalCash);
             localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
-            
+
             this.renderUpgradeShop();
             if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
         }
@@ -597,12 +597,12 @@ class CargoGame {
         this.crashHandled = false;
         const level = levels[idx];
         level.vehicle = vehicleType;
-        
+
         this.missionBudget = level.budget || 1000;
         this.missionTimer = level.timeLimit || 180;
         this.overtimeActive = false;
         this.overtimeTimer = 0;
-        
+
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
         this.deliveredCount = 0;
         this.deliveredTypes = {};
@@ -655,21 +655,21 @@ class CargoGame {
                 phase: Math.random() * Math.PI * 2,
             });
         }
-        
+
         this.gameState = 'playing';
         this.addMessage("Level Started: " + level.name, "#6366f1");
-        
+
         // Setup Cinematic Camera Intro
         const cw = this.canvas.width;
         const ch = this.canvas.height;
         const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95; // Slightly padded
-        
+
         this.camera.zoom = minZoom;
         this.camera.targetZoom = minZoom;
-        this.introTimer = 2.0; 
+        this.introTimer = 2.0;
         this.camera.x = this.physics.levelWidth / 2;
         this.camera.y = this.physics.levelHeight / 2;
-        
+
         // Hide menus, show HUD
         document.getElementById('menu-screen').style.display = 'none';
         const completeScreen = document.getElementById('complete-screen');
@@ -760,12 +760,12 @@ class CargoGame {
         el.textContent =
             `pos   ${l.x.toFixed(1)}, ${l.y.toFixed(1)}\n` +
             `vel   ${l.vx.toFixed(2)}, ${l.vy.toFixed(2)}  spd:${spd.toFixed(2)}\n` +
-            `angle ${(l.angle * 180 / Math.PI).toFixed(1)}°  ω:${(l.angularVelocity||0).toFixed(3)}\n` +
-            `fuel  ${(l.fuel||0).toFixed(0)} / ${l.maxFuel||100}\n` +
-            `hull  ${(l.integrity||0).toFixed(0)} / ${l.maxIntegrity||100}\n` +
-            `landed ${l.landed}  pad:${l.currentPad||'–'}\n` +
-            `legs  deployed:${l.legsDeployed||false}  lc:${(l.legCompress||0).toFixed(2)}\n` +
-            `eng   ${(l.enginePower||0).toFixed(2)}  thrust:${l.thrustMultiplier||1}\n` +
+            `angle ${(l.angle * 180 / Math.PI).toFixed(1)}°  ω:${(l.angularVelocity || 0).toFixed(3)}\n` +
+            `fuel  ${(l.fuel || 0).toFixed(0)} / ${l.maxFuel || 100}\n` +
+            `hull  ${(l.integrity || 0).toFixed(0)} / ${l.maxIntegrity || 100}\n` +
+            `landed ${l.landed}  pad:${l.currentPad || '–'}\n` +
+            `legs  deployed:${l.legsDeployed || false}  lc:${(l.legCompress || 0).toFixed(2)}\n` +
+            `eng   ${(l.enginePower || 0).toFixed(2)}  thrust:${l.thrustMultiplier || 1}\n` +
             `grav  ${this.physics.gravity?.toFixed(3)}  dt:${dt.toFixed(2)}\n` +
             `drag  ${window.DEV_DRAG ?? 0.995}  spool:${window.DEV_SPOOL ?? 0.08}`;
     }
@@ -791,17 +791,17 @@ class CargoGame {
             const reasonEl = document.getElementById('fail-reason');
             if (reasonEl) reasonEl.textContent = reason;
         }
-        
+
         const respawnScreen = document.getElementById('respawn-screen');
         if (respawnScreen) respawnScreen.classList.add('hidden');
     }
 
     respawnLander() {
         this.crashHandled = false;
-        
+
         const respawnScreen = document.getElementById('respawn-screen');
         if (respawnScreen) respawnScreen.classList.add('hidden');
-        
+
         const levelConfig = levels[this.currentLevelIndex];
         this.physics.spawnLander(levelConfig, this.upgrades);
     }
@@ -842,11 +842,11 @@ class CargoGame {
 
     triggerCargoDispense() {
         if (!this.physics.lander) return;
-        
+
         // Drone loading logic (can dispense while hovering near collection point)
         if (this.physics.lander.vehicleType === 'drone') {
             const cp = this.physics.collectionPoint;
-            if (this.physics.lander.landed || (Math.abs(this.physics.lander.x - (cp.x + cp.width/2)) < 60)) {
+            if (this.physics.lander.landed || (Math.abs(this.physics.lander.x - (cp.x + cp.width / 2)) < 60)) {
                 const levelConfig = levels[this.currentLevelIndex];
                 const types = levelConfig.allowedTypes || ['normal'];
                 const t = types[Math.floor(Math.random() * types.length)];
@@ -855,13 +855,13 @@ class CargoGame {
             }
             return;
         }
-        
+
         // Allow dispense when lander is near/on the collection point pad
         const cp = this.physics.collectionPoint;
         const l = this.physics.lander;
         const cpCenterX = cp.x + cp.width / 2;
         const nearCollection = Math.abs(l.x - cpCenterX) < cp.width / 2 + 28
-                            && l.y >= cp.y - 60 && l.y <= cp.y + 12;
+            && l.y >= cp.y - 60 && l.y <= cp.y + 12;
         if (nearCollection) {
             const levelConfig = levels[this.currentLevelIndex];
 
@@ -888,7 +888,7 @@ class CargoGame {
     updateHUD() {
         const lander = this.physics.lander;
         const level = levels[this.currentLevelIndex];
-        
+
         if (!lander) return;
 
         // Set Fuel Gauge
@@ -991,7 +991,7 @@ class CargoGame {
 
         this._updateDevReadout(1.0);
         this.draw();
-        
+
         requestAnimationFrame((t) => this.loop(t));
     }
 
@@ -1099,16 +1099,16 @@ class CargoGame {
                 // Costs $50 per second for 15 units of fuel per second
                 const refuelAmount = (15.0 / 60.0) * dt;
                 const refuelCost = (50.0 / 60.0) * dt;
-                
+
                 if (this.missionBudget >= refuelCost) {
                     lander.fuel = Math.min(lander.maxFuel, lander.fuel + refuelAmount);
                     this.missionBudget -= refuelCost;
-                    
+
                     // Throttle the audio & UI message so it doesn't spam
                     this.refuelTimer = (this.refuelTimer || 0) + dt;
                     if (this.refuelTimer > 30) {
                         this.refuelTimer = 0;
-                        if (Math.random() < 0.3) this.addMessage(`Refueling... -$${Math.floor(refuelCost*30)}`, "#34d399");
+                        if (Math.random() < 0.3) this.addMessage(`Refueling... -$${Math.floor(refuelCost * 30)}`, "#34d399");
                     }
                 } else {
                     this.addMessage("Out of budget! Cannot refuel.", "#ef4444");
@@ -1130,9 +1130,9 @@ class CargoGame {
         if (this.freeCam) {
             // Free camera: WASD/arrows pan, Q/E zoom
             const spd = (500 / this.camera.zoom) * (dt / 60);
-            if (this.keys['ArrowLeft']  || this.keys['ArrowLeft'])  this.camera.x -= spd;
+            if (this.keys['ArrowLeft'] || this.keys['ArrowLeft']) this.camera.x -= spd;
             if (this.keys['ArrowRight']) this.camera.x += spd;
-            if (this.keys['ArrowUp'])   this.camera.y -= spd;
+            if (this.keys['ArrowUp']) this.camera.y -= spd;
             if (this.keys['ArrowDown']) this.camera.y += spd;
             if (this.keys['q']) this.camera.zoom = Math.min(2.5, this.camera.zoom + 0.02 * dt);
             if (this.keys['e']) this.camera.zoom = Math.max(0.15, this.camera.zoom - 0.02 * dt);
@@ -1242,11 +1242,11 @@ class CargoGame {
             this.missionBudget -= 400;
             this.addMessage("Lander Destroyed: -$400", "#ef4444");
             this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
-            
+
             if (this.missionBudget < 0) {
                 this.failMission("Bankrupt! Budget exceeded.");
             }
-            
+
             // Generate explosion particles
             for (let i = 0; i < 50; i++) {
                 this.physics.particles.push({
@@ -1261,7 +1261,7 @@ class CargoGame {
                 });
             }
             if (!this.isMuted && window.CargoAudio) CargoAudio.playCollision(10);
-            
+
             // Show respawn screen after short delay, keep game state playing for physics
             setTimeout(() => {
                 if (this.gameState === 'playing') {
@@ -1270,7 +1270,7 @@ class CargoGame {
                         respawnScreen.classList.remove('hidden');
                     }
                 }
-            }, 8500);
+            }, 4000);
         }
 
         // Refill alert sound check
@@ -1304,7 +1304,7 @@ class CargoGame {
 
             // Search cargo boxes that are lying on the deck (close to the deck coordinates)
             const S = this.physics.BOX_SIZE;
-            
+
             // Let's sweep boxes that are within the horizontal bounds of the hub's landing zone
             for (let i = boxes.length - 1; i >= 0; i--) {
                 const box = boxes[i];
@@ -1331,13 +1331,13 @@ class CargoGame {
                         if (lander && lander.grabbedBoxId === box.id) {
                             lander.grabbedBoxId = null;
                         }
-                        
+
                         if (hub.type === 'chute' || box.type === hub.type || hub.type === 'any') { // Chute is usually generic, wait, 'chute' is hub.type!
-                             // Wait, chute hubs have type='chute'. So any box is valid!
-                             this.processSuccessfulDelivery(box, i, hub);
+                            // Wait, chute hubs have type='chute'. So any box is valid!
+                            this.processSuccessfulDelivery(box, i, hub);
                         } else {
-                             // This won't run because hub.type === 'chute', but I'll leave it for generic logic
-                             this.processSuccessfulDelivery(box, i, hub);
+                            // This won't run because hub.type === 'chute', but I'll leave it for generic logic
+                            this.processSuccessfulDelivery(box, i, hub);
                         }
                     }
                 }
@@ -1354,7 +1354,7 @@ class CargoGame {
                 // Spawn smoke particles
                 this.spawnDeliveryParticles(box.x, terrainY, "#475569");
                 boxes.splice(i, 1);
-                
+
                 // Penalize Mission Budget
                 this.missionBudget -= 100;
                 this.cargoLostCount++;
@@ -1362,7 +1362,7 @@ class CargoGame {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
                 this.addMessage("Cargo Lost! -$100 Budget", "#ef4444");
-                
+
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
                 }
@@ -1423,7 +1423,7 @@ class CargoGame {
                         life: 0.9 + Math.random() * 0.1,
                         decay: 0.025 + Math.random() * 0.02,
                         size: 2 + Math.random() * 4,
-                        color: ['#f97316','#ef4444','#fbbf24','#94a3b8'][Math.floor(Math.random() * 4)],
+                        color: ['#f97316', '#ef4444', '#fbbf24', '#94a3b8'][Math.floor(Math.random() * 4)],
                     });
                 }
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playCollision();
@@ -1443,9 +1443,9 @@ class CargoGame {
     spawnDeliveryParticles(x, y, color) {
         const isSuccess = color !== "#475569";
         const count = isSuccess ? 45 : 15;
-        
+
         for (let i = 0; i < count; i++) {
-            const pColor = isSuccess 
+            const pColor = isSuccess
                 ? (Math.random() > 0.4 ? color : ['#f43f5e', '#10b981', '#38bdf8', '#fbbf24', '#a855f7'][Math.floor(Math.random() * 5)])
                 : color;
 
@@ -1564,9 +1564,9 @@ class CargoGame {
         // 1. Draw Space Background Gradient (level-themed)
         const lvPal = (levels[this.currentLevelIndex] || {}).palette;
         const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0,   lvPal ? lvPal.skyTop : '#090d16');
+        grad.addColorStop(0, lvPal ? lvPal.skyTop : '#090d16');
         grad.addColorStop(0.5, lvPal ? lvPal.skyMid : '#0f172a');
-        grad.addColorStop(1,   lvPal ? lvPal.skyBot : '#1e1b4b');
+        grad.addColorStop(1, lvPal ? lvPal.skyBot : '#1e1b4b');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
 
@@ -1653,7 +1653,7 @@ class CargoGame {
         // 5. Draw Terrain Landscape
         this.drawUnderground();
         this.drawGroundParallax();
-        
+
         const levelConfig = levels[this.currentLevelIndex];
         if (levelConfig?.outOfBounds) {
             this.drawFluidBounds();
@@ -1707,7 +1707,7 @@ class CargoGame {
             this.drawWindIndicator();
             this.drawMinimap();
             this.drawQuestPanel();
-            
+
             // 12. Draw Lateral Mist
             const levelConfig = levels[this.currentLevelIndex];
             if (levelConfig?.outOfBounds) {
@@ -1717,28 +1717,28 @@ class CargoGame {
             // 12b. Draw Monster Threat Vignette
             if (this.physics.outOfBoundsTimer && this.physics.outOfBoundsTimer > 0) {
                 const threatLevel = Math.min(1.0, this.physics.outOfBoundsTimer / 120);
-                
+
                 // Draw a more subtle pulsing red vignette
                 ctx.save();
-                const vignetteGrad = ctx.createRadialGradient(w/2, h/2, h/4, w/2, h/2, Math.max(w,h));
+                const vignetteGrad = ctx.createRadialGradient(w / 2, h / 2, h / 4, w / 2, h / 2, Math.max(w, h));
                 vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
                 vignetteGrad.addColorStop(0.5, `rgba(150, 0, 0, ${threatLevel * 0.1})`);
                 vignetteGrad.addColorStop(1, `rgba(200, 0, 0, ${threatLevel * 0.6})`);
-                
+
                 ctx.fillStyle = vignetteGrad;
                 ctx.fillRect(0, 0, w, h);
-                
+
                 // Warning text
                 if (threatLevel > 0.3) {
                     const pulse = 0.5 + Math.sin(Date.now() / 150) * 0.5;
                     ctx.font = `bold ${Math.round(20 + threatLevel * 6)}px sans-serif`;
                     ctx.textAlign = 'center';
-                    
+
                     // Add stroke for readability
                     ctx.lineWidth = 3;
                     ctx.strokeStyle = `rgba(0, 0, 0, ${threatLevel})`;
                     ctx.strokeText("⚠ WARNING: LEAVING SAFE ZONE", w / 2, h * 0.25);
-                    
+
                     ctx.fillStyle = `rgba(255, 60, 60, ${threatLevel * 0.5 + pulse * 0.5})`;
                     ctx.fillText("⚠ WARNING: LEAVING SAFE ZONE", w / 2, h * 0.25);
                 }
@@ -1765,7 +1765,7 @@ class CargoGame {
 
                 ctx.save();
                 ctx.translate(Math.max(margin, Math.min(w - margin, edgeX)),
-                               Math.max(margin, Math.min(h - margin, edgeY)));
+                    Math.max(margin, Math.min(h - margin, edgeY)));
                 ctx.rotate(angle + Math.PI / 2);
                 ctx.fillStyle = `rgba(239,68,68,${pulse})`;
                 ctx.beginPath();
@@ -1791,7 +1791,7 @@ class CargoGame {
         // 13b. Damage flash overlay — strong red vignette + bold text
         if (this.damageFlash > 0) {
             // Solid edge flash
-            const flashGrad = ctx.createRadialGradient(w/2, h/2, h * 0.15, w/2, h/2, h * 0.9);
+            const flashGrad = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
             flashGrad.addColorStop(0, 'rgba(0,0,0,0)');
             flashGrad.addColorStop(0.5, `rgba(220,10,0,${this.damageFlash * 0.5})`);
             flashGrad.addColorStop(1, `rgba(255,0,0,${this.damageFlash * 0.92})`);
@@ -1834,7 +1834,7 @@ class CargoGame {
 
         const isMobile = cw < 768;
         const isTiny = cw < 500;
-        
+
         // Find objective bounds to cap minimap
         let objMinX = Infinity;
         let objMaxX = -Infinity;
@@ -1986,7 +1986,7 @@ class CargoGame {
         if (this.physics.lander) {
             const l = this.physics.lander;
             const dotR = 5 / scale;
-            
+
             // Clamp strictly to the minimap's coordinate bounds
             const clampedX = Math.max(objMinX, Math.min(objMaxX, l.x));
             const clampedY = Math.max(objMinY, Math.min(objMaxY, l.y));
@@ -2094,8 +2094,8 @@ class CargoGame {
 
             ctx.font = isPrimary ? (isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif') : (isTiny ? '400 10px Outfit, sans-serif' : '400 12px Outfit, sans-serif');
             ctx.fillStyle = state?.failed ? 'rgba(239,68,68,0.75)' :
-                            (state?.completed ? 'rgba(16,185,129,0.9)' :
-                            (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
+                (state?.completed ? 'rgba(16,185,129,0.9)' :
+                    (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
             ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), qy, panelW - (isTiny ? 30 : 40));
         }
 
@@ -2112,7 +2112,7 @@ class CargoGame {
         }
 
         const ctx = this.ctx;
-        
+
         // Draw some glowing nebulas for the menu
         const time = Date.now() * 0.0005;
         const grad1 = ctx.createRadialGradient(this.canvas.width * 0.2, this.canvas.height * 0.3, 0, this.canvas.width * 0.2, this.canvas.height * 0.3, 400);
@@ -2152,7 +2152,7 @@ class CargoGame {
             // Draw simplified monster silhouette
             const t3 = Date.now() / 1000;
             ctx.save();
-            ctx.globalAlpha = Math.min(1, Math.min(mm.t * 2, (1 - (Math.abs(mm.x - this.canvas.width/2) / (this.canvas.width/2 + 100))) * 3 + 0.1));
+            ctx.globalAlpha = Math.min(1, Math.min(mm.t * 2, (1 - (Math.abs(mm.x - this.canvas.width / 2) / (this.canvas.width / 2 + 100))) * 3 + 0.1));
 
             // Body glow
             const mg = ctx.createRadialGradient(mm.x, mm.y, 0, mm.x, mm.y, mm.size);
@@ -2179,7 +2179,7 @@ class CargoGame {
                 const tx = mm.x + Math.sin(ta) * mm.size * 0.7;
                 const ty = mm.y + mm.size * 0.4 + Math.cos(t3 * 2 + ti) * 12;
                 ctx.strokeStyle = `rgba(120,0,0,0.6)`;
-                ctx.lineWidth = 3 + (4-ti)*0.5;
+                ctx.lineWidth = 3 + (4 - ti) * 0.5;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(mm.x, mm.y + mm.size * 0.2);
@@ -2203,7 +2203,7 @@ class CargoGame {
         for (const e of this.menuEntities) {
             e.x += e.vx;
             e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale);
-            
+
             if (e.vx > 0 && e.x > this.canvas.width + 200) {
                 e.x = -200;
                 e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
@@ -2217,13 +2217,13 @@ class CargoGame {
                 e.vx = -(2 + Math.random() * 3);
                 e.scale = 0.6 + Math.random() * 0.8;
             }
-            
+
             ctx.save();
             // Scale and draw
             ctx.translate(e.x, e.y);
             ctx.scale(e.scale, e.scale);
             ctx.translate(-e.x, -e.y);
-            
+
             // Mock lander for the draw method
             const tempLander = this.physics.lander;
             this.physics.lander = {
@@ -2235,9 +2235,9 @@ class CargoGame {
                 deckWidth: 42, deckOffset: 12, basketHeight: 20,
                 magneticDeckActive: false
             };
-            
+
             this.drawLander();
-            
+
             // If advanced, maybe draw some extra glowing bits
             if (e.type === 'advanced') {
                 ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
@@ -2247,7 +2247,7 @@ class CargoGame {
             }
 
             this.physics.lander = tempLander; // Restore
-            
+
             ctx.restore();
         }
     }
@@ -2255,7 +2255,7 @@ class CargoGame {
     drawGravityWell(well) {
         const ctx = this.ctx;
         const time = Date.now() * 0.003;
-        
+
         // Draw circular ripples
         ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
         ctx.lineWidth = 2;
@@ -2302,12 +2302,12 @@ class CargoGame {
         function trailSample(dist) {
             let walked = 0;
             for (let i = 1; i < trail.length; i++) {
-                const dx = trail[i].x - trail[i-1].x;
-                const dy = trail[i].y - trail[i-1].y;
-                const d = Math.sqrt(dx*dx + dy*dy);
+                const dx = trail[i].x - trail[i - 1].x;
+                const dy = trail[i].y - trail[i - 1].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
                 if (walked + d >= dist) {
                     const f = d < 0.001 ? 0 : (dist - walked) / d;
-                    return { x: trail[i-1].x + dx * f, y: trail[i-1].y + dy * f, angle: Math.atan2(dy, dx) };
+                    return { x: trail[i - 1].x + dx * f, y: trail[i - 1].y + dy * f, angle: Math.atan2(dy, dx) };
                 }
                 walked += d;
             }
@@ -2317,8 +2317,8 @@ class CargoGame {
 
         // Bigger segments — ~40% larger than before
         const SEGS = [
-            { d: 0,   r: 50 }, // HEAD
-            { d: 60,  r: 43 },
+            { d: 0, r: 50 }, // HEAD
+            { d: 60, r: 43 },
             { d: 112, r: 38 },
             { d: 156, r: 34 },
             { d: 194, r: 30 },
@@ -2327,7 +2327,7 @@ class CargoGame {
             { d: 285, r: 18 },
             { d: 308, r: 13 },
             { d: 326, r: 10 },
-            { d: 339, r: 7  },
+            { d: 339, r: 7 },
         ];
 
         const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
@@ -2337,7 +2337,7 @@ class CargoGame {
         const hdx = lander ? lander.x - m.x : m.vx;
         const hdy = lander ? lander.y - m.y : m.vy;
         const targetHeadAngle = Math.atan2(hdy, hdx);
-        
+
         // Smoothly interpolate the head angle (shortest path)
         if (m.currentHeadAngle === undefined) {
             m.currentHeadAngle = targetHeadAngle;
@@ -2348,7 +2348,7 @@ class CargoGame {
             // Lerp factor: 0.08 for smooth, natural rotation
             m.currentHeadAngle += diff * 0.08;
         }
-        
+
         const headAngle = m.currentHeadAngle;
         // "Up" from the head's facing direction (perpendicular)
         const upAngle = headAngle - Math.PI / 2;
@@ -2374,14 +2374,14 @@ class CargoGame {
         ctx.lineJoin = 'round';
         // Per-segment deterministic "DNA" so legs keep their character frame-to-frame
         const legDNA = [
-            { sides: [-1,1], count: 1, spread: 0.45, len: 1.6, thick: 3.8 },
-            { sides: [-1,1], count: 2, spread: 0.55, len: 1.3, thick: 3.2 },
-            { sides: [-1],   count: 1, spread: 0.38, len: 2.0, thick: 2.8 },
-            { sides: [-1,1], count: 1, spread: 0.60, len: 1.1, thick: 3.5 },
-            { sides: [1],    count: 2, spread: 0.42, len: 1.8, thick: 2.5 },
-            { sides: [-1,1], count: 1, spread: 0.50, len: 1.4, thick: 3.0 },
-            { sides: [-1,1], count: 1, spread: 0.35, len: 2.2, thick: 2.2 },
-            { sides: [1],    count: 1, spread: 0.48, len: 1.2, thick: 2.8 },
+            { sides: [-1, 1], count: 1, spread: 0.45, len: 1.6, thick: 3.8 },
+            { sides: [-1, 1], count: 2, spread: 0.55, len: 1.3, thick: 3.2 },
+            { sides: [-1], count: 1, spread: 0.38, len: 2.0, thick: 2.8 },
+            { sides: [-1, 1], count: 1, spread: 0.60, len: 1.1, thick: 3.5 },
+            { sides: [1], count: 2, spread: 0.42, len: 1.8, thick: 2.5 },
+            { sides: [-1, 1], count: 1, spread: 0.50, len: 1.4, thick: 3.0 },
+            { sides: [-1, 1], count: 1, spread: 0.35, len: 2.2, thick: 2.2 },
+            { sides: [1], count: 1, spread: 0.48, len: 1.2, thick: 2.8 },
         ];
         for (let i = 1; i <= 8; i++) {
             const seg = positions[i];
@@ -2473,7 +2473,7 @@ class CargoGame {
                     ctx.moveTo(seg.x + Math.cos(ca) * seg.r * 0.25, seg.y + Math.sin(ca) * seg.r * 0.25);
                     ctx.bezierCurveTo(
                         seg.x + Math.cos(ca + 0.5) * seg.r * 0.55, seg.y + Math.sin(ca + 0.5) * seg.r * 0.55,
-                        seg.x + Math.cos(ca + 0.9) * seg.r * 0.7,  seg.y + Math.sin(ca + 0.9) * seg.r * 0.7,
+                        seg.x + Math.cos(ca + 0.9) * seg.r * 0.7, seg.y + Math.sin(ca + 0.9) * seg.r * 0.7,
                         seg.x + Math.cos(ca + 1.2) * seg.r * 0.82, seg.y + Math.sin(ca + 1.2) * seg.r * 0.82
                     );
                     ctx.stroke();
@@ -2613,17 +2613,17 @@ class CargoGame {
 
         const ctx = this.ctx;
         const { cx, cy } = zone;
-        const maxR   = zone.r      ?? 300;
-        const color  = zone.color  ?? '210,100,15';
+        const maxR = zone.r ?? 300;
+        const color = zone.color ?? '210,100,15';
         const period = zone.period ?? 3800;
-        const now    = Date.now();
+        const now = Date.now();
 
         // ── Soft ambient glow — no hard edge ─────────────────────────────────
         const glowAlpha = 0.06 + 0.04 * Math.sin(now * 0.0009);
         const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * 1.1);
-        grad.addColorStop(0,   `rgba(${color}, ${glowAlpha * 2.2})`);
+        grad.addColorStop(0, `rgba(${color}, ${glowAlpha * 2.2})`);
         grad.addColorStop(0.5, `rgba(${color}, ${glowAlpha})`);
-        grad.addColorStop(1,   `rgba(${color}, 0)`);
+        grad.addColorStop(1, `rgba(${color}, 0)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(cx, cy, maxR * 1.1, 0, Math.PI * 2);
@@ -2672,12 +2672,12 @@ class CargoGame {
         function trailSample(dist) {
             let walked = 0;
             for (let i = 1; i < trail.length; i++) {
-                const dx = trail[i].x - trail[i-1].x;
-                const dy = trail[i].y - trail[i-1].y;
-                const d = Math.sqrt(dx*dx + dy*dy);
+                const dx = trail[i].x - trail[i - 1].x;
+                const dy = trail[i].y - trail[i - 1].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
                 if (walked + d >= dist) {
                     const f = d < 0.001 ? 0 : (dist - walked) / d;
-                    return { x: trail[i-1].x + dx * f, y: trail[i-1].y + dy * f, angle: Math.atan2(dy, dx) };
+                    return { x: trail[i - 1].x + dx * f, y: trail[i - 1].y + dy * f, angle: Math.atan2(dy, dx) };
                 }
                 walked += d;
             }
@@ -2687,16 +2687,16 @@ class CargoGame {
 
         // Slightly smaller segments than OOB monster
         const SEGS = [
-            { d: 0,   r: 40 }, // HEAD
-            { d: 50,  r: 36 },
-            { d: 95,  r: 32 },
+            { d: 0, r: 40 }, // HEAD
+            { d: 50, r: 36 },
+            { d: 95, r: 32 },
             { d: 135, r: 28 },
             { d: 170, r: 24 },
             { d: 200, r: 20 },
             { d: 225, r: 16 },
             { d: 245, r: 12 },
-            { d: 260, r: 9  },
-            { d: 275, r: 6  },
+            { d: 260, r: 9 },
+            { d: 275, r: 6 },
         ];
 
         const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
@@ -2706,7 +2706,7 @@ class CargoGame {
         const hdx = lander ? lander.x - m.x : m.vx;
         const hdy = lander ? lander.y - m.y : m.vy;
         const targetHeadAngle = Math.atan2(hdy, hdx);
-        
+
         // Smoothly interpolate the head angle
         if (m.currentHeadAngle === undefined) {
             m.currentHeadAngle = targetHeadAngle;
@@ -2716,7 +2716,7 @@ class CargoGame {
             while (diff > Math.PI) diff -= Math.PI * 2;
             m.currentHeadAngle += diff * 0.15;
         }
-        
+
         const headAngle = m.currentHeadAngle;
         const glowPulse = 0.55 + Math.abs(Math.sin(t * 1.8)) * 0.45;
 
@@ -2742,7 +2742,7 @@ class CargoGame {
             for (const side of [-1, 1]) {
                 const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
                 const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
-                
+
                 const tipX = rootX + Math.cos(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
                 const tipY = rootY + Math.sin(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
 
@@ -2889,15 +2889,15 @@ class CargoGame {
             for (let sx = 0; sx <= w + 4; sx += 4) {
                 // Convert screen X to world X, apply parallax factor
                 const worldX = camX * layer.factor + (sx - w / 2) / zoom;
-                
+
                 const n1 = Math.sin(worldX * layer.freq + layer.seed);
                 const n2 = Math.sin(worldX * layer.freq2 + layer.seed2);
                 const n3 = Math.sin(worldX * layer.freq * 2.3 + layer.seed + 1.1);
                 const t = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
-                
+
                 // Base Y for this layer in world coordinates
                 const levelH = this.physics.levelHeight || 2000;
-                const baseYWorld = levelH * layer.yMin; 
+                const baseYWorld = levelH * layer.yMin;
                 const amplitudeWorld = levelH * (layer.yMax - layer.yMin);
                 const layerYWorld = baseYWorld + t * amplitudeWorld;
 
@@ -2974,7 +2974,7 @@ class CargoGame {
         const levelConfig = levels[this.currentLevelIndex];
         const oob = levelConfig?.outOfBounds;
         if (!oob || oob.type === 'void' || !oob.surfaceY) return;
-        
+
         const ctx = this.ctx;
         const now = Date.now();
         const viewW = this.canvas.width / this.camera.zoom;
@@ -3035,15 +3035,15 @@ class CargoGame {
         const h = this.canvas.height;
         const zoom = this.camera.zoom;
         const camX = this.camera.x;
-        
+
         // World coordinates of screen edges
         const leftWorld = camX - (w / 2) / zoom;
         const rightWorld = camX + (w / 2) / zoom;
-        
+
         const EDGE_FADE_DIST = 400; // Distance over which mist goes from 0 to full
-        
+
         ctx.save();
-        
+
         // Left Edge Mist
         if (leftWorld < 0) {
             const mistIntensity = Math.min(1.0, (-leftWorld) / EDGE_FADE_DIST);
@@ -3052,13 +3052,13 @@ class CargoGame {
                 const grad = ctx.createLinearGradient(0, 0, mistW, 0);
                 grad.addColorStop(0, oob.mistColor);
                 grad.addColorStop(1, 'transparent');
-                
+
                 ctx.globalAlpha = mistIntensity;
                 ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, mistW, h);
             }
         }
-        
+
         // Right Edge Mist
         const levelW = this.physics.levelWidth;
         if (rightWorld > levelW) {
@@ -3069,7 +3069,7 @@ class CargoGame {
                 const grad = ctx.createLinearGradient(startX, 0, w, 0);
                 grad.addColorStop(0, 'transparent');
                 grad.addColorStop(1, oob.mistColor);
-                
+
                 ctx.globalAlpha = mistIntensity;
                 ctx.fillStyle = grad;
                 ctx.fillRect(startX, 0, mistW, h);
@@ -3214,7 +3214,7 @@ class CargoGame {
                     ctx.strokeStyle = 'rgba(56,189,248,0.4)';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height);
-                    
+
                     // Box sinking bubbles
                     if (box.vy > 0.5 && Math.random() < 0.3) {
                         this.physics.particles.push({
@@ -3286,19 +3286,19 @@ class CargoGame {
         if (!this.physics.hazards || this.physics.hazards.length === 0) return;
         const ctx = this.ctx;
         const now = performance.now();
-        
+
         ctx.save();
         for (const haz of this.physics.hazards) {
             const r = haz.radius || 20;
             const px = haz.x;
             const py = haz.y;
-            
+
             // Render basic laser/plasma mine hazard
             ctx.beginPath();
             ctx.arc(px, py, r, 0, Math.PI * 2);
             ctx.fillStyle = `rgba(239, 68, 68, ${0.1 + Math.sin(now / 200) * 0.05})`;
             ctx.fill();
-            
+
             ctx.strokeStyle = `rgba(239, 68, 68, ${0.5 + Math.sin(now / 100) * 0.3})`;
             ctx.lineWidth = 2;
             ctx.stroke();
@@ -3308,7 +3308,7 @@ class CargoGame {
             ctx.arc(px, py, r * 0.3, 0, Math.PI * 2);
             ctx.fillStyle = '#fca5a5';
             ctx.fill();
-            
+
             // Rotating spikes
             ctx.translate(px, py);
             ctx.rotate(now / 800);
@@ -3333,10 +3333,10 @@ class CargoGame {
         if (!this.physics.terrainPolygons || this.physics.terrainPolygons.length === 0) return;
         const lv = levels[this.currentLevelIndex] || {};
         const pal = lv.palette || { terrainFill: '#0b0f19' };
-        
+
         const hexToRgb = (hex) => {
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            return [r,g,b];
+            const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b];
         };
         const [tr, tg, tb] = hexToRgb(pal.terrainFill);
 
@@ -3345,10 +3345,10 @@ class CargoGame {
             { shift: 28, alpha: 0.40, darken: 0.65 },
         ];
         for (const layer of layers) {
-            ctx.fillStyle = `rgba(${Math.floor(tr*layer.darken)},${Math.floor(tg*layer.darken)},${Math.floor(tb*layer.darken)},${layer.alpha})`;
+            ctx.fillStyle = `rgba(${Math.floor(tr * layer.darken)},${Math.floor(tg * layer.darken)},${Math.floor(tb * layer.darken)},${layer.alpha})`;
             for (const poly of this.physics.terrainPolygons) {
                 if (!poly || poly.length < 3) continue;
-                
+
                 let area = 0;
                 for (let i = 0; i < poly.length; i++) {
                     const p1 = poly[i];
@@ -3437,11 +3437,11 @@ class CargoGame {
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
         const hexToRgb = (hex) => {
-            const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-            return [r,g,b];
+            const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b];
         };
         const [tr, tg, tb] = hexToRgb(pal.terrainFill);
-        const shadowColor = `rgba(${Math.floor(tr*0.5)},${Math.floor(tg*0.5)},${Math.floor(tb*0.5)},0.7)`;
+        const shadowColor = `rgba(${Math.floor(tr * 0.5)},${Math.floor(tg * 0.5)},${Math.floor(tb * 0.5)},0.7)`;
 
         ctx.fillStyle = shadowColor;
         ctx.beginPath();
@@ -3581,10 +3581,10 @@ class CargoGame {
             ctx.setLineDash([4, 6]);
             for (let i = 0; i < racks.length - 1; i++) {
                 const ay = this.physics.getPolygonSurfaceY(racks[i].x) + 50;
-                const by = this.physics.getPolygonSurfaceY(racks[i+1].x) + 50;
+                const by = this.physics.getPolygonSurfaceY(racks[i + 1].x) + 50;
                 ctx.beginPath();
                 ctx.moveTo(racks[i].x, ay);
-                ctx.lineTo(racks[i+1].x, by);
+                ctx.lineTo(racks[i + 1].x, by);
                 ctx.stroke();
             }
             ctx.setLineDash([]);
@@ -3820,147 +3820,147 @@ class CargoGame {
                 // ── Overhead crane ────────────────────────────────────────────
                 const craneBaseX = cx + cw + 12;
                 const craneTopY = wbY - 2;
-            const craneArmEnd = cx - 10;
-            const hatchX = wbX + wbW * 0.42;  // where crane picks up from
-            const hatchHalfW = 22;
+                const craneArmEnd = cx - 10;
+                const hatchX = wbX + wbW * 0.42;  // where crane picks up from
+                const hatchHalfW = 22;
 
-            // Roof hatch panels (slide apart when loading sequence active)
-            const _roofOpen = (_col.loadSeq ? _col.loadSeq.roofOpen : 0);
-            const _hatchGap = hatchHalfW * 2 * _roofOpen;
-            // Draw roof as two sections around the gap
-            ctx.fillStyle = '#1e3a5f';
-            if (_hatchGap > 2) {
-                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 4);
-                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 4);
-                // Hatch interior glow
-                const _hg = ctx.createLinearGradient(hatchX - hatchHalfW, wbY, hatchX + hatchHalfW, wbY);
-                _hg.addColorStop(0, 'rgba(56,189,248,0)');
-                _hg.addColorStop(0.5, 'rgba(56,189,248,0.35)');
-                _hg.addColorStop(1, 'rgba(56,189,248,0)');
-                ctx.fillStyle = _hg;
-                ctx.fillRect(hatchX - hatchHalfW, wbY, _hatchGap, 10);
-            } else {
-                ctx.fillRect(wbX, wbY, wbW, 4);
-            }
-            // Blue accent line
-            ctx.fillStyle = '#38bdf8';
-            if (_hatchGap > 2) {
-                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 2);
-                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 2);
-            } else {
-                ctx.fillRect(wbX, wbY, wbW, 2);
-            }
-
-            // Vertical mast
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 7;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
-            ctx.stroke();
-            // Mast highlight stripe
-            ctx.strokeStyle = '#fbbf24';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX - 1, cy); ctx.lineTo(craneBaseX - 1, craneTopY - 20);
-            ctx.stroke();
-            // Horizontal arm
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
-            ctx.stroke();
-            // Support diagonal
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#d97706';
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX - 20, craneTopY - 20);
-            ctx.lineTo(craneBaseX, cy - 20);
-            ctx.stroke();
-            ctx.lineCap = 'butt';
-
-            // Compute trolley and cable from loadSeq
-            const _cableTop = craneTopY - 18;
-            const _intoWarehouse = wbH * 0.38;
-            const _shortLen = 18;
-            const _toDeck = (cy - _cableTop) + 22;
-            let _trolleyX, _cableLen, _showBox = false, _boxX = 0, _boxY = 0;
-
-            if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
-                const _st = _col.loadSeq.t;
-                const _lx = Math.max(craneArmEnd, Math.min(craneBaseX, _col.loadSeq.lx));
-                const _lerp = (a, b, f) => a + (b - a) * Math.max(0, Math.min(1, f));
-
-                if (_st < 0.20) {
-                    _trolleyX = hatchX;
-                    _cableLen = _shortLen;
-                } else if (_st < 0.40) {
-                    _trolleyX = hatchX;
-                    _cableLen = _lerp(_shortLen, _intoWarehouse, (_st - 0.20) / 0.20);
-                    // Box rising inside warehouse toward opening
-                    const _bf = (_st - 0.20) / 0.20;
-                    _showBox = true;
-                    _boxX = hatchX;
-                    _boxY = _lerp(wbY + wbH * 0.5, wbY + 2, _bf);
-                } else if (_st < 0.55) {
-                    _trolleyX = hatchX;
-                    _cableLen = _lerp(_intoWarehouse, _shortLen, (_st - 0.40) / 0.15);
-                    _showBox = true;
-                    _boxX = hatchX;
-                    _boxY = _cableTop + _cableLen + 8;
-                } else if (_st < 0.70) {
-                    _trolleyX = _lerp(hatchX, _lx, (_st - 0.55) / 0.15);
-                    _cableLen = _shortLen;
-                    _showBox = true;
-                    _boxX = _trolleyX;
-                    _boxY = _cableTop + _cableLen + 8;
-                } else if (_st < 0.85) {
-                    _trolleyX = _lx;
-                    _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
-                    _showBox = _st < 0.83;
-                    _boxX = _lx;
-                    _boxY = _cableTop + _cableLen + 8;
+                // Roof hatch panels (slide apart when loading sequence active)
+                const _roofOpen = (_col.loadSeq ? _col.loadSeq.roofOpen : 0);
+                const _hatchGap = hatchHalfW * 2 * _roofOpen;
+                // Draw roof as two sections around the gap
+                ctx.fillStyle = '#1e3a5f';
+                if (_hatchGap > 2) {
+                    ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 4);
+                    ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 4);
+                    // Hatch interior glow
+                    const _hg = ctx.createLinearGradient(hatchX - hatchHalfW, wbY, hatchX + hatchHalfW, wbY);
+                    _hg.addColorStop(0, 'rgba(56,189,248,0)');
+                    _hg.addColorStop(0.5, 'rgba(56,189,248,0.35)');
+                    _hg.addColorStop(1, 'rgba(56,189,248,0)');
+                    ctx.fillStyle = _hg;
+                    ctx.fillRect(hatchX - hatchHalfW, wbY, _hatchGap, 10);
                 } else {
-                    _trolleyX = _lerp(_lx, hatchX, (_st - 0.85) / 0.15);
-                    _cableLen = _lerp(_shortLen, _shortLen * 0.5, (_st - 0.85) / 0.15);
+                    ctx.fillRect(wbX, wbY, wbW, 4);
                 }
-            } else {
-                // Idle animation
-                _trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
-                _cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
-            }
+                // Blue accent line
+                ctx.fillStyle = '#38bdf8';
+                if (_hatchGap > 2) {
+                    ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 2);
+                    ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 2);
+                } else {
+                    ctx.fillRect(wbX, wbY, wbW, 2);
+                }
 
-            // Trolley block
-            ctx.fillStyle = (_col.loadSeq && _col.loadSeq.phase === 'loading') ? '#38bdf8' : '#475569';
-            ctx.fillRect(_trolleyX - 6, craneTopY - 26, 12, 8);
-            ctx.strokeStyle = '#64748b';
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(_trolleyX - 6, craneTopY - 26, 12, 8);
-            // Cable
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.moveTo(_trolleyX, _cableTop); ctx.lineTo(_trolleyX, _cableTop + _cableLen);
-            ctx.stroke();
-            // Hook
-            ctx.strokeStyle = '#cbd5e1';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.arc(_trolleyX, _cableTop + _cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
-            ctx.stroke();
-
-            // Animated phantom box
-            if (_showBox) {
-                ctx.save();
-                ctx.fillStyle = '#f59e0b';
+                // Vertical mast
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 7;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
+                ctx.stroke();
+                // Mast highlight stripe
                 ctx.strokeStyle = '#fbbf24';
-                ctx.lineWidth = 1;
-                ctx.fillRect(_boxX - 9, _boxY - 9, 18, 18);
-                ctx.strokeRect(_boxX - 9, _boxY - 9, 18, 18);
-                ctx.fillStyle = 'rgba(0,0,0,0.25)';
-                ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
-                ctx.restore();
-            }
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(craneBaseX - 1, cy); ctx.lineTo(craneBaseX - 1, craneTopY - 20);
+                ctx.stroke();
+                // Horizontal arm
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
+                ctx.stroke();
+                // Support diagonal
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#d97706';
+                ctx.beginPath();
+                ctx.moveTo(craneBaseX - 20, craneTopY - 20);
+                ctx.lineTo(craneBaseX, cy - 20);
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+
+                // Compute trolley and cable from loadSeq
+                const _cableTop = craneTopY - 18;
+                const _intoWarehouse = wbH * 0.38;
+                const _shortLen = 18;
+                const _toDeck = (cy - _cableTop) + 22;
+                let _trolleyX, _cableLen, _showBox = false, _boxX = 0, _boxY = 0;
+
+                if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
+                    const _st = _col.loadSeq.t;
+                    const _lx = Math.max(craneArmEnd, Math.min(craneBaseX, _col.loadSeq.lx));
+                    const _lerp = (a, b, f) => a + (b - a) * Math.max(0, Math.min(1, f));
+
+                    if (_st < 0.20) {
+                        _trolleyX = hatchX;
+                        _cableLen = _shortLen;
+                    } else if (_st < 0.40) {
+                        _trolleyX = hatchX;
+                        _cableLen = _lerp(_shortLen, _intoWarehouse, (_st - 0.20) / 0.20);
+                        // Box rising inside warehouse toward opening
+                        const _bf = (_st - 0.20) / 0.20;
+                        _showBox = true;
+                        _boxX = hatchX;
+                        _boxY = _lerp(wbY + wbH * 0.5, wbY + 2, _bf);
+                    } else if (_st < 0.55) {
+                        _trolleyX = hatchX;
+                        _cableLen = _lerp(_intoWarehouse, _shortLen, (_st - 0.40) / 0.15);
+                        _showBox = true;
+                        _boxX = hatchX;
+                        _boxY = _cableTop + _cableLen + 8;
+                    } else if (_st < 0.70) {
+                        _trolleyX = _lerp(hatchX, _lx, (_st - 0.55) / 0.15);
+                        _cableLen = _shortLen;
+                        _showBox = true;
+                        _boxX = _trolleyX;
+                        _boxY = _cableTop + _cableLen + 8;
+                    } else if (_st < 0.85) {
+                        _trolleyX = _lx;
+                        _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
+                        _showBox = _st < 0.83;
+                        _boxX = _lx;
+                        _boxY = _cableTop + _cableLen + 8;
+                    } else {
+                        _trolleyX = _lerp(_lx, hatchX, (_st - 0.85) / 0.15);
+                        _cableLen = _lerp(_shortLen, _shortLen * 0.5, (_st - 0.85) / 0.15);
+                    }
+                } else {
+                    // Idle animation
+                    _trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+                    _cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+                }
+
+                // Trolley block
+                ctx.fillStyle = (_col.loadSeq && _col.loadSeq.phase === 'loading') ? '#38bdf8' : '#475569';
+                ctx.fillRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 1.2;
+                ctx.strokeRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+                // Cable
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(_trolleyX, _cableTop); ctx.lineTo(_trolleyX, _cableTop + _cableLen);
+                ctx.stroke();
+                // Hook
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(_trolleyX, _cableTop + _cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
+                ctx.stroke();
+
+                // Animated phantom box
+                if (_showBox) {
+                    ctx.save();
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(_boxX - 9, _boxY - 9, 18, 18);
+                    ctx.strokeRect(_boxX - 9, _boxY - 9, 18, 18);
+                    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                    ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
+                    ctx.restore();
+                }
             }
 
 
@@ -4030,7 +4030,7 @@ class CargoGame {
                 // ── Vacuum Chute Structure ────────────────────────────────
                 const hw = hub.width;
                 const hh = 40; // funnel depth
-                
+
                 // Outer Funnel Base
                 ctx.fillStyle = '#334155';
                 ctx.beginPath();
@@ -4040,7 +4040,7 @@ class CargoGame {
                 ctx.lineTo(hub.x, hub.y + hh);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // Hazard Stripes on Rim
                 ctx.save();
                 ctx.beginPath();
@@ -4123,12 +4123,12 @@ class CargoGame {
             ctx.fillStyle = '#020c18';
             ctx.fillRect(doorX, doorY, doorW, doorH);
             const doorPulse = 0.3 + Math.abs(Math.sin(now * 0.003)) * 0.4;
-            ctx.strokeStyle = `rgba(${hub.color.slice(1,3) ? parseInt(hub.color.slice(1,3),16) : 56},${parseInt(hub.color.slice(3,5)||'bd',16)},${parseInt(hub.color.slice(5,7)||'f8',16)},${doorPulse})`;
+            ctx.strokeStyle = `rgba(${hub.color.slice(1, 3) ? parseInt(hub.color.slice(1, 3), 16) : 56},${parseInt(hub.color.slice(3, 5) || 'bd', 16)},${parseInt(hub.color.slice(5, 7) || 'f8', 16)},${doorPulse})`;
             ctx.lineWidth = 1.2;
             ctx.strokeRect(doorX + 2, doorY + 2, doorW - 4, doorH - 4);
             // Intake glow when matching cargo aboard
             if (hasMatchingCargo) {
-                const ig = ctx.createRadialGradient(hcx, doorY + doorH/2, 0, hcx, doorY + doorH/2, doorW * 0.7);
+                const ig = ctx.createRadialGradient(hcx, doorY + doorH / 2, 0, hcx, doorY + doorH / 2, doorW * 0.7);
                 ig.addColorStop(0, hub.color + '55');
                 ig.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = ig;
@@ -4209,7 +4209,7 @@ class CargoGame {
             // Draw lifting cargo box if retracting
             if (_hubAnim && _hubAnim.timer >= 0.65) {
                 const S = this.physics.BOX_SIZE;
-                this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + S/2 + 2, _hubAnim.boxType);
+                this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + S / 2 + 2, _hubAnim.boxType);
             }
 
             // Glow column beacon
@@ -4294,13 +4294,13 @@ class CargoGame {
         const allowedTypes = this.physics.currentLevelConfig?.allowedTypes;
         const multiType = allowedTypes && allowedTypes.length > 1;
 
-        let fillColor   = '#334155';
+        let fillColor = '#334155';
         let borderColor = '#64748b';
         if (multiType) {
-            if      (type === 'normal') { fillColor = '#0369a1'; borderColor = '#38bdf8'; }
-            else if (type === 'red')    { fillColor = '#991b1b'; borderColor = '#f87171'; }
-            else if (type === 'blue')   { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
-            else if (type === 'green')  { fillColor = '#14532d'; borderColor = '#4ade80'; }
+            if (type === 'normal') { fillColor = '#0369a1'; borderColor = '#38bdf8'; }
+            else if (type === 'red') { fillColor = '#991b1b'; borderColor = '#f87171'; }
+            else if (type === 'blue') { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
+            else if (type === 'green') { fillColor = '#14532d'; borderColor = '#4ade80'; }
         }
 
         const iconText = emoji || (type === 'red' ? '⚠️' : type === 'blue' ? '❄️' : type === 'green' ? '♻️' : '📦');
@@ -4346,9 +4346,9 @@ class CargoGame {
             const fx = (f / 3 - 0.5) * halfS * 1.4 + Math.sin(now * 0.009 + f * 1.7) * halfS * 0.4;
             const fh = halfS * 2.2 * intensity * (0.6 + Math.sin(now * 0.012 + f * 2.3) * 0.4);
             const fg = ctx.createLinearGradient(fx, 0, fx, -fh);
-            fg.addColorStop(0,   `rgba(239,68,68,${intensity * 0.95})`);
+            fg.addColorStop(0, `rgba(239,68,68,${intensity * 0.95})`);
             fg.addColorStop(0.4, `rgba(251,146,60,${intensity * 0.75})`);
-            fg.addColorStop(1,   'rgba(253,224,71,0)');
+            fg.addColorStop(1, 'rgba(253,224,71,0)');
             ctx.fillStyle = fg;
             ctx.beginPath();
             ctx.moveTo(fx - halfS * 0.45, 0);
@@ -4390,27 +4390,27 @@ class CargoGame {
                     const a = links[i], b = links[i + 1];
                     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
                     const dx = b.x - a.x, dy = b.y - a.y;
-                    const len = Math.sqrt(dx*dx + dy*dy) || 1;
-                    const nx = -dy/len * 2.5, ny = dx/len * 2.5; // normal offset
+                    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const nx = -dy / len * 2.5, ny = dx / len * 2.5; // normal offset
 
                     // Oval link shape (two half-arcs)
                     ctx.strokeStyle = linkColorDark;
                     ctx.lineWidth = 2.5;
                     ctx.beginPath();
-                    ctx.ellipse(mx, my, len/2 + 1, 2.5, Math.atan2(dy, dx), 0, Math.PI * 2);
+                    ctx.ellipse(mx, my, len / 2 + 1, 2.5, Math.atan2(dy, dx), 0, Math.PI * 2);
                     ctx.stroke();
 
                     ctx.strokeStyle = linkColor;
                     ctx.lineWidth = 1.5;
                     ctx.beginPath();
-                    ctx.ellipse(mx, my, len/2, 2, Math.atan2(dy, dx), 0, Math.PI * 2);
+                    ctx.ellipse(mx, my, len / 2, 2, Math.atan2(dy, dx), 0, Math.PI * 2);
                     ctx.stroke();
 
                     // Highlight on top half of each link
                     ctx.strokeStyle = 'rgba(255,255,255,0.25)';
                     ctx.lineWidth = 0.8;
                     ctx.beginPath();
-                    ctx.ellipse(mx - nx*0.5, my - ny*0.5, len/2, 1.2, Math.atan2(dy, dx), Math.PI, Math.PI * 2);
+                    ctx.ellipse(mx - nx * 0.5, my - ny * 0.5, len / 2, 1.2, Math.atan2(dy, dx), Math.PI, Math.PI * 2);
                     ctx.stroke();
                 }
 
@@ -4586,7 +4586,7 @@ class CargoGame {
             if (sprite) {
                 // Draw drone sprite body
                 ctx.drawImage(sprite, -26.5, -15.5, 53, 31);
-                
+
                 // Draw spinning blades on top of the sprite's motor pods
                 for (let i = 0; i < 4; i++) {
                     const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
@@ -4624,7 +4624,7 @@ class CargoGame {
                 for (let i = 0; i < 6; i++) {
                     const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
                     i === 0 ? ctx.moveTo(Math.cos(a) * 9, Math.sin(a) * 9)
-                            : ctx.lineTo(Math.cos(a) * 9, Math.sin(a) * 9);
+                        : ctx.lineTo(Math.cos(a) * 9, Math.sin(a) * 9);
                 }
                 ctx.closePath(); ctx.fill(); ctx.stroke();
 
@@ -4692,7 +4692,7 @@ class CargoGame {
                 const ep = lander.enginePower || 1;
                 const fl = (18 + Math.random() * 26) * ep;
                 const fGrad = ctx.createLinearGradient(0, 16, 0, 16 + fl);
-                
+
                 // Color shifts bluer at high power (boost upgrade)
                 if (ep > 1.2) {
                     fGrad.addColorStop(0, 'rgba(125, 211, 252, 0.98)'); // Light blue core
@@ -4702,21 +4702,21 @@ class CargoGame {
                     fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)'); // Orange
                 }
                 fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)'); // Red tail fading out
-                
+
                 ctx.fillStyle = fGrad;
                 const fw = (3.5 + Math.random() * 2.5) * Math.max(0.4, ep);
                 // Left nozzle flame
                 ctx.beginPath();
                 ctx.moveTo(-9 - fw, 16);
-                ctx.bezierCurveTo(-9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9, 16 + fl);
-                ctx.bezierCurveTo((Math.random()-0.5)*4 - 9, 16 + fl * 0.88, -9 + fw * 0.3, 16 + fl * 0.5, -9 + fw, 16);
+                ctx.bezierCurveTo(-9 - fw * 0.3, 16 + fl * 0.5, (Math.random() - 0.5) * 4 - 9, 16 + fl * 0.88, -9, 16 + fl);
+                ctx.bezierCurveTo((Math.random() - 0.5) * 4 - 9, 16 + fl * 0.88, -9 + fw * 0.3, 16 + fl * 0.5, -9 + fw, 16);
                 ctx.closePath();
                 ctx.fill();
                 // Right nozzle flame
                 ctx.beginPath();
                 ctx.moveTo(9 - fw, 16);
-                ctx.bezierCurveTo(9 - fw * 0.3, 16 + fl * 0.5, (Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9, 16 + fl);
-                ctx.bezierCurveTo((Math.random()-0.5)*4 + 9, 16 + fl * 0.88, 9 + fw * 0.3, 16 + fl * 0.5, 9 + fw, 16);
+                ctx.bezierCurveTo(9 - fw * 0.3, 16 + fl * 0.5, (Math.random() - 0.5) * 4 + 9, 16 + fl * 0.88, 9, 16 + fl);
+                ctx.bezierCurveTo((Math.random() - 0.5) * 4 + 9, 16 + fl * 0.88, 9 + fw * 0.3, 16 + fl * 0.5, 9 + fw, 16);
                 ctx.closePath();
                 ctx.fill();
                 // Shared bloom
@@ -4746,11 +4746,11 @@ class CargoGame {
                 ctx.moveTo(flameX, -fw2);
                 ctx.bezierCurveTo(
                     flameX + flameDir * sl * 0.45, -fw2 * 0.3,
-                    flameX + flameDir * sl * 0.82 + (Math.random()-0.5)*4, (Math.random()-0.5)*3,
+                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 3,
                     flameX + flameDir * sl, 0
                 );
                 ctx.bezierCurveTo(
-                    flameX + flameDir * sl * 0.82 + (Math.random()-0.5)*4, (Math.random()-0.5)*3,
+                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 3,
                     flameX + flameDir * sl * 0.45, fw2 * 0.3,
                     flameX, fw2
                 );
@@ -4798,7 +4798,7 @@ class CargoGame {
 
                 // ── Locking Clamps (Left & Right) ───────────────────────────────
                 const clampOffset = holdingBox ? 4 : 10; // Wide cage so the box can physically rattle around inside!
-                
+
                 // Left Clamp
                 ctx.fillStyle = '#1e293b';
                 ctx.strokeStyle = clampColor;
@@ -4813,7 +4813,7 @@ class CargoGame {
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-                
+
                 // Right Clamp
                 ctx.beginPath();
                 ctx.moveTo(hw + 2, deckY);
@@ -4828,15 +4828,15 @@ class CargoGame {
 
                 // Clamp Status Lights
                 ctx.fillStyle = clampColor;
-                ctx.beginPath(); ctx.arc(-hw - 1, deckY - bh * 0.6, 1.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(hw + 1, deckY - bh * 0.6, 1.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(-hw - 1, deckY - bh * 0.6, 1.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hw + 1, deckY - bh * 0.6, 1.5, 0, Math.PI * 2); ctx.fill();
 
                 // ── Main body ─────────────────────────────────────────────────
                 const bodyW = hw - 6;
                 const bodyGrad = ctx.createLinearGradient(0, -4, 0, 14);
                 bodyGrad.addColorStop(0, '#1e293b');
                 bodyGrad.addColorStop(1, '#0f172a');
-                
+
                 ctx.fillStyle = bodyGrad;
                 ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
                 ctx.lineWidth = 1.5;
@@ -4855,7 +4855,7 @@ class CargoGame {
 
                 // ── Cockpit dome ──────────────────────────────────────────────
                 const cabW = bodyW * 0.75;
-                ctx.fillStyle = '#0f172a'; 
+                ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
@@ -4879,7 +4879,7 @@ class CargoGame {
                 ctx.lineTo(cabW * 0.5, -6);
                 ctx.closePath();
                 ctx.fill();
-                
+
                 // Window glint
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
@@ -4935,9 +4935,9 @@ class CargoGame {
                 ctx.strokeStyle = `rgba(60,20,0,${Math.min(1, dmg * 1.2)})`;
                 ctx.lineWidth = 0.8;
                 const cracks = [
-                    [[-hw2*0.3, -hh2*0.5], [-hw2*0.1, hh2*0.2], [hw2*0.2, hh2*0.6]],
-                    [[hw2*0.4, -hh2*0.3], [hw2*0.1, 0], [hw2*0.5, hh2*0.5]],
-                    [[-hw2*0.6, hh2*0.1], [-hw2*0.2, hh2*0.4]],
+                    [[-hw2 * 0.3, -hh2 * 0.5], [-hw2 * 0.1, hh2 * 0.2], [hw2 * 0.2, hh2 * 0.6]],
+                    [[hw2 * 0.4, -hh2 * 0.3], [hw2 * 0.1, 0], [hw2 * 0.5, hh2 * 0.5]],
+                    [[-hw2 * 0.6, hh2 * 0.1], [-hw2 * 0.2, hh2 * 0.4]],
                 ];
                 for (const crack of cracks) {
                     ctx.beginPath();
@@ -4971,12 +4971,12 @@ class CargoGame {
                     ctx.arc(wlx, -hh2 - 6, 3, 0, Math.PI * 2);
                     ctx.fill();
                     // Warning light glow
-                    const wg = ctx.createRadialGradient(wlx, -hh2-6, 0, wlx, -hh2-6, 10);
+                    const wg = ctx.createRadialGradient(wlx, -hh2 - 6, 0, wlx, -hh2 - 6, 10);
                     wg.addColorStop(0, 'rgba(255,50,50,0.5)');
                     wg.addColorStop(1, 'rgba(255,50,50,0)');
                     ctx.fillStyle = wg;
                     ctx.beginPath();
-                    ctx.arc(wlx, -hh2-6, 10, 0, Math.PI * 2);
+                    ctx.arc(wlx, -hh2 - 6, 10, 0, Math.PI * 2);
                     ctx.fill();
                 }
             }
@@ -5003,16 +5003,16 @@ class CargoGame {
             ctx.beginPath();
             ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.5 + 4, 0, Math.PI * 2);
             ctx.fill();
-            
+
             // Flickering fire
             const now = Date.now();
             for (let i = -1; i <= 1; i++) {
                 const fx = i * 12 + Math.sin(now * 0.01 + i) * 4;
                 const fy = 5 - Math.abs(Math.cos(now * 0.02 + i)) * 15;
-                ctx.fillStyle = `rgba(239, 68, 68, ${0.6 + Math.sin(now * 0.015 + i)*0.3})`;
+                ctx.fillStyle = `rgba(239, 68, 68, ${0.6 + Math.sin(now * 0.015 + i) * 0.3})`;
                 ctx.beginPath(); ctx.arc(fx, fy, 8, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = `rgba(251, 191, 36, ${0.6 + Math.cos(now * 0.012 + i)*0.3})`;
-                ctx.beginPath(); ctx.arc(fx, fy+4, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = `rgba(251, 191, 36, ${0.6 + Math.cos(now * 0.012 + i) * 0.3})`;
+                ctx.beginPath(); ctx.arc(fx, fy + 4, 5, 0, Math.PI * 2); ctx.fill();
             }
         }
 
@@ -5124,7 +5124,7 @@ class CargoGame {
                 // Industrial storage silo (cylindrical tower)
                 const sw = b.w, sh = b.h;
                 // Body
-                const siloGrad = ctx.createLinearGradient(-sw/2, 0, sw/2, 0);
+                const siloGrad = ctx.createLinearGradient(-sw / 2, 0, sw / 2, 0);
                 siloGrad.addColorStop(0, '#1e293b');
                 siloGrad.addColorStop(0.4, '#334155');
                 siloGrad.addColorStop(1, '#1e293b');
@@ -5132,12 +5132,12 @@ class CargoGame {
                 ctx.strokeStyle = '#475569';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.rect(-sw/2, -sh, sw, sh);
+                ctx.rect(-sw / 2, -sh, sw, sh);
                 ctx.fill();
                 ctx.stroke();
                 // Dome cap
                 ctx.beginPath();
-                ctx.ellipse(0, -sh, sw/2, sw * 0.22, 0, Math.PI, 0);
+                ctx.ellipse(0, -sh, sw / 2, sw * 0.22, 0, Math.PI, 0);
                 ctx.fillStyle = '#334155';
                 ctx.fill();
                 ctx.stroke();
@@ -5146,8 +5146,8 @@ class CargoGame {
                 ctx.lineWidth = 1;
                 for (let bh2 = sh * 0.2; bh2 < sh; bh2 += sh * 0.22) {
                     ctx.beginPath();
-                    ctx.moveTo(-sw/2, -bh2);
-                    ctx.lineTo(sw/2, -bh2);
+                    ctx.moveTo(-sw / 2, -bh2);
+                    ctx.lineTo(sw / 2, -bh2);
                     ctx.stroke();
                 }
                 // Warning lights at corners
@@ -5155,10 +5155,10 @@ class CargoGame {
                 if (wl) {
                     ctx.fillStyle = '#f59e0b';
                     ctx.beginPath();
-                    ctx.arc(-sw/2, -sh, 3, 0, Math.PI * 2);
+                    ctx.arc(-sw / 2, -sh, 3, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.beginPath();
-                    ctx.arc(sw/2, -sh, 3, 0, Math.PI * 2);
+                    ctx.arc(sw / 2, -sh, 3, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
@@ -5169,28 +5169,28 @@ class CargoGame {
                 ctx.fillStyle = '#1e293b';
                 ctx.strokeStyle = '#334155';
                 ctx.lineWidth = 2;
-                ctx.fillRect(-rw/2, -8, rw, 8);
-                ctx.strokeRect(-rw/2, -8, rw, 8);
+                ctx.fillRect(-rw / 2, -8, rw, 8);
+                ctx.strokeRect(-rw / 2, -8, rw, 8);
                 // Three pipes of varying height
                 const pipes = [
                     { ox: -rw * 0.32, pw: 8, ph: b.h * 0.9 },
-                    { ox:  0,         pw: 11, ph: b.h },
-                    { ox:  rw * 0.3,  pw: 7, ph: b.h * 0.65 },
+                    { ox: 0, pw: 11, ph: b.h },
+                    { ox: rw * 0.3, pw: 7, ph: b.h * 0.65 },
                 ];
                 for (const p of pipes) {
-                    const pg = ctx.createLinearGradient(p.ox - p.pw/2, 0, p.ox + p.pw/2, 0);
+                    const pg = ctx.createLinearGradient(p.ox - p.pw / 2, 0, p.ox + p.pw / 2, 0);
                     pg.addColorStop(0, '#0f172a');
                     pg.addColorStop(0.5, '#334155');
                     pg.addColorStop(1, '#0f172a');
                     ctx.fillStyle = pg;
                     ctx.strokeStyle = '#475569';
                     ctx.lineWidth = 1;
-                    ctx.fillRect(p.ox - p.pw/2, -8 - p.ph, p.pw, p.ph);
-                    ctx.strokeRect(p.ox - p.pw/2, -8 - p.ph, p.pw, p.ph);
+                    ctx.fillRect(p.ox - p.pw / 2, -8 - p.ph, p.pw, p.ph);
+                    ctx.strokeRect(p.ox - p.pw / 2, -8 - p.ph, p.pw, p.ph);
                     // Pipe cap
                     ctx.fillStyle = '#334155';
                     ctx.beginPath();
-                    ctx.ellipse(p.ox, -8 - p.ph, p.pw/2 + 1, 3, 0, 0, Math.PI * 2);
+                    ctx.ellipse(p.ox, -8 - p.ph, p.pw / 2 + 1, 3, 0, 0, Math.PI * 2);
                     ctx.fill();
                     // Steam vent (random flicker)
                     if (Math.sin(Date.now() * 0.005 + p.ox + b.phase) > 0.5) {
@@ -5246,17 +5246,17 @@ class CargoGame {
     _drawFreighterTruck(ctx, t, tw, th) {
         // Engine glow trail
         if (t.engineGlow) {
-            const eg = ctx.createRadialGradient(-tw/2 - 10, 0, 0, -tw/2 - 10, 0, 40);
+            const eg = ctx.createRadialGradient(-tw / 2 - 10, 0, 0, -tw / 2 - 10, 0, 40);
             eg.addColorStop(0, t.accentColor + '59');
             eg.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = eg;
             ctx.beginPath();
-            ctx.arc(-tw/2 - 10, 0, 40, 0, Math.PI * 2);
+            ctx.arc(-tw / 2 - 10, 0, 40, 0, Math.PI * 2);
             ctx.fill();
         }
 
         // Hull
-        const hullGrad = ctx.createLinearGradient(0, -th/2, 0, th/2);
+        const hullGrad = ctx.createLinearGradient(0, -th / 2, 0, th / 2);
         hullGrad.addColorStop(0, t.bodyColor);
         hullGrad.addColorStop(0.5, shadeColor(t.bodyColor, 20));
         hullGrad.addColorStop(1, shadeColor(t.bodyColor, -20));
@@ -5264,8 +5264,8 @@ class CargoGame {
         ctx.strokeStyle = t.accentColor;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-tw/2, -th/2, tw, th, 4);
-        else ctx.rect(-tw/2, -th/2, tw, th);
+        if (ctx.roundRect) ctx.roundRect(-tw / 2, -th / 2, tw, th, 4);
+        else ctx.rect(-tw / 2, -th / 2, tw, th);
         ctx.fill();
         ctx.stroke();
 
@@ -5274,9 +5274,9 @@ class CargoGame {
         ctx.strokeStyle = t.accentColor;
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(tw/2, -th/2);
-        ctx.lineTo(tw/2 + th * 0.7, 0);
-        ctx.lineTo(tw/2, th/2);
+        ctx.moveTo(tw / 2, -th / 2);
+        ctx.lineTo(tw / 2 + th * 0.7, 0);
+        ctx.lineTo(tw / 2, th / 2);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -5286,17 +5286,17 @@ class CargoGame {
             ctx.fillStyle = shadeColor(t.bodyColor, -15);
             ctx.strokeStyle = '#475569';
             ctx.lineWidth = 1;
-            ctx.fillRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
-            ctx.strokeRect(-tw/2 - 12, ey - th * 0.18, 12, th * 0.36);
+            ctx.fillRect(-tw / 2 - 12, ey - th * 0.18, 12, th * 0.36);
+            ctx.strokeRect(-tw / 2 - 12, ey - th * 0.18, 12, th * 0.36);
             const fl = 6 + Math.abs(Math.sin(t.lightPhase * 3)) * 8;
-            const eg2 = ctx.createLinearGradient(-tw/2 - 12, 0, -tw/2 - 12 - fl, 0);
+            const eg2 = ctx.createLinearGradient(-tw / 2 - 12, 0, -tw / 2 - 12 - fl, 0);
             eg2.addColorStop(0, `rgba(56,189,248,0.8)`);
             eg2.addColorStop(1, 'rgba(56,189,248,0)');
             ctx.fillStyle = eg2;
             ctx.beginPath();
-            ctx.moveTo(-tw/2 - 12, ey - th * 0.12);
-            ctx.lineTo(-tw/2 - 12 - fl, ey);
-            ctx.lineTo(-tw/2 - 12, ey + th * 0.12);
+            ctx.moveTo(-tw / 2 - 12, ey - th * 0.12);
+            ctx.lineTo(-tw / 2 - 12 - fl, ey);
+            ctx.lineTo(-tw / 2 - 12, ey + th * 0.12);
             ctx.closePath();
             ctx.fill();
         }
@@ -5312,9 +5312,9 @@ class CargoGame {
         const blinkA = Math.sin(t.lightPhase) > 0;
         const blinkB = Math.sin(t.lightPhase + Math.PI) > 0;
         ctx.fillStyle = blinkA ? t.lightColor : 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.arc(tw/2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tw / 2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = blinkB ? '#ef4444' : 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.arc(-tw/2 - 8, th * 0.1, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-tw / 2 - 8, th * 0.1, 2.5, 0, Math.PI * 2); ctx.fill();
     }
 
     _drawPickupTruck(ctx, t, tw, th) {
@@ -5324,31 +5324,31 @@ class CargoGame {
         const bedW = tw * 0.52;
         const cabH = th * 1.05;   // cab taller than bed
         const bedH = th * 0.68;
-        const cabX = tw/2 - cabW; // cab starts here (right side)
-        const bedX = -tw/2;       // bed starts at left
+        const cabX = tw / 2 - cabW; // cab starts here (right side)
+        const bedX = -tw / 2;       // bed starts at left
 
         // Anti-grav pod glow (instead of wheels — two pods underneath)
         for (const px of [-tw * 0.28, tw * 0.28]) {
-            const podGrad = ctx.createRadialGradient(px, th/2 + 4, 0, px, th/2 + 4, 10);
+            const podGrad = ctx.createRadialGradient(px, th / 2 + 4, 0, px, th / 2 + 4, 10);
             podGrad.addColorStop(0, t.accentColor + 'aa');
             podGrad.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = podGrad;
-            ctx.beginPath(); ctx.ellipse(px, th/2 + 4, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(px, th / 2 + 4, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
             // Pod ring
             ctx.strokeStyle = t.accentColor;
             ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.ellipse(px, th/2 + 2, 8, 3, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(px, th / 2 + 2, 8, 3, 0, 0, Math.PI * 2); ctx.stroke();
         }
 
         // Flat bed (rear/left)
-        const bedGrad = ctx.createLinearGradient(0, -bedH/2, 0, bedH/2);
+        const bedGrad = ctx.createLinearGradient(0, -bedH / 2, 0, bedH / 2);
         bedGrad.addColorStop(0, shadeColor(t.bodyColor, 10));
         bedGrad.addColorStop(1, shadeColor(t.bodyColor, -25));
         ctx.fillStyle = bedGrad;
         ctx.strokeStyle = t.accentColor;
         ctx.lineWidth = 1;
-        if (ctx.roundRect) ctx.roundRect(bedX, -bedH/2, bedW, bedH, [2, 0, 0, 2]);
-        else ctx.rect(bedX, -bedH/2, bedW, bedH);
+        if (ctx.roundRect) ctx.roundRect(bedX, -bedH / 2, bedW, bedH, [2, 0, 0, 2]);
+        else ctx.rect(bedX, -bedH / 2, bedW, bedH);
         ctx.fill(); ctx.stroke();
 
         // Bed floor ribs
@@ -5357,20 +5357,20 @@ class CargoGame {
         for (let ri = 1; ri <= 3; ri++) {
             const rx = bedX + (bedW / 4) * ri;
             ctx.beginPath();
-            ctx.moveTo(rx, -bedH/2 + 2); ctx.lineTo(rx, bedH/2 - 2);
+            ctx.moveTo(rx, -bedH / 2 + 2); ctx.lineTo(rx, bedH / 2 - 2);
             ctx.stroke();
         }
 
         // Bed walls (raised sides)
         ctx.fillStyle = shadeColor(t.bodyColor, 15);
-        ctx.fillRect(bedX, -bedH/2 - 3, bedW, 3);
-        ctx.fillRect(bedX, bedH/2, bedW, 3);
+        ctx.fillRect(bedX, -bedH / 2 - 3, bedW, 3);
+        ctx.fillRect(bedX, bedH / 2, bedW, 3);
 
         // Optional cargo box on bed
         if (t.hasCargoBox) {
             const bw = bedW * 0.55, bh = bedH * 0.85;
             const bx = bedX + bedW * 0.1;
-            const by = -bedH/2 - bh;
+            const by = -bedH / 2 - bh;
             ctx.fillStyle = shadeColor(t.bodyColor, -10);
             ctx.strokeStyle = t.accentColor;
             ctx.lineWidth = 1;
@@ -5386,14 +5386,14 @@ class CargoGame {
         }
 
         // Cab (front/right) — taller, with visor window
-        const cabGrad = ctx.createLinearGradient(cabX, -cabH/2, cabX + cabW, cabH/2);
+        const cabGrad = ctx.createLinearGradient(cabX, -cabH / 2, cabX + cabW, cabH / 2);
         cabGrad.addColorStop(0, shadeColor(t.bodyColor, 25));
         cabGrad.addColorStop(1, shadeColor(t.bodyColor, 5));
         ctx.fillStyle = cabGrad;
         ctx.strokeStyle = t.accentColor;
         ctx.lineWidth = 1.2;
-        if (ctx.roundRect) ctx.roundRect(cabX, -cabH/2, cabW, cabH, [2, 4, 4, 2]);
-        else ctx.rect(cabX, -cabH/2, cabW, cabH);
+        if (ctx.roundRect) ctx.roundRect(cabX, -cabH / 2, cabW, cabH, [2, 4, 4, 2]);
+        else ctx.rect(cabX, -cabH / 2, cabW, cabH);
         ctx.fill(); ctx.stroke();
 
         // Windscreen
@@ -5413,33 +5413,33 @@ class CargoGame {
         // Headlights (front of cab)
         const blink = Math.sin(t.lightPhase) > 0;
         ctx.fillStyle = blink ? '#fde68a' : 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.arc(tw/2, -cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(tw/2, cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tw / 2, -cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(tw / 2, cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
         // Headlight glow
         if (blink) {
-            const hlg = ctx.createRadialGradient(tw/2 + 4, 0, 0, tw/2 + 4, 0, 18);
+            const hlg = ctx.createRadialGradient(tw / 2 + 4, 0, 0, tw / 2 + 4, 0, 18);
             hlg.addColorStop(0, 'rgba(253,230,138,0.5)');
             hlg.addColorStop(1, 'rgba(253,230,138,0)');
             ctx.fillStyle = hlg;
-            ctx.beginPath(); ctx.ellipse(tw/2 + 4, 0, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(tw / 2 + 4, 0, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
         }
 
         // Exhaust (rear)
         const fl = 5 + Math.abs(Math.sin(t.lightPhase * 2)) * 10;
-        const exGrad = ctx.createLinearGradient(-tw/2, 0, -tw/2 - fl, 0);
+        const exGrad = ctx.createLinearGradient(-tw / 2, 0, -tw / 2 - fl, 0);
         exGrad.addColorStop(0, 'rgba(56,189,248,0.85)');
         exGrad.addColorStop(1, 'rgba(56,189,248,0)');
         ctx.fillStyle = exGrad;
         ctx.beginPath();
-        ctx.moveTo(-tw/2, -bedH * 0.25);
-        ctx.lineTo(-tw/2 - fl, 0);
-        ctx.lineTo(-tw/2, bedH * 0.25);
+        ctx.moveTo(-tw / 2, -bedH * 0.25);
+        ctx.lineTo(-tw / 2 - fl, 0);
+        ctx.lineTo(-tw / 2, bedH * 0.25);
         ctx.closePath();
         ctx.fill();
 
         // Tail light
         ctx.fillStyle = 'rgba(239,68,68,0.9)';
-        ctx.beginPath(); ctx.arc(-tw/2 + 2, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-tw / 2 + 2, 0, 2.5, 0, Math.PI * 2); ctx.fill();
     }
 
     drawWindIndicator() {
@@ -5459,29 +5459,29 @@ class CargoGame {
         // Draw wind arrow
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 2.5;
-        
+
         ctx.beginPath();
         const arrowLen = Math.abs(wind) * 45;
         const dir = wind < 0 ? -1 : 1;
-        
-        ctx.moveTo(cx - (arrowLen/2) * dir, cy);
-        ctx.lineTo(cx + (arrowLen/2) * dir, cy);
+
+        ctx.moveTo(cx - (arrowLen / 2) * dir, cy);
+        ctx.lineTo(cx + (arrowLen / 2) * dir, cy);
         // Arrowhead
-        ctx.lineTo(cx + (arrowLen/2 - 6) * dir, cy - 4);
-        ctx.moveTo(cx + (arrowLen/2) * dir, cy);
-        ctx.lineTo(cx + (arrowLen/2 - 6) * dir, cy + 4);
-        
+        ctx.lineTo(cx + (arrowLen / 2 - 6) * dir, cy - 4);
+        ctx.moveTo(cx + (arrowLen / 2) * dir, cy);
+        ctx.lineTo(cx + (arrowLen / 2 - 6) * dir, cy + 4);
+
         ctx.stroke();
     }
 }
 
 // ── Utility: lighten (+) or darken (-) a hex color by amount 0-100 ──────────
 function shadeColor(hex, amount) {
-    const n = parseInt(hex.replace('#',''), 16);
+    const n = parseInt(hex.replace('#', ''), 16);
     const r = Math.min(255, Math.max(0, (n >> 16) + amount));
     const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + amount));
     const b = Math.min(255, Math.max(0, (n & 0xff) + amount));
-    return '#' + [r, g, b].map(v => v.toString(16).padStart(2,'0')).join('');
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 
 // Global game singleton — must be on window so inline HTML handlers can access it
