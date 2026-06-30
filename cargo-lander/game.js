@@ -4316,13 +4316,22 @@ class CargoGame {
 
             // ── Main thruster flame (bottom) ──────────────────────────────
             if (lander.thrusting && lander.fuel > 0) {
-                const fl = 18 + Math.random() * 26;
+                const ep = lander.enginePower || 1;
+                const fl = (18 + Math.random() * 26) * ep;
                 const fGrad = ctx.createLinearGradient(0, 16, 0, 16 + fl);
-                fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.98)');
-                fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)');
-                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                
+                // Color shifts bluer at high power (boost upgrade)
+                if (ep > 1.2) {
+                    fGrad.addColorStop(0, 'rgba(125, 211, 252, 0.98)'); // Light blue core
+                    fGrad.addColorStop(0.35, 'rgba(56, 189, 248, 0.75)'); // Mid blue
+                } else {
+                    fGrad.addColorStop(0, 'rgba(251, 191, 36, 0.98)'); // Yellow core
+                    fGrad.addColorStop(0.35, 'rgba(239, 100, 20, 0.75)'); // Orange
+                }
+                fGrad.addColorStop(1, 'rgba(239, 68, 68, 0)'); // Red tail fading out
+                
                 ctx.fillStyle = fGrad;
-                const fw = 3.5 + Math.random() * 2.5;
+                const fw = (3.5 + Math.random() * 2.5) * Math.max(0.4, ep);
                 // Left nozzle flame
                 ctx.beginPath();
                 ctx.moveTo(-9 - fw, 16);
@@ -4338,12 +4347,13 @@ class CargoGame {
                 ctx.closePath();
                 ctx.fill();
                 // Shared bloom
-                const bGrad = ctx.createRadialGradient(0, 20, 0, 0, 24, 26);
-                bGrad.addColorStop(0, 'rgba(251, 191, 36, 0.3)');
+                const bloomBaseColor = ep > 1.2 ? 'rgba(56, 189, 248, ' : 'rgba(251, 191, 36, ';
+                const bGrad = ctx.createRadialGradient(0, 20, 0, 0, 24, 26 * ep);
+                bGrad.addColorStop(0, `${bloomBaseColor}${0.3 * ep})`);
                 bGrad.addColorStop(1, 'rgba(239, 68, 68, 0)');
                 ctx.fillStyle = bGrad;
                 ctx.beginPath();
-                ctx.ellipse(0, 22, 20, 26, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 22, 20 * ep, 26 * ep, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -4390,62 +4400,120 @@ class CargoGame {
             } else {
                 const firing = lander.thrusting && lander.fuel > 0;
 
-                // ── Cargo deck ─────────────────────────────────────────────────
+                // Check if we are currently holding a box
+                const holdingBox = this.physics.boxes.some(b => b.onDeck);
+                const clampColor = holdingBox ? '#10b981' : '#38bdf8';
+                const clampGlow = holdingBox ? 'rgba(16, 185, 129, 0.4)' : 'rgba(56, 189, 248, 0.1)';
+
+                // ── Magnetic Base Plate ─────────────────────────────────────────
                 ctx.fillStyle = '#0f172a';
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.rect(-hw, deckY - bh, hw * 2, bh);
+                ctx.roundRect(-hw, deckY - 3, hw * 2, 4, 2);
                 ctx.fill();
                 ctx.stroke();
-                // Deck accent line
-                ctx.strokeStyle = 'rgba(56,189,248,0.5)';
-                ctx.lineWidth = 1;
+
+                // ── Magnetic Glow Field ─────────────────────────────────────────
+                if (holdingBox || (Date.now() % 2000 < 1000)) { // Pulse when empty
+                    const mGrad = ctx.createLinearGradient(0, deckY, 0, deckY - bh);
+                    mGrad.addColorStop(0, clampGlow);
+                    mGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = mGrad;
+                    ctx.fillRect(-hw + 2, deckY - bh, hw * 2 - 4, bh);
+                }
+
+                // ── Locking Clamps (Left & Right) ───────────────────────────────
+                const clampOffset = holdingBox ? 2 : 6; // Move in when locking
+                
+                // Left Clamp
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = clampColor;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.moveTo(-hw + 3, deckY - 1);
-                ctx.lineTo(hw - 3, deckY - 1);
+                ctx.moveTo(-hw - 2, deckY);
+                ctx.lineTo(-hw - 2, deckY - bh * 0.7);
+                ctx.lineTo(-hw + clampOffset, deckY - bh * 0.7);
+                ctx.lineTo(-hw + clampOffset, deckY - bh * 0.5);
+                ctx.lineTo(-hw, deckY - bh * 0.5);
+                ctx.lineTo(-hw, deckY);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
+                
+                // Right Clamp
+                ctx.beginPath();
+                ctx.moveTo(hw + 2, deckY);
+                ctx.lineTo(hw + 2, deckY - bh * 0.7);
+                ctx.lineTo(hw - clampOffset, deckY - bh * 0.7);
+                ctx.lineTo(hw - clampOffset, deckY - bh * 0.5);
+                ctx.lineTo(hw, deckY - bh * 0.5);
+                ctx.lineTo(hw, deckY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // Clamp Status Lights
+                ctx.fillStyle = clampColor;
+                ctx.beginPath(); ctx.arc(-hw - 1, deckY - bh * 0.6, 1.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hw + 1, deckY - bh * 0.6, 1.5, 0, Math.PI*2); ctx.fill();
 
                 // ── Main body ─────────────────────────────────────────────────
                 const bodyW = hw - 6;
-                ctx.fillStyle = 'rgba(30, 58, 95, 0.1)'; // Highly transparent
-                ctx.strokeStyle = critical ? '#ef4444' : 'rgba(51, 65, 85, 0.9)';
-                ctx.lineWidth = 2;
+                const bodyGrad = ctx.createLinearGradient(0, -4, 0, 14);
+                bodyGrad.addColorStop(0, '#1e293b');
+                bodyGrad.addColorStop(1, '#0f172a');
+                
+                ctx.fillStyle = bodyGrad;
+                ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                ctx.rect(-bodyW, -4, bodyW * 2, 18);
+                ctx.roundRect(-bodyW, -4, bodyW * 2, 18, 4);
                 ctx.fill();
                 ctx.stroke();
 
+                // Detailed paneling
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-bodyW + 4, 5); ctx.lineTo(bodyW - 4, 5);
+                ctx.moveTo(-bodyW + 4, 9); ctx.lineTo(bodyW - 4, 9);
+                ctx.stroke();
+
                 // ── Cockpit dome ──────────────────────────────────────────────
-                const cabW = bodyW * 0.7; // Tighter cockpit
-                ctx.fillStyle = 'rgba(22, 40, 64, 0.15)'; // Highly transparent cockpit
-                ctx.strokeStyle = critical ? '#ef4444' : '#38bdf8';
+                const cabW = bodyW * 0.75;
+                ctx.fillStyle = '#0f172a'; 
+                ctx.strokeStyle = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(-cabW, -4);
-                ctx.lineTo(-cabW * 0.7, -4 - 14);
-                ctx.lineTo(cabW * 0.7, -4 - 14);
+                ctx.lineTo(-cabW * 0.7, -18);
+                ctx.lineTo(cabW * 0.7, -18);
                 ctx.lineTo(cabW, -4);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
 
-                // Window (moved more to the middle)
-                ctx.fillStyle = 'rgba(147,197,253,0.3)';
+                // Window 
+                const winGrad = ctx.createLinearGradient(0, -18, 0, -4);
+                winGrad.addColorStop(0, '#0ea5e9');
+                winGrad.addColorStop(1, '#0369a1');
+                ctx.fillStyle = winGrad;
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.35, -4 - 4);
-                ctx.lineTo(-cabW * 0.2, -4 - 11);
-                ctx.lineTo(cabW * 0.2, -4 - 11);
-                ctx.lineTo(cabW * 0.35, -4 - 4);
+                ctx.moveTo(-cabW * 0.5, -6);
+                ctx.lineTo(-cabW * 0.45, -15);
+                ctx.lineTo(cabW * 0.45, -15);
+                ctx.lineTo(cabW * 0.5, -6);
                 ctx.closePath();
                 ctx.fill();
+                
                 // Window glint
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
-                ctx.moveTo(-cabW * 0.3, -4 - 5);
-                ctx.lineTo(-cabW * 0.15, -4 - 11);
-                ctx.lineTo(-cabW * 0.05, -4 - 11);
-                ctx.lineTo(-cabW * 0.15, -4 - 5);
+                ctx.moveTo(-cabW * 0.4, -7);
+                ctx.lineTo(-cabW * 0.35, -14);
+                ctx.lineTo(-cabW * 0.1, -14);
+                ctx.lineTo(-cabW * 0.15, -7);
                 ctx.closePath();
                 ctx.fill();
 
