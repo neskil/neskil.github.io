@@ -55,7 +55,7 @@ registerLevel({
         skyTop:      '#120a02',
         skyMid:      '#1e1005',
         skyBot:      '#2e1a06',
-        terrainFill: '#1a0f04',
+        terrainFill: '#080401',
         rockEdge:    '#d97706',
         rockGlow:    'rgba(217,119,6,',
         fog:         'rgba(217,119,6,0.06)',
