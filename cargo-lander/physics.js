@@ -33,11 +33,28 @@ class CargoPhysics {
     }
 
     initLevel(levelConfig, width, height, upgrades = {}) {
-        this.levelWidth = 1600; // Huge horizontal space
-        this.levelHeight = 1300; // Tall enough to fly well above terrain
         this.currentLevelConfig = levelConfig; // Store for ceiling/terrain queries
+        
+        let maxX = 1600, maxY = 1300;
+        if (levelConfig.terrainPolygons) {
+            for (const poly of levelConfig.terrainPolygons) {
+                for (const pt of poly) {
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y > maxY) maxY = pt.y;
+                }
+            }
+        }
+        if (levelConfig.outOfBounds && levelConfig.outOfBounds.surfaceY) {
+            if (levelConfig.outOfBounds.surfaceY + 400 > maxY) {
+                maxY = levelConfig.outOfBounds.surfaceY + 400;
+            }
+        }
+        
+        this.levelWidth = levelConfig.levelWidth || maxX;
+        this.levelHeight = levelConfig.levelHeight || maxY;
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.09;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
+        this.currentWind = this.wind;
         
         this.boxes = [];
         this.particles = [];
@@ -466,6 +483,19 @@ class CargoPhysics {
     update(dt, levelConfig, inputState) {
         // Cap dt so slow render frames don't cause physics to explode
         dt = Math.min(dt, 1.5);
+        this.currentLevelConfig = levelConfig;
+
+        // Calculate heavy cargo mass multiplier
+        this.lander.massMultiplier = 1.0;
+        if (levelConfig.heavyCargo) {
+            let cargoCount = 0;
+            for (const box of this.boxes) {
+                if (box.onDeck || box.id === this.lander.grabbedBoxId) {
+                    cargoCount++;
+                }
+            }
+            this.lander.massMultiplier += cargoCount * 0.45; // 45% heavier per box
+        }
 
         if (!this.lander.crashed) {
             this.applyControls(dt, inputState);
@@ -788,8 +818,11 @@ class CargoPhysics {
                 lander.landed = false;
                 lander.fuel -= 0.12 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt; 
 
-                const ax = Math.sin(lander.angle) * maxThrust * lander.enginePower * dt;
-                const ay = -Math.cos(lander.angle) * maxThrust * lander.enginePower * dt;
+                // Thrust acceleration is reduced if lander is heavy
+                const thrustAccel = maxThrust / lander.massMultiplier;
+
+                const ax = Math.sin(lander.angle) * thrustAccel * lander.enginePower * dt;
+                const ay = -Math.cos(lander.angle) * thrustAccel * lander.enginePower * dt;
 
                 lander.vx += ax;
                 lander.vy += ay;
@@ -797,8 +830,9 @@ class CargoPhysics {
             if (inputState.down && lander.fuel > 0) {
                 lander.landed = false;
                 lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * dt;
-                const ax = Math.sin(lander.angle) * maxThrust * 0.5 * dt;
-                const ay = -Math.cos(lander.angle) * maxThrust * 0.5 * dt;
+                const thrustAccel = maxThrust / lander.massMultiplier;
+                const ax = Math.sin(lander.angle) * thrustAccel * 0.5 * dt;
+                const ay = -Math.cos(lander.angle) * thrustAccel * 0.5 * dt;
                 lander.vx -= ax;
                 lander.vy -= ay;
             }
@@ -807,8 +841,9 @@ class CargoPhysics {
                 lander.landed = false;
                 lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower) * dt;
                 // Strafe is perpendicular to facing angle
-                const sx = Math.cos(lander.angle) * maxThrust * 0.4 * lander.strafePower * dt;
-                const sy = Math.sin(lander.angle) * maxThrust * 0.4 * lander.strafePower * dt;
+                const thrustAccel = maxThrust / lander.massMultiplier;
+                const sx = Math.cos(lander.angle) * thrustAccel * 0.4 * lander.strafePower * dt;
+                const sy = Math.sin(lander.angle) * thrustAccel * 0.4 * lander.strafePower * dt;
                 lander.vx += sx;
                 lander.vy += sy;
             }
@@ -843,16 +878,24 @@ class CargoPhysics {
         const lander = this.lander;
         if (lander.landed) return;
 
-        // Apply base gravity
-        lander.vy += this.gravity * dt;
+        // Apply base gravity (scales with heavy cargo)
+        lander.vy += (this.gravity * lander.massMultiplier) * dt;
 
         // Apply air resistance (drag)
         const drag = Math.pow(this.LANDER_DRAG, dt);
         lander.vx *= drag;
         lander.vy *= drag;
 
-        // Apply wind (force proportional to lander area, simplified)
-        lander.vx += this.wind * 0.02 * dt;
+        // Dynamic wind (force proportional to lander area, simplified)
+        if (this.wind !== 0) {
+            const now = Date.now();
+            // Complex wave for unpredictable gusts, varying between roughly 0.4x and 1.6x of base wind
+            const dynamicWind = this.wind * (1.0 + Math.sin(now * 0.002) * 0.4 + Math.sin(now * 0.005) * 0.2);
+            lander.vx += dynamicWind * 0.02 * dt;
+            this.currentWind = dynamicWind;
+        } else {
+            this.currentWind = 0;
+        }
 
         // Minor random drifting for drone
         if (lander.vehicleType === 'drone') {
@@ -941,14 +984,14 @@ class CargoPhysics {
 
     integrateLander(dt) {
         // Spawn wind particles if there's wind
-        if (Math.abs(this.wind) > 0.05 && Math.random() < Math.abs(this.wind) * 0.3 * dt) {
+        if (Math.abs(this.currentWind) > 0.05 && Math.random() < Math.abs(this.currentWind) * 0.3 * dt) {
             // Spawn around the lander to ensure they are visible
-            const spawnX = this.lander.x + (this.wind > 0 ? -1200 : 1200) + (Math.random() - 0.5) * 400;
+            const spawnX = this.lander.x + (this.currentWind > 0 ? -1200 : 1200) + (Math.random() - 0.5) * 400;
             const spawnY = this.lander.y + (Math.random() - 0.5) * 1200;
             this.particles.push({
                 x: spawnX,
                 y: spawnY,
-                vx: this.wind * (12 + Math.random() * 8),
+                vx: this.currentWind * (12 + Math.random() * 8),
                 vy: (Math.random() - 0.5) * 1,
                 life: 1.0,
                 decay: (0.002 + Math.random() * 0.002) * dt,
@@ -1071,7 +1114,7 @@ class CargoPhysics {
 
             // Gravity + wind as Matter forces (scale matches vel-per-frame game units)
             Matter.Body.applyForce(body, body.position, {
-                x: this.wind * 0.01 * body.mass * FS,
+                x: this.currentWind * 0.01 * body.mass * FS,
                 y: this.gravity * body.mass * FS,
             });
 
@@ -1097,6 +1140,37 @@ class CargoPhysics {
                 if (dist > 0 && dist < 120) {
                     const fMag = (1 - dist / 120) * lander.magneticStrength * FS * dt;
                     Matter.Body.applyForce(body, body.position, { x: (dx / dist) * fMag * body.mass, y: (dy / dist) * fMag * body.mass });
+                }
+            }
+
+            // Vacuum Chute Logic
+            for (const hub of this.deliveryHubs) {
+                if (hub.type === 'chute') {
+                    // If box is above the chute opening
+                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y - 60 && box.y < hub.y + 60) {
+                        if (!box.vacuumed) {
+                            box.vacuumed = true;
+                            box.onDeck = false;
+                            if (lander.grabbedBoxId === box.id) {
+                                lander.grabbedBoxId = null; // force drop
+                            }
+                            body.isSensor = true; // disable collision with ground so it falls in
+                        }
+                    }
+                    if (box.vacuumed) {
+                        const targetX = hub.x + hub.width / 2;
+                        const dx = targetX - box.x;
+                        // pull towards center of chute and downwards
+                        Matter.Body.applyForce(body, body.position, { 
+                            x: dx * 0.00005 * body.mass * dt, 
+                            y: 0.001 * body.mass * dt 
+                        });
+                        // damp velocity so it doesn't shoot out sideways
+                        Matter.Body.setVelocity(body, {
+                            x: body.velocity.x * 0.9,
+                            y: body.velocity.y * 0.95
+                        });
+                    }
                 }
             }
         }
@@ -1288,13 +1362,21 @@ class CargoPhysics {
         if (this.trafficSpawnTimer > 420 && this.ambientTraffic.length < 5) {
             this.trafficSpawnTimer = 0;
             const fromRight = Math.random() > 0.5;
+            
+            // Spawn height relative to lander, but above terrain
             const allYs = this.segments.flatMap(s => [s.y1, s.y2]);
             const minTerrainY = allYs.length > 0 ? Math.min(...allYs) : 400;
-            const skyY = minTerrainY - 80 - Math.random() * 450;
+            const landerY = this.lander ? this.lander.y : minTerrainY;
+            
+            // Try to spawn above the lander's current view, but constrained by terrain
+            const baseTargetY = Math.min(landerY - 200, minTerrainY - 100);
+            const skyY = baseTargetY - Math.random() * 300;
+            
             const model = Math.random() < 0.42 ? 'pickup' : 'freighter';
             const truckW = model === 'pickup' ? 55 + Math.random() * 50 : 80 + Math.random() * 120;
             const truckH = model === 'pickup' ? 20 + Math.random() * 10 : 16 + Math.random() * 18;
-            const speed = 0.15 + Math.random() * 0.75;
+            const speed = 0.5 + Math.random() * 1.5; // Slightly faster to cross screen reasonably
+            
             const palette = [
                 { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
                 { body: '#2d1b4e', accent: '#a78bfa', light: '#c4b5fd' },
@@ -1307,8 +1389,12 @@ class CargoPhysics {
             const col = palette[Math.floor(Math.random() * palette.length)];
             const willFlyOff = Math.random() < 0.3;
             const flyOffDelay = willFlyOff ? 300 + Math.random() * 600 : Infinity;
+            
+            // Spawn just off screen relative to lander
+            const spawnXOffset = 800 + truckW; 
+            
             this.ambientTraffic.push({
-                x: fromRight ? this.levelWidth + truckW + 50 : -truckW - 50,
+                x: this.lander ? this.lander.x + (fromRight ? spawnXOffset : -spawnXOffset) : (fromRight ? this.levelWidth + truckW : -truckW),
                 y: Math.max(80, skyY),
                 vy: 0,
                 vx: fromRight ? -speed : speed,
@@ -1348,8 +1434,9 @@ class CargoPhysics {
             t.y += t.vy * dt;
             t.lightPhase += 0.05 * dt;
 
-            // Despawn once far off-screen or far above level
-            if (t.x < -t.w - 400 || t.x > this.levelWidth + t.w + 400 || t.y < -600) {
+            // Despawn once far off-screen relative to lander
+            const landerX = this.lander ? this.lander.x : this.levelWidth / 2;
+            if (t.x < landerX - 1600 || t.x > landerX + 1600 || t.y < -600) {
                 this.ambientTraffic.splice(i, 1);
                 continue;
             }

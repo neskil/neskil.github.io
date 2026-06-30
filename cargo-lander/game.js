@@ -1310,12 +1310,18 @@ class CargoGame {
             if (hub.type === 'chute') {
                 for (let i = boxes.length - 1; i >= 0; i--) {
                     const box = boxes[i];
-                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y - 40 && box.y < hub.y + 40) {
-                        // Deliver into the chute
+                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
                         if (lander && lander.grabbedBoxId === box.id) {
                             lander.grabbedBoxId = null;
                         }
-                        this.processSuccessfulDelivery(box, i, hub);
+                        
+                        if (hub.type === 'chute' || box.type === hub.type || hub.type === 'any') { // Chute is usually generic, wait, 'chute' is hub.type!
+                             // Wait, chute hubs have type='chute'. So any box is valid!
+                             this.processSuccessfulDelivery(box, i, hub);
+                        } else {
+                             // This won't run because hub.type === 'chute', but I'll leave it for generic logic
+                             this.processSuccessfulDelivery(box, i, hub);
+                        }
                     }
                 }
             }
@@ -1630,6 +1636,11 @@ class CargoGame {
         // 5. Draw Terrain Landscape
         this.drawUnderground();
         this.drawGroundParallax();
+        
+        if (this.currentLevelConfig?.outOfBounds) {
+            this.drawFluidBounds();
+        }
+
         this.drawTerrain();
         this.drawSegments();
         this.drawLake();
@@ -1678,9 +1689,8 @@ class CargoGame {
             this.drawMinimap();
             this.drawQuestPanel();
             
-            // 12. Draw Lateral Mist and Fluid Bounds
+            // 12. Draw Lateral Mist
             if (this.currentLevelConfig?.outOfBounds) {
-                this.drawFluidBounds();
                 this.drawMistEdges();
             }
 
@@ -1805,10 +1815,44 @@ class CargoGame {
         const isMobile = cw < 768;
         const isTiny = cw < 500;
         
+        // Find objective bounds to cap minimap width
+        let objMinX = Infinity;
+        let objMaxX = -Infinity;
+        const addObj = (obj) => {
+            if (!obj) return;
+            if (obj.x < objMinX) objMinX = obj.x;
+            if (obj.x + (obj.width || 0) > objMaxX) objMaxX = obj.x + (obj.width || 0);
+        };
+        addObj(this.physics.startDepot);
+        addObj(this.physics.collectionPoint);
+        if (this.physics.deliveryHubs) {
+            for (const hub of this.physics.deliveryHubs) addObj(hub);
+        }
+
+        if (objMinX === Infinity) {
+            objMinX = 0;
+            objMaxX = this.physics.levelWidth;
+        } else {
+            objMinX -= 400; // margin
+            objMaxX += 400;
+        }
+
+        // Include lander if it's currently active so it doesn't fly off the minimap
+        if (this.physics.lander && !this.physics.lander.crashed) {
+            if (this.physics.lander.x < objMinX + 100) objMinX = this.physics.lander.x - 100;
+            if (this.physics.lander.x > objMaxX - 100) objMaxX = this.physics.lander.x + 100;
+        }
+
+        const mapWorldWidth = Math.max(1000, objMaxX - objMinX);
+        const mapWorldHeight = this.physics.levelHeight; // keep height scale full to show verticality
+
         // Minimap: top-right corner, below the HUD bars
         const mapScale = isTiny ? 0.06 : (isMobile ? 0.10 : 0.16);
-        const mmWidth = Math.min(this.physics.levelWidth * mapScale, isTiny ? 140 : (isMobile ? 220 : 380));
-        const mmHeight = Math.min(this.physics.levelHeight * mapScale, isTiny ? 100 : (isMobile ? 160 : 260));
+        const targetMaxWidth = isTiny ? 140 : (isMobile ? 220 : 380);
+        
+        // Base width off the capped mapWorldWidth, not the full levelWidth
+        const mmWidth = Math.min(mapWorldWidth * mapScale, targetMaxWidth);
+        const mmHeight = Math.min(mapWorldHeight * mapScale, isTiny ? 100 : (isMobile ? 160 : 260));
         const mmX = cw - mmWidth - (isMobile ? 8 : 20);
         const mmY = isMobile ? 65 : 92; // clears the fuel/shield bar row
 
@@ -1845,23 +1889,26 @@ class CargoGame {
         ctx.stroke();
 
         // ── World → minimap transform ──────────────────────────────────────
-        const scaleX = mmWidth  / this.physics.levelWidth;
-        const scaleY = mmHeight / this.physics.levelHeight;
+        const scaleX = mmWidth  / mapWorldWidth;
+        const scaleY = mmHeight / mapWorldHeight;
 
         ctx.translate(mmX, mmY);
         ctx.scale(scaleX, scaleY);
+        ctx.translate(-objMinX, 0);
 
         // ── Terrain silhouette ─────────────────────────────────────────────
-        if (this.physics.terrainPoints && this.physics.terrainPoints.length > 0) {
+        if (this.physics.terrainPolygons && this.physics.terrainPolygons.length > 0) {
             ctx.fillStyle = 'rgba(51, 65, 85, 0.7)';
-            ctx.beginPath();
-            ctx.moveTo(0, this.physics.levelHeight);
-            for (const pt of this.physics.terrainPoints) {
-                ctx.lineTo(pt.x, pt.y);
+            for (const poly of this.physics.terrainPolygons) {
+                if (!poly || poly.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(poly[0].x, poly[0].y);
+                for (let i = 1; i < poly.length; i++) {
+                    ctx.lineTo(poly[i].x, poly[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
             }
-            ctx.lineTo(this.physics.levelWidth, this.physics.levelHeight);
-            ctx.closePath();
-            ctx.fill();
         }
 
         // ── Pads / hubs ────────────────────────────────────────────────────
@@ -2888,58 +2935,48 @@ class CargoGame {
         if (!oob || oob.type === 'void' || !oob.surfaceY) return;
         
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
         const now = Date.now();
-        const zoom = this.camera.zoom;
-        const camX = this.camera.x;
-        const camY = this.camera.y;
-
-        // Screen coordinates for surfaceY
-        const screenSurfaceY = (oob.surfaceY - camY) * zoom + h / 2;
-        if (screenSurfaceY > h) return; // Entire fluid is below the screen
+        const viewW = this.canvas.width / this.camera.zoom;
+        const startX = this.camera.x - viewW / 2 - 100;
+        const endX = this.camera.x + viewW / 2 + 100;
+        const depth = Math.max(oob.surfaceY + 2000, this.physics.levelHeight + 1000); // go very deep
 
         ctx.save();
-        ctx.fillStyle = oob.color || 'rgba(14, 165, 233, 0.6)';
+        ctx.fillStyle = oob.color || 'rgba(14, 165, 233, 0.4)';
 
         if (oob.type === 'sand') {
-            // Draw overlapping static dunes
             ctx.beginPath();
-            ctx.moveTo(0, screenSurfaceY + 20);
-            for (let px = 0; px <= w; px += 20) {
-                const worldX = (px - w / 2) / zoom + camX;
-                const duneY = Math.sin(worldX * 0.005) * 40 * zoom + Math.sin(worldX * 0.015) * 15 * zoom;
-                ctx.lineTo(px, screenSurfaceY + duneY);
+            ctx.moveTo(startX, oob.surfaceY + 20);
+            for (let x = startX; x <= endX; x += 40) {
+                const duneY = Math.sin(x * 0.005) * 40 + Math.sin(x * 0.015) * 15;
+                ctx.lineTo(x, oob.surfaceY + duneY);
             }
-            ctx.lineTo(w, h);
-            ctx.lineTo(0, h);
+            ctx.lineTo(endX, depth);
+            ctx.lineTo(startX, depth);
             ctx.fill();
         } else {
-            // Draw animated waves (water, goo, acid)
+            // Draw animated waves
             ctx.beginPath();
-            ctx.moveTo(0, screenSurfaceY);
-            for (let px = 0; px <= w; px += 20) {
-                const worldX = (px - w / 2) / zoom + camX;
-                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
-                ctx.lineTo(px, screenSurfaceY + waveY);
+            ctx.moveTo(startX, oob.surfaceY);
+            for (let x = startX; x <= endX; x += 40) {
+                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
+                ctx.lineTo(x, oob.surfaceY + waveY);
             }
-            ctx.lineTo(w, h);
-            ctx.lineTo(0, h);
+            ctx.lineTo(endX, depth);
+            ctx.lineTo(startX, depth);
             ctx.fill();
 
-            // Shimmer layer near surface
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            // Shimmer layer
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.beginPath();
-            ctx.moveTo(0, screenSurfaceY);
-            for (let px = 0; px <= w; px += 20) {
-                const worldX = (px - w / 2) / zoom + camX;
-                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
-                ctx.lineTo(px, screenSurfaceY + waveY + 5 * zoom);
+            ctx.moveTo(startX, oob.surfaceY);
+            for (let x = startX; x <= endX; x += 40) {
+                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
+                ctx.lineTo(x, oob.surfaceY + waveY + 5);
             }
-            for (let px = w; px >= 0; px -= 20) {
-                const worldX = (px - w / 2) / zoom + camX;
-                const waveY = Math.sin(now / 800 + worldX * 0.02) * 10 * zoom + Math.sin(now / 500 + worldX * 0.05) * 5 * zoom;
-                ctx.lineTo(px, screenSurfaceY + waveY + 15 * zoom);
+            for (let x = endX; x >= startX; x -= 40) {
+                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
+                ctx.lineTo(x, oob.surfaceY + waveY + 15);
             }
             ctx.fill();
         }
@@ -3879,8 +3916,21 @@ class CargoGame {
                 ctx.closePath();
                 ctx.fill();
 
+                // Tractor Beam Cone
+                const beamAlpha = 0.15 + Math.sin(now * 0.005) * 0.05;
+                const bGrad = ctx.createLinearGradient(0, hub.y - 80, 0, hub.y);
+                bGrad.addColorStop(0, 'transparent');
+                bGrad.addColorStop(1, `rgba(16, 185, 129, ${beamAlpha})`);
+                ctx.fillStyle = bGrad;
+                ctx.beginPath();
+                ctx.moveTo(hub.x - 30, hub.y - 80);
+                ctx.lineTo(hub.x + hw + 30, hub.y - 80);
+                ctx.lineTo(hub.x + hw - 4, hub.y);
+                ctx.lineTo(hub.x + 4, hub.y);
+                ctx.closePath();
+                ctx.fill();
+
                 // Suction Particle Effects
-                const now = Date.now();
                 for (let i = 0; i < 6; i++) {
                     const phase = (now * 0.001 + i * 0.3) % 1.0;
                     const py = hub.y - 60 * (1 - phase);
