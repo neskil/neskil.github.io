@@ -297,7 +297,7 @@ const UIMixin = {
             // Skip over pad zones
             const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
             if (blocked) continue;
-            const terrainY = this.physics.getTerrainHeight(bx);
+            const terrainY = this.physics.getPolygonSurfaceY(bx);
             const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
             this.buildings.push({
                 type: btype,

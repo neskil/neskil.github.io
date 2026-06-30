@@ -36,7 +36,7 @@ class CargoPhysics {
         this.levelWidth = 1600; // Huge horizontal space
         this.levelHeight = 1300; // Tall enough to fly well above terrain
         this.currentLevelConfig = levelConfig; // Store for ceiling/terrain queries
-        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.15;
+        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.09;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         
         this.boxes = [];
@@ -45,8 +45,8 @@ class CargoPhysics {
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
-        this.generateTerrain(levelConfig);
         this._buildMatterWorld();
+        this.generateTerrain(levelConfig);
         this.spawnLander(levelConfig, upgrades);
     }
 
@@ -61,6 +61,41 @@ class CargoPhysics {
         this.matterEngine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
         this.matterWorld = this.matterEngine.world;
         this.boxBodyMap = new Map();
+
+        // One damage event per engine step (deduplicate multiple terrain pairs)
+        Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
+            if (!this.lander || !this.landerBody || window.DEV_INVULNERABLE) return;
+            let processed = false;
+            for (const pair of event.pairs) {
+                if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
+                if (processed) continue;
+                processed = true;
+                const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
+                const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
+                if (impactSpeed < 1.0) continue;
+                const onPad = this._getLanderPad() !== null;
+                const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
+                const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
+                if (impactSpeed > damageThreshold) {
+                    const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
+                    this.lander.integrity -= damage;
+                    if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
+                    const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
+                    const sparkCount = onPad ? 6 : 16;
+                    for (let i = 0; i < sparkCount; i++) {
+                        this.particles.push({
+                            x: sup.x, y: sup.y,
+                            vx: (Math.random() - 0.5) * 7,
+                            vy: (Math.random() - 0.5) * 7 - 2,
+                            life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                            size: 2.5 + Math.random() * 2.5,
+                        });
+                    }
+                    if (this.lander.integrity <= 0) this.lander.crashed = true;
+                }
+            }
+        });
     }
 
     getPolygonSurfaceY(targetX) {
@@ -208,6 +243,7 @@ class CargoPhysics {
             Matter.Composite.remove(this.matterWorld, this.landerBody);
             this.landerBody = null;
         }
+        const l = this.lander;
         this.landerBody = Matter.Bodies.rectangle(l.x, l.y, l.width, l.height, {
             isStatic: false,
             frictionAir: 0,
@@ -220,40 +256,6 @@ class CargoPhysics {
         Matter.Body.setInertia(this.landerBody, Infinity);
         Matter.Composite.add(this.matterWorld, this.landerBody);
 
-        // One damage event per engine step (deduplicate multiple terrain pairs)
-        Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
-            if (!this.lander || window.DEV_INVULNERABLE) return;
-            let processed = false;
-            for (const pair of event.pairs) {
-                if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
-                if (processed) continue;
-                processed = true;
-                const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
-                const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
-                if (impactSpeed < 1.0) continue;
-                const onPad = this._getLanderPad() !== null;
-                const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
-                const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
-                if (impactSpeed > damageThreshold) {
-                    const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
-                    this.lander.integrity -= damage;
-                    if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
-                    const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
-                    const sparkCount = onPad ? 6 : 16;
-                    for (let i = 0; i < sparkCount; i++) {
-                        this.particles.push({
-                            x: sup.x, y: sup.y,
-                            vx: (Math.random() - 0.5) * 7,
-                            vy: (Math.random() - 0.5) * 7 - 2,
-                            life: 1.0, decay: 0.04 + Math.random() * 0.04,
-                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
-                            size: 2.5 + Math.random() * 2.5,
-                        });
-                    }
-                    if (this.lander.integrity <= 0) this.lander.crashed = true;
-                }
-            }
-        });
     }
 
     _getLanderPad() {
@@ -827,6 +829,11 @@ class CargoPhysics {
         // Apply gravity
         lander.vy += this.gravity * dt;
 
+        // Apply air resistance (drag)
+        const drag = Math.pow(this.LANDER_DRAG, dt);
+        lander.vx *= drag;
+        lander.vy *= drag;
+
         // Apply wind (force proportional to lander area, simplified)
         lander.vx += this.wind * 0.02 * dt;
 
@@ -1009,7 +1016,6 @@ class CargoPhysics {
 
         // Sync non-deck box game state from Matter bodies
         for (const box of this.boxes) {
-            if (box.onDeck) continue;
             const body = this.boxBodyMap.get(box.id);
             if (!body) continue;
             box.x = body.position.x;

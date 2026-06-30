@@ -775,7 +775,7 @@ const RendererMixin = {
         // Sample terrain across full lake width to find the highest surface point
         let minTerrainY = Infinity;
         for (let sx = lx; sx <= lx + lw; sx += 10) {
-            const ty = this.physics.getTerrainHeight(sx);
+            const ty = this.physics.getPolygonSurfaceY(sx);
             if (ty < minTerrainY) minTerrainY = ty;
         }
         const ly = minTerrainY - ld; // lake top is ld px above the terrain peak
@@ -784,7 +784,7 @@ const RendererMixin = {
         // Build a path: top = water surface, sides vertical, bottom follows terrain
         const terrainBottom = [];
         for (let sx = lx; sx <= lx + lw; sx += 8) {
-            terrainBottom.push({ x: sx, y: this.physics.getTerrainHeight(sx) });
+            terrainBottom.push({ x: sx, y: this.physics.getPolygonSurfaceY(sx) });
         }
 
         ctx.save();
@@ -937,7 +937,7 @@ const RendererMixin = {
             ctx.beginPath();
             ctx.moveTo(startX, lh + 1000);
             for (let x = startX; x <= endX; x += 24) {
-                ctx.lineTo(x, this.physics.getTerrainHeight(x) + layer.shift);
+                ctx.lineTo(x, this.physics.getPolygonSurfaceY(x) + layer.shift);
             }
             ctx.lineTo(endX, lh + 1000);
             ctx.closePath();
@@ -967,7 +967,7 @@ const RendererMixin = {
         ctx.moveTo(startX, this.physics.levelHeight + 1000);
 
         for (let x = startX; x <= endX; x += 20) {
-            ctx.lineTo(x, this.physics.getTerrainHeight(x));
+            ctx.lineTo(x, this.physics.getPolygonSurfaceY(x));
         }
 
         ctx.lineTo(endX, this.physics.levelHeight + 1000);
@@ -981,7 +981,7 @@ const RendererMixin = {
         ctx.lineCap = 'round';
         ctx.beginPath();
         for (let x = startX; x <= endX; x += 8) {
-            const y = this.physics.getTerrainHeight(x);
+            const y = this.physics.getPolygonSurfaceY(x);
             if (x === startX) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
@@ -989,7 +989,7 @@ const RendererMixin = {
 
         const padRanges = this.getPadRanges();
         const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
-        const getH = (x) => this.physics.getTerrainHeight(x);
+        const getH = (x) => this.physics.getPolygonSurfaceY(x);
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
         const hexToRgb = (hex) => {
@@ -1077,7 +1077,7 @@ const RendererMixin = {
             ];
             for (const rack of racks) {
                 if (rack.x < startX - 30 || rack.x > endX + 30) continue;
-                const ry = this.physics.getTerrainHeight(rack.x) + 60; // 60px underground
+                const ry = this.physics.getPolygonSurfaceY(rack.x) + 60; // 60px underground
                 const blink = Math.sin(t * 3.7 + rack.x * 0.1) > 0.7;
                 // Server rack silhouette
                 ctx.fillStyle = 'rgba(20,10,30,0.9)';
@@ -1103,8 +1103,8 @@ const RendererMixin = {
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 6]);
             for (let i = 0; i < racks.length - 1; i++) {
-                const ay = this.physics.getTerrainHeight(racks[i].x) + 50;
-                const by = this.physics.getTerrainHeight(racks[i+1].x) + 50;
+                const ay = this.physics.getPolygonSurfaceY(racks[i].x) + 50;
+                const by = this.physics.getPolygonSurfaceY(racks[i+1].x) + 50;
                 ctx.beginPath();
                 ctx.moveTo(racks[i].x, ay);
                 ctx.lineTo(racks[i+1].x, by);
@@ -1117,7 +1117,7 @@ const RendererMixin = {
             // L5 Crystal cave: glowing crystal formations underground
             const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
             for (let cx = Math.floor(startX / 40) * 40; cx < endX; cx += 40) {
-                const terrY = this.physics.getTerrainHeight(cx);
+                const terrY = this.physics.getPolygonSurfaceY(cx);
                 const depth = 30 + hash(cx) * 50;
                 const cy = terrY + depth;
                 const ch = 15 + hash(cx + 1) * 25;
