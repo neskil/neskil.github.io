@@ -2995,67 +2995,248 @@ class CargoGame {
         
         // World coordinates of screen edges
         const leftWorld = camX - (w / 2) / zoom;
+        const rightWorld = camX + (w / 2) / zoom;
+        
+        const EDGE_FADE_DIST = 400; // Distance over which mist goes from 0 to full
+        
+        ctx.save();
+        
+        // Left Edge Mist
+        if (leftWorld < 0) {
+            const mistIntensity = Math.min(1.0, (-leftWorld) / EDGE_FADE_DIST);
+            if (mistIntensity > 0) {
+                const mistW = (-leftWorld) * zoom;
+                const grad = ctx.createLinearGradient(0, 0, mistW, 0);
+                grad.addColorStop(0, oob.mistColor);
+                grad.addColorStop(1, 'transparent');
+                
+                ctx.globalAlpha = mistIntensity;
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, mistW, h);
+            }
+        }
+        
+        // Right Edge Mist
+        const levelW = this.physics.levelWidth;
+        if (rightWorld > levelW) {
+            const mistIntensity = Math.min(1.0, (rightWorld - levelW) / EDGE_FADE_DIST);
+            if (mistIntensity > 0) {
+                const mistW = (rightWorld - levelW) * zoom;
+                const startX = w - mistW;
+                const grad = ctx.createLinearGradient(startX, 0, w, 0);
+                grad.addColorStop(0, 'transparent');
+                grad.addColorStop(1, oob.mistColor);
+                
+                ctx.globalAlpha = mistIntensity;
+                ctx.fillStyle = grad;
+                ctx.fillRect(startX, 0, mistW, h);
+            }
+        }
+
         ctx.restore();
-    };
+    }
 
     drawWaterBodies() {
         const waterBodies = levels[this.currentLevelIndex]?.waterBodies;
         if (!waterBodies || waterBodies.length === 0) return;
         if (!(this.physics.levelHeight > 0)) return;
-            ctx.lineTo(tail - dir * bh * 0.9, fy + bh * 0.75);
+
+        const ctx = this.ctx;
+        const now = Date.now();
+
+        for (const body of waterBodies) {
+            const lx = body.x;
+            const lw = body.width;
+
+            // Find terrain height at the banks to set the water surface
+            const yLeft = this.physics.getPolygonSurfaceY(lx);
+            const yRight = this.physics.getPolygonSurfaceY(lx + lw);
+            const ly = Math.max(yLeft, yRight); // Water level is aligned with the lower bank
+            const ld = 48; // Maximum depth of the carved basin
+
+            // Build a path: top = water surface, sides vertical, bottom follows terrain
+            const terrainBottom = [];
+            for (let sx = lx; sx <= lx + lw; sx += 8) {
+                terrainBottom.push({ x: sx, y: this.physics.getPolygonSurfaceY(sx) });
+            }
+
+            ctx.save();
+
+            // Water body — filled with depth gradient, clipped to terrain-following shape
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(lx + lw, ly);
+            for (let i = terrainBottom.length - 1; i >= 0; i--) {
+                ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
+            }
             ctx.closePath();
+
+            const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
+            depthGrad.addColorStop(0, 'rgba(14,45,90,0.82)');
+            depthGrad.addColorStop(0.5, 'rgba(8,25,60,0.90)');
+            depthGrad.addColorStop(1, 'rgba(2,6,20,0.96)');
+            ctx.fillStyle = depthGrad;
             ctx.fill();
+
+            // Clip all inner content to this same water shape
+            ctx.beginPath();
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(lx + lw, ly);
+            for (let i = terrainBottom.length - 1; i >= 0; i--) {
+                ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
+            }
+            ctx.closePath();
+            ctx.clip();
+
+            // Shimmer layer near surface
+            ctx.fillStyle = 'rgba(56,130,220,0.12)';
+            ctx.fillRect(lx, ly, lw, 14);
+
+            // Deeper gradient shift
+            ctx.fillStyle = 'rgba(14,45,90,0.4)';
+            ctx.fillRect(lx, ly + 14, lw, ld - 14);
+
+            // Animated surface ripples
+            ctx.strokeStyle = 'rgba(100,180,255,0.30)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            for (let wx = 0; wx <= lw; wx += 5) {
+                const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.8;
+                if (wx === 0) ctx.moveTo(lx + wx, ly + 4 + wy);
+                else ctx.lineTo(lx + wx, ly + 4 + wy);
+            }
+            ctx.stroke();
+            ctx.beginPath();
+            for (let wx = 0; wx <= lw; wx += 5) {
+                const wy = Math.sin(now / 650 + (lx + wx) * 0.065 + 1.2) * 1.3;
+                if (wx === 0) ctx.moveTo(lx + wx, ly + 9 + wy);
+                else ctx.lineTo(lx + wx, ly + 9 + wy);
+            }
+            ctx.stroke();
+
+            // Decorative wave lines (animated)
+            ctx.strokeStyle = 'rgba(56,130,220,0.45)';
+            ctx.lineWidth = 1.5;
+            for (let wy = ly + 4; wy < ly + ld - 10; wy += 8) {
+                ctx.beginPath();
+                for (let wx = lx; wx < lx + lw; wx += 20) {
+                    const waveOffset = Math.sin((wx + now * 0.05) * 0.03 + wy) * 3;
+                    if (wx === lx) ctx.moveTo(wx, wy + waveOffset);
+                    else ctx.lineTo(wx, wy + waveOffset);
+                }
+                ctx.stroke();
+            }
+
+            // Fish (clipped to water automatically)
+            const fish = [
+                { phase: 0.0, depth: 0.30, size: 1.0 },
+                { phase: 2.1, depth: 0.52, size: 0.85 },
+                { phase: 4.3, depth: 0.68, size: 1.1 },
+                { phase: 1.5, depth: 0.40, size: 0.9 },
+            ];
+            for (const f of fish) {
+                const ft = now / 1200 + f.phase;
+                const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(ft) * (lw * 0.36), lx + 12), lx + lw - 12);
+                const fy = ly + ld * f.depth;
+                const dir = Math.cos(ft) >= 0 ? 1 : -1;
+                const bw = 14 * f.size, bh = 6 * f.size;
+                ctx.fillStyle = 'rgba(60,180,110,0.88)';
+                ctx.beginPath();
+                ctx.ellipse(fx, fy, bw / 2, bh / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                const tail = fx - dir * (bw / 2);
+                ctx.beginPath();
+                ctx.moveTo(tail, fy);
+                ctx.lineTo(tail - dir * bh * 0.9, fy - bh * 0.75);
+                ctx.lineTo(tail - dir * bh * 0.9, fy + bh * 0.75);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Splash particles
+            for (const p of this.physics.particles) {
+                if (p.x >= lx && p.x <= lx + lw && p.y >= ly && p.y <= ly + ld) {
+                    ctx.fillStyle = 'rgba(186,230,253,0.8)';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Render sunk boxes
+            for (const box of this.physics.boxes) {
+                if (box.x >= lx && box.x <= lx + lw && box.y >= ly) {
+                    ctx.fillStyle = 'rgba(15,23,42,0.85)'; // Dark silhouette
+                    ctx.fillRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height);
+                    ctx.strokeStyle = 'rgba(56,189,248,0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height);
+                    
+                    // Box sinking bubbles
+                    if (box.vy > 0.5 && Math.random() < 0.3) {
+                        this.physics.particles.push({
+                            x: box.x + (Math.random() - 0.5) * box.width,
+                            y: box.y - box.height / 2,
+                            vx: (Math.random() - 0.5) * 0.5,
+                            vy: -1 - Math.random(),
+                            life: 1.0, decay: 0.02, size: 1.5, color: 'rgba(186,230,253,0.6)'
+                        });
+                    }
+                }
+            }
+
+            ctx.restore();
+
+            // Water surface edge line — soft blue-white
+            ctx.strokeStyle = 'rgba(120,200,255,0.55)';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            for (let wx = 0; wx <= lw; wx += 6) {
+                const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.5;
+                if (wx === 0) ctx.moveTo(lx + wx, ly + wy);
+                else ctx.lineTo(lx + wx, ly + wy);
+            }
+            ctx.stroke();
+
+            // Fishing boat — bobs on the water surface
+            if (body.hasBoat) {
+                const bx = lx + 145 + Math.sin(now / 2000) * 7;
+                const by = ly - 1;
+                // Hull
+                ctx.fillStyle = '#4a3728';
+                ctx.strokeStyle = '#6b5240';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(bx - 18, by);
+                ctx.lineTo(bx + 18, by);
+                ctx.lineTo(bx + 14, by + 10);
+                ctx.lineTo(bx - 14, by + 10);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                // Deck stripe
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(bx - 18, by + 1, 36, 2.5);
+                // Mast + pole
+                ctx.strokeStyle = '#7a6050';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(bx - 5, by); ctx.lineTo(bx - 5, by - 22);
+                ctx.moveTo(bx - 5, by - 22); ctx.lineTo(bx - 5 + 14, by - 22);
+                ctx.stroke();
+                // Fishing line
+                ctx.strokeStyle = 'rgba(180,180,180,0.65)';
+                ctx.lineWidth = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(bx + 9, by - 22);
+                ctx.lineTo(bx + 9 + 6, by + 8 + Math.sin(now / 2000) * 3);
+                ctx.stroke();
+                // Float
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(bx + 15, by + 8 + Math.sin(now / 2000) * 3, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
-
-        ctx.restore();
-
-        // Water surface edge line — soft blue-white
-        ctx.strokeStyle = 'rgba(120,200,255,0.55)';
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        for (let wx = 0; wx <= lw; wx += 6) {
-            const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.5;
-            if (wx === 0) ctx.moveTo(lx + wx, ly + wy);
-            else ctx.lineTo(lx + wx, ly + wy);
-        }
-        ctx.stroke();
-
-        // Fishing boat — bobs on the water surface
-        const bx = lx + 145 + Math.sin(now / 2000) * 7;
-        const by = ly - 1;
-        // Hull
-        ctx.fillStyle = '#4a3728';
-        ctx.strokeStyle = '#6b5240';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(bx - 18, by);
-        ctx.lineTo(bx + 18, by);
-        ctx.lineTo(bx + 14, by + 10);
-        ctx.lineTo(bx - 14, by + 10);
-        ctx.closePath();
-        ctx.fill(); ctx.stroke();
-        // Deck stripe
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillRect(bx - 18, by + 1, 36, 2.5);
-        // Mast + pole
-        ctx.strokeStyle = '#7a6050';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(bx - 5, by); ctx.lineTo(bx - 5, by - 22);
-        ctx.moveTo(bx - 5, by - 22); ctx.lineTo(bx - 5 + 14, by - 22);
-        ctx.stroke();
-        // Fishing line
-        ctx.strokeStyle = 'rgba(180,180,180,0.65)';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(bx + 9, by - 22);
-        ctx.lineTo(bx + 9 + 6, by + 8 + Math.sin(now / 2000) * 3);
-        ctx.stroke();
-        // Float
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.arc(bx + 15, by + 8 + Math.sin(now / 2000) * 3, 2.5, 0, Math.PI * 2);
-        ctx.fill();
     }
 
     drawGroundParallax() {
