@@ -327,10 +327,8 @@ class CargoGame {
                 e.preventDefault();
             }
             if (e.key === ' ') {
-                if (this.physics.lander && this.physics.lander.vehicleType === 'drone') {
+                if (this.physics.lander) {
                     this.toggleGrapple();
-                } else {
-                    this.triggerCargoDispense();
                 }
             }
             if (e.key.toLowerCase() === 'r' && this.physics.lander && this.physics.lander.crashed) {
@@ -795,7 +793,7 @@ class CargoGame {
 
     toggleGrapple() {
         const lander = this.physics.lander;
-        if (!lander || lander.vehicleType !== 'drone') return;
+        if (!lander) return;
 
         if (lander.grabbedBoxId) {
             // Release cargo
@@ -807,6 +805,9 @@ class CargoGame {
             let minDist = 65; // Grab radius
 
             for (const box of this.physics.boxes) {
+                // If it's not a drone, only allow grappling specific tetherable cargo
+                if (lander.vehicleType !== 'drone' && box.type !== 'tethered') continue;
+
                 const dist = Math.sqrt(Math.pow(box.x - lander.grappleX, 2) + Math.pow(box.y - lander.grappleY, 2));
                 if (dist < minDist) {
                     minDist = dist;
@@ -1295,24 +1296,26 @@ class CargoGame {
                 if (box.x >= hub.x - 30 && box.x <= hub.x + hub.width + 30 && box.y > hub.y - 60) {
                     // Check if cargo matches the hub's requirement
                     if (box.type === padType) {
-                        // Sucked into the delivery intake (spark animations)
-                        this.spawnDeliveryParticles(box.x, box.y, hub.color);
-                        boxes.splice(i, 1);
-                        // Trigger delivery crane animation (physically lifting box)
-                        hub.craneAnim = { timer: 0, lx: box.x, boxType: padType };
-
-                        this.deliveredCount++;
-                        this.career.totalDeliveries++;
-                        this.saveCareer();
-                        // Economy Loop: Deliveries grant cash instantly!
-                        const deliveryReward = 200;
-                        this.globalCash += deliveryReward;
-                        localStorage.setItem('cargoLanderCash', this.globalCash);
-                        if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
-                        this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
+                        this.processSuccessfulDelivery(box, i, hub);
                     } else {
                         // Warning: Incorrect Cargo type
                         this.addMessage(`Warning: Hub rejects ${box.type.toUpperCase()} package!`, "#ef4444");
+                    }
+                }
+            }
+        }
+
+        // Check for Vacuum Chute delivery (no landing required, just drop it in)
+        for (const hub of hubs) {
+            if (hub.type === 'chute') {
+                for (let i = boxes.length - 1; i >= 0; i--) {
+                    const box = boxes[i];
+                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y - 40 && box.y < hub.y + 40) {
+                        // Deliver into the chute
+                        if (lander && lander.grabbedBoxId === box.id) {
+                            lander.grabbedBoxId = null;
+                        }
+                        this.processSuccessfulDelivery(box, i, hub);
                     }
                 }
             }
@@ -1342,6 +1345,21 @@ class CargoGame {
                 }
             }
         }
+    }
+
+    processSuccessfulDelivery(box, index, hub) {
+        this.spawnDeliveryParticles(box.x, box.y, hub.color);
+        this.physics.boxes.splice(index, 1);
+        hub.craneAnim = { timer: 0, lx: box.x, boxType: box.type };
+
+        this.deliveredCount++;
+        this.career.totalDeliveries++;
+        this.saveCareer();
+        const deliveryReward = 200;
+        this.globalCash += deliveryReward;
+        localStorage.setItem('cargoLanderCash', this.globalCash);
+        if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
+        this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
     }
 
     updateBoxFireState(dt) {
@@ -3818,6 +3836,62 @@ class CargoGame {
             const hasMatchingCargo = this.physics.boxes.some(b => b.onDeck && b.type === hub.type);
             const hcx = hub.x + hub.width / 2;
 
+            if (hub.type === 'chute') {
+                // ── Vacuum Chute Structure ────────────────────────────────
+                const hw = hub.width;
+                const hh = 40; // funnel depth
+                
+                // Outer Funnel Base
+                ctx.fillStyle = '#334155';
+                ctx.beginPath();
+                ctx.moveTo(hub.x - 20, hub.y);
+                ctx.lineTo(hub.x + hw + 20, hub.y);
+                ctx.lineTo(hub.x + hw, hub.y + hh);
+                ctx.lineTo(hub.x, hub.y + hh);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Hazard Stripes on Rim
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(hub.x - 20, hub.y, hw + 40, 8);
+                ctx.clip();
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(hub.x - 20, hub.y, hw + 40, 8);
+                ctx.fillStyle = '#0f172a';
+                for (let sx = hub.x - 30; sx < hub.x + hw + 40; sx += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(sx, hub.y + 8);
+                    ctx.lineTo(sx + 8, hub.y);
+                    ctx.lineTo(sx + 18, hub.y);
+                    ctx.lineTo(sx + 10, hub.y + 8);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                // Inner dark hole
+                ctx.fillStyle = '#020617';
+                ctx.beginPath();
+                ctx.moveTo(hub.x - 10, hub.y + 8);
+                ctx.lineTo(hub.x + hw + 10, hub.y + 8);
+                ctx.lineTo(hub.x + hw - 4, hub.y + hh - 4);
+                ctx.lineTo(hub.x + 4, hub.y + hh - 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Suction Particle Effects
+                const now = Date.now();
+                for (let i = 0; i < 6; i++) {
+                    const phase = (now * 0.001 + i * 0.3) % 1.0;
+                    const py = hub.y - 60 * (1 - phase);
+                    const px = hcx + (Math.sin(now * 0.002 + i) * hw * 0.4 * phase);
+                    ctx.fillStyle = `rgba(16, 185, 129, ${0.8 * phase})`;
+                    ctx.beginPath(); ctx.arc(px, py, 2 + phase * 2, 0, Math.PI * 2); ctx.fill();
+                }
+                continue;
+            }
+
             // ── Receiving warehouse structure ─────────────────────────────
             const wbH = 64, wbW = hub.width + 28;
             const wbX = hub.x - 14, wbY = hub.y - wbH;
@@ -4086,10 +4160,10 @@ class CargoGame {
         const lander = this.physics.lander;
         if (!lander) return;
 
-        if (lander.vehicleType === 'drone') {
+        if (lander.vehicleType === 'drone' || lander.grabbedBoxId) {
             if (lander.ropeLength > 0) {
                 const rx0 = lander.x;
-                const ry0 = lander.y + 10;
+                const ry0 = lander.y + (lander.vehicleType === 'drone' ? 10 : lander.height / 2);
                 const rx1 = lander.grappleX ?? lander.x;
                 const ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
 

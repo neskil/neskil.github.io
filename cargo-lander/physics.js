@@ -322,6 +322,7 @@ class CargoPhysics {
             'red': ['🧨', '🧲', '🛢️', '🩸'],
             'blue': ['❄️', '🐟', '🧊', '💉'],
             'green': ['🍏', '🌿', '🔋', '🥑'],
+            'tethered': ['⛓️', '🪝', '⚓'],
             'normal': ['🍎', '🍌', '🔨', '🔧', '📦', '🧸']
         };
         const typeList = emojis[type] || emojis['normal'];
@@ -735,10 +736,6 @@ class CargoPhysics {
                 lander.vy += 0.25 * (lander.thrustMultiplier || 1.0) * dt; // Descend (faster)
             }
 
-            // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
-            lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
-            lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
-
         } else if (lander.vehicleType === 'basic') {
             // BASIC LANDER (Upright stabilization, arcade movement)
             lander.angle = 0;
@@ -809,8 +806,11 @@ class CargoPhysics {
                 lander.vy += sy;
             }
         }
-        
         lander.fuel = Math.max(0, lander.fuel);
+
+        // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
+        lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
+        lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
 
         // Universal Exhaust particles (scaled by engine power)
         if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower * dt) {
@@ -933,6 +933,23 @@ class CargoPhysics {
     }
 
     integrateLander(dt) {
+        // Spawn wind particles if there's wind
+        if (Math.abs(this.wind) > 0.05 && Math.random() < Math.abs(this.wind) * 0.3 * dt) {
+            // Spawn around the lander to ensure they are visible
+            const spawnX = this.lander.x + (this.wind > 0 ? -1200 : 1200) + (Math.random() - 0.5) * 400;
+            const spawnY = this.lander.y + (Math.random() - 0.5) * 1200;
+            this.particles.push({
+                x: spawnX,
+                y: spawnY,
+                vx: this.wind * (12 + Math.random() * 8),
+                vy: (Math.random() - 0.5) * 1,
+                life: 1.0,
+                decay: (0.002 + Math.random() * 0.002) * dt,
+                color: 'rgba(255, 255, 255, 0.15)',
+                size: 2 + Math.random() * 3
+            });
+        }
+
         const lander = this.lander;
         lander.x += lander.vx * dt;
         lander.y += lander.vy * dt;
@@ -1017,8 +1034,9 @@ class CargoPhysics {
             const body = this.boxBodyMap.get(box.id);
             if (!body) continue;
 
-            // Drone grapple: distance constraint (lander is not a Matter body)
-            if (lander && lander.vehicleType === 'drone' && lander.grabbedBoxId === box.id) {
+            // Grapple constraint logic (drone or basic lander tethered cargo)
+            if (lander && lander.grabbedBoxId === box.id) {
+                // If it's a drone, the winch is at the bottom. For a basic lander, the winch is at the bottom too.
                 const attachX = lander.x - Math.sin(lander.angle) * (lander.height / 2);
                 const attachY = lander.y + Math.cos(lander.angle) * (lander.height / 2);
                 const dx = body.position.x - attachX;
