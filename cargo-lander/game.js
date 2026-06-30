@@ -1077,6 +1077,29 @@ class CargoGame {
             lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + (dt / 60) * 1.5 * shieldLvl);
         }
 
+        // --- Refueling Station Logic ---
+        if (lander.landed && lander.currentPad === 'refuel' && this.gameState === 'playing') {
+            if (lander.fuel < lander.maxFuel && this.missionBudget > 0) {
+                // Costs $50 per second for 15 units of fuel per second
+                const refuelAmount = (15.0 / 60.0) * dt;
+                const refuelCost = (50.0 / 60.0) * dt;
+                
+                if (this.missionBudget >= refuelCost) {
+                    lander.fuel = Math.min(lander.maxFuel, lander.fuel + refuelAmount);
+                    this.missionBudget -= refuelCost;
+                    
+                    // Throttle the audio & UI message so it doesn't spam
+                    this.refuelTimer = (this.refuelTimer || 0) + dt;
+                    if (this.refuelTimer > 30) {
+                        this.refuelTimer = 0;
+                        if (Math.random() < 0.3) this.addMessage(`Refueling... -$${Math.floor(refuelCost*30)}`, "#34d399");
+                    }
+                } else {
+                    this.addMessage("Out of budget! Cannot refuel.", "#ef4444");
+                }
+            }
+        }
+
         // --- Cinematic Camera Update ---
         const cw = this.canvas.width;
         const ch = this.canvas.height;
@@ -1396,6 +1419,30 @@ class CargoGame {
                 size: isSuccess ? (3 + Math.random() * 5) : (2 + Math.random() * 4)
             });
         }
+    }
+
+    createExplosion(x, y) {
+        for (let i = 0; i < 40; i++) {
+            this.physics.particles.push({
+                x: x + (Math.random() - 0.5) * 40,
+                y: y + (Math.random() - 0.5) * 40,
+                vx: (Math.random() - 0.5) * 200,
+                vy: (Math.random() - 0.5) * 200,
+                life: 1.0,
+                maxLife: 0.5 + Math.random(),
+                color: Math.random() > 0.5 ? '#ef4444' : '#f59e0b',
+                size: 2 + Math.random() * 8
+            });
+        }
+    }
+
+    selfDestruct() {
+        if (this.gameState !== 'playing' || !this.physics.lander || this.physics.lander.crashed) return;
+        this.physics.lander.integrity = 0;
+        this.physics.lander.crashed = true;
+        if (window.CargoAudio) window.CargoAudio.playExplosion();
+        this.createExplosion(this.physics.lander.x, this.physics.lander.y);
+        setTimeout(() => this.failMission("Self Destruct Initiated."), 1500);
     }
 
     completeMission() {
@@ -3530,11 +3577,12 @@ class CargoGame {
             ctx.fillStyle = 'rgba(148,163,184,0.7)';
             ctx.font = '600 8px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CARGO TERMINAL', cpCx, wbY + 14);
+            ctx.fillText(hub.type === 'refuel' ? 'FUEL TERMINAL' : 'CARGO TERMINAL', cpCx, wbY + 14);
 
-            // ── Overhead crane ────────────────────────────────────────────
-            const craneBaseX = cx + cw + 12;
-            const craneTopY = wbY - 2;
+            if (hub.type !== 'refuel') {
+                // ── Overhead crane ────────────────────────────────────────────
+                const craneBaseX = cx + cw + 12;
+                const craneTopY = wbY - 2;
             const craneArmEnd = cx - 10;
             const hatchX = wbX + wbW * 0.42;  // where crane picks up from
             const hatchHalfW = 22;
@@ -3676,6 +3724,37 @@ class CargoGame {
                 ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
                 ctx.restore();
             }
+            } else {
+                // ── Fuel Pump ────────────────────────────────────────────────
+                const pumpX = cx + cw + 12;
+                const pumpY = cy;
+                
+                // Main pump body
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(pumpX - 10, pumpY - 40, 20, 40);
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(pumpX - 8, pumpY - 38, 16, 36);
+                
+                // Pump screen (flashing if refueling)
+                const isRefueling = (this.physics.lander && this.physics.lander.landed && this.physics.lander.currentPad === 'refuel' && this.missionBudget > 0 && this.physics.lander.fuel < this.physics.lander.maxFuel);
+                ctx.fillStyle = isRefueling ? ((now % 200 > 100) ? '#10b981' : '#059669') : '#0f172a';
+                ctx.fillRect(pumpX - 5, pumpY - 32, 10, 8);
+                
+                // Fuel Hose
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(pumpX - 10, pumpY - 20);
+                ctx.quadraticCurveTo(pumpX - 25, pumpY - 10, pumpX - 15, pumpY);
+                ctx.stroke();
+                
+                // Hose Nozzle
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(pumpX - 15, pumpY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             // ── Landing pad surface ───────────────────────────────────────
             ctx.fillStyle = '#1e293b';
@@ -3701,17 +3780,17 @@ class CargoGame {
             // Pad glow
             const cGlow = ctx.createLinearGradient(cx, 0, cx + cw, 0);
             cGlow.addColorStop(0, `rgba(56,189,248,0)`);
-            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse * 0.55})`);
+            cGlow.addColorStop(0.5, hub.type === 'refuel' ? `rgba(245,158,11,${cpulse * 0.55})` : `rgba(56,189,248,${cpulse * 0.55})`);
             cGlow.addColorStop(1, `rgba(56,189,248,0)`);
             ctx.strokeStyle = cGlow;
             ctx.lineWidth = 1.5;
             ctx.strokeRect(cx, cy, cw, ch);
 
             // CARGO label on pad
-            ctx.fillStyle = 'rgba(56,189,248,0.9)';
+            ctx.fillStyle = hub.type === 'refuel' ? 'rgba(245,158,11,0.9)' : 'rgba(56,189,248,0.9)';
             ctx.font = 'bold 12px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CARGO', cpCx, cy + 12);
+            ctx.fillText(hub.type === 'refuel' ? 'REFUEL' : 'CARGO', cpCx, cy + 12);
 
             // Next-cargo countdown bar
             if (_col.loadSeq && _col.loadSeq.phase === 'countdown') {

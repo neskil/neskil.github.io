@@ -42,6 +42,7 @@ class CargoPhysics {
         this.boxes = [];
         this.particles = [];
         this.monster = null; // The Out-Of-Bounds cosmic horror
+        this.outOfBoundsTimer = 0;
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
@@ -124,8 +125,8 @@ class CargoPhysics {
         this.terrainPolygons = config.terrainPolygons || [];
         
         const ps = config.padScale || 1.0;
-        this.startDepot = { x: 80, y: h - 100, width: Math.round(80 * ps), height: 15 };
-        this.collectionPoint = { x: config.collectionX || 280, y: h - 100, width: Math.round(100 * ps), height: 15 };
+        this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: h - 100, width: Math.round(80 * ps), height: 15 };
+        this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: h - 100, width: Math.round(100 * ps), height: 15 };
         this.deliveryHubs = config.deliveryHubs.map(hub => ({
             x: hub.x, y: h - 100, width: Math.round((hub.width || 80) * ps), height: 15,
             color: hub.color, type: hub.type, name: hub.name || 'Terminal'
@@ -861,6 +862,26 @@ class CargoPhysics {
             lander.vy += oob.buoyancy * dt;
             lander.vx *= Math.pow(oob.drag, dt);
             lander.vy *= Math.pow(oob.drag, dt);
+            
+            // Splash effect on entering fluid
+            if (!this.wasInFluid) {
+                this.wasInFluid = true;
+                if (window.CargoAudio) CargoAudio.playCollision(2.0); // Splash sound
+                for (let i = 0; i < 30; i++) {
+                    this.particles.push({
+                        x: lander.x + (Math.random() - 0.5) * 40,
+                        y: oob.surfaceY,
+                        vx: (Math.random() - 0.5) * 12,
+                        vy: -2 - Math.random() * 8,
+                        life: 1.0,
+                        maxLife: 0.8 + Math.random() * 0.5,
+                        color: oob.type === 'sand' ? '#b45309' : '#0ea5e9',
+                        size: 3 + Math.random() * 4
+                    });
+                }
+            }
+        } else {
+            this.wasInFluid = false;
         }
 
         // Track how far out we are for the vignette warning (1000px ~ 1 screen)
@@ -1171,7 +1192,7 @@ class CargoPhysics {
 
                     const rvn = rvx * nx + rvy * ny;
                     if (rvn < 0) {
-                        const imp = -(1 + this.BOX_RESTITUTION) * rvn;
+                        const imp = -(1 + 0.0) * rvn; // Perfectly inelastic with deck
                         box.vx += imp * nx;
                         box.vy += imp * ny;
 
@@ -1197,7 +1218,7 @@ class CargoPhysics {
                     const rvt = rvx * tx + rvy * ty;
                     
                     if (rvt < 0) {
-                        const imp = -(1 + this.BOX_RESTITUTION) * rvt;
+                        const imp = -(1 + 0.0) * rvt;
                         box.vx += imp * tx;
                         box.vy += imp * ty;
                     }
@@ -1218,7 +1239,7 @@ class CargoPhysics {
                     const rvt = rvx * tx + rvy * ty;
                     
                     if (rvt > 0) {
-                        const imp = -(1 + this.BOX_RESTITUTION) * rvt;
+                        const imp = -(1 + 0.0) * rvt;
                         box.vx += imp * tx;
                         box.vy += imp * ty;
                     }
