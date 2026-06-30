@@ -4424,7 +4424,7 @@ class CargoGame {
                 }
 
                 // ── Locking Clamps (Left & Right) ───────────────────────────────
-                const clampOffset = holdingBox ? 2 : 6; // Move in when locking
+                const clampOffset = holdingBox ? 4 : 10; // Wide cage so the box can physically rattle around inside!
                 
                 // Left Clamp
                 ctx.fillStyle = '#1e293b';

@@ -127,10 +127,10 @@ The recent fixed-timestep physics overhaul and fluid boundary systems have laid 
 
 | Milestone | Feature | Description |
 |-----------|---------|-------------|
-| **Phase 1** | **Massive Scrolling Levels** | Break free from single-screen puzzles. Develop large, multi-screen cave systems and sprawling planetary surfaces requiring fuel management across long distances and waypoint navigation. |
-| **Phase 1** | **Dynamic Weather Engine** | Evolving wind gusts and storms that actively push the lander, requiring constant thrust adjustment, accompanied by visual weather particles (dust, rain, snow). |
-| **Phase 2** | **Pendulum Mass Physics** | Heavy cargo crates will actively drag the lander down and introduce pendulum swing mechanics, forcing the player to balance flight carefully to avoid catastrophic destabilization. |
-| **Phase 2** | **Advanced Career Upgrades** | Full integration of remaining catalog upgrades (Shield Generators, Magnetic Decks) to allow persistent ship builds capable of surviving the harder scrolling maps. |
+| **Phase 1** | **Massive Scrolling Levels** | Break free from single-screen puzzles. Develop large, multi-screen cave systems and sprawling planetary surfaces requiring fuel management across long distances and waypoint navigation. Include **Refueling Stations** that cost money to use mid-mission! |
+| **Phase 1** | **Dynamic Weather Engine** | Evolving wind gusts and storms that actively push the lander, requiring constant thrust adjustment, accompanied by visual weather particles (dust, rain, snow) and **Wind Direction Indicators** (blowing wind animations). |
+| **Phase 2** | **Pendulum Mass Physics & Special Cargo** | Heavy cargo crates will actively drag the lander down. Introduce **Special Cargo** that hangs from the lander body by a rope, forcing the player to balance flight carefully to avoid catastrophic destabilization. |
+| **Phase 2** | **Advanced Logistics Mechanics** | Overhaul loading and unloading stations to be more interactive and fun, rather than just hovering over a pad. Full integration of remaining catalog upgrades (Shield Generators, Magnetic Decks) to allow persistent ship builds capable of surviving the harder scrolling maps. |
 | **Phase 3** | **Data-Driven Geometry** | Extract procedural terrain formulas out of `physics.js` into external JSON/config files, enabling full 2D overhangs, tunnels, and an in-browser level editor. |
 | **Phase 3** | **Procedural Expedition Mode** | A rogue-like mode with procedurally generated maps and infinite delivery challenges. |
 
