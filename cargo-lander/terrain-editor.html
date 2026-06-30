@@ -914,22 +914,34 @@ function hitPoint(sx,sy) {
 }
 
 function hitMarker(sx, sy) {
-  // Spawn triangles live at screen y 35–65
-  if (sy > 30 && sy < 68) {
-    const hqSX = w2s(S.startX, 0).sx;
-    if (Math.abs(sx-hqSX) < 14) return 'hq';
-    if (S.collectionX != null) {
-      const depSX = w2s(S.collectionX, 0).sx;
-      if (Math.abs(sx-depSX) < 14) return 'depot';
+  const HIT_R = 14;
+  // Spawn markers: diamond on terrain or fallback triangle at top
+  const checkSpawn = (worldX, key) => {
+    const gy = groundYAt(worldX);
+    if (gy !== null) {
+      const {sx:mx, sy:my} = w2s(worldX, gy);
+      if (Math.hypot(sx-mx, sy-my) < HIT_R) return key;
+    } else {
+      const {sx:mx} = w2s(worldX, 0);
+      if (Math.abs(sx-mx) < HIT_R && sy > 30 && sy < 68) return key;
     }
-  }
-  // Hub bars live at screen y 5–35
-  if (sy > 3 && sy < 38) {
-    for (let i=0; i<S.hubs.length; i++) {
-      const hub=S.hubs[i];
-      const hubSX = w2s(hub.x, 0).sx;
-      const padW = (hub.width || 80*S.padScale) * S.view.scale;
-      if (sx >= hubSX-padW/2-6 && sx <= hubSX+padW/2+6) return {hub:i};
+    return null;
+  };
+  let r;
+  if ((r = checkSpawn(S.startX, 'hq'))) return r;
+  if (S.collectionX != null && (r = checkSpawn(S.collectionX, 'depot'))) return r;
+
+  // Hubs: pad line on terrain or fallback bar at top
+  for (let i=0; i<S.hubs.length; i++) {
+    const hub = S.hubs[i];
+    const padHalfWpx = (hub.width || 80*S.padScale) * S.view.scale / 2;
+    const gy = groundYAt(hub.x);
+    if (gy !== null) {
+      const {sx:cx, sy:cy} = w2s(hub.x, gy);
+      if (sx >= cx-padHalfWpx-8 && sx <= cx+padHalfWpx+8 && sy >= cy-22 && sy <= cy+8) return {hub:i};
+    } else {
+      const {sx:cx} = w2s(hub.x, 0);
+      if (sx >= cx-padHalfWpx-8 && sx <= cx+padHalfWpx+8 && sy > 3 && sy < 38) return {hub:i};
     }
   }
   return null;

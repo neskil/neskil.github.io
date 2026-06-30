@@ -36,7 +36,7 @@ registerLevel({
     ],
     // ── Water Bodies ──────────────────────────────────────────────────────────
     waterBodies: [
-        { x: 480, width: 240 }
+        { x: 480, width: 240, hasBoat: true }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
