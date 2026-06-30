@@ -593,12 +593,11 @@ class CargoPhysics {
 
         // --- Sand Worm Logic (worm-lair terrain only) ---
         if (this.currentLevelConfig?.terrainType === 'worm-lair') {
-            // Worm pit is at x≈1075, floor at levelHeight-60 ≈ 1240.
-            // The danger zone is centered above the pit where the player actually flies.
-            const WORM_PIT_CX   = 1075;
-            const WORM_ZONE_CX  = 1075;
-            const WORM_ZONE_CY  = 1100; // above the pit floor, where player crosses
-            const WORM_ZONE_R   = 300;
+            // Worm pit + danger zone read from level config (with fallback defaults)
+            const WORM_PIT_CX   = this.currentLevelConfig.wormPitCX  ?? 1075;
+            const WORM_ZONE_CX  = WORM_PIT_CX;
+            const WORM_ZONE_CY  = this.currentLevelConfig.wormPitCY  ?? 1100;
+            const WORM_ZONE_R   = this.currentLevelConfig.wormZoneR   ?? 300;
 
             if (!this.sandWorm && !lander.crashed) {
                 const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
@@ -607,9 +606,10 @@ class CargoPhysics {
                     const norm = distToZone / WORM_ZONE_R; // 0 = center, 1 = edge
                     const risk = Math.pow(1 - norm, 2.5);   // 0 at edge, 1 at center
                     if (Math.random() < risk * 0.004 * dt) {
-                        // Emerge from just below the worm pit floor, aimed at lander
+                        // Emerge from just below the terrain at the worm mound, aimed at lander
                         const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 60;
-                        const spawnY = this.levelHeight - 55; // just below pit surface
+                        const surfY  = this.getPolygonSurfaceY(spawnX);
+                        const spawnY = surfY + 30; // just below surface
                         const angle  = Math.atan2(lander.y - spawnY, lander.x - spawnX);
                         const speed  = 26;
                         this.sandWorm = {
