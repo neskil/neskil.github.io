@@ -51,6 +51,8 @@ class CargoPhysics {
     }
 
     // Old procedural terrain functions removed
+
+    _buildMatterWorld() {
         // Recreate the Matter engine for this level
         if (this.matterEngine) {
             Matter.World.clear(this.matterWorld);
@@ -59,8 +61,6 @@ class CargoPhysics {
         this.matterEngine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
         this.matterWorld = this.matterEngine.world;
         this.boxBodyMap = new Map();
-
-        // Remove all procedural terrain code
     }
 
     getPolygonSurfaceY(targetX) {
@@ -904,8 +904,7 @@ class CargoPhysics {
 
     // resolveLanderCollisions removed in favor of resolveSegmentCollisions handling all terrain polygons
 
-        // Ceiling collision is now handled natively by Matter.js static bodies
-    }
+    // Ceiling collision is now handled natively by Matter.js static bodies
 
     triggerExplosion() {
         if (window.DEV_INVULNERABLE) {
