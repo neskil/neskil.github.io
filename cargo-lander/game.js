@@ -1837,12 +1837,6 @@ class CargoGame {
             objMaxX += 400;
         }
 
-        // Include lander if it's currently active so it doesn't fly off the minimap
-        if (this.physics.lander && !this.physics.lander.crashed) {
-            if (this.physics.lander.x < objMinX + 100) objMinX = this.physics.lander.x - 100;
-            if (this.physics.lander.x > objMaxX - 100) objMaxX = this.physics.lander.x + 100;
-        }
-
         const mapWorldWidth = Math.max(1000, objMaxX - objMinX);
         const mapWorldHeight = this.physics.levelHeight; // keep height scale full to show verticality
 
@@ -1913,8 +1907,8 @@ class CargoGame {
 
         // ── Pads / hubs ────────────────────────────────────────────────────
         // Min size in world units so they're visible on the minimap
-        const minW = 6 / scaleX;
-        const minH = 6 / scaleY;
+        const minW = 4 / scaleX;
+        const minH = 4 / scaleY;
 
         if (this.physics.startDepot) {
             const d = this.physics.startDepot;
@@ -1932,7 +1926,7 @@ class CargoGame {
         }
 
         // ── Cargo boxes ────────────────────────────────────────────────────
-        const boxR = 12 / Math.max(scaleX, scaleY); // world-space radius
+        const boxR = 6 / Math.max(scaleX, scaleY); // world-space radius
         for (const box of this.physics.boxes) {
             ctx.fillStyle = box.color || '#fff';
             ctx.beginPath();
@@ -1955,32 +1949,28 @@ class CargoGame {
         const viewH = this.canvas.height / this.camera.zoom;
         const viewX = this.camera.x - viewW / 2;
         const viewY = this.camera.y - viewH / 2;
-        ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
         ctx.lineWidth = 1 / Math.max(scaleX, scaleY);
         ctx.strokeRect(viewX, viewY, viewW, viewH);
 
-        // ── Lander dot (clamped to be always inside minimap) ───────────────
+        // ── Lander dot ─────────────────────────────────────────────────────
         if (this.physics.lander) {
             const l = this.physics.lander;
-            // Clamp world position to level bounds so dot stays inside minimap
-            const clampedX = Math.max(0, Math.min(this.physics.levelWidth,  l.x));
-            const clampedY = Math.max(0, Math.min(this.physics.levelHeight, l.y));
-
-            const dotR = 8 / Math.max(scaleX, scaleY);
+            const dotR = 5 / Math.max(scaleX, scaleY);
             ctx.fillStyle = l.crashed ? '#ef4444' : '#10b981';
             ctx.beginPath();
-            ctx.arc(clampedX, clampedY, dotR, 0, Math.PI * 2);
+            ctx.arc(l.x, l.y, dotR, 0, Math.PI * 2);
             ctx.fill();
 
             // Small heading tick
             if (!l.crashed) {
                 ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 4 / Math.max(scaleX, scaleY);
+                ctx.lineWidth = 2.5 / Math.max(scaleX, scaleY);
                 ctx.beginPath();
-                ctx.moveTo(clampedX, clampedY);
+                ctx.moveTo(l.x, l.y);
                 ctx.lineTo(
-                    clampedX + Math.sin(l.angle) * dotR * 2.2,
-                    clampedY - Math.cos(l.angle) * dotR * 2.2
+                    l.x + Math.sin(l.angle) * dotR * 2.2,
+                    l.y - Math.cos(l.angle) * dotR * 2.2
                 );
                 ctx.stroke();
             }
