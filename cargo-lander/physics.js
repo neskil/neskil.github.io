@@ -42,7 +42,9 @@ class CargoPhysics {
         this.boxes = [];
         this.particles = [];
         this.monster = null; // The Out-Of-Bounds cosmic horror
+        this.sandWorm = null;
         this.outOfBoundsTimer = 0;
+        this.wasInFluid = false;
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
@@ -1227,7 +1229,7 @@ class CargoPhysics {
                         box.vy += imp * ny;
 
                         const rvt = rvx * tx + rvy * ty;
-                        const fImp = -(this.BOX_FRICTION * 0.85) * rvt; // Higher friction so it sticks
+                        const fImp = -0.95 * rvt; // Almost completely lock tangential velocity so it sticks
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
                     }
