@@ -697,7 +697,8 @@ class CargoPhysics {
             lander.strafePower = Math.max(-1, Math.min(1, lander.strafePower + strafeInput * spoolSpeed));
         }
 
-        const maxThrust = 0.55 * (lander.thrustMultiplier || 1.0);
+        // Slightly lower max thrust so the ship feels heavier and accelerates smoother
+        const maxThrust = 0.45 * (lander.thrustMultiplier || 1.0);
         lander.thrusting = lander.enginePower > 0.1;
 
         if (lander.vehicleType === 'drone') {
@@ -770,12 +771,13 @@ class CargoPhysics {
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 
-                // Apply torque towards cursor
-                lander.angularVelocity += diff * 0.05 * dt;
+                // Apply torque towards cursor (lower multiplier for less twitchy rotation)
+                lander.angularVelocity += diff * 0.025 * dt;
                 lander.landed = false;
             }
 
-            lander.angularVelocity *= Math.pow(0.85, dt); // Dampening
+            // Stronger dampening so it doesn't overshoot as much
+            lander.angularVelocity *= Math.pow(0.75, dt);
             lander.angle += lander.angularVelocity * dt;
 
             if (lander.thrusting && lander.fuel > 0) {
@@ -1192,12 +1194,12 @@ class CargoPhysics {
 
                     const rvn = rvx * nx + rvy * ny;
                     if (rvn < 0) {
-                        const imp = -(1 + 0.0) * rvn; // Perfectly inelastic with deck
+                        const imp = -(1 + 0.15) * rvn; // Slight bounce with deck
                         box.vx += imp * nx;
                         box.vy += imp * ny;
 
                         const rvt = rvx * tx + rvy * ty;
-                        const fImp = -this.BOX_FRICTION * rvt;
+                        const fImp = -(this.BOX_FRICTION * 0.15) * rvt; // Lower friction so it slides
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
                     }
@@ -1218,7 +1220,7 @@ class CargoPhysics {
                     const rvt = rvx * tx + rvy * ty;
                     
                     if (rvt < 0) {
-                        const imp = -(1 + 0.0) * rvt;
+                        const imp = -(1 + 0.3) * rvt; // Bounce off the wall
                         box.vx += imp * tx;
                         box.vy += imp * ty;
                     }
@@ -1239,7 +1241,7 @@ class CargoPhysics {
                     const rvt = rvx * tx + rvy * ty;
                     
                     if (rvt > 0) {
-                        const imp = -(1 + 0.0) * rvt;
+                        const imp = -(1 + 0.3) * rvt; // Bounce off the wall
                         box.vx += imp * tx;
                         box.vy += imp * ty;
                     }
