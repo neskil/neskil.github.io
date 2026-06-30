@@ -195,6 +195,8 @@ console + on-screen error logger report no errors.
 
 | Priority | Feature |
 |----------|---------|
+| High | **Level Geometry Refactor** — Extract procedural terrain formulas out of `physics.js` and move them into level configuration objects so they are fully data-driven. |
+| High | **True 2D Terrain Collision** — Move away from 1-height-per-X-coordinate heightmaps to allow for full 2D cave systems, overhangs, and tunnels. |
 | High | **Base geometry** — HQ and pads need structure, depth, ambient lights |
 | High | **NPC trucks** — cab + wheels + flatbed; can carry and drop cargo |
 | Medium | **Monster head lerp** — mouth angle snaps too fast; needs smoothed `targetAngle` interpolation |
