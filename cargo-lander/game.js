@@ -1957,9 +1957,14 @@ class CargoGame {
         if (this.physics.lander) {
             const l = this.physics.lander;
             const dotR = 5 / Math.max(scaleX, scaleY);
+            
+            // Clamp strictly to the minimap's coordinate bounds
+            const clampedX = Math.max(objMinX, Math.min(objMaxX, l.x));
+            const clampedY = Math.max(0, Math.min(mapWorldHeight, l.y));
+
             ctx.fillStyle = l.crashed ? '#ef4444' : '#10b981';
             ctx.beginPath();
-            ctx.arc(l.x, l.y, dotR, 0, Math.PI * 2);
+            ctx.arc(clampedX, clampedY, dotR, 0, Math.PI * 2);
             ctx.fill();
 
             // Small heading tick
@@ -1967,10 +1972,10 @@ class CargoGame {
                 ctx.strokeStyle = '#10b981';
                 ctx.lineWidth = 2.5 / Math.max(scaleX, scaleY);
                 ctx.beginPath();
-                ctx.moveTo(l.x, l.y);
+                ctx.moveTo(clampedX, clampedY);
                 ctx.lineTo(
-                    l.x + Math.sin(l.angle) * dotR * 2.2,
-                    l.y - Math.cos(l.angle) * dotR * 2.2
+                    clampedX + Math.sin(l.angle) * dotR * 2.2,
+                    clampedY - Math.cos(l.angle) * dotR * 2.2
                 );
                 ctx.stroke();
             }

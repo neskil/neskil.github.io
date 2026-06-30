@@ -138,16 +138,16 @@ canvas{display:block}
 
   <div id="out-area">
     <div class="row" style="margin-bottom:4px">
-      <span style="font-size:10px;color:#8b949e;flex:1">Export — terrainPolygons</span>
+      <span style="font-size:10px;color:#8b949e;flex:1">Export — positions + polygons</span>
       <button class="btn" id="copy-btn" onclick="copyOut()">Copy</button>
     </div>
-    <textarea id="out" readonly></textarea>
+    <textarea id="out" readonly style="height:90px"></textarea>
   </div>
 </div>
 
 <div id="canvas-wrap">
   <canvas id="main"></canvas>
-  <div id="kbd">S=select · A=add pts · P=pan · F=fit · Del=delete pt<br>Drag point to move · scroll=zoom · Alt+drag=pan</div>
+  <div id="kbd">S=select · A=add pts · P=pan · F=fit · Del=delete pt<br>Add mode: click near edge to insert point on it · hover shows preview<br>Drag HQ/Cargo/Hub bars to reposition · scroll=zoom · Alt+drag=pan</div>
   <div id="lvl-overlay"></div>
   <div id="statusbar">
     x: <span id="sx">0</span> &nbsp; y: <span id="sy">0</span>
@@ -183,6 +183,9 @@ const S = {
   selPoly: -1,
   selPt: -1,
   dragging: false, dragPi: -1, dragPti: -1,
+  dragMarker: null,  // 'hq' | 'depot' | {hub:i} — dragging a spawn/hub marker
+  edgePreview: null, // {pi, edgeIdx, pt} — shown in Add pts mode on hover
+  hoverMarker: null, // 'hq' | 'depot' | {hub:i} — for cursor feedback
   mode: 'select',
   snap: 10,
   view: { x:200, y:150, scale:0.35 },
@@ -335,6 +338,7 @@ function draw() {
   drawGravWell();
   drawSegments();
   drawPolygons();
+  drawEdgePreview();
 }
 
 function drawSky(W,H) {
@@ -548,22 +552,29 @@ function drawSegments() {
 
 function drawHubs() {
   const H = canvas.height, W = canvas.width;
-  S.hubs.forEach(hub => {
+  S.hubs.forEach((hub, hi) => {
     const col = hub.color || '#ffd700';
     const {sx} = w2s(hub.x, 0);
-    const baseW = 80; // game default hub half-width in world units
+    const baseW = 80;
     const padW  = (hub.width || baseW * S.padScale) * S.view.scale;
+    const isHov = S.hoverMarker?.hub === hi || S.dragMarker?.hub === hi;
 
     ctx.save();
     // Vertical guide
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.globalAlpha = isHov ? 0.6 : 0.3;
     ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha = 1;
 
     // Pad width bar near top of screen
     const barY = 8;
-    ctx.fillStyle = col+'28'; ctx.fillRect(sx-padW/2, barY, padW, 20);
-    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(sx-padW/2, barY, padW, 20);
+    ctx.fillStyle = col+(isHov?'44':'28'); ctx.fillRect(sx-padW/2, barY, padW, 20);
+    ctx.strokeStyle = col; ctx.lineWidth = isHov ? 2 : 1.5; ctx.strokeRect(sx-padW/2, barY, padW, 20);
+
+    // Drag handle ↔ indicator when hovered
+    if (isHov) {
+      ctx.fillStyle = col; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('↔', sx, barY - 2);
+    }
 
     // Labels
     ctx.fillStyle = col; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
@@ -607,27 +618,58 @@ function drawGravWell() {
 }
 
 function drawSpawnMarkers() {
-  spawnLine(S.startX, 'HQ', '#38bdf8');
-  if (S.collectionX != null) spawnLine(S.collectionX, 'Cargo', '#4ade80');
+  spawnLine(S.startX, 'HQ', '#38bdf8', S.hoverMarker==='hq'||S.dragMarker==='hq');
+  if (S.collectionX != null)
+    spawnLine(S.collectionX, 'Cargo', '#4ade80', S.hoverMarker==='depot'||S.dragMarker==='depot');
 }
 
-function spawnLine(worldX, label, color) {
+function spawnLine(worldX, label, color, isHov) {
   const {sx} = w2s(worldX, 0);
   const H = canvas.height;
   ctx.save();
   // Dashed vertical line
-  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=0.4;
+  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=isHov?0.7:0.4;
   ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha=1;
-  // Triangle marker
-  ctx.fillStyle=color+'33'; ctx.strokeStyle=color; ctx.lineWidth=1.5;
+  // Triangle marker — filled more on hover
+  ctx.fillStyle=isHov?color+'88':color+'33'; ctx.strokeStyle=color; ctx.lineWidth=isHov?2:1.5;
   ctx.beginPath(); ctx.moveTo(sx,42); ctx.lineTo(sx-7,52); ctx.lineTo(sx+7,52); ctx.closePath();
   ctx.fill(); ctx.stroke();
-  // Label
+  // Labels
   ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
   ctx.fillText(label, sx, 40);
+  if (isHov) ctx.fillText('↔', sx, 30);
   ctx.font='9px monospace';
   ctx.fillText('x='+worldX, sx, 63);
+  ctx.textAlign='left';
+  ctx.restore();
+}
+
+function drawEdgePreview() {
+  const ep = S.edgePreview;
+  if (!ep) return;
+  const poly = S.polygons[ep.pi];
+  if (!poly || poly.hidden) return;
+  const ac = POLY_COLORS[ep.pi % POLY_COLORS.length];
+  const a = poly.pts[ep.edgeIdx], b = poly.pts[(ep.edgeIdx+1) % poly.pts.length];
+  const as = w2s(a.x,a.y), bs = w2s(b.x,b.y);
+  const {sx,sy} = w2s(ep.pt.x, ep.pt.y);
+
+  ctx.save();
+  // Highlight the edge that will be split
+  ctx.strokeStyle=ac; ctx.lineWidth=3; ctx.globalAlpha=0.75;
+  ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(as.sx,as.sy); ctx.lineTo(bs.sx,bs.sy); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+  // Preview dot
+  ctx.beginPath(); ctx.arc(sx,sy,9,0,Math.PI*2);
+  ctx.fillStyle=ac+'33'; ctx.fill();
+  ctx.beginPath(); ctx.arc(sx,sy,4,0,Math.PI*2);
+  ctx.fillStyle=ac; ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+  // Coordinate label
+  ctx.fillStyle=ac; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText(`${ep.pt.x}, ${ep.pt.y}`, sx, sy-13);
   ctx.textAlign='left';
   ctx.restore();
 }
@@ -757,23 +799,37 @@ function insertAtCursor() {
   if (S.selPoly<0) return;
   const poly = S.polygons[S.selPoly];
   const idx = nearestEdge(poly.pts, S.mouse.wx, S.mouse.wy);
-  poly.pts.splice(idx+1, 0, {x:snap(S.mouse.wx), y:snap(S.mouse.wy)});
+  const proj = projectOntoSeg(S.mouse.wx, S.mouse.wy, poly.pts[idx], poly.pts[(idx+1)%poly.pts.length]);
+  poly.pts.splice(idx+1, 0, {x:snap(proj.x), y:snap(proj.y)});
   S.selPt = idx+1;
   renderSidebar(); renderPtList(); draw(); updateOut();
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
 function buildOut() {
-  const lines = ['terrainPolygons: ['];
-  S.polygons.forEach((poly, pi) => {
-    if (poly.comment) lines.push(`        // ${poly.comment}`);
-    lines.push('        [');
-    poly.pts.forEach((pt,i) => {
-      lines.push(`            {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${i<poly.pts.length-1?',':''}`);
+  const lines = [];
+  lines.push(`startX: ${S.startX},`);
+  if (S.collectionX != null) lines.push(`collectionX: ${S.collectionX},`);
+  if (S.hubs.length) {
+    lines.push('deliveryHubs: [');
+    S.hubs.forEach((h,i) => {
+      const fields = Object.entries(h)
+        .map(([k,v]) => `${k}: ${typeof v==='string'?JSON.stringify(v):v}`)
+        .join(', ');
+      lines.push(`    { ${fields} }${i<S.hubs.length-1?',':''}`);
     });
-    lines.push(`        ]${pi<S.polygons.length-1?',':''}`);
+    lines.push('],');
+  }
+  lines.push('terrainPolygons: [');
+  S.polygons.forEach((poly, pi) => {
+    if (poly.comment) lines.push(`    // ${poly.comment}`);
+    lines.push('    [');
+    poly.pts.forEach((pt,i) => {
+      lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${i<poly.pts.length-1?',':''}`);
+    });
+    lines.push(`    ]${pi<S.polygons.length-1?',':''}`);
   });
-  lines.push('    ]');
+  lines.push(']');
   return lines.join('\n');
 }
 
@@ -801,6 +857,28 @@ function hitPoint(sx,sy) {
   return null;
 }
 
+function hitMarker(sx, sy) {
+  // Spawn triangles live at screen y 35–65
+  if (sy > 30 && sy < 68) {
+    const hqSX = w2s(S.startX, 0).sx;
+    if (Math.abs(sx-hqSX) < 14) return 'hq';
+    if (S.collectionX != null) {
+      const depSX = w2s(S.collectionX, 0).sx;
+      if (Math.abs(sx-depSX) < 14) return 'depot';
+    }
+  }
+  // Hub bars live at screen y 5–35
+  if (sy > 3 && sy < 38) {
+    for (let i=0; i<S.hubs.length; i++) {
+      const hub=S.hubs[i];
+      const hubSX = w2s(hub.x, 0).sx;
+      const padW = (hub.width || 80*S.padScale) * S.view.scale;
+      if (sx >= hubSX-padW/2-6 && sx <= hubSX+padW/2+6) return {hub:i};
+    }
+  }
+  return null;
+}
+
 canvas.addEventListener('mousedown', e => {
   const sx=e.offsetX, sy=e.offsetY;
   const {wx,wy} = s2w(sx,sy);
@@ -812,10 +890,16 @@ canvas.addEventListener('mousedown', e => {
   if (S.mode==='add'&&e.button===0&&S.selPoly>=0) {
     const poly=S.polygons[S.selPoly];
     const idx=nearestEdge(poly.pts,wx,wy);
-    poly.pts.splice(idx+1,0,{x:snap(wx),y:snap(wy)});
-    S.selPt=idx+1; renderSidebar(); renderPtList(); draw(); updateOut(); return;
+    const proj=projectOntoSeg(wx,wy,poly.pts[idx],poly.pts[(idx+1)%poly.pts.length]);
+    poly.pts.splice(idx+1,0,{x:snap(proj.x),y:snap(proj.y)});
+    S.selPt=idx+1; S.edgePreview=null;
+    renderSidebar(); renderPtList(); draw(); updateOut(); return;
   }
   if (S.mode==='select'&&e.button===0) {
+    // Marker drag takes priority over polygon points
+    const mhit = hitMarker(sx, sy);
+    if (mhit) { S.dragMarker=mhit; return; }
+
     const hit=hitPoint(sx,sy);
     if (hit) {
       const [pi,pti]=hit;
@@ -841,19 +925,55 @@ canvas.addEventListener('mousemove', e => {
   if (isPan&&panLast) {
     S.view.x+=sx-panLast.sx; S.view.y+=sy-panLast.sy; panLast={sx,sy}; draw(); return;
   }
+
+  // Dragging a spawn marker or hub
+  if (S.dragMarker) {
+    const s=e.shiftKey?S.snap*5:S.snap;
+    const snappedX=Math.round(wx/s)*s;
+    if (S.dragMarker==='hq') S.startX=snappedX;
+    else if (S.dragMarker==='depot') S.collectionX=snappedX;
+    else if (S.dragMarker.hub!=null) S.hubs[S.dragMarker.hub].x=snappedX;
+    draw(); updateOut(); return;
+  }
+
+  // Dragging a polygon vertex
   if (S.dragging&&S.dragPti>=0) {
-    const s = e.shiftKey ? S.snap*5 : S.snap;
-    const pt = S.polygons[S.dragPi].pts[S.dragPti];
+    const s=e.shiftKey?S.snap*5:S.snap;
+    const pt=S.polygons[S.dragPi].pts[S.dragPti];
     pt.x=Math.round(wx/s)*s; pt.y=Math.round(wy/s)*s;
-    renderPtList(); draw(); updateOut();
+    renderPtList(); draw(); updateOut(); return;
+  }
+
+  // Edge preview in Add pts mode
+  if (S.mode==='add'&&S.selPoly>=0&&S.selPoly<S.polygons.length) {
+    const poly=S.polygons[S.selPoly];
+    if (!poly.hidden && poly.pts.length>=2) {
+      const idx=nearestEdge(poly.pts,wx,wy);
+      const proj=projectOntoSeg(wx,wy,poly.pts[idx],poly.pts[(idx+1)%poly.pts.length]);
+      S.edgePreview={pi:S.selPoly, edgeIdx:idx, pt:{x:snap(proj.x),y:snap(proj.y)}};
+      draw(); return;
+    }
+  } else if (S.edgePreview) {
+    S.edgePreview=null; draw();
+  }
+
+  // Hover detection for marker cursor feedback
+  const mhov = hitMarker(sx, sy);
+  if (mhov !== S.hoverMarker) {
+    S.hoverMarker = mhov;
+    canvas.style.cursor = mhov ? 'ew-resize' : (S.mode==='pan'?'grab':S.mode==='add'?'crosshair':'default');
+    draw();
   }
 });
 
 canvas.addEventListener('mouseup', () => {
   if (isPan){isPan=false;canvas.style.cursor=S.mode==='pan'?'grab':'default';}
+  if (S.dragMarker) { S.dragMarker=null; }
   S.dragging=false; S.dragPi=-1; S.dragPti=-1;
 });
-canvas.addEventListener('mouseleave', () => { isPan=false; S.dragging=false; });
+canvas.addEventListener('mouseleave', () => {
+  isPan=false; S.dragging=false; S.dragMarker=null; S.edgePreview=null; draw();
+});
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
@@ -888,11 +1008,24 @@ function inPoly(px,py,pts) {
   return inside;
 }
 
+function distToSeg(px,py,a,b) {
+  const dx=b.x-a.x, dy=b.y-a.y, len2=dx*dx+dy*dy;
+  if (len2===0) return Math.hypot(px-a.x,py-a.y);
+  const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/len2));
+  return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy));
+}
+
+function projectOntoSeg(px,py,a,b) {
+  const dx=b.x-a.x, dy=b.y-a.y, len2=dx*dx+dy*dy;
+  if (len2===0) return {x:a.x,y:a.y};
+  const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/len2));
+  return {x:a.x+t*dx, y:a.y+t*dy};
+}
+
 function nearestEdge(pts,wx,wy) {
   let best=0,bestD=Infinity;
   for (let i=0;i<pts.length;i++) {
-    const a=pts[i],b=pts[(i+1)%pts.length];
-    const d=Math.hypot(wx-(a.x+b.x)/2,wy-(a.y+b.y)/2);
+    const d=distToSeg(wx,wy,pts[i],pts[(i+1)%pts.length]);
     if (d<bestD){bestD=d;best=i;}
   }
   return best;
