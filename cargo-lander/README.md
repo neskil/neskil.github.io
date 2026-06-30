@@ -121,22 +121,20 @@ console + on-screen error logger report no errors.
 
 ---
 
-## Next steps / potential improvements
+## Long-Term Vision & Roadmap
 
-| Priority | Feature |
-|----------|---------|
-| High | **Level Geometry Refactor** — Extract procedural terrain formulas out of `physics.js` and move them into level configuration objects so they are fully data-driven. |
-| High | **True 2D Terrain Collision** — Move away from 1-height-per-X-coordinate heightmaps to allow for full 2D cave systems, overhangs, and tunnels. |
-| High | **Base geometry** — HQ and pads need structure, depth, ambient lights |
-| High | **NPC trucks** — cab + wheels + flatbed; can carry and drop cargo |
-| Medium | **Monster head lerp** — mouth angle snaps too fast; needs smoothed `targetAngle` interpolation |
-| Medium | **Space mountains** — floating rock obstacles |
-| Medium | **Minimap resize** — radar should reflect actual level dimensions |
-| Medium | **Flora & fauna** — terrain surface decorations (alien plants, critters) |
-| Medium | **Upgrade verification** — audit all 6 upgrade types end-to-end |
-| Low | **More levels** — larger maps, escalating difficulty, new hazards |
-| Low | **Procedural map generator** — runtime terrain + pad placement |
+The recent fixed-timestep physics overhaul and fluid boundary systems have laid the groundwork for a major expansion of the CargoLander universe. The following milestones represent the long-term vision for the project:
 
+| Milestone | Feature | Description |
+|-----------|---------|-------------|
+| **Phase 1** | **Massive Scrolling Levels** | Break free from single-screen puzzles. Develop large, multi-screen cave systems and sprawling planetary surfaces requiring fuel management across long distances and waypoint navigation. |
+| **Phase 1** | **Dynamic Weather Engine** | Evolving wind gusts and storms that actively push the lander, requiring constant thrust adjustment, accompanied by visual weather particles (dust, rain, snow). |
+| **Phase 2** | **Pendulum Mass Physics** | Heavy cargo crates will actively drag the lander down and introduce pendulum swing mechanics, forcing the player to balance flight carefully to avoid catastrophic destabilization. |
+| **Phase 2** | **Advanced Career Upgrades** | Full integration of remaining catalog upgrades (Shield Generators, Magnetic Decks) to allow persistent ship builds capable of surviving the harder scrolling maps. |
+| **Phase 3** | **Data-Driven Geometry** | Extract procedural terrain formulas out of `physics.js` into external JSON/config files, enabling full 2D overhangs, tunnels, and an in-browser level editor. |
+| **Phase 3** | **Procedural Expedition Mode** | A rogue-like mode with procedurally generated maps and infinite delivery challenges. |
+
+---
 
 ## Key Conventions
 - `dt` = `elapsedMs / 16.666` (normalized to 60fps). Most physics constants are per-frame at 60fps.
