@@ -140,11 +140,29 @@ class CargoPhysics {
         return maxSurfaceY || this.levelHeight * 0.7;
     }
 
+    // Standard ray-casting point-in-polygon test. Used for zone membership
+    // (hazards, water bodies) rather than the edge-collision terrain bodies.
+    pointInPolygon(px, py, pts) {
+        let inside = false;
+        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+            const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+            if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+        }
+        return inside;
+    }
+
+    polygonCentroid(pts) {
+        let cx = 0, cy = 0;
+        for (const p of pts) { cx += p.x; cy += p.y; }
+        return { x: cx / pts.length, y: cy / pts.length };
+    }
+
     generateTerrain(config) {
         const w = this.levelWidth;
         const h = this.levelHeight;
         this.terrainPolygons = config.terrainPolygons || [];
         this.hazards = config.hazards || [];
+        this.waterBodies = config.waterBodies || [];
         
         const ps = config.padScale || 1.0;
         this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: config.startY !== undefined ? config.startY : undefined, width: Math.round(80 * ps), height: 15 };
@@ -736,32 +754,35 @@ class CargoPhysics {
             }
         }
 
-        // Handle generic hazards
+        // Handle generic hazards — each is a polygon zone now (was a circle),
+        // so membership is a point-in-polygon test rather than a radius check.
         if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
             for (const h of this.hazards) {
-                const r = h.radius || 20;
-                const dx = lander.x - h.x;
-                const dy = lander.y - h.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < r + 6) { // 6 is lander approximate radius
-                    // Damage lander and knockback
-                    lander.vx += (dx / dist) * 2;
-                    lander.vy += (dy / dist) * 2;
-                    lander.integrity -= 25 * dt; // High damage
-                    
-                    if (window.CargoAudio) CargoAudio.playCollision(2);
-                    for (let i = 0; i < 3; i++) {
-                        this.particles.push({
-                            x: h.x + (Math.random() - 0.5) * r,
-                            y: h.y + (Math.random() - 0.5) * r,
-                            vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
-                            life: 0.6, decay: 0.05 + Math.random() * 0.05,
-                            color: '#ef4444',
-                            size: 2 + Math.random() * 3,
-                        });
-                    }
-                    if (lander.integrity <= 0) this.triggerExplosion();
+                if (!h.pts || h.pts.length < 3) continue;
+                if (!this.pointInPolygon(lander.x, lander.y, h.pts)) continue;
+
+                // Knockback pushes away from the polygon's centroid (stand-in for
+                // the old "away from circle center" direction).
+                const c = this.polygonCentroid(h.pts);
+                const dx = lander.x - c.x;
+                const dy = lander.y - c.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                lander.vx += (dx / dist) * 2;
+                lander.vy += (dy / dist) * 2;
+                lander.integrity -= 25 * dt; // High damage
+
+                if (window.CargoAudio) CargoAudio.playCollision(2);
+                for (let i = 0; i < 3; i++) {
+                    this.particles.push({
+                        x: lander.x + (Math.random() - 0.5) * 20,
+                        y: lander.y + (Math.random() - 0.5) * 20,
+                        vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                        life: 0.6, decay: 0.05 + Math.random() * 0.05,
+                        color: '#ef4444',
+                        size: 2 + Math.random() * 3,
+                    });
                 }
+                if (lander.integrity <= 0) this.triggerExplosion();
             }
         }
     }

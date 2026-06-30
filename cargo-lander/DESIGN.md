@@ -2,6 +2,11 @@
 
 *If you were starting over, what would you build?*
 
+> **Status: retrospective only, not an active plan.** This is a "lessons learned"
+> thought experiment, not a roadmap — there is no v2 rebuild in progress or planned.
+> The current `game.js`/`physics.js` architecture is the one being maintained; see
+> [README.md](README.md) for how it actually works today.
+
 ---
 
 ## The Core Idea (Don't Lose This)

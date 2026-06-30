@@ -18,19 +18,21 @@ files load cleanly).
 
 | File | Role |
 |------|------|
-| `index.html` | Page shell: all DOM/UI (menus, HUD, overlays, mobile controls), all CSS, and the bootstrap script. Loads the four JS files in order. |
+| `index.html` | Page shell: all DOM/UI (menus, HUD, overlays, mobile controls), all CSS, and the bootstrap script. Loads the Matter.js CDN script plus all the project's `<script>` files in order (see [Load order matters](#load-order-matters)). |
 | `audio.js` | `CargoAudioController` — a Web Audio API synthesizer. Generates all sound *procedurally* (no audio files): thruster rumble, collisions, explosions, warning beeps, success arpeggios, and an ambient music drone. Exposes global `CargoAudio`. |
 | `shaders.js` | `ShaderOverlay` — a WebGL layer drawn on the `#webglCanvas` on top of the main canvas. Renders glowing particles (point sprites) and the procedural "out-of-bounds monster" (a raymarched noisy blob in a fragment shader). Falls back to Canvas2D in `game.js` if WebGL is unavailable. |
-| `physics.js` | `CargoPhysics` — the custom 2D physics engine. Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
-| `game.js` | `CargoGame` — the orchestrator. Level & upgrade definitions, the `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. |
+| `physics.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
+| `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level7.js`/`levels.js`, not here. |
 | `terrain-editor.html` | **Terrain Editor** — standalone browser tool for visually editing and exporting `terrainPolygons`. See [Terrain Editor](#terrain-editor) below. |
-| `level1.js` – `level7.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. |
+| `level1.js` – `level7.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
+| `tests.html` | Browser-based test suite (166 tests as of 2026-06) covering level configs, physics init, draw-method existence, upgrades, etc. Open directly in a browser via a local static server; results post to `#summary` and failures log full stacks to `console.error`. Some tests are stale relative to the current implementation (see [Known Issues](#known-issues)). |
 
 ### Load order matters
-`index.html` loads them as `audio.js → shaders.js → physics.js → game.js`, then
-calls `game.init('cargoCanvas')`. `game` depends on `CargoPhysics`, `ShaderOverlay`,
-and `CargoAudio` all being defined first.
+`index.html` loads the Matter.js CDN script, then `levels.js → level1.js…level7.js →
+levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
+`game.init('cargoCanvas')`. `game` depends on `CargoPhysics`, `ShaderOverlay`,
+`CargoAudio`, and all level configs being registered first.
 
 ### How the pieces talk
 - `game.update()` builds an `inputState` object from `game.keys`/mouse and calls
@@ -41,10 +43,16 @@ and `CargoAudio` all being defined first.
 - Both `game` and `physics` call into global `CargoAudio` for SFX.
 
 ### Key concepts
-- **Vehicles**: `basic` (upright arcade), `advanced` (mouse-aimed full rotation),
-  `drone` (auto-hover + extendable winch for the "Needle's Eye" level).
+- **Vehicles**: `basic` (upright arcade), `advanced` (mouse-aimed full rotation,
+  removed from UI but still functions in physics code), `drone` (auto-hover +
+  extendable winch for the "Needle's Eye" level).
 - **Cargo types**: `normal`, `red`, `blue`, `green` — must be delivered to a hub of
-  the matching `type`.
+  the matching `type`. `tethered` boxes are special-cased — only `drone` can grapple
+  them (see `toggleGrapple()` in game.js).
+- **Hub types**: usually mirror a cargo type, but `'chute'` hubs accept *any* cargo
+  type without requiring a landing (the box is vacuum-pulled in once it drifts into
+  the opening — see the Vacuum Chute logic in `checkCargoDelivery()` and `update()`
+  in physics.js).
 - **Economy**: `globalCash` + `upgrades` persist in `localStorage`
   (`cargoLanderCash`, `cargoLanderUpgrades`). `missionBudget` is per-mission.
 - **dt**: the loop normalizes delta time to 60 fps (`dt = elapsedMs / 16.666`), so
@@ -53,18 +61,19 @@ and `CargoAudio` all being defined first.
 
 ## Terrain Editor
 
-`terrain-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons` arrays in level files. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/terrain-editor.html`.
+`terrain-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons`, `waterBodies`, and `hazards` arrays in level files — all three are polygons (`{pts:[{x,y},...]}`) and are edited with the exact same vertex tools, just switched via the **Terrain / Water / Hazard** tabs in the sidebar. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/terrain-editor.html`.
 
 ### Features
 - **Level file dropdown** — loads any of `level1.js` – `level7.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
-- **Palette-based rendering** — sky gradient uses each level's `skyTop/skyMid/skyBot` palette; terrain polygons are filled with `terrainFill` and outlined with `rockEdge` glow, matching the in-game biome appearance.
+- **Terrain / Water / Hazard tabs** — `+ Shape` adds a new polygon to whichever tab is active; clicking any existing shape on canvas auto-switches to its tab. Legacy `waterBodies: [{x,width,hasBoat}]` / `hazards: [{x,y,radius,type}]` configs are auto-converted to polygons on load (a basin rect / an 8-sided approximation of the circle) so older level files still open cleanly.
+- **Palette-based rendering** — sky gradient uses each level's `skyTop/skyMid/skyBot` palette; terrain polygons are filled with `terrainFill` and outlined with `rockEdge` glow, matching the in-game biome appearance. Water/hazard polygons use fixed blue/red coloring.
 - **Out-of-bounds zone** — `outOfBounds.surfaceY` is drawn as a colored fill below the surface line, with a mist gradient fade above it and a labeled dashed line. A red `monsterDepth` line marks the monster trigger depth.
 - **Hub pads** — each delivery hub shown as a labeled width-bar at the top of the screen and a vertical guide line, colored to match `hub.color`.
 - **Gravity well** — pull-radius ring with radial glow fill plus the orbit radius ring (dashed).
-- **Spawn markers** — HQ (`startX`) and cargo depot (`collectionX`) shown as labeled dashed vertical lines with triangle markers.
-- **Polygon list sidebar** — click to select, eye icon to hide/show, rename field for comments, per-point x/y inputs.
+- **Spawn markers** — HQ (`startX`) and cargo depot (`collectionX`) shown as a labeled width-bar (matching the real in-game pad width) plus a dashed vertical line with a diamond/triangle marker.
+- **Shape list sidebar** — click to select, eye icon to hide/show, rename field for comments, per-point x/y inputs. Shows whichever layer's tab is active.
 - **Snap controls** — dedicated buttons for 1 / 10 / 50 / 100 world-unit snapping; hold Shift for ×5 multiplier.
-- **Export** — live-updating `terrainPolygons: [...]` block with polygon comments; one-click Copy button.
+- **Export** — live-updating `terrainPolygons: [...]` / `waterBodies: [...]` / `hazards: [...]` blocks with comments; one-click Copy button.
 - **Paste fallback** — also accepts pasted JS if the server isn't running.
 
 ### Keyboard shortcuts
@@ -91,6 +100,23 @@ Changes were verified live against the local static server: the menu renders the
 fully-styled pilot-license card populated from `localStorage`, the Audio settings
 modal opens with controls synced to the real mute/volume state, and the browser
 console + on-screen error logger report no errors.
+
+---
+
+## Known Issues
+- **`tests.html` is stale relative to the current implementation** — as of 2026-06-30,
+  25 of 166 tests fail, mostly because the suite still assumes a heightmap-style
+  terrain API (`getTerrainHeight()`, `getTerrainSlope()`, `terrainPoints` arrays) and
+  a `gravity` default of `0.15`, none of which match the current polygon-based
+  terrain in `physics.js` (actual default gravity is `0.11`) or `getPolygonSurfaceY()`.
+  `drawLake` no longer exists as a separate method either. None of these failures are
+  related to cargo delivery — fixing the suite to match the current architecture is
+  unstarted, separate work.
+- **Resolved 2026-06-30**: cargo delivered to a normal hub or lost in the abyss left
+  behind an orphaned Matter.js body and a stale `lander.grabbedBoxId`, which could
+  cause invisible phantom collisions and block re-grabbing cargo after a delivery.
+  Fixed by routing all box removal through `game.js`'s `removeCargoBox()` — see
+  Physics Notes below.
 
 ---
 
@@ -194,31 +220,35 @@ The recent fixed-timestep physics overhaul and fluid boundary systems have laid 
 The `.claude/` folder contains machine-specific Windows absolute paths. Add to `.gitignore` if missing.
 
 ## Code Map — Key Locations
-| System | File | Approx. Lines |
+Levels/upgrades live in `level1.js`–`level7.js` and `levels.js` (see file table above),
+**not** in `game.js`. Line numbers below are approximate — `game.js` (5300+ lines) and
+`physics.js` (1500+ lines) both grow steadily, so re-grep the function name if a line
+number is off by more than ~20.
+
+| System | File | Approx. Line |
 |---|---|---|
-| Level definitions (5 levels) | game.js | 3–160 |
-| Upgrade catalog | game.js | 143–149 |
-| `startLevel()` — init mission state | game.js | 614–680 |
-| RAF loop / `update()` — timer, overtime, physics tick | game.js | 930–1010 |
-| `checkCargoDelivery()` — delivery scoring | game.js | 1138–1194 |
-| `updateHUD()` — fuel/hull bars, time display | game.js | 840–900 |
-| Damage flash overlay (canvas) | game.js | ~1510 |
-| `drawParallax()` — sky gradient | game.js | ~2200 |
-| `drawLake()` — L1 only, terrain-clipped | game.js | ~2310 |
-| `drawGroundParallax()` — subsurface layers | game.js | ~2450 |
-| `drawTerrain()` — fill, edge, grass tufts (L1) / noise (others) | game.js | ~2480 |
-| `drawSourcingDepot()` — HQ pad + cargo warehouse | game.js | ~2720 |
-| `drawDeliveryHubs()` — receiving warehouse + crane | game.js | ~3000 |
-| `drawLander()` — full truck + drone rendering, legs, flames | game.js | ~2950–3320 |
-| `drawAmbientTraffic()` + `_drawFreighterTruck()` + `_drawPickupTruck()` | game.js | ~3680–3830 |
-| `drawMonster()` — segmented creature, arms, mouth | game.js | ~1940–2200 |
-| `spawnLander()` — lander initial state | physics.js | 147–190 |
-| `applyControls()` — drone/basic/advanced input | physics.js | 370–500 |
-| `applyGravityAndWind()` | physics.js | 521–540 |
-| Leg spring decay | physics.js | ~584 |
-| Landing / crash detection | physics.js | 600–700 |
-| Monster spawn + integral-speed AI | physics.js | 309–370 |
-| `updateAmbientTraffic()` — truck spawn logic | physics.js | 1055–1150 |
+| `startLevel()` — init mission state | game.js | ~594 |
+| `loop()` — RAF entry point | game.js | ~967 |
+| `update(dt)` — timer, overtime, physics tick | game.js | ~998 |
+| `checkCargoDelivery()` — hub/chute matching, abyss loss | game.js | ~1293 |
+| `removeCargoBox()` — shared cleanup: clears grapple, removes Matter body, splices array | game.js | ~1364 |
+| `updateHUD()` — fuel/hull bars, time display | game.js | ~888 |
+| Damage flash overlay (canvas) | game.js | ~1788 |
+| `drawMonster()` — segmented creature, arms, mouth | game.js | ~2288 |
+| `drawParallax()` — sky gradient | game.js | ~2851 |
+| `drawGroundParallax()` — subsurface layers | game.js | ~3327 |
+| `drawTerrain()` — fill, edge, grass tufts (L1) / noise (others) | game.js | ~3368 |
+| `drawSourcingDepot()` — HQ pad + cargo warehouse | game.js | ~3659 |
+| `drawDeliveryHubs()` — receiving warehouse + crane | game.js | ~3864 |
+| `drawLander()` — full truck + drone rendering, legs, flames | game.js | ~4206 |
+| `drawAmbientTraffic()` + `_drawFreighterTruck()` + `_drawPickupTruck()` | game.js | ~5064–5164 |
+| `spawnLander()` — lander initial state | physics.js | ~238 |
+| `applyControls()` — drone/basic/advanced input | physics.js | ~770 |
+| `applyGravityAndWind()` | physics.js | ~931 |
+| `updateMonster()` — spawn trigger + integral-speed AI | physics.js | ~548 |
+| Leg spring decay | physics.js | ~1069 |
+| `updateAmbientTraffic()` — truck spawn logic | physics.js | ~1428 |
+| `resolveBoxLanderDeckCollisions()` / `updateOnDeckStates()` — cargo-on-deck physics | physics.js | ~1260–1305 |
 
 ## Physics Notes
 - Thruster: **slow spool-up, instant cut-off** (`enginePower = 0` immediately on key release)
@@ -229,6 +259,13 @@ The `.claude/` folder contains machine-specific Windows absolute paths. Add to `
 - Ambient traffic: `physics.ambientTraffic[]`, max 5, models: `'freighter'` | `'pickup'`
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when lander escapes)
+- `waterBodies` and `hazards` are polygons (`{pts:[{x,y},...]}`), edited in terrain-editor.html the same way as `terrainPolygons` — not rects/circles anymore. `physics.pointInPolygon()` / `physics.polygonCentroid()` do zone-membership and knockback-direction math for hazards; water bodies have no physics effect, they're purely decorative (the actual liquid-physics zone is the separate, level-wide `outOfBounds.surfaceY` mechanic).
+- **Cargo removal must go through `game.js`'s `removeCargoBox()`**, not a raw `boxes.splice()`.
+  Splicing the array alone leaves the box's Matter body in `matterWorld` forever (it keeps
+  simulating invisibly — gravity, terrain collision — even though nothing draws it) and leaves
+  `lander.grabbedBoxId` pointing at a deleted box, which silently blocks re-grabbing cargo. This
+  was the root cause of the "cargo drop-off" bugs fixed 2026-06-30: hub delivery and abyss-loss
+  previously spliced directly; only the vacuum-chute path cleaned up properly.
 
 ## Rendering Notes
 - Side-thruster gradient must be anchored at the flame's x position (`flameX`), NOT at 0

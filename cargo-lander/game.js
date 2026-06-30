@@ -1292,7 +1292,6 @@ class CargoGame {
 
     checkCargoDelivery() {
         const lander = this.physics.lander;
-        const level = levels[this.currentLevelIndex];
         const hubs = this.physics.deliveryHubs;
         const boxes = this.physics.boxes;
 
@@ -1301,11 +1300,7 @@ class CargoGame {
         const padType = lander.currentPad; // e.g. 'red', 'blue', 'green', 'normal'
         const hub = hubs.find(h => h.type === padType);
         if (lander.landed && hub) {
-
-            // Search cargo boxes that are lying on the deck (close to the deck coordinates)
-            const S = this.physics.BOX_SIZE;
-
-            // Let's sweep boxes that are within the horizontal bounds of the hub's landing zone
+            // Sweep boxes that are within the horizontal bounds of the hub's landing zone
             for (let i = boxes.length - 1; i >= 0; i--) {
                 const box = boxes[i];
 
@@ -1314,32 +1309,23 @@ class CargoGame {
                     // Check if cargo matches the hub's requirement
                     if (box.type === padType) {
                         this.processSuccessfulDelivery(box, i, hub);
-                    } else {
-                        // Warning: Incorrect Cargo type
+                    } else if (!box._rejectWarned) {
+                        // Warning: Incorrect Cargo type — only once per box, not every frame
+                        box._rejectWarned = true;
                         this.addMessage(`Warning: Hub rejects ${box.type.toUpperCase()} package!`, "#ef4444");
                     }
                 }
             }
         }
 
-        // Check for Vacuum Chute delivery (no landing required, just drop it in)
+        // Check for Vacuum Chute delivery (no landing required — any cargo type
+        // is accepted once it's been pulled down through the chute opening).
         for (const hub of hubs) {
-            if (hub.type === 'chute') {
-                for (let i = boxes.length - 1; i >= 0; i--) {
-                    const box = boxes[i];
-                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
-                        if (lander && lander.grabbedBoxId === box.id) {
-                            lander.grabbedBoxId = null;
-                        }
-
-                        if (hub.type === 'chute' || box.type === hub.type || hub.type === 'any') { // Chute is usually generic, wait, 'chute' is hub.type!
-                            // Wait, chute hubs have type='chute'. So any box is valid!
-                            this.processSuccessfulDelivery(box, i, hub);
-                        } else {
-                            // This won't run because hub.type === 'chute', but I'll leave it for generic logic
-                            this.processSuccessfulDelivery(box, i, hub);
-                        }
-                    }
+            if (hub.type !== 'chute') continue;
+            for (let i = boxes.length - 1; i >= 0; i--) {
+                const box = boxes[i];
+                if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
+                    this.processSuccessfulDelivery(box, i, hub);
                 }
             }
         }
@@ -1353,7 +1339,7 @@ class CargoGame {
             if (box.y > terrainY + 50 || box.y > this.physics.levelHeight) {
                 // Spawn smoke particles
                 this.spawnDeliveryParticles(box.x, terrainY, "#475569");
-                boxes.splice(i, 1);
+                this.removeCargoBox(box, i);
 
                 // Penalize Mission Budget
                 this.missionBudget -= 100;
@@ -1370,9 +1356,25 @@ class CargoGame {
         }
     }
 
+    // Removes a box from the simulation: detaches it from the lander if held,
+    // drops its Matter body (otherwise it lingers in the world and keeps
+    // colliding/simulating invisibly), and splices it out of physics.boxes.
+    removeCargoBox(box, index) {
+        const lander = this.physics.lander;
+        if (lander && lander.grabbedBoxId === box.id) {
+            lander.grabbedBoxId = null;
+        }
+        const body = this.physics.boxBodyMap?.get(box.id);
+        if (body) {
+            Matter.Composite.remove(this.physics.matterWorld, body);
+            this.physics.boxBodyMap.delete(box.id);
+        }
+        this.physics.boxes.splice(index, 1);
+    }
+
     processSuccessfulDelivery(box, index, hub) {
         this.spawnDeliveryParticles(box.x, box.y, hub.color);
-        this.physics.boxes.splice(index, 1);
+        this.removeCargoBox(box, index);
         hub.craneAnim = { timer: 0, lx: box.x, boxType: box.type };
 
         this.deliveredCount++;
@@ -1429,13 +1431,7 @@ class CargoGame {
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playCollision();
                 this.addMessage('Cargo destroyed! -$150', '#ef4444');
                 this.missionBudget -= 150;
-                boxes.splice(i, 1);
-                // Remove matching Matter body
-                const body = this.physics.boxBodyMap?.get(box.id);
-                if (body) {
-                    Matter.Composite.remove(this.physics.matterWorld, body);
-                    this.physics.boxBodyMap.delete(box.id);
-                }
+                this.removeCargoBox(box, i);
             }
         }
     }
@@ -3080,38 +3076,32 @@ class CargoGame {
     }
 
     drawWaterBodies() {
-        const waterBodies = levels[this.currentLevelIndex]?.waterBodies;
+        // Water bodies are hand-authored polygons (edited in terrain-editor.html
+        // the same way as terrainPolygons), not an {x,width} rect anymore — the
+        // shape itself defines the basin, so there's no terrain-sampling here.
+        const waterBodies = this.physics.waterBodies;
         if (!waterBodies || waterBodies.length === 0) return;
-        if (!(this.physics.levelHeight > 0)) return;
 
         const ctx = this.ctx;
         const now = Date.now();
 
         for (const body of waterBodies) {
-            const lx = body.x;
-            const lw = body.width;
+            const pts = body.pts;
+            if (!pts || pts.length < 3) continue;
 
-            // Find terrain height at the banks to set the water surface
-            const yLeft = this.physics.getPolygonSurfaceY(lx);
-            const yRight = this.physics.getPolygonSurfaceY(lx + lw);
-            const ly = Math.max(yLeft, yRight); // Water level is aligned with the lower bank
-            const ld = 48; // Maximum depth of the carved basin
-
-            // Build a path: top = water surface, sides vertical, bottom follows terrain
-            const terrainBottom = [];
-            for (let sx = lx; sx <= lx + lw; sx += 8) {
-                terrainBottom.push({ x: sx, y: this.physics.getPolygonSurfaceY(sx) });
+            let lx = Infinity, rx = -Infinity, ly = Infinity, maxY = -Infinity;
+            for (const p of pts) {
+                lx = Math.min(lx, p.x); rx = Math.max(rx, p.x);
+                ly = Math.min(ly, p.y); maxY = Math.max(maxY, p.y);
             }
+            const lw = rx - lx;
+            const ld = Math.max(8, maxY - ly); // Depth of the basin, from the authored shape
 
             ctx.save();
 
-            // Water body — filled with depth gradient, clipped to terrain-following shape
+            // Water body — filled with depth gradient, clipped to the authored polygon
             ctx.beginPath();
-            ctx.moveTo(lx, ly);
-            ctx.lineTo(lx + lw, ly);
-            for (let i = terrainBottom.length - 1; i >= 0; i--) {
-                ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
-            }
+            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.closePath();
 
             const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
@@ -3121,13 +3111,18 @@ class CargoGame {
             ctx.fillStyle = depthGrad;
             ctx.fill();
 
-            // Clip all inner content to this same water shape
+            // Clip all inner content to this same water shape — AND to the actual
+            // terrain surface, so nothing (fish, waves, ripples) ever paints above
+            // the surrounding ground even if the authored polygon's top edge pokes
+            // slightly above it in places.
             ctx.beginPath();
-            ctx.moveTo(lx, ly);
-            ctx.lineTo(lx + lw, ly);
-            for (let i = terrainBottom.length - 1; i >= 0; i--) {
-                ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
-            }
+            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+            ctx.clip();
+            ctx.beginPath();
+            ctx.moveTo(lx, -100000);
+            ctx.lineTo(rx, -100000);
+            for (let sx = rx; sx >= lx; sx -= 8) ctx.lineTo(sx, this.physics.getPolygonSurfaceY(sx));
             ctx.closePath();
             ctx.clip();
 
@@ -3157,10 +3152,15 @@ class CargoGame {
             }
             ctx.stroke();
 
-            // Decorative wave lines (animated)
-            ctx.strokeStyle = 'rgba(56,130,220,0.45)';
+            // Decorative wave lines (animated) — capped at 3 regardless of basin
+            // depth, so deep basins don't get a busy stack of lines.
+            ctx.strokeStyle = 'rgba(56,130,220,0.4)';
             ctx.lineWidth = 1.5;
-            for (let wy = ly + 4; wy < ly + ld - 10; wy += 8) {
+            const waveLineCount = 3;
+            const waveSpacing = Math.max(10, (ld - 14) / waveLineCount);
+            for (let li = 0; li < waveLineCount; li++) {
+                const wy = ly + 6 + li * waveSpacing;
+                if (wy >= ly + ld - 6) break;
                 ctx.beginPath();
                 for (let wx = lx; wx < lx + lw; wx += 20) {
                     const waveOffset = Math.sin((wx + now * 0.05) * 0.03 + wy) * 3;
@@ -3170,7 +3170,7 @@ class CargoGame {
                 ctx.stroke();
             }
 
-            // Fish (clipped to water automatically)
+            // Fish (clipped to water + terrain automatically) — smaller than before
             const fish = [
                 { phase: 0.0, depth: 0.30, size: 1.0 },
                 { phase: 2.1, depth: 0.52, size: 0.85 },
@@ -3182,7 +3182,7 @@ class CargoGame {
                 const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(ft) * (lw * 0.36), lx + 12), lx + lw - 12);
                 const fy = ly + ld * f.depth;
                 const dir = Math.cos(ft) >= 0 ? 1 : -1;
-                const bw = 14 * f.size, bh = 6 * f.size;
+                const bw = 9 * f.size, bh = 4 * f.size;
                 ctx.fillStyle = 'rgba(60,180,110,0.88)';
                 ctx.beginPath();
                 ctx.ellipse(fx, fy, bw / 2, bh / 2, 0, 0, Math.PI * 2);
@@ -3243,7 +3243,7 @@ class CargoGame {
 
             // Fishing boat — bobs on the water surface
             if (body.hasBoat) {
-                const bx = lx + 145 + Math.sin(now / 2000) * 7;
+                const bx = lx + lw * 0.6 + Math.sin(now / 2000) * 7;
                 const by = ly - 1;
                 // Hull
                 ctx.fillStyle = '#4a3728';
@@ -3283,34 +3283,39 @@ class CargoGame {
     }
 
     drawHazards() {
+        // Hazards are hand-authored polygons now (was a {x,y,radius} circle) — see
+        // physics.js's pointInPolygon-based hazard check.
         if (!this.physics.hazards || this.physics.hazards.length === 0) return;
         const ctx = this.ctx;
         const now = performance.now();
 
         ctx.save();
         for (const haz of this.physics.hazards) {
-            const r = haz.radius || 20;
-            const px = haz.x;
-            const py = haz.y;
+            const pts = haz.pts;
+            if (!pts || pts.length < 3) continue;
+            const c = this.physics.polygonCentroid(pts);
+            // Average vertex-to-centroid distance stands in for the old "radius",
+            // sizing the pulsing core/spikes to roughly match the polygon's extent.
+            const r = pts.reduce((s, p) => s + Math.hypot(p.x - c.x, p.y - c.y), 0) / pts.length;
 
-            // Render basic laser/plasma mine hazard
+            // Hazard zone outline — the actual polygon boundary used for the physics check
             ctx.beginPath();
-            ctx.arc(px, py, r, 0, Math.PI * 2);
+            pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.closePath();
             ctx.fillStyle = `rgba(239, 68, 68, ${0.1 + Math.sin(now / 200) * 0.05})`;
             ctx.fill();
-
             ctx.strokeStyle = `rgba(239, 68, 68, ${0.5 + Math.sin(now / 100) * 0.3})`;
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Inner core
+            // Inner pulsing core at the centroid
             ctx.beginPath();
-            ctx.arc(px, py, r * 0.3, 0, Math.PI * 2);
+            ctx.arc(c.x, c.y, r * 0.3, 0, Math.PI * 2);
             ctx.fillStyle = '#fca5a5';
             ctx.fill();
 
-            // Rotating spikes
-            ctx.translate(px, py);
+            // Rotating spikes around the centroid
+            ctx.translate(c.x, c.y);
             ctx.rotate(now / 800);
             ctx.fillStyle = '#ef4444';
             for (let i = 0; i < 4; i++) {
@@ -3323,7 +3328,7 @@ class CargoGame {
                 ctx.rotate(Math.PI / 2);
             }
             ctx.rotate(-now / 800);
-            ctx.translate(-px, -py);
+            ctx.translate(-c.x, -c.y);
         }
         ctx.restore();
     }
