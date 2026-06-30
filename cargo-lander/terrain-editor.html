@@ -550,37 +550,75 @@ function drawSegments() {
   });
 }
 
+// Returns the topmost terrain y at world x by ray-casting downward through all polygon edges.
+function groundYAt(worldX) {
+  let best = null;
+  S.polygons.forEach(poly => {
+    if (poly.hidden) return;
+    for (let i = 0; i < poly.pts.length; i++) {
+      const a = poly.pts[i], b = poly.pts[(i+1) % poly.pts.length];
+      if (a.x === b.x) continue;
+      const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
+      if (worldX < minX || worldX > maxX) continue;
+      const t = (worldX - a.x) / (b.x - a.x);
+      const y = a.y + t * (b.y - a.y);
+      if (best === null || y < best) best = y;
+    }
+  });
+  return best;
+}
+
 function drawHubs() {
-  const H = canvas.height, W = canvas.width;
+  const H = canvas.height;
   S.hubs.forEach((hub, hi) => {
     const col = hub.color || '#ffd700';
     const {sx} = w2s(hub.x, 0);
-    const baseW = 80;
-    const padW  = (hub.width || baseW * S.padScale) * S.view.scale;
+    const padHalfW = (hub.width || 80 * S.padScale) / 2;
     const isHov = S.hoverMarker?.hub === hi || S.dragMarker?.hub === hi;
+    const gy = groundYAt(hub.x);
 
     ctx.save();
-    // Vertical guide
-    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.globalAlpha = isHov ? 0.6 : 0.3;
+    // Vertical guide line
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.globalAlpha = isHov ? 0.55 : 0.25;
     ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
     ctx.setLineDash([]); ctx.globalAlpha = 1;
 
-    // Pad width bar near top of screen
-    const barY = 8;
-    ctx.fillStyle = col+(isHov?'44':'28'); ctx.fillRect(sx-padW/2, barY, padW, 20);
-    ctx.strokeStyle = col; ctx.lineWidth = isHov ? 2 : 1.5; ctx.strokeRect(sx-padW/2, barY, padW, 20);
+    if (gy !== null) {
+      // Draw hub pad on terrain surface
+      const {sx:lx, sy:ly} = w2s(hub.x - padHalfW, gy);
+      const {sx:rx}        = w2s(hub.x + padHalfW, gy);
+      const {sx:cx, sy:cy} = w2s(hub.x, gy);
+      const padWpx = rx - lx;
 
-    // Drag handle ↔ indicator when hovered
-    if (isHov) {
-      ctx.fillStyle = col; ctx.font = '10px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('↔', sx, barY - 2);
+      // Fill rect above surface line
+      ctx.fillStyle = col + (isHov ? '44' : '22');
+      ctx.fillRect(lx, cy - 18, padWpx, 18);
+
+      // Surface pad line
+      ctx.strokeStyle = col; ctx.lineWidth = isHov ? 4 : 3;
+      ctx.globalAlpha = isHov ? 1 : 0.85;
+      ctx.beginPath(); ctx.moveTo(lx, cy); ctx.lineTo(rx, cy); ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Drag affordance + labels above pad
+      ctx.fillStyle = col; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+      if (isHov) ctx.fillText('↔', cx, cy - 22);
+      ctx.fillText(hub.name || 'Hub', cx, cy - 8);
+      ctx.font = '9px monospace';
+      ctx.fillText(`x=${hub.x}${hub.type?' ['+hub.type+']':''}`, cx, cy - 20);
+    } else {
+      // Fallback: floating bar at screen top when no terrain found
+      const padWpx = padHalfW * 2 * S.view.scale;
+      const barY = 8;
+      ctx.fillStyle = col + (isHov?'44':'28'); ctx.fillRect(sx-padWpx/2, barY, padWpx, 20);
+      ctx.strokeStyle = col; ctx.lineWidth = isHov ? 2 : 1.5; ctx.strokeRect(sx-padWpx/2, barY, padWpx, 20);
+      ctx.fillStyle = col; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+      if (isHov) ctx.fillText('↔', sx, barY - 2);
+      ctx.fillText(hub.name || 'Hub', sx, barY+13);
+      ctx.font = '9px monospace';
+      ctx.fillText(`x=${hub.x}${hub.type?' ['+hub.type+']':''}`, sx, barY+30);
     }
 
-    // Labels
-    ctx.fillStyle = col; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(hub.name || 'Hub', sx, barY+13);
-    ctx.font = '9px monospace';
-    ctx.fillText(`x=${hub.x}${hub.type?' ['+hub.type+']':''}`, sx, barY+30);
     ctx.textAlign = 'left';
     ctx.restore();
   });
@@ -626,21 +664,39 @@ function drawSpawnMarkers() {
 function spawnLine(worldX, label, color, isHov) {
   const {sx} = w2s(worldX, 0);
   const H = canvas.height;
+  const gy = groundYAt(worldX);
   ctx.save();
   // Dashed vertical line
-  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=isHov?0.7:0.4;
+  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=isHov?0.6:0.3;
   ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
   ctx.setLineDash([]); ctx.globalAlpha=1;
-  // Triangle marker — filled more on hover
-  ctx.fillStyle=isHov?color+'88':color+'33'; ctx.strokeStyle=color; ctx.lineWidth=isHov?2:1.5;
-  ctx.beginPath(); ctx.moveTo(sx,42); ctx.lineTo(sx-7,52); ctx.lineTo(sx+7,52); ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  // Labels
-  ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
-  ctx.fillText(label, sx, 40);
-  if (isHov) ctx.fillText('↔', sx, 30);
-  ctx.font='9px monospace';
-  ctx.fillText('x='+worldX, sx, 63);
+
+  if (gy !== null) {
+    const {sx:mx, sy:my} = w2s(worldX, gy);
+    const dm = 7;
+    // Diamond on terrain surface
+    ctx.fillStyle = isHov ? color+'88' : color+'33';
+    ctx.strokeStyle = color; ctx.lineWidth = isHov ? 2 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(mx, my-dm); ctx.lineTo(mx+dm, my); ctx.lineTo(mx, my+dm); ctx.lineTo(mx-dm, my);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Labels above diamond
+    ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+    if (isHov) ctx.fillText('↔', mx, my-dm-12);
+    ctx.fillText(label, mx, my-dm-1);
+    ctx.font='9px monospace';
+    ctx.fillText('x='+worldX, mx, my+dm+11);
+  } else {
+    // Fallback triangle at screen top
+    ctx.fillStyle=isHov?color+'88':color+'33'; ctx.strokeStyle=color; ctx.lineWidth=isHov?2:1.5;
+    ctx.beginPath(); ctx.moveTo(sx,42); ctx.lineTo(sx-7,52); ctx.lineTo(sx+7,52); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+    ctx.fillText(label, sx, 40);
+    if (isHov) ctx.fillText('↔', sx, 30);
+    ctx.font='9px monospace';
+    ctx.fillText('x='+worldX, sx, 63);
+  }
   ctx.textAlign='left';
   ctx.restore();
 }

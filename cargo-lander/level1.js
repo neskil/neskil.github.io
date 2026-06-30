@@ -34,6 +34,11 @@ registerLevel({
             { x: -920, y: 760 }
         ]
     ],
+    // ── Water Bodies ──────────────────────────────────────────────────────────
+    waterBodies: [
+        { x: 480, width: 240 }
+    ],
+
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 1.5,
     targetCargo: 2,
