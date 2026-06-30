@@ -14,7 +14,7 @@ registerLevel({
     wind: 0,
 
     // ── Terrain ───────────────────────────────────────────────────────────────
-    startX: -30,
+    startX: -70,
     terrainPolygons: [
         [
             { x: -420, y: 660 },
@@ -37,8 +37,19 @@ registerLevel({
         ]
     ],
     // ── Water Bodies ──────────────────────────────────────────────────────────
+    // Hand-authored basin polygon (editable in terrain-editor.html the same way
+    // as terrainPolygons) — was previously an auto-generated {x, width} rect.
     waterBodies: [
-        { x: 410, width: 240, hasBoat: true }
+        {
+            hasBoat: true,
+            pts: [
+                { x: 410, y: 700 },
+                { x: 650, y: 678 },
+                { x: 650, y: 726 },
+                { x: 530, y: 738 },
+                { x: 410, y: 748 }
+            ]
+        }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
