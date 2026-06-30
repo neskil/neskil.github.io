@@ -3098,9 +3098,25 @@ class CargoGame {
         // Determine visible X range based on camera
         const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
         const w = this.canvas.width;
-        const startX = Math.floor((this.camera.x - (w / 2 / zoom) - 100) / 20) * 20;
-        const endX = this.camera.x + (w / 2 / zoom) + 100;
+        let startX = Math.floor((this.camera.x - (w / 2 / zoom) - 100) / 20) * 20;
+        let endX = this.camera.x + (w / 2 / zoom) + 100;
         if (!isFinite(startX) || !isFinite(endX) || endX - startX > 20000) return;
+
+        // Clamp grass/shadow drawing to actual terrain boundaries
+        let minTerrainX = Infinity;
+        let maxTerrainX = -Infinity;
+        for (const poly of this.physics.terrainPolygons) {
+            for (let i = 0; i < poly.length; i++) {
+                const p1 = poly[i];
+                const p2 = poly[(i + 1) % poly.length];
+                if (p1.x < p2.x) { // floor segment
+                    if (p1.x < minTerrainX) minTerrainX = p1.x;
+                    if (p2.x > maxTerrainX) maxTerrainX = p2.x;
+                }
+            }
+        }
+        startX = Math.max(minTerrainX, startX);
+        endX = Math.min(maxTerrainX, endX);
 
         // Fill all terrain polygons
         ctx.fillStyle = pal.terrainFill;
