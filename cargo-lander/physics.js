@@ -1346,15 +1346,32 @@ class CargoPhysics {
                     const rvy = box.vy - lvy;
 
                     const rvn = rvx * nx + rvy * ny;
+                    const rvt = rvx * tx + rvy * ty;
+
                     if (rvn < 0) {
                         const imp = -(1 + 0.02) * rvn; // Much less bounce with deck
                         box.vx += imp * nx;
                         box.vy += imp * ny;
 
-                        const rvt = rvx * tx + rvy * ty;
-                        const fImp = -0.95 * rvt; // Almost completely lock tangential velocity so it sticks
+                        // Break friction if bumping hard
+                        let frictionCoef = 0.95;
+                        if (lander.magneticDeckActive && Math.abs(rvt) < lander.magneticStrength * 10.0) {
+                            frictionCoef = 1.0;
+                        }
+                        const fImp = -frictionCoef * rvt; 
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
+                    } else if (lander.magneticDeckActive) {
+                        // Magnetic clutch actively holds the box down if it tries to float away
+                        if (rvn < lander.magneticStrength * 5.0 && Math.abs(rvt) < lander.magneticStrength * 10.0) {
+                            // Cancel escaping normal velocity
+                            box.vx -= rvn * nx;
+                            box.vy -= rvn * ny;
+                            
+                            // Apply full magnetic friction
+                            box.vx -= rvt * tx;
+                            box.vy -= rvt * ty;
+                        }
                     }
                 }
             }
