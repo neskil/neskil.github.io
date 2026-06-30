@@ -209,13 +209,27 @@ resize();
 async function loadFromServer() {
   const f = document.getElementById('lsel').value;
   if (!f) { alert('Choose a level file first.'); return; }
-  try {
-    const src = await fetch('./' + f + '?t=' + Date.now()).then(r => {
-      if (!r.ok) throw new Error(r.status);
-      return r.text();
-    });
-    applySource(src);
-  } catch(e) { alert('Could not load ' + f + ':\n' + e); }
+  
+  // Set up globals so the script can register itself when loaded
+  window.questPrimary = t => ({id:'primary', text:t, type:'primary'});
+  window.questNoCrash = (r=300) => ({id:'no_crash', text:'Zero crashes', type:'bonus', reward:r});
+  window.questNoCargoLost = (t='No cargo lost', r=250) => ({id:'no_cargo_lost', text:t, type:'bonus', reward:r});
+  window.questQuick = (t,g,r=200) => ({id:'quick', text:t, type:'bonus', reward:r, timeGoal:g});
+  window.questSurviveWorm = (r=500) => ({id:'survive_worm', text:'Survive the worm', type:'bonus', reward:r});
+  
+  window.registerLevel = (cfg) => {
+    applyConfig(cfg);
+    delete window.registerLevel;
+  };
+
+  const script = document.createElement('script');
+  script.src = './' + f + '?t=' + Date.now();
+  script.onerror = () => {
+    alert('Could not load ' + f + '\nMake sure the file exists.');
+    script.remove();
+  };
+  script.onload = () => script.remove();
+  document.body.appendChild(script);
 }
 
 function loadFromPaste() {
