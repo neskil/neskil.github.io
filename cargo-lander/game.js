@@ -1119,7 +1119,8 @@ class CargoGame {
         // --- Cinematic Camera Update ---
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
+        const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
+        const minZoom = Math.max(0.45, levelFitZoom); // Cap how far it can zoom out
         let desiredZoom = 1.3;
         if (lander.vehicleType === 'drone') {
             desiredZoom -= (lander.ropeLength * 0.003);
@@ -1998,7 +1999,7 @@ class CargoGame {
             // Small heading tick
             if (!l.crashed) {
                 ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 2.5 / Math.max(scaleX, scaleY);
+                ctx.lineWidth = 2.5 / scale;
                 ctx.beginPath();
                 ctx.moveTo(clampedX, clampedY);
                 ctx.lineTo(
