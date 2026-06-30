@@ -395,7 +395,7 @@ class CargoPhysics {
     // Resolve lander corners against all segments
     resolveSegmentCollisions() {
         const lander = this.lander;
-        if (lander.crashed || this.segments.length === 0) return;
+        if (this.segments.length === 0) return;
 
         const hw = lander.width / 2;
         const hh = lander.height / 2;
@@ -432,6 +432,11 @@ class CargoPhysics {
             const vt = lander.vx * tx + lander.vy * ty;
             lander.vx -= this.LANDER_FRICTION * vt * tx;
             lander.vy -= this.LANDER_FRICTION * vt * ty;
+
+            if (lander.crashed) {
+                // Tumble based on tangential speed and some randomness
+                lander.angularVelocity = (lander.angularVelocity || 0) + vt * 0.02 + (Math.random() - 0.5) * 0.05;
+            }
 
             const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
             if (speed > 1.5 && window.CargoAudio) CargoAudio.playCollision(speed);
@@ -953,6 +958,11 @@ class CargoPhysics {
         const lander = this.lander;
         lander.x += lander.vx * dt;
         lander.y += lander.vy * dt;
+        
+        if (lander.crashed) {
+            lander.angle += (lander.angularVelocity || 0) * dt;
+            if (lander.angularVelocity) lander.angularVelocity *= Math.pow(0.98, dt);
+        }
 
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
 
@@ -1212,12 +1222,12 @@ class CargoPhysics {
 
                     const rvn = rvx * nx + rvy * ny;
                     if (rvn < 0) {
-                        const imp = -(1 + 0.15) * rvn; // Slight bounce with deck
+                        const imp = -(1 + 0.02) * rvn; // Much less bounce with deck
                         box.vx += imp * nx;
                         box.vy += imp * ny;
 
                         const rvt = rvx * tx + rvy * ty;
-                        const fImp = -(this.BOX_FRICTION * 0.15) * rvt; // Lower friction so it slides
+                        const fImp = -(this.BOX_FRICTION * 0.85) * rvt; // Higher friction so it sticks
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
                     }
@@ -1276,7 +1286,8 @@ class CargoPhysics {
         if (this.trafficSpawnTimer > 420 && this.ambientTraffic.length < 5) {
             this.trafficSpawnTimer = 0;
             const fromRight = Math.random() > 0.5;
-            const minTerrainY = Math.min(...this.terrainPoints.map(p => p.y));
+            const allYs = this.segments.flatMap(s => [s.y1, s.y2]);
+            const minTerrainY = allYs.length > 0 ? Math.min(...allYs) : 400;
             const skyY = minTerrainY - 80 - Math.random() * 450;
             const model = Math.random() < 0.42 ? 'pickup' : 'freighter';
             const truckW = model === 'pickup' ? 55 + Math.random() * 50 : 80 + Math.random() * 120;
