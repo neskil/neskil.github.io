@@ -1,17 +1,23 @@
 // Level 4 — Gravity Anomaly
-// Biome: Volcanic / Orange. Moving gravity well + tight pads + two cargo types.
+// Biome: Volcanic / Lava Rock / Orange-Red.
+// The defining hazard is a moving gravity well that orbits its base position —
+// physics.js reads gravityWell.orbitRadius and applies a Lissajous phase offset each tick.
+// Two cargo types (red → Sector 4, blue → Deep Storage) force the player to read labels
+// while also fighting the vortex pull and the floating asteroid obstacles.
+// Underground easter egg: a blinking server rack cluster lives 60px below the terrain surface.
 
 registerLevel({
     name: "L4: Gravity Anomaly",
-    missionTitle: "Anomaly Zone Delivery",
-    description: "A gravitational vortex is pulling you in. Counter the force and sort red/blue cargo to their correct hubs.",
+    missionTitle: "Anomaly Zone — Dual Cargo Sort",
+    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Two clients need urgent deliveries sorted by colour: red crates to Sector 4, blue crates to Deep Storage. Floating asteroid debris adds extra collision risk. Don't let the vortex pull you into the lava.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.28,           // Heavy gravity
+    gravity: 0.28,           // Heavy gravity — volcanic world has dense core
     wind: 0,
-    heavyCargo: true, // Cargo weight affects lander handling
+    heavyCargo: true,        // Cargo mass affects handling — critical near the vortex
 
-    // Moving gravity well — physics.js reads gravityWell config
+    // Moving gravity well — physics.js reads gravityWell config and applies
+    // a Lissajous-phase orbit so the pull point drifts unpredictably
     gravityWell: {
         x: 500,
         y: 400,
@@ -22,38 +28,45 @@ registerLevel({
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
-        // Ground - valley around the well
+        // Ground — valley floor shaped around the gravity well;
+        // twin saddles mark the hub landing zones
         [
-            {x: -400, y: 650}, {x: 100, y: 650}, {x: 300, y: 550}, 
-            {x: 450, y: 650}, {x: 600, y: 650}, // Red Hub at x=500
-            {x: 750, y: 550}, {x: 900, y: 650}, {x: 1050, y: 650}, // Blue Hub at x=950
-            {x: 1200, y: 550}, {x: 1800, y: 550}, {x: 1800, y: 1800}, {x: -400, y: 1800}
+            // Left approach and HQ spawn area
+            {x: -400, y: 650}, {x: 100, y: 650},
+            // Saddle 1 — Sector 4 (red hub) sits in this dip
+            {x: 300, y: 550}, {x: 450, y: 650}, {x: 600, y: 650},
+            // Saddle 2 — Deep Storage (blue hub) sits in this dip
+            {x: 750, y: 550}, {x: 900, y: 650}, {x: 1050, y: 650},
+            // Eastern ridge — higher ground, no hubs
+            {x: 1200, y: 550}, {x: 1800, y: 550},
+            // Enclosure
+            {x: 1800, y: 1800}, {x: -400, y: 1800}
         ],
-        // Floating Asteroid 1 (Left of well)
+        // Floating Asteroid 1 — orbits left of the well; collision hazard on approach
         [
             {x: 200, y: 250}, {x: 350, y: 200}, {x: 300, y: 350}, {x: 220, y: 320}
         ],
-        // Floating Asteroid 2 (Right of well)
+        // Floating Asteroid 2 — orbits right of the well; blocks the direct path to Deep Storage
         [
             {x: 700, y: 300}, {x: 850, y: 250}, {x: 800, y: 400}, {x: 680, y: 350}
         ]
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 0.70,         // tightest standard pads so far
+    padScale: 0.70,         // Tightest standard pads so far — tight quarters in the anomaly zone
     targetCargo: 2,
     budget: 2000,
     timeLimit: 180,
     allowedTypes: ["red", "blue"],
-    collectionX: -100,
+    collectionX: -100,      // Pickup depot is behind HQ on the far-left — safe from the vortex
 
     // ── Environment ───────────────────────────────────────────────────────────
     outOfBounds: {
         type: 'goo',
         color: 'rgba(239, 68, 68, 0.7)',
         mistColor: 'rgba(239, 68, 68, 0.4)',
-        surfaceY: 1200,
-        drag: 0.96,       // Thick plasma
+        surfaceY: 1200,     // Molten plasma pool below terrain
+        drag: 0.96,         // Thick plasma — slows descent but the monster still comes
         buoyancy: -0.1,
         monsterDepth: 1600
     },
@@ -76,25 +89,24 @@ registerLevel({
     },
 
     // ── Segments — floating lava platforms and a diagonal barrier ────────────
-    // Coordinates are in level-space (same as deliveryHub x values).
-    // The lander and cargo boxes collide with these just like terrain.
+    // These are solid line segments — lander and cargo collide with them like terrain.
     segments: [
-        // Floating lava platform — left of the vortex zone
+        // Floating lava platform — left of the vortex, above Sector 4
         { x1: 300, y1: 520, x2: 420, y2: 520 },
-        // Short angled ramp leading up to it
+        // Angled ramp up to the left platform — forces the player to come from below
         { x1: 220, y1: 570, x2: 300, y2: 520 },
-        // Floating platform — right side, near the hubs
+        // Floating platform — right side, hovers above the Deep Storage approach
         { x1: 620, y1: 480, x2: 720, y2: 480 },
-        // Diagonal barrier cutting across the upper cave
+        // Diagonal barrier — cuts across the upper mid zone; blocks naive top-down shortcuts
         { x1: 480, y1: 300, x2: 560, y2: 380 },
     ],
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Avoid the vortex and the lava platforms! Return to HQ to extract.",
+    hint: "The vortex drifts — don't hover near the centre. Match cargo colour to hub colour. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver red & blue cargo'),
-        questNoCargoLost('No cargo sucked in', 350),
+        questNoCargoLost('No cargo sucked into the vortex', 350),
         questNoCrash(300),
     ],
 });

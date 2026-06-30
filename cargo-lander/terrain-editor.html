@@ -4,672 +4,827 @@
 <meta charset="UTF-8">
 <title>Terrain Editor — Cargo Lander</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: monospace; background: #0d1117; color: #e6edf3; display: flex; height: 100vh; overflow: hidden; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;display:flex;height:100vh;overflow:hidden;font-size:12px}
 
-#sidebar {
-  width: 320px; min-width: 320px; background: #161b22; border-right: 1px solid #30363d;
-  display: flex; flex-direction: column; overflow: hidden;
+#sidebar{width:310px;min-width:310px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+
+.sec{padding:9px 11px;border-bottom:1px solid #30363d}
+.sec-title{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
+
+select,textarea,input[type=number],input[type=text]{
+  background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;
+  font-family:monospace;font-size:11px;padding:3px 6px
 }
-#sidebar-top { padding: 12px; border-bottom: 1px solid #30363d; }
-#sidebar-top h1 { font-size: 13px; font-weight: 600; color: #58a6ff; margin-bottom: 8px; }
+select:focus,textarea:focus,input:focus{outline:none;border-color:#58a6ff}
+select{width:100%;padding:4px 6px;margin-bottom:5px}
 
-textarea#input {
-  width: 100%; height: 120px; background: #0d1117; color: #e6edf3;
-  border: 1px solid #30363d; border-radius: 4px; padding: 8px;
-  font-family: monospace; font-size: 11px; resize: none;
-}
-textarea#input:focus { outline: none; border-color: #58a6ff; }
+.row{display:flex;gap:4px;align-items:center}
+.btn{padding:3px 10px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font:11px monospace;white-space:nowrap;user-select:none}
+.btn:hover{background:#30363d}
+.btn.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.btn.on:hover{background:#388bfd}
+.btn.del{color:#f85149}.btn.del:hover{background:#2d1515;border-color:#f85149}
 
-.btn {
-  display: inline-block; padding: 5px 12px; font-family: monospace; font-size: 12px;
-  background: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px;
-  cursor: pointer; user-select: none;
-}
-.btn:hover { background: #30363d; }
-.btn.primary { background: #1f6feb; border-color: #1f6feb; }
-.btn.primary:hover { background: #388bfd; }
-.btn.danger { color: #f85149; border-color: #f85149; }
-.btn.danger:hover { background: #3d1a1a; }
+#level-card{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:7px 9px;margin-top:6px;display:none}
+#level-card .lname{font-size:12px;font-weight:700;color:#58a6ff;margin-bottom:4px}
+#level-card .lmeta{font-size:10px;color:#8b949e;line-height:1.7}
+.badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;margin-right:4px}
 
-#poly-list { flex: 1; overflow-y: auto; padding: 8px; }
-.poly-item {
-  padding: 6px 8px; border-radius: 4px; cursor: pointer;
-  border: 1px solid transparent; margin-bottom: 4px; font-size: 12px;
-}
-.poly-item:hover { background: #21262d; }
-.poly-item.active { background: #1c2d3f; border-color: #58a6ff; }
-.poly-header { display: flex; justify-content: space-between; align-items: center; }
-.poly-name { font-weight: 600; }
-.poly-count { font-size: 11px; color: #8b949e; }
+details>summary{font-size:10px;color:#8b949e;cursor:pointer;margin-top:5px;user-select:none}
+details textarea{width:100%;height:70px;margin-top:5px;resize:none;font-size:10px}
 
-#point-panel { padding: 8px; border-top: 1px solid #30363d; min-height: 0; }
-#point-panel h3 { font-size: 11px; color: #8b949e; margin-bottom: 6px; }
-.point-row {
-  display: flex; align-items: center; gap: 4px; padding: 3px 0;
-  font-size: 11px; cursor: pointer; border-radius: 3px; padding: 3px 4px;
-}
-.point-row:hover { background: #21262d; }
-.point-row.selected { background: #1c2d3f; }
-.point-idx { color: #8b949e; width: 22px; }
-.point-coord { flex: 1; }
-.point-coord input {
-  width: 52px; background: #0d1117; color: #e6edf3; border: 1px solid #30363d;
-  border-radius: 3px; padding: 1px 4px; font-family: monospace; font-size: 11px;
-}
-.point-coord input:focus { outline: none; border-color: #58a6ff; }
-.point-del { color: #6e7681; cursor: pointer; font-size: 14px; line-height: 1; }
-.point-del:hover { color: #f85149; }
+#poly-list{flex:1;overflow-y:auto;padding:7px;min-height:40px}
+.pitem{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
+.pitem:hover{background:#21262d}
+.pitem.active{background:#1c2d3f;border-color:#388bfd}
+.pdot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.pname{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcnt{font-size:10px;color:#8b949e}
+.peye{font-size:12px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover{color:#e6edf3}
 
-#point-list-wrap { max-height: 180px; overflow-y: auto; }
+#pt-panel{border-top:1px solid #30363d;padding:8px;display:none}
+#pt-panel .sec-title{margin-bottom:5px}
+#pt-list-wrap{max-height:150px;overflow-y:auto}
+.ptrow{display:flex;align-items:center;gap:3px;padding:2px 3px;border-radius:3px;cursor:pointer}
+.ptrow:hover{background:#21262d}.ptrow.sel{background:#1c2d3f}
+.pidx{color:#8b949e;width:18px;font-size:10px;flex-shrink:0}
+.clabel{color:#8b949e;font-size:10px}
+.cinput{width:50px;font-size:10px;padding:1px 4px}
+.xbtn{color:#6e7681;font-size:13px;cursor:pointer;line-height:1}.xbtn:hover{color:#f85149}
 
-#toolbar { padding: 8px; border-top: 1px solid #30363d; display: flex; flex-wrap: wrap; gap: 4px; }
+#rename-row{display:flex;gap:4px;margin-bottom:5px;align-items:center}
+#rename-row label{font-size:10px;color:#8b949e;white-space:nowrap}
+#rename-row input{flex:1;font-size:11px}
 
-#output-area { padding: 8px; border-top: 1px solid #30363d; }
-#output-area textarea {
-  width: 100%; height: 80px; background: #0d1117; color: #a5d6ff;
-  border: 1px solid #30363d; border-radius: 4px; padding: 6px;
-  font-family: monospace; font-size: 10px; resize: none;
-}
+#toolbar{padding:7px 9px;border-top:1px solid #30363d;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+#snap-bar{padding:5px 9px;border-top:1px solid #30363d;display:flex;gap:4px;align-items:center}
+#snap-bar label{font-size:10px;color:#8b949e}
 
-#canvas-wrap { flex: 1; position: relative; overflow: hidden; }
-canvas#main { display: block; cursor: crosshair; }
+#out-area{padding:7px 9px;border-top:1px solid #30363d}
+#out-area textarea{width:100%;height:68px;resize:none;color:#79c0ff;font-size:10px}
 
-#coords { position: absolute; bottom: 8px; right: 8px; font-size: 11px; color: #8b949e; pointer-events: none; }
-#hint { position: absolute; top: 8px; left: 8px; font-size: 11px; color: #8b949e; pointer-events: none; background: rgba(0,0,0,.5); padding: 4px 8px; border-radius: 4px; }
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+canvas{display:block}
 
-.color-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; flex-shrink: 0; }
+#statusbar{position:absolute;bottom:0;left:0;right:0;height:22px;background:rgba(13,17,23,.88);border-top:1px solid #30363d;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:#8b949e;pointer-events:none}
+#statusbar span{color:#c9d1d9}
+
+#kbd{position:absolute;top:8px;left:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:10px;color:#8b949e;pointer-events:none;line-height:1.6}
+#lvl-overlay{position:absolute;top:8px;right:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;color:#58a6ff;pointer-events:none;display:none}
 </style>
 </head>
 <body>
 
 <div id="sidebar">
-  <div id="sidebar-top">
-    <h1>Terrain Editor</h1>
-    <textarea id="input" placeholder="Paste level JS here (full registerLevel({...}) or just the terrainPolygons: [...] block)&#10;&#10;Then click Load →"></textarea>
-    <div style="display:flex;gap:4px;margin-top:6px;">
-      <button class="btn primary" onclick="loadInput()">Load</button>
-      <button class="btn" onclick="fitView()">Fit view</button>
-      <button class="btn" onclick="addPolygon()">+ poly</button>
+  <div class="sec">
+    <div class="sec-title">Load Level</div>
+    <select id="lsel">
+      <option value="">— choose level file —</option>
+      <option value="level1.js">level1.js — L1: Local Distribution</option>
+      <option value="level2.js">level2.js — L2: Cross-Dock Sorting</option>
+      <option value="level3.js">level3.js — L3: Gale-Force Winds</option>
+      <option value="level4.js">level4.js — L4: Gravity Anomaly</option>
+      <option value="level5.js">level5.js — L5: The Needle's Eye</option>
+      <option value="level6.js">level6.js — L6: Sand Worm's Lair</option>
+      <option value="level7.js">level7.js — L7: The Deep Haul</option>
+      <option value="levelTest.js">levelTest.js — Sandbox</option>
+    </select>
+    <div class="row">
+      <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
+      <button class="btn" onclick="fitView()">Fit</button>
+      <button class="btn" onclick="addPolygon()">+ Poly</button>
     </div>
+    <div id="level-card"></div>
+    <details>
+      <summary>Or paste JS</summary>
+      <textarea id="paste-in" placeholder="Paste full registerLevel({...}) or just terrainPolygons: [...]"></textarea>
+      <button class="btn on" style="width:100%;margin-top:3px" onclick="loadFromPaste()">Parse &amp; load</button>
+    </details>
   </div>
 
+  <div class="sec" style="padding-bottom:4px">
+    <div class="sec-title">Polygons</div>
+  </div>
   <div id="poly-list"></div>
 
-  <div id="point-panel" style="display:none;">
-    <h3>Points — <span id="poly-label"></span> <button class="btn danger" style="padding:2px 7px;font-size:10px;" onclick="deletePolygon()">delete poly</button></h3>
-    <div id="point-list-wrap"><div id="point-list"></div></div>
-    <div style="margin-top:6px;display:flex;gap:4px;">
-      <button class="btn" style="font-size:11px;padding:3px 8px;" onclick="addPoint()">+ point at cursor</button>
+  <div id="pt-panel">
+    <div class="sec-title">
+      <span>Points</span>
+      <button class="btn del" style="padding:1px 6px;font-size:10px" onclick="deletePoly()">delete poly</button>
     </div>
+    <div id="rename-row">
+      <label>Label:</label>
+      <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
+    </div>
+    <div id="pt-list-wrap"><div id="pt-list"></div></div>
+    <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
   </div>
 
   <div id="toolbar">
-    <span style="font-size:11px;color:#8b949e;align-self:center;">Mode:</span>
-    <button class="btn" id="mode-select" onclick="setMode('select')">Select</button>
-    <button class="btn" id="mode-add" onclick="setMode('add')">Add pts</button>
-    <button class="btn" id="mode-pan" onclick="setMode('pan')">Pan</button>
+    <span style="font-size:10px;color:#8b949e">Mode:</span>
+    <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
+    <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
+    <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
+  </div>
+  <div id="snap-bar">
+    <label>Snap:</label>
+    <button class="btn" id="sn1"  onclick="setSnap(1)">1</button>
+    <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
+    <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
+    <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
+    <span style="font-size:10px;color:#8b949e;margin-left:2px">Shift=×5</span>
   </div>
 
-  <div id="output-area">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <span style="font-size:11px;color:#8b949e;">Export</span>
-      <button class="btn" style="font-size:10px;padding:2px 7px;" onclick="copyOutput()">Copy</button>
+  <div id="out-area">
+    <div class="row" style="margin-bottom:4px">
+      <span style="font-size:10px;color:#8b949e;flex:1">Export — terrainPolygons</span>
+      <button class="btn" id="copy-btn" onclick="copyOut()">Copy</button>
     </div>
-    <textarea id="output" readonly></textarea>
+    <textarea id="out" readonly></textarea>
   </div>
 </div>
 
 <div id="canvas-wrap">
   <canvas id="main"></canvas>
-  <div id="coords">x: 0, y: 0</div>
-  <div id="hint">Scroll = zoom · Drag = pan · Click point = select · Drag point = move</div>
+  <div id="kbd">S=select · A=add pts · P=pan · F=fit · Del=delete pt<br>Drag point to move · scroll=zoom · Alt+drag=pan</div>
+  <div id="lvl-overlay"></div>
+  <div id="statusbar">
+    x: <span id="sx">0</span> &nbsp; y: <span id="sy">0</span>
+    &nbsp;&nbsp; snap: <span id="sdisp">10</span>
+    &nbsp;&nbsp; <span id="pdisp"></span>
+  </div>
 </div>
 
 <script>
 const canvas = document.getElementById('main');
-const ctx = canvas.getContext('2d');
-const wrap = document.getElementById('canvas-wrap');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
 
-const POLY_COLORS = ['#58a6ff','#3fb950','#f78166','#d2a8ff','#ffa657','#79c0ff','#56d364','#ff7b72'];
-const HUB_COLOR = '#ffd700';
-const SEG_COLOR = '#ff9966';
-const GRAV_COLOR = '#ff66cc';
+const POLY_COLORS = ['#58a6ff','#3fb950','#f78166','#d2a8ff','#ffa657','#79c0ff','#56d364','#ff7b72','#e3b341','#a5d6ff'];
 
-let state = {
-  polygons: [],    // [{pts: [{x,y},...], comment:''}]
-  segments: [],    // [{x1,y1,x2,y2}]
-  hubs: [],        // [{x, color, name}]
-  gravWell: null,
-  selectedPoly: -1,
-  selectedPoint: -1,
-  dragging: false,
-  dragPoly: -1,
-  dragPt: -1,
-  mode: 'select',  // select | add | pan
-  view: { x: 0, y: 0, scale: 0.4 },
-  mouse: { wx: 0, wy: 0 },
-  panStart: null,
+const DEFAULT_PAL = {
+  skyTop:'#020617', skyMid:'#040b16', skyBot:'#051114',
+  terrainFill:'#06101c', rockEdge:'#38bdf8',
+  rockGlow:'rgba(56,189,248,', fog:'rgba(56,189,248,0.1)'
 };
 
+const S = {
+  polygons: [],   // [{pts:[{x,y}], comment:'', hidden:false}]
+  segments: [],   // [{x1,y1,x2,y2}]
+  hubs: [],       // [{x, width?, color, type, name}]
+  gravWell: null, // {x,y,radius,orbitRadius,strength}
+  oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
+  palette: Object.assign({}, DEFAULT_PAL),
+  startX: 0,
+  collectionX: null,
+  padScale: 1,
+  levelName: '',
+  selPoly: -1,
+  selPt: -1,
+  dragging: false, dragPi: -1, dragPti: -1,
+  mode: 'select',
+  snap: 10,
+  view: { x:200, y:150, scale:0.35 },
+  mouse: { wx:0, wy:0 },
+};
+
+// ── Resize ────────────────────────────────────────────────────────────────────
 function resize() {
-  canvas.width = wrap.clientWidth;
-  canvas.height = wrap.clientHeight;
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight - 22;
   draw();
 }
 window.addEventListener('resize', resize);
 resize();
 
-// ── Parse ────────────────────────────────────────────────────────────────────
-
-function loadInput() {
-  const txt = document.getElementById('input').value.trim();
-  if (!txt) return;
-  try { parseLevel(txt); } catch(e) { alert('Parse error: ' + e.message); console.error(e); }
+// ── Level loading ─────────────────────────────────────────────────────────────
+async function loadFromServer() {
+  const f = document.getElementById('lsel').value;
+  if (!f) { alert('Choose a level file first.'); return; }
+  try {
+    const src = await fetch('/' + f + '?t=' + Date.now()).then(r => {
+      if (!r.ok) throw new Error(r.status);
+      return r.text();
+    });
+    applySource(src);
+  } catch(e) { alert('Could not load ' + f + ':\n' + e); }
 }
 
-function parseLevel(src) {
-  state.polygons = [];
-  state.segments = [];
-  state.hubs = [];
-  state.gravWell = null;
+function loadFromPaste() {
+  const src = document.getElementById('paste-in').value.trim();
+  if (src) applySource(src);
+}
 
-  // Extract terrainPolygons
-  let polyMatch = src.match(/terrainPolygons\s*:\s*(\[[\s\S]*?\n\s*\](?=\s*,|\s*\n\s*[a-z]))/);
-  if (!polyMatch) {
-    // Try just an array
-    polyMatch = src.match(/^(\[[\s\S]*\])$/m);
+function applySource(src) {
+  const cfg = evalLevel(src);
+  if (cfg) {
+    applyConfig(cfg);
+  } else {
+    // fallback: regex-parse just polygons
+    const polys = regexParsePolys(src);
+    if (!polys.length) { alert('Could not parse any polygons from this source.'); return; }
+    resetState();
+    S.polygons = polys;
+    S.selPoly = 0;
+    fitView(); renderSidebar(); updateOut();
   }
-  if (polyMatch) {
-    const raw = polyMatch[1];
-    const polys = parsePolygonArray(raw);
-    state.polygons = polys;
-  }
+}
 
-  // Extract segments
-  const segMatch = src.match(/segments\s*:\s*\[([\s\S]*?)\]/);
-  if (segMatch) {
-    const segs = [];
-    const re = /\{\s*x1\s*:\s*([-\d.]+)\s*,\s*y1\s*:\s*([-\d.]+)\s*,\s*x2\s*:\s*([-\d.]+)\s*,\s*y2\s*:\s*([-\d.]+)\s*\}/g;
-    let m;
-    while ((m = re.exec(segMatch[1])) !== null) {
-      segs.push({x1:+m[1],y1:+m[2],x2:+m[3],y2:+m[4]});
-    }
-    state.segments = segs;
-  }
+function evalLevel(src) {
+  let captured = null;
+  const rl  = c => { captured = c; };
+  const qP  = t     => ({id:'primary', text:t, type:'primary'});
+  const qNC = (r=300) => ({id:'no_crash', text:'Zero crashes', type:'bonus', reward:r});
+  const qNL = (t='No cargo lost', r=250) => ({id:'no_cargo_lost', text:t, type:'bonus', reward:r});
+  const qQ  = (t,g,r=200) => ({id:'quick', text:t, type:'bonus', reward:r, timeGoal:g});
+  const qSW = (r=500) => ({id:'survive_worm', text:'Survive the worm', type:'bonus', reward:r});
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function('registerLevel','questPrimary','questNoCrash','questNoCargoLost','questQuick','questSurviveWorm', src)
+      (rl, qP, qNC, qNL, qQ, qSW);
+  } catch(e) { console.warn('evalLevel failed:', e); return null; }
+  return captured;
+}
 
-  // Extract deliveryHubs
-  const hubMatch = src.match(/deliveryHubs\s*:\s*\[([\s\S]*?)\]/);
-  if (hubMatch) {
-    const re = /\{\s*x\s*:\s*([-\d.]+)[\s\S]*?color\s*:\s*["'](.*?)["'][\s\S]*?name\s*:\s*["'](.*?)["']/g;
-    let m;
-    while ((m = re.exec(hubMatch[1])) !== null) {
-      state.hubs.push({x:+m[1], color:m[2], name:m[3]});
-    }
-  }
+function applyConfig(cfg) {
+  resetState();
+  S.polygons  = (cfg.terrainPolygons || []).map((pts, i) => ({
+    pts: pts.map(p => ({x:p.x, y:p.y})),
+    comment: guessComment(pts, i),
+    hidden: false
+  }));
+  S.segments  = cfg.segments || [];
+  S.hubs      = cfg.deliveryHubs || [];
+  S.gravWell  = cfg.gravityWell  || null;
+  S.oob       = cfg.outOfBounds  || null;
+  S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
+  S.startX    = cfg.startX    || 0;
+  S.collectionX = cfg.collectionX != null ? cfg.collectionX : null;
+  S.padScale  = cfg.padScale  || 1;
+  S.levelName = cfg.name || '';
+  S.selPoly   = S.polygons.length > 0 ? 0 : -1;
 
-  // Extract gravityWell
-  const gwMatch = src.match(/gravityWell\s*:\s*\{([\s\S]*?)\}/);
-  if (gwMatch) {
-    const gx = gwMatch[1].match(/x\s*:\s*([-\d.]+)/);
-    const gy = gwMatch[1].match(/y\s*:\s*([-\d.]+)/);
-    if (gx && gy) state.gravWell = {x:+gx[1], y:+gy[1]};
-  }
+  const ol = document.getElementById('lvl-overlay');
+  ol.textContent = cfg.name || '';
+  ol.style.display = cfg.name ? '' : 'none';
 
-  state.selectedPoly = state.polygons.length > 0 ? 0 : -1;
-  state.selectedPoint = -1;
+  renderLevelCard(cfg);
   fitView();
   renderSidebar();
-  updateOutput();
+  updateOut();
 }
 
-function parsePolygonArray(raw) {
-  // Parse JS array of arrays of {x,y} — eval in sandboxed way
-  // We'll do a text transform: extract inner arrays
+function resetState() {
+  S.polygons=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null;
+  S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.collectionX=null;
+  S.padScale=1; S.levelName=''; S.selPoly=-1; S.selPt=-1;
+  document.getElementById('lvl-overlay').style.display='none';
+  document.getElementById('level-card').style.display='none';
+}
+
+function guessComment(pts, i) {
+  const ys = pts.map(p=>p.y);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  if (minY < -50) return 'Ceiling';
+  if (pts.length <= 6 && maxY - minY < 300) return `Obstacle ${i}`;
+  if (i === 0) return 'Ground';
+  return `Polygon ${i+1}`;
+}
+
+function regexParsePolys(src) {
   const polys = [];
-  // Find comment lines preceding each polygon
-  const lines = raw.split('\n');
-  let comment = '';
-  let inPoly = false;
-  let depth = 0;
-  let current = '';
-  let comments = [];
-  let polyStrings = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-    if (!inPoly) {
-      if (trimmed.startsWith('//')) {
-        comment = trimmed.replace(/^\/\/\s*/, '');
-      } else if (trimmed.startsWith('[')) {
-        inPoly = true;
-        depth = 0;
-        current = '';
-        comments.push(comment);
-        comment = '';
-        for (const ch of line) {
-          if (ch === '[') depth++;
-          else if (ch === ']') depth--;
-          current += ch;
-        }
-        if (depth === 0) { polyStrings.push(current); inPoly = false; current = ''; }
-      }
-    } else {
-      current += '\n' + line;
-      for (const ch of line) {
-        if (ch === '[') depth++;
-        else if (ch === ']') depth--;
-      }
-      if (depth === 0) { polyStrings.push(current); inPoly = false; current = ''; }
-    }
-  }
-
-  for (let i = 0; i < polyStrings.length; i++) {
-    const ps = polyStrings[i].trim();
-    if (!ps || ps === '[' || ps === '[]') continue;
-    // Parse {x: N, y: N} pairs
-    const pts = [];
-    const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)\s*\}/g;
-    let m;
-    while ((m = re.exec(ps)) !== null) {
-      pts.push({x:+m[1], y:+m[2]});
-    }
-    if (pts.length > 0) polys.push({pts, comment: comments[i] || ''});
-  }
+  const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)\s*\}/g;
+  const blocks = src.split(/\n\s*\[/);
+  blocks.slice(1).forEach((block, i) => {
+    const pts = []; let m;
+    re.lastIndex = 0;
+    while ((m = re.exec(block)) !== null) pts.push({x:+m[1], y:+m[2]});
+    if (pts.length >= 3) polys.push({pts, comment:`Polygon ${i+1}`, hidden:false});
+  });
   return polys;
 }
 
-// ── Output ───────────────────────────────────────────────────────────────────
-
-function buildOutput() {
-  const lines = ['terrainPolygons: ['];
-  state.polygons.forEach((poly, pi) => {
-    if (poly.comment) lines.push(`        // ${poly.comment}`);
-    lines.push('        [');
-    poly.pts.forEach((pt, i) => {
-      const comma = i < poly.pts.length - 1 ? ',' : '';
-      lines.push(`            {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${comma}`);
-    });
-    const comma = pi < state.polygons.length - 1 ? ',' : '';
-    lines.push(`        ]${comma}`);
-  });
-  lines.push('    ]');
-  return lines.join('\n');
+function renderLevelCard(cfg) {
+  const card = document.getElementById('level-card');
+  if (!cfg) { card.style.display='none'; return; }
+  const oob = cfg.outOfBounds || {};
+  const oobColors = {water:'#0ea5e9',goo:'#ef4444',sand:'#d97706',acid:'#84cc16',void:'#6366f1'};
+  const oc = oobColors[oob.type] || '#888';
+  card.style.display = '';
+  card.innerHTML = `<div class="lname">${cfg.name||''}</div><div class="lmeta">` +
+    (oob.type ? `<span class="badge" style="background:${oc}22;color:${oc}">${oob.type}</span>` : '') +
+    `grav=${cfg.gravity??'—'} wind=${cfg.wind??0} budget=$${cfg.budget??'—'}<br>` +
+    `OOB surface y=${oob.surfaceY??'—'} · monster y=${oob.monsterDepth??'—'}` +
+    (cfg.gravityWell ? `<br>well @ (${cfg.gravityWell.x},${cfg.gravityWell.y}) r=${cfg.gravityWell.radius}` : '') +
+    `</div>`;
 }
 
-function updateOutput() {
-  document.getElementById('output').value = buildOutput();
+// ── Transform ─────────────────────────────────────────────────────────────────
+const w2s = (wx,wy) => ({ sx: wx*S.view.scale + S.view.x, sy: wy*S.view.scale + S.view.y });
+const s2w = (sx,sy) => ({ wx: (sx-S.view.x)/S.view.scale, wy: (sy-S.view.y)/S.view.scale });
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  const W=canvas.width, H=canvas.height;
+  drawSky(W,H);
+  drawOOB(W,H);
+  drawGrid(W,H);
+  drawSpawnMarkers();
+  drawHubs();
+  drawGravWell();
+  drawSegments();
+  drawPolygons();
 }
 
-function copyOutput() {
-  navigator.clipboard.writeText(document.getElementById('output').value)
-    .then(() => { const b = document.querySelector('#output-area .btn'); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1200); });
+function drawSky(W,H) {
+  const p = S.palette;
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,   p.skyTop || '#020617');
+  g.addColorStop(0.5, p.skyMid || '#040b16');
+  g.addColorStop(1,   p.skyBot || '#051114');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
+function drawOOB(W,H) {
+  if (!S.oob) return;
+  const { surfaceY, monsterDepth, color, mistColor, type } = S.oob;
+  if (surfaceY == null) return;
 
-function renderSidebar() {
-  const list = document.getElementById('poly-list');
-  list.innerHTML = '';
-  state.polygons.forEach((poly, i) => {
-    const d = document.createElement('div');
-    d.className = 'poly-item' + (i === state.selectedPoly ? ' active' : '');
-    const dot = `<span class="color-dot" style="background:${POLY_COLORS[i % POLY_COLORS.length]}"></span>`;
-    d.innerHTML = `<div class="poly-header">${dot}<span class="poly-name">${poly.comment || 'Polygon ' + (i+1)}</span><span class="poly-count">${poly.pts.length} pts</span></div>`;
-    d.onclick = () => { state.selectedPoly = i; state.selectedPoint = -1; renderSidebar(); renderPointList(); draw(); };
-    list.appendChild(d);
-  });
+  const { sy: surfSY } = w2s(0, surfaceY);
+  const { sy: mistSY } = w2s(0, surfaceY - 150);
 
-  if (state.selectedPoly >= 0) {
-    document.getElementById('point-panel').style.display = '';
-    renderPointList();
-  } else {
-    document.getElementById('point-panel').style.display = 'none';
+  // Mist gradient band above the surface
+  const mTop = Math.min(mistSY, surfSY), mBot = Math.max(mistSY, surfSY);
+  if (mBot > 0 && mTop < H && mistColor) {
+    const gm = ctx.createLinearGradient(0, mTop, 0, mBot);
+    gm.addColorStop(0, 'transparent');
+    gm.addColorStop(1, mistColor);
+    ctx.fillStyle = gm;
+    ctx.fillRect(0, Math.max(0,mTop), W, Math.min(H,mBot) - Math.max(0,mTop));
+  }
+
+  // OOB body below surface
+  if (surfSY < H) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = color || 'rgba(14,165,233,0.4)';
+    ctx.fillRect(0, Math.max(0,surfSY), W, H - Math.max(0,surfSY));
+    ctx.restore();
+  }
+
+  // Surface line + label
+  if (surfSY > -20 && surfSY < H + 20) {
+    ctx.save();
+    ctx.strokeStyle = color || '#0ea5e9';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8,4]);
+    ctx.beginPath(); ctx.moveTo(0,surfSY); ctx.lineTo(W,surfSY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = color || '#0ea5e9';
+    ctx.font = '10px monospace';
+    ctx.fillText(`${type||'OOB'} surface  y=${surfaceY}`, 8, surfSY - 5);
+    ctx.restore();
+  }
+
+  // Monster depth line
+  if (monsterDepth != null) {
+    const { sy: monSY } = w2s(0, monsterDepth);
+    if (monSY > -20 && monSY < H + 20) {
+      ctx.save();
+      ctx.strokeStyle = '#f85149';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.5;
+      ctx.setLineDash([3,6]);
+      ctx.beginPath(); ctx.moveTo(0,monSY); ctx.lineTo(W,monSY); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#f85149';
+      ctx.font = '10px monospace';
+      ctx.fillText(`monster depth  y=${monsterDepth}`, 8, monSY - 4);
+      ctx.restore();
+    }
   }
 }
 
-function renderPointList() {
-  const pi = state.selectedPoly;
-  if (pi < 0 || pi >= state.polygons.length) return;
-  const poly = state.polygons[pi];
-  document.getElementById('poly-label').textContent = poly.comment || 'Polygon ' + (pi+1);
-  const container = document.getElementById('point-list');
+function drawGrid(W,H) {
+  const step = niceStep();
+  const tl = s2w(0,0), br = s2w(W,H);
+  const x0 = Math.floor(tl.wx/step)*step;
+  const y0 = Math.floor(tl.wy/step)*step;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let wx=x0; wx<br.wx+step; wx+=step) {
+    const {sx} = w2s(wx,0);
+    ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
+  }
+  for (let wy=y0; wy<br.wy+step; wy+=step) {
+    const {sy} = w2s(0,wy);
+    ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W,sy); ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.font = '9px monospace';
+  for (let wx=x0; wx<br.wx+step; wx+=step) {
+    const {sx} = w2s(wx,0);
+    if (sx>4 && sx<W-4) ctx.fillText(wx, sx+2, H-5);
+  }
+  for (let wy=y0; wy<br.wy+step; wy+=step) {
+    const {sy} = w2s(0,wy);
+    if (sy>14 && sy<H-5) ctx.fillText(wy, 3, sy-2);
+  }
+
+  // Origin cross
+  const o = w2s(0,0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(o.sx-12,o.sy); ctx.lineTo(o.sx+12,o.sy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(o.sx,o.sy-12); ctx.lineTo(o.sx,o.sy+12); ctx.stroke();
+}
+
+function niceStep() {
+  const units = canvas.width / S.view.scale;
+  const raw = units / 8;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  return [1,2,5,10].map(f=>f*mag).find(s=>s>=raw) || mag*10;
+}
+
+function drawPolygons() {
+  const terrainFill = S.palette.terrainFill || '#06101c';
+  const rockEdge    = S.palette.rockEdge    || '#38bdf8';
+
+  S.polygons.forEach((poly, pi) => {
+    if (poly.hidden) return;
+    const isActive = pi === S.selPoly;
+    const ac = POLY_COLORS[pi % POLY_COLORS.length];
+    if (poly.pts.length < 2) return;
+
+    ctx.save();
+    ctx.beginPath();
+    poly.pts.forEach((pt,i) => {
+      const {sx,sy} = w2s(pt.x, pt.y);
+      i===0 ? ctx.moveTo(sx,sy) : ctx.lineTo(sx,sy);
+    });
+    ctx.closePath();
+
+    // Terrain fill
+    ctx.fillStyle = terrainFill;
+    ctx.globalAlpha = isActive ? 0.88 : 0.72;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Rock edge glow (wide, soft)
+    ctx.strokeStyle = isActive ? ac : rockEdge;
+    ctx.lineWidth = 5;
+    ctx.globalAlpha = isActive ? 0.22 : 0.12;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Rock edge sharp line
+    ctx.lineWidth = isActive ? 2 : 1.5;
+    ctx.stroke();
+
+    // Vertex handles
+    poly.pts.forEach((pt, pti) => {
+      const {sx,sy} = w2s(pt.x, pt.y);
+      const isSel = isActive && pti===S.selPt;
+
+      // Halo
+      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 11 : 7, 0, Math.PI*2);
+      ctx.fillStyle = ac;
+      ctx.globalAlpha = isActive ? (isSel ? 0.30 : 0.14) : 0.06;
+      ctx.fill(); ctx.globalAlpha = 1;
+
+      // Core dot
+      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 5 : 3.5, 0, Math.PI*2);
+      ctx.fillStyle = isSel ? '#fff' : (isActive ? ac : rockEdge);
+      ctx.fill();
+      if (isSel) {
+        ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Index label (active poly only)
+      if (isActive) {
+        ctx.fillStyle = '#e6edf3'; ctx.font = '9px monospace';
+        ctx.fillText(pti, sx+7, sy-3);
+      }
+    });
+
+    // Centroid label
+    if (poly.comment) {
+      const cx = poly.pts.reduce((s,p)=>s+p.x,0)/poly.pts.length;
+      const cy = poly.pts.reduce((s,p)=>s+p.y,0)/poly.pts.length;
+      const {sx,sy} = w2s(cx,cy);
+      ctx.fillStyle = isActive ? ac : ac+'88';
+      ctx.font = (isActive?'bold ':'') + '11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(poly.comment, sx, sy);
+      ctx.textAlign = 'left';
+    }
+
+    ctx.restore();
+  });
+}
+
+function drawSegments() {
+  S.segments.forEach((seg,i) => {
+    const a = w2s(seg.x1,seg.y1), b = w2s(seg.x2,seg.y2);
+    ctx.save();
+    ctx.strokeStyle = '#ff9966'; ctx.lineWidth = 2.5;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.stroke();
+    ctx.setLineDash([]);
+    [a,b].forEach(({sx,sy}) => {
+      ctx.beginPath(); ctx.arc(sx,sy,4,0,Math.PI*2); ctx.fillStyle='#ff9966'; ctx.fill();
+    });
+    const mx=(a.sx+b.sx)/2, my=(a.sy+b.sy)/2;
+    ctx.fillStyle='#ff996688'; ctx.font='9px monospace'; ctx.textAlign='center';
+    ctx.fillText(`seg${i}`, mx, my-7); ctx.textAlign='left';
+    ctx.restore();
+  });
+}
+
+function drawHubs() {
+  const H = canvas.height, W = canvas.width;
+  S.hubs.forEach(hub => {
+    const col = hub.color || '#ffd700';
+    const {sx} = w2s(hub.x, 0);
+    const baseW = 80; // game default hub half-width in world units
+    const padW  = (hub.width || baseW * S.padScale) * S.view.scale;
+
+    ctx.save();
+    // Vertical guide
+    ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([4,4]); ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+    // Pad width bar near top of screen
+    const barY = 8;
+    ctx.fillStyle = col+'28'; ctx.fillRect(sx-padW/2, barY, padW, 20);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(sx-padW/2, barY, padW, 20);
+
+    // Labels
+    ctx.fillStyle = col; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(hub.name || 'Hub', sx, barY+13);
+    ctx.font = '9px monospace';
+    ctx.fillText(`x=${hub.x}${hub.type?' ['+hub.type+']':''}`, sx, barY+30);
+    ctx.textAlign = 'left';
+    ctx.restore();
+  });
+}
+
+function drawGravWell() {
+  if (!S.gravWell) return;
+  const {x, y, radius=100, orbitRadius=0, strength=1} = S.gravWell;
+  const {sx,sy} = w2s(x,y);
+  const r   = radius      * S.view.scale;
+  const orb = orbitRadius * S.view.scale;
+
+  ctx.save();
+  // Orbit ring
+  if (orb > 1) {
+    ctx.beginPath(); ctx.arc(sx,sy,orb,0,Math.PI*2);
+    ctx.strokeStyle='#ff66cc44'; ctx.lineWidth=1; ctx.setLineDash([4,6]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Pull radius glow fill
+  const rg = ctx.createRadialGradient(sx,sy,0,sx,sy,r);
+  rg.addColorStop(0,'#ff66cc55'); rg.addColorStop(0.6,'#ff66cc1a'); rg.addColorStop(1,'transparent');
+  ctx.fillStyle=rg;
+  ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+  // Pull radius ring
+  ctx.strokeStyle='#ff66cc'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.stroke();
+  // Core
+  ctx.beginPath(); ctx.arc(sx,sy,5,0,Math.PI*2); ctx.fillStyle='#ff66cc'; ctx.fill();
+  // Labels
+  ctx.fillStyle='#ff66cccc'; ctx.font='10px monospace';
+  ctx.fillText(`gravity well  str=${strength}`, sx+12, sy+2);
+  ctx.fillText(`r=${radius}  orbit=${orbitRadius}`, sx+12, sy+14);
+  ctx.restore();
+}
+
+function drawSpawnMarkers() {
+  spawnLine(S.startX, 'HQ', '#38bdf8');
+  if (S.collectionX != null) spawnLine(S.collectionX, 'Cargo', '#4ade80');
+}
+
+function spawnLine(worldX, label, color) {
+  const {sx} = w2s(worldX, 0);
+  const H = canvas.height;
+  ctx.save();
+  // Dashed vertical line
+  ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=0.4;
+  ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+  // Triangle marker
+  ctx.fillStyle=color+'33'; ctx.strokeStyle=color; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(sx,42); ctx.lineTo(sx-7,52); ctx.lineTo(sx+7,52); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Label
+  ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
+  ctx.fillText(label, sx, 40);
+  ctx.font='9px monospace';
+  ctx.fillText('x='+worldX, sx, 63);
+  ctx.textAlign='left';
+  ctx.restore();
+}
+
+// ── Fit view ──────────────────────────────────────────────────────────────────
+function fitView() {
+  if (!S.polygons.length) { S.view={x:200,y:150,scale:0.35}; draw(); return; }
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  S.polygons.forEach(p => p.pts.forEach(pt => {
+    minX=Math.min(minX,pt.x); maxX=Math.max(maxX,pt.x);
+    minY=Math.min(minY,pt.y); maxY=Math.max(maxY,pt.y);
+  }));
+  // Include OOB surface in vertical range so it's visible
+  if (S.oob?.surfaceY != null) maxY = Math.max(maxY, S.oob.surfaceY + 100);
+  const pad=80;
+  const sw=canvas.width-pad*2, sh=canvas.height-pad*2;
+  const scale = Math.min(sw/(maxX-minX||100), sh/(maxY-minY||100), 2);
+  S.view.scale = scale;
+  S.view.x = pad + (sw-(maxX-minX)*scale)/2 - minX*scale;
+  S.view.y = pad + (sh-(maxY-minY)*scale)/2 - minY*scale;
+  draw();
+}
+
+// ── Mode & Snap ───────────────────────────────────────────────────────────────
+function setMode(m) {
+  S.mode = m;
+  ['select','add','pan'].forEach(id => {
+    document.getElementById('m-'+id).className = 'btn' + (id===m?' on':'');
+  });
+  canvas.style.cursor = m==='pan'?'grab' : m==='add'?'crosshair':'default';
+}
+setMode('select');
+
+function setSnap(n) {
+  S.snap = n;
+  [1,10,50,100].forEach(v => document.getElementById('sn'+v).className='btn'+(v===n?' on':''));
+  document.getElementById('sdisp').textContent = n;
+}
+
+// ── Sidebar rendering ─────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('poly-list');
+  list.innerHTML = '';
+  S.polygons.forEach((poly, i) => {
+    const col = POLY_COLORS[i%POLY_COLORS.length];
+    const d = document.createElement('div');
+    d.className = 'pitem'+(i===S.selPoly?' active':'');
+    d.innerHTML =
+      `<div class="pdot" style="background:${col};opacity:${poly.hidden?.4:1}"></div>` +
+      `<span class="pname" style="opacity:${poly.hidden?.4:1}">${poly.comment||'Polygon '+(i+1)}</span>` +
+      `<span class="pcnt">${poly.pts.length}pt</span>` +
+      `<span class="peye" title="toggle visibility" onclick="toggleHide(${i},event)">${poly.hidden?'◌':'●'}</span>`;
+    d.onclick = () => { S.selPoly=i; S.selPt=-1; renderSidebar(); renderPtList(); draw(); };
+    list.appendChild(d);
+  });
+
+  const hasPoly = S.selPoly>=0 && S.selPoly<S.polygons.length;
+  document.getElementById('pt-panel').style.display = hasPoly?'':'none';
+  if (hasPoly) {
+    document.getElementById('poly-rename').value = S.polygons[S.selPoly].comment || '';
+    renderPtList();
+  }
+  document.getElementById('pdisp').textContent =
+    hasPoly ? `poly ${S.selPoly+1}/${S.polygons.length}` + (S.selPt>=0?`  pt ${S.selPt}`:'') : '';
+}
+
+function renderPtList() {
+  const pi = S.selPoly;
+  if (pi<0 || pi>=S.polygons.length) return;
+  const poly = S.polygons[pi];
+  const container = document.getElementById('pt-list');
   container.innerHTML = '';
   poly.pts.forEach((pt, i) => {
     const row = document.createElement('div');
-    row.className = 'point-row' + (i === state.selectedPoint ? ' selected' : '');
-    row.innerHTML = `<span class="point-idx">${i}</span>
-      <span class="point-coord">x:<input type="number" value="${Math.round(pt.x)}" onchange="setPtCoord(${pi},${i},'x',this.value)" onclick="e=>e.stopPropagation()">
-      y:<input type="number" value="${Math.round(pt.y)}" onchange="setPtCoord(${pi},${i},'y',this.value)" onclick="e=>e.stopPropagation()"></span>
-      <span class="point-del" onclick="deletePoint(${pi},${i})">×</span>`;
-    row.onclick = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.classList.contains('point-del')) return;
-      state.selectedPoint = i;
-      renderPointList();
-      draw();
+    row.className = 'ptrow'+(i===S.selPt?' sel':'');
+    row.innerHTML =
+      `<span class="pidx">${i}</span>` +
+      `<span class="clabel">x</span><input class="cinput" type="number" value="${Math.round(pt.x)}" onchange="setPt(${pi},${i},'x',this.value)" onclick="event.stopPropagation()">` +
+      `<span class="clabel">y</span><input class="cinput" type="number" value="${Math.round(pt.y)}" onchange="setPt(${pi},${i},'y',this.value)" onclick="event.stopPropagation()">` +
+      `<span class="xbtn" onclick="deletePt(${pi},${i})">×</span>`;
+    row.onclick = e => {
+      if (e.target.tagName==='INPUT'||e.target.classList.contains('xbtn')) return;
+      S.selPt=i; renderPtList(); renderSidebar(); draw();
     };
     container.appendChild(row);
   });
 }
 
-function setPtCoord(pi, pti, axis, val) {
-  state.polygons[pi].pts[pti][axis] = +val;
-  draw();
-  updateOutput();
+function toggleHide(pi, e) {
+  e.stopPropagation();
+  S.polygons[pi].hidden = !S.polygons[pi].hidden;
+  renderSidebar(); draw();
 }
 
-function deletePoint(pi, pti) {
-  if (state.polygons[pi].pts.length <= 3) { alert('Polygon needs at least 3 points.'); return; }
-  state.polygons[pi].pts.splice(pti, 1);
-  if (state.selectedPoint >= state.polygons[pi].pts.length) state.selectedPoint = state.polygons[pi].pts.length - 1;
-  renderPointList();
-  draw();
-  updateOutput();
+function renameActivePoly(val) {
+  if (S.selPoly>=0) S.polygons[S.selPoly].comment = val;
+  renderSidebar(); updateOut();
 }
 
-function addPoint() {
-  if (state.selectedPoly < 0) return;
-  const pt = { x: Math.round(state.mouse.wx), y: Math.round(state.mouse.wy) };
-  state.polygons[state.selectedPoly].pts.push(pt);
-  state.selectedPoint = state.polygons[state.selectedPoly].pts.length - 1;
-  renderPointList();
-  draw();
-  updateOutput();
+function setPt(pi, pti, axis, val) {
+  S.polygons[pi].pts[pti][axis] = +val;
+  draw(); updateOut();
 }
 
-function deletePolygon() {
-  if (state.selectedPoly < 0) return;
-  if (!confirm('Delete this polygon?')) return;
-  state.polygons.splice(state.selectedPoly, 1);
-  state.selectedPoly = Math.min(state.selectedPoly, state.polygons.length - 1);
-  state.selectedPoint = -1;
-  renderSidebar();
-  draw();
-  updateOutput();
+function deletePt(pi, pti) {
+  if (S.polygons[pi].pts.length<=3) { alert('Minimum 3 points.'); return; }
+  S.polygons[pi].pts.splice(pti,1);
+  if (S.selPt>=S.polygons[pi].pts.length) S.selPt=S.polygons[pi].pts.length-1;
+  renderSidebar(); renderPtList(); draw(); updateOut();
 }
 
 function addPolygon() {
-  const cx = state.mouse.wx || 500;
-  const cy = state.mouse.wy || 400;
-  state.polygons.push({ pts: [{x:cx-50,y:cy},{x:cx+50,y:cy},{x:cx,y:cy-80}], comment: 'New polygon' });
-  state.selectedPoly = state.polygons.length - 1;
-  state.selectedPoint = -1;
-  renderSidebar();
-  draw();
-  updateOutput();
+  const cx=S.mouse.wx||500, cy=S.mouse.wy||400;
+  S.polygons.push({pts:[{x:cx-60,y:cy},{x:cx+60,y:cy},{x:cx,y:cy-100}], comment:'New polygon', hidden:false});
+  S.selPoly=S.polygons.length-1; S.selPt=-1;
+  renderSidebar(); draw(); updateOut();
 }
 
-// ── Coordinate transforms ────────────────────────────────────────────────────
-
-function worldToScreen(wx, wy) {
-  return {
-    sx: wx * state.view.scale + state.view.x,
-    sy: wy * state.view.scale + state.view.y
-  };
+function deletePoly() {
+  if (S.selPoly<0||!confirm('Delete this polygon?')) return;
+  S.polygons.splice(S.selPoly,1);
+  S.selPoly=Math.min(S.selPoly,S.polygons.length-1); S.selPt=-1;
+  renderSidebar(); draw(); updateOut();
 }
 
-function screenToWorld(sx, sy) {
-  return {
-    wx: (sx - state.view.x) / state.view.scale,
-    wy: (sy - state.view.y) / state.view.scale
-  };
+function insertAtCursor() {
+  if (S.selPoly<0) return;
+  const poly = S.polygons[S.selPoly];
+  const idx = nearestEdge(poly.pts, S.mouse.wx, S.mouse.wy);
+  poly.pts.splice(idx+1, 0, {x:snap(S.mouse.wx), y:snap(S.mouse.wy)});
+  S.selPt = idx+1;
+  renderSidebar(); renderPtList(); draw(); updateOut();
 }
 
-// ── Draw ─────────────────────────────────────────────────────────────────────
-
-const POINT_RADIUS = 6;
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Grid
-  drawGrid();
-
-  // Terrain polygons
-  state.polygons.forEach((poly, pi) => {
-    const color = POLY_COLORS[pi % POLY_COLORS.length];
-    const isActive = pi === state.selectedPoly;
-
-    ctx.beginPath();
-    poly.pts.forEach((pt, i) => {
-      const {sx, sy} = worldToScreen(pt.x, pt.y);
-      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+// ── Export ────────────────────────────────────────────────────────────────────
+function buildOut() {
+  const lines = ['terrainPolygons: ['];
+  S.polygons.forEach((poly, pi) => {
+    if (poly.comment) lines.push(`        // ${poly.comment}`);
+    lines.push('        [');
+    poly.pts.forEach((pt,i) => {
+      lines.push(`            {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${i<poly.pts.length-1?',':''}`);
     });
-    ctx.closePath();
-    ctx.fillStyle = color + (isActive ? '33' : '1a');
-    ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = isActive ? 2 : 1;
-    ctx.stroke();
-
-    // Points
-    poly.pts.forEach((pt, pti) => {
-      const {sx, sy} = worldToScreen(pt.x, pt.y);
-      const isSelected = isActive && pti === state.selectedPoint;
-      ctx.beginPath();
-      ctx.arc(sx, sy, isSelected ? POINT_RADIUS + 2 : POINT_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected ? '#fff' : color;
-      ctx.fill();
-      ctx.strokeStyle = isSelected ? color : '#0d1117';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Index label
-      if (isActive) {
-        ctx.fillStyle = '#e6edf3';
-        ctx.font = '10px monospace';
-        ctx.fillText(pti, sx + 8, sy - 4);
-      }
-    });
-
-    // Comment label at centroid
-    if (poly.comment) {
-      const cx = poly.pts.reduce((s,p)=>s+p.x,0)/poly.pts.length;
-      const cy = poly.pts.reduce((s,p)=>s+p.y,0)/poly.pts.length;
-      const {sx, sy} = worldToScreen(cx, cy);
-      ctx.fillStyle = color + 'cc';
-      ctx.font = '11px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(poly.comment, sx, sy);
-      ctx.textAlign = 'left';
-    }
+    lines.push(`        ]${pi<S.polygons.length-1?',':''}`);
   });
+  lines.push('    ]');
+  return lines.join('\n');
+}
 
-  // Segments
-  state.segments.forEach(seg => {
-    const a = worldToScreen(seg.x1, seg.y1);
-    const b = worldToScreen(seg.x2, seg.y2);
-    ctx.beginPath();
-    ctx.moveTo(a.sx, a.sy);
-    ctx.lineTo(b.sx, b.sy);
-    ctx.strokeStyle = SEG_COLOR;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+function updateOut() { document.getElementById('out').value = buildOut(); }
 
-    ctx.beginPath(); ctx.arc(a.sx, a.sy, 4, 0, Math.PI*2); ctx.fillStyle = SEG_COLOR; ctx.fill();
-    ctx.beginPath(); ctx.arc(b.sx, b.sy, 4, 0, Math.PI*2); ctx.fillStyle = SEG_COLOR; ctx.fill();
+function copyOut() {
+  navigator.clipboard.writeText(document.getElementById('out').value).then(() => {
+    const b = document.getElementById('copy-btn');
+    b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1400);
   });
-
-  // Delivery hubs
-  state.hubs.forEach(hub => {
-    const {sx, sy} = worldToScreen(hub.x, 0);
-    ctx.save();
-    ctx.strokeStyle = hub.color || HUB_COLOR;
-    ctx.setLineDash([3, 3]);
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = hub.color || HUB_COLOR;
-    ctx.font = '11px monospace';
-    ctx.fillText(hub.name || 'hub', sx + 4, 20);
-    ctx.fillText('x=' + hub.x, sx + 4, 32);
-    ctx.restore();
-  });
-
-  // Gravity well
-  if (state.gravWell) {
-    const {sx, sy} = worldToScreen(state.gravWell.x, state.gravWell.y);
-    ctx.beginPath();
-    ctx.arc(sx, sy, 10, 0, Math.PI * 2);
-    ctx.strokeStyle = GRAV_COLOR;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = GRAV_COLOR + '33';
-    ctx.fill();
-    ctx.fillStyle = GRAV_COLOR;
-    ctx.font = '10px monospace';
-    ctx.fillText('gravity well', sx + 14, sy + 4);
-  }
-
-  // Origin cross
-  const o = worldToScreen(0, 0);
-  ctx.strokeStyle = '#444';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(o.sx - 10, o.sy); ctx.lineTo(o.sx + 10, o.sy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(o.sx, o.sy - 10); ctx.lineTo(o.sx, o.sy + 10); ctx.stroke();
 }
-
-function drawGrid() {
-  const step = gridStep();
-  const tl = screenToWorld(0, 0);
-  const br = screenToWorld(canvas.width, canvas.height);
-
-  const x0 = Math.floor(tl.wx / step) * step;
-  const y0 = Math.floor(tl.wy / step) * step;
-
-  ctx.strokeStyle = '#1e2630';
-  ctx.lineWidth = 1;
-  for (let wx = x0; wx < br.wx; wx += step) {
-    const {sx} = worldToScreen(wx, 0);
-    ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke();
-  }
-  for (let wy = y0; wy < br.wy; wy += step) {
-    const {sy} = worldToScreen(0, wy);
-    ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(canvas.width, sy); ctx.stroke();
-  }
-
-  // Grid labels
-  ctx.fillStyle = '#3d4a5c';
-  ctx.font = '10px monospace';
-  for (let wx = x0; wx < br.wx; wx += step) {
-    const {sx} = worldToScreen(wx, 0);
-    if (sx > 4 && sx < canvas.width - 4) ctx.fillText(wx, sx + 2, canvas.height - 4);
-  }
-  for (let wy = y0; wy < br.wy; wy += step) {
-    const {sy} = worldToScreen(0, wy);
-    if (sy > 14 && sy < canvas.height - 4) ctx.fillText(wy, 2, sy - 2);
-  }
-}
-
-function gridStep() {
-  const unitsVisible = canvas.width / state.view.scale;
-  const rawStep = unitsVisible / 8;
-  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const nice = [1, 2, 5, 10].map(f => f * mag).find(s => s >= rawStep) || mag * 10;
-  return nice;
-}
-
-// ── Fit view ─────────────────────────────────────────────────────────────────
-
-function fitView() {
-  if (state.polygons.length === 0) { state.view = {x: 200, y: 200, scale: 0.3}; draw(); return; }
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  state.polygons.forEach(p => p.pts.forEach(pt => {
-    minX = Math.min(minX, pt.x); maxX = Math.max(maxX, pt.x);
-    minY = Math.min(minY, pt.y); maxY = Math.max(maxY, pt.y);
-  }));
-  const pad = 80;
-  const sw = canvas.width - pad * 2;
-  const sh = canvas.height - pad * 2;
-  const dw = maxX - minX || 100;
-  const dh = maxY - minY || 100;
-  const scale = Math.min(sw / dw, sh / dh, 2);
-  state.view.scale = scale;
-  state.view.x = pad + (sw - dw * scale) / 2 - minX * scale;
-  state.view.y = pad + (sh - dh * scale) / 2 - minY * scale;
-  draw();
-}
-
-// ── Mode ─────────────────────────────────────────────────────────────────────
-
-function setMode(m) {
-  state.mode = m;
-  ['select','add','pan'].forEach(id => {
-    document.getElementById('mode-' + id).style.background = id === m ? '#1f6feb' : '';
-    document.getElementById('mode-' + id).style.borderColor = id === m ? '#1f6feb' : '';
-  });
-  canvas.style.cursor = m === 'pan' ? 'grab' : m === 'add' ? 'crosshair' : 'default';
-}
-setMode('select');
 
 // ── Mouse ─────────────────────────────────────────────────────────────────────
+const HIT = 10;
+let isPan=false, panLast=null;
 
-function getPolyPointAt(sx, sy) {
-  for (let pi = 0; pi < state.polygons.length; pi++) {
-    for (let pti = 0; pti < state.polygons[pi].pts.length; pti++) {
-      const pt = state.polygons[pi].pts[pti];
-      const {sx: px, sy: py} = worldToScreen(pt.x, pt.y);
-      const r = POINT_RADIUS + 4;
-      if (Math.abs(sx - px) < r && Math.abs(sy - py) < r) return [pi, pti];
+function hitPoint(sx,sy) {
+  for (let pi=S.polygons.length-1; pi>=0; pi--) {
+    if (S.polygons[pi].hidden) continue;
+    for (let pti=0; pti<S.polygons[pi].pts.length; pti++) {
+      const {sx:px,sy:py} = w2s(S.polygons[pi].pts[pti].x, S.polygons[pi].pts[pti].y);
+      if (Math.hypot(sx-px,sy-py)<HIT) return [pi,pti];
     }
   }
   return null;
 }
 
-let isPanning = false;
-let panLast = null;
-
 canvas.addEventListener('mousedown', e => {
-  const sx = e.offsetX, sy = e.offsetY;
-  const w = screenToWorld(sx, sy);
-  state.mouse.wx = w.wx; state.mouse.wy = w.wy;
+  const sx=e.offsetX, sy=e.offsetY;
+  const {wx,wy} = s2w(sx,sy);
+  S.mouse.wx=wx; S.mouse.wy=wy;
 
-  if (state.mode === 'pan' || e.button === 1 || (e.button === 0 && e.altKey)) {
-    isPanning = true;
-    panLast = {sx, sy};
-    canvas.style.cursor = 'grabbing';
-    return;
+  if (S.mode==='pan'||e.button===1||e.altKey) {
+    isPan=true; panLast={sx,sy}; canvas.style.cursor='grabbing'; return;
   }
-
-  if (state.mode === 'add' && e.button === 0) {
-    if (state.selectedPoly < 0) return;
-    // Insert after nearest edge
-    const poly = state.polygons[state.selectedPoly];
-    const idx = nearestEdgeIndex(poly.pts, w.wx, w.wy);
-    poly.pts.splice(idx + 1, 0, {x: Math.round(w.wx), y: Math.round(w.wy)});
-    state.selectedPoint = idx + 1;
-    renderSidebar();
-    renderPointList();
-    draw();
-    updateOutput();
-    return;
+  if (S.mode==='add'&&e.button===0&&S.selPoly>=0) {
+    const poly=S.polygons[S.selPoly];
+    const idx=nearestEdge(poly.pts,wx,wy);
+    poly.pts.splice(idx+1,0,{x:snap(wx),y:snap(wy)});
+    S.selPt=idx+1; renderSidebar(); renderPtList(); draw(); updateOut(); return;
   }
-
-  if (state.mode === 'select' && e.button === 0) {
-    const hit = getPolyPointAt(sx, sy);
+  if (S.mode==='select'&&e.button===0) {
+    const hit=hitPoint(sx,sy);
     if (hit) {
-      const [pi, pti] = hit;
-      state.selectedPoly = pi;
-      state.selectedPoint = pti;
-      state.dragging = true;
-      state.dragPoly = pi;
-      state.dragPt = pti;
-      renderSidebar();
-      renderPointList();
-      draw();
+      const [pi,pti]=hit;
+      S.selPoly=pi; S.selPt=pti; S.dragging=true; S.dragPi=pi; S.dragPti=pti;
+      renderSidebar(); renderPtList(); draw();
     } else {
-      // Check if click is inside a polygon to select it
-      for (let pi = 0; pi < state.polygons.length; pi++) {
-        if (pointInPoly(w.wx, w.wy, state.polygons[pi].pts)) {
-          state.selectedPoly = pi;
-          state.selectedPoint = -1;
-          renderSidebar();
-          renderPointList();
-          draw();
-          return;
+      for (let pi=S.polygons.length-1;pi>=0;pi--) {
+        if (!S.polygons[pi].hidden&&inPoly(wx,wy,S.polygons[pi].pts)) {
+          S.selPoly=pi; S.selPt=-1; renderSidebar(); renderPtList(); draw(); return;
         }
       }
     }
@@ -677,88 +832,71 @@ canvas.addEventListener('mousedown', e => {
 });
 
 canvas.addEventListener('mousemove', e => {
-  const sx = e.offsetX, sy = e.offsetY;
-  const w = screenToWorld(sx, sy);
-  state.mouse.wx = w.wx; state.mouse.wy = w.wy;
-  document.getElementById('coords').textContent = `x: ${Math.round(w.wx)}, y: ${Math.round(w.wy)}`;
+  const sx=e.offsetX, sy=e.offsetY;
+  const {wx,wy}=s2w(sx,sy);
+  S.mouse.wx=wx; S.mouse.wy=wy;
+  document.getElementById('sx').textContent=Math.round(wx);
+  document.getElementById('sy').textContent=Math.round(wy);
 
-  if (isPanning && panLast) {
-    state.view.x += sx - panLast.sx;
-    state.view.y += sy - panLast.sy;
-    panLast = {sx, sy};
-    draw();
-    return;
+  if (isPan&&panLast) {
+    S.view.x+=sx-panLast.sx; S.view.y+=sy-panLast.sy; panLast={sx,sy}; draw(); return;
   }
-
-  if (state.dragging && state.dragPt >= 0) {
-    const snap = e.shiftKey ? 50 : (e.ctrlKey ? 1 : 10);
-    const pt = state.polygons[state.dragPoly].pts[state.dragPt];
-    pt.x = Math.round(w.wx / snap) * snap;
-    pt.y = Math.round(w.wy / snap) * snap;
-    renderPointList();
-    draw();
-    updateOutput();
+  if (S.dragging&&S.dragPti>=0) {
+    const s = e.shiftKey ? S.snap*5 : S.snap;
+    const pt = S.polygons[S.dragPi].pts[S.dragPti];
+    pt.x=Math.round(wx/s)*s; pt.y=Math.round(wy/s)*s;
+    renderPtList(); draw(); updateOut();
   }
 });
 
-canvas.addEventListener('mouseup', e => {
-  if (isPanning) { isPanning = false; canvas.style.cursor = state.mode === 'pan' ? 'grab' : 'default'; }
-  if (state.dragging) { state.dragging = false; state.dragPoly = -1; state.dragPt = -1; }
+canvas.addEventListener('mouseup', () => {
+  if (isPan){isPan=false;canvas.style.cursor=S.mode==='pan'?'grab':'default';}
+  S.dragging=false; S.dragPi=-1; S.dragPti=-1;
 });
-
-canvas.addEventListener('mouseleave', e => {
-  isPanning = false; state.dragging = false;
-});
+canvas.addEventListener('mouseleave', () => { isPan=false; S.dragging=false; });
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  const sx = e.offsetX, sy = e.offsetY;
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  const wx = (sx - state.view.x) / state.view.scale;
-  const wy = (sy - state.view.y) / state.view.scale;
-  state.view.scale = Math.max(0.05, Math.min(4, state.view.scale * factor));
-  state.view.x = sx - wx * state.view.scale;
-  state.view.y = sy - wy * state.view.scale;
+  const f=e.deltaY<0?1.15:1/1.15;
+  const {wx,wy}=s2w(e.offsetX,e.offsetY);
+  S.view.scale=Math.max(0.04,Math.min(4,S.view.scale*f));
+  S.view.x=e.offsetX-wx*S.view.scale; S.view.y=e.offsetY-wy*S.view.scale;
   draw();
-}, {passive: false});
+},{passive:false});
+
+// ── Keyboard ─────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const tag=e.target.tagName;
+  if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
+  if (e.key==='s') setMode('select');
+  if (e.key==='a') setMode('add');
+  if (e.key==='p') setMode('pan');
+  if (e.key==='f') fitView();
+  if ((e.key==='Delete'||e.key==='Backspace')&&S.selPoly>=0&&S.selPt>=0)
+    deletePt(S.selPoly,S.selPt);
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+const snap = v => Math.round(v/S.snap)*S.snap;
 
-function pointInPoly(px, py, pts) {
-  let inside = false;
-  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
-    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+function inPoly(px,py,pts) {
+  let inside=false;
+  for (let i=0,j=pts.length-1;i<pts.length;j=i++) {
+    const {x:xi,y:yi}=pts[i],{x:xj,y:yj}=pts[j];
+    if (((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
   }
   return inside;
 }
 
-function nearestEdgeIndex(pts, wx, wy) {
-  let best = 0, bestDist = Infinity;
-  for (let i = 0; i < pts.length; i++) {
-    const a = pts[i], b = pts[(i+1) % pts.length];
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    const d = Math.hypot(wx - mx, wy - my);
-    if (d < bestDist) { bestDist = d; best = i; }
+function nearestEdge(pts,wx,wy) {
+  let best=0,bestD=Infinity;
+  for (let i=0;i<pts.length;i++) {
+    const a=pts[i],b=pts[(i+1)%pts.length];
+    const d=Math.hypot(wx-(a.x+b.x)/2,wy-(a.y+b.y)/2);
+    if (d<bestD){bestD=d;best=i;}
   }
   return best;
 }
-
-// Keyboard shortcuts
-document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.key === 's') setMode('select');
-  if (e.key === 'a') setMode('add');
-  if (e.key === 'p') setMode('pan');
-  if (e.key === 'f') fitView();
-  if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedPoly >= 0 && state.selectedPoint >= 0) {
-    deletePoint(state.selectedPoly, state.selectedPoint);
-  }
-});
-
-// Init with default level 4 polygon from paste
-document.getElementById('input').placeholder =
-  'Paste level JS here (full registerLevel({...}) or just the terrainPolygons array)\n\nShortcuts: S=select  A=add pts  P=pan  F=fit\nDrag points to move · Shift=snap50 · Ctrl=snap1\nDelete/Backspace = delete selected point';
 </script>
 </body>
 </html>

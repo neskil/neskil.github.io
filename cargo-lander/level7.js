@@ -1,10 +1,20 @@
 // Level 7 — The Deep Haul
-// Biome: Underground / Bioluminescent. Massive horizontal scrolling and tight cave navigation.
+// Biome: Bioluminescent Underground / Cyan-Blue.
+// The longest level — ~4.2 km horizontal cave system with a full ceiling and floor.
+// Key layout (left → right):
+//   Start: HQ + collection depot at x:300
+//   x:1200 — Blue Node (blue cargo)
+//   x:1600 — Fuel Pump (refuel station — critical on this run)
+//   x:2100 — Valley Base (green cargo)
+//   x:3300 — Magma Chute (chute hub, wide catch zone)
+//   x:3500 — Far East Depot (normal cargo)
+// The floor and ceiling both undulate — tight squeezes at x:700 (rise) and x:2600 (squeeze corridor).
+// Fuel discipline is everything: the Fuel Pump at x:1600 exists for a reason.
 
 registerLevel({
     name: "L7: The Deep Haul",
-    missionTitle: "Long Distance Underground",
-    description: "A sprawling cavern system. You'll need to navigate tight corridors and manage your fuel carefully.",
+    missionTitle: "Bioluminescent Depths — Long Haul",
+    description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type. Fuel is tight; there's a refuel pump roughly halfway through. Navigate the undulating squeeze corridors without touching the glowing rock walls.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.16,
@@ -13,27 +23,43 @@ registerLevel({
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
-        // Main floor with dips and tight squeezes
+        // Floor — undulates dramatically along the full 4.2 km run
         [
-            {x: -400, y: 550}, {x: 600, y: 550}, // Start area
-            {x: 700, y: 400}, {x: 900, y: 400}, // Rise
-            {x: 1000, y: 700}, {x: 1300, y: 700}, // Deep drop
-            {x: 1500, y: 350}, {x: 1700, y: 350}, // High peak
-            {x: 1900, y: 600}, {x: 2300, y: 600}, // Valley
-            {x: 2500, y: 450}, {x: 2800, y: 450}, // Squeeze approach
-            {x: 3200, y: 650}, {x: 3800, y: 650}, // End Base
-            {x: 3800, y: 1500}, {x: -400, y: 1500} // Enclosure
+            // Start zone — HQ and collection depot at x:300; wide flat floor
+            {x: -400, y: 550}, {x: 600, y: 550},
+            // Rise — floor lifts sharply; Blue Node hub is near this shelf at x:1200
+            {x: 700, y: 400}, {x: 900, y: 400},
+            // Deep drop — floor plunges to a basin; Fuel Pump at x:1600 sits on the far lip
+            {x: 1000, y: 700}, {x: 1300, y: 700},
+            // High peak — floor surges back up; Valley Base hub (green) at x:2100 is just past this
+            {x: 1500, y: 350}, {x: 1700, y: 350},
+            // Valley — floor drops again into a wide flat valley; room to breathe
+            {x: 1900, y: 600}, {x: 2300, y: 600},
+            // Squeeze approach — floor rises to meet the ceiling; tightest corridor in the cave
+            {x: 2500, y: 450}, {x: 2800, y: 450},
+            // End base shelf — floor drops to a wide flat run; Magma Chute (x:3300) + Far East Depot (x:3500)
+            {x: 3200, y: 650}, {x: 3800, y: 650},
+            // Enclosure
+            {x: 3800, y: 1500}, {x: -400, y: 1500}
         ],
-        // Ceiling (Massive overhang to form a cave)
+        // Ceiling — mirrors the floor profile to create the cave volume
         [
-            {x: -400, y: -200}, {x: 3800, y: -200}, // Top flat bound
-            {x: 3800, y: 250}, {x: 3200, y: 250}, // Above End Base
-            {x: 2800, y: 150}, {x: 2500, y: 150}, // Squeeze ceiling
-            {x: 2300, y: 200}, {x: 1900, y: 200}, // Valley ceiling
-            {x: 1700, y: -50}, {x: 1500, y: -50}, // High peak ceiling
-            {x: 1300, y: 350}, {x: 1000, y: 350}, // Deep drop ceiling
-            {x: 900, y: 100}, {x: 700, y: 100}, // Rise ceiling
-            {x: 600, y: 200}, {x: -400, y: 200} // Start ceiling
+            // Top boundary — flat cap sealing the whole cave
+            {x: -400, y: -200}, {x: 3800, y: -200},
+            // Above end base — ceiling drops to a moderate height above the final hubs
+            {x: 3800, y: 250}, {x: 3200, y: 250},
+            // Squeeze corridor ceiling — meets the floor rise; this is the narrowest gap
+            {x: 2800, y: 150}, {x: 2500, y: 150},
+            // Valley ceiling — lifts to give more headroom over the valley floor
+            {x: 2300, y: 200}, {x: 1900, y: 200},
+            // High peak ceiling — very low; floor peak + ceiling dip = minimal clearance
+            {x: 1700, y: -50}, {x: 1500, y: -50},
+            // Deep drop ceiling — ceiling rises to allow access to the basin floor hubs
+            {x: 1300, y: 350}, {x: 1000, y: 350},
+            // Rise ceiling — ceiling dips as the floor also rises; tighter than the start
+            {x: 900, y: 100}, {x: 700, y: 100},
+            // Start ceiling — generous clearance over the HQ zone
+            {x: 600, y: 200}, {x: -400, y: 200}
         ]
     ],
 
@@ -76,7 +102,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Fuel is limited. Plan your route carefully and don't accelerate too hard.",
+    hint: "Stop at the Fuel Pump (x:1600) before pushing east — the far hubs are too far to reach on a single tank. Navigate below the ceiling through the squeeze corridors, don't graze the glowing rock. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),

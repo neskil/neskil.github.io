@@ -1,10 +1,12 @@
 // Level 2 — Cross-Dock Sorting
-// Biome: Desert / Amber. Two hubs require correct cargo sorting.
+// Biome: Amber Wastes. Two hubs separated by a yawning chasm in the plateau.
+// First sorting challenge: normal vs. fragile (red) cargo must go to different hubs.
+// The chasm in the terrain is impassable — it forces the player to read hub type before landing.
 
 registerLevel({
     name: "L2: Cross-Dock Sorting",
-    missionTitle: "Cross-Dock Sorting Contract",
-    description: "Sort the cargo. Normal packages → Main Processing. Fragile (red) → Fragile Handling. Don't drop fragile cargo!",
+    missionTitle: "Amber Wastes — Cross-Dock Run",
+    description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.15,
@@ -12,10 +14,14 @@ registerLevel({
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [[
-        {x: -400, y: 650}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 600, y: 600}, // Plateau 1
-        {x: 630, y: 1500}, {x: 750, y: 1500}, // Chasm
-        {x: 780, y: 600}, {x: 1200, y: 600}, {x: 1800, y: 550}, // Plateau 2
-        {x: 1800, y: 1800}, {x: -400, y: 1800} // Bottom enclosure
+        // Western plateau — HQ and Main Processing hub land here
+        {x: -400, y: 650}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 600, y: 600},
+        // Chasm — a sheer drop to the abyss; the monster waits at the bottom
+        {x: 630, y: 1500}, {x: 750, y: 1500},
+        // Eastern plateau — Fragile Handling hub; slightly higher than the western shelf
+        {x: 780, y: 600}, {x: 1200, y: 600}, {x: 1800, y: 550},
+        // Bottom enclosure
+        {x: 1800, y: 1800}, {x: -400, y: 1800}
     ]],
 
     // ── Mission parameters ────────────────────────────────────────────────────
@@ -30,7 +36,7 @@ registerLevel({
     // ── Environment ───────────────────────────────────────────────────────────
     outOfBounds: {
         type: 'sand',
-        color: '#b45309',
+        color: 'rgba(217, 119, 6, 0.7)',
         mistColor: 'rgba(180, 83, 9, 0.4)',
         surfaceY: 1700,
         drag: 0.85,       // Quicksand: heavy drag
@@ -56,7 +62,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Sort correctly and return to HQ to extract.",
+    hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. Return to HQ once both are delivered.",
 
     quests: [
         questPrimary('Sort & deliver 2 cargo'),

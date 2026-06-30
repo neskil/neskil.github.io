@@ -23,6 +23,9 @@ files load cleanly).
 | `shaders.js` | `ShaderOverlay` — a WebGL layer drawn on the `#webglCanvas` on top of the main canvas. Renders glowing particles (point sprites) and the procedural "out-of-bounds monster" (a raymarched noisy blob in a fragment shader). Falls back to Canvas2D in `game.js` if WebGL is unavailable. |
 | `physics.js` | `CargoPhysics` — the custom 2D physics engine. Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
 | `game.js` | `CargoGame` — the orchestrator. Level & upgrade definitions, the `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. |
+| `terrain-editor.html` | **Terrain Editor** — standalone browser tool for visually editing and exporting `terrainPolygons`. See [Terrain Editor](#terrain-editor) below. |
+| `level1.js` – `level7.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. |
+| `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 
 ### Load order matters
 `index.html` loads them as `audio.js → shaders.js → physics.js → game.js`, then
@@ -47,6 +50,41 @@ and `CargoAudio` all being defined first.
 - **dt**: the loop normalizes delta time to 60 fps (`dt = elapsedMs / 16.666`), so
   most physics constants are "per 60fps-frame".
 
+
+## Terrain Editor
+
+`terrain-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons` arrays in level files. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/terrain-editor.html`.
+
+### Features
+- **Level file dropdown** — loads any of `level1.js` – `level7.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
+- **Palette-based rendering** — sky gradient uses each level's `skyTop/skyMid/skyBot` palette; terrain polygons are filled with `terrainFill` and outlined with `rockEdge` glow, matching the in-game biome appearance.
+- **Out-of-bounds zone** — `outOfBounds.surfaceY` is drawn as a colored fill below the surface line, with a mist gradient fade above it and a labeled dashed line. A red `monsterDepth` line marks the monster trigger depth.
+- **Hub pads** — each delivery hub shown as a labeled width-bar at the top of the screen and a vertical guide line, colored to match `hub.color`.
+- **Gravity well** — pull-radius ring with radial glow fill plus the orbit radius ring (dashed).
+- **Spawn markers** — HQ (`startX`) and cargo depot (`collectionX`) shown as labeled dashed vertical lines with triangle markers.
+- **Polygon list sidebar** — click to select, eye icon to hide/show, rename field for comments, per-point x/y inputs.
+- **Snap controls** — dedicated buttons for 1 / 10 / 50 / 100 world-unit snapping; hold Shift for ×5 multiplier.
+- **Export** — live-updating `terrainPolygons: [...]` block with polygon comments; one-click Copy button.
+- **Paste fallback** — also accepts pasted JS if the server isn't running.
+
+### Keyboard shortcuts
+| Key | Action |
+|-----|--------|
+| `S` | Select mode (drag vertices) |
+| `A` | Add-points mode (click to insert on nearest edge) |
+| `P` | Pan mode |
+| `F` | Fit view to polygons + OOB surface |
+| `Del` / `Backspace` | Delete selected point |
+| Scroll | Zoom |
+| Alt + drag | Pan in any mode |
+
+### Workflow
+1. Pick a level from the dropdown and click **Load from server**.
+2. Select a polygon from the sidebar list.
+3. Drag vertices to reshape, or use **Add pts** mode to insert new points.
+4. When done, copy the export block and paste it over the `terrainPolygons:` array in the level `.js` file.
+
+---
 
 ## Verification
 Changes were verified live against the local static server: the menu renders the

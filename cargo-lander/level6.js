@@ -1,16 +1,18 @@
 // Level 6 — The Sand Worm's Lair
-// Biome: Desert dunes / Amber dusk.
-// Layout matches the design sketch:
-//   [1] Start HQ — upper-left plateau
-//   [2] Cargo — lower-left shelf (down in the valley, near the lake)
-//   [3] Drop off — upper-right plateau
-//   Lake — central depression (OOB water zone)
-//   Worm Pit — raised mound in the center, worm lurks beneath
+// Biome: Desert Dunes / Amber Dusk.
+// Layout:
+//   [1] HQ — upper-left plateau (startX: 80)
+//   [2] Cargo pickup — lower-left valley shelf (collectionX: 200), near the lake
+//   [3] Drop-off — upper-right plateau (Eastern Base hub at x:1460)
+//   Lake — central depression; OOB water zone fills the valley floor
+//   Worm Pit — raised central mound; wormPitCX/CY define the AI spawn epicentre
+// The worm only spawns after all cargo is delivered if the player lingers — or if OOB timeout fires.
+// radarPingZone draws an animated sonar ring over the danger area in game.js.
 
 registerLevel({
     name: "L6: The Sand Worm's Lair",
-    missionTitle: "Sand Worm Extraction",
-    description: "A colossal sand worm lurks beneath the dunes. Pick up cargo from the low valley, cross the worm's territory, and deliver to the eastern base.",
+    missionTitle: "Amber Dusk — Sand Worm Extraction",
+    description: "A colossal sand worm has colonised the central dune mound, making the valley floor extremely dangerous. Descend to the left-side shelf to collect cargo, then fly low and fast across the worm's territory to the Eastern Base on the far plateau. The creature hunts by vibration — slow hovering near the mound is an invitation.",
 
     // ── Identity flag ─────────────────────────────────────────────────────────
     terrainType: 'worm-lair',
@@ -37,24 +39,24 @@ registerLevel({
     //  • Upper-right plateau (drop-off)
     terrainPolygons: [
         [
-            // Left wall + upper-left plateau (Start HQ lives here ~x:80)
+            // Upper-left plateau — HQ spawns at x:80; wide enough to turn around safely
             {x: -200, y: 430}, {x:  60,  y: 430},
-            // Step down into the left valley (cargo lives here ~x:150)
+            // Drop down to the left valley shelf — cargo collection depot is at x:200
             {x: 160,  y: 430}, {x: 180,  y: 590},
             {x: 350,  y: 640}, {x: 420,  y: 660},
-            // Valley floor + lake edge (terrain dips, OOB lake fills the hole)
+            // Valley floor — OOB lake fills this depression; the terrain dips below surfaceY:780
             {x: 500,  y: 700}, {x: 560,  y: 780},
             {x: 700,  y: 800},
-            // Rise up to the worm mound center
+            // Central worm mound — rises above the valley; worm spawns from under this peak
             {x: 760,  y: 720}, {x: 820,  y: 580},
             {x: 900,  y: 520}, {x: 980,  y: 580},
             {x: 1040, y: 720}, {x: 1100, y: 800},
-            // Right side valley / descent
+            // Right valley descent — mirrors the left; no safe landing here
             {x: 1160, y: 760}, {x: 1260, y: 680},
             {x: 1340, y: 620}, {x: 1380, y: 550},
-            // Upper-right plateau (Drop-off lives here ~x:1450)
+            // Upper-right plateau — Eastern Base hub lands here at x:1460
             {x: 1420, y: 430}, {x: 1700, y: 430},
-            // Close the polygon downward
+            // Enclosure
             {x: 1700, y: 1600}, {x: -200, y: 1600}
         ]
     ],
@@ -98,7 +100,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "The valley floor is dangerous — something lurks beneath the central dunes. Move fast!",
+    hint: "Descend quickly to the left valley to collect cargo, then gain altitude before crossing the central mound — the worm targets anything near the dune peak. Once delivered, return to HQ fast.",
 
     quests: [
         questPrimary('Deliver 2 cargo to Eastern Base'),
