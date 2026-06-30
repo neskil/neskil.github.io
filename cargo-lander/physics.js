@@ -50,90 +50,7 @@ class CargoPhysics {
         this.spawnLander(levelConfig, upgrades);
     }
 
-    getRawTerrainHeight(x, terrainType, w, h) {
-        if (terrainType === 'mountain') {
-            const mid = w / 2;
-            const dist = Math.abs(x - mid);
-            const mountainH = Math.max(0, (w/2.5 - dist) * 1.5);
-            return h - 60 - mountainH + Math.sin(x * 0.05) * 15;
-        } else if (terrainType === 'caves' || terrainType === 'cave') {
-            return h - 100 + Math.sin(x * 0.02) * 80 + Math.cos(x * 0.08) * 30;
-        } else if (terrainType === 'canyon') {
-            const mid = w / 2;
-            const dist = Math.abs(x - mid);
-            let canyonDepth = 0;
-            if (dist < 150) {
-                canyonDepth = (150 - dist) * 1.8;
-            }
-            return h - 100 + canyonDepth + Math.sin(x * 0.04) * 10;
-        } else if (terrainType === 'worm-lair') {
-            const cb = (a, b, x1, x2) => {
-                const t = Math.max(0, Math.min(1, (x - x1) / (x2 - x1)));
-                const s = 0.5 - 0.5 * Math.cos(t * Math.PI);
-                return a + (b - a) * s;
-            };
-            // Far-left low cove: cargo pickup lives here
-            if (x < 90)   return h - 95 + Math.sin(x * 0.07) * 6;
-            // Rise to the big hill (start HQ on top)
-            if (x < 240)  return cb(h - 95, h - 520, 90, 240);
-            // Hill top — start HQ plateau
-            if (x < 380)  return h - 520 + Math.sin(x * 0.035) * 10;
-            // Descend from hill into the lake basin
-            if (x < 560)  return cb(h - 520, h - 90, 380, 560);
-            // Wide lake basin — very flat bottom
-            if (x < 880)  return h - 90 + Math.sin(x * 0.015) * 4;
-            // Rise out of lake onto worm plateau
-            if (x < 980)  return cb(h - 90, h - 220, 880, 980);
-            // Worm pit: terrain dips into a crater where the worm lives
-            if (x < 1040) return cb(h - 220, h - 60, 980, 1040);
-            if (x < 1110) return h - 60 + Math.sin(x * 0.06) * 5;           // pit floor
-            if (x < 1210) return cb(h - 60, h - 215, 1110, 1210);           // pit right wall rises
-            if (x < 1300) return h - 215 + Math.sin(x * 0.05) * 8;         // short ridge after pit
-            if (x < 1370) return cb(h - 215, h - 185, 1300, 1370);         // step down to drop-off
-            return h - 185 + Math.sin(x * 0.015) * 5;                       // drop-off shelf (hub landing area)
-        } else if (terrainType === 'needle') {
-            if (x >= 650 && x <= 750) {
-                return h - 40; // bottom of pit
-            } else {
-                return h - 400; // plateau
-            }
-        } else {
-            // Standard rolling hills
-            let y = h - 100 + Math.sin(x * 0.01) * 40 + Math.cos(x * 0.03) * 15;
-            if (terrainType === 'flat' && x >= 480 && x <= 720) {
-                const center = 600;
-                const radius = 120;
-                const dist = Math.abs(x - center);
-                const dip = (1 - dist / radius) * 48;
-                if (dip > 0) y += dip;
-            }
-            return y;
-        }
-    }
-
-    // Returns the Y coordinate of a cave ceiling at x, or null if open sky.
-    // Add cases here for terrain types that have ceilings/overhangs.
-    getRawTerrainCeiling(x, terrainType, w, h) {
-        return null; // No terrain type uses ceilings yet
-    }
-
-    // Convenience wrapper using current level config.
-    getTerrainCeiling(x) {
-        if (!this.currentLevelConfig) return null;
-        return this.getRawTerrainCeiling(x, this.currentLevelConfig.terrainType, this.levelWidth, this.levelHeight);
-    }
-
-    // True if the current terrain type has any ceiling areas.
-    hasCeiling() {
-        if (!this.currentLevelConfig) return false;
-        // Sample a few points across the map — a single x=0 sample misses mid-map ceilings.
-        for (const sx of [0, 400, 800, 1200]) {
-            if (this.getRawTerrainCeiling(sx, this.currentLevelConfig.terrainType, this.levelWidth, this.levelHeight) !== null) return true;
-        }
-        return false;
-    }
-
-    _buildMatterWorld() {
+    // Old procedural terrain functions removed
         // Recreate the Matter engine for this level
         if (this.matterEngine) {
             Matter.World.clear(this.matterWorld);
@@ -143,48 +60,88 @@ class CargoPhysics {
         this.matterWorld = this.matterEngine.world;
         this.boxBodyMap = new Map();
 
-        const THICKNESS = 40;
+        // Remove all procedural terrain code
+    }
 
-        // Terrain surface — one static rectangle per adjacent pair of terrain points
-        const pts = this.terrainPoints;
-        for (let i = 0; i < pts.length - 1; i++) {
-            const x1 = pts[i].x, y1 = pts[i].y;
-            const x2 = pts[i + 1].x, y2 = pts[i + 1].y;
-            const cx = (x1 + x2) / 2;
-            const cy = (y1 + y2) / 2;
-            const dx = x2 - x1, dy = y2 - y1;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            const angle = Math.atan2(dy, dx);
-            // Perpendicular pointing INTO terrain (downward side of surface)
-            const normX = -Math.sin(angle);
-            const normY = Math.cos(angle);
-            const body = Matter.Bodies.rectangle(
-                cx + normX * THICKNESS / 2,
-                cy + normY * THICKNESS / 2,
-                len + 4, THICKNESS, {
-                    isStatic: true,
-                    angle: angle,
-                    friction: this.LANDER_FRICTION,
-                    restitution: this.BOX_RESTITUTION,
-                    label: 'terrain',
-                    collisionFilter: { category: 0x0002, mask: 0x0001 | 0x0008 },
+    getPolygonSurfaceY(targetX) {
+        let maxSurfaceY = 0; // The lowest physical surface (largest Y on screen) that we find
+        for (const poly of this.terrainPolygons) {
+            for (let i = 0; i < poly.length; i++) {
+                const p1 = poly[i];
+                const p2 = poly[(i + 1) % poly.length];
+                if ((p1.x <= targetX && p2.x >= targetX) || (p2.x <= targetX && p1.x >= targetX)) {
+                    if (p1.x === p2.x) continue;
+                    const ratio = (targetX - p1.x) / (p2.x - p1.x);
+                    const y = p1.y + ratio * (p2.y - p1.y);
+                    if (maxSurfaceY === 0 || y < maxSurfaceY) {
+                        maxSurfaceY = y;
+                    }
                 }
-            );
-            Matter.Composite.add(this.matterWorld, body);
+            }
+        }
+        return maxSurfaceY || this.levelHeight * 0.7;
+    }
+
+    generateTerrain(config) {
+        const w = this.levelWidth;
+        const h = this.levelHeight;
+        this.terrainPolygons = config.terrainPolygons || [];
+        
+        const ps = config.padScale || 1.0;
+        this.startDepot = { x: 80, y: h - 100, width: Math.round(80 * ps), height: 15 };
+        this.collectionPoint = { x: config.collectionX || 280, y: h - 100, width: Math.round(100 * ps), height: 15 };
+        this.deliveryHubs = config.deliveryHubs.map(hub => ({
+            x: hub.x, y: h - 100, width: Math.round((hub.width || 80) * ps), height: 15,
+            color: hub.color, type: hub.type, name: hub.name || 'Terminal'
+        }));
+
+        this.startDepot.y = this.getPolygonSurfaceY(this.startDepot.x + this.startDepot.width / 2);
+        this.collectionPoint.y = this.getPolygonSurfaceY(this.collectionPoint.x + this.collectionPoint.width / 2);
+        for (const hub of this.deliveryHubs) {
+            hub.y = this.getPolygonSurfaceY(hub.x + hub.width / 2);
         }
 
-        // Bounding walls (keep boxes from falling out of the world)
-        const W = this.levelWidth, H = this.levelHeight;
+        for (const poly of this.terrainPolygons) {
+            const THICKNESS = 40;
+            for (let i = 0; i < poly.length - 1; i++) {
+                const p1 = poly[i], p2 = poly[i+1];
+                const cx = (p1.x + p2.x) / 2;
+                const cy = (p1.y + p2.y) / 2;
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len < 1) continue;
+                
+                const angle = Math.atan2(dy, dx);
+                const normX = -Math.sin(angle);
+                const normY = Math.cos(angle);
+                const body = Matter.Bodies.rectangle(
+                    cx + normX * THICKNESS / 2,
+                    cy + normY * THICKNESS / 2,
+                    len + 4, THICKNESS, {
+                        isStatic: true,
+                        angle: angle,
+                        friction: this.LANDER_FRICTION,
+                        restitution: this.BOX_RESTITUTION,
+                        label: 'terrain',
+                        collisionFilter: { category: 0x0002, mask: 0x0001 | 0x0008 },
+                    }
+                );
+                Matter.Composite.add(this.matterWorld, body);
+
+                // Add to segments so the custom lander kinematic loop collides with it
+                this.segments.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+            }
+        }
+
         [
-            Matter.Bodies.rectangle(W / 2, H + 60, W + 4000, 120, { isStatic: true, label: 'wall' }),
-            Matter.Bodies.rectangle(-4000, H / 2, 120, H * 4, { isStatic: true, label: 'wall' }),
-            Matter.Bodies.rectangle(W + 4000, H / 2, 120, H * 4, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(w / 2, h + 200, w + 4000, 120, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(-4000, h / 2, 120, h * 4, { isStatic: true, label: 'wall' }),
+            Matter.Bodies.rectangle(w + 4000, h / 2, 120, h * 4, { isStatic: true, label: 'wall' }),
         ].forEach(b => {
             b.collisionFilter = { category: 0x0002, mask: 0x0001 | 0x0008 };
             Matter.Composite.add(this.matterWorld, b);
         });
 
-        // Segment obstacles
         for (const seg of this.segments) {
             const cx = (seg.x1 + seg.x2) / 2;
             const cy = (seg.y1 + seg.y2) / 2;
@@ -201,87 +158,6 @@ class CargoPhysics {
             });
             Matter.Composite.add(this.matterWorld, body);
         }
-    }
-
-    generateTerrain(config) {
-        const points = [];
-        const w = this.levelWidth;
-        const h = this.levelHeight;
-
-        const ps = config.padScale || 1.0;
-
-        // Define Start Depot (Spawn Point) template
-        this.startDepot = {
-            x: 80,
-            y: h - 100, // Updated dynamically
-            width: Math.round(80 * ps),
-            height: 15
-        };
-
-        // Define Collection Point (Loading Pad) template
-        this.collectionPoint = {
-            x: config.collectionX || 280,
-            y: h - 100, // Updated dynamically
-            width: Math.round(100 * ps),
-            height: 15
-        };
-
-        // Define Delivery Hubs templates
-        this.deliveryHubs = config.deliveryHubs.map(hub => ({
-            x: hub.x,
-            y: h - 100, // Updated dynamically
-            width: Math.round((hub.width || 80) * ps),
-            height: 15,
-            color: hub.color,
-            type: hub.type,
-            name: hub.name || 'Terminal'
-        }));
-
-        // Dynamically compute y coordinates for all pads based on raw terrain height at their center
-        const pads = [];
-        
-        // 1. Start Depot
-        const startRawY = this.getRawTerrainHeight(this.startDepot.x + this.startDepot.width / 2, config.terrainType, w, h);
-        this.startDepot.y = Math.max(100, Math.min(startRawY, h - 10));
-        pads.push({ left: this.startDepot.x - 20, right: this.startDepot.x + this.startDepot.width + 20, y: this.startDepot.y });
-
-        // 2. Collection Point
-        const colRawY = this.getRawTerrainHeight(this.collectionPoint.x + this.collectionPoint.width / 2, config.terrainType, w, h);
-        this.collectionPoint.y = Math.max(100, Math.min(colRawY, h - 10));
-        pads.push({ left: this.collectionPoint.x - 20, right: this.collectionPoint.x + this.collectionPoint.width + 20, y: this.collectionPoint.y });
-
-        // 3. Delivery Hubs
-        for (const hub of this.deliveryHubs) {
-            const hubRawY = this.getRawTerrainHeight(hub.x + hub.width / 2, config.terrainType, w, h);
-            hub.y = Math.max(100, Math.min(hubRawY, h - 10));
-            pads.push({ left: hub.x - 20, right: hub.x + hub.width + 20, y: hub.y });
-        }
-
-        // Terrain resolution: point every 40 pixels (halves Matter body count vs 20)
-        const step = 40;
-        this.terrainStep = step;
-        for (let x = 0; x <= w; x += step) {
-            let y = h - 60; // Default flat-ish height
-
-            let inPad = false;
-            for (const pad of pads) {
-                if (x >= pad.left && x <= pad.right) {
-                    y = pad.y;
-                    inPad = true;
-                    break;
-                }
-            }
-
-            if (!inPad) {
-                y = this.getRawTerrainHeight(x, config.terrainType, w, h);
-            }
-            
-            // Clamping y within canvas bounds
-            y = Math.max(100, Math.min(y, h - 10));
-            points.push({ x, y });
-        }
-
-        this.terrainPoints = points;
     }
 
     spawnLander(config, upgrades = {}) {
@@ -332,14 +208,16 @@ class CargoPhysics {
             Matter.Composite.remove(this.matterWorld, this.landerBody);
             this.landerBody = null;
         }
-        const l = this.lander;
         this.landerBody = Matter.Bodies.rectangle(l.x, l.y, l.width, l.height, {
-            isStatic: true, // Acts as a kinematic body when we manually setPosition/Velocity
+            isStatic: false,
+            frictionAir: 0,
             friction: this.LANDER_FRICTION,
             restitution: this.LANDER_RESTITUTION,
             label: 'lander',
             collisionFilter: { category: 0x0008, mask: 0x0002 | 0x0004 },
         });
+        Matter.Body.setMass(this.landerBody, Infinity);
+        Matter.Body.setInertia(this.landerBody, Infinity);
         Matter.Composite.add(this.matterWorld, this.landerBody);
 
         // One damage event per engine step (deduplicate multiple terrain pairs)
@@ -398,9 +276,9 @@ class CargoPhysics {
         const hh = lander.height / 2;
         const bottom = lander.y + hh;
 
-        // Check bottom edge against terrain
-        const gyL = this.getTerrainHeight(lander.x - hw);
-        const gyR = this.getTerrainHeight(lander.x + hw);
+        // Check bottom edge against terrain polygons
+        const gyL = this.getPolygonSurfaceY(lander.x - hw);
+        const gyR = this.getPolygonSurfaceY(lander.x + hw);
         const groundY = Math.min(gyL, gyR);
         const distToGround = groundY - bottom;
 
@@ -432,38 +310,6 @@ class CargoPhysics {
             lander.landed = false;
             lander.currentPad = null;
             lander.legCompress = nearGround ? Math.max(0, lander.legCompress - 0.04) : 0;
-        }
-
-        // Ceiling check (custom: terrain ceiling isn't a Matter body)
-        for (const ptX of [lander.x - hw, lander.x + hw]) {
-            const ceilingY = this.getTerrainCeiling(ptX);
-            if (ceilingY === null) continue;
-            const topY = lander.y - hh;
-            const pen = ceilingY - topY;
-            if (pen > 0) {
-                lander.y += pen;
-                if (lander.vy < 0) {
-                    const impactVel = Math.abs(lander.vy);
-                    lander.vy = impactVel * this.LANDER_RESTITUTION;
-                    if (impactVel > 1.0 && !window.DEV_INVULNERABLE) {
-                        const damage = Math.pow(impactVel - 1.0, 1.8) * 16;
-                        lander.integrity -= damage;
-                        if (window.CargoAudio) CargoAudio.playCollision(impactVel);
-                        for (let i = 0; i < 12; i++) {
-                            this.particles.push({
-                                x: ptX, y: topY,
-                                vx: (Math.random() - 0.5) * 7,
-                                vy: (Math.random() - 0.5) * 7 + 2,
-                                life: 1.0, decay: 0.04 + Math.random() * 0.04,
-                                color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
-                                size: 2.5 + Math.random() * 2.5,
-                            });
-                        }
-                        if (lander.integrity <= 0) this.triggerExplosion();
-                    }
-                }
-                break;
-            }
         }
     }
 
@@ -509,47 +355,7 @@ class CargoPhysics {
         }
     }
 
-    getTerrainHeight(x) {
-        if (x < 0) {
-            const anchorY = this.terrainPoints[0].y;
-            // Drop off into the void (steep cliff downward)
-            return anchorY - (x * 3);
-        }
-        if (x > this.levelWidth) {
-            const anchorY = this.terrainPoints[this.terrainPoints.length - 1].y;
-            const dx = x - this.levelWidth;
-            // Drop off into the void (steep cliff downward)
-            return anchorY + (dx * 3);
-        }
-
-        // O(1) index lookup — points are evenly spaced by terrainStep
-        const step = this.terrainStep || 40;
-        const pts = this.terrainPoints;
-        if (!pts || pts.length < 2) return this.levelHeight * 0.7;
-        const idx = Math.max(0, Math.min(Math.floor(x / step), pts.length - 2));
-        const leftPt  = pts[idx];
-        const rightPt = pts[idx + 1];
-
-        const ratio = (x - leftPt.x) / (rightPt.x - leftPt.x || 1);
-        return leftPt.y + ratio * (rightPt.y - leftPt.y);
-    }
-
-    getTerrainSlope(x) {
-        const delta = 5;
-        const y1 = this.getTerrainHeight(x - delta);
-        const y2 = this.getTerrainHeight(x + delta);
-        
-        const dx = delta * 2;
-        const dy = y2 - y1;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-
-        return {
-            tx: dx / len,
-            ty: dy / len,
-            nx: dy / len,      // Normal X
-            ny: -dx / len      // Normal Y (points UP)
-        };
-    }
+    // getTerrainHeight and getTerrainSlope removed in favor of Matter.js collisions and polygons
 
     // ── Segment collision helpers ──────────────────────────────────────────────
 
@@ -659,7 +465,6 @@ class CargoPhysics {
 
         // Step custom kinematics for the lander unconditionally
         this.integrateLander(dt);
-        this.resolveLanderCollisions();
         this.resolveSegmentCollisions();
 
         if (this.landerBody) {
@@ -1097,214 +902,9 @@ class CargoPhysics {
         }
     }
 
-    resolveLanderCollisions() {
-        const lander = this.lander;
+    // resolveLanderCollisions removed in favor of resolveSegmentCollisions handling all terrain polygons
 
-        // Check 4 landing gear/corner points of the lander
-        const hw = lander.width / 2;
-        const hh = lander.height / 2;
-
-        // Local points
-        const corners = [
-            { x: -hw, y: hh },  // Bottom Left
-            { x: hw, y: hh },   // Bottom Right
-            { x: -hw, y: -hh }, // Top Left
-            { x: hw, y: -hh }   // Top Right
-        ];
-
-        let minPen = 0;
-        let groundPt = null;
-        let cWorld = null;
-
-        for (const pt of corners) {
-            // Rotate and translate to world space
-            const wx = lander.x + pt.x * Math.cos(lander.angle) - pt.y * Math.sin(lander.angle);
-            const wy = lander.y + pt.x * Math.sin(lander.angle) + pt.y * Math.cos(lander.angle);
-
-            const gy = this.getTerrainHeight(wx);
-            const pen = wy - gy;
-            if (pen > minPen) {
-                minPen = pen;
-                groundPt = { x: wx, y: gy };
-                cWorld = { x: wx, y: wy };
-            }
-        }
-
-        if (minPen > 0) {
-            // Handle collision
-            const slope = this.getTerrainSlope(groundPt.x);
-            
-            // Determine if landing on a horizontal landing pad
-            let onPad = false;
-            let padType = null;
-            
-            // Pad detection with generous x/y tolerance to prevent flickering
-            const xTol = 30; // extra px on each side
-            const yTol = 10;
-
-            if (groundPt.x >= this.startDepot.x - xTol && groundPt.x <= this.startDepot.x + this.startDepot.width + xTol) {
-                if (Math.abs(groundPt.y - this.startDepot.y) < yTol) {
-                    onPad = true;
-                    padType = 'start';
-                }
-            }
-            if (!onPad && groundPt.x >= this.collectionPoint.x - xTol && groundPt.x <= this.collectionPoint.x + this.collectionPoint.width + xTol) {
-                if (Math.abs(groundPt.y - this.collectionPoint.y) < yTol) {
-                    onPad = true;
-                    padType = 'collection';
-                }
-            }
-            if (!onPad) {
-                for (const hub of this.deliveryHubs) {
-                    if (groundPt.x >= hub.x - xTol && groundPt.x <= hub.x + hub.width + xTol) {
-                        if (Math.abs(groundPt.y - hub.y) < yTol) {
-                            onPad = true;
-                            padType = hub.type;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Normal speed and angle check for landing
-            const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
-            const angleDeg = Math.abs(lander.angle * 180 / Math.PI);
-            
-            // Spring legs deployed near a pad — much more forgiving thresholds
-            const _baseLandSpd = window.DEV_LANDSPD ?? 2.0;
-            const maxLandingSpeed = lander.legsDeployed ? _baseLandSpd * 2.25 : _baseLandSpd;
-            const maxLandingAngle = lander.legsDeployed ? 18.0 : 8.0;
-
-            if (onPad && speed <= maxLandingSpeed && angleDeg <= maxLandingAngle) {
-                // Safe Landing — snap to pad on first contact only, then hold fixed
-                if (!lander.landed) {
-                    lander.y -= minPen;
-                    lander.legCompress = Math.min(1, Math.max(0.4, speed * 0.5));
-                }
-                lander.vy = 0;
-                lander.vx = 0;
-                lander.angularVelocity = 0;
-                lander.angle = 0;
-                lander.landed = true;
-                lander.currentPad = padType;
-                
-                // Slowly repair small damage when parked at start depot
-                if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
-                    lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
-                    // Slow fuel refill
-                    lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
-                }
-            } else {
-                // Crash or Hard Hit
-                const impactVel = speed;
-                lander.landed = false;
-
-                // Push out along slope normal to completely resolve vertical penetration
-                const pushDist = minPen / Math.abs(slope.ny);
-                lander.x += slope.nx * pushDist;
-                lander.y += slope.ny * pushDist;
-
-                // Reflect velocity with restitution
-                const vn = lander.vx * slope.nx + lander.vy * slope.ny;
-                if (vn < 0) {
-                    lander.vx -= (1 + this.LANDER_RESTITUTION) * vn * slope.nx;
-                    lander.vy -= (1 + this.LANDER_RESTITUTION) * vn * slope.ny;
-
-                    // Apply friction
-                    const vt = lander.vx * slope.tx + lander.vy * slope.ty;
-                    lander.vx -= this.LANDER_FRICTION * vt * slope.tx;
-                    lander.vy -= this.LANDER_FRICTION * vt * slope.ty;
-
-                    // Spawn scraping dust/sparks when sliding
-                    if (Math.abs(vt) > 0.8) {
-                        if (Math.random() < 0.25) {
-                            this.particles.push({
-                                x: cWorld.x,
-                                y: cWorld.y,
-                                vx: -slope.tx * vt * 0.3 + (Math.random() - 0.5) * 1.5,
-                                vy: -slope.ty * vt * 0.3 - Math.random() * 2,
-                                life: 0.8,
-                                decay: 0.04 + Math.random() * 0.04,
-                                color: Math.random() > 0.4 ? '#f97316' : '#64748b', // sparks & dust
-                                size: 1.5 + Math.random() * 2
-                            });
-                        }
-                    }
-                }
-
-                // Apply hull damage.
-                // Landing pads are forgiving (high threshold, low multiplier);
-                // the jagged red terrain is unforgiving and bites hard.
-                const damageThreshold = onPad ? (lander.legsDeployed ? 3.5 : 1.8) : 1.0;
-                const surfaceMultiplier = onPad ? (lander.legsDeployed ? 1.5 : 3.5) : 16;
-
-                if (impactVel > damageThreshold) {
-                    const damage = Math.pow(impactVel - damageThreshold, 1.8) * surfaceMultiplier;
-                    lander.integrity -= damage;
-
-                    // Trigger sound in controller
-                    if (window.CargoAudio) {
-                        CargoAudio.playCollision(impactVel);
-                    }
-
-                    // Spark particles (more violent on raw terrain)
-                    const sparkCount = onPad ? 6 : 16;
-                    for (let i = 0; i < sparkCount; i++) {
-                        this.particles.push({
-                            x: cWorld.x,
-                            y: cWorld.y,
-                            vx: (Math.random() - 0.5) * 7,
-                            vy: (Math.random() - 0.5) * 7 - 2,
-                            life: 1.0,
-                            decay: 0.04 + Math.random() * 0.04,
-                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316', // Yellow and Orange sparks
-                            size: 2.5 + Math.random() * 2.5
-                        });
-                    }
-
-                    if (lander.integrity <= 0) {
-                        this.triggerExplosion();
-                    }
-                }
-            }
-        } else {
-            // Lander is in mid-air
-            lander.landed = false;
-            lander.currentPad = null;
-        }
-
-        // --- Ceiling collision --- (reuses corners array defined above)
-        for (const pt of corners) {
-            const wx = lander.x + pt.x * Math.cos(lander.angle) - pt.y * Math.sin(lander.angle);
-            const wy = lander.y + pt.x * Math.sin(lander.angle) + pt.y * Math.cos(lander.angle);
-            const ceilingY = this.getTerrainCeiling(wx);
-            if (ceilingY === null) continue;
-            const pen = ceilingY - wy;
-            if (pen > 0) {
-                lander.y += pen;
-                if (lander.vy < 0) {
-                    const impactVel = Math.abs(lander.vy);
-                    lander.vy = impactVel * this.LANDER_RESTITUTION;
-                    if (impactVel > 1.0) {
-                        const damage = Math.pow(impactVel - 1.0, 1.8) * 16;
-                        lander.integrity -= damage;
-                        if (window.CargoAudio) CargoAudio.playCollision(impactVel);
-                        for (let i = 0; i < 12; i++) {
-                            this.particles.push({
-                                x: wx, y: wy,
-                                vx: (Math.random() - 0.5) * 7,
-                                vy: (Math.random() - 0.5) * 7 + 2,
-                                life: 1.0, decay: 0.04 + Math.random() * 0.04,
-                                color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
-                                size: 2.5 + Math.random() * 2.5
-                            });
-                        }
-                        if (lander.integrity <= 0) this.triggerExplosion();
-                    }
-                }
-                break;
-            }
-        }
+        // Ceiling collision is now handled natively by Matter.js static bodies
     }
 
     triggerExplosion() {
