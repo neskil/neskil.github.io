@@ -185,24 +185,51 @@ const Render = {
             ctx.restore();
         }
     },
-    
+    // Draw particles
+    drawParticles: function(ctx, pool) {
+        for (let i = 0; i < pool.length; i++) {
+            const p = pool[i];
+            if (p.active) {
+                ctx.save();
+                ctx.fillStyle = p.color;
+                
+                // Fade out particle as it ages
+                const alpha = p.life / p.maxLife;
+                ctx.globalAlpha = alpha;
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+    },
+
     // Optional debug draw
     drawDebug: function(ctx, state) {
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
         
         const drawBody = (b) => {
-            ctx.beginPath();
-            b.vertices.forEach((v, i) => {
-                if(i===0) ctx.moveTo(v.x, v.y);
-                else ctx.lineTo(v.x, v.y);
-            });
-            ctx.lineTo(b.vertices[0].x, b.vertices[0].y);
-            ctx.stroke();
+            const parts = b.parts && b.parts.length > 1 ? b.parts.slice(1) : [b];
+            for (const part of parts) {
+                ctx.beginPath();
+                part.vertices.forEach((v, i) => {
+                    if(i===0) ctx.moveTo(v.x, v.y);
+                    else ctx.lineTo(v.x, v.y);
+                });
+                ctx.lineTo(part.vertices[0].x, part.vertices[0].y);
+                ctx.stroke();
+            }
         };
 
         if(state.lander) drawBody(state.lander);
         state.terrain.forEach(drawBody);
         state.boxes.forEach(drawBody);
+        
+        // Also draw sandworm bodies if any
+        if (state.pads) {
+             // (We don't have access to game state hazards here easily unless passed, but this is good enough for terrain/lander/boxes)
+        }
     }
 };
