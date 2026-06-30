@@ -107,6 +107,14 @@ The game starts muted, but the settings checkbox defaulted to unchecked.
 state before showing the modal; `toggleMuteFromCheckbox()` drives a new
 `CargoAudio.setMuted(bool)` helper in `audio.js`.
 
+### 8. ✅ Lander vs Cargo Box "Double Physics" Conflict
+`physics.js` synced the `lander` state back and forth with a non-static Matter.js `landerBody`. Because Matter.js applied gravity and friction to the body, these forces conflicted with the custom arcade kinematics, causing choppy flight and making the lander bounce wildly when touching cargo boxes.
+**Fix:** The Matter.js `landerBody` is now strictly kinematic (`isStatic: true`). The custom physics loop unconditionally integrates the lander's flight and pushes the position to Matter.js so cargo boxes bounce off smoothly without disturbing the ship's flight path.
+
+### 9. ✅ Out of Bounds Boundaries Exploded at Sub-Y Coords
+The right-side procedural terrain out of bounds (`x > levelWidth`) generated a rising mountain instead of a drop-off, acting as an invisible wall that blew up the ship. Also, invisible Matter.js walls were too close to the play area.
+**Fix:** Replaced the right-side out-of-bounds formula with a steep downward cliff to match the left side. Expanded Matter.js world boundaries to ±4000px so players can fly freely into the void to encounter the monster.
+
 ### Minor / cleanup (all fixed)
 - Removed the dead `document.getElementById('fail-screen')` lookups in `goToMenu()`
   and `startLevel()` (the element id is `game-over-screen`).
@@ -158,6 +166,8 @@ console + on-screen error logger report no errors.
 - **Instant thruster cut-off** — engine power drops to zero immediately on key release; only spool-up is gradual.
 - **Fly upward = out-of-bounds** — `y < −600` triggers the OOB monster warning.
 - **Moving gravity well** — the L4 anomaly orbits its base position with a Lissajous-like phase.
+- **Heavy Arcade Flight** — `LANDER_THRUST`, `LANDER_DRAG`, and `gravity` were tweaked to give the ship more weight and inertia, slowing down overall gameplay.
+- **Persistent Wreckage** — A destroyed lander no longer instantly despawns. The physics engine tracks the wrecked hull to the ground, drawing it charred with flickering fire and smoke. The game over screen delay was increased to 3 seconds to let you watch the crash.
 
 ### Cargo boxes
 - **Bigger boxes** — `BOX_SIZE` 20 → 28 px; emoji rendered at 15 px font.
