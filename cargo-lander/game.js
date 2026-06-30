@@ -1458,8 +1458,8 @@ class CargoGame {
         if (this.gameState !== 'playing' || !this.physics.lander || this.physics.lander.crashed) return;
         this.physics.lander.integrity = 0;
         this.physics.lander.crashed = true;
-        if (window.CargoAudio) window.CargoAudio.playExplosion();
-        this.createExplosion(this.physics.lander.x, this.physics.lander.y);
+        if (window.CargoAudio) window.CargoAudio.playCollision(10);
+        this.physics.triggerExplosion();
         setTimeout(() => this.failMission("Self Destruct Initiated."), 1500);
     }
 
@@ -4122,6 +4122,7 @@ class CargoGame {
         ctx.font = `${Math.round(S * 0.75)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
         ctx.fillText(iconText, 0, 1.5);
         ctx.shadowBlur = 0;
 
