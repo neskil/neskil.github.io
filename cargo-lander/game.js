@@ -3322,10 +3322,20 @@ class CargoGame {
             ctx.fillStyle = `rgba(${Math.floor(tr*layer.darken)},${Math.floor(tg*layer.darken)},${Math.floor(tb*layer.darken)},${layer.alpha})`;
             for (const poly of this.physics.terrainPolygons) {
                 if (!poly || poly.length < 3) continue;
+                
+                let area = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const p1 = poly[i];
+                    const p2 = poly[(i + 1) % poly.length];
+                    area += (p2.x - p1.x) * (p2.y + p1.y);
+                }
+                const isCeiling = area > 0;
+                const dir = isCeiling ? -1 : 1;
+
                 ctx.beginPath();
-                ctx.moveTo(poly[0].x, poly[0].y + layer.shift);
+                ctx.moveTo(poly[0].x, poly[0].y + layer.shift * dir);
                 for (let i = 1; i < poly.length; i++) {
-                    ctx.lineTo(poly[i].x, poly[i].y + layer.shift);
+                    ctx.lineTo(poly[i].x, poly[i].y + layer.shift * dir);
                 }
                 ctx.closePath();
                 ctx.fill();
