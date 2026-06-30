@@ -2874,9 +2874,11 @@ class CargoGame {
         ];
 
         const camX = this.camera ? this.camera.x : 0;
+        const camY = this.camera ? this.camera.y : 0;
+        const zoom = this.camera ? this.camera.zoom : 1;
 
+        // Draw parallax background layers
         for (const layer of layers) {
-            const offsetX = camX * layer.factor;
             const dr = Math.round(sr * layer.darken);
             const dg = Math.round(sg * layer.darken);
             const db = Math.round(sb * layer.darken);
@@ -2884,14 +2886,28 @@ class CargoGame {
             ctx.beginPath();
             ctx.moveTo(0, h);
 
-            for (let sx = 0; sx <= w; sx += 3) {
-                const wx = sx + offsetX;
-                const n1 = Math.sin(wx * layer.freq + layer.seed);
-                const n2 = Math.sin(wx * layer.freq2 + layer.seed2);
-                const n3 = Math.sin(wx * layer.freq * 2.3 + layer.seed + 1.1);
+            for (let sx = 0; sx <= w + 4; sx += 4) {
+                // Convert screen X to world X, apply parallax factor
+                const worldX = camX * layer.factor + (sx - w / 2) / zoom;
+                
+                const n1 = Math.sin(worldX * layer.freq + layer.seed);
+                const n2 = Math.sin(worldX * layer.freq2 + layer.seed2);
+                const n3 = Math.sin(worldX * layer.freq * 2.3 + layer.seed + 1.1);
                 const t = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
-                const y = h * (layer.yMin + t * (layer.yMax - layer.yMin));
-                ctx.lineTo(sx, y);
+                
+                // Base Y for this layer in world coordinates
+                const levelH = this.physics.levelHeight || 2000;
+                const baseYWorld = levelH * layer.yMin; 
+                const amplitudeWorld = levelH * (layer.yMax - layer.yMin);
+                const layerYWorld = baseYWorld + t * amplitudeWorld;
+
+                // Apply vertical parallax based on camera Y
+                const parallaxYWorld = layerYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+
+                // Convert back to screen space for drawing
+                const screenY = h / 2 + (parallaxYWorld - camY) * zoom;
+
+                ctx.lineTo(sx, screenY);
             }
 
             ctx.lineTo(w, h);
