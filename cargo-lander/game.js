@@ -2995,45 +2995,6 @@ class CargoGame {
         
         // World coordinates of screen edges
         const leftWorld = camX - (w / 2) / zoom;
-        const rightWorld = camX + (w / 2) / zoom;
-        
-        const EDGE_FADE_DIST = 400; // Distance over which mist goes from 0 to full
-        
-        ctx.save();
-        
-        // Left Edge Mist
-        if (leftWorld < 0) {
-            const mistIntensity = Math.min(1.0, (-leftWorld) / EDGE_FADE_DIST);
-            if (mistIntensity > 0) {
-                const mistW = (-leftWorld) * zoom;
-                const grad = ctx.createLinearGradient(0, 0, mistW, 0);
-                // Parse the base mistColor assuming it is rgba or #hex (simplified: we just draw it solid and use gradient alpha)
-                grad.addColorStop(0, oob.mistColor);
-                grad.addColorStop(1, 'transparent');
-                
-                ctx.globalAlpha = mistIntensity;
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, mistW, h);
-            }
-        }
-        
-        // Right Edge Mist
-        const levelW = this.physics.levelWidth;
-        if (rightWorld > levelW) {
-            const mistIntensity = Math.min(1.0, (rightWorld - levelW) / EDGE_FADE_DIST);
-            if (mistIntensity > 0) {
-                const mistW = (rightWorld - levelW) * zoom;
-                const startX = w - mistW;
-                const grad = ctx.createLinearGradient(startX, 0, w, 0);
-                grad.addColorStop(0, 'transparent');
-                grad.addColorStop(1, oob.mistColor);
-                
-                ctx.globalAlpha = mistIntensity;
-                ctx.fillStyle = grad;
-                ctx.fillRect(startX, 0, mistW, h);
-            }
-        }
-
         ctx.restore();
     };
 
@@ -3041,77 +3002,6 @@ class CargoGame {
         const waterBodies = levels[this.currentLevelIndex]?.waterBodies;
         if (!waterBodies || waterBodies.length === 0) return;
         if (!(this.physics.levelHeight > 0)) return;
-        ctx.save();
-
-        // Water body — filled with depth gradient, clipped to terrain-following shape
-        ctx.beginPath();
-        ctx.moveTo(lx, ly);
-        ctx.lineTo(lx + lw, ly);
-        for (let i = terrainBottom.length - 1; i >= 0; i--) {
-            ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
-        }
-        ctx.closePath();
-
-        const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
-        depthGrad.addColorStop(0, 'rgba(14,45,90,0.82)');
-        depthGrad.addColorStop(0.5, 'rgba(8,25,60,0.90)');
-        depthGrad.addColorStop(1, 'rgba(2,6,20,0.96)');
-        ctx.fillStyle = depthGrad;
-        ctx.fill();
-
-        // Clip all inner content to this same water shape
-        ctx.beginPath();
-        ctx.moveTo(lx, ly);
-        ctx.lineTo(lx + lw, ly);
-        for (let i = terrainBottom.length - 1; i >= 0; i--) {
-            ctx.lineTo(terrainBottom[i].x, terrainBottom[i].y);
-        }
-        ctx.closePath();
-        ctx.clip();
-
-        // Shimmer layer near surface
-        ctx.fillStyle = 'rgba(56,130,220,0.12)';
-        ctx.fillRect(lx, ly, lw, 14);
-
-        // Animated surface ripples
-        ctx.strokeStyle = 'rgba(100,180,255,0.30)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        for (let wx = 0; wx <= lw; wx += 5) {
-            const wy = Math.sin(now / 900 + (lx + wx) * 0.048) * 1.8;
-            if (wx === 0) ctx.moveTo(lx + wx, ly + 4 + wy);
-            else ctx.lineTo(lx + wx, ly + 4 + wy);
-        }
-        ctx.stroke();
-        ctx.beginPath();
-        for (let wx = 0; wx <= lw; wx += 5) {
-            const wy = Math.sin(now / 650 + (lx + wx) * 0.065 + 1.2) * 1.3;
-            if (wx === 0) ctx.moveTo(lx + wx, ly + 9 + wy);
-            else ctx.lineTo(lx + wx, ly + 9 + wy);
-        }
-        ctx.stroke();
-
-        // Fish (clipped to water automatically)
-        const fish = [
-            { phase: 0.0, depth: 0.30, size: 1.0 },
-            { phase: 2.1, depth: 0.52, size: 0.85 },
-            { phase: 4.3, depth: 0.68, size: 1.1 },
-            { phase: 1.5, depth: 0.40, size: 0.9 },
-        ];
-        for (const f of fish) {
-            const ft = now / 1200 + f.phase;
-            const fx = Math.min(Math.max(lx + lw / 2 + Math.sin(ft) * (lw * 0.36), lx + 12), lx + lw - 12);
-            const fy = ly + ld * f.depth;
-            const dir = Math.cos(ft) >= 0 ? 1 : -1;
-            const bw = 14 * f.size, bh = 6 * f.size;
-            ctx.fillStyle = 'rgba(60,180,110,0.88)';
-            ctx.beginPath();
-            ctx.ellipse(fx, fy, bw / 2, bh / 2, 0, 0, Math.PI * 2);
-            ctx.fill();
-            const tail = fx - dir * (bw / 2);
-            ctx.beginPath();
-            ctx.moveTo(tail, fy);
-            ctx.lineTo(tail - dir * bh * 0.9, fy - bh * 0.75);
             ctx.lineTo(tail - dir * bh * 0.9, fy + bh * 0.75);
             ctx.closePath();
             ctx.fill();
