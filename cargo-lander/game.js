@@ -55,7 +55,8 @@ class CargoGame {
         this.introTimer = 0;
         
         // Settings
-        this.isMuted = false;
+        const savedMute = localStorage.getItem('cargoLanderMuted');
+        this.isMuted = savedMute ? savedMute === 'true' : false;
         this.useSprites = false;
 
         // Keys State
@@ -610,6 +611,20 @@ class CargoGame {
         this.cargoLostCount = 0;
         this.score = 100; // Reset level efficiency
         this.messages = [];
+
+        let starts = parseInt(localStorage.getItem('cargoLanderStarts')) || 0;
+        starts++;
+        localStorage.setItem('cargoLanderStarts', starts);
+        if (starts % 3 === 0 && this.isMuted) {
+            setTimeout(() => {
+                this.addMessage("💡 Unmute to hear the music & sound effects!", "#38bdf8");
+                const muteBtn = document.getElementById('mute-toggle-btn');
+                if (muteBtn) {
+                    muteBtn.style.animation = 'shakeBtn 0.4s ease-in-out 4';
+                    setTimeout(() => muteBtn.style.animation = '', 1600);
+                }
+            }, 1500);
+        }
 
         // Generate world buildings on terrain surface
         this.buildings = [];
