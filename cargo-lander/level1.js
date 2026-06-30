@@ -23,6 +23,17 @@ registerLevel({
     budget: 1000,
     timeLimit: 180,
     allowedTypes: ["normal"],
+    
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'water',
+        color: 'rgba(14, 165, 233, 0.6)',
+        mistColor: 'rgba(14, 165, 233, 0.2)',
+        surfaceY: 1300,
+        drag: 0.92,
+        buoyancy: -0.15,
+        monsterDepth: 1600
+    },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [

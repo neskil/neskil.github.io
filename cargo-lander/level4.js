@@ -45,6 +45,17 @@ registerLevel({
     timeLimit: 180,
     allowedTypes: ["red", "blue"],
 
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'goo',
+        color: 'rgba(239, 68, 68, 0.7)',
+        mistColor: 'rgba(239, 68, 68, 0.4)',
+        surfaceY: 1200,
+        drag: 0.96,       // Thick plasma
+        buoyancy: -0.1,
+        monsterDepth: 1600
+    },
+
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
         { x: 750, color: "#ef4444", type: "red",    name: "Sector 4"     },

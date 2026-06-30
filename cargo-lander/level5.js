@@ -10,6 +10,23 @@ registerLevel({
     gravity: 0.10,          // lighter gravity — easier hovering for rope work
     wind: 0,
 
+    // ── Mission parameters ────────────────────────────────────────────────────
+    targetCargo: 3,
+    budget: 1800,
+    timeLimit: 240,
+    allowedTypes: ["normal", "red"],
+    
+    // ── Environment ───────────────────────────────────────────────────────────
+    outOfBounds: {
+        type: 'acid',
+        color: 'rgba(132, 204, 22, 0.7)',
+        mistColor: 'rgba(132, 204, 22, 0.3)',
+        surfaceY: 1200,
+        drag: 0.9,
+        buoyancy: -0.25,  // highly buoyant
+        monsterDepth: 1500
+    },
+
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
         // Ground - sloping downwards into the deep core

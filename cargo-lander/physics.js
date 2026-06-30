@@ -463,7 +463,7 @@ class CargoPhysics {
             this._updateLegsDeployed();
         }
         
-        this.applyGravityAndWind(dt);
+        this.applyGravityAndWind(levelConfig, dt);
         this.applyGravityWell(levelConfig, dt);
 
         // Step custom kinematics for the lander unconditionally
@@ -482,17 +482,16 @@ class CargoPhysics {
         this.updateBoxes(dt); // steps Matter engine → lander + boxes collide with terrain
 
         this._detectLanding();
-        this.updateMonster(dt);
+        this.updateMonster(levelConfig, dt);
         this.updateAmbientTraffic(dt);
         this.updateParticles();
     }
 
-    updateMonster(dt) {
+    updateMonster(levelConfig, dt) {
         const lander = this.lander;
 
         // Once the lander is gone, the monster dives back into the depths and despawns.
         if (lander.crashed) {
-            this.outOfBoundsTimer = 0;
             if (this.monster) {
                 const m = this.monster;
                 m.vy += 0.5 * dt;              // accelerate downward, retreating
@@ -513,26 +512,23 @@ class CargoPhysics {
             return;
         }
 
-        // Spawn logic: Trigger if lander strays out of bounds (including flying too high or falling too low)
-        if (lander.x < -500 || lander.x > this.levelWidth + 500 || lander.y < -600 || lander.y > this.levelHeight + 200) {
-            this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
-        } else {
-            this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
-        }
-
-        if (!this.monster && this.outOfBoundsTimer > 150) { // ~2.5 seconds at 60fps
-            // Spawn monster from the deep below
-            this.monster = {
-                x: lander.x < -150 ? lander.x - 400 : lander.x + 400,
-                y: this.levelHeight + 200,
-                vx: 0,
-                vy: -5,
-                size: 130,
-                roarTimer: 60,
-                trail: [],
-                speedIntegral: 0,
-            };
-            if (window.CargoAudio) CargoAudio.playCrash();
+        // Spawn logic: Trigger if lander sinks below monsterDepth
+        const oob = levelConfig.outOfBounds;
+        if (oob && lander.y > oob.monsterDepth) {
+            if (!this.monster) {
+                // Spawn monster from the deep below
+                this.monster = {
+                    x: lander.x,
+                    y: oob.monsterDepth + 400,
+                    vx: 0,
+                    vy: -5,
+                    size: 130,
+                    roarTimer: 60,
+                    trail: [],
+                    speedIntegral: 0,
+                };
+                if (window.CargoAudio) CargoAudio.playCrash();
+            }
         }
 
         if (this.monster) {
@@ -823,11 +819,11 @@ class CargoPhysics {
         }
     }
 
-    applyGravityAndWind(dt) {
+    applyGravityAndWind(levelConfig, dt) {
         const lander = this.lander;
         if (lander.landed) return;
 
-        // Apply gravity
+        // Apply base gravity
         lander.vy += this.gravity * dt;
 
         // Apply air resistance (drag)
@@ -848,6 +844,25 @@ class CargoPhysics {
         const _drag = window.DEV_DRAG ?? 0.995;
         lander.vx *= Math.pow(_drag, dt);
         lander.vy *= Math.pow(_drag, dt);
+
+        // Out-of-bounds Fluid dynamics (submersion)
+        const oob = levelConfig.outOfBounds;
+        if (oob && oob.type !== 'void' && lander.y > oob.surfaceY) {
+            lander.vy += oob.buoyancy * dt;
+            lander.vx *= Math.pow(oob.drag, dt);
+            lander.vy *= Math.pow(oob.drag, dt);
+        }
+
+        // Out-of-bounds Lateral push-back
+        const EDGE_MARGIN = 200;
+        if (lander.x < -EDGE_MARGIN) {
+            lander.vx += 0.05 * dt; // Gentle push right
+        } else if (lander.x > this.levelWidth + EDGE_MARGIN) {
+            lander.vx -= 0.05 * dt; // Gentle push left
+        }
+        if (lander.y < -EDGE_MARGIN) {
+            lander.vy += 0.05 * dt; // Gentle push down
+        }
     }
 
     applyGravityWell(levelConfig, dt) {
