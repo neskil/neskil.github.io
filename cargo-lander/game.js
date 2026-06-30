@@ -3623,9 +3623,9 @@ class CargoGame {
             ctx.fillStyle = 'rgba(148,163,184,0.7)';
             ctx.font = '600 8px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(hub.type === 'refuel' ? 'FUEL TERMINAL' : 'CARGO TERMINAL', cpCx, wbY + 14);
+            ctx.fillText('CARGO SOURCE', cpCx, wbY + 14);
 
-            if (hub.type !== 'refuel') {
+            {
                 // ── Overhead crane ────────────────────────────────────────────
                 const craneBaseX = cx + cw + 12;
                 const craneTopY = wbY - 2;
