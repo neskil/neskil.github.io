@@ -144,6 +144,7 @@ class CargoPhysics {
         const w = this.levelWidth;
         const h = this.levelHeight;
         this.terrainPolygons = config.terrainPolygons || [];
+        this.hazards = config.hazards || [];
         
         const ps = config.padScale || 1.0;
         this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: config.startY !== undefined ? config.startY : undefined, width: Math.round(80 * ps), height: 15 };
@@ -716,6 +717,35 @@ class CargoPhysics {
 
                 if (w.y > this.levelHeight + 400 && w.state === 'retracting') {
                     this.sandWorm = null;
+                }
+            }
+        }
+
+        // Handle generic hazards
+        if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
+            for (const h of this.hazards) {
+                const r = h.radius || 20;
+                const dx = lander.x - h.x;
+                const dy = lander.y - h.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < r + 6) { // 6 is lander approximate radius
+                    // Damage lander and knockback
+                    lander.vx += (dx / dist) * 2;
+                    lander.vy += (dy / dist) * 2;
+                    lander.integrity -= 25 * dt; // High damage
+                    
+                    if (window.CargoAudio) CargoAudio.playCollision(2);
+                    for (let i = 0; i < 3; i++) {
+                        this.particles.push({
+                            x: h.x + (Math.random() - 0.5) * r,
+                            y: h.y + (Math.random() - 0.5) * r,
+                            vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                            life: 0.6, decay: 0.05 + Math.random() * 0.05,
+                            color: '#ef4444',
+                            size: 2 + Math.random() * 3,
+                        });
+                    }
+                    if (lander.integrity <= 0) this.triggerExplosion();
                 }
             }
         }
