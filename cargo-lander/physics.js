@@ -144,17 +144,23 @@ class CargoPhysics {
         this.terrainPolygons = config.terrainPolygons || [];
         
         const ps = config.padScale || 1.0;
-        this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: h - 100, width: Math.round(80 * ps), height: 15 };
-        this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: h - 100, width: Math.round(100 * ps), height: 15 };
+        this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: config.startY !== undefined ? config.startY : undefined, width: Math.round(80 * ps), height: 15 };
+        this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: config.collectionY !== undefined ? config.collectionY : undefined, width: Math.round(100 * ps), height: 15 };
         this.deliveryHubs = config.deliveryHubs.map(hub => ({
-            x: hub.x, y: h - 100, width: Math.round((hub.width || 80) * ps), height: 15,
+            x: hub.x, y: hub.y !== undefined ? hub.y : undefined, width: Math.round((hub.width || 80) * ps), height: 15,
             color: hub.color, type: hub.type, name: hub.name || 'Terminal'
         }));
 
-        this.startDepot.y = this.getPolygonSurfaceY(this.startDepot.x + this.startDepot.width / 2);
-        this.collectionPoint.y = this.getPolygonSurfaceY(this.collectionPoint.x + this.collectionPoint.width / 2);
+        if (this.startDepot.y === undefined) {
+            this.startDepot.y = this.getPolygonSurfaceY(this.startDepot.x + this.startDepot.width / 2);
+        }
+        if (this.collectionPoint.y === undefined) {
+            this.collectionPoint.y = this.getPolygonSurfaceY(this.collectionPoint.x + this.collectionPoint.width / 2);
+        }
         for (const hub of this.deliveryHubs) {
-            hub.y = this.getPolygonSurfaceY(hub.x + hub.width / 2);
+            if (hub.y === undefined) {
+                hub.y = this.getPolygonSurfaceY(hub.x + hub.width / 2);
+            }
         }
 
         for (const poly of this.terrainPolygons) {
