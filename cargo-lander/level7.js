@@ -9,6 +9,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.16,
     wind: 0,
+    heavyCargo: true, // Cargo weight affects lander handling
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
