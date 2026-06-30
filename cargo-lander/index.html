@@ -441,7 +441,9 @@
             justify-content: center;
             font-size: 1.5rem;
             cursor: pointer;
-            touch-action: manipulation;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
             pointer-events: auto;
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
@@ -1235,10 +1237,8 @@
 
         // Viewport scaling is handled by game.js resizeCanvas()
 
-        // Detect touch interface and toggle visual buttons
+        // Detect touch interface and bind listeners (display is managed dynamically by game.js)
         if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            document.getElementById('mobile-controls').style.display = 'flex';
-            document.getElementById('hint-ticker').style.display = 'block';
             setupMobileControls();
         }
     </script>
