@@ -88,6 +88,7 @@ canvas{display:block}
       <option value="level5.js">level5.js — L5: The Needle's Eye</option>
       <option value="level6.js">level6.js — L6: Sand Worm's Lair</option>
       <option value="level7.js">level7.js — L7: The Deep Haul</option>
+      <option value="level8.js">level8.js — L8: Orbital Gauntlet</option>
       <option value="levelTest.js">levelTest.js — Sandbox</option>
     </select>
     <div class="row">
@@ -144,6 +145,20 @@ canvas{display:block}
     <div class="row" style="flex-wrap: wrap; gap: 4px;">
       <button class="btn" onclick="toggleCollectionPoint()">Cargo Drop Off</button>
       <button class="btn" onclick="addDeliveryHub()">+ Hub</button>
+    </div>
+    <div id="entity-props" style="margin-top:6px">
+      <div class="row" style="gap:3px;margin-bottom:3px">
+        <span style="color:#38bdf8;min-width:36px;font-size:10px">HQ</span>
+        <span class="clabel">x</span><input class="cinput" type="number" id="hq-x" style="width:52px" onchange="setMarkerCoord('hq','x',+this.value)">
+        <span class="clabel">y</span><input class="cinput" type="number" id="hq-y" style="width:52px" placeholder="auto" onchange="setMarkerCoord('hq','y',this.value)">
+        <button class="btn" style="font-size:9px;padding:1px 5px" onclick="clearMarkerY('hq')" title="Reset Y to terrain surface">⊥</button>
+      </div>
+      <div id="cargo-entity-row" class="row" style="gap:3px;display:none">
+        <span style="color:#4ade80;min-width:36px;font-size:10px">Cargo</span>
+        <span class="clabel">x</span><input class="cinput" type="number" id="cargo-x" style="width:52px" onchange="setMarkerCoord('cargo','x',+this.value)">
+        <span class="clabel">y</span><input class="cinput" type="number" id="cargo-y" style="width:52px" placeholder="auto" onchange="setMarkerCoord('cargo','y',this.value)">
+        <button class="btn" style="font-size:9px;padding:1px 5px" onclick="clearMarkerY('cargo')" title="Reset Y to terrain surface">⊥</button>
+      </div>
     </div>
   </div>
 
@@ -207,7 +222,9 @@ const S = {
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
   palette: Object.assign({}, DEFAULT_PAL),
   startX: 0,
+  startY: null,
   collectionX: null,
+  collectionY: null,
   padScale: 1,
   levelName: '',
   selLayer: 'terrain', // 'terrain' | 'water' | 'hazard' — which shape list is being edited
@@ -215,6 +232,7 @@ const S = {
   selPt: -1,
   dragging: false, dragLayer: null, dragPi: -1, dragPti: -1,
   dragMarker: null,  // 'hq' | 'depot' | {hub:i} — dragging a spawn/hub marker
+  dragPolyBody: null, // {layer,pi,startWx,startWy,origPts} — dragging whole polygon body
   edgePreview: null, // {layer, pi, edgeIdx, pt} — shown in Add pts mode on hover
   hoverMarker: null, // 'hq' | 'depot' | {hub:i} — for cursor feedback
   mode: 'select',
@@ -335,7 +353,9 @@ function applyConfig(cfg) {
   // Defaults must mirror physics.js so the editor shows/edits the pad the
   // game actually uses, even when a level file omits these fields.
   S.startX    = cfg.startX != null ? cfg.startX : 80;
+  S.startY    = cfg.startY  ?? null;
   S.collectionX = cfg.collectionX != null ? cfg.collectionX : 280;
+  S.collectionY = cfg.collectionY ?? null;
   S.padScale  = cfg.padScale  || 1;
   S.levelName = cfg.name || '';
   S.selLayer  = 'terrain';
@@ -349,6 +369,7 @@ function applyConfig(cfg) {
   renderLevelCard(cfg);
   fitView();
   renderSidebar();
+  updateEntityPanel();
   updateOut();
 }
 
@@ -383,7 +404,7 @@ function hazardToShape(h, i) {
 
 function resetState() {
   S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null;
-  S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.collectionX=null;
+  S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
   document.getElementById('level-card').style.display='none';
@@ -772,18 +793,18 @@ function drawGravWell() {
 
 function drawSpawnMarkers() {
   // Widths match physics.js defaults: startDepot = 80*padScale, collectionPoint = 100*padScale
-  spawnZone(S.startX, 80 * S.padScale, '#38bdf8');
-  spawnLine(S.startX, 'HQ', '#38bdf8', S.hoverMarker==='hq'||S.dragMarker==='hq');
+  spawnZone(S.startX, 80 * S.padScale, '#38bdf8', S.startY);
+  spawnLine(S.startX, 'HQ', '#38bdf8', S.hoverMarker==='hq'||S.dragMarker==='hq', S.startY);
   if (S.collectionX != null) {
-    spawnZone(S.collectionX, 100 * S.padScale, '#4ade80');
-    spawnLine(S.collectionX, 'Cargo', '#4ade80', S.hoverMarker==='depot'||S.dragMarker==='depot');
+    spawnZone(S.collectionX, 100 * S.padScale, '#4ade80', S.collectionY);
+    spawnLine(S.collectionX, 'Cargo', '#4ade80', S.hoverMarker==='depot'||S.dragMarker==='depot', S.collectionY);
   }
 }
 
 // Translucent pad rectangle showing the actual pickup/start zone width on the
 // terrain surface (mirrors the fill+stroke pad rendering in drawHubs()).
-function spawnZone(worldX, width, color) {
-  const gy = groundYAt(worldX);
+function spawnZone(worldX, width, color, worldY) {
+  const gy = (worldY != null) ? worldY : groundYAt(worldX);
   if (gy === null) return;
   const {sx:lx, sy:ly} = w2s(worldX, gy);
   const {sx:rx}        = w2s(worldX + width, gy);
@@ -795,10 +816,10 @@ function spawnZone(worldX, width, color) {
   ctx.restore();
 }
 
-function spawnLine(worldX, label, color, isHov) {
+function spawnLine(worldX, label, color, isHov, worldY) {
   const {sx} = w2s(worldX, 0);
   const H = canvas.height;
-  const gy = groundYAt(worldX);
+  const gy = (worldY != null) ? worldY : groundYAt(worldX);
   ctx.save();
   // Dashed vertical line
   ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([3,5]); ctx.globalAlpha=isHov?0.6:0.3;
@@ -808,7 +829,7 @@ function spawnLine(worldX, label, color, isHov) {
   if (gy !== null) {
     const {sx:mx, sy:my} = w2s(worldX, gy);
     const dm = 7;
-    // Diamond on terrain surface
+    // Diamond on terrain surface (or at Y override)
     ctx.fillStyle = isHov ? color+'88' : color+'33';
     ctx.strokeStyle = color; ctx.lineWidth = isHov ? 2 : 1.5;
     ctx.beginPath();
@@ -816,10 +837,11 @@ function spawnLine(worldX, label, color, isHov) {
     ctx.closePath(); ctx.fill(); ctx.stroke();
     // Labels above diamond
     ctx.fillStyle=color; ctx.font='bold 10px monospace'; ctx.textAlign='center';
-    if (isHov) ctx.fillText('↔', mx, my-dm-12);
+    if (isHov) ctx.fillText(worldY!=null?'✥':'↔', mx, my-dm-12);
     ctx.fillText(label, mx, my-dm-1);
     ctx.font='9px monospace';
-    ctx.fillText('x='+worldX, mx, my+dm+11);
+    const yLabel = worldY != null ? ` y=${worldY}` : '';
+    ctx.fillText('x='+worldX+yLabel, mx, my+dm+11);
   } else {
     // Fallback triangle at screen top
     ctx.fillStyle=isHov?color+'88':color+'33'; ctx.strokeStyle=color; ctx.lineWidth=isHov?2:1.5;
@@ -1058,6 +1080,36 @@ function addDeliveryHub() {
   draw(); updateOut();
 }
 
+function setMarkerCoord(which, axis, val) {
+  if (which === 'hq') {
+    if (axis === 'x') S.startX = +val;
+    else S.startY = (val === '' || val == null) ? null : +val;
+  } else {
+    if (axis === 'x') S.collectionX = +val;
+    else S.collectionY = (val === '' || val == null) ? null : +val;
+  }
+  draw(); updateOut();
+}
+
+function clearMarkerY(which) {
+  if (which === 'hq') { S.startY = null; document.getElementById('hq-y').value = ''; }
+  else { S.collectionY = null; document.getElementById('cargo-y').value = ''; }
+  draw(); updateOut();
+}
+
+function updateEntityPanel() {
+  document.getElementById('hq-x').value = S.startX;
+  document.getElementById('hq-y').value = S.startY != null ? S.startY : '';
+  const cargoRow = document.getElementById('cargo-entity-row');
+  if (S.collectionX != null) {
+    cargoRow.style.display = '';
+    document.getElementById('cargo-x').value = S.collectionX;
+    document.getElementById('cargo-y').value = S.collectionY != null ? S.collectionY : '';
+  } else {
+    cargoRow.style.display = 'none';
+  }
+}
+
 function deletePoly() {
   const arr = activeList();
   if (S.selPoly<0||!confirm('Delete this shape?')) return;
@@ -1082,7 +1134,9 @@ function insertAtCursor() {
 function buildOut() {
   const lines = [];
   lines.push(`startX: ${S.startX},`);
+  if (S.startY != null)    lines.push(`startY: ${S.startY},`);
   if (S.collectionX != null) lines.push(`collectionX: ${S.collectionX},`);
+  if (S.collectionY != null) lines.push(`collectionY: ${S.collectionY},`);
   if (S.hubs.length) {
     lines.push('deliveryHubs: [');
     S.hubs.forEach((h,i) => {
@@ -1170,9 +1224,9 @@ function hitPoint(sx,sy) {
 
 function hitMarker(sx, sy) {
   const HIT_R = 14;
-  // Spawn markers: diamond on terrain or fallback triangle at top
-  const checkSpawn = (worldX, key) => {
-    const gy = groundYAt(worldX);
+  // Spawn markers: diamond at Y override or terrain surface, or fallback triangle at top
+  const checkSpawn = (worldX, worldY, key) => {
+    const gy = (worldY != null) ? worldY : groundYAt(worldX);
     if (gy !== null) {
       const {sx:mx, sy:my} = w2s(worldX, gy);
       if (Math.hypot(sx-mx, sy-my) < HIT_R) return key;
@@ -1183,8 +1237,8 @@ function hitMarker(sx, sy) {
     return null;
   };
   let r;
-  if ((r = checkSpawn(S.startX, 'hq'))) return r;
-  if (S.collectionX != null && (r = checkSpawn(S.collectionX, 'depot'))) return r;
+  if ((r = checkSpawn(S.startX, S.startY, 'hq'))) return r;
+  if (S.collectionX != null && (r = checkSpawn(S.collectionX, S.collectionY, 'depot'))) return r;
 
   // Hubs: pad line on terrain or fallback bar at top
   for (let i=0; i<S.hubs.length; i++) {
@@ -1237,7 +1291,10 @@ canvas.addEventListener('mousedown', e => {
         for (let pi=arr.length-1;pi>=0;pi--) {
           if (!arr[pi].hidden&&inPoly(wx,wy,arr[pi].pts)) {
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
-            S.selPoly=pi; S.selPt=-1; renderSidebar(); renderPtList(); draw(); return;
+            S.selPoly=pi; S.selPt=-1;
+            // Start whole-polygon body drag
+            S.dragPolyBody = { layer, pi, startWx:wx, startWy:wy, origPts:arr[pi].pts.map(p=>({...p})) };
+            renderSidebar(); renderPtList(); draw(); return;
           }
         }
       }
@@ -1261,10 +1318,25 @@ canvas.addEventListener('mousemove', e => {
     const s=e.shiftKey?S.snap*5:S.snap;
     const snappedX=Math.round(wx/s)*s;
     const snappedY=Math.round(wy/s)*s;
-    if (S.dragMarker==='hq') S.startX=snappedX;
-    else if (S.dragMarker==='depot') S.collectionX=snappedX;
-    else if (S.dragMarker.hub!=null) S.hubs[S.dragMarker.hub].x=snappedX;
+    if (S.dragMarker==='hq') {
+      S.startX=snappedX;
+      if (S.startY != null) S.startY=snappedY;
+      updateEntityPanel();
+    } else if (S.dragMarker==='depot') {
+      S.collectionX=snappedX;
+      if (S.collectionY != null) S.collectionY=snappedY;
+      updateEntityPanel();
+    } else if (S.dragMarker.hub!=null) S.hubs[S.dragMarker.hub].x=snappedX;
     draw(); updateOut(); return;
+  }
+
+  // Dragging a whole polygon body
+  if (S.dragPolyBody) {
+    const rawDx = wx - S.dragPolyBody.startWx;
+    const rawDy = wy - S.dragPolyBody.startWy;
+    const poly = listForLayer(S.dragPolyBody.layer)[S.dragPolyBody.pi];
+    poly.pts = S.dragPolyBody.origPts.map(p => ({x:snap(p.x+rawDx), y:snap(p.y+rawDy)}));
+    renderPtList(); draw(); updateOut(); return;
   }
 
   // Dragging a shape vertex (terrain, water, or hazard — same mechanism for all three)
@@ -1300,10 +1372,11 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mouseup', () => {
   if (isPan){isPan=false;canvas.style.cursor=S.mode==='pan'?'grab':'default';}
   if (S.dragMarker) { S.dragMarker=null; }
+  if (S.dragPolyBody) { S.dragPolyBody=null; }
   S.dragging=false; S.dragLayer=null; S.dragPi=-1; S.dragPti=-1;
 });
 canvas.addEventListener('mouseleave', () => {
-  isPan=false; S.dragging=false; S.dragMarker=null; S.edgePreview=null; draw();
+  isPan=false; S.dragging=false; S.dragMarker=null; S.dragPolyBody=null; S.edgePreview=null; draw();
 });
 
 canvas.addEventListener('wheel', e => {
