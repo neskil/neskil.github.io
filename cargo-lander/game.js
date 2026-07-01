@@ -4212,8 +4212,15 @@ class CargoGame {
             if (lander.ropeLength > 0) {
                 const rx0 = lander.x;
                 const ry0 = lander.y + (lander.vehicleType === 'drone' ? 10 : lander.height / 2);
-                const rx1 = lander.grappleX ?? lander.x;
-                const ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
+                let rx1, ry1;
+                if (lander.grabbedBoxId) {
+                    const grabbedBox = this.physics.boxes.find(b => b.id === lander.grabbedBoxId);
+                    rx1 = grabbedBox ? grabbedBox.x : (lander.grappleX ?? lander.x);
+                    ry1 = grabbedBox ? grabbedBox.y : (lander.grappleY ?? lander.y + lander.ropeLength);
+                } else {
+                    rx1 = lander.grappleX ?? lander.x;
+                    ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
+                }
 
                 // Build chain link positions along a catenary curve
                 const numLinks = Math.max(4, Math.floor(lander.ropeLength / 14));
