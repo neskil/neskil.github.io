@@ -4232,18 +4232,19 @@ class CargoGame {
             ctx.stroke();
             ctx.globalAlpha = 1.0;
 
-            // Hub base
+            // Hub base — solid slab so the pad reads as flat ground, not terrain
             ctx.fillStyle = '#1e293b';
-            ctx.fillRect(hub.x, hub.y, hub.width, hub.height);
+            ctx.fillRect(hub.x - 4, hub.y, hub.width + 8, hub.height);
 
-            // Hub stripe texture
+            // Hazard chevron stripes — same bold "safe to land here" language
+            // used on the start depot / collection pad, tinted with the hub's color
             ctx.save();
             ctx.beginPath();
-            ctx.rect(hub.x, hub.y, hub.width, hub.height);
+            ctx.rect(hub.x - 4, hub.y, hub.width + 8, hub.height);
             ctx.clip();
             const hsW = 12;
-            ctx.fillStyle = 'rgba(255,255,255,0.04)';
-            for (let sx = hub.x - hub.height; sx < hub.x + hub.width + hub.height; sx += hsW * 2) {
+            ctx.fillStyle = hub.color + '40';
+            for (let sx = hub.x - hub.height - 4; sx < hub.x + hub.width + hub.height + 4; sx += hsW * 2) {
                 ctx.beginPath();
                 ctx.moveTo(sx, hub.y + hub.height);
                 ctx.lineTo(sx + hub.height, hub.y);
@@ -4253,6 +4254,13 @@ class CargoGame {
                 ctx.fill();
             }
             ctx.restore();
+
+            // Bright flat top surface — the actual contact line a pilot reads as "clear to land"
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(hub.x - 4, hub.y); ctx.lineTo(hub.x + hub.width + 4, hub.y);
+            ctx.stroke();
 
             if (hasMatchingCargo) {
                 const bpulse = 0.5 + Math.abs(Math.sin(Date.now() * 0.006)) * 0.5;
