@@ -1655,9 +1655,9 @@ class CargoGame {
             this.drawFluidBounds();
         }
 
+        this.drawWaterBodies();
         this.drawTerrain();
         this.drawSegments();
-        this.drawWaterBodies();
         this.drawHazards();
         this.drawRadarPingZone();
 
@@ -3111,18 +3111,9 @@ class CargoGame {
             ctx.fillStyle = depthGrad;
             ctx.fill();
 
-            // Clip all inner content to this same water shape — AND to the actual
-            // terrain surface, so nothing (fish, waves, ripples) ever paints above
-            // the surrounding ground even if the authored polygon's top edge pokes
-            // slightly above it in places.
+            // Clip all inner content (fish, waves, ripples) to the water polygon
             ctx.beginPath();
             pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-            ctx.closePath();
-            ctx.clip();
-            ctx.beginPath();
-            ctx.moveTo(lx, -100000);
-            ctx.lineTo(rx, -100000);
-            for (let sx = rx; sx >= lx; sx -= 8) ctx.lineTo(sx, this.physics.getPolygonSurfaceY(sx));
             ctx.closePath();
             ctx.clip();
 
