@@ -754,10 +754,56 @@ class CargoPhysics {
             }
         }
 
+        // Handle laser hazards — a sweeping/pulsing beam between two points on a
+        // telegraphed on/off duty cycle (charge flash → active beam → cooldown).
+        // Distinct from zone hazards below: line-segment distance check, not
+        // point-in-polygon, and damage only applies while the beam is "active".
+        if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
+            this.hazardTime = (this.hazardTime || 0) + dt * 16.666;
+            for (const h of this.hazards) {
+                if (h.type !== 'laser') continue;
+                if (!h.pts || h.pts.length < 2) continue;
+
+                const onMs = h.onMs ?? 1400;
+                const offMs = h.offMs ?? 1600;
+                const warnMs = h.warnMs ?? 500;
+                const period = onMs + offMs;
+                const t = ((this.hazardTime + (h.phaseOffset || 0)) % period + period) % period;
+                // Active window is the tail end of the "off" phase (charge-up) +
+                // the full "on" phase, so the beam fires right after the flash.
+                const charging = t >= offMs - warnMs && t < offMs;
+                const active = t >= offMs;
+                h.laserState = { charging, active }; // exposed for renderer
+
+                if (!active) continue;
+
+                const a = h.pts[0], b = h.pts[1];
+                const dist = this.distToSegment(lander.x, lander.y, a.x, a.y, b.x, b.y);
+                const thickness = h.thickness || 14;
+                if (dist > thickness) continue;
+
+                lander.integrity -= (h.damagePerSec || 40) * dt / 60;
+
+                if (window.CargoAudio) CargoAudio.playCollision(1);
+                for (let i = 0; i < 2; i++) {
+                    this.particles.push({
+                        x: lander.x + (Math.random() - 0.5) * 14,
+                        y: lander.y + (Math.random() - 0.5) * 14,
+                        vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3 - 1,
+                        life: 0.5, decay: 0.06 + Math.random() * 0.05,
+                        color: '#f472b6',
+                        size: 2 + Math.random() * 2,
+                    });
+                }
+                if (lander.integrity <= 0) this.triggerExplosion();
+            }
+        }
+
         // Handle generic hazards — each is a polygon zone now (was a circle),
         // so membership is a point-in-polygon test rather than a radius check.
         if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
             for (const h of this.hazards) {
+                if (h.type === 'laser') continue;
                 if (!h.pts || h.pts.length < 3) continue;
                 if (!this.pointInPolygon(lander.x, lander.y, h.pts)) continue;
 
@@ -1384,19 +1430,24 @@ class CargoPhysics {
                         if (lander.magneticDeckActive && Math.abs(rvt) < lander.magneticStrength * 10.0) {
                             frictionCoef = 1.0;
                         }
-                        const fImp = -frictionCoef * rvt; 
+                        const fImp = -frictionCoef * rvt;
                         box.vx += fImp * tx;
                         box.vy += fImp * ty;
-                    } else if (lander.magneticDeckActive) {
-                        // Magnetic clutch actively holds the box down if it tries to float away
-                        if (rvn < lander.magneticStrength * 5.0 && Math.abs(rvt) < lander.magneticStrength * 10.0) {
-                            // Cancel escaping normal velocity
+                    } else {
+                        // Resting on the deck (no impact this frame) — apply strong static
+                        // friction so cargo stays put through tilts instead of sliding off.
+                        let frictionCoef = 0.85;
+                        if (lander.magneticDeckActive && Math.abs(rvt) < lander.magneticStrength * 10.0) {
+                            frictionCoef = 1.0;
+                        }
+                        const fImp = -frictionCoef * rvt;
+                        box.vx += fImp * tx;
+                        box.vy += fImp * ty;
+
+                        if (lander.magneticDeckActive && rvn < lander.magneticStrength * 5.0) {
+                            // Magnetic clutch also cancels any slow escaping normal velocity
                             box.vx -= rvn * nx;
                             box.vy -= rvn * ny;
-                            
-                            // Apply full magnetic friction
-                            box.vx -= rvt * tx;
-                            box.vy -= rvt * ty;
                         }
                     }
                 }
