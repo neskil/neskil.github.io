@@ -332,8 +332,10 @@ function applyConfig(cfg) {
   S.gravWell  = cfg.gravityWell  || null;
   S.oob       = cfg.outOfBounds  || null;
   S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
-  S.startX    = cfg.startX    || 0;
-  S.collectionX = cfg.collectionX != null ? cfg.collectionX : null;
+  // Defaults must mirror physics.js so the editor shows/edits the pad the
+  // game actually uses, even when a level file omits these fields.
+  S.startX    = cfg.startX != null ? cfg.startX : 80;
+  S.collectionX = cfg.collectionX != null ? cfg.collectionX : 280;
   S.padScale  = cfg.padScale  || 1;
   S.levelName = cfg.name || '';
   S.selLayer  = 'terrain';
