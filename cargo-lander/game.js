@@ -1191,7 +1191,7 @@ class CargoGame {
                 const _t = _types[Math.floor(Math.random() * _types.length)];
                 this.physics.spawnCargo(_t);
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
-                _col.loadSeq = { phase: 'countdown', countdown: 240, countdownMax: 240, spawned: 1, roofOpen: 1 };
+                _col.loadSeq = { phase: 'countdown', countdown: 240, countdownMax: 240, spawned: 1, roofOpen: 1, lx: _lndr.x };
             }
         }
         if (_col.loadSeq) {
@@ -3792,7 +3792,7 @@ class CargoGame {
             }
         }
 
-        // Draw Collection Point — Holographic Dispenser
+        // Draw Collection Point — Space Warehouse with overhead crane
         if (collection) {
             const cx = collection.x, cy = collection.y;
             const cw = collection.width, ch = collection.height;
@@ -3801,107 +3801,227 @@ class CargoGame {
             const cpulse = 0.4 + Math.abs(Math.sin(now * 0.003)) * 0.4;
             const _col = collection;
 
-            // ── Holographic Cargo Spawner ─────────────────────────────
-            let _showBox = false, _boxX = 0, _boxY = 0;
-            let _dispenseAlpha = 0;
+            // ── Warehouse building behind pad ─────────────────────────────
+            const wbX = cx - 18, wbW = cw + 36, wbH = 80, wbY = cy - wbH;
 
-            if (_col.loadSeq && _col.loadSeq.phase === 'loading') {
-                const _st = _col.loadSeq.t;
-                const _lx = Math.max(cx + 20, Math.min(cx + cw - 20, _col.loadSeq.lx));
-                
-                if (_st < 0.20) {
-                    _dispenseAlpha = _st / 0.20;
-                    _boxX = _lx; _boxY = cy - 40;
-                    _showBox = true;
-                } else if (_st < 0.85) {
-                    _dispenseAlpha = 1;
-                    _boxX = _lx;
-                    const _progress = (_st - 0.20) / 0.65;
-                    _boxY = (cy - 40) + (_col.loadSeq.ly - (cy - 40)) * _progress;
-                    _showBox = true;
-                } else {
-                    _dispenseAlpha = 1 - (_st - 0.85) / 0.15;
-                    _showBox = false; 
-                }
-
-                if (_dispenseAlpha > 0 && _showBox) {
-                    const beamGrad = ctx.createLinearGradient(0, cy - 80, 0, _boxY);
-                    beamGrad.addColorStop(0, `rgba(56, 189, 248, 0)`);
-                    beamGrad.addColorStop(0.2, `rgba(56, 189, 248, ${_dispenseAlpha * 0.5})`);
-                    beamGrad.addColorStop(1, `rgba(56, 189, 248, 0)`);
-                    ctx.fillStyle = beamGrad;
-                    ctx.beginPath();
-                    ctx.moveTo(_boxX - 16, cy - 80);
-                    ctx.lineTo(_boxX + 16, cy - 80);
-                    ctx.lineTo(_boxX + 9, _boxY);
-                    ctx.lineTo(_boxX - 9, _boxY);
-                    ctx.fill();
-                }
-            }
-
-            // ── Dispenser Arch ──────────────────────────────────────────
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+            const bldGrad = ctx.createLinearGradient(wbX, wbY, wbX + wbW, wbY);
+            bldGrad.addColorStop(0, '#0f1e2e');
+            bldGrad.addColorStop(0.5, '#152434');
+            bldGrad.addColorStop(1, '#0c1a28');
+            ctx.fillStyle = bldGrad;
+            ctx.strokeStyle = '#1e3a5f';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.moveTo(cx - 5, cy);
-            ctx.quadraticCurveTo(cpCx, cy - 60, cx + cw + 5, cy);
-            ctx.stroke();
+            if (ctx.roundRect) ctx.roundRect(wbX, wbY, wbW, wbH, [4, 4, 0, 0]);
+            else ctx.rect(wbX, wbY, wbW, wbH);
+            ctx.fill(); ctx.stroke();
 
-            const archGrad = ctx.createLinearGradient(0, cy - 30, 0, cy);
-            archGrad.addColorStop(0, 'rgba(15, 23, 42, 0.6)');
-            archGrad.addColorStop(1, 'rgba(15, 23, 42, 0.1)');
-            ctx.fillStyle = archGrad;
+            // Corrugated panels — vertical ribs
+            ctx.strokeStyle = 'rgba(30,58,94,0.8)';
+            ctx.lineWidth = 1;
+            for (let rx = wbX + 12; rx < wbX + wbW - 4; rx += 12) {
+                ctx.beginPath();
+                ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2);
+                ctx.stroke();
+            }
+
+            // Loading dock doors
+            const doorW = wbW * 0.32, doorH = wbH * 0.52;
+            for (const dOff of [0.18, 0.57]) {
+                const dx = wbX + wbW * dOff, dy = wbY + wbH - doorH;
+                ctx.fillStyle = '#060e18';
+                ctx.strokeStyle = '#1e3a5f';
+                ctx.lineWidth = 1.2;
+                ctx.fillRect(dx, dy, doorW, doorH);
+                ctx.strokeRect(dx, dy, doorW, doorH);
+                ctx.strokeStyle = `rgba(56,189,248,${cpulse * 0.6})`;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(dx + 2, dy + 2, doorW - 4, doorH - 4);
+                ctx.fillStyle = `rgba(251,191,36,${cpulse * 0.7})`;
+                ctx.fillRect(dx + 2, dy - 4, doorW - 4, 3);
+            }
+
+            // Warning strobe lights on building corners
+            const strobeOn = (now % 1200) < 600;
+            ctx.fillStyle = strobeOn ? 'rgba(251,191,36,0.95)' : 'rgba(80,60,10,0.6)';
+            for (const bx2 of [wbX + 5, wbX + wbW - 5]) {
+                ctx.beginPath(); ctx.arc(bx2, wbY + 8, 3.5, 0, Math.PI * 2); ctx.fill();
+            }
+
+            // Building label
+            ctx.fillStyle = 'rgba(148,163,184,0.7)';
+            ctx.font = '600 8px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CARGO TERMINAL', cpCx, wbY + 14);
+
+            // ── Overhead crane ────────────────────────────────────────────
+            const craneBaseX = cx + cw * 0.72;
+            const craneTopY = wbY - 2;
+            const craneArmEnd = cx - 10;
+            const hatchX = wbX + wbW * 0.42;
+            const hatchHalfW = 22;
+
+            // Load-sequence progress: 0 at start of the current countdown wait,
+            // 1 once it finishes and the crane completes a delivery cycle.
+            const _seqActive = _col.loadSeq && _col.loadSeq.phase === 'countdown';
+            const _st = _seqActive ? 1 - _col.loadSeq.countdown / _col.loadSeq.countdownMax : 0;
+            const _roofOpen = _col.loadSeq ? _col.loadSeq.roofOpen : 0;
+            const _hatchGap = hatchHalfW * 2 * _roofOpen;
+
+            ctx.fillStyle = '#1e3a5f';
+            if (_hatchGap > 2) {
+                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 4);
+                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 4);
+                const _hg = ctx.createLinearGradient(hatchX - hatchHalfW, wbY, hatchX + hatchHalfW, wbY);
+                _hg.addColorStop(0, 'rgba(56,189,248,0)');
+                _hg.addColorStop(0.5, 'rgba(56,189,248,0.35)');
+                _hg.addColorStop(1, 'rgba(56,189,248,0)');
+                ctx.fillStyle = _hg;
+                ctx.fillRect(hatchX - hatchHalfW, wbY, _hatchGap, 10);
+            } else {
+                ctx.fillRect(wbX, wbY, wbW, 4);
+            }
+            ctx.fillStyle = '#38bdf8';
+            if (_hatchGap > 2) {
+                ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 2);
+                ctx.fillRect(hatchX + hatchHalfW, wbY, (wbX + wbW) - (hatchX + hatchHalfW), 2);
+            } else {
+                ctx.fillRect(wbX, wbY, wbW, 2);
+            }
+
+            // Vertical mast + horizontal arm
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.quadraticCurveTo(cpCx, cy - 30, cx + cw, cy);
-            ctx.fill();
+            ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
+            ctx.stroke();
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
+            ctx.stroke();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#475569';
+            ctx.beginPath();
+            ctx.moveTo(craneBaseX - 20, craneTopY - 20);
+            ctx.lineTo(craneBaseX, cy - 20);
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+
+            // Trolley + cable + phantom box, driven by the load-sequence progress
+            const _cableTop = craneTopY - 18;
+            const _intoWarehouse = wbH * 0.38;
+            const _shortLen = 18;
+            const _toDeck = (cy - _cableTop) + 22;
+            let _trolleyX, _cableLen, _showBox = false, _boxX = 0, _boxY = 0;
+            const _lerp = (a, b, f) => a + (b - a) * Math.max(0, Math.min(1, f));
+
+            if (_seqActive) {
+                const _lx = Math.max(craneArmEnd, Math.min(craneBaseX, _col.loadSeq.lx));
+
+                if (_st < 0.20) {
+                    _trolleyX = hatchX;
+                    _cableLen = _shortLen;
+                } else if (_st < 0.40) {
+                    _trolleyX = hatchX;
+                    _cableLen = _lerp(_shortLen, _intoWarehouse, (_st - 0.20) / 0.20);
+                    const _bf = (_st - 0.20) / 0.20;
+                    _showBox = true;
+                    _boxX = hatchX;
+                    _boxY = _lerp(wbY + wbH * 0.5, wbY + 2, _bf);
+                } else if (_st < 0.55) {
+                    _trolleyX = hatchX;
+                    _cableLen = _lerp(_intoWarehouse, _shortLen, (_st - 0.40) / 0.15);
+                    _showBox = true;
+                    _boxX = hatchX;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else if (_st < 0.70) {
+                    _trolleyX = _lerp(hatchX, _lx, (_st - 0.55) / 0.15);
+                    _cableLen = _shortLen;
+                    _showBox = true;
+                    _boxX = _trolleyX;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else if (_st < 0.85) {
+                    _trolleyX = _lx;
+                    _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
+                    _showBox = _st < 0.83;
+                    _boxX = _lx;
+                    _boxY = _cableTop + _cableLen + 8;
+                } else {
+                    _trolleyX = _lerp(_lx, hatchX, (_st - 0.85) / 0.15);
+                    _cableLen = _lerp(_shortLen, _shortLen * 0.5, (_st - 0.85) / 0.15);
+                }
+            } else {
+                _trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
+                _cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+            }
+
+            ctx.fillStyle = _seqActive ? '#38bdf8' : '#475569';
+            ctx.fillRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(_trolleyX, _cableTop); ctx.lineTo(_trolleyX, _cableTop + _cableLen);
+            ctx.stroke();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(_trolleyX, _cableTop + _cableLen + 4, 4, Math.PI * 0.1, Math.PI * 0.9);
+            ctx.stroke();
 
             if (_showBox) {
                 ctx.save();
-                ctx.fillStyle = `rgba(245, 158, 11, ${_dispenseAlpha * 0.8})`; 
-                ctx.strokeStyle = `rgba(251, 191, 36, ${_dispenseAlpha})`;
-                ctx.lineWidth = 1.5;
+                ctx.fillStyle = '#f59e0b';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 1;
                 ctx.fillRect(_boxX - 9, _boxY - 9, 18, 18);
                 ctx.strokeRect(_boxX - 9, _boxY - 9, 18, 18);
-                
-                ctx.strokeStyle = `rgba(255, 255, 255, ${_dispenseAlpha * 0.8})`;
-                const scanY = _boxY - 9 + ((now * 0.05) % 18);
-                ctx.beginPath(); ctx.moveTo(_boxX - 9, scanY); ctx.lineTo(_boxX + 9, scanY); ctx.stroke();
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
                 ctx.restore();
             }
 
             // ── Landing pad surface ───────────────────────────────────────
-            ctx.fillStyle = '#0f172a';
+            ctx.fillStyle = '#1e293b';
             ctx.fillRect(cx, cy, cw, ch);
 
-            ctx.strokeStyle = '#38bdf8';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy); ctx.lineTo(cx + cw, cy);
-            ctx.stroke();
+            ctx.save();
+            ctx.beginPath(); ctx.rect(cx, cy, cw, ch); ctx.clip();
+            const csW = 13;
+            ctx.fillStyle = 'rgba(251,191,36,0.2)';
+            for (let sx = cx - ch; sx < cx + cw + ch; sx += csW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(sx, cy + ch); ctx.lineTo(sx + ch, cy);
+                ctx.lineTo(sx + ch + csW, cy); ctx.lineTo(sx + csW, cy + ch);
+                ctx.closePath(); ctx.fill();
+            }
+            ctx.restore();
 
-            // Next-cargo countdown bar
-            if (_col.loadSeq && _col.loadSeq.phase === 'countdown') {
-                const _pct = 1 - _col.loadSeq.countdown / _col.loadSeq.countdownMax;
-                const _secs = Math.ceil(_col.loadSeq.countdown / 60);
-                
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-                ctx.fillRect(cpCx - 40, cy + 4, 80, 4);
-                ctx.fillStyle = '#38bdf8';
-                ctx.fillRect(cpCx - 40, cy + 4, 80 * _pct, 4);
-                
-                ctx.fillStyle = `rgba(255,255,255,0.7)`;
-                ctx.font = '600 8px Outfit, sans-serif';
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(cx, cy, cw, 3);
+
+            const cGlow = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+            cGlow.addColorStop(0, `rgba(56,189,248,0)`);
+            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse * 0.55})`);
+            cGlow.addColorStop(1, `rgba(56,189,248,0)`);
+            ctx.strokeStyle = cGlow;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(cx, cy, cw, ch);
+
+            ctx.fillStyle = 'rgba(56,189,248,0.9)';
+            ctx.font = 'bold 12px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CARGO', cpCx, cy + 12);
+
+            if (_seqActive) {
+                const _pp = 0.7 + Math.abs(Math.sin(now * 0.008)) * 0.3;
+                ctx.fillStyle = `rgba(56,189,248,${_pp})`;
+                ctx.font = '600 11px Outfit, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`NEXT: ${_secs}s`, cpCx, cy + 18);
-            } else {
-                ctx.fillStyle = `rgba(56, 189, 248, ${0.4 + cpulse * 0.4})`;
-                ctx.fillRect(cpCx - 40, cy + 4, 80, 2);
-                
-                ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
-                ctx.font = '600 9px Outfit, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('CARGO LINK', cpCx, cy + 18);
+                ctx.fillText(`LOADING ${_col.loadSeq.spawned} / 3`, cpCx, cy - 30);
             }
         }
     }
