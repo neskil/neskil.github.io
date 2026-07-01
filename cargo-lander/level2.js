@@ -15,11 +15,11 @@ registerLevel({
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [[
         // Western plateau — HQ and Main Processing hub land here
-        {x: -400, y: 650}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 600, y: 600},
+        {x: -400, y: 650}, {x: -150, y: 630}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 450, y: 615}, {x: 600, y: 600},
         // Chasm — a sheer drop to the abyss; the monster waits at the bottom
         {x: 630, y: 1500}, {x: 750, y: 1500},
         // Eastern plateau — Fragile Handling hub; slightly higher than the western shelf
-        {x: 780, y: 600}, {x: 1200, y: 600}, {x: 1800, y: 550},
+        {x: 780, y: 600}, {x: 1000, y: 615}, {x: 1200, y: 600}, {x: 1500, y: 565}, {x: 1800, y: 550},
         // Bottom enclosure
         {x: 1800, y: 1800}, {x: -400, y: 1800}
     ]],
@@ -52,13 +52,13 @@ registerLevel({
 
     // ── Palette (Desert / Amber) ──────────────────────────────────────────────
     palette: {
-        skyTop:      '#120a02',
-        skyMid:      '#1e1005',
-        skyBot:      '#2e1a06',
-        terrainFill: '#080401',
-        rockEdge:    '#d97706',
-        rockGlow:    'rgba(217,119,6,',
-        fog:         'rgba(217,119,6,0.06)',
+        skyTop:      '#1c0f03',
+        skyMid:      '#3a1f08',
+        skyBot:      '#5a2f0c',
+        terrainFill: '#0a0501',
+        rockEdge:    '#f59e0b',
+        rockGlow:    'rgba(245,158,11,',
+        fog:         'rgba(217,119,6,0.08)',
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ registerLevel({
 
     quests: [
         questPrimary('Sort & deliver 2 cargo'),
-        questNoCargoLost('No cargo lost', 250),
-        questNoCrash(300),
+        questNoCargoLost('No mislabeled deliveries', 300),
+        questQuick('Finish with 45+ sec remaining', 45, 200),
     ],
 });

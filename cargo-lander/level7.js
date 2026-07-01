@@ -10,6 +10,8 @@
 //   x:3500 — Far East Depot (normal cargo)
 // The floor and ceiling both undulate — tight squeezes at x:700 (rise) and x:2600 (squeeze corridor).
 // Fuel discipline is everything: the Fuel Pump at x:1600 exists for a reason.
+// Two floating hazard pockets (vented gas) sit in open air near x:1400 and x:2950 — easy to
+// avoid with a steady line, punishing if you drift while distracted by fuel/cargo management.
 
 registerLevel({
     name: "L7: The Deep Haul",
@@ -63,6 +65,28 @@ registerLevel({
         ]
     ],
 
+    // ── Hazards — vented gas pockets in open stretches between hubs; a jolt of
+    // knockback + damage if you drift into one while crossing at speed. Placed
+    // clear of every hub/collection x-range so they add risk without blocking
+    // any landing approach ─────────────────────────────────────────────────────
+    hazards: [
+        // Between Blue Node (x:1200) and the high peak (x:1500-1700) — floats in the
+        // open-air gap over the basin, well clear of the floor/ceiling on both sides
+        {
+            pts: [
+                {x: 1380, y: 220}, {x: 1460, y: 220},
+                {x: 1460, y: 340}, {x: 1380, y: 340}
+            ]
+        },
+        // Between the squeeze corridor exit (x:2800) and the end base shelf (x:3200)
+        {
+            pts: [
+                {x: 2900, y: 280}, {x: 3000, y: 280},
+                {x: 3000, y: 480}, {x: 2900, y: 480}
+            ]
+        }
+    ],
+
     // ── Mission parameters ────────────────────────────────────────────────────
     targetCargo: 3,
     budget: 4500,
@@ -102,11 +126,12 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Stop at the Fuel Pump (x:1600) before pushing east — the far hubs are too far to reach on a single tank. Navigate below the ceiling through the squeeze corridors, don't graze the glowing rock. Return to HQ to extract.",
+    hint: "Stop at the Fuel Pump (x:1600) before pushing east — the far hubs are too far to reach on a single tank. Navigate below the ceiling through the squeeze corridors, don't graze the glowing rock, and steer clear of the drifting gas pockets. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),
-        questNoCrash(800),
+        questNoCargoLost('No cargo lost in the depths', 500),
+        questNoCrash(700),
         questQuick('Finish in under 4 minutes', 120, 1000),
     ],
 });

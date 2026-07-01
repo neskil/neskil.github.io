@@ -157,6 +157,17 @@ class CargoPhysics {
         return { x: cx / pts.length, y: cy / pts.length };
     }
 
+    // Shortest distance from point (px,py) to segment (ax,ay)-(bx,by).
+    // Used by laser hazards to test the lander against the beam line.
+    distToSegment(px, py, ax, ay, bx, by) {
+        const dx = bx - ax, dy = by - ay;
+        const lenSq = dx * dx + dy * dy;
+        let t = lenSq > 0 ? ((px - ax) * dx + (py - ay) * dy) / lenSq : 0;
+        t = Math.max(0, Math.min(1, t));
+        const cx = ax + t * dx, cy = ay + t * dy;
+        return Math.hypot(px - cx, py - cy);
+    }
+
     generateTerrain(config) {
         const w = this.levelWidth;
         const h = this.levelHeight;
@@ -782,6 +793,16 @@ class CargoPhysics {
                 const thickness = h.thickness || 14;
                 if (dist > thickness) continue;
 
+                // Knockback perpendicular to the beam, pushed toward whichever
+                // side of the line the lander is currently on.
+                const bx = b.x - a.x, by = b.y - a.y;
+                const blen = Math.hypot(bx, by) || 1;
+                let nx = -by / blen, ny = bx / blen;
+                const side = (lander.x - a.x) * nx + (lander.y - a.y) * ny;
+                if (side < 0) { nx = -nx; ny = -ny; }
+                lander.vx += nx * 2;
+                lander.vy += ny * 2;
+
                 lander.integrity -= (h.damagePerSec || 40) * dt / 60;
 
                 if (window.CargoAudio) CargoAudio.playCollision(1);
@@ -1333,6 +1354,18 @@ class CargoPhysics {
             return;
         }
 
+        if (lander.vehicleType === 'drone') {
+            for (const box of this.boxes) {
+                box.onDeck = (lander.grabbedBoxId === box.id);
+            }
+            return;
+        }
+
+        // Basic lander: once a box lands on the deck it's magnetically
+        // clamped there — it rigidly tracks the deck's position/rotation
+        // every frame instead of relying on friction, so normal tilting and
+        // maneuvering can no longer shake it loose. Only a crash (handled
+        // above) or delivery/vacuum removal detaches it.
         const cosA = Math.cos(lander.angle);
         const sinA = Math.sin(lander.angle);
         const dcx = lander.x - lander.deckOffset * sinA;
@@ -1343,29 +1376,48 @@ class CargoPhysics {
         const ny = -cosA;
         const halfW = lander.deckWidth / 2;
         const halfS = this.BOX_SIZE / 2;
+        const minGap = halfS * 1.9;
+        const slotMin = -halfW + halfS * 0.3;
+        const slotMax = halfW - halfS * 0.3;
+
+        const attached = this.boxes.filter(b => b.onDeck);
 
         for (const box of this.boxes) {
-            // Check if grabbed by drone
-            if (lander.vehicleType === 'drone' && lander.grabbedBoxId === box.id) {
-                box.onDeck = true;
+            if (box.onDeck) {
+                box.deckT = Math.max(slotMin, Math.min(slotMax, box.deckT || 0));
+                box.deckN = halfS;
+                box.x = dcx + tx * box.deckT + nx * box.deckN;
+                box.y = dcy + ty * box.deckT + ny * box.deckN;
+                box.vx = lander.vx;
+                box.vy = lander.vy;
                 continue;
             }
 
-            // Check if inside basic lander basket
-            if (lander.vehicleType !== 'drone') {
-                const rx = box.x - dcx;
-                const ry = box.y - dcy;
-                const projT = rx * tx + ry * ty;
-                const projN = rx * nx + ry * ny;
+            const rx = box.x - dcx;
+            const ry = box.y - dcy;
+            const projT = rx * tx + ry * ty;
+            const projN = rx * nx + ry * ny;
 
-                // Box center is within horizontal deck bounds and within a vertical zone above the deck floor
-                if (Math.abs(projT) < halfW + 10 && projN >= -5 && projN < 100) {
-                    box.onDeck = true;
-                    continue;
+            // Box center is within horizontal deck bounds and touching the deck surface
+            if (Math.abs(projT) < halfW + halfS * 0.5 && projN > -halfS && projN < halfS + 6) {
+                // Just landed — snap into a free slot along the deck so it
+                // doesn't overlap a box that's already attached.
+                let slotT = Math.max(slotMin, Math.min(slotMax, projT));
+                for (const other of attached) {
+                    const otherT = other.deckT || 0;
+                    if (Math.abs(otherT - slotT) < minGap) {
+                        slotT = Math.max(slotMin, Math.min(slotMax, otherT + (slotT >= otherT ? minGap : -minGap)));
+                    }
                 }
+                box.onDeck = true;
+                box.deckT = slotT;
+                box.deckN = halfS;
+                box.x = dcx + tx * box.deckT + nx * box.deckN;
+                box.y = dcy + ty * box.deckT + ny * box.deckN;
+                box.vx = lander.vx;
+                box.vy = lander.vy;
+                attached.push(box);
             }
-
-            box.onDeck = false;
         }
     }
 
@@ -1396,6 +1448,11 @@ class CargoPhysics {
         const halfW = lander.deckWidth / 2;
 
         for (const box of this.boxes) {
+            // Boxes already magnetically clamped to the deck are positioned
+            // rigidly by updateOnDeckStates() — skip them here entirely so
+            // stale collision response can't fight that attachment.
+            if (box.onDeck) continue;
+
             // Rel position
             const rx = box.x - dcx;
             const ry = box.y - dcy;
@@ -1403,55 +1460,6 @@ class CargoPhysics {
             // Project onto tangent and normal
             const projT = rx * tx + ry * ty;
             const projN = rx * nx + ry * ny;
-
-            // Collision check: box overlaps with deck segment horizontally & vertically
-            if (Math.abs(projT) < halfW + halfS && projN > -halfS && projN < halfS + 5) {
-                // Deck Floor Collision!
-                const pen = halfS - projN;
-                if (pen > 0) {
-                    box.x += nx * pen;
-                    box.y += ny * pen;
-
-                    const lvx = lander.vx;
-                    const lvy = lander.vy;
-                    const rvx = box.vx - lvx;
-                    const rvy = box.vy - lvy;
-
-                    const rvn = rvx * nx + rvy * ny;
-                    const rvt = rvx * tx + rvy * ty;
-
-                    if (rvn < 0) {
-                        const imp = -(1 + 0.02) * rvn; // Much less bounce with deck
-                        box.vx += imp * nx;
-                        box.vy += imp * ny;
-
-                        // Break friction if bumping hard
-                        let frictionCoef = 0.95;
-                        if (lander.magneticDeckActive && Math.abs(rvt) < lander.magneticStrength * 10.0) {
-                            frictionCoef = 1.0;
-                        }
-                        const fImp = -frictionCoef * rvt;
-                        box.vx += fImp * tx;
-                        box.vy += fImp * ty;
-                    } else {
-                        // Resting on the deck (no impact this frame) — apply strong static
-                        // friction so cargo stays put through tilts instead of sliding off.
-                        let frictionCoef = 0.85;
-                        if (lander.magneticDeckActive && Math.abs(rvt) < lander.magneticStrength * 10.0) {
-                            frictionCoef = 1.0;
-                        }
-                        const fImp = -frictionCoef * rvt;
-                        box.vx += fImp * tx;
-                        box.vy += fImp * ty;
-
-                        if (lander.magneticDeckActive && rvn < lander.magneticStrength * 5.0) {
-                            // Magnetic clutch also cancels any slow escaping normal velocity
-                            box.vx -= rvn * nx;
-                            box.vy -= rvn * ny;
-                        }
-                    }
-                }
-            }
 
             // Left Wall Collision
             // The left wall goes from x = -halfW, up to y = basketHeight

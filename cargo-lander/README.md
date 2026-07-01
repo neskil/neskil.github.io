@@ -22,14 +22,14 @@ files load cleanly).
 | `audio.js` | `CargoAudioController` — a Web Audio API synthesizer. Generates all sound *procedurally* (no audio files): thruster rumble, collisions, explosions, warning beeps, success arpeggios, and an ambient music drone. Exposes global `CargoAudio`. |
 | `shaders.js` | `ShaderOverlay` — a WebGL layer drawn on the `#webglCanvas` on top of the main canvas. Renders glowing particles (point sprites) and the procedural "out-of-bounds monster" (a raymarched noisy blob in a fragment shader). Falls back to Canvas2D in `game.js` if WebGL is unavailable. |
 | `physics.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
-| `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level7.js`/`levels.js`, not here. |
+| `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level8.js`/`levels.js`, not here. |
 | `terrain-editor.html` | **Terrain Editor** — standalone browser tool for visually editing and exporting `terrainPolygons`. See [Terrain Editor](#terrain-editor) below. |
-| `level1.js` – `level7.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. |
+| `level1.js` – `level8.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. **Adding a new level file also requires manually wiring it into `index.html`**: its `<script>` tag, a button in the hardcoded `#mission-grid`, and a Dev-panel jump button — none of that is generated from `levels[]`. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `tests.html` | Browser-based test suite (166 tests as of 2026-06) covering level configs, physics init, draw-method existence, upgrades, etc. Open directly in a browser via a local static server; results post to `#summary` and failures log full stacks to `console.error`. Some tests are stale relative to the current implementation (see [Known Issues](#known-issues)). |
 
 ### Load order matters
-`index.html` loads the Matter.js CDN script, then `levels.js → level1.js…level7.js →
+`index.html` loads the Matter.js CDN script, then `levels.js → level1.js…level8.js →
 levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
 `game.init('cargoCanvas')`. `game` depends on `CargoPhysics`, `ShaderOverlay`,
 `CargoAudio`, and all level configs being registered first.
@@ -156,6 +156,22 @@ console + on-screen error logger report no errors.
 ### Cargo boxes
 - **Bigger boxes** — `BOX_SIZE` 20 → 28 px; emoji rendered at 15 px font.
 - **Type icons** — 📦 standard, ⚠️ hazmat (red), ❄️ cold-chain (blue), ♻️ eco (green); 7 px type-label below emoji as a fallback.
+- **Fixed 2026-07-01: cargo flying off the deck during normal flight** — the old
+  on-deck physics relied on per-frame friction (`resolveBoxLanderDeckCollisions()`)
+  that only corrected the box when it overlapped a narrow collision band; any hard
+  strafe/thrust change could push the box out of that band faster than friction
+  could react, after which nothing pulled it back and it just drifted away.
+  `updateOnDeckStates()` now rigidly clamps a box to a stored deck-local offset
+  (`box.deckT`/`box.deckN`) the instant it lands, recomputing its world position
+  from the lander's current transform every frame instead of integrating velocity —
+  effectively a magnetic clamp. It only releases on crash, delivery, or vacuum-chute
+  pickup. Multiple boxes on the same deck claim non-overlapping slots along `deckT`.
+- **Delivery hub visual overhaul** — removed the warehouse/door/strobe facade so
+  hubs read as a clear, flat landing pad (matching the collection pad's language);
+  the crane now actually carries the delivered box from its pickup point to a
+  visible pallet stack beside the pad (`hub.palletCount`) instead of an abstract
+  animation with no real destination. The old flat pulsing "beacon" rectangle
+  (`hub.color` fillRect) was replaced with a soft tapered light-shaft gradient.
 
 ### Damage & threat
 - **Damage flash** — hull hit triggers a red vignette + "⚠ HULL DAMAGE" text that fades over ~1 s.
@@ -197,6 +213,60 @@ The recent fixed-timestep physics overhaul and fluid boundary systems have laid 
 | **Phase 2** | **Advanced Logistics Mechanics** | Overhaul loading and unloading stations to be more interactive and fun, rather than just hovering over a pad. Full integration of remaining catalog upgrades (Shield Generators, Magnetic Decks) to allow persistent ship builds capable of surviving the harder scrolling maps. |
 | **Phase 3** | **Data-Driven Geometry** | Extract procedural terrain formulas out of `physics.js` into external JSON/config files, enabling full 2D overhangs, tunnels, and an in-browser level editor. |
 | **Phase 3** | **Procedural Expedition Mode** | A rogue-like mode with procedurally generated maps and infinite delivery challenges. |
+
+---
+
+## IN PROGRESS: Level Editor Expansion + Hazard Types (started 2026-06-30)
+
+Two pieces of active/next-up work, captured here so they aren't lost between sessions:
+
+### 1. `terrain-editor.html` → full **Level Editor**
+Currently only edits `terrainPolygons` / `waterBodies` / `hazards` polygons. Scope it up
+to cover the *entire* level-file schema so a level can be built/edited without hand-writing
+a `.js` file:
+- [ ] Rename tool/file conceptually to "Level Editor" (keep `terrain-editor.html` path or
+      rename — decide when picking this up — update all README references either way).
+- [ ] Edit non-polygon fields currently only in `level*.js`: `name`, `missionTitle`,
+      `description`, `gravity`, `wind`, `startX`, `padScale`, `targetCargo`, `budget`,
+      `timeLimit`, `allowedTypes`, `hint`.
+- [ ] Edit `deliveryHubs[]` entries beyond just x-position: `color`, `type`, `name` — add/
+      remove hubs from the UI (currently hub *pads* are visualized but not fully editable).
+- [ ] Edit `collectionPoint` / `startDepot` beyond `collectionX`/`startX` — explicit Y
+      override, width.
+- [ ] Edit `outOfBounds` config (surfaceY, colors, drag, buoyancy, monsterDepth) — currently
+      only visualized, not editable.
+- [ ] Edit `gravityWell` config (position, radius, strength, orbit) — currently only
+      visualized as rings, not editable.
+- [ ] Edit `palette` (skyTop/Mid/Bot, terrainFill, rockEdge, rockGlow, fog) with live swatch
+      pickers instead of hand-typed hex.
+- [ ] Edit `quests[]` (primary/noCrash/quick helper calls from `levels.js`).
+- [ ] Export a **complete** `registerLevel({...})` block, not just the polygon arrays — so
+      the editor can round-trip a whole level file, not just its geometry.
+
+### 2. New hazard types — lasers, etc.
+Right now `physics.js:757-787` has exactly **one** generic hazard behavior: any polygon in
+`hazards[]` does a fixed knockback + `25 * dt` damage tick while the lander's point is
+inside it. There's no `hazard.type` branching at all. To add lasers (and other hazard
+flavors) cleanly:
+- [x] Add `hazard.type` field (`'zone'` = current default behavior, `'laser'` = new).
+- [x] **Laser** behavior: defined by two endpoints (`pts: [{x,y},{x,y}]`, a line rather
+      than a closed polygon); uses `distToSegment()` (point-to-line-segment distance)
+      against the lander each tick instead of `pointInPolygon`; continuous damage while
+      the beam is "active", on/off duty-cycle timing (`onMs`/`offMs`, defaults 1500/1000)
+      tracked via a running time accumulator, plus a `warnMs` charging flash window right
+      before it turns on. Perpendicular knockback pushes the lander away from whichever
+      side of the beam it's on. Render as a glowing line in `game.js`'s `drawHazards()`
+      (bright pulsing core + soft glow while active, fast-flashing dashed line while
+      charging, faint idle guide line otherwise).
+- [x] Update `terrain-editor.html`'s Hazard tab to support the `type` dropdown per shape
+      (zone/laser) and switch its point-editing UI between polygon vertices (zone) and a
+      fixed 2-point line (laser), including `onMs`/`offMs` fields and round-tripping
+      through both the level-file parser and the export-block generator.
+- [x] Update this README's "Physics Notes" hazard bullet once implemented.
+
+Cargo-box laser collision was **not** added (lasers currently only affect the lander,
+same scope as before) — left as a follow-up since it wasn't a trivial reuse of the
+existing per-box loop. Not otherwise started until 2026-06-30 work landed the above.
 
 ---
 
@@ -259,7 +329,12 @@ number is off by more than ~20.
 - Ambient traffic: `physics.ambientTraffic[]`, max 5, models: `'freighter'` | `'pickup'`
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when lander escapes)
-- `waterBodies` and `hazards` are polygons (`{pts:[{x,y},...]}`), edited in terrain-editor.html the same way as `terrainPolygons` — not rects/circles anymore. `physics.pointInPolygon()` / `physics.polygonCentroid()` do zone-membership and knockback-direction math for hazards; water bodies have no physics effect, they're purely decorative (the actual liquid-physics zone is the separate, level-wide `outOfBounds.surfaceY` mechanic).
+- `waterBodies` are polygons (`{pts:[{x,y},...]}`), edited in terrain-editor.html the same way as `terrainPolygons` — not rects/circles anymore; they have no physics effect, purely decorative (the actual liquid-physics zone is the separate, level-wide `outOfBounds.surfaceY` mechanic).
+- `hazards[]` now branch on `hazard.type` (missing/undefined `type` is treated as `'zone'` for backward compat with older level files):
+  - `'zone'` (default) — the original behavior: a closed polygon (`pts: [{x,y},...]`, 3+ points). `physics.pointInPolygon()` tests lander membership; `physics.polygonCentroid()` gives the knockback direction (away from centroid) plus a flat `25 * dt` damage tick.
+  - `'laser'` — a line segment (`pts: [{x,y},{x,y}]`, exactly 2 points) with on/off duty-cycle timing (`onMs`/`offMs`, default 1500/1000) tracked via a per-hazard running time accumulator. `physics.distToSegment()` does the point-to-segment distance check (beam `thickness`, default 14px) against the lander only while the beam is "active"; damage is `(h.damagePerSec || 40) * dt / 60` and knockback is perpendicular to the beam, pushed toward whichever side of the line the lander is on. A `warnMs` (default 500) window right before the beam turns on sets `hazard.laserState.charging` so `game.js` can render a telegraph flash; `hazard.laserState.active` gates the actual damage/knockback. Cargo boxes are not affected by lasers yet.
+
+  Both branches live in `physics.js`'s hazard-update block (grep `hazards` — the laser branch runs first, then the zone branch skips anything with `type === 'laser'`).
 - **Cargo removal must go through `game.js`'s `removeCargoBox()`**, not a raw `boxes.splice()`.
   Splicing the array alone leaves the box's Matter body in `matterWorld` forever (it keeps
   simulating invisibly — gravity, terrain collision — even though nothing draws it) and leaves

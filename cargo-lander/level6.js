@@ -104,7 +104,7 @@ registerLevel({
 
     quests: [
         questPrimary('Deliver 2 cargo to Eastern Base'),
-        questSurviveWorm(500),
-        questNoCrash(300),
+        questSurviveWorm(550),
+        questQuick('Finish with 1+ min remaining', 60, 300),
     ],
 });

@@ -82,7 +82,7 @@ registerLevel({
 
     quests: [
         questPrimary('Lower 2 cargo into The Pit'),
-        questNoCargoLost('No cargo lost in the acid', 400),
-        questQuick('Finish with 2+ min remaining', 120, 200),
+        questNoCargoLost('No cargo lost in the acid', 450),
+        questNoCrash(300),
     ],
 });

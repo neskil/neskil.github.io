@@ -106,7 +106,7 @@ registerLevel({
 
     quests: [
         questPrimary('Deliver red & blue cargo'),
-        questNoCargoLost('No cargo sucked into the vortex', 350),
-        questNoCrash(300),
+        questNoCargoLost('No cargo sucked into the vortex', 400),
+        questQuick('Finish with 20+ sec remaining', 20, 250),
     ],
 });

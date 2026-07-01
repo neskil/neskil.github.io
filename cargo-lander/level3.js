@@ -18,7 +18,7 @@ registerLevel({
         // Ground — left lowland where HQ spawns, rising sharply to the glacier summit ridge
         [
             // Left plateau (HQ spawn, collection depot at x:320)
-            {x: -400, y: 700}, {x: 150, y: 700}, {x: 300, y: 650}, {x: 400, y: 650},
+            {x: -400, y: 700}, {x: -100, y: 680}, {x: 150, y: 700}, {x: 300, y: 650}, {x: 400, y: 650},
             // Steep ascent to the peak — wind funnels up this face
             {x: 500, y: 450}, {x: 600, y: 250},
             // Summit saddle — Peak Station sits here; pads are tight
@@ -71,7 +71,7 @@ registerLevel({
 
     quests: [
         questPrimary('Deliver 2 cargo to Ridge Station'),
-        questNoCrash(400),
-        questQuick('Finish with 30+ sec remaining', 30, 200),
+        questNoCrash(350),
+        questNoCargoLost('No cargo lost to the gale', 250),
     ],
 });
