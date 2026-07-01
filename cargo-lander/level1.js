@@ -91,7 +91,7 @@ registerLevel({
 
     quests: [
         questPrimary('Deliver 2 cargo to Verdant Depot'),
-        questNoCrash(300),
-        questQuick('Finish with 1+ min remaining', 60, 200),
+        questNoCrash(250),
+        questQuick('Finish with 1+ min remaining', 60, 150),
     ],
 });

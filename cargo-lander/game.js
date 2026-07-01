@@ -1171,7 +1171,13 @@ class CargoGame {
 
         // Delivery hub crane animations
         for (const h of this.physics.deliveryHubs) {
-            if (h.craneAnim) { h.craneAnim.timer += dt / 120; if (h.craneAnim.timer >= 1) h.craneAnim = null; }
+            if (h.craneAnim) {
+                h.craneAnim.timer += dt / 120;
+                if (h.craneAnim.timer >= 1) {
+                    h.palletCount = (h.palletCount || 0) + 1;
+                    h.craneAnim = null;
+                }
+            }
         }
 
         // Auto-load sequence at collection point
@@ -1375,7 +1381,7 @@ class CargoGame {
     processSuccessfulDelivery(box, index, hub) {
         this.spawnDeliveryParticles(box.x, box.y, hub.color);
         this.removeCargoBox(box, index);
-        hub.craneAnim = { timer: 0, lx: box.x, boxType: box.type };
+        hub.craneAnim = { timer: 0, lx: box.x, ly: box.y, boxType: box.type };
 
         this.deliveredCount++;
         this.career.totalDeliveries++;
@@ -3282,6 +3288,45 @@ class CargoGame {
 
         ctx.save();
         for (const haz of this.physics.hazards) {
+            if (haz.type === 'laser') {
+                const pts = haz.pts;
+                if (!pts || pts.length < 2) continue;
+                const [a, b] = pts;
+                const state = haz.laserState || {};
+
+                // Emitter anchors
+                ctx.fillStyle = '#7e22ce';
+                ctx.beginPath(); ctx.arc(a.x, a.y, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI * 2); ctx.fill();
+
+                if (state.active) {
+                    // Firing: bright pulsing core beam + wide glow
+                    ctx.strokeStyle = `rgba(244, 114, 182, ${0.25 + Math.sin(now / 60) * 0.1})`;
+                    ctx.lineWidth = (haz.thickness || 14) * 2;
+                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+
+                    ctx.strokeStyle = '#fdf4ff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                } else if (state.charging) {
+                    // Telegraph: fast-flashing thin line before the beam fires
+                    const flash = Math.sin(now / 40) > 0;
+                    ctx.strokeStyle = flash ? 'rgba(244, 114, 182, 0.8)' : 'rgba(244, 114, 182, 0.15)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]);
+                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                    ctx.setLineDash([]);
+                } else {
+                    // Idle: faint dashed guide line
+                    ctx.strokeStyle = 'rgba(126, 34, 206, 0.25)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 10]);
+                    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                continue;
+            }
+
             const pts = haz.pts;
             if (!pts || pts.length < 3) continue;
             const c = this.physics.polygonCentroid(pts);
@@ -3939,55 +3984,32 @@ class CargoGame {
                 continue;
             }
 
-            // ── Receiving warehouse structure ─────────────────────────────
-            const wbH = 64, wbW = hub.width + 28;
-            const wbX = hub.x - 14, wbY = hub.y - wbH;
-
-            // Building body
-            ctx.fillStyle = '#0d1a28';
-            ctx.strokeStyle = '#1e3a5f';
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(wbX, wbY, wbW, wbH, [3, 3, 0, 0]);
-            else ctx.rect(wbX, wbY, wbW, wbH);
-            ctx.fill(); ctx.stroke();
-
-            // Vertical ribs
-            ctx.strokeStyle = 'rgba(30,58,94,0.7)';
-            ctx.lineWidth = 1;
-            for (let rx = wbX + 10; rx < wbX + wbW - 4; rx += 10) {
-                ctx.beginPath(); ctx.moveTo(rx, wbY + 3); ctx.lineTo(rx, wbY + wbH - 2); ctx.stroke();
-            }
-            // Roof stripe in hub color
-            ctx.fillStyle = hub.color;
-            ctx.fillRect(wbX, wbY, wbW, 2);
-            // Intake door
-            const doorW = wbW * 0.55, doorH = wbH * 0.55;
-            const doorX = wbX + (wbW - doorW) / 2, doorY = wbY + wbH - doorH;
-            ctx.fillStyle = '#020c18';
-            ctx.fillRect(doorX, doorY, doorW, doorH);
-            const doorPulse = 0.3 + Math.abs(Math.sin(now * 0.003)) * 0.4;
-            ctx.strokeStyle = `rgba(${hub.color.slice(1, 3) ? parseInt(hub.color.slice(1, 3), 16) : 56},${parseInt(hub.color.slice(3, 5) || 'bd', 16)},${parseInt(hub.color.slice(5, 7) || 'f8', 16)},${doorPulse})`;
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(doorX + 2, doorY + 2, doorW - 4, doorH - 4);
-            // Intake glow when matching cargo aboard
-            if (hasMatchingCargo) {
-                const ig = ctx.createRadialGradient(hcx, doorY + doorH / 2, 0, hcx, doorY + doorH / 2, doorW * 0.7);
-                ig.addColorStop(0, hub.color + '55');
-                ig.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = ig;
-                ctx.fillRect(doorX - 10, doorY - 5, doorW + 20, doorH + 10);
-            }
-            // Warning strobe
-            const strobeOn = (now % 1400) < 700;
-            ctx.fillStyle = strobeOn ? hub.color : 'rgba(0,0,0,0.4)';
-            ctx.beginPath(); ctx.arc(wbX + 6, wbY + 8, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(wbX + wbW - 6, wbY + 8, 3, 0, Math.PI * 2); ctx.fill();
-
             // ── Overhead crane on hub ─────────────────────────────────────
+            // Crane height is now anchored off the pad directly (no warehouse
+            // facade) — the pad stays a clear, readable landing surface.
+            const craneTopY = hub.y - 66;
             const craneX = hcx + hub.width * 0.28;
-            const craneTopY = wbY - 2;
             const craneArmLeft = hub.x - 6;
+
+            // Pallet stack — delivered boxes visibly pile up here instead of
+            // vanishing; this is the crane's actual drop-off target.
+            const palletX = craneArmLeft - 16;
+            const palletCount = hub.palletCount || 0;
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(palletX - 12, hub.y - 4, 24, 4);
+            ctx.strokeStyle = '#451a03';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(palletX - 12, hub.y - 4, 24, 4);
+            const palletCrateS = this.physics.BOX_SIZE * 0.6;
+            for (let pi = 0; pi < Math.min(palletCount, 5); pi++) {
+                const row = Math.floor(pi / 2), col = pi % 2;
+                const pcx = palletX - 7 + col * 14, pcy = hub.y - 4 - row * (palletCrateS + 2) - palletCrateS / 2;
+                ctx.fillStyle = hub.color + '33';
+                ctx.fillRect(pcx - palletCrateS / 2, pcy - palletCrateS / 2, palletCrateS, palletCrateS);
+                ctx.strokeStyle = hub.color;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(pcx - palletCrateS / 2, pcy - palletCrateS / 2, palletCrateS, palletCrateS);
+            }
 
             ctx.strokeStyle = '#f59e0b';
             ctx.lineWidth = 6;
@@ -4012,29 +4034,35 @@ class CargoGame {
             ctx.stroke();
             ctx.lineCap = 'butt';
 
-            // Animated trolley + cable
+            // Animated trolley + cable — actually carries the delivered box
+            // from its pickup spot over to the pallet stack.
             const _hubAnim = hub.craneAnim;
-            let trolleyX, cableLen;
+            const idleX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
+            const restLen = 22;
+            let trolleyX, cableLen, carryingBox = false;
             if (_hubAnim) {
                 const t = _hubAnim.timer;
-                const idleX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
-                const targX = Math.max(craneArmLeft, Math.min(craneX, _hubAnim.lx));
-                if (t < 0.25) { // slide trolley over lander
-                    trolleyX = idleX + (targX - idleX) * (t / 0.25);
-                    cableLen = 22;
-                } else if (t < 0.65) { // drop cable to lander deck
-                    trolleyX = targX;
-                    const maxLen = (hub.y - craneTopY + 15) * 0.85;
-                    cableLen = 22 + ((t - 0.25) / 0.4) * maxLen;
-                } else { // retract and return
+                const pickX = Math.max(craneArmLeft, Math.min(craneX, _hubAnim.lx));
+                const pickLen = Math.max(restLen, _hubAnim.ly - (craneTopY - 15));
+                if (t < 0.28) { // slide trolley over the pickup point
+                    trolleyX = idleX + (pickX - idleX) * (t / 0.28);
+                    cableLen = restLen;
+                } else if (t < 0.5) { // lower cable to grab the box
+                    trolleyX = pickX;
+                    cableLen = restLen + (pickLen - restLen) * ((t - 0.28) / 0.22);
+                } else if (t < 0.65) { // hoist it back up
+                    trolleyX = pickX;
+                    cableLen = pickLen + (restLen - pickLen) * ((t - 0.5) / 0.15);
+                    carryingBox = true;
+                } else { // swing over to the pallet and set it down
                     const r = (t - 0.65) / 0.35;
-                    trolleyX = targX + (idleX - targX) * r;
-                    const maxLen = (hub.y - craneTopY + 15) * 0.85;
-                    cableLen = maxLen * (1 - r) + 22 * r;
+                    trolleyX = pickX + (palletX - pickX) * r;
+                    cableLen = restLen;
+                    carryingBox = true;
                 }
             } else {
-                trolleyX = craneArmLeft + (craneX - craneArmLeft) * (0.25 + Math.sin(now * 0.0005) * 0.22);
-                cableLen = 22 + Math.abs(Math.sin(now * 0.0007)) * 16;
+                trolleyX = idleX;
+                cableLen = restLen + Math.abs(Math.sin(now * 0.0007)) * 16;
             }
             ctx.fillStyle = '#475569';
             ctx.fillRect(trolleyX - 5, craneTopY - 22, 10, 7);
@@ -4050,18 +4078,28 @@ class CargoGame {
             ctx.arc(trolleyX, craneTopY - 15 + cableLen + 4, 3.5, Math.PI * 0.1, Math.PI * 0.9);
             ctx.stroke();
 
-            // Draw lifting cargo box if retracting
-            if (_hubAnim && _hubAnim.timer >= 0.65) {
-                const S = this.physics.BOX_SIZE;
-                this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + S / 2 + 2, _hubAnim.boxType);
+            // Draw the box while it's actually attached to the hook
+            if (carryingBox) {
+                this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + this.physics.BOX_SIZE / 2 + 2, _hubAnim.boxType);
             }
 
-            // Glow column beacon
-            const pulse = 0.15 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.15;
-            ctx.fillStyle = hub.color;
+            // Glow column beacon — soft tapered light shaft, not a flat box
+            const pulse = 0.12 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.1;
+            const beaconCx = hub.x + hub.width / 2;
+            const beaconGrad = ctx.createLinearGradient(0, hub.y - 200, 0, hub.y);
+            beaconGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            beaconGrad.addColorStop(1, hub.color);
+            ctx.save();
             ctx.globalAlpha = pulse;
-            ctx.fillRect(hub.x - 5, hub.y - 200, hub.width + 10, 200);
-            ctx.globalAlpha = 1.0;
+            ctx.fillStyle = beaconGrad;
+            ctx.beginPath();
+            ctx.moveTo(beaconCx - 3, hub.y - 200);
+            ctx.lineTo(beaconCx + 3, hub.y - 200);
+            ctx.lineTo(beaconCx + hub.width * 0.4, hub.y);
+            ctx.lineTo(beaconCx - hub.width * 0.4, hub.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
 
             // Expanding pulse ring at landing surface
             const rpT = (Date.now() % 2800) / 2800;

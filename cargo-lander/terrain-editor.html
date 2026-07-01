@@ -122,6 +122,19 @@ canvas{display:block}
       <label>Label:</label>
       <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
     </div>
+    <div id="hazard-type-row" style="display:none">
+      <label>Type:</label>
+      <select id="hazard-type-select" onchange="setHazardType(this.value)">
+        <option value="zone">zone</option>
+        <option value="laser">laser</option>
+      </select>
+    </div>
+    <div id="laser-timing-row" style="display:none">
+      <label>onMs:</label>
+      <input type="number" id="laser-onms" class="cinput" onchange="setHazardField('onMs', this.value)">
+      <label>offMs:</label>
+      <input type="number" id="laser-offms" class="cinput" onchange="setHazardField('offMs', this.value)">
+    </div>
     <div id="pt-list-wrap"><div id="pt-list"></div></div>
     <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
   </div>
@@ -353,7 +366,9 @@ function waterToShape(wb, i) {
 // {x, y, radius, type} circle, always returning a polygon shape for the editor.
 function hazardToShape(h, i) {
   if (Array.isArray(h.pts)) {
-    return { pts: h.pts.map(p=>({x:p.x,y:p.y})), comment: h.comment || '', hidden:false, type: h.type || 'hazard' };
+    const shape = { pts: h.pts.map(p=>({x:p.x,y:p.y})), comment: h.comment || '', hidden:false, type: h.type || 'zone' };
+    if (shape.type === 'laser') { shape.onMs = h.onMs ?? 1500; shape.offMs = h.offMs ?? 1000; }
+    return shape;
   }
   const cx = h.x ?? 0, cy = h.y ?? 0, r = h.radius ?? 40;
   const pts = [];
@@ -361,7 +376,7 @@ function hazardToShape(h, i) {
     const a = k/8*Math.PI*2;
     pts.push({ x: Math.round(cx+Math.cos(a)*r), y: Math.round(cy+Math.sin(a)*r) });
   }
-  return { pts, comment:'', hidden:false, type: h.type || 'hazard' };
+  return { pts, comment:'', hidden:false, type: h.type || 'zone' };
 }
 
 function resetState() {
@@ -904,9 +919,29 @@ function renderSidebar() {
 
   const hasPoly = S.selPoly>=0 && S.selPoly<arr.length;
   document.getElementById('pt-panel').style.display = hasPoly?'':'none';
+  const hazardRow = document.getElementById('hazard-type-row');
+  const timingRow = document.getElementById('laser-timing-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
+    if (S.selLayer === 'hazard') {
+      const poly = arr[S.selPoly];
+      hazardRow.style.display = '';
+      document.getElementById('hazard-type-select').value = poly.type === 'laser' ? 'laser' : 'zone';
+      if (poly.type === 'laser') {
+        timingRow.style.display = '';
+        document.getElementById('laser-onms').value = poly.onMs ?? 1500;
+        document.getElementById('laser-offms').value = poly.offMs ?? 1000;
+      } else {
+        timingRow.style.display = 'none';
+      }
+    } else {
+      hazardRow.style.display = 'none';
+      timingRow.style.display = 'none';
+    }
     renderPtList();
+  } else {
+    hazardRow.style.display = 'none';
+    timingRow.style.display = 'none';
   }
   document.getElementById('pdisp').textContent =
     hasPoly ? `${S.selLayer} ${S.selPoly+1}/${arr.length}` + (S.selPt>=0?`  pt ${S.selPt}`:'') : '';
@@ -947,6 +982,35 @@ function renameActivePoly(val) {
   renderSidebar(); updateOut();
 }
 
+// Switching a hazard between 'zone' (polygon, needs >=3 pts) and 'laser'
+// (line segment, needs exactly 2 pts) reshapes the point list to fit.
+function setHazardType(val) {
+  if (S.selLayer !== 'hazard' || S.selPoly<0) return;
+  const poly = activeList()[S.selPoly];
+  poly.type = val;
+  if (val === 'laser') {
+    if (poly.pts.length > 2) poly.pts = [poly.pts[0], poly.pts[1]];
+    else if (poly.pts.length < 2) {
+      const p0 = poly.pts[0] || {x:500,y:400};
+      poly.pts = [p0, {x:p0.x+120,y:p0.y}];
+    }
+    if (poly.onMs === undefined) poly.onMs = 1500;
+    if (poly.offMs === undefined) poly.offMs = 1000;
+  } else if (poly.pts.length < 3) {
+    const p0 = poly.pts[0] || {x:500,y:400};
+    const p1 = poly.pts[1] || {x:p0.x+80,y:p0.y};
+    poly.pts = [p0, p1, {x:(p0.x+p1.x)/2, y:p0.y-80}];
+  }
+  S.selPt = -1;
+  renderSidebar(); renderPtList(); draw(); updateOut();
+}
+
+function setHazardField(field, val) {
+  if (S.selLayer !== 'hazard' || S.selPoly<0) return;
+  activeList()[S.selPoly][field] = +val;
+  updateOut();
+}
+
 function setPt(pi, pti, axis, val) {
   activeList()[pi].pts[pti][axis] = +val;
   draw(); updateOut();
@@ -954,7 +1018,8 @@ function setPt(pi, pti, axis, val) {
 
 function deletePt(pi, pti) {
   const arr = activeList();
-  if (arr[pi].pts.length<=3) { alert('Minimum 3 points.'); return; }
+  const minPts = (S.selLayer==='hazard' && arr[pi].type==='laser') ? 2 : 3;
+  if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
   arr[pi].pts.splice(pti,1);
   if (S.selPt>=arr[pi].pts.length) S.selPt=arr[pi].pts.length-1;
   renderSidebar(); renderPtList(); draw(); updateOut();
@@ -967,7 +1032,7 @@ function addShape() {
   if (S.selLayer === 'water') {
     shape = { pts:[{x:cx-100,y:cy},{x:cx+100,y:cy},{x:cx+100,y:cy+48},{x:cx-100,y:cy+48}], comment:'', hidden:false, hasBoat:false };
   } else if (S.selLayer === 'hazard') {
-    shape = { pts:[{x:cx-40,y:cy-40},{x:cx+40,y:cy-40},{x:cx+50,y:cy},{x:cx+40,y:cy+40},{x:cx-40,y:cy+40},{x:cx-50,y:cy}], comment:'', hidden:false, type:'lava' };
+    shape = { pts:[{x:cx-40,y:cy-40},{x:cx+40,y:cy-40},{x:cx+50,y:cy},{x:cx+40,y:cy+40},{x:cx-40,y:cy+40},{x:cx-50,y:cy}], comment:'', hidden:false, type:'zone' };
   } else {
     shape = { pts:[{x:cx-60,y:cy},{x:cx+60,y:cy},{x:cx,y:cy-100}], comment:'New polygon', hidden:false };
   }
@@ -1003,6 +1068,7 @@ function insertAtCursor() {
   const arr = activeList();
   if (S.selPoly<0) return;
   const poly = arr[S.selPoly];
+  if (S.selLayer==='hazard' && poly.type==='laser') return; // laser is a fixed 2-point line
   const idx = nearestEdge(poly.pts, S.mouse.wx, S.mouse.wy);
   const proj = projectOntoSeg(S.mouse.wx, S.mouse.wy, poly.pts[idx], poly.pts[(idx+1)%poly.pts.length]);
   poly.pts.splice(idx+1, 0, {x:snap(proj.x), y:snap(proj.y)});
@@ -1045,7 +1111,11 @@ function buildOut() {
     S.hazardPolys.forEach((h, i) => {
       if (h.comment) lines.push(`    // ${h.comment}`);
       lines.push('    {');
-      lines.push(`      type: ${JSON.stringify(h.type||'hazard')},`);
+      lines.push(`      type: ${JSON.stringify(h.type||'zone')},`);
+      if (h.type === 'laser') {
+        lines.push(`      onMs: ${h.onMs ?? 1500},`);
+        lines.push(`      offMs: ${h.offMs ?? 1000},`);
+      }
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));
       lines.push('      ]');
@@ -1141,6 +1211,7 @@ canvas.addEventListener('mousedown', e => {
   }
   if (S.mode==='add'&&e.button===0&&S.selPoly>=0) {
     const poly=activeList()[S.selPoly];
+    if (S.selLayer==='hazard' && poly.type==='laser') return; // laser is a fixed 2-point line
     const idx=nearestEdge(poly.pts,wx,wy);
     const proj=projectOntoSeg(wx,wy,poly.pts[idx],poly.pts[(idx+1)%poly.pts.length]);
     poly.pts.splice(idx+1,0,{x:snap(proj.x),y:snap(proj.y)});
