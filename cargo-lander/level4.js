@@ -21,7 +21,7 @@ registerLevel({
     gravityWell: {
         x: 500,
         y: 400,
-        strength: 0.8,
+        strength: 1.4,      // increased from 0.8 for a huge pull
         radius: 200,
         orbitRadius: 200,   // well orbits its base position (Lissajous phase)
     },
@@ -92,13 +92,19 @@ registerLevel({
     // These are solid line segments — lander and cargo collide with them like terrain.
     segments: [
         // Floating lava platform — left of the vortex, above Sector 4
-        { x1: 300, y1: 520, x2: 420, y2: 520 },
+        { x1: 280, y1: 520, x2: 440, y2: 520 },
         // Angled ramp up to the left platform — forces the player to come from below
-        { x1: 220, y1: 570, x2: 300, y2: 520 },
+        { x1: 220, y1: 580, x2: 280, y2: 520 },
         // Floating platform — right side, hovers above the Deep Storage approach
-        { x1: 620, y1: 480, x2: 720, y2: 480 },
+        { x1: 600, y1: 480, x2: 740, y2: 480 },
         // Diagonal barrier — cuts across the upper mid zone; blocks naive top-down shortcuts
-        { x1: 480, y1: 300, x2: 560, y2: 380 },
+        { x1: 450, y1: 280, x2: 580, y2: 380 },
+    ],
+
+    // ── Hazards ───────────────────────────────────────────────────────────────
+    hazards: [
+        // Laser gauntlet blocking the Deep Storage approach
+        { type: 'laser', pts: [{ x: 740, y: 480 }, { x: 740, y: 700 }], onMs: 1200, offMs: 1500, warnMs: 400, damagePerSec: 40, thickness: 12 }
     ],
 
     // ── UI ────────────────────────────────────────────────────────────────────

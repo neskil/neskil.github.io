@@ -27,7 +27,7 @@ registerLevel({
     wormZoneR: 280,
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.12,
+    gravity: 0.18,
     wind: 0,
 
     // ── Terrain ───────────────────────────────────────────────────────────────
@@ -58,6 +58,18 @@ registerLevel({
             {x: 1420, y: 430}, {x: 1700, y: 430},
             // Enclosure
             {x: 1700, y: 1600}, {x: -200, y: 1600}
+        ],
+        // Ceiling stalactites to force the player dangerously low into the worm's territory
+        [
+            {x: -200, y: 0}, {x: 1700, y: 0},
+            {x: 1700, y: 250},
+            {x: 1400, y: 200},
+            {x: 1100, y: 500}, // drops low right over the worm mound!
+            {x: 850, y: 400},
+            {x: 750, y: 500},  // another low point
+            {x: 600, y: 350},
+            {x: 400, y: 200},
+            {x: -200, y: 250}
         ]
     ],
 

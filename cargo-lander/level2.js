@@ -13,16 +13,31 @@ registerLevel({
     wind: 0,
 
     // ── Terrain ───────────────────────────────────────────────────────────────
-    terrainPolygons: [[
-        // Western plateau — HQ and Main Processing hub land here
-        {x: -400, y: 650}, {x: -150, y: 630}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 450, y: 615}, {x: 600, y: 600},
-        // Chasm — a sheer drop to the abyss; the monster waits at the bottom
-        {x: 630, y: 1500}, {x: 750, y: 1500},
-        // Eastern plateau — Fragile Handling hub; slightly higher than the western shelf
-        {x: 780, y: 600}, {x: 1000, y: 615}, {x: 1200, y: 600}, {x: 1500, y: 565}, {x: 1800, y: 550},
-        // Bottom enclosure
-        {x: 1800, y: 1800}, {x: -400, y: 1800}
-    ]],
+    terrainPolygons: [
+        [
+            // Western plateau — HQ and Main Processing hub land here
+            {x: -400, y: 650}, {x: -150, y: 630}, {x: 100, y: 650}, {x: 300, y: 600}, {x: 450, y: 615}, {x: 600, y: 600},
+            // Chasm — a sheer drop to the abyss; the monster waits at the bottom
+            {x: 630, y: 1500}, {x: 750, y: 1500},
+            // Eastern plateau — Fragile Handling hub; slightly higher than the western shelf
+            {x: 780, y: 600}, {x: 1000, y: 615}, {x: 1200, y: 600}, {x: 1500, y: 565}, {x: 1800, y: 550},
+            // Bottom enclosure
+            {x: 1800, y: 1800}, {x: -400, y: 1800}
+        ],
+        // Low ceiling above the chasm and delivery hubs, forcing a low trajectory
+        [
+            {x: -400, y: 0}, {x: 1800, y: 0},
+            {x: 1800, y: 350}, {x: 1200, y: 350},
+            {x: 800, y: 400}, {x: 600, y: 300},
+            {x: 400, y: 400}, {x: -400, y: 350}
+        ]
+    ],
+    // ── Hazards ───────────────────────────────────────────────────────────────
+    hazards: [
+        // Hazard pockets above the hubs
+        { pts: [{x: 450, y: 450}, {x: 550, y: 450}, {x: 550, y: 520}, {x: 450, y: 520}] },
+        { pts: [{x: 750, y: 450}, {x: 850, y: 450}, {x: 850, y: 520}, {x: 750, y: 520}] }
+    ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 1.2,

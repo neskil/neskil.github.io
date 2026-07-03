@@ -34,12 +34,18 @@ registerLevel({
             // Right ceiling drops down to seal the right entry
             {x: 1800, y: 550}, {x: 1200, y: 550},
             // Shaft right wall — narrow gap for the rope starts here
-            {x: 950, y: 700}, {x: 800, y: 700},
+            {x: 950, y: 700}, {x: 750, y: 700},
             // Shaft left wall — rope must thread between these two points
-            {x: 550, y: 550}, {x: 350, y: 550},
+            {x: 620, y: 550}, {x: 350, y: 550},
             // Left ceiling slopes up toward the left wall
             {x: 200, y: 450}, {x: 0, y: 450}, {x: -400, y: 450}
         ]
+    ],
+
+    // ── Hazards ───────────────────────────────────────────────────────────────
+    hazards: [
+        // Laser slicing across the middle of the shaft gap!
+        { type: 'laser', pts: [{ x: 620, y: 625 }, { x: 750, y: 625 }], onMs: 1000, offMs: 2200, warnMs: 400, damagePerSec: 50, thickness: 12 }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
