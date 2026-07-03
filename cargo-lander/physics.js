@@ -284,8 +284,8 @@ class CargoPhysics {
             deckWidth: 56,
             deckOffset: 12, // Pixels above center
             basketHeight: 24, // Side wall height for the basket
-            fuel: 100,
-            maxFuel: 100,
+            fuel: 120,
+            maxFuel: 120,
             integrity: maxIntegrity,
             maxIntegrity: maxIntegrity,
             thrustMultiplier: 1.0 + (upgrades.boostMode || 0) * 0.2,
@@ -373,6 +373,8 @@ class CargoPhysics {
             lander.currentPad = padType;
             if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
                 lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
+            }
+            if (padType === 'refuel' || padType === 'hq') {
                 lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
             }
             // Leg spring decay while parked
@@ -1112,13 +1114,16 @@ class CargoPhysics {
         const wy = well.y + Math.cos(this.gravityWellTime * 0.65) * orbitR * 0.55;
 
         // Expose current position so renderer can draw it
-        this.gravityWellPos = { x: wx, y: wy, radius: well.radius, strength: well.strength };
+        // Implement a 4-second pulse cycle for the gravity well strength
+        const pulseMultiplier = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(this.gravityWellTime * Math.PI / 16.0));
+        const currentStrength = well.strength * pulseMultiplier;
+        this.gravityWellPos = { x: wx, y: wy, radius: well.radius, strength: currentStrength, maxStrength: well.strength, pulse: pulseMultiplier };
 
         const dx = wx - this.lander.x;
         const dy = wy - this.lander.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist > 20 && dist < well.radius) {
-            const force = (well.strength * 10) / (dist * 0.1);
+            const force = (currentStrength * 10) / (dist * 0.1);
             this.lander.vx += (dx / dist) * force * dt;
             this.lander.vy += (dy / dist) * force * dt;
         }

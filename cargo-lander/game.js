@@ -184,6 +184,7 @@ class CargoGame {
             hudTime: document.getElementById('hud-time'),
             btnExtract: document.getElementById('btn-extract'),
             fuelFill: document.getElementById('fuel-fill'),
+            lowFuelWarning: document.getElementById('low-fuel-warning'),
             devPanel: document.getElementById('dev-panel'),
             devReadout: document.getElementById('dev-readout')
         };
@@ -907,14 +908,21 @@ class CargoGame {
         // Set Fuel Gauge
         const fuelPercent = Math.max(0, (lander.fuel / lander.maxFuel) * 100);
         const fuelFill = this.uiElements?.fuelFill || document.getElementById('fuel-fill');
+        const lowFuelWarn = this.uiElements?.lowFuelWarning || document.getElementById('low-fuel-warning');
         if (fuelFill) {
             fuelFill.style.width = `${fuelPercent}%`;
             // Change color if critical
             if (fuelPercent < 25) {
                 fuelFill.style.background = '#ef4444';
+                if (lowFuelWarn) {
+                    lowFuelWarn.classList.remove('hidden');
+                    // Blink effect
+                    lowFuelWarn.style.opacity = (Math.floor(Date.now() / 250) % 2 === 0) ? '1' : '0.3';
+                }
                 if (!this.isMuted) CargoAudio.setWarning(true);
             } else {
                 fuelFill.style.background = '#38bdf8';
+                if (lowFuelWarn) lowFuelWarn.classList.add('hidden');
                 if (!this.isMuted) CargoAudio.setWarning(false);
             }
         }
@@ -1404,6 +1412,10 @@ class CargoGame {
         localStorage.setItem('cargoLanderCash', this.globalCash);
         if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
         this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
+
+        // Add juicy floating text
+        if (!this.floatingTexts) this.floatingTexts = [];
+        this.floatingTexts.push({ text: `+$${deliveryReward}`, x: box.x, y: box.y - 40, life: 1.5, color: '#10b981' });
     }
 
     updateBoxFireState(dt) {
@@ -1641,6 +1653,16 @@ class CargoGame {
         }
 
         // --- Menu Specific Background Rendering ---
+        // Update floating texts
+        if (this.floatingTexts) {
+            for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+                const ft = this.floatingTexts[i];
+                ft.life -= dt * 0.01;
+                ft.y -= dt * 0.5;
+                if (ft.life <= 0) this.floatingTexts.splice(i, 1);
+            }
+        }
+
         if (this.gameState === 'menu') {
             this.drawMenuBackgroundEntity();
             return; // Don't draw the level geometry
@@ -1659,7 +1681,9 @@ class CargoGame {
         // 3. Draw Gravity Well Anomaly
         const level = levels[this.currentLevelIndex];
         if (level && level.gravityWell && this.gameState === 'playing') {
-            this.drawGravityWell(level.gravityWell);
+            if (!this.shaderOverlay || !this.shaderOverlay.gl) {
+                this.drawGravityWell(this.physics.gravityWellPos || level.gravityWell);
+            }
         }
 
         // 4. Draw Delivery Hub Zones (Hologram beacons)
@@ -1695,6 +1719,21 @@ class CargoGame {
 
         // 8. Draw Lander
         this.drawLander();
+
+        // 8.5 Draw Floating Texts
+        if (this.floatingTexts) {
+            for (const ft of this.floatingTexts) {
+                ctx.save();
+                ctx.font = 'bold 24px Outfit';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `rgba(16, 185, 129, ${ft.life / 1.5})`;
+                ctx.strokeStyle = `rgba(0, 0, 0, ${ft.life / 1.5})`;
+                ctx.lineWidth = 3;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+        }
 
         ctx.restore();
 

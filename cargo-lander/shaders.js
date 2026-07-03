@@ -128,6 +128,68 @@ class ShaderOverlay {
         `;
 
         this.monsterProgram = this.createProgram(vsMonsterSource, fsMonsterSource);
+
+        // Gravity Well Shader (Quad)
+        const vsGravityWellSource = `
+            attribute vec2 a_position;
+            varying vec2 v_uv;
+            void main() {
+                v_uv = a_position * 0.5 + 0.5;
+                gl_Position = vec4(a_position, 0, 1);
+            }
+        `;
+
+        const fsGravityWellSource = `
+            precision mediump float;
+            varying vec2 v_uv;
+            
+            uniform vec2 u_resolution;
+            uniform vec2 u_wellPos;
+            uniform float u_wellRadius;
+            uniform float u_wellPulse;
+            uniform vec2 u_cameraPos;
+            uniform float u_zoom;
+            uniform float u_time;
+            
+            void main() {
+                vec2 screenPos = vec2(v_uv.x, 1.0 - v_uv.y) * u_resolution;
+                vec2 worldPos = (screenPos - (u_resolution / 2.0)) / u_zoom + u_cameraPos;
+                
+                vec2 diff = worldPos - u_wellPos;
+                float dist = length(diff);
+                
+                if (dist > u_wellRadius) {
+                    gl_FragColor = vec4(0.0);
+                    return;
+                }
+                
+                float normDist = dist / u_wellRadius;
+                // Black hole event horizon
+                float eventHorizon = 20.0;
+                
+                if (dist < eventHorizon) {
+                    // Pure black core
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                    return;
+                }
+                
+                // Swirling accretion disk
+                float angle = atan(diff.y, diff.x);
+                float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
+                
+                // Pulsing glow
+                float pulse = u_wellPulse;
+                
+                float intensity = (1.0 - normDist) * (0.5 + 0.5 * swirl) * pulse;
+                
+                // Purple/black lensing effect
+                vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
+                
+                gl_FragColor = vec4(color, intensity * (1.0 - normDist));
+            }
+        `;
+
+        this.gravityWellProgram = this.createProgram(vsGravityWellSource, fsGravityWellSource);
     }
 
     initBuffers() {
@@ -237,6 +299,27 @@ class ShaderOverlay {
             gl.uniform2f(gl.getUniformLocation(this.monsterProgram, "u_cameraPos"), camera.x, camera.y);
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_zoom"), camera.zoom);
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_time"), Date.now() / 1000.0);
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+        }
+
+        // --- Render Gravity Well ---
+        if (physics.gravityWellPos) {
+            const gw = physics.gravityWellPos;
+            gl.useProgram(this.gravityWellProgram);
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+            const aPos = gl.getAttribLocation(this.gravityWellProgram, "a_position");
+            gl.enableVertexAttribArray(aPos);
+            gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_resolution"), this.canvas.width, this.canvas.height);
+            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_wellPos"), gw.x, gw.y);
+            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_wellRadius"), gw.radius);
+            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_wellPulse"), gw.pulse || 1.0);
+            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
+            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_zoom"), camera.zoom);
+            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_time"), Date.now() / 1000.0);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
