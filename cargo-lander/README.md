@@ -103,20 +103,7 @@ console + on-screen error logger report no errors.
 
 ---
 
-## Known Issues
-- **`tests.html` is stale relative to the current implementation** — as of 2026-06-30,
-  25 of 166 tests fail, mostly because the suite still assumes a heightmap-style
-  terrain API (`getTerrainHeight()`, `getTerrainSlope()`, `terrainPoints` arrays) and
-  a `gravity` default of `0.15`, none of which match the current polygon-based
-  terrain in `physics.js` (actual default gravity is `0.11`) or `getPolygonSurfaceY()`.
-  `drawLake` no longer exists as a separate method either. None of these failures are
-  related to cargo delivery — fixing the suite to match the current architecture is
-  unstarted, separate work.
-- **Resolved 2026-06-30**: cargo delivered to a normal hub or lost in the abyss left
-  behind an orphaned Matter.js body and a stale `lander.grabbedBoxId`, which could
-  cause invisible phantom collisions and block re-grabbing cargo after a delivery.
-  Fixed by routing all box removal through `game.js`'s `removeCargoBox()` — see
-  Physics Notes below.
+
 
 ---
 
