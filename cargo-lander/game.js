@@ -592,6 +592,17 @@ class CargoGame {
     }
 
     startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
+        if (idx === 'random') {
+            const procLvl = typeof generateProceduralLevel === 'function' ? generateProceduralLevel() : null;
+            if (procLvl) {
+                idx = levels.length;
+                levels.push(procLvl);
+            } else {
+                console.error("Procedural generator not found, falling back to L1");
+                idx = 0;
+            }
+        }
+        
         this.currentLevelIndex = idx;
         this.currentVehicle = vehicleType;
         this.crashHandled = false;
@@ -696,7 +707,9 @@ class CargoGame {
     }
 
     nextLevel() {
-        if (this.currentLevelIndex + 1 < levels.length) {
+        if (levels[this.currentLevelIndex] && levels[this.currentLevelIndex].name.includes('Mission ♾️')) {
+            this.startLevel('random');
+        } else if (this.currentLevelIndex + 1 < levels.length) {
             this.startLevel(this.currentLevelIndex + 1);
         } else {
             // Victory! All levels complete
