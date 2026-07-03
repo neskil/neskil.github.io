@@ -333,6 +333,18 @@ number is off by more than ~20.
 - Grass tufts (L1): x positions snapped to `Math.floor(startX/10)*10` to prevent camera-jitter
 
 ## Pilot Rank System
-Score = `(ownedUpgradeLevels / 15) * 0.55 + (levelsMastered / numLevels) * 0.45`
-"Mastered" = highscore ≥ 5000 on that level. Tiers: F → E → D → C → B → A → S
+"Mastered" = highscore >= 5000 on that level. Tiers: F -> E -> D -> C -> B -> A -> S
 
+## User Feedback Backlog
+*This section tracks all user requests to ensure nothing is missed during iterative development.*
+- **Difficulty Spikes:** Levels 1-7 geometries got too messy and hard (e.g. jagged peaks, tight ceilings, lasers too easy to fly over). *Status: Addressed in recent updates.*
+- **Sandworm Fix:** Level 6 sandworm spawn was broken due to ceiling stalactites forcing a bad path. *Status: Fixed.*
+- **Gravity Well:** Needs to be more chill, pulse (timing based), and have a cool black hole shader so it's clear where it is. *Status: Fixed.*
+- **Fuel Economy:** Base fuel too low; must be higher (120). *Status: Fixed.*
+- **HQ Refueling:** Needs a refuel station or pad at HQ so you always have at least one refuel spot. *Status: Fixed.*
+- **HUD Warnings:** Needs a "LOW FUEL" warning to alert the pilot. *Status: Fixed.*
+- **Level Editor Upgrades:** Make it easier to add/remove hazards with a UI button in `level-editor.html`. *Status: Fixed.*
+- **Fun Mechanics:** Add other "fun stuff" to the levels to spice them up beyond just geometry (e.g., collectibles, economy popups, new hazards like crushers). *Status: In Progress.*
+- **Level Editor Workflow:** Make sure the link to the level editor works. Add ability to playtest level within the editor, download as `.js` file, go back to the game from the editor, and upload `.js` file back into the game with instructions. *Status: Planned.*
+- **Procedural Generation Mode:** Procedural generation needs 3 selectable "craziness" (difficulty) levels with varying length, cave presence, and hazard frequency/difficulty. *Status: Planned.*
+- **Biome Weather Effects:** Make maps visually distinct with weather/atmosphere effects: snow storms for ice (L3), rain for grass (L1), oozing effects for goo/crystal (L5), heatwaves for desert/volcanic (L2/L4). *Status: Planned.*

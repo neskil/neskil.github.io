@@ -21,7 +21,7 @@ registerLevel({
     gravityWell: {
         x: 500,
         y: 400,
-        strength: 1.4,      // increased from 0.8 for a huge pull
+        strength: 0.8,
         radius: 200,
         orbitRadius: 200,   // well orbits its base position (Lissajous phase)
     },
@@ -104,7 +104,7 @@ registerLevel({
     // ── Hazards ───────────────────────────────────────────────────────────────
     hazards: [
         // Laser gauntlet blocking the Deep Storage approach
-        { type: 'laser', pts: [{ x: 740, y: 480 }, { x: 740, y: 700 }], onMs: 1200, offMs: 1500, warnMs: 400, damagePerSec: 40, thickness: 12 }
+        { type: 'laser', pts: [{ x: 740, y: -200 }, { x: 740, y: 700 }], onMs: 1200, offMs: 1500, warnMs: 400, damagePerSec: 40, thickness: 12 }
     ],
 
     // ── UI ────────────────────────────────────────────────────────────────────

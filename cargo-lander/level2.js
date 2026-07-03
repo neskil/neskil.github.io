@@ -24,19 +24,13 @@ registerLevel({
             // Bottom enclosure
             {x: 1800, y: 1800}, {x: -400, y: 1800}
         ],
-        // Low ceiling above the chasm and delivery hubs, forcing a low trajectory
+        // Ceiling above the chasm and delivery hubs
         [
-            {x: -400, y: 0}, {x: 1800, y: 0},
-            {x: 1800, y: 350}, {x: 1200, y: 350},
-            {x: 800, y: 400}, {x: 600, y: 300},
-            {x: 400, y: 400}, {x: -400, y: 350}
+            {x: -400, y: -200}, {x: 1800, y: -200},
+            {x: 1800, y: 150}, {x: 1200, y: 150},
+            {x: 800, y: 150}, {x: 600, y: 150},
+            {x: 400, y: 150}, {x: -400, y: 150}
         ]
-    ],
-    // ── Hazards ───────────────────────────────────────────────────────────────
-    hazards: [
-        // Hazard pockets above the hubs
-        { pts: [{x: 450, y: 450}, {x: 550, y: 450}, {x: 550, y: 520}, {x: 450, y: 520}] },
-        { pts: [{x: 750, y: 450}, {x: 850, y: 450}, {x: 850, y: 520}, {x: 750, y: 520}] }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────

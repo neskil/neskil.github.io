@@ -101,7 +101,7 @@ canvas{display:block}
     <div class="row">
       <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
       <button class="btn" onclick="fitView()">Fit</button>
-      <button class="btn" onclick="addShape()">+ Shape</button>
+      <button class="btn" id="add-shape-btn" onclick="addShape()">+ Shape</button>
     </div>
     <div id="level-card"></div>
     <details>
@@ -201,8 +201,10 @@ canvas{display:block}
     <div id="hazard-type-row" style="display:none">
       <label>Type:</label>
       <select id="hazard-type-select" onchange="setHazardType(this.value)">
-        <option value="zone">zone</option>
-        <option value="laser">laser</option>
+        <option value="zone">Damage Zone</option>
+        <option value="laser">Laser</option>
+        <option value="crusher">Moving Crusher</option>
+        <option value="pickup">Fuel/Cash Ring</option>
       </select>
     </div>
     <div id="laser-timing-row" style="display:none">
@@ -334,6 +336,7 @@ function listForLayer(layer) {
 function activeList() { return listForLayer(S.selLayer); }
 function syncLayerButtonsUI() {
   ['terrain','water','hazard'].forEach(l => document.getElementById('lyr-'+l).className = 'btn'+(l===S.selLayer?' on':''));
+  document.getElementById('add-shape-btn').textContent = '+ ' + (S.selLayer.charAt(0).toUpperCase() + S.selLayer.slice(1));
 }
 function setLayer(layer) {
   S.selLayer = layer;
@@ -1179,7 +1182,7 @@ function renderSidebar() {
     if (S.selLayer === 'hazard') {
       const poly = arr[S.selPoly];
       hazardRow.style.display = '';
-      document.getElementById('hazard-type-select').value = poly.type === 'laser' ? 'laser' : 'zone';
+      document.getElementById('hazard-type-select').value = poly.type || 'zone';
       if (poly.type === 'laser') {
         timingRow.style.display = '';
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
@@ -1241,14 +1244,19 @@ function setHazardType(val) {
   if (S.selLayer !== 'hazard' || S.selPoly<0) return;
   const poly = activeList()[S.selPoly];
   poly.type = val;
-  if (val === 'laser') {
+  if (val === 'laser' || val === 'crusher') {
     if (poly.pts.length > 2) poly.pts = [poly.pts[0], poly.pts[1]];
     else if (poly.pts.length < 2) {
       const p0 = poly.pts[0] || {x:500,y:400};
       poly.pts = [p0, {x:p0.x+120,y:p0.y}];
     }
-    if (poly.onMs === undefined) poly.onMs = 1500;
-    if (poly.offMs === undefined) poly.offMs = 1000;
+    if (val === 'laser') {
+        if (poly.onMs === undefined) poly.onMs = 1500;
+        if (poly.offMs === undefined) poly.offMs = 1000;
+    }
+  } else if (val === 'pickup') {
+    if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
+    else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
   } else if (poly.pts.length < 3) {
     const p0 = poly.pts[0] || {x:500,y:400};
     const p1 = poly.pts[1] || {x:p0.x+80,y:p0.y};
@@ -1271,7 +1279,7 @@ function setPt(pi, pti, axis, val) {
 
 function deletePt(pi, pti) {
   const arr = activeList();
-  const minPts = (S.selLayer==='hazard' && arr[pi].type==='laser') ? 2 : 3;
+  const minPts = (S.selLayer==='hazard' && (arr[pi].type==='laser' || arr[pi].type==='crusher')) ? 2 : (S.selLayer==='hazard' && arr[pi].type==='pickup' ? 1 : 3);
   if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
   arr[pi].pts.splice(pti,1);
   if (S.selPt>=arr[pi].pts.length) S.selPt=arr[pi].pts.length-1;
