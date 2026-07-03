@@ -28,14 +28,15 @@ registerLevel({
             {x: 1800, y: 1800}, {x: -400, y: 1800}
         ],
         // Ice overhang — hangs above the summit, forcing a low angled approach from the west
+        // Overhang extended downwards to leave a very tight vertical clearance
         [
-            {x: 450, y: -200}, {x: 900, y: -200}, {x: 850, y: 120},
-            {x: 600, y: 140}, {x: 500, y: -50}
+            {x: 350, y: -200}, {x: 900, y: -200}, {x: 850, y: 180},
+            {x: 750, y: 170}, {x: 600, y: 150}, {x: 450, y: -10}
         ]
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 0.85,     // tighter pads — demands accuracy despite the wind
+    padScale: 0.65,     // extremely tight pads — demands flawless accuracy despite the wind
     targetCargo: 2,
     budget: 1500,
     timeLimit: 200,

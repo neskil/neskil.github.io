@@ -37,8 +37,8 @@ registerLevel({
             {x: 1500, y: 350}, {x: 1700, y: 350},
             // Valley — floor drops again into a wide flat valley; room to breathe
             {x: 1900, y: 600}, {x: 2300, y: 600},
-            // Squeeze approach — floor rises to meet the ceiling; tightest corridor in the cave
-            {x: 2500, y: 450}, {x: 2800, y: 450},
+            // Squeeze approach — floor rises to meet the ceiling; extremely tight corridor!
+            {x: 2500, y: 350}, {x: 2800, y: 350},
             // End base shelf — floor drops to a wide flat run; Magma Chute (x:3300) + Far East Depot (x:3500)
             {x: 3200, y: 650}, {x: 3800, y: 650},
             // Enclosure
@@ -50,8 +50,8 @@ registerLevel({
             {x: -400, y: -200}, {x: 3800, y: -200},
             // Above end base — ceiling drops to a moderate height above the final hubs
             {x: 3800, y: 250}, {x: 3200, y: 250},
-            // Squeeze corridor ceiling — meets the floor rise; this is the narrowest gap
-            {x: 2800, y: 150}, {x: 2500, y: 150},
+            // Squeeze corridor ceiling — extremely tight gap!
+            {x: 2800, y: 200}, {x: 2500, y: 200},
             // Valley ceiling — lifts to give more headroom over the valley floor
             {x: 2300, y: 200}, {x: 1900, y: 200},
             // High peak ceiling — very low; floor peak + ceiling dip = minimal clearance
@@ -84,7 +84,11 @@ registerLevel({
                 {x: 2900, y: 280}, {x: 3000, y: 280},
                 {x: 3000, y: 480}, {x: 2900, y: 480}
             ]
-        }
+        },
+        // Laser gauntlet protecting Fuel Pump (x:1600)
+        { type: 'laser', pts: [{ x: 1550, y: -50 }, { x: 1550, y: 350 }], onMs: 1500, offMs: 2500, warnMs: 400, damagePerSec: 40, thickness: 12 },
+        // Laser gauntlet protecting Valley Base (x:2100)
+        { type: 'laser', pts: [{ x: 2050, y: 200 }, { x: 2050, y: 600 }], onMs: 1200, offMs: 2000, warnMs: 400, damagePerSec: 40, thickness: 12 }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
