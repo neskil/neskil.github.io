@@ -23,7 +23,7 @@ files load cleanly).
 | `shaders.js` | `ShaderOverlay` — a WebGL layer drawn on the `#webglCanvas` on top of the main canvas. Renders glowing particles (point sprites) and the procedural "out-of-bounds monster" (a raymarched noisy blob in a fragment shader). Falls back to Canvas2D in `game.js` if WebGL is unavailable. |
 | `physics.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
 | `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level8.js`/`levels.js`, not here. |
-| `terrain-editor.html` | **Terrain Editor** — standalone browser tool for visually editing and exporting `terrainPolygons`. See [Terrain Editor](#terrain-editor) below. |
+| `level-editor.html` | **Level Editor** — standalone browser tool for visually editing levels. See [Level Editor](#level-editor) below. |
 | `level1.js` – `level8.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. **Adding a new level file also requires manually wiring it into `index.html`**: its `<script>` tag, a button in the hardcoded `#mission-grid`, and a Dev-panel jump button — none of that is generated from `levels[]`. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `tests.html` | Browser-based test suite (166 tests as of 2026-06) covering level configs, physics init, draw-method existence, upgrades, etc. Open directly in a browser via a local static server; results post to `#summary` and failures log full stacks to `console.error`. Some tests are stale relative to the current implementation (see [Known Issues](#known-issues)). |
@@ -59,9 +59,9 @@ levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
   most physics constants are "per 60fps-frame".
 
 
-## Terrain Editor
+## Level Editor
 
-`terrain-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons`, `waterBodies`, and `hazards` arrays in level files — all three are polygons (`{pts:[{x,y},...]}`) and are edited with the exact same vertex tools, just switched via the **Terrain / Water / Hazard** tabs in the sidebar. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/terrain-editor.html`.
+`level-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons`, `waterBodies`, and `hazards` arrays in level files — all three are polygons (`{pts:[{x,y},...]}`) and are edited with the exact same vertex tools, just switched via the **Terrain / Water / Hazard** tabs in the sidebar. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/level-editor.html`.
 
 ### Features
 - **Level file dropdown** — loads any of `level1.js` – `level7.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
@@ -220,27 +220,23 @@ The recent fixed-timestep physics overhaul and fluid boundary systems have laid 
 
 Two pieces of active/next-up work, captured here so they aren't lost between sessions:
 
-### 1. `terrain-editor.html` → full **Level Editor**
-Currently only edits `terrainPolygons` / `waterBodies` / `hazards` polygons. Scope it up
-to cover the *entire* level-file schema so a level can be built/edited without hand-writing
-a `.js` file:
-- [ ] Rename tool/file conceptually to "Level Editor" (keep `terrain-editor.html` path or
-      rename — decide when picking this up — update all README references either way).
-- [ ] Edit non-polygon fields currently only in `level*.js`: `name`, `missionTitle`,
+### 1. `level-editor.html` → full **Level Editor**
+- [x] Rename tool/file conceptually to "Level Editor".
+- [x] Edit non-polygon fields currently only in `level*.js`: `name`, `missionTitle`,
       `description`, `gravity`, `wind`, `startX`, `padScale`, `targetCargo`, `budget`,
       `timeLimit`, `allowedTypes`, `hint`.
-- [ ] Edit `deliveryHubs[]` entries beyond just x-position: `color`, `type`, `name` — add/
+- [x] Edit `deliveryHubs[]` entries beyond just x-position: `color`, `type`, `name` — add/
       remove hubs from the UI (currently hub *pads* are visualized but not fully editable).
-- [ ] Edit `collectionPoint` / `startDepot` beyond `collectionX`/`startX` — explicit Y
+- [x] Edit `collectionPoint` / `startDepot` beyond `collectionX`/`startX` — explicit Y
       override, width.
-- [ ] Edit `outOfBounds` config (surfaceY, colors, drag, buoyancy, monsterDepth) — currently
+- [x] Edit `outOfBounds` config (surfaceY, colors, drag, buoyancy, monsterDepth) — currently
       only visualized, not editable.
-- [ ] Edit `gravityWell` config (position, radius, strength, orbit) — currently only
+- [x] Edit `gravityWell` config (position, radius, strength, orbit) — currently only
       visualized as rings, not editable.
-- [ ] Edit `palette` (skyTop/Mid/Bot, terrainFill, rockEdge, rockGlow, fog) with live swatch
+- [x] Edit `palette` (skyTop/Mid/Bot, terrainFill, rockEdge, rockGlow, fog) with live swatch
       pickers instead of hand-typed hex.
-- [ ] Edit `quests[]` (primary/noCrash/quick helper calls from `levels.js`).
-- [ ] Export a **complete** `registerLevel({...})` block, not just the polygon arrays — so
+- [x] Edit `quests[]` (primary/noCrash/quick helper calls from `levels.js`).
+- [x] Export a **complete** `registerLevel({...})` block, not just the polygon arrays — so
       the editor can round-trip a whole level file, not just its geometry.
 
 ### 2. New hazard types — lasers, etc.
@@ -258,7 +254,7 @@ flavors) cleanly:
       side of the beam it's on. Render as a glowing line in `game.js`'s `drawHazards()`
       (bright pulsing core + soft glow while active, fast-flashing dashed line while
       charging, faint idle guide line otherwise).
-- [x] Update `terrain-editor.html`'s Hazard tab to support the `type` dropdown per shape
+- [x] Update `level-editor.html`'s Hazard tab to support the `type` dropdown per shape
       (zone/laser) and switch its point-editing UI between polygon vertices (zone) and a
       fixed 2-point line (laser), including `onMs`/`offMs` fields and round-tripping
       through both the level-file parser and the export-block generator.
@@ -329,7 +325,7 @@ number is off by more than ~20.
 - Ambient traffic: `physics.ambientTraffic[]`, max 5, models: `'freighter'` | `'pickup'`
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when lander escapes)
-- `waterBodies` are polygons (`{pts:[{x,y},...]}`), edited in terrain-editor.html the same way as `terrainPolygons` — not rects/circles anymore; they have no physics effect, purely decorative (the actual liquid-physics zone is the separate, level-wide `outOfBounds.surfaceY` mechanic).
+- `waterBodies` are polygons (`{pts:[{x,y},...]}`), edited in level-editor.html the same way as `terrainPolygons` — not rects/circles anymore; they have no physics effect, purely decorative (the actual liquid-physics zone is the separate, level-wide `outOfBounds.surfaceY` mechanic).
 - `hazards[]` now branch on `hazard.type` (missing/undefined `type` is treated as `'zone'` for backward compat with older level files):
   - `'zone'` (default) — the original behavior: a closed polygon (`pts: [{x,y},...]`, 3+ points). `physics.pointInPolygon()` tests lander membership; `physics.polygonCentroid()` gives the knockback direction (away from centroid) plus a flat `25 * dt` damage tick.
   - `'laser'` — a line segment (`pts: [{x,y},{x,y}]`, exactly 2 points) with on/off duty-cycle timing (`onMs`/`offMs`, default 1500/1000) tracked via a per-hazard running time accumulator. `physics.distToSegment()` does the point-to-segment distance check (beam `thickness`, default 14px) against the lander only while the beam is "active"; damage is `(h.damagePerSec || 40) * dt / 60` and knockback is perpendicular to the beam, pushed toward whichever side of the line the lander is on. A `warnMs` (default 500) window right before the beam turns on sets `hazard.laserState.charging` so `game.js` can render a telegraph flash; `hazard.laserState.active` gates the actual damage/knockback. Cargo boxes are not affected by lasers yet.
