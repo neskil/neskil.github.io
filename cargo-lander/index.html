@@ -971,6 +971,11 @@
                                 Orbital Gauntlet
                                 <span id="hs-badge-7" style="font-size:0.65rem; color:#ec4899; font-weight:600; margin-top:2px;"></span>
                             </button>
+                            <button class="btn-level" onclick="game.showVehicleSelection('random')" style="border-color: #4ade80;">
+                                <span class="num" style="color: #4ade80;">♾️ Mission ♾️ · Endless</span>
+                                Procedural Sector
+                                <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Infinite Replay</span>
+                            </button>
                         </div>
 
                         <div class="control-help" style="margin-top: 1rem;">
@@ -1240,6 +1245,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
     <script src="levels.js"></script>
+    <script src="levelGenerator.js"></script>
     <!-- Individual level configs (each calls registerLevel) -->
     <script src="level1.js"></script>
     <script src="level2.js"></script>
