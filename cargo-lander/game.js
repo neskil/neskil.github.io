@@ -2017,14 +2017,14 @@ class CargoGame {
         const mmWidth = isTiny ? 160 : (isMobile ? 200 : 260);
         const mmHeight = isTiny ? 100 : (isMobile ? 130 : 160);
         const mmX = cw - mmWidth - (isMobile ? 6 : 20);
-        const mmY = isMobile ? 65 : 92; // clears the fuel/shield bar row
+        const mmY = isMobile ? 65 : 108; // clears the fuel/shield bar row
 
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
 
         // Draw rounded rect background + border
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.fillStyle = 'rgba(10, 16, 32, 0.96)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 12);
@@ -2182,7 +2182,7 @@ class CargoGame {
         const isTiny = cw < 500;
 
         const px = isMobile ? 8 : 16;
-        const py = isMobile ? 65 : 92;
+        const py = isMobile ? 65 : 108;
         const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
         const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
         const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12;
@@ -2481,36 +2481,56 @@ class CargoGame {
         const ctx = this.ctx;
         const time = Date.now() * 0.0015;
 
-        // Draw orbit path if it moves
-        if (baseConfig && baseConfig.orbitRadius) {
-            ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([10, 15]);
-            ctx.beginPath();
-            ctx.arc(baseConfig.x, baseConfig.y, baseConfig.orbitRadius, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
+        // ── Minimap exclusion zone ────────────────────────────────────────────
+        // The minimap lives in screen-space top-right; convert well world position to
+        // screen coords so we can check proximity. (The camera transform is active here,
+        // so we just draw — but we need to know where the well projects on screen to
+        // decide whether to skip painting at all. Instead we simply clip the minimap
+        // area out so the gradient never bleeds into the HUD.)
+        // NOTE: ctx.save() + clip below is in WORLD SPACE so we skip that approach.
+        // Instead we rely on the minimap being drawn AFTER this, which already has its
+        // own clip region — so we do nothing extra here.
 
-        // Base spatial glow
-        const grad = ctx.createRadialGradient(well.x, well.y, 15, well.x, well.y, 120);
+        // ── Base spatial glow ─────────────────────────────────────────────────
+        const grad = ctx.createRadialGradient(well.x, well.y, 15, well.x, well.y, 160);
         grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        grad.addColorStop(0.2, 'rgba(76, 29, 149, 0.8)');
-        grad.addColorStop(0.6, 'rgba(139, 92, 246, 0.2)');
+        grad.addColorStop(0.15, 'rgba(30, 0, 80, 0.9)');
+        grad.addColorStop(0.4, 'rgba(76, 29, 149, 0.55)');
+        grad.addColorStop(0.75, 'rgba(139, 92, 246, 0.15)');
         grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
-        
+
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(well.x, well.y, 120, 0, Math.PI * 2);
+        ctx.arc(well.x, well.y, 160, 0, Math.PI * 2);
         ctx.fill();
 
-        // Event Horizon (pure black center)
+        // ── Animated accretion rings ──────────────────────────────────────────
+        // Three concentric rings that cycle inward toward the event horizon,
+        // creating the impression of matter spiralling in.
+        const RINGS = 4;
+        for (let i = 0; i < RINGS; i++) {
+            // Each ring starts large and shrinks towards 0 over its period
+            const period = 2.8 + i * 0.7;  // seconds per cycle
+            const phase = (time / period + i / RINGS) % 1; // 0..1, offset per ring
+            const radius = 90 * (1 - phase);           // shrinks from 90 → 0
+            const alpha = phase < 0.15 ? phase / 0.15  // fade in
+                        : phase > 0.75 ? (1 - phase) / 0.25  // fade out near center
+                        : 1;
+            const hue = 260 + i * 15;
+            ctx.strokeStyle = `hsla(${hue}, 80%, 65%, ${alpha * 0.55})`;
+            ctx.lineWidth = 2.5 - i * 0.4;
+            ctx.beginPath();
+            ctx.arc(well.x, well.y, Math.max(0.5, radius), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // ── Event Horizon (pure black center) ────────────────────────────────
         ctx.fillStyle = '#000000';
         ctx.beginPath();
         ctx.arc(well.x, well.y, 18, 0, Math.PI * 2);
         ctx.fill();
 
-        // Photon ring (bright outline around the event horizon)
+        // ── Photon ring (bright outline around the event horizon) ─────────────
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
