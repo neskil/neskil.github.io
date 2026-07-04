@@ -133,7 +133,12 @@ canvas{display:block}
           <label>PadScale</label><input type="number" step="0.1" id="cfg-padScale" onchange="setCfg('padScale', +this.value)">
           <label style="width:40px;margin-left:4px">Target</label><input type="number" id="cfg-targetCargo" onchange="setCfg('targetCargo', +this.value)">
         </div>
-        <div class="row"><label>Types</label><input type="text" id="cfg-allowedTypes" placeholder="e.g. normal, red" onchange="setCfg('allowedTypes', this.value)"></div>
+        <div class="row">
+          <label>Types</label><input type="text" id="cfg-allowedTypes" placeholder="e.g. normal, red" onchange="setCfg('allowedTypes', this.value)">
+        </div>
+        <div class="row">
+          <label>Heavy</label><input type="checkbox" id="cfg-heavyCargo" onchange="setCfg('heavyCargo', this.checked)">
+        </div>
       </div>
     </details>
     <details>
@@ -185,6 +190,7 @@ canvas{display:block}
       <button class="btn on" id="lyr-terrain" onclick="setLayer('terrain')">Terrain</button>
       <button class="btn" id="lyr-water" onclick="setLayer('water')">Water</button>
       <button class="btn" id="lyr-hazard" onclick="setLayer('hazard')">Hazard</button>
+      <button class="btn" id="lyr-segments" onclick="setLayer('segments')">Segments</button>
     </div>
   </div>
   <div id="poly-list"></div>
@@ -207,11 +213,17 @@ canvas{display:block}
         <option value="pickup">Fuel/Cash Ring</option>
       </select>
     </div>
-    <div id="laser-timing-row" style="display:none">
-      <label>onMs:</label>
-      <input type="number" id="laser-onms" class="cinput" onchange="setHazardField('onMs', this.value)">
-      <label>offMs:</label>
-      <input type="number" id="laser-offms" class="cinput" onchange="setHazardField('offMs', this.value)">
+    <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+      <div class="row">
+        <label>onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:40px" onchange="setHazardField('onMs', this.value)">
+        <label>offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:40px" onchange="setHazardField('offMs', this.value)">
+        <label>phase:</label><input type="number" id="laser-phase" class="cinput" style="width:40px" onchange="setHazardField('phaseOffset', this.value)">
+      </div>
+      <div class="row">
+        <label>warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:40px" onchange="setHazardField('warnMs', this.value)">
+        <label>dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:30px" onchange="setHazardField('damagePerSec', this.value)">
+        <label>thick:</label><input type="number" id="laser-thick" class="cinput" style="width:30px" onchange="setHazardField('thickness', this.value)">
+      </div>
     </div>
     <div id="pt-list-wrap"><div id="pt-list"></div></div>
     <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
@@ -333,11 +345,11 @@ const S = {
 
 // ── Shape-layer helpers (terrain / water / hazard share the same editing code) ─
 function listForLayer(layer) {
-  return layer === 'water' ? S.waterPolys : layer === 'hazard' ? S.hazardPolys : S.polygons;
+  return layer === 'water' ? S.waterPolys : layer === 'hazard' ? S.hazardPolys : layer === 'segments' ? S.segments : S.polygons;
 }
 function activeList() { return listForLayer(S.selLayer); }
 function syncLayerButtonsUI() {
-  ['terrain','water','hazard'].forEach(l => document.getElementById('lyr-'+l).className = 'btn'+(l===S.selLayer?' on':''));
+  ['terrain','water','hazard','segments'].forEach(l => document.getElementById('lyr-'+l).className = 'btn'+(l===S.selLayer?' on':''));
   document.getElementById('add-shape-btn').textContent = '+ ' + (S.selLayer.charAt(0).toUpperCase() + S.selLayer.slice(1));
 }
 function setLayer(layer) {
@@ -510,7 +522,11 @@ function applyConfig(cfg) {
   // migration below (it ray-casts against S.polygons), so build these after.
   S.waterPolys  = (cfg.waterBodies || []).map(waterToShape);
   S.hazardPolys = (cfg.hazards     || []).map(hazardToShape);
-  S.segments  = cfg.segments || [];
+  S.segments  = (cfg.segments || []).map((seg, i) => ({
+    pts: [{x: seg.x1, y: seg.y1}, {x: seg.x2, y: seg.y2}],
+    comment: 'Segment ' + (i+1),
+    hidden: false
+  }));
   S.hubs      = cfg.deliveryHubs || [];
   S.gravWell  = cfg.gravityWell  || null;
   S.oob       = cfg.outOfBounds  || null;
@@ -527,7 +543,8 @@ function applyConfig(cfg) {
   S.cfg = {
     name: cfg.name || '', missionTitle: cfg.missionTitle || '', description: cfg.description || '', hint: cfg.hint || '',
     gravity: cfg.gravity ?? 0.11, wind: cfg.wind ?? 0, budget: cfg.budget ?? 1000, timeLimit: cfg.timeLimit ?? 300,
-    targetCargo: cfg.targetCargo ?? 3, allowedTypes: cfg.allowedTypes || ['normal', 'red', 'blue', 'green']
+    targetCargo: cfg.targetCargo ?? 3, allowedTypes: cfg.allowedTypes || ['normal', 'red', 'blue', 'green'],
+    heavyCargo: !!cfg.heavyCargo
   };
   S.quests = { primary: '', nocrash: false, nocargo: false, quick: null, worm: false };
   if (cfg.quests) {
@@ -566,6 +583,7 @@ function applyConfig(cfg) {
   document.getElementById('cfg-padScale').value = S.padScale;
   document.getElementById('cfg-targetCargo').value = S.cfg.targetCargo;
   document.getElementById('cfg-allowedTypes').value = S.cfg.allowedTypes.join(', ');
+  document.getElementById('cfg-heavyCargo').checked = S.cfg.heavyCargo;
 
   document.getElementById('quest-primary').value = S.quests.primary;
   document.getElementById('quest-nocrash').checked = S.quests.nocrash;
@@ -624,7 +642,14 @@ function waterToShape(wb, i) {
 function hazardToShape(h, i) {
   if (Array.isArray(h.pts)) {
     const shape = { pts: h.pts.map(p=>({x:p.x,y:p.y})), comment: h.comment || '', hidden:false, type: h.type || 'zone' };
-    if (shape.type === 'laser') { shape.onMs = h.onMs ?? 1500; shape.offMs = h.offMs ?? 1000; }
+    if (shape.type === 'laser') {
+      shape.onMs = h.onMs ?? 1500;
+      shape.offMs = h.offMs ?? 1000;
+      shape.phaseOffset = h.phaseOffset ?? 0;
+      shape.warnMs = h.warnMs ?? 400;
+      shape.damagePerSec = h.damagePerSec ?? 40;
+      shape.thickness = h.thickness ?? 14;
+    }
     return shape;
   }
   const cx = h.x ?? 0, cy = h.y ?? 0, r = h.radius ?? 40;
@@ -904,10 +929,16 @@ function drawPolygons() {
 
 function drawSegments() {
   S.segments.forEach((seg,i) => {
-    const a = w2s(seg.x1,seg.y1), b = w2s(seg.x2,seg.y2);
+    if (seg.hidden || !seg.pts || seg.pts.length < 2) return;
+    const a = w2s(seg.pts[0].x, seg.pts[0].y), b = w2s(seg.pts[1].x, seg.pts[1].y);
     ctx.save();
     ctx.strokeStyle = '#ff9966'; ctx.lineWidth = 2.5;
-    ctx.setLineDash([6,4]);
+    if (S.selLayer === 'segments' && i === S.selPoly) {
+      ctx.strokeStyle = '#fff';
+      ctx.setLineDash([]);
+    } else {
+      ctx.setLineDash([6,4]);
+    }
     ctx.beginPath(); ctx.moveTo(a.sx,a.sy); ctx.lineTo(b.sx,b.sy); ctx.stroke();
     ctx.setLineDash([]);
     [a,b].forEach(({sx,sy}) => {
@@ -915,7 +946,7 @@ function drawSegments() {
     });
     const mx=(a.sx+b.sx)/2, my=(a.sy+b.sy)/2;
     ctx.fillStyle='#ff996688'; ctx.font='9px monospace'; ctx.textAlign='center';
-    ctx.fillText(`seg${i}`, mx, my-7); ctx.textAlign='left';
+    ctx.fillText(seg.comment || `seg${i}`, mx, my-7); ctx.textAlign='left';
     ctx.restore();
   });
 }
@@ -1174,9 +1205,13 @@ function renderSidebar() {
     d.onclick = () => { S.selPoly=i; S.selPt=-1; renderSidebar(); renderPtList(); draw(); };
     listEl.appendChild(d);
   });
+  renderPtUI();
+}
 
-  const hasPoly = S.selPoly>=0 && S.selPoly<arr.length;
-  document.getElementById('pt-panel').style.display = hasPoly?'':'none';
+function renderPtUI() {
+  const arr = activeList();
+  const hasPoly = arr.length > 0 && S.selPoly >= 0 && S.selPoly < arr.length;
+  document.getElementById('pt-panel').style.display = hasPoly ? 'block' : 'none';
   const hazardRow = document.getElementById('hazard-type-row');
   const timingRow = document.getElementById('laser-timing-row');
   if (hasPoly) {
@@ -1189,6 +1224,10 @@ function renderSidebar() {
         timingRow.style.display = '';
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
         document.getElementById('laser-offms').value = poly.offMs ?? 1000;
+        document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;
+        document.getElementById('laser-warn').value = poly.warnMs ?? 400;
+        document.getElementById('laser-dmg').value = poly.damagePerSec ?? 40;
+        document.getElementById('laser-thick').value = poly.thickness ?? 14;
       } else {
         timingRow.style.display = 'none';
       }
@@ -1296,6 +1335,8 @@ function addShape() {
     shape = { pts:[{x:cx-100,y:cy},{x:cx+100,y:cy},{x:cx+100,y:cy+48},{x:cx-100,y:cy+48}], comment:'', hidden:false, hasBoat:false };
   } else if (S.selLayer === 'hazard') {
     shape = { pts:[{x:cx-40,y:cy-40},{x:cx+40,y:cy-40},{x:cx+50,y:cy},{x:cx+40,y:cy+40},{x:cx-40,y:cy+40},{x:cx-50,y:cy}], comment:'', hidden:false, type:'zone' };
+  } else if (S.selLayer === 'segments') {
+    shape = { pts:[{x:cx-50,y:cy},{x:cx+50,y:cy}], comment:'New segment', hidden:false };
   } else {
     shape = { pts:[{x:cx-60,y:cy},{x:cx+60,y:cy},{x:cx,y:cy-100}], comment:'New polygon', hidden:false };
   }
@@ -1372,7 +1413,7 @@ function insertAtCursor() {
 // ── Export ──
 function downloadJS() {
   const jsonStr = buildOut();
-  const fileContent = "levels.push(" + jsonStr + ");";
+  const fileContent = "registerLevel(" + jsonStr + ");";
   const blob = new Blob([fileContent], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1404,6 +1445,7 @@ function buildOut() {
   if (S.padScale !== 1) lines.push(`  padScale: ${S.padScale},`);
   lines.push(`  targetCargo: ${S.cfg.targetCargo},`);
   if (S.cfg.allowedTypes && S.cfg.allowedTypes.length) lines.push(`  allowedTypes: ${JSON.stringify(S.cfg.allowedTypes)},`);
+  if (S.cfg.heavyCargo) lines.push(`  heavyCargo: true,`);
 
   lines.push(`  startX: ${S.startX},`);
   if (S.startY != null) lines.push(`  startY: ${S.startY},`);
@@ -1489,11 +1531,24 @@ function buildOut() {
       if (h.type === 'laser') {
         lines.push(`      onMs: ${h.onMs ?? 1500},`);
         lines.push(`      offMs: ${h.offMs ?? 1000},`);
+        if (h.phaseOffset) lines.push(`      phaseOffset: ${h.phaseOffset},`);
+        if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
+        if (h.damagePerSec) lines.push(`      damagePerSec: ${h.damagePerSec},`);
+        if (h.thickness) lines.push(`      thickness: ${h.thickness},`);
       }
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));
       lines.push('      ]');
       lines.push(`    }${i<S.hazardPolys.length-1?',':''}`);
+    });
+    lines.push('  ],');
+  }
+
+  if (S.segments.length) {
+    lines.push('  segments: [');
+    S.segments.forEach((seg, i) => {
+      if (!seg.pts || seg.pts.length < 2) return;
+      lines.push(`    { x1: ${Math.round(seg.pts[0].x)}, y1: ${Math.round(seg.pts[0].y)}, x2: ${Math.round(seg.pts[1].x)}, y2: ${Math.round(seg.pts[1].y)} }${i<S.segments.length-1?',':''}`);
     });
     lines.push('  ],');
   }
