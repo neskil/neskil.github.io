@@ -114,16 +114,47 @@ function generateProceduralLevel(craziness = 1) {
             }
         } else {
             // Random walk terrain
-            let stepX = 50 + Math.random() * 100;
-            currentX += stepX;
-            let stepY = (Math.random() - 0.5) * 200;
+            let stepX = 50 + Math.random() * 150;
             
-            // Prevent going too high or low
-            if (currentY + stepY < 300) stepY = Math.abs(stepY); // Push down
-            if (currentY + stepY > 900) stepY = -Math.abs(stepY); // Push up
-            
-            currentY += stepY;
-            pts.push({ x: currentX, y: currentY });
+            // Overhang logic
+            if (craziness >= 2 && Math.random() < 0.2) {
+                // Generate an overhang by going backwards and down
+                let overX = currentX - (30 + Math.random() * 50);
+                let overY = currentY + (50 + Math.random() * 100);
+                pts.push({ x: overX, y: overY });
+                
+                // Then continue forward from the overhang
+                currentX += stepX;
+                currentY = overY + (Math.random() - 0.5) * 100;
+                pts.push({ x: currentX, y: currentY });
+            } else {
+                currentX += stepX;
+                // More Y variance based on craziness
+                let variance = 200 + craziness * 150;
+                let stepY = (Math.random() - 0.5) * variance;
+                
+                // Prevent going too high or low
+                if (currentY + stepY < 200) stepY = Math.abs(stepY); // Push down
+                if (currentY + stepY > 1000) stepY = -Math.abs(stepY); // Push up
+                
+                currentY += stepY;
+                pts.push({ x: currentX, y: currentY });
+            }
+        }
+    }
+    
+    // Add Hazards for Insane (craziness >= 3) or sometimes hard (craziness >= 2)
+    let hazards = [];
+    if (craziness >= 2) {
+        let numHazards = craziness === 2 ? Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < numHazards; i++) {
+            let hx = 500 + Math.random() * (targetLength - 1000);
+            let hy = 300 + Math.random() * 500;
+            if (Math.random() > 0.5) {
+                hazards.push({ type: 'laser', x: hx, y: hy, endX: hx + 200 + Math.random() * 100, endY: hy, onTime: 1500, offTime: 1500, offset: Math.random() * 2000 });
+            } else {
+                hazards.push({ type: 'drone', x: hx, y: hy, patrolRadius: 200 + Math.random() * 200, speed: 1 + Math.random() });
+            }
         }
     }
     
@@ -154,7 +185,8 @@ function generateProceduralLevel(craziness = 1) {
         startX: Math.floor(hqX),
         collectionX: Math.floor(collectionX),
         terrainPolygons: [pts],
-        waterBodies: [],
+        hazards: hazards,
+        collectibles: [],
         padScale: 1.0,
         targetCargo: targetCargo,
         budget: budget,

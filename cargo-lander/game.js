@@ -852,8 +852,6 @@ class CargoGame {
     }
 
     toggleGrapple() {
-        if (this.updateWeather) this.updateWeather(dt);
-
         const lander = this.physics.lander;
         if (!lander) return;
 
@@ -1782,6 +1780,25 @@ class CargoGame {
                     ctx.restore();
                 }
             }
+        } else if (this.physics.lander && this.physics.lander.vehicleType === 'drone' && !this.physics.lander.grabbedBoxId) {
+            // Give the drone a hint to attach if it's near an ungrabbed, unvacuumed box on the ground
+            const lndr = this.physics.lander;
+            const attachableBox = this.physics.boxes.find(b => {
+                if (b.type === 'drone' || b.vacuumed || b.onDeck) return false;
+                const dx = lndr.x - b.x;
+                const dy = lndr.y - b.y;
+                return Math.sqrt(dx*dx + dy*dy) < 60;
+            });
+            if (attachableBox) {
+                ctx.save();
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#fde047';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.fillText('PRESS SPACE TO ATTACH', lndr.x, lndr.y - 30);
+                ctx.restore();
+            }
         }
 
         // 8.5 Draw Floating Texts
@@ -2224,6 +2241,81 @@ class CargoGame {
         ctx.restore();
     }
 
+    updateWeather(dt) {
+        if (!this.weather || this.weather === 'none' || this.weather === 'fog') return;
+        if (!this.weatherParticles) this.weatherParticles = [];
+        
+        // Spawn particles
+        if (Math.random() < 0.8) {
+            this.weatherParticles.push({
+                x: this.camera.x + (Math.random() - 0.5) * (this.canvas.width / this.camera.zoom) * 1.5,
+                y: this.camera.y - (this.canvas.height / this.camera.zoom) * 0.6,
+                vx: this.weather === 'snow' ? (Math.random() - 0.5) * 2 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (Math.random() - 0.5) * 3),
+                vy: this.weather === 'snow' ? Math.random() * 2 + 1 : (this.weather === 'rain' ? Math.random() * 8 + 8 : Math.random() * 2 + 1),
+                size: this.weather === 'snow' ? Math.random() * 3 + 1 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : Math.random() * 4 + 2),
+                type: this.weather
+            });
+        }
+        
+        for (let i = this.weatherParticles.length - 1; i >= 0; i--) {
+            const p = this.weatherParticles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            if (p.type === 'snow' || p.type === 'ash') {
+                p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5 * dt;
+            }
+            if (p.y > this.camera.y + (this.canvas.height / this.camera.zoom) * 0.6) {
+                this.weatherParticles.splice(i, 1);
+            }
+        }
+    }
+
+    drawWeather() {
+        if (!this.weather || this.weather === 'none' || this.weather === 'fog' || !this.weatherParticles) return;
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(this.canvas.width / 2 + (this.screenShake?.x || 0), this.canvas.height / 2 + (this.screenShake?.y || 0));
+        ctx.scale(this.camera.zoom, this.camera.zoom);
+        ctx.translate(-this.camera.x, -this.camera.y);
+
+        if (this.weather === 'snow') {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        } else if (this.weather === 'rain') {
+            ctx.fillStyle = 'rgba(150, 200, 255, 0.4)';
+        } else if (this.weather === 'ash') {
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.6)';
+        } else if (this.weather === 'bubbles') {
+            ctx.strokeStyle = 'rgba(200, 255, 255, 0.5)';
+            ctx.lineWidth = 1;
+        }
+
+        ctx.beginPath();
+        for (const p of this.weatherParticles) {
+            if (p.type === 'bubbles') {
+                ctx.moveTo(p.x + p.size, p.y);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            } else if (p.type === 'rain') {
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - p.vx * 2, p.y - p.vy * 2);
+            } else {
+                ctx.moveTo(p.x + p.size, p.y);
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            }
+        }
+        
+        if (this.weather === 'rain') {
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        } else if (this.weather === 'bubbles') {
+            ctx.stroke();
+        } else {
+            ctx.fill();
+        }
+        
+        ctx.restore();
+    }
+
     drawMenuBackgroundEntity() {
         if (!this.menuEntities) {
             this.menuEntities = [
@@ -2376,39 +2468,51 @@ class CargoGame {
 
     drawGravityWell(well) {
         const ctx = this.ctx;
-        const time = Date.now() * 0.003;
+        const time = Date.now() * 0.0015;
 
-        // Draw circular ripples
-        ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(well.x, well.y, well.radius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Draw swirling core
-        const grad = ctx.createRadialGradient(well.x, well.y, 5, well.x, well.y, 80);
-        grad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
-        grad.addColorStop(0.3, 'rgba(76, 29, 149, 0.6)');
-        grad.addColorStop(0.7, 'rgba(139, 92, 246, 0.15)');
+        // Base spatial glow
+        const grad = ctx.createRadialGradient(well.x, well.y, 15, well.x, well.y, 120);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        grad.addColorStop(0.2, 'rgba(76, 29, 149, 0.8)');
+        grad.addColorStop(0.6, 'rgba(139, 92, 246, 0.2)');
         grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(well.x, well.y, 80, 0, Math.PI * 2);
+        ctx.arc(well.x, well.y, 120, 0, Math.PI * 2);
         ctx.fill();
 
-        // Swirling dust lines
+        // Accretion disk (simulated 3D ring)
         ctx.save();
         ctx.translate(well.x, well.y);
-        ctx.rotate(-time * 0.4);
-        ctx.strokeStyle = 'rgba(167, 139, 250, 0.4)';
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 3; i++) {
-            ctx.rotate(Math.PI * 2 / 3);
-            ctx.beginPath();
-            ctx.arc(0, 0, 30 + i * 15, 0, Math.PI, false);
-            ctx.stroke();
-        }
+        ctx.rotate(-time); 
+        ctx.scale(1, 0.25); // Squash to make it look like a tilted disk
+        
+        const diskGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, 140);
+        diskGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        diskGrad.addColorStop(0.18, 'rgba(255, 255, 255, 0.9)');
+        diskGrad.addColorStop(0.4, 'rgba(250, 204, 21, 0.6)');
+        diskGrad.addColorStop(0.8, 'rgba(239, 68, 68, 0.2)');
+        diskGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = diskGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, 140, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
+
+        // Event Horizon (pure black center)
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(well.x, well.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Photon ring (bright outline around the event horizon)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(well.x, well.y, 18.5, 0, Math.PI * 2);
+        ctx.stroke();
     }
 
     drawMonster() {
@@ -3072,13 +3176,28 @@ class CargoGame {
         ctx.save();
 
         for (const seg of segs) {
-            const color = seg.color || pal.rockEdge || '#f97316';
+            let color = seg.color || pal.rockEdge || '#f97316';
+            let glow = pal.rockGlow || 'rgba(249,115,22,';
+            
+            if (seg.bouncy) {
+                color = '#22d3ee'; // cyan
+                glow = 'rgba(34,211,238,';
+            } else if (seg.sticky) {
+                color = '#d946ef'; // fuchsia
+                glow = 'rgba(217,70,239,';
+            }
+
             const pulse = 0.7 + 0.3 * Math.sin(now * 0.002 + (seg.x1 + seg.y1) * 0.01);
 
             // Glow halo
-            ctx.strokeStyle = (pal.rockGlow || 'rgba(249,115,22,') + (0.18 * pulse) + ')';
-            ctx.lineWidth = 14;
+            ctx.strokeStyle = glow + (0.18 * pulse) + ')';
+            ctx.lineWidth = seg.sticky ? 20 : 14;
             ctx.lineCap = 'round';
+            if (seg.bouncy) {
+                ctx.setLineDash([15, 10]);
+            } else {
+                ctx.setLineDash([]);
+            }
             ctx.beginPath();
             ctx.moveTo(seg.x1, seg.y1);
             ctx.lineTo(seg.x2, seg.y2);
@@ -3086,14 +3205,16 @@ class CargoGame {
 
             // Core line
             ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = seg.sticky ? 5 : 3;
             ctx.beginPath();
             ctx.moveTo(seg.x1, seg.y1);
             ctx.lineTo(seg.x2, seg.y2);
             ctx.stroke();
+            
+            ctx.setLineDash([]); // Reset line dash
 
             // Bright highlight edge
-            ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+            ctx.strokeStyle = seg.bouncy ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.55)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(seg.x1, seg.y1);

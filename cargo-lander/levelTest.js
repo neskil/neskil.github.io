@@ -34,9 +34,9 @@ registerLevel({
 
     // ── Segments — one floating platform, one ramp, one wall ─────────────────
     segments: [
-        { x1: 350, y1: 460, x2: 500, y2: 460 },           // flat platform
+        { x1: 350, y1: 460, x2: 500, y2: 460, sticky: true },           // sticky flat platform
         { x1: 260, y1: 520, x2: 350, y2: 460 },           // ramp up to it
-        { x1: 950, y1: 350, x2: 950, y2: 500 },           // vertical wall
+        { x1: 950, y1: 350, x2: 950, y2: 500, bouncy: true },           // bouncy vertical wall
         { x1: 1050, y1: 420, x2: 1150, y2: 420 },         // another platform
     ],
 
