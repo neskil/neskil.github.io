@@ -1735,7 +1735,7 @@ class CargoGame {
         const level = levels[this.currentLevelIndex];
         if (level && level.gravityWell && this.gameState === 'playing') {
             if (!this.shaderOverlay || !this.shaderOverlay.gl) {
-                this.drawGravityWell(this.physics.gravityWellPos || level.gravityWell);
+                this.drawGravityWell(this.physics.gravityWellPos || level.gravityWell, level.gravityWell);
             }
         }
 
@@ -2477,9 +2477,20 @@ class CargoGame {
         }
     }
 
-    drawGravityWell(well) {
+    drawGravityWell(well, baseConfig) {
         const ctx = this.ctx;
         const time = Date.now() * 0.0015;
+
+        // Draw orbit path if it moves
+        if (baseConfig && baseConfig.orbitRadius) {
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 15]);
+            ctx.beginPath();
+            ctx.arc(baseConfig.x, baseConfig.y, baseConfig.orbitRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
 
         // Base spatial glow
         const grad = ctx.createRadialGradient(well.x, well.y, 15, well.x, well.y, 120);
