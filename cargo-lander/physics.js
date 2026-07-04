@@ -1,7 +1,7 @@
 // CargoLander - Custom 2D Physics Engine
 class CargoPhysics {
     constructor() {
-        this.gravity = 0.11;
+        this.gravity = 0.05;
         this.wind = 0;
         this.terrainPoints = [];
         this.deliveryHubs = [];
@@ -52,7 +52,7 @@ class CargoPhysics {
         
         this.levelWidth = levelConfig.levelWidth || maxX;
         this.levelHeight = levelConfig.levelHeight || maxY;
-        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.09;
+        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.05;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         this.currentWind = this.wind;
         
@@ -397,14 +397,28 @@ class CargoPhysics {
         const typeList = emojis[type] || emojis['normal'];
         const randomEmoji = typeList[Math.floor(Math.random() * typeList.length)];
 
-        // Spawn from hatch at top of the warehouse building
+        // Determine spawn location based on lander type and position
         const _wbX = this.collectionPoint.x - 18;
         const _wbW = this.collectionPoint.width + 36;
         const _hatchX = _wbX + _wbW * 0.42;
+        
+        let spawnX = _hatchX + (Math.random() - 0.5) * 8;
+        let spawnY = this.collectionPoint.y - 88;
+        
+        if (this.lander && this.lander.landed && this.lander.currentPad === 'collection') {
+            if (this.lander.vehicleType === 'drone') {
+                spawnX = this.lander.x + 30 + (Math.random() * 10); // Spawns to the right of the drone
+                spawnY = this.lander.y - 10;
+            } else {
+                spawnX = this.lander.x + (Math.random() - 0.5) * 5; // Spawns exactly over the basic lander
+                spawnY = this.lander.y - 60;
+            }
+        }
+
         const newBox = {
             id: Math.random().toString(36).substr(2, 9),
-            x: _hatchX + (Math.random() - 0.5) * 8,
-            y: this.collectionPoint.y - 88,
+            x: spawnX,
+            y: spawnY,
             vx: (Math.random() - 0.5) * 0.5,
             vy: 0.5,
             type: type, // 'red', 'blue', 'green'
@@ -711,8 +725,32 @@ class CargoPhysics {
                             vy: Math.sin(angle) * speed,
                             state: 'lunging',
                             trail: [],
-                            lungeTargetX: lander.x,
-                            lungeTargetY: lander.y,
+                            length: 35
+                        };
+                        if (window.CargoAudio) CargoAudio.playCrash();
+                    }
+                }
+            }
+            
+            // Roof Sandworm: Prevent players from flying too high over the level
+            if (!this.sandWorm && !lander.crashed) {
+                // Determine a dynamic roof based on the highest point in the level, or just use a fixed high threshold
+                // If lander goes above y = -600 (or higher than the level starts), trigger a drop worm!
+                if (lander.y < -600) {
+                    if (Math.random() < 0.02 * dt) {
+                        this.sandWormSpawned = true;
+                        const spawnX = lander.x + (Math.random() - 0.5) * 100;
+                        const spawnY = lander.y - 400; // spawn above them
+                        const angle = Math.atan2(lander.y - spawnY, lander.x - spawnX);
+                        const speed = 30;
+                        this.sandWorm = {
+                            x: spawnX, y: spawnY,
+                            vx: Math.cos(angle) * speed,
+                            vy: Math.sin(angle) * speed,
+                            state: 'lunging',
+                            trail: [],
+                            length: 40,
+                            isRoofWorm: true
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
@@ -761,7 +799,10 @@ class CargoPhysics {
                     if (lander.integrity <= 0) this.triggerExplosion();
                 }
 
-                if (w.y > this.levelHeight + 400 && w.state === 'retracting') {
+                if (w.y > this.levelHeight + 400 && w.state === 'retracting' && !w.isRoofWorm) {
+                    this.sandWorm = null;
+                }
+                if (w.y < -1200 && w.state === 'retracting' && w.isRoofWorm) {
                     this.sandWorm = null;
                 }
             }
