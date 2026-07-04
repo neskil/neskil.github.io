@@ -853,10 +853,17 @@ class CargoPhysics {
                 const w = this.sandWorm;
 
                 if (w.state === 'lunging') {
-                    w.vy += 0.3 * dt;
-                    if (w.vy > 0) w.state = 'retracting';
+                    if (w.isRoofWorm) {
+                        w.vy -= 0.5 * dt;
+                        if (w.vy < 0) w.state = 'retracting';
+                    } else {
+                        w.vy += 0.5 * dt;
+                        if (w.vy > 0) w.state = 'retracting';
+                    }
                 } else {
-                    w.vy += 0.8 * dt;
+                    // Slowly retract
+                    w.vy = w.isRoofWorm ? -4.0 : 4.0;
+                    w.vx *= Math.pow(0.95, dt);
                 }
 
                 w.x += w.vx * dt;
@@ -1263,8 +1270,8 @@ class CargoPhysics {
         // Animate the well position so it drifts around its origin
         this.gravityWellTime = (this.gravityWellTime || 0) + dt * 0.008;
         const orbitR = well.orbitRadius || 180;
-        const wx = well.x + Math.sin(this.gravityWellTime) * orbitR;
-        const wy = well.y + Math.cos(this.gravityWellTime * 0.65) * orbitR * 0.55;
+        const wx = well.x + Math.sin(this.gravityWellTime * 0.8) * orbitR;
+        const wy = well.y + Math.cos(this.gravityWellTime * 0.8) * orbitR;
 
         // Expose current position so renderer can draw it
         // Implement a 4-second pulse cycle for the gravity well strength
