@@ -22,13 +22,18 @@ registerLevel({
     gravityWell: {
         x: 500,
         y: 400,
-        strength: 0.8,
+        strength: 0.35,
         radius: 200,
         orbitRadius: 200,   // well orbits its base position (Lissajous phase)
     },
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
+        // Ceiling
+        [
+            {x: -400, y: -200}, {x: 1800, y: -200},
+            {x: 1800, y: 0}, {x: -400, y: 0}
+        ],
         // Ground — valley floor shaped around the gravity well;
         [
             // Left approach and HQ spawn area
