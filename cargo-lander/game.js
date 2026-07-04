@@ -2017,7 +2017,7 @@ class CargoGame {
         const mmWidth = isTiny ? 160 : (isMobile ? 200 : 260);
         const mmHeight = isTiny ? 100 : (isMobile ? 130 : 160);
         const mmX = cw - mmWidth - (isMobile ? 6 : 20);
-        const mmY = isMobile ? 65 : 108; // clears the fuel/shield bar row
+        const mmY = isMobile ? 52 : 64; // clears the HUD bar (top:8px + ~44px height)
 
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
@@ -2182,7 +2182,7 @@ class CargoGame {
         const isTiny = cw < 500;
 
         const px = isMobile ? 8 : 16;
-        const py = isMobile ? 65 : 108;
+        const py = isMobile ? 52 : 64;
         const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
         const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
         const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12;
@@ -5927,9 +5927,9 @@ class CargoGame {
         const wind = this.physics.wind;
         if (Math.abs(wind) < 0.05) return;
 
-        // Position at top center, below HUD bar
+        // Position at top center, just below HUD bar (top:8px + ~44px height + 8px gap)
         const cx = this.canvas.width / 2;
-        const cy = 65;
+        const cy = 80;
 
         ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
         ctx.font = '600 12px sans-serif';
