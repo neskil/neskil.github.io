@@ -114,7 +114,7 @@
         }
 
         #hud-overlay {
-            top: 20px;
+            top: 55px;
             left: 20px;
             right: 20px;
             display: none;
@@ -1029,7 +1029,7 @@
             Back to Home
         </a>
         <div
-            style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 100;">
+            style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
             <button id="fullscreen-toggle-btn" class="utility-btn" onclick="game.toggleFullscreen()"
                 title="Toggle Fullscreen" style="font-size:1.1rem;padding:6px 10px;">⛶</button>
             <button id="mute-toggle-btn" class="utility-btn" onclick="game.toggleMuteQuick()" title="Toggle Mute"
@@ -1138,7 +1138,6 @@
                 <div class="hud-stat" id="hud-budget" style="color: #10b981;">Budget: $1000</div>
                 <div class="hud-stat" id="hud-time" style="color: #f59e0b; font-family: monospace; font-size: 1.1em;">
                     03:00</div>
-                
                 <div class="hud-stat">Fuel</div>
                 <div class="gauge-container">
                     <div id="fuel-fill" class="gauge-fill"></div>
@@ -1155,6 +1154,14 @@
                 <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
                     style="padding: 4px 12px; font-size: 12px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);">FINISH &
                     EXTRACT</button>
+
+                <div style="flex:1"></div>
+                <!-- Utility Buttons (Duplicated for HUD coherence) -->
+                <button id="fullscreen-toggle-btn-hud" class="utility-btn" onclick="game.toggleFullscreen()" title="Toggle Fullscreen" style="font-size:1.1rem;padding:6px 10px;">?</button>
+                <button id="mute-toggle-btn-hud" class="utility-btn" onclick="game.toggleMuteQuick()" title="Toggle Mute" style="font-size:1.1rem;padding:6px 10px;">??</button>
+                <button id="mute-btn-hud" class="utility-btn" onclick="game.openSettings()">?? Audio</button>
+                <button id="dev-btn-hud" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">?? Dev</button>
+                <a href="level-editor.html" class="utility-btn" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">??? Editor</a>
             </div>
         </div>
 
@@ -1228,13 +1235,31 @@
                             <span id="hs-badge-7"
                                 style="font-size:0.65rem; color:#ec4899; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" onclick="game.showVehicleSelection('random')"
-                            style="border-color: #4ade80;">
+                        <button class="btn-level" onclick="game.showVehicleSelection('random1')"
+                            style="border-color: #4ade80; margin-bottom: 8px;">
                             <span class="num" style="color: #4ade80;">♾️ Mission ♾️ · Endless</span>
-                            Procedural Sector
-                            <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Infinite
-                                Replay</span>
+                            Procedural Normal
+                            <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Standard Generation</span>
                         </button>
+                        <button class="btn-level" onclick="game.showVehicleSelection('random2')"
+                            style="border-color: #f59e0b; margin-bottom: 8px;">
+                            <span class="num" style="color: #f59e0b;">♾️ Mission ♾️ · Endless</span>
+                            Procedural Crazy
+                            <span style="font-size:0.65rem; color:#f59e0b; font-weight:600; margin-top:2px;">More Hazards & Length</span>
+                        </button>
+                        <button class="btn-level" onclick="game.showVehicleSelection('random3')"
+                            style="border-color: #f43f5e;">
+                            <span class="num" style="color: #f43f5e;">♾️ Mission ♾️ · Endless</span>
+                            Procedural Insane
+                            <span style="font-size:0.65rem; color:#f43f5e; font-weight:600; margin-top:2px;">Extreme Challenge</span>
+                        </button>
+                        <button class="btn-level" onclick="document.getElementById('custom-level-input').click()"
+                            style="border-color: #6366f1; background: rgba(99, 102, 241, 0.1);">
+                            <span class="num" style="color: #818cf8;">📁 Load Custom Level</span>
+                            From .js file
+                            <span style="font-size:0.65rem; color:#6366f1; font-weight:600; margin-top:2px;">Import created levels</span>
+                        </button>
+                        <input type="file" id="custom-level-input" accept=".js" class="hidden" style="display: none;" onchange="game.loadCustomLevel(event)">
                     </div>
 
                     <div class="control-help" style="margin-top: 1rem;">

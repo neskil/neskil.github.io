@@ -29,16 +29,39 @@ const HUB_COLORS = { 'normal': '#38bdf8', 'red': '#ef4444', 'blue': '#3b82f6', '
 
 let proceduralLevelCount = 0;
 
-function generateProceduralLevel() {
+function generateProceduralLevel(craziness = 1) {
     proceduralLevelCount++;
     const biome = BIOMES[Math.floor(Math.random() * BIOMES.length)];
     
-    // Generate mission params
-    const gravity = 0.10 + (Math.random() * 0.06); // 0.10 to 0.16
-    const wind = (Math.random() - 0.5) * 0.002;
-    const targetCargo = 2 + Math.floor(Math.random() * 3); // 2 to 4 boxes
-    const budget = 500 + Math.floor(Math.random() * 1000);
-    const timeLimit = 120 + Math.floor(Math.random() * 120);
+    let targetLength = 2500;
+    let targetCargo = 2;
+    let budget = 1000;
+    let timeLimit = 180;
+    let gravity = 0.035;
+    let wind = 0;
+    
+    if (craziness === 1) {
+        targetLength = 2500 + Math.random() * 1000;
+        targetCargo = 2 + Math.floor(Math.random() * 2);
+        budget = 800 + Math.random() * 500;
+        timeLimit = 180 + Math.random() * 60;
+        gravity = 0.035 + Math.random() * 0.01;
+        wind = (Math.random() - 0.5) * 0.0005;
+    } else if (craziness === 2) {
+        targetLength = 4000 + Math.random() * 2000;
+        targetCargo = 3 + Math.floor(Math.random() * 3);
+        budget = 1500 + Math.random() * 500;
+        timeLimit = 240 + Math.random() * 120;
+        gravity = 0.04 + Math.random() * 0.02;
+        wind = (Math.random() - 0.5) * 0.002;
+    } else if (craziness === 3) {
+        targetLength = 6000 + Math.random() * 4000;
+        targetCargo = 5 + Math.floor(Math.random() * 4);
+        budget = 2500 + Math.random() * 1000;
+        timeLimit = 360 + Math.random() * 180;
+        gravity = 0.05 + Math.random() * 0.04;
+        wind = (Math.random() - 0.5) * 0.004;
+    }
 
     // Build terrain
     let pts = [];
@@ -64,7 +87,7 @@ function generateProceduralLevel() {
     let hqX = 0, collectionX = 0;
     let hubs = [];
     
-    while (currentX < 2500) {
+    while (currentX < targetLength) {
         if (activePad < pads.length && currentX >= nextPadX) {
             // Draw flat pad
             currentY = currentY + (Math.random() - 0.5) * 100; // Step to pad height
@@ -122,7 +145,7 @@ function generateProceduralLevel() {
         monsterDepth: 1500
     };
 
-    return {
+    return { craziness,
         name: `Mission ♾️ · Endless`,
         missionTitle: `Sector ${Math.floor(Math.random() * 9999)} — ${biome.name}`,
         description: `A procedurally generated delivery contract in the ${biome.name}. Unpredictable terrain and weather conditions. Be careful out there, pilot.`,

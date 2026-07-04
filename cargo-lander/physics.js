@@ -1,7 +1,7 @@
 // CargoLander - Custom 2D Physics Engine
 class CargoPhysics {
     constructor() {
-        this.gravity = 0.05;
+        this.gravity = 0.035;
         this.wind = 0;
         this.terrainPoints = [];
         this.deliveryHubs = [];
@@ -52,7 +52,7 @@ class CargoPhysics {
         
         this.levelWidth = levelConfig.levelWidth || maxX;
         this.levelHeight = levelConfig.levelHeight || maxY;
-        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.05;
+        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.035;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         this.currentWind = this.wind;
         
@@ -173,6 +173,7 @@ class CargoPhysics {
         const h = this.levelHeight;
         this.terrainPolygons = config.terrainPolygons || [];
         this.hazards = config.hazards || [];
+        this.collectibles = config.collectibles ? config.collectibles.map(c => ({...c})) : [];
         this.waterBodies = config.waterBodies || [];
         
         const ps = config.padScale || 1.0;
@@ -808,12 +809,13 @@ class CargoPhysics {
             }
         }
 
+        this.hazardTime = (this.hazardTime || 0) + dt * 16.666;
+
         // Handle laser hazards — a sweeping/pulsing beam between two points on a
         // telegraphed on/off duty cycle (charge flash → active beam → cooldown).
         // Distinct from zone hazards below: line-segment distance check, not
         // point-in-polygon, and damage only applies while the beam is "active".
         if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
-            this.hazardTime = (this.hazardTime || 0) + dt * 16.666;
             for (const h of this.hazards) {
                 if (h.type !== 'laser') continue;
                 if (!h.pts || h.pts.length < 2) continue;
@@ -868,6 +870,25 @@ class CargoPhysics {
         if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
             for (const h of this.hazards) {
                 if (h.type === 'laser') continue;
+                
+                if (h.type === 'crusher') {
+                    const timeMs = this.hazardTime || 0;
+                    const phaseOff = h.phase || 0;
+                    const period = h.period || 3000;
+                    const t = (Math.sin(((timeMs + phaseOff) / period) * Math.PI * 2) + 1) / 2;
+                    const cx = h.x + (h.travelX || 0) * t;
+                    const cy = h.y + (h.travelY || 0) * t;
+                    
+                    if (lander.x > cx && lander.x < cx + h.w && lander.y > cy && lander.y < cy + h.h) {
+                        lander.integrity -= 25 * dt;
+                        const ky = (h.travelY || 0) < 0 ? -1 : 1;
+                        lander.vy += ky * dt;
+                        this.particles.push({ x: lander.x, y: lander.y, vx: (Math.random() - 0.5)*2, vy: (Math.random() - 0.5)*2, life: 1, color: '#ef4444', size: 3 });
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
+                    continue;
+                }
+
                 if (!h.pts || h.pts.length < 3) continue;
                 if (!this.pointInPolygon(lander.x, lander.y, h.pts)) continue;
 
@@ -1123,7 +1144,7 @@ class CargoPhysics {
 
         // Track how far out we are for the vignette warning (1000px ~ 1 screen)
         const VIGNETTE_MARGIN = 1000;
-        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -VIGNETTE_MARGIN) {
+        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -500) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
@@ -1656,6 +1677,29 @@ class CargoPhysics {
     }
 
     updateParticles() {
+        // Check collectible rings
+        if (this.collectibles && this.collectibles.length > 0 && !this.lander.crashed) {
+            for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                const c = this.collectibles[i];
+                if (c.type === 'ring') {
+                    const r = c.radius || 40;
+                    const dx = this.lander.x - c.x;
+                    const dy = this.lander.y - c.y;
+                    if (dx * dx + dy * dy < r * r) {
+                        // Collected!
+                        if (c.resource === 'fuel') {
+                            this.lander.fuel = Math.min(100, this.lander.fuel + (c.amount || 25));
+                            if (window.game) window.game.floatingTexts.push({ text: `+FUEL`, x: c.x, y: c.y, life: 1.5, color: '#60a5fa' });
+                        } else if (c.resource === 'cash') {
+                            this.cash = (this.cash || 0) + (c.amount || 100);
+                            if (window.game) window.game.floatingTexts.push({ text: `+$${c.amount||100}`, x: c.x, y: c.y, life: 1.5, color: '#10b981' });
+                        }
+                        this.collectibles.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
         // Cap total particles to avoid unbounded growth
         if (this.particles.length > 300) this.particles.length = 300;
 

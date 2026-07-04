@@ -259,6 +259,8 @@ canvas{display:block}
     <div class="row" style="margin-bottom:4px">
       <span style="font-size:10px;color:#8b949e;flex:1">Export — positions + polygons</span>
       <button class="btn" id="copy-btn" onclick="copyOut()">Copy</button>
+      <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="margin-left: 5px; background: rgba(16, 185, 129, 0.2); color: #34d399;">Playtest</button>
+      <button class="btn" id="download-btn" onclick="downloadJS()" style="margin-left: 5px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">Download .js</button>
     </div>
     <textarea id="out" readonly style="height:90px"></textarea>
   </div>
@@ -1367,7 +1369,26 @@ function insertAtCursor() {
   renderSidebar(); renderPtList(); draw(); updateOut();
 }
 
-// ── Export ────────────────────────────────────────────────────────────────────
+// ── Export ──
+function downloadJS() {
+  const jsonStr = buildOut();
+  const fileContent = "levels.push(" + jsonStr + ");";
+  const blob = new Blob([fileContent], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "custom_level.js";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function playtestLevel() {
+  const jsonStr = buildOut();
+  sessionStorage.setItem('playtest_level', jsonStr);
+  window.location.href = 'index.html?playtest=1';
+}
 
 function buildOut() {
   const lines = [];
