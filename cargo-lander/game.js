@@ -354,6 +354,7 @@ class CargoGame {
         this.gameState = 'menu';
         document.getElementById('menu-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
+        document.getElementById('nav-header').style.display = 'flex';
 
         const completeScreen = document.getElementById('complete-screen');
         if (completeScreen) completeScreen.style.display = 'none';
@@ -593,8 +594,10 @@ class CargoGame {
     }
 
     startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
-        if (idx === 'random') {
-            const procLvl = typeof generateProceduralLevel === 'function' ? generateProceduralLevel() : null;
+        let craziness = 1;
+        if (typeof idx === 'string' && idx.startsWith('random')) {
+            craziness = parseInt(idx.replace('random', '')) || 1;
+            const procLvl = typeof generateProceduralLevel === 'function' ? generateProceduralLevel(craziness) : null;
             if (procLvl) {
                 idx = levels.length;
                 levels.push(procLvl);
@@ -630,7 +633,7 @@ class CargoGame {
         if (starts % 3 === 0 && this.isMuted) {
             setTimeout(() => {
                 this.addMessage("💡 Unmute to hear the music & sound effects!", "#38bdf8");
-                const muteBtn = document.getElementById('mute-toggle-btn');
+        const muteBtn = document.getElementById('mute-toggle-btn');
                 if (muteBtn) {
                     muteBtn.style.animation = 'shakeBtn 0.4s ease-in-out 4';
                     setTimeout(() => muteBtn.style.animation = '', 1600);
@@ -640,47 +643,74 @@ class CargoGame {
 
         // Generate world buildings on terrain surface
         this.buildings = [];
-        const bTypes = ['antenna', 'silo', 'refinery'];
-        const bSpacing = 180 + Math.random() * 80;
-        const bCount = 7 + Math.floor(Math.random() * 4);
-        const padZones = [
-            { x: this.physics.startDepot.x, w: this.physics.startDepot.width + 60 },
-            { x: this.physics.collectionPoint.x, w: this.physics.collectionPoint.width + 60 },
-        ];
-        for (const hub of this.physics.deliveryHubs) {
-            padZones.push({ x: hub.x - 30, w: hub.width + 60 });
-        }
-        let bx = 120;
-        while (this.buildings.length < bCount && bx < this.physics.levelWidth - 120) {
-            bx += bSpacing + (Math.random() - 0.5) * 80;
-            // Skip over pad zones
-            const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
-            if (blocked) continue;
-            const terrainY = this.physics.getPolygonSurfaceY(bx);
-            const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
-            this.buildings.push({
-                type: btype,
-                x: bx,
-                y: terrainY,
-                w: btype === 'silo' ? 22 + Math.random() * 16 : btype === 'refinery' ? 45 + Math.random() * 20 : 6,
-                h: 60 + Math.random() * 100,
-                phase: Math.random() * Math.PI * 2,
-            });
+        if (level.buildings) {
+            this.buildings = [...level.buildings];
+            // Resolve Y coords
+            for (const b of this.buildings) {
+                b.y = this.physics.getPolygonSurfaceY(b.x);
+            }
+        } else {
+            const bTypes = ['antenna', 'silo', 'refinery'];
+            const bSpacing = 180 + Math.random() * 80;
+            const bCount = 7 + Math.floor(Math.random() * 4);
+            const padZones = [
+                { x: this.physics.startDepot.x, w: this.physics.startDepot.width + 60 },
+                { x: this.physics.collectionPoint.x, w: this.physics.collectionPoint.width + 60 },
+            ];
+            for (const hub of this.physics.deliveryHubs) {
+                padZones.push({ x: hub.x - 30, w: hub.width + 60 });
+            }
+            let bx = 120;
+            let attempts = 0;
+            while (this.buildings.length < bCount && bx < this.physics.levelWidth - 120 && attempts < 100) {
+                attempts++;
+                bx += bSpacing + (Math.random() - 0.5) * 80;
+                // Skip over pad zones
+                const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
+                if (blocked) continue;
+                
+                const terrainY = this.physics.getPolygonSurfaceY(bx);
+                const y1 = this.physics.getPolygonSurfaceY(bx - 20);
+                const y2 = this.physics.getPolygonSurfaceY(bx + 20);
+                // Skip if terrain is slanting too much
+                if (Math.abs(y1 - y2) > 12) continue;
+                
+                const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
+                this.buildings.push({
+                    type: btype,
+                    x: bx,
+                    y: terrainY,
+                    w: btype === 'silo' ? 22 + Math.random() * 16 : btype === 'refinery' ? 45 + Math.random() * 20 : 6,
+                    h: 60 + Math.random() * 100,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
         }
 
         this.gameState = 'playing';
-        this.addMessage("Level Started: " + level.name, "#6366f1");
+        this.addMessage("Level Started: " + (level?.name || "Unknown"), "#6366f1");
 
         // Setup Cinematic Camera Intro
         const cw = this.canvas.width;
         const ch = this.canvas.height;
         const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95; // Slightly padded
 
-        this.camera.zoom = minZoom;
+        this.camera.zoom = 0.5;
         this.camera.targetZoom = minZoom;
         this.introTimer = 2.0;
         this.camera.x = this.physics.levelWidth / 2;
         this.camera.y = this.physics.levelHeight / 2;
+
+        let weatherType = level?.weather;
+        if (!weatherType) {
+            if (level?.name?.includes('Grass')) weatherType = 'rain';
+            else if (level?.name?.includes('Ice') || level?.name?.includes('Glacial')) weatherType = 'snow';
+            else if (level?.name?.includes('Volcanic') || level?.name?.includes('Lava')) weatherType = 'ash';
+            else if (level?.name?.includes('Crystal')) weatherType = 'bubbles';
+            else if (level?.name?.includes('Desert')) weatherType = 'heatwave';
+        }
+        this.weather = weatherType;
+        this.weatherParticles = [];
 
         // Hide menus, show HUD
         document.getElementById('menu-screen').style.display = 'none';
@@ -693,6 +723,7 @@ class CargoGame {
         const victoryScreen = document.getElementById('victory-screen');
         if (victoryScreen) victoryScreen.style.display = 'none';
         document.getElementById('hud-overlay').style.display = 'flex';
+        document.getElementById('nav-header').style.display = 'none';
         document.getElementById('level-hint').textContent = level.hint || '';
 
         // Reset inputs
@@ -821,6 +852,8 @@ class CargoGame {
     }
 
     toggleGrapple() {
+        if (this.updateWeather) this.updateWeather(dt);
+
         const lander = this.physics.lander;
         if (!lander) return;
 
@@ -1023,6 +1056,8 @@ class CargoGame {
             const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
             mobileControls.style.display = (isTouch && this.gameState === 'playing') ? 'flex' : 'none';
         }
+
+        if (this.updateWeather) this.updateWeather(dt);
 
         const lander = this.physics.lander;
         if (!lander) return;
@@ -1657,8 +1692,8 @@ class CargoGame {
         if (this.floatingTexts) {
             for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
                 const ft = this.floatingTexts[i];
-                ft.life -= dt * 0.01;
-                ft.y -= dt * 0.5;
+                ft.life -= 16.6 * 0.001; // changed from 0.01 to match 60fps correctly
+                ft.y -= 16.6 * 0.05; // slower float
                 if (ft.life <= 0) this.floatingTexts.splice(i, 1);
             }
         }
@@ -1701,7 +1736,9 @@ class CargoGame {
         this.drawWaterBodies();
         this.drawTerrain();
         this.drawSegments();
+        this.drawSegments();
         this.drawHazards();
+        this.drawCollectibles();
         this.drawRadarPingZone();
 
         // 6. Draw Cargo Sourcing Depot Building
@@ -1719,6 +1756,24 @@ class CargoGame {
 
         // 8. Draw Lander
         this.drawLander();
+
+        if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
+            const drone = this.physics.boxes.find(b => b.type === 'drone');
+            if (drone && !drone.grabbedByDrone) {
+                const dx = this.physics.lander.x - drone.x;
+                const dy = this.physics.lander.y - drone.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 150) {
+                    ctx.save();
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowColor = '#000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText('PRESS SPACE TO DEPLOY DRONE', drone.x, drone.y - 30);
+                    ctx.restore();
+                }
+            }
+        }
 
         // 8.5 Draw Floating Texts
         if (this.floatingTexts) {
@@ -1761,6 +1816,8 @@ class CargoGame {
             this.drawWindIndicator();
             this.drawMinimap();
             this.drawQuestPanel();
+
+            if (this.drawWeather) this.drawWeather();
 
             // 12. Draw Lateral Mist
             const levelConfig = levels[this.currentLevelIndex];
@@ -1883,6 +1940,7 @@ class CargoGame {
     }
 
     drawMinimap() {
+        if (this.uiCollapsed) return;
         const ctx = this.ctx;
         const cw = this.canvas.width;
 
@@ -2077,6 +2135,7 @@ class CargoGame {
     }
 
     drawQuestPanel() {
+        if (this.uiCollapsed) return;
         const ctx = this.ctx;
         const level = levels[this.currentLevelIndex];
         if (!level || !level.quests) return;
@@ -2661,6 +2720,7 @@ class CargoGame {
     //   radarPingZone: { cx, cy, r, color, period }
     // where color is an RGB string like '210,100,15'.
     drawRadarPingZone() {
+        if (this.uiCollapsed) return;
         const cfg = this.physics.currentLevelConfig;
         const zone = cfg?.radarPingZone;
         if (!zone) return;
@@ -3377,6 +3437,59 @@ class CargoGame {
                     ctx.setLineDash([]);
                 }
                 continue;
+                }
+                continue;
+            }
+            
+            if (haz.type === 'crusher') {
+                const timeMs = this.physics.hazardTime || 0;
+                const phaseOff = haz.phase || 0;
+                const period = haz.period || 3000;
+                const t = (Math.sin(((timeMs + phaseOff) / period) * Math.PI * 2) + 1) / 2;
+                const cx = haz.x + (haz.travelX || 0) * t;
+                const cy = haz.y + (haz.travelY || 0) * t;
+                
+                ctx.save();
+                ctx.translate(cx, cy);
+                
+                // Draw metallic block
+                ctx.fillStyle = '#4b5563';
+                ctx.fillRect(0, 0, haz.w, haz.h);
+                
+                // Draw hazard stripes
+                ctx.fillStyle = '#ef4444';
+                const stripeWidth = 20;
+                ctx.beginPath();
+                ctx.rect(0, 0, haz.w, haz.h);
+                ctx.clip();
+                
+                for(let x = -haz.h; x < haz.w + haz.h; x += stripeWidth * 2) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x + stripeWidth, 0);
+                    ctx.lineTo(x - haz.h + stripeWidth, haz.h);
+                    ctx.lineTo(x - haz.h, haz.h);
+                    ctx.fill();
+                }
+                
+                // Draw outline
+                ctx.strokeStyle = '#f87171';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(0, 0, haz.w, haz.h);
+                
+                ctx.restore();
+                
+                // Draw travel path indicator (faint line)
+                ctx.save();
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(haz.x + haz.w/2, haz.y + haz.h/2);
+                ctx.lineTo(haz.x + haz.w/2 + (haz.travelX||0), haz.y + haz.h/2 + (haz.travelY||0));
+                ctx.stroke();
+                ctx.restore();
+                
+                continue;
             }
 
             const pts = haz.pts;
@@ -3763,20 +3876,7 @@ class CargoGame {
         // Draw landing-zone deployment circles around all pads
         const DEPLOY_R = 110;
         const lander = this.physics.lander;
-        const _drawDeployCircle = (cx, padY, color) => {
-            const rx = DEPLOY_R;
-            const ry = 14;
-            ctx.save();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([6, 5]);
-            ctx.globalAlpha = 0.45;
-            ctx.beginPath();
-            ctx.ellipse(cx, padY, rx, ry, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.restore();
-        };
+        const _drawDeployCircle = (cx, padY, color) => { };
 
         if (start) _drawDeployCircle(start.x + start.width / 2, start.y, '#60a5fa');
         if (collection) _drawDeployCircle(collection.x + collection.width / 2, collection.y, '#34d399');
@@ -4423,6 +4523,8 @@ class CargoGame {
 
     drawLander() {
         const ctx = this.ctx;
+        if (this.updateWeather) this.updateWeather(dt);
+
         const lander = this.physics.lander;
         if (!lander) return;
 
