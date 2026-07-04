@@ -262,6 +262,7 @@ class CargoPhysics {
                 label: seg.bouncy ? 'bouncy_segment' : (seg.sticky ? 'sticky_segment' : 'segment'),
                 collisionFilter: { category: 0x0004, mask: 0x0001 | 0x0008 },
             });
+            seg.matterBody = body;
             Matter.Composite.add(this.matterWorld, body);
         }
     }
@@ -426,23 +427,38 @@ class CargoPhysics {
                     this.particles.push({
                         x: box.x, y: box.y,
                         vx: (Math.random() - 0.5)*5, vy: (Math.random() - 0.5)*5,
-                        life: 1, decay: 0.04, color: '#facc15', size: 3 + Math.random()*2
+                life: 1, decay: 0.04, color: '#facc15', size: 3 + Math.random()*2
                     });
                 }
             }
         }
     }
 
-    spawnCargo(type, targetX) {
+    getRandomCargoEmoji(type) {
         const emojis = {
-            'red': ['🧨', '🧲', '🛢️', '🩸'],
-            'blue': ['❄️', '🐟', '🧊', '💉'],
-            'green': ['🍏', '🌿', '🔋', '🥑'],
-            'tethered': ['⛓️', '🪝', '⚓'],
-            'normal': ['🍎', '🍌', '🔨', '🔧', '📦', '🧸']
+            'red': ['📦', '💊', '🩸', '🛑'],
+            'blue': ['❄️', '🧊', '💎', '🥶'],
+            'green': ['🌿', '🥝', '🔋', '🧪'],
+            'tethered': ['🔗', '⚓', '⛓️'],
+            'normal': ['📦', '🔩', '🧱', '🛠️', '🔋', '🔌']
         };
         const typeList = emojis[type] || emojis['normal'];
-        const randomEmoji = typeList[Math.floor(Math.random() * typeList.length)];
+        return typeList[Math.floor(Math.random() * typeList.length)];
+    }
+
+    getCargoColor(type) {
+        const colors = {
+            'red': '#ef4444',
+            'blue': '#3b82f6',
+            'green': '#10b981',
+            'tethered': '#6366f1',
+            'normal': '#f59e0b'
+        };
+        return colors[type] || '#f59e0b';
+    }
+
+    spawnCargo(type, targetX, forcedEmoji) {
+        const randomEmoji = forcedEmoji || this.getRandomCargoEmoji(type);
 
         // Determine spawn location based on lander type and position
         const _wbX = this.collectionPoint.x - 18;
@@ -557,6 +573,19 @@ class CargoPhysics {
         // Reflect velocity
         const vn = lander.vx * hit.nx + lander.vy * hit.ny;
         if (vn < 0) {
+            if (hit.seg && hit.seg.fragile && Math.abs(vn) > 4.0) {
+                // Shatter glass
+                if (hit.seg.matterBody) {
+                    Matter.Composite.remove(this.matterWorld, hit.seg.matterBody);
+                }
+                this.segments = this.segments.filter(s => s !== hit.seg);
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playCrash();
+                // Burst through, but lose some speed
+                lander.vx *= 0.8;
+                lander.vy *= 0.8;
+                return;
+            }
+
             let restitution = this.LANDER_RESTITUTION;
             let friction = this.LANDER_FRICTION;
             
@@ -572,7 +601,10 @@ class CargoPhysics {
             lander.vy -= (1 + restitution) * vn * hit.ny;
             // Friction on tangential component
             const tx = -hit.ny, ty = hit.nx;
-            const vt = lander.vx * tx + lander.vy * ty;
+            let vt = lander.vx * tx + lander.vy * ty;
+            if (hit.seg && hit.seg.conveyorSpeed) {
+                vt -= hit.seg.conveyorSpeed;
+            }
             lander.vx -= friction * vt * tx;
             lander.vy -= friction * vt * ty;
 
@@ -1281,6 +1313,25 @@ class CargoPhysics {
             lander.angle += (lander.angularVelocity || 0) * dt;
             if (lander.angularVelocity) lander.angularVelocity *= Math.pow(0.98, dt);
         }
+
+        // Repulsor fields
+        if (this.segments) {
+            for (const seg of this.segments) {
+                if (seg.repulsor) {
+                    const { cx, cy } = this._closestPointOnSeg(lander.x, lander.y, seg.x1, seg.y1, seg.x2, seg.y2);
+                    const dx = lander.x - cx, dy = lander.y - cy;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150 && dist > 1) {
+                        const force = 100 / (dist * dist);
+                        lander.vx += (dx / dist) * force * dt;
+                        lander.vy += (dy / dist) * force * dt;
+                    }
+                }
+            }
+        }
+
+        // Keep lander loosely within extended bounds
+        if (lander.x < -4000) { lander.x = -4000; lander.vx *= -0.5; }
 
         if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
 

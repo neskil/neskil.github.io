@@ -9,6 +9,7 @@ registerLevel({
     name: "L5: The Needle's Eye",
     missionTitle: "Crystal Caverns — Precision Winch Drop",
     description: "The Pit is a crystal-lined shaft deep inside the Cavern Tier — far too narrow for the drone body to enter. Hover above the opening, extend your winch (E/Q keys), and lower each cargo crate down by rope. One slip and the crate swings into the crystal walls.",
+    weather: 'snow',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.10,          // Lighter gravity — easier hovering while managing the rope
@@ -92,3 +93,4 @@ registerLevel({
         questNoCrash(300),
     ],
 });
+

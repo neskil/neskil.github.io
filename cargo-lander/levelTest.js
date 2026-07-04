@@ -37,7 +37,9 @@ registerLevel({
         { x1: 350, y1: 460, x2: 500, y2: 460, sticky: true },           // sticky flat platform
         { x1: 260, y1: 520, x2: 350, y2: 460 },           // ramp up to it
         { x1: 950, y1: 350, x2: 950, y2: 500, bouncy: true },           // bouncy vertical wall
-        { x1: 1050, y1: 420, x2: 1150, y2: 420 },         // another platform
+        { x1: 1050, y1: 420, x2: 1150, y2: 420, fragile: true },         // fragile platform
+        { x1: 1200, y1: 420, x2: 1300, y2: 420, conveyorSpeed: 3 },      // conveyor belt pushing right
+        { x1: 1350, y1: 420, x2: 1450, y2: 420, repulsor: true },        // repulsor field
     ],
 
     // ── Palette (neutral grey/blue — easy on the eyes for long sessions) ──────
