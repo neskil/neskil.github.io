@@ -915,9 +915,6 @@ class CargoPhysics {
                     const dy = lander.y - w.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < 80 && !lander.crashed) {
-                        const nx = dx / dist, ny = dy / dist;
-                        lander.vx += nx * 8;
-                        lander.vy += ny * 6 - 3; // knock away + upward boost
                         lander.integrity -= 8 * dt;
                         if (window.CargoAudio) CargoAudio.playCrash();
                         for (let i = 0; i < 6; i++) {

@@ -2955,158 +2955,279 @@ class CargoGame {
             return { x: p.x, y: p.y, angle: 0 };
         }
 
-        // Slightly smaller segments than OOB monster
+        // Segments — large, chunky, Dune-style
         const SEGS = [
-            { d: 0, r: 40 }, // HEAD
-            { d: 50, r: 36 },
-            { d: 95, r: 32 },
-            { d: 135, r: 28 },
-            { d: 170, r: 24 },
-            { d: 200, r: 20 },
-            { d: 225, r: 16 },
-            { d: 245, r: 12 },
-            { d: 260, r: 9 },
-            { d: 275, r: 6 },
+            { d: 0,   r: 48 }, // HEAD — big open maw
+            { d: 62,  r: 42 },
+            { d: 118, r: 37 },
+            { d: 168, r: 32 },
+            { d: 212, r: 27 },
+            { d: 250, r: 22 },
+            { d: 282, r: 18 },
+            { d: 308, r: 14 },
+            { d: 328, r: 10 },
+            { d: 344, r:  7 },
         ];
 
         const positions = SEGS.map(s => ({ r: s.r, ...trailSample(s.d) }));
         const head = positions[0];
 
-        const lander = m.lungeTarget || this.physics.lander;
+        const lander = this.physics.lander;
         const hdx = lander ? lander.x - m.x : m.vx;
         const hdy = lander ? lander.y - m.y : m.vy;
         const targetHeadAngle = Math.atan2(hdy, hdx);
 
-        // Smoothly interpolate the head angle
         if (m.currentHeadAngle === undefined) {
             m.currentHeadAngle = targetHeadAngle;
         } else {
             let diff = targetHeadAngle - m.currentHeadAngle;
             while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff >  Math.PI) diff -= Math.PI * 2;
             m.currentHeadAngle += diff * 0.15;
         }
 
         const headAngle = m.currentHeadAngle;
         const glowPulse = 0.55 + Math.abs(Math.sin(t * 1.8)) * 0.45;
 
-        // ══ PASS 0: DEEP GLOW ════════════════════
+        // ══ PASS 0: DEEP GLOW AURA ══════════════════════════════════════════
         ctx.save();
-        const auraGrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, head.r * 4.5);
-        auraGrad.addColorStop(0, `rgba(200, 100, 20, ${0.22 * glowPulse})`);
-        auraGrad.addColorStop(0.5, `rgba(180, 80, 10, ${0.10 * glowPulse})`);
-        auraGrad.addColorStop(1, 'rgba(140, 60, 0, 0)');
+        const auraGrad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, head.r * 5.5);
+        auraGrad.addColorStop(0, `rgba(200, 100, 20, ${0.28 * glowPulse})`);
+        auraGrad.addColorStop(0.5, `rgba(160, 70, 5, ${0.12 * glowPulse})`);
+        auraGrad.addColorStop(1, 'rgba(120, 50, 0, 0)');
         ctx.fillStyle = auraGrad;
         ctx.beginPath();
-        ctx.arc(head.x, head.y, head.r * 4.5, 0, Math.PI * 2);
+        ctx.arc(head.x, head.y, head.r * 5.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // ══ PASS 1: SPIKES ══════════
+        // ══ PASS 1: BODY LATERAL SPINES ═════════════════════════════════════
         ctx.save();
         ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
         for (let i = 1; i <= 8; i++) {
             const seg = positions[i];
             if (!seg) continue;
             for (const side of [-1, 1]) {
-                const rootX = seg.x + Math.cos(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
-                const rootY = seg.y + Math.sin(seg.angle + side * Math.PI * 0.5) * seg.r * 0.8;
+                const spineAngle = seg.angle + side * Math.PI * 0.5;
+                const rootX = seg.x + Math.cos(spineAngle) * seg.r * 0.85;
+                const rootY = seg.y + Math.sin(spineAngle) * seg.r * 0.85;
+                const tipX  = rootX + Math.cos(spineAngle + side * 0.3) * seg.r * 1.0;
+                const tipY  = rootY + Math.sin(spineAngle + side * 0.3) * seg.r * 1.0;
 
-                const tipX = rootX + Math.cos(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
-                const tipY = rootY + Math.sin(seg.angle + side * Math.PI * 0.6) * seg.r * 1.2;
-
-                ctx.strokeStyle = 'rgba(0,0,0,0.88)';
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.moveTo(rootX, rootY);
-                ctx.lineTo(tipX, tipY);
-                ctx.stroke();
-
-                ctx.strokeStyle = `rgba(180,100,30,0.8)`;
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(rootX, rootY); ctx.lineTo(tipX, tipY); ctx.stroke();
+                ctx.strokeStyle = `rgba(190,110,30,0.75)`;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.moveTo(rootX, rootY); ctx.lineTo(tipX, tipY); ctx.stroke();
             }
         }
         ctx.restore();
 
-        // ══ PASS 2: SEGMENTS ═══
+        // ══ PASS 2: BODY SEGMENTS (back to front) ═══════════════════════════
         ctx.save();
         for (let i = positions.length - 1; i >= 0; i--) {
             const seg = positions[i];
             const isHead = i === 0;
 
             const bGrad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r);
-            bGrad.addColorStop(0, '#1a0d00');
+            bGrad.addColorStop(0,    '#1a0d00');
             bGrad.addColorStop(0.45, '#331a00');
-            bGrad.addColorStop(0.72, '#663300');
-            bGrad.addColorStop(0.88, '#994c00');
-            bGrad.addColorStop(1, '#cc6600');
+            bGrad.addColorStop(0.72, '#5c2a00');
+            bGrad.addColorStop(0.88, '#8f4300');
+            bGrad.addColorStop(1,    '#c05800');
             ctx.fillStyle = bGrad;
-            ctx.strokeStyle = `rgba(220, 120, 20, ${0.55 + glowPulse * 0.25})`;
-            ctx.lineWidth = isHead ? 2.5 : 1.8;
+            ctx.strokeStyle = `rgba(220, 120, 20, ${0.5 + glowPulse * 0.3})`;
+            ctx.lineWidth = isHead ? 3 : 2;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
 
-            if (isHead) {
-                // ── MOUTH ────────
-                const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.52;
-                const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.52;
-                const mW = seg.r * 0.72, mH = seg.r * 0.48;
+            // Segment crease lines (give a ringed, segmented feel)
+            if (!isHead && i % 2 === 0) {
+                const perpAngle = seg.angle + Math.PI / 2;
+                ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(seg.x, seg.y, seg.r * 0.92, perpAngle - 0.8, perpAngle + 0.8);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(seg.x, seg.y, seg.r * 0.92, perpAngle + Math.PI - 0.8, perpAngle + Math.PI + 0.8);
+                ctx.stroke();
+            }
 
+            if (isHead) {
+                // ══ DUNE-STYLE CIRCULAR MAW ══════════════════════════════════
                 ctx.save();
-                ctx.translate(mCx, mCy);
+                ctx.translate(seg.x, seg.y);
                 ctx.rotate(headAngle);
 
-                const mouthGrad = ctx.createRadialGradient(0, 0, 0, 0, mH * 0.3, mW);
-                mouthGrad.addColorStop(0, '#1a0500');
-                mouthGrad.addColorStop(0.6, '#0a0200');
-                mouthGrad.addColorStop(1, '#050100');
-                ctx.fillStyle = mouthGrad;
-                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                const R = seg.r;  // radius of the head circle
 
-                const throatPulse = 0.3 + Math.abs(Math.sin(t * 2.1)) * 0.35;
-                const throatGrad = ctx.createRadialGradient(0, 2, 0, 0, 2, mW * 0.7);
-                throatGrad.addColorStop(0, `rgba(255,100,0,${throatPulse})`);
-                throatGrad.addColorStop(1, 'rgba(255,50,0,0)');
+                // ── 1. OUTER LIP RING (segmented chitin plates) ──────────────
+                const lipPlates = 20;
+                for (let li = 0; li < lipPlates; li++) {
+                    const a0 = (li / lipPlates) * Math.PI * 2;
+                    const a1 = ((li + 0.82) / lipPlates) * Math.PI * 2;
+                    const openFrac = 0.92; // how open the maw is (slightly contracted at back)
+
+                    const lipR = R * 0.98;
+                    const innerR = R * 0.78;
+
+                    // Alternate dark / mid tone for chitin plate texture
+                    const plateLuma = li % 2 === 0 ? 0.55 : 0.40;
+                    ctx.fillStyle = `rgba(${Math.round(160*plateLuma)},${Math.round(75*plateLuma)},${Math.round(15*plateLuma)},0.95)`;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.lineWidth = 1.2;
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, lipR, a0, a1);
+                    ctx.arc(0, 0, innerR, a1, a0, true);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // ── 2. THROAT VOID ────────────────────────────────────────────
+                const throatGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.78);
+                throatGrad.addColorStop(0,   '#000000');
+                throatGrad.addColorStop(0.45, '#0a0200');
+                throatGrad.addColorStop(0.85, '#1a0500');
+                throatGrad.addColorStop(1,   '#2a0a00');
                 ctx.fillStyle = throatGrad;
                 ctx.beginPath();
-                ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
+                ctx.arc(0, 0, R * 0.78, 0, Math.PI * 2);
                 ctx.fill();
 
-                const toothCount = 7;
-                for (let ti = 0; ti < toothCount; ti++) {
-                    const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
-                    ctx.fillStyle = 'rgba(200, 185, 140, 0.9)';
+                // ── 3. PULSING PHARYNX GLOW ───────────────────────────────────
+                const throatPulse = 0.25 + Math.abs(Math.sin(t * 2.4)) * 0.45;
+                const pharynxGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.52);
+                pharynxGrad.addColorStop(0,   `rgba(255,140,20,${throatPulse * 0.95})`);
+                pharynxGrad.addColorStop(0.55, `rgba(220,60,0,${throatPulse * 0.6})`);
+                pharynxGrad.addColorStop(1,   'rgba(160,20,0,0)');
+                ctx.fillStyle = pharynxGrad;
+                ctx.beginPath();
+                ctx.arc(0, 0, R * 0.52, 0, Math.PI * 2);
+                ctx.fill();
+
+                // ── 4. OUTER RING OF TEETH (large, curved, radial) ────────────
+                // Pointed inward toward throat — Dune worm mandibles fan outward
+                const outerTeethCount = 18;
+                for (let ti = 0; ti < outerTeethCount; ti++) {
+                    const angle = (ti / outerTeethCount) * Math.PI * 2;
+                    const toothLen   = R * 0.40;
+                    const toothWidth = R * 0.085;
+
+                    // Root on the inner edge of the lip ring
+                    const rootR  = R * 0.76;
+                    const rootX  = Math.cos(angle) * rootR;
+                    const rootY  = Math.sin(angle) * rootR;
+
+                    // Tip points toward center (inward)
+                    const tipR  = R * 0.36;
+                    const tipX  = Math.cos(angle) * tipR;
+                    const tipY  = Math.sin(angle) * tipR;
+
+                    // Perpendicular for tooth width
+                    const perpX = -Math.sin(angle) * toothWidth;
+                    const perpY =  Math.cos(angle) * toothWidth;
+
+                    // Curved tooth: bezier curving slightly to the side (gives the rotational feel)
+                    const curl  = 0.25; // how much the tooth curves (rotational direction)
+                    const cpR   = R * 0.56;
+                    const cpAngle = angle + curl;
+                    const cpX   = Math.cos(cpAngle) * cpR;
+                    const cpY   = Math.sin(cpAngle) * cpR;
+
+                    ctx.fillStyle = `rgba(215, 200, 150, 0.95)`;
                     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 0.8;
+
                     ctx.beginPath();
-                    ctx.moveTo(tx - mW * 0.07, -mH * 0.85);
-                    ctx.lineTo(tx, -mH * 0.12);
-                    ctx.lineTo(tx + mW * 0.07, -mH * 0.85);
+                    ctx.moveTo(rootX + perpX, rootY + perpY);
+                    ctx.quadraticCurveTo(cpX + perpX * 0.4, cpY + perpY * 0.4, tipX, tipY);
+                    ctx.quadraticCurveTo(cpX - perpX * 0.4, cpY - perpY * 0.4, rootX - perpX, rootY - perpY);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
                 }
-                for (let ti = 0; ti < toothCount - 1; ti++) {
-                    const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
-                    ctx.fillStyle = 'rgba(190, 175, 130, 0.88)';
+
+                // ── 5. INNER RING OF SMALLER TEETH (second row) ──────────────
+                const innerTeethCount = 14;
+                for (let ti = 0; ti < innerTeethCount; ti++) {
+                    const angle = ((ti + 0.5) / innerTeethCount) * Math.PI * 2;
+                    const toothLen   = R * 0.22;
+                    const toothWidth = R * 0.055;
+
+                    const rootR = R * 0.50;
+                    const rootX = Math.cos(angle) * rootR;
+                    const rootY = Math.sin(angle) * rootR;
+
+                    const tipR  = R * 0.28;
+                    const tipX  = Math.cos(angle) * tipR;
+                    const tipY  = Math.sin(angle) * tipR;
+
+                    const perpX = -Math.sin(angle) * toothWidth;
+                    const perpY =  Math.cos(angle) * toothWidth;
+
+                    const curl  = 0.3;
+                    const cpR   = R * 0.39;
+                    const cpAngle = angle + curl;
+                    const cpX   = Math.cos(cpAngle) * cpR;
+                    const cpY   = Math.sin(cpAngle) * cpR;
+
+                    ctx.fillStyle = `rgba(200, 180, 130, 0.9)`;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.lineWidth = 0.6;
+
                     ctx.beginPath();
-                    ctx.moveTo(tx - mW * 0.065, mH * 0.85);
-                    ctx.lineTo(tx, mH * 0.15);
-                    ctx.lineTo(tx + mW * 0.065, mH * 0.85);
+                    ctx.moveTo(rootX + perpX, rootY + perpY);
+                    ctx.quadraticCurveTo(cpX + perpX * 0.3, cpY + perpY * 0.3, tipX, tipY);
+                    ctx.quadraticCurveTo(cpX - perpX * 0.3, cpY - perpY * 0.3, rootX - perpX, rootY - perpY);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
                 }
-                ctx.restore();
+
+                // ── 6. INNERMOST TOOTH RING (tiny, near the pharynx) ─────────
+                const coreTeethCount = 9;
+                for (let ti = 0; ti < coreTeethCount; ti++) {
+                    const angle = (ti / coreTeethCount) * Math.PI * 2;
+                    const toothWidth = R * 0.035;
+
+                    const rootR = R * 0.30;
+                    const rootX = Math.cos(angle) * rootR;
+                    const rootY = Math.sin(angle) * rootR;
+
+                    const tipR  = R * 0.14;
+                    const tipX  = Math.cos(angle) * tipR;
+                    const tipY  = Math.sin(angle) * tipR;
+
+                    const perpX = -Math.sin(angle) * toothWidth;
+                    const perpY =  Math.cos(angle) * toothWidth;
+
+                    ctx.fillStyle = `rgba(240, 220, 160, 0.85)`;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+                    ctx.lineWidth = 0.5;
+
+                    ctx.beginPath();
+                    ctx.moveTo(rootX + perpX, rootY + perpY);
+                    ctx.lineTo(tipX, tipY);
+                    ctx.lineTo(rootX - perpX, rootY - perpY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // ── 7. INNER EYE / CORE SPOT ──────────────────────────────────
+                const eyePulse = 0.6 + Math.sin(t * 3.5) * 0.4;
+                ctx.fillStyle = `rgba(255, 80, 0, ${eyePulse * 0.85})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, R * 0.08, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore(); // end head transform
             }
         }
         ctx.restore();
