@@ -1113,6 +1113,14 @@
                     if(hudGroup) {
                         hudGroup.style.display = game.uiCollapsed ? 'none' : 'flex';
                     }
+                    const leftPanels = document.getElementById('left-panels');
+                    if(leftPanels) {
+                        leftPanels.style.display = game.uiCollapsed ? 'none' : 'block';
+                    }
+                    const radar = document.getElementById('radar-container');
+                    if(radar) {
+                        radar.style.display = game.uiCollapsed ? 'none' : 'flex';
+                    }
                 }
             }
 
@@ -1127,7 +1135,7 @@
 
         <!-- Floating HUD during gameplay -->
         <div id="hud-overlay" class="hud-panel">
-            <div class="hud-group" id="main-hud-group" style="gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%;">
+            <div class="hud-group" id="main-hud-group" style="gap: 10px; align-items: center; justify-content: center; width: 100%; flex-wrap: nowrap; white-space: nowrap; overflow-x: auto;">
                 <button class="utility-btn" onclick="game.goToMenu()"
                     style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 4px; color: white; cursor: pointer;">Menu</button>
                 <button class="utility-btn" onclick="game.selfDestruct()"

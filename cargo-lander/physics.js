@@ -101,6 +101,7 @@ class CargoPhysics {
                 if (impactSpeed > damageThreshold) {
                     const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
                     this.lander.integrity -= damage;
+                    this.checkCargoDamage(damage / this.lander.maxIntegrity);
                     if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
                     const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
                     const sparkCount = onPad ? 6 : 16;
@@ -256,9 +257,9 @@ class CargoPhysics {
             const body = Matter.Bodies.rectangle(cx, cy, len, 10, {
                 isStatic: true,
                 angle: angle,
-                friction: this.BOX_FRICTION,
-                restitution: this.BOX_RESTITUTION,
-                label: 'segment',
+                friction: seg.sticky ? 1.0 : this.BOX_FRICTION,
+                restitution: seg.bouncy ? 1.5 : this.BOX_RESTITUTION,
+                label: seg.bouncy ? 'bouncy_segment' : (seg.sticky ? 'sticky_segment' : 'segment'),
                 collisionFilter: { category: 0x0004, mask: 0x0001 | 0x0008 },
             });
             Matter.Composite.add(this.matterWorld, body);
@@ -387,6 +388,51 @@ class CargoPhysics {
         }
     }
 
+    checkCargoDamage(damagePercent) {
+        if (!this.lander || this.lander.vehicleType === 'drone') return; // Drone uses grapple, not deck
+        
+        const deckBoxes = this.boxes.filter(b => b.onDeck && !b.vacuumed);
+        if (deckBoxes.length === 0) return;
+
+        // Fling chance scales from 30% at 5% damage to 100% at 90% damage
+        const chance = 0.3 + Math.max(0, (damagePercent - 0.05) / 0.85) * 0.7;
+        if (damagePercent < 0.05 || Math.random() > Math.min(1.0, chance)) return;
+
+        let numToFling = 1;
+        if (damagePercent >= 0.90 && deckBoxes.length > 1) {
+            numToFling = Math.random() < 0.5 ? deckBoxes.length : 1;
+        }
+
+        // Shuffle deckBoxes
+        deckBoxes.sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < numToFling; i++) {
+            const box = deckBoxes[i];
+            box.onDeck = false; // Detach
+            box.flingImmunity = 60; // 1 second immunity to re-attachment
+            
+            const body = this.boxBodyMap.get(box.id);
+            if (body) {
+                const speed = 0.5 + damagePercent * 1.5; 
+                const outX = (Math.random() - 0.5) * 2;
+                Matter.Body.setVelocity(body, { 
+                    x: this.landerBody.velocity.x + outX * 10 * speed, 
+                    y: this.landerBody.velocity.y - (5 + Math.random() * 5) * speed 
+                });
+                Matter.Body.setAngularVelocity(body, (Math.random() - 0.5));
+                
+                // Add some sparks
+                for(let j=0; j<8; j++) {
+                    this.particles.push({
+                        x: box.x, y: box.y,
+                        vx: (Math.random() - 0.5)*5, vy: (Math.random() - 0.5)*5,
+                        life: 1, decay: 0.04, color: '#facc15', size: 3 + Math.random()*2
+                    });
+                }
+            }
+        }
+    }
+
     spawnCargo(type, targetX) {
         const emojis = {
             'red': ['🧨', '🧲', '🛢️', '🩸'],
@@ -472,7 +518,7 @@ class CargoPhysics {
                 // Normal points from segment surface toward the body point
                 const nx = dist > 0.001 ? dx / dist : 0;
                 const ny = dist > 0.001 ? dy / dist : -1;
-                if (!best || pen > best.pen) best = { pen, nx, ny, cx, cy };
+                if (!best || pen > best.pen) best = { pen, nx, ny, cx, cy, seg };
             }
         }
         return best;
@@ -511,13 +557,24 @@ class CargoPhysics {
         // Reflect velocity
         const vn = lander.vx * hit.nx + lander.vy * hit.ny;
         if (vn < 0) {
-            lander.vx -= (1 + this.LANDER_RESTITUTION) * vn * hit.nx;
-            lander.vy -= (1 + this.LANDER_RESTITUTION) * vn * hit.ny;
+            let restitution = this.LANDER_RESTITUTION;
+            let friction = this.LANDER_FRICTION;
+            
+            if (hit.seg && hit.seg.bouncy) {
+                restitution += 1.0; // Extra bounce
+            }
+            if (hit.seg && hit.seg.sticky) {
+                restitution = 0; // No bounce
+                friction += 0.8; // High friction
+            }
+            
+            lander.vx -= (1 + restitution) * vn * hit.nx;
+            lander.vy -= (1 + restitution) * vn * hit.ny;
             // Friction on tangential component
             const tx = -hit.ny, ty = hit.nx;
             const vt = lander.vx * tx + lander.vy * ty;
-            lander.vx -= this.LANDER_FRICTION * vt * tx;
-            lander.vy -= this.LANDER_FRICTION * vt * ty;
+            lander.vx -= friction * vt * tx;
+            lander.vy -= friction * vt * ty;
 
             if (lander.crashed) {
                 // Tumble based on tangential speed and some randomness
@@ -1187,9 +1244,12 @@ class CargoPhysics {
         const dy = wy - this.lander.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         if (dist < well.radius) {
-            // Linear pull that is strongest at center, zero at edge.
-            // Multiplier adjusted so it's a "slight draw" instead of an exponential vacuum.
-            const force = currentStrength * 2.5 * Math.max(0, 1 - (dist / well.radius));
+            // Deadzone at the very center to allow escape
+            let pullDist = dist;
+            if (pullDist < 15) pullDist = 15; // Cap minimum distance so force drops off near center
+            
+            // Linear pull that is strongest near center, zero at edge.
+            const force = currentStrength * 2.5 * Math.max(0, 1 - (pullDist / well.radius));
             this.lander.vx += (dx / (dist || 1)) * force * dt;
             this.lander.vy += (dy / (dist || 1)) * force * dt;
         }
@@ -1338,7 +1398,9 @@ class CargoPhysics {
                 const dy = gw.y - body.position.y;
                 const d = Math.sqrt(dx * dx + dy * dy);
                 if (d < gw.radius) {
-                    const fMag = gw.strength * 2.5 * Math.max(0, 1 - (d / gw.radius)) * FS * dt;
+                    let pullD = d;
+                    if (pullD < 15) pullD = 15;
+                    const fMag = gw.strength * 2.5 * Math.max(0, 1 - (pullD / gw.radius)) * FS * dt;
                     Matter.Body.applyForce(body, body.position, { x: (dx / (d || 1)) * fMag * body.mass, y: (dy / (d || 1)) * fMag * body.mass });
                 }
             }
@@ -1462,6 +1524,11 @@ class CargoPhysics {
                 box.vx = lander.vx;
                 box.vy = lander.vy;
                 continue;
+            }
+
+            if (box.flingImmunity && box.flingImmunity > 0) {
+                box.flingImmunity--;
+                if (box.flingImmunity > 0) continue;
             }
 
             const rx = box.x - dcx;
