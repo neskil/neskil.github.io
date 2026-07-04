@@ -792,117 +792,146 @@ class CargoPhysics {
         // --- Sand Worm Logic (worm-lair terrain only) ---
         if (this.currentLevelConfig?.terrainType === 'worm-lair') {
             // Worm pit + danger zone read from level config (with fallback defaults)
-            const WORM_PIT_CX   = this.currentLevelConfig.wormPitCX  ?? 1075;
+            const WORM_PIT_CX   = this.currentLevelConfig.wormPitCX  ?? 900;
             const WORM_ZONE_CX  = WORM_PIT_CX;
-            const WORM_ZONE_CY  = this.currentLevelConfig.wormPitCY  ?? 1100;
+            const WORM_ZONE_CY  = this.currentLevelConfig.wormPitCY  ?? 580;
             const WORM_ZONE_R   = this.currentLevelConfig.wormZoneR   ?? 300;
 
-            if (!this.sandWorm && !lander.crashed && !this.sandWormSpawned) {
+            // ── Spawn check ────────────────────────────────────────────────────────
+            if (!this.sandWorm && !lander.crashed) {
                 const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
                 if (distToZone < WORM_ZONE_R) {
-                    // Logarithmic risk: very low at the edge, spiking near center
-                    const norm = distToZone / WORM_ZONE_R; // 0 = center, 1 = edge
-                    const risk = Math.pow(1 - norm, 2.5);   // 0 at edge, 1 at center
-                    if (Math.random() < risk * 0.004 * dt) {
-                        this.sandWormSpawned = true;
-                        // Emerge from just below the terrain at the worm mound, aimed at lander
-                        const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 60;
+                    // Risk scales sharply near center: 0 at edge, 1 at center
+                    const norm = distToZone / WORM_ZONE_R; // 1 = edge, 0 = center
+                    const risk = Math.pow(1 - norm, 1.8);
+                    if (Math.random() < risk * 0.007 * dt) {
+                        // Spawn from just below the worm mound surface aimed at lander
+                        const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 80;
                         const surfY  = this.getPolygonSurfaceY(spawnX);
-                        const spawnY = surfY + 30; // just below surface
-                        const angle  = Math.atan2(lander.y - spawnY, lander.x - spawnX);
-                        const speed  = 26;
+                        const spawnY = surfY + 20; // just below surface
+
+                        // Aim toward lander's current position
+                        const dxL = lander.x - spawnX;
+                        const dyL = lander.y - spawnY;
+                        const distL = Math.max(1, Math.hypot(dxL, dyL));
+                        const speed = 38; // fast lunge
                         this.sandWorm = {
                             x: spawnX, y: spawnY,
-                            vx: Math.cos(angle) * speed,
-                            vy: Math.sin(angle) * speed,
+                            vx: (dxL / distL) * speed,
+                            vy: (dyL / distL) * speed,
                             state: 'lunging',
+                            lungeTimer: 0,   // how long it's been lunging
                             trail: [],
-                            length: 35
+                            length: 35,
+                            spawnY: spawnY,  // remember surface Y for retract target
+                            spawnX: spawnX,
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
                 }
             }
-            
-            // Roof Sandworm: Prevent players from flying too high over the level
+
+            // ── Roof Sandworm ──────────────────────────────────────────────────────
             if (!this.sandWorm && !lander.crashed) {
-                // Determine a dynamic roof based on the highest point in the level, or just use a fixed high threshold
-                // If lander goes above y = -600 (or higher than the level starts), trigger a drop worm!
                 if (lander.y < -600) {
-                    if (Math.random() < 0.02 * dt) {
-                        this.sandWormSpawned = true;
+                    if (Math.random() < 0.025 * dt) {
                         const spawnX = lander.x + (Math.random() - 0.5) * 100;
-                        const spawnY = lander.y - 400; // spawn above them
-                        const angle = Math.atan2(lander.y - spawnY, lander.x - spawnX);
-                        const speed = 30;
+                        const spawnY = lander.y - 300;
+                        const dxL = lander.x - spawnX;
+                        const dyL = lander.y - spawnY;
+                        const distL = Math.max(1, Math.hypot(dxL, dyL));
+                        const speed = 38;
                         this.sandWorm = {
                             x: spawnX, y: spawnY,
-                            vx: Math.cos(angle) * speed,
-                            vy: Math.sin(angle) * speed,
+                            vx: (dxL / distL) * speed,
+                            vy: (dyL / distL) * speed,
                             state: 'lunging',
+                            lungeTimer: 0,
                             trail: [],
                             length: 40,
-                            isRoofWorm: true
+                            isRoofWorm: true,
+                            spawnY: spawnY,
+                            spawnX: spawnX,
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
                 }
             }
 
+            // ── Update active worm ─────────────────────────────────────────────────
             if (this.sandWorm) {
                 const w = this.sandWorm;
+                w.lungeTimer = (w.lungeTimer || 0) + dt;
 
                 if (w.state === 'lunging') {
-                    if (w.isRoofWorm) {
-                        w.vy -= 0.5 * dt;
-                        if (w.vy < 0) w.state = 'retracting';
+                    // Lunge phase: track toward lander for first 1.2 seconds, then coast
+                    if (w.lungeTimer < 1.2) {
+                        const dxL = lander.x - w.x;
+                        const dyL = lander.y - w.y;
+                        const distL = Math.max(1, Math.hypot(dxL, dyL));
+                        // Steer gradually toward lander
+                        const steer = 2.5;
+                        w.vx += (dxL / distL) * steer * dt;
+                        w.vy += (dyL / distL) * steer * dt;
+                        // Cap speed
+                        const spd = Math.hypot(w.vx, w.vy);
+                        if (spd > 50) { w.vx = (w.vx / spd) * 50; w.vy = (w.vy / spd) * 50; }
                     } else {
-                        w.vy += 0.5 * dt;
-                        if (w.vy > 0) w.state = 'retracting';
+                        // After 1.2s, start decelerating and then retract
+                        w.vx *= Math.pow(0.88, dt);
+                        w.vy *= Math.pow(0.88, dt);
+                        const spd = Math.hypot(w.vx, w.vy);
+                        if (spd < 4) {
+                            w.state = 'retracting';
+                        }
                     }
                 } else {
-                    // Slowly retract
-                    w.vy = w.isRoofWorm ? -4.0 : 4.0;
-                    w.vx *= Math.pow(0.95, dt);
-                }
-
-                w.x += w.vx * dt;
-                w.y += w.vy * dt;
-
-                const lastTP = w.trail[0];
-                if (!lastTP || Math.hypot(w.x - lastTP.x, w.y - lastTP.y) >= 2) {
-                    w.trail.unshift({ x: w.x, y: w.y });
-                    if (w.trail.length > 500) w.trail.pop();
-                }
-
-                // Survivable hit: knock back and deal moderate damage
-                const dx = lander.x - w.x;
-                const dy = lander.y - w.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist < 70 && !lander.crashed) {
-                    const nx = dx / dist, ny = dy / dist;
-                    lander.vx += nx * 5;
-                    lander.vy += ny * 5 - 2; // push away + extra upward
-                    lander.integrity -= 6 * dt; // survivable — ~1 second kills at full HP
-                    if (window.CargoAudio) CargoAudio.playCrash();
-                    for (let i = 0; i < 4; i++) {
-                        this.particles.push({
-                            x: lander.x + (Math.random() - 0.5) * 24,
-                            y: lander.y + (Math.random() - 0.5) * 24,
-                            vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 1,
-                            life: 0.9, decay: 0.05 + Math.random() * 0.04,
-                            color: Math.random() > 0.4 ? '#f97316' : '#854d0e',
-                            size: 2 + Math.random() * 2,
-                        });
+                    // Retract: move back toward spawn point steadily
+                    const dxS = w.spawnX - w.x;
+                    const dyS = w.spawnY - w.y;
+                    const distS = Math.max(1, Math.hypot(dxS, dyS));
+                    const retractSpeed = 12;
+                    w.vx = (dxS / distS) * retractSpeed;
+                    w.vy = (dyS / distS) * retractSpeed;
+                    // Despawn when close to spawn
+                    if (distS < 30) {
+                        this.sandWorm = null;
                     }
-                    if (lander.integrity <= 0) this.triggerExplosion();
                 }
 
-                if (w.y > this.levelHeight + 400 && w.state === 'retracting' && !w.isRoofWorm) {
-                    this.sandWorm = null;
-                }
-                if (w.y < -1200 && w.state === 'retracting' && w.isRoofWorm) {
-                    this.sandWorm = null;
+                if (this.sandWorm) {
+                    w.x += w.vx * dt;
+                    w.y += w.vy * dt;
+
+                    // Build trail
+                    const lastTP = w.trail[0];
+                    if (!lastTP || Math.hypot(w.x - lastTP.x, w.y - lastTP.y) >= 2) {
+                        w.trail.unshift({ x: w.x, y: w.y });
+                        if (w.trail.length > 600) w.trail.pop();
+                    }
+
+                    // ── Hit detection ──────────────────────────────────────────────
+                    const dx = lander.x - w.x;
+                    const dy = lander.y - w.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 80 && !lander.crashed) {
+                        const nx = dx / dist, ny = dy / dist;
+                        lander.vx += nx * 8;
+                        lander.vy += ny * 6 - 3; // knock away + upward boost
+                        lander.integrity -= 8 * dt;
+                        if (window.CargoAudio) CargoAudio.playCrash();
+                        for (let i = 0; i < 6; i++) {
+                            this.particles.push({
+                                x: lander.x + (Math.random() - 0.5) * 30,
+                                y: lander.y + (Math.random() - 0.5) * 30,
+                                vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6 - 2,
+                                life: 0.9, decay: 0.04 + Math.random() * 0.04,
+                                color: Math.random() > 0.4 ? '#f97316' : '#854d0e',
+                                size: 2 + Math.random() * 3,
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
                 }
             }
         }
