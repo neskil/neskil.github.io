@@ -101,6 +101,11 @@ fully-styled pilot-license card populated from `localStorage`, the Audio setting
 modal opens with controls synced to the real mute/volume state, and the browser
 console + on-screen error logger report no errors.
 
+As a standard protocol, all modifications to JavaScript files (`.js`) must be validated for syntax errors prior to loading them in the browser. You can verify syntax directly in the console using:
+```bash
+node --check filename.js
+```
+
 ---
 
 

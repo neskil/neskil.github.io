@@ -2719,6 +2719,26 @@ class CargoGame {
     // Any level can opt in by adding a `radarPingZone` object:
     //   radarPingZone: { cx, cy, r, color, period }
     // where color is an RGB string like '210,100,15'.
+    drawCollectibles() {
+        if (!this.physics.collectibles || this.physics.collectibles.length === 0) return;
+        const ctx = this.ctx;
+        ctx.save();
+        for (const c of this.physics.collectibles) {
+            if (c.type === 'ring') {
+                ctx.strokeStyle = '#fbbf24'; // amber-400
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.radius || 20, 0, Math.PI * 2);
+                ctx.stroke();
+                // inner glow
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+                ctx.lineWidth = 8;
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
     drawRadarPingZone() {
         if (this.uiCollapsed) return;
         const cfg = this.physics.currentLevelConfig;
@@ -3435,8 +3455,6 @@ class CargoGame {
                     ctx.setLineDash([4, 10]);
                     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
                     ctx.setLineDash([]);
-                }
-                continue;
                 }
                 continue;
             }

@@ -1319,9 +1319,9 @@
                     </div>
 
                     <!-- Action buttons -->
-                    <div class="career-actions">
-                        <button class="btn-career amber" onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
-                        <button class="btn-career red" onclick="game.confirmResetCareer()">⚠ Reset Career</button>
+                    <div class="career-actions" style="flex-direction: column; gap: 8px;">
+                        <button class="btn-career amber" style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);" onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
+                        <button onclick="game.confirmResetCareer()" style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 11px; cursor: pointer; text-decoration: underline;">⚠ Reset Career</button>
                     </div>
                 </div>
             </div>
@@ -1509,9 +1509,7 @@
 
         <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:0 0 6px;">LEVEL</div>
         <div class="dev-row" style="justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-            <button onclick="game.startTestLevel()"
-                style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.5);color:#fbbf24;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;">▶
-                Test Sandbox</button>
+
             <button onclick="game.startLevel(0)"
                 style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L1</button>
             <button onclick="game.startLevel(1)"
