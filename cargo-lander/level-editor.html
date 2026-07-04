@@ -1413,7 +1413,7 @@ function insertAtCursor() {
 // ── Export ──
 function downloadJS() {
   const jsonStr = buildOut();
-  const fileContent = "registerLevel(" + jsonStr + ");";
+  const fileContent = jsonStr;
   const blob = new Blob([fileContent], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

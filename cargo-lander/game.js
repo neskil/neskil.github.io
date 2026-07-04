@@ -1239,15 +1239,13 @@ class CargoGame {
         // Auto-load sequence at collection point
         const _col = this.physics.collectionPoint;
         const _lndr = this.physics.lander;
-        // First arrival: spawn first box immediately, open hatch, start countdown
+        // First arrival: start countdown, decide target type
         if (_lndr && _lndr.landed && _lndr.currentPad === 'collection' && !_col.loadSeq) {
             if (this.physics.boxes.length < 3) {
                 const _lc = levels[this.currentLevelIndex];
                 const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                 const _t = _types[Math.floor(Math.random() * _types.length)];
-                this.physics.spawnCargo(_t);
-                if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
-                _col.loadSeq = { phase: 'countdown', countdown: 240, countdownMax: 240, spawned: 1, roofOpen: 1, lx: _lndr.x };
+                _col.loadSeq = { phase: 'countdown', countdown: 80, countdownMax: 80, spawned: 0, roofOpen: 1, lx: _lndr.x, targetType: _t, boxDropped: false };
             }
         }
         if (_col.loadSeq) {
@@ -1257,16 +1255,27 @@ class CargoGame {
 
             if (_seq.phase === 'countdown') {
                 _seq.countdown -= dt;
+
+                // 0.75 progress corresponds to countdown reaching 0.25 of max (i.e. <= 60)
+                if (_seq.countdown <= _seq.countdownMax * 0.25 && !_seq.boxDropped) {
+                    this.physics.spawnCargo(_seq.targetType, _seq.lx);
+                    if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+                    _seq.boxDropped = true;
+                    _seq.spawned++;
+                }
+
                 if (_seq.countdown <= 0) {
                     if (this.physics.boxes.length < 3 && _seq.spawned < 3) {
                         const _lc = levels[this.currentLevelIndex];
                         const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
-                        const _t = _types[Math.floor(Math.random() * _types.length)];
-                        this.physics.spawnCargo(_t);
-                        if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
-                        _seq.spawned++;
-                        if (_seq.spawned >= 3 || this.physics.boxes.length >= 3) _seq.phase = 'closing';
-                        else _seq.countdown = _seq.countdownMax;
+                        _seq.targetType = _types[Math.floor(Math.random() * _types.length)];
+                        _seq.countdownMax = 240;
+                        _seq.countdown = _seq.countdownMax;
+                        _seq.boxDropped = false;
+                        
+                        // Set offset for next box: 1st is center, 2nd is left (-22), 3rd is right (+22)
+                        if (_seq.spawned === 1) _seq.lx = _lndr.x - 22;
+                        else if (_seq.spawned === 2) _seq.lx = _lndr.x + 22;
                     } else {
                         _seq.phase = 'closing';
                     }
@@ -1977,20 +1986,20 @@ class CargoGame {
         const mapWorldHeight = Math.max(600, objMaxY - objMinY);
 
         // Minimap: top-right corner, fixed landscape UI dimensions
-        const mmWidth = isTiny ? 150 : (isMobile ? 240 : 340);
-        const mmHeight = isTiny ? 100 : (isMobile ? 150 : 200);
-        const mmX = cw - mmWidth - (isMobile ? 8 : 20);
+        const mmWidth = isTiny ? 160 : (isMobile ? 200 : 260);
+        const mmHeight = isTiny ? 100 : (isMobile ? 130 : 160);
+        const mmX = cw - mmWidth - (isMobile ? 6 : 20);
         const mmY = isMobile ? 65 : 92; // clears the fuel/shield bar row
 
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
 
         // Draw rounded rect background + border
-        ctx.fillStyle = 'rgba(10, 15, 30, 0.82)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-        ctx.lineWidth = 1.5;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8);
+        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 12);
         else ctx.rect(mmX, mmY, mmWidth, mmHeight);
         ctx.fill();
         ctx.stroke();
@@ -1998,7 +2007,7 @@ class CargoGame {
         // ── Clip everything to the minimap box ────────────────────────────
         // This prevents the lander dot / viewport rect from ever leaking outside
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 8);
+        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 12);
         else ctx.rect(mmX, mmY, mmWidth, mmHeight);
         ctx.clip();
 

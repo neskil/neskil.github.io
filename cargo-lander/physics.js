@@ -387,7 +387,7 @@ class CargoPhysics {
         }
     }
 
-    spawnCargo(type) {
+    spawnCargo(type, targetX) {
         const emojis = {
             'red': ['🧨', '🧲', '🛢️', '🩸'],
             'blue': ['❄️', '🐟', '🧊', '💉'],
@@ -406,7 +406,9 @@ class CargoPhysics {
         let spawnX = _hatchX + (Math.random() - 0.5) * 8;
         let spawnY = this.collectionPoint.y - 88;
         
-        if (this.lander && this.lander.landed && this.lander.currentPad === 'collection') {
+        if (targetX !== undefined) {
+            spawnX = targetX;
+        } else if (this.lander && this.lander.landed && this.lander.currentPad === 'collection') {
             if (this.lander.vehicleType === 'drone') {
                 spawnX = this.lander.x + 30 + (Math.random() * 10); // Spawns to the right of the drone
                 spawnY = this.lander.y - 10;
@@ -559,7 +561,7 @@ class CargoPhysics {
                     cargoCount++;
                 }
             }
-            this.lander.massMultiplier += cargoCount * 0.45; // 45% heavier per box
+            this.lander.massMultiplier += cargoCount * 0.15; // 15% heavier per box (was 45%)
         }
 
         if (!this.lander.crashed) {
@@ -1184,10 +1186,12 @@ class CargoPhysics {
         const dx = wx - this.lander.x;
         const dy = wy - this.lander.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > 20 && dist < well.radius) {
-            const force = (currentStrength * 10) / (dist * 0.1);
-            this.lander.vx += (dx / dist) * force * dt;
-            this.lander.vy += (dy / dist) * force * dt;
+        if (dist < well.radius) {
+            // Linear pull that is strongest at center, zero at edge.
+            // Multiplier adjusted so it's a "slight draw" instead of an exponential vacuum.
+            const force = currentStrength * 2.5 * Math.max(0, 1 - (dist / well.radius));
+            this.lander.vx += (dx / (dist || 1)) * force * dt;
+            this.lander.vy += (dy / (dist || 1)) * force * dt;
         }
     }
 
@@ -1333,9 +1337,9 @@ class CargoPhysics {
                 const dx = gw.x - body.position.x;
                 const dy = gw.y - body.position.y;
                 const d = Math.sqrt(dx * dx + dy * dy);
-                if (d > 20 && d < gw.radius) {
-                    const fMag = (gw.strength * 10) / (d * 0.1) * FS * dt;
-                    Matter.Body.applyForce(body, body.position, { x: (dx / d) * fMag * body.mass, y: (dy / d) * fMag * body.mass });
+                if (d < gw.radius) {
+                    const fMag = gw.strength * 2.5 * Math.max(0, 1 - (d / gw.radius)) * FS * dt;
+                    Matter.Body.applyForce(body, body.position, { x: (dx / (d || 1)) * fMag * body.mass, y: (dy / (d || 1)) * fMag * body.mass });
                 }
             }
 

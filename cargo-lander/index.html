@@ -1615,6 +1615,23 @@
         // Start the game!
         game.init('cargoCanvas');
 
+        // Check if we are playtesting a level from the editor
+        if (window.location.search.includes('playtest=1')) {
+            const ptData = sessionStorage.getItem('playtest_level');
+            if (ptData) {
+                try {
+                    // Eval the code which contains registerLevel(...)
+                    eval(ptData);
+                    // The new level is pushed to the end of the levels array
+                    setTimeout(() => {
+                        game.startLevel(levels.length - 1);
+                    }, 50);
+                } catch(e) {
+                    console.error("Failed to parse or load playtest level:", e);
+                }
+            }
+        }
+
         // Viewport scaling is handled by game.js resizeCanvas()
 
         // Detect touch interface and bind listeners (display is managed dynamically by game.js)
