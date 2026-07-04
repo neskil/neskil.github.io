@@ -17,6 +17,7 @@ registerLevel({
     name: "L7: The Deep Haul",
     missionTitle: "Bioluminescent Depths — Long Haul",
     description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type. Fuel is tight; there's a refuel pump roughly halfway through. Navigate the undulating squeeze corridors without touching the glowing rock walls.",
+    weather: 'bubbles',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.16,
@@ -139,3 +140,4 @@ registerLevel({
         questQuick('Finish in under 4 minutes', 120, 1000),
     ],
 });
+

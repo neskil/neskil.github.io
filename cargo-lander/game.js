@@ -1243,7 +1243,17 @@ class CargoGame {
                 const _lc = levels[this.currentLevelIndex];
                 const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                 const _t = _types[Math.floor(Math.random() * _types.length)];
-                _col.loadSeq = { phase: 'countdown', countdown: 80, countdownMax: 80, spawned: 0, roofOpen: 1, lx: _lndr.x, targetType: _t, boxDropped: false };
+                _col.loadSeq = { 
+                    phase: 'countdown', 
+                    countdown: 80, 
+                    countdownMax: 80, 
+                    spawned: 0, 
+                    roofOpen: 1, 
+                    lx: _lndr.x, 
+                    targetType: _t, 
+                    targetEmoji: this.physics.getRandomCargoEmoji(_t),
+                    boxDropped: false 
+                };
             }
         }
         if (_col.loadSeq) {
@@ -1256,7 +1266,7 @@ class CargoGame {
 
                 // 0.75 progress corresponds to countdown reaching 0.25 of max (i.e. <= 60)
                 if (_seq.countdown <= _seq.countdownMax * 0.25 && !_seq.boxDropped) {
-                    this.physics.spawnCargo(_seq.targetType, _seq.lx);
+                    this.physics.spawnCargo(_seq.targetType, _seq.lx, _seq.targetEmoji);
                     if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
                     _seq.boxDropped = true;
                     _seq.spawned++;
@@ -1267,6 +1277,7 @@ class CargoGame {
                         const _lc = levels[this.currentLevelIndex];
                         const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                         _seq.targetType = _types[Math.floor(Math.random() * _types.length)];
+                        _seq.targetEmoji = this.physics.getRandomCargoEmoji(_seq.targetType);
                         _seq.countdownMax = 240;
                         _seq.countdown = _seq.countdownMax;
                         _seq.boxDropped = false;
@@ -2482,25 +2493,6 @@ class CargoGame {
         ctx.arc(well.x, well.y, 120, 0, Math.PI * 2);
         ctx.fill();
 
-        // Accretion disk (simulated 3D ring)
-        ctx.save();
-        ctx.translate(well.x, well.y);
-        ctx.rotate(-time); 
-        ctx.scale(1, 0.25); // Squash to make it look like a tilted disk
-        
-        const diskGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, 140);
-        diskGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        diskGrad.addColorStop(0.18, 'rgba(255, 255, 255, 0.9)');
-        diskGrad.addColorStop(0.4, 'rgba(250, 204, 21, 0.6)');
-        diskGrad.addColorStop(0.8, 'rgba(239, 68, 68, 0.2)');
-        diskGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.fillStyle = diskGrad;
-        ctx.beginPath();
-        ctx.arc(0, 0, 140, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
         // Event Horizon (pure black center)
         ctx.fillStyle = '#000000';
         ctx.beginPath();
@@ -3185,6 +3177,15 @@ class CargoGame {
             } else if (seg.sticky) {
                 color = '#d946ef'; // fuchsia
                 glow = 'rgba(217,70,239,';
+            } else if (seg.fragile) {
+                color = '#bae6fd'; // light blue/glass
+                glow = 'rgba(186,230,253,';
+            } else if (seg.conveyorSpeed) {
+                color = '#fde047'; // yellow
+                glow = 'rgba(253,224,71,';
+            } else if (seg.repulsor) {
+                color = '#4ade80'; // bright green
+                glow = 'rgba(74,222,128,';
             }
 
             const pulse = 0.7 + 0.3 * Math.sin(now * 0.002 + (seg.x1 + seg.y1) * 0.01);
@@ -3195,6 +3196,14 @@ class CargoGame {
             ctx.lineCap = 'round';
             if (seg.bouncy) {
                 ctx.setLineDash([15, 10]);
+            } else if (seg.fragile) {
+                ctx.setLineDash([5, 5]);
+            } else if (seg.conveyorSpeed) {
+                ctx.lineDashOffset = -now * 0.05 * Math.sign(seg.conveyorSpeed);
+                ctx.setLineDash([10, 10]);
+            } else if (seg.repulsor) {
+                ctx.lineDashOffset = now * 0.02;
+                ctx.setLineDash([2, 8]);
             } else {
                 ctx.setLineDash([]);
             }
@@ -3211,6 +3220,7 @@ class CargoGame {
             ctx.lineTo(seg.x2, seg.y2);
             ctx.stroke();
             
+            ctx.lineDashOffset = 0;
             ctx.setLineDash([]); // Reset line dash
 
             // Bright highlight edge
@@ -4671,7 +4681,6 @@ class CargoGame {
 
     drawLander() {
         const ctx = this.ctx;
-        if (this.updateWeather) this.updateWeather(dt);
 
         const lander = this.physics.lander;
         if (!lander) return;
@@ -5179,8 +5188,8 @@ class CargoGame {
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 ctx.moveTo(-cabW, -4);
-                ctx.lineTo(-cabW * 0.7, -18);
-                ctx.lineTo(cabW * 0.7, -18);
+                ctx.lineTo(-cabW * 0.7, -13);
+                ctx.lineTo(cabW * 0.7, -13);
                 ctx.lineTo(cabW, -4);
                 ctx.closePath();
                 ctx.fill();
@@ -5193,8 +5202,8 @@ class CargoGame {
                 ctx.fillStyle = winGrad;
                 ctx.beginPath();
                 ctx.moveTo(-cabW * 0.5, -6);
-                ctx.lineTo(-cabW * 0.45, -15);
-                ctx.lineTo(cabW * 0.45, -15);
+                ctx.lineTo(-cabW * 0.45, -10);
+                ctx.lineTo(cabW * 0.45, -10);
                 ctx.lineTo(cabW * 0.5, -6);
                 ctx.closePath();
                 ctx.fill();
@@ -5203,8 +5212,8 @@ class CargoGame {
                 ctx.fillStyle = 'rgba(255,255,255,0.4)';
                 ctx.beginPath();
                 ctx.moveTo(-cabW * 0.4, -7);
-                ctx.lineTo(-cabW * 0.35, -14);
-                ctx.lineTo(-cabW * 0.1, -14);
+                ctx.lineTo(-cabW * 0.35, -9);
+                ctx.lineTo(-cabW * 0.1, -9);
                 ctx.lineTo(-cabW * 0.15, -7);
                 ctx.closePath();
                 ctx.fill();

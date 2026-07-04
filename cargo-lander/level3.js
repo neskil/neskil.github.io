@@ -8,6 +8,7 @@ registerLevel({
     name: "L3: Gale-Force Winds",
     missionTitle: "Glacial Peaks — Summit Delivery",
     description: "Katabatic winds howl down from the Glacial Peaks at a constant rate. Your delivery target — Peak Station — is wedged into the ridge summit, blocked from above by an ice overhang. You'll need to fight the crosswind the whole way in, then hold a steady hover long enough to drop cleanly.",
+    weather: 'rain',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.15,
@@ -75,3 +76,4 @@ registerLevel({
         questNoCargoLost('No cargo lost to the gale', 250),
     ],
 });
+

@@ -10,6 +10,7 @@ registerLevel({
     name: "L4: Gravity Anomaly",
     missionTitle: "Anomaly Zone — Dual Cargo Sort",
     description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Two clients need urgent deliveries sorted by colour: red crates to Sector 4, blue crates to Deep Storage. Floating asteroid debris adds extra collision risk. Don't let the vortex pull you into the lava.",
+    weather: 'ash',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.28,           // Heavy gravity — volcanic world has dense core
@@ -91,3 +92,4 @@ registerLevel({
         questQuick('Finish with 20+ sec remaining', 20, 250),
     ],
 });
+

@@ -13,6 +13,7 @@ registerLevel({
     name: "L6: The Sand Worm's Lair",
     missionTitle: "Amber Dusk — Sand Worm Extraction",
     description: "A colossal sand worm has colonised the central dune mound, making the valley floor extremely dangerous. Descend to the left-side shelf to collect cargo, then fly low and fast across the worm's territory to the Eastern Base on the far plateau. The creature hunts by vibration — slow hovering near the mound is an invitation.",
+    weather: 'heatwave',
 
     // ── Identity flag ─────────────────────────────────────────────────────────
     terrainType: 'worm-lair',
@@ -108,3 +109,4 @@ registerLevel({
         questQuick('Finish with 1+ min remaining', 60, 300),
     ],
 });
+
