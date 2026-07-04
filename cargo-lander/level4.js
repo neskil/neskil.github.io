@@ -14,7 +14,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.28,           // Heavy gravity — volcanic world has dense core
     wind: 0,
-    heavyCargo: true,        // Cargo mass affects handling — critical near the vortex
+    heavyCargo: false,       // Cargo mass no longer affects handling
 
     // Moving gravity well — physics.js reads gravityWell config and applies
     // a Lissajous-phase orbit so the pull point drifts unpredictably
@@ -29,35 +29,24 @@ registerLevel({
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
         // Ground — valley floor shaped around the gravity well;
-        // twin saddles mark the hub landing zones
         [
             // Left approach and HQ spawn area
             {x: -400, y: 650}, {x: 100, y: 650},
-            // Saddle 1 — Sector 4 (red hub) sits in this dip
-            {x: 300, y: 550}, {x: 450, y: 650}, {x: 600, y: 650},
-            // Saddle 2 — Deep Storage (blue hub) sits in this dip
-            {x: 750, y: 550}, {x: 900, y: 650}, {x: 1050, y: 650},
-            // Eastern ridge — higher ground, no hubs
-            {x: 1200, y: 550}, {x: 1800, y: 550},
+            // Main wide dip for the hub (Sector 4)
+            {x: 200, y: 650}, {x: 300, y: 550}, {x: 600, y: 550}, {x: 700, y: 650},
+            // Eastern ridge — higher ground
+            {x: 1000, y: 650}, {x: 1800, y: 650},
             // Enclosure
             {x: 1800, y: 1800}, {x: -400, y: 1800}
-        ],
-        // Floating Asteroid 1 — orbits left of the well; collision hazard on approach
-        [
-            {x: 200, y: 250}, {x: 350, y: 200}, {x: 300, y: 350}, {x: 220, y: 320}
-        ],
-        // Floating Asteroid 2 — orbits right of the well; blocks the direct path to Deep Storage
-        [
-            {x: 700, y: 300}, {x: 850, y: 250}, {x: 800, y: 400}, {x: 680, y: 350}
         ]
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 0.70,         // Tightest standard pads so far — tight quarters in the anomaly zone
-    targetCargo: 2,
+    padScale: 0.85,         // Normal pad scale
+    targetCargo: 3,
     budget: 2000,
     timeLimit: 180,
-    allowedTypes: ["red", "blue"],
+    allowedTypes: ["normal"],
     collectionX: -100,      // Pickup depot is behind HQ on the far-left — safe from the vortex
 
     // ── Environment ───────────────────────────────────────────────────────────
@@ -73,8 +62,7 @@ registerLevel({
 
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
-        { x: 525, color: "#ef4444", type: "red",    name: "Sector 4"     },
-        { x: 975, color: "#3b82f6", type: "blue",   name: "Deep Storage" },
+        { x: 410, color: "#22c55e", type: "normal", name: "Sector 4" },
     ],
 
     // ── Palette (Volcanic / Orange-Red) ──────────────────────────────────────
@@ -88,30 +76,17 @@ registerLevel({
         fog:         'rgba(249,115,22,0.08)',
     },
 
-    // ── Segments — floating lava platforms and a diagonal barrier ────────────
-    // These are solid line segments — lander and cargo collide with them like terrain.
-    segments: [
-        // Floating lava platform — left of the vortex, above Sector 4
-        { x1: 280, y1: 520, x2: 440, y2: 520 },
-        // Angled ramp up to the left platform — forces the player to come from below
-        { x1: 220, y1: 580, x2: 280, y2: 520 },
-        // Floating platform — right side, hovers above the Deep Storage approach
-        { x1: 600, y1: 480, x2: 740, y2: 480 },
-        // Diagonal barrier — cuts across the upper mid zone; blocks naive top-down shortcuts
-        { x1: 450, y1: 280, x2: 580, y2: 380 },
-    ],
+    // ── Segments ──────────────────────────────────────────────────────────────
+    segments: [],
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    hazards: [
-        // Laser gauntlet blocking the Deep Storage approach
-        { type: 'laser', pts: [{ x: 740, y: -200 }, { x: 740, y: 700 }], onMs: 1200, offMs: 1500, warnMs: 400, damagePerSec: 40, thickness: 12 }
-    ],
+    hazards: [],
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "The vortex drifts — don't hover near the centre. Match cargo colour to hub colour. Return to HQ to extract.",
+    hint: "The vortex drifts — don't hover near the centre. Return to HQ to extract.",
 
     quests: [
-        questPrimary('Deliver red & blue cargo'),
+        questPrimary('Deliver cargo to Sector 4'),
         questNoCargoLost('No cargo sucked into the vortex', 400),
         questQuick('Finish with 20+ sec remaining', 20, 250),
     ],
