@@ -348,3 +348,11 @@ number is off by more than ~20.
 - **Level Editor Workflow:** Make sure the link to the level editor works. Add ability to playtest level within the editor, download as `.js` file, go back to the game from the editor, and upload `.js` file back into the game with instructions. *Status: Planned.*
 - **Procedural Generation Mode:** Procedural generation needs 3 selectable "craziness" (difficulty) levels with varying length, cave presence, and hazard frequency/difficulty. *Status: Planned.*
 - **Biome Weather Effects:** Make maps visually distinct with weather/atmosphere effects: snow storms for ice (L3), rain for grass (L1), oozing effects for goo/crystal (L5), heatwaves for desert/volcanic (L2/L4). *Status: Planned.*
+- **Intro Camera Animation:** The zoom in at level start should be a top-down zoom-in from a zoomed-out state. *Status: Planned.*
+- **Level Spaciousness:** The caves and procedurally generated environments feel a bit too cramped, they should be more spacious. *Status: Planned.*
+- **Predefined Buildings:** The background decorative buildings appear too random and look weird on slanting terrain. They should be manually predefined in the level configuration instead of random. *Status: Planned.*
+- **Pad Visuals (Ovals):** Remove the dashed oval rings around HQ, pickup, and dropoff pads, but keep the off-screen radar ping effect. *Status: Planned.*
+- **Dropoff Feedback:** Add a visual "light" or indicator that turns on when you are at the correct dropoff location. *Status: Planned.*
+- **Cargo Animation & UI:** Improve the cargo drop animation (drop on top of basic lander or next to drone). Show "press space to attach" text for the drone and add this button to the mobile view. *Status: Planned.*
+- **Mobile UI & Radar:** The radar is too big in landscape mode on mobile. Add the ability to collapse both the mission panel and the radar. *Status: Planned.*
+- **UI Uniformity:** Make the HUD/UI more uniform (aligned on the same line, consistent sizing). *Status: Planned.*
