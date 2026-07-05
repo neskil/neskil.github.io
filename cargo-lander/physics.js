@@ -251,6 +251,18 @@ class CargoPhysics {
         this.hazards = config.hazards || [];
         this.collectibles = config.collectibles ? config.collectibles.map(c => ({...c})) : [];
         this.waterBodies = config.waterBodies || [];
+
+        // Topmost vertex across all terrain (including any floating/disconnected
+        // pieces) — used by the background parallax hill layers so they never
+        // draw above terrain that sits unusually high (e.g. a floating island),
+        // which would otherwise show a jagged hill silhouette poking through gaps.
+        this.terrainTopY = Infinity;
+        for (const poly of this.terrainPolygons) {
+            for (const p of poly) {
+                if (p.y < this.terrainTopY) this.terrainTopY = p.y;
+            }
+        }
+        if (!isFinite(this.terrainTopY)) this.terrainTopY = 0;
         
         const ps = config.padScale || 1.0;
         this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: config.startY !== undefined ? config.startY : undefined, width: Math.round(80 * ps), height: 15 };

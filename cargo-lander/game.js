@@ -713,7 +713,12 @@ class CargoGame {
         // Setup Cinematic Camera Intro
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95; // Slightly padded
+        // Must match the minZoom formula used in update()'s intro block below —
+        // otherwise the starting zoom set here disagrees with the value the
+        // animation resumes from on the first update() tick, causing a jump-cut
+        // followed by the real zoom-in (reads as two zooms instead of one).
+        const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
+        const minZoom = Math.max(0.45, levelFitZoom);
         const introZoom = minZoom * 1.8;
 
         this.camera.zoom = introZoom;
@@ -3585,7 +3590,14 @@ class CargoGame {
                 const layerYWorld = baseYWorld + t * amplitudeWorld;
 
                 // Apply vertical parallax based on camera Y
-                const parallaxYWorld = layerYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+                let parallaxYWorld = layerYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+
+                // Never let the hill silhouette draw above the topmost terrain
+                // vertex (with a margin) — otherwise floating/elevated terrain
+                // (e.g. a floating island) shows this jagged band through its
+                // gaps instead of open sky.
+                const terrainTopY = this.physics.terrainTopY || 0;
+                parallaxYWorld = Math.max(parallaxYWorld, terrainTopY + 80);
 
                 // Convert back to screen space for drawing
                 const screenY = h / 2 + (parallaxYWorld - camY) * zoom;

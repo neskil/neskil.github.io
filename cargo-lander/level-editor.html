@@ -328,7 +328,7 @@ const S = {
 
   cfg: {
     name: '', missionTitle: '', description: '', hint: '',
-    gravity: 0.11, wind: 0, budget: 1000, timeLimit: 300,
+    gravity: 0.11, wind: 0, weather: '', budget: 1000, timeLimit: 300,
     targetCargo: 3, allowedTypes: ['normal', 'red', 'blue', 'green']
   },
   quests: { primary: '', nocrash: false, nocargo: false, quick: null, worm: false },
@@ -549,18 +549,18 @@ function applyConfig(cfg) {
 
   S.cfg = {
     name: cfg.name || '', missionTitle: cfg.missionTitle || '', description: cfg.description || '', hint: cfg.hint || '',
-    gravity: cfg.gravity ?? 0.11, wind: cfg.wind ?? 0, budget: cfg.budget ?? 1000, timeLimit: cfg.timeLimit ?? 300,
+    gravity: cfg.gravity ?? 0.11, wind: cfg.wind ?? 0, weather: cfg.weather || '', budget: cfg.budget ?? 1000, timeLimit: cfg.timeLimit ?? 300,
     targetCargo: cfg.targetCargo ?? 3, allowedTypes: cfg.allowedTypes || ['normal', 'red', 'blue', 'green'],
     heavyCargo: !!cfg.heavyCargo
   };
-  S.quests = { primary: '', nocrash: false, nocargo: false, quick: null, worm: false };
+  S.quests = { primary: '', nocrash: false, nocrashReward: null, nocargo: false, nocargoReward: null, quick: null, quickReward: null, worm: false, wormReward: null };
   if (cfg.quests) {
     cfg.quests.forEach(q => {
       if (q.id === 'primary') S.quests.primary = q.text;
-      else if (q.id === 'no_crash') S.quests.nocrash = true;
-      else if (q.id === 'no_cargo_lost') S.quests.nocargo = true;
-      else if (q.id === 'quick') S.quests.quick = q.timeGoal;
-      else if (q.id === 'survive_worm') S.quests.worm = true;
+      else if (q.id === 'no_crash') { S.quests.nocrash = true; S.quests.nocrashReward = q.reward ?? null; }
+      else if (q.id === 'no_cargo_lost') { S.quests.nocargo = true; S.quests.nocargoReward = q.reward ?? null; }
+      else if (q.id === 'quick') { S.quests.quick = q.timeGoal; S.quests.quickReward = q.reward ?? null; }
+      else if (q.id === 'survive_worm') { S.quests.worm = true; S.quests.wormReward = q.reward ?? null; }
     });
   }
   S.hqWidth = cfg.startDepotWidth || null;
@@ -1455,6 +1455,7 @@ function buildOut() {
   if (S.cfg.hint) lines.push(`  hint: ${JSON.stringify(S.cfg.hint)},`);
   lines.push(`  gravity: ${S.cfg.gravity},`);
   if (S.cfg.wind) lines.push(`  wind: ${S.cfg.wind},`);
+  if (S.cfg.weather) lines.push(`  weather: ${JSON.stringify(S.cfg.weather)},`);
   lines.push(`  budget: ${S.cfg.budget},`);
   lines.push(`  timeLimit: ${S.cfg.timeLimit},`);
   if (S.padScale !== 1) lines.push(`  padScale: ${S.padScale},`);
@@ -1475,10 +1476,10 @@ function buildOut() {
   // Quests
   const qLines = [];
   if (S.quests.primary) qLines.push(`questPrimary(${JSON.stringify(S.quests.primary)})`);
-  if (S.quests.nocrash) qLines.push(`questNoCrash()`);
-  if (S.quests.nocargo) qLines.push(`questNoCargoLost()`);
-  if (S.quests.quick) qLines.push(`questQuick("Complete under ${S.quests.quick}s", ${S.quests.quick})`);
-  if (S.quests.worm) qLines.push(`questSurviveWorm()`);
+  if (S.quests.nocrash) qLines.push(S.quests.nocrashReward != null ? `questNoCrash(${S.quests.nocrashReward})` : `questNoCrash()`);
+  if (S.quests.nocargo) qLines.push(S.quests.nocargoReward != null ? `questNoCargoLost('No cargo lost', ${S.quests.nocargoReward})` : `questNoCargoLost()`);
+  if (S.quests.quick) qLines.push(S.quests.quickReward != null ? `questQuick("Complete under ${S.quests.quick}s", ${S.quests.quick}, ${S.quests.quickReward})` : `questQuick("Complete under ${S.quests.quick}s", ${S.quests.quick})`);
+  if (S.quests.worm) qLines.push(S.quests.wormReward != null ? `questSurviveWorm(${S.quests.wormReward})` : `questSurviveWorm()`);
   if (qLines.length > 0) {
     lines.push(`  quests: [`);
     lines.push(`    ${qLines.join(',\n    ')}`);
