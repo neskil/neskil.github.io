@@ -2250,15 +2250,19 @@ class CargoGame {
         const isMobile = cw < 768;
         const isTiny = cw < 500;
 
+        // Calculate layout dynamically to fix spacing
         const px = isMobile ? 8 : 16;
         const py = isMobile ? 52 : 64;
         const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
         const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
-        const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12 + (isTiny ? 42 : 54) + 16;
+        const statLineH = isTiny ? 14 : 18;
+        
+        // 16(top) + 16(Mission) + 16(Title) + 12(Divider) + quests + 8(Divider) + stats + 16(bottom)
+        const panelH = 16 + 16 + 16 + 12 + (level.quests.length * lineH) + 8 + (statLineH * 3) + 16;
 
         ctx.save();
 
-        // Panel background — slightly more opaque for readability
+        // Panel background
         ctx.fillStyle = 'rgba(8, 12, 26, 0.88)';
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
         ctx.lineWidth = 1.2;
@@ -2268,33 +2272,35 @@ class CargoGame {
         ctx.fill();
         ctx.stroke();
 
+        let curY = py + 16;
+
         // Mission label
         ctx.font = isTiny ? '600 9px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
         ctx.letterSpacing = '0.12em';
         ctx.fillStyle = 'rgba(56,189,248,0.75)';
         ctx.textAlign = 'left';
-        ctx.fillText('MISSION', px + (isTiny ? 8 : 12), py + (isTiny ? 12 : 15));
+        ctx.fillText('MISSION', px + (isTiny ? 8 : 12), curY);
+        curY += 16;
 
         // Mission name
         ctx.font = isTiny ? '700 11px Outfit, sans-serif' : '700 13px Outfit, sans-serif';
         ctx.letterSpacing = '0';
         ctx.fillStyle = 'rgba(248,250,252,0.95)';
-        ctx.fillText(level.missionTitle || level.name, px + (isTiny ? 8 : 12), py + (isTiny ? 25 : 33), panelW - (isTiny ? 16 : 24));
+        ctx.fillText(level.missionTitle || level.name, px + (isTiny ? 8 : 12), curY, panelW - (isTiny ? 16 : 24));
+        curY += 12;
 
         // Divider
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(px + (isTiny ? 6 : 10), py + (isTiny ? 32 : 41));
-        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), py + (isTiny ? 32 : 41));
+        ctx.moveTo(px + (isTiny ? 6 : 10), curY - 4);
+        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), curY - 4);
         ctx.stroke();
+        curY += 12;
 
         // Quest items
-        let lastQy = 0;
         for (let i = 0; i < level.quests.length; i++) {
             const q = level.quests[i];
-            const qy = py + (isTiny ? 32 : 41) + 8 + i * lineH + (isTiny ? 10 : 13);
-            lastQy = qy;
             const state = this.questState[q.id];
             const isPrimary = q.type === 'primary';
 
@@ -2311,36 +2317,36 @@ class CargoGame {
 
             ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
             ctx.fillStyle = iconColor;
-            ctx.fillText(icon, px + (isTiny ? 8 : 12), qy);
+            ctx.fillText(icon, px + (isTiny ? 8 : 12), curY);
 
             ctx.font = isPrimary ? (isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif') : (isTiny ? '400 10px Outfit, sans-serif' : '400 12px Outfit, sans-serif');
             ctx.fillStyle = state?.failed ? 'rgba(239,68,68,0.75)' :
                 (state?.completed ? 'rgba(16,185,129,0.9)' :
                     (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
-            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), qy, panelW - (isTiny ? 30 : 40));
+            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), curY, panelW - (isTiny ? 30 : 40));
+            
+            curY += lineH;
         }
 
-        // --- Mission Stats (Cargo, Budget, Time) ---
-        let statY = lastQy + (isTiny ? 12 : 16);
-        
+        // --- Mission Stats Divider ---
+        curY += 4;
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.beginPath();
-        ctx.moveTo(px + (isTiny ? 6 : 10), statY - (isTiny ? 6 : 8));
-        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), statY - (isTiny ? 6 : 8));
+        ctx.moveTo(px + (isTiny ? 6 : 10), curY - 10);
+        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), curY - 10);
         ctx.stroke();
 
-        const statLineH = isTiny ? 14 : 18;
         ctx.font = isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif';
         
         // Cargo
         ctx.fillStyle = '#f8fafc';
-        ctx.fillText(`Cargo: ${this.deliveredCount}/${level.targetCargo}`, px + (isTiny ? 8 : 12), statY);
-        statY += statLineH;
+        ctx.fillText(`Cargo: ${this.deliveredCount}/${level.targetCargo}`, px + (isTiny ? 8 : 12), curY);
+        curY += statLineH;
 
         // Budget
         ctx.fillStyle = '#10b981';
-        ctx.fillText(`Budget: $${Math.floor(this.missionBudget)}`, px + (isTiny ? 8 : 12), statY);
-        statY += statLineH;
+        ctx.fillText(`Budget: $${Math.floor(this.missionBudget)}`, px + (isTiny ? 8 : 12), curY);
+        curY += statLineH;
 
         // Time
         if (this.overtimeActive) {
@@ -5834,8 +5840,40 @@ class CargoGame {
             } else {
                 this._drawFreighterTruck(ctx, t, tw, th);
             }
-
             ctx.restore();
+            
+            // Draw speech bubble if active
+            if (t.bubbleTimer > 0) {
+                t.bubbleTimer--;
+                ctx.save();
+                ctx.font = 'bold 10px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                const padding = 6;
+                const textWidth = ctx.measureText(t.bubbleText).width;
+                const bw = textWidth + padding * 2;
+                const bh = 18;
+                const bx = cx;
+                const by = cy - th / 2 - 20;
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(bx - bw / 2, by - bh, bw, bh, 4);
+                else ctx.rect(bx - bw / 2, by - bh, bw, bh);
+                
+                // Bubble tail
+                ctx.moveTo(bx - 4, by);
+                ctx.lineTo(bx + 4, by);
+                ctx.lineTo(bx, by + 6);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillText(t.bubbleText, bx, by - bh / 2 + 3);
+                ctx.restore();
+            }
         }
     }
 
