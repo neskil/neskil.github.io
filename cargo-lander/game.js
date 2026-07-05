@@ -1218,7 +1218,7 @@ class CargoGame {
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
 
             let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
-            let targetY = lander.y + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15);
+            let targetY = lander.y - 120 + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
             const viewH = this.canvas.height / this.camera.targetZoom;
             const maxCamY = this.physics.levelHeight - (viewH / 2) + 120;
             targetY = Math.min(targetY, maxCamY);
