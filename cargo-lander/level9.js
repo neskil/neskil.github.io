@@ -17,11 +17,12 @@ registerLevel({
     ambientTrafficRate: 4,   // Maximum traffic frequency
     terrainType: 'worm-lair',// Enables the giant Sandworm hazard
     wormZoneR: 300,          // Range for worm to strike
-    wormPitX: 800,           // Center of the worm pit
-    wormPitY: 900,           // Bottom of the worm pit
+    wormPitCX: 800,          // Center of the worm pit
+    wormPitCY: 900,          // Bottom of the worm pit
     outOfBounds: true,       // Thick lateral fog on the sides
 
     // ── Quest Definition ─────────────────────────────────────────────────────
+    targetCargo: 3,
     quests: [
         questPrimary("Deliver 3 cargo crates to the Suspended Hub"),
         questNoCrash(400),
@@ -102,29 +103,20 @@ registerLevel({
     defaultVehicle: 'lander',// Start with lander, though drone is highly recommended
 
     setupPhysics: function(physics) {
-        const Body = Matter.Body;
-        const Bodies = Matter.Bodies;
-        const Composite = Matter.Composite;
-
         // Create the Cargo Pickup Depot
-        physics.createSourcingDepot(200, 600, 3, ['drone']); // Give them a drone crate too!
+        physics.createSourcingDepot(200, 600, 3, ['drone']); 
         
-        // Delivery Hub is on the suspended rock above the worm
-        physics.createDeliveryHub(800, 500, 3, 'normal', 'Cauldron Hub', true);
+        // Delivery Hub is on the suspended rock above the worm. Needs to be 'heavy' type!
+        physics.createDeliveryHub(800, 500, 3, 'heavy', 'Cauldron Hub', true);
 
-        // Spawn 3 heavy crates on the left shelf
+        // Spawn 3 heavy crates on the left shelf inside the depot bounds
         for (let i = 0; i < 3; i++) {
-            const box = Bodies.rectangle(100 + i * 40, 580, 24, 24, {
-                restitution: 0.2,
-                friction: 0.8,
-                density: 0.005, // Heavy
-                label: 'box',
-                render: { fillStyle: '#eab308' }
-            });
-            box.type = 'heavy';
-            box.id = 'box_' + Date.now() + '_' + i;
-            Composite.add(physics.matterWorld, box);
-            physics.boxes.push(box);
+            physics.spawnCargo('heavy', 170 + i * 30, '🏋️', 560);
+            const box = physics.boxes[physics.boxes.length - 1];
+            const body = physics.boxBodyMap.get(box.id);
+            if (body) {
+                Matter.Body.setDensity(body, 0.005);
+            }
         }
     }
 });
