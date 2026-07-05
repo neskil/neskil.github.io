@@ -2484,7 +2484,7 @@ class CargoGame {
                 this.windStreaks.push({
                     x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.2,
                     y: camY + (Math.random() - 0.5) * vh,
-                    vx: -wind * (18 + Math.random() * 14),
+                    vx: wind * (18 + Math.random() * 14),
                     vy: (Math.random() - 0.5) * 1.5,
                     len: 20 + windAbs * 60 + Math.random() * 40,
                     alpha: 0.12 + Math.random() * 0.25,
