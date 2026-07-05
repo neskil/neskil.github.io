@@ -425,11 +425,29 @@
             border: 1px solid var(--glass-border);
             color: var(--text-primary);
             cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 0.9rem;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
             font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
             transition: all 0.2s;
+            line-height: 1;
+            height: 36px;
+            box-sizing: border-box;
+        }
+
+        .utility-btn.icon-only {
+            padding: 8px;
+            width: 36px;
+        }
+
+        .utility-btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
         }
 
         .utility-btn:hover {
@@ -1028,19 +1046,25 @@
             </svg>
             Back to Home
         </a>
-        <div
-            style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
-            <button id="fullscreen-toggle-btn" class="utility-btn" onclick="game.toggleFullscreen()"
-                title="Toggle Fullscreen" style="font-size:1.1rem;padding:6px 10px;">⛶</button>
-            <button id="mute-toggle-btn" class="utility-btn" onclick="game.toggleMuteQuick()" title="Toggle Mute"
-                style="font-size:1.1rem;padding:6px 10px;">🔊</button>
-            <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">⚙️ Audio</button>
-            <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()"
-                style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">🛠
-                Dev</button>
-            <a href="level-editor.html" class="utility-btn"
-                style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">🗺️
-                Editor</a>
+        <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
+            <button id="fullscreen-toggle-btn" class="utility-btn icon-only" onclick="game.toggleFullscreen()" title="Toggle Fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            </button>
+            <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()" title="Toggle Mute">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            </button>
+            <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Audio
+            </button>
+            <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                Dev
+            </button>
+            <a href="level-editor.html" class="utility-btn" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Editor
+            </a>
         </div>
     </header>
 
@@ -1165,11 +1189,24 @@
 
                 <div style="flex:1"></div>
                 <!-- Utility Buttons -->
-                <button id="fullscreen-toggle-btn-hud" class="utility-btn" onclick="game.toggleFullscreen()" title="Toggle Fullscreen" style="font-size:1rem;padding:4px 9px;">&#x26F6;</button>
-                <button id="mute-toggle-btn-hud" class="utility-btn" onclick="game.toggleMuteQuick()" title="Toggle Mute" style="font-size:1rem;padding:4px 9px;">&#x266B;</button>
-                <button id="mute-btn-hud" class="utility-btn" onclick="game.openSettings()">&#x2699;&#xFE0F; Audio</button>
-                <button id="dev-btn-hud" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">&#x2316; Dev</button>
-                <a href="level-editor.html" class="utility-btn" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">&#x270F; Editor</a>
+                <button id="fullscreen-toggle-btn-hud" class="utility-btn icon-only" onclick="game.toggleFullscreen()" title="Toggle Fullscreen">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                </button>
+                <button id="mute-toggle-btn-hud" class="utility-btn icon-only" onclick="game.toggleMuteQuick()" title="Toggle Mute">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                </button>
+                <button id="mute-btn-hud" class="utility-btn" onclick="game.openSettings()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    Audio
+                </button>
+                <button id="dev-btn-hud" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    Dev
+                </button>
+                <a href="level-editor.html" class="utility-btn" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    Editor
+                </a>
             </div>
         </div>
 

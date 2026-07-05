@@ -648,58 +648,32 @@ class CargoGame {
             // Resolve Y coords
             for (const b of this.buildings) {
                 b.y = this.physics.getPolygonSurfaceY(b.x);
-            }
-        } else {
-            const bTypes = ['antenna', 'silo', 'refinery'];
-            const bSpacing = 180 + Math.random() * 80;
-            const bCount = 7 + Math.floor(Math.random() * 4);
-            const padZones = [
-                { x: this.physics.startDepot.x, w: this.physics.startDepot.width + 60 },
-                { x: this.physics.collectionPoint.x, w: this.physics.collectionPoint.width + 60 },
-            ];
-            for (const hub of this.physics.deliveryHubs) {
-                padZones.push({ x: hub.x - 30, w: hub.width + 60 });
-            }
-            let bx = 120;
-            let attempts = 0;
-            while (this.buildings.length < bCount && bx < this.physics.levelWidth - 120 && attempts < 100) {
-                attempts++;
-                bx += bSpacing + (Math.random() - 0.5) * 80;
-                // Skip over pad zones
-                const blocked = padZones.some(z => bx > z.x - 20 && bx < z.x + z.w + 20);
-                if (blocked) continue;
-                
-                const terrainY = this.physics.getPolygonSurfaceY(bx);
-                const y1 = this.physics.getPolygonSurfaceY(bx - 20);
-                const y2 = this.physics.getPolygonSurfaceY(bx + 20);
-                // Skip if terrain is slanting too much
-                if (Math.abs(y1 - y2) > 12) continue;
-                
-                const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
-                this.buildings.push({
-                    type: btype,
-                    x: bx,
-                    y: terrainY,
-                    w: btype === 'silo' ? 22 + Math.random() * 16 : btype === 'refinery' ? 45 + Math.random() * 20 : 6,
-                    h: 60 + Math.random() * 100,
-                    phase: Math.random() * Math.PI * 2
-                });
+                if (!b.w) b.w = b.type === 'silo' ? 22 + Math.random() * 16 : b.type === 'refinery' ? 45 + Math.random() * 20 : 6;
+                if (!b.h) b.h = 60 + Math.random() * 100;
+                if (b.phase === undefined) b.phase = Math.random() * Math.PI * 2;
             }
         }
 
         this.gameState = 'playing';
         this.addMessage("Level Started: " + (level?.name || "Unknown"), "#6366f1");
+        
+        if (this.currentLevelIndex === 0) {
+            setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Use Arrow Keys or WASD to fly", "#34d399") }, 3000);
+            setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Pick up cargo from the crane (Spacebar / Click)", "#34d399") }, 9000);
+            setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Deliver cargo to the glowing Delivery Hubs", "#34d399") }, 15000);
+        }
 
         // Setup Cinematic Camera Intro
         const cw = this.canvas.width;
         const ch = this.canvas.height;
         const minZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95; // Slightly padded
+        const introZoom = minZoom * 1.8;
 
-        this.camera.zoom = 0.5;
-        this.camera.targetZoom = minZoom;
+        this.camera.zoom = introZoom;
+        this.camera.targetZoom = introZoom;
         this.introTimer = 2.0;
         this.camera.x = this.physics.levelWidth / 2;
-        this.camera.y = this.physics.levelHeight / 2;
+        this.camera.y = 0;
 
         let weatherType = level?.weather;
         if (!weatherType) {
@@ -995,23 +969,55 @@ class CargoGame {
 
         // Toggle extraction button — must be at HQ to activate
         const btnExtract = this.uiElements?.btnExtract || document.getElementById('btn-extract');
+        const centerOverlay = document.getElementById('center-extract-overlay');
+        const centerBtn = document.getElementById('center-extract-btn');
+        const centerDesc = document.getElementById('center-extract-desc');
+        const centerTitle = document.getElementById('center-extract-title');
+        
         if (btnExtract) {
             const allDelivered = this.deliveredCount >= level.targetCargo;
             const atHQ = lander && lander.landed && lander.currentPad === 'start';
+            const isLandedAnywhere = lander && lander.landed;
+
             if (!allDelivered) {
                 btnExtract.classList.add('hidden');
+                if(centerOverlay) centerOverlay.style.display = 'none';
             } else if (atHQ) {
                 btnExtract.classList.remove('hidden');
                 btnExtract.textContent = '✓ EXTRACT NOW';
                 btnExtract.style.background = '#10b981';
                 btnExtract.style.opacity = '1';
                 btnExtract.style.cursor = 'pointer';
+                
+                if(centerOverlay) {
+                    centerOverlay.style.display = 'flex';
+                    centerOverlay.style.borderColor = '#10b981';
+                    if(centerTitle) {
+                        centerTitle.textContent = 'Mission Complete';
+                        centerTitle.style.color = '#10b981';
+                    }
+                    if(centerDesc) centerDesc.textContent = 'You have successfully returned to HQ.';
+                    if(centerBtn) centerBtn.style.display = 'block';
+                }
             } else {
                 btnExtract.classList.remove('hidden');
                 btnExtract.textContent = 'Return to HQ';
                 btnExtract.style.background = '#334155';
                 btnExtract.style.opacity = '0.7';
                 btnExtract.style.cursor = 'default';
+
+                if (centerOverlay && isLandedAnywhere) {
+                    centerOverlay.style.display = 'flex';
+                    centerOverlay.style.borderColor = '#38bdf8';
+                    if(centerTitle) {
+                        centerTitle.textContent = 'All Cargo Delivered!';
+                        centerTitle.style.color = '#38bdf8';
+                    }
+                    if(centerDesc) centerDesc.textContent = 'Return to HQ to extract and finish the mission (or continue flying, but watch your fuel!)';
+                    if(centerBtn) centerBtn.style.display = 'none';
+                } else if (centerOverlay) {
+                    centerOverlay.style.display = 'none';
+                }
             }
         }
     }
@@ -1194,9 +1200,10 @@ class CargoGame {
             this.introTimer -= dt / 60;
             const progress = Math.max(0, Math.min(1, (2.0 - this.introTimer) / 2.0));
             const s = progress * progress * (3 - 2 * progress);
-            this.camera.zoom = minZoom + s * (desiredZoom - minZoom);
+            const introZoom = minZoom * 1.8;
+            this.camera.zoom = introZoom + s * (desiredZoom - introZoom);
             this.camera.x = (this.physics.levelWidth / 2) + s * (lander.x - (this.physics.levelWidth / 2));
-            this.camera.y = (this.physics.levelHeight / 2) + s * (lander.y - (this.physics.levelHeight / 2));
+            this.camera.y = 0 + s * (lander.y - 0);
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
@@ -1249,7 +1256,7 @@ class CargoGame {
                     countdownMax: 80, 
                     spawned: 0, 
                     roofOpen: 1, 
-                    lx: _lndr.x, 
+                    lx: _lndr.vehicleType === 'drone' ? _lndr.x + 35 : _lndr.x, 
                     targetType: _t, 
                     targetEmoji: this.physics.getRandomCargoEmoji(_t),
                     boxDropped: false 
@@ -1282,9 +1289,14 @@ class CargoGame {
                         _seq.countdown = _seq.countdownMax;
                         _seq.boxDropped = false;
                         
-                        // Set offset for next box: 1st is center, 2nd is left (-22), 3rd is right (+22)
-                        if (_seq.spawned === 1) _seq.lx = _lndr.x - 22;
-                        else if (_seq.spawned === 2) _seq.lx = _lndr.x + 22;
+                        // Set offset for next box
+                        if (_lndr.vehicleType === 'drone') {
+                            if (_seq.spawned === 1) _seq.lx = _lndr.x - 35;
+                            else if (_seq.spawned === 2) _seq.lx = _lndr.x + 65;
+                        } else {
+                            if (_seq.spawned === 1) _seq.lx = _lndr.x - 22;
+                            else if (_seq.spawned === 2) _seq.lx = _lndr.x + 22;
+                        }
                     } else {
                         _seq.phase = 'closing';
                     }
@@ -1361,7 +1373,7 @@ class CargoGame {
         // Update notifications
         for (let i = this.messages.length - 1; i >= 0; i--) {
             const m = this.messages[i];
-            m.life -= 0.015 * dt;
+            m.life -= 0.005 * dt;
             if (m.life <= 0) {
                 this.messages.splice(i, 1);
             }
@@ -1374,40 +1386,53 @@ class CargoGame {
         const lander = this.physics.lander;
         const hubs = this.physics.deliveryHubs;
         const boxes = this.physics.boxes;
+        
+        let totalReward = 0;
+        let lastDeliveryX = 0;
+        let lastDeliveryY = 0;
 
-        // We check if the lander has landed safely on a delivery pad.
-        // Only delivery hubs count here — the 'start' and 'collection' pads aren't hubs.
-        const padType = lander.currentPad; // e.g. 'red', 'blue', 'green', 'normal'
-        const hub = hubs.find(h => h.type === padType);
-        if (lander.landed && hub) {
-            // Sweep boxes that are within the horizontal bounds of the hub's landing zone
+        // Check for deliveries on all pads (either landed by lander or dropped manually)
+        for (const hub of hubs) {
             for (let i = boxes.length - 1; i >= 0; i--) {
                 const box = boxes[i];
+                
+                // Vacuum chute logic
+                if (hub.type === 'chute') {
+                    if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
+                        totalReward += this.processSuccessfulDelivery(box, i, hub);
+                        lastDeliveryX = hub.x + hub.width / 2;
+                        lastDeliveryY = hub.y - 20;
+                    }
+                    continue;
+                }
 
-                // If box is near the hub center (and close to the hub platform height)
+                // Normal pad delivery
                 if (box.x >= hub.x - 30 && box.x <= hub.x + hub.width + 30 && box.y > hub.y - 60) {
-                    // Check if cargo matches the hub's requirement
-                    if (box.type === padType) {
-                        this.processSuccessfulDelivery(box, i, hub);
-                    } else if (!box._rejectWarned) {
-                        // Warning: Incorrect Cargo type — only once per box, not every frame
-                        box._rejectWarned = true;
-                        this.addMessage(`Warning: Hub rejects ${box.type.toUpperCase()} package!`, "#ef4444");
+                    // Two ways to deliver: 
+                    // 1) Lander is landed on the hub, and box is near it.
+                    // 2) Box is just resting on the hub by itself.
+                    const landerIsHere = lander.landed && lander.currentPad === hub.type;
+                    const boxIsResting = (!box.onDeck && lander.grabbedBoxId !== box.id && box.y > hub.y - 40 && Math.abs(box.vx || 0) < 1.0 && Math.abs(box.vy || 0) < 1.0);
+                    
+                    if (landerIsHere || boxIsResting) {
+                        if (box.type === hub.type) {
+                            totalReward += this.processSuccessfulDelivery(box, i, hub);
+                            lastDeliveryX = box.x;
+                            lastDeliveryY = box.y;
+                        } else if (!box._rejectWarned) {
+                            box._rejectWarned = true;
+                            this.addMessage(`Warning: Hub rejects ${box.type.toUpperCase()} package!`, "#ef4444");
+                        }
                     }
                 }
             }
         }
-
-        // Check for Vacuum Chute delivery (no landing required — any cargo type
-        // is accepted once it's been pulled down through the chute opening).
-        for (const hub of hubs) {
-            if (hub.type !== 'chute') continue;
-            for (let i = boxes.length - 1; i >= 0; i--) {
-                const box = boxes[i];
-                if (box.x >= hub.x && box.x <= hub.x + hub.width && box.y > hub.y + 20) {
-                    this.processSuccessfulDelivery(box, i, hub);
-                }
-            }
+        
+        if (totalReward > 0) {
+            if (!this.floatingTexts) this.floatingTexts = [];
+            const ox = (Math.random() - 0.5) * 40;
+            const oy = (Math.random() - 0.5) * 20;
+            this.floatingTexts.push({ text: `+$${totalReward}`, x: lastDeliveryX + ox, y: lastDeliveryY - 40 + oy, life: 1.5, color: '#10b981' });
         }
 
         // Check if any cargo fell into the abyss
@@ -1460,15 +1485,12 @@ class CargoGame {
         this.deliveredCount++;
         this.career.totalDeliveries++;
         this.saveCareer();
-        const deliveryReward = 200;
+        const deliveryReward = 120;
         this.globalCash += deliveryReward;
         localStorage.setItem('cargoLanderCash', this.globalCash);
         if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
-        this.addMessage(`+ $${deliveryReward} Delivered!`, "#10b981");
-
-        // Add juicy floating text
-        if (!this.floatingTexts) this.floatingTexts = [];
-        this.floatingTexts.push({ text: `+$${deliveryReward}`, x: box.x, y: box.y - 40, life: 1.5, color: '#10b981' });
+        
+        return deliveryReward;
     }
 
     updateBoxFireState(dt) {
@@ -1576,6 +1598,32 @@ class CargoGame {
 
         this.gameState = 'level_complete';
         if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
+
+        // Fireworks celebration
+        const l = this.physics.lander;
+        if (this.physics && this.physics.particles && l) {
+            for (let burst = 0; burst < 3; burst++) {
+                setTimeout(() => {
+                    const bx = l.x + (Math.random() - 0.5) * 300;
+                    const by = l.y - 100 - Math.random() * 200;
+                    for (let i = 0; i < 60; i++) {
+                        this.physics.particles.push({
+                            x: bx,
+                            y: by,
+                            vx: (Math.random() - 0.5) * 12,
+                            vy: (Math.random() - 0.5) * 12,
+                            life: 1.0 + Math.random() * 1.5,
+                            decay: 0.01 + Math.random() * 0.02,
+                            color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
+                            size: 2 + Math.random() * 4
+                        });
+                    }
+                    if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+                        CargoAudio.playCollision(2); // quiet pop
+                    }
+                }, burst * 500);
+            }
+        }
 
         document.getElementById('hud-overlay').style.display = 'none';
 
@@ -4406,7 +4454,7 @@ class CargoGame {
                 } else if (_st < 0.85) {
                     _trolleyX = _lx;
                     _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
-                    _showBox = _st < 0.83;
+                    _showBox = _st < 0.75;
                     _boxX = _lx;
                     _boxY = _cableTop + _cableLen + 8;
                 } else {
@@ -4435,15 +4483,9 @@ class CargoGame {
             ctx.stroke();
 
             if (_showBox) {
-                ctx.save();
-                ctx.fillStyle = '#f59e0b';
-                ctx.strokeStyle = '#fbbf24';
-                ctx.lineWidth = 1;
-                ctx.fillRect(_boxX - 9, _boxY - 9, 18, 18);
-                ctx.strokeRect(_boxX - 9, _boxY - 9, 18, 18);
-                ctx.fillStyle = 'rgba(0,0,0,0.25)';
-                ctx.fillRect(_boxX - 5, _boxY - 5, 10, 10);
-                ctx.restore();
+                const bType = _col.loadSeq?.targetType || 'normal';
+                const emoji = _col.loadSeq?.targetEmoji || '📦';
+                this.drawSingleBox(_boxX, _boxY, bType, emoji);
             }
 
             // ── Landing pad surface ───────────────────────────────────────
@@ -4483,7 +4525,7 @@ class CargoGame {
                 ctx.fillStyle = `rgba(56,189,248,${_pp})`;
                 ctx.font = '600 11px Outfit, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`LOADING ${_col.loadSeq.spawned} / 3`, cpCx, cy - 30);
+                ctx.fillText(`LOADING ${_col.loadSeq.spawned} / 3`, cpCx, wbY - 12);
             }
         }
     }
