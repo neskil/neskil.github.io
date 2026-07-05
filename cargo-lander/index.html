@@ -1061,22 +1061,49 @@
             Back to Home
         </a>
         <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
-            <button id="fullscreen-toggle-btn" class="utility-btn icon-only" onclick="game.toggleFullscreen()" title="Toggle Fullscreen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            <button id="fullscreen-toggle-btn" class="utility-btn icon-only" onclick="game.toggleFullscreen()"
+                title="Toggle Fullscreen">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                    </path>
+                </svg>
             </button>
-            <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()" title="Toggle Mute">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+            <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()"
+                title="Toggle Mute">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
             </button>
             <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                    </path>
+                </svg>
                 Audio
             </button>
-            <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()" style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()"
+                style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
                 Dev
             </button>
-            <a href="level-editor.html" class="utility-btn" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            <a href="level-editor.html" class="utility-btn"
+                style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
                 Editor
             </a>
         </div>
@@ -1097,8 +1124,10 @@
             </div>
             <!-- Actions -->
             <div style="display: flex; gap: 15px; align-items: flex-end;">
-                <button class="mobile-btn" id="btn-hud-toggle" style="background: rgba(120,120,120,0.3); font-size: 16px;">👁️ HUD</button>
-                <button class="mobile-btn" id="btn-action" style="font-size: 14px; line-height: 1.2;">GRAB<br>[SP]</button>
+                <button class="mobile-btn" id="btn-hud-toggle"
+                    style="background: rgba(120,120,120,0.3); font-size: 16px;">👁️ HUD</button>
+                <button class="mobile-btn" id="btn-action"
+                    style="font-size: 14px; line-height: 1.2;">GRAB<br>[SP]</button>
                 <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">🔥</button>
             </div>
         </div>
@@ -1145,23 +1174,23 @@
             }
 
             function toggleUICollapse() {
-                if(game) {
+                if (game) {
                     game.uiCollapsed = !game.uiCollapsed;
                     const vitals = document.getElementById('vitals-panel');
                     const btnGroup = document.getElementById('hud-menu-btn-group');
                     const dd = document.getElementById('hud-dropdown');
-                    
-                    if(vitals) vitals.style.display = game.uiCollapsed ? 'none' : 'flex';
+
+                    if (vitals) vitals.style.display = game.uiCollapsed ? 'none' : 'flex';
                     // We can choose to keep or hide the menu toggle, hiding everything is cleaner
-                    if(btnGroup) btnGroup.style.display = game.uiCollapsed ? 'none' : 'flex';
-                    if(game.uiCollapsed && dd) dd.style.display = 'none';
-                    
+                    if (btnGroup) btnGroup.style.display = game.uiCollapsed ? 'none' : 'flex';
+                    if (game.uiCollapsed && dd) dd.style.display = 'none';
+
                     const leftPanels = document.getElementById('left-panels');
-                    if(leftPanels) {
+                    if (leftPanels) {
                         leftPanels.style.display = game.uiCollapsed ? 'none' : 'block';
                     }
                     const radar = document.getElementById('radar-container');
-                    if(radar) {
+                    if (radar) {
                         radar.style.display = game.uiCollapsed ? 'none' : 'flex';
                     }
                 }
@@ -1185,46 +1214,66 @@
 
         <!-- Floating HUD during gameplay -->
         <!-- Floating HUD during gameplay -->
-        <div id="hud-overlay" class="hud-panel" style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: none;">
-            
+        <div id="hud-overlay" class="hud-panel"
+            style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: none;">
+
             <!-- Left: Extract Button Container -->
             <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-start;">
                 <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
-                    style="padding: 8px 16px; font-size: 14px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); pointer-events: auto;">FINISH & EXTRACT</button>
+                    style="padding: 8px 16px; font-size: 14px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); pointer-events: auto;">FINISH
+                    & EXTRACT</button>
             </div>
 
             <!-- Center: Vitals -->
-            <div id="vitals-panel" class="hud-group" style="pointer-events: auto; justify-content: center; flex-wrap: wrap;">
+            <div id="vitals-panel" class="hud-group"
+                style="pointer-events: auto; justify-content: center; flex-wrap: wrap;">
                 <div class="hud-stat">Fuel</div>
                 <div class="gauge-container">
                     <div id="fuel-fill" class="gauge-fill"></div>
                 </div>
-                <div id="low-fuel-warning" class="hidden" style="color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
-                
+                <div id="low-fuel-warning" class="hidden"
+                    style="color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
+
                 <div class="hud-stat" style="margin-left: 10px;">Hull</div>
                 <div class="gauge-container">
                     <div id="health-fill" class="gauge-fill"></div>
                 </div>
             </div>
-            
+
             <!-- Right: Utility & Options -->
-            <div id="hud-right-panel" style="flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto;">
+            <div id="hud-right-panel"
+                style="flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto;">
                 <div class="hud-group" style="padding: 6px 8px;">
-                    <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺 Fullscreen</button>
-                    <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();" title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
-                    <button class="utility-btn icon-only" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI" style="width: 32px; height: 32px;">👁</button>
-                    <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options" style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
+                    <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺
+                        Fullscreen</button>
+                    <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
+                        title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
+                    <button class="utility-btn icon-only" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
+                        style="width: 32px; height: 32px;">👁</button>
+                    <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options"
+                        style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
                 </div>
-                
-                <div id="options-dropdown" class="hud-group" style="display: none; flex-direction: column; align-items: flex-start; align-self: flex-start; background: rgba(15, 23, 42, 0.85); width: 175px; pointer-events: auto;">
-                    <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
-                    <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start;">🔊 Audio Settings</button>
-                    <button class="utility-btn" onclick="game.selfDestruct(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start; color: #fca5a5;">☠️ Destruct</button>
-                    <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
-                    <a href="level-editor.html" class="utility-btn" style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝 Editor</a>
-                    <div id="ui-scale-container" style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
-                        <span style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI Scale: <span id="ui-scale-val">100%</span></span>
-                        <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0" style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
+
+                <div id="options-dropdown" class="hud-group"
+                    style="display: none; flex-direction: column; align-items: flex-start; align-self: flex-start; background: rgba(15, 23, 42, 0.85); width: 175px; pointer-events: auto;">
+                    <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
+                        style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
+                    <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();"
+                        style="width: 100%; justify-content: flex-start;">⚙️ Settings</button>
+                    <button class="utility-btn" onclick="game.selfDestruct(); toggleOptionsDropdown();"
+                        style="width: 100%; justify-content: flex-start; color: #fca5a5;">☠️ Destruct</button>
+                    <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();"
+                        style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
+                    <a href="level-editor.html" class="utility-btn"
+                        style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝
+                        Editor</a>
+                    <div id="ui-scale-container"
+                        style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
+                        <span
+                            style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI
+                            Scale: <span id="ui-scale-val">100%</span></span>
+                        <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0"
+                            style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
                     </div>
                 </div>
             </div>
@@ -1283,43 +1332,49 @@
                             <span id="hs-badge-4"
                                 style="font-size:0.65rem; color:#38bdf8; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" id="mission-btn-5" onclick="game.showVehicleSelection(5)" style="border-color: #f59e0b;">
+                        <button class="btn-level" id="mission-btn-5" onclick="game.showVehicleSelection(5)"
+                            style="border-color: #f59e0b;">
                             <span class="num" style="color: #f59e0b;">🏜️ Mission 6 · Boss</span>
                             The Sand Worm's Lair
                             <span id="hs-badge-5"
                                 style="font-size:0.65rem; color:#f59e0b; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" id="mission-btn-6" onclick="game.showVehicleSelection(6)" style="border-color: #a855f7;">
+                        <button class="btn-level" id="mission-btn-6" onclick="game.showVehicleSelection(6)"
+                            style="border-color: #a855f7;">
                             <span class="num" style="color: #a855f7;">🌌 Mission 7 · Endurance</span>
                             The Deep Haul
                             <span id="hs-badge-6"
                                 style="font-size:0.65rem; color:#a855f7; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" id="mission-btn-7" onclick="game.showVehicleSelection(7)" style="border-color: #ec4899;">
+                        <button class="btn-level" id="mission-btn-7" onclick="game.showVehicleSelection(7)"
+                            style="border-color: #ec4899;">
                             <span class="num" style="color: #ec4899;">🛰️ Mission 8 · Finale</span>
                             Orbital Gauntlet
                             <span id="hs-badge-7"
                                 style="font-size:0.65rem; color:#ec4899; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" id="mission-btn-8" onclick="game.showVehicleSelection(8)" style="border-color: #ef4444;">
+                        <button class="btn-level" id="mission-btn-8" onclick="game.showVehicleSelection(8)"
+                            style="border-color: #ef4444;">
                             <span class="num" style="color: #ef4444;">🔥 Mission 9 · Chaos</span>
                             The Cauldron
                             <span id="hs-badge-8"
                                 style="font-size:0.65rem; color:#ef4444; font-weight:600; margin-top:2px;"></span>
                         </button>
-                        <button class="btn-level" onclick="game.openProceduralConfig()"
-                            style="border-color: #4ade80;">
+                        <button class="btn-level" onclick="game.openProceduralConfig()" style="border-color: #4ade80;">
                             <span class="num" style="color: #4ade80;">♾️ Mission ♾️ · Endless</span>
                             Procedural Mission
-                            <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Choose your difficulty</span>
+                            <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Choose your
+                                difficulty</span>
                         </button>
                         <button class="btn-level" onclick="document.getElementById('custom-level-input').click()"
                             style="border-color: #6366f1; background: rgba(99, 102, 241, 0.1);">
                             <span class="num" style="color: #818cf8;">📁 Load Custom Level</span>
                             From .js file
-                            <span style="font-size:0.65rem; color:#6366f1; font-weight:600; margin-top:2px;">Import created levels</span>
+                            <span style="font-size:0.65rem; color:#6366f1; font-weight:600; margin-top:2px;">Import
+                                created levels</span>
                         </button>
-                        <input type="file" id="custom-level-input" accept=".js" class="hidden" style="display: none;" onchange="game.loadCustomLevel(event)">
+                        <input type="file" id="custom-level-input" accept=".js" class="hidden" style="display: none;"
+                            onchange="game.loadCustomLevel(event)">
                     </div>
 
                     <div class="control-help" style="margin-top: 1rem;">
@@ -1369,15 +1424,19 @@
                         <div style="margin-top: 12px;">
                             <div class="stat-cell-label" style="margin-bottom:6px;">🚀 Vehicle License</div>
                             <div style="display:flex; gap:8px;">
-                                <button id="vehicle-license-basic" class="btn-level" onclick="game.setSelectedVehicle('basic')"
+                                <button id="vehicle-license-basic" class="btn-level"
+                                    onclick="game.setSelectedVehicle('basic')"
                                     style="flex:1; text-align:left; padding:8px 10px;">
                                     <span class="num" style="color:#38bdf8;">Basic Lander</span>
-                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Upright, beginner-friendly</span>
+                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Upright,
+                                        beginner-friendly</span>
                                 </button>
-                                <button id="vehicle-license-drone" class="btn-level" onclick="game.setSelectedVehicle('drone')"
+                                <button id="vehicle-license-drone" class="btn-level"
+                                    onclick="game.setSelectedVehicle('drone')"
                                     style="flex:1; text-align:left; padding:8px 10px;">
                                     <span class="num" style="color:#10b981;">Utility Drone</span>
-                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover + winch</span>
+                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover +
+                                        winch</span>
                                 </button>
                             </div>
                         </div>
@@ -1397,8 +1456,12 @@
 
                     <!-- Action buttons -->
                     <div class="career-actions" style="flex-direction: column; gap: 8px;">
-                        <button class="btn-career amber" style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);" onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
-                        <button onclick="game.confirmResetCareer()" style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 11px; cursor: pointer; text-decoration: underline;">⚠ Reset Career</button>
+                        <button class="btn-career amber"
+                            style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"
+                            onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
+                        <button onclick="game.confirmResetCareer()"
+                            style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 11px; cursor: pointer; text-decoration: underline;">⚠
+                            Reset Career</button>
                     </div>
                 </div>
             </div>
@@ -1448,12 +1511,14 @@
                 </div>
                 <input type="range" id="proc-difficulty-slider" min="1" max="3" step="1" value="1"
                     style="width: 100%; cursor: pointer;" oninput="game.updateProceduralConfigLabel(this.value)">
-                <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;">
+                <div
+                    style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;">
                     <span>Standard</span>
                     <span>Crazy</span>
                     <span>Insane</span>
                 </div>
-                <p id="proc-difficulty-desc" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;">
+                <p id="proc-difficulty-desc"
+                    style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;">
                     Standard length and hazard frequency — a good default run.</p>
             </div>
 
@@ -1562,9 +1627,9 @@
                     <span style="font-weight: 600; color: var(--text-primary);">Zoom Modifier</span>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <input type="range" id="setting-zoom" min="0.5" max="2.0" step="0.1" value="1.0"
-                            onchange="game.setZoomModifier(parseFloat(this.value))"
-                            style="cursor: pointer;">
-                        <span id="zoom-value-label" style="font-family: monospace; width: 30px; text-align: right;">1.0x</span>
+                            onchange="game.setZoomModifier(parseFloat(this.value))" style="cursor: pointer;">
+                        <span id="zoom-value-label"
+                            style="font-family: monospace; width: 30px; text-align: right;">1.0x</span>
                     </div>
                 </div>
 
@@ -1745,7 +1810,7 @@
                     setTimeout(() => {
                         game.startLevel(levels.length - 1);
                     }, 50);
-                } catch(e) {
+                } catch (e) {
                     console.error("Failed to parse or load playtest level:", e);
                 }
             }
