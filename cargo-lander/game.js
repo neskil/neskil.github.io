@@ -1209,6 +1209,12 @@ class CargoGame {
             }
         }
 
+        // Let physics know the actual on-screen half-extents so it can spawn the
+        // monster genuinely off-screen instead of at a fixed world-space offset that
+        // may still land inside the viewport at low zoom.
+        this.physics.viewHalfW = (this.canvas.width / 2) / this.camera.zoom;
+        this.physics.viewHalfH = (this.canvas.height / 2) / this.camera.zoom;
+
         this.physics.update(dt, levels[this.currentLevelIndex], inputState);
 
         // --- Off-screen monster radar ping ---
