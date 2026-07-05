@@ -2,105 +2,143 @@
 // Biome: Grasslands / Verdant Basin.
 // Your first contract: a rolling highland with a single receiving hub.
 // Gently sloping terrain teaches the player that tilt kills cargo before anything else.
-// The lake in the lower-right is purely decorative (rendered by game.js on L1 only).
 
 registerLevel({
-    name: "L1: Local Distribution",
-    missionTitle: "Verdant Basin — First Delivery",
-    description: "Welcome to the Verdant Basin, your first posting as a certified cargo pilot. A nearby logistics hub needs a routine freight drop — nothing exotic, just get the packages there in one piece. Tilt too far and they slide off the deck.",
+  name: "L1: Local Distribution",
+  missionTitle: "Verdant Basin — First Delivery",
+  description: "Welcome to the Verdant Basin, your first posting as a certified cargo pilot. A nearby logistics hub needs a routine freight drop — nothing exotic, just get the packages there in one piece. Tilt too far and they slide off the deck.",
+  hint: "Land slowly (< 2.0 m/s) or you'll bounce the cargo off the deck. When both crates are delivered, fly back to HQ to extract.",
 
-    // ── Physics ──────────────────────────────────────────────────────────────
-    gravity: 0.15,
-    wind: 0,
-    weather: 'rain',
+  // ── Physics ──────────────────────────────────────────────────────────────
+  gravity: 0.15,
+  wind: 0,
+  weather: 'rain',
 
-    // ── Terrain ───────────────────────────────────────────────────────────────
-    startX: -70,
-    collectionX: 180,
-    terrainPolygons: [
-        [
-            { x: -420, y: 660 },
-            { x: -110, y: 710 },
-            { x: 40, y: 710 },
-            { x: 60, y: 600 },
-            { x: 80, y: 510 },
-            { x: 120, y: 470 },
-            { x: 170, y: 420 },
-            { x: 330, y: 420 },
-            { x: 380, y: 490 },
-            { x: 350, y: 680 },
-            { x: 410, y: 740 },
-            { x: 580, y: 740 },
-            { x: 710, y: 730 },
-            { x: 740, y: 670 },
-            { x: 740, y: 610 },
-            { x: 750, y: 560 },
-            { x: 800, y: 560 },
-            { x: 850, y: 580 },
-            { x: 940, y: 670 },
-            { x: 1120, y: 670 },
-            { x: 1700, y: 590 },
-            { x: 2570, y: 2010 },
-            { x: -1680, y: 2010 },
-            { x: -920, y: 760 }
-        ]
-    ],
-    // ── Water Bodies ──────────────────────────────────────────────────────────
-    // Hand-authored basin polygon (editable in terrain-editor.html the same way
-    // as terrainPolygons) — was previously an auto-generated {x, width} rect.
-    waterBodies: [
-        {
-            hasBoat: true,
-            pts: [
-                {x: 330, y: 580},
-                {x: 770, y: 580},
-                {x: 830, y: 730},
-                {x: 540, y: 820},
-                {x: 320, y: 760}
-            ]
-        }
-    ],
+  // ── Mission parameters ────────────────────────────────────────────────────
+  budget: 1000,
+  timeLimit: 180,
+  padScale: 1.5,
+  targetCargo: 2,
+  allowedTypes: ["normal"],
 
-    // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 1.5,
-    targetCargo: 2,
-    budget: 1000,
-    timeLimit: 180,
-    allowedTypes: ["normal"],
+  // ── Terrain ───────────────────────────────────────────────────────────────
+  startX: -330,
+  collectionX: 180,
 
-    // ── Environment ───────────────────────────────────────────────────────────
-    outOfBounds: {
-        type: 'water',
-        color: 'rgba(14, 165, 233, 0.4)',
-        mistColor: 'rgba(14, 165, 233, 0.2)',
-        surfaceY: 1300,
-        drag: 0.92,
-        buoyancy: -0.15,
-        monsterDepth: 1600
+  // ── Quests ────────────────────────────────────────────────────────────────
+  quests: [
+    questPrimary("Deliver 3 cargo to Verdant Depot"),
+    questNoCrash(),
+    questQuick("Complete under 60s", 60)
+  ],
+
+  // ── Palette (Grasslands) ──────────────────────────────────────────────────
+  palette: {
+    skyTop: "#25338fff",
+    skyMid: "#163158",
+    skyBot: "#1f4e25",
+    terrainFill: "#020802",
+    rockEdge: "#4ade80",
+    rockGlow: "rgba(74,222,128,",
+    fog: "rgba(74,222,128,0.04)",
+  },
+
+  // ── Environment ───────────────────────────────────────────────────────────
+  outOfBounds: {
+    type: "water",
+    color: "rgba(14, 165, 233, 0.4)",
+    mistColor: "rgba(14, 165, 233, 0.2)",
+    surfaceY: 1000,
+    drag: 0.92,
+    buoyancy: -0.15,
+    monsterDepth: 1050,
+  },
+
+  // ── Hubs ──────────────────────────────────────────────────────────────────
+  deliveryHubs: [
+    { x: 998, color: "#38bdf8", type: "normal", name: "Verdant Depot" }
+  ],
+
+  // ── Water Bodies ──────────────────────────────────────────────────────────
+  waterBodies: [
+    {
+      hasBoat: true,
+      pts: [
+        {x: 330, y: 580},
+        {x: 770, y: 580},
+        {x: 830, y: 730},
+        {x: 540, y: 820},
+        {x: 320, y: 760}
+      ]
     },
+    {
+      hasBoat: false,
+      pts: [
+        {x: 1110, y: 334},
+        {x: 1310, y: 334},
+        {x: 1310, y: 382},
+        {x: 1110, y: 382}
+      ]
+    }
+  ],
 
-    // ── Hubs ──────────────────────────────────────────────────────────────────
-    deliveryHubs: [
-        { x: 1030, color: "#38bdf8", type: "normal", name: "Verdant Depot" }
+  // ── Terrain Polygons ──────────────────────────────────────────────────────
+  terrainPolygons: [
+    // Ground
+    [
+        {x: -420, y: 660},
+        {x: -360, y: 770},
+        {x: -190, y: 770},
+        {x: -140, y: 710},
+        {x: -20, y: 690},
+        {x: 90, y: 750},
+        {x: 110, y: 660},
+        {x: 90, y: 580},
+        {x: 90, y: 480},
+        {x: 120, y: 430},
+        {x: 170, y: 420},
+        {x: 330, y: 420},
+        {x: 360, y: 500},
+        {x: 340, y: 630},
+        {x: 330, y: 700},
+        {x: 420, y: 770},
+        {x: 620, y: 750},
+        {x: 700, y: 750},
+        {x: 730, y: 700},
+        {x: 750, y: 660},
+        {x: 740, y: 610},
+        {x: 750, y: 560},
+        {x: 800, y: 560},
+        {x: 870, y: 570},
+        {x: 900, y: 650},
+        {x: 940, y: 700},
+        {x: 1130, y: 700},
+        {x: 1180, y: 670},
+        {x: 1230, y: 680},
+        {x: 1520, y: 980},
+        {x: 1640, y: 1350},
+        {x: -960, y: 1330},
+        {x: -880, y: 880},
+        {x: -700, y: 790},
+        {x: -640, y: 700},
+        {x: -470, y: 720}
     ],
-
-    // ── Palette (Grasslands) ──────────────────────────────────────────────────
-    palette: {
-        skyTop: '#25338fff',
-        skyMid: '#13294aff',
-        skyBot: '#0f2512ff',
-        terrainFill: '#020802',
-        rockEdge: '#4ade80',
-        rockGlow: 'rgba(74,222,128,',
-        fog: 'rgba(74,222,128,0.04)',
-    },
-
-    // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Land slowly (< 2.0 m/s) or you'll bounce the cargo off the deck. When both crates are delivered, fly back to HQ to extract.",
-
-    quests: [
-        questPrimary('Deliver 2 cargo to Verdant Depot'),
-        questNoCrash(250),
-        questQuick('Finish with 1+ min remaining', 60, 150),
-    ],
+    // New polygon
+    [
+        {x: 1099, y: 425},
+        {x: 1223, y: 445},
+        {x: 1280, y: 440},
+        {x: 1340, y: 405},
+        {x: 1344, y: 342},
+        {x: 1330, y: 321},
+        {x: 1294, y: 329},
+        {x: 1260, y: 360},
+        {x: 1150, y: 350},
+        {x: 1140, y: 300},
+        {x: 1120, y: 310},
+        {x: 1100, y: 290},
+        {x: 1070, y: 310},
+        {x: 1064, y: 374}
+    ]
+  ]
 });
