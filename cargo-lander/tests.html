@@ -194,7 +194,7 @@ document.getElementById = function(id) {
   return {
     id,
     style:          { display: 'none', setProperty() {} },
-    classList:      { add() {}, remove() {}, contains() { return false; } },
+    classList:      { add() {}, remove() {}, toggle() {}, contains() { return false; } },
     textContent:    '',
     innerHTML:      '',
     value:          '',

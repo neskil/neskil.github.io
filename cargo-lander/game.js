@@ -59,7 +59,6 @@ class CargoGame {
         this.isMuted = savedMute ? savedMute === 'true' : false;
         this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || 1.0;
         this.uiCollapsed = false;
-        this.useSprites = false;
 
         // Keys State
         this.keys = {
@@ -76,102 +75,6 @@ class CargoGame {
 
         this.damageFlash = 0;
         this.screenShake = { x: 0, y: 0, intensity: 0 };
-        this.loadSprites();
-    }
-
-    loadSprites() {
-        this.sprites = {
-            landerBasic: null,
-            landerDrone: null,
-            boxStandard: null,
-            boxRed: null,
-            boxBlue: null,
-            boxGreen: null
-        };
-
-        const spriteFiles = {
-            landerBasic: 'assets/lander_basic.png',
-            landerDrone: 'assets/lander_drone.png',
-            boxStandard: 'assets/box_standard.png',
-            boxRed: 'assets/box_red.png',
-            boxBlue: 'assets/box_blue.png',
-            boxGreen: 'assets/box_green.png'
-        };
-
-        let loadedCount = 0;
-        const totalSprites = Object.keys(spriteFiles).length;
-
-        for (const [key, src] of Object.entries(spriteFiles)) {
-            const img = new Image();
-            img.onload = () => {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = img.width;
-                tempCanvas.height = img.height;
-                const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-                tempCtx.drawImage(img, 0, 0);
-
-                try {
-                    const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-                    const data = imgData.data;
-                    const w = tempCanvas.width;
-                    const h = tempCanvas.height;
-
-                    // Scan to find the bounding box of non-black pixels
-                    let minX = w, maxX = 0, minY = h, maxY = 0;
-                    let hasPixels = false;
-                    for (let y = 0; y < h; y++) {
-                        for (let x = 0; x < w; x++) {
-                            const idx = (y * w + x) * 4;
-                            const r = data[idx];
-                            const g = data[idx + 1];
-                            const b = data[idx + 2];
-                            if (r >= 10 || g >= 10 || b >= 10) {
-                                if (x < minX) minX = x;
-                                if (x > maxX) maxX = x;
-                                if (y < minY) minY = y;
-                                if (y > maxY) maxY = y;
-                                hasPixels = true;
-                            }
-                        }
-                    }
-
-                    if (!hasPixels) {
-                        minX = 0; maxX = w - 1; minY = 0; maxY = h - 1;
-                    }
-
-                    const cropW = maxX - minX + 1;
-                    const cropH = maxY - minY + 1;
-
-                    const offscreen = document.createElement('canvas');
-                    offscreen.width = cropW;
-                    offscreen.height = cropH;
-                    const oCtx = offscreen.getContext('2d');
-
-                    // Copy cropped area and perform chroma-keying
-                    const cropData = tempCtx.getImageData(minX, minY, cropW, cropH);
-                    const cData = cropData.data;
-                    for (let i = 0; i < cData.length; i += 4) {
-                        const r = cData[i];
-                        const g = cData[i + 1];
-                        const b = cData[i + 2];
-                        if (r < 10 && g < 10 && b < 10) {
-                            cData[i + 3] = 0; // Set transparency
-                        }
-                    }
-                    oCtx.putImageData(cropData, 0, 0);
-                    this.sprites[key] = offscreen;
-                } catch (e) {
-                    console.warn(`Chroma keying & cropping failed for ${key} (likely CORS on file://). Using raw image.`, e);
-                    this.sprites[key] = img;
-                }
-
-                loadedCount++;
-            };
-            img.onerror = (e) => {
-                console.error(`Failed to load sprite: ${src}`, e);
-            };
-            img.src = src;
-        }
     }
 
     init(canvasId) {
@@ -495,8 +398,26 @@ class CargoGame {
         }
         levels.forEach((lv, i) => {
             const badge = document.getElementById('hs-badge-' + i);
-            if (badge) badge.textContent = this.highscores[i] ? 'Best: $' + this.highscores[i].toLocaleString() : '';
+            const unlocked = this.isLevelUnlocked(i);
+            const btn = document.getElementById('mission-btn-' + i);
+            if (btn) {
+                btn.classList.toggle('locked-mission', !unlocked);
+                btn.disabled = !unlocked;
+            }
+            if (badge) {
+                badge.textContent = !unlocked ? '🔒 Complete the previous mission to unlock'
+                    : (this.highscores[i] ? 'Best: $' + this.highscores[i].toLocaleString() : '');
+            }
         });
+    }
+
+    // Campaign missions unlock in order; the Dev Panel's direct level-jump buttons
+    // (game.startLevel(i)) bypass this entirely, which is the intended dev escape hatch.
+    // Procedural/custom levels (non-numeric idx) are always available.
+    isLevelUnlocked(idx) {
+        if (typeof idx !== 'number') return true;
+        if (idx <= 0) return true;
+        return !!this.highscores[idx - 1];
     }
 
     updatePilotRank() {
@@ -561,9 +482,6 @@ class CargoGame {
         const muteCb = document.getElementById('setting-mute');
         if (muteCb) muteCb.checked = this.isMuted;
 
-        const spriteCb = document.getElementById('setting-use-sprites');
-        if (spriteCb) spriteCb.checked = this.useSprites;
-
         const mv = Math.round(CargoAudio.musicVolume * 100);
         const sv = Math.round(CargoAudio.sfxVolume * 100);
         const musicSlider = document.getElementById('setting-music-vol');
@@ -586,11 +504,6 @@ class CargoGame {
         if (window.CargoAudio) CargoAudio.setMuted(checked);
     }
 
-    toggleSpritesFromCheckbox(checked) {
-        this.useSprites = checked;
-        localStorage.setItem('cargoLanderUseSprites', checked ? 'true' : 'false');
-    }
-
     setZoomModifier(value) {
         this.zoomModifier = value;
         const label = document.getElementById('zoom-value-label');
@@ -610,6 +523,7 @@ class CargoGame {
     }
 
     showVehicleSelection(idx) {
+        if (!this.isLevelUnlocked(idx)) return;
         this.selectedLevelIndex = idx;
         document.getElementById('menu-screen').style.display = 'none';
         document.getElementById('vehicle-screen').style.display = 'flex';
@@ -2469,8 +2383,14 @@ class CargoGame {
         const camX = this.camera.x;
         const camY = this.camera.y;
 
+        // Hard caps so a runaway camera zoom/wind spike can't let these arrays grow
+        // unbounded — this was the main real perf cost, not physics simulation
+        // (neither array has ever touched Matter.js; both are plain array updates).
+        const MAX_WEATHER_PARTICLES = 120;
+        const MAX_WIND_STREAKS = 70;
+
         // ── Regular weather particles ──────────────────────────────────────
-        if (hasWeather && Math.random() < 0.8) {
+        if (hasWeather && this.weatherParticles.length < MAX_WEATHER_PARTICLES && Math.random() < 0.8) {
             this.weatherParticles.push({
                 x: camX + (Math.random() - 0.5) * vw * 1.5,
                 y: camY - vh * 0.6,
@@ -2488,7 +2408,7 @@ class CargoGame {
             // zone let low/sustained wind (e.g. Level 3) pile up into a solid pale smear
             // near the upwind screen edge instead of reading as individual streaks.
             const spawnRate = Math.min(0.6, windAbs * 3.0);
-            if (Math.random() < spawnRate) {
+            if (this.windStreaks.length < MAX_WIND_STREAKS && Math.random() < spawnRate) {
                 const dir = wind > 0 ? -1 : 1; // spawn on the side wind blows FROM
                 this.windStreaks.push({
                     x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.35,
@@ -2786,19 +2706,20 @@ class CargoGame {
 
         // ── Animated accretion rings ──────────────────────────────────────────
         // Three concentric rings that cycle inward toward the event horizon,
-        // creating the impression of matter spiralling in.
-        const RINGS = 4;
+        // creating the impression of matter spiralling in. Kept subtle — this used
+        // to read as a distracting bright pulse rather than a background ambience.
+        const RINGS = 3;
         for (let i = 0; i < RINGS; i++) {
             // Each ring starts large and shrinks towards 0 over its period
-            const period = 2.8 + i * 0.7;  // seconds per cycle
+            const period = 3.6 + i * 0.9;  // seconds per cycle (slower = calmer)
             const phase = (time / period + i / RINGS) % 1; // 0..1, offset per ring
             const radius = 90 * (1 - phase);           // shrinks from 90 → 0
             const alpha = phase < 0.15 ? phase / 0.15  // fade in
                         : phase > 0.75 ? (1 - phase) / 0.25  // fade out near center
                         : 1;
             const hue = 260 + i * 15;
-            ctx.strokeStyle = `hsla(${hue}, 80%, 65%, ${alpha * 0.55})`;
-            ctx.lineWidth = 2.5 - i * 0.4;
+            ctx.strokeStyle = `hsla(${hue}, 70%, 60%, ${alpha * 0.25})`;
+            ctx.lineWidth = 1.5 - i * 0.3;
             ctx.beginPath();
             ctx.arc(well.x, well.y, Math.max(0.5, radius), 0, Math.PI * 2);
             ctx.stroke();
@@ -3754,12 +3675,18 @@ class CargoGame {
         const rightWorld = camX + (w / 2) / zoom;
 
         const EDGE_FADE_DIST = 400; // Distance over which mist goes from 0 to full
+        // Intensity is driven by how far the LANDER is past the boundary, not the
+        // camera edge — the start pad usually sits near world x=0, so basing this on
+        // camera framing alone made the mist appear at nearly full intensity the
+        // moment a mission started, even though the lander was safely on the map.
+        const landerX = this.physics.lander ? this.physics.lander.x : camX;
+        const levelWForIntensity = this.physics.levelWidth;
 
         ctx.save();
 
         // Left Edge Mist
         if (leftWorld < 0) {
-            const mistIntensity = Math.min(1.0, (-leftWorld) / EDGE_FADE_DIST);
+            const mistIntensity = Math.min(1.0, Math.max(0, -landerX) / EDGE_FADE_DIST);
             if (mistIntensity > 0) {
                 const mistW = (-leftWorld) * zoom;
                 const grad = ctx.createLinearGradient(0, 0, mistW, 0);
@@ -3775,7 +3702,7 @@ class CargoGame {
         // Right Edge Mist
         const levelW = this.physics.levelWidth;
         if (rightWorld > levelW) {
-            const mistIntensity = Math.min(1.0, (rightWorld - levelW) / EDGE_FADE_DIST);
+            const mistIntensity = Math.min(1.0, Math.max(0, landerX - levelWForIntensity) / EDGE_FADE_DIST);
             if (mistIntensity > 0) {
                 const mistW = (rightWorld - levelW) * zoom;
                 const startX = w - mistW;
@@ -5344,28 +5271,7 @@ class CargoGame {
                 }
             }
 
-            let sprite = (this.useSprites && this.sprites) ? this.sprites.landerDrone : null;
-            if (sprite) {
-                // Draw drone sprite body
-                ctx.drawImage(sprite, -26.5, -15.5, 53, 31);
-
-                // Draw spinning blades on top of the sprite's motor pods
-                for (let i = 0; i < 4; i++) {
-                    const [px, py] = [[-21, -10], [21, -10], [21, 10], [-21, 10]][i];
-                    const a = spin + (i % 2 === 0 ? 0 : Math.PI / 2);
-                    ctx.strokeStyle = thrust ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)';
-                    ctx.lineWidth = 1.5;
-                    ctx.lineCap = 'round';
-                    for (let b = 0; b < 2; b++) {
-                        const ba = a + b * Math.PI;
-                        ctx.beginPath();
-                        ctx.moveTo(px + Math.cos(ba) * 9, py + Math.sin(ba) * 2.5);
-                        ctx.lineTo(px + Math.cos(ba + Math.PI) * 9, py + Math.sin(ba + Math.PI) * 2.5);
-                        ctx.stroke();
-                    }
-                    ctx.lineCap = 'butt';
-                }
-            } else {
+            {
                 // X-frame arms
                 ctx.strokeStyle = '#334155';
                 ctx.lineWidth = 3;
@@ -5528,11 +5434,6 @@ class CargoGame {
                 ctx.fill();
             }
 
-            let sprite = (this.useSprites && this.sprites) ? this.sprites.landerBasic : null;
-            if (sprite) {
-                // Draw space truck sprite body
-                ctx.drawImage(sprite, -28, -19, 56, 35);
-            } else {
                 const firing = lander.thrusting && lander.fuel > 0;
 
                 // Check if we are currently holding a box
@@ -5673,7 +5574,6 @@ class CargoGame {
                     ctx.rect(side * (hw - 1), 0, side * 5, 6);
                     ctx.fill(); ctx.stroke();
                 }
-            }
         }
 
         // === Hull Damage Visual Overlays ===
@@ -6357,6 +6257,11 @@ class CargoGame {
         // ── Background pill ────────────────────────────────────────────────
         const pillW = 160, pillH = 28;
         ctx.save();
+        // Anchor at the pill's own center so it scales with the rest of the HUD instead
+        // of staying a fixed size — this was the one HUD element uiScale didn't reach.
+        ctx.translate(cx, cy);
+        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
+        ctx.translate(-cx, -cy);
         ctx.fillStyle = 'rgba(0,10,30,0.55)';
         ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
         ctx.lineWidth = 1;
