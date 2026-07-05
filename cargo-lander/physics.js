@@ -72,6 +72,10 @@ class CargoPhysics {
         this._buildMatterWorld();
         this.generateTerrain(levelConfig);
         this.spawnLander(levelConfig, upgrades);
+
+        if (typeof levelConfig.setupPhysics === 'function') {
+            levelConfig.setupPhysics(this);
+        }
     }
 
     // Old procedural terrain functions removed
@@ -182,7 +186,7 @@ class CargoPhysics {
         const ps = config.padScale || 1.0;
         this.startDepot = { x: config.startX !== undefined ? config.startX : 80, y: config.startY !== undefined ? config.startY : undefined, width: Math.round(80 * ps), height: 15 };
         this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: config.collectionY !== undefined ? config.collectionY : undefined, width: Math.round(100 * ps), height: 15 };
-        this.deliveryHubs = config.deliveryHubs.map(hub => ({
+        this.deliveryHubs = (config.deliveryHubs || []).map(hub => ({
             x: hub.x, y: hub.y !== undefined ? hub.y : undefined, width: Math.round((hub.width || 80) * ps), height: 15,
             color: hub.color, type: hub.type, name: hub.name || 'Terminal'
         }));
@@ -267,6 +271,28 @@ class CargoPhysics {
             seg.matterBody = body;
             Matter.Composite.add(this.matterWorld, body);
         }
+    }
+
+    createSourcingDepot(x, y, count, allowedVehicles) {
+        this.collectionPoint = {
+            x: x - 50,
+            y: y,
+            width: 100,
+            height: 15
+        };
+    }
+
+    createDeliveryHub(x, y, count, type, name, active) {
+        if (!this.deliveryHubs) this.deliveryHubs = [];
+        this.deliveryHubs.push({
+            x: x - 50,
+            y: y,
+            width: 100,
+            height: 15,
+            color: '#6366f1',
+            type: type || 'normal',
+            name: name || 'Cauldron Hub'
+        });
     }
 
     spawnLander(config, upgrades = {}) {

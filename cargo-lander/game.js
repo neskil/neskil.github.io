@@ -2353,7 +2353,7 @@ class CargoGame {
             const ot = Math.ceil(this.overtimeTimer);
             ctx.fillStyle = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
             ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
-            ctx.fillText(`Time: ! ${ot}s`, px + (isTiny ? 8 : 12), statY);
+            ctx.fillText(`Time: ! ${ot}s`, px + (isTiny ? 8 : 12), curY);
         } else {
             const totalS = Math.floor(this.missionTimer || 0);
             const m = Math.floor(totalS / 60);
@@ -2361,7 +2361,7 @@ class CargoGame {
             const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             ctx.fillStyle = totalS < 20 ? '#ef4444' : '#f59e0b';
             ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
-            ctx.fillText(`Time: ${timeStr}`, px + (isTiny ? 8 : 12), statY);
+            ctx.fillText(`Time: ${timeStr}`, px + (isTiny ? 8 : 12), curY);
         }
 
         ctx.restore();
