@@ -296,6 +296,13 @@ class CargoPhysics {
     }
 
     spawnLander(config, upgrades = {}) {
+        // A fresh spawn (level start or respawn-after-death) should never carry over an
+        // active monster/out-of-bounds threat from the previous life — otherwise dying
+        // out of bounds and respawning with R just gets the new lander eaten immediately.
+        this.monster = null;
+        this.outOfBoundsTimer = 0;
+        if (this.sandWorm) this.sandWorm = null;
+
         const vehicleType = config.vehicle || 'lander';
         
         const ropeMax = config.ropeLength || 120;
@@ -717,12 +724,17 @@ class CargoPhysics {
         if (lander.crashed) {
             if (this.monster) {
                 const m = this.monster;
-                // Force an aggressive turn downwards so it doesn't float into the sky
-                if (m.vy < 15) m.vy += 2.0 * dt; 
-                m.vy += 0.8 * dt;              // accelerate downward, retreating quickly
-                m.vx *= Math.pow(0.90, dt);
-                m.x += m.vx * dt;
-                m.y += m.vy * dt;
+                m.retreatTimer = (m.retreatTimer || 0) + dt;
+                // Brief pause on the kill before it dives — reads as a beat, not a jump-cut.
+                const pauseFrames = 40; // ~0.65s at 60fps
+                if (m.retreatTimer > pauseFrames) {
+                    // Force an aggressive turn downwards so it doesn't float into the sky
+                    if (m.vy < 15) m.vy += 1.4 * dt;
+                    m.vy += 0.55 * dt;              // accelerate downward, retreating
+                    m.vx *= Math.pow(0.90, dt);
+                    m.x += m.vx * dt;
+                    m.y += m.vy * dt;
+                }
 
                 if (!m.trail) m.trail = [];
                 const lastTP = m.trail[0];
@@ -733,7 +745,10 @@ class CargoPhysics {
 
                 const oob = levelConfig.outOfBounds;
                 const despawnDepth = (oob && oob.monsterDepth) ? oob.monsterDepth + 400 : 1800;
-                if (m.y > despawnDepth || m.y > this.levelHeight + 400) {
+                // Minimum time before it's allowed to leave, even if it reaches despawn
+                // depth quickly — previously it could vanish almost instantly after the kill.
+                const minRetreatTime = pauseFrames + 90; // ~1.5s of visible retreat
+                if (m.retreatTimer > minRetreatTime && (m.y > despawnDepth || m.y > this.levelHeight + 400)) {
                     this.monster = null;
                 }
             }
@@ -750,14 +765,19 @@ class CargoPhysics {
         const tooDeep = oob && lander.y > oob.monsterDepth;
         if (tooDeep || this.outOfBoundsTimer > 250) { // ~4 seconds out of bounds
             if (!this.monster) {
-                // Spawn monster
+                // Spawn monster genuinely outside the current viewport (not just a fixed
+                // world-space offset, which could still land on-screen at low zoom).
+                const marginX = (this.viewHalfW || 450) + 150;
+                const marginY = (this.viewHalfH || 350) + 150;
                 let spawnX = lander.x;
                 let spawnY = lander.y;
                 if (tooDeep) {
-                    spawnY = oob.monsterDepth + 400;
+                    spawnY = Math.max(oob.monsterDepth + 200, lander.y + marginY);
                 } else {
-                    spawnX = lander.x < -150 ? lander.x - 400 : (lander.x > this.levelWidth + 150 ? lander.x + 400 : lander.x);
-                    spawnY = lander.y > this.levelHeight ? lander.y + 200 : lander.y - 400;
+                    spawnX = lander.x < -150 ? lander.x - marginX
+                        : (lander.x > this.levelWidth + 150 ? lander.x + marginX
+                        : lander.x + (Math.random() < 0.5 ? -1 : 1) * marginX);
+                    spawnY = lander.y > this.levelHeight ? lander.y + marginY : lander.y - marginY;
                 }
                 this.monster = {
                     x: spawnX,
