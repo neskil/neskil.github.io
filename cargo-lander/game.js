@@ -48,7 +48,7 @@ class CargoGame {
         this.hadCrash = false;
         this.cargoLostCount = 0;
         this.cargoSpawnCooldown = 0;
-        this.cargoWaitTimer = 55;   // frames until the next auto-dispense at the pad
+        this.cargoWaitTimer = 150;  // frames until the next auto-dispense at the pad
         this.cargoDispenseCycle = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
@@ -928,9 +928,11 @@ class CargoGame {
             ? (lander.landed || Math.abs(lander.x - cpCenterX) < 60)
             : (Math.abs(lander.x - cpCenterX) < cp.width / 2 + 28 && lander.y >= cp.y - 60 && lander.y <= cp.y + 12);
 
-        if (!near || this.physics.boxes.length >= 6) {
+        // Slower and capped lower than the first pass — it was dispensing almost
+        // immediately and let too many boxes pile up on deck at once.
+        if (!near || this.physics.boxes.length >= 4) {
             this.cargoDispenseCycle = 0;
-            this.cargoWaitTimer = 55;
+            this.cargoWaitTimer = 150;
             return;
         }
 
@@ -938,7 +940,7 @@ class CargoGame {
         if (this.cargoWaitTimer <= 0) {
             this.triggerCargoDispense();
             this.cargoDispenseCycle++;
-            this.cargoWaitTimer = 55 + this.cargoDispenseCycle * 30;
+            this.cargoWaitTimer = 150 + this.cargoDispenseCycle * 60;
         }
     }
 
@@ -972,7 +974,7 @@ class CargoGame {
             const t = types[Math.floor(Math.random() * types.length)];
 
             // Limit cargo count on screen to prevent extreme physics lag or overflow
-            if (this.physics.boxes.length >= 6) {
+            if (this.physics.boxes.length >= 4) {
                 this.addMessage("Cargo deck maximum reached!", "#ef4444");
                 return;
             }
