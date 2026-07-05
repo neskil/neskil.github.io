@@ -337,6 +337,15 @@
             border-color: var(--primary-color);
         }
 
+        @media (min-width: 769px) {
+            .view-list .card-image .fallback-title {
+                font-size: 0.55rem;
+                padding: 4px;
+                letter-spacing: 0;
+                font-weight: 700;
+            }
+        }
+
         @media (max-width: 768px) {
             .view-list .card { height: auto; flex-direction: column; align-items: flex-start; }
             .view-list .card-image { width: 100%; height: 120px; border-right: none; border-bottom: 1px solid var(--border-color); }
@@ -495,6 +504,7 @@
         // Modal Elements
         const modalOverlay = document.getElementById('gameModal');
         const closeModal = document.getElementById('closeModal');
+        const imgContainer = document.getElementById('modalImageContainer');
 
         // --- SETUP CATEGORIES ---
         const categories = [...new Set(gameLibrary.map(g => g.category))].sort();
@@ -593,12 +603,21 @@
 
             // Auto-generate external links
             const linksContainer = document.getElementById('modalLinks');
-            const steamQuery = encodeURIComponent(game.title);
-            const wikiQuery = encodeURIComponent(game.title + ' video game');
-            linksContainer.innerHTML = `
-                <a class="modal-link-btn" href="https://store.steampowered.com/search/?term=${steamQuery}" target="_blank" rel="noopener noreferrer">🎮 Steam</a>
-                <a class="modal-link-btn" href="https://en.wikipedia.org/w/index.php?search=${wikiQuery}" target="_blank" rel="noopener noreferrer">📖 Wikipedia</a>
-            `;
+            linksContainer.innerHTML = '';
+            const steamBtn = document.createElement('a');
+            steamBtn.className = 'modal-link-btn';
+            steamBtn.href = 'https://store.steampowered.com/search/?term=' + encodeURIComponent(game.title);
+            steamBtn.target = '_blank';
+            steamBtn.rel = 'noopener noreferrer';
+            steamBtn.textContent = '🎮 Steam';
+            const wikiBtn = document.createElement('a');
+            wikiBtn.className = 'modal-link-btn';
+            wikiBtn.href = 'https://en.wikipedia.org/w/index.php?search=' + encodeURIComponent(game.title + ' video game');
+            wikiBtn.target = '_blank';
+            wikiBtn.rel = 'noopener noreferrer';
+            wikiBtn.textContent = '📖 Wikipedia';
+            linksContainer.appendChild(steamBtn);
+            linksContainer.appendChild(wikiBtn);
 
             modalOverlay.style.display = 'flex';
         }
