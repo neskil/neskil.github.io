@@ -1742,13 +1742,20 @@ class CargoGame {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // 1. Draw Space Background Gradient (level-themed)
+        // 1. Draw Space Background Gradient (level-themed) — cached, only rebuilt
+        // when canvas size or palette changes (createLinearGradient is a per-call
+        // allocation and this used to run every frame).
         const lvPal = (levels[this.currentLevelIndex] || {}).palette;
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, lvPal ? lvPal.skyTop : '#090d16');
-        grad.addColorStop(0.5, lvPal ? lvPal.skyMid : '#0f172a');
-        grad.addColorStop(1, lvPal ? lvPal.skyBot : '#1e1b4b');
-        ctx.fillStyle = grad;
+        const skyKey = `${w}x${h}|${lvPal ? lvPal.skyTop + lvPal.skyMid + lvPal.skyBot : 'default'}`;
+        if (this._skyGradKey !== skyKey) {
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, lvPal ? lvPal.skyTop : '#090d16');
+            grad.addColorStop(0.5, lvPal ? lvPal.skyMid : '#0f172a');
+            grad.addColorStop(1, lvPal ? lvPal.skyBot : '#1e1b4b');
+            this._skyGrad = grad;
+            this._skyGradKey = skyKey;
+        }
+        ctx.fillStyle = this._skyGrad;
         ctx.fillRect(0, 0, w, h);
 
         // 2. Parallax background layers
@@ -5732,15 +5739,15 @@ class CargoGame {
 
                 ctx.save();
 
-                // Soft outer glow
-                ctx.filter = 'blur(4px)';
-                const glowGrad = ctx.createRadialGradient(0, 0, R * 0.6, 0, 0, R * 1.1);
+                // Soft outer glow — radial gradient already fades to transparent at
+                // both ends, so it reads as soft without a canvas blur filter
+                // (blur() is a full pixel convolution and was a major per-frame cost).
+                const glowGrad = ctx.createRadialGradient(0, 0, R * 0.5, 0, 0, R * 1.1);
                 glowGrad.addColorStop(0, 'rgba(96, 200, 255, 0)');
                 glowGrad.addColorStop(0.7, `rgba(96, 200, 255, ${baseAlpha * 0.5})`);
                 glowGrad.addColorStop(1, 'rgba(96, 200, 255, 0)');
                 ctx.fillStyle = glowGrad;
                 ctx.beginPath(); ctx.arc(0, 0, R * 1.1, 0, Math.PI * 2); ctx.fill();
-                ctx.filter = 'none';
 
                 // Body — transparent middle, faint fill building toward the rim
                 const bodyGrad = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R);

@@ -204,7 +204,7 @@ class CargoPhysics {
         if (inWater) {
             if (!lander._wasInWater && lander.vy > 1.2) {
                 // Splashdown — reverse and damp vertical velocity like a trampoline
-                lander.vy = -lander.vy * 0.55;
+                lander.vy = -Math.min(lander.vy * 0.35, 6);
                 lander.vx *= 0.85;
 
                 for (let i = 0; i < 16; i++) {
