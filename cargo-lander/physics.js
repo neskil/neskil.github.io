@@ -9,8 +9,6 @@ class CargoPhysics {
         this.lander = null;
         this.boxes = [];
         this.particles = [];
-        this.canvasWidth = 1000;
-        this.canvasHeight = 600;
 
         // Engine / Global Defaults
         this.LANDER_THRUST = 0.08;

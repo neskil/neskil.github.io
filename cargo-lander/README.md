@@ -134,10 +134,55 @@ from the higher-level roadmap below:
       (editor playtest/download/upload workflow, intro camera animation,
       predefined background buildings, pad-oval removal, dropoff light,
       cargo-attach UX, mobile radar collapse).
+- [ ] **Delete unused sprite PNGs** — `assets/lander_basic.png`, `lander_drone.png`,
+      `box_standard.png`, `box_red.png`, `box_blue.png`, `box_green.png` were only
+      ever referenced by the now-removed 2D Sprites Mode (`loadSprites()` /
+      `useSprites`, removed 2026-07-05). Nothing loads them anymore — safe to
+      delete once confirmed there's no other consumer.
 
 ---
 
 ## Recent additions
+
+### 2026-07-05 (afternoon): UX/perf pass
+- **Mission progression gating** — `game.isLevelUnlocked(idx)` requires the previous
+  numbered mission to have a highscore entry before its mission-grid button is
+  clickable (`.locked-mission` styling + `disabled`). Dev Panel's direct
+  `game.startLevel(i)` jump buttons intentionally bypass this. Procedural/custom
+  levels are always available.
+- **2D Sprites Mode removed** — `loadSprites()` (6 image loads + a per-pixel
+  chroma-key/crop scan on every boot, `useSprites`, and the settings-modal
+  checkbox were deleted; the vector-drawn lander was always the only reachable
+  render path in practice. See TODO for the now-orphaned PNG assets.
+- **Out-of-bounds mist fix** — `drawMistEdges()` intensity was driven by how far
+  the *camera edge* peeked past the level bounds, not the lander. Since the start
+  pad usually sits near world x=0, this made the mist appear at near-full
+  intensity the moment almost any mission started. Now driven by the lander's
+  actual distance past the boundary.
+- **Gravity well toned down** — accretion rings: 4→3, slower cycle, ~2x lower
+  peak alpha, thinner strokes.
+- **Wind HUD scales with UI Scale** — `drawWindIndicator()` was the one on-canvas
+  HUD element that never applied `this.uiScale`, so it stayed a fixed size while
+  the minimap/quest panel/DOM panels all scaled.
+- **Monster fixes**: spawns using the actual on-screen half-extents
+  (`physics.viewHalfW/H`, set from `game.js` each frame) instead of a fixed
+  world-space offset, so it no longer pops in visibly at low zoom; lingers for a
+  minimum ~1.5s beat after eating the lander before diving away (was able to
+  vanish almost instantly); and `spawnLander()` now clears `monster` /
+  `outOfBoundsTimer` / `sandWorm` so respawning with R after an out-of-bounds
+  death doesn't get eaten again by the still-active monster from the previous life.
+- **Ambient traffic fixes**: the sky-spawn Y was clamped to a single floor on
+  tall-terrain levels, stacking every truck on the same flight line — now spread
+  over a band with a minimum-gap retry against active trucks. The "evasive
+  maneuver" had no `dt` scaling and re-applied a full velocity kick every frame
+  the lander stayed close, escalating into violent unbounded evasion within a
+  few frames; now a single cooldown-gated, bounded nudge, and only ~60% of
+  trucks react at all (`evasive` flag).
+- **Wind readout smoothing** — the HUD number/arrows/gust label tracked the raw
+  gust sine-wave directly and read as jittery; now exponentially smoothed.
+- **Weather/wind perf** — confirmed neither `weatherParticles` nor `windStreaks`
+  has ever used Matter.js (both are plain per-frame array updates); added hard
+  caps (120 / 70) so a runaway zoom or wind spike can't grow them unbounded.
 
 ### Mobile scaling & controls
 - **Mobile Viewport Scaling** — Uniform CSS `transform: scale()` automatically adjusts the fixed 1280x720 layout to fit the screen dimensions on mobile and desktop devices.
