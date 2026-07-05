@@ -1809,8 +1809,18 @@ class CargoGame {
         }
 
         this.drawWaterBodies();
+
+        // 5.5 Draw weather behind the solid terrain
+        if (this.drawWeather) {
+            ctx.restore(); // Undo the camera transform to avoid double-transform, since drawWeather applies it again
+            this.drawWeather();
+            ctx.save();
+            ctx.translate(w / 2 + (this.screenShake?.x || 0), h / 2 + (this.screenShake?.y || 0));
+            ctx.scale(this.camera.zoom, this.camera.zoom);
+            ctx.translate(-this.camera.x, -this.camera.y);
+        }
+
         this.drawTerrain();
-        this.drawSegments();
         this.drawSegments();
         this.drawHazards();
         this.drawCollectibles();
@@ -1886,10 +1896,14 @@ class CargoGame {
 
         ctx.restore();
 
-        // 9. WebGL Render for Particles (the monster shader is intentionally skipped —
-        //    the detailed hand-drawn monster is rendered in Canvas2D below)
+        // 9. WebGL Render for Particles
         if (this.shaders) {
             this.shaders.render(this.physics, this.camera);
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalCompositeOperation = 'screen'; // Use screen blending like CSS mix-blend-mode
+            ctx.drawImage(this.shaders.canvas, 0, 0);
+            ctx.restore();
         }
 
         // 9b. Draw the detailed Canvas2D monster (and particles when WebGL is unavailable)
@@ -1910,8 +1924,6 @@ class CargoGame {
             this.drawWindIndicator();
             this.drawMinimap();
             this.drawQuestPanel();
-
-            if (this.drawWeather) this.drawWeather();
 
             // 12. Draw Lateral Mist
             const levelConfig = levels[this.currentLevelIndex];

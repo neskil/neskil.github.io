@@ -66,6 +66,8 @@ class CargoPhysics {
         this.wasInFluid = false;
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
+        this.gravityWellPos = null;
+        this.gravityWellTime = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this._buildMatterWorld();
         this.generateTerrain(levelConfig);
@@ -802,24 +804,41 @@ class CargoPhysics {
 
         // --- Sand Worm Logic (worm-lair terrain only) ---
         if (this.currentLevelConfig?.terrainType === 'worm-lair') {
-            // Worm pit + danger zone read from level config (with fallback defaults)
-            const WORM_PIT_CX   = this.currentLevelConfig.wormPitCX  ?? 900;
-            const WORM_ZONE_CX  = WORM_PIT_CX;
-            const WORM_ZONE_CY  = this.currentLevelConfig.wormPitCY  ?? 580;
-            const WORM_ZONE_R   = this.currentLevelConfig.wormZoneR   ?? 300;
+            //  Spawn check 
+            if (!this.sandWorm && !lander.crashed && this.hazards) {
+                let inWormZone = false;
+                let riskMultiplier = 1;
 
-            // ── Spawn check ────────────────────────────────────────────────────────
-            if (!this.sandWorm && !lander.crashed) {
-                const distToZone = Math.hypot(lander.x - WORM_ZONE_CX, lander.y - WORM_ZONE_CY);
-                if (distToZone < WORM_ZONE_R) {
-                    // Risk scales sharply near center: 0 at edge, 1 at center
-                    const norm = distToZone / WORM_ZONE_R; // 1 = edge, 0 = center
-                    const risk = Math.pow(1 - norm, 1.8);
-                    if (Math.random() < risk * 0.007 * dt) {
-                        // Spawn from just below the worm mound surface aimed at lander
-                        const spawnX = WORM_PIT_CX + (Math.random() - 0.5) * 80;
+                // Support legacy currentLevelConfig values if hazard not used
+                const legacyCX = this.currentLevelConfig.wormPitCX;
+                if (legacyCX !== undefined) {
+                    const legacyCY = this.currentLevelConfig.wormPitCY ?? 580;
+                    const legacyR = this.currentLevelConfig.wormZoneR ?? 300;
+                    const distToZone = Math.hypot(lander.x - legacyCX, lander.y - legacyCY);
+                    if (distToZone < legacyR) {
+                        inWormZone = true;
+                        const norm = distToZone / legacyR;
+                        riskMultiplier = Math.pow(1 - norm, 1.8);
+                    }
+                }
+
+                // Check hazard polygons for sandworm zones
+                for (const h of this.hazards) {
+                    if (h.type === 'sandworm' && h.pts) {
+                        if (this.pointInPolygon(lander.x, lander.y, h.pts)) {
+                            inWormZone = true;
+                            riskMultiplier = h.spawnRate || 1.0;
+                            break;
+                        }
+                    }
+                }
+
+                if (inWormZone) {
+                    if (Math.random() < riskMultiplier * 0.007 * dt) {
+                        // Spawn near the lander's X so it's always a threat
+                        const spawnX = lander.x + (Math.random() - 0.5) * 160;
                         const surfY  = this.getPolygonSurfaceY(spawnX);
-                        const spawnY = surfY + 20; // just below surface
+                        const spawnY = surfY !== null ? surfY + 20 : lander.y + 100;
 
                         // Aim toward lander's current position
                         const dxL = lander.x - spawnX;
