@@ -162,6 +162,53 @@ class CargoPhysics {
         return { x: cx / pts.length, y: cy / pts.length };
     }
 
+    // Water bodies were purely decorative (see README) — this gives them an actual
+    // trampoline-like bounce: hitting the surface with some downward speed rebounds
+    // you, and sitting inside the polygon applies gentle buoyancy + drag so the
+    // lander settles into a bob instead of sinking straight through.
+    applyWaterBounce(dt) {
+        if (!this.waterBodies || this.waterBodies.length === 0) return;
+        const lander = this.lander;
+        if (!lander || lander.crashed) return;
+
+        let inWater = false;
+        for (const body of this.waterBodies) {
+            if (!body.pts || body.pts.length < 3) continue;
+            if (this.pointInPolygon(lander.x, lander.y, body.pts)) { inWater = true; break; }
+        }
+
+        if (inWater) {
+            if (!lander._wasInWater && lander.vy > 1.2) {
+                // Splashdown — reverse and damp vertical velocity like a trampoline
+                lander.vy = -lander.vy * 0.55;
+                lander.vx *= 0.85;
+
+                for (let i = 0; i < 16; i++) {
+                    const angle = Math.PI + (Math.random() - 0.5) * Math.PI * 0.9;
+                    const speed = 1.5 + Math.random() * 3.5;
+                    this.particles.push({
+                        x: lander.x + (Math.random() - 0.5) * 20,
+                        y: lander.y + lander.height / 2,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1.0,
+                        decay: 0.03 + Math.random() * 0.03,
+                        color: 'rgba(186, 230, 253, 0.75)',
+                        size: 2 + Math.random() * 3
+                    });
+                }
+                if (window.CargoAudio) CargoAudio.playLoad();
+            }
+
+            // Buoyancy + drag while submerged
+            lander.vy -= 0.045 * dt;
+            lander.vx *= Math.pow(0.96, dt);
+            lander.vy *= Math.pow(0.97, dt);
+        }
+
+        lander._wasInWater = inWater;
+    }
+
     // Shortest distance from point (px,py) to segment (ax,ay)-(bx,by).
     // Used by laser hazards to test the lander against the beam line.
     distToSegment(px, py, ax, ay, bx, by) {
@@ -699,6 +746,7 @@ class CargoPhysics {
         // Step custom kinematics for the lander unconditionally
         this.integrateLander(dt);
         this.resolveSegmentCollisions();
+        this.applyWaterBounce(dt);
 
         if (this.landerBody) {
             // Sync kinematic state FORWARD to Matter.js so it can push dynamic boxes.

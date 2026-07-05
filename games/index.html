@@ -311,6 +311,32 @@
             font-weight: bold;
         }
 
+        .modal-links {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .modal-link-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            background: var(--tag-bg);
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .modal-link-btn:hover {
+            background: var(--primary-color);
+            color: #fff;
+            border-color: var(--primary-color);
+        }
+
         @media (max-width: 768px) {
             .view-list .card { height: auto; flex-direction: column; align-items: flex-start; }
             .view-list .card-image { width: 100%; height: 120px; border-right: none; border-bottom: 1px solid var(--border-color); }
@@ -391,6 +417,7 @@
                 <div class="modal-desc" id="modalDesc">Description goes here.</div>
                 
                 <div class="modal-feature-tags" id="modalFeatures"></div>
+                <div class="modal-links" id="modalLinks"></div>
             </div>
         </div>
     </div>
@@ -563,6 +590,15 @@
             if (game.localCoop) featuresContainer.innerHTML += `<span class="feature-tag">🛋️ Local Co-op</span>`;
             if (game.onlineCoop) featuresContainer.innerHTML += `<span class="feature-tag">🌐 Online Co-op</span>`;
             if (game.controller) featuresContainer.innerHTML += `<span class="feature-tag">🎮 Controller Supported</span>`;
+
+            // Auto-generate external links
+            const linksContainer = document.getElementById('modalLinks');
+            const steamQuery = encodeURIComponent(game.title);
+            const wikiQuery = encodeURIComponent(game.title + ' video game');
+            linksContainer.innerHTML = `
+                <a class="modal-link-btn" href="https://store.steampowered.com/search/?term=${steamQuery}" target="_blank" rel="noopener noreferrer">🎮 Steam</a>
+                <a class="modal-link-btn" href="https://en.wikipedia.org/w/index.php?search=${wikiQuery}" target="_blank" rel="noopener noreferrer">📖 Wikipedia</a>
+            `;
 
             modalOverlay.style.display = 'flex';
         }
