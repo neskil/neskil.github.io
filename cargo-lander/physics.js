@@ -1268,7 +1268,9 @@ class CargoPhysics {
 
         // Track how far out we are for the vignette warning (1000px ~ 1 screen)
         const VIGNETTE_MARGIN = 1000;
-        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -500) {
+        const surfaceY = this.getPolygonSurfaceY ? this.getPolygonSurfaceY(lander.x) : 99999;
+        
+        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -500 || lander.y > surfaceY + 80) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);

@@ -86,13 +86,24 @@ function generateProceduralLevel(craziness = 1) {
     
     let hqX = 0, collectionX = 0;
     let hubs = [];
+    let buildings = [];
     
     while (currentX < targetLength) {
         if (activePad < pads.length && currentX >= nextPadX) {
             // Draw flat pad
-            currentY = currentY + (Math.random() - 0.5) * 100; // Step to pad height
+            currentY = currentY + (Math.random() - 0.5) * 60; // Step to pad height (less drastic)
             pts.push({ x: currentX, y: currentY });
             let endX = currentX + pads[activePad].width;
+            
+            // Maybe add a building on this flat pad
+            if (Math.random() > 0.4) {
+                const bTypes = ['antenna', 'silo', 'refinery'];
+                const btype = bTypes[Math.floor(Math.random() * bTypes.length)];
+                // Place it either at the start or end of the pad
+                let bX = Math.random() > 0.5 ? currentX + 30 : endX - 30;
+                buildings.push({ type: btype, x: bX });
+            }
+
             pts.push({ x: endX, y: currentY });
             
             // Record pad center
@@ -110,32 +121,32 @@ function generateProceduralLevel(craziness = 1) {
             if (activePad < pads.length) {
                 nextPadX = pads[activePad].xMin + Math.random() * (pads[activePad].xMax - pads[activePad].xMin);
                 // Ensure next pad is after currentX
-                if (nextPadX < currentX + 100) nextPadX = currentX + 100 + Math.random() * 200;
+                if (nextPadX < currentX + 150) nextPadX = currentX + 150 + Math.random() * 200;
             }
         } else {
-            // Random walk terrain
-            let stepX = 50 + Math.random() * 150;
+            // Random walk terrain - INCREASED X STEP FOR MORE SPACIOUSNESS
+            let stepX = 120 + Math.random() * 200;
             
             // Overhang logic
             if (craziness >= 2 && Math.random() < 0.2) {
-                // Generate an overhang by going backwards and down
-                let overX = currentX - (30 + Math.random() * 50);
-                let overY = currentY + (50 + Math.random() * 100);
+                // Generate an overhang by going backwards and down (wider cave)
+                let overX = currentX - (50 + Math.random() * 70);
+                let overY = currentY + (80 + Math.random() * 120);
                 pts.push({ x: overX, y: overY });
                 
                 // Then continue forward from the overhang
                 currentX += stepX;
-                currentY = overY + (Math.random() - 0.5) * 100;
+                currentY = overY + (Math.random() - 0.5) * 80;
                 pts.push({ x: currentX, y: currentY });
             } else {
                 currentX += stepX;
-                // More Y variance based on craziness
-                let variance = 200 + craziness * 150;
+                // Less drastic Y variance for smoother slopes
+                let variance = 150 + craziness * 100;
                 let stepY = (Math.random() - 0.5) * variance;
                 
                 // Prevent going too high or low
-                if (currentY + stepY < 200) stepY = Math.abs(stepY); // Push down
-                if (currentY + stepY > 1000) stepY = -Math.abs(stepY); // Push up
+                if (currentY + stepY < 200) stepY = Math.abs(stepY) + 50; // Push down
+                if (currentY + stepY > 900) stepY = -Math.abs(stepY) - 50; // Push up
                 
                 currentY += stepY;
                 pts.push({ x: currentX, y: currentY });
@@ -159,8 +170,8 @@ function generateProceduralLevel(craziness = 1) {
     }
     
     // Finish polygon
-    pts.push({ x: 3000, y: currentY });
-    pts.push({ x: 3000, y: 2000 });
+    pts.push({ x: 3000 + (targetLength - 2500), y: currentY });
+    pts.push({ x: 3000 + (targetLength - 2500), y: 2000 });
     pts.push({ x: -1000, y: 2000 });
     
     let hubTypes = hubs.map(h => h.type);
@@ -186,6 +197,7 @@ function generateProceduralLevel(craziness = 1) {
         collectionX: Math.floor(collectionX),
         terrainPolygons: [pts],
         hazards: hazards,
+        buildings: buildings,
         collectibles: [],
         padScale: 1.0,
         targetCargo: targetCargo,
