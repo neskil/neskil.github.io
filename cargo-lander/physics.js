@@ -104,8 +104,9 @@ class CargoPhysics {
                 const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
                 if (impactSpeed > damageThreshold) {
                     const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
-                    this.lander.integrity -= damage;
-                    this.checkCargoDamage(damage / this.lander.maxIntegrity);
+                    const hullDamage = this.applyDamage(this.lander, damage);
+                    // Shield soaking the hit also protects deck cargo from being flung off
+                    if (!this.lander.shieldAbsorbedThisHit) this.checkCargoDamage(hullDamage / this.lander.maxIntegrity);
                     if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
                     const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
                     const sparkCount = onPad ? 6 : 16;
@@ -154,6 +155,29 @@ class CargoPhysics {
             if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
         }
         return inside;
+    }
+
+    // Centralized damage entry point — routes every hit through the shield first.
+    // While shieldCharge > 0 it mitigates 65% of the incoming damage (not a full
+    // block) and drains by the full pre-mitigation amount; once depleted, damage
+    // passes straight through to hull until the shield recharges. Also flags
+    // `shieldAbsorbedThisHit` for one tick so game.js can skip cargo-drop-on-hit
+    // logic while the shield is actively soaking a hit.
+    applyDamage(lander, amount) {
+        if (!lander || amount <= 0) return 0;
+        lander.shieldAbsorbedThisHit = false;
+
+        if (lander.shieldCharge > 0) {
+            const mitigation = 0.65;
+            const absorbed = Math.min(lander.shieldCharge, amount * mitigation);
+            lander.shieldCharge -= absorbed;
+            amount -= absorbed;
+            lander.shieldHitFlash = 1.0;
+            lander.shieldAbsorbedThisHit = true;
+        }
+
+        lander.integrity -= amount;
+        return amount;
     }
 
     polygonCentroid(pts) {
@@ -385,7 +409,13 @@ class CargoPhysics {
             grabbedBoxId: null,
             crashed: false,
             landed: false,
-            currentPad: null
+            currentPad: null,
+            // Shield: a depletable charge that mitigates (not blocks) damage while it
+            // lasts, then damage passes through fully to hull until it recharges.
+            shieldLevel: upgrades.shieldRegen || 0,
+            maxShieldCharge: (upgrades.shieldRegen || 0) * 50,
+            shieldCharge: (upgrades.shieldRegen || 0) * 50,
+            shieldHitFlash: 0
         };
         this._spawnLanderBody();
     }
@@ -700,7 +730,7 @@ class CargoPhysics {
 
             const damage = Math.max(0, Math.pow(Math.max(0, speed - 1.2), 1.8) * 12);
             if (damage > 0) {
-                lander.integrity -= damage;
+                this.applyDamage(lander, damage);
                 // Sparks
                 for (let i = 0; i < 10; i++) {
                     this.particles.push({
@@ -1039,7 +1069,7 @@ class CargoPhysics {
                     const dy = lander.y - w.y;
                     const dist = Math.hypot(dx, dy);
                     if (dist < 80 && !lander.crashed) {
-                        lander.integrity -= 8 * dt;
+                        this.applyDamage(lander, 8 * dt);
                         if (window.CargoAudio) CargoAudio.playCrash();
                         for (let i = 0; i < 6; i++) {
                             this.particles.push({
@@ -1096,7 +1126,7 @@ class CargoPhysics {
                 lander.vx += nx * 2;
                 lander.vy += ny * 2;
 
-                lander.integrity -= (h.damagePerSec || 40) * dt / 60;
+                this.applyDamage(lander, (h.damagePerSec || 40) * dt / 60);
 
                 if (window.CargoAudio) CargoAudio.playCollision(1);
                 for (let i = 0; i < 2; i++) {
@@ -1128,7 +1158,7 @@ class CargoPhysics {
                     const cy = h.y + (h.travelY || 0) * t;
                     
                     if (lander.x > cx && lander.x < cx + h.w && lander.y > cy && lander.y < cy + h.h) {
-                        lander.integrity -= 25 * dt;
+                        this.applyDamage(lander, 25 * dt);
                         const ky = (h.travelY || 0) < 0 ? -1 : 1;
                         lander.vy += ky * dt;
                         this.particles.push({ x: lander.x, y: lander.y, vx: (Math.random() - 0.5)*2, vy: (Math.random() - 0.5)*2, life: 1, color: '#ef4444', size: 3 });
@@ -1148,7 +1178,7 @@ class CargoPhysics {
                 const dist = Math.sqrt(dx * dx + dy * dy) || 1;
                 lander.vx += (dx / dist) * 2;
                 lander.vy += (dy / dist) * 2;
-                lander.integrity -= 25 * dt; // High damage
+                this.applyDamage(lander, 25 * dt); // High damage
 
                 if (window.CargoAudio) CargoAudio.playCollision(2);
                 for (let i = 0; i < 3; i++) {
@@ -2023,7 +2053,7 @@ class CargoPhysics {
                 const overlapY = (t.h / 2 + l.height / 2) - Math.abs(l.y - t.y);
                 if (overlapX > 0 && overlapY > 0) {
                     const impact = Math.abs(l.vx - t.vx) + Math.abs(l.vy);
-                    l.integrity -= impact * 4;
+                    this.applyDamage(l, impact * 4);
                     l.vx += (l.x > tx ? 1 : -1) * 2;
                     l.vy -= 1.5;
                     

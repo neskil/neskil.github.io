@@ -103,6 +103,38 @@ errors), then run the `tests.html` smoke suite (all green).
 
 ---
 
+## Checklist — 2026-07-05 late-night pass
+
+- [x] **Water bodies now have a real bounce** — `physics.js applyWaterBounce()`.
+      Hitting the surface with downward speed rebounds the lander (0.55
+      restitution) with a splash burst; staying submerged applies mild
+      buoyancy + drag so it settles into a bob. Previously `waterBodies` were
+      purely decorative despite a comment claiming they were used for
+      "hazard, water body" zone membership.
+- [x] **Cargo dispense retuned** — was spawning almost immediately (0.9s) and
+      capping at 6 on deck; now 2.5s base delay with a steeper escalation
+      (+1s/box instead of +0.5s) and a cap of 4.
+- [x] **Shield reworked into a real damage-mitigation mechanic.** Previously
+      `shieldRegen` only slowly healed hull integrity directly — no
+      absorption, no visual feedback loop. Added `physics.js applyDamage()`
+      as the single entry point for all hit sources (terrain impact, hazard
+      zones, lasers, ambient-traffic collision, water hazard drift — 7 call
+      sites total), which:
+      - drains a depletable `lander.shieldCharge` (`50 × shieldRegen level`)
+        to *mitigate* 65% of each hit rather than block it outright, so a
+        shielded hit still costs some hull;
+      - once `shieldCharge` hits 0, subsequent hits pass straight through to
+        hull until it recharges (slow passive regen, gated behind the
+        existing hull-regen tick);
+      - flags `shieldAbsorbedThisHit` for the frame a hit is (at least
+        partially) absorbed, which `checkCargoDamage()` now checks — deck
+        cargo isn't flung off from a hit the shield successfully cushioned.
+      - Shield **visual** rewritten: was a flat filled circle; now a layered
+        radial gradient (transparent center → glow toward the rim), a
+        blurred outer halo (`ctx.filter = 'blur(4px)'`), a bright rim edge,
+        and a specular shine arc — brightness/rim pulse react to
+        `shieldHitFlash` on impact and to the current charge ratio.
+
 ## Checklist — 2026-07-05 evening UX/bugfix batch
 
 Tracked here per-request so a future session can pick up anything left open.

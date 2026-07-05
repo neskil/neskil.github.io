@@ -1160,11 +1160,17 @@ class CargoGame {
             this.radarPingTimer = 0;
         }
 
-        // --- Shield Regeneration ---
+        // --- Shield & Hull Regeneration ---
         const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
             lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + (dt / 60) * 1.5 * shieldLvl);
+            // Shield charge recovers on its own too, a bit slower than a fresh hit
+            // would need — it isn't meant to fully block every impact back-to-back.
+            if (lander.maxShieldCharge > 0) {
+                lander.shieldCharge = Math.min(lander.maxShieldCharge, (lander.shieldCharge || 0) + (dt / 60) * (lander.maxShieldCharge / 8));
+            }
         }
+        if (lander.shieldHitFlash > 0) lander.shieldHitFlash = Math.max(0, lander.shieldHitFlash - 0.04 * dt);
 
         // --- Refueling Station Logic ---
         if (lander.landed && lander.currentPad === 'refuel' && this.gameState === 'playing') {
@@ -5714,19 +5720,49 @@ class CargoGame {
                 }
             }
         }
-        // Shield Bubble
-        const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
-        if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
-            const shieldRatio = lander.integrity / lander.maxIntegrity;
-            if (shieldRatio > 0.2) {
+        // Shield Bubble — soft glowing forcefield: transparent center, glow rising
+        // toward a bright rim, plus a specular shine arc. Was a flat filled disk.
+        if (lander.maxShieldCharge > 0 && !lander.crashed && lander.integrity > 0) {
+            const chargeRatio = Math.max(0, (lander.shieldCharge || 0) / lander.maxShieldCharge);
+            if (chargeRatio > 0.02) {
+                const R = Math.max(lander.width, lander.height) * 0.9;
+                const pulse = Math.sin(Date.now() * 0.004) * 0.5 + 0.5;
+                const flash = lander.shieldHitFlash || 0;
+                const baseAlpha = 0.08 + 0.14 * chargeRatio + pulse * 0.04 + flash * 0.45;
+
+                ctx.save();
+
+                // Soft outer glow
+                ctx.filter = 'blur(4px)';
+                const glowGrad = ctx.createRadialGradient(0, 0, R * 0.6, 0, 0, R * 1.1);
+                glowGrad.addColorStop(0, 'rgba(96, 200, 255, 0)');
+                glowGrad.addColorStop(0.7, `rgba(96, 200, 255, ${baseAlpha * 0.5})`);
+                glowGrad.addColorStop(1, 'rgba(96, 200, 255, 0)');
+                ctx.fillStyle = glowGrad;
+                ctx.beginPath(); ctx.arc(0, 0, R * 1.1, 0, Math.PI * 2); ctx.fill();
+                ctx.filter = 'none';
+
+                // Body — transparent middle, faint fill building toward the rim
+                const bodyGrad = ctx.createRadialGradient(0, 0, R * 0.3, 0, 0, R);
+                bodyGrad.addColorStop(0, 'rgba(125, 211, 252, 0)');
+                bodyGrad.addColorStop(0.75, `rgba(56, 189, 248, ${baseAlpha * 0.35})`);
+                bodyGrad.addColorStop(1, `rgba(125, 211, 252, ${Math.min(1, baseAlpha + flash * 0.3)})`);
+                ctx.fillStyle = bodyGrad;
+                ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+
+                // Bright rim edge
+                ctx.strokeStyle = `rgba(224, 242, 254, ${Math.min(1, baseAlpha + 0.35 + flash * 0.5)})`;
+                ctx.lineWidth = 1.2;
+                ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
+
+                // Specular shine — a glass-like highlight arc, top-left
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + flash * 0.4})`;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.85, 0, Math.PI * 2);
-                const alpha = 0.15 + 0.1 * shieldLvl + (Math.sin(Date.now() * 0.005) * 0.05);
-                ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
-                ctx.fill();
-                ctx.strokeStyle = `rgba(186, 230, 253, ${alpha + 0.2})`;
-                ctx.lineWidth = 1.5;
+                ctx.arc(0, 0, R * 0.92, Math.PI * 1.1, Math.PI * 1.5);
                 ctx.stroke();
+
+                ctx.restore();
             }
         }
 
