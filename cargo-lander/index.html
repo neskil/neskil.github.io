@@ -1171,7 +1171,8 @@
         </script>
 
         <!-- Floating HUD during gameplay -->
-        <div id="hud-overlay" class="hud-panel" style="padding: 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none;">
+        <!-- Floating HUD during gameplay -->
+        <div id="hud-overlay" class="hud-panel" style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: flex;">
             
             <!-- Left: Extract Button Container -->
             <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-start;">
@@ -1198,6 +1199,7 @@
                 <div class="hud-group" style="padding: 6px 8px;">
                     <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺 Fullscreen</button>
                     <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();" title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
+                    <button class="utility-btn icon-only" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI" style="width: 32px; height: 32px;">👁</button>
                     <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options" style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
                 </div>
                 
@@ -1206,7 +1208,11 @@
                     <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start;">🔊 Audio Settings</button>
                     <button class="utility-btn" onclick="game.selfDestruct(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start; color: #fca5a5;">☠️ Destruct</button>
                     <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();" style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
-                    <a href="level-editor.html" class="utility-btn" style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none;">📝 Editor</a>
+                    <a href="level-editor.html" class="utility-btn" style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝 Editor</a>
+                    <div id="ui-scale-container" style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
+                        <span style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI Scale: <span id="ui-scale-val">100%</span></span>
+                        <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0" style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
+                    </div>
                 </div>
             </div>
 

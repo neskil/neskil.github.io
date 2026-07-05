@@ -57,6 +57,8 @@ class CargoGame {
         // Settings
         const savedMute = localStorage.getItem('cargoLanderMuted');
         this.isMuted = savedMute ? savedMute === 'true' : false;
+        this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || 1.0;
+        this.uiCollapsed = false;
         this.useSprites = false;
 
         // Keys State
@@ -194,6 +196,7 @@ class CargoGame {
         this.setupEventListeners();
 
         // Initialize UI display values
+        this.setUIScale(this.uiScale);
         this.updateHUD();
         this.refreshMenuUI();
 
@@ -209,6 +212,69 @@ class CargoGame {
 
         // Start game loop
         requestAnimationFrame((t) => this.loop(t));
+    }
+
+    toggleUI() {
+        this.uiCollapsed = !this.uiCollapsed;
+        
+        const vitals = document.getElementById('vitals-panel');
+        const extract = document.getElementById('btn-extract');
+        const rightPanel = document.getElementById('hud-right-panel');
+        const rightButtons = rightPanel ? rightPanel.querySelectorAll('.hud-group .utility-btn:not(#hide-ui-btn)') : [];
+        
+        if (this.uiCollapsed) {
+            if (vitals) vitals.style.display = 'none';
+            if (extract) extract.style.display = 'none';
+            rightButtons.forEach(btn => btn.style.display = 'none');
+            
+            const dropdown = document.getElementById('options-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            
+            const eyeBtn = document.getElementById('hide-ui-btn');
+            if (eyeBtn) {
+                eyeBtn.style.opacity = '0.5';
+                eyeBtn.title = "Show UI";
+            }
+        } else {
+            if (vitals) vitals.style.display = 'flex';
+            if (extract && !extract.classList.contains('hidden')) extract.style.display = 'block';
+            rightButtons.forEach(btn => btn.style.display = 'inline-flex');
+            
+            const eyeBtn = document.getElementById('hide-ui-btn');
+            if (eyeBtn) {
+                eyeBtn.style.opacity = '1';
+                eyeBtn.title = "Hide UI";
+            }
+        }
+    }
+
+    setUIScale(val) {
+        this.uiScale = parseFloat(val);
+        
+        const valText = document.getElementById('ui-scale-val');
+        if (valText) valText.textContent = Math.round(this.uiScale * 100) + '%';
+        
+        const slider = document.getElementById('ui-scale-slider');
+        if (slider) slider.value = this.uiScale;
+        
+        const vitals = document.getElementById('vitals-panel');
+        const extract = document.getElementById('btn-extract');
+        const rightPanel = document.getElementById('hud-right-panel');
+        
+        if (vitals) {
+            vitals.style.transform = `scale(${this.uiScale})`;
+            vitals.style.transformOrigin = 'top center';
+        }
+        if (extract) {
+            extract.style.transform = `scale(${this.uiScale})`;
+            extract.style.transformOrigin = 'top left';
+        }
+        if (rightPanel) {
+            rightPanel.style.transform = `scale(${this.uiScale})`;
+            rightPanel.style.transformOrigin = 'top right';
+        }
+        
+        localStorage.setItem('cargo_lander_ui_scale', this.uiScale);
     }
 
     resizeCanvas() {
@@ -335,6 +401,9 @@ class CargoGame {
             }
             if (e.key.toLowerCase() === 'r' && this.physics.lander && this.physics.lander.crashed) {
                 this.respawnLander();
+            }
+            if (e.key.toLowerCase() === 'h') {
+                this.toggleUI();
             }
         });
 
@@ -2085,9 +2154,16 @@ class CargoGame {
         // Minimap: top-right corner, fixed landscape UI dimensions
         const mmWidth = isTiny ? 160 : (isMobile ? 200 : 260);
         const mmHeight = isTiny ? 100 : (isMobile ? 130 : 160);
-        const mmX = cw - mmWidth - (isMobile ? 6 : 20);
+        const margin = isMobile ? 12 : 16;
+        const mmX = cw - mmWidth - margin;
         const mmY = isMobile ? 52 : 64; // clears the HUD bar (top:8px + ~44px height)
 
+        ctx.save();
+        // Translate to top-right anchor and scale
+        const anchorX = cw - margin;
+        ctx.translate(anchorX, mmY);
+        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
+        ctx.translate(-anchorX, -mmY);
         // ── Background ────────────────────────────────────────────────────
         ctx.save();
 
@@ -2238,6 +2314,8 @@ class CargoGame {
         ctx.textAlign = 'left';
         ctx.fillText('RADAR', mmX + 8, mmY + 13);
         ctx.restore();
+        
+        ctx.restore(); // Restore outer scale and translate
     }
 
     drawQuestPanel() {
@@ -2261,6 +2339,10 @@ class CargoGame {
         const panelH = 16 + 16 + 16 + 12 + (level.quests.length * lineH) + 8 + (statLineH * 3) + 16;
 
         ctx.save();
+        // Translate to top-left anchor and scale
+        ctx.translate(px, py);
+        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
+        ctx.translate(-px, -py);
 
         // Panel background
         ctx.fillStyle = 'rgba(8, 12, 26, 0.88)';
