@@ -2478,16 +2478,19 @@ class CargoGame {
         // ── Wind streak particles (spawned from the upwind edge) ───────────
         if (hasWind) {
             const windAbs = Math.abs(wind);
-            const spawnRate = Math.min(0.95, windAbs * 3.5); // more streaks = stronger wind
+            // Capped lower and spread over a wider band than before — the narrow spawn
+            // zone let low/sustained wind (e.g. Level 3) pile up into a solid pale smear
+            // near the upwind screen edge instead of reading as individual streaks.
+            const spawnRate = Math.min(0.6, windAbs * 3.0);
             if (Math.random() < spawnRate) {
                 const dir = wind > 0 ? -1 : 1; // spawn on the side wind blows FROM
                 this.windStreaks.push({
-                    x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.2,
+                    x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.35,
                     y: camY + (Math.random() - 0.5) * vh,
                     vx: wind * (18 + Math.random() * 14),
                     vy: (Math.random() - 0.5) * 1.5,
                     len: 20 + windAbs * 60 + Math.random() * 40,
-                    alpha: 0.12 + Math.random() * 0.25,
+                    alpha: 0.08 + Math.random() * 0.14,
                     life: 1.0
                 });
             }
@@ -2535,11 +2538,12 @@ class CargoGame {
         // ── Wind streaks ────────────────────────────────────────────────────
         if (this.windStreaks?.length > 0) {
             const wind = this.physics?.currentWind || 0;
-            // color shifts blue→cyan→white based on strength
+            // color shifts blue→cyan as strength increases, capped short of white so
+            // it doesn't read as a pale tint wash at low/sustained wind
             const windStr = Math.min(1, Math.abs(wind) / 0.5);
-            const r = Math.round(150 + windStr * 105);
-            const g = Math.round(210 + windStr * 45);
-            const b = 255;
+            const r = Math.round(110 + windStr * 70);
+            const g = Math.round(180 + windStr * 45);
+            const b = Math.round(230 + windStr * 25);
             for (const s of this.windStreaks) {
                 const alpha = s.alpha * s.life;
                 ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
