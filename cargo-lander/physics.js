@@ -1799,10 +1799,26 @@ class CargoPhysics {
             const minTerrainY = allYs.length > 0 ? Math.min(...allYs) : 400;
             const landerY = this.lander ? this.lander.y : minTerrainY;
             
-            // Try to spawn above the lander's current view, but constrained by terrain
+            // Try to spawn above the lander's current view, but constrained by terrain.
+            // On tall-terrain levels baseTargetY can go far negative, which used to
+            // collapse every spawn onto the same Math.max(80, ...) floor — spread the
+            // clamped case over a band instead of a single point.
+            const skyFloor = 80;
             const baseTargetY = Math.min(landerY - 200, minTerrainY - 100);
-            const skyY = baseTargetY - Math.random() * 300;
-            
+            const pickSkyY = () => {
+                const y = baseTargetY - Math.random() * 300;
+                return y < skyFloor ? skyFloor + Math.random() * 320 : y;
+            };
+            let skyY = pickSkyY();
+            // Avoid stacking multiple trucks on the same flight line — retry a few times
+            // if the candidate Y is too close to an already-active truck.
+            const minYGap = 70;
+            let ySpawnAttempts = 0;
+            while (ySpawnAttempts < 6 && this.ambientTraffic.some(o => Math.abs(o.y - skyY) < minYGap)) {
+                skyY = pickSkyY();
+                ySpawnAttempts++;
+            }
+
             const rModel = Math.random();
             const model = rModel < 0.4 ? 'pickup' : (rModel < 0.75 ? 'freighter' : 'police');
             const truckW = model === 'pickup' ? 55 + Math.random() * 50 : (model === 'police' ? 65 : 80 + Math.random() * 120);
@@ -1827,7 +1843,7 @@ class CargoPhysics {
             
             this.ambientTraffic.push({
                 x: this.lander ? this.lander.x + (fromRight ? spawnXOffset : -spawnXOffset) : (fromRight ? this.levelWidth + truckW : -truckW),
-                y: Math.max(80, skyY),
+                y: skyY,
                 vy: 0,
                 vx: fromRight ? -speed : speed,
                 w: truckW,
@@ -1842,6 +1858,9 @@ class CargoPhysics {
                 hasCargoBox: model === 'pickup' && Math.random() < 0.45,
                 flyOffTimer: flyOffDelay,
                 flyingOff: false,
+                // Only some trucks bother reacting to a close lander; the rest fly their line.
+                evasive: Math.random() < 0.6,
+                evadeCooldown: 0,
             });
         }
 
@@ -1897,13 +1916,16 @@ class CargoPhysics {
                     }
                     
                     if (l.integrity <= 0) this.triggerExplosion();
-                } else if (!t.flyingOff) {
-                    // Evasive maneuver if lander gets too close and is moving up or fast
+                } else if (!t.flyingOff && t.evasive) {
+                    // Evasive maneuver if lander gets too close and is moving up or fast.
+                    // Edge-triggered with a cooldown + dt-scaled nudge, so it's a small
+                    // course correction rather than an unbounded per-frame velocity ramp.
+                    t.evadeCooldown = Math.max(0, (t.evadeCooldown || 0) - dt);
                     const dist = Math.hypot(l.x - tx, l.y - t.y);
-                    if (dist < 180 && (Math.abs(l.vy) > 8 || Math.abs(l.vx) > 10)) {
-                        // slight course correction
-                        t.vy -= 4;
-                        t.vx += (t.x > l.x ? 3 : -3);
+                    if (dist < 180 && (Math.abs(l.vy) > 8 || Math.abs(l.vx) > 10) && t.evadeCooldown <= 0) {
+                        t.vy = Math.max(t.vy - 1.5 * dt, -6);
+                        t.vx += (t.x > l.x ? 1.5 : -1.5) * dt;
+                        t.evadeCooldown = 45; // ~0.75s at 60fps before it can react again
                         if (Math.random() < 0.2) {
                             t.bubbleText = "Hey, watch it!";
                             t.bubbleTimer = 90; // 1.5 seconds at 60fps
