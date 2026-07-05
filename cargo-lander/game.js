@@ -47,9 +47,6 @@ class CargoGame {
         this.questState = {};   // { questId: { completed, failed } }
         this.hadCrash = false;
         this.cargoLostCount = 0;
-        this.cargoSpawnCooldown = 0;
-        this.cargoWaitTimer = 150;  // frames until the next auto-dispense at the pad
-        this.cargoDispenseCycle = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
 
@@ -908,84 +905,9 @@ class CargoGame {
                 lander.grabbedBoxId = closestBox.id;
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
             }
-            // Cargo no longer dispenses from a Space press — it spawns automatically
-            // while waiting at the collection pad (see updateCargoAutoSpawn()), so
-            // Space stays purely a grapple grab/release action.
-        }
-    }
-
-    // Cargo now spawns automatically while waiting at the collection pad instead of
-    // on a Space press — Space is purely grapple grab/release. Delay escalates the
-    // longer you sit there so a single pilot can't camp the pad for free cargo.
-    updateCargoAutoSpawn(dt) {
-        const lander = this.physics.lander;
-        if (!lander || lander.crashed || this.gameState !== 'playing') return;
-        const cp = this.physics.collectionPoint;
-        if (!cp) return;
-
-        const cpCenterX = cp.x + cp.width / 2;
-        const near = lander.vehicleType === 'drone'
-            ? (lander.landed || Math.abs(lander.x - cpCenterX) < 60)
-            : (Math.abs(lander.x - cpCenterX) < cp.width / 2 + 28 && lander.y >= cp.y - 60 && lander.y <= cp.y + 12);
-
-        // Slower and capped lower than the first pass — it was dispensing almost
-        // immediately and let too many boxes pile up on deck at once.
-        if (!near || this.physics.boxes.length >= 4) {
-            this.cargoDispenseCycle = 0;
-            this.cargoWaitTimer = 150;
-            return;
-        }
-
-        this.cargoWaitTimer -= dt;
-        if (this.cargoWaitTimer <= 0) {
-            this.triggerCargoDispense();
-            this.cargoDispenseCycle++;
-            this.cargoWaitTimer = 150 + this.cargoDispenseCycle * 60;
-        }
-    }
-
-    triggerCargoDispense() {
-        if (!this.physics.lander) return;
-
-        // Drone loading logic (can dispense while hovering near collection point)
-        if (this.physics.lander.vehicleType === 'drone') {
-            const cp = this.physics.collectionPoint;
-            if (this.physics.lander.landed || (Math.abs(this.physics.lander.x - (cp.x + cp.width / 2)) < 60)) {
-                const levelConfig = levels[this.currentLevelIndex];
-                const types = levelConfig.allowedTypes || ['normal'];
-                const t = types[Math.floor(Math.random() * types.length)];
-                this.physics.spawnCargo(t);
-                if (!this.isMuted) CargoAudio.playLoad();
-            }
-            return;
-        }
-
-        // Allow dispense when lander is near/on the collection point pad
-        const cp = this.physics.collectionPoint;
-        const l = this.physics.lander;
-        const cpCenterX = cp.x + cp.width / 2;
-        const nearCollection = Math.abs(l.x - cpCenterX) < cp.width / 2 + 28
-            && l.y >= cp.y - 60 && l.y <= cp.y + 12;
-        if (nearCollection) {
-            const levelConfig = levels[this.currentLevelIndex];
-
-            // Randomly select one of the allowed types for this level
-            const types = levelConfig.allowedTypes || ['normal'];
-            const t = types[Math.floor(Math.random() * types.length)];
-
-            // Limit cargo count on screen to prevent extreme physics lag or overflow
-            if (this.physics.boxes.length >= 4) {
-                this.addMessage("Cargo deck maximum reached!", "#ef4444");
-                return;
-            }
-
-            this.physics.spawnCargo(t);
-            this.cargoSpawnCooldown = 30; // Cooldown frames
-
-            if (!this.isMuted) {
-                CargoAudio.playLoad();
-            }
-            this.addMessage("Cargo Dispensed: " + t.toUpperCase(), "#f8fafc");
+            // Cargo no longer dispenses from a Space press — it spawns via the
+            // crane loadSeq while landed on the collection pad, so Space stays
+            // purely a grapple grab/release action.
         }
     }
 
@@ -1321,10 +1243,6 @@ class CargoGame {
                 CargoAudio.setThruster(0);
             }
         }
-
-        // Cooldowns
-        if (this.cargoSpawnCooldown > 0) this.cargoSpawnCooldown--;
-        this.updateCargoAutoSpawn(dt);
 
         // Delivery hub crane animations
         for (const h of this.physics.deliveryHubs) {
