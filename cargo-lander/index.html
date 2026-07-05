@@ -306,6 +306,12 @@
             overflow: hidden;
         }
 
+        .btn-level.vehicle-selected {
+            border-color: #a5b4fc;
+            background: rgba(99, 102, 241, 0.18);
+            box-shadow: 0 0 0 1px rgba(165, 180, 252, 0.5) inset;
+        }
+
         .btn-level.locked-mission {
             opacity: 0.4;
             filter: grayscale(0.7);
@@ -1179,7 +1185,7 @@
 
         <!-- Floating HUD during gameplay -->
         <!-- Floating HUD during gameplay -->
-        <div id="hud-overlay" class="hud-panel" style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: flex;">
+        <div id="hud-overlay" class="hud-panel" style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: none;">
             
             <!-- Left: Extract Button Container -->
             <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-start;">
@@ -1359,8 +1365,25 @@
                             </div>
                         </div>
 
+                        <!-- Vehicle License — pick your loadout once here instead of per-mission -->
+                        <div style="margin-top: 12px;">
+                            <div class="stat-cell-label" style="margin-bottom:6px;">🚀 Vehicle License</div>
+                            <div style="display:flex; gap:8px;">
+                                <button id="vehicle-license-basic" class="btn-level" onclick="game.setSelectedVehicle('basic')"
+                                    style="flex:1; text-align:left; padding:8px 10px;">
+                                    <span class="num" style="color:#38bdf8;">Basic Lander</span>
+                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Upright, beginner-friendly</span>
+                                </button>
+                                <button id="vehicle-license-drone" class="btn-level" onclick="game.setSelectedVehicle('drone')"
+                                    style="flex:1; text-align:left; padding:8px 10px;">
+                                    <span class="num" style="color:#10b981;">Utility Drone</span>
+                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover + winch</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Upgrade bar -->
-                        <div style="margin-top: 4px;">
+                        <div style="margin-top: 12px;">
                             <div class="stat-cell-label" style="margin-bottom:6px;">🔧 Installed Upgrades</div>
                             <div id="lc-upgrades" style="display:flex; flex-wrap:wrap; gap:4px; min-height:24px;"></div>
                         </div>

@@ -840,12 +840,12 @@ function drawShapeList(list, opts) {
       const {sx,sy} = w2s(pt.x, pt.y);
       const isSel = isActive && pti===S.selPt;
 
-      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 11 : 7, 0, Math.PI*2);
+      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 8 : 5, 0, Math.PI*2);
       ctx.fillStyle = ac;
       ctx.globalAlpha = isActive ? (isSel ? 0.30 : 0.14) : 0.06;
       ctx.fill(); ctx.globalAlpha = 1;
 
-      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 5 : 3.5, 0, Math.PI*2);
+      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 3.5 : 2.5, 0, Math.PI*2);
       ctx.fillStyle = isSel ? '#fff' : (isActive ? ac : opts.edgeColor);
       ctx.fill();
       if (isSel) { ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke(); }
