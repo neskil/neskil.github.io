@@ -102,6 +102,7 @@
         }
 
         #webglCanvas {
+            display: none;
             pointer-events: none;
             z-index: 5;
         }
@@ -1190,10 +1191,11 @@
                 <div id="hud-dropdown" class="hud-group" style="display: none; flex-direction: column; align-items: flex-start; pointer-events: auto; background: rgba(15, 23, 42, 0.85);">
                     <button class="utility-btn" onclick="game.goToMenu(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start;">🏠 Menu</button>
                     <button class="utility-btn" onclick="game.selfDestruct(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start; color: #fca5a5;">☠️ Destruct</button>
-                    <button class="utility-btn" onclick="game.toggleFullscreen(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start;">📺 Fullscreen</button>
-                    <button class="utility-btn" onclick="game.openSettings(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start;">🔊 Audio</button>
-                    <button class="utility-btn" onclick="game.toggleDevPanel(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev</button>
-                    <a href="level-editor.html" class="utility-btn" style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none;">📝 Editor</a>
+                    <!-- These are hidden on desktop since they appear on the right side -->
+                    <button class="utility-btn hud-mobile-only" onclick="game.toggleFullscreen(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start;">📺 Fullscreen</button>
+                    <button class="utility-btn hud-mobile-only" onclick="game.openSettings(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start;">🔊 Audio</button>
+                    <button class="utility-btn hud-mobile-only" onclick="game.toggleDevPanel(); toggleHudDropdown();" style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev</button>
+                    <a href="level-editor.html" class="utility-btn hud-mobile-only" style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none;">📝 Editor</a>
                 </div>
 
                 <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
@@ -1214,8 +1216,23 @@
                 </div>
             </div>
             
-            <!-- Right side intentionally empty for balance -->
-            <div style="flex: 1;"></div>
+            <!-- Right side intentionally empty for balance, used for utility buttons on desktop -->
+            <style>
+                @media (min-width: 769px) {
+                    .hud-mobile-only { display: none !important; }
+                }
+                @media (max-width: 768px) {
+                    #hud-right-panel { display: none !important; }
+                }
+            </style>
+            <div id="hud-right-panel" style="flex: 1; display: flex; justify-content: flex-end; align-items: flex-start; gap: 8px; pointer-events: auto;">
+                <div class="hud-group" style="padding: 6px 8px;">
+                    <button class="utility-btn" onclick="game.toggleFullscreen();">📺 Fullscreen</button>
+                    <button class="utility-btn" onclick="game.openSettings();">🔊 Audio</button>
+                    <button class="utility-btn" onclick="game.toggleDevPanel();" style="color:#a5b4fc;">🛠 Dev</button>
+                    <a href="level-editor.html" class="utility-btn" style="color:#34d399; text-decoration:none;">📝 Editor</a>
+                </div>
+            </div>
 
         </div>
 

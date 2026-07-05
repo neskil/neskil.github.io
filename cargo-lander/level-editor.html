@@ -211,6 +211,7 @@ canvas{display:block}
         <option value="laser">Laser</option>
         <option value="crusher">Moving Crusher</option>
         <option value="pickup">Fuel/Cash Ring</option>
+        <option value="sandworm">Sandworm Pit</option>
       </select>
     </div>
     <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
@@ -223,6 +224,11 @@ canvas{display:block}
         <label>warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:40px" onchange="setHazardField('warnMs', this.value)">
         <label>dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:30px" onchange="setHazardField('damagePerSec', this.value)">
         <label>thick:</label><input type="number" id="laser-thick" class="cinput" style="width:30px" onchange="setHazardField('thickness', this.value)">
+      </div>
+    </div>
+    <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+      <div class="row">
+        <label>spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:40px" onchange="setHazardField('spawnRate', this.value)">
       </div>
     </div>
     <div id="pt-list-wrap"><div id="pt-list"></div></div>
@@ -1214,6 +1220,7 @@ function renderPtUI() {
   document.getElementById('pt-panel').style.display = hasPoly ? 'block' : 'none';
   const hazardRow = document.getElementById('hazard-type-row');
   const timingRow = document.getElementById('laser-timing-row');
+  const swTimingRow = document.getElementById('sandworm-timing-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
     if (S.selLayer === 'hazard') {
@@ -1222,18 +1229,25 @@ function renderPtUI() {
       document.getElementById('hazard-type-select').value = poly.type || 'zone';
       if (poly.type === 'laser') {
         timingRow.style.display = '';
+        swTimingRow.style.display = 'none';
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
         document.getElementById('laser-offms').value = poly.offMs ?? 1000;
         document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;
         document.getElementById('laser-warn').value = poly.warnMs ?? 400;
         document.getElementById('laser-dmg').value = poly.damagePerSec ?? 40;
         document.getElementById('laser-thick').value = poly.thickness ?? 14;
+      } else if (poly.type === 'sandworm') {
+        timingRow.style.display = 'none';
+        swTimingRow.style.display = '';
+        document.getElementById('sw-spawnrate').value = poly.spawnRate ?? 1.0;
       } else {
         timingRow.style.display = 'none';
+        swTimingRow.style.display = 'none';
       }
     } else {
       hazardRow.style.display = 'none';
       timingRow.style.display = 'none';
+      if(swTimingRow) swTimingRow.style.display = 'none';
     }
     renderPtList();
   } else {
@@ -1535,6 +1549,8 @@ function buildOut() {
         if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
         if (h.damagePerSec) lines.push(`      damagePerSec: ${h.damagePerSec},`);
         if (h.thickness) lines.push(`      thickness: ${h.thickness},`);
+      } else if (h.type === 'sandworm') {
+        if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
       }
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));
