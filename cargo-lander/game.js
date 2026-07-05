@@ -2450,42 +2450,115 @@ class CargoGame {
     }
 
     updateWeather(dt) {
-        if (!this.weather || this.weather === 'none' || this.weather === 'fog') return;
+        const hasWeather = this.weather && this.weather !== 'none' && this.weather !== 'fog';
+        const wind = this.physics?.currentWind || 0;
+        const hasWind = Math.abs(wind) > 0.05;
+
+        if (!hasWeather && !hasWind) return;
         if (!this.weatherParticles) this.weatherParticles = [];
-        
-        // Spawn particles
-        if (Math.random() < 0.8) {
+        if (!this.windStreaks) this.windStreaks = [];
+
+        const vw = this.canvas.width / this.camera.zoom;
+        const vh = this.canvas.height / this.camera.zoom;
+        const camX = this.camera.x;
+        const camY = this.camera.y;
+
+        // ── Regular weather particles ──────────────────────────────────────
+        if (hasWeather && Math.random() < 0.8) {
             this.weatherParticles.push({
-                x: this.camera.x + (Math.random() - 0.5) * (this.canvas.width / this.camera.zoom) * 1.5,
-                y: this.camera.y - (this.canvas.height / this.camera.zoom) * 0.6,
+                x: camX + (Math.random() - 0.5) * vw * 1.5,
+                y: camY - vh * 0.6,
                 vx: this.weather === 'snow' ? (Math.random() - 0.5) * 2 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (Math.random() - 0.5) * 3),
                 vy: this.weather === 'snow' ? Math.random() * 2 + 1 : (this.weather === 'rain' ? Math.random() * 8 + 8 : Math.random() * 2 + 1),
                 size: this.weather === 'snow' ? Math.random() * 3 + 1 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : Math.random() * 4 + 2),
                 type: this.weather
             });
         }
-        
+
+        // ── Wind streak particles (spawned from the upwind edge) ───────────
+        if (hasWind) {
+            const windAbs = Math.abs(wind);
+            const spawnRate = Math.min(0.95, windAbs * 3.5); // more streaks = stronger wind
+            if (Math.random() < spawnRate) {
+                const dir = wind > 0 ? -1 : 1; // spawn on the side wind blows FROM
+                this.windStreaks.push({
+                    x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.2,
+                    y: camY + (Math.random() - 0.5) * vh,
+                    vx: -wind * (18 + Math.random() * 14),
+                    vy: (Math.random() - 0.5) * 1.5,
+                    len: 20 + windAbs * 60 + Math.random() * 40,
+                    alpha: 0.12 + Math.random() * 0.25,
+                    life: 1.0
+                });
+            }
+        }
+
+        // ── Update regular weather particles ──────────────────────────────
         for (let i = this.weatherParticles.length - 1; i >= 0; i--) {
             const p = this.weatherParticles[i];
+            // Apply wind drift to existing weather particles
+            p.vx += wind * 0.08 * dt;
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             if (p.type === 'snow' || p.type === 'ash') {
                 p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5 * dt;
             }
-            if (p.y > this.camera.y + (this.canvas.height / this.camera.zoom) * 0.6) {
+            if (p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
                 this.weatherParticles.splice(i, 1);
+            }
+        }
+
+        // ── Update wind streaks ───────────────────────────────────────────
+        for (let i = this.windStreaks.length - 1; i >= 0; i--) {
+            const s = this.windStreaks[i];
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.life -= 0.008 * dt;
+            if (s.life <= 0 || s.x < camX - vw || s.x > camX + vw) {
+                this.windStreaks.splice(i, 1);
             }
         }
     }
 
     drawWeather() {
-        if (!this.weather || this.weather === 'none' || this.weather === 'fog' || !this.weatherParticles) return;
+        const hasWeather = this.weather && this.weather !== 'none' && this.weather !== 'fog';
+        const hasWind = Math.abs(this.physics?.currentWind || 0) > 0.05;
+        if (!hasWeather && !hasWind) return;
+        if (!this.weatherParticles && !this.windStreaks) return;
+
         const ctx = this.ctx;
         ctx.save();
         ctx.translate(this.canvas.width / 2 + (this.screenShake?.x || 0), this.canvas.height / 2 + (this.screenShake?.y || 0));
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
 
+        // ── Wind streaks ────────────────────────────────────────────────────
+        if (this.windStreaks?.length > 0) {
+            const wind = this.physics?.currentWind || 0;
+            // color shifts blue→cyan→white based on strength
+            const windStr = Math.min(1, Math.abs(wind) / 0.5);
+            const r = Math.round(150 + windStr * 105);
+            const g = Math.round(210 + windStr * 45);
+            const b = 255;
+            for (const s of this.windStreaks) {
+                const alpha = s.alpha * s.life;
+                ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+                ctx.lineWidth = 0.8 + windStr * 1.2;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                const dx = (s.vx / Math.abs(s.vx || 1)) * s.len;
+                ctx.moveTo(s.x, s.y);
+                ctx.lineTo(s.x - dx * 0.6, s.y - s.vy * 4);
+                ctx.stroke();
+            }
+        }
+
+        if (!hasWeather || !this.weatherParticles?.length) {
+            ctx.restore();
+            return;
+        }
+
+        // ── Regular weather particles ───────────────────────────────────────
         if (this.weather === 'snow') {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         } else if (this.weather === 'rain') {
@@ -4566,11 +4639,12 @@ class CargoGame {
             ctx.beginPath();
             ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
             ctx.stroke();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = '#475569';
+            // Small corner gusset support (so it doesn't look like a dropped wire)
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#334155';
             ctx.beginPath();
-            ctx.moveTo(craneBaseX - 20, craneTopY - 20);
-            ctx.lineTo(craneBaseX, cy - 20);
+            ctx.moveTo(craneBaseX - 12, craneTopY - 20);
+            ctx.lineTo(craneBaseX, craneTopY - 8);
             ctx.stroke();
             ctx.lineCap = 'butt';
 
@@ -4807,10 +4881,10 @@ class CargoGame {
             ctx.beginPath();
             ctx.moveTo(craneX, craneTopY - 16); ctx.lineTo(craneArmLeft, craneTopY - 16);
             ctx.stroke();
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#b45309';
             ctx.beginPath();
-            ctx.moveTo(craneX - 16, craneTopY - 16); ctx.lineTo(craneX, hub.y - 16);
+            ctx.moveTo(craneX - 12, craneTopY - 16); ctx.lineTo(craneX, craneTopY - 4);
             ctx.stroke();
             ctx.lineCap = 'butt';
 
@@ -6245,34 +6319,86 @@ class CargoGame {
 
     drawWindIndicator() {
         const ctx = this.ctx;
-        const wind = this.physics.wind;
-        if (Math.abs(wind) < 0.05) return;
+        const baseWind = this.physics.wind;
+        if (Math.abs(baseWind) < 0.05) return;
 
-        // Position at top center, just below HUD bar (top:8px + ~44px height + 8px gap)
+        const currentWind = this.physics.currentWind || baseWind;
+        const dir = baseWind > 0 ? 1 : -1;
+        const absBase = Math.abs(baseWind);
+        const absCurrent = Math.abs(currentWind);
+        const gustRatio = absCurrent / (absBase || 1); // 1.0 = calm, >1 = gust
+        const now = Date.now();
+
+        // Determine color from strength: cyan → yellow → red
+        const str = Math.min(1, absBase / 0.4);
+        const r = Math.round(56 + str * 199);
+        const g = Math.round(189 - str * 89);
+        const b = Math.round(248 - str * 248);
+        const baseColor = `rgb(${r},${g},${b})`;
+
         const cx = this.canvas.width / 2;
         const cy = 80;
 
-        ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
-        ctx.font = '600 12px sans-serif';
+        // ── Background pill ────────────────────────────────────────────────
+        const pillW = 160, pillH = 28;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,10,30,0.55)';
+        ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
+        ctx.lineWidth = 1;
+        if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, cy - pillH - 2, pillW, pillH, 6);
+        else ctx.rect(cx - pillW / 2, cy - pillH - 2, pillW, pillH);
+        ctx.fill(); ctx.stroke();
+
+        // ── Label ─────────────────────────────────────────────────────────
+        ctx.fillStyle = `rgba(${r},${g},${b},0.9)`;
+        ctx.font = '600 10px Outfit, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`WIND: ${wind < 0 ? 'LEFT' : 'RIGHT'} (${Math.abs(wind * 10).toFixed(1)} m/s)`, cx, cy - 10);
+        const gustLabel = gustRatio > 1.25 ? ' GUSTING' : '';
+        ctx.fillText(`WIND ${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`, cx, cy - pillH / 2 + 4);
 
-        // Draw wind arrow
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
+        // ── Animated streaking arrows ──────────────────────────────────────
+        const numArrows = Math.ceil(absBase * 8) + 1; // 1-5 arrows
+        const spacing = Math.min(50, pillW * 0.3);
+        const phase = (now * 0.001 * (1 + absCurrent * 2)) % 1;
 
-        ctx.beginPath();
-        const arrowLen = Math.abs(wind) * 45;
-        const dir = wind < 0 ? -1 : 1;
+        for (let i = 0; i < numArrows; i++) {
+            const t = (i / numArrows + phase) % 1;
+            const ax = cx + dir * (t - 0.5) * pillW * 0.6;
+            const alpha = Math.sin(t * Math.PI) * 0.9; // fade in/out
+            const segLen = 6 + absCurrent * 20;
+            ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+            ctx.lineWidth = 1.5 + str;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(ax - dir * segLen * 0.5, cy - pillH / 2 + 10);
+            ctx.lineTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
+            ctx.stroke();
+            // arrowhead
+            ctx.beginPath();
+            ctx.moveTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
+            ctx.lineTo(ax + dir * (segLen * 0.5 - 5), cy - pillH / 2 + 6);
+            ctx.moveTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
+            ctx.lineTo(ax + dir * (segLen * 0.5 - 5), cy - pillH / 2 + 14);
+            ctx.stroke();
+        }
 
-        ctx.moveTo(cx - (arrowLen / 2) * dir, cy);
-        ctx.lineTo(cx + (arrowLen / 2) * dir, cy);
-        // Arrowhead
-        ctx.lineTo(cx + (arrowLen / 2 - 6) * dir, cy - 4);
-        ctx.moveTo(cx + (arrowLen / 2) * dir, cy);
-        ctx.lineTo(cx + (arrowLen / 2 - 6) * dir, cy + 4);
+        // ── Gust bar (shows live gusting vs base) ─────────────────────────
+        const barW = pillW * 0.72;
+        const barH = 3;
+        const barX = cx - barW / 2;
+        const barY = cy - 6;
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(barX, barY, barW, barH);
+        // fill up to current gust level (capped at 1.6x base)
+        const fillFrac = Math.min(1, gustRatio / 1.6);
+        const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+        grad.addColorStop(0, `rgba(${r},${g},${b},0.6)`);
+        grad.addColorStop(1, `rgba(${r},${g},${b},1.0)`);
+        ctx.fillStyle = grad;
+        if (dir > 0) ctx.fillRect(barX, barY, barW * fillFrac, barH);
+        else ctx.fillRect(barX + barW * (1 - fillFrac), barY, barW * fillFrac, barH);
 
-        ctx.stroke();
+        ctx.restore();
     }
 }
 
