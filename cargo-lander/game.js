@@ -6325,7 +6325,12 @@ class CargoGame {
         const currentWind = this.physics.currentWind || baseWind;
         const dir = baseWind > 0 ? 1 : -1;
         const absBase = Math.abs(baseWind);
-        const absCurrent = Math.abs(currentWind);
+        // Smooth the readout so the number/arrows/gust label don't jitter every frame —
+        // the underlying currentWind is a fast sine-wave gust value, raw display of it
+        // read as "too aggressive".
+        if (this._windDisplaySmooth === undefined) this._windDisplaySmooth = Math.abs(currentWind);
+        this._windDisplaySmooth += (Math.abs(currentWind) - this._windDisplaySmooth) * 0.06;
+        const absCurrent = this._windDisplaySmooth;
         const gustRatio = absCurrent / (absBase || 1); // 1.0 = calm, >1 = gust
         const now = Date.now();
 
