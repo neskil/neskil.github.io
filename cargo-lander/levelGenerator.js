@@ -75,10 +75,10 @@ function generateProceduralLevel(craziness = 1) {
     // We need flat pads for: StartHQ, Collection, and 1-2 Hubs.
     // Let's place them at specific X ranges.
     const pads = [
-        { xMin: -300, xMax: -100, label: 'hq', width: 250 },
-        { xMin: 200,  xMax: 400,  label: 'collection', width: 250 },
-        { xMin: 900,  xMax: 1100, label: 'hub1', width: 200 },
-        { xMin: 1600, xMax: 1800, label: 'hub2', width: 200 }
+        { xMin: -200, xMax: 0,    label: 'hq',         width: 500 },
+        { xMin: 300,  xMax: 600,  label: 'collection', width: 500 },
+        { xMin: 1100, xMax: 1400, label: 'hub1',       width: 450 },
+        { xMin: 2000, xMax: 2400, label: 'hub2',       width: 450 }
     ];
     
     let activePad = 0;
