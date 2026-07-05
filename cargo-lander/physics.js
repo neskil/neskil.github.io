@@ -457,7 +457,7 @@ class CargoPhysics {
         return colors[type] || '#f59e0b';
     }
 
-    spawnCargo(type, targetX, forcedEmoji) {
+    spawnCargo(type, targetX, forcedEmoji, targetY) {
         const randomEmoji = forcedEmoji || this.getRandomCargoEmoji(type);
 
         // Determine spawn location based on lander type and position
@@ -466,7 +466,7 @@ class CargoPhysics {
         const _hatchX = _wbX + _wbW * 0.42;
         
         let spawnX = _hatchX + (Math.random() - 0.5) * 8;
-        let spawnY = this.collectionPoint.y - 88;
+        let spawnY = targetY !== undefined ? targetY : this.collectionPoint.y - 88;
         
         if (targetX !== undefined) {
             spawnX = targetX;
@@ -703,13 +703,18 @@ class CargoPhysics {
                     if (m.trail.length > 800) m.trail.pop();
                 }
 
-                // Despawn once it has dived out of frame
-                const despawnDepth = lander.y + 1200; // Relative to the crash site to ensure it leaves the camera view
+                const oob = levelConfig.outOfBounds;
+                const despawnDepth = (oob && oob.monsterDepth) ? oob.monsterDepth + 400 : 1800;
                 if (m.y > despawnDepth || m.y > this.levelHeight + 400) {
                     this.monster = null;
                 }
             }
-            return;
+            
+            if (this.sandWorm) {
+                this.sandWorm.state = 'retracting';
+            } else {
+                return; // Only return early if no active sandworm
+            }
         }
 
         // Spawn logic: Trigger if lander sinks below monsterDepth OR stays out of bounds too long
@@ -726,7 +731,6 @@ class CargoPhysics {
                     spawnX = lander.x < -150 ? lander.x - 400 : (lander.x > this.levelWidth + 150 ? lander.x + 400 : lander.x);
                     spawnY = lander.y > this.levelHeight ? lander.y + 200 : lander.y - 400;
                 }
-                
                 this.monster = {
                     x: spawnX,
                     y: spawnY,
@@ -736,6 +740,7 @@ class CargoPhysics {
                     roarTimer: 60,
                     trail: [],
                     speedIntegral: 0,
+                    chaseTimer: 0,
                 };
                 if (window.CargoAudio) CargoAudio.playCrash();
             }
@@ -750,6 +755,8 @@ class CargoPhysics {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 0) {
+                m.chaseTimer += dt;
+                
                 // Integral accumulator: builds up when lander is escaping (moving away)
                 const relVx = lander.vx - m.vx;
                 const relVy = lander.vy - m.vy;
@@ -760,7 +767,11 @@ class CargoPhysics {
                 } else {
                     m.speedIntegral = Math.max(0, m.speedIntegral - 0.001 * dt);
                 }
-                const speed = 0.25 + m.speedIntegral * 0.55;
+                
+                // Startup modifier: takes ~4 seconds to reach full speed (300 frames)
+                const startupModifier = Math.min(1, m.chaseTimer / 300);
+                const speed = (0.35 + m.speedIntegral * 0.55) * startupModifier;
+                
                 m.vx += (dx / dist) * speed * dt;
                 m.vy += (dy / dist) * speed * dt;
             }
@@ -1747,10 +1758,11 @@ class CargoPhysics {
             const baseTargetY = Math.min(landerY - 200, minTerrainY - 100);
             const skyY = baseTargetY - Math.random() * 300;
             
-            const model = Math.random() < 0.42 ? 'pickup' : 'freighter';
-            const truckW = model === 'pickup' ? 55 + Math.random() * 50 : 80 + Math.random() * 120;
-            const truckH = model === 'pickup' ? 20 + Math.random() * 10 : 16 + Math.random() * 18;
-            const speed = 0.5 + Math.random() * 1.5; // Slightly faster to cross screen reasonably
+            const rModel = Math.random();
+            const model = rModel < 0.4 ? 'pickup' : (rModel < 0.75 ? 'freighter' : 'police');
+            const truckW = model === 'pickup' ? 55 + Math.random() * 50 : (model === 'police' ? 65 : 80 + Math.random() * 120);
+            const truckH = model === 'pickup' ? 20 + Math.random() * 10 : (model === 'police' ? 22 : 16 + Math.random() * 18);
+            const speed = (model === 'police' ? 2.5 + Math.random() : 0.5 + Math.random() * 1.5); // Police are faster
             
             const palette = [
                 { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
@@ -1827,7 +1839,29 @@ class CargoPhysics {
                     l.integrity -= impact * 4;
                     l.vx += (l.x > tx ? 1 : -1) * 2;
                     l.vy -= 1.5;
+                    
+                    if (impact > 10 && t.hasCargoBox) {
+                        t.hasCargoBox = false;
+                        const types = this.currentLevelConfig?.allowedTypes || ['medical', 'food'];
+                        const type = types[Math.floor(Math.random() * types.length)];
+                        this.spawnCargo(type, t.x, null, t.y);
+                    }
+                    if (!t.flyingOff) {
+                        t.flyingOff = true;
+                        t.tiltTarget = (t.vx > 0 ? -1 : 1) * (0.4 + Math.random() * 0.6);
+                    }
+                    
                     if (l.integrity <= 0) this.triggerExplosion();
+                } else if (!t.flyingOff) {
+                    // Evasive maneuver if lander gets too close and is moving up or fast
+                    const dist = Math.hypot(l.x - tx, l.y - t.y);
+                    if (dist < 220 && (l.vy < -5 || Math.abs(l.vx) > 15)) {
+                        t.flyingOff = true;
+                        t.tiltTarget = (t.vx > 0 ? -1 : 1) * 0.8;
+                        t.vy -= 25; // sharp evasive thrust upwards
+                        t.vx *= 1.5; // speed up
+                        if (window.game && Math.random() < 0.2) window.game.addMessage("Hey, watch it!", "#fcd34d");
+                    }
                 }
             }
         }

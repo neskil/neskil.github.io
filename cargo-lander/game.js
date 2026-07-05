@@ -522,6 +522,12 @@ class CargoGame {
         localStorage.setItem('cargoLanderUseSprites', checked ? 'true' : 'false');
     }
 
+    setZoomModifier(value) {
+        this.zoomModifier = value;
+        const label = document.getElementById('zoom-value-label');
+        if (label) label.textContent = value.toFixed(1) + 'x';
+    }
+
     setMusicVolume(value) {
         const v = parseInt(value, 10);
         this.setText('music-vol-val', v + '%');
@@ -1186,6 +1192,9 @@ class CargoGame {
             desiredZoom -= (lander.ropeLength * 0.003);
         }
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
+        
+        // Apply user zoom modifier
+        desiredZoom *= (this.zoomModifier || 1.0);
 
         if (this.freeCam) {
             // Free camera: WASD/arrows pan, Q/E zoom
@@ -1373,7 +1382,7 @@ class CargoGame {
         // Update notifications
         for (let i = this.messages.length - 1; i >= 0; i--) {
             const m = this.messages[i];
-            m.life -= 0.005 * dt;
+            m.life -= 0.0025 * dt; // Lasts ~400 frames instead of 200
             if (m.life <= 0) {
                 this.messages.splice(i, 1);
             }
@@ -2233,7 +2242,7 @@ class CargoGame {
         const py = isMobile ? 52 : 64;
         const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
         const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
-        const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12;
+        const panelH = (isTiny ? 12 : 16) + (isTiny ? 16 : 22) + 6 + level.quests.length * lineH + 12 + (isTiny ? 42 : 54) + 16;
 
         ctx.save();
 
@@ -2269,9 +2278,11 @@ class CargoGame {
         ctx.stroke();
 
         // Quest items
+        let lastQy = 0;
         for (let i = 0; i < level.quests.length; i++) {
             const q = level.quests[i];
             const qy = py + (isTiny ? 32 : 41) + 8 + i * lineH + (isTiny ? 10 : 13);
+            lastQy = qy;
             const state = this.questState[q.id];
             const isPrimary = q.type === 'primary';
 
@@ -2295,6 +2306,44 @@ class CargoGame {
                 (state?.completed ? 'rgba(16,185,129,0.9)' :
                     (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
             ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), qy, panelW - (isTiny ? 30 : 40));
+        }
+
+        // --- Mission Stats (Cargo, Budget, Time) ---
+        let statY = lastQy + (isTiny ? 12 : 16);
+        
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.moveTo(px + (isTiny ? 6 : 10), statY - (isTiny ? 6 : 8));
+        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), statY - (isTiny ? 6 : 8));
+        ctx.stroke();
+
+        const statLineH = isTiny ? 14 : 18;
+        ctx.font = isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif';
+        
+        // Cargo
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(`Cargo: ${this.deliveredCount}/${level.targetCargo}`, px + (isTiny ? 8 : 12), statY);
+        statY += statLineH;
+
+        // Budget
+        ctx.fillStyle = '#10b981';
+        ctx.fillText(`Budget: $${Math.floor(this.missionBudget)}`, px + (isTiny ? 8 : 12), statY);
+        statY += statLineH;
+
+        // Time
+        if (this.overtimeActive) {
+            const ot = Math.ceil(this.overtimeTimer);
+            ctx.fillStyle = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
+            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
+            ctx.fillText(`Time: ! ${ot}s`, px + (isTiny ? 8 : 12), statY);
+        } else {
+            const totalS = Math.floor(this.missionTimer || 0);
+            const m = Math.floor(totalS / 60);
+            const s = totalS % 60;
+            const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            ctx.fillStyle = totalS < 20 ? '#ef4444' : '#f59e0b';
+            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
+            ctx.fillText(`Time: ${timeStr}`, px + (isTiny ? 8 : 12), statY);
         }
 
         ctx.restore();
@@ -3049,25 +3098,32 @@ class CargoGame {
         ctx.fill();
         ctx.restore();
 
-        // ══ PASS 1: BODY LATERAL SPINES ═════════════════════════════════════
+        // ══ PASS 1: BODY LATERAL APPENDAGES ═════════════════════════════════════
         ctx.save();
-        ctx.lineCap = 'round';
-        for (let i = 1; i <= 8; i++) {
+        for (let i = 1; i < positions.length; i++) {
             const seg = positions[i];
             if (!seg) continue;
             for (const side of [-1, 1]) {
                 const spineAngle = seg.angle + side * Math.PI * 0.5;
-                const rootX = seg.x + Math.cos(spineAngle) * seg.r * 0.85;
-                const rootY = seg.y + Math.sin(spineAngle) * seg.r * 0.85;
-                const tipX  = rootX + Math.cos(spineAngle + side * 0.3) * seg.r * 1.0;
-                const tipY  = rootY + Math.sin(spineAngle + side * 0.3) * seg.r * 1.0;
+                // Base circle
+                const rootX = seg.x + Math.cos(spineAngle) * seg.r * 0.9;
+                const rootY = seg.y + Math.sin(spineAngle) * seg.r * 0.9;
+                
+                ctx.fillStyle = 'rgba(120,40,10,0.9)';
+                ctx.beginPath();
+                ctx.arc(rootX, rootY, seg.r * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
 
-                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
-                ctx.lineWidth = 5;
-                ctx.beginPath(); ctx.moveTo(rootX, rootY); ctx.lineTo(tipX, tipY); ctx.stroke();
-                ctx.strokeStyle = `rgba(190,110,30,0.75)`;
-                ctx.lineWidth = 2.5;
-                ctx.beginPath(); ctx.moveTo(rootX, rootY); ctx.lineTo(tipX, tipY); ctx.stroke();
+                // Inner bright circle
+                const innerX = rootX + Math.cos(spineAngle) * seg.r * 0.15;
+                const innerY = rootY + Math.sin(spineAngle) * seg.r * 0.15;
+                ctx.fillStyle = `rgba(220,130,30,${0.7 + glowPulse * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(innerX, innerY, seg.r * 0.15, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
         ctx.restore();
@@ -5564,21 +5620,25 @@ class CargoGame {
     drawNotifications() {
         const ctx = this.ctx;
         ctx.textAlign = 'center';
-        ctx.font = 'bold 14px sans-serif';
+        
+        // Use a much larger, more readable font
+        const fontSize = this.canvas.width < 500 ? 16 : 22;
+        ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
 
         for (let i = 0; i < this.messages.length; i++) {
             const m = this.messages[i];
-            const y = m.y - (i * 28);
+            const spacing = fontSize + 16;
+            const y = m.y - (i * spacing);
             const tw = ctx.measureText(m.text).width;
 
             // Backdrop pill
             ctx.globalAlpha = m.life * 0.72;
             ctx.fillStyle = 'rgba(5, 8, 18, 0.82)';
-            const pw = tw + 26, ph = 22;
+            const pw = tw + 36, ph = fontSize + 12;
             const px = this.canvas.width / 2 - pw / 2;
             ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(px, y - ph + 5, pw, ph, 11);
-            else ctx.rect(px, y - ph + 5, pw, ph);
+            if (ctx.roundRect) ctx.roundRect(px, y - fontSize + 2, pw, ph, 14);
+            else ctx.rect(px, y - fontSize + 2, pw, ph);
             ctx.fill();
 
             // Text
@@ -5757,12 +5817,99 @@ class CargoGame {
 
             if (t.model === 'pickup') {
                 this._drawPickupTruck(ctx, t, tw, th);
+            } else if (t.model === 'police') {
+                this._drawPoliceCruiser(ctx, t, tw, th);
             } else {
                 this._drawFreighterTruck(ctx, t, tw, th);
             }
 
             ctx.restore();
         }
+    }
+
+    _drawPoliceCruiser(ctx, t, tw, th) {
+        // Police cruiser - sleek profile
+        const h = th;
+        const w = tw;
+
+        // Main body (dark/white theme)
+        ctx.fillStyle = '#0f172a'; // dark navy
+        ctx.beginPath();
+        ctx.moveTo(-w/2, 0);
+        ctx.lineTo(-w*0.4, -h*0.3);
+        ctx.lineTo(w*0.2, -h*0.3);
+        ctx.lineTo(w*0.4, 0);
+        ctx.lineTo(w/2, h/2);
+        ctx.lineTo(-w/2, h/2);
+        ctx.closePath();
+        ctx.fill();
+
+        // White door panel
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(-w*0.2, 0);
+        ctx.lineTo(w*0.2, 0);
+        ctx.lineTo(w*0.25, h*0.4);
+        ctx.lineTo(-w*0.25, h*0.4);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Police text (tiny)
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 8px monospace';
+        ctx.fillText('POLICE', 0, h*0.3);
+
+        // Cockpit canopy
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.5)'; // glass
+        ctx.beginPath();
+        ctx.moveTo(-w*0.1, -h*0.3);
+        ctx.lineTo(w*0.1, -h*0.3);
+        ctx.lineTo(w*0.3, 0);
+        ctx.lineTo(-w*0.3, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Flashing sirens!
+        const time = Date.now() / 150; // fast flash
+        const flashPhase = time % 2;
+        const redFlash = flashPhase < 1;
+        const blueFlash = !redFlash;
+
+        // Lightbar
+        ctx.fillStyle = redFlash ? '#ef4444' : '#1e3a8a';
+        ctx.fillRect(-w*0.05, -h*0.4, w*0.05, h*0.1);
+        ctx.fillStyle = blueFlash ? '#3b82f6' : '#7f1d1d';
+        ctx.fillRect(0, -h*0.4, w*0.05, h*0.1);
+
+        // Siren glow
+        if (redFlash) {
+            const glow = ctx.createRadialGradient(-w*0.025, -h*0.35, 0, -w*0.025, -h*0.35, 25);
+            glow.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(-w*0.025, -h*0.35, 25, 0, Math.PI*2); ctx.fill();
+        } else {
+            const glow = ctx.createRadialGradient(w*0.025, -h*0.35, 0, w*0.025, -h*0.35, 25);
+            glow.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(w*0.025, -h*0.35, 25, 0, Math.PI*2); ctx.fill();
+        }
+
+        // Engine thrust (rear)
+        ctx.fillStyle = '#64748b';
+        ctx.fillRect(-w/2 - 6, h*0.1, 6, h*0.3);
+        
+        const fl = 10 + Math.abs(Math.sin(t.lightPhase * 5)) * 10;
+        const eg = ctx.createLinearGradient(-w/2 - 6, 0, -w/2 - 6 - fl, 0);
+        eg.addColorStop(0, 'rgba(59, 130, 246, 0.9)');
+        eg.addColorStop(1, 'transparent');
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.moveTo(-w/2 - 6, h*0.1);
+        ctx.lineTo(-w/2 - 6 - fl, h*0.25);
+        ctx.lineTo(-w/2 - 6, h*0.4);
+        ctx.fill();
     }
 
     _drawFreighterTruck(ctx, t, tw, th) {

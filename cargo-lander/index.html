@@ -1134,12 +1134,10 @@
                 if(game) {
                     game.uiCollapsed = !game.uiCollapsed;
                     const vitals = document.getElementById('vitals-panel');
-                    const mission = document.getElementById('mission-panel');
                     const btnGroup = document.getElementById('hud-menu-btn-group');
                     const dd = document.getElementById('hud-dropdown');
                     
                     if(vitals) vitals.style.display = game.uiCollapsed ? 'none' : 'flex';
-                    if(mission) mission.style.display = game.uiCollapsed ? 'none' : 'flex';
                     // We can choose to keep or hide the menu toggle, hiding everything is cleaner
                     if(btnGroup) btnGroup.style.display = game.uiCollapsed ? 'none' : 'flex';
                     if(game.uiCollapsed && dd) dd.style.display = 'none';
@@ -1176,7 +1174,14 @@
             
             <!-- Left: Collapsible Menu -->
             <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-                <div class="hud-group" style="padding: 6px; pointer-events: auto;">
+                <style>
+                    @media (min-width: 769px) {
+                        #hud-menu-btn-group { display: none !important; }
+                        #hud-dropdown { display: flex !important; flex-direction: row !important; background: none !important; box-shadow: none !important; padding: 0 !important; gap: 8px !important; }
+                        #hud-dropdown > * { width: auto !important; justify-content: center !important; }
+                    }
+                </style>
+                <div id="hud-menu-btn-group" class="hud-group" style="padding: 6px; pointer-events: auto;">
                     <button class="utility-btn icon-only" onclick="toggleHudDropdown()" title="Menu" style="margin: 0; width: 32px; height: 32px;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
@@ -1208,14 +1213,9 @@
                     <div id="health-fill" class="gauge-fill"></div>
                 </div>
             </div>
-
-            <!-- Right: Mission Stats -->
-            <div id="mission-panel" class="hud-group" style="flex-direction: column; align-items: flex-end; pointer-events: auto; gap: 4px; padding: 12px 16px;">
-                <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.12em; margin-bottom: 2px;">Mission Status</div>
-                <div class="hud-stat" id="hud-cargo">Cargo: 0/2</div>
-                <div class="hud-stat" id="hud-budget" style="color: #10b981;">Budget: $1000</div>
-                <div class="hud-stat" id="hud-time" style="color: #f59e0b; font-family: monospace; font-size: 1.2em; margin-top: 2px;">03:00</div>
-            </div>
+            
+            <!-- Right side intentionally empty for balance -->
+            <div style="flex: 1;"></div>
 
         </div>
 
@@ -1510,6 +1510,17 @@
                     <input type="checkbox" id="setting-use-sprites"
                         onchange="game.toggleSpritesFromCheckbox(this.checked)"
                         style="width: 20px; height: 20px; cursor: pointer;">
+                </div>
+
+                <!-- Zoom Control -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; color: var(--text-primary);">Zoom Modifier</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="setting-zoom" min="0.5" max="2.0" step="0.1" value="1.0"
+                            onchange="game.setZoomModifier(parseFloat(this.value))"
+                            style="cursor: pointer;">
+                        <span id="zoom-value-label" style="font-family: monospace; width: 30px; text-align: right;">1.0x</span>
+                    </div>
                 </div>
 
                 <!-- Music Volume -->
