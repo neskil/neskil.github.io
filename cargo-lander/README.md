@@ -24,13 +24,14 @@ files load cleanly).
 | `physics.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
 | `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level8.js`/`levels.js`, not here. |
 | `level-editor.html` | **Level Editor** — standalone browser tool for visually editing levels. See [Level Editor](#level-editor) below. |
-| `level1.js` – `level8.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. **Adding a new level file also requires manually wiring it into `index.html`**: its `<script>` tag, a button in the hardcoded `#mission-grid`, and a Dev-panel jump button — none of that is generated from `levels[]`. |
+| `level1.js` – `level9.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. **Adding a new level file also requires manually wiring it into `index.html`**: its `<script>` tag, a button in the hardcoded `#mission-grid`, and a Dev-panel jump button — none of that is generated from `levels[]`. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
-| `tests.html` | Browser-based test suite (166 tests as of 2026-06) covering level configs, physics init, draw-method existence, upgrades, etc. Open directly in a browser via a local static server; results post to `#summary` and failures log full stacks to `console.error`. Some tests are stale relative to the current implementation (see [Known Issues](#known-issues)). |
+| `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps with 3 selectable craziness tiers (the `random1`/`random2`/`random3` buttons in the mission grid). |
+| `tests.html` | Browser-based smoke-test suite (7 behavioral tests as of 2026-07: engine init, level loading, update loop, input simulation, restart cleanup, game-over flow). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
 
 ### Load order matters
-`index.html` loads the Matter.js CDN script, then `levels.js → level1.js…level8.js →
-levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
+`index.html` loads the Matter.js CDN script, then `levels.js → levelGenerator.js →
+level1.js…level9.js → levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
 `game.init('cargoCanvas')`. `game` depends on `CargoPhysics`, `ShaderOverlay`,
 `CargoAudio`, and all level configs being registered first.
 
@@ -64,7 +65,7 @@ levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
 `level-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons`, `waterBodies`, and `hazards` arrays in level files — all three are polygons (`{pts:[{x,y},...]}`) and are edited with the exact same vertex tools, just switched via the **Terrain / Water / Hazard** tabs in the sidebar. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/level-editor.html`.
 
 ### Features
-- **Level file dropdown** — loads any of `level1.js` – `level7.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
+- **Level file dropdown** — loads any of `level1.js` – `level9.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
 - **Terrain / Water / Hazard tabs** — `+ Shape` adds a new polygon to whichever tab is active; clicking any existing shape on canvas auto-switches to its tab. Legacy `waterBodies: [{x,width,hasBoat}]` / `hazards: [{x,y,radius,type}]` configs are auto-converted to polygons on load (a basin rect / an 8-sided approximation of the circle) so older level files still open cleanly.
 - **Palette-based rendering** — sky gradient uses each level's `skyTop/skyMid/skyBot` palette; terrain polygons are filled with `terrainFill` and outlined with `rockEdge` glow, matching the in-game biome appearance. Water/hazard polygons use fixed blue/red coloring.
 - **Out-of-bounds zone** — `outOfBounds.surfaceY` is drawn as a colored fill below the surface line, with a mist gradient fade above it and a labeled dashed line. A red `monsterDepth` line marks the monster trigger depth.
@@ -96,19 +97,43 @@ levelTest.js → audio.js → shaders.js → physics.js → game.js`, then calls
 ---
 
 ## Verification
-Changes were verified live against the local static server: the menu renders the
-fully-styled pilot-license card populated from `localStorage`, the Audio settings
-modal opens with controls synced to the real mute/volume state, and the browser
-console + on-screen error logger report no errors.
-
-As a standard protocol, all modifications to JavaScript files (`.js`) must be validated for syntax errors prior to loading them in the browser. You can verify syntax directly in the console using:
-```bash
-node --check filename.js
-```
+Standard protocol for any code change: `node --check <file>.js` on every modified
+JS file, then load the game in a browser via a local static server (no console
+errors), then run the `tests.html` smoke suite (all green).
 
 ---
 
+## TODO / Future Work (updated 2026-07-05)
 
+Concrete, code-level items surfaced during the 2026-07-05 repo review — separate
+from the higher-level roadmap below:
+
+- [ ] **Delete `scratch_patch.py`** — a one-off, already-applied patch script for
+      the procedural-craziness feature; it's dead weight in the repo. (Left in
+      place pending explicit owner sign-off on the deletion.)
+- [ ] **Generate the mission grid + Dev-panel jump buttons from `levels[]`** —
+      both are hardcoded per level in `index.html`, so every new `levelN.js`
+      needs three manual wiring steps (script tag, mission button, dev button).
+      A loop over `levels[]` at boot would eliminate two of them.
+- [ ] **Split `game.js` (6 400+ lines)** — at minimum pull the ~3 000 lines of
+      Canvas2D drawing into a `render.js`; the draw functions only read state,
+      so the seam is clean. Would also make the Code Map line numbers stop
+      rotting so fast.
+- [ ] **Rebuild the regression test suite** — `tests.html` was rewritten down to
+      7 behavioral smoke tests; the old per-level-config and per-upgrade
+      assertions (166 tests) are gone. Re-add cheap config-shape checks for
+      `level1–9` + the upgrade catalog.
+- [ ] **Cargo-box laser collision** — lasers still only damage the lander
+      (see the hazards section); boxes fly through beams unharmed.
+- [ ] **`music1.mp3` is 6 MB** — the only binary asset of note; re-encode at a
+      lower bitrate (or loop a shorter section) to cut page weight for the
+      GitHub Pages deployment.
+- [ ] **`'advanced'` vehicle dead code** — removed from the UI but still fully
+      implemented in `physics.js` `applyControls()`; either delete or re-expose.
+- [ ] Remaining user-feedback items in the backlog at the bottom of this file
+      (editor playtest/download/upload workflow, intro camera animation,
+      predefined background buildings, pad-oval removal, dropoff light,
+      cargo-attach UX, mobile radar collapse).
 
 ---
 
@@ -132,6 +157,7 @@ node --check filename.js
 - **L5 crystal formations** — pulsing purple crystal stalagmites pulse beneath the cave floor.
 
 ### Visual & atmosphere
+- **Wind streaks (2026-07-05)** — when `physics.currentWind` exceeds 0.05, streak particles spawn from the upwind screen edge; density scales with wind strength and color shifts blue→white; regular weather particles also drift with the wind.
 - **Parallax background mountains** — 3 silhouette layers drawn in screen space.
 - **Ambient space-truck traffic** — NPC ships fly both directions; 30% chance to tilt and rocket off into space.
 - **Decorative surface buildings** — antenna towers, silos, and refineries.
@@ -185,7 +211,7 @@ node --check filename.js
 - **Pilot rank** — upgrade progress (55%) + per-level 5 000+ score mastery (45%).
 
 ### Quality
-- **Browser test suite** — `tests.html`: 133 tests across all systems.
+- **Browser test suite** — `tests.html`: behavioral smoke tests (engine init → game over).
 - **WebGL null-guard** — `ShaderOverlay` no longer crashes without WebGL.
 - **Fuel clamp** — `lander.fuel` clamped ≥ 0 after each thrust tick.
 - **Monster radar crash fix** — undefined `lander` variable in draw scope resolved.
