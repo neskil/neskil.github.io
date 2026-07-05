@@ -303,7 +303,8 @@ class CargoPhysics {
 
         const vehicleType = config.vehicle || 'lander';
         
-        const ropeMax = config.ropeLength || 120;
+        // Winch Extender upgrade was purchasable but never applied anywhere — wire it in.
+        const ropeMax = (config.ropeLength || 120) + (upgrades.winchExtender || 0) * 50;
         const maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
 
         // Position lander centered on Start Depot pad
@@ -1497,20 +1498,69 @@ class CargoPhysics {
             CargoAudio.playCrash();
         }
 
-        // Spawn tons of fire & smoke particles
-        for (let i = 0; i < 60; i++) {
+        // ── Flash core: a couple of huge, near-white particles that decay almost
+        // instantly — reads as a bright pop at the moment of impact.
+        for (let i = 0; i < 3; i++) {
+            this.particles.push({
+                x: lander.x, y: lander.y,
+                vx: 0, vy: 0,
+                life: 1.0,
+                decay: 0.09 + Math.random() * 0.03,
+                color: 'rgba(255, 244, 214, 0.95)',
+                size: 30 + Math.random() * 20
+            });
+        }
+
+        // ── Fireball: fast, hot, short-lived core burst ─────────────────────
+        for (let i = 0; i < 55; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const speed = 1 + Math.random() * 6;
+            const speed = 2 + Math.random() * 8;
             this.particles.push({
                 x: lander.x + (Math.random() - 0.5) * 15,
                 y: lander.y + (Math.random() - 0.5) * 15,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed - 1.5,
                 life: 1.0,
-                decay: 0.01 + Math.random() * 0.02,
-                color: Math.random() < 0.6 ? `hsla(${15 + Math.random() * 25}, 100%, 55%, 0.9)` : '#475569',
-                size: 8 + Math.random() * 12
+                decay: 0.015 + Math.random() * 0.025,
+                color: Math.random() < 0.7 ? `hsla(${15 + Math.random() * 30}, 100%, ${50 + Math.random() * 20}%, 0.9)` : '#facc15',
+                size: 6 + Math.random() * 10
             });
+        }
+
+        // ── Debris: dark chunks flung out ballistically, faster/further than fire ──
+        for (let i = 0; i < 18; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 4 + Math.random() * 9;
+            this.particles.push({
+                x: lander.x, y: lander.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 3,
+                life: 1.0,
+                decay: 0.008 + Math.random() * 0.012,
+                color: Math.random() < 0.5 ? '#1e293b' : '#475569',
+                size: 3 + Math.random() * 5
+            });
+        }
+
+        // ── Smoke: slow-rising, long-lived, low-alpha — lingers well after the
+        // fire and debris have faded, instead of the blast just vanishing.
+        for (let i = 0; i < 30; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 0.3 + Math.random() * 1.6;
+            this.particles.push({
+                x: lander.x + (Math.random() - 0.5) * 20,
+                y: lander.y + (Math.random() - 0.5) * 20,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 0.6 - Math.random() * 0.6,
+                life: 1.0,
+                decay: 0.003 + Math.random() * 0.005,
+                color: `rgba(${60 + Math.random() * 30}, ${60 + Math.random() * 30}, ${65 + Math.random() * 30}, 0.5)`,
+                size: 14 + Math.random() * 18
+            });
+        }
+
+        if (window.game && window.game.screenShake) {
+            window.game.screenShake.intensity = Math.max(window.game.screenShake.intensity, 18);
         }
     }
 

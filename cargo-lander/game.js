@@ -338,6 +338,8 @@ class CargoGame {
         if (upgradeScreen) upgradeScreen.style.display = 'none';
         const vehicleScreen = document.getElementById('vehicle-screen');
         if (vehicleScreen) vehicleScreen.style.display = 'none';
+        const procConfigScreen = document.getElementById('procedural-config-screen');
+        if (procConfigScreen) procConfigScreen.style.display = 'none';
         const victoryScreen = document.getElementById('victory-screen');
         if (victoryScreen) victoryScreen.style.display = 'none';
         const settingsScreen = document.getElementById('settings-screen');
@@ -392,6 +394,7 @@ class CargoGame {
         const hsList = document.getElementById('hs-list');
         if (hsList) {
             hsList.innerHTML = levels.map((lv, i) => {
+                if (lv.name === 'TEST: Sandbox') return '';
                 const best = this.highscores[i];
                 return `<div class="hs-row"><span>${lv.name}</span><span class="hs-val">${best ? '$' + best.toLocaleString() : '—'}</span></div>`;
             }).join('');
@@ -415,9 +418,15 @@ class CargoGame {
     // (game.startLevel(i)) bypass this entirely, which is the intended dev escape hatch.
     // Procedural/custom levels (non-numeric idx) are always available.
     isLevelUnlocked(idx) {
+        if (this.devUnlockAll) return true;
         if (typeof idx !== 'number') return true;
         if (idx <= 0) return true;
         return !!this.highscores[idx - 1];
+    }
+
+    setDevUnlockAll(checked) {
+        this.devUnlockAll = checked;
+        this.refreshMenuUI();
     }
 
     updatePilotRank() {
@@ -532,6 +541,39 @@ class CargoGame {
     startLevelWithVehicle(vehicleType) {
         document.getElementById('vehicle-screen').style.display = 'none';
         this.startLevel(this.selectedLevelIndex, vehicleType);
+    }
+
+    // ---- Procedural mission difficulty picker ----
+    // Replaces 3 separate "Procedural Normal/Crazy/Insane" mission buttons with one
+    // entry + a slider, since generateProceduralLevel() already takes a 1-3 craziness
+    // tier — the 3 buttons were just three hardcoded calls into the same knob.
+    openProceduralConfig() {
+        document.getElementById('menu-screen').style.display = 'none';
+        document.getElementById('procedural-config-screen').style.display = 'flex';
+        const slider = document.getElementById('proc-difficulty-slider');
+        if (slider) slider.value = 1;
+        this.updateProceduralConfigLabel(1);
+    }
+
+    updateProceduralConfigLabel(value) {
+        const tier = parseInt(value, 10);
+        const labels = { 1: 'Standard', 2: 'Crazy', 3: 'Insane' };
+        const descs = {
+            1: 'Standard length and hazard frequency — a good default run.',
+            2: 'Longer terrain and more frequent hazards for an experienced pilot.',
+            3: 'Maximum length, hazard density, and difficulty. Good luck.'
+        };
+        const colors = { 1: '#4ade80', 2: '#f59e0b', 3: '#f43f5e' };
+        this.setText('proc-difficulty-label', labels[tier]);
+        this.setText('proc-difficulty-desc', descs[tier]);
+        const label = document.getElementById('proc-difficulty-label');
+        if (label) label.style.color = colors[tier];
+    }
+
+    launchProceduralMission() {
+        const tier = document.getElementById('proc-difficulty-slider')?.value || 1;
+        document.getElementById('procedural-config-screen').style.display = 'none';
+        this.showVehicleSelection('random' + tier);
     }
 
     openUpgradeShop() {
@@ -661,8 +703,11 @@ class CargoGame {
         this.camera.zoom = introZoom;
         this.camera.targetZoom = introZoom;
         this.introTimer = 2.0;
-        this.camera.x = this.physics.levelWidth / 2;
-        this.camera.y = 0;
+        // Camera stays centered on the lander's start position for the whole intro —
+        // a pure zoom-in, not a pan-then-zoom (previously started at map top-center
+        // and panned to the lander while zooming, which read as two separate motions).
+        this.camera.x = this.physics.lander.x;
+        this.camera.y = this.physics.lander.y;
 
         let weatherType = level?.weather;
         if (!weatherType) {
@@ -755,6 +800,8 @@ class CargoGame {
             set('dev-gravity', this.physics.gravity ?? 0.12, 'dv-gravity');
             set('dev-thrust', this.physics.lander?.thrustMultiplier ?? 1, 'dv-thrust');
             set('dev-fuel', this.physics.lander?.maxFuel ?? 100, 'dv-fuel');
+            const unlockCb = document.getElementById('dev-unlock-all');
+            if (unlockCb) unlockCb.checked = !!this.devUnlockAll;
         }
     }
 
@@ -1143,7 +1190,7 @@ class CargoGame {
         }
 
         // --- Shield Regeneration ---
-        const shieldLvl = this.career?.upgrades?.['shieldRegen'] || 0;
+        const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
             lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + (dt / 60) * 1.5 * shieldLvl);
         }
@@ -1200,8 +1247,9 @@ class CargoGame {
             const s = progress * progress * (3 - 2 * progress);
             const introZoom = minZoom * 1.8;
             this.camera.zoom = introZoom + s * (desiredZoom - introZoom);
-            this.camera.x = (this.physics.levelWidth / 2) + s * (lander.x - (this.physics.levelWidth / 2));
-            this.camera.y = 0 + s * (lander.y - 0);
+            // Pure zoom-in centered on the lander's start position — no pan.
+            this.camera.x = lander.x;
+            this.camera.y = lander.y;
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
@@ -1780,7 +1828,10 @@ class CargoGame {
         // 3. Draw Gravity Well Anomaly
         const level = levels[this.currentLevelIndex];
         if (level && level.gravityWell && this.gameState === 'playing') {
-            if (!this.shaderOverlay || !this.shaderOverlay.gl) {
+            // Was checking this.shaderOverlay (never set — the real property is
+            // this.shaders), so the Canvas2D rings always drew on top of the WebGL
+            // gravity well glow too instead of only as its fallback.
+            if (!this.shaders || !this.shaders.gl) {
                 this.drawGravityWell(this.physics.gravityWellPos || level.gravityWell, level.gravityWell);
             }
         }
@@ -2255,8 +2306,11 @@ class CargoGame {
         const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
         const statLineH = isTiny ? 14 : 18;
         
-        // 16(top) + 16(Mission) + 16(Title) + 12(Divider) + quests + 8(Divider) + stats + 16(bottom)
-        const panelH = 16 + 16 + 16 + 12 + (level.quests.length * lineH) + 8 + (statLineH * 3) + 16;
+        // 16(top) + 16(Mission) + 16(Title) + 12(Divider) + quests + 14(Divider+gap) + stats + 16(bottom)
+        const panelH = 16 + 16 + 16 + 12 + (level.quests.length * lineH) + 14 + (statLineH * 3) + 16;
+        // Read by drawNotifications() to anchor tutorial hint chips just below this
+        // panel instead of guessing its height (one-frame-stale is imperceptible).
+        this._questPanelBottomY = py + panelH;
 
         ctx.save();
         // Translate to top-left anchor and scale
@@ -2337,9 +2391,10 @@ class CargoGame {
         ctx.moveTo(px + (isTiny ? 6 : 10), curY - 10);
         ctx.lineTo(px + panelW - (isTiny ? 6 : 10), curY - 10);
         ctx.stroke();
+        curY += 6; // breathing room so "Cargo:" doesn't crowd the divider above it
 
         ctx.font = isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif';
-        
+
         // Cargo
         ctx.fillStyle = '#f8fafc';
         ctx.fillText(`Cargo: ${this.deliveredCount}/${level.targetCargo}`, px + (isTiny ? 8 : 12), curY);
@@ -2422,17 +2477,32 @@ class CargoGame {
             }
         }
 
+        // Gravity well (Anomaly Zone) pulls ash/snow into it as it drifts by, tying
+        // the weather system into the level's centerpiece hazard instead of the two
+        // looking unrelated.
+        const well = this.physics?.gravityWellPos;
+
         // ── Update regular weather particles ──────────────────────────────
         for (let i = this.weatherParticles.length - 1; i >= 0; i--) {
             const p = this.weatherParticles[i];
             // Apply wind drift to existing weather particles
             p.vx += wind * 0.08 * dt;
+            if (well) {
+                const dx = well.x - p.x, dy = well.y - p.y;
+                const d = Math.hypot(dx, dy);
+                if (d < well.radius * 1.4 && d > 4) {
+                    const pull = (well.strength * 3.5) * (1 - d / (well.radius * 1.4));
+                    p.vx += (dx / d) * pull * dt;
+                    p.vy += (dy / d) * pull * dt;
+                }
+            }
             p.x += p.vx * dt;
             p.y += p.vy * dt;
             if (p.type === 'snow' || p.type === 'ash') {
                 p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5 * dt;
             }
-            if (p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
+            const sucked = well && Math.hypot(well.x - p.x, well.y - p.y) < 20;
+            if (sucked || p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
                 this.weatherParticles.splice(i, 1);
             }
         }
@@ -5644,7 +5714,7 @@ class CargoGame {
             }
         }
         // Shield Bubble
-        const shieldLvl = this.career?.upgrades?.['shieldRegen'] || 0;
+        const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
             const shieldRatio = lander.integrity / lander.maxIntegrity;
             if (shieldRatio > 0.2) {
@@ -5703,14 +5773,55 @@ class CargoGame {
 
     drawNotifications() {
         const ctx = this.ctx;
+
+        // Tutorial hints read as small compact chips tucked under the mission panel
+        // instead of big center-screen banners, which felt disconnected/intrusive.
+        const tutorials = this.messages.filter(m => m.text.startsWith('TUTORIAL:'));
+        const others = this.messages.filter(m => !m.text.startsWith('TUTORIAL:'));
+
+        if (tutorials.length && !this.uiCollapsed) {
+            const isMobile = this.canvas.width < 768;
+            const px = isMobile ? 8 : 16;
+            // Anchor just below the mission panel's actual bottom edge (computed by
+            // drawQuestPanel last frame), falling back to a rough estimate if unset.
+            const py = (this._questPanelBottomY || ((isMobile ? 52 : 64) + 160)) + 8;
+            const panelW = this.canvas.width < 500 ? 160 : (isMobile ? 200 : 260);
+            const fontSize = 11;
+            ctx.font = `600 ${fontSize}px Outfit, sans-serif`;
+            ctx.textAlign = 'left';
+
+            for (let i = 0; i < tutorials.length; i++) {
+                const m = tutorials[i];
+                const label = m.text.replace('TUTORIAL: ', '');
+                const y = py + i * (fontSize + 14);
+
+                ctx.globalAlpha = m.life * 0.85;
+                ctx.fillStyle = 'rgba(6, 20, 16, 0.85)';
+                ctx.strokeStyle = 'rgba(52, 211, 153, 0.4)';
+                ctx.lineWidth = 1;
+                const ph = fontSize + 10;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(px, y, panelW, ph, 8);
+                else ctx.rect(px, y, panelW, ph);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.globalAlpha = m.life;
+                ctx.fillStyle = m.color;
+                ctx.fillText('💡 ' + label, px + 8, y + ph - 7, panelW - 16);
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        if (!others.length) return;
         ctx.textAlign = 'center';
-        
+
         // Use a much larger, more readable font
         const fontSize = this.canvas.width < 500 ? 16 : 22;
         ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
 
-        for (let i = 0; i < this.messages.length; i++) {
-            const m = this.messages[i];
+        for (let i = 0; i < others.length; i++) {
+            const m = others[i];
             const spacing = fontSize + 16;
             const y = m.y - (i * spacing);
             const tw = ctx.measureText(m.text).width;

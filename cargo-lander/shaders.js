@@ -177,10 +177,11 @@ class ShaderOverlay {
                 float angle = atan(diff.y, diff.x);
                 float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
                 
-                // Pulsing glow
+                // Pulsing glow — kept calmer than the original 0.5+0.5*swirl range,
+                // which read as a distracting bright pulse rather than ambience.
                 float pulse = u_wellPulse;
-                
-                float intensity = (1.0 - normDist) * (0.5 + 0.5 * swirl) * pulse;
+
+                float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
                 
                 // Purple/black lensing effect
                 vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);

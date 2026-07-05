@@ -103,6 +103,77 @@ errors), then run the `tests.html` smoke suite (all green).
 
 ---
 
+## Checklist — 2026-07-05 evening UX/bugfix batch
+
+Tracked here per-request so a future session can pick up anything left open.
+All items below were addressed in this batch unless marked otherwise.
+
+- [x] Dev Panel: added "Unlock All Missions" checkbox (`game.devUnlockAll`,
+      `game.setDevUnlockAll()`) that bypasses `isLevelUnlocked()`. Also added the
+      missing L9 dev jump button (only L1–L8 existed).
+- [x] Upgrade audit: found and fixed two upgrades that were purchasable but had
+      **no effect** — `winchExtender` was never applied to rope length (now
+      `+50` world units per level in `physics.js spawnLander()`), and
+      `shieldRegen`'s regen tick *and* its bubble visual both read
+      `this.career?.upgrades?.[...]` instead of `this.upgrades?.[...]`, so the
+      shield never worked despite being purchasable. Both fixed. Other 4
+      upgrades (thrusterEfficiency, boostMode, magneticDeck, hullPlating)
+      verified already wired up correctly.
+- [ ] **"Unload drone" as an R&D upgrade** — not implemented. The ask is
+      ambiguous: the drone's mid-air cargo release (`toggleGrapple()`) is a
+      core mechanic several missions require (e.g. L5 The Needle's Eye);
+      gating it behind a purchasable upgrade risks soft-locking new players
+      who haven't bought it yet. Needs product clarification on what the new
+      upgrade should actually do (a QoL improvement to release, vs. gating
+      the ability itself) before implementing.
+- [x] Procedural missions simplified from 3 hardcoded buttons
+      (Normal/Crazy/Insane) to one "Procedural Mission" entry that opens a
+      difficulty slider (`#procedural-config-screen`,
+      `game.openProceduralConfig()`). `generateProceduralLevel(craziness)`
+      itself still only supports 3 discrete tiers — the slider snaps to them
+      rather than truly continuous difficulty (would need generator changes).
+- [x] Level editor OOB boundary — **already worked**, just not obviously:
+      `oob-surfaceY` / `oob-monsterDepth` number inputs in the Out of Bounds
+      panel write straight into `S.oob` and the export block. No drag-to-set
+      handle on the canvas though (would match the tool's other editing
+      patterns better) — left as a nice-to-have.
+- [x] Tutorial messages restyled as small chips docked under the mission
+      panel (`drawNotifications()`) instead of large center-screen banners;
+      non-tutorial messages (crash warnings, "Level Started", etc.) unchanged.
+- [x] Cargo/Budget/Time text was crowding the divider above it in the mission
+      panel — added breathing room (`drawQuestPanel()`).
+- [x] Default UI Scale confirmed already 100% in code
+      (`this.uiScale = ... || 1.0`); any other value seen was a leftover
+      localStorage value from prior testing, not a code default.
+- [x] Level-start camera intro was panning from the map's top-center to the
+      lander *while* zooming in (looked like two separate motions) — now a
+      pure zoom-in with the camera already centered on the start position.
+- [x] Options dropdown: fixed labels wrapping to two lines (`white-space:
+      nowrap` + widened the dropdown), and changed it from right-anchored
+      (hugging the screen edge) to left-anchored under the icon row.
+- [x] Gravity well toned down **twice** — the first pass only touched the
+      Canvas2D fallback (`drawGravityWell()`); a separate bug
+      (`this.shaderOverlay`, which was never assigned — the real property is
+      `this.shaders`) meant the Canvas2D version *always* drew on top of the
+      WebGL shader instead of only as its fallback, so both were rendering
+      simultaneously. Fixed the property name and toned down the WebGL
+      shader's own pulse intensity in `shaders.js`.
+- [x] Anomaly Zone (L4, gravity well): weather (`ash`) was already configured
+      but now also gets pulled toward the well as it drifts by, so the ash
+      visually spirals into the black hole instead of the two systems
+      looking unrelated.
+- [x] Locked-mission "tooltip" — the 🔒 badge text under each locked mission
+      button already serves this; no separate hover tooltip was added.
+- [x] Removed "TEST: Sandbox" from the personal-best payouts list in the menu.
+- [x] Explosion effect overhauled: was 60 uniform particles; now a staged
+      burst — a bright flash core, a hot fireball layer, dark ballistic
+      debris chunks, and slow long-lived smoke that lingers well after the
+      fire fades — plus a stronger screen shake on death specifically (kept
+      pure Canvas2D particles rather than pulling in a library, to stay
+      consistent with the project's zero-dependency approach).
+
+---
+
 ## TODO / Future Work (updated 2026-07-05)
 
 Concrete, code-level items surfaced during the 2026-07-05 repo review — separate

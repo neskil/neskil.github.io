@@ -28,10 +28,11 @@
 
         html {
             overflow-x: hidden;
+            background-color: #0f172a;
         }
 
         body {
-            background: var(--bg-gradient);
+            background: transparent;
             color: var(--text-primary);
             min-height: 100vh;
             display: flex;
@@ -47,7 +48,6 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            z-index: -2;
             pointer-events: none;
         }
 
@@ -86,6 +86,7 @@
             margin-top: auto;
             margin-bottom: 3rem;
             animation: fadeInDown 1s ease-out;
+            position: relative;
         }
 
         h1 {
@@ -256,6 +257,101 @@
             .card-title { font-size: 1.15rem; margin-bottom: 0.35rem; }
             .card-desc { font-size: 0.775rem; margin-bottom: 1rem; }
         }
+        /* ── Secret Vault ── */
+        #vault-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 200;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+        #vault-backdrop.open { opacity: 1; pointer-events: all; }
+
+        #vault-panel {
+            position: fixed;
+            bottom: 0; left: 50%;
+            transform: translateX(-50%) translateY(110%);
+            width: min(500px, 94vw);
+            background: linear-gradient(160deg, #0d1526 0%, #150f2e 100%);
+            border: 1px solid rgba(99,102,241,0.22);
+            border-bottom: none;
+            border-radius: 22px 22px 0 0;
+            padding: 1.5rem 1.75rem 2.5rem;
+            z-index: 201;
+            transition: transform 0.45s cubic-bezier(0.34,1.15,0.64,1);
+        }
+        #vault-panel.open { transform: translateX(-50%) translateY(0); }
+
+        .vault-drag { width: 36px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; margin: 0 auto 1.5rem; }
+
+        .vault-label {
+            font-size: 0.65rem; font-weight: 700;
+            letter-spacing: 0.2em; text-transform: uppercase;
+            color: #6366f1; opacity: 0.7;
+            margin-bottom: 1.25rem;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .vault-close {
+            background: none; border: none; color: #64748b;
+            cursor: pointer; font-size: 1.1rem; line-height: 1;
+            transition: color 0.2s ease;
+        }
+        .vault-close:hover { color: #f1f5f9; }
+
+        .vault-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+        .vault-row {
+            display: flex; align-items: center; gap: 0.9rem;
+            padding: 0.9rem 1.1rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            text-decoration: none; color: inherit;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+        .vault-row:hover {
+            background: rgba(255,255,255,0.07);
+            border-color: rgba(255,255,255,0.14);
+            transform: translateX(4px);
+        }
+        .vault-row-icon {
+            font-size: 1.3rem;
+            background: rgba(255,255,255,0.06);
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px; flex-shrink: 0;
+        }
+        .vault-row-body { flex: 1; }
+        .vault-row-title { font-size: 0.92rem; font-weight: 600; color: #f1f5f9; margin-bottom: 0.1rem; }
+        .vault-row-desc { font-size: 0.75rem; color: #64748b; line-height: 1.4; }
+        .vault-row-arrow { color: #334155; font-size: 0.95rem; transition: color 0.2s ease, transform 0.2s ease; }
+        .vault-row:hover .vault-row-arrow { color: #6366f1; transform: translateX(3px); }
+
+        /* secret hint dots */
+        .secret-hint {
+            position: absolute;
+            font-size: 0.65rem; letter-spacing: 0.15em;
+            color: #1e293b; margin-top: 0.5rem;
+            opacity: 0; transition: opacity 0.6s ease;
+            user-select: none; pointer-events: none;
+        }
+        .secret-hint.show { opacity: 1; }
+
+        /* spark particles */
+        .spark {
+            position: fixed;
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            animation: spark-fly 0.7s ease-out forwards;
+        }
+        @keyframes spark-fly {
+            0%   { transform: translate(0,0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+        }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
@@ -272,9 +368,46 @@
     <div class="bg-glow"></div>
     <div class="bg-glow-2"></div>
 
+    <!-- Secret vault -->
+    <div id="vault-backdrop" onclick="closeVault()"></div>
+    <div id="vault-panel">
+        <div class="vault-drag"></div>
+        <div class="vault-label">
+            <span>🔐 &nbsp;The Vault</span>
+            <button class="vault-close" onclick="closeVault()">✕</button>
+        </div>
+        <div class="vault-list">
+            <a href="games/index.html" class="vault-row">
+                <div class="vault-row-icon">🎮</div>
+                <div class="vault-row-body">
+                    <div class="vault-row-title">Game Library</div>
+                    <div class="vault-row-desc">All my games, browsable.</div>
+                </div>
+                <span class="vault-row-arrow">→</span>
+            </a>
+            <a href="surprise/index.html" class="vault-row">
+                <div class="vault-row-icon">✨</div>
+                <div class="vault-row-body">
+                    <div class="vault-row-title">Surprise</div>
+                    <div class="vault-row-desc">Old experiments. Pre-AI hand-written JS.</div>
+                </div>
+                <span class="vault-row-arrow">→</span>
+            </a>
+            <a href="surprise/cv_legacy/index.html" class="vault-row">
+                <div class="vault-row-icon">📜</div>
+                <div class="vault-row-body">
+                    <div class="vault-row-title">Legacy CV</div>
+                    <div class="vault-row-desc">The original 2010s hand-coded CV. A relic.</div>
+                </div>
+                <span class="vault-row-arrow">→</span>
+            </a>
+        </div>
+    </div>
+
     <header>
-        <h1>Niklas Billgren</h1>
+        <h1 id="name-trigger" title="Niklas Billgren" style="cursor:default;user-select:none">Niklas Billgren</h1>
         <p class="subtitle">Welcome to my personal website</p>
+        <span class="secret-hint" id="secret-hint"></span>
     </header>
 
     <main class="grid">
@@ -283,7 +416,7 @@
             <div>
                 <div class="card-icon">🚀</div>
                 <h2 class="card-title">CargoLander Physics</h2>
-                <p class="card-desc">Supply-chain-inspired Lunar Lander variant. Pilot cargo across rugged terrain, manage fuel, and sort packages to target terminals!</p>
+                <p class="card-desc">Land cargo, manage fuel, sort packages. Physics-based chaos in space.</p>
             </div>
             <span class="card-link">Play Game <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
@@ -292,16 +425,22 @@
             <div>
                 <div class="card-icon">📄</div>
                 <h2 class="card-title">Curriculum Vitae</h2>
-                <p class="card-desc">Read more about my education, experience, and skills in logistics and development.</p>
+                <p class="card-desc">Background, experience, and what I've built.</p>
             </div>
             <span class="card-link">View CV <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </a>
+                <div class="card-icon">🚀</div>
+                <h2 class="card-title">CargoLander Physics</h2>
+                <p class="card-desc">Land cargo, manage fuel, sort packages. Physics-based chaos in space.</p>
+            </div>
+            <span class="card-link">Play Game <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
 
         <a href="converter/index.html" class="card" id="card-converter">
             <div>
                 <div class="card-icon">⚡</div>
                 <h2 class="card-title">Quick Converter</h2>
-                <p class="card-desc">A mobile-first, high-precision calculator for US/Metric conversions with dynamic visual scales and integrated memory rules.</p>
+                <p class="card-desc">US ↔ Metric. Fast, no-nonsense, works on your phone.</p>
             </div>
             <span class="card-link">Open Converter <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
@@ -310,7 +449,7 @@
             <div>
                 <div class="card-icon">🏭</div>
                 <h2 class="card-title">Supply Chain Simulation</h2>
-                <p class="card-desc">Interactive, demand-driven network simulation built with HTML5 Canvas. Adjust density and flow in real-time!</p>
+                <p class="card-desc">Watch a supply chain breathe. Tweak it. Break it.</p>
             </div>
             <span class="card-link">Run Simulation <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
@@ -320,7 +459,7 @@
             <div>
                 <div class="card-icon">🧮</div>
                 <h2 class="card-title">US/Metric Mental Math</h2>
-                <p class="card-desc">Quick reference cheatsheet for practical mental conversions between US and Metric systems.</p>
+                <p class="card-desc">The numbers you actually need, memorized.</p>
             </div>
             <span class="card-link">View cheatsheet <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
@@ -329,36 +468,9 @@
             <div>
                 <div class="card-icon">⏱️</div>
                 <h2 class="card-title">Mental Math Game</h2>
-                <p class="card-desc">Test your conversion skills in a fast-paced 60-second time attack practice mode!</p>
+                <p class="card-desc">60 seconds. How fast can you convert?</p>
             </div>
             <span class="card-link">Start practice <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </a>
-
-        <a href="games/index.html" class="card" id="card-games">
-            <div>
-                <div class="card-icon">🎮</div>
-                <h2 class="card-title">Game Library</h2>
-                <p class="card-desc">Explore an interactive library of games with filtering and detailed information.</p>
-            </div>
-            <span class="card-link">Open library <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </a>
-
-        <a href="surprise/index.html" class="card" id="card-surprise">
-            <div>
-                <div class="card-icon">✨</div>
-                <h2 class="card-title">Surprise</h2>
-                <p class="card-desc">Click here to see older experiments and fun JavaScript animations (manual coding from the pre-AI era!).</p>
-            </div>
-            <span class="card-link">Be surprised <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </a>
-
-        <a href="surprise/cv_legacy/index.html" class="card" id="card-legacy-cv">
-            <div>
-                <div class="card-icon">📜</div>
-                <h2 class="card-title">Legacy CV</h2>
-                <p class="card-desc">Step back in time to view the original, hand-coded 2010s HTML/CSS version of my CV.</p>
-            </div>
-            <span class="card-link">Time travel <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </a>
 
     </main>
@@ -413,8 +525,10 @@
                 this.y = Math.random() * height;
                 this.vx = (Math.random() - 0.5) * 1.5;
                 this.vy = (Math.random() - 0.5) * 1.5;
-                this.radius = Math.random() * 2 + 1;
-                this.color = `hsla(${Math.random() * 60 + 220}, 80%, 70%, 0.8)`;
+                this.baseRadius = Math.random() * 1.8 + 0.8;
+                this.radius = this.baseRadius;
+                this.hue = Math.random() * 80 + 200; // blue-purple-indigo band
+                this.glow = 0; // 0..1 proximity brightness
             }
 
             update() {
@@ -424,27 +538,34 @@
                 if (this.x < 0 || this.x > width) this.vx = -this.vx;
                 if (this.y < 0 || this.y > height) this.vy = -this.vy;
 
-                // Mouse repel interaction
+                // Mouse proximity: repel + glow
                 if (mouse.x != null) {
                     let dx = mouse.x - this.x;
                     let dy = mouse.y - this.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance < mouse.radius) {
-                        const forceDirectionX = dx / distance;
-                        const forceDirectionY = dy / distance;
                         const force = (mouse.radius - distance) / mouse.radius;
-                        const directionX = forceDirectionX * force * 5;
-                        const directionY = forceDirectionY * force * 5;
-                        this.x -= directionX;
-                        this.y -= directionY;
+                        this.x -= (dx / distance) * force * 5;
+                        this.y -= (dy / distance) * force * 5;
+                        this.glow += (force - this.glow) * 0.2;
+                    } else {
+                        this.glow += (0 - this.glow) * 0.05;
                     }
+                } else {
+                    this.glow += (0 - this.glow) * 0.05;
                 }
+
+                // Radius swells slightly when glowing
+                this.radius = this.baseRadius + this.glow * 2.5;
             }
 
             draw() {
+                const lightness = 65 + this.glow * 25;
+                const saturation = 70 + this.glow * 30;
+                const alpha = 0.6 + this.glow * 0.4;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
+                ctx.fillStyle = `hsla(${this.hue}, ${saturation}%, ${lightness}%, ${alpha})`;
                 ctx.fill();
             }
         }
@@ -483,15 +604,24 @@
                 particles[i].update();
                 particles[i].draw();
 
-                for (let j = i; j < particles.length; j++) {
+                for (let j = i + 1; j < particles.length; j++) {
                     let dx = particles[i].x - particles[j].x;
                     let dy = particles[i].y - particles[j].y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
 
                     if (distance < 150) {
+                        // Blend glow of both endpoints for line color
+                        const combinedGlow = (particles[i].glow + particles[j].glow) * 0.5;
+                        const baseAlpha = 0.35 - distance / 430;
+                        const lineAlpha = baseAlpha + combinedGlow * 0.45;
+                        const hue = particles[i].hue;
+                        const saturation = 30 + combinedGlow * 70;
+                        const lightness = 60 + combinedGlow * 30;
                         ctx.beginPath();
-                        ctx.strokeStyle = `rgba(148, 163, 184, ${0.4 - distance/375})`;
-                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = combinedGlow > 0.05
+                            ? `hsla(${hue}, ${saturation}%, ${lightness}%, ${lineAlpha})`
+                            : `rgba(148, 163, 184, ${baseAlpha})`;
+                        ctx.lineWidth = 0.8 + combinedGlow * 1.2;
                         ctx.moveTo(particles[i].x, particles[i].y);
                         ctx.lineTo(particles[j].x, particles[j].y);
                         ctx.stroke();
@@ -504,6 +634,69 @@
 
         init();
         animate();
+
+        /* ── Secret vault ── */
+        const nameEl   = document.getElementById('name-trigger');
+        const hintEl   = document.getElementById('secret-hint');
+        const backdrop = document.getElementById('vault-backdrop');
+        const panel    = document.getElementById('vault-panel');
+        const NEEDED   = 5;
+        let clicks = 0, resetTimer = null;
+        const dots = ['· · · · ·','· · · ·','· · ·','· ·','·'];
+
+        nameEl.addEventListener('click', (e) => {
+            spawnSparks(e.clientX, e.clientY);
+            clicks++;
+            clearTimeout(resetTimer);
+            if (clicks >= NEEDED) {
+                clicks = 0;
+                hintEl.textContent = '';
+                hintEl.classList.remove('show');
+                openVault();
+            } else {
+                hintEl.textContent = dots[clicks - 1] || '';
+                hintEl.classList.add('show');
+                resetTimer = setTimeout(() => {
+                    clicks = 0;
+                    hintEl.textContent = '';
+                    hintEl.classList.remove('show');
+                }, 3000);
+            }
+        });
+
+        function spawnSparks(cx, cy) {
+            const count = 10;
+            const hues = [240, 260, 280, 220, 300];
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('span');
+                el.classList.add('spark');
+                const angle = (i / count) * 2 * Math.PI + (Math.random() - 0.5) * 0.6;
+                const dist  = 30 + Math.random() * 50;
+                const hue   = hues[Math.floor(Math.random() * hues.length)];
+                el.style.left = cx + 'px';
+                el.style.top  = cy + 'px';
+                el.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+                el.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+                el.style.background = `hsla(${hue}, 90%, 75%, 0.9)`;
+                el.style.width  = (3 + Math.random() * 4) + 'px';
+                el.style.height = el.style.width;
+                el.style.animationDuration = (0.5 + Math.random() * 0.4) + 's';
+                document.body.appendChild(el);
+                el.addEventListener('animationend', () => el.remove());
+            }
+        }
+
+        function openVault() {
+            backdrop.classList.add('open');
+            panel.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeVault() {
+            backdrop.classList.remove('open');
+            panel.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
     </script>
 </body>
 </html>
