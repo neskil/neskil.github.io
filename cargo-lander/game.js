@@ -37,8 +37,9 @@ class CargoGame {
         };
         this.highscores = JSON.parse(localStorage.getItem('cargoLanderHighscores')) || {};
 
-        // Last-selected vehicle, reused by Replay / Next Mission / Restart
-        this.currentVehicle = 'basic';
+        // Vehicle license — picked once on the main menu instead of per-mission,
+        // reused by Replay / Next Mission / Restart too.
+        this.currentVehicle = localStorage.getItem('cargoLanderVehicle') || 'basic';
 
         this.score = 100; // Efficiency rating %
         this.deliveredCount = 0;
@@ -47,6 +48,8 @@ class CargoGame {
         this.hadCrash = false;
         this.cargoLostCount = 0;
         this.cargoSpawnCooldown = 0;
+        this.cargoWaitTimer = 55;   // frames until the next auto-dispense at the pad
+        this.cargoDispenseCycle = 0;
         this.stars = [];
         this.messages = []; // On-screen notifications
 
@@ -368,6 +371,8 @@ class CargoGame {
 
     // Populate the pilot-license card, upgrade chips, highscore list & badges
     refreshMenuUI() {
+        this.refreshVehicleLicenseUI();
+
         // Pilot name (don't clobber while the user is typing in it)
         const nameInput = document.getElementById('pilot-name-input');
         if (nameInput && document.activeElement !== nameInput) {
@@ -531,11 +536,25 @@ class CargoGame {
         if (window.CargoAudio) CargoAudio.setSFXVolume(v / 100);
     }
 
+    // Vehicle is now picked once on the main menu (like a pilot's license) instead
+    // of on a per-mission screen — clicking a mission loads straight into it.
     showVehicleSelection(idx) {
         if (!this.isLevelUnlocked(idx)) return;
         this.selectedLevelIndex = idx;
-        document.getElementById('menu-screen').style.display = 'none';
-        document.getElementById('vehicle-screen').style.display = 'flex';
+        this.startLevel(idx, this.currentVehicle);
+    }
+
+    setSelectedVehicle(vehicleType) {
+        this.currentVehicle = vehicleType;
+        localStorage.setItem('cargoLanderVehicle', vehicleType);
+        this.refreshVehicleLicenseUI();
+    }
+
+    refreshVehicleLicenseUI() {
+        const basicBtn = document.getElementById('vehicle-license-basic');
+        const droneBtn = document.getElementById('vehicle-license-drone');
+        if (basicBtn) basicBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'basic');
+        if (droneBtn) droneBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'drone');
     }
 
     startLevelWithVehicle(vehicleType) {
@@ -888,10 +907,38 @@ class CargoGame {
             if (closestBox) {
                 lander.grabbedBoxId = closestBox.id;
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
-            } else {
-                // If we didn't grab anything, try to dispense cargo if we're near the collection point
-                this.triggerCargoDispense();
             }
+            // Cargo no longer dispenses from a Space press — it spawns automatically
+            // while waiting at the collection pad (see updateCargoAutoSpawn()), so
+            // Space stays purely a grapple grab/release action.
+        }
+    }
+
+    // Cargo now spawns automatically while waiting at the collection pad instead of
+    // on a Space press — Space is purely grapple grab/release. Delay escalates the
+    // longer you sit there so a single pilot can't camp the pad for free cargo.
+    updateCargoAutoSpawn(dt) {
+        const lander = this.physics.lander;
+        if (!lander || lander.crashed || this.gameState !== 'playing') return;
+        const cp = this.physics.collectionPoint;
+        if (!cp) return;
+
+        const cpCenterX = cp.x + cp.width / 2;
+        const near = lander.vehicleType === 'drone'
+            ? (lander.landed || Math.abs(lander.x - cpCenterX) < 60)
+            : (Math.abs(lander.x - cpCenterX) < cp.width / 2 + 28 && lander.y >= cp.y - 60 && lander.y <= cp.y + 12);
+
+        if (!near || this.physics.boxes.length >= 6) {
+            this.cargoDispenseCycle = 0;
+            this.cargoWaitTimer = 55;
+            return;
+        }
+
+        this.cargoWaitTimer -= dt;
+        if (this.cargoWaitTimer <= 0) {
+            this.triggerCargoDispense();
+            this.cargoDispenseCycle++;
+            this.cargoWaitTimer = 55 + this.cargoDispenseCycle * 30;
         }
     }
 
@@ -1275,6 +1322,7 @@ class CargoGame {
 
         // Cooldowns
         if (this.cargoSpawnCooldown > 0) this.cargoSpawnCooldown--;
+        this.updateCargoAutoSpawn(dt);
 
         // Delivery hub crane animations
         for (const h of this.physics.deliveryHubs) {
@@ -1481,7 +1529,7 @@ class CargoGame {
             this.floatingTexts.push({ text: `+$${totalReward}`, x: lastDeliveryX + ox, y: lastDeliveryY - 40 + oy, life: 1.5, color: '#10b981' });
         }
 
-        // Check if any cargo fell into the abyss
+        // Check if any cargo fell into the abyss, or has gone stale from neglect
         for (let i = boxes.length - 1; i >= 0; i--) {
             const box = boxes[i];
             const terrainY = this.physics.getPolygonSurfaceY(box.x);
@@ -1499,6 +1547,39 @@ class CargoGame {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
                 this.addMessage("Cargo Lost! -$100 Budget", "#ef4444");
+
+                if (this.missionBudget < 0) {
+                    this.failMission("Bankrupt! Too much cargo lost.");
+                }
+                continue;
+            }
+
+            // Cargo left sitting unclaimed for ~1 minute goes unstable and blows up —
+            // discourages hoarding boxes on the deck or leaving them scattered forever.
+            const isHeld = box.onDeck || (lander && lander.grabbedBoxId === box.id);
+            if (!isHeld && (box.age || 0) > 3600) {
+                for (let p = 0; p < 24; p++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 1 + Math.random() * 4;
+                    this.physics.particles.push({
+                        x: box.x, y: box.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - 1,
+                        life: 1.0,
+                        decay: 0.02 + Math.random() * 0.03,
+                        color: Math.random() < 0.6 ? `hsla(${15 + Math.random() * 25}, 100%, 55%, 0.9)` : '#475569',
+                        size: 5 + Math.random() * 7
+                    });
+                }
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playCrash();
+                this.removeCargoBox(box, i);
+
+                this.missionBudget -= 100;
+                this.cargoLostCount++;
+                if (this.questState['no_cargo_lost'] === undefined) {
+                    this.questState['no_cargo_lost'] = { failed: true };
+                }
+                this.addMessage("Cargo went stale and exploded! -$100 Budget", "#f97316");
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -5736,15 +5817,39 @@ class CargoGame {
             ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.5 + 4, 0, Math.PI * 2);
             ctx.fill();
 
-            // Flickering fire
+            // Flickering fire — soft layered gradient flames + rising embers, instead
+            // of three flat solid-color circles.
             const now = Date.now();
+
+            // Warm ground glow beneath the flames
+            const glow = ctx.createRadialGradient(0, 8, 0, 0, 8, 24);
+            glow.addColorStop(0, 'rgba(251, 146, 60, 0.35)');
+            glow.addColorStop(1, 'rgba(251, 146, 60, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath(); ctx.arc(0, 8, 24, 0, Math.PI * 2); ctx.fill();
+
             for (let i = -1; i <= 1; i++) {
-                const fx = i * 12 + Math.sin(now * 0.01 + i) * 4;
-                const fy = 5 - Math.abs(Math.cos(now * 0.02 + i)) * 15;
-                ctx.fillStyle = `rgba(239, 68, 68, ${0.6 + Math.sin(now * 0.015 + i) * 0.3})`;
-                ctx.beginPath(); ctx.arc(fx, fy, 8, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = `rgba(251, 191, 36, ${0.6 + Math.cos(now * 0.012 + i) * 0.3})`;
-                ctx.beginPath(); ctx.arc(fx, fy + 4, 5, 0, Math.PI * 2); ctx.fill();
+                const flicker = Math.sin(now * 0.012 + i * 2.1) * 0.5 + 0.5;
+                const fx = i * 11 + Math.sin(now * 0.008 + i) * 3;
+                const h = 15 + flicker * 11;
+                const cy = 6 - h * 0.35;
+                const grad = ctx.createRadialGradient(fx, cy, 1, fx, cy, h * 0.65);
+                grad.addColorStop(0, 'rgba(255, 241, 197, 0.9)');
+                grad.addColorStop(0.45, 'rgba(251, 146, 60, 0.85)');
+                grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.ellipse(fx, cy, 6 + flicker * 2.5, h * 0.65, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Rising embers
+            for (let i = 0; i < 4; i++) {
+                const t = (now * 0.0012 + i * 0.37) % 1.4;
+                const ex = Math.sin(now * 0.003 + i * 3.3) * 9;
+                const ey = 4 - t * 24;
+                ctx.fillStyle = `rgba(253, 186, 116, ${Math.max(0, 1 - t / 1.4) * 0.85})`;
+                ctx.beginPath(); ctx.arc(ex, ey, 1.4, 0, Math.PI * 2); ctx.fill();
             }
         }
 
