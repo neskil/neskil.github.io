@@ -1874,12 +1874,14 @@ class CargoPhysics {
                 } else if (!t.flyingOff) {
                     // Evasive maneuver if lander gets too close and is moving up or fast
                     const dist = Math.hypot(l.x - tx, l.y - t.y);
-                    if (dist < 220 && (l.vy < -5 || Math.abs(l.vx) > 15)) {
-                        t.flyingOff = true;
-                        t.tiltTarget = (t.vx > 0 ? -1 : 1) * 0.8;
-                        t.vy -= 25; // sharp evasive thrust upwards
-                        t.vx *= 1.5; // speed up
-                        if (window.game && Math.random() < 0.2) window.game.addMessage("Hey, watch it!", "#fcd34d");
+                    if (dist < 180 && (Math.abs(l.vy) > 8 || Math.abs(l.vx) > 10)) {
+                        // slight course correction
+                        t.vy -= 4;
+                        t.vx += (t.x > l.x ? 3 : -3);
+                        if (Math.random() < 0.2) {
+                            t.bubbleText = "Hey, watch it!";
+                            t.bubbleTimer = 90; // 1.5 seconds at 60fps
+                        }
                     }
                 }
             }
