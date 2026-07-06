@@ -89,18 +89,23 @@ drawFluidBounds() {
             ctx.fill();
         } else {
             const step = 40;
-            // Snap startX to the step grid so the waves don't "crawl" when camera pans
+            // Snap startX and endX to the step grid so the waves don't "crawl" when camera pans
             const gridStartX = Math.floor(startX / step) * step;
+            const gridEndX = Math.ceil(endX / step) * step;
+
+            // Helper to get wave height at a given X
+            const getWaveY = (x) => Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
+            const getWaveY2 = (x) => Math.sin(now / 600 + x * 0.03) * 8 + Math.sin(now / 400 + x * 0.07) * 4;
 
             // Main deep water body
             ctx.beginPath();
-            ctx.moveTo(gridStartX, oob.surfaceY);
-            for (let x = gridStartX; x <= endX + step; x += step) {
-                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
-                ctx.lineTo(x, oob.surfaceY + waveY);
+            ctx.moveTo(gridStartX, oob.surfaceY + getWaveY(gridStartX));
+            for (let x = gridStartX + step; x <= gridEndX; x += step) {
+                ctx.lineTo(x, oob.surfaceY + getWaveY(x));
             }
-            ctx.lineTo(endX + step, depth);
+            ctx.lineTo(gridEndX, depth);
             ctx.lineTo(gridStartX, depth);
+            ctx.closePath();
             
             const depthGrad = ctx.createLinearGradient(0, oob.surfaceY - 20, 0, oob.surfaceY + 400);
             depthGrad.addColorStop(0, 'rgba(14, 165, 233, 0.25)'); // Bright surface
@@ -113,36 +118,35 @@ drawFluidBounds() {
             // Surface Shimmer / Foam layer
             ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.beginPath();
-            ctx.moveTo(gridStartX, oob.surfaceY);
-            for (let x = gridStartX; x <= endX + step; x += step) {
-                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
-                ctx.lineTo(x, oob.surfaceY + waveY + 5);
+            ctx.moveTo(gridStartX, oob.surfaceY + getWaveY(gridStartX) + 5);
+            for (let x = gridStartX + step; x <= gridEndX; x += step) {
+                ctx.lineTo(x, oob.surfaceY + getWaveY(x) + 5);
             }
-            for (let x = endX + step; x >= gridStartX; x -= step) {
-                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
-                ctx.lineTo(x, oob.surfaceY + waveY + 15);
+            for (let x = gridEndX; x >= gridStartX; x -= step) {
+                ctx.lineTo(x, oob.surfaceY + getWaveY(x) + 15);
             }
+            ctx.closePath();
             ctx.fill();
             
             // Secondary parallax overlapping wave
             ctx.fillStyle = 'rgba(14, 165, 233, 0.2)';
             ctx.beginPath();
-            ctx.moveTo(gridStartX, oob.surfaceY + 10);
-            for (let x = gridStartX; x <= endX + step; x += step) {
-                const waveY2 = Math.sin(now / 600 + x * 0.03) * 8 + Math.sin(now / 400 + x * 0.07) * 4;
-                ctx.lineTo(x, oob.surfaceY + 10 + waveY2);
+            ctx.moveTo(gridStartX, oob.surfaceY + 10 + getWaveY2(gridStartX));
+            for (let x = gridStartX + step; x <= gridEndX; x += step) {
+                ctx.lineTo(x, oob.surfaceY + 10 + getWaveY2(x));
             }
-            ctx.lineTo(endX + step, depth);
+            ctx.lineTo(gridEndX, depth);
             ctx.lineTo(gridStartX, depth);
+            ctx.closePath();
             ctx.fill();
             
             // Bright surface edge reflection
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            for (let x = gridStartX; x <= endX + step; x += step) {
-                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
-                x === gridStartX ? ctx.moveTo(x, oob.surfaceY + waveY) : ctx.lineTo(x, oob.surfaceY + waveY);
+            ctx.moveTo(gridStartX, oob.surfaceY + getWaveY(gridStartX));
+            for (let x = gridStartX + step; x <= gridEndX; x += step) {
+                ctx.lineTo(x, oob.surfaceY + getWaveY(x));
             }
             ctx.stroke();
         }
