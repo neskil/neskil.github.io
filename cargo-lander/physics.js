@@ -1105,7 +1105,7 @@ class CargoPhysics {
         // telegraphed on/off duty cycle (charge flash → active beam → cooldown).
         // Distinct from zone hazards below: line-segment distance check, not
         // point-in-polygon, and damage only applies while the beam is "active".
-        if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
+        if (this.hazards && this.hazards.length > 0) {
             for (const h of this.hazards) {
                 if (h.type !== 'laser') continue;
                 if (!h.pts || h.pts.length < 2) continue;
@@ -1124,34 +1124,61 @@ class CargoPhysics {
                 if (!active) continue;
 
                 const a = h.pts[0], b = h.pts[1];
-                const dist = this.distToSegment(lander.x, lander.y, a.x, a.y, b.x, b.y);
                 const thickness = h.thickness || 14;
-                if (dist > thickness) continue;
 
-                // Knockback perpendicular to the beam, pushed toward whichever
-                // side of the line the lander is currently on.
-                const bx = b.x - a.x, by = b.y - a.y;
-                const blen = Math.hypot(bx, by) || 1;
-                let nx = -by / blen, ny = bx / blen;
-                const side = (lander.x - a.x) * nx + (lander.y - a.y) * ny;
-                if (side < 0) { nx = -nx; ny = -ny; }
-                lander.vx += nx * 2;
-                lander.vy += ny * 2;
+                // Check lander
+                if (!lander.crashed) {
+                    const distL = this.distToSegment(lander.x, lander.y, a.x, a.y, b.x, b.y);
+                    if (distL <= thickness) {
+                        const bx = b.x - a.x, by = b.y - a.y;
+                        const blen = Math.hypot(bx, by) || 1;
+                        let nx = -by / blen, ny = bx / blen;
+                        const side = (lander.x - a.x) * nx + (lander.y - a.y) * ny;
+                        if (side < 0) { nx = -nx; ny = -ny; }
+                        lander.vx += nx * 2;
+                        lander.vy += ny * 2;
 
-                this.applyDamage(lander, (h.damagePerSec || 40) * dt / 60);
+                        this.applyDamage(lander, (h.damagePerSec || 40) * dt / 60);
 
-                if (window.CargoAudio) CargoAudio.playCollision(1);
-                for (let i = 0; i < 2; i++) {
-                    this.particles.push({
-                        x: lander.x + (Math.random() - 0.5) * 14,
-                        y: lander.y + (Math.random() - 0.5) * 14,
-                        vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3 - 1,
-                        life: 0.5, decay: 0.06 + Math.random() * 0.05,
-                        color: '#f472b6',
-                        size: 2 + Math.random() * 2,
-                    });
+                        if (window.CargoAudio) CargoAudio.playCollision(1);
+                        for (let i = 0; i < 2; i++) {
+                            this.particles.push({
+                                x: lander.x + (Math.random() - 0.5) * 14,
+                                y: lander.y + (Math.random() - 0.5) * 14,
+                                vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3 - 1,
+                                life: 0.5, decay: 0.06 + Math.random() * 0.05,
+                                color: '#f472b6',
+                                size: 2 + Math.random() * 2,
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
                 }
-                if (lander.integrity <= 0) this.triggerExplosion();
+
+                // Check cargo boxes
+                if (this.boxes) {
+                    for (let boxIdx = this.boxes.length - 1; boxIdx >= 0; boxIdx--) {
+                        const box = this.boxes[boxIdx];
+                        if (box.delivered || box.lost) continue;
+                        
+                        const distB = this.distToSegment(box.x, box.y, a.x, a.y, b.x, b.y);
+                        if (distB <= thickness + 6) {
+                            if (window.CargoAudio) CargoAudio.playCollision(2);
+                            for (let i = 0; i < 8; i++) {
+                                this.particles.push({
+                                    x: box.x + (Math.random() - 0.5) * 20,
+                                    y: box.y + (Math.random() - 0.5) * 20,
+                                    vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5 - 2,
+                                    life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                                    color: '#f472b6',
+                                    size: 2 + Math.random() * 3,
+                                });
+                            }
+                            box.lost = true;
+                            box.lostReason = 'laser';
+                        }
+                    }
+                }
             }
         }
 
@@ -1159,7 +1186,7 @@ class CargoPhysics {
         // so membership is a point-in-polygon test rather than a radius check.
         if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
             for (const h of this.hazards) {
-                if (h.type === 'laser') continue;
+                if (h.type === 'laser' || h.type === 'sandworm') continue;
                 
                 if (h.type === 'crusher') {
                     const timeMs = this.hazardTime || 0;

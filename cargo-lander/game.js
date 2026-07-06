@@ -101,6 +101,7 @@ class CargoGame {
 
         // Initialize UI display values
         this.setUIScale(this.uiScale);
+        this.generateMissionUI();
         this.updateHUD();
         this.refreshMenuUI();
 
@@ -372,6 +373,66 @@ class CargoGame {
     }
 
     // Populate the pilot-license card, upgrade chips, highscore list & badges
+    generateMissionUI() {
+        const grid = document.getElementById('mission-grid');
+        const devPanel = document.querySelector('#dev-panel .dev-row');
+        if (!grid || !devPanel) return;
+        
+        // Keep fixed buttons (procedural, custom level)
+        const fixedButtons = Array.from(grid.children).filter(btn => !btn.id || !btn.id.startsWith('mission-btn-'));
+        grid.innerHTML = '';
+        
+        const devButtons = Array.from(devPanel.children).filter(btn => btn.tagName !== 'BUTTON');
+        devPanel.innerHTML = '';
+
+        const themes = [
+            { color: '#10b981', prefix: '', suffix: '' }, // L1
+            { color: '#10b981', prefix: '', suffix: '' }, // L2
+            { color: '#10b981', prefix: '', suffix: '' }, // L3
+            { color: '#10b981', prefix: '', suffix: '' }, // L4
+            { color: 'var(--neon-blue)', badgeColor: '#38bdf8', prefix: '🔵 ', suffix: ' · Elite' }, // L5
+            { color: '#f59e0b', prefix: '🏜️ ', suffix: ' · Boss' }, // L6
+            { color: '#a855f7', prefix: '🌌 ', suffix: ' · Endurance' }, // L7
+            { color: '#ec4899', prefix: '🛰️ ', suffix: ' · Finale' }, // L8
+            { color: '#ef4444', prefix: '🔥 ', suffix: ' · Chaos' }, // L9
+        ];
+
+        levels.forEach((lv, i) => {
+            if (lv.name.includes('TEST')) return;
+            
+            const theme = themes[i] || { color: '#10b981', prefix: '', suffix: '' };
+            const badgeColor = theme.badgeColor || theme.color;
+            
+            const parts = lv.name.split(':');
+            const numPart = parts[0] ? parts[0].trim().replace('L', 'Mission ') : `Mission ${i+1}`;
+            const title = lv.missionTitle || (parts[1] ? parts[1].trim() : lv.name);
+            
+            // Main Menu Button
+            const btn = document.createElement('button');
+            btn.className = 'btn-level';
+            btn.id = 'mission-btn-' + i;
+            btn.onclick = () => this.showVehicleSelection(i);
+            if (theme.color !== '#10b981') btn.style.borderColor = theme.color;
+            
+            btn.innerHTML = `
+                <span class="num" style="color: ${theme.color};">${theme.prefix}${numPart}${theme.suffix}</span>
+                ${title}
+                <span id="hs-badge-${i}" style="font-size:0.65rem; color:${badgeColor}; font-weight:600; margin-top:2px;"></span>
+            `;
+            grid.appendChild(btn);
+            
+            // Dev Panel Button
+            const devBtn = document.createElement('button');
+            devBtn.onclick = () => this.startLevel(i);
+            devBtn.style.cssText = 'background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;';
+            devBtn.textContent = `L${i+1}`;
+            devPanel.appendChild(devBtn);
+        });
+        
+        fixedButtons.forEach(btn => grid.appendChild(btn));
+        devButtons.forEach(btn => devPanel.appendChild(btn));
+    }
+
     refreshMenuUI() {
         this.refreshVehicleLicenseUI();
 
@@ -770,16 +831,13 @@ class CargoGame {
         // followed by the real zoom-in (reads as two zooms instead of one).
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom);
-        const introZoom = minZoom * 1.8;
 
-        this.camera.zoom = introZoom;
-        this.camera.targetZoom = introZoom;
+        this.camera.zoom = minZoom;
+        this.camera.targetZoom = minZoom;
         this.introTimer = 2.0;
-        // Camera stays centered on the lander's start position for the whole intro —
-        // a pure zoom-in, not a pan-then-zoom (previously started at map top-center
-        // and panned to the lander while zooming, which read as two separate motions).
+        // Panning down a smidge
         this.camera.x = this.physics.lander.x;
-        this.camera.y = this.physics.lander.y;
+        this.camera.y = this.physics.lander.y - 300;
 
         let weatherType = level?.weather;
         if (!weatherType) {
@@ -1282,11 +1340,15 @@ class CargoGame {
             this.introTimer -= dt / 60;
             const progress = Math.max(0, Math.min(1, (2.0 - this.introTimer) / 2.0));
             const s = progress * progress * (3 - 2 * progress);
-            const introZoom = minZoom * 1.8;
-            this.camera.zoom = introZoom + s * (desiredZoom - introZoom);
-            // Pure zoom-in centered on the lander's start position — no pan.
+            
+            // Just normal camera zoom
+            this.camera.zoom = desiredZoom;
+            
+            // Pan down a smidge
+            const endY = lander.y - 120 + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15);
+            const startY = endY - 300;
             this.camera.x = lander.x;
-            this.camera.y = lander.y;
+            this.camera.y = startY + s * (endY - startY);
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
@@ -4184,6 +4246,20 @@ class CargoGame {
 
             const pts = haz.pts;
             if (!pts || pts.length < 3) continue;
+
+            if (haz.type === 'sandworm') {
+                ctx.beginPath();
+                pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(217, 119, 6, 0.05)'; // very faint sandy color
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(217, 119, 6, 0.2)'; // faint outline
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                continue;
+            }
             const c = this.physics.polygonCentroid(pts);
             // Average vertex-to-centroid distance stands in for the old "radius",
             // sizing the pulsing core/spikes to roughly match the polygon's extent.

@@ -1349,7 +1349,7 @@ function setHazardType(val) {
 
 function setHazardField(field, val) {
   if (S.selLayer !== 'hazard' || S.selPoly<0) return;
-  activeList()[S.selPoly][field] = +val;
+  activeList()[S.selPoly][field] = (field === 'color' || field === 'type') ? val : +val;
   updateOut();
 }
 
@@ -1432,7 +1432,7 @@ function updateEntityPanel() {
 
 function deletePoly() {
   const arr = activeList();
-  if (S.selPoly<0||!confirm('Delete this shape?')) return;
+  if (S.selPoly<0) return;
   arr.splice(S.selPoly,1);
   S.selPoly=Math.min(S.selPoly,arr.length-1); S.selPt=-1;
   renderSidebar(); draw(); updateOut();
