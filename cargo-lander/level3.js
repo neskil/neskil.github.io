@@ -5,75 +5,131 @@
 // Peak Station sits in a narrow saddle: tight pads + constant wind = precision demanded.
 
 registerLevel({
-    name: "L3: Gale-Force Winds",
-    missionTitle: "Glacial Peaks — Summit Delivery",
-    description: "Katabatic winds howl down from the Glacial Peaks at a constant rate. Your delivery target — Peak Station — is wedged into the ridge summit, blocked from above by an ice overhang. You'll need to fight the crosswind the whole way in, then hold a steady hover long enough to drop cleanly.",
-    weather: 'rain',
-
-    // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.15,
-    wind: 0.08,         // significant constant horizontal force
-
-    // ── Terrain ───────────────────────────────────────────────────────────────
-    terrainPolygons: [
-        // Ground — left lowland where HQ spawns, rising sharply to the glacier summit ridge
-        [
-            // Left plateau (HQ spawn, collection depot at x:320)
-            {x: -400, y: 700}, {x: -100, y: 680}, {x: 150, y: 700}, {x: 300, y: 650}, {x: 400, y: 650},
-            // Steep ascent to the peak — wind funnels up this face
-            {x: 500, y: 450}, {x: 600, y: 250},
-            // Summit saddle — Peak Station sits here; pads are tight
-            {x: 750, y: 250},
-            // Steep eastern descent — nowhere to land safely on the far side
-            {x: 850, y: 450}, {x: 1000, y: 650}, {x: 1800, y: 650},
-            {x: 1800, y: 1800}, {x: -400, y: 1800}
-        ],
-        // Ice overhang — hangs above the summit, forcing a low angled approach from the west
-        [
-            {x: 450, y: -200}, {x: 900, y: -200}, {x: 850, y: 120},
-            {x: 600, y: 140}, {x: 500, y: -50}
-        ]
-    ],
-
-    // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 0.65,     // extremely tight pads — demands flawless accuracy despite the wind
-    targetCargo: 2,
-    budget: 1500,
-    timeLimit: 200,
-    allowedTypes: ["normal"],
-    collectionX: 320,
-
-    // ── Environment ───────────────────────────────────────────────────────────
-    outOfBounds: {
-        type: 'void',     // No liquid bottom, just infinite freezing void
-        mistColor: 'rgba(125, 211, 252, 0.5)',
-        surfaceY: 3000,   // Basically unreachable
-        monsterDepth: 2500
+  name: "L3: Gale-Force Winds",
+  missionTitle: "Glacial Peaks — Summit Delivery",
+  description: "Katabatic winds howl down from the Glacial Peaks at a constant rate. Your delivery target — Peak Station — is wedged into the ridge summit, blocked from above by an ice overhang. You'll need to fight the crosswind the whole way in, then hold a steady hover long enough to drop cleanly.",
+  hint: "The wind blows constantly from the right — lean left with the side thruster to hold position. Approach the summit from below and to the west, under the overhang. Return to HQ to extract.",
+  gravity: 0.15,
+  wind: 0.08,
+  weather: "rain",
+  budget: 1500,
+  timeLimit: 200,
+  padScale: 0.65,
+  targetCargo: 2,
+  allowedTypes: ["normal"],
+  startX: 330,
+  startY: 650,
+  collectionX: 480,
+  collectionY: 490,
+  quests: [
+    questPrimary("Deliver 2 cargo to Ridge Station"),
+    questNoCrash(350),
+    questNoCargoLost('No cargo lost', 250)
+  ],
+  palette: {
+    skyTop: "#030712",
+    skyMid: "#0b1b36",
+    skyBot: "#132b4b",
+    terrainFill: "#02050a",
+    rockEdge: "#7dd3fc",
+    rockGlow: "rgba(125,211,252,",
+    fog: "rgba(125,211,252,0.06)",
+  },
+  outOfBounds: {
+    type: "acid",
+    color: "rgba(168, 85, 247, 0.7)", // Purple acid
+    mistColor: "rgba(168, 85, 247, 0.4)", // Purple mist
+    surfaceY: 800,
+    monsterDepth: 1200,
+    drag: 5,
+    buoyancy: 0.01,
+  },
+  deliveryHubs: [
+    { x: 1070, color: "#38bdf8", type: "normal", name: "Ridge Station" }
+  ],
+  waterBodies: [
+    {
+      hasBoat: false,
+      pts: [
+        {x: 610, y: 300},
+        {x: 810, y: 300},
+        {x: 810, y: 350},
+        {x: 610, y: 350}
+      ]
+    }
+  ],
+  hazards: [
+    {
+      type: "laser",
+      onMs: 20,
+      offMs: 20,
+      warnMs: 800,
+      damagePerSec: 41,
+      thickness: 15,
+      pts: [
+        {x: 610, y: 140},
+        {x: 610, y: 280}
+      ]
     },
-
-    // ── Hubs ──────────────────────────────────────────────────────────────────
-    deliveryHubs: [
-        { x: 650, color: "#38bdf8", type: "normal", name: "Ridge Station" }
+    {
+      type: "laser",
+      onMs: 20,
+      offMs: 20,
+      phaseOffset: 10,
+      warnMs: 400,
+      damagePerSec: 40,
+      thickness: 15,
+      pts: [
+        {x: 810, y: 140},
+        {x: 810, y: 290}
+      ]
+    }
+  ],
+  terrainPolygons: [
+    // Ground
+    [
+        {x: 20, y: 930},
+        {x: 140, y: 710},
+        {x: 300, y: 650},
+        {x: 300, y: 650},
+        {x: 400, y: 650},
+        {x: 440, y: 490},
+        {x: 580, y: 490},
+        {x: 600, y: 390},
+        {x: 570, y: 340},
+        {x: 540, y: 340},
+        {x: 490, y: 330},
+        {x: 470, y: 300},
+        {x: 490, y: 260},
+        {x: 550, y: 260},
+        {x: 620, y: 280},
+        {x: 660, y: 330},
+        {x: 760, y: 330},
+        {x: 810, y: 290},
+        {x: 900, y: 290},
+        {x: 990, y: 470},
+        {x: 1020, y: 540},
+        {x: 1190, y: 540},
+        {x: 1300, y: 470},
+        {x: 1540, y: 700},
+        {x: 1560, y: 1210},
+        {x: 10, y: 1200}
     ],
-
-    // ── Palette (Arctic / Ice Blue) ───────────────────────────────────────────
-    palette: {
-        skyTop:      '#030712',
-        skyMid:      '#0b1b36',
-        skyBot:      '#132b4b',
-        terrainFill: '#02050a',
-        rockEdge:    '#7dd3fc',
-        rockGlow:    'rgba(125,211,252,',
-        fog:         'rgba(125,211,252,0.06)',
-    },
-
-    // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "The wind blows constantly from the right — lean left with the side thruster to hold position. Approach the summit from below and to the west, under the overhang. Return to HQ to extract.",
-
-    quests: [
-        questPrimary('Deliver 2 cargo to Ridge Station'),
-        questNoCrash(350),
-        questNoCargoLost('No cargo lost to the gale', 250),
-    ],
+    // Ceiling
+    [
+        {x: -630, y: -1220},
+        {x: 2050, y: -1070},
+        {x: 1200, y: -20},
+        {x: 1150, y: 140},
+        {x: 1000, y: 190},
+        {x: 870, y: 130},
+        {x: 810, y: 140},
+        {x: 680, y: 110},
+        {x: 610, y: 140},
+        {x: 580, y: 130},
+        {x: 540, y: 80},
+        {x: 420, y: 10},
+        {x: 270, y: -50}
+    ]
+  ]
 });
-

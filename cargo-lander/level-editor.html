@@ -84,6 +84,9 @@ canvas{display:block}
 <body>
 
 <div id="sidebar">
+  <div class="sec" style="border-bottom: 2px solid #30363d; background: rgba(56, 189, 248, 0.04); padding: 9px 11px;">
+    <a href="index.html" class="btn on" style="display: block; text-align: center; text-decoration: none; padding: 6px 10px; font-weight: bold; background: #10b981; border-color: #10b981;">➔ Back to Game</a>
+  </div>
   <div class="sec">
     <div class="sec-title">Load Level</div>
     <select id="lsel">
@@ -102,7 +105,6 @@ canvas{display:block}
     <div class="row">
       <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
       <button class="btn" onclick="fitView()">Fit</button>
-      <button class="btn" id="add-shape-btn" onclick="addShape()">+ Shape</button>
     </div>
     <div id="level-card"></div>
     <details>
@@ -154,6 +156,8 @@ canvas{display:block}
         <div class="row"><label>Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
         <div id="oob-fields" style="display:none; flex-direction:column; gap:4px">
           <div class="row"><label>Type</label><select id="oob-type" onchange="setOOB('type', this.value)"><option value="water">water</option><option value="goo">goo</option><option value="sand">sand</option><option value="acid">acid</option><option value="void">void</option></select></div>
+          <div class="row"><label>Color</label><input type="color" id="oob-color" onchange="setOOB('color', this.value)"></div>
+          <div class="row"><label>Mist Color</label><input type="color" id="oob-mistColor" onchange="setOOB('mistColor', this.value)"></div>
           <div class="row"><label>Surface Y</label><input type="number" id="oob-surfaceY" onchange="setOOB('surfaceY', +this.value)"></div>
           <div class="row"><label>Monster Y</label><input type="number" id="oob-monsterDepth" onchange="setOOB('monsterDepth', +this.value)"></div>
           <div class="row"><label>Drag</label><input type="number" step="0.01" id="oob-drag" onchange="setOOB('drag', +this.value)"></div>
@@ -194,6 +198,9 @@ canvas{display:block}
       <button class="btn" id="lyr-segments" onclick="setLayer('segments')">Segments</button>
     </div>
   </div>
+  <div class="sec" style="padding-top:0px; padding-bottom:8px; border-bottom:none">
+    <button class="btn" id="add-shape-btn" onclick="addShape()" style="width:100%; border-color:#388bfd; color:#58a6ff">+ Add Terrain</button>
+  </div>
   <div id="poly-list"></div>
 
   <div id="pt-panel">
@@ -217,20 +224,23 @@ canvas{display:block}
     </div>
     <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
       <div class="row">
-        <label>onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:40px" onchange="setHazardField('onMs', this.value)">
-        <label>offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:40px" onchange="setHazardField('offMs', this.value)">
-        <label>phase:</label><input type="number" id="laser-phase" class="cinput" style="width:40px" onchange="setHazardField('phaseOffset', this.value)">
+        <label title="Milliseconds the hazard is active">onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:40px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
+        <label title="Milliseconds the hazard is disabled">offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:40px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
+        <label title="Phase offset (in ms) to desync this hazard from others">phase:</label><input type="number" id="laser-phase" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
       </div>
       <div class="row">
-        <label>warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:40px" onchange="setHazardField('warnMs', this.value)">
-        <label>dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:30px" onchange="setHazardField('damagePerSec', this.value)">
-        <label>thick:</label><input type="number" id="laser-thick" class="cinput" style="width:30px" onchange="setHazardField('thickness', this.value)">
+        <label title="Milliseconds before firing that the warning indicator is shown">warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:40px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
+        <label title="Hull damage dealt per second of contact (Max Hull is 100)">dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:35px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
+        <label title="Thickness of the laser or hazard beam">thick:</label><input type="number" id="laser-thick" class="cinput" style="width:35px" placeholder="15" onchange="setHazardField('thickness', this.value)">
       </div>
     </div>
     <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
       <div class="row">
-        <label>spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:40px" onchange="setHazardField('spawnRate', this.value)">
+        <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:40px" onchange="setHazardField('spawnRate', this.value)">
       </div>
+    </div>
+    <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
+      <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
     </div>
     <div id="pt-list-wrap"><div id="pt-list"></div></div>
     <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
@@ -357,7 +367,7 @@ function listForLayer(layer) {
 function activeList() { return listForLayer(S.selLayer); }
 function syncLayerButtonsUI() {
   ['terrain','water','hazard','segments'].forEach(l => document.getElementById('lyr-'+l).className = 'btn'+(l===S.selLayer?' on':''));
-  document.getElementById('add-shape-btn').textContent = '+ ' + (S.selLayer.charAt(0).toUpperCase() + S.selLayer.slice(1));
+  document.getElementById('add-shape-btn').textContent = '+ Add ' + (S.selLayer.charAt(0).toUpperCase() + S.selLayer.slice(1));
 }
 function setLayer(layer) {
   S.selLayer = layer;
@@ -413,7 +423,8 @@ function updateHubUI() {
       <div class="row">
         <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="S.hubs[${i}].type=this.value; draw(); updateOut()">
         <label style="width:20px;margin-left:4px">X</label><input type="number" style="width:50px" value="${h.x}" onchange="S.hubs[${i}].x=+this.value; draw(); updateOut()">
-        <input type="color" style="margin-left:4px" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">Y</label><input type="number" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
+        <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
       </div>
     `;
     c.appendChild(d);
@@ -602,6 +613,8 @@ function applyConfig(cfg) {
     document.getElementById('oob-enable').checked = true;
     document.getElementById('oob-fields').style.display = 'flex';
     document.getElementById('oob-type').value = S.oob.type || 'water';
+    document.getElementById('oob-color').value = S.oob.color || '#3b82f6';
+    document.getElementById('oob-mistColor').value = S.oob.mistColor || '#1e3a8a';
     document.getElementById('oob-surfaceY').value = S.oob.surfaceY ?? '';
     document.getElementById('oob-monsterDepth').value = S.oob.monsterDepth ?? '';
     document.getElementById('oob-drag').value = S.oob.drag ?? '';
@@ -1228,15 +1241,25 @@ function renderPtUI() {
       const poly = arr[S.selPoly];
       hazardRow.style.display = '';
       document.getElementById('hazard-type-select').value = poly.type || 'zone';
+      
+      // Color is applicable to most hazard types except maybe zones, but we'll allow it globally
+      const colorRow = document.getElementById('hazard-color-row');
+      if (poly.type !== 'zone') {
+        colorRow.style.display = '';
+        document.getElementById('hazard-color').value = poly.color || '#ff0000';
+      } else {
+        colorRow.style.display = 'none';
+      }
+
       if (poly.type === 'laser') {
         timingRow.style.display = '';
         swTimingRow.style.display = 'none';
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
         document.getElementById('laser-offms').value = poly.offMs ?? 1000;
         document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;
-        document.getElementById('laser-warn').value = poly.warnMs ?? 400;
+        document.getElementById('laser-warn').value = poly.warnMs ?? 800;
         document.getElementById('laser-dmg').value = poly.damagePerSec ?? 40;
-        document.getElementById('laser-thick').value = poly.thickness ?? 14;
+        document.getElementById('laser-thick').value = poly.thickness ?? 15;
       } else if (poly.type === 'sandworm') {
         timingRow.style.display = 'none';
         swTimingRow.style.display = '';
@@ -1249,6 +1272,8 @@ function renderPtUI() {
       hazardRow.style.display = 'none';
       timingRow.style.display = 'none';
       if(swTimingRow) swTimingRow.style.display = 'none';
+      const colorRow = document.getElementById('hazard-color-row');
+      if(colorRow) colorRow.style.display = 'none';
     }
     renderPtList();
   } else {
@@ -1554,6 +1579,7 @@ function buildOut() {
       } else if (h.type === 'sandworm') {
         if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
       }
+      if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));
       lines.push('      ]');
