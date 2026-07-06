@@ -426,9 +426,10 @@ drawNextObjectiveArrow() {
         let isHQReturn = false;
         
         if (allDelivered) {
-            if (level.startPad) {
-                targetX = level.startPad.x + level.startPad.w / 2;
-                targetY = level.startPad.y;
+            const startPad = this.physics.startDepot;
+            if (startPad) {
+                targetX = startPad.x + startPad.width / 2;
+                targetY = startPad.y;
                 drawArrow(targetX, targetY - 80, 'RETURN TO HQ');
                 isHQReturn = true;
             }

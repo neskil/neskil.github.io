@@ -767,6 +767,7 @@ class CargoGame {
         this.currentLevelIndex = idx;
         this.currentVehicle = vehicleType;
         this.crashHandled = false;
+        this._fireworksTriggered = false;
         const level = levels[idx];
         level.vehicle = vehicleType;
 
@@ -1119,27 +1120,57 @@ class CargoGame {
             const atHQ = lander && lander.landed && lander.currentPad === 'start';
             const isLandedAnywhere = lander && lander.landed;
 
-            if (!allDelivered) {
-                btnExtract.classList.add('hidden');
-                if(centerOverlay) centerOverlay.style.display = 'none';
-            } else if (atHQ) {
-                btnExtract.classList.remove('hidden');
-                btnExtract.textContent = '✓ EXTRACT NOW';
-                btnExtract.style.background = '#10b981';
-                btnExtract.style.opacity = '1';
-                btnExtract.style.cursor = 'pointer';
-                
-                if(centerOverlay) {
+            const svcContainer = document.getElementById('hq-services-container');
+
+            if (atHQ) {
+                if (centerOverlay) {
                     centerOverlay.style.display = 'flex';
-                    centerOverlay.style.borderColor = '#10b981';
-                    if(centerTitle) {
-                        centerTitle.textContent = 'Mission Complete';
-                        centerTitle.style.color = '#10b981';
+                    if (svcContainer) svcContainer.style.display = 'flex';
+                    
+                    if (allDelivered) {
+                        centerOverlay.style.borderColor = '#10b981';
+                        if (centerTitle) {
+                            centerTitle.textContent = 'Mission Complete';
+                            centerTitle.style.color = '#10b981';
+                        }
+                        if (centerDesc) centerDesc.textContent = 'All cargo delivered safely.';
+                        if (centerBtn) centerBtn.style.display = 'block';
+                        
+                        btnExtract.classList.remove('hidden');
+                        btnExtract.textContent = '✓ EXTRACT NOW';
+                        btnExtract.style.background = '#10b981';
+                        btnExtract.style.opacity = '1';
+                        btnExtract.style.cursor = 'pointer';
+                    } else {
+                        centerOverlay.style.borderColor = '#38bdf8';
+                        if (centerTitle) {
+                            centerTitle.textContent = 'HQ Services';
+                            centerTitle.style.color = '#38bdf8';
+                        }
+                        if (centerDesc) centerDesc.textContent = 'Refuel and repair before taking off.';
+                        if (centerBtn) centerBtn.style.display = 'none';
+                        
+                        btnExtract.classList.add('hidden');
                     }
-                    if(centerDesc) centerDesc.textContent = 'You have successfully returned to HQ.';
-                    if(centerBtn) centerBtn.style.display = 'block';
+                    
+                    const btnRefuel = document.getElementById('btn-hq-refuel');
+                    const btnRepair = document.getElementById('btn-hq-repair');
+                    if (btnRefuel) {
+                        const needsFuel = lander.fuel < lander.maxFuel;
+                        const canAfford = this.globalCash >= 100;
+                        btnRefuel.disabled = !needsFuel || !canAfford;
+                        btnRefuel.style.opacity = btnRefuel.disabled ? '0.5' : '1';
+                        btnRefuel.style.cursor = btnRefuel.disabled ? 'not-allowed' : 'pointer';
+                    }
+                    if (btnRepair) {
+                        const needsRepair = lander.integrity < lander.maxIntegrity;
+                        const canAfford = this.globalCash >= 200;
+                        btnRepair.disabled = !needsRepair || !canAfford;
+                        btnRepair.style.opacity = btnRepair.disabled ? '0.5' : '1';
+                        btnRepair.style.cursor = btnRepair.disabled ? 'not-allowed' : 'pointer';
+                    }
                 }
-            } else {
+            } else if (allDelivered) {
                 btnExtract.classList.remove('hidden');
                 btnExtract.textContent = 'Return to HQ';
                 btnExtract.style.background = '#334155';
@@ -1148,16 +1179,20 @@ class CargoGame {
 
                 if (centerOverlay && isLandedAnywhere) {
                     centerOverlay.style.display = 'flex';
+                    if (svcContainer) svcContainer.style.display = 'none';
                     centerOverlay.style.borderColor = '#38bdf8';
-                    if(centerTitle) {
+                    if (centerTitle) {
                         centerTitle.textContent = 'All Cargo Delivered!';
                         centerTitle.style.color = '#38bdf8';
                     }
-                    if(centerDesc) centerDesc.textContent = 'Return to HQ to extract and finish the mission (or continue flying, but watch your fuel!)';
-                    if(centerBtn) centerBtn.style.display = 'none';
+                    if (centerDesc) centerDesc.textContent = 'Return to HQ to extract and finish the mission.';
+                    if (centerBtn) centerBtn.style.display = 'none';
                 } else if (centerOverlay) {
                     centerOverlay.style.display = 'none';
                 }
+            } else {
+                btnExtract.classList.add('hidden');
+                if (centerOverlay) centerOverlay.style.display = 'none';
             }
         }
     }
@@ -1205,6 +1240,38 @@ class CargoGame {
 
         const lander = this.physics.lander;
         if (!lander) return;
+        
+        // HQ Landing Fireworks Celebration
+        const level = levels[this.currentLevelIndex];
+        const allDelivered = this.deliveredCount >= (level ? (level.targetCargo || 2) : 2);
+        const atHQ = lander && lander.landed && lander.currentPad === 'start';
+        if (atHQ && allDelivered && !this._fireworksTriggered && this.gameState === 'playing') {
+            this._fireworksTriggered = true;
+            if (this.physics && this.physics.particles) {
+                for (let burst = 0; burst < 3; burst++) {
+                    setTimeout(() => {
+                        if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
+                        const bx = lander.x + (Math.random() - 0.5) * 300;
+                        const by = lander.y - 100 - Math.random() * 200;
+                        for (let i = 0; i < 60; i++) {
+                            this.physics.particles.push({
+                                x: bx,
+                                y: by,
+                                vx: (Math.random() - 0.5) * 12,
+                                vy: (Math.random() - 0.5) * 12,
+                                life: 1.0 + Math.random() * 1.5,
+                                decay: 0.01 + Math.random() * 0.02,
+                                color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
+                                size: 2 + Math.random() * 4
+                            });
+                        }
+                        if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+                            CargoAudio.playCollision(2); // quiet pop
+                        }
+                    }, burst * 500);
+                }
+            }
+        }
 
         const prevIntegrity = this._lastIntegrity ?? lander.integrity;
         this._lastIntegrity = lander.integrity;
@@ -1220,8 +1287,6 @@ class CargoGame {
             this.screenShake.intensity *= Math.pow(0.75, dt);
             if (this.screenShake.intensity < 0.5) this.screenShake.intensity = 0;
         }
-
-        const level = levels[this.currentLevelIndex];
 
         const keys = this.keys;
 
@@ -1764,6 +1829,26 @@ class CargoGame {
         this.physics.triggerExplosion();
     }
 
+    refuelLander() {
+        const lander = this.physics.lander;
+        if (!lander || this.globalCash < 100 || lander.fuel >= lander.maxFuel) return;
+        this.globalCash -= 100;
+        lander.fuel = lander.maxFuel;
+        this.saveCareer();
+        if (window.CargoAudio) window.CargoAudio.playClick();
+        this.addMessage("Vehicle refueled.", "#10b981");
+    }
+
+    repairLander() {
+        const lander = this.physics.lander;
+        if (!lander || this.globalCash < 200 || lander.integrity >= lander.maxIntegrity) return;
+        this.globalCash -= 200;
+        lander.integrity = lander.maxIntegrity;
+        this.saveCareer();
+        if (window.CargoAudio) window.CargoAudio.playClick();
+        this.addMessage("Integrity restored.", "#10b981");
+    }
+
     completeMission() {
         // Must be landed at HQ to extract
         const lander = this.physics.lander;
@@ -1774,32 +1859,9 @@ class CargoGame {
 
         this.gameState = 'level_complete';
         if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
-
-        // Fireworks celebration
-        const l = this.physics.lander;
-        if (this.physics && this.physics.particles && l) {
-            for (let burst = 0; burst < 3; burst++) {
-                setTimeout(() => {
-                    const bx = l.x + (Math.random() - 0.5) * 300;
-                    const by = l.y - 100 - Math.random() * 200;
-                    for (let i = 0; i < 60; i++) {
-                        this.physics.particles.push({
-                            x: bx,
-                            y: by,
-                            vx: (Math.random() - 0.5) * 12,
-                            vy: (Math.random() - 0.5) * 12,
-                            life: 1.0 + Math.random() * 1.5,
-                            decay: 0.01 + Math.random() * 0.02,
-                            color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
-                            size: 2 + Math.random() * 4
-                        });
-                    }
-                    if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
-                        CargoAudio.playCollision(2); // quiet pop
-                    }
-                }, burst * 500);
-            }
-        }
+        
+        const centerOverlay = document.getElementById('center-extract-overlay');
+        if (centerOverlay) centerOverlay.style.display = 'none';
 
         document.getElementById('hud-overlay').style.display = 'none';
 

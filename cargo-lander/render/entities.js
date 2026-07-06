@@ -229,6 +229,57 @@ drawSourcingDepot() {
 
         // Draw Start Depot (HQ)
         if (start) {
+            // Draw Hangar Background (Behind the pad)
+            const hW = 120;
+            const hH = 90;
+            const hX = start.x + start.width/2 - hW/2;
+            const hY = start.y - hH;
+            
+            ctx.save();
+            // Hangar back wall
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.moveTo(hX, start.y);
+            ctx.lineTo(hX, hY + 30);
+            ctx.lineTo(hX + hW/2, hY);
+            ctx.lineTo(hX + hW, hY + 30);
+            ctx.lineTo(hX + hW, start.y);
+            ctx.fill();
+            
+            // Hangar roof outline
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(hX - 5, hY + 32);
+            ctx.lineTo(hX + hW/2, hY - 2);
+            ctx.lineTo(hX + hW + 5, hY + 32);
+            ctx.stroke();
+
+            // Inner bay details
+            ctx.fillStyle = '#0b0f19';
+            ctx.fillRect(hX + 20, hY + 35, hW - 40, hH - 35);
+            
+            // Bay warning lights
+            ctx.fillStyle = '#f59e0b';
+            const blink = Math.sin(Date.now() * 0.005) > 0;
+            if (blink) {
+                ctx.fillStyle = '#ef4444';
+            }
+            ctx.beginPath(); ctx.arc(hX + 30, hY + 40, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(hX + hW - 30, hY + 40, 2, 0, Math.PI*2); ctx.fill();
+            
+            // Antenna on roof
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(hX + 25, hY + 15);
+            ctx.lineTo(hX + 25, hY - 15);
+            ctx.stroke();
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath(); ctx.arc(hX + 25, hY - 15, 2, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            // Landing Pad
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(start.x, start.y, start.width, start.height);
 

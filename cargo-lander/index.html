@@ -1295,6 +1295,17 @@
                 <button class="mobile-btn" id="btn-thrust" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.6); color: #fff; backdrop-filter: blur(4px);">🔥</button>
             </div>
         </div>
+
+        <!-- CENTER EXTRACT PROMPT -->
+        <div id="center-extract-overlay" style="display: none; position: absolute; top: 100px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px 32px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
+            <h3 id="center-extract-title" style="margin: 0 0 8px 0; color: #38bdf8; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">HQ Services</h3>
+            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.95rem; max-width: 350px;">Landed at HQ.</p>
+            <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 16px; pointer-events: auto;">
+                <button id="btn-hq-refuel" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.refuelLander()">⛽ Refuel ($100)</button>
+                <button id="btn-hq-repair" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.repairLander()">🔧 Repair ($200)</button>
+            </div>
+            <button id="center-extract-btn" class="btn-primary" style="display: none; margin-top: 16px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.2rem; font-weight: bold; padding: 14px 28px; box-shadow: 0 0 20px rgba(16,185,129,0.7);" onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
+        </div>
     </main>
 
     <!-- SCREEN OVERLAY: MENU SCREEN -->
@@ -1424,17 +1435,6 @@
                 </div>
             </div>
         </div>
-        <!-- CENTER EXTRACT PROMPT -->
-        <div id="center-extract-overlay" style="display: none; position: absolute; top: 100px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px 32px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
-            <h3 id="center-extract-title" style="margin: 0 0 8px 0; color: #38bdf8; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">HQ Services</h3>
-            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.95rem; max-width: 350px;">Landed at HQ.</p>
-            <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 16px; pointer-events: auto;">
-                <button id="btn-hq-refuel" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.refuelLander()">⛽ Refuel ($100)</button>
-                <button id="btn-hq-repair" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.repairLander()">🔧 Repair ($200)</button>
-            </div>
-            <button id="center-extract-btn" class="btn-primary" style="display: none; margin-top: 16px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.2rem; font-weight: bold; padding: 14px 28px; box-shadow: 0 0 20px rgba(16,185,129,0.7);" onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
-        </div>
-
     </div>
 
     <!-- POST EXTRACTION SCREEN -->
