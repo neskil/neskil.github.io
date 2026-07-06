@@ -1282,7 +1282,19 @@
 
         <div id="hint-ticker"><span id="level-hint">Tip: Land slowly</span></div>
 
-        <!-- Redundant Touch Controls removed -->
+        <!-- Mobile Touch Controls -->
+        <div id="mobile-controls" style="display: none; position: absolute; bottom: 30px; left: 0; right: 0; padding: 0 20px; justify-content: space-between; pointer-events: none; z-index: 9999;">
+            <!-- Movement -->
+            <div style="display: flex; gap: 15px; pointer-events: auto;">
+                <button class="mobile-btn" id="btn-left" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">◀</button>
+                <button class="mobile-btn" id="btn-right" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">▶</button>
+            </div>
+            <!-- Actions -->
+            <div style="display: flex; gap: 15px; pointer-events: auto;">
+                <button class="mobile-btn" id="btn-action" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(16, 185, 129, 0.2); border: 2px solid rgba(16, 185, 129, 0.5); color: #fff; backdrop-filter: blur(4px);">🎯</button>
+                <button class="mobile-btn" id="btn-thrust" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.6); color: #fff; backdrop-filter: blur(4px);">🔥</button>
+            </div>
+        </div>
     </main>
 
     <!-- SCREEN OVERLAY: MENU SCREEN -->
@@ -1301,65 +1313,7 @@
                         style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.12em;">
                         📡 Select Mission</h2>
                     <div class="level-grid" id="mission-grid">
-                        <button class="btn-level" id="mission-btn-0" onclick="game.showVehicleSelection(0)">
-                            <span class="num">Mission 1</span>
-                            Normal Distribution
-                            <span id="hs-badge-0"
-                                style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-1" onclick="game.showVehicleSelection(1)">
-                            <span class="num">Mission 2</span>
-                            Cross-Dock Sorting
-                            <span id="hs-badge-1"
-                                style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-2" onclick="game.showVehicleSelection(2)">
-                            <span class="num">Mission 3</span>
-                            Gale-Force Winds
-                            <span id="hs-badge-2"
-                                style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-3" onclick="game.showVehicleSelection(3)">
-                            <span class="num">Mission 4</span>
-                            Gravity Anomaly
-                            <span id="hs-badge-3"
-                                style="font-size:0.65rem; color:#10b981; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-4" onclick="game.showVehicleSelection(4)"
-                            style="border-color: var(--neon-blue);">
-                            <span class="num" style="color: var(--neon-blue);">🔵 Mission 5 · Elite</span>
-                            The Needle's Eye
-                            <span id="hs-badge-4"
-                                style="font-size:0.65rem; color:#38bdf8; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-5" onclick="game.showVehicleSelection(5)"
-                            style="border-color: #f59e0b;">
-                            <span class="num" style="color: #f59e0b;">🏜️ Mission 6 · Boss</span>
-                            The Sand Worm's Lair
-                            <span id="hs-badge-5"
-                                style="font-size:0.65rem; color:#f59e0b; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-6" onclick="game.showVehicleSelection(6)"
-                            style="border-color: #a855f7;">
-                            <span class="num" style="color: #a855f7;">🌌 Mission 7 · Endurance</span>
-                            The Deep Haul
-                            <span id="hs-badge-6"
-                                style="font-size:0.65rem; color:#a855f7; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-7" onclick="game.showVehicleSelection(7)"
-                            style="border-color: #ec4899;">
-                            <span class="num" style="color: #ec4899;">🛰️ Mission 8 · Finale</span>
-                            Orbital Gauntlet
-                            <span id="hs-badge-7"
-                                style="font-size:0.65rem; color:#ec4899; font-weight:600; margin-top:2px;"></span>
-                        </button>
-                        <button class="btn-level" id="mission-btn-8" onclick="game.showVehicleSelection(8)"
-                            style="border-color: #ef4444;">
-                            <span class="num" style="color: #ef4444;">🔥 Mission 9 · Chaos</span>
-                            The Cauldron
-                            <span id="hs-badge-8"
-                                style="font-size:0.65rem; color:#ef4444; font-weight:600; margin-top:2px;"></span>
-                        </button>
+                        <!-- Dynamic missions will be injected here by game.js -->
                         <button class="btn-level" onclick="game.openProceduralConfig()" style="border-color: #4ade80;">
                             <span class="num" style="color: #4ade80;">♾️ Mission ♾️ · Endless</span>
                             Procedural Mission
@@ -1689,24 +1643,7 @@
         <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:0 0 6px;">LEVEL</div>
         <div class="dev-row" style="justify-content:flex-start;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
 
-            <button onclick="game.startLevel(0)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L1</button>
-            <button onclick="game.startLevel(1)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L2</button>
-            <button onclick="game.startLevel(2)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L3</button>
-            <button onclick="game.startLevel(3)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L4</button>
-            <button onclick="game.startLevel(4)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L5</button>
-            <button onclick="game.startLevel(5)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L6</button>
-            <button onclick="game.startLevel(6)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L7</button>
-            <button onclick="game.startLevel(7)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L8</button>
-            <button onclick="game.startLevel(8)"
-                style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px;">L9</button>
+            <!-- Dynamic dev missions will be injected here by game.js -->
         </div>
 
         <div class="dev-row" style="justify-content:flex-start;gap:8px;margin-bottom:10px;">
