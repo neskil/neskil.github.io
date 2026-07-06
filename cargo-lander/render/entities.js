@@ -384,7 +384,8 @@ drawSourcingDepot() {
             // Load-sequence progress: 0 at start of the current countdown wait,
             // 1 once it finishes and the crane completes a delivery cycle.
             const _seqActive = _col.loadSeq && _col.loadSeq.phase === 'countdown';
-            const _st = _seqActive ? 1 - _col.loadSeq.countdown / _col.loadSeq.countdownMax : 0;
+            // Animation always takes exactly 80 ticks, clamp it if countdown is higher
+            const _st = _seqActive ? Math.max(0, 1 - _col.loadSeq.countdown / 80) : 0;
             const _roofOpen = _col.loadSeq ? _col.loadSeq.roofOpen : 0;
             const _hatchGap = hatchHalfW * 2 * _roofOpen;
 
@@ -500,7 +501,14 @@ drawSourcingDepot() {
             if (_showBox) {
                 const bType = _col.loadSeq?.targetType || 'normal';
                 const emoji = _col.loadSeq?.targetEmoji || '📦';
+                ctx.save();
+                if (_st < 0.6) {
+                    ctx.beginPath();
+                    ctx.rect(_boxX - 20, 0, 40, wbY + 4);
+                    ctx.clip();
+                }
                 this.drawSingleBox(_boxX, _boxY, bType, emoji);
+                ctx.restore();
             }
 
             // ── Landing pad surface ───────────────────────────────────────
@@ -540,7 +548,28 @@ drawSourcingDepot() {
                 ctx.fillStyle = `rgba(56,189,248,${_pp})`;
                 ctx.font = '600 11px Outfit, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(`LOADING ${_col.loadSeq.spawned} / 3`, cpCx, wbY - 12);
+                ctx.fillText(`LOADING ${_col.loadSeq.spawned} / 3`, cpCx, wbY - 45);
+
+                // Draw loading progress bar on the warehouse facade
+                const waitMax = Math.max(1, _col.loadSeq.countdownMax - 80);
+                const waitCurrent = Math.max(0, _col.loadSeq.countdown - 80);
+                const waitProgress = 1 - (waitCurrent / waitMax);
+                
+                const barW = wbW * 0.6;
+                const barH = 6;
+                const barX = wbX + (wbW - barW) / 2;
+                const barY = wbY + 25;
+                
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(barX, barY, barW, barH);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barW, barH);
+                
+                if (waitProgress > 0) {
+                    ctx.fillStyle = waitProgress >= 1 ? '#10b981' : '#f59e0b';
+                    ctx.fillRect(barX + 1, barY + 1, (barW - 2) * waitProgress, barH - 2);
+                }
             }
         }
     }

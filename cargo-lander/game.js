@@ -339,6 +339,10 @@ class CargoGame {
         this.gameState = 'menu';
         document.getElementById('menu-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
+        
+        const centerExtract = document.getElementById('center-extract-overlay');
+        if (centerExtract) centerExtract.style.display = 'none';
+
         document.getElementById('nav-header').style.display = 'flex';
 
         const completeScreen = document.getElementById('complete-screen');
@@ -982,6 +986,9 @@ class CargoGame {
     failMission(reason) {
         this.gameState = 'game_over';
         document.getElementById('hud-overlay').style.display = 'none';
+        
+        const centerExtract = document.getElementById('center-extract-overlay');
+        if (centerExtract) centerExtract.style.display = 'none';
         const failScreen = document.getElementById('game-over-screen');
         if (failScreen) {
             failScreen.classList.remove('hidden');
@@ -1408,8 +1415,8 @@ class CargoGame {
             if (_seq.phase === 'countdown') {
                 _seq.countdown -= dt;
 
-                // 0.75 progress corresponds to countdown reaching 0.25 of max (i.e. <= 60)
-                if (_seq.countdown <= _seq.countdownMax * 0.25 && !_seq.boxDropped) {
+                // Animation takes exactly 80 ticks. 0.75 progress corresponds to countdown reaching 20 (0.25 of 80)
+                if (_seq.countdown <= 20 && !_seq.boxDropped) {
                     this.physics.spawnCargo(_seq.targetType, _seq.lx, _seq.targetEmoji);
                     if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
                     _seq.boxDropped = true;
@@ -1422,7 +1429,7 @@ class CargoGame {
                         const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                         _seq.targetType = _types[Math.floor(Math.random() * _types.length)];
                         _seq.targetEmoji = this.physics.getRandomCargoEmoji(_seq.targetType);
-                        _seq.countdownMax = 240;
+                        _seq.countdownMax = 160;
                         _seq.countdown = _seq.countdownMax;
                         _seq.boxDropped = false;
                         
@@ -1755,7 +1762,6 @@ class CargoGame {
         this.physics.lander.crashed = true;
         if (window.CargoAudio) window.CargoAudio.playCollision(10);
         this.physics.triggerExplosion();
-        setTimeout(() => this.failMission("Self Destruct Initiated."), 1500);
     }
 
     completeMission() {
