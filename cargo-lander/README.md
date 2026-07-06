@@ -527,7 +527,7 @@ number is off by more than ~20.
 - **Level Editor Workflow:** Make sure the link to the level editor works. Add ability to playtest level within the editor, download as `.js` file, go back to the game from the editor, and upload `.js` file back into the game with instructions. *Status: Planned.*
 - **Procedural Generation Mode:** Procedural generation needs 3 selectable "craziness" (difficulty) levels with varying length, cave presence, and hazard frequency/difficulty. *Status: Planned.*
 - **Biome Weather Effects:** Make maps visually distinct with weather/atmosphere effects: snow storms for ice (L3), rain for grass (L1), oozing effects for goo/crystal (L5), heatwaves for desert/volcanic (L2/L4). *Status: Planned.*
-- **Intro Camera Animation:** The zoom in at level start should be a top-down zoom-in from a zoomed-out state. *Status: Planned.*
+- **Intro Camera Animation:** Scrapped. The camera now starts instantly centered on the lander at the correct zoom level to keep the start simple and snappy. *Status: Completed.*
 - **Level Spaciousness:** The caves and procedurally generated environments feel a bit too cramped, they should be more spacious. *Status: Planned.*
 - **Predefined Buildings:** The background decorative buildings appear too random and look weird on slanting terrain. They should be manually predefined in the level configuration instead of random. *Status: Planned.*
 - **Pad Visuals (Ovals):** Remove the dashed oval rings around HQ, pickup, and dropoff pads, but keep the off-screen radar ping effect. *Status: Planned.*
