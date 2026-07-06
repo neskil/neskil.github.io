@@ -822,22 +822,23 @@ class CargoGame {
             setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Deliver cargo to the glowing Delivery Hubs", "#34d399") }, 15000);
         }
 
-        // Setup Cinematic Camera Intro
+        // Setup initial camera position
         const cw = this.canvas.width;
         const ch = this.canvas.height;
-        // Must match the minZoom formula used in update()'s intro block below —
-        // otherwise the starting zoom set here disagrees with the value the
-        // animation resumes from on the first update() tick, causing a jump-cut
-        // followed by the real zoom-in (reads as two zooms instead of one).
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom);
+        let desiredZoom = 1.3;
+        if (this.physics.lander.vehicleType === 'drone') {
+            desiredZoom -= (this.physics.lander.ropeLength * 0.003);
+        }
+        desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
+        desiredZoom *= (this.zoomModifier || 1.0);
 
-        this.camera.zoom = minZoom;
-        this.camera.targetZoom = minZoom;
-        this.introTimer = 2.0;
-        // Panning down a smidge
+        this.camera.zoom = desiredZoom;
+        this.camera.targetZoom = desiredZoom;
         this.camera.x = this.physics.lander.x;
-        this.camera.y = this.physics.lander.y - 300;
+        this.camera.y = this.physics.lander.y - 120;
+        this.introTimer = 0;
 
         let weatherType = level?.weather;
         if (!weatherType) {
@@ -1336,19 +1337,6 @@ class CargoGame {
             if (this.keys['ArrowDown']) this.camera.y += spd;
             if (this.keys['q']) this.camera.zoom = Math.min(2.5, this.camera.zoom + 0.02 * dt);
             if (this.keys['e']) this.camera.zoom = Math.max(0.15, this.camera.zoom - 0.02 * dt);
-        } else if (this.introTimer > 0) {
-            this.introTimer -= dt / 60;
-            const progress = Math.max(0, Math.min(1, (2.0 - this.introTimer) / 2.0));
-            const s = progress * progress * (3 - 2 * progress);
-            
-            // Just normal camera zoom
-            this.camera.zoom = desiredZoom;
-            
-            // Pan down a smidge
-            const endY = lander.y - 120 + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15);
-            const startY = endY - 300;
-            this.camera.x = lander.x;
-            this.camera.y = startY + s * (endY - startY);
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
