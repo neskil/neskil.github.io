@@ -1000,18 +1000,29 @@ drawLander() {
                     rx1 = grabbedBox ? grabbedBox.x : (lander.grappleX ?? lander.x);
                     ry1 = grabbedBox ? grabbedBox.y : (lander.grappleY ?? lander.y + lander.ropeLength);
                 } else {
-                    rx1 = lander.grappleX ?? lander.x;
-                    ry1 = lander.grappleY ?? lander.y + lander.ropeLength;
+                    const time = Date.now();
+                    const endSwayX = Math.sin(time * 0.002 + lander.x * 0.01) * 20;
+                    const endSwayY = -Math.abs(Math.cos(time * 0.002 + lander.x * 0.01)) * 4; // Slight lift when swaying
+                    rx1 = (lander.grappleX ?? lander.x) + endSwayX;
+                    ry1 = (lander.grappleY ?? lander.y + lander.ropeLength) + endSwayY;
                 }
 
                 // Build chain link positions along a catenary curve
+                const isLoaded = !!lander.grabbedBoxId;
                 const numLinks = Math.max(4, Math.floor(lander.ropeLength / 14));
-                const sag = Math.min(lander.ropeLength * 0.18, 30);
+                const sag = Math.min(lander.ropeLength * (isLoaded ? 0.05 : 0.18), 30);
+                const time = Date.now();
+                const engineVibration = (lander.enginePower || 0) * 1.5;
                 const links = [];
                 for (let i = 0; i <= numLinks; i++) {
                     const t = i / numLinks;
                     const parabola = 4 * sag * t * (1 - t);
-                    const x = rx0 + (rx1 - rx0) * t;
+                    
+                    // Add wind/movement animation
+                    const windSway = Math.sin(time * 0.003 + (ry0 + i * 10) * 0.02) * (isLoaded ? 2 : 12) * t * (1 - t);
+                    const vibe = Math.sin(time * 0.05 + i) * engineVibration * t * (1 - t);
+
+                    const x = rx0 + (rx1 - rx0) * t + windSway + vibe;
                     const y = ry0 + (ry1 - ry0) * t + parabola;
                     links.push({ x, y });
                 }

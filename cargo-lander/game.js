@@ -446,6 +446,16 @@ class CargoGame {
 
     refreshMenuUI() {
         this.refreshVehicleLicenseUI();
+        
+        // Drone tutorial prompt
+        const dronePointer = document.getElementById('drone-tutorial-pointer');
+        if (dronePointer) {
+            if (this.career.missionsComplete >= 2 && !this.career.hasUsedDrone && this.currentVehicle !== 'drone') {
+                dronePointer.style.display = 'block';
+            } else {
+                dronePointer.style.display = 'none';
+            }
+        }
 
         // Pilot name (don't clobber while the user is typing in it)
         const nameInput = document.getElementById('pilot-name-input');
@@ -621,7 +631,14 @@ class CargoGame {
     setSelectedVehicle(vehicleType) {
         this.currentVehicle = vehicleType;
         localStorage.setItem('cargoLanderVehicle', vehicleType);
+        
+        if (vehicleType === 'drone') {
+            this.career.hasUsedDrone = true;
+            this.saveCareer();
+        }
+        
         this.refreshVehicleLicenseUI();
+        this.refreshMenuUI(); // Refresh menu so tutorial pointer can disappear
     }
 
     refreshVehicleLicenseUI() {
@@ -840,9 +857,6 @@ class CargoGame {
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom);
         let desiredZoom = 1.3;
-        if (this.physics.lander.vehicleType === 'drone') {
-            desiredZoom -= (this.physics.lander.ropeLength * 0.003);
-        }
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
         desiredZoom *= (this.zoomModifier || 1.0);
 
@@ -1399,9 +1413,6 @@ class CargoGame {
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom); // Cap how far it can zoom out
         let desiredZoom = 1.3;
-        if (lander.vehicleType === 'drone') {
-            desiredZoom -= (lander.ropeLength * 0.003);
-        }
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
         
         // Apply user zoom modifier
