@@ -400,7 +400,6 @@ drawNextObjectiveArrow() {
         const level = levels[this.currentLevelIndex];
         if (!level || this.gameState !== 'playing') return;
         const allDelivered = this.deliveredCount >= (level.targetCargo || 2);
-        if (allDelivered) return;
 
         const cargoOnDeck = this.physics.boxes.filter(b => b.onDeck);
         const t = Date.now();
@@ -423,16 +422,69 @@ drawNextObjectiveArrow() {
             ctx.restore();
         };
 
-        if (cargoOnDeck.length === 0) {
+        let targetX, targetY;
+        let isHQReturn = false;
+        
+        if (allDelivered) {
+            if (level.startPad) {
+                targetX = level.startPad.x + level.startPad.w / 2;
+                targetY = level.startPad.y;
+                drawArrow(targetX, targetY - 80, 'RETURN TO HQ');
+                isHQReturn = true;
+            }
+        } else if (cargoOnDeck.length === 0) {
             const collection = this.physics.collectionPoint;
             if (collection) {
-                drawArrow(collection.x + collection.width / 2, collection.y - 80, 'PICK UP');
+                targetX = collection.x + collection.width / 2;
+                targetY = collection.y;
+                drawArrow(targetX, targetY - 140, 'PICK UP');
             }
         } else {
             const box = cargoOnDeck[0];
             const hub = this.physics.deliveryHubs.find(h => h.type === box.type);
             if (hub) {
-                drawArrow(hub.x + hub.width / 2, hub.y - 80, 'DELIVER HERE');
+                targetX = hub.x + hub.width / 2;
+                targetY = hub.y;
+                drawArrow(targetX, targetY - 80, 'DELIVER HERE');
+            }
+        }
+
+        // Draw guiding arrow around lander
+        if (targetX !== undefined && targetY !== undefined && this.physics.lander && !this.physics.lander.crashed) {
+            const lx = this.physics.lander.x;
+            const ly = this.physics.lander.y;
+            
+            const dx = targetX - lx;
+            const dy = targetY - ly;
+            const dist = Math.hypot(dx, dy);
+            
+            const radius = (this.canvas.height * 0.20) / this.camera.zoom;
+            const fadeStartDist = (this.canvas.width / 3.5) / this.camera.zoom;
+            let alpha = Math.min(1.0, (dist - fadeStartDist) / 300);
+            
+            if (alpha > 0.05) {
+                const angle = Math.atan2(dy, dx);
+                
+                ctx.save();
+                ctx.translate(lx, ly);
+                
+                // White nav color normally, green if returning to HQ
+                const rColor = isHQReturn ? '16, 185, 129' : '255, 255, 255';
+                
+                // Arrow
+                ctx.rotate(angle);
+                ctx.translate(radius, 0);
+                ctx.beginPath();
+                ctx.moveTo(14, 0);
+                ctx.lineTo(-10, 10);
+                ctx.lineTo(-4, 0);
+                ctx.lineTo(-10, -10);
+                ctx.closePath();
+                
+                ctx.fillStyle = `rgba(${rColor}, ${alpha * 0.8})`;
+                ctx.fill();
+                
+                ctx.restore();
             }
         }
     }
