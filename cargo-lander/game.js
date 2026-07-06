@@ -1171,14 +1171,14 @@ class CargoGame {
                     const btnRepair = document.getElementById('btn-hq-repair');
                     if (btnRefuel) {
                         const needsFuel = lander.fuel < lander.maxFuel;
-                        const canAfford = this.globalCash >= 100;
+                        const canAfford = this.missionBudget >= 100;
                         btnRefuel.disabled = !needsFuel || !canAfford;
                         btnRefuel.style.opacity = btnRefuel.disabled ? '0.5' : '1';
                         btnRefuel.style.cursor = btnRefuel.disabled ? 'not-allowed' : 'pointer';
                     }
                     if (btnRepair) {
                         const needsRepair = lander.integrity < lander.maxIntegrity;
-                        const canAfford = this.globalCash >= 200;
+                        const canAfford = this.missionBudget >= 200;
                         btnRepair.disabled = !needsRepair || !canAfford;
                         btnRepair.style.opacity = btnRepair.disabled ? '0.5' : '1';
                         btnRepair.style.cursor = btnRepair.disabled ? 'not-allowed' : 'pointer';
@@ -1551,8 +1551,13 @@ class CargoGame {
             this.career.crashes++;
             this.saveCareer();
 
-            this.missionBudget -= 400;
-            this.addMessage("Lander Destroyed: -$400", "#ef4444");
+            if (lander.busted) {
+                this.missionBudget -= 1000;
+                this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");
+            } else {
+                this.missionBudget -= 400;
+                this.addMessage("Lander Destroyed: -$400", "#ef4444");
+            }
             this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
 
             if (this.missionBudget < 0) {
@@ -1667,12 +1672,12 @@ class CargoGame {
                 this.removeCargoBox(box, i);
 
                 // Penalize Mission Budget
-                this.missionBudget -= 100;
+                this.missionBudget -= 200;
                 this.cargoLostCount++;
                 if (this.questState['no_cargo_lost'] === undefined) {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
-                this.addMessage("Cargo Lost! -$100 Budget", "#ef4444");
+                this.addMessage("Cargo Lost! -$200 Budget", "#ef4444");
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -1700,12 +1705,12 @@ class CargoGame {
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playCrash();
                 this.removeCargoBox(box, i);
 
-                this.missionBudget -= 100;
+                this.missionBudget -= 200;
                 this.cargoLostCount++;
                 if (this.questState['no_cargo_lost'] === undefined) {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
-                this.addMessage("Cargo went stale and exploded! -$100 Budget", "#f97316");
+                this.addMessage("Cargo went stale and exploded! -$200 Budget", "#f97316");
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -1738,9 +1743,11 @@ class CargoGame {
         this.deliveredCount++;
         this.career.totalDeliveries++;
         this.saveCareer();
-        const deliveryReward = 120;
-        this.globalCash += deliveryReward;
-        localStorage.setItem('cargoLanderCash', this.globalCash);
+        
+        const deliveryReward = 300;
+        this.missionBudget += deliveryReward; // Add directly to mission ledger
+        this.addMessage(`Delivery Complete! +$${deliveryReward}`, "#10b981");
+
         if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
         
         return deliveryReward;
@@ -1842,22 +1849,20 @@ class CargoGame {
 
     refuelLander() {
         const lander = this.physics.lander;
-        if (!lander || this.globalCash < 100 || lander.fuel >= lander.maxFuel) return;
-        this.globalCash -= 100;
+        if (!lander || this.missionBudget < 100 || lander.fuel >= lander.maxFuel) return;
+        this.missionBudget -= 100;
         lander.fuel = lander.maxFuel;
-        this.saveCareer();
         if (window.CargoAudio) window.CargoAudio.playClick();
-        this.addMessage("Vehicle refueled.", "#10b981");
+        this.addMessage("Vehicle refueled. -$100 Budget", "#10b981");
     }
 
     repairLander() {
         const lander = this.physics.lander;
-        if (!lander || this.globalCash < 200 || lander.integrity >= lander.maxIntegrity) return;
-        this.globalCash -= 200;
+        if (!lander || this.missionBudget < 200 || lander.integrity >= lander.maxIntegrity) return;
+        this.missionBudget -= 200;
         lander.integrity = lander.maxIntegrity;
-        this.saveCareer();
         if (window.CargoAudio) window.CargoAudio.playClick();
-        this.addMessage("Integrity restored.", "#10b981");
+        this.addMessage("Integrity restored. -$200 Budget", "#10b981");
     }
 
     completeMission() {

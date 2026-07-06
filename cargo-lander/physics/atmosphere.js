@@ -52,16 +52,19 @@ const CargoPhysicsAtmosphereMixin = {
             ];
             const col = palette[Math.floor(Math.random() * palette.length)];
             const willFlyOff = Math.random() < 0.3;
-            const flyOffDelay = willFlyOff ? 300 + Math.random() * 600 : Infinity;
+            // flyOffDelay is in frames (60fps). Needs to be large enough to let them cross the screen.
+            const flyOffDelay = willFlyOff ? 1500 + Math.random() * 2000 : Infinity;
             
-            // Spawn just off screen relative to lander
-            const spawnXOffset = 800 + truckW; 
+            // Spawn safely off screen relative to lander, even on ultrawide monitors
+            const spawnXOffset = 2000 + truckW; 
             
             this.ambientTraffic.push({
                 x: this.lander ? this.lander.x + (fromRight ? spawnXOffset : -spawnXOffset) : (fromRight ? this.levelWidth + truckW : -truckW),
                 y: skyY,
+                baseY: skyY,
                 vy: 0,
-                vx: fromRight ? -speed : speed,
+                vx: (fromRight ? -speed : speed) * 0.2, // Spawns slower and accelerates
+                baseVx: fromRight ? -speed : speed,
                 w: truckW,
                 h: truckH,
                 model,
@@ -95,6 +98,73 @@ const CargoPhysicsAtmosphereMixin = {
                 t.angle += (t.tiltTarget - t.angle) * 0.04 * dt;
                 t.vx *= 1 + 0.006 * dt;
                 t.vy -= 0.08 * dt; // drift upward into space
+            } else {
+                // 1. Terrain & Obstacle Avoidance (Lookahead pathfinding)
+                let obstacleHeight = 1000; // default low ground
+                const lookAheadRange = 500;
+                const minX = Math.min(t.x, t.x + (t.vx > 0 ? lookAheadRange : -lookAheadRange));
+                const maxX = Math.max(t.x, t.x + (t.vx > 0 ? lookAheadRange : -lookAheadRange));
+                
+                // Scan terrain segments ahead
+                if (this.segments) {
+                    this.segments.forEach(s => {
+                        const sMinX = Math.min(s.x1, s.x2);
+                        const sMaxX = Math.max(s.x1, s.x2);
+                        if (sMaxX >= minX && sMinX <= maxX) {
+                            obstacleHeight = Math.min(obstacleHeight, s.y1, s.y2);
+                        }
+                    });
+                }
+                
+                // Scan static physics bodies (buildings, pads)
+                if (this.engine && this.engine.world) {
+                    this.engine.world.bodies.forEach(b => {
+                        if (b.isStatic && b.bounds) {
+                            if (b.bounds.max.x >= minX && b.bounds.min.x <= maxX) {
+                                obstacleHeight = Math.min(obstacleHeight, b.bounds.min.y);
+                            }
+                        }
+                    });
+                }
+                
+                // Keep a safe distance above the highest obstacle ahead
+                const safeAlt = obstacleHeight - 140; 
+                const targetY = Math.min(t.baseY, safeAlt); // Target either cruise alt or obstacle clearance
+                
+                // Smooth proportional control for altitude (eliminates bouncing/oscillation)
+                const diffY = targetY - t.y;
+                const desiredVy = Math.max(-3, Math.min(3, diffY * 0.05)); // Cap climb/descent speed
+                
+                t.vy += (desiredVy - t.vy) * 0.04 * dt;
+
+                // 2. Player Avoidance (Slow down if lander is in front)
+                let playerInWay = false;
+                if (this.lander && !this.lander.crashed) {
+                    const lx = this.lander.x;
+                    const ly = this.lander.y;
+                    const distX = lx - t.x;
+                    // Significantly reduced distance (150px instead of 400px) so they are a risk
+                    const inFront = (t.baseVx > 0 && distX > 0 && distX < 150) || (t.baseVx < 0 && distX < 0 && distX > -150);
+                    const sameAlt = Math.abs(ly - t.y) < 60;
+                    if (inFront && sameAlt) {
+                        playerInWay = true;
+                    }
+                }
+
+                if (playerInWay) {
+                    // Brake slowly
+                    t.vx *= Math.pow(0.9, dt);
+                    if (Math.random() < 0.01 && t.bubbleTimer <= 0) {
+                        t.bubbleText = "Honk!";
+                        t.bubbleTimer = 60;
+                    }
+                } else {
+                    // Accelerate back to cruise speed (predictable horizontal motion)
+                    t.vx += (t.baseVx - t.vx) * 0.02 * dt;
+                }
+                
+                // Subtle pitch adjustment based on vertical movement
+                t.angle = (t.vy * 0.03) * (t.vx > 0 ? 1 : -1);
             }
 
             t.x += t.vx * dt;
@@ -103,12 +173,12 @@ const CargoPhysicsAtmosphereMixin = {
 
             // Despawn once far off-screen relative to lander
             const landerX = this.lander ? this.lander.x : this.levelWidth / 2;
-            if (t.x < landerX - 1600 || t.x > landerX + 1600 || t.y < -600) {
+            if (t.x < landerX - 2500 || t.x > landerX + 2500 || t.y < -600) {
                 this.ambientTraffic.splice(i, 1);
                 continue;
             }
 
-            // Mild collision push
+            // Mild collision push (keep but remove the chaotic evasive maneuver)
             if (this.lander && !this.lander.crashed) {
                 const l = this.lander;
                 const tx = t.x + t.w / 2;
@@ -132,22 +202,76 @@ const CargoPhysicsAtmosphereMixin = {
                     }
                     
                     if (l.integrity <= 0) this.triggerExplosion();
-                } else if (!t.flyingOff && t.evasive) {
-                    // Evasive maneuver if lander gets too close and is moving up or fast.
-                    // Edge-triggered with a cooldown + dt-scaled nudge, so it's a small
-                    // course correction rather than an unbounded per-frame velocity ramp.
-                    t.evadeCooldown = Math.max(0, (t.evadeCooldown || 0) - dt);
-                    const dist = Math.hypot(l.x - tx, l.y - t.y);
-                    if (dist < 180 && (Math.abs(l.vy) > 8 || Math.abs(l.vx) > 10) && t.evadeCooldown <= 0) {
-                        t.vy = Math.max(t.vy - 1.5 * dt, -6);
-                        t.vx += (t.x > l.x ? 1.5 : -1.5) * dt;
-                        t.evadeCooldown = 45; // ~0.75s at 60fps before it can react again
-                        if (Math.random() < 0.2) {
-                            t.bubbleText = "Hey, watch it!";
-                            t.bubbleTimer = 90; // 1.5 seconds at 60fps
-                        }
-                    }
                 }
+            }
+        }
+    },
+
+    updatePolice(dt) {
+        const lander = this.lander;
+
+        if (lander.crashed) {
+            if (this.police) {
+                // Fly away
+                this.police.vy -= 1 * dt; 
+                this.police.y += this.police.vy * dt;
+                if (this.police.y < lander.y - 1500) this.police = null;
+            }
+            return;
+        }
+
+        const tooHigh = lander.y < -400;
+        
+        if (tooHigh) {
+            this.policeTimer = (this.policeTimer || 0) + dt;
+        } else {
+            this.policeTimer = 0;
+            if (this.police) {
+                // Leave if lander is safe
+                this.police.vy -= 0.5 * dt;
+                this.police.y += this.police.vy * dt;
+                if (this.police.y < lander.y - 1500) this.police = null;
+                return;
+            }
+        }
+
+        if (this.policeTimer > 250) {
+            if (!this.police) {
+                this.police = {
+                    x: lander.x,
+                    y: lander.y - 1000,
+                    vx: 0,
+                    vy: 10,
+                    size: 80,
+                    sirenPhase: 0,
+                };
+            }
+        }
+
+        if (this.police) {
+            const p = this.police;
+            const dx = lander.x - p.x;
+            const dy = lander.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            // Chase logic
+            const force = 0.12;
+            p.vx += (dx / dist) * force * dt;
+            p.vy += (dy / dist) * force * dt;
+
+            // Speed limit damping
+            p.vx *= Math.pow(0.97, dt);
+            p.vy *= Math.pow(0.97, dt);
+
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.sirenPhase += dt * 0.2;
+
+            if (dist < p.size / 2 + lander.width / 2) {
+                lander.crashed = true;
+                lander.busted = true;
+                p.vx = lander.vx;
+                p.vy = lander.vy;
             }
         }
     },

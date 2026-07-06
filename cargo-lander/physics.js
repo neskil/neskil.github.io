@@ -74,6 +74,21 @@ class CargoPhysics {
         if (typeof levelConfig.setupPhysics === 'function') {
             levelConfig.setupPhysics(this);
         }
+
+        // Pre-spawn 1 or 2 ambient traffic vehicles so the sky isn't empty on load
+        if (this.currentLevelConfig && this.currentLevelConfig.name !== "Depot HQ") {
+            const numToSpawn = 1 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < numToSpawn; i++) {
+                this.trafficSpawnTimer = 500; // force a spawn trigger
+                this.updateAmbientTraffic(16); // step simulation once (dt in ms)
+                // Reposition the newly spawned vehicle directly into the viewport
+                const t = this.ambientTraffic[this.ambientTraffic.length - 1];
+                if (t && this.lander) {
+                    t.x = this.lander.x + (Math.random() * 1000 - 500); // +/- 500px around lander
+                }
+            }
+            this.trafficSpawnTimer = 0; // reset for normal gameplay
+        }
     }
 
     // Old procedural terrain functions removed
@@ -308,6 +323,7 @@ class CargoPhysics {
 
         this._detectLanding();
         this.updateMonster(levelConfig, dt);
+        this.updatePolice(dt);
         this.updateAmbientTraffic(dt);
         this.updateParticles();
     }

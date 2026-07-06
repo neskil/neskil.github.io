@@ -230,6 +230,7 @@ draw() {
         ctx.scale(this.camera.zoom, this.camera.zoom);
         ctx.translate(-this.camera.x, -this.camera.y);
         this.drawMonster();
+        this.drawPolice();
         this.drawSandWorm();
         if (!this.shaders) this.drawParticles();
         ctx.restore();

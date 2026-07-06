@@ -523,218 +523,223 @@ _drawPoliceCruiser(ctx, t, tw, th) {
         // Engine thrust (rear)
         ctx.fillStyle = '#64748b';
         ctx.fillRect(-w/2 - 6, h*0.1, 6, h*0.3);
-        
-        const fl = 10 + Math.abs(Math.sin(t.lightPhase * 5)) * 10;
-        const eg = ctx.createLinearGradient(-w/2 - 6, 0, -w/2 - 6 - fl, 0);
-        eg.addColorStop(0, 'rgba(59, 130, 246, 0.9)');
-        eg.addColorStop(1, 'transparent');
-        ctx.fillStyle = eg;
-        ctx.beginPath();
-        ctx.moveTo(-w/2 - 6, h*0.1);
-        ctx.lineTo(-w/2 - 6 - fl, h*0.25);
-        ctx.lineTo(-w/2 - 6, h*0.4);
-        ctx.fill();
     }
 
 ,
 _drawFreighterTruck(ctx, t, tw, th) {
-        // Engine glow trail
+        // Heavy Sci-Fi Freighter
+        const h = th * 1.2;
+        const w = tw * 1.1;
+
+        // Engine glow trail (reduced brightness)
         if (t.engineGlow) {
-            const eg = ctx.createRadialGradient(-tw / 2 - 10, 0, 0, -tw / 2 - 10, 0, 40);
-            eg.addColorStop(0, t.accentColor + '59');
+            const eg = ctx.createRadialGradient(-w / 2 - 15, 0, 0, -w / 2 - 15, 0, 40);
+            eg.addColorStop(0, t.accentColor + '44');
             eg.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = eg;
             ctx.beginPath();
-            ctx.arc(-tw / 2 - 10, 0, 40, 0, Math.PI * 2);
+            ctx.arc(-w / 2 - 15, 0, 40, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Hull
-        const hullGrad = ctx.createLinearGradient(0, -th / 2, 0, th / 2);
-        hullGrad.addColorStop(0, t.bodyColor);
-        hullGrad.addColorStop(0.5, shadeColor(t.bodyColor, 20));
-        hullGrad.addColorStop(1, shadeColor(t.bodyColor, -20));
+        // Main central fuselage
+        const hullGrad = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+        hullGrad.addColorStop(0, shadeColor(t.bodyColor, 10));
+        hullGrad.addColorStop(0.5, t.bodyColor);
+        hullGrad.addColorStop(1, shadeColor(t.bodyColor, -30));
         ctx.fillStyle = hullGrad;
-        ctx.strokeStyle = t.accentColor;
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1.5;
+        
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(-tw / 2, -th / 2, tw, th, 4);
-        else ctx.rect(-tw / 2, -th / 2, tw, th);
+        if (ctx.roundRect) ctx.roundRect(-w * 0.45, -h * 0.25, w * 0.8, h * 0.5, 4);
+        else ctx.rect(-w * 0.45, -h * 0.25, w * 0.8, h * 0.5);
         ctx.fill();
         ctx.stroke();
+        
+        // Variation: Stripes based on width
+        if (Math.floor(tw) % 2 === 0) {
+            ctx.fillStyle = t.accentColor + '55';
+            ctx.fillRect(-w * 0.2, -h * 0.25, w * 0.05, h * 0.5);
+            ctx.fillRect(-w * 0.1, -h * 0.25, w * 0.05, h * 0.5);
+        }
 
-        // Nose cone
-        ctx.fillStyle = shadeColor(t.bodyColor, 15);
-        ctx.strokeStyle = t.accentColor;
-        ctx.lineWidth = 1;
+        // Forward cockpit section (Nose)
+        ctx.fillStyle = shadeColor(t.bodyColor, 20);
         ctx.beginPath();
-        ctx.moveTo(tw / 2, -th / 2);
-        ctx.lineTo(tw / 2 + th * 0.7, 0);
-        ctx.lineTo(tw / 2, th / 2);
+        ctx.moveTo(w * 0.35, -h * 0.2);
+        ctx.lineTo(w * 0.55, -h * 0.1);
+        ctx.lineTo(w * 0.55, h * 0.1);
+        ctx.lineTo(w * 0.35, h * 0.2);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // Engine pods (rear)
-        for (const ey of [-th * 0.3, th * 0.3]) {
-            ctx.fillStyle = shadeColor(t.bodyColor, -15);
-            ctx.strokeStyle = '#475569';
+        // Cockpit window (reduced glow)
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowColor = '#0ea5e9';
+        ctx.shadowBlur = 4;
+        ctx.fillRect(w * 0.4, -h * 0.05, w * 0.12, h * 0.1);
+        ctx.shadowBlur = 0;
+
+        // Side cargo pods (Top and Bottom)
+        const cargoColor = Math.floor(th) % 2 === 0 ? shadeColor(t.bodyColor, -15) : shadeColor(t.accentColor, -40);
+        for (const sign of [-1, 1]) {
+            const py = sign * (h * 0.35);
+            ctx.fillStyle = cargoColor;
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-w * 0.3, py - h * 0.15, w * 0.5, h * 0.3, 3);
+            else ctx.rect(-w * 0.3, py - h * 0.15, w * 0.5, h * 0.3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Cargo pod details (ribs)
+            ctx.strokeStyle = '#0f172a';
             ctx.lineWidth = 1;
-            ctx.fillRect(-tw / 2 - 12, ey - th * 0.18, 12, th * 0.36);
-            ctx.strokeRect(-tw / 2 - 12, ey - th * 0.18, 12, th * 0.36);
-            const fl = 6 + Math.abs(Math.sin(t.lightPhase * 3)) * 8;
-            const eg2 = ctx.createLinearGradient(-tw / 2 - 12, 0, -tw / 2 - 12 - fl, 0);
-            eg2.addColorStop(0, `rgba(56,189,248,0.8)`);
-            eg2.addColorStop(1, 'rgba(56,189,248,0)');
+            for (let i = 1; i <= 4; i++) {
+                const rx = -w * 0.3 + (w * 0.5 / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(rx, py - h * 0.15);
+                ctx.lineTo(rx, py + h * 0.15);
+                ctx.stroke();
+            }
+        }
+
+        // Engine blocks (Rear)
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-w * 0.55, -h * 0.3, w * 0.1, h * 0.2);
+        ctx.fillRect(-w * 0.55, h * 0.1, w * 0.1, h * 0.2);
+
+        // Thruster flames
+        for (const ey of [-h * 0.2, h * 0.2]) {
+            const fl = 10 + Math.abs(Math.sin(t.lightPhase * 6)) * 10;
+            const eg2 = ctx.createLinearGradient(-w * 0.55, 0, -w * 0.55 - fl, 0);
+            eg2.addColorStop(0, t.accentColor);
+            eg2.addColorStop(1, 'rgba(0,0,0,0)');
             ctx.fillStyle = eg2;
             ctx.beginPath();
-            ctx.moveTo(-tw / 2 - 12, ey - th * 0.12);
-            ctx.lineTo(-tw / 2 - 12 - fl, ey);
-            ctx.lineTo(-tw / 2 - 12, ey + th * 0.12);
+            ctx.moveTo(-w * 0.55, ey - h * 0.08);
+            ctx.lineTo(-w * 0.55 - fl, ey);
+            ctx.lineTo(-w * 0.55, ey + h * 0.08);
             ctx.closePath();
             ctx.fill();
         }
 
-        // Window strip
-        ctx.fillStyle = 'rgba(147,197,253,0.3)';
-        ctx.strokeStyle = 'rgba(147,197,253,0.5)';
-        ctx.lineWidth = 0.8;
-        ctx.fillRect(-tw * 0.1, -th * 0.3, tw * 0.45, th * 0.6);
-        ctx.strokeRect(-tw * 0.1, -th * 0.3, tw * 0.45, th * 0.6);
-
-        // Running lights
+        // Running lights (reduced intensity)
         const blinkA = Math.sin(t.lightPhase) > 0;
-        const blinkB = Math.sin(t.lightPhase + Math.PI) > 0;
-        ctx.fillStyle = blinkA ? t.lightColor : 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.arc(tw / 2 + th * 0.5, -th * 0.22, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = blinkB ? '#ef4444' : 'rgba(0,0,0,0.5)';
-        ctx.beginPath(); ctx.arc(-tw / 2 - 8, th * 0.1, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = blinkA ? 'rgba(239,68,68,0.7)' : 'rgba(127,29,29,0.5)';
+        ctx.beginPath(); ctx.arc(w * 0.5, -h * 0.15, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = !blinkA ? 'rgba(16,185,129,0.7)' : 'rgba(6,78,59,0.5)';
+        ctx.beginPath(); ctx.arc(w * 0.5, h * 0.15, 2, 0, Math.PI * 2); ctx.fill();
     }
 
 ,
 _drawPickupTruck(ctx, t, tw, th) {
-        // Space pickup — think F-150 silhouette in space:
-        // front = right (nose + cab), rear = left (flat bed with optional cargo)
-        const cabW = tw * 0.45;
-        const bedW = tw * 0.52;
-        const cabH = th * 1.05;   // cab taller than bed
-        const bedH = th * 0.68;
-        const cabX = tw / 2 - cabW; // cab starts here (right side)
-        const bedX = -tw / 2;       // bed starts at left
+        // Sleek Sci-Fi Cargo Courier
+        const w = tw * 1.1;
+        const h = th * 0.9;
 
-        // Anti-grav pod glow (instead of wheels — two pods underneath)
-        for (const px of [-tw * 0.28, tw * 0.28]) {
-            const podGrad = ctx.createRadialGradient(px, th / 2 + 4, 0, px, th / 2 + 4, 10);
-            podGrad.addColorStop(0, t.accentColor + 'aa');
-            podGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = podGrad;
-            ctx.beginPath(); ctx.ellipse(px, th / 2 + 4, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
-            // Pod ring
-            ctx.strokeStyle = t.accentColor;
-            ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.ellipse(px, th / 2 + 2, 8, 3, 0, 0, Math.PI * 2); ctx.stroke();
-        }
-
-        // Flat bed (rear/left)
-        const bedGrad = ctx.createLinearGradient(0, -bedH / 2, 0, bedH / 2);
-        bedGrad.addColorStop(0, shadeColor(t.bodyColor, 10));
-        bedGrad.addColorStop(1, shadeColor(t.bodyColor, -25));
-        ctx.fillStyle = bedGrad;
-        ctx.strokeStyle = t.accentColor;
-        ctx.lineWidth = 1;
-        if (ctx.roundRect) ctx.roundRect(bedX, -bedH / 2, bedW, bedH, [2, 0, 0, 2]);
-        else ctx.rect(bedX, -bedH / 2, bedW, bedH);
-        ctx.fill(); ctx.stroke();
-
-        // Bed floor ribs
-        ctx.strokeStyle = 'rgba(100,116,139,0.5)';
-        ctx.lineWidth = 0.8;
-        for (let ri = 1; ri <= 3; ri++) {
-            const rx = bedX + (bedW / 4) * ri;
-            ctx.beginPath();
-            ctx.moveTo(rx, -bedH / 2 + 2); ctx.lineTo(rx, bedH / 2 - 2);
-            ctx.stroke();
-        }
-
-        // Bed walls (raised sides)
-        ctx.fillStyle = shadeColor(t.bodyColor, 15);
-        ctx.fillRect(bedX, -bedH / 2 - 3, bedW, 3);
-        ctx.fillRect(bedX, bedH / 2, bedW, 3);
-
-        // Optional cargo box on bed
-        if (t.hasCargoBox) {
-            const bw = bedW * 0.55, bh = bedH * 0.85;
-            const bx = bedX + bedW * 0.1;
-            const by = -bedH / 2 - bh;
-            ctx.fillStyle = shadeColor(t.bodyColor, -10);
-            ctx.strokeStyle = t.accentColor;
-            ctx.lineWidth = 1;
-            ctx.fillRect(bx, by, bw, bh);
-            ctx.strokeRect(bx, by, bw, bh);
-            // Cargo straps
-            ctx.strokeStyle = 'rgba(251,191,36,0.7)';
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.moveTo(bx + bw * 0.3, by); ctx.lineTo(bx + bw * 0.3, by + bh);
-            ctx.moveTo(bx + bw * 0.65, by); ctx.lineTo(bx + bw * 0.65, by + bh);
-            ctx.stroke();
-        }
-
-        // Cab (front/right) — taller, with visor window
-        const cabGrad = ctx.createLinearGradient(cabX, -cabH / 2, cabX + cabW, cabH / 2);
-        cabGrad.addColorStop(0, shadeColor(t.bodyColor, 25));
-        cabGrad.addColorStop(1, shadeColor(t.bodyColor, 5));
-        ctx.fillStyle = cabGrad;
-        ctx.strokeStyle = t.accentColor;
-        ctx.lineWidth = 1.2;
-        if (ctx.roundRect) ctx.roundRect(cabX, -cabH / 2, cabW, cabH, [2, 4, 4, 2]);
-        else ctx.rect(cabX, -cabH / 2, cabW, cabH);
-        ctx.fill(); ctx.stroke();
-
-        // Windscreen
-        ctx.fillStyle = 'rgba(147,197,253,0.4)';
-        ctx.strokeStyle = 'rgba(147,197,253,0.7)';
-        ctx.lineWidth = 1;
+        // Main angled chassis
+        ctx.fillStyle = t.bodyColor;
+        ctx.strokeStyle = shadeColor(t.bodyColor, -40);
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(cabX + cabW * 0.08, -cabH * 0.42);
-        ctx.lineTo(cabX + cabW * 0.18, -cabH * 0.48);
-        ctx.lineTo(cabX + cabW * 0.82, -cabH * 0.48);
-        ctx.lineTo(cabX + cabW * 0.88, -cabH * 0.42);
-        ctx.lineTo(cabX + cabW * 0.88, cabH * 0.1);
-        ctx.lineTo(cabX + cabW * 0.08, cabH * 0.1);
+        ctx.moveTo(-w * 0.4, -h * 0.2);
+        ctx.lineTo(w * 0.1, -h * 0.3); // sloped hood
+        ctx.lineTo(w * 0.4, 0); // sharp nose
+        ctx.lineTo(w * 0.1, h * 0.4);
+        ctx.lineTo(-w * 0.4, h * 0.3);
         ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        ctx.fill();
+        ctx.stroke();
 
-        // Headlights (front of cab)
-        const blink = Math.sin(t.lightPhase) > 0;
-        ctx.fillStyle = blink ? '#fde68a' : 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.arc(tw / 2, -cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(tw / 2, cabH * 0.28, 3, 0, Math.PI * 2); ctx.fill();
-        // Headlight glow
-        if (blink) {
-            const hlg = ctx.createRadialGradient(tw / 2 + 4, 0, 0, tw / 2 + 4, 0, 18);
-            hlg.addColorStop(0, 'rgba(253,230,138,0.5)');
-            hlg.addColorStop(1, 'rgba(253,230,138,0)');
-            ctx.fillStyle = hlg;
-            ctx.beginPath(); ctx.ellipse(tw / 2 + 4, 0, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
+        // Cargo bed (cutout in rear)
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.35, -h * 0.15);
+        ctx.lineTo(0, -h * 0.15);
+        ctx.lineTo(-w * 0.1, h * 0.15);
+        ctx.lineTo(-w * 0.35, h * 0.15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Optional cargo box in bed
+        if (t.hasCargoBox) {
+            ctx.fillStyle = t.accentColor;
+            ctx.fillRect(-w * 0.28, -h * 0.08, w * 0.2, h * 0.16);
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-w * 0.28, -h * 0.08, w * 0.2, h * 0.16);
+            
+            // Cargo box detail
+            if (Math.floor(tw) % 2 === 0) {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(-w * 0.25, -h * 0.05, w * 0.14, h * 0.1);
+            }
         }
 
-        // Exhaust (rear)
-        const fl = 5 + Math.abs(Math.sin(t.lightPhase * 2)) * 10;
-        const exGrad = ctx.createLinearGradient(-tw / 2, 0, -tw / 2 - fl, 0);
-        exGrad.addColorStop(0, 'rgba(56,189,248,0.85)');
-        exGrad.addColorStop(1, 'rgba(56,189,248,0)');
-        ctx.fillStyle = exGrad;
+        // Swept back cockpit canopy
+        ctx.fillStyle = 'rgba(14, 165, 233, 0.4)'; // Reduced opacity
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
         ctx.beginPath();
-        ctx.moveTo(-tw / 2, -bedH * 0.25);
-        ctx.lineTo(-tw / 2 - fl, 0);
-        ctx.lineTo(-tw / 2, bedH * 0.25);
+        ctx.moveTo(w * 0.1, -h * 0.2);
+        ctx.lineTo(w * 0.25, -h * 0.05);
+        ctx.lineTo(w * 0.25, h * 0.05);
+        ctx.lineTo(w * 0.1, h * 0.1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Variation: canopy strut
+        if (Math.floor(th) % 2 === 0) {
+            ctx.beginPath();
+            ctx.moveTo(w * 0.17, -h * 0.12);
+            ctx.lineTo(w * 0.17, h * 0.08);
+            ctx.stroke();
+        }
+
+        // Rear engine nozzle
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(-w * 0.45, -h * 0.15, w * 0.05, h * 0.3);
+
+        // Engine thrust plume
+        const fl = 8 + Math.abs(Math.sin(t.lightPhase * 8)) * 8; // smaller flame
+        const eg = ctx.createLinearGradient(-w * 0.45, 0, -w * 0.45 - fl, 0);
+        // Thrust color variation based on width
+        if (Math.floor(tw) % 3 === 0) {
+            eg.addColorStop(0, '#60a5fa');
+            eg.addColorStop(0.5, '#3b82f6');
+            eg.addColorStop(1, 'rgba(59,130,246,0)');
+        } else {
+            eg.addColorStop(0, '#fde047');
+            eg.addColorStop(0.5, '#f97316');
+            eg.addColorStop(1, 'rgba(249,115,22,0)');
+        }
+        
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.moveTo(-w * 0.45, -h * 0.1);
+        ctx.lineTo(-w * 0.45 - fl, 0);
+        ctx.lineTo(-w * 0.45, h * 0.1);
         ctx.closePath();
         ctx.fill();
 
-        // Tail light
-        ctx.fillStyle = 'rgba(239,68,68,0.9)';
-        ctx.beginPath(); ctx.arc(-tw / 2 + 2, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+        // Headlight glow (reduced)
+        const blink = Math.sin(t.lightPhase) > 0;
+        if (blink) {
+            const hlg = ctx.createRadialGradient(w * 0.4, 0, 0, w * 0.4, 0, 12);
+            hlg.addColorStop(0, 'rgba(255,255,255,0.3)');
+            hlg.addColorStop(1, 'transparent');
+            ctx.fillStyle = hlg;
+            ctx.beginPath(); ctx.ellipse(w * 0.4, 0, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Tail light (reduced)
+        ctx.fillStyle = 'rgba(239,68,68,0.5)';
+        ctx.beginPath(); ctx.arc(-tw / 2 + 2, 0, 1.5, 0, Math.PI * 2); ctx.fill();
     }
 
 });
