@@ -195,10 +195,21 @@ const CargoPhysicsAtmosphereMixin = {
             }
         }
 
-        // Spawn logic: Trigger if lander sinks below monsterDepth OR stays out of bounds too long
+        // Check out of fuel and idle
+        let vSq = 0;
+        if (lander && lander.matterBody && lander.matterBody.velocity) {
+            vSq = lander.matterBody.velocity.x ** 2 + lander.matterBody.velocity.y ** 2;
+        }
+        if (lander && lander.fuel <= 0 && vSq < 0.1 && !lander.crashed) {
+            this.idleOutOfFuelTimer = (this.idleOutOfFuelTimer || 0) + dt;
+        } else {
+            this.idleOutOfFuelTimer = 0;
+        }
+
+        // Spawn logic: Trigger if lander sinks below monsterDepth OR stays out of bounds too long OR out of fuel
         const oob = levelConfig.outOfBounds;
         const tooDeep = oob && lander.y > oob.monsterDepth;
-        if (tooDeep || this.outOfBoundsTimer > 250) { // ~4 seconds out of bounds
+        if (tooDeep || this.outOfBoundsTimer > 250 || this.idleOutOfFuelTimer > 300) { // ~4s OOB, ~5s idle
             if (!this.monster) {
                 // Spawn monster genuinely outside the current viewport (not just a fixed
                 // world-space offset, which could still land on-screen at low zoom).
