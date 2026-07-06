@@ -56,8 +56,7 @@ class CargoGame {
         this.introTimer = 0;
 
         // Settings
-        const savedMute = localStorage.getItem('cargoLanderMuted');
-        this.isMuted = savedMute ? savedMute === 'true' : false;
+        this.isMuted = false; // Always start unmuted
         this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || 1.0;
         this.uiCollapsed = false;
 
@@ -134,14 +133,15 @@ class CargoGame {
         const vitals = document.getElementById('vitals-panel');
         const leftPanel = document.getElementById('hud-left-panel');
         const radarContainer = document.getElementById('radar-container');
-        const rightPanel = document.getElementById('hud-right-panel');
-        const rightButtons = rightPanel ? rightPanel.querySelectorAll('.hud-group .utility-btn:not(#hide-ui-btn)') : [];
+        const hudToolbar = document.getElementById('hud-toolbar');
+        const optionsBtn = document.getElementById('hud-options-btn');
         
         if (this.uiCollapsed) {
             if (vitals) vitals.style.display = 'none';
             if (leftPanel) leftPanel.style.display = 'none';
             if (radarContainer) radarContainer.style.display = 'none';
-            rightButtons.forEach(btn => btn.style.display = 'none');
+            if (hudToolbar) hudToolbar.style.display = 'none';
+            if (optionsBtn) optionsBtn.style.display = 'none';
             
             const dropdown = document.getElementById('options-dropdown');
             if (dropdown) dropdown.style.display = 'none';
@@ -149,18 +149,21 @@ class CargoGame {
             const eyeBtn = document.getElementById('hide-ui-btn');
             if (eyeBtn) {
                 eyeBtn.style.opacity = '0.5';
-                eyeBtn.title = "Show UI";
+                eyeBtn.textContent = '👁 Show HUD';
+                eyeBtn.title = 'Show UI';
             }
         } else {
             if (vitals) vitals.style.display = 'flex';
             if (leftPanel) leftPanel.style.display = 'flex';
             if (radarContainer) radarContainer.style.display = 'block';
-            rightButtons.forEach(btn => btn.style.display = 'inline-flex');
+            if (hudToolbar) hudToolbar.style.display = 'flex';
+            if (optionsBtn) optionsBtn.style.display = 'inline-flex';
             
             const eyeBtn = document.getElementById('hide-ui-btn');
             if (eyeBtn) {
                 eyeBtn.style.opacity = '1';
-                eyeBtn.title = "Hide UI";
+                eyeBtn.textContent = '👁 Hide HUD';
+                eyeBtn.title = 'Hide UI';
             }
         }
     }
@@ -943,8 +946,19 @@ class CargoGame {
 
     toggleMuteQuick() {
         this.isMuted = CargoAudio.toggleMute();
-        const btn = document.getElementById('mute-toggle-btn');
-        if (btn) btn.textContent = this.isMuted ? '🔇' : '🔊';
+        // Update main menu SVG button
+        const menuBtn = document.getElementById('mute-toggle-btn');
+        if (menuBtn) {
+            const svg = menuBtn.querySelector('svg');
+            if (svg) {
+                svg.innerHTML = this.isMuted
+                    ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>'
+                    : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+            }
+        }
+        // Update in-game emoji button
+        const ingameBtn = document.getElementById('mute-btn-top');
+        if (ingameBtn) ingameBtn.textContent = this.isMuted ? '🔇' : '🔊';
     }
 
     toggleFullscreen() {
@@ -1276,18 +1290,38 @@ class CargoGame {
                     isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)';
 
                 const row = document.createElement('div');
-                row.style.cssText = 'display: flex; gap: 8px; align-items: flex-start; font-size: 12px;';
+                row.style.cssText = 'display: flex; gap: 6px; align-items: flex-start; font-size: 13px;';
                 row.innerHTML = `<span style="color:${iconColor}; flex-shrink:0;">${icon}</span><span style="color:${textColor}; font-weight:${isPrimary ? '600' : '400'};">${q.text}${q.reward ? `<span style="color:#10b981;"> +$${q.reward}</span>` : ''}</span>`;
                 questsEl.appendChild(row);
             }
         }
 
+        // Update cargo delivery icons — faded boxes that light up when delivered
+        const cargoIconsEl = document.getElementById('cargo-icons');
+        if (cargoIconsEl && level.targetCargo) {
+            const target = level.targetCargo;
+            const delivered = this.deliveredCount;
+            // Only rebuild if count changed (avoid DOM thrashing)
+            if (cargoIconsEl.dataset.lastDelivered !== String(delivered) || cargoIconsEl.dataset.lastTarget !== String(target)) {
+                cargoIconsEl.dataset.lastDelivered = String(delivered);
+                cargoIconsEl.dataset.lastTarget = String(target);
+                cargoIconsEl.innerHTML = '';
+                for (let i = 0; i < target; i++) {
+                    const box = document.createElement('span');
+                    const done = i < delivered;
+                    box.textContent = '📦';
+                    box.style.cssText = `font-size: 14px; transition: opacity 0.4s, filter 0.4s; opacity: ${done ? '1' : '0.2'}; filter: ${done ? 'none' : 'grayscale(1)'}; display: inline-block;`;
+                    cargoIconsEl.appendChild(box);
+                }
+            }
+        }
+
         // Update stats
         const cargoEl = this.uiElements?.missionStatCargo || document.getElementById('mission-stat-cargo');
-        if (cargoEl) cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
+        if (cargoEl) cargoEl.textContent = `📦 ${this.deliveredCount}/${level.targetCargo}`;
 
         const budgetEl = this.uiElements?.missionStatBudget || document.getElementById('mission-stat-budget');
-        if (budgetEl) budgetEl.textContent = `Budget: $${Math.floor(this.missionBudget)}`;
+        if (budgetEl) budgetEl.textContent = `💰 $${Math.floor(this.missionBudget)}`;
 
         const timeEl = this.uiElements?.missionStatTime || document.getElementById('mission-stat-time');
         if (timeEl) {
@@ -1298,7 +1332,7 @@ class CargoGame {
             } else {
                 const mins = Math.floor(this.missionTimer / 60);
                 const secs = Math.floor(this.missionTimer % 60);
-                timeEl.textContent = `Time: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                timeEl.textContent = `⏱ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
                 timeEl.style.color = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
             }
         }

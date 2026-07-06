@@ -1245,13 +1245,15 @@
                     </div>
 
                     <!-- Mission Info Panel -->
-                    <div id="mission-panel" class="hud-group" style="display: flex; flex-direction: column; background: rgba(8, 12, 26, 0.88); border: 1.2px solid rgba(56, 189, 248, 0.4); padding: 16px; min-width: 260px; pointer-events: auto;">
-                        <div style="font-weight: 600; font-size: 11px; letter-spacing: 0.12em; color: rgba(56,189,248,0.75);">MISSION</div>
-                        <div id="mission-title" style="font-weight: 700; font-size: 13px; color: rgba(248,250,252,0.95); margin-top: 4px;"></div>
-                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0;"></div>
-                        <div id="mission-quests" style="display: flex; flex-direction: column; gap: 6px;"></div>
-                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0;"></div>
-                        <div id="mission-stats" style="font-weight: 600; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+                    <div id="mission-panel" class="hud-group" style="display: flex; flex-direction: column; background: rgba(8, 12, 26, 0.88); border: 1.2px solid rgba(56, 189, 248, 0.4); padding: 10px 12px; min-width: 240px; pointer-events: auto;">
+                        <div style="font-weight: 600; font-size: 10px; letter-spacing: 0.12em; color: rgba(56,189,248,0.75); text-transform: uppercase;">MISSION</div>
+                        <div id="mission-title" style="font-weight: 700; font-size: 15px; color: rgba(248,250,252,0.95); margin-top: 2px;"></div>
+                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+                        <div id="mission-quests" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0;"></div>
+                        <!-- Cargo delivery icons: symbolic boxes that light up when delivered -->
+                        <div id="cargo-icons" style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;"></div>
+                        <div id="mission-stats" style="font-weight: 600; font-size: 13px; display: flex; flex-direction: column; gap: 2px;">
                             <div style="color: #f8fafc;" id="mission-stat-cargo">Cargo: 0/0</div>
                             <div style="color: #10b981;" id="mission-stat-budget">Budget: $0</div>
                             <div style="color: #f59e0b;" id="mission-stat-time">Time: 00:00</div>
@@ -1283,19 +1285,22 @@
                 <div id="hud-right-panel"
                     style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right;">
                     
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; position: relative;">
-                        <div class="hud-group" style="padding: 6px 8px;">
+                    <!-- Hide-UI button: always visible at top-right even when HUD is collapsed -->
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div id="hud-toolbar" class="hud-group" style="padding: 6px 8px;">
                             <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺 Fullscreen</button>
                             <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
                                 title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
-                            <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
-                                style="height: 32px;">HUD 👁</button>
-                            <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options"
+                            <button class="utility-btn icon-only" id="hud-options-btn" onclick="toggleOptionsDropdown();" title="Options"
                                 style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
                         </div>
+                        <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
+                            style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">👁 Hide HUD</button>
+                    </div>
 
+                    <div style="position: relative;">
                         <div id="options-dropdown" class="hud-group"
-                            style="display: none; flex-direction: column; align-items: flex-start; background: rgba(15, 23, 42, 0.85); width: 175px; position: absolute; top: 100%; right: 0; z-index: 20;">
+                            style="display: none; flex-direction: column; align-items: flex-start; background: rgba(15, 23, 42, 0.92); width: 175px; position: absolute; top: 0; right: 0; z-index: 20; backdrop-filter: blur(16px);">
                             <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
                                 style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
                             <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();"
@@ -1312,6 +1317,7 @@
                             </div>
                         </div>
                     </div>
+
 
                     <!-- Radar Minimap -->
                     <div id="radar-container" class="hud-group" style="padding: 0; background: rgba(10, 16, 32, 0.96); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; overflow: hidden; position: relative;">
