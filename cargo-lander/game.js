@@ -1263,90 +1263,98 @@ class CargoGame {
         const level = levels[this.currentLevelIndex];
         if (!level) return;
 
-        const title = this.uiElements?.missionTitle || document.getElementById('mission-title');
-        if (title) title.textContent = level.missionTitle || level.name || '';
+        const panel = document.getElementById('mission-panel');
+        if (!panel) return;
 
-        // Update quests
-        const questsEl = this.uiElements?.missionQuests || document.getElementById('mission-quests');
-        if (questsEl && level.quests) {
-            questsEl.innerHTML = '';
-            for (const q of level.quests) {
+        // ── Time & budget values ──────────────────────────────────────────
+        let timeStr, timeColor;
+        if (this.overtimeActive) {
+            const ot = Math.ceil(this.overtimeTimer);
+            timeStr = `⚠ ${ot}s`;
+            timeColor = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
+        } else {
+            const mins = Math.floor(this.missionTimer / 60);
+            const secs = Math.floor(this.missionTimer % 60);
+            timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            timeColor = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
+        }
+        const budgetStr = `$${Math.floor(this.missionBudget).toLocaleString()}`;
+
+        // ── Cargo icons (only rebuild on change) ─────────────────────────
+        const target = level.targetCargo || 0;
+        const delivered = this.deliveredCount;
+        let cargoIconsHTML = '';
+        for (let i = 0; i < target; i++) {
+            const done = i < delivered;
+            cargoIconsHTML += `<span style="font-size:16px;transition:opacity .4s,filter .4s;opacity:${done?'1':'0.18'};filter:${done?'none':'grayscale(1)'};display:inline-block;">📦</span>`;
+        }
+
+        // ── Bonus quests (non-primary) ────────────────────────────────────
+        const bonusQuests = (level.quests || []).filter(q => q.type !== 'primary');
+        let bonusHTML = '';
+        if (bonusQuests.length) {
+            bonusHTML = `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.07);">
+                <div style="font-size:9px;letter-spacing:.1em;color:rgba(148,163,184,0.7);text-transform:uppercase;margin-bottom:4px;">Bonus</div>`;
+            for (const q of bonusQuests) {
                 const state = this.questState[q.id];
-                const isPrimary = q.type === 'primary';
-
-                let icon, iconColor;
-                if (q.id === 'primary' && this.deliveredCount >= level.targetCargo) {
-                    icon = '✓'; iconColor = '#10b981';
-                } else if (state?.completed) {
-                    icon = '✓'; iconColor = '#10b981';
-                } else if (state?.failed) {
-                    icon = '✗'; iconColor = '#ef4444';
-                } else {
-                    icon = isPrimary ? '◆' : '◇'; iconColor = isPrimary ? '#38bdf8' : '#94a3b8';
-                }
-
-                const textColor = state?.failed ? 'rgba(239,68,68,0.85)' :
-                    state?.completed ? 'rgba(16,185,129,0.9)' :
-                    isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)';
-
-                const row = document.createElement('div');
-                row.style.cssText = 'display: flex; gap: 6px; align-items: flex-start; font-size: 13px;';
-                row.innerHTML = `<span style="color:${iconColor}; flex-shrink:0;">${icon}</span><span style="color:${textColor}; font-weight:${isPrimary ? '600' : '400'};">${q.text}${q.reward ? `<span style="color:#10b981;"> +$${q.reward}</span>` : ''}</span>`;
-                questsEl.appendChild(row);
+                let icon = '◇', iconColor = '#94a3b8', textColor = 'rgba(148,163,184,0.75)';
+                if (state?.completed) { icon = '✓'; iconColor = '#10b981'; textColor = 'rgba(16,185,129,0.85)'; }
+                else if (state?.failed) { icon = '✗'; iconColor = '#ef4444'; textColor = 'rgba(239,68,68,0.75)'; }
+                bonusHTML += `<div style="display:flex;gap:5px;align-items:flex-start;font-size:11px;margin-bottom:2px;">
+                    <span style="color:${iconColor};flex-shrink:0;">${icon}</span>
+                    <span style="color:${textColor};">${q.text}${q.reward ? `<span style="color:#10b981;"> +$${q.reward}</span>` : ''}</span>
+                </div>`;
             }
+            bonusHTML += `</div>`;
         }
 
-        // Update cargo delivery icons — faded boxes that light up when delivered
-        const cargoIconsEl = document.getElementById('cargo-icons');
-        if (cargoIconsEl && level.targetCargo) {
-            const target = level.targetCargo;
-            const delivered = this.deliveredCount;
-            // Only rebuild if count changed (avoid DOM thrashing)
-            if (cargoIconsEl.dataset.lastDelivered !== String(delivered) || cargoIconsEl.dataset.lastTarget !== String(target)) {
-                cargoIconsEl.dataset.lastDelivered = String(delivered);
-                cargoIconsEl.dataset.lastTarget = String(target);
-                cargoIconsEl.innerHTML = '';
-                for (let i = 0; i < target; i++) {
-                    const box = document.createElement('span');
-                    const done = i < delivered;
-                    box.textContent = '📦';
-                    box.style.cssText = `font-size: 14px; transition: opacity 0.4s, filter 0.4s; opacity: ${done ? '1' : '0.2'}; filter: ${done ? 'none' : 'grayscale(1)'}; display: inline-block;`;
-                    cargoIconsEl.appendChild(box);
-                }
-            }
-        }
+        // ── Primary quest label ───────────────────────────────────────────
+        const allDelivered = delivered >= target;
+        const primaryColor = allDelivered ? '#10b981' : '#f8fafc';
+        const primaryLabel = allDelivered ? '✓ All cargo delivered!' : (level.quests?.find(q=>q.type==='primary')?.text || `Deliver ${target} cargo`);
 
-        // Update stats
-        const cargoEl = this.uiElements?.missionStatCargo || document.getElementById('mission-stat-cargo');
-        if (cargoEl) cargoEl.textContent = `📦 ${this.deliveredCount}/${level.targetCargo}`;
+        // ── Full panel HTML ───────────────────────────────────────────────
+        // Use dataset fingerprint to avoid full rebuilds on every frame
+        const fp = `${timeStr}|${budgetStr}|${delivered}|${target}|${timeColor}`;
+        if (panel.dataset.fp === fp) return; // nothing changed visually
+        panel.dataset.fp = fp;
 
-        const budgetEl = this.uiElements?.missionStatBudget || document.getElementById('mission-stat-budget');
-        if (budgetEl) budgetEl.textContent = `💰 $${Math.floor(this.missionBudget)}`;
+        panel.innerHTML = `
+            <div style="font-size:9px;letter-spacing:.12em;color:rgba(56,189,248,0.7);text-transform:uppercase;margin-bottom:2px;">Mission</div>
+            <div style="font-weight:700;font-size:14px;color:rgba(248,250,252,0.95);margin-bottom:6px;line-height:1.2;">${level.missionTitle || level.name || ''}</div>
 
-        const timeEl = this.uiElements?.missionStatTime || document.getElementById('mission-stat-time');
-        if (timeEl) {
-            if (this.overtimeActive) {
-                const ot = Math.ceil(this.overtimeTimer);
-                timeEl.textContent = `⚠ ${ot}s OVERTIME`;
-                timeEl.style.color = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
-            } else {
-                const mins = Math.floor(this.missionTimer / 60);
-                const secs = Math.floor(this.missionTimer % 60);
-                timeEl.textContent = `⏱ ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                timeEl.style.color = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
-            }
-        }
+            <!-- Key stats: time + budget side-by-side -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
+                <div style="background:rgba(0,0,0,0.25);border-radius:6px;padding:4px 7px;">
+                    <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Time</div>
+                    <div id="mission-stat-time" style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:${timeColor};line-height:1.1;">${timeStr}</div>
+                </div>
+                <div style="background:rgba(0,0,0,0.25);border-radius:6px;padding:4px 7px;">
+                    <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Budget</div>
+                    <div id="mission-stat-budget" style="font-size:17px;font-weight:700;color:#10b981;line-height:1.1;">${budgetStr}</div>
+                </div>
+            </div>
 
-        // Always show destruct button during gameplay
+            <!-- Primary objective: cargo delivery icons -->
+            <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);border-radius:6px;padding:5px 7px;">
+                <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">Cargo</div>
+                <div style="display:flex;gap:2px;flex-wrap:wrap;align-items:center;">
+                    ${cargoIconsHTML}
+                    <span style="margin-left:4px;font-size:12px;font-weight:700;color:${primaryColor};">${delivered}/${target}</span>
+                </div>
+                <div style="font-size:11px;color:${primaryColor};margin-top:2px;opacity:0.85;">${primaryLabel}</div>
+            </div>
+
+            ${bonusHTML}`;
+
+        // Destruct button visibility
         const btnDestruct = this.uiElements?.btnDestruct || document.getElementById('btn-destruct');
         if (btnDestruct) {
-            if (this.gameState === 'playing') {
-                btnDestruct.classList.remove('hidden');
-            } else {
-                btnDestruct.classList.add('hidden');
-            }
+            if (this.gameState === 'playing') btnDestruct.classList.remove('hidden');
+            else btnDestruct.classList.add('hidden');
         }
     }
+
 
 
     loop(timestamp) {
