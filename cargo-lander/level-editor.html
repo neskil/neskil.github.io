@@ -212,6 +212,10 @@ canvas{display:block}
       <label>Label:</label>
       <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
     </div>
+    <div id="water-properties-row" style="display:none; margin-top:4px">
+      <label><input type="checkbox" id="water-hasboat" onchange="setWaterField('hasBoat', this.checked)"> Boat ⛵</label>
+      <label style="margin-left:8px"><input type="checkbox" id="water-hasfish" onchange="setWaterField('hasFish', this.checked)"> Fish 🐟</label>
+    </div>
     <div id="hazard-type-row" style="display:none">
       <label>Type:</label>
       <select id="hazard-type-select" onchange="setHazardType(this.value)">
@@ -661,12 +665,12 @@ function applyConfig(cfg) {
 // {x, width, hasBoat} rect, always returning a polygon shape for the editor.
 function waterToShape(wb, i) {
   if (Array.isArray(wb.pts)) {
-    return { pts: wb.pts.map(p=>({x:p.x,y:p.y})), comment: wb.comment || '', hidden:false, hasBoat: !!wb.hasBoat };
+    return { pts: wb.pts.map(p=>({x:p.x,y:p.y})), comment: wb.comment || '', hidden:false, hasBoat: !!wb.hasBoat, hasFish: !!wb.hasFish };
   }
   const x = wb.x ?? 0, w = wb.width ?? 200;
   const yTop = groundYAt(x) ?? groundYAt(x+w) ?? 600;
   const yBot = yTop + 48;
-  return { pts: [ {x,y:yTop}, {x:x+w,y:yTop}, {x:x+w,y:yBot}, {x,y:yBot} ], comment:'', hidden:false, hasBoat: !!wb.hasBoat };
+  return { pts: [ {x,y:yTop}, {x:x+w,y:yTop}, {x:x+w,y:yBot}, {x,y:yBot} ], comment:'', hidden:false, hasBoat: !!wb.hasBoat, hasFish: !!wb.hasFish };
 }
 
 // Accepts either the new {pts:[...], type} polygon format or the old
@@ -883,7 +887,12 @@ function drawShapeList(list, opts) {
 
     // Centroid label
     const fallback = opts.layer==='water' ? 'Water' : opts.layer==='hazard' ? (poly.type||'Hazard') : '';
-    const label = (poly.comment || fallback) + (opts.layer==='water' && poly.hasBoat ? ' ⛵' : '');
+    let extraLabel = '';
+    if (opts.layer === 'water') {
+        if (poly.hasBoat) extraLabel += ' ⛵';
+        if (poly.hasFish) extraLabel += ' 🐟';
+    }
+    const label = (poly.comment || fallback) + extraLabel;
     if (label) {
       const cx = poly.pts.reduce((s,p)=>s+p.x,0)/poly.pts.length;
       const cy = poly.pts.reduce((s,p)=>s+p.y,0)/poly.pts.length;
@@ -1351,6 +1360,7 @@ function renderPtUI() {
   const timingRow = document.getElementById('laser-timing-row');
   const swTimingRow = document.getElementById('sandworm-timing-row');
   const repRow = document.getElementById('repulsor-vector-row');
+  const waterRow = document.getElementById('water-properties-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
     if (S.selLayer === 'hazard') {
@@ -1384,17 +1394,25 @@ function renderPtUI() {
         document.getElementById('rep-fy').value = poly.travelY ?? -15;
       }
     } else {
-      hazardRow.style.display = 'none';
-      timingRow.style.display = 'none';
-      if(swTimingRow) swTimingRow.style.display = 'none';
-      if(repRow) repRow.style.display = 'none';
-      const colorRow = document.getElementById('hazard-color-row');
-      if(colorRow) colorRow.style.display = 'none';
+        hazardRow.style.display = 'none';
+        timingRow.style.display = 'none';
     }
+    
+    if (waterRow) {
+      if (S.selLayer === 'water') {
+        waterRow.style.display = 'flex';
+        document.getElementById('water-hasboat').checked = !!arr[S.selPoly].hasBoat;
+        document.getElementById('water-hasfish').checked = !!arr[S.selPoly].hasFish;
+      } else {
+        waterRow.style.display = 'none';
+      }
+    }
+    
     renderPtList();
   } else {
     hazardRow.style.display = 'none';
     timingRow.style.display = 'none';
+    if (waterRow) waterRow.style.display = 'none';
   }
   document.getElementById('pdisp').textContent =
     hasPoly ? `${S.selLayer} ${S.selPoly+1}/${arr.length}` + (S.selPt>=0?`  pt ${S.selPt}`:'') : '';
@@ -1435,8 +1453,6 @@ function renameActivePoly(val) {
   renderSidebar(); updateOut();
 }
 
-// Switching a hazard between 'zone' (polygon, needs >=3 pts) and 'laser'
-// (line segment, needs exactly 2 pts) reshapes the point list to fit.
 function setHazardType(val) {
   if (S.selLayer !== 'hazard' || S.selPoly<0) return;
   const poly = activeList()[S.selPoly];
@@ -1464,9 +1480,18 @@ function setHazardType(val) {
 }
 
 function setHazardField(field, val) {
-  if (S.selLayer !== 'hazard' || S.selPoly<0) return;
-  activeList()[S.selPoly][field] = (field === 'color' || field === 'type') ? val : +val;
-  updateOut();
+  const arr = activeList();
+  if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
+  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY'].includes(field)) val = parseFloat(val)||0;
+  arr[S.selPoly][field] = val;
+  draw(); updateOut();
+}
+
+function setWaterField(field, val) {
+  const arr = activeList();
+  if (S.selLayer!=='water' || S.selPoly<0 || S.selPoly>=arr.length) return;
+  arr[S.selPoly][field] = val;
+  renderSidebar(); draw(); updateOut();
 }
 
 function setPt(pi, pti, axis, val) {
@@ -1488,7 +1513,7 @@ function addShape() {
   const arr = activeList();
   let shape;
   if (S.selLayer === 'water') {
-    shape = { pts:[{x:cx-100,y:cy},{x:cx+100,y:cy},{x:cx+100,y:cy+48},{x:cx-100,y:cy+48}], comment:'', hidden:false, hasBoat:false };
+    shape = { pts:[{x:cx-100,y:cy},{x:cx+100,y:cy},{x:cx+100,y:cy+48},{x:cx-100,y:cy+48}], comment:'', hidden:false, hasBoat:false, hasFish:false };
   } else if (S.selLayer === 'hazard') {
     shape = { pts:[{x:cx-40,y:cy-40},{x:cx+40,y:cy-40},{x:cx+50,y:cy},{x:cx+40,y:cy+40},{x:cx-40,y:cy+40},{x:cx-50,y:cy}], comment:'', hidden:false, type:'zone' };
   } else if (S.selLayer === 'segments') {
@@ -1671,6 +1696,7 @@ function buildOut() {
       if (wb.comment) lines.push(`    // ${wb.comment}`);
       lines.push('    {');
       lines.push(`      hasBoat: ${!!wb.hasBoat},`);
+      lines.push(`      hasFish: ${!!wb.hasFish},`);
       lines.push('      pts: [');
       wb.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<wb.pts.length-1?',':''}`));
       lines.push('      ]');
