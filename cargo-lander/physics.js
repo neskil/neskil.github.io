@@ -1184,11 +1184,15 @@ class CargoPhysics {
 
         // Handle generic hazards — each is a polygon zone now (was a circle),
         // so membership is a point-in-polygon test rather than a radius check.
-        if (this.hazards && this.hazards.length > 0 && !lander.crashed) {
+        if (this.hazards && this.hazards.length > 0) {
+            const targets = [lander];
+            if (this.boxes) targets.push(...this.boxes);
+            
             for (const h of this.hazards) {
-                if (h.type === 'laser' || h.type === 'sandworm') continue;
+                if (h.type === 'laser' || h.type === 'sandworm' || h.type === 'pickup') continue;
                 
                 if (h.type === 'crusher') {
+                    if (lander.crashed) continue;
                     const timeMs = this.hazardTime || 0;
                     const phaseOff = h.phase || 0;
                     const period = h.period || 3000;
@@ -1207,30 +1211,52 @@ class CargoPhysics {
                 }
 
                 if (!h.pts || h.pts.length < 3) continue;
-                if (!this.pointInPolygon(lander.x, lander.y, h.pts)) continue;
+                
+                for (const target of targets) {
+                    if (target === lander && lander.crashed) continue;
+                    if (!this.pointInPolygon(target.x, target.y, h.pts)) continue;
+                    
+                    if (h.type === 'repulsor') {
+                        // Apply constant wind force
+                        target.vx += (h.travelX || 0) * dt;
+                        target.vy += (h.travelY || 0) * dt;
+                    } else if (h.type === 'bouncer') {
+                        // Massive knockback from centroid
+                        const c = this.polygonCentroid(h.pts);
+                        const dx = target.x - c.x;
+                        const dy = target.y - c.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        target.vx += (dx / dist) * 15;
+                        target.vy += (dy / dist) * 15;
+                        if (target === lander) {
+                            this.applyDamage(lander, 5 * dt);
+                            if (window.CargoAudio) CargoAudio.playCollision(2);
+                        }
+                    } else { // default 'zone'
+                        if (target !== lander) continue; // default zone only affects lander
+                        
+                        const c = this.polygonCentroid(h.pts);
+                        const dx = lander.x - c.x;
+                        const dy = lander.y - c.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        lander.vx += (dx / dist) * 2;
+                        lander.vy += (dy / dist) * 2;
+                        this.applyDamage(lander, 25 * dt); // High damage
 
-                // Knockback pushes away from the polygon's centroid (stand-in for
-                // the old "away from circle center" direction).
-                const c = this.polygonCentroid(h.pts);
-                const dx = lander.x - c.x;
-                const dy = lander.y - c.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                lander.vx += (dx / dist) * 2;
-                lander.vy += (dy / dist) * 2;
-                this.applyDamage(lander, 25 * dt); // High damage
-
-                if (window.CargoAudio) CargoAudio.playCollision(2);
-                for (let i = 0; i < 3; i++) {
-                    this.particles.push({
-                        x: lander.x + (Math.random() - 0.5) * 20,
-                        y: lander.y + (Math.random() - 0.5) * 20,
-                        vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
-                        life: 0.6, decay: 0.05 + Math.random() * 0.05,
-                        color: '#ef4444',
-                        size: 2 + Math.random() * 3,
-                    });
+                        if (window.CargoAudio) CargoAudio.playCollision(2);
+                        for (let i = 0; i < 3; i++) {
+                            this.particles.push({
+                                x: lander.x + (Math.random() - 0.5) * 20,
+                                y: lander.y + (Math.random() - 0.5) * 20,
+                                vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                                life: 0.6, decay: 0.05 + Math.random() * 0.05,
+                                color: '#ef4444',
+                                size: 2 + Math.random() * 3,
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
                 }
-                if (lander.integrity <= 0) this.triggerExplosion();
             }
         }
     }
@@ -1296,7 +1322,7 @@ class CargoPhysics {
                 lander.vy += 0.25 * (lander.thrustMultiplier || 1.0) * dt; // Descend (faster)
             }
 
-        } else if (lander.vehicleType === 'basic') {
+        } else {
             // BASIC LANDER (Upright stabilization, arcade movement)
             lander.angle = 0;
             lander.angularVelocity = 0;
@@ -1315,60 +1341,6 @@ class CargoPhysics {
                 lander.landed = false;
                 lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * (window.DEV_FUELBURN ?? 1) * Math.abs(lander.strafePower) * dt;
                 lander.vx += (maxThrust * 0.2) * (window.DEV_STRAFE ?? 1) * lander.strafePower * dt;
-            }
-
-        } else {
-            // ADVANCED LANDER (Mouse aim steering, high skill ceiling)
-            if (inputState.mouseX !== undefined && inputState.mouseY !== undefined) {
-                // Angle 0 is straight UP (y is negative)
-                let targetAngle = Math.atan2(inputState.mouseX - lander.x, -(inputState.mouseY - lander.y));
-                
-                // Calculate shortest rotational distance
-                let diff = targetAngle - lander.angle;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                
-                // Apply torque towards cursor (lower multiplier for less twitchy rotation)
-                lander.angularVelocity += diff * 0.025 * dt;
-                lander.landed = false;
-            }
-
-            // Stronger dampening so it doesn't overshoot as much
-            lander.angularVelocity *= Math.pow(0.75, dt);
-            lander.angle += lander.angularVelocity * dt;
-
-            if (lander.thrusting && lander.fuel > 0) {
-                lander.landed = false;
-                lander.fuel -= 0.12 * (lander.fuelEfficiency || 1.0) * lander.enginePower * dt; 
-
-                // Thrust acceleration is reduced if lander is heavy
-                const thrustAccel = maxThrust / lander.massMultiplier;
-
-                const ax = Math.sin(lander.angle) * thrustAccel * lander.enginePower * dt;
-                const ay = -Math.cos(lander.angle) * thrustAccel * lander.enginePower * dt;
-
-                lander.vx += ax;
-                lander.vy += ay;
-            }
-            if (inputState.down && lander.fuel > 0) {
-                lander.landed = false;
-                lander.fuel -= 0.06 * (lander.fuelEfficiency || 1.0) * dt;
-                const thrustAccel = maxThrust / lander.massMultiplier;
-                const ax = Math.sin(lander.angle) * thrustAccel * 0.5 * dt;
-                const ay = -Math.cos(lander.angle) * thrustAccel * 0.5 * dt;
-                lander.vx -= ax;
-                lander.vy -= ay;
-            }
-            
-            if (Math.abs(lander.strafePower) > 0.1 && lander.fuel > 0) {
-                lander.landed = false;
-                lander.fuel -= 0.05 * (lander.fuelEfficiency || 1.0) * Math.abs(lander.strafePower) * dt;
-                // Strafe is perpendicular to facing angle
-                const thrustAccel = maxThrust / lander.massMultiplier;
-                const sx = Math.cos(lander.angle) * thrustAccel * 0.4 * lander.strafePower * dt;
-                const sy = Math.sin(lander.angle) * thrustAccel * 0.4 * lander.strafePower * dt;
-                lander.vx += sx;
-                lander.vy += sy;
             }
         }
         lander.fuel = Math.max(0, lander.fuel);

@@ -880,7 +880,7 @@ const CargoRendererMixin = {
             this.menuEntities = [
                 { x: -100, y: this.canvas.height / 3, vx: 3, type: 'lander', scale: 1.0, offset: 0 },
                 { x: this.canvas.width + 200, y: this.canvas.height / 5, vx: -1.5, type: 'drone', scale: 0.6, offset: 1000 },
-                { x: -400, y: this.canvas.height / 1.5, vx: 4, type: 'advanced', scale: 1.2, offset: 2000 }
+                { x: -400, y: this.canvas.height / 1.5, vx: 4, type: 'lander', scale: 1.2, offset: 2000 }
             ];
         }
 
@@ -980,13 +980,13 @@ const CargoRendererMixin = {
             if (e.vx > 0 && e.x > this.canvas.width + 200) {
                 e.x = -200;
                 e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
-                e.type = ['lander', 'drone', 'advanced'][Math.floor(Math.random() * 3)];
+                e.type = ['lander', 'drone'][Math.floor(Math.random() * 2)];
                 e.vx = 2 + Math.random() * 3;
                 e.scale = 0.6 + Math.random() * 0.8;
             } else if (e.vx < 0 && e.x < -200) {
                 e.x = this.canvas.width + 200;
                 e.y = this.canvas.height * 0.1 + Math.random() * (this.canvas.height * 0.8);
-                e.type = ['lander', 'drone', 'advanced'][Math.floor(Math.random() * 3)];
+                e.type = ['lander', 'drone'][Math.floor(Math.random() * 2)];
                 e.vx = -(2 + Math.random() * 3);
                 e.scale = 0.6 + Math.random() * 0.8;
             }
@@ -1001,7 +1001,7 @@ const CargoRendererMixin = {
             const tempLander = this.physics.lander;
             this.physics.lander = {
                 x: e.x, y: e.y, angle: e.vx > 0 ? 0.2 : -0.2,
-                vehicleType: e.type === 'advanced' ? 'basic' : e.type,
+                vehicleType: e.type,
                 thrusting: true, fuel: 100, strafePower: 0,
                 width: e.type === 'drone' ? 32 : 40,
                 height: e.type === 'drone' ? 16 : 28,
@@ -1010,14 +1010,6 @@ const CargoRendererMixin = {
             };
 
             this.drawLander();
-
-            // If advanced, maybe draw some extra glowing bits
-            if (e.type === 'advanced') {
-                ctx.fillStyle = 'rgba(244, 63, 94, 0.5)';
-                ctx.beginPath();
-                ctx.arc(e.x, e.y - 10, 8, 0, Math.PI * 2);
-                ctx.fill();
-            }
 
             this.physics.lander = tempLander; // Restore
 
@@ -2397,7 +2389,50 @@ const CargoRendererMixin = {
                 ctx.stroke();
                 ctx.setLineDash([]);
                 continue;
+            } else if (haz.type === 'repulsor') {
+                ctx.beginPath();
+                pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.closePath();
+                ctx.fillStyle = haz.color || 'rgba(14, 165, 233, 0.1)';
+                ctx.fill();
+                const c = this.physics.polygonCentroid(pts);
+                const fx = haz.travelX || 0;
+                const fy = haz.travelY || -15;
+                const windSpeed = Math.sqrt(fx*fx + fy*fy);
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.rotate(Math.atan2(fy, fx));
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 2;
+                const w = (now / 15) % 20;
+                ctx.beginPath();
+                ctx.moveTo(-10 + w, 0);
+                ctx.lineTo(10 + w, 0);
+                ctx.moveTo(5 + w, -5);
+                ctx.lineTo(10 + w, 0);
+                ctx.lineTo(5 + w, 5);
+                ctx.stroke();
+                ctx.restore();
+                continue;
+            } else if (haz.type === 'bouncer') {
+                ctx.beginPath();
+                pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.closePath();
+                ctx.fillStyle = haz.color || 'rgba(217, 70, 239, 0.3)';
+                ctx.fill();
+                ctx.strokeStyle = haz.color || 'rgba(217, 70, 239, 0.8)';
+                ctx.lineWidth = 2 + Math.sin(now / 150) * 1;
+                ctx.stroke();
+                const c = this.physics.polygonCentroid(pts);
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, 8 + Math.sin(now / 150) * 2, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.globalAlpha = 0.5;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                continue;
             }
+
             const c = this.physics.polygonCentroid(pts);
             // Average vertex-to-centroid distance stands in for the old "radius",
             // sizing the pulsing core/spikes to roughly match the polygon's extent.
@@ -2835,16 +2870,27 @@ const CargoRendererMixin = {
                 ctx.textAlign = 'center';
                 ctx.fillText('▼ EXTRACT HERE ▼', start.x + start.width / 2, start.y - 28);
 
-                // Pulsing ring
-                const ringT = (Date.now() % 1800) / 1800;
-                const ringR = start.width * (0.5 + ringT * 2.5);
-                ctx.strokeStyle = '#10b981';
-                ctx.globalAlpha = Math.max(0, (1 - ringT) * 0.6);
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.ellipse(start.x + start.width / 2, start.y + 2, ringR, ringR * 0.28, 0, Math.PI, 0);
-                ctx.stroke();
-                ctx.restore();
+                // Landing light feedback
+                let isHoveringHQ = false;
+                const l = this.physics.lander;
+                if (l && !l.crashed) {
+                    if (l.x >= start.x - 20 && l.x <= start.x + start.width + 20 && l.y < start.y && l.y > start.y - 120) {
+                        isHoveringHQ = true;
+                    }
+                }
+
+                if (isHoveringHQ) {
+                    ctx.fillStyle = '#10b981';
+                    ctx.globalAlpha = 0.4 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.3;
+                    ctx.fillRect(start.x, start.y - 2, start.width, 4);
+                    
+                    const lightGrad = ctx.createLinearGradient(0, start.y - 30, 0, start.y);
+                    lightGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                    lightGrad.addColorStop(1, '#10b981');
+                    ctx.fillStyle = lightGrad;
+                    ctx.fillRect(start.x, start.y - 30, start.width, 30);
+                }
+                ctx.globalAlpha = 1.0;
             }
         }
 
@@ -3272,15 +3318,26 @@ const CargoRendererMixin = {
             ctx.fill();
             ctx.restore();
 
-            // Expanding pulse ring at landing surface
-            const rpT = (Date.now() % 2800) / 2800;
-            const rpR = hub.width * (0.5 + rpT * 2.8);
-            ctx.strokeStyle = hub.color;
-            ctx.globalAlpha = Math.max(0, (1 - rpT) * 0.55);
-            ctx.lineWidth = 1.8;
-            ctx.beginPath();
-            ctx.ellipse(hub.x + hub.width / 2, hub.y + 2, rpR, rpR * 0.28, 0, Math.PI, 0);
-            ctx.stroke();
+            // Landing light feedback
+            let isHovering = false;
+            const l = this.physics.lander;
+            if (l && !l.crashed) {
+                if (l.x >= hub.x - 20 && l.x <= hub.x + hub.width + 20 && l.y < hub.y && l.y > hub.y - 120) {
+                    isHovering = true;
+                }
+            }
+
+            if (isHovering) {
+                ctx.fillStyle = hub.color;
+                ctx.globalAlpha = 0.4 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.3;
+                ctx.fillRect(hub.x, hub.y - 2, hub.width, 4);
+                
+                const lightGrad = ctx.createLinearGradient(0, hub.y - 30, 0, hub.y);
+                lightGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                lightGrad.addColorStop(1, hub.color);
+                ctx.fillStyle = lightGrad;
+                ctx.fillRect(hub.x, hub.y - 30, hub.width, 30);
+            }
             ctx.globalAlpha = 1.0;
 
             // Hub base — solid slab so the pad reads as flat ground, not terrain
