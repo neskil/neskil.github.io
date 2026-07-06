@@ -187,7 +187,8 @@ function generateProceduralLevel(craziness = 1) {
         monsterDepth: 1500
     };
 
-    return {\n        craziness, craziness,
+    return {
+        craziness: craziness,
         name: `Mission ♾️ · Endless`,
         missionTitle: `Sector ${Math.floor(Math.random() * 9999)} — ${biome.name}`,
         description: `A procedurally generated delivery contract in the ${biome.name}. Unpredictable terrain and weather conditions. Be careful out there, pilot.`,
