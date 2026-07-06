@@ -220,6 +220,8 @@ canvas{display:block}
         <option value="crusher">Moving Crusher</option>
         <option value="pickup">Fuel/Cash Ring</option>
         <option value="sandworm">Sandworm Pit</option>
+        <option value="repulsor">Repulsor (Wind Tunnel)</option>
+        <option value="bouncer">Bouncer (Pinball Bumper)</option>
       </select>
     </div>
     <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
@@ -237,6 +239,12 @@ canvas{display:block}
     <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
       <div class="row">
         <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:40px" onchange="setHazardField('spawnRate', this.value)">
+      </div>
+    </div>
+    <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+      <div class="row">
+        <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('travelX', this.value)">
+        <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:40px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
       </div>
     </div>
     <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
@@ -379,9 +387,13 @@ function setLayer(layer) {
 
 
 function setCfg(key, val) {
-  if (key === 'allowedTypes') S.cfg.allowedTypes = val.split(',').map(s=>s.trim()).filter(Boolean);
-  else if (key === 'padScale') S.padScale = val;
-  else S.cfg[key] = val;
+  if (key === 'allowedTypes') {
+    S.cfg.allowedTypes = val.split(',').map(s=>s.trim()).filter(Boolean);
+  } else if (key === 'padScale') {
+    S.padScale = val;
+  } else {
+    S.cfg[key] = val;
+  }
   updateOut();
 }
 
@@ -892,7 +904,110 @@ function drawWaterBodies() {
 }
 
 function drawHazards() {
-  drawShapeList(S.hazardPolys, { layer:'hazard', fillColor:'rgba(239,68,68,0.18)', edgeColor:'#ef4444', fillAlpha:0.45 });
+  const time = performance.now();
+  
+  S.hazardPolys.forEach((h) => {
+    if (h.hidden || !h.pts || h.pts.length < 1) return;
+    ctx.save();
+    if (h.type === 'laser' && h.pts.length >= 2) {
+      const a = w2s(h.pts[0].x, h.pts[0].y);
+      const b = w2s(h.pts[1].x, h.pts[1].y);
+      ctx.beginPath();
+      ctx.moveTo(a.sx, a.sy);
+      ctx.lineTo(b.sx, b.sy);
+      ctx.strokeStyle = h.color || '#ef4444';
+      ctx.lineWidth = (h.thickness || 15) * S.view.scale;
+      ctx.globalAlpha = 0.5 + Math.sin(time/200)*0.2;
+      ctx.stroke();
+      ctx.lineWidth = ((h.thickness || 15) * 0.4) * S.view.scale;
+      ctx.strokeStyle = '#fff';
+      ctx.globalAlpha = 0.9;
+      ctx.stroke();
+    } else if (h.type === 'crusher' && h.pts.length >= 2) {
+      const a = w2s(h.pts[0].x, h.pts[0].y);
+      const b = w2s(h.pts[1].x, h.pts[1].y);
+      const w = Math.abs(b.sx - a.sx);
+      const h_px = Math.abs(b.sy - a.sy);
+      const x = Math.min(a.sx, b.sx);
+      const y = Math.min(a.sy, b.sy);
+      ctx.fillStyle = '#222';
+      ctx.fillRect(x, y, w, h_px);
+      ctx.strokeStyle = h.color || '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h_px);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h_px);
+      ctx.clip();
+      ctx.strokeStyle = h.color || '#ef4444';
+      ctx.lineWidth = 6 * S.view.scale;
+      for (let i = -w-h_px; i < w+h_px; i += 16 * S.view.scale) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y);
+        ctx.lineTo(x + i + h_px, y + h_px);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (h.type === 'sandworm' && h.pts.length >= 3) {
+      ctx.beginPath();
+      h.pts.forEach((pt, i) => {
+        const p = w2s(pt.x, pt.y);
+        i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+      });
+      ctx.closePath();
+      ctx.fillStyle = '#b45309';
+      ctx.globalAlpha = 0.4;
+      ctx.fill();
+    } else if (h.type === 'pickup' && h.pts.length >= 1) {
+      const p = w2s(h.pts[0].x, h.pts[0].y);
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, 15 * S.view.scale, 0, Math.PI*2);
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 3 * S.view.scale;
+      ctx.stroke();
+      ctx.fillStyle = '#22c55e';
+      ctx.globalAlpha = 0.3;
+      ctx.fill();
+    } else if (h.type === 'repulsor' && h.pts.length >= 3) {
+      ctx.beginPath();
+      h.pts.forEach((pt, i) => {
+        const p = w2s(pt.x, pt.y);
+        i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+      });
+      ctx.closePath();
+      ctx.fillStyle = h.color || '#0ea5e9';
+      ctx.globalAlpha = 0.2;
+      ctx.fill();
+      const cx = h.pts.reduce((s,p)=>s+p.x,0)/h.pts.length;
+      const cy = h.pts.reduce((s,p)=>s+p.y,0)/h.pts.length;
+      const cp = w2s(cx, cy);
+      const fx = h.travelX || 0;
+      const fy = h.travelY || -15;
+      ctx.beginPath();
+      ctx.moveTo(cp.sx, cp.sy);
+      ctx.lineTo(cp.sx + (fx * 5 * S.view.scale), cp.sy + (fy * 5 * S.view.scale));
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+    } else if (h.type === 'bouncer' && h.pts.length >= 3) {
+      ctx.beginPath();
+      h.pts.forEach((pt, i) => {
+        const p = w2s(pt.x, pt.y);
+        i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+      });
+      ctx.closePath();
+      ctx.fillStyle = h.color || '#d946ef';
+      ctx.globalAlpha = 0.4 + Math.sin(time/150)*0.1;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2 * S.view.scale;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  drawShapeList(S.hazardPolys, { layer:'hazard', fillColor:'rgba(239,68,68,0.0)', edgeColor:'#ef4444', fillAlpha:0.1 });
 }
 
 function drawGrid(W,H) {
@@ -1235,6 +1350,7 @@ function renderPtUI() {
   const hazardRow = document.getElementById('hazard-type-row');
   const timingRow = document.getElementById('laser-timing-row');
   const swTimingRow = document.getElementById('sandworm-timing-row');
+  const repRow = document.getElementById('repulsor-vector-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
     if (S.selLayer === 'hazard') {
@@ -1242,7 +1358,6 @@ function renderPtUI() {
       hazardRow.style.display = '';
       document.getElementById('hazard-type-select').value = poly.type || 'zone';
       
-      // Color is applicable to most hazard types except maybe zones, but we'll allow it globally
       const colorRow = document.getElementById('hazard-color-row');
       if (poly.type !== 'zone') {
         colorRow.style.display = '';
@@ -1251,9 +1366,11 @@ function renderPtUI() {
         colorRow.style.display = 'none';
       }
 
+      timingRow.style.display = poly.type === 'laser' ? '' : 'none';
+      swTimingRow.style.display = poly.type === 'sandworm' ? '' : 'none';
+      repRow.style.display = poly.type === 'repulsor' ? '' : 'none';
+
       if (poly.type === 'laser') {
-        timingRow.style.display = '';
-        swTimingRow.style.display = 'none';
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
         document.getElementById('laser-offms').value = poly.offMs ?? 1000;
         document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;
@@ -1261,17 +1378,16 @@ function renderPtUI() {
         document.getElementById('laser-dmg').value = poly.damagePerSec ?? 40;
         document.getElementById('laser-thick').value = poly.thickness ?? 15;
       } else if (poly.type === 'sandworm') {
-        timingRow.style.display = 'none';
-        swTimingRow.style.display = '';
         document.getElementById('sw-spawnrate').value = poly.spawnRate ?? 1.0;
-      } else {
-        timingRow.style.display = 'none';
-        swTimingRow.style.display = 'none';
+      } else if (poly.type === 'repulsor') {
+        document.getElementById('rep-fx').value = poly.travelX ?? 0;
+        document.getElementById('rep-fy').value = poly.travelY ?? -15;
       }
     } else {
       hazardRow.style.display = 'none';
       timingRow.style.display = 'none';
       if(swTimingRow) swTimingRow.style.display = 'none';
+      if(repRow) repRow.style.display = 'none';
       const colorRow = document.getElementById('hazard-color-row');
       if(colorRow) colorRow.style.display = 'none';
     }
@@ -1815,8 +1931,10 @@ document.addEventListener('keydown', e => {
   if (e.key==='a') setMode('add');
   if (e.key==='p') setMode('pan');
   if (e.key==='f') fitView();
-  if ((e.key==='Delete'||e.key==='Backspace')&&S.selPoly>=0&&S.selPt>=0)
-    deletePt(S.selPoly,S.selPt);
+  if ((e.key==='Delete'||e.key==='Backspace')&&S.selPoly>=0) {
+    if (S.selPt>=0) deletePt(S.selPoly, S.selPt);
+    else deletePoly();
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
