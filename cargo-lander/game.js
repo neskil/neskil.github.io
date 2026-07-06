@@ -89,10 +89,19 @@ class CargoGame {
             hudBudget: document.getElementById('hud-budget'),
             hudTime: document.getElementById('hud-time'),
             btnExtract: document.getElementById('btn-extract'),
+            btnDestruct: document.getElementById('btn-destruct'),
             fuelFill: document.getElementById('fuel-fill'),
             lowFuelWarning: document.getElementById('low-fuel-warning'),
             devPanel: document.getElementById('dev-panel'),
-            devReadout: document.getElementById('dev-readout')
+            devReadout: document.getElementById('dev-readout'),
+            missionTitle: document.getElementById('mission-title'),
+            missionQuests: document.getElementById('mission-quests'),
+            missionStatCargo: document.getElementById('mission-stat-cargo'),
+            missionStatBudget: document.getElementById('mission-stat-budget'),
+            missionStatTime: document.getElementById('mission-stat-time'),
+            radarCanvas: document.getElementById('radar-canvas'),
+            notificationsContainer: document.getElementById('notifications-container'),
+            tutorialContainer: document.getElementById('tutorial-container')
         };
 
         this.resizeCanvas();
@@ -123,13 +132,15 @@ class CargoGame {
         this.uiCollapsed = !this.uiCollapsed;
         
         const vitals = document.getElementById('vitals-panel');
-        const extract = document.getElementById('btn-extract');
+        const leftPanel = document.getElementById('hud-left-panel');
+        const radarContainer = document.getElementById('radar-container');
         const rightPanel = document.getElementById('hud-right-panel');
         const rightButtons = rightPanel ? rightPanel.querySelectorAll('.hud-group .utility-btn:not(#hide-ui-btn)') : [];
         
         if (this.uiCollapsed) {
             if (vitals) vitals.style.display = 'none';
-            if (extract) extract.style.display = 'none';
+            if (leftPanel) leftPanel.style.display = 'none';
+            if (radarContainer) radarContainer.style.display = 'none';
             rightButtons.forEach(btn => btn.style.display = 'none');
             
             const dropdown = document.getElementById('options-dropdown');
@@ -142,7 +153,8 @@ class CargoGame {
             }
         } else {
             if (vitals) vitals.style.display = 'flex';
-            if (extract && !extract.classList.contains('hidden')) extract.style.display = 'block';
+            if (leftPanel) leftPanel.style.display = 'flex';
+            if (radarContainer) radarContainer.style.display = 'block';
             rightButtons.forEach(btn => btn.style.display = 'inline-flex');
             
             const eyeBtn = document.getElementById('hide-ui-btn');
@@ -163,16 +175,16 @@ class CargoGame {
         if (slider) slider.value = this.uiScale;
         
         const vitals = document.getElementById('vitals-panel');
-        const extract = document.getElementById('btn-extract');
+        const leftPanel = document.getElementById('hud-left-panel');
         const rightPanel = document.getElementById('hud-right-panel');
         
         if (vitals) {
             vitals.style.transform = `scale(${this.uiScale})`;
             vitals.style.transformOrigin = 'top center';
         }
-        if (extract) {
-            extract.style.transform = `scale(${this.uiScale})`;
-            extract.style.transformOrigin = 'top left';
+        if (leftPanel) {
+            leftPanel.style.transform = `scale(${this.uiScale})`;
+            leftPanel.style.transformOrigin = 'top left';
         }
         if (rightPanel) {
             rightPanel.style.transform = `scale(${this.uiScale})`;
@@ -987,14 +999,36 @@ class CargoGame {
     }
 
     addMessage(text, color = '#f8fafc') {
-        this.messages.push({
-            text: text,
-            color: color,
-            life: 1.0,
-            y: 175
-        });
-        if (this.messages.length > 4) {
-            this.messages.shift();
+        // Keep legacy messages array for canvas renderers that may still read it
+        this.messages.push({ text, color, life: 1.0, y: 175 });
+        if (this.messages.length > 4) this.messages.shift();
+
+        // Also create a real DOM notification element
+        const isTutorial = text.startsWith('TUTORIAL:');
+        const label = isTutorial ? text.replace('TUTORIAL: ', '') : text;
+        const container = isTutorial
+            ? (this.uiElements?.tutorialContainer || document.getElementById('tutorial-container'))
+            : (this.uiElements?.notificationsContainer || document.getElementById('notifications-container'));
+
+        if (!container) return;
+
+        const el = document.createElement('div');
+        el.style.cssText = isTutorial
+            ? `font: 600 11px Outfit,sans-serif; color: ${color}; background: rgba(6,20,16,0.85); border: 1px solid rgba(52,211,153,0.4); border-radius: 8px; padding: 5px 10px; white-space: nowrap; opacity: 1; transition: opacity 0.5s;`
+            : `font: bold 16px Outfit,sans-serif; color: ${color}; background: rgba(5,8,18,0.82); border-radius: 14px; padding: 8px 20px; white-space: nowrap; opacity: 1; transition: opacity 0.5s; text-align: center;`;
+        el.textContent = isTutorial ? '💡 ' + label : label;
+        container.appendChild(el);
+
+        // Fade out and remove after 5 seconds
+        const duration = isTutorial ? 8000 : 5000;
+        setTimeout(() => {
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 500);
+        }, duration);
+
+        // Clamp to max 4 notifications in container
+        while (container.children.length > 4) {
+            container.firstChild.remove();
         }
     }
 
@@ -1210,6 +1244,76 @@ class CargoGame {
             }
         }
     }
+
+    updateMissionPanel() {
+        const level = levels[this.currentLevelIndex];
+        if (!level) return;
+
+        const title = this.uiElements?.missionTitle || document.getElementById('mission-title');
+        if (title) title.textContent = level.missionTitle || level.name || '';
+
+        // Update quests
+        const questsEl = this.uiElements?.missionQuests || document.getElementById('mission-quests');
+        if (questsEl && level.quests) {
+            questsEl.innerHTML = '';
+            for (const q of level.quests) {
+                const state = this.questState[q.id];
+                const isPrimary = q.type === 'primary';
+
+                let icon, iconColor;
+                if (q.id === 'primary' && this.deliveredCount >= level.targetCargo) {
+                    icon = '✓'; iconColor = '#10b981';
+                } else if (state?.completed) {
+                    icon = '✓'; iconColor = '#10b981';
+                } else if (state?.failed) {
+                    icon = '✗'; iconColor = '#ef4444';
+                } else {
+                    icon = isPrimary ? '◆' : '◇'; iconColor = isPrimary ? '#38bdf8' : '#94a3b8';
+                }
+
+                const textColor = state?.failed ? 'rgba(239,68,68,0.85)' :
+                    state?.completed ? 'rgba(16,185,129,0.9)' :
+                    isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)';
+
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; gap: 8px; align-items: flex-start; font-size: 12px;';
+                row.innerHTML = `<span style="color:${iconColor}; flex-shrink:0;">${icon}</span><span style="color:${textColor}; font-weight:${isPrimary ? '600' : '400'};">${q.text}${q.reward ? `<span style="color:#10b981;"> +$${q.reward}</span>` : ''}</span>`;
+                questsEl.appendChild(row);
+            }
+        }
+
+        // Update stats
+        const cargoEl = this.uiElements?.missionStatCargo || document.getElementById('mission-stat-cargo');
+        if (cargoEl) cargoEl.textContent = `Cargo: ${this.deliveredCount}/${level.targetCargo}`;
+
+        const budgetEl = this.uiElements?.missionStatBudget || document.getElementById('mission-stat-budget');
+        if (budgetEl) budgetEl.textContent = `Budget: $${Math.floor(this.missionBudget)}`;
+
+        const timeEl = this.uiElements?.missionStatTime || document.getElementById('mission-stat-time');
+        if (timeEl) {
+            if (this.overtimeActive) {
+                const ot = Math.ceil(this.overtimeTimer);
+                timeEl.textContent = `⚠ ${ot}s OVERTIME`;
+                timeEl.style.color = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
+            } else {
+                const mins = Math.floor(this.missionTimer / 60);
+                const secs = Math.floor(this.missionTimer % 60);
+                timeEl.textContent = `Time: ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                timeEl.style.color = this.missionTimer < 20 ? '#ef4444' : '#f59e0b';
+            }
+        }
+
+        // Always show destruct button during gameplay
+        const btnDestruct = this.uiElements?.btnDestruct || document.getElementById('btn-destruct');
+        if (btnDestruct) {
+            if (this.gameState === 'playing') {
+                btnDestruct.classList.remove('hidden');
+            } else {
+                btnDestruct.classList.add('hidden');
+            }
+        }
+    }
+
 
     loop(timestamp) {
         if (!this.lastTime) this.lastTime = timestamp;
@@ -1595,14 +1699,15 @@ class CargoGame {
             if (!this.isMuted) CargoAudio.setWarning(true);
         }
 
-        // Update notifications
+        // Update legacy messages array (used by canvas renderer fallback)
         for (let i = this.messages.length - 1; i >= 0; i--) {
             const m = this.messages[i];
-            m.life -= 0.0025 * dt; // Lasts ~400 frames instead of 200
-            if (m.life <= 0) {
-                this.messages.splice(i, 1);
-            }
+            m.life -= 0.0025 * dt;
+            if (m.life <= 0) this.messages.splice(i, 1);
         }
+
+        // Update mission panel HTML
+        this.updateMissionPanel();
 
         this.updateHUD();
     }

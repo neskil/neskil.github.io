@@ -235,14 +235,14 @@ draw() {
         if (!this.shaders) this.drawParticles();
         ctx.restore();
 
-        // 10. Draw UI Notifications directly on canvas
-        this.drawNotifications();
+        // 10. Notifications are now HTML DOM elements — no canvas draw needed
+        this.drawNotifications(); // no-op stub kept for safety
 
-        // 11. Draw Wind Indicator, Minimap, Quest Panel
+        // 11. Draw Wind Indicator and Radar Minimap (minimap draws to #radar-canvas)
         if (this.gameState === 'playing') {
             this.drawWindIndicator();
-            this.drawMinimap();
-            this.drawQuestPanel();
+            this.drawMinimap(); // draws onto #radar-canvas HTML element
+            // Quest panel is now an HTML element — no canvas draw needed
 
             // 12. Draw Lateral Mist
             const levelConfig = levels[this.currentLevelIndex];
