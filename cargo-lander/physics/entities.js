@@ -451,8 +451,6 @@ const CargoPhysicsEntitiesMixin = {
         // Keep lander loosely within extended bounds
         if (lander.x < -4000) { lander.x = -4000; lander.vx *= -0.5; }
 
-        if (lander.y < 10) { lander.y = 10; lander.vy = 0; }
-
         // Leg spring decay — only while on the ground; snap to 0 instantly when airborne
         if (lander.legCompress > 0) {
             if (lander.landed) {

@@ -2015,6 +2015,81 @@ drawSandWorm() {
     // Horizontal x-ranges of the flat landing pads (start depot, collection, hubs)
 
 ,
+drawPolice() {
+        if (!this.physics.police) return;
+        const p = this.physics.police;
+        const ctx = this.ctx;
+        const camera = this.camera;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        const scale = p.size / 100;
+        ctx.scale(scale, scale);
+
+        // Hover animation
+        ctx.translate(0, Math.sin(Date.now() / 200) * 5);
+
+        // Body
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(-40, -15, 80, 30, 8);
+        } else {
+            ctx.rect(-40, -15, 80, 30);
+        }
+        ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Cockpit
+        ctx.fillStyle = '#0ea5e9';
+        ctx.beginPath();
+        ctx.arc(0, -15, 20, Math.PI, 0);
+        ctx.fill();
+
+        // Sirens
+        const isRed = (p.sirenPhase % (Math.PI * 2)) < Math.PI;
+        ctx.fillStyle = isRed ? '#ef4444' : '#3b82f6';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.arc(-20, -20, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = !isRed ? '#ef4444' : '#3b82f6';
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.beginPath();
+        ctx.arc(20, -20, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+
+        // Thrust
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(-15, 15);
+        ctx.lineTo(15, 15);
+        ctx.lineTo(0, 35 + Math.random() * 10);
+        ctx.fill();
+
+        // Tow Cable (Tractor Beam) if busted
+        const lander = this.physics.lander;
+        if (lander.busted) {
+            ctx.restore();
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 10]);
+            ctx.lineDashOffset = -Date.now() / 20;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y + 15 * scale);
+            ctx.lineTo(lander.x, lander.y);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    },
 drawMonster() {
         if (!this.physics.monster) return;
         const m = this.physics.monster;
