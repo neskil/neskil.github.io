@@ -546,7 +546,7 @@ drawTerrain() {
         if (this.currentLevelIndex === 0) {
             // ── L1: Grass tufts — snap to world-space grid so they never shift ──
             ctx.strokeStyle = '#86efac';
-            ctx.lineWidth = 1.3;
+            ctx.lineWidth = 0.8;
             ctx.lineCap = 'round';
             const grassStep = 10;
             const grassStart = Math.floor(startX / grassStep) * grassStep;
@@ -555,10 +555,10 @@ drawTerrain() {
                 const h0 = hash(x);
                 if (h0 < 0.15) continue; // sparse — skip some spots
                 const baseY = getH(x);
-                const height = 3 + hash(x + 5) * 5;
+                const height = 2 + hash(x + 5) * 3;
                 // Add procedural wind sway to the lean
-                const sway = Math.sin(Date.now() * 0.002 + x * 0.02) * 2;
-                const lean = (hash(x + 13) - 0.5) * 4 + sway;
+                const sway = Math.sin(Date.now() * 0.002 + x * 0.02) * 1.5;
+                const lean = (hash(x + 13) - 0.5) * 3 + sway;
                 // Main blade
                 ctx.beginPath();
                 ctx.moveTo(x, baseY);
@@ -569,7 +569,7 @@ drawTerrain() {
                     ctx.strokeStyle = '#4ade80';
                     ctx.beginPath();
                     ctx.moveTo(x, baseY - 1);
-                    ctx.lineTo(x + lean - 3, baseY - height * 0.75);
+                    ctx.lineTo(x + lean - 2, baseY - height * 0.75);
                     ctx.stroke();
                     ctx.strokeStyle = '#86efac';
                 }
@@ -743,8 +743,8 @@ drawSegments() {
             const pulse = 0.7 + 0.3 * Math.sin(now * 0.002 + (seg.x1 + seg.y1) * 0.01);
 
             // Glow halo
-            ctx.strokeStyle = glow + (0.18 * pulse) + ')';
-            ctx.lineWidth = seg.sticky ? 20 : 14;
+            ctx.strokeStyle = glow + (0.08 * pulse) + ')';
+            ctx.lineWidth = seg.sticky ? 12 : 8;
             ctx.lineCap = 'round';
             if (seg.bouncy) {
                 ctx.setLineDash([15, 10]);
@@ -766,7 +766,7 @@ drawSegments() {
 
             // Core line
             ctx.strokeStyle = color;
-            ctx.lineWidth = seg.sticky ? 5 : 3;
+            ctx.lineWidth = seg.sticky ? 4 : 2;
             ctx.beginPath();
             ctx.moveTo(seg.x1, seg.y1);
             ctx.lineTo(seg.x2, seg.y2);
@@ -776,7 +776,7 @@ drawSegments() {
             ctx.setLineDash([]); // Reset line dash
 
             // Bright highlight edge
-            ctx.strokeStyle = seg.bouncy ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.55)';
+            ctx.strokeStyle = seg.bouncy ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.4)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(seg.x1, seg.y1);
@@ -787,7 +787,7 @@ drawSegments() {
             for (const [ex, ey] of [[seg.x1, seg.y1], [seg.x2, seg.y2]]) {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+                ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
