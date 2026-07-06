@@ -379,10 +379,6 @@ const CargoPhysicsEntitiesMixin = {
         }
         lander.fuel = Math.max(0, lander.fuel);
 
-        // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
-        lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
-        lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
-
         // Universal Exhaust particles (scaled by engine power)
         if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower * dt) {
             const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
@@ -428,6 +424,12 @@ const CargoPhysicsEntitiesMixin = {
         if (lander.crashed) {
             lander.angle += (lander.angularVelocity || 0) * dt;
             if (lander.angularVelocity) lander.angularVelocity *= Math.pow(0.98, dt);
+        }
+
+        // Track grapple hook — rope hangs OPPOSITE to tilt (swings back on acceleration)
+        if (lander.ropeLength > 0) {
+            lander.grappleX = lander.x - Math.sin(lander.angle) * (lander.ropeLength + lander.height / 2);
+            lander.grappleY = lander.y + Math.cos(lander.angle) * (lander.ropeLength + lander.height / 2);
         }
 
         // Repulsor fields
@@ -591,10 +593,24 @@ const CargoPhysicsEntitiesMixin = {
                 if (dist > lander.ropeLength) {
                     const diff = dist - lander.ropeLength;
                     const nx = dx / dist, ny = dy / dist;
-                    Matter.Body.setPosition(body, { x: body.position.x - nx * diff, y: body.position.y - ny * diff });
+                    
+                    // Simple mass ratio to pull the drone too!
+                    const mBox = body.mass;
+                    const mDrone = 2.0; // Drone is roughly twice as heavy as a cargo box
+                    const mTotal = mBox + mDrone;
+
+                    Matter.Body.setPosition(body, { x: body.position.x - nx * diff * (mDrone/mTotal), y: body.position.y - ny * diff * (mDrone/mTotal) });
+                    lander.x += nx * diff * (mBox/mTotal);
+                    lander.y += ny * diff * (mBox/mTotal);
+                    
                     const vel = body.velocity;
                     const rvn = (vel.x - lander.vx) * nx + (vel.y - lander.vy) * ny;
-                    if (rvn > 0) Matter.Body.setVelocity(body, { x: vel.x - rvn * nx, y: vel.y - rvn * ny });
+                    if (rvn > 0) {
+                        const impulse = rvn * (mBox * mDrone) / mTotal;
+                        Matter.Body.setVelocity(body, { x: vel.x - (impulse/mBox) * nx, y: vel.y - (impulse/mBox) * ny });
+                        lander.vx += (impulse/mDrone) * nx;
+                        lander.vy += (impulse/mDrone) * ny;
+                    }
                 }
                 // Apply gravity so rope swings naturally
                 Matter.Body.applyForce(body, body.position, { x: 0, y: this.gravity * body.mass * FS });
