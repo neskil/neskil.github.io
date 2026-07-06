@@ -88,30 +88,63 @@ drawFluidBounds() {
             ctx.lineTo(startX, depth);
             ctx.fill();
         } else {
-            // Draw animated waves
+            const step = 40;
+            // Snap startX to the step grid so the waves don't "crawl" when camera pans
+            const gridStartX = Math.floor(startX / step) * step;
+
+            // Main deep water body
             ctx.beginPath();
-            ctx.moveTo(startX, oob.surfaceY);
-            for (let x = startX; x <= endX; x += 40) {
+            ctx.moveTo(gridStartX, oob.surfaceY);
+            for (let x = gridStartX; x <= endX + step; x += step) {
                 const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
                 ctx.lineTo(x, oob.surfaceY + waveY);
             }
-            ctx.lineTo(endX, depth);
-            ctx.lineTo(startX, depth);
+            ctx.lineTo(endX + step, depth);
+            ctx.lineTo(gridStartX, depth);
+            
+            const depthGrad = ctx.createLinearGradient(0, oob.surfaceY - 20, 0, oob.surfaceY + 400);
+            depthGrad.addColorStop(0, 'rgba(14, 165, 233, 0.25)'); // Bright surface
+            depthGrad.addColorStop(0.3, 'rgba(14, 100, 200, 0.6)'); // Mid
+            depthGrad.addColorStop(1, 'rgba(4, 25, 60, 0.95)'); // Dark abyss
+            
+            ctx.fillStyle = depthGrad;
             ctx.fill();
 
-            // Shimmer layer
+            // Surface Shimmer / Foam layer
             ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.beginPath();
-            ctx.moveTo(startX, oob.surfaceY);
-            for (let x = startX; x <= endX; x += 40) {
+            ctx.moveTo(gridStartX, oob.surfaceY);
+            for (let x = gridStartX; x <= endX + step; x += step) {
                 const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
                 ctx.lineTo(x, oob.surfaceY + waveY + 5);
             }
-            for (let x = endX; x >= startX; x -= 40) {
+            for (let x = endX + step; x >= gridStartX; x -= step) {
                 const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
                 ctx.lineTo(x, oob.surfaceY + waveY + 15);
             }
             ctx.fill();
+            
+            // Secondary parallax overlapping wave
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(gridStartX, oob.surfaceY + 10);
+            for (let x = gridStartX; x <= endX + step; x += step) {
+                const waveY2 = Math.sin(now / 600 + x * 0.03) * 8 + Math.sin(now / 400 + x * 0.07) * 4;
+                ctx.lineTo(x, oob.surfaceY + 10 + waveY2);
+            }
+            ctx.lineTo(endX + step, depth);
+            ctx.lineTo(gridStartX, depth);
+            ctx.fill();
+            
+            // Bright surface edge reflection
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let x = gridStartX; x <= endX + step; x += step) {
+                const waveY = Math.sin(now / 800 + x * 0.02) * 10 + Math.sin(now / 500 + x * 0.05) * 5;
+                x === gridStartX ? ctx.moveTo(x, oob.surfaceY + waveY) : ctx.lineTo(x, oob.surfaceY + waveY);
+            }
+            ctx.stroke();
         }
 
         ctx.restore();

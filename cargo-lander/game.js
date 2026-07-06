@@ -301,7 +301,14 @@ class CargoGame {
             }
             if (e.key === ' ') {
                 if (this.physics.lander) {
-                    this.toggleGrapple();
+                    const level = levels[this.currentLevelIndex];
+                    const allDelivered = level && this.deliveredCount >= level.targetCargo;
+                    const atHQ = this.physics.lander.landed && this.physics.lander.currentPad === 'start';
+                    if (this.gameState === 'playing' && allDelivered && atHQ) {
+                        this.completeMission();
+                    } else {
+                        this.toggleGrapple();
+                    }
                 }
             }
             if (e.key.toLowerCase() === 'r' && this.physics.lander && this.physics.lander.crashed) {
