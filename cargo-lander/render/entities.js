@@ -374,10 +374,10 @@ drawSourcingDepot() {
             ctx.textAlign = 'center';
             ctx.fillText('CARGO DEPOT', cpCx, wbY + 14);
 
-            // ── Overhead crane ────────────────────────────────────────────
-            const craneBaseX = cx + cw * 0.72;
-            const craneTopY = wbY - 2;
-            const craneArmEnd = cx - 10;
+            // ── Roof-Integrated Crane System ─────────────────────────────────
+            const trackY = wbY - 2;
+            const trackStartX = wbX + 10;
+            const trackEndX = cx + cw * 0.9;
             const hatchX = wbX + wbW * 0.42;
             const hatchHalfW = 22;
 
@@ -388,6 +388,7 @@ drawSourcingDepot() {
             const _roofOpen = _col.loadSeq ? _col.loadSeq.roofOpen : 0;
             const _hatchGap = hatchHalfW * 2 * _roofOpen;
 
+            // Roof line and opening hatch
             ctx.fillStyle = '#1e3a5f';
             if (_hatchGap > 2) {
                 ctx.fillRect(wbX, wbY, hatchX - hatchHalfW - wbX, 4);
@@ -409,84 +410,87 @@ drawSourcingDepot() {
                 ctx.fillRect(wbX, wbY, wbW, 2);
             }
 
-            // Vertical mast + horizontal arm
+            // Overhead Rail Track
             ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 5;
+            ctx.lineWidth = 4;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(craneBaseX, cy); ctx.lineTo(craneBaseX, craneTopY - 20);
+            ctx.moveTo(trackStartX, trackY - 18);
+            ctx.lineTo(trackEndX, trackY - 18);
             ctx.stroke();
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX, craneTopY - 20); ctx.lineTo(craneArmEnd, craneTopY - 20);
-            ctx.stroke();
-            // Small corner gusset support (so it doesn't look like a dropped wire)
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#334155';
-            ctx.beginPath();
-            ctx.moveTo(craneBaseX - 12, craneTopY - 20);
-            ctx.lineTo(craneBaseX, craneTopY - 8);
-            ctx.stroke();
+            // Track struts connecting to roof
+            ctx.lineWidth = 2;
+            for (let sx = trackStartX + 10; sx <= trackEndX - 10; sx += 32) {
+                ctx.beginPath();
+                ctx.moveTo(sx, trackY - 18);
+                ctx.lineTo(sx, wbY);
+                ctx.stroke();
+            }
             ctx.lineCap = 'butt';
 
             // Trolley + cable + phantom box, driven by the load-sequence progress
-            const _cableTop = craneTopY - 18;
-            const _intoWarehouse = wbH * 0.38;
-            const _shortLen = 18;
-            const _toDeck = (cy - _cableTop) + 22;
+            const _cableTop = trackY - 16;
+            const _intoWarehouse = wbH * 0.45;
+            const _shortLen = 14;
+            // The box drops at exactly `lander.y - 60`. 
+            // `cy` is the pad. `lander.y` is usually close to `cy`, so `cy - 60` is the target Y.
+            // Target cable len = `(cy - 60) - _cableTop - 8` (8 is box half height).
+            const _toDeck = (cy - 60) - _cableTop - 8;
+            
             let _trolleyX, _cableLen, _showBox = false, _boxX = 0, _boxY = 0;
+            const _smooth = (f) => f * f * (3 - 2 * f);
             const _lerp = (a, b, f) => a + (b - a) * Math.max(0, Math.min(1, f));
+            const _slerp = (a, b, f) => _lerp(a, b, _smooth(f));
 
             if (_seqActive) {
-                const _lx = Math.max(craneArmEnd, Math.min(craneBaseX, _col.loadSeq.lx));
+                const _lx = Math.max(trackStartX, Math.min(trackEndX, _col.loadSeq.lx));
 
-                if (_st < 0.20) {
+                if (_st < 0.15) {
                     _trolleyX = hatchX;
                     _cableLen = _shortLen;
-                } else if (_st < 0.40) {
+                } else if (_st < 0.35) {
                     _trolleyX = hatchX;
-                    _cableLen = _lerp(_shortLen, _intoWarehouse, (_st - 0.20) / 0.20);
-                    const _bf = (_st - 0.20) / 0.20;
-                    _showBox = true;
-                    _boxX = hatchX;
-                    _boxY = _lerp(wbY + wbH * 0.5, wbY + 2, _bf);
-                } else if (_st < 0.55) {
+                    _cableLen = _slerp(_shortLen, _intoWarehouse, (_st - 0.15) / 0.20);
+                } else if (_st < 0.50) {
                     _trolleyX = hatchX;
-                    _cableLen = _lerp(_intoWarehouse, _shortLen, (_st - 0.40) / 0.15);
+                    _cableLen = _slerp(_intoWarehouse, _shortLen, (_st - 0.35) / 0.15);
                     _showBox = true;
-                    _boxX = hatchX;
-                    _boxY = _cableTop + _cableLen + 8;
-                } else if (_st < 0.70) {
-                    _trolleyX = _lerp(hatchX, _lx, (_st - 0.55) / 0.15);
+                } else if (_st < 0.65) {
+                    _trolleyX = _slerp(hatchX, _lx, (_st - 0.50) / 0.15);
                     _cableLen = _shortLen;
                     _showBox = true;
+                } else if (_st < 0.80) {
+                    _trolleyX = _lx;
+                    _cableLen = _slerp(_shortLen, _toDeck, (_st - 0.65) / 0.15);
+                    // The actual drop triggers at 0.75 in game.js. 
+                    // To keep visual sync, the box disappears right when _st crosses 0.75.
+                    _showBox = _st < 0.75;
+                } else {
+                    const _retractF = (_st - 0.80) / 0.20;
+                    _trolleyX = _slerp(_lx, hatchX, _retractF);
+                    _cableLen = _slerp(_toDeck, _shortLen, _retractF);
+                }
+                if (_showBox) {
                     _boxX = _trolleyX;
                     _boxY = _cableTop + _cableLen + 8;
-                } else if (_st < 0.85) {
-                    _trolleyX = _lx;
-                    _cableLen = _lerp(_shortLen, _toDeck, (_st - 0.70) / 0.15);
-                    _showBox = _st < 0.75;
-                    _boxX = _lx;
-                    _boxY = _cableTop + _cableLen + 8;
-                } else {
-                    _trolleyX = _lerp(_lx, hatchX, (_st - 0.85) / 0.15);
-                    _cableLen = _lerp(_shortLen, _shortLen * 0.5, (_st - 0.85) / 0.15);
                 }
             } else {
-                _trolleyX = craneArmEnd + (craneBaseX - craneArmEnd) * (0.3 + Math.sin(now * 0.0006) * 0.25);
-                _cableLen = 30 + Math.abs(Math.sin(now * 0.0008)) * 20;
+                _trolleyX = hatchX + (trackEndX - trackStartX) * 0.1 * Math.sin(now * 0.0006);
+                _cableLen = _shortLen + Math.abs(Math.sin(now * 0.0008)) * 10;
             }
 
             ctx.fillStyle = _seqActive ? '#38bdf8' : '#475569';
-            ctx.fillRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.fillRect(_trolleyX - 6, trackY - 22, 12, 6);
             ctx.strokeStyle = '#64748b';
             ctx.lineWidth = 1.2;
-            ctx.strokeRect(_trolleyX - 6, craneTopY - 26, 12, 8);
+            ctx.strokeRect(_trolleyX - 6, trackY - 22, 12, 6);
+            
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 1.2;
             ctx.beginPath();
             ctx.moveTo(_trolleyX, _cableTop); ctx.lineTo(_trolleyX, _cableTop + _cableLen);
             ctx.stroke();
+            
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
