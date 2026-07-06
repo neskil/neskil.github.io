@@ -118,10 +118,22 @@
             top: 8px;
             left: 12px;
             right: 12px;
+            bottom: 0;
             display: none;
-            /* Shown dynamically during play */
-            justify-content: space-between;
-            align-items: flex-start;
+            /* Shown dynamically during play — use block/flex toggled via JS */
+            pointer-events: none;
+        }
+
+        #mission-panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        #radar-container {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
 
         .hud-group {
@@ -210,20 +222,20 @@
         }
 
         #menu-screen .screen-content {
-            max-width: 960px;
-            transform: scale(0.85);
+            max-width: 1120px;
+            transform: scale(0.92);
             transform-origin: center center;
             animation: menuScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
         @keyframes menuScaleIn {
             from {
-                transform: scale(0.80);
+                transform: scale(0.87);
                 opacity: 0;
             }
 
             to {
-                transform: scale(0.85);
+                transform: scale(0.92);
                 opacity: 1;
             }
         }
@@ -616,7 +628,7 @@
             }
 
             #menu-screen .screen-content {
-                transform: none;
+                transform: scale(0.88);
                 animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
         }
@@ -809,8 +821,8 @@
         /* ===== Menu layout: mission selector + pilot license ===== */
         .menu-panes {
             display: grid;
-            grid-template-columns: 1.3fr 1fr;
-            gap: 24px;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 28px;
             text-align: left;
             align-items: start;
         }
@@ -1215,69 +1227,101 @@
         <!-- Floating HUD during gameplay -->
         <!-- Floating HUD during gameplay -->
         <div id="hud-overlay" class="hud-panel"
-            style="padding: 16px 16px 0 16px; box-sizing: border-box; top: 0; left: 0; right: 0; pointer-events: none; display: none;">
+            style="position: absolute; padding: 16px; box-sizing: border-box; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none;">
 
-            <!-- Left: Extract Button Container -->
-            <div style="flex: 1; display: flex; flex-direction: column; align-items: flex-start;">
-                <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
-                    style="padding: 8px 16px; font-size: 14px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); pointer-events: auto;">FINISH
-                    & EXTRACT</button>
+            <!-- Top Notifications Container (absolute positioned) -->
+            <div id="notifications-container" style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 10; pointer-events: none;">
             </div>
 
-            <!-- Center: Vitals -->
-            <div id="vitals-panel" class="hud-group"
-                style="pointer-events: auto; justify-content: center; flex-wrap: wrap;">
-                <div class="hud-stat">Fuel</div>
-                <div class="gauge-container">
-                    <div id="fuel-fill" class="gauge-fill"></div>
-                </div>
-                <div id="low-fuel-warning" class="hidden"
-                    style="color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <!-- Left Column -->
+                <div id="hud-left-panel" style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
+                            style="padding: 8px 16px; font-size: 14px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); pointer-events: auto;">FINISH
+                            & EXTRACT</button>
+                        <button id="btn-destruct" class="btn-danger hidden" onclick="game.selfDestruct()"
+                            style="padding: 8px 16px; font-size: 14px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; pointer-events: auto; border-radius: 6px; backdrop-filter: blur(8px); cursor: pointer;">☠️ DESTRUCT</button>
+                    </div>
 
-                <div class="hud-stat" style="margin-left: 10px;">Hull</div>
-                <div class="gauge-container">
-                    <div id="health-fill" class="gauge-fill"></div>
+                    <!-- Mission Info Panel -->
+                    <div id="mission-panel" class="hud-group" style="display: flex; flex-direction: column; background: rgba(8, 12, 26, 0.88); border: 1.2px solid rgba(56, 189, 248, 0.4); padding: 16px; min-width: 260px; pointer-events: auto;">
+                        <div style="font-weight: 600; font-size: 11px; letter-spacing: 0.12em; color: rgba(56,189,248,0.75);">MISSION</div>
+                        <div id="mission-title" style="font-weight: 700; font-size: 13px; color: rgba(248,250,252,0.95); margin-top: 4px;"></div>
+                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0;"></div>
+                        <div id="mission-quests" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0;"></div>
+                        <div id="mission-stats" style="font-weight: 600; font-size: 12px; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="color: #f8fafc;" id="mission-stat-cargo">Cargo: 0/0</div>
+                            <div style="color: #10b981;" id="mission-stat-budget">Budget: $0</div>
+                            <div style="color: #f59e0b;" id="mission-stat-time">Time: 00:00</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tutorial Chips Container -->
+                    <div id="tutorial-container" style="display: flex; flex-direction: column; gap: 6px; pointer-events: none;">
+                    </div>
                 </div>
-            </div>
 
-            <!-- Right: Utility & Options -->
-            <div id="hud-right-panel"
-                style="flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: auto;">
-                <div class="hud-group" style="padding: 6px 8px;">
-                    <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺
-                        Fullscreen</button>
-                    <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
-                        title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
-                    <button class="utility-btn icon-only" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
-                        style="width: 32px; height: 32px;">👁</button>
-                    <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options"
-                        style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
+                <!-- Center Column: Vitals -->
+                <div id="vitals-panel" class="hud-group"
+                    style="pointer-events: auto; justify-content: center; flex-wrap: wrap; height: fit-content; transform-origin: top center;">
+                    <div class="hud-stat">Fuel</div>
+                    <div class="gauge-container">
+                        <div id="fuel-fill" class="gauge-fill"></div>
+                    </div>
+                    <div id="low-fuel-warning" class="hidden"
+                        style="color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
+
+                    <div class="hud-stat" style="margin-left: 10px;">Hull</div>
+                    <div class="gauge-container">
+                        <div id="health-fill" class="gauge-fill"></div>
+                    </div>
                 </div>
 
-                <div id="options-dropdown" class="hud-group"
-                    style="display: none; flex-direction: column; align-items: flex-start; align-self: flex-start; background: rgba(15, 23, 42, 0.85); width: 175px; pointer-events: auto;">
-                    <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
-                        style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
-                    <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();"
-                        style="width: 100%; justify-content: flex-start;">⚙️ Settings</button>
-                    <button class="utility-btn" onclick="game.selfDestruct(); toggleOptionsDropdown();"
-                        style="width: 100%; justify-content: flex-start; color: #fca5a5;">☠️ Destruct</button>
-                    <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();"
-                        style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
-                    <a href="level-editor.html" class="utility-btn"
-                        style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝
-                        Editor</a>
-                    <div id="ui-scale-container"
-                        style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
-                        <span
-                            style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI
-                            Scale: <span id="ui-scale-val">100%</span></span>
-                        <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0"
-                            style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
+                <!-- Right Column: Utility, Radar, Options -->
+                <div id="hud-right-panel"
+                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right;">
+                    
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; position: relative;">
+                        <div class="hud-group" style="padding: 6px 8px;">
+                            <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺 Fullscreen</button>
+                            <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
+                                title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
+                            <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
+                                style="height: 32px;">HUD 👁</button>
+                            <button class="utility-btn icon-only" onclick="toggleOptionsDropdown();" title="Options"
+                                style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
+                        </div>
+
+                        <div id="options-dropdown" class="hud-group"
+                            style="display: none; flex-direction: column; align-items: flex-start; background: rgba(15, 23, 42, 0.85); width: 175px; position: absolute; top: 100%; right: 0; z-index: 20;">
+                            <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
+                                style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
+                            <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();"
+                                style="width: 100%; justify-content: flex-start;">⚙️ Settings</button>
+                            <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();"
+                                style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
+                            <a href="level-editor.html" class="utility-btn"
+                                style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝 Editor</a>
+                            <div id="ui-scale-container"
+                                style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
+                                <span style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI Scale: <span id="ui-scale-val">100%</span></span>
+                                <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0"
+                                    style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Radar Minimap -->
+                    <div id="radar-container" class="hud-group" style="padding: 0; background: rgba(10, 16, 32, 0.96); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; overflow: hidden; position: relative;">
+                        <canvas id="radar-canvas" width="260" height="160" style="display: block;"></canvas>
+                        <!-- subtle grid over radar -->
+                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 25% 25%;"></div>
+                        <div style="position: absolute; top: 13px; left: 8px; font: 600 9px Outfit, sans-serif; letter-spacing: 0.1em; color: rgba(56,189,248,0.6); pointer-events: none;">RADAR</div>
                     </div>
                 </div>
             </div>
-
         </div>
 
         <div id="hint-ticker"><span id="level-hint">Tip: Land slowly</span></div>

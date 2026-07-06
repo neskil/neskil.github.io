@@ -1,17 +1,17 @@
 Object.assign(CargoGame.prototype, {
 drawMinimap() {
         if (this.uiCollapsed) return;
-        const ctx = this.ctx;
-        const cw = this.canvas.width;
 
-        const isMobile = cw < 768;
-        const isTiny = cw < 500;
+        // Target the dedicated radar HTML canvas instead of the main game canvas
+        const radarCanvas = this.uiElements?.radarCanvas || document.getElementById('radar-canvas');
+        if (!radarCanvas) return;
+        const ctx = radarCanvas.getContext('2d');
+
+        const mmWidth = radarCanvas.width;
+        const mmHeight = radarCanvas.height;
 
         // Find objective bounds to cap minimap
-        let objMinX = Infinity;
-        let objMaxX = -Infinity;
-        let objMinY = Infinity;
-        let objMaxY = -Infinity;
+        let objMinX = Infinity, objMaxX = -Infinity, objMinY = Infinity, objMaxY = -Infinity;
         const addObj = (obj) => {
             if (!obj) return;
             if (obj.x < objMinX) objMinX = obj.x;
@@ -29,68 +29,25 @@ drawMinimap() {
             objMinX = 0; objMaxX = this.physics.levelWidth;
             objMinY = 0; objMaxY = this.physics.levelHeight;
         } else {
-            objMinX -= 400; objMaxX += 400; // padding
+            objMinX -= 400; objMaxX += 400;
             objMinY -= 300; objMaxY += 300;
         }
 
         const mapWorldWidth = Math.max(1000, objMaxX - objMinX);
         const mapWorldHeight = Math.max(600, objMaxY - objMinY);
 
-        // Minimap: top-right corner, fixed landscape UI dimensions
-        const mmWidth = isTiny ? 160 : (isMobile ? 200 : 260);
-        const mmHeight = isTiny ? 100 : (isMobile ? 130 : 160);
-        const margin = isMobile ? 12 : 16;
-        const mmX = cw - mmWidth - margin;
-        const mmY = isMobile ? 52 : 64; // clears the HUD bar (top:8px + ~44px height)
-
-        ctx.save();
-        // Translate to top-right anchor and scale
-        const anchorX = cw - margin;
-        ctx.translate(anchorX, mmY);
-        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
-        ctx.translate(-anchorX, -mmY);
-        // ── Background ────────────────────────────────────────────────────
-        ctx.save();
-
-        // Draw rounded rect background + border
-        ctx.fillStyle = 'rgba(10, 16, 32, 0.96)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 12);
-        else ctx.rect(mmX, mmY, mmWidth, mmHeight);
-        ctx.fill();
-        ctx.stroke();
-
-        // ── Clip everything to the minimap box ────────────────────────────
-        // This prevents the lander dot / viewport rect from ever leaking outside
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(mmX, mmY, mmWidth, mmHeight, 12);
-        else ctx.rect(mmX, mmY, mmWidth, mmHeight);
-        ctx.clip();
-
-        // Subtle grid
-        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let i = 1; i < 4; i++) {
-            ctx.moveTo(mmX + (mmWidth / 4) * i, mmY);
-            ctx.lineTo(mmX + (mmWidth / 4) * i, mmY + mmHeight);
-            ctx.moveTo(mmX, mmY + (mmHeight / 4) * i);
-            ctx.lineTo(mmX + mmWidth, mmY + (mmHeight / 4) * i);
-        }
-        ctx.stroke();
+        // Clear the canvas — the HTML container provides the background & border
+        ctx.clearRect(0, 0, mmWidth, mmHeight);
 
         // ── World → minimap transform ──────────────────────────────────────
         const scale = Math.min(mmWidth / mapWorldWidth, mmHeight / mapWorldHeight);
-
-        // Center the scaled world in the minimap box
         const contentW = mapWorldWidth * scale;
         const contentH = mapWorldHeight * scale;
         const offsetX = (mmWidth - contentW) / 2;
         const offsetY = (mmHeight - contentH) / 2;
 
-        ctx.translate(mmX + offsetX, mmY + offsetY);
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
         ctx.scale(scale, scale);
         ctx.translate(-objMinX, -objMinY);
 
@@ -101,16 +58,13 @@ drawMinimap() {
                 if (!poly || poly.length < 3) continue;
                 ctx.beginPath();
                 ctx.moveTo(poly[0].x, poly[0].y);
-                for (let i = 1; i < poly.length; i++) {
-                    ctx.lineTo(poly[i].x, poly[i].y);
-                }
+                for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
                 ctx.closePath();
                 ctx.fill();
             }
         }
 
         // ── Pads / hubs ────────────────────────────────────────────────────
-        // Min size in world units so they're visible on the minimap
         const minW = 4 / scale;
         const minH = 4 / scale;
 
@@ -132,7 +86,7 @@ drawMinimap() {
         }
 
         // ── Cargo boxes ────────────────────────────────────────────────────
-        const boxR = 6 / scale; // world-space radius
+        const boxR = 6 / scale;
         if (this.physics.boxes) {
             for (const box of this.physics.boxes) {
                 ctx.fillStyle = box.color || '#fff';
@@ -153,7 +107,7 @@ drawMinimap() {
         }
 
         // ── Camera viewport rect ───────────────────────────────────────────
-        const viewW = cw / this.camera.zoom;
+        const viewW = this.canvas.width / this.camera.zoom;
         const viewH = this.canvas.height / this.camera.zoom;
         const viewX = this.camera.x - viewW / 2;
         const viewY = this.camera.y - viewH / 2;
@@ -165,8 +119,6 @@ drawMinimap() {
         if (this.physics.lander) {
             const l = this.physics.lander;
             const dotR = 5 / scale;
-
-            // Clamp strictly to the minimap's coordinate bounds
             const clampedX = Math.max(objMinX, Math.min(objMaxX, l.x));
             const clampedY = Math.max(objMinY, Math.min(objMaxY, l.y));
 
@@ -175,7 +127,6 @@ drawMinimap() {
             ctx.arc(clampedX, clampedY, dotR, 0, Math.PI * 2);
             ctx.fill();
 
-            // Small heading tick
             if (!l.crashed) {
                 ctx.strokeStyle = '#10b981';
                 ctx.lineWidth = 2.5 / scale;
@@ -187,153 +138,6 @@ drawMinimap() {
                 );
                 ctx.stroke();
             }
-        }
-
-        ctx.restore();
-
-        // ── Label ──────────────────────────────────────────────────────────
-        ctx.save();
-        ctx.font = '600 9px Outfit, sans-serif';
-        ctx.letterSpacing = '0.1em';
-        ctx.fillStyle = 'rgba(56,189,248,0.6)';
-        ctx.textAlign = 'left';
-        ctx.fillText('RADAR', mmX + 8, mmY + 13);
-        ctx.restore();
-        
-        ctx.restore(); // Restore outer scale and translate
-    }
-
-,
-drawQuestPanel() {
-        if (this.uiCollapsed) return;
-        const ctx = this.ctx;
-        const level = levels[this.currentLevelIndex];
-        if (!level || !level.quests) return;
-
-        const cw = this.canvas.width;
-        const isMobile = cw < 768;
-        const isTiny = cw < 500;
-
-        // Calculate layout dynamically to fix spacing
-        const px = isMobile ? 8 : 16;
-        const py = isMobile ? 52 : 64;
-        const panelW = isTiny ? 160 : (isMobile ? 200 : 260);
-        const lineH = isTiny ? 18 : (isMobile ? 20 : 24);
-        const statLineH = isTiny ? 14 : 18;
-        
-        // 16(top) + 16(Mission) + 16(Title) + 12(Divider) + quests + 14(Divider+gap) + stats + 16(bottom)
-        const panelH = 16 + 16 + 16 + 12 + (level.quests.length * lineH) + 14 + (statLineH * 3) + 16;
-        // Read by drawNotifications() to anchor tutorial hint chips just below this
-        // panel instead of guessing its height (one-frame-stale is imperceptible).
-        this._questPanelBottomY = py + panelH;
-
-        ctx.save();
-        // Translate to top-left anchor and scale
-        ctx.translate(px, py);
-        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
-        ctx.translate(-px, -py);
-
-        // Panel background
-        ctx.fillStyle = 'rgba(8, 12, 26, 0.88)';
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(px, py, panelW, panelH, 10);
-        else ctx.rect(px, py, panelW, panelH);
-        ctx.fill();
-        ctx.stroke();
-
-        let curY = py + 16;
-
-        // Mission label
-        ctx.font = isTiny ? '600 9px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
-        ctx.letterSpacing = '0.12em';
-        ctx.fillStyle = 'rgba(56,189,248,0.75)';
-        ctx.textAlign = 'left';
-        ctx.fillText('MISSION', px + (isTiny ? 8 : 12), curY);
-        curY += 16;
-
-        // Mission name
-        ctx.font = isTiny ? '700 11px Outfit, sans-serif' : '700 13px Outfit, sans-serif';
-        ctx.letterSpacing = '0';
-        ctx.fillStyle = 'rgba(248,250,252,0.95)';
-        ctx.fillText(level.missionTitle || level.name, px + (isTiny ? 8 : 12), curY, panelW - (isTiny ? 16 : 24));
-        curY += 12;
-
-        // Divider
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + (isTiny ? 6 : 10), curY - 4);
-        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), curY - 4);
-        ctx.stroke();
-        curY += 12;
-
-        // Quest items
-        for (let i = 0; i < level.quests.length; i++) {
-            const q = level.quests[i];
-            const state = this.questState[q.id];
-            const isPrimary = q.type === 'primary';
-
-            let icon, iconColor;
-            if (q.id === 'primary' && this.deliveredCount >= level.targetCargo) {
-                icon = '✓'; iconColor = '#10b981';
-            } else if (state?.completed) {
-                icon = '✓'; iconColor = '#10b981';
-            } else if (state?.failed) {
-                icon = '✗'; iconColor = '#ef4444';
-            } else {
-                icon = isPrimary ? '◆' : '◇'; iconColor = isPrimary ? '#38bdf8' : '#94a3b8';
-            }
-
-            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
-            ctx.fillStyle = iconColor;
-            ctx.fillText(icon, px + (isTiny ? 8 : 12), curY);
-
-            ctx.font = isPrimary ? (isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif') : (isTiny ? '400 10px Outfit, sans-serif' : '400 12px Outfit, sans-serif');
-            ctx.fillStyle = state?.failed ? 'rgba(239,68,68,0.75)' :
-                (state?.completed ? 'rgba(16,185,129,0.9)' :
-                    (isPrimary ? 'rgba(248,250,252,0.92)' : 'rgba(148,163,184,0.85)'));
-            ctx.fillText(q.text + (q.reward ? `  +$${q.reward}` : ''), px + (isTiny ? 22 : 28), curY, panelW - (isTiny ? 30 : 40));
-            
-            curY += lineH;
-        }
-
-        // --- Mission Stats Divider ---
-        curY += 4;
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.beginPath();
-        ctx.moveTo(px + (isTiny ? 6 : 10), curY - 10);
-        ctx.lineTo(px + panelW - (isTiny ? 6 : 10), curY - 10);
-        ctx.stroke();
-        curY += 6; // breathing room so "Cargo:" doesn't crowd the divider above it
-
-        ctx.font = isTiny ? '600 10px Outfit, sans-serif' : '600 12px Outfit, sans-serif';
-
-        // Cargo
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillText(`Cargo: ${this.deliveredCount}/${level.targetCargo}`, px + (isTiny ? 8 : 12), curY);
-        curY += statLineH;
-
-        // Budget
-        ctx.fillStyle = '#10b981';
-        ctx.fillText(`Budget: $${Math.floor(this.missionBudget)}`, px + (isTiny ? 8 : 12), curY);
-        curY += statLineH;
-
-        // Time
-        if (this.overtimeActive) {
-            const ot = Math.ceil(this.overtimeTimer);
-            ctx.fillStyle = (Math.floor(Date.now() / 300) % 2 === 0) ? '#ef4444' : '#fbbf24';
-            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
-            ctx.fillText(`Time: ! ${ot}s`, px + (isTiny ? 8 : 12), curY);
-        } else {
-            const totalS = Math.floor(this.missionTimer || 0);
-            const m = Math.floor(totalS / 60);
-            const s = totalS % 60;
-            const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            ctx.fillStyle = totalS < 20 ? '#ef4444' : '#f59e0b';
-            ctx.font = isTiny ? '700 11px monospace' : '700 13px monospace';
-            ctx.fillText(`Time: ${timeStr}`, px + (isTiny ? 8 : 12), curY);
         }
 
         ctx.restore();
@@ -492,76 +296,8 @@ drawNextObjectiveArrow() {
 
 ,
 drawNotifications() {
-        const ctx = this.ctx;
-
-        // Tutorial hints read as small compact chips tucked under the mission panel
-        // instead of big center-screen banners, which felt disconnected/intrusive.
-        const tutorials = this.messages.filter(m => m.text.startsWith('TUTORIAL:'));
-        const others = this.messages.filter(m => !m.text.startsWith('TUTORIAL:'));
-
-        if (tutorials.length && !this.uiCollapsed) {
-            const isMobile = this.canvas.width < 768;
-            const px = isMobile ? 8 : 16;
-            // Anchor just below the mission panel's actual bottom edge (computed by
-            // drawQuestPanel last frame), falling back to a rough estimate if unset.
-            const py = (this._questPanelBottomY || ((isMobile ? 52 : 64) + 160)) + 8;
-            const panelW = this.canvas.width < 500 ? 160 : (isMobile ? 200 : 260);
-            const fontSize = 11;
-            ctx.font = `600 ${fontSize}px Outfit, sans-serif`;
-            ctx.textAlign = 'left';
-
-            for (let i = 0; i < tutorials.length; i++) {
-                const m = tutorials[i];
-                const label = m.text.replace('TUTORIAL: ', '');
-                const y = py + i * (fontSize + 14);
-
-                ctx.globalAlpha = m.life * 0.85;
-                ctx.fillStyle = 'rgba(6, 20, 16, 0.85)';
-                ctx.strokeStyle = 'rgba(52, 211, 153, 0.4)';
-                ctx.lineWidth = 1;
-                const ph = fontSize + 10;
-                ctx.beginPath();
-                if (ctx.roundRect) ctx.roundRect(px, y, panelW, ph, 8);
-                else ctx.rect(px, y, panelW, ph);
-                ctx.fill();
-                ctx.stroke();
-
-                ctx.globalAlpha = m.life;
-                ctx.fillStyle = m.color;
-                ctx.fillText('💡 ' + label, px + 8, y + ph - 7, panelW - 16);
-            }
-            ctx.globalAlpha = 1.0;
-        }
-
-        if (!others.length) return;
-        ctx.textAlign = 'center';
-
-        // Use a much larger, more readable font
-        const fontSize = this.canvas.width < 500 ? 16 : 22;
-        ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
-
-        for (let i = 0; i < others.length; i++) {
-            const m = others[i];
-            const spacing = fontSize + 16;
-            const y = m.y - (i * spacing);
-            const tw = ctx.measureText(m.text).width;
-
-            // Backdrop pill
-            ctx.globalAlpha = m.life * 0.72;
-            ctx.fillStyle = 'rgba(5, 8, 18, 0.82)';
-            const pw = tw + 36, ph = fontSize + 12;
-            const px = this.canvas.width / 2 - pw / 2;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(px, y - fontSize + 2, pw, ph, 14);
-            else ctx.rect(px, y - fontSize + 2, pw, ph);
-            ctx.fill();
-
-            // Text
-            ctx.globalAlpha = m.life;
-            ctx.fillStyle = m.color;
-            ctx.fillText(m.text, this.canvas.width / 2, y);
-        }
-        ctx.globalAlpha = 1.0;
+        // Notifications are now rendered as HTML DOM elements via addMessage().
+        // This method is kept as a no-op so existing call sites in render.js don't break.
     }
 
 ,
