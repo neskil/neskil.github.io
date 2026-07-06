@@ -1984,7 +1984,7 @@ class CargoPhysics {
             }
 
             const rModel = Math.random();
-            const model = rModel < 0.4 ? 'pickup' : (rModel < 0.75 ? 'freighter' : 'police');
+            const model = rModel < 0.5 ? 'pickup' : (rModel < 0.90 ? 'freighter' : 'police');
             const truckW = model === 'pickup' ? 55 + Math.random() * 50 : (model === 'police' ? 65 : 80 + Math.random() * 120);
             const truckH = model === 'pickup' ? 20 + Math.random() * 10 : (model === 'police' ? 22 : 16 + Math.random() * 18);
             const speed = (model === 'police' ? 2.5 + Math.random() : 0.5 + Math.random() * 1.5); // Police are faster

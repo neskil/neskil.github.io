@@ -1424,8 +1424,17 @@
                 </div>
             </div>
         </div>
+        <!-- CENTER EXTRACT PROMPT -->
+        <div id="center-extract-overlay" style="display: none; position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.85); border: 2px solid #38bdf8; border-radius: 12px; padding: 12px 24px; text-align: center; backdrop-filter: blur(8px); flex-direction: column; align-items: center; pointer-events: none;">
+            <h3 id="center-extract-title" style="margin: 0 0 4px 0; color: #38bdf8; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">All Cargo Delivered</h3>
+            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.85rem; max-width: 300px;">Return to HQ to extract.</p>
+            <button id="center-extract-btn" class="btn-primary" style="display: none; margin-top: 10px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1rem; font-weight: bold; padding: 10px 20px; box-shadow: 0 0 15px rgba(16,185,129,0.5);" onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
+        </div>
+
     </div>
 
+    <!-- POST EXTRACTION SCREEN -->
+    <!-- Removed in favor of using complete-screen -->
 
     <!-- SCREEN OVERLAY: VEHICLE SELECTION -->
     <div id="vehicle-screen" class="screen-overlay" style="display: none;">
@@ -1518,8 +1527,14 @@
                 <!-- Filled dynamically -->
             </div>
 
-            <button class="btn-primary" onclick="game.nextLevel()">Next Mission ➔</button>
-            <button class="btn-secondary" onclick="game.restartLevel()">Replay</button>
+            <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                <button class="btn-primary" onclick="game.nextLevel()" style="flex:1;">Next Mission ➔</button>
+                <button class="btn-secondary" onclick="game.restartLevel()" style="flex:1; margin:0;">Replay</button>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-secondary" onclick="game.goToMenu()" style="flex:1; margin:0;">Main Menu</button>
+                <button class="btn-secondary" onclick="alert('R&D Store coming soon!')" style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
+            </div>
         </div>
     </div>
 

@@ -331,6 +331,14 @@ drawSourcingDepot() {
                 ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2);
                 ctx.stroke();
             }
+            
+            // Neon top edge
+            ctx.strokeStyle = `rgba(14, 165, 233, ${0.4 + cpulse * 0.3})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(wbX, wbY);
+            ctx.lineTo(wbX + wbW, wbY);
+            ctx.stroke();
 
             // Loading dock doors
             const doorW = wbW * 0.32, doorH = wbH * 0.52;
@@ -353,13 +361,18 @@ drawSourcingDepot() {
             ctx.fillStyle = strobeOn ? 'rgba(251,191,36,0.95)' : 'rgba(80,60,10,0.6)';
             for (const bx2 of [wbX + 5, wbX + wbW - 5]) {
                 ctx.beginPath(); ctx.arc(bx2, wbY + 8, 3.5, 0, Math.PI * 2); ctx.fill();
+                if (strobeOn) {
+                    ctx.fillStyle = 'rgba(251,191,36,0.3)';
+                    ctx.beginPath(); ctx.arc(bx2, wbY + 8, 8, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = 'rgba(251,191,36,0.95)';
+                }
             }
 
             // Building label
-            ctx.fillStyle = 'rgba(148,163,184,0.7)';
-            ctx.font = '600 8px Outfit, sans-serif';
+            ctx.fillStyle = 'rgba(14, 165, 233, 0.9)';
+            ctx.font = 'bold 9px Outfit, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CARGO TERMINAL', cpCx, wbY + 14);
+            ctx.fillText('CARGO DEPOT', cpCx, wbY + 14);
 
             // ── Overhead crane ────────────────────────────────────────────
             const craneBaseX = cx + cw * 0.72;
