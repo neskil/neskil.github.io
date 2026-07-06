@@ -1377,6 +1377,10 @@
                             onchange="game.loadCustomLevel(event)">
                     </div>
 
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; line-height: 1.4; text-align: left;">
+                        💡 <b>Custom Levels:</b> You can design your own custom layouts in the <a href="level-editor.html" style="color: var(--neon-blue); text-decoration: underline; font-weight: 600;">Level Editor</a>. Simply download the level as a <code>.js</code> file, click "Load Custom Level" above, and select your file to play!
+                    </div>
+
                     <div class="control-help" style="margin-top: 1rem;">
                         <div><span class="kbd-key">W</span> / <span class="kbd-key">▲</span> <span>Thrusters</span>
                         </div>
@@ -1801,6 +1805,7 @@
 
         // Check if we are playtesting a level from the editor
         if (window.location.search.includes('playtest=1')) {
+            game.isPlaytest = true;
             const ptData = sessionStorage.getItem('playtest_level');
             if (ptData) {
                 try {

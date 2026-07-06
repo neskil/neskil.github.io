@@ -14,6 +14,7 @@ class CargoGame {
         // Game State
         this.gameState = 'menu';
         this.currentLevelIndex = 0;
+        this.isPlaytest = false;
 
         // Economy & Progression
         this.globalCash = parseInt(localStorage.getItem('cargoLanderCash')) || 1000;
@@ -323,6 +324,10 @@ class CargoGame {
     startTestLevel() { this.startLevel(levels.length - 1); }
 
     goToMenu() {
+        if (this.isPlaytest) {
+            window.location.href = 'level-editor.html';
+            return;
+        }
         this.gameState = 'menu';
         document.getElementById('menu-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
@@ -640,6 +645,39 @@ class CargoGame {
         }
     }
 
+    loadCustomLevel(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            try {
+                const oldRegisterLevel = window.registerLevel;
+                let loadedCfg = null;
+                window.registerLevel = (cfg) => {
+                    loadedCfg = cfg;
+                };
+
+                eval(content);
+
+                window.registerLevel = oldRegisterLevel;
+
+                if (loadedCfg) {
+                    levels.push(loadedCfg);
+                    const customIdx = levels.length - 1;
+                    this.isPlaytest = true;
+                    this.showVehicleSelection(customIdx);
+                } else {
+                    alert("No valid CargoLander level configuration found in this file.");
+                }
+            } catch (err) {
+                console.error("Failed to parse custom level:", err);
+                alert("Failed to parse custom level. Please ensure it is a valid level file exported from the Level Editor.\n\nError: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
     startLevel(idx, vehicleType = this.currentVehicle || 'basic') {
         let craziness = 1;
         if (typeof idx === 'string' && idx.startsWith('random')) {
@@ -659,6 +697,19 @@ class CargoGame {
         this.crashHandled = false;
         const level = levels[idx];
         level.vehicle = vehicleType;
+
+        // Update exit buttons text if playtesting
+        const exitButtons = [
+            { el: document.querySelector('#game-over-screen .btn-secondary'), def: "Exit to Menu" },
+            { el: document.querySelector('#respawn-screen .btn-secondary'), def: "Exit to Menu" },
+            { el: document.querySelector('#victory-screen .btn-secondary'), def: "Main Menu" },
+            { el: document.querySelector('#options-dropdown button[onclick*="goToMenu"]'), def: "🏠 Exit Level" }
+        ];
+        exitButtons.forEach(item => {
+            if (item.el) {
+                item.el.innerHTML = this.isPlaytest ? "📝 Back to Editor" : item.def;
+            }
+        });
 
         this.missionBudget = level.budget || 1000;
         this.missionTimer = level.timeLimit || 180;
@@ -768,6 +819,10 @@ class CargoGame {
     }
 
     nextLevel() {
+        if (this.isPlaytest) {
+            window.location.href = 'level-editor.html';
+            return;
+        }
         if (levels[this.currentLevelIndex] && levels[this.currentLevelIndex].name.includes('Mission ♾️')) {
             this.startLevel('random');
         } else if (this.currentLevelIndex + 1 < levels.length) {
@@ -1732,6 +1787,10 @@ class CargoGame {
         }
 
         document.getElementById('complete-screen').style.display = 'flex';
+        const nextBtn = document.querySelector('#complete-screen .btn-primary');
+        if (nextBtn) {
+            nextBtn.textContent = this.isPlaytest ? "Back to Editor ➔" : "Next Mission ➔";
+        }
         document.getElementById('lvl-complete-title').textContent = "Extraction Successful!";
         document.getElementById('lvl-complete-details').innerHTML = `
             <p>Base Contract Payout: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
@@ -4027,17 +4086,22 @@ class CargoGame {
                 if (!pts || pts.length < 2) continue;
                 const [a, b] = pts;
                 const state = haz.laserState || {};
+                
+                const baseColor = haz.color || '#7e22ce';
+                const beamColor = haz.color || '#f472b6';
 
                 // Emitter anchors
-                ctx.fillStyle = '#7e22ce';
+                ctx.fillStyle = baseColor;
                 ctx.beginPath(); ctx.arc(a.x, a.y, 6, 0, Math.PI * 2); ctx.fill();
                 ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI * 2); ctx.fill();
 
                 if (state.active) {
                     // Firing: bright pulsing core beam + wide glow
-                    ctx.strokeStyle = `rgba(244, 114, 182, ${0.25 + Math.sin(now / 60) * 0.1})`;
+                    ctx.strokeStyle = beamColor;
+                    ctx.globalAlpha = 0.25 + Math.sin(now / 60) * 0.1;
                     ctx.lineWidth = (haz.thickness || 14) * 2;
                     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                    ctx.globalAlpha = 1.0;
 
                     ctx.strokeStyle = '#fdf4ff';
                     ctx.lineWidth = 3;
@@ -4045,18 +4109,22 @@ class CargoGame {
                 } else if (state.charging) {
                     // Telegraph: fast-flashing thin line before the beam fires
                     const flash = Math.sin(now / 40) > 0;
-                    ctx.strokeStyle = flash ? 'rgba(244, 114, 182, 0.8)' : 'rgba(244, 114, 182, 0.15)';
+                    ctx.strokeStyle = beamColor;
+                    ctx.globalAlpha = flash ? 0.8 : 0.15;
                     ctx.lineWidth = 2;
                     ctx.setLineDash([6, 6]);
                     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
                     ctx.setLineDash([]);
+                    ctx.globalAlpha = 1.0;
                 } else {
                     // Idle: faint dashed guide line
-                    ctx.strokeStyle = 'rgba(126, 34, 206, 0.25)';
+                    ctx.strokeStyle = baseColor;
+                    ctx.globalAlpha = 0.25;
                     ctx.lineWidth = 1.5;
                     ctx.setLineDash([4, 10]);
                     ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
                     ctx.setLineDash([]);
+                    ctx.globalAlpha = 1.0;
                 }
                 continue;
             }
@@ -4069,6 +4137,8 @@ class CargoGame {
                 const cx = haz.x + (haz.travelX || 0) * t;
                 const cy = haz.y + (haz.travelY || 0) * t;
                 
+                const cColor = haz.color || '#ef4444';
+                
                 ctx.save();
                 ctx.translate(cx, cy);
                 
@@ -4077,7 +4147,7 @@ class CargoGame {
                 ctx.fillRect(0, 0, haz.w, haz.h);
                 
                 // Draw hazard stripes
-                ctx.fillStyle = '#ef4444';
+                ctx.fillStyle = cColor;
                 const stripeWidth = 20;
                 ctx.beginPath();
                 ctx.rect(0, 0, haz.w, haz.h);
@@ -4093,7 +4163,7 @@ class CargoGame {
                 }
                 
                 // Draw outline
-                ctx.strokeStyle = '#f87171';
+                ctx.strokeStyle = cColor;
                 ctx.lineWidth = 2;
                 ctx.strokeRect(0, 0, haz.w, haz.h);
                 
@@ -6426,33 +6496,29 @@ class CargoGame {
         const currentWind = this.physics.currentWind || baseWind;
         const dir = baseWind > 0 ? 1 : -1;
         const absBase = Math.abs(baseWind);
-        // Smooth the readout so the number/arrows/gust label don't jitter every frame —
-        // the underlying currentWind is a fast sine-wave gust value, raw display of it
-        // read as "too aggressive".
+        
+        // Smooth the readout so it doesn't jitter rapidly
         if (this._windDisplaySmooth === undefined) this._windDisplaySmooth = Math.abs(currentWind);
         this._windDisplaySmooth += (Math.abs(currentWind) - this._windDisplaySmooth) * 0.06;
         const absCurrent = this._windDisplaySmooth;
-        const gustRatio = absCurrent / (absBase || 1); // 1.0 = calm, >1 = gust
-        const now = Date.now();
+        const gustRatio = absCurrent / (absBase || 1); 
 
         // Determine color from strength: cyan → yellow → red
         const str = Math.min(1, absBase / 0.4);
         const r = Math.round(56 + str * 199);
         const g = Math.round(189 - str * 89);
         const b = Math.round(248 - str * 248);
-        const baseColor = `rgb(${r},${g},${b})`;
 
         const cx = this.canvas.width / 2;
         const cy = 80;
 
         // ── Background pill ────────────────────────────────────────────────
-        const pillW = 160, pillH = 28;
+        const pillW = 140, pillH = 26;
         ctx.save();
-        // Anchor at the pill's own center so it scales with the rest of the HUD instead
-        // of staying a fixed size — this was the one HUD element uiScale didn't reach.
         ctx.translate(cx, cy);
         ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
         ctx.translate(-cx, -cy);
+        
         ctx.fillStyle = 'rgba(0,10,30,0.55)';
         ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
         ctx.lineWidth = 1;
@@ -6462,52 +6528,11 @@ class CargoGame {
 
         // ── Label ─────────────────────────────────────────────────────────
         ctx.fillStyle = `rgba(${r},${g},${b},0.9)`;
-        ctx.font = '600 10px Outfit, sans-serif';
+        ctx.font = '600 12px Outfit, sans-serif';
         ctx.textAlign = 'center';
-        const gustLabel = gustRatio > 1.25 ? ' GUSTING' : '';
-        ctx.fillText(`WIND ${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`, cx, cy - pillH / 2 + 4);
-
-        // ── Animated streaking arrows ──────────────────────────────────────
-        const numArrows = Math.ceil(absBase * 8) + 1; // 1-5 arrows
-        const spacing = Math.min(50, pillW * 0.3);
-        const phase = (now * 0.001 * (1 + absCurrent * 2)) % 1;
-
-        for (let i = 0; i < numArrows; i++) {
-            const t = (i / numArrows + phase) % 1;
-            const ax = cx + dir * (t - 0.5) * pillW * 0.6;
-            const alpha = Math.sin(t * Math.PI) * 0.9; // fade in/out
-            const segLen = 6 + absCurrent * 20;
-            ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
-            ctx.lineWidth = 1.5 + str;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(ax - dir * segLen * 0.5, cy - pillH / 2 + 10);
-            ctx.lineTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
-            ctx.stroke();
-            // arrowhead
-            ctx.beginPath();
-            ctx.moveTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
-            ctx.lineTo(ax + dir * (segLen * 0.5 - 5), cy - pillH / 2 + 6);
-            ctx.moveTo(ax + dir * segLen * 0.5, cy - pillH / 2 + 10);
-            ctx.lineTo(ax + dir * (segLen * 0.5 - 5), cy - pillH / 2 + 14);
-            ctx.stroke();
-        }
-
-        // ── Gust bar (shows live gusting vs base) ─────────────────────────
-        const barW = pillW * 0.72;
-        const barH = 3;
-        const barX = cx - barW / 2;
-        const barY = cy - 6;
-        ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        ctx.fillRect(barX, barY, barW, barH);
-        // fill up to current gust level (capped at 1.6x base)
-        const fillFrac = Math.min(1, gustRatio / 1.6);
-        const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-        grad.addColorStop(0, `rgba(${r},${g},${b},0.6)`);
-        grad.addColorStop(1, `rgba(${r},${g},${b},1.0)`);
-        ctx.fillStyle = grad;
-        if (dir > 0) ctx.fillRect(barX, barY, barW * fillFrac, barH);
-        else ctx.fillRect(barX + barW * (1 - fillFrac), barY, barW * fillFrac, barH);
+        ctx.textBaseline = 'middle';
+        const gustLabel = gustRatio > 1.25 ? ' (GUSTING)' : '';
+        ctx.fillText(`${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`, cx, cy - pillH / 2 - 2);
 
         ctx.restore();
     }
