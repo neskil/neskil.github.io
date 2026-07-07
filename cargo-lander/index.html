@@ -1230,26 +1230,31 @@
             style="position: absolute; padding: 16px; box-sizing: border-box; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none;">
 
             <!-- Top Notifications Container (absolute positioned) -->
-            <div id="notifications-container" style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 10; pointer-events: none;">
+            <div id="notifications-container"
+                style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 10; pointer-events: none;">
             </div>
 
             <div style="display: flex; justify-content: space-between; width: 100%;">
                 <!-- Left Column -->
-                <div id="hud-left-panel" style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
+                <div id="hud-left-panel"
+                    style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
                     <div style="display: flex; gap: 8px;">
                         <button id="btn-extract" class="btn-primary hidden" onclick="game.completeMission()"
                             style="padding: 8px 16px; font-size: 14px; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); pointer-events: auto;">FINISH
                             & EXTRACT</button>
                         <button id="btn-destruct" class="btn-danger hidden" onclick="game.selfDestruct()"
-                            style="padding: 8px 16px; font-size: 14px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; pointer-events: auto; border-radius: 6px; backdrop-filter: blur(8px); cursor: pointer;">☠️ DESTRUCT</button>
+                            style="padding: 8px 16px; font-size: 14px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; pointer-events: auto; border-radius: 6px; backdrop-filter: blur(8px); cursor: pointer;">☠️
+                            DESTRUCT</button>
                     </div>
 
                     <!-- Mission Info Panel -->
-                    <div id="mission-panel" class="hud-group" style="display: flex; flex-direction: column; background: rgba(8, 12, 26, 0.88); border: 1.2px solid rgba(56, 189, 248, 0.4); padding: 10px 12px; min-width: 240px; pointer-events: auto;">
+                    <div id="mission-panel" class="hud-group"
+                        style="display: flex; flex-direction: column; background: rgba(8, 12, 26, 0.88); border: 1.2px solid rgba(56, 189, 248, 0.4); padding: 10px 12px; min-width: 240px; pointer-events: auto;">
                     </div>
-                    
+
                     <!-- Tutorial Chips Container -->
-                    <div id="tutorial-container" style="display: flex; flex-direction: column; gap: 6px; pointer-events: none;">
+                    <div id="tutorial-container"
+                        style="display: flex; flex-direction: column; gap: 6px; pointer-events: none;">
                     </div>
                 </div>
 
@@ -1272,18 +1277,21 @@
                 <!-- Right Column: Utility, Radar, Options -->
                 <div id="hud-right-panel"
                     style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right;">
-                    
+
                     <!-- Hide-UI button: always visible at top-right even when HUD is collapsed -->
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <div id="hud-toolbar" class="hud-group" style="padding: 6px 8px;">
-                            <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺 Fullscreen</button>
+                            <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺
+                                Fullscreen</button>
                             <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
                                 title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
-                            <button class="utility-btn icon-only" id="hud-options-btn" onclick="toggleOptionsDropdown();" title="Options"
+                            <button class="utility-btn icon-only" id="hud-options-btn"
+                                onclick="toggleOptionsDropdown();" title="Options"
                                 style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
                         </div>
                         <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
-                            style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">👁 Hide HUD</button>
+                            style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">👁
+                            Hide HUD</button>
                     </div>
 
                     <div style="position: relative;">
@@ -1296,10 +1304,13 @@
                             <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();"
                                 style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
                             <a href="level-editor.html" class="utility-btn"
-                                style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝 Editor</a>
+                                style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝
+                                Editor</a>
                             <div id="ui-scale-container"
                                 style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
-                                <span style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI Scale: <span id="ui-scale-val">100%</span></span>
+                                <span
+                                    style="font-size: 0.75rem; color: var(--text-primary); opacity: 0.8; font-family: Outfit, sans-serif;">UI
+                                    Scale: <span id="ui-scale-val">100%</span></span>
                                 <input type="range" id="ui-scale-slider" min="0.7" max="1.5" step="0.1" value="1.0"
                                     style="width: 100%; cursor: pointer;" oninput="game.setUIScale(this.value)">
                             </div>
@@ -1308,11 +1319,16 @@
 
 
                     <!-- Radar Minimap -->
-                    <div id="radar-container" class="hud-group" style="padding: 0; background: rgba(10, 16, 32, 0.96); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; overflow: hidden; position: relative;">
+                    <div id="radar-container" class="hud-group"
+                        style="padding: 0; background: rgba(10, 16, 32, 0.96); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; overflow: hidden; position: relative;">
                         <canvas id="radar-canvas" width="260" height="160" style="display: block;"></canvas>
                         <!-- subtle grid over radar -->
-                        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 25% 25%;"></div>
-                        <div style="position: absolute; top: 13px; left: 8px; font: 600 9px Outfit, sans-serif; letter-spacing: 0.1em; color: rgba(56,189,248,0.6); pointer-events: none;">RADAR</div>
+                        <div
+                            style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 25% 25%;">
+                        </div>
+                        <div
+                            style="position: absolute; top: 13px; left: 8px; font: 600 9px Outfit, sans-serif; letter-spacing: 0.1em; color: rgba(56,189,248,0.6); pointer-events: none;">
+                            RADAR</div>
                     </div>
                 </div>
             </div>
@@ -1321,28 +1337,43 @@
         <div id="hint-ticker"><span id="level-hint">Tip: Land slowly</span></div>
 
         <!-- Mobile Touch Controls -->
-        <div id="mobile-controls" style="display: none; position: absolute; bottom: 30px; left: 0; right: 0; padding: 0 20px; justify-content: space-between; pointer-events: none; z-index: 9999;">
+        <div id="mobile-controls"
+            style="display: none; position: absolute; bottom: 30px; left: 0; right: 0; padding: 0 20px; justify-content: space-between; pointer-events: none; z-index: 9999;">
             <!-- Movement -->
             <div style="display: flex; gap: 15px; pointer-events: auto;">
-                <button class="mobile-btn" id="btn-left" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">◀</button>
-                <button class="mobile-btn" id="btn-right" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">▶</button>
+                <button class="mobile-btn" id="btn-left"
+                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">◀</button>
+                <button class="mobile-btn" id="btn-right"
+                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">▶</button>
             </div>
             <!-- Actions -->
             <div style="display: flex; gap: 15px; pointer-events: auto;">
-                <button class="mobile-btn" id="btn-action" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(16, 185, 129, 0.2); border: 2px solid rgba(16, 185, 129, 0.5); color: #fff; backdrop-filter: blur(4px);">🎯</button>
-                <button class="mobile-btn" id="btn-thrust" style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.6); color: #fff; backdrop-filter: blur(4px);">🔥</button>
+                <button class="mobile-btn" id="btn-action"
+                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(16, 185, 129, 0.2); border: 2px solid rgba(16, 185, 129, 0.5); color: #fff; backdrop-filter: blur(4px);">🎯</button>
+                <button class="mobile-btn" id="btn-thrust"
+                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.6); color: #fff; backdrop-filter: blur(4px);">🔥</button>
             </div>
         </div>
 
         <!-- CENTER EXTRACT PROMPT -->
-        <div id="center-extract-overlay" style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px 32px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
-            <h3 id="center-extract-title" style="margin: 0 0 8px 0; color: #38bdf8; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">HQ Services</h3>
-            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.95rem; max-width: 350px;">Landed at HQ.</p>
+        <div id="center-extract-overlay"
+            style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px 32px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
+            <h3 id="center-extract-title"
+                style="margin: 0 0 8px 0; color: #38bdf8; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">
+                HQ Services</h3>
+            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.95rem; max-width: 350px;">Landed
+                at HQ.</p>
             <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 16px; pointer-events: auto;">
-                <button id="btn-hq-refuel" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.refuelLander()">⛽ Refuel ($100)</button>
-                <button id="btn-hq-repair" class="btn-primary" style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;" onclick="game.repairLander()">🔧 Repair ($200)</button>
+                <button id="btn-hq-refuel" class="btn-primary"
+                    style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;"
+                    onclick="game.refuelLander()">⛽ Refuel ($100)</button>
+                <button id="btn-hq-repair" class="btn-primary"
+                    style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;"
+                    onclick="game.repairLander()">🔧 Repair ($200)</button>
             </div>
-            <button id="center-extract-btn" class="btn-primary" style="display: none; margin-top: 16px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.2rem; font-weight: bold; padding: 14px 28px; box-shadow: 0 0 20px rgba(16,185,129,0.7);" onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
+            <button id="center-extract-btn" class="btn-primary"
+                style="display: none; margin-top: 16px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.2rem; font-weight: bold; padding: 14px 28px; box-shadow: 0 0 20px rgba(16,185,129,0.7);"
+                onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
         </div>
     </main>
 
@@ -1380,8 +1411,13 @@
                             onchange="game.loadCustomLevel(event)">
                     </div>
 
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; line-height: 1.4; text-align: left;">
-                        💡 <b>Custom Levels:</b> You can design your own custom layouts in the <a href="level-editor.html" style="color: var(--neon-blue); text-decoration: underline; font-weight: 600;">Level Editor</a>. Simply download the level as a <code>.js</code> file, click "Load Custom Level" above, and select your file to play!
+                    <div
+                        style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; line-height: 1.4; text-align: left;">
+                        💡 <b>Custom Levels:</b> You can design your own custom layouts in the <a
+                            href="level-editor.html"
+                            style="color: var(--neon-blue); text-decoration: underline; font-weight: 600;">Level
+                            Editor</a>. Simply download the level as a <code>.js</code> file, click "Load Custom Level"
+                        above, and select your file to play!
                     </div>
 
                     <div class="control-help" style="margin-top: 1rem;">
@@ -1443,9 +1479,11 @@
                                         onclick="game.setSelectedVehicle('drone')"
                                         style="width: 100%; text-align:left; padding:8px 10px; height: 100%;">
                                         <span class="num" style="color:#10b981;">Utility Drone</span>
-                                        <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover + winch</span>
+                                        <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover +
+                                            winch</span>
                                     </button>
-                                    <div id="drone-tutorial-pointer" style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
+                                    <div id="drone-tutorial-pointer"
+                                        style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
                                         Try the Drone! ⬇
                                     </div>
                                 </div>
@@ -1456,6 +1494,9 @@
                         <div style="margin-top: 12px;">
                             <div class="stat-cell-label" style="margin-bottom:6px;">🔧 Installed Upgrades</div>
                             <div id="lc-upgrades" style="display:flex; flex-wrap:wrap; gap:4px; min-height:24px;"></div>
+                            <button class="btn-career amber"
+                                style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"
+                                onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
                         </div>
                     </div>
 
@@ -1467,11 +1508,9 @@
 
                     <!-- Action buttons -->
                     <div class="career-actions" style="flex-direction: column; gap: 8px;">
-                        <button class="btn-career amber"
-                            style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"
-                            onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
+
                         <button onclick="game.confirmResetCareer()"
-                            style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 11px; cursor: pointer; text-decoration: underline;">⚠
+                            style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 14px; cursor: pointer; text-decoration: underline;">⚠
                             Reset Career</button>
                     </div>
                 </div>
@@ -1579,7 +1618,8 @@
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-secondary" onclick="game.goToMenu()" style="flex:1; margin:0;">Main Menu</button>
-                <button class="btn-secondary" onclick="alert('R&D Store coming soon!')" style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
+                <button class="btn-secondary" onclick="alert('R&D Store coming soon!')"
+                    style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
             </div>
         </div>
     </div>
