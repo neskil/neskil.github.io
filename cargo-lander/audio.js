@@ -359,15 +359,34 @@ class CargoAudioController {
 
     setupMusic() {
         try {
-            this.musicAudio = new Audio('music1.mp3');
-            this.musicAudio.loop = true;
+            this.musicPlaylist = [
+                'music/music1.mp3',
+                'music/music2.mp3',
+                'music/space_loop_deep_space_beacon.mp3',
+                'music/space_loop_nebula_pulse.mp3',
+                'music/space_loop_orbital_drift.mp3'
+            ];
+            this.musicTrackIndex = Math.floor(Math.random() * this.musicPlaylist.length);
+            this.musicAudio = new Audio(this.musicPlaylist[this.musicTrackIndex]);
+            this.musicAudio.loop = false;
             this.musicAudio.volume = this.muted ? 0 : this.musicVolume * 0.25;
+            this.musicAudio.addEventListener('ended', () => this.playNextTrack());
             this.musicAudio.play().catch(err => {
                 console.log("Autoplay prevented music start, waiting for interaction");
             });
         } catch (e) {
             console.error("Failed to setup background music", e);
         }
+    }
+
+    playNextTrack() {
+        if (!this.musicPlaylist || !this.musicAudio) return;
+        this.musicTrackIndex = (this.musicTrackIndex + 1) % this.musicPlaylist.length;
+        this.musicAudio.src = this.musicPlaylist[this.musicTrackIndex];
+        this.musicAudio.volume = this.muted ? 0 : this.musicVolume * 0.25;
+        this.musicAudio.play().catch(err => {
+            console.log("Music play prevented:", err);
+        });
     }
 }
 
