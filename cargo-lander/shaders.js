@@ -282,8 +282,13 @@ class ShaderOverlay {
                         vec2 center = cell * cellSize + vec2(-0.2 + 1.4 * h1, -0.2 + 1.4 * h2) * cellSize;
                         center.y += slide * cellSize * 0.45;
                         
-                        // Much more extreme size variation
-                        float r = rad * (0.3 + 1.4 * h2);
+                        // Splat animation when it first hits the window
+                        float hitExpand = smoothstep(0.0, 0.03, yFrac);
+                        float hitSettle = smoothstep(0.03, 0.1, yFrac);
+                        float splat = hitExpand * 1.2 - hitSettle * 0.2; // Grows 0 -> 1.2, settles to 1.0
+                        
+                        // Much more extreme size variation, including the splat animation
+                        float r = rad * (0.3 + 1.4 * h2) * splat;
 
                         vec4 result = vec4(0.0);
 
@@ -335,8 +340,8 @@ class ShaderOverlay {
                             }
                         }
                         
-                        // Fade out over the cycle (whether sliding or static)
-                        result *= (1.0 - fade);
+                        // Fade in quickly when hitting, and fade out over the end of the cycle
+                        result *= hitExpand * (1.0 - fade);
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
                             // Fade in at start, sit, streak, then fade out
