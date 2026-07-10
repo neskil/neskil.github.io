@@ -270,7 +270,7 @@ class ShaderOverlay {
                         float h3 = hash21(cell + seed + cycle * 99.99 + 57.3);
                         float h4 = hash21(cell + seed + cycle * 18.42 + 99.1);
                         
-                        if (h3 > 0.06) continue; // EXTREMELY sparse field per cycle to break grid feel
+                        if (h3 > 0.02) continue; // FAR sparser field per cycle to break grid feel
 
                         float slide = smoothstep(0.4 + 0.4 * h4, 0.9, yFrac);
                         
@@ -284,7 +284,10 @@ class ShaderOverlay {
                         vec4 result = vec4(0.0);
 
                         vec2 d = sp - center;
-                        vec2 dn = vec2(d.x, d.y * 1.15); // slightly squashed bead
+                        
+                        // Stretch the droplet head vertically when it slides to create a motion-blurred streak
+                        float stretch = 1.0 + slide * 2.5;
+                        vec2 dn = vec2(d.x, d.y * 1.15 / stretch);
                         float dist = length(dn);
                         
                         if (dist < r) {
@@ -314,7 +317,8 @@ class ShaderOverlay {
                                 if (lateral < trailW) {
                                     float trailCore = smoothstep(trailW, trailW * 0.4, lateral) * taper * 0.5;
                                     result.z = max(result.z, trailCore);
-                                    result.xy += vec2(-trailD.x * 0.4, 0.0);
+                                    // Bend light vertically along the streak too
+                                    result.xy += vec2(-trailD.x * 0.4, -trailD.y * 0.3) * taper;
                                 }
                             }
                         }
