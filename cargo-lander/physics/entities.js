@@ -302,7 +302,7 @@ const CargoPhysicsEntitiesMixin = {
 
         // Thrust: slow spool-up, instant cut-off (DEV_SPOOL overrides default)
         const spoolSpeed = (window.DEV_SPOOL ?? 0.06) * dt;
-        const thrustInput = (inputState.up || inputState.mouseLeft) ? 1.0 : 0.0;
+        const thrustInput = inputState.up ? 1.0 : 0.0;
         if (thrustInput === 0) {
             lander.enginePower = 0; // Instant cut
         } else {
@@ -311,7 +311,7 @@ const CargoPhysicsEntitiesMixin = {
 
         let strafeInput = 0;
         if (inputState.left || inputState.q) strafeInput = -1.0;
-        if (inputState.right || inputState.e || inputState.mouseRight) strafeInput = 1.0;
+        if (inputState.right || inputState.e) strafeInput = 1.0;
         if (strafeInput === 0) {
             lander.strafePower = 0; // Instant cut
         } else {
