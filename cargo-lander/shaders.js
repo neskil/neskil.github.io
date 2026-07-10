@@ -251,19 +251,30 @@ class ShaderOverlay {
                 for(int y = -1; y <= 1; y++) {
                     for(int x = -1; x <= 1; x++) {
                         vec2 cell = baseCell + vec2(float(x), float(y));
-                        float h1 = hash21(cell + seed);
-                        float h2 = hash21(cell + seed + 31.7);
-                        float h3 = hash21(cell + seed + 57.3);
-                        if (h3 > 0.90) continue; // most cells stay empty — sparse field
+                        // Time progression for this cell
+                        float cellSpeedH = hash21(cell + seed);
+                        float t = u_time * (0.15 + 0.15 * cellSpeedH) + hash21(cell + seed + 11.0) * 100.0;
+                        float cycle = floor(t);
+                        float yFrac = fract(t);
+                        
+                        // Per-cycle random properties to avoid static patterns
+                        float h1 = hash21(cell + seed + cycle * 13.37);
+                        float h2 = hash21(cell + seed + cycle * 42.11 + 31.7);
+                        float h3 = hash21(cell + seed + cycle * 99.99 + 57.3);
+                        
+                        if (h3 > 0.75) continue; // sparse field per cycle
 
-                        float yFrac = fract(h2 + u_time * (0.009 + 0.022 * h1));
-                        vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
+                        float slide = smoothstep(0.6, 0.9, yFrac);
+                        
+                        vec2 center = cell * cellSize + vec2(0.2 + 0.6 * h1, 0.2 + 0.6 * h2) * cellSize;
+                        center.y += slide * cellSize * 0.45;
+                        
                         float r = rad * (0.6 + 0.7 * h2);
 
                         vec4 result = vec4(0.0);
 
                         vec2 d = sp - center;
-                        vec2 dn = vec2(d.x, d.y * 1.15); // very slightly squashed, sitting bead
+                        vec2 dn = vec2(d.x, d.y * 1.15); // slightly squashed bead
                         float dist = length(dn);
                         if (dist < r) {
                             float core = 1.0 - dist / r;
@@ -275,24 +286,26 @@ class ShaderOverlay {
                             result.w = hl * hl;
                         }
 
-                        if (h1 > 0.6) { // only the larger ~40% of drops trickle
-                            float trailLen = r * (2.5 + h1 * 3.5);
-                            vec2 belowD = sp - (center + vec2(0.0, r * 0.5));
-                            if (belowD.y > 0.0 && belowD.y < trailLen) {
-                                float taper = 1.0 - belowD.y / trailLen;
-                                float trailW = r * 0.18 * taper;
-                                float lateral = abs(belowD.x);
+                        // As the drop slides, leave a streak connecting back to original position
+                        if (slide > 0.01) {
+                            float trailLen = slide * cellSize * 0.45;
+                            vec2 trailD = sp - center; 
+                            // trailD.y is negative if sp is ABOVE center
+                            if (trailD.y < 0.0 && trailD.y > -trailLen) {
+                                float taper = 1.0 - (abs(trailD.y) / trailLen);
+                                float trailW = r * 0.3 * taper;
+                                float lateral = abs(trailD.x);
                                 if (lateral < trailW) {
-                                    float trailCore = (1.0 - lateral / trailW) * taper * 0.4;
+                                    float trailCore = (1.0 - lateral / trailW) * taper * 0.5;
                                     result.z = max(result.z, trailCore);
-                                    result.xy += vec2(-belowD.x * 0.3, 0.0);
+                                    result.xy += vec2(-trailD.x * 0.15, 0.0);
                                 }
                             }
                         }
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
-                            // Fade out as it slides down so it mimics a drop appearing, sitting, and evaporating/vanishing
-                            float lifeAlpha = 1.0 - smoothstep(0.7, 1.0, yFrac);
+                            // Fade in at start, sit, streak, then fade out
+                            float lifeAlpha = smoothstep(0.0, 0.1, yFrac) * (1.0 - smoothstep(0.9, 1.0, yFrac));
                             bestResult = result * lifeAlpha;
                         }
                     }
@@ -308,6 +321,8 @@ class ShaderOverlay {
                 vec2 offset = vec2(0.0);
                 bool touched = false;
                 float dropletGlow = 0.0;
+                float waterBlend = 0.0;
+                vec2 reflectOffset = vec2(0.0);
 
                 if (u_heatHazeEnabled > 0.5) {
                     // Kept subtle — real mirage haze is a gentle shimmer, not a
@@ -344,10 +359,22 @@ class ShaderOverlay {
                         float wave = sin(screenPos.x * 0.05 + u_time * 2.0) * 2.5
                                    + sin(screenPos.y * 0.08 - u_time * 1.3) * 1.5;
                         
+                        // Base water distortion (the subtle wave for the water surface itself)
+                        offset += vec2(wave * 0.6, wave * 0.3);
+                        
                         // Mirror reflection: offset Y so that we sample above the water surface
                         float reflectY = 2.0 * (mn.y - screenPos.y);
+                        reflectOffset = vec2(wave * 0.6, reflectY + wave * 0.3);
                         
-                        offset += vec2(wave * 0.6, reflectY + wave * 0.3);
+                        // Soften X edges to prevent hard clipping against rock walls
+                        float fadeX = smoothstep(mn.x, mn.x + 15.0, screenPos.x) * smoothstep(mx.x, mx.x - 15.0, screenPos.x);
+                        
+                        // Fade reflection based on depth (height) so it's only visible near the surface
+                        float depth = screenPos.y - mn.y;
+                        float depthFade = smoothstep(70.0, 0.0, depth);
+                        
+                        waterBlend = max(waterBlend, 0.45 * fadeX * depthFade); // Partly transparent, top only
+                        
                         touched = true;
                     }
                 }
@@ -384,7 +411,16 @@ class ShaderOverlay {
                 vec2 srcUV = distortedScreenPos / u_resolution;
                 srcUV = clamp(srcUV, vec2(0.001), vec2(0.999));
 
-                gl_FragColor = texture2D(u_sceneTex, srcUV);
+                vec4 baseColor = texture2D(u_sceneTex, srcUV);
+                
+                if (waterBlend > 0.0) {
+                    vec2 refUV = (screenPos + reflectOffset) / u_resolution;
+                    refUV = clamp(refUV, vec2(0.001), vec2(0.999));
+                    vec4 reflectColor = texture2D(u_sceneTex, refUV);
+                    baseColor = mix(baseColor, reflectColor, waterBlend);
+                }
+
+                gl_FragColor = baseColor;
                 gl_FragColor.rgb += dropletGlow;
             }
         `;
