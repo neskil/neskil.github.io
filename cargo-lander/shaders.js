@@ -292,8 +292,8 @@ class ShaderOverlay {
                         // Stretch the droplet head vertically when it slides to create a motion-blurred streak
                         float stretch = 1.0 + slide * 2.5;
                         // Give it a teardrop shape (wider at bottom, narrower at top)
-                        // d.y > 0 is bottom, d.y < 0 is top
-                        float widthDistortion = 1.0 - (d.y / r) * 0.4;
+                        // Clamp the distortion so it doesn't infinitely expand horizontally when highly stretched
+                        float widthDistortion = max(0.4, 1.0 - (d.y / r) * 0.4);
                         vec2 dn = vec2(d.x * widthDistortion, d.y * 1.15 / stretch);
                         float dist = length(dn);
                         
