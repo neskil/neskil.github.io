@@ -1810,6 +1810,26 @@ class CargoGame {
         // Check if any cargo fell into the abyss, or has gone stale from neglect
         for (let i = boxes.length - 1; i >= 0; i--) {
             const box = boxes[i];
+
+            // Physics flags boxes destroyed by lasers (box.lost) but can't remove
+            // them itself — finish the removal here so the Matter body and any
+            // grapple state are cleaned up through removeCargoBox().
+            if (box.lost) {
+                this.removeCargoBox(box, i);
+
+                this.missionBudget -= 200;
+                this.cargoLostCount++;
+                if (this.questState['no_cargo_lost'] === undefined) {
+                    this.questState['no_cargo_lost'] = { failed: true };
+                }
+                this.addMessage("Cargo vaporized by laser! -$200 Budget", "#ef4444");
+
+                if (this.missionBudget < 0) {
+                    this.failMission("Bankrupt! Too much cargo lost.");
+                }
+                continue;
+            }
+
             const terrainY = this.physics.getPolygonSurfaceY(box.x);
 
             // If box fell below the terrain height by a buffer, or off screen bottom

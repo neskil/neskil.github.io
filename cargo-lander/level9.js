@@ -21,6 +21,22 @@ registerLevel({
     wormPitCY: 900,          // Bottom of the worm pit
     outOfBounds: true,       // Thick lateral fog on the sides
 
+    // ── Mission parameters ────────────────────────────────────────────────────
+    budget: 7000,
+    timeLimit: 240,
+    allowedTypes: ['heavy'],
+
+    // ── Palette (Cavernous Void — near-black with acid-green and ember accents) ─
+    palette: {
+        skyTop:      '#050107',
+        skyMid:      '#0c0410',
+        skyBot:      '#14040a',
+        terrainFill: '#020102',
+        rockEdge:    '#34d399',
+        rockGlow:    'rgba(52,211,153,',
+        fog:         'rgba(239,68,68,0.06)',
+    },
+
     // ── Quest Definition ─────────────────────────────────────────────────────
     targetCargo: 3,
     quests: [

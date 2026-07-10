@@ -112,6 +112,62 @@ drawHazards() {
             const pts = haz.pts;
             if (!pts || pts.length < 3) continue;
 
+            if (haz.type === 'incinerator') {
+                const state = haz.zoneState || {};
+                const drawPoly = () => {
+                    ctx.beginPath();
+                    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                    ctx.closePath();
+                };
+
+                if (state.active) {
+                    // Firing: bright pulsing fill + rising embers
+                    const pulse = 0.55 + Math.sin(now / 90) * 0.15;
+                    drawPoly();
+                    ctx.fillStyle = `rgba(249,115,22,${pulse * 0.5})`;
+                    ctx.fill();
+                    ctx.strokeStyle = '#fde047';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    const c = this.physics.polygonCentroid(pts);
+                    const bounds = pts.reduce((b, p) => ({
+                        minX: Math.min(b.minX, p.x), maxX: Math.max(b.maxX, p.x),
+                        minY: Math.min(b.minY, p.y), maxY: Math.max(b.maxY, p.y),
+                    }), { minX: c.x, maxX: c.x, minY: c.y, maxY: c.y });
+                    for (let i = 0; i < 8; i++) {
+                        const ex = bounds.minX + ((now / 15 + i * 137) % (bounds.maxX - bounds.minX || 1));
+                        const ey = bounds.maxY - ((now / 8 + i * 89) % (bounds.maxY - bounds.minY || 1));
+                        ctx.fillStyle = `rgba(253,224,71,${0.4 + 0.3 * Math.sin(now / 50 + i)})`;
+                        ctx.beginPath();
+                        ctx.arc(ex, ey, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else if (state.charging) {
+                    // Telegraph: fast-flashing warning fill before it ignites
+                    const flash = Math.sin(now / 40) > 0;
+                    drawPoly();
+                    ctx.fillStyle = flash ? 'rgba(249,115,22,0.35)' : 'rgba(249,115,22,0.08)';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.globalAlpha = flash ? 0.9 : 0.3;
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 1.0;
+                } else {
+                    // Idle: faint dashed outline, no fill
+                    drawPoly();
+                    ctx.strokeStyle = 'rgba(249,115,22,0.25)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 8]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                continue;
+            }
+
             if (haz.type === 'sandworm') {
                 ctx.beginPath();
                 pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));

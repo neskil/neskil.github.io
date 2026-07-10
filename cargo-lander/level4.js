@@ -9,7 +9,7 @@
 registerLevel({
     name: "L4: Gravity Anomaly",
     missionTitle: "Anomaly Zone — Dual Cargo Sort",
-    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Two clients need urgent deliveries sorted by colour: red crates to Sector 4, blue crates to Deep Storage. Floating asteroid debris adds extra collision risk. Don't let the vortex pull you into the lava.",
+    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. A vent field near the eastern ridge periodically flares molten gas — cargo caught in a flare doesn't survive. Don't let the vortex pull you into the lava.",
     weather: 'ash',
 
     // ── Physics ───────────────────────────────────────────────────────────────
@@ -86,10 +86,15 @@ registerLevel({
     segments: [],
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    hazards: [],
+    // Lava vent field on the eastern ridge — pulses on a charge/flare duty cycle;
+    // cargo caught inside while it's active is destroyed outright (see
+    // physics/atmosphere.js's 'incinerator' hazard branch).
+    hazards: [
+        { type: 'incinerator', pts: [{ x: 950, y: 550 }, { x: 1150, y: 550 }, { x: 1150, y: 650 }, { x: 950, y: 650 }], onMs: 1500, offMs: 2200, warnMs: 600, damagePerSec: 30 },
+    ],
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "The vortex drifts — don't hover near the centre. Return to HQ to extract.",
+    hint: "The vortex drifts — don't hover near the centre. Watch the eastern vent field flare before crossing it. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver cargo to Sector 4'),
