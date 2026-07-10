@@ -380,6 +380,20 @@ needing broader context":
 
 ## Recent additions
 
+### 2026-07-10 (later): auto-scaled mobile UI default
+- **`uiScale` now picks a sensible first-run default from viewport size**
+  instead of always defaulting to 100% (`game.js` `computeDefaultUIScale()`).
+  The HUD panels are absolutely positioned at a fixed base size — only
+  fonts/padding shrink via the existing `@media` rules — so on a phone or a
+  short mobile-landscape window, 100% was overlapping/running off-screen
+  well before a new player would find the manual slider in Settings to fix
+  it themselves. Tiers: ≤420px tall → 72%, ≤480px shortest side → 80%,
+  ≤820px shortest side → 90%, otherwise 100% (unchanged desktop default).
+  Only affects the *first-run* default — once any value is saved to
+  `localStorage` (`cargo_lander_ui_scale`), the manual slider always wins,
+  verified by setting it explicitly at a small viewport and confirming it
+  survives a reload rather than being overridden back down.
+
 ### 2026-07-10 (later): GPU post-processing shaders + mobile rotate tip
 - **New WebGL post-processing pass** (`shaders.js` `renderPostFX()`, wired
   into `render.js`'s `draw()`) — a distinct pass from the existing
@@ -595,6 +609,7 @@ The recent fixed-timestep physics overhaul and fluid boundary systems have laid 
 | **Phase 1** | **Massive Scrolling Levels** | Break free from single-screen puzzles. Develop large, multi-screen cave systems and sprawling planetary surfaces requiring fuel management across long distances and waypoint navigation. Include **Refueling Stations** that cost money to use mid-mission! |
 | **Phase 1** | **Dynamic Weather Engine** | Evolving wind gusts and storms that actively push the lander, requiring constant thrust adjustment, accompanied by visual weather particles (dust, rain, snow) and **Wind Direction Indicators** (blowing wind animations). |
 | **Phase 2** | **Pendulum Mass Physics & Special Cargo** | Heavy cargo crates will actively drag the lander down. Introduce **Special Cargo** that hangs from the lander body by a rope, forcing the player to balance flight carefully to avoid catastrophic destabilization. |
+| **Phase 2** | **Oversized "Big Cargo" crates (single-load capacity)** | Added to backlog 2026-07-10. A distinct idea from the pendulum-mass row above: some levels (L9 "The Cauldron" is the natural first fit — it already uses the `'heavy'` cargo type and a drone-only sourcing depot, see `setupPhysics()` in `level9.js`) could feature a deliberately oversized crate that occupies the *entire* deck/grapple capacity, so the lander can only carry one at a time regardless of how many normal-sized boxes it could otherwise fit. Forces single-trip runs as a difficulty/pacing mechanic rather than the usual multi-box shuttle runs. Implementation note: the existing on-deck slot system already claims non-overlapping `deckT` slots per box (`updateOnDeckStates()`, `physics/entities.js`) — a "big" box could simply claim a slot width equal to the whole `deckWidth`, which should naturally block any other box from finding room without needing a new capacity-counting mechanism. |
 | **Phase 2** | **Advanced Logistics Mechanics** | Overhaul loading and unloading stations to be more interactive and fun, rather than just hovering over a pad. Full integration of remaining catalog upgrades (Shield Generators, Magnetic Decks) to allow persistent ship builds capable of surviving the harder scrolling maps. |
 | **Phase 3** | **Data-Driven Geometry** | Extract procedural terrain formulas out of `physics.js` into external JSON/config files, enabling full 2D overhangs, tunnels, and an in-browser level editor. |
 | **Phase 3** | **Procedural Expedition Mode** | A rogue-like mode with procedurally generated maps and infinite delivery challenges. |
