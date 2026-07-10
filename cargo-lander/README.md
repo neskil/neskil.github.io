@@ -29,7 +29,7 @@ files load cleanly).
 | `level1.js` – `level9.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. Adding a new level file still needs its `<script>` tag added to `index.html` manually — but the mission-grid button and Dev-panel jump button are both auto-generated from `levels[]` by `generateMissionUI()`, no manual wiring needed for those two. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps with 3 selectable craziness tiers (the `random1`/`random2`/`random3` buttons in the mission grid). |
-| `tests.html` | Browser-based test suite (88 tests as of 2026-07-10: 7 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/out-of-bounds/gravity-well/terrain/hazards/quests (the scalar/object sections now schema-driven off `levelSchema.js`), plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
+| `tests.html` | Browser-based test suite (89 tests as of 2026-07-10: 8 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow, Big Cargo deck-capacity — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/out-of-bounds/gravity-well/terrain/hazards/quests (the scalar/object sections now schema-driven off `levelSchema.js`), plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
 | `probe-screenshot.html` | Headless-Chrome visual-verification harness (added 2026-07-10) — loads the game in an iframe and drives it via query string: `?level=N&x=..&y=..&zoom=..` (park the free camera), `&debug=1` (dump element/computed-style diagnostics on screen), `&hide=fn1,fn2` (no-op draw calls to bisect a visual), `&script=name` (scripted repros, e.g. `eatenByMonster`/`noCargoExtract`). See "Headless verification" under Verification, and `CLAUDE.md`, for the full recipe and why it exists. Not part of the shipped game — safe to delete if headless verification stops being needed, but has already caught one bug (the minimap CSS collapse) that reading the code alone missed. |
 
 ### Load order matters
@@ -115,7 +115,7 @@ With a static server running on port 8177:
 - **Test suite**: `chrome --headless=new --disable-gpu --user-data-dir=%TEMP%\chrome-test
   --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html`
   and grep the dump for `id="summary"` — it contains the
-  "N passed / 0 failed" line (N grows over time as tests are added; 88 as of
+  "N passed / 0 failed" line (N grows over time as tests are added; 89 as of
   2026-07-10). (`--virtual-time-budget` fast-forwards
   timers, so the async test run completes before the dump.)
 - **Visual checks**: `probe-screenshot.html` (in this folder) loads the game
@@ -380,7 +380,7 @@ trail because each wrong guess was plausible:
 ### Verification workflow (per this project's `CLAUDE.md`)
 1. Load `index.html` via a local server — check the browser console for
    errors on the menu screen and after starting a mission.
-2. Open `tests.html` — should read "88 passed / 0 failed" (as of 2026-07-10;
+2. Open `tests.html` — should read "89 passed / 0 failed" (as of 2026-07-10;
    the number grows as more validation tests get added, that's fine, 0 failed
    is the bar). It auto-runs on load; no button to click.
 3. For anything touching a specific mechanic, exercise it directly in the
