@@ -2476,12 +2476,13 @@ drawMonster() {
                 ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Teeth — top row (sharp fangs curving backward)
+                // Teeth — top row (sharp fangs curving backward and inward)
                 const toothCount = 7;
                 for (let ti = 0; ti < toothCount; ti++) {
                     const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
-                    const tipX = tx - mW * 0.12;
-                    const tipY = -mH * 0.15;
+                    const size = 1.0 - Math.pow(Math.abs(tx) / mW, 2) * 0.4;
+                    const tipX = tx * 0.3 - mW * 0.05;
+                    const tipY = -mH * 0.85 + (mH * 0.7 * size);
                     
                     const tGrad = ctx.createLinearGradient(tx, -mH * 0.85, tipX, tipY);
                     tGrad.addColorStop(0, 'rgba(200, 185, 140, 0.9)');
@@ -2490,9 +2491,11 @@ drawMonster() {
                     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
+                    
+                    const cpX = (tx + tipX) / 2;
                     ctx.moveTo(tx - mW * 0.08, -mH * 0.85);
-                    ctx.quadraticCurveTo(tx - mW * 0.04, -mH * 0.5, tipX, tipY);
-                    ctx.quadraticCurveTo(tx + mW * 0.04, -mH * 0.5, tx + mW * 0.08, -mH * 0.85);
+                    ctx.quadraticCurveTo(cpX - mW * 0.04, -mH * 0.5, tipX, tipY);
+                    ctx.quadraticCurveTo(cpX + mW * 0.04, -mH * 0.5, tx + mW * 0.08, -mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
@@ -2500,17 +2503,20 @@ drawMonster() {
                 // Bottom row
                 for (let ti = 0; ti < toothCount - 1; ti++) {
                     const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
-                    const tipX = tx - mW * 0.12;
-                    const tipY = mH * 0.15;
+                    const size = 1.0 - Math.pow(Math.abs(tx) / mW, 2) * 0.4;
+                    const tipX = tx * 0.3 - mW * 0.05;
+                    const tipY = mH * 0.85 - (mH * 0.7 * size);
                     
                     const tGrad2 = ctx.createLinearGradient(tx, mH * 0.85, tipX, tipY);
                     tGrad2.addColorStop(0, 'rgba(190, 175, 130, 0.88)');
                     tGrad2.addColorStop(1, 'rgba(110, 70, 50, 0.82)');
                     ctx.fillStyle = tGrad2;
                     ctx.beginPath();
+                    
+                    const cpX = (tx + tipX) / 2;
                     ctx.moveTo(tx - mW * 0.075, mH * 0.85);
-                    ctx.quadraticCurveTo(tx - mW * 0.04, mH * 0.5, tipX, tipY);
-                    ctx.quadraticCurveTo(tx + mW * 0.04, mH * 0.5, tx + mW * 0.075, mH * 0.85);
+                    ctx.quadraticCurveTo(cpX - mW * 0.04, mH * 0.5, tipX, tipY);
+                    ctx.quadraticCurveTo(cpX + mW * 0.04, mH * 0.5, tx + mW * 0.075, mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
