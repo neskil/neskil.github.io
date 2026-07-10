@@ -295,7 +295,7 @@ class ShaderOverlay {
                         vec2 d = sp - center;
                         
                         // Stretch the droplet head vertically when it slides to create a motion-blurred streak
-                        float stretch = 1.0 + slide * 2.5;
+                        float stretch = 1.0 + slide * 3.5;
                         
                         // Widen slightly as it starts sliding, then narrow sharply as it fades out
                         float widthAnim = 1.0 + sin(slide * 3.1415) * 0.3 - slide * 0.8;
@@ -324,7 +324,7 @@ class ShaderOverlay {
 
                         // As the drop slides, leave a streak connecting back to original position
                         if (slide > 0.01) {
-                            float trailLen = slide * cellSize * 0.45;
+                            float trailLen = slide * cellSize * 0.7;
                             vec2 trailD = sp - center; 
                             // trailD.y is negative if sp is ABOVE center
                             if (trailD.y < 0.0 && trailD.y > -trailLen) {
