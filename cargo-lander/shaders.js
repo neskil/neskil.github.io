@@ -267,7 +267,7 @@ class ShaderOverlay {
                         float dist = length(dn);
                         if (dist < r) {
                             float core = 1.0 - dist / r;
-                            result.xy = -d * 0.5; // gentle magnifying-glass pull, not a strong warp
+                            result.xy = -d * 0.15; // very subtle magnifying-glass pull
                             result.z = core;
 
                             vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
@@ -321,8 +321,8 @@ class ShaderOverlay {
                 }
 
                 if (u_rainAmount > 0.05) {
-                    vec4 d1 = droplet(screenPos, 130.0, 8.0, 0.0);
-                    vec4 d2 = droplet(screenPos, 75.0, 4.5, 100.0);
+                    vec4 d1 = droplet(screenPos, 110.0, 10.0, 0.0);
+                    vec4 d2 = droplet(screenPos, 60.0, 6.0, 100.0);
                     float bodyHit = max(d1.z, d2.z);
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
@@ -343,7 +343,11 @@ class ShaderOverlay {
                     if (screenPos.x >= mn.x && screenPos.x <= mx.x && screenPos.y >= mn.y && screenPos.y <= mx.y) {
                         float wave = sin(screenPos.x * 0.05 + u_time * 2.0) * 2.5
                                    + sin(screenPos.y * 0.08 - u_time * 1.3) * 1.5;
-                        offset += vec2(wave * 0.6, wave * 0.3);
+                        
+                        // Mirror reflection: offset Y so that we sample above the water surface
+                        float reflectY = 2.0 * (mn.y - screenPos.y);
+                        
+                        offset += vec2(wave * 0.6, reflectY + wave * 0.3);
                         touched = true;
                     }
                 }
