@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.6.4';
+    static VERSION = '0.6.5';
 
     constructor() {
         this.canvas = null;
@@ -69,6 +69,9 @@ class CargoGame {
         // on by default, but it's an extra full-screen WebGL pass every frame on top
         // of the existing particle/glow overlay, so let low-end hardware disable it.
         this.postFXEnabled = localStorage.getItem('cargoLanderPostFX') !== '0';
+        // Experimental virtual joystick, replacing the left/thrust mobile buttons —
+        // off by default; the D-pad-style buttons stay the default touch scheme.
+        this.touchJoystickEnabled = localStorage.getItem('cargoLanderTouchJoystick') === '1';
         this._rotateTipDismissed = false;
 
         // Keys State
@@ -403,6 +406,65 @@ class CargoGame {
         // orientationchange fires slightly before resize on some mobile browsers —
         // listen to both so the rotate tip reacts as soon as possible.
         window.addEventListener('orientationchange', () => this.checkOrientationPrompt());
+
+        // Gamepad (Xbox/standard-layout controller) support — see pollGamepad().
+        window.addEventListener('gamepadconnected', (e) => {
+            this.addMessage(`🎮 Controller connected: ${e.gamepad.id}`, '#34d399');
+        });
+        window.addEventListener('gamepaddisconnected', () => {
+            this.addMessage('🎮 Controller disconnected', '#f8fafc');
+        });
+    }
+
+    // Polled once per frame from update() — the Gamepad API has no button-press
+    // events, only a live snapshot read via navigator.getGamepads(). Merges
+    // directly into this.keys (same booleans the keyboard path sets) so the rest
+    // of applyControls()/inputState needs no gamepad-specific branching, and
+    // gamepad + keyboard can be used interchangeably frame to frame.
+    pollGamepad() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : null;
+        if (!pads) return;
+        let pad = null;
+        for (const p of pads) { if (p) { pad = p; break; } }
+        if (!pad) return;
+
+        const DEAD_ZONE = 0.2;
+        const stickX = pad.axes[0] || 0;
+        const stickUp = -(pad.axes[1] || 0); // axes[1] is +1 down, we want +1 = up
+        const rightTrigger = pad.buttons[7] ? pad.buttons[7].value : 0; // analog thrust
+        const aBtn = pad.buttons[0] && pad.buttons[0].pressed;
+        const bBtn = pad.buttons[1] && pad.buttons[1].pressed;
+
+        this.keys['gp_left'] = stickX < -DEAD_ZONE;
+        this.keys['gp_right'] = stickX > DEAD_ZONE;
+        // Right trigger is the primary thrust input (analog on most pads); left
+        // stick pushed up is the alternate for pads without analog triggers.
+        this.keys['gp_up'] = rightTrigger > 0.1 || stickUp > DEAD_ZONE;
+
+        // Edge-trigger A/B (fire once per press, not every frame held) so they
+        // behave like the SPACE-key dispatch rather than a held-down key.
+        if (aBtn && !this._gpAPrev) {
+            const lander = this.physics.lander;
+            if (lander) {
+                const level = levels[this.currentLevelIndex];
+                const allDelivered = level && this.deliveredCount >= level.targetCargo;
+                const atHQ = lander.landed && lander.currentPad === 'start';
+                if (this.gameState === 'playing' && allDelivered && atHQ) {
+                    this.completeMission();
+                } else {
+                    this.toggleGrapple();
+                }
+            }
+        }
+        if (bBtn && !this._gpBPrev) {
+            const lander = this.physics.lander;
+            if (lander && lander.grabbedBoxId) {
+                lander.grabbedBoxId = null;
+                if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
+            }
+        }
+        this._gpAPrev = aBtn;
+        this._gpBPrev = bBtn;
     }
 
     // Quick console shortcut: game.startTestLevel()
@@ -662,6 +724,9 @@ class CargoGame {
         const postFXCb = document.getElementById('setting-postfx');
         if (postFXCb) postFXCb.checked = this.postFXEnabled;
 
+        const joystickCb = document.getElementById('setting-joystick');
+        if (joystickCb) joystickCb.checked = this.touchJoystickEnabled;
+
         const mv = Math.round(CargoAudio.musicVolume * 100);
         const sv = Math.round(CargoAudio.sfxVolume * 100);
         const musicSlider = document.getElementById('setting-music-vol');
@@ -693,6 +758,12 @@ class CargoGame {
     setPostFXEnabled(checked) {
         this.postFXEnabled = checked;
         localStorage.setItem('cargoLanderPostFX', checked ? '1' : '0');
+    }
+
+    setTouchJoystickEnabled(checked) {
+        this.touchJoystickEnabled = checked;
+        localStorage.setItem('cargoLanderTouchJoystick', checked ? '1' : '0');
+        if (window.applyTouchControlMode) window.applyTouchControlMode(checked);
     }
 
     setMusicVolume(value) {
@@ -1664,14 +1735,15 @@ class CargoGame {
             if (this.screenShake.intensity < 0.5) this.screenShake.intensity = 0;
         }
 
+        this.pollGamepad();
         const keys = this.keys;
 
         // Bundle inputs
         const inputState = {
-            up: keys['w'] || keys['arrowup'],
+            up: keys['w'] || keys['arrowup'] || keys['gp_up'] || keys['joy_up'],
             down: keys['s'] || keys['arrowdown'],
-            left: keys['a'] || keys['arrowleft'],
-            right: keys['d'] || keys['arrowright'],
+            left: keys['a'] || keys['arrowleft'] || keys['gp_left'] || keys['joy_left'],
+            right: keys['d'] || keys['arrowright'] || keys['gp_right'] || keys['joy_right'],
             q: keys['q'],
             e: keys['e'],
             mouseX: this.mouseX,
