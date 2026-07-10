@@ -472,14 +472,14 @@ class ShaderOverlay {
     // rects (see render.js's draw() for how they're computed from camera +
     // physics.waterBodies). Skips the texture upload entirely (the expensive
     // part) when nothing in the current level actually needs distorting.
-    renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects) {
+    renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects, activeWeather) {
         if (!this.gl || !this.postFXProgram) return;
         const gl = this.gl;
 
         const heatHaze = !!(levelConfig && levelConfig.heatHaze);
         const hasBlackhole = !!physics.gravityWellPos;
         const hasWater = waterRects && waterRects.length > 0;
-        const rain = (levelConfig && levelConfig.weather === 'rain') ? 1.0 : 0.0;
+        const rain = (activeWeather === 'rain' || (levelConfig && levelConfig.weather === 'rain')) ? 1.0 : 0.0;
         if (!heatHaze && !hasBlackhole && !hasWater && !rain) return;
 
         gl.clearColor(0, 0, 0, 0);
