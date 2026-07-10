@@ -1158,10 +1158,18 @@
 
         <!-- Mobile Touch Controls -->
         <div id="mobile-controls">
-            <!-- Movement -->
-            <div style="display: flex; gap: 15px;">
+            <!-- Movement (button mode) -->
+            <div id="mobile-btn-group" style="display: flex; gap: 15px;">
                 <button class="mobile-btn" id="btn-left">◀</button>
                 <button class="mobile-btn" id="btn-right">▶</button>
+            </div>
+            <!-- Movement (experimental joystick mode) — hidden unless enabled in Settings -->
+            <div id="joystick-zone" style="display: none; width: 110px; height: 110px; border-radius: 50%;
+                background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+                position: relative; touch-action: none; pointer-events: auto;">
+                <div id="joystick-nub" style="width: 46px; height: 46px; border-radius: 50%;
+                    background: rgba(99,102,241,0.45); border: 1px solid rgba(99,102,241,0.8);
+                    position: absolute; left: 32px; top: 32px; pointer-events: none;"></div>
             </div>
             <!-- Actions -->
             <div style="display: flex; gap: 15px; align-items: flex-end;">
@@ -1243,7 +1251,86 @@
                 bindMobileBtn('btn-thrust', 'w');
                 bindMobileBtn('btn-action', null, triggerAction);
                 bindMobileBtn('btn-hud-toggle', null, toggleUICollapse);
+                setupJoystick();
+                applyTouchControlMode(game && game.touchJoystickEnabled);
             }
+
+            // Experimental virtual joystick (Settings → Touch Controls: Joystick).
+            // Floating-origin drag: the stick's center is wherever the finger first
+            // lands, not a fixed screen position — feels more natural on a touch
+            // surface than requiring a precise tap on a fixed base. Feeds the same
+            // boolean this.keys used by the button controls (thresholded past a
+            // dead zone rather than analog), so no physics/inputState changes needed.
+            function setupJoystick() {
+                const zone = document.getElementById('joystick-zone');
+                const nub = document.getElementById('joystick-nub');
+                if (!zone || !nub) return;
+                const MAX_R = 45;      // px the nub can travel from center
+                const DEAD_ZONE = 0.15; // fraction of MAX_R before input registers
+                let originX = 0, originY = 0, activePointerId = null;
+
+                const resetNub = () => { nub.style.left = '32px'; nub.style.top = '32px'; };
+
+                zone.addEventListener('pointerdown', e => {
+                    e.preventDefault();
+                    activePointerId = e.pointerId;
+                    zone.setPointerCapture(e.pointerId);
+                    const rect = zone.getBoundingClientRect();
+                    originX = e.clientX; originY = e.clientY;
+                    // Recenter the visual base under the finger (floating origin)
+                    zone.style.transform = `translate(${e.clientX - rect.left - rect.width / 2}px, ${e.clientY - rect.top - rect.height / 2}px)`;
+                });
+
+                const handleMove = e => {
+                    if (e.pointerId !== activePointerId) return;
+                    let dx = e.clientX - originX, dy = e.clientY - originY;
+                    const dist = Math.min(MAX_R, Math.hypot(dx, dy));
+                    const angle = Math.atan2(dy, dx);
+                    const nx = Math.cos(angle) * dist, ny = Math.sin(angle) * dist;
+                    nub.style.left = (32 + nx) + 'px';
+                    nub.style.top = (32 + ny) + 'px';
+
+                    const frac = dist / MAX_R;
+                    if (frac < DEAD_ZONE) {
+                        game.keys['joy_left'] = false;
+                        game.keys['joy_right'] = false;
+                        game.keys['joy_up'] = false;
+                        return;
+                    }
+                    game.keys['joy_left'] = nx < -MAX_R * DEAD_ZONE;
+                    game.keys['joy_right'] = nx > MAX_R * DEAD_ZONE;
+                    // Stick forward (up on screen) = thrust, matching the button
+                    // control's "up = thrust" semantics.
+                    game.keys['joy_up'] = ny < -MAX_R * DEAD_ZONE;
+                };
+                zone.addEventListener('pointermove', handleMove);
+
+                const release = e => {
+                    if (e.pointerId !== activePointerId) return;
+                    activePointerId = null;
+                    zone.style.transform = '';
+                    resetNub();
+                    game.keys['joy_left'] = false;
+                    game.keys['joy_right'] = false;
+                    game.keys['joy_up'] = false;
+                };
+                zone.addEventListener('pointerup', release);
+                zone.addEventListener('pointercancel', release);
+            }
+
+            // Swaps the mobile left/thrust buttons for the virtual joystick, or back.
+            // Called on mission start (reading the persisted setting) and live from
+            // the Settings checkbox.
+            function applyTouchControlMode(joystickEnabled) {
+                const btnGroup = document.getElementById('mobile-btn-group');
+                const thrustBtn = document.getElementById('btn-thrust');
+                const joyZone = document.getElementById('joystick-zone');
+                if (!btnGroup || !thrustBtn || !joyZone) return;
+                btnGroup.style.display = joystickEnabled ? 'none' : 'flex';
+                thrustBtn.style.display = joystickEnabled ? 'none' : 'flex';
+                joyZone.style.display = joystickEnabled ? 'block' : 'none';
+            }
+            window.applyTouchControlMode = applyTouchControlMode;
 
             function toggleOptionsDropdown() {
                 const dd = document.getElementById('options-dropdown');
@@ -1702,6 +1789,17 @@
                             gravity lensing — disable if the game feels slow</div>
                     </div>
                     <input type="checkbox" id="setting-postfx" onchange="game.setPostFXEnabled(this.checked)"
+                        style="width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin-left: 12px;">
+                </div>
+
+                <!-- Touch Controls Mode (mobile) -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary);">Touch Controls: Joystick</div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary);">Experimental — swaps the
+                            left/thrust buttons for a virtual joystick on mobile</div>
+                    </div>
+                    <input type="checkbox" id="setting-joystick" onchange="game.setTouchJoystickEnabled(this.checked)"
                         style="width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin-left: 12px;">
                 </div>
 

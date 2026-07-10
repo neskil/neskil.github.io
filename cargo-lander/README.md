@@ -579,7 +579,9 @@ existing per-box loop. Not otherwise started until 2026-06-30 work landed the ab
 - `currentPad` set when speed ≤ 2.0, angle ≤ 8°, proximity check; also used proximity check for cargo dispense
 - Level color themes: each level has `palette: { skyTop, skyMid, skyBot, terrainFill, rockEdge, rockGlow, fog }`
 - `rockGlow` is a **partial CSS rgba string** like `'rgba(34,197,94,'` — append opacity e.g. `${pal.rockGlow}0.10)`
-- `localStorage` keys: `cargoLanderCash`, `cargoLanderUpgrades`, `cargoLanderCareer`, `cargoLanderHighscores`
+- `localStorage` keys: `cargoLanderCash`, `cargoLanderUpgrades`, `cargoLanderCareer`, `cargoLanderHighscores`, `cargoLanderPostFX`, `cargoLanderTouchJoystick`
+- **Gamepad support** (added 2026-07-10): `game.pollGamepad()` polls `navigator.getGamepads()` each frame and merges into `this.keys['gp_left'/'gp_right'/'gp_up']` — same boolean shape the keyboard path uses. Left stick X = strafe, right trigger (analog) or left stick up = thrust, A = grapple/complete-mission (mirrors the SPACE-key dispatch), B = force-release cargo. No physics changes; `gamepadconnected`/`disconnected` show a toast.
+- **Experimental touch joystick** (added 2026-07-10): Settings → "Touch Controls: Joystick" (`cargoLanderTouchJoystick` in localStorage, off by default) swaps the left/thrust mobile buttons for a floating-origin drag stick (`#joystick-zone` in `index.html`, logic in the inline `setupJoystick()`). Feeds `game.keys['joy_left'/'joy_right'/'joy_up']`, same pattern as gamepad — see `applyTouchControlMode()` for the DOM swap.
 - `padScale` on level config scales all pad widths: L1=1.5, L2=1.2, L3=0.85, L4=0.70 (L5 has explicit narrow hub)
 - `BOX_SIZE = 28` (was 20)
 - Biome palette themes: L1=grassland, L2=desert/amber, L3=arctic/ice, L4=volcanic/orange, L5=crystal cave/purple

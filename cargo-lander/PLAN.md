@@ -93,12 +93,11 @@ user says so.
       `levelSchema.js` so the editor and tests pick it up for free. Place one
       pad on the two longest maps (check which levels have the widest world
       bounds — likely L8/L9). Add a validation test. [VERIFY].
-- [ ] **1.3 heatHaze on L6 (post-FX follow-up).** Set `heatHaze` in
-      `level6.js` (Amber Dusk / Sand Worm — hot biome). Then screenshot the
-      "PICK UP"/"DELIVER HERE" world-space labels at typical zoom
-      (`probe-screenshot.html?level=5&...`) and confirm they stay readable —
-      the haze wobbles world-space text (README post-FX notes). If unreadable,
-      lower amplitude for that level rather than globally. [VERIFY].
+- [x] **1.3 heatHaze on L6 (post-FX follow-up).** Already set in `level6.js`
+      (`heatHaze: true`, line 33) prior to this pass. Verified 2026-07-10 via
+      `probe-screenshot.html?level=5&x=900&y=550&zoom=0.7` — "PICK UP" label
+      reads clearly, `postFX link: true` confirms the shader compiled, wobble
+      is subtle at this zoom. No amplitude change needed.
 - [ ] **1.4 Editor: preserve L9's `outOfBounds: true` shorthand.** Known gap:
       the editor's loader/exporter turns L9's boolean shorthand into a full
       default-filled object. In `level-editor.html`'s loader, detect
@@ -177,22 +176,47 @@ user says so.
       below 15%. Keep each under ~20 lines of synth code, matching existing
       patterns in `audio.js`. [VERIFY] by ear in the browser.
 
-- [ ] **2.4 Experimental virtual joystick for mobile (user request,
-      2026-07-10).** Alternative to the button pad: a touch joystick —
-      left-half drag = virtual stick controlling thrust (up) and strafe
-      (left/right), right-half tap = action (grapple/attach), matching the
-      existing button semantics. Implement as a Settings toggle
-      ("Touch controls: Buttons / Joystick (experimental)") persisted in
-      `localStorage`, defaulting to Buttons — do NOT replace the buttons.
-      Render the stick base + nub on the canvas (`render/ui.js`) at the
-      initial touch point (floating origin), feed values into the same
-      `inputState` object `game.update()` already builds, no physics
-      changes. Dead zone ~15%, and thrust should map analog (stick
-      deflection → partial `enginePower`) if the input path allows it —
-      otherwise threshold to on/off first and note the analog follow-up.
-      Depends on 1.5 (touch handling must work pre-fullscreen first).
-      Manual mobile QA + [VERIFY].
-- [ ] **2.5 Gamepad (Xbox controller) support (user request, 2026-07-10).**
+- [x] **2.4 Experimental virtual joystick for mobile (user request,
+      2026-07-10).** Done 2026-07-10 — added a "Touch Controls: Joystick"
+      checkbox to the Settings modal (persisted in `localStorage` as
+      `cargoLanderTouchJoystick`, off by default). When enabled, swaps out
+      the left/right + thrust buttons (`#mobile-btn-group` / `#btn-thrust`)
+      for a `#joystick-zone` DOM element — a floating-origin drag stick
+      (base recenters under the finger on touchdown, matching how it feels
+      on a touch surface rather than requiring a precise tap on a fixed
+      spot). `setupJoystick()` in `index.html`'s inline script handles
+      pointerdown/move/up, computes deflection angle+distance, and feeds
+      `game.keys['joy_left'/'joy_right'/'joy_up']` past a 15% dead zone —
+      same boolean-key shape the keyboard/gamepad paths already use, merged
+      into `inputState` with one more `|| keys['joy_*']` per axis, so zero
+      physics changes. Action (`btn-action`) and HUD-toggle buttons stay
+      as-is on the right side; only left+thrust are joystick-replaced,
+      which is a deliberate scope trim from the original "right-half tap
+      for action" idea — reusing the already-working action button was
+      lower-risk than adding a second new touch surface in the same pass.
+      Kept as a DOM overlay (matching the existing button-based mobile
+      controls) rather than canvas-drawn, for the same reason. [VERIFY] —
+      88/88 tests green; pointer-event simulation confirmed drag-up sets
+      `joy_up`, drag-left sets `joy_left`, release clears both; settings
+      checkbox correctly toggles `#joystick-zone` vs. the button group and
+      persists across reload. Depended on 1.5 (touch handling working
+      pre-fullscreen) — done first. **Still needs a real touch-device pass**
+      — this environment has no touch hardware, so "does it feel good to
+      drag with a thumb" is unverified, only the logic.
+- [x] **2.5 Gamepad (Xbox controller) support (user request, 2026-07-10).**
+      Done 2026-07-10 — `game.js`: `pollGamepad()` (called each frame from
+      `update()`) reads `navigator.getGamepads()`, merges left-stick-X and
+      right-trigger/left-stick-Y into `this.keys['gp_left'/'gp_right'/'gp_up']`
+      (same boolean keys the keyboard path already sets, so `inputState`
+      needed only an `|| keys['gp_*']` addition, zero physics changes), and
+      edge-triggers A (mirrors the SPACE-key dispatch: complete mission if
+      docked+delivered, else `toggleGrapple()`) and B (force-release grabbed
+      cargo). `gamepadconnected`/`disconnected` show a toast via the existing
+      `addMessage()`. [VERIFY] — 88/88 tests green, no console errors with
+      the update loop running `pollGamepad()` every frame and no pad
+      attached. **Hardware testing still pending** — no physical controller
+      in this environment; whoever has one next should confirm button/stick
+      mapping feels right (especially the analog trigger dead zone).
       Use the standard Gamepad API (`navigator.getGamepads()`, polled once
       per frame in `game.update()` — it's poll-based, no events needed for
       sticks/triggers). Mapping (standard layout): left stick X = strafe,
