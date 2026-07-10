@@ -210,10 +210,6 @@ draw() {
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(this.shaders.canvas, 0, 0);
             ctx.restore();
-
-            // Re-draw terrain over the distorted post-fx layer to perfectly mask out the underwater rock walls.
-            // The empty space (water pool) will remain visible, showing the wavy distortion and reflection.
-            this.drawTerrain();
         }
 
         if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
