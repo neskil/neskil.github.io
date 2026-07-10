@@ -154,48 +154,7 @@ draw() {
         // 6c. Draw ambient space truck traffic
         this.drawAmbientTraffic();
 
-        // 7. Draw Boxes
-        this.drawBoxes();
 
-        // 8. Draw Lander
-        this.drawLander();
-
-        if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
-            const drone = this.physics.boxes.find(b => b.type === 'drone');
-            if (drone && !drone.grabbedByDrone) {
-                const dx = this.physics.lander.x - drone.x;
-                const dy = this.physics.lander.y - drone.y;
-                if (Math.sqrt(dx*dx + dy*dy) < 150) {
-                    ctx.save();
-                    ctx.font = 'bold 12px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillStyle = '#fde047';
-                    ctx.shadowColor = '#000';
-                    ctx.shadowBlur = 4;
-                    ctx.fillText('PRESS SPACE TO DEPLOY DRONE', drone.x, drone.y - 30);
-                    ctx.restore();
-                }
-            }
-        } else if (this.physics.lander && this.physics.lander.vehicleType === 'drone' && !this.physics.lander.grabbedBoxId) {
-            // Give the drone a hint to attach if it's near an ungrabbed, unvacuumed box on the ground
-            const lndr = this.physics.lander;
-            const attachableBox = this.physics.boxes.find(b => {
-                if (b.type === 'drone' || b.vacuumed || b.onDeck) return false;
-                const dx = lndr.x - b.x;
-                const dy = lndr.y - b.y;
-                return Math.sqrt(dx*dx + dy*dy) < 60;
-            });
-            if (attachableBox) {
-                ctx.save();
-                ctx.font = 'bold 12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#fde047';
-                ctx.shadowColor = '#000';
-                ctx.shadowBlur = 4;
-                ctx.fillText('PRESS SPACE TO ATTACH', lndr.x, lndr.y - 30);
-                ctx.restore();
-            }
-        }
 
         // 8.5 Draw Floating Texts
         if (this.floatingTexts) {
@@ -249,6 +208,48 @@ draw() {
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(this.shaders.canvas, 0, 0);
             ctx.restore();
+        }
+
+        // 7. Draw Boxes (moved after postFX so they don't get ghost reflections drawn over them underwater)
+        this.drawBoxes();
+
+        // 8. Draw Lander (moved after postFX to prevent ghost reflection overlapping)
+        this.drawLander();
+
+        if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
+            const drone = this.physics.boxes.find(b => b.type === 'drone');
+            if (drone && !drone.grabbedByDrone) {
+                const dx = this.physics.lander.x - drone.x;
+                const dy = this.physics.lander.y - drone.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 150) {
+                    ctx.save();
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#fde047';
+                    ctx.shadowColor = '#000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText('PRESS SPACE TO DEPLOY DRONE', drone.x, drone.y - 30);
+                    ctx.restore();
+                }
+            }
+        } else if (this.physics.lander && this.physics.lander.vehicleType === 'drone' && !this.physics.lander.grabbedBoxId) {
+            const lndr = this.physics.lander;
+            const attachableBox = this.physics.boxes.find(b => {
+                if (b.type === 'drone' || b.vacuumed || b.onDeck) return false;
+                const dx = lndr.x - b.x;
+                const dy = lndr.y - b.y;
+                return Math.sqrt(dx*dx + dy*dy) < 60;
+            });
+            if (attachableBox) {
+                ctx.save();
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#fde047';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.fillText('PRESS SPACE TO ATTACH', lndr.x, lndr.y - 30);
+                ctx.restore();
+            }
         }
 
         // 9. WebGL Render for Particles
