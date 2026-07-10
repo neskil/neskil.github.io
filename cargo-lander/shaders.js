@@ -351,8 +351,8 @@ class ShaderOverlay {
                 }
 
                 if (u_rainAmount > 0.05) {
-                    vec4 d1 = droplet(screenPos, 140.0, 18.0, 0.0);
-                    vec4 d2 = droplet(screenPos, 80.0, 10.0, 100.0);
+                    vec4 d1 = droplet(screenPos, 120.0, 14.0, 0.0);
+                    vec4 d2 = droplet(screenPos, 70.0, 7.0, 100.0);
                     float bodyHit = max(d1.z, d2.z);
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
@@ -374,17 +374,18 @@ class ShaderOverlay {
                         float wave = sin(worldPos.x * 0.05 + u_time * 2.0) * 2.5
                                    + sin(worldPos.y * 0.08 - u_time * 1.3) * 1.5;
                         
+                        // Soften X edges to prevent hard clipping against rock walls and screen tearing
+                        float fadeX = smoothstep(mn.x, mn.x + 15.0, screenPos.x) * smoothstep(mx.x, mx.x - 15.0, screenPos.x);
+                        
                         // Base water distortion (the subtle wave for the water surface itself)
-                        offset += vec2(wave * 0.6, wave * 0.3);
+                        // Multiplying by fadeX ensures the distortion doesn't tear the background image at the bounding box edges
+                        offset += vec2(wave * 0.6, wave * 0.3) * fadeX;
                         
                         // Mirror reflection: offset Y so that we sample above the water surface
                         float surfaceOffset = 15.0; // The visual depth of the water surface band
                         float mirrorY = mn.y + surfaceOffset;
                         float reflectY = 2.0 * (mirrorY - screenPos.y);
                         reflectOffset = vec2(wave * 0.6, reflectY + wave * 0.3);
-                        
-                        // Soften X edges to prevent hard clipping against rock walls
-                        float fadeX = smoothstep(mn.x, mn.x + 15.0, screenPos.x) * smoothstep(mx.x, mx.x - 15.0, screenPos.x);
                         
                         // Fade reflection based on depth (height) so it's only visible near the surface
                         float depth = screenPos.y - mn.y;
