@@ -285,19 +285,20 @@ class ShaderOverlay {
 
                         vec2 d = sp - center;
                         vec2 dn = vec2(d.x, d.y * 1.15); // slightly squashed bead
-                        
-                        // Wobble the shape based on the cell hash and angle so they aren't perfect circles
-                        float angle = atan(d.y, d.x);
-                        float wobble = sin(angle * 3.0 + h1 * 10.0) * 0.2 * r;
-                        float dist = length(dn) + wobble;
+                        float dist = length(dn);
                         
                         if (dist < r) {
-                            float core = smoothstep(r, r * 0.7, dist); // softer edge for anti-aliasing
+                            // Fuzzy uneven alpha map for the core
+                            float noise = fract(sin(dot(sp, vec2(12.9898, 78.233))) * 43758.5453);
+                            float core = smoothstep(r, r * 0.6, dist) * (0.8 + 0.2 * noise); 
+                            
                             result.xy = -d * 0.45; // much stronger magnifying-glass pull (more light bending)
                             result.z = core;
 
                             vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
-                            float hl = smoothstep(r * 0.4, 0.0, length(hlOff));
+                            // Fixed max size for the glint (doesn't scale infinitely with drop size)
+                            float glintSize = min(3.0, r * 0.7);
+                            float hl = smoothstep(glintSize, 0.0, length(hlOff));
                             result.w = hl;
                         }
 
