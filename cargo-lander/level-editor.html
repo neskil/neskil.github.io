@@ -439,11 +439,15 @@ function toggleOOB() {
   if (en && !S.oob) {
     S.oob = {};
     LEVEL_SCHEMA.outOfBounds.fields.forEach(f => S.oob[f.key] = f.default);
-  } else if (!en) S.oob = null;
+    S.oobIsBoolean = false;
+  } else if (!en) { S.oob = null; S.oobIsBoolean = false; }
   draw(); updateOut();
 }
 
-function setOOB(k, v) { if (S.oob) S.oob[k] = v; draw(); updateOut(); }
+// Editing any field means the level now needs the full object form, so this
+// also clears S.oobIsBoolean — see applyConfig()'s comment for why that flag
+// exists (preserving the `outOfBounds: true` shorthand some levels use).
+function setOOB(k, v) { if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
 
 function toggleGW() {
   const en = document.getElementById('gw-enable').checked;
@@ -605,7 +609,14 @@ function applyConfig(cfg) {
   }));
   S.hubs      = cfg.deliveryHubs || [];
   S.gravWell  = cfg.gravityWell  || null;
-  S.oob       = cfg.outOfBounds  || null;
+  // L9-style shorthand: `outOfBounds: true` instead of a full config object.
+  // Treated as an empty-but-enabled object internally (so the panel/rendering
+  // code that reads S.oob.<field> keeps working unmodified) with a flag that
+  // makes the exporter emit the boolean back out verbatim, as long as no field
+  // gets edited — see setOOB()/toggleOOB() below, which clear the flag the
+  // moment the level actually needs the full object form.
+  S.oobIsBoolean = cfg.outOfBounds === true;
+  S.oob       = cfg.outOfBounds === true ? {} : (cfg.outOfBounds || null);
   S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
   // Defaults must mirror physics.js so the editor shows/edits the pad the
   // game actually uses, even when a level file omits these fields.
@@ -736,7 +747,7 @@ function hazardToShape(h, i) {
 }
 
 function resetState() {
-  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null;
+  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null; S.oobIsBoolean=false;
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -1707,11 +1718,15 @@ function buildOut() {
 
   // OOB
   if (S.oob) {
-    lines.push(`  outOfBounds: {`);
-    Object.entries(S.oob).forEach(([k,v]) => {
-      if (v != null && v !== '') lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
-    });
-    lines.push(`  },`);
+    if (S.oobIsBoolean) {
+      lines.push(`  outOfBounds: true,`);
+    } else {
+      lines.push(`  outOfBounds: {`);
+      Object.entries(S.oob).forEach(([k,v]) => {
+        if (v != null && v !== '') lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
+      });
+      lines.push(`  },`);
+    }
   }
 
   // GW

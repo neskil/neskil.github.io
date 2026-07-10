@@ -98,15 +98,22 @@ user says so.
       `probe-screenshot.html?level=5&x=900&y=550&zoom=0.7` — "PICK UP" label
       reads clearly, `postFX link: true` confirms the shader compiled, wobble
       is subtle at this zoom. No amplitude change needed.
-- [ ] **1.4 Editor: preserve L9's `outOfBounds: true` shorthand.** Known gap:
-      the editor's loader/exporter turns L9's boolean shorthand into a full
-      default-filled object. In `level-editor.html`'s loader, detect
-      `outOfBounds === true`, set a `S.oobIsBoolean` flag, and have the
-      export-block generator emit `outOfBounds: true` verbatim when the flag
-      is set and no OOB field was edited (any edit converts to object form —
-      that's fine, just deliberate). Verify with the editor's headless
-      round-trip: `level-editor.html?autoload=level9.js&dumpExport=1` and
-      diff against the source. [VERIFY].
+- [x] **1.4 Editor: preserve L9's `outOfBounds: true` shorthand.** Done
+      2026-07-10 — turned out the actual bug was worse than "expands to a
+      full default-filled object": `Object.entries(true)` is `[]`, so the
+      old exporter silently emitted an **empty** `outOfBounds: {}` (functionally
+      identical to `true` at runtime, since every consumer only ever reads
+      `oob.someField` off it and both yield `undefined`, but not a faithful
+      round-trip of the source). Fixed in `level-editor.html`: `applyConfig()`
+      now sets `S.oobIsBoolean = (cfg.outOfBounds === true)` and internally
+      treats it as `S.oob = {}` (so the enable-checkbox/panel code needs no
+      other changes); `setOOB()`/`toggleOOB()` clear the flag the moment a
+      field is actually edited or OOB is disabled/re-enabled from scratch
+      (deliberate — matches the original plan); the exporter checks the flag
+      first and emits `outOfBounds: true,` verbatim when set. [VERIFY] —
+      88/88 tests green; `level-editor.html?autoload=level9.js&dumpExport=1`
+      now round-trips to exactly `outOfBounds: true,`; confirmed L1's
+      full-object OOB config is unaffected (still exports the full block).
 
 - [x] **1.5 Fix mobile touch buttons before fullscreen (user-reported bug,
       2026-07-10).** **Root cause found and fixed 2026-07-10:** `body` and
