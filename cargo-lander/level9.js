@@ -2,6 +2,16 @@
 // Biome: Cavernous Void
 // A highly chaotic level featuring a massive sandworm pit, high traffic, gravity anomalies,
 // destructible buildings, acid lakes, and heavy weather.
+// Terrain rebuilt (2026-07-10 design pass) from five flat rectangles into a ragged cavern:
+// the worm pit reads as an obvious scar (crumbling shelf edge), the suspended hub gets a
+// hanging crystal-spire tail for a dramatic anchor, and both ceiling chunks are jagged.
+// Hazards stay spatially zoned — worm owns the center pit, blackhole+acid+silo own the
+// eastern rim — with a new destructible structure and a fuel pickup added to the western/
+// central half so the level doesn't read as empty on that side.
+// Also fixes a silent bug: the left-shelf tower's building `type: 'comms'` had no matching
+// branch in render/entities.js's drawBuildings() (only 'antenna'/'silo'/'refinery' render),
+// so it was invisible in-game with no error — same failure class CLAUDE.md's headless
+// verification section calls out. Swapped to 'antenna', which is what it visually was.
 
 registerLevel({
     name: "L9: The Cauldron",
@@ -47,29 +57,37 @@ registerLevel({
 
     // ── Terrain Polygons ──────────────────────────────────────────────────────
     terrainPolygons: [
-        // Left starting shelf (HQ)
+        // Left starting shelf (HQ) — crumbles diagonally into the worm pit instead
+        // of a sheer rectangle edge; surface stays flat/near-flat out to x:450 for
+        // the depot/cargo spawn and the refinery building, then breaks up right at
+        // the worm zone's western edge (wormPitCX:800, wormZoneR:300 -> zone starts x:500)
         [
-            { x: -200, y: 600 }, { x: 300, y: 600 },
-            { x: 300, y: 1200 }, { x: -200, y: 1200 }
+            { x: -200, y: 650 }, { x: -100, y: 600 }, { x: 0, y: 630 }, { x: 100, y: 600 },
+            { x: 250, y: 610 }, { x: 350, y: 600 }, { x: 450, y: 615 },
+            { x: 500, y: 640 },
+            { x: 540, y: 720 }, { x: 480, y: 820 },
+            { x: 500, y: 1200 }, { x: -200, y: 1200 }
         ],
-        // Top cavern ceiling (left side)
+        // Top cavern ceiling (left side) — jagged stalactite dip
         [
-            { x: -200, y: 0 }, { x: 500, y: 0 },
-            { x: 400, y: 350 }, { x: -200, y: 350 }
+            { x: -200, y: 0 }, { x: 200, y: -30 }, { x: 350, y: 20 }, { x: 500, y: 0 },
+            { x: 430, y: 200 }, { x: 380, y: 350 }, { x: 250, y: 300 }, { x: -200, y: 350 }
         ],
-        // Top cavern ceiling (right side)
+        // Top cavern ceiling (right side) — jagged stalactite dip
         [
-            { x: 1100, y: 0 }, { x: 1800, y: 0 },
-            { x: 1800, y: 350 }, { x: 1200, y: 350 }
+            { x: 1100, y: 0 }, { x: 1350, y: -20 }, { x: 1550, y: 30 }, { x: 1800, y: 0 },
+            { x: 1800, y: 350 }, { x: 1600, y: 300 }, { x: 1450, y: 380 }, { x: 1200, y: 350 }
         ],
-        // The perilous Suspended Hub (floating rock in the middle)
+        // The perilous Suspended Hub — floating rock with a hanging crystal-spire
+        // tail reaching toward the pit for a dramatic anchor look (top edge at
+        // y:500 is unchanged so physics.createDeliveryHub(800,500,...) still lines up)
         [
             { x: 700, y: 500 }, { x: 900, y: 500 },
-            { x: 880, y: 540 }, { x: 720, y: 540 }
+            { x: 880, y: 560 }, { x: 820, y: 650 }, { x: 800, y: 750 }, { x: 780, y: 650 }, { x: 720, y: 560 }
         ],
-        // The Acid Pool rim (Right side)
+        // The Acid Pool rim (Right side) — slightly jagged top edge
         [
-            { x: 1200, y: 700 }, { x: 1800, y: 700 },
+            { x: 1200, y: 700 }, { x: 1450, y: 680 }, { x: 1650, y: 720 }, { x: 1800, y: 700 },
             { x: 1800, y: 1200 }, { x: 1200, y: 1200 }
         ]
     ],
@@ -94,7 +112,8 @@ registerLevel({
 
     // ── Hazards ───────────────────────────────────────────────────────────────
     hazards: [
-        // Pulsing Gravity Well above the acid pool pulling ships downwards
+        // Pulsing Gravity Well above the acid pool pulling ships downwards —
+        // stays zoned to the eastern acid side; the worm owns the center pit
         { type: 'blackhole', x: 1500, y: 500, strength: 0.8, radius: 150, orbitRadius: 50 }
     ],
 
@@ -102,13 +121,20 @@ registerLevel({
     segments: [
         // Debris floating above the worm pit
         { x1: 500, y1: 700, x2: 550, y2: 720 },
-        { x1: 1000, y1: 650, x2: 1080, y2: 680 }
+        { x1: 1000, y1: 650, x2: 1080, y2: 680 },
+        // Broken mooring chain hanging from the suspended hub's spire tip
+        { x1: 795, y1: 750, x2: 805, y2: 850 }
     ],
 
     // ── Buildings ─────────────────────────────────────────────────────────────
     buildings: [
-        // Destructible comms tower on the left shelf
-        { x: 150, y: 600, type: 'comms', destructible: true, health: 50 },
+        // Destructible antenna tower on the left shelf (was mistyped 'comms',
+        // a building type drawBuildings() doesn't render — see header note)
+        { x: 150, y: 600, type: 'antenna', destructible: true, health: 50 },
+        // Destructible refinery on the center-left shelf, past the depot —
+        // balances the blackhole+acid+silo cluster that otherwise owns the
+        // whole eastern half of the map
+        { x: 450, y: 640, type: 'refinery', destructible: true, health: 60 },
         // Destructible silo near the acid
         { x: 1300, y: 700, type: 'silo', destructible: true, health: 80 }
     ],
@@ -117,7 +143,8 @@ registerLevel({
     collectibles: [
         { type: 'cash', x: 800, y: 400, value: 500 }, // Risky cash above suspended hub
         { type: 'fuel', x: 525, y: 650, amount: 40 }, // Near debris
-        { type: 'fuel', x: 1040, y: 600, amount: 40 } // Near debris
+        { type: 'fuel', x: 1040, y: 600, amount: 40 }, // Near debris
+        { type: 'fuel', x: 800, y: 650, amount: 35 } // Dead center of the worm zone — highest risk, dead below the hub
     ],
 
     // ── Setup & Spawns ────────────────────────────────────────────────────────
@@ -126,8 +153,8 @@ registerLevel({
 
     setupPhysics: function(physics) {
         // Create the Cargo Pickup Depot
-        physics.createSourcingDepot(200, 600, 3, ['drone']); 
-        
+        physics.createSourcingDepot(200, 600, 3, ['drone']);
+
         // Delivery Hub is on the suspended rock above the worm. Needs to be 'heavy' type!
         physics.createDeliveryHub(800, 500, 3, 'heavy', 'Cauldron Hub', true);
 
