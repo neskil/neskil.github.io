@@ -190,6 +190,7 @@ canvas{display:block}
       <select id="hazard-type-select" onchange="setHazardType(this.value)">
         <option value="zone">Damage Zone</option>
         <option value="laser">Laser</option>
+        <option value="incinerator">Incinerator</option>
         <option value="crusher">Moving Crusher</option>
         <option value="pickup">Fuel/Cash Ring</option>
         <option value="sandworm">Sandworm Pit</option>
@@ -1413,11 +1414,11 @@ function renderPtUI() {
         colorRow.style.display = 'none';
       }
 
-      timingRow.style.display = poly.type === 'laser' ? '' : 'none';
+      timingRow.style.display = (poly.type === 'laser' || poly.type === 'incinerator') ? '' : 'none';
       swTimingRow.style.display = poly.type === 'sandworm' ? '' : 'none';
       repRow.style.display = poly.type === 'repulsor' ? '' : 'none';
 
-      if (poly.type === 'laser') {
+      if (poly.type === 'laser' || poly.type === 'incinerator') {
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
         document.getElementById('laser-offms').value = poly.offMs ?? 1000;
         document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;

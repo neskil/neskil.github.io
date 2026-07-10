@@ -1550,19 +1550,21 @@ class CargoGame {
         if (atHQ && allDelivered && this.gameState === 'playing') {
             if (!this._fireworksStartTime) this._fireworksStartTime = Date.now();
             const elapsed = Date.now() - this._fireworksStartTime;
-            const intense = elapsed < 3000;
+            const intense = elapsed < 2000;
             
             if (!this._currentFireworkDelay) this._currentFireworkDelay = 0;
             
             if (!this._lastFireworkTime || Date.now() - this._lastFireworkTime > this._currentFireworkDelay) {
-                this._currentFireworkDelay = (intense ? 100 : 600) + Math.random() * (intense ? 200 : 1000);
+                this._currentFireworkDelay = (intense ? 200 : 700) + Math.random() * (intense ? 300 : 1200);
                 this._lastFireworkTime = Date.now();
                 if (this.physics && this.physics.particles) {
                     const hqPad = this.physics.pads ? this.physics.pads.find(p => p.type === 'start') : null;
                     const startX = hqPad ? hqPad.x + (Math.random() - 0.5) * hqPad.width : lander.x + (Math.random() - 0.5) * 300;
                     const startY = hqPad ? hqPad.y : lander.y + 10;
                     
-                    const rocketVx = (Math.random() - 0.5) * 4;
+                    // Gaussian-like spread favoring the center
+                    const spread = (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+                    const rocketVx = spread * 4.5;
                     const rocketVy = -5 - Math.random() * 4; // ascent
                     const flyTimeMs = 400 + Math.random() * 300;
                     

@@ -46,7 +46,9 @@ registerLevel({
     // ── Hazards ───────────────────────────────────────────────────────────────
     hazards: [
         // Laser slicing across the shaft gap!
-        { type: 'laser', pts: [{ x: 550, y: 520 }, { x: 800, y: 520 }], onMs: 800, offMs: 2500, warnMs: 400, damagePerSec: 50, thickness: 12 }
+        { type: 'laser', pts: [{ x: 550, y: 520 }, { x: 800, y: 520 }], onMs: 800, offMs: 2500, warnMs: 400, damagePerSec: 50, thickness: 12 },
+        // Incinerator vent on the right side of the pit floor
+        { type: 'incinerator', pts: [{x: 800, y: 950}, {x: 880, y: 880}, {x: 1000, y: 950}], onMs: 1500, offMs: 2000, warnMs: 500, damagePerSec: 30 }
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
