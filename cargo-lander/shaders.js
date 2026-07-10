@@ -258,9 +258,9 @@ class ShaderOverlay {
                 for(int y = -1; y <= 1; y++) {
                     for(int x = -1; x <= 1; x++) {
                         vec2 cell = baseCell + vec2(float(x), float(y));
-                        // Time progression for this cell (more variance in speed)
+                        // Time progression for this cell (less variance in speed so they fall more uniformly)
                         float cellSpeedH = hash21(cell + seed);
-                        float t = u_time * (0.05 + 0.45 * cellSpeedH) + hash21(cell + seed + 11.0) * 100.0;
+                        float t = u_time * (0.1 + 0.15 * cellSpeedH) + hash21(cell + seed + 11.0) * 100.0;
                         float cycle = floor(t);
                         float yFrac = fract(t);
                         
@@ -287,7 +287,10 @@ class ShaderOverlay {
                         
                         // Stretch the droplet head vertically when it slides to create a motion-blurred streak
                         float stretch = 1.0 + slide * 2.5;
-                        vec2 dn = vec2(d.x, d.y * 1.15 / stretch);
+                        // Give it a teardrop shape (wider at bottom, narrower at top)
+                        // d.y > 0 is bottom, d.y < 0 is top
+                        float widthDistortion = 1.0 - (d.y / r) * 0.4;
+                        vec2 dn = vec2(d.x * widthDistortion, d.y * 1.15 / stretch);
                         float dist = length(dn);
                         
                         if (dist < r) {
@@ -322,6 +325,9 @@ class ShaderOverlay {
                                 }
                             }
                         }
+                        
+                        // Fade out as it slides down
+                        result *= (1.0 - slide);
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
                             // Fade in at start, sit, streak, then fade out
