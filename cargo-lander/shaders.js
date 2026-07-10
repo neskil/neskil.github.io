@@ -549,7 +549,7 @@ class ShaderOverlay {
         gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
         gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), Date.now() / 1000.0);
+        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_rainAmount"), rain);
 
@@ -604,7 +604,7 @@ class ShaderOverlay {
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_monsterSize"), physics.monster.size);
             gl.uniform2f(gl.getUniformLocation(this.monsterProgram, "u_cameraPos"), camera.x, camera.y);
             gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_zoom"), camera.zoom);
-            gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_time"), Date.now() / 1000.0);
+            gl.uniform1f(gl.getUniformLocation(this.monsterProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -625,7 +625,7 @@ class ShaderOverlay {
             gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_wellPulse"), gw.pulse || 1.0);
             gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
             gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_zoom"), camera.zoom);
-            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_time"), Date.now() / 1000.0);
+            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
