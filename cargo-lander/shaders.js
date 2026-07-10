@@ -245,47 +245,57 @@ class ShaderOverlay {
             // overlay the player has to see through, not a screenshot.
             // Returns: xy = refraction offset, z = body alpha, w = glint alpha.
             vec4 droplet(vec2 sp, float cellSize, float rad, float seed) {
-                vec2 cell = floor(sp / cellSize);
-                float h1 = hash21(cell + seed);
-                float h2 = hash21(cell + seed + 31.7);
-                float h3 = hash21(cell + seed + 57.3);
-                if (h3 > 0.72) return vec4(0.0); // most cells stay empty — sparse field
+                vec2 baseCell = floor(sp / cellSize);
+                vec4 bestResult = vec4(0.0);
+                
+                for(int y = -1; y <= 1; y++) {
+                    for(int x = -1; x <= 1; x++) {
+                        vec2 cell = baseCell + vec2(float(x), float(y));
+                        float h1 = hash21(cell + seed);
+                        float h2 = hash21(cell + seed + 31.7);
+                        float h3 = hash21(cell + seed + 57.3);
+                        if (h3 > 0.72) continue; // most cells stay empty — sparse field
 
-                float yFrac = fract(h2 + u_time * (0.009 + 0.022 * h1));
-                vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
-                float r = rad * (0.6 + 0.7 * h2);
+                        float yFrac = fract(h2 + u_time * (0.009 + 0.022 * h1));
+                        vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
+                        float r = rad * (0.6 + 0.7 * h2);
 
-                vec4 result = vec4(0.0);
+                        vec4 result = vec4(0.0);
 
-                vec2 d = sp - center;
-                vec2 dn = vec2(d.x, d.y * 1.15); // very slightly squashed, sitting bead
-                float dist = length(dn);
-                if (dist < r) {
-                    float core = 1.0 - dist / r;
-                    result.xy = -d * 0.5; // gentle magnifying-glass pull, not a strong warp
-                    result.z = core;
+                        vec2 d = sp - center;
+                        vec2 dn = vec2(d.x, d.y * 1.15); // very slightly squashed, sitting bead
+                        float dist = length(dn);
+                        if (dist < r) {
+                            float core = 1.0 - dist / r;
+                            result.xy = -d * 0.5; // gentle magnifying-glass pull, not a strong warp
+                            result.z = core;
 
-                    vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
-                    float hl = 1.0 - clamp(length(hlOff) / (r * 0.32), 0.0, 1.0);
-                    result.w = hl * hl;
-                }
+                            vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
+                            float hl = 1.0 - clamp(length(hlOff) / (r * 0.32), 0.0, 1.0);
+                            result.w = hl * hl;
+                        }
 
-                if (h1 > 0.6) { // only the larger ~40% of drops trickle
-                    float trailLen = r * (2.5 + h1 * 3.5);
-                    vec2 belowD = sp - (center + vec2(0.0, r * 0.5));
-                    if (belowD.y > 0.0 && belowD.y < trailLen) {
-                        float taper = 1.0 - belowD.y / trailLen;
-                        float trailW = r * 0.18 * taper;
-                        float lateral = abs(belowD.x);
-                        if (lateral < trailW) {
-                            float trailCore = (1.0 - lateral / trailW) * taper * 0.4;
-                            result.z = max(result.z, trailCore);
-                            result.xy += vec2(-belowD.x * 0.3, 0.0);
+                        if (h1 > 0.6) { // only the larger ~40% of drops trickle
+                            float trailLen = r * (2.5 + h1 * 3.5);
+                            vec2 belowD = sp - (center + vec2(0.0, r * 0.5));
+                            if (belowD.y > 0.0 && belowD.y < trailLen) {
+                                float taper = 1.0 - belowD.y / trailLen;
+                                float trailW = r * 0.18 * taper;
+                                float lateral = abs(belowD.x);
+                                if (lateral < trailW) {
+                                    float trailCore = (1.0 - lateral / trailW) * taper * 0.4;
+                                    result.z = max(result.z, trailCore);
+                                    result.xy += vec2(-belowD.x * 0.3, 0.0);
+                                }
+                            }
+                        }
+
+                        if (result.z > bestResult.z || result.w > bestResult.w) {
+                            bestResult = result;
                         }
                     }
                 }
-
-                return result;
+                return bestResult;
             }
 
             void main() {
