@@ -313,6 +313,27 @@ top.
 
 ## Continuing this project (environment + handoff notes, 2026-07-10)
 
+### Session status (end of 2026-07-10 session, cut short by usage budget)
+Everything below in this section through "What's next" is committed and
+pushed as of `v0.2.0`. Nothing is mid-flight/uncommitted. One thing flagged
+but **not investigated** — pick this up first next session if the user
+raises it again:
+- **Screenshot from the user showed a large flat-topped solid-blue rectangle
+  filling the lower-left of the screen**, in what looked like a water/abyss
+  level. Answered live as "that's `drawFluidBounds()` rendering
+  `outOfBounds.surfaceY` — the abyss boundary, a real feature" — this is a
+  reasonable read (sharp rectangular Canvas2D edges, not the jagged organic
+  edges the polygon water bodies have) but was **not verified** against the
+  actual level/camera state in that screenshot, since usage budget ran out
+  right after. If the user says it still looks wrong: reproduce by finding
+  which level they were on (ask, or check `localStorage` highscores for a
+  clue) and screenshot `drawFluidBounds()` (`render/terrain.js`, grep the
+  function name) in isolation to compare against what shipped today —
+  specifically check whether today's post-FX pass (`renderPostFX()`,
+  `shaders.js`) could be interacting with it unexpectedly, since that's the
+  most recent change to the render pipeline and the rectangle's hard edges
+  don't obviously implicate it, but it wasn't ruled out.
+
 ### Local environment
 - **Python is now installed** (`winget install Python.Python.3.12`, done
   2026-07-10) — a fresh terminal can serve this folder with
