@@ -57,7 +57,13 @@ class CargoGame {
 
         // Settings
         this.isMuted = false; // Always start unmuted
-        this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || 1.0;
+        // Default UI Scale is 100% on desktop, but the HUD panels are absolutely
+        // positioned at a fixed base size (only font/padding shrink via @media
+        // rules) — on a phone or short mobile-landscape window, 100% overlaps or
+        // runs off-screen well before anyone finds the manual slider in Settings
+        // to fix it. Only applies the smaller default on first run; once a value
+        // is saved, the manual slider always wins.
+        this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || this.computeDefaultUIScale();
         this.uiCollapsed = false;
         // GPU post-processing overlay (heat haze / water shimmer / gravity lensing) —
         // on by default, but it's an extra full-screen WebGL pass every frame on top
@@ -171,6 +177,19 @@ class CargoGame {
                 eyeBtn.title = 'Hide UI';
             }
         }
+    }
+
+    // Picks a sensible first-run UI Scale from viewport size instead of always
+    // defaulting to 100%. Mobile landscape (short height) is the tightest case —
+    // the HUD panels stack vertically down the left/right edges, so a short
+    // window runs out of vertical room fastest.
+    computeDefaultUIScale() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const shortestSide = Math.min(w, h);
+        if (h <= 420) return 0.72;             // short mobile-landscape window
+        if (shortestSide <= 480) return 0.8;   // phone-sized, either orientation
+        if (shortestSide <= 820) return 0.9;   // small tablet
+        return 1.0;
     }
 
     setUIScale(val) {
