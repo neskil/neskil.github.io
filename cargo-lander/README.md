@@ -104,6 +104,26 @@ page and reading the console is the fallback), then load the game in a
 browser via a local static server (no console errors), then run the
 `tests.html` smoke suite (all green).
 
+### Headless verification (no interactive browser needed)
+When no interactive browser pane is available, headless Chrome does the whole
+job (added 2026-07-10; Chrome lives at
+`C:\Program Files\Google\Chrome\Application\chrome.exe` on this machine).
+With a static server running on port 8177:
+- **Test suite**: `chrome --headless=new --disable-gpu --user-data-dir=%TEMP%\chrome-test
+  --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html`
+  and grep the dump for `id="summary"` — it contains the
+  "68 passed / 0 failed" line. (`--virtual-time-budget` fast-forwards
+  timers, so the async test run completes before the dump.)
+- **Visual checks**: `probe-screenshot.html` (in this folder) loads the game
+  in an iframe, starts a level, and parks the free camera at a query-string
+  position: `probe-screenshot.html?level=8&x=1500&y=750&zoom=0.8`
+  (level = 0-based index into `levels[]`). Screenshot it with
+  `--window-size=1280,800 --virtual-time-budget=8000 --screenshot=out.png <url>`.
+  The probe also stamps the post-FX shader's link status bottom-left
+  ("postFX link: true" in green / the info log in red), since headless
+  screenshots give no console access and a failed shader compile is
+  otherwise silent (the pass just draws nothing).
+
 ### Mobile / responsive manual QA
 There's no automated mobile testing — `tests.html` runs headless with a fixed
 1280×720 canvas mock and never touches real CSS layout or `window.innerWidth`.
@@ -245,11 +265,11 @@ top.
 - [ ] **Post-FX shader follow-ups** (added 2026-07-10, see the Recent
       Additions entry below for the full feature) — `heatHaze` is currently
       only set on L2/L4; consider L6 (Amber Dusk/Sand Worm, also a hot biome)
-      or others. The heat-haze amplitude was tuned down once already for
-      text legibility (grep `wobbleX` in `shaders.js`) — if it's extended to
-      more levels, re-check the "PICK UP"/"DELIVER HERE" labels stay
-      readable on each one, camera zoom affects how noticeable the
-      distortion is. Also: `renderPostFX()` only supports up to 4 water
+      or others. (The original "haze garbles text" scare turned out to be
+      the Y-flip bug fixed in v0.3.0, not wobble amplitude — but world-space
+      labels do still get wobbled by the haze, so if it's extended to more
+      levels, re-check the "PICK UP"/"DELIVER HERE" labels stay readable on
+      each one; camera zoom affects how noticeable the distortion is.) Also: `renderPostFX()` only supports up to 4 water
       bodies per level (`u_waterMin`/`u_waterMax` are fixed-size uniform
       arrays) — fine for every level so far, but would silently ignore a 5th
       body if one's ever added; bump the array size + the `Math.min(4, ...)`
@@ -313,30 +333,32 @@ top.
 
 ## Continuing this project (environment + handoff notes, 2026-07-10)
 
-### Session status (end of 2026-07-10 session, cut short by usage budget)
-Everything below in this section through "What's next" is committed and
-pushed as of `v0.2.1`. One item needs a **live visual re-check** next
-session — the fix is committed but couldn't be screenshot-verified because
-the browser preview tool went down (classifier outage) right as this was
-being tested:
-- **The flat-blue-rectangle screenshot turned out to be the L9 acid pool**,
-  not `drawFluidBounds()` as first guessed. Root cause: `drawWaterBodies()`
-  (`render/terrain.js`) has always hardcoded its fill/stroke colors and
-  completely ignored `body.color`/`body.surfaceColor` — invisible for every
-  other level (none of them set those fields), but L9's acid pool
-  (`surfaceColor: '#10b981'`, a green hex) only *started* rendering at all
-  after the 2026-07-10 `pts`-shape fix earlier in this file, so it was the
-  first water body to ever expose the bug: instead of acid green, it drew as
-  a plain blue rectangle (plausible because it's also the first water body
-  authored as a perfect axis-aligned rect rather than an organic polygon —
-  both factors together made it read as an obvious rendering glitch).
-  Fixed by deriving every color in the function from `body.surfaceColor`
-  when present (falls back to the original hardcoded blue `rgb(14,45,90)`
-  otherwise, byte-identical for every level except L9 — verified no other
-  `level*.js` sets `surfaceColor`). **Next session: load L9, confirm the
-  acid pool now renders green/acid-tinted instead of blue, and that L1's
-  lake still looks exactly as before** (no code reason it wouldn't, but
-  wasn't screenshot-confirmed live).
+### Session status (2026-07-10, resolved)
+All committed and pushed as of `v0.3.0`. The "flat blue rectangle" saga is
+closed — it took **three** diagnoses to get right, kept here as a paper
+trail because each wrong guess was plausible:
+1. First guess: `drawFluidBounds()` abyss boundary (a real feature) — wrong.
+2. Second guess: `drawWaterBodies()` ignoring `body.surfaceColor`, making
+   L9's acid pool draw blue — a *real bug* (fixed in `v0.2.1`, and L9's
+   pool is confirmed green now), but **not** what the user screenshotted:
+   their rectangle was on L1, whose lake doesn't set `surfaceColor` at all.
+3. Actual root cause (fixed in `v0.3.0`): the post-FX shader
+   (`renderPostFX`, `shaders.js`) sampled the scene texture with an
+   inverted Y (`srcUV.y = 1.0 - srcUV.y` on top of an upload that already
+   has the canvas top row at v=0). Every effect region therefore drew a
+   **vertically mirrored copy of the scene** — the lake's screen-space
+   bounding box (the water-shimmer region is a bbox, not the polygon)
+   filled with upside-down *sky*, which reads as a flat blue rectangle
+   with faint stars/rain inside it. Same bug mirrored the "PICK UP" /
+   "CARGO DEPOT" labels on heat-haze levels — earlier misread as the haze
+   "garbling" text, which prompted an unnecessary amplitude nerf (partially
+   restored now: 1.2/0.6). The user's "the image is also upside down"
+   comment was the giveaway, initially misattributed to the lander
+   physically flipping.
+   Verified fixed via headless-Chrome screenshots (see the new
+   "Headless verification" part of the Verification section): L1 lake
+   hugs its polygon with the boat/fish right-side up, L4 labels read
+   correctly, 68/68 tests green.
 
 ### Local environment
 - **Python is now installed** (`winget install Python.Python.3.12`, done
@@ -404,6 +426,32 @@ needing broader context":
 ---
 
 ## Recent additions
+
+### 2026-07-10 (latest): post-FX Y-flip fix + rain droplets on the lens
+- **Fixed the post-FX pass rendering effect regions vertically mirrored** —
+  the real root cause of the "flat blue rectangle over the L1 lake" (see the
+  Session status note above for the full three-diagnosis paper trail). One
+  line: the fragment shader flipped `srcUV.y` even though the canvas
+  texture upload already puts the top row at v=0, so every touched pixel
+  sampled the scene upside down.
+- **Rain droplets on the camera lens** (user request: "the raindrops on the
+  screen effect you see in some racing games") — new effect in the same
+  post-FX shader, active on any level with `weather: 'rain'` (currently L1
+  Verdant Basin and L3 Glacial Peaks). Two screen-space layers of procedural
+  droplets (hash-per-cell, ~half the cells occupied, 130px and 61px grids)
+  that slowly trickle down the screen and wrap; each bead refracts an
+  inverted mini-image of the scene behind it (`offset += -d * 1.8`) with a
+  rim-lit highlight so it reads as a wet glass bead. Costs nothing on
+  non-rain levels (uniform gates it; the pass itself is skipped when no
+  effect is active) and turns off with the existing Settings → Visual
+  Effects toggle. Tunables live in the `droplet()` GLSL helper + the
+  `u_rainAmount` block in `shaders.js`: cell sizes, radii (8.0/4.0), trickle
+  speed (`0.012 + 0.035 * h1`), occupancy (`h3 > 0.5` = skip).
+- **Heat-haze amplitude partially restored** (0.8/0.4 → 1.2/0.6) — the
+  "garbled labels" that prompted the original nerf were actually the Y-flip
+  mirroring the text, not wobble strength.
+- **`probe-screenshot.html` added** — headless-Chrome visual-verification
+  harness, documented in the Verification section.
 
 ### 2026-07-10 (later): auto-scaled mobile UI default
 - **`uiScale` now picks a sensible first-run default from viewport size**

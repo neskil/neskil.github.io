@@ -224,6 +224,34 @@ class ShaderOverlay {
             uniform vec2 u_blackholePos;
             uniform float u_blackholeRadius;
 
+            uniform float u_rainAmount;
+
+            float hash21(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            }
+
+            // "Raindrops on the camera lens" (racing-game style): the screen is
+            // divided into cells of cellSize px; roughly half the cells carry one
+            // droplet that slowly trickles down and wraps. Returns (offsetX,
+            // offsetY, coreBrightness) — offset refracts the scene sample
+            // (inverted mini-image, like a real water bead), core feeds a small
+            // highlight so the bead reads as wet glass and not just a smudge.
+            vec3 droplet(vec2 sp, float cellSize, float rad, float seed) {
+                vec2 cell = floor(sp / cellSize);
+                float h1 = hash21(cell + seed);
+                float h2 = hash21(cell + seed + 31.7);
+                float h3 = hash21(cell + seed + 57.3);
+                if (h3 > 0.5) return vec3(0.0); // this cell has no droplet
+                float yFrac = fract(h2 + u_time * (0.012 + 0.035 * h1));
+                vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
+                vec2 d = sp - center;
+                float r = rad * (0.7 + 0.6 * h2);
+                float dist = length(d);
+                if (dist >= r) return vec3(0.0);
+                float core = 1.0 - dist / r;
+                return vec3(-d * 1.8, core);
+            }
+
             void main() {
                 // screenPos is CSS-pixel space, origin top-left, y-down — same
                 // convention the gravity well shader above uses, and the same
@@ -231,17 +259,31 @@ class ShaderOverlay {
                 vec2 screenPos = vec2(v_uv.x, 1.0 - v_uv.y) * u_resolution;
                 vec2 offset = vec2(0.0);
                 bool touched = false;
+                float dropletGlow = 0.0;
 
                 if (u_heatHazeEnabled > 0.5) {
-                    // Kept subtle (real mirage haze is a gentle shimmer, not a
-                    // warp) — an earlier, stronger pass here garbled the
-                    // "PICK UP"/"DELIVER HERE" objective labels, which are
-                    // drawn in world space and get swept up in this same
-                    // distortion pass along with the terrain.
-                    float wobbleX = sin(screenPos.y * 0.02 + u_time * 1.5) * 0.8;
-                    float wobbleY = sin(screenPos.x * 0.015 + u_time * 1.2) * 0.4;
+                    // Kept subtle — real mirage haze is a gentle shimmer, not a
+                    // warp, and world-space text labels ("PICK UP" etc.) get
+                    // swept up in this same distortion pass along with the
+                    // terrain, so a strong wobble hurts their legibility.
+                    float wobbleX = sin(screenPos.y * 0.02 + u_time * 1.5) * 1.2;
+                    float wobbleY = sin(screenPos.x * 0.015 + u_time * 1.2) * 0.6;
                     offset += vec2(wobbleX, wobbleY);
                     touched = true;
+                }
+
+                if (u_rainAmount > 0.05) {
+                    vec3 d1 = droplet(screenPos, 130.0, 8.0, 0.0);
+                    vec3 d2 = droplet(screenPos, 61.0, 4.0, 100.0);
+                    float hit = d1.z + d2.z;
+                    if (hit > 0.0) {
+                        offset += d1.xy + d2.xy;
+                        // Mostly rim-lit: a wet bead reads as a bright ring with
+                        // a darker refracting center, not a uniform bright blob.
+                        float rim = hit * (1.0 - hit) * 4.0;
+                        dropletGlow = (hit * 0.06 + rim * 0.14) * u_rainAmount;
+                        touched = true;
+                    }
                 }
 
                 for (int i = 0; i < 4; i++) {
@@ -277,12 +319,19 @@ class ShaderOverlay {
                     return;
                 }
 
+                // No Y-flip here: texImage2D uploads the canvas with its top row
+                // at v=0 (UNPACK_FLIP_Y_WEBGL is off), which matches screenPos's
+                // top-left origin directly. An earlier version flipped v here,
+                // which made every effect region render a vertically mirrored
+                // copy of the scene — water bounding boxes filled with upside-
+                // down sky (reported as a "flat blue rectangle" over the L1
+                // lake) and mirrored text labels on heat-haze levels.
                 vec2 distortedScreenPos = screenPos + offset;
                 vec2 srcUV = distortedScreenPos / u_resolution;
-                srcUV.y = 1.0 - srcUV.y;
                 srcUV = clamp(srcUV, vec2(0.001), vec2(0.999));
 
                 gl_FragColor = texture2D(u_sceneTex, srcUV);
+                gl_FragColor.rgb += dropletGlow;
             }
         `;
 
@@ -378,7 +427,9 @@ class ShaderOverlay {
     }
 
     // Post-processing pass: uploads the already-drawn Canvas2D scene as a texture,
-    // then re-draws a warped version of it wherever an effect region is active.
+    // then re-draws a warped version of it wherever an effect region is active
+    // (heat haze, water shimmer, gravity lensing, and rain droplets on the
+    // "camera lens" for levels with weather: 'rain').
     // `waterRects` is an array of up to 4 {minX,minY,maxX,maxY} screen-space
     // rects (see render.js's draw() for how they're computed from camera +
     // physics.waterBodies). Skips the texture upload entirely (the expensive
@@ -390,7 +441,8 @@ class ShaderOverlay {
         const heatHaze = !!(levelConfig && levelConfig.heatHaze);
         const hasBlackhole = !!physics.gravityWellPos;
         const hasWater = waterRects && waterRects.length > 0;
-        if (!heatHaze && !hasBlackhole && !hasWater) return;
+        const rain = (levelConfig && levelConfig.weather === 'rain') ? 1.0 : 0.0;
+        if (!heatHaze && !hasBlackhole && !hasWater && !rain) return;
 
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -409,6 +461,7 @@ class ShaderOverlay {
         gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), Date.now() / 1000.0);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
+        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_rainAmount"), rain);
 
         const count = Math.min(4, waterRects ? waterRects.length : 0);
         const minArr = new Float32Array(8), maxArr = new Float32Array(8);
