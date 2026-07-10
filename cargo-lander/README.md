@@ -25,10 +25,11 @@ files load cleanly).
 | `game.js` | `CargoGame` — the orchestrator. The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD/mission-panel DOM updates, cargo delivery/loss handling, win/lose flow, and the dynamic mission-grid/Dev-panel generation (`generateMissionUI()` — loops over `levels[]`, no per-level manual button wiring needed). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level9.js`/`levels.js`, not here; all Canvas2D rendering lives in `render.js` + `render/*.js`, not here either. |
 | `render.js` + `render/{background,terrain,entities,effects,ui}.js` | All Canvas2D rendering (terrain, lander, boxes, hubs, hazards, minimap, monster fallback, menu background, HUD-adjacent canvas overlays), split out of `game.js`. Loaded after `game.js`; methods are mixed onto `CargoGame.prototype` via `Object.assign`, so they read `this.physics`/`this.camera`/etc. same as if they were still in `game.js`. |
 | `level-editor.html` | **Level Editor** — standalone browser tool for visually editing levels. See [Level Editor](#level-editor) below. |
+| `levelSchema.js` | Shared schema for the scalar/object-shaped fields of a `registerLevel({...})` config (mission params, `palette`, `outOfBounds`, `gravityWell`) — field name, type, default, and a UI widget hint. Read by both `level-editor.html` (drives the Metadata/Palette/Out of Bounds/Gravity Well form panels, the loader's defaults, and the export-block generator) and `tests.html` (drives the scalar-field checks in "Level Config Validation"), so a new scalar field is added in one place instead of three. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is explicitly out of scope — see the Level Editor section below. |
 | `level1.js` – `level9.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. Adding a new level file still needs its `<script>` tag added to `index.html` manually — but the mission-grid button and Dev-panel jump button are both auto-generated from `levels[]` by `generateMissionUI()`, no manual wiring needed for those two. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps with 3 selectable craziness tiers (the `random1`/`random2`/`random3` buttons in the mission grid). |
-| `tests.html` | Browser-based test suite (68 tests as of 2026-07-10: 7 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/terrain/hazards/quests, plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
+| `tests.html` | Browser-based test suite (88 tests as of 2026-07-10: 7 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/out-of-bounds/gravity-well/terrain/hazards/quests (the scalar/object sections now schema-driven off `levelSchema.js`), plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
 | `probe-screenshot.html` | Headless-Chrome visual-verification harness (added 2026-07-10) — loads the game in an iframe and drives it via query string: `?level=N&x=..&y=..&zoom=..` (park the free camera), `&debug=1` (dump element/computed-style diagnostics on screen), `&hide=fn1,fn2` (no-op draw calls to bisect a visual), `&script=name` (scripted repros, e.g. `eatenByMonster`/`noCargoExtract`). See "Headless verification" under Verification, and `CLAUDE.md`, for the full recipe and why it exists. Not part of the shipped game — safe to delete if headless verification stops being needed, but has already caught one bug (the minimap CSS collapse) that reading the code alone missed. |
 
 ### Load order matters
@@ -67,6 +68,7 @@ level1.js…level9.js → levelTest.js → audio.js → shaders.js → physics.j
 `level-editor.html` is a self-contained, browser-based tool for visually editing the `terrainPolygons`, `waterBodies`, and `hazards` arrays in level files — all three are polygons (`{pts:[{x,y},...]}`) and are edited with the exact same vertex tools, just switched via the **Terrain / Water / Hazard** tabs in the sidebar. Serve the `cargo-lander/` folder with any static web server (e.g. `python -m http.server 8001`) and open `http://localhost:8001/level-editor.html`.
 
 ### Features
+- **Schema-driven Metadata / Palette / Out of Bounds / Gravity Well panels** (added 2026-07-10) — the sidebar form controls for these four scalar/object-shaped config sections are generated from `levelSchema.js` (field name/type/default/widget), and the loader's per-field defaults + the export-block generator both read the same schema, instead of three separate hand-coded lists that had to be kept in sync by hand. Adding a new scalar mission-param field (or a new palette/OOB/gravity-well sub-field) only requires a new entry in `levelSchema.js` — see that file's header comment. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is NOT schema-driven — see the TODO entry below for why.
 - **Level file dropdown** — loads any of `level1.js` – `level9.js` + `levelTest.js` directly from the server via `fetch()`. Parses the full `registerLevel({...})` config using a sandboxed `new Function()` eval, extracting polygons, palette, OOB zone, hubs, gravity well, and spawn markers — no manual copying needed.
 - **Terrain / Water / Hazard tabs** — `+ Shape` adds a new polygon to whichever tab is active; clicking any existing shape on canvas auto-switches to its tab. Legacy `waterBodies: [{x,width,hasBoat}]` / `hazards: [{x,y,radius,type}]` configs are auto-converted to polygons on load (a basin rect / an 8-sided approximation of the circle) so older level files still open cleanly.
 - **Palette-based rendering** — sky gradient uses each level's `skyTop/skyMid/skyBot` palette; terrain polygons are filled with `terrainFill` and outlined with `rockEdge` glow, matching the in-game biome appearance. Water/hazard polygons use fixed blue/red coloring.
@@ -113,7 +115,8 @@ With a static server running on port 8177:
 - **Test suite**: `chrome --headless=new --disable-gpu --user-data-dir=%TEMP%\chrome-test
   --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html`
   and grep the dump for `id="summary"` — it contains the
-  "68 passed / 0 failed" line. (`--virtual-time-budget` fast-forwards
+  "N passed / 0 failed" line (N grows over time as tests are added; 88 as of
+  2026-07-10). (`--virtual-time-budget` fast-forwards
   timers, so the async test run completes before the dump.)
 - **Visual checks**: `probe-screenshot.html` (in this folder) loads the game
   in an iframe, starts a level, and parks the free camera at a query-string
@@ -263,39 +266,67 @@ the 2026-07-10 pass (confirmed by grepping the actual code, not just re-reading
 old notes) — struck through and kept as a paper trail. Fresh items are at the
 top.
 
-- [ ] **Level Editor / renderer parity system** (user request, 2026-07-10) —
-      right now `level-editor.html` has its own hand-written parser +
-      exporter for `registerLevel({...})` configs, maintained by hand in
-      lockstep with whatever fields `level*.js`/`physics.js`/`render/*.js`
-      actually use. Every new field (this session alone added `heatHaze`;
-      recent history added hazard `type` variants, `gravityWell`, weather
-      configs, etc.) requires updating the editor's parser, its UI, *and*
-      its export-block generator, or the editor silently drops/can't-preview
-      the new thing — exactly the "two files in lockstep" problem the user
-      wants solved structurally, not just remembered harder. This is a real
-      refactor, not a quick fix; rough shape of an approach for whoever picks
-      it up:
-      - Define a **single schema** for the level-config shape (field name,
-        type, default, UI widget hint) that both the game and the editor
-        read from, instead of the editor re-deriving field knowledge by
-        parsing `.js` files with a sandboxed `new Function()` eval (see
-        `level-editor.html`'s current loader). A plain JS object/array of
-        field descriptors, imported by both `level-editor.html` and
-        (optionally) validated against in `tests.html`'s "Level Config
-        Validation" category, would let the editor generate its form UI and
-        export block from the schema instead of hand-coded per-field logic.
-      - This doesn't have to happen all at once — start by moving the
-        *editor's* per-field list (name/type/default) into a shared
-        `levelSchema.js` that `tests.html` already partially duplicates
-        (grep "Level Config Validation" — those assertions are effectively
-        an informal schema already, just not shared with the editor).
-      - Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is the harder
-        half — the editor's vertex-drag tooling is bespoke per shape *kind*
-        (zone/laser/etc.), not purely data-driven. Lower priority than the
-        scalar-field parity problem above; tackle after the schema exists.
-      - Out of scope for this to solve on its own: keeping `index.html`'s
-        `<script>` tags in sync when a new `levelN.js` is added — that's a
-        separate, already-known manual step (see `CLAUDE.md`).
+- [x] **Level Editor / renderer parity system** (user request, 2026-07-10) —
+      **scalar-field half done 2026-07-10 (later); geometry half explicitly
+      deferred, see below.** Previously `level-editor.html` had its own
+      hand-written parser + exporter for `registerLevel({...})` configs,
+      maintained by hand in lockstep with whatever fields
+      `level*.js`/`physics.js`/`render/*.js` actually use — every new field
+      required updating the editor's parser, its UI, *and* its export-block
+      generator, or the editor would silently drop/fail-to-preview it (this
+      had already happened at least once: `heatHaze` had no UI at all and was
+      silently dropped on export; the palette panel only exposed 5 of the 7
+      `palette` keys, so `rockGlow`/`fog` round-tripped but were never
+      editable).
+      - Added `levelSchema.js` — a single schema (field name, type, default,
+        UI widget hint) for the level-config's scalar/object-shaped fields:
+        mission params (name/missionTitle/description/hint/gravity/wind/
+        weather/budget/timeLimit/padScale/targetCargo/allowedTypes/
+        heavyCargo/heatHaze/startX/startY/collectionX/collectionY/
+        startDepotWidth/collectionWidth), `palette`, `outOfBounds`, and
+        `gravityWell`.
+      - `level-editor.html`'s Metadata / Palette / Out of Bounds / Gravity
+        Well sidebar panels are now generated from this schema instead of
+        static per-field HTML; the loader's defaults and the export-block
+        generator read the same schema too. Fixed the `heatHaze` and
+        `rockGlow`/`fog` gaps above as a side effect of no longer hand-coding
+        the field list.
+      - `tests.html`'s "Level Config Validation" category now runs the
+        scalar/object checks (mission params, palette, out-of-bounds, gravity
+        well) generically off `LEVEL_SCHEMA` via a shared
+        `schemaCheckSection()` helper, instead of one hand-written assertion
+        block per field — added dedicated out-of-bounds and gravity-well test
+        cases per level that didn't exist before (previously only checked
+        indirectly through render code, never asserted). Test count went from
+        68 to 88 as a result (20 new: 2 per level × 10 levels).
+      - Verified via headless Chrome: 88/88 tests green, and the editor's
+        load→edit→export round trip checked against 3 different levels (L1 —
+        water bodies + weather; L4 — gravityWell + heatHaze + incinerator
+        hazard; L8 — gravityWell + heavyCargo + segments) by diffing the
+        exported `registerLevel({...})` block against the source file (see
+        `level-editor.html`'s new `?autoload=levelN.js&dumpExport=1` query
+        params, added for exactly this headless-verification purpose,
+        mirroring `probe-screenshot.html`'s existing pattern).
+      - **Explicitly deferred**: `terrainPolygons`/`waterBodies`/`hazards`
+        stay hand-coded — the editor's vertex-drag tooling is bespoke per
+        shape *kind* (zone/laser/crusher/sandworm/repulsor/bouncer/etc.), not
+        purely data-driven, and folding that into the same schema is a
+        materially bigger job than the scalar-field pass above. Whoever picks
+        this up next should treat it as a separate task, not an extension of
+        this one.
+      - **Known pre-existing gap, not touched by this pass**: L9's
+        `outOfBounds: true` boolean shorthand (vs. every other level's object
+        form) isn't understood by the editor's loader/exporter — it loads as
+        an empty default-filled zone and exports as a full object instead of
+        preserving the boolean. `levelSchema.js` documents this exception
+        (`levelSchemaIsOOBObject()`) but doesn't fix the editor's handling of
+        it; L9 already relies on `setupPhysics()` instead of static
+        `deliveryHubs` too, so it was excluded from the round-trip
+        verification levels above for the same reason (it's a fundamentally
+        different, more bespoke level than the other 8).
+      - Out of scope, unchanged: keeping `index.html`'s `<script>` tags in
+        sync when a new `levelN.js` is added — that's a separate,
+        already-known manual step (see `CLAUDE.md`).
 - [x] ~~More thruster/flight particle effects + a "hotter" lander design~~ —
       done 2026-07-10 (see Recent Additions). Exhaust smoke added alongside
       the existing spark shower, a new falling-fast RCS stabilizer puff
@@ -450,7 +481,7 @@ trail because each wrong guess was plausible:
 ### Verification workflow (per this project's `CLAUDE.md`)
 1. Load `index.html` via a local server — check the browser console for
    errors on the menu screen and after starting a mission.
-2. Open `tests.html` — should read "68 passed / 0 failed" (as of 2026-07-10;
+2. Open `tests.html` — should read "88 passed / 0 failed" (as of 2026-07-10;
    the number grows as more validation tests get added, that's fine, 0 failed
    is the bar). It auto-runs on load; no button to click.
 3. For anything touching a specific mechanic, exercise it directly in the
@@ -496,6 +527,43 @@ needing broader context":
 ---
 
 ## Recent additions
+
+### 2026-07-10 (latest): shared level-config schema for the editor + test suite (v0.5.0)
+- **Added `levelSchema.js`** — a single schema (field name, type, default, UI
+  widget hint) for the scalar/object-shaped fields of a `registerLevel({...})`
+  config: mission params, `palette`, `outOfBounds`, `gravityWell`. Solves the
+  "Level Editor / renderer parity system" TODO's scalar-field half (see that
+  entry, now checked off, for the full writeup) — previously `level-editor.html`
+  maintained its own hand-written parser/UI/exporter for these fields, kept in
+  sync with the game and with `tests.html`'s validation assertions entirely by
+  memory, and had already drifted (`heatHaze` had no editor UI at all and was
+  silently dropped on export; `palette.rockGlow`/`palette.fog` round-tripped
+  but weren't editable).
+- **`level-editor.html`**'s Metadata/Palette/Out of Bounds/Gravity Well sidebar
+  panels, the loader's per-field defaults, and the export-block generator are
+  now all driven by `levelSchema.js` instead of three separate hand-coded field
+  lists — fixed the `heatHaze`/`rockGlow`/`fog` gaps above as a side effect.
+  Also added a small headless-verification hook
+  (`?autoload=levelN.js&dumpExport=1&openPanels=1` query params, mirroring
+  `probe-screenshot.html`'s existing pattern) since there was no interactive
+  browser available to click through the load→edit→export flow by hand.
+- **`tests.html`**'s "Level Config Validation" category now checks the
+  scalar/object sections generically against `LEVEL_SCHEMA` via a shared
+  `schemaCheckSection()` helper, and gained dedicated per-level out-of-bounds
+  and gravity-well test cases that didn't exist before. Test count: 68 → 88.
+- **Deferred, by design**: geometry (`terrainPolygons`/`waterBodies`/`hazards`)
+  is NOT schema-driven — the editor's vertex-drag tooling is bespoke per shape
+  kind, and folding that in is a separate, materially larger task. See the
+  TODO entry for the full scope note, including one known pre-existing gap
+  (L9's `outOfBounds: true` boolean shorthand) left unfixed by this pass.
+- Verified: 88/88 tests green (headless Chrome, `--dump-dom` +
+  `id="summary"`), plus a load→edit→export round-trip check against L1/L4/L8
+  (screenshots + exported-text diffs against the source `.js` files) — no
+  console errors in any of the headless runs. `CargoGame.VERSION` bumped to
+  `0.5.0` (feature addition, per the standing version-bump instruction).
+- **This was built by a background agent** dispatched in a separate git
+  worktree while the parachute/thruster/rain-v3 work below happened in the
+  main session — merged back via `git rebase` once both finished.
 
 ### 2026-07-10 (final push): parachute mechanic, thruster FX, lander paint, rain v3
 - **Parachute-on-empty-fuel mechanic** — if fuel hits 0 while airborne, a
