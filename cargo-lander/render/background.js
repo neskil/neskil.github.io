@@ -332,10 +332,14 @@ drawParallax() {
         };
         const [sr, sg, sb] = hexToRgb(skyBot.length === 7 ? skyBot : '#0f172a');
 
+        // factor = how fast each layer tracks camera-x, i.e. its perceived
+        // speed. Roughly halved from the original 0.12/0.28/0.45 (2026-07-10,
+        // user feedback: "a bit too quick moving") while keeping the same
+        // near-moves-faster-than-far ratio between the three layers.
         const layers = [
-            { factor: 0.12, freq: 0.0018, freq2: 0.0031, seed: 1.7, seed2: 4.2, yMin: 0.15, yMax: 0.55, alpha: 0.55, darken: 0.45 },
-            { factor: 0.28, freq: 0.0027, freq2: 0.0049, seed: 7.3, seed2: 2.9, yMin: 0.25, yMax: 0.60, alpha: 0.50, darken: 0.60 },
-            { factor: 0.45, freq: 0.0042, freq2: 0.0071, seed: 3.1, seed2: 8.6, yMin: 0.35, yMax: 0.62, alpha: 0.45, darken: 0.75 },
+            { factor: 0.06, freq: 0.0018, freq2: 0.0031, seed: 1.7, seed2: 4.2, yMin: 0.15, yMax: 0.55, alpha: 0.55, darken: 0.45 },
+            { factor: 0.15, freq: 0.0027, freq2: 0.0049, seed: 7.3, seed2: 2.9, yMin: 0.25, yMax: 0.60, alpha: 0.50, darken: 0.60 },
+            { factor: 0.24, freq: 0.0042, freq2: 0.0071, seed: 3.1, seed2: 8.6, yMin: 0.35, yMax: 0.62, alpha: 0.45, darken: 0.75 },
         ];
 
         const camX = this.camera ? this.camera.x : 0;

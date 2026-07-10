@@ -938,6 +938,35 @@ drawDeliveryHubs() {
                 ctx.globalAlpha = 1.0;
             }
 
+            // "Drop now" light — distinct from the ambient hub.color pulse
+            // above, which only means "you're carrying something this hub
+            // wants, wherever you currently are". This is the definitive
+            // "you are landed at the correct hub, right now" signal the
+            // "Dropoff Feedback" backlog item asked for: a bright green
+            // beacon that only lights up once landerIsHere is actually true,
+            // mirroring the same condition checkCargoDelivery() (game.js)
+            // uses to actually process the delivery.
+            const lnd = this.physics.lander;
+            const readyToDeliver = hasMatchingCargo && lnd && lnd.landed && lnd.currentPad === hub.type;
+            if (readyToDeliver) {
+                const rpulse = 0.65 + Math.sin(Date.now() * 0.012) * 0.35;
+                const lightX = hub.x + hub.width / 2;
+                const lightY = hub.y - 14;
+                const rGlow = ctx.createRadialGradient(lightX, lightY, 0, lightX, lightY, 12);
+                rGlow.addColorStop(0, `rgba(74, 222, 128, ${rpulse})`);
+                rGlow.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                ctx.fillStyle = rGlow;
+                ctx.beginPath(); ctx.arc(lightX, lightY, 12, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath(); ctx.arc(lightX, lightY, 3, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = '#f0fdf4';
+                ctx.font = '700 8px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('DROP', lightX, lightY - 14);
+            }
+
             // Glowing boundary line
             ctx.fillStyle = hub.color;
             ctx.fillRect(hub.x, hub.y, hub.width, 3);
