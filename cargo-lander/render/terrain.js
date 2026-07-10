@@ -528,11 +528,21 @@ drawTerrain() {
         for (const poly of this.physics.terrainPolygons) {
             if (!poly || poly.length < 3) continue;
             ctx.beginPath();
-            ctx.moveTo(poly[0].x, poly[0].y);
-            for (let i = 1; i < poly.length; i++) {
-                ctx.lineTo(poly[i].x, poly[i].y);
+            let drawing = false;
+            for (let i = 0; i < poly.length; i++) {
+                const p1 = poly[i];
+                const p2 = poly[(i + 1) % poly.length];
+                // Only stroke floor segments (left-to-right)
+                if (p1.x <= p2.x) {
+                    if (!drawing) {
+                        ctx.moveTo(p1.x, p1.y);
+                        drawing = true;
+                    }
+                    ctx.lineTo(p2.x, p2.y);
+                } else {
+                    drawing = false;
+                }
             }
-            ctx.closePath();
             ctx.stroke();
         }
 

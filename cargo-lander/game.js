@@ -767,6 +767,8 @@ class CargoGame {
 
     openUpgradeShop() {
         document.getElementById('menu-screen').style.display = 'none';
+        const completeScreen = document.getElementById('complete-screen');
+        if (completeScreen) completeScreen.style.display = 'none';
         document.getElementById('upgrade-screen').style.display = 'flex';
         this.renderUpgradeShop();
     }
@@ -1475,23 +1477,67 @@ class CargoGame {
             if (!this._lastFireworkTime || Date.now() - this._lastFireworkTime > 800) {
                 this._lastFireworkTime = Date.now() + Math.random() * 400; // random variance for next burst
                 if (this.physics && this.physics.particles) {
-                    const bx = lander.x + (Math.random() - 0.5) * 300;
-                    const by = lander.y - 100 - Math.random() * 200;
-                    for (let i = 0; i < 60; i++) {
-                        this.physics.particles.push({
-                            x: bx,
-                            y: by,
-                            vx: (Math.random() - 0.5) * 12,
-                            vy: (Math.random() - 0.5) * 12,
-                            life: 1.0 + Math.random() * 1.5,
-                            decay: 0.01 + Math.random() * 0.02,
-                            color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
-                            size: 2 + Math.random() * 4
-                        });
-                    }
+                    const startX = lander.x + (Math.random() - 0.5) * 300;
+                    const startY = lander.y - 10;
+                    
+                    const rocketVx = (Math.random() - 0.5) * 4;
+                    const rocketVy = -8 - Math.random() * 4;
+                    const flyTimeMs = 600 + Math.random() * 400;
+                    
+                    // Launch rocket
+                    this.physics.particles.push({
+                        x: startX, y: startY,
+                        vx: rocketVx, vy: rocketVy,
+                        life: flyTimeMs / 1000, decay: 0.016,
+                        color: '#facc15', size: 4
+                    });
+                    
                     if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
-                        CargoAudio.playCollision(2); // quiet pop
+                        CargoAudio.playCollision(2); // launch pop
                     }
+                    
+                    setTimeout(() => {
+                        if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
+                        
+                        const bx = startX + rocketVx * (flyTimeMs / 16);
+                        const by = startY + rocketVy * (flyTimeMs / 16);
+                        
+                        const variant = Math.floor(Math.random() * 3);
+                        const baseHue = Math.random() * 360;
+                        
+                        for (let i = 0; i < 60; i++) {
+                            let vx, vy, color, gy = 0;
+                            
+                            if (variant === 0) { // Circle
+                                const angle = (i / 60) * Math.PI * 2;
+                                const speed = 6 + Math.random() * 2;
+                                vx = Math.cos(angle) * speed;
+                                vy = Math.sin(angle) * speed;
+                                color = `hsla(${baseHue}, 100%, 60%, 1)`;
+                            } else if (variant === 1) { // Weeping Willow (gravity)
+                                vx = (Math.random() - 0.5) * 8;
+                                vy = (Math.random() - 0.5) * 8 - 4; // slight upward bias initially
+                                gy = 0.2; // gravity pulls it down
+                                color = `hsla(${baseHue}, 100%, 60%, 1)`;
+                            } else { // Multi-color standard burst
+                                vx = (Math.random() - 0.5) * 12;
+                                vy = (Math.random() - 0.5) * 12;
+                                color = `hsla(${Math.random() * 360}, 100%, 60%, 1)`;
+                            }
+                            
+                            this.physics.particles.push({
+                                x: bx, y: by,
+                                vx: vx, vy: vy, gy: gy,
+                                life: 1.0 + Math.random() * 1.5,
+                                decay: 0.01 + Math.random() * 0.02,
+                                color: color,
+                                size: 2 + Math.random() * 4
+                            });
+                        }
+                        if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+                            CargoAudio.playCollision(2); // burst pop
+                        }
+                    }, flyTimeMs);
                 }
             }
         } else {

@@ -961,6 +961,7 @@ const CargoPhysicsAtmosphereMixin = {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
+            if (p.gy) p.vy += p.gy; // support gravity for some particles
             p.life -= p.decay;
             p.size = Math.max(0.5, p.size * 0.98);
 
