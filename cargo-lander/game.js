@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.6.7';
+    static VERSION = '0.6.8';
 
     constructor() {
         this.canvas = null;
@@ -530,8 +530,8 @@ class CargoGame {
         const devPanel = document.querySelector('#dev-panel .dev-row');
         if (!grid || !devPanel) return;
         
-        // Keep fixed buttons (procedural, custom level)
-        const fixedButtons = Array.from(grid.children).filter(btn => !btn.id || !btn.id.startsWith('mission-btn-'));
+        // Fixed buttons (procedural, custom level) live in #extra-modes-grid
+        // below the mission grid, so the grid can be rebuilt wholesale.
         grid.innerHTML = '';
         
         const devButtons = Array.from(devPanel.children).filter(btn => btn.tagName !== 'BUTTON');
@@ -581,7 +581,6 @@ class CargoGame {
             devPanel.appendChild(devBtn);
         });
         
-        fixedButtons.forEach(btn => grid.appendChild(btn));
         devButtons.forEach(btn => devPanel.appendChild(btn));
     }
 
