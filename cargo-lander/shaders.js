@@ -270,7 +270,7 @@ class ShaderOverlay {
                         float h3 = hash21(cell + seed + cycle * 99.99 + 57.3);
                         float h4 = hash21(cell + seed + cycle * 18.42 + 99.1);
                         
-                        if (h3 > 0.15) continue; // VERY sparse field per cycle to break grid feel
+                        if (h3 > 0.06) continue; // EXTREMELY sparse field per cycle to break grid feel
 
                         float slide = smoothstep(0.4 + 0.4 * h4, 0.9, yFrac);
                         
@@ -285,15 +285,20 @@ class ShaderOverlay {
 
                         vec2 d = sp - center;
                         vec2 dn = vec2(d.x, d.y * 1.15); // slightly squashed bead
-                        float dist = length(dn);
+                        
+                        // Wobble the shape based on the cell hash and angle so they aren't perfect circles
+                        float angle = atan(d.y, d.x);
+                        float wobble = sin(angle * 3.0 + h1 * 10.0) * 0.2 * r;
+                        float dist = length(dn) + wobble;
+                        
                         if (dist < r) {
-                            float core = 1.0 - dist / r;
-                            result.xy = -d * 0.25; // stronger magnifying-glass pull
+                            float core = smoothstep(r, r * 0.7, dist); // softer edge for anti-aliasing
+                            result.xy = -d * 0.45; // much stronger magnifying-glass pull (more light bending)
                             result.z = core;
 
                             vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
-                            float hl = 1.0 - clamp(length(hlOff) / (r * 0.32), 0.0, 1.0);
-                            result.w = hl * hl;
+                            float hl = smoothstep(r * 0.4, 0.0, length(hlOff));
+                            result.w = hl;
                         }
 
                         // As the drop slides, leave a streak connecting back to original position
@@ -306,9 +311,9 @@ class ShaderOverlay {
                                 float trailW = r * 0.3 * taper;
                                 float lateral = abs(trailD.x);
                                 if (lateral < trailW) {
-                                    float trailCore = (1.0 - lateral / trailW) * taper * 0.5;
+                                    float trailCore = smoothstep(trailW, trailW * 0.4, lateral) * taper * 0.5;
                                     result.z = max(result.z, trailCore);
-                                    result.xy += vec2(-trailD.x * 0.25, 0.0);
+                                    result.xy += vec2(-trailD.x * 0.4, 0.0);
                                 }
                             }
                         }
@@ -352,11 +357,8 @@ class ShaderOverlay {
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
                         offset += (d1.xy + d2.xy) * u_rainAmount;
-                        // Body refraction is nearly invisible on its own (the
-                        // point is the subtle bend, not a visible shape) — the
-                        // glint is what actually reads as "wet glass", kept
-                        // small and faint rather than a bright blown highlight.
-                        dropletGlow = (bodyHit * 0.06 + glintHit * 0.45) * u_rainAmount;
+                        // Focus on the physical light bending (refraction) rather than drawn color
+                        dropletGlow = (bodyHit * 0.02 + glintHit * 0.15) * u_rainAmount;
                         touched = true;
                     }
                 }
