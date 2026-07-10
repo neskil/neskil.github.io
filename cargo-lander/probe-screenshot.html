@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- Temporary headless-screenshot probe (not part of the game, safe to delete):
+     loads the game in an iframe, jumps to a level, parks the camera at a
+     given spot via freeCam, and lets headless Chrome screenshot the result.
+     Usage: probe-screenshot.html?level=8&x=1500&y=750&zoom=0.8 -->
+<html>
+
+<body style="margin:0">
+    <iframe id="f" src="index.html" style="width:1280px;height:800px;border:0"></iframe>
+    <script>
+        const q = new URLSearchParams(location.search);
+        const levelIdx = parseInt(q.get('level') || '0');
+        const camX = parseFloat(q.get('x') || '0');
+        const camY = parseFloat(q.get('y') || '0');
+        const camZoom = parseFloat(q.get('zoom') || '1');
+
+        const f = document.getElementById('f');
+        f.addEventListener('load', () => {
+            setTimeout(() => {
+                const g = f.contentWindow.game;
+                g.startLevel(levelIdx);
+                setTimeout(() => {
+                    g.freeCam = true;
+                    g.camera.x = camX;
+                    g.camera.y = camY;
+                    g.camera.zoom = camZoom;
+                    g.camera.targetZoom = camZoom;
+
+                    // Surface shader-compile status in the screenshot itself,
+                    // since headless --screenshot gives us no console access.
+                    const st = document.createElement('div');
+                    st.style.cssText = 'position:fixed;left:4px;bottom:4px;background:#000;color:#0f0;font:12px monospace;padding:2px 6px;z-index:99';
+                    try {
+                        const sh = g.shaders, gl = sh && sh.gl;
+                        st.textContent = !gl ? 'no webgl'
+                            : 'postFX link: ' + gl.getProgramParameter(sh.postFXProgram, gl.LINK_STATUS);
+                        if (gl && !gl.getProgramParameter(sh.postFXProgram, gl.LINK_STATUS)) {
+                            st.style.color = '#f00';
+                            st.textContent += ' | ' + gl.getProgramInfoLog(sh.postFXProgram);
+                        }
+                    } catch (e) { st.style.color = '#f00'; st.textContent = 'probe err: ' + e.message; }
+                    document.body.appendChild(st);
+                }, 600);
+            }, 1200);
+        });
+    </script>
+</body>
+
+</html>
