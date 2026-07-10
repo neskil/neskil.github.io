@@ -476,6 +476,16 @@ needing broader context":
   visible pallet stack beside the pad (`hub.palletCount`) instead of an abstract
   animation with no real destination. The old flat pulsing "beacon" rectangle
   (`hub.color` fillRect) was replaced with a soft tapered light-shaft gradient.
+- **Big Cargo** (added 2026-07-10) — `spawnCargo(type, x, emoji, y, {big: true})`
+  spawns an oversized (`BOX_SIZE * 1.8`), single-load-capacity crate. On a
+  basic-lander deck, `updateOnDeckStates()`'s capacity check (`deckHasBig` in
+  `physics/entities.js`) means a big box claims the *entire* deck — once one
+  is attached, no other box (big or normal) can also attach until it's
+  removed, regardless of how many normal boxes would otherwise fit side by
+  side. Drone grapple needed no special-casing since `grabbedBoxId` was
+  already a single slot. Rendered with a distinct amber/brown treatment in
+  `render/entities.js`. Currently used on L9 "The Cauldron"
+  (`level9.js`, all 3 heavy crates).
 
 ### Damage & threat
 - **Damage flash** — hull hit triggers a red vignette + "⚠ HULL DAMAGE" text that fades over ~1 s.

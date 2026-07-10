@@ -455,9 +455,39 @@ test('Input Simulation - Action Keys', () => {
 test('Level Restart & State Cleanup', () => {
   // Simulate player restarting the level
   testGame.startLevel(testGame.currentLevelIndex);
-  
+
   // Ensure we can run an update tick immediately after restart without crashes
   testGame.update(16);
+});
+
+test('Big Cargo — deck single-load capacity', () => {
+  // Big/oversized crates (spawnCargo(..., {big: true})) should claim the
+  // entire basic-lander deck: once one is attached, no other box (big or
+  // normal) can also attach until it's removed. Level 1 uses the basic
+  // vehicle, so it exercises the multi-box deck path.
+  testGame.startLevel(0);
+  const p = testGame.physics;
+  const lander = p.lander;
+
+  p.spawnCargo('normal', lander.x, null, lander.y - 40, { big: true });
+  const bigBox = p.boxes[p.boxes.length - 1];
+  assert(bigBox.big === true, 'spawnCargo({big:true}) should flag the box as big');
+  assert(bigBox.size > p.BOX_SIZE, 'Big box should be larger than the standard BOX_SIZE');
+
+  bigBox.x = lander.x;
+  bigBox.y = lander.y - lander.deckOffset - bigBox.size / 2 + 2;
+  bigBox.vx = 0; bigBox.vy = 0;
+  for (let i = 0; i < 5; i++) p.updateOnDeckStates();
+  assert(bigBox.onDeck === true, 'Big box should attach to an empty deck');
+
+  p.spawnCargo('normal', lander.x + 5, null, lander.y - 40);
+  const secondBox = p.boxes[p.boxes.length - 1];
+  secondBox.x = lander.x + 5;
+  secondBox.y = lander.y - lander.deckOffset - secondBox.size / 2 + 2;
+  secondBox.vx = 0; secondBox.vy = 0;
+  for (let i = 0; i < 5; i++) p.updateOnDeckStates();
+  assert(secondBox.onDeck === false, 'A second box should not find a slot while a big box occupies the deck');
+  assertEquals(p.boxes.filter(b => b.onDeck).length, 1, 'Only the big box should be on deck');
 });
 
 test('Game Over Simulation', () => {

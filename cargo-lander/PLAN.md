@@ -68,23 +68,37 @@ user says so.
 
 ## Phase 1 — Gameplay value: quick wins from the existing backlog
 
-- [ ] **1.1 Big Cargo (oversized single-load crates).** Already spec'd in the
-      README roadmap (Phase 2 table, "Oversized Big Cargo crates" row) with
-      an implementation note: the on-deck slot system (`updateOnDeckStates()`
-      in `physics/entities.js`) claims non-overlapping `deckT` slots per box —
-      a `big` box claims a slot width equal to the whole `deckWidth`, which
-      naturally blocks other boxes. Steps:
-      1. Add a `big: true` (or `size: 'big'`) flag to the cargo-box spawn
-         config; render it visibly larger (`BOX_SIZE * ~1.8`) with its own
-         icon in `render/entities.js`.
-      2. Slot claim = full `deckWidth`; also block the drone winch from
-         grappling a second box while a big one is attached.
-      3. Wire it into **L9 "The Cauldron"** first (it already uses `'heavy'`
-         cargo and a drone-only depot via `setupPhysics()` in `level9.js`).
-      4. Add a config-validation test in `tests.html` plus a behavioral test:
-         spawn big box on deck → attempt second box → second box must not
-         find a slot.
-      [VERIFY], plus a real playthrough of L9.
+- [x] **1.1 Big Cargo (oversized single-load crates).** Done 2026-07-10.
+      `spawnCargo(type, targetX, forcedEmoji, targetY, {big: true})` in
+      `physics/entities.js` — a big box is `BOX_SIZE * 1.8`, mass 2.2 (vs.
+      1.0), defaults to a 🏗️ icon. `updateOnDeckStates()`'s capacity check:
+      `deckHasBig = attached.some(b => b.big)` — if a big box is already
+      attached, or the box trying to attach is big and the deck already has
+      *anything* attached, it's skipped entirely (no slot search). A big box
+      always claims dead-center (`deckT = 0`) since the capacity check
+      guarantees it's the deck's only occupant. Two related bugs fixed along
+      the way: the landing-detection window (`projT`/`projN` bounds) was
+      still keyed to the global small `BOX_SIZE`, so a bigger box's larger
+      footprint was invisible to the touch-test — now uses each box's own
+      half-size; and `deckN`/render size were also globally-sized, now
+      per-box so a big box doesn't render clipped into the deck. Rendered
+      with a distinct amber/brown treatment (`render/entities.js`) regardless
+      of cargo type, so it reads as "special" at a glance. Drone grapple
+      needed **no** special-casing — `lander.grabbedBoxId` was already a
+      single ID (one box at a time, always), so single-load capacity was
+      already true for the drone before this change.
+      Wired into **L9 "The Cauldron"** (all 3 heavy crates now `{big: true}`,
+      spacing bumped 30→40px so they don't overlap at spawn) — mostly
+      thematic there since the drone was already single-capacity, but it's
+      the natural debut level per the roadmap.
+      Added `tests.html`'s "Big Cargo — deck single-load capacity" behavioral
+      test: spawns a big box, confirms it attaches to an empty deck, spawns a
+      second normal box, confirms it's rejected and only 1 box ends up
+      on-deck. [VERIFY] — 89/89 tests green (88→89). Manually verified in the
+      browser console, both attach-orders (big-first and small-first both
+      correctly block the other), that two normal boxes still both attach
+      (no regression), and a full L9 grapple→release cycle on a big crate via
+      `probe-screenshot.html`.
 - [ ] **1.2 Refueling stations (roadmap Phase 1, small slice).** HQ refueling
       already exists (backlog: "Fixed"). Generalize it: a level config field
       `refuelPads: [{x, width, pricePerUnit}]` — landing on one refuels at

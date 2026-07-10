@@ -244,8 +244,13 @@ const CargoPhysicsEntitiesMixin = {
         return colors[type] || '#f59e0b';
     },
 
-    spawnCargo(type, targetX, forcedEmoji, targetY) {
-        const randomEmoji = forcedEmoji || this.getRandomCargoEmoji(type);
+    // opts.big: oversized, single-load-capacity crate — claims the entire deck
+    // (see updateOnDeckStates()'s capacity check below) so a basic lander can
+    // only carry one at a time regardless of how many normal boxes would
+    // otherwise fit. Rendered larger with its own icon (render/entities.js).
+    spawnCargo(type, targetX, forcedEmoji, targetY, opts) {
+        const big = !!(opts && opts.big);
+        const randomEmoji = forcedEmoji || (big ? '🏗️' : this.getRandomCargoEmoji(type));
 
         // Determine spawn location based on lander type and position
         const _wbX = this.collectionPoint.x - 18;
@@ -274,8 +279,9 @@ const CargoPhysicsEntitiesMixin = {
             vx: (Math.random() - 0.5) * 0.5,
             vy: 0.5,
             type: type, // 'red', 'blue', 'green'
-            size: this.BOX_SIZE,
-            mass: 1.0,
+            size: big ? this.BOX_SIZE * 1.8 : this.BOX_SIZE,
+            big: big,
+            mass: big ? 2.2 : 1.0,
             onDeck: false,
             emoji: randomEmoji,
             age: 0
@@ -788,11 +794,16 @@ const CargoPhysicsEntitiesMixin = {
         const slotMax = halfW - halfS * 0.3;
 
         const attached = this.boxes.filter(b => b.onDeck);
+        // Big cargo claims full single-load capacity: once one is attached, no
+        // other box (big or normal) can also attach until it's removed. See
+        // spawnCargo()'s `opts.big` and the README's Big Cargo notes.
+        const deckHasBig = attached.some(b => b.big);
 
         for (const box of this.boxes) {
+            const boxHalfS = (box.size || this.BOX_SIZE) / 2;
             if (box.onDeck) {
                 box.deckT = Math.max(slotMin, Math.min(slotMax, box.deckT || 0));
-                box.deckN = halfS;
+                box.deckN = boxHalfS;
                 box.x = dcx + tx * box.deckT + nx * box.deckN;
                 box.y = dcy + ty * box.deckT + ny * box.deckN;
                 box.vx = lander.vx;
@@ -805,25 +816,36 @@ const CargoPhysicsEntitiesMixin = {
                 if (box.flingImmunity > 0) continue;
             }
 
+            // Deck is full (a big crate already occupies it, or — for a big
+            // crate trying to land — anything at all is already attached).
+            if (deckHasBig || (box.big && attached.length > 0)) continue;
+
             const rx = box.x - dcx;
             const ry = box.y - dcy;
             const projT = rx * tx + ry * ty;
             const projN = rx * nx + ry * ny;
 
             // Box center is within horizontal deck bounds and touching the deck surface
-            if (Math.abs(projT) < halfW + halfS * 0.5 && projN > -halfS && projN < halfS + 6) {
+            // (uses this box's own half-size, not the global small-box halfS, so a big
+            // crate's larger footprint is detected correctly).
+            if (Math.abs(projT) < halfW + boxHalfS * 0.5 && projN > -boxHalfS && projN < boxHalfS + 6) {
                 // Just landed — snap into a free slot along the deck so it
-                // doesn't overlap a box that's already attached.
-                let slotT = Math.max(slotMin, Math.min(slotMax, projT));
-                for (const other of attached) {
-                    const otherT = other.deckT || 0;
-                    if (Math.abs(otherT - slotT) < minGap) {
-                        slotT = Math.max(slotMin, Math.min(slotMax, otherT + (slotT >= otherT ? minGap : -minGap)));
+                // doesn't overlap a box that's already attached. A big box
+                // always claims dead-center (deckT=0) — it's the deck's only
+                // occupant by the capacity check above, so there's nothing to
+                // avoid overlapping.
+                let slotT = box.big ? 0 : Math.max(slotMin, Math.min(slotMax, projT));
+                if (!box.big) {
+                    for (const other of attached) {
+                        const otherT = other.deckT || 0;
+                        if (Math.abs(otherT - slotT) < minGap) {
+                            slotT = Math.max(slotMin, Math.min(slotMax, otherT + (slotT >= otherT ? minGap : -minGap)));
+                        }
                     }
                 }
                 box.onDeck = true;
                 box.deckT = slotT;
-                box.deckN = halfS;
+                box.deckN = boxHalfS;
                 box.x = dcx + tx * box.deckT + nx * box.deckN;
                 box.y = dcy + ty * box.deckT + ny * box.deckN;
                 box.vx = lander.vx;

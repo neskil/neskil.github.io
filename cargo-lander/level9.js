@@ -131,9 +131,13 @@ registerLevel({
         // Delivery Hub is on the suspended rock above the worm. Needs to be 'heavy' type!
         physics.createDeliveryHub(800, 500, 3, 'heavy', 'Cauldron Hub', true);
 
-        // Spawn 3 heavy crates on the left shelf inside the depot bounds
+        // Spawn 3 heavy crates on the left shelf inside the depot bounds — big/
+        // oversized single-load crates (drone already only ever grapples one
+        // box at a time, so this is mostly thematic here, but it's the natural
+        // first level for the mechanic per the roadmap: drone-only depot,
+        // already the "heavy" cargo type).
         for (let i = 0; i < 3; i++) {
-            physics.spawnCargo('heavy', 170 + i * 30, '🏋️', 560);
+            physics.spawnCargo('heavy', 170 + i * 40, '🏋️', 560, { big: true });
             const box = physics.boxes[physics.boxes.length - 1];
             const body = physics.boxBodyMap.get(box.id);
             if (body) {

@@ -995,7 +995,7 @@ drawBoxes() {
 ,
 drawSingleBox(x, y, type, emoji, box) {
         const ctx = this.ctx;
-        const S = this.physics.BOX_SIZE;
+        const S = (box && box.size) || this.physics.BOX_SIZE;
         const halfS = S / 2;
 
         // Only colour-code when the level has multiple cargo types
@@ -1010,6 +1010,9 @@ drawSingleBox(x, y, type, emoji, box) {
             else if (type === 'blue') { fillColor = '#1e3a8a'; borderColor = '#60a5fa'; }
             else if (type === 'green') { fillColor = '#14532d'; borderColor = '#4ade80'; }
         }
+        // Big/oversized crates get a distinct amber-striped treatment regardless
+        // of cargo type, so they read as "special" at a glance on the deck.
+        if (box && box.big) { fillColor = '#78350f'; borderColor = '#f59e0b'; }
 
         const iconText = emoji || (type === 'red' ? '⚠️' : type === 'blue' ? '❄️' : type === 'green' ? '♻️' : '📦');
 
