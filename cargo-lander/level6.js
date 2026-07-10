@@ -30,6 +30,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.18,
     wind: 0,
+    heatHaze: true,
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     // One large organic polygon:
@@ -66,7 +67,7 @@ registerLevel({
     targetCargo: 2,
     budget: 2500,
     timeLimit: 240,
-    allowedTypes: ["normal", "red"],
+    allowedTypes: ["normal"],
 
     // Start HQ on the upper-left plateau
     startX: 80,

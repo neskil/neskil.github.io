@@ -44,6 +44,12 @@
                 const g = iw.game;
                 g.startLevel(levelIdx);
                 setTimeout(() => {
+                    const profileDiv = iw.document.getElementById('init-profiling-game');
+                    if (profileDiv) {
+                        const clone = document.importNode(profileDiv, true);
+                        clone.id = 'init-profiling';
+                        document.body.appendChild(clone);
+                    }
                     if (q.get('followcam') !== '1') {
                         g.freeCam = true;
                         g.camera.x = camX;

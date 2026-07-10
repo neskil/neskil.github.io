@@ -27,7 +27,7 @@ registerLevel({
   collectionX: 480,
   collectionY: 490,
   quests: [
-    questPrimary("Deliver 2 cargo to Ridge Station"),
+    questPrimary("Deliver 2 cargo to Peak Station"),
     questNoCrash(350),
     questNoCargoLost('No cargo lost', 250)
   ],
@@ -50,7 +50,7 @@ registerLevel({
     buoyancy: 0.01,
   },
   deliveryHubs: [
-    { x: 1070, color: "#38bdf8", type: "normal", name: "Ridge Station" }
+    { x: 1070, color: "#38bdf8", type: "normal", name: "Peak Station" }
   ],
   waterBodies: [
     {

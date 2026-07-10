@@ -64,8 +64,6 @@ class CargoPhysics {
         this.wasInFluid = false;
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
-        this.gravityWellPos = null;
-        this.gravityWellTime = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this._buildMatterWorld();
         this.generateTerrain(levelConfig);
@@ -95,50 +93,51 @@ class CargoPhysics {
 
     _buildMatterWorld() {
         // Recreate the Matter engine for this level
-        if (this.matterEngine) {
-            Matter.World.clear(this.matterWorld);
+        if (!this.matterEngine) {
+            this.matterEngine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
+            
+            // One damage event per engine step (deduplicate multiple terrain pairs)
+            Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
+                if (!this.lander || !this.landerBody || window.DEV_INVULNERABLE) return;
+                let processed = false;
+                for (const pair of event.pairs) {
+                    if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
+                    if (processed) continue;
+                    processed = true;
+                    const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
+                    const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
+                    if (impactSpeed < 1.0) continue;
+                    const onPad = this._getLanderPad() !== null;
+                    const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
+                    const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
+                    if (impactSpeed > damageThreshold) {
+                        const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
+                        const hullDamage = this.applyDamage(this.lander, damage);
+                        // Shield soaking the hit also protects deck cargo from being flung off
+                        if (!this.lander.shieldAbsorbedThisHit) this.checkCargoDamage(hullDamage / this.lander.maxIntegrity);
+                        if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
+                        const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
+                        const sparkCount = onPad ? 6 : 16;
+                        for (let i = 0; i < sparkCount; i++) {
+                            this.particles.push({
+                                x: sup.x, y: sup.y,
+                                vx: (Math.random() - 0.5) * 7,
+                                vy: (Math.random() - 0.5) * 7 - 2,
+                                life: 1.0, decay: 0.04 + Math.random() * 0.04,
+                                color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
+                                size: 2.5 + Math.random() * 2.5,
+                            });
+                        }
+                        if (this.lander.integrity <= 0) this.lander.crashed = true;
+                    }
+                }
+            });
+        } else {
+            Matter.World.clear(this.matterEngine.world);
             Matter.Engine.clear(this.matterEngine);
         }
-        this.matterEngine = Matter.Engine.create({ gravity: { x: 0, y: 0 } });
         this.matterWorld = this.matterEngine.world;
         this.boxBodyMap = new Map();
-
-        // One damage event per engine step (deduplicate multiple terrain pairs)
-        Matter.Events.on(this.matterEngine, 'collisionStart', (event) => {
-            if (!this.lander || !this.landerBody || window.DEV_INVULNERABLE) return;
-            let processed = false;
-            for (const pair of event.pairs) {
-                if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
-                if (processed) continue;
-                processed = true;
-                const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
-                const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
-                if (impactSpeed < 1.0) continue;
-                const onPad = this._getLanderPad() !== null;
-                const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
-                const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
-                if (impactSpeed > damageThreshold) {
-                    const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
-                    const hullDamage = this.applyDamage(this.lander, damage);
-                    // Shield soaking the hit also protects deck cargo from being flung off
-                    if (!this.lander.shieldAbsorbedThisHit) this.checkCargoDamage(hullDamage / this.lander.maxIntegrity);
-                    if (window.CargoAudio) CargoAudio.playCollision(impactSpeed);
-                    const sup = pair.collision.supports?.[0] || { x: this.lander.x, y: this.lander.y };
-                    const sparkCount = onPad ? 6 : 16;
-                    for (let i = 0; i < sparkCount; i++) {
-                        this.particles.push({
-                            x: sup.x, y: sup.y,
-                            vx: (Math.random() - 0.5) * 7,
-                            vy: (Math.random() - 0.5) * 7 - 2,
-                            life: 1.0, decay: 0.04 + Math.random() * 0.04,
-                            color: Math.random() > 0.45 ? '#fbbf24' : '#f97316',
-                            size: 2.5 + Math.random() * 2.5,
-                        });
-                    }
-                    if (this.lander.integrity <= 0) this.lander.crashed = true;
-                }
-            }
-        });
     }
 
     // Standard ray-casting point-in-polygon test. Used for zone membership

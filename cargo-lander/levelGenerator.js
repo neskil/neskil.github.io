@@ -125,23 +125,23 @@ function generateProceduralLevel(craziness = 1) {
             }
         } else {
             // Random walk terrain - INCREASED X STEP FOR MORE SPACIOUSNESS
-            let stepX = 120 + Math.random() * 200;
+            let stepX = 180 + Math.random() * 250;
             
             // Overhang logic
             if (craziness >= 2 && Math.random() < 0.2) {
                 // Generate an overhang by going backwards and down (wider cave)
-                let overX = currentX - (50 + Math.random() * 70);
-                let overY = currentY + (80 + Math.random() * 120);
+                let overX = currentX - (40 + Math.random() * 50);
+                let overY = currentY + (60 + Math.random() * 100);
                 pts.push({ x: overX, y: overY });
                 
                 // Then continue forward from the overhang
                 currentX += stepX;
-                currentY = overY + (Math.random() - 0.5) * 80;
+                currentY = overY + (Math.random() - 0.5) * 60;
                 pts.push({ x: currentX, y: currentY });
             } else {
                 currentX += stepX;
-                // Less drastic Y variance for smoother slopes
-                let variance = 150 + craziness * 100;
+                // Less drastic Y variance for smoother slopes and spaciousness
+                let variance = 100 + craziness * 80;
                 let stepY = (Math.random() - 0.5) * variance;
                 
                 // Prevent going too high or low
