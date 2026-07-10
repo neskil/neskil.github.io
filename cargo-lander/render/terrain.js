@@ -238,6 +238,23 @@ drawWaterBodies() {
             const lw = rx - lx;
             const ld = Math.max(8, maxY - ly); // Depth of the basin, from the authored shape
 
+            // Tint every fill/stroke below from body.surfaceColor when set (e.g.
+            // L9's acid pool, '#10b981') instead of always the hardcoded blue —
+            // previously every hardcoded color here ignored body.color/surfaceColor
+            // entirely, which went unnoticed because the only body that ever set
+            // them (L9's acid pool) used to be invisible for an unrelated reason
+            // (see the 2026-07-10 waterBodies pts-shape fix above).
+            let wr = 14, wg = 45, wb = 90; // default: the original hardcoded blue
+            if (body.surfaceColor) {
+                const n = parseInt(body.surfaceColor.replace('#', ''), 16);
+                wr = (n >> 16) & 0xff; wg = (n >> 8) & 0xff; wb = n & 0xff;
+            }
+            const wc = (a) => `rgba(${wr},${wg},${wb},${a})`;
+            const wDeep = `rgba(${Math.round(wr * 0.15)},${Math.round(wg * 0.15)},${Math.round(wb * 0.15)},0.96)`;
+            // Lightened toward white for ripple/wave highlight lines
+            const brR = Math.round(wr + (255 - wr) * 0.55), brG = Math.round(wg + (255 - wg) * 0.55), brB = Math.round(wb + (255 - wb) * 0.55);
+            const wcBright = (a) => `rgba(${brR},${brG},${brB},${a})`;
+
             ctx.save();
 
             // Water body — filled with depth gradient, clipped to the authored polygon
@@ -246,9 +263,9 @@ drawWaterBodies() {
             ctx.closePath();
 
             const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
-            depthGrad.addColorStop(0, 'rgba(14,45,90,0.82)');
-            depthGrad.addColorStop(0.5, 'rgba(8,25,60,0.90)');
-            depthGrad.addColorStop(1, 'rgba(2,6,20,0.96)');
+            depthGrad.addColorStop(0, wc(0.82));
+            depthGrad.addColorStop(0.5, wc(0.90));
+            depthGrad.addColorStop(1, wDeep);
             ctx.fillStyle = depthGrad;
             ctx.fill();
 
@@ -259,15 +276,15 @@ drawWaterBodies() {
             ctx.clip();
 
             // Shimmer layer near surface
-            ctx.fillStyle = 'rgba(56,130,220,0.12)';
+            ctx.fillStyle = wc(0.12);
             ctx.fillRect(lx, ly, lw, 14);
 
             // Deeper gradient shift
-            ctx.fillStyle = 'rgba(14,45,90,0.4)';
+            ctx.fillStyle = wc(0.4);
             ctx.fillRect(lx, ly + 14, lw, ld - 14);
 
             // Animated surface ripples
-            ctx.strokeStyle = 'rgba(100,180,255,0.30)';
+            ctx.strokeStyle = wc(0.30);
             ctx.lineWidth = 1.2;
             ctx.beginPath();
             for (let wx = 0; wx <= lw; wx += 5) {
@@ -286,7 +303,7 @@ drawWaterBodies() {
 
             // Decorative wave lines (animated) — capped at 3 regardless of basin
             // depth, so deep basins don't get a busy stack of lines.
-            ctx.strokeStyle = 'rgba(56,130,220,0.4)';
+            ctx.strokeStyle = wcBright(0.4);
             ctx.lineWidth = 1.5;
             const waveLineCount = 3;
             const waveSpacing = Math.max(10, (ld - 14) / waveLineCount);
@@ -362,8 +379,8 @@ drawWaterBodies() {
 
             ctx.restore();
 
-            // Water surface edge line — soft blue-white
-            ctx.strokeStyle = 'rgba(120,200,255,0.55)';
+            // Water surface edge line — soft highlight tinted to the body's color
+            ctx.strokeStyle = wcBright(0.55);
             ctx.lineWidth = 1.8;
             ctx.beginPath();
             for (let wx = 0; wx <= lw; wx += 6) {

@@ -315,24 +315,28 @@ top.
 
 ### Session status (end of 2026-07-10 session, cut short by usage budget)
 Everything below in this section through "What's next" is committed and
-pushed as of `v0.2.0`. Nothing is mid-flight/uncommitted. One thing flagged
-but **not investigated** — pick this up first next session if the user
-raises it again:
-- **Screenshot from the user showed a large flat-topped solid-blue rectangle
-  filling the lower-left of the screen**, in what looked like a water/abyss
-  level. Answered live as "that's `drawFluidBounds()` rendering
-  `outOfBounds.surfaceY` — the abyss boundary, a real feature" — this is a
-  reasonable read (sharp rectangular Canvas2D edges, not the jagged organic
-  edges the polygon water bodies have) but was **not verified** against the
-  actual level/camera state in that screenshot, since usage budget ran out
-  right after. If the user says it still looks wrong: reproduce by finding
-  which level they were on (ask, or check `localStorage` highscores for a
-  clue) and screenshot `drawFluidBounds()` (`render/terrain.js`, grep the
-  function name) in isolation to compare against what shipped today —
-  specifically check whether today's post-FX pass (`renderPostFX()`,
-  `shaders.js`) could be interacting with it unexpectedly, since that's the
-  most recent change to the render pipeline and the rectangle's hard edges
-  don't obviously implicate it, but it wasn't ruled out.
+pushed as of `v0.2.1`. One item needs a **live visual re-check** next
+session — the fix is committed but couldn't be screenshot-verified because
+the browser preview tool went down (classifier outage) right as this was
+being tested:
+- **The flat-blue-rectangle screenshot turned out to be the L9 acid pool**,
+  not `drawFluidBounds()` as first guessed. Root cause: `drawWaterBodies()`
+  (`render/terrain.js`) has always hardcoded its fill/stroke colors and
+  completely ignored `body.color`/`body.surfaceColor` — invisible for every
+  other level (none of them set those fields), but L9's acid pool
+  (`surfaceColor: '#10b981'`, a green hex) only *started* rendering at all
+  after the 2026-07-10 `pts`-shape fix earlier in this file, so it was the
+  first water body to ever expose the bug: instead of acid green, it drew as
+  a plain blue rectangle (plausible because it's also the first water body
+  authored as a perfect axis-aligned rect rather than an organic polygon —
+  both factors together made it read as an obvious rendering glitch).
+  Fixed by deriving every color in the function from `body.surfaceColor`
+  when present (falls back to the original hardcoded blue `rgb(14,45,90)`
+  otherwise, byte-identical for every level except L9 — verified no other
+  `level*.js` sets `surfaceColor`). **Next session: load L9, confirm the
+  acid pool now renders green/acid-tinted instead of blue, and that L1's
+  lake still looks exactly as before** (no code reason it wouldn't, but
+  wasn't screenshot-confirmed live).
 
 ### Local environment
 - **Python is now installed** (`winget install Python.Python.3.12`, done
