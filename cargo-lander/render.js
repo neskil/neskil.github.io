@@ -243,7 +243,7 @@ draw() {
                 }
             }
 
-            this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects);
+            this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather);
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
