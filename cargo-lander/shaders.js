@@ -292,7 +292,7 @@ class ShaderOverlay {
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
                             // Fade out as it slides down so it mimics a drop appearing, sitting, and evaporating/vanishing
-                            float lifeAlpha = smoothstep(1.0, 0.7, yFrac);
+                            float lifeAlpha = 1.0 - smoothstep(0.7, 1.0, yFrac);
                             bestResult = result * lifeAlpha;
                         }
                     }
