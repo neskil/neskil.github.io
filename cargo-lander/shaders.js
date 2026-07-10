@@ -191,6 +191,109 @@ class ShaderOverlay {
         `;
 
         this.gravityWellProgram = this.createProgram(vsGravityWellSource, fsGravityWellSource);
+
+        // Post-processing distortion pass — samples the already-drawn Canvas2D
+        // scene as a texture and re-draws a warped version of it wherever an
+        // effect region is active (heat haze / water shimmer / gravity lensing),
+        // leaving everything else fully transparent so the untouched scene shows
+        // through unmodified. See renderPostFX() for how this gets driven.
+        const vsPostFXSource = `
+            attribute vec2 a_position;
+            varying vec2 v_uv;
+            void main() {
+                v_uv = a_position * 0.5 + 0.5;
+                gl_Position = vec4(a_position, 0, 1);
+            }
+        `;
+
+        const fsPostFXSource = `
+            precision mediump float;
+            varying vec2 v_uv;
+
+            uniform sampler2D u_sceneTex;
+            uniform vec2 u_resolution;
+            uniform float u_time;
+
+            uniform float u_heatHazeEnabled;
+
+            uniform int u_waterCount;
+            uniform vec2 u_waterMin[4];
+            uniform vec2 u_waterMax[4];
+
+            uniform float u_blackholeEnabled;
+            uniform vec2 u_blackholePos;
+            uniform float u_blackholeRadius;
+
+            void main() {
+                // screenPos is CSS-pixel space, origin top-left, y-down — same
+                // convention the gravity well shader above uses, and the same
+                // space renderPostFX() computes world->screen positions in.
+                vec2 screenPos = vec2(v_uv.x, 1.0 - v_uv.y) * u_resolution;
+                vec2 offset = vec2(0.0);
+                bool touched = false;
+
+                if (u_heatHazeEnabled > 0.5) {
+                    // Kept subtle (real mirage haze is a gentle shimmer, not a
+                    // warp) — an earlier, stronger pass here garbled the
+                    // "PICK UP"/"DELIVER HERE" objective labels, which are
+                    // drawn in world space and get swept up in this same
+                    // distortion pass along with the terrain.
+                    float wobbleX = sin(screenPos.y * 0.02 + u_time * 1.5) * 0.8;
+                    float wobbleY = sin(screenPos.x * 0.015 + u_time * 1.2) * 0.4;
+                    offset += vec2(wobbleX, wobbleY);
+                    touched = true;
+                }
+
+                for (int i = 0; i < 4; i++) {
+                    if (i >= u_waterCount) break;
+                    vec2 mn = u_waterMin[i];
+                    vec2 mx = u_waterMax[i];
+                    if (screenPos.x >= mn.x && screenPos.x <= mx.x && screenPos.y >= mn.y && screenPos.y <= mx.y) {
+                        float wave = sin(screenPos.x * 0.05 + u_time * 2.0) * 2.5
+                                   + sin(screenPos.y * 0.08 - u_time * 1.3) * 1.5;
+                        offset += vec2(wave * 0.6, wave * 0.3);
+                        touched = true;
+                    }
+                }
+
+                if (u_blackholeEnabled > 0.5) {
+                    vec2 diff = screenPos - u_blackholePos;
+                    float dist = length(diff);
+                    if (dist < u_blackholeRadius && dist > 1.0) {
+                        // Pull sampled pixels toward the well center — a cheap
+                        // stand-in for gravitational lensing. Kept gentle (this
+                        // project has a stated preference for a subtle well —
+                        // see the README's "toned down twice" note) so it reads
+                        // as a bend in the background, not a warp-y distraction.
+                        float pull = 1.0 - dist / u_blackholeRadius;
+                        pull = pull * pull;
+                        offset -= diff * pull * 0.35;
+                        touched = true;
+                    }
+                }
+
+                if (!touched) {
+                    gl_FragColor = vec4(0.0);
+                    return;
+                }
+
+                vec2 distortedScreenPos = screenPos + offset;
+                vec2 srcUV = distortedScreenPos / u_resolution;
+                srcUV.y = 1.0 - srcUV.y;
+                srcUV = clamp(srcUV, vec2(0.001), vec2(0.999));
+
+                gl_FragColor = texture2D(u_sceneTex, srcUV);
+            }
+        `;
+
+        this.postFXProgram = this.createProgram(vsPostFXSource, fsPostFXSource);
+
+        this.sceneTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.sceneTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     }
 
     initBuffers() {
@@ -272,6 +375,65 @@ class ShaderOverlay {
         }
 
         return [r, g, b, a];
+    }
+
+    // Post-processing pass: uploads the already-drawn Canvas2D scene as a texture,
+    // then re-draws a warped version of it wherever an effect region is active.
+    // `waterRects` is an array of up to 4 {minX,minY,maxX,maxY} screen-space
+    // rects (see render.js's draw() for how they're computed from camera +
+    // physics.waterBodies). Skips the texture upload entirely (the expensive
+    // part) when nothing in the current level actually needs distorting.
+    renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects) {
+        if (!this.gl || !this.postFXProgram) return;
+        const gl = this.gl;
+
+        const heatHaze = !!(levelConfig && levelConfig.heatHaze);
+        const hasBlackhole = !!physics.gravityWellPos;
+        const hasWater = waterRects && waterRects.length > 0;
+        if (!heatHaze && !hasBlackhole && !hasWater) return;
+
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(this.postFXProgram);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.sceneTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+        gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_sceneTex"), 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+        const aPos = gl.getAttribLocation(this.postFXProgram, "a_position");
+        gl.enableVertexAttribArray(aPos);
+        gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+        gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
+        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), Date.now() / 1000.0);
+        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
+
+        const count = Math.min(4, waterRects ? waterRects.length : 0);
+        const minArr = new Float32Array(8), maxArr = new Float32Array(8);
+        for (let i = 0; i < count; i++) {
+            minArr[i * 2] = waterRects[i].minX; minArr[i * 2 + 1] = waterRects[i].minY;
+            maxArr[i * 2] = waterRects[i].maxX; maxArr[i * 2 + 1] = waterRects[i].maxY;
+        }
+        gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_waterCount"), count);
+        gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMin"), minArr);
+        gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMax"), maxArr);
+
+        if (hasBlackhole) {
+            const gw = physics.gravityWellPos;
+            const screenX = (gw.x - camera.x) * camera.zoom + this.canvas.width / 2;
+            const screenY = (gw.y - camera.y) * camera.zoom + this.canvas.height / 2;
+            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeEnabled"), 1.0);
+            gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_blackholePos"), screenX, screenY);
+            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeRadius"), gw.radius * camera.zoom);
+        } else {
+            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeEnabled"), 0.0);
+        }
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
     render(physics, camera) {

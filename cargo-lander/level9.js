@@ -75,9 +75,15 @@ registerLevel({
     ],
 
     // ── Water Bodies (Acid) ───────────────────────────────────────────────────
+    // drawWaterBodies() (render/terrain.js) only reads the pts-polygon shape —
+    // the old {x,y,w,h} rect this used to be shaped as was silently never
+    // rendered (no crash, just invisible). Expressed as a rect-shaped polygon.
     waterBodies: [
         {
-            x: 1250, y: 690, w: 500, h: 250,
+            pts: [
+                { x: 1250, y: 690 }, { x: 1750, y: 690 },
+                { x: 1750, y: 940 }, { x: 1250, y: 940 },
+            ],
             color: 'rgba(52, 211, 153, 0.4)', // Acid green
             surfaceColor: '#10b981',
             drag: 0.05,

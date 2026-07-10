@@ -214,6 +214,43 @@ draw() {
 
         ctx.restore();
 
+        // 8.7 WebGL Post-Processing Distortion Pass (heat haze / water shimmer /
+        // gravity lensing) — samples the scene just drawn above (terrain, hubs,
+        // lander, cargo, but not yet the monster/particles/HUD) as a texture and
+        // re-draws a warped version of it on top, replacing pixels only inside
+        // active effect regions. Toggleable in Settings for low-end hardware
+        // (skips the texture upload entirely when off — see renderPostFX()).
+        if (this.shaders && this.postFXEnabled) {
+            const waterRects = [];
+            if (this.physics.waterBodies) {
+                const toScreen = (x, y) => ({
+                    x: (x - this.camera.x) * this.camera.zoom + w / 2,
+                    y: (y - this.camera.y) * this.camera.zoom + h / 2,
+                });
+                for (const wb of this.physics.waterBodies) {
+                    if (!wb.pts || wb.pts.length < 3) continue;
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    for (const p of wb.pts) {
+                        minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+                        minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+                    }
+                    const a = toScreen(minX, minY), b = toScreen(maxX, maxY);
+                    waterRects.push({
+                        minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x),
+                        minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y),
+                    });
+                    if (waterRects.length >= 4) break;
+                }
+            }
+
+            this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects);
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.drawImage(this.shaders.canvas, 0, 0);
+            ctx.restore();
+        }
+
         // 9. WebGL Render for Particles
         if (this.shaders) {
             this.shaders.render(this.physics, this.camera);

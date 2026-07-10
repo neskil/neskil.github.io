@@ -59,6 +59,11 @@ class CargoGame {
         this.isMuted = false; // Always start unmuted
         this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || 1.0;
         this.uiCollapsed = false;
+        // GPU post-processing overlay (heat haze / water shimmer / gravity lensing) —
+        // on by default, but it's an extra full-screen WebGL pass every frame on top
+        // of the existing particle/glow overlay, so let low-end hardware disable it.
+        this.postFXEnabled = localStorage.getItem('cargoLanderPostFX') !== '0';
+        this._rotateTipDismissed = false;
 
         // Keys State
         this.keys = {
@@ -205,6 +210,33 @@ class CargoGame {
         if (this.shaders) {
             this.shaders.resize(targetW, targetH);
         }
+        this.checkOrientationPrompt();
+    }
+
+    // Shows a dismissable "rotate to landscape" tip while a mission is active on a
+    // narrow/portrait viewport (phone or small tablet). Aspect-ratio-based rather
+    // than touch-capability-based — touch detection is unreliable (hybrid laptops
+    // report touch support; tablets on a stand are portrait-fine), and this also
+    // means the check is exercisable from a resized desktop browser, not just a
+    // real device. Re-armed each time a mission starts (see startLevel()) so it
+    // isn't permanently silenced after one dismissal, but never shows more than
+    // once per mission attempt.
+    checkOrientationPrompt() {
+        const tip = document.getElementById('rotate-tip');
+        if (!tip) return;
+        if (this._rotateTipDismissed) { tip.style.display = 'none'; return; }
+
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const isSmallScreen = Math.min(window.innerWidth, window.innerHeight) <= 820;
+        const inMission = this.gameState === 'playing';
+
+        tip.style.display = (isPortrait && isSmallScreen && inMission) ? 'flex' : 'none';
+    }
+
+    dismissRotateTip() {
+        this._rotateTipDismissed = true;
+        const tip = document.getElementById('rotate-tip');
+        if (tip) tip.style.display = 'none';
     }
 
     generateStars() {
@@ -341,6 +373,9 @@ class CargoGame {
 
         // Mobile touch controls (will bind HTML button events to keys in UI file)
         window.addEventListener('resize', () => this.resizeCanvas());
+        // orientationchange fires slightly before resize on some mobile browsers —
+        // listen to both so the rotate tip reacts as soon as possible.
+        window.addEventListener('orientationchange', () => this.checkOrientationPrompt());
     }
 
     // Quick console shortcut: game.startTestLevel()
@@ -354,7 +389,9 @@ class CargoGame {
         this.gameState = 'menu';
         document.getElementById('menu-screen').style.display = 'flex';
         document.getElementById('hud-overlay').style.display = 'none';
-        
+        const rotateTip = document.getElementById('rotate-tip');
+        if (rotateTip) rotateTip.style.display = 'none';
+
         const centerExtract = document.getElementById('center-extract-overlay');
         if (centerExtract) centerExtract.style.display = 'none';
 
@@ -595,6 +632,9 @@ class CargoGame {
         const muteCb = document.getElementById('setting-mute');
         if (muteCb) muteCb.checked = this.isMuted;
 
+        const postFXCb = document.getElementById('setting-postfx');
+        if (postFXCb) postFXCb.checked = this.postFXEnabled;
+
         const mv = Math.round(CargoAudio.musicVolume * 100);
         const sv = Math.round(CargoAudio.sfxVolume * 100);
         const musicSlider = document.getElementById('setting-music-vol');
@@ -621,6 +661,11 @@ class CargoGame {
         this.zoomModifier = value;
         const label = document.getElementById('zoom-value-label');
         if (label) label.textContent = value.toFixed(1) + 'x';
+    }
+
+    setPostFXEnabled(checked) {
+        this.postFXEnabled = checked;
+        localStorage.setItem('cargoLanderPostFX', checked ? '1' : '0');
     }
 
     setMusicVolume(value) {
@@ -859,6 +904,8 @@ class CargoGame {
 
         this.gameState = 'playing';
         this.addMessage("Level Started: " + (level?.name || "Unknown"), "#6366f1");
+        this._rotateTipDismissed = false;
+        this.checkOrientationPrompt();
         
         if (this.currentLevelIndex === 0) {
             setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Use Arrow Keys or WASD to fly", "#34d399") }, 3000);

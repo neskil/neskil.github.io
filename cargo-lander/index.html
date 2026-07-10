@@ -181,6 +181,18 @@
             width: 100%;
         }
 
+        @keyframes rotate-tip-spin {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            50% {
+                transform: rotate(-90deg);
+            }
+        }
+
         .screen-overlay {
             position: absolute;
             inset: 0;
@@ -1144,6 +1156,16 @@
             </div>
         </div>
 
+        <!-- Rotate-to-landscape tip (mobile, portrait, shown while a mission is active) -->
+        <div id="rotate-tip"
+            style="display:none; position:fixed; inset:0; z-index:9998; background:rgba(3,7,18,0.88); align-items:center; justify-content:center; flex-direction:column; gap:16px; font-family:inherit; text-align:center; padding:24px;">
+            <div style="font-size:3rem; animation: rotate-tip-spin 1.8s ease-in-out infinite;">📱</div>
+            <p style="color:#fff; font-size:1.1rem; margin:0; max-width:320px; line-height:1.4;">Rotate your device to
+                <b>landscape</b> for the best view of the mission.</p>
+            <button id="rotate-tip-dismiss" class="btn-secondary" onclick="game.dismissRotateTip()"
+                style="min-width:140px;">Continue in Portrait</button>
+        </div>
+
         <!-- Fullscreen prompt modal (mobile) -->
         <div id="fullscreen-prompt"
             style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:20px; font-family:inherit;">
@@ -1679,6 +1701,17 @@
                     <span style="font-weight: 600; color: var(--text-primary);">Mute Audio</span>
                     <input type="checkbox" id="setting-mute" onchange="game.toggleMuteFromCheckbox(this.checked)"
                         style="width: 20px; height: 20px; cursor: pointer;">
+                </div>
+
+                <!-- Post-Processing Visual Effects -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary);">Visual Effects</div>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary);">Heat haze, water shimmer,
+                            gravity lensing — disable if the game feels slow</div>
+                    </div>
+                    <input type="checkbox" id="setting-postfx" onchange="game.setPostFXEnabled(this.checked)"
+                        style="width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin-left: 12px;">
                 </div>
 
                 <!-- Zoom Control -->

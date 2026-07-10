@@ -16,6 +16,7 @@ registerLevel({
     gravity: 0.28,           // Heavy gravity — volcanic world has dense core
     wind: 0,
     heavyCargo: false,       // Cargo mass no longer affects handling
+    heatHaze: true,          // volcanic biome — GPU post-fx shimmer (see shaders.js renderPostFX)
 
     // Moving gravity well — physics.js reads gravityWell config and applies
     // a Lissajous-phase orbit so the pull point drifts unpredictably
