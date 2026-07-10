@@ -294,6 +294,7 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="levelSchema.js"></script>
 <script src="levels.js"></script>
 <script src="levelGenerator.js"></script>
 <script src="level1.js"></script>
@@ -474,29 +475,73 @@ test('Game Over Simulation', () => {
 // Cheap shape checks over every registered level — catches broken level files
 // (typo'd fields, malformed polygons, undeliverable cargo) without running the
 // game. Optional fields are only validated when present.
+//
+// The scalar/object-shaped fields (mission params, palette, outOfBounds,
+// gravityWell) are checked generically against LEVEL_SCHEMA (levelSchema.js —
+// shared with level-editor.html) instead of a hand-written assertion per
+// field, so a new schema field is automatically covered here too. Geometry
+// (terrainPolygons/waterBodies/hazards/deliveryHubs/quests) stays hand-checked
+// below — it's out of the schema's scope, see levelSchema.js's header comment.
 category('Level Config Validation');
 
-// (CARGO_TYPES is already a global const in levelGenerator.js — avoid the
-// lexical collision by using a distinct name here)
-const VALID_CARGO_TYPES = ['normal', 'red', 'blue', 'green', 'tethered', 'heavy'];
+// Checks a single schema field's value against its declared type/constraints.
+// `label` is the dotted path used in failure messages (e.g. 'gravity' or
+// 'palette.skyTop').
+function schemaCheckValue(field, v, label) {
+  switch (field.type) {
+    case 'string':
+    case 'color':
+    case 'rgba':
+    case 'rgbaPrefix':
+      assert(typeof v === 'string', `${label} must be a string, got ${typeof v}`);
+      if (field.required) assert(v.length > 0, `${label} must be non-empty`);
+      if (field.options) assert(field.options.includes(v), `${label} has unknown value '${v}'`);
+      break;
+    case 'number':
+      assert(isFinite(v), `${label} must be a finite number, got ${v}`);
+      if (field.positive) assert(v > 0, `${label} must be positive, got ${v}`);
+      break;
+    case 'integer':
+      assert(Number.isInteger(v), `${label} must be an integer, got ${v}`);
+      if (field.min != null) assert(v >= field.min, `${label} must be >= ${field.min}, got ${v}`);
+      break;
+    case 'boolean':
+      assert(typeof v === 'boolean', `${label} must be a boolean, got ${typeof v}`);
+      break;
+    case 'stringList':
+      assert(Array.isArray(v), `${label} must be an array`);
+      if (field.required) assert(v.length > 0, `${label} must be non-empty`);
+      if (field.enumValues) for (const t of v) assert(field.enumValues.includes(t), `${label} has unknown value '${t}'`);
+      break;
+    default:
+      throw new Error(`unhandled schema field type '${field.type}' for ${label}`);
+  }
+  if (field.validate) assert(field.validate(v), `${label} failed its custom validation check, got ${JSON.stringify(v)}`);
+}
+
+// Checks every field in a schema section (LEVEL_SCHEMA.fields, .palette.fields,
+// etc.) against an object, skipping absent optional fields and failing on
+// absent required ones.
+function schemaCheckSection(obj, sectionFields, labelPrefix) {
+  for (const f of sectionFields) {
+    const v = obj ? obj[f.key] : undefined;
+    if (v === undefined) {
+      assert(!f.required, `${labelPrefix}${f.key} is required`);
+      continue;
+    }
+    schemaCheckValue(f, v, labelPrefix + f.key);
+  }
+}
 
 levels.forEach((lv, i) => {
   const label = `L${i + 1} "${lv.name}"`;
 
   test(`${label} — mission parameters`, () => {
-    assert(typeof lv.name === 'string' && lv.name.length > 0, 'name must be a non-empty string');
-    assert(isFinite(lv.gravity) && lv.gravity > 0, `gravity must be a positive number, got ${lv.gravity}`);
-    assert(isFinite(lv.budget) && lv.budget > 0, `budget must be a positive number, got ${lv.budget}`);
-    assert(isFinite(lv.timeLimit) && lv.timeLimit > 0, `timeLimit must be a positive number, got ${lv.timeLimit}`);
-    assert(Number.isInteger(lv.targetCargo) && lv.targetCargo >= 1, `targetCargo must be an integer >= 1, got ${lv.targetCargo}`);
-    assert(Array.isArray(lv.allowedTypes) && lv.allowedTypes.length > 0, 'allowedTypes must be a non-empty array');
-    for (const t of lv.allowedTypes) {
-      assert(VALID_CARGO_TYPES.includes(t), `unknown cargo type '${t}'`);
-    }
-    if (lv.startX !== undefined) assertFinite(lv.startX, 'startX');
-    if (lv.collectionX !== undefined) assertFinite(lv.collectionX, 'collectionX');
-    if (lv.padScale !== undefined) assert(isFinite(lv.padScale) && lv.padScale > 0, `padScale must be positive, got ${lv.padScale}`);
-    if (lv.heatHaze !== undefined) assert(typeof lv.heatHaze === 'boolean', `heatHaze must be a boolean, got ${typeof lv.heatHaze}`);
+    // startX/startY/collectionX/collectionY/startDepotWidth/collectionWidth
+    // are part of LEVEL_SCHEMA.fields too — schemaCheckSection covers them
+    // generically like everything else here (none are required, so they're
+    // simply skipped on levels that omit them).
+    schemaCheckSection(lv, LEVEL_SCHEMA.fields, '');
   });
 
   test(`${label} — delivery hubs`, () => {
@@ -524,13 +569,21 @@ levels.forEach((lv, i) => {
 
   test(`${label} — palette`, () => {
     assert(lv.palette && typeof lv.palette === 'object', 'palette is required');
-    for (const k of ['skyTop', 'skyMid', 'skyBot', 'terrainFill', 'rockEdge', 'rockGlow', 'fog']) {
-      assert(typeof lv.palette[k] === 'string' && lv.palette[k].length > 0, `palette.${k} is missing`);
-    }
-    // rockGlow is a PARTIAL rgba string by convention — call sites append the
-    // alpha, e.g. `${pal.rockGlow}0.10)` — so it must end with a comma.
-    assert(lv.palette.rockGlow.startsWith('rgba(') && lv.palette.rockGlow.endsWith(','),
-      `palette.rockGlow must be a partial 'rgba(r,g,b,' string, got '${lv.palette.rockGlow}'`);
+    schemaCheckSection(lv.palette, LEVEL_SCHEMA.palette.fields, 'palette.');
+  });
+
+  test(`${label} — out of bounds`, () => {
+    // L9 uses the bare boolean `true` shorthand ("thick lateral fog, no zone
+    // mechanics") instead of the full object — nothing further to check.
+    if (lv.outOfBounds === undefined || typeof lv.outOfBounds === 'boolean') return;
+    assert(typeof lv.outOfBounds === 'object', 'outOfBounds must be an object or boolean');
+    schemaCheckSection(lv.outOfBounds, LEVEL_SCHEMA.outOfBounds.fields, 'outOfBounds.');
+  });
+
+  test(`${label} — gravity well`, () => {
+    if (lv.gravityWell === undefined) return;
+    assert(typeof lv.gravityWell === 'object', 'gravityWell must be an object');
+    schemaCheckSection(lv.gravityWell, LEVEL_SCHEMA.gravityWell.fields, 'gravityWell.');
   });
 
   test(`${label} — terrain geometry`, () => {
