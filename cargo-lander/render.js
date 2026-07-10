@@ -171,7 +171,9 @@ draw() {
             }
         }
 
-        ctx.restore();
+        // Draw entities before postFX so they get reflected in the water
+        this.drawBoxes();
+        this.drawLander();
 
         // 8.7 WebGL Post-Processing Distortion Pass (heat haze / water shimmer /
         // gravity lensing) — samples the scene just drawn above (terrain, hubs,
@@ -208,13 +210,11 @@ draw() {
             ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(this.shaders.canvas, 0, 0);
             ctx.restore();
+
+            // Re-draw terrain over the distorted post-fx layer to perfectly mask out the underwater rock walls.
+            // The empty space (water pool) will remain visible, showing the wavy distortion and reflection.
+            this.drawTerrain();
         }
-
-        // 7. Draw Boxes (moved after postFX so they don't get ghost reflections drawn over them underwater)
-        this.drawBoxes();
-
-        // 8. Draw Lander (moved after postFX to prevent ghost reflection overlapping)
-        this.drawLander();
 
         if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
             const drone = this.physics.boxes.find(b => b.type === 'drone');
@@ -251,6 +251,8 @@ draw() {
                 ctx.restore();
             }
         }
+
+        ctx.restore(); // Restore camera transform
 
         // 9. WebGL Render for Particles
         if (this.shaders) {

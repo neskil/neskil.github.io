@@ -207,12 +207,19 @@ class ShaderOverlay {
         `;
 
         const fsPostFXSource = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+            precision highp float;
+#else
             precision mediump float;
+#endif
             varying vec2 v_uv;
 
             uniform sampler2D u_sceneTex;
             uniform vec2 u_resolution;
             uniform float u_time;
+
+            uniform vec2 u_cameraPos;
+            uniform float u_zoom;
 
             uniform float u_heatHazeEnabled;
 
@@ -251,9 +258,9 @@ class ShaderOverlay {
                 for(int y = -1; y <= 1; y++) {
                     for(int x = -1; x <= 1; x++) {
                         vec2 cell = baseCell + vec2(float(x), float(y));
-                        // Time progression for this cell
+                        // Time progression for this cell (more variance in speed)
                         float cellSpeedH = hash21(cell + seed);
-                        float t = u_time * (0.15 + 0.15 * cellSpeedH) + hash21(cell + seed + 11.0) * 100.0;
+                        float t = u_time * (0.05 + 0.45 * cellSpeedH) + hash21(cell + seed + 11.0) * 100.0;
                         float cycle = floor(t);
                         float yFrac = fract(t);
                         
@@ -261,15 +268,18 @@ class ShaderOverlay {
                         float h1 = hash21(cell + seed + cycle * 13.37);
                         float h2 = hash21(cell + seed + cycle * 42.11 + 31.7);
                         float h3 = hash21(cell + seed + cycle * 99.99 + 57.3);
+                        float h4 = hash21(cell + seed + cycle * 18.42 + 99.1);
                         
-                        if (h3 > 0.75) continue; // sparse field per cycle
+                        if (h3 > 0.15) continue; // VERY sparse field per cycle to break grid feel
 
-                        float slide = smoothstep(0.6, 0.9, yFrac);
+                        float slide = smoothstep(0.4 + 0.4 * h4, 0.9, yFrac);
                         
-                        vec2 center = cell * cellSize + vec2(0.2 + 0.6 * h1, 0.2 + 0.6 * h2) * cellSize;
+                        // Let them wander further from the cell center to hide the grid
+                        vec2 center = cell * cellSize + vec2(-0.2 + 1.4 * h1, -0.2 + 1.4 * h2) * cellSize;
                         center.y += slide * cellSize * 0.45;
                         
-                        float r = rad * (0.6 + 0.7 * h2);
+                        // Much more extreme size variation
+                        float r = rad * (0.3 + 1.4 * h2);
 
                         vec4 result = vec4(0.0);
 
@@ -278,7 +288,7 @@ class ShaderOverlay {
                         float dist = length(dn);
                         if (dist < r) {
                             float core = 1.0 - dist / r;
-                            result.xy = -d * 0.15; // very subtle magnifying-glass pull
+                            result.xy = -d * 0.25; // stronger magnifying-glass pull
                             result.z = core;
 
                             vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
@@ -298,7 +308,7 @@ class ShaderOverlay {
                                 if (lateral < trailW) {
                                     float trailCore = (1.0 - lateral / trailW) * taper * 0.5;
                                     result.z = max(result.z, trailCore);
-                                    result.xy += vec2(-trailD.x * 0.15, 0.0);
+                                    result.xy += vec2(-trailD.x * 0.25, 0.0);
                                 }
                             }
                         }
@@ -336,34 +346,39 @@ class ShaderOverlay {
                 }
 
                 if (u_rainAmount > 0.05) {
-                    vec4 d1 = droplet(screenPos, 110.0, 10.0, 0.0);
-                    vec4 d2 = droplet(screenPos, 60.0, 6.0, 100.0);
+                    vec4 d1 = droplet(screenPos, 140.0, 18.0, 0.0);
+                    vec4 d2 = droplet(screenPos, 80.0, 10.0, 100.0);
                     float bodyHit = max(d1.z, d2.z);
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
-                        offset += d1.xy + d2.xy;
+                        offset += (d1.xy + d2.xy) * u_rainAmount;
                         // Body refraction is nearly invisible on its own (the
                         // point is the subtle bend, not a visible shape) — the
                         // glint is what actually reads as "wet glass", kept
                         // small and faint rather than a bright blown highlight.
-                        dropletGlow = (bodyHit * 0.02 + glintHit * 0.22) * u_rainAmount;
+                        dropletGlow = (bodyHit * 0.06 + glintHit * 0.45) * u_rainAmount;
                         touched = true;
                     }
                 }
+
+                // World pos for stable waves that don't slide when camera moves
+                vec2 worldPos = (screenPos - (u_resolution / 2.0)) / u_zoom + u_cameraPos;
 
                 for (int i = 0; i < 4; i++) {
                     if (i >= u_waterCount) break;
                     vec2 mn = u_waterMin[i];
                     vec2 mx = u_waterMax[i];
                     if (screenPos.x >= mn.x && screenPos.x <= mx.x && screenPos.y >= mn.y && screenPos.y <= mx.y) {
-                        float wave = sin(screenPos.x * 0.05 + u_time * 2.0) * 2.5
-                                   + sin(screenPos.y * 0.08 - u_time * 1.3) * 1.5;
+                        float wave = sin(worldPos.x * 0.05 + u_time * 2.0) * 2.5
+                                   + sin(worldPos.y * 0.08 - u_time * 1.3) * 1.5;
                         
                         // Base water distortion (the subtle wave for the water surface itself)
                         offset += vec2(wave * 0.6, wave * 0.3);
                         
                         // Mirror reflection: offset Y so that we sample above the water surface
-                        float reflectY = 2.0 * (mn.y - screenPos.y);
+                        float surfaceOffset = 15.0; // The visual depth of the water surface band
+                        float mirrorY = mn.y + surfaceOffset;
+                        float reflectY = 2.0 * (mirrorY - screenPos.y);
                         reflectOffset = vec2(wave * 0.6, reflectY + wave * 0.3);
                         
                         // Soften X edges to prevent hard clipping against rock walls
@@ -372,8 +387,9 @@ class ShaderOverlay {
                         // Fade reflection based on depth (height) so it's only visible near the surface
                         float depth = screenPos.y - mn.y;
                         float depthFade = smoothstep(70.0, 0.0, depth);
+                        float startFade = smoothstep(surfaceOffset - 2.0, surfaceOffset + 2.0, depth);
                         
-                        waterBlend = max(waterBlend, 0.45 * fadeX * depthFade); // Partly transparent, top only
+                        waterBlend = max(waterBlend, 0.45 * fadeX * depthFade * startFade); // Partly transparent, top only
                         
                         touched = true;
                     }
@@ -550,6 +566,8 @@ class ShaderOverlay {
 
         gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
+        gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_cameraPos"), camera.x, camera.y);
+        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_zoom"), camera.zoom);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
         gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_rainAmount"), rain);
 
