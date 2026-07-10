@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.6.6';
+    static VERSION = '0.6.7';
 
     constructor() {
         this.canvas = null;
