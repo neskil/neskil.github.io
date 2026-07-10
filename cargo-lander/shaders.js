@@ -230,34 +230,62 @@ class ShaderOverlay {
                 return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
             }
 
-            // "Raindrops on the camera lens" (racing-game style): the screen is
-            // divided into cells of cellSize px; roughly a third of the cells
-            // carry one droplet that slowly trickles down and wraps. Returns
-            // (offsetX, offsetY, coreBrightness) — offset refracts the scene
-            // sample (inverted mini-image, like a real water bead), core feeds
-            // a small highlight so the bead reads as wet glass.
-            // 2026-07-10: v1 (round beads, uniform density) read as flat/fake
-            // per playtest feedback — v2 elongates each bead vertically (a
-            // trickling drop, not a floating circle) and thins out the field
-            // (h3 > 0.65, was 0.5) so it's a light scatter, not a dense smear.
-            // Still flagged for a further design pass in the README TODO.
-            vec3 droplet(vec2 sp, float cellSize, float rad, float seed) {
+            // "Raindrops on a camera lens", redesigned 2026-07-10 (v3) from a
+            // reference photo of rain on a car window: each drop is a small
+            // lens (gentle magnification, not a strong porthole-style pull),
+            // with a tiny specular glint near its upper-left edge, and about
+            // 40% of drops trail a thin, tapering trickle beneath them. v1/v2
+            // (round beads, then vertically-stretched beads) both read as
+            // "not great" / flat per playtest — the missing ingredients were
+            // the highlight glint and the trickle trail, which are what read
+            // as "wet glass" in the reference rather than "smudged dots".
+            // Explicitly kept far more sparse/faint than the reference photo
+            // (a heavy-rain windshield close-up) per direct user feedback
+            // that it needs to be "way more subtle" — this is a gameplay
+            // overlay the player has to see through, not a screenshot.
+            // Returns: xy = refraction offset, z = body alpha, w = glint alpha.
+            vec4 droplet(vec2 sp, float cellSize, float rad, float seed) {
                 vec2 cell = floor(sp / cellSize);
                 float h1 = hash21(cell + seed);
                 float h2 = hash21(cell + seed + 31.7);
                 float h3 = hash21(cell + seed + 57.3);
-                if (h3 > 0.65) return vec3(0.0); // this cell has no droplet
-                float yFrac = fract(h2 + u_time * (0.012 + 0.035 * h1));
+                if (h3 > 0.72) return vec4(0.0); // most cells stay empty — sparse field
+
+                float yFrac = fract(h2 + u_time * (0.009 + 0.022 * h1));
                 vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
+                float r = rad * (0.6 + 0.7 * h2);
+
+                vec4 result = vec4(0.0);
+
                 vec2 d = sp - center;
-                // Stretch vertically (thinner effective radius sideways, taller
-                // down the screen) so it reads as a trickling bead, not a dot.
-                vec2 dn = vec2(d.x * 1.6, d.y * 0.75);
-                float r = rad * (0.7 + 0.6 * h2);
+                vec2 dn = vec2(d.x, d.y * 1.15); // very slightly squashed, sitting bead
                 float dist = length(dn);
-                if (dist >= r) return vec3(0.0);
-                float core = 1.0 - dist / r;
-                return vec3(-d * 1.3, core);
+                if (dist < r) {
+                    float core = 1.0 - dist / r;
+                    result.xy = -d * 0.5; // gentle magnifying-glass pull, not a strong warp
+                    result.z = core;
+
+                    vec2 hlOff = d - vec2(-r * 0.32, -r * 0.32);
+                    float hl = 1.0 - clamp(length(hlOff) / (r * 0.32), 0.0, 1.0);
+                    result.w = hl * hl;
+                }
+
+                if (h1 > 0.6) { // only the larger ~40% of drops trickle
+                    float trailLen = r * (2.5 + h1 * 3.5);
+                    vec2 belowD = sp - (center + vec2(0.0, r * 0.5));
+                    if (belowD.y > 0.0 && belowD.y < trailLen) {
+                        float taper = 1.0 - belowD.y / trailLen;
+                        float trailW = r * 0.18 * taper;
+                        float lateral = abs(belowD.x);
+                        if (lateral < trailW) {
+                            float trailCore = (1.0 - lateral / trailW) * taper * 0.4;
+                            result.z = max(result.z, trailCore);
+                            result.xy += vec2(-belowD.x * 0.3, 0.0);
+                        }
+                    }
+                }
+
+                return result;
             }
 
             void main() {
@@ -281,15 +309,17 @@ class ShaderOverlay {
                 }
 
                 if (u_rainAmount > 0.05) {
-                    vec3 d1 = droplet(screenPos, 130.0, 8.0, 0.0);
-                    vec3 d2 = droplet(screenPos, 61.0, 4.0, 100.0);
-                    float hit = d1.z + d2.z;
-                    if (hit > 0.0) {
+                    vec4 d1 = droplet(screenPos, 170.0, 6.0, 0.0);
+                    vec4 d2 = droplet(screenPos, 95.0, 3.5, 100.0);
+                    float bodyHit = max(d1.z, d2.z);
+                    float glintHit = max(d1.w, d2.w);
+                    if (bodyHit > 0.0 || glintHit > 0.0) {
                         offset += d1.xy + d2.xy;
-                        // Mostly rim-lit: a wet bead reads as a bright ring with
-                        // a darker refracting center, not a uniform bright blob.
-                        float rim = hit * (1.0 - hit) * 4.0;
-                        dropletGlow = (hit * 0.06 + rim * 0.14) * u_rainAmount;
+                        // Body refraction is nearly invisible on its own (the
+                        // point is the subtle bend, not a visible shape) — the
+                        // glint is what actually reads as "wet glass", kept
+                        // small and faint rather than a bright blown highlight.
+                        dropletGlow = (bodyHit * 0.02 + glintHit * 0.22) * u_rainAmount;
                         touched = true;
                     }
                 }

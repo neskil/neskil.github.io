@@ -385,7 +385,7 @@ const CargoPhysicsEntitiesMixin = {
             const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
             const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
             const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-            
+
             this.particles.push({
                 x: ex,
                 y: ey,
@@ -396,6 +396,48 @@ const CargoPhysicsEntitiesMixin = {
                 color: `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
                 size: 4 + Math.random() * 6 * lander.enginePower
             });
+
+            // Exhaust smoke — sparser, bigger, slower, longer-lived than the
+            // spark shower above; drifts rather than shooting outward, giving
+            // the plume some body instead of reading as pure fire. Shares the
+            // global 300-particle cap (updateParticles()) so this can't grow
+            // unbounded even under sustained full-power thrust.
+            if (Math.random() < lander.enginePower * 0.35 * dt) {
+                this.particles.push({
+                    x: ex + (Math.random() - 0.5) * 4,
+                    y: ey + (Math.random() - 0.5) * 4,
+                    vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
+                    vy: evy * 0.3 + (Math.random() - 0.5) * 1.2,
+                    life: 1.0,
+                    decay: (0.012 + Math.random() * 0.01) * dt,
+                    color: `hsla(${210 + Math.random() * 20}, 12%, ${55 + Math.random() * 20}%, ${0.35 * lander.enginePower})`,
+                    size: 3 + Math.random() * 5
+                });
+            }
+        }
+
+        // Falling-fast stabilizer puffs — small RCS-style bursts from the
+        // TOP of the hull when descending quickly without main thrust. Purely
+        // cosmetic (no drag/deceleration effect — that would double up with
+        // the parachute mechanic), but gives descent a visual signature it
+        // otherwise completely lacks: today the only thruster effect is the
+        // upward main flame, so falling reads as visually inert right up
+        // until impact.
+        if (!lander.thrusting && lander.fuel > 0 && lander.vy > 3.5 && !lander.landed) {
+            if (Math.random() < Math.min(1, (lander.vy - 3.5) * 0.04) * dt) {
+                const px = lander.x + Math.sin(lander.angle + Math.PI) * 14 + (Math.random() - 0.5) * 8;
+                const py = lander.y + Math.cos(lander.angle + Math.PI) * 14;
+                this.particles.push({
+                    x: px,
+                    y: py,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: -1.5 - Math.random() * 1.5,
+                    life: 1.0,
+                    decay: 0.05 + Math.random() * 0.03,
+                    color: `hsla(${195 + Math.random() * 15}, 80%, 75%, 0.55)`,
+                    size: 2 + Math.random() * 2.5
+                });
+            }
         }
     },
 

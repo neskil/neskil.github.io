@@ -296,40 +296,27 @@ top.
       - Out of scope for this to solve on its own: keeping `index.html`'s
         `<script>` tags in sync when a new `levelN.js` is added — that's a
         separate, already-known manual step (see `CLAUDE.md`).
-- [ ] **More thruster/flight particle effects + a "hotter" lander design**
-      (user request, 2026-07-10) — main thruster exhaust and side-strafe
-      jets have basic flame/particle effects (`drawLander()`,
-      `render/entities.js`); the ask is more visual richness (smoke trails,
-      heat shimmer off the engine bell, sparks) without hurting performance
-      on lower-end hardware — likely means capping particle counts hard and/
-      or reusing the existing `physics.particles` pool rather than adding a
-      second uncapped system (see the "Weather/wind perf" note further down
-      this file for the existing precedent: hard caps of 120/70 on weather/
-      wind particles). Also explicitly called out: **there's currently no
-      distinct visual effect for descending** (only ascend/thrust-up has a
-      flame) — worth a deliberate "reverse thruster puff" or similar rather
-      than reusing the up-thrust flame flipped. Bundle this with a lander
-      redesign pass ("hot rod" the vehicle art) since both touch the same
-      `drawLander()` code and asking for both separately would mean
-      re-touching the same function twice.
-- [ ] **Parachute-on-empty-fuel mechanic** (user request, 2026-07-10) — if
-      fuel hits 0 mid-air, auto-deploy a parachute after a ~1s delay that
-      decelerates the fall to a survivable-if-lucky speed, instead of a
-      guaranteed hard splat. Needs: a new `lander` state flag (e.g.
-      `chuteDeployed`), a drag/terminal-velocity override in
-      `physics/mechanics.js`'s gravity integration while deployed, and a
-      visual (`render/entities.js`). Interacts with the existing "Refill
-      alert sound" fuel-out logic in `game.js` — check that doesn't need
-      updating too. Should probably *not* apply if `lander.crashed` is
-      already true (no point deploying a chute on a corpse).
-- [ ] **Raindrop-on-lens effect needs a further design pass** — v1 (shipped
-      earlier in this session) read as "not great" in playtest; v2 (same
-      session, `shaders.js` `droplet()`) thinned the density and elongated
-      the beads vertically, which is an improvement but hasn't been
-      re-playtested. If it's still not landing, consider a different
-      technique entirely (e.g. actual falling streak particles in
-      `physics.particles` instead of a lens-distortion shader) rather than
-      continuing to tune the same approach.
+- [x] ~~More thruster/flight particle effects + a "hotter" lander design~~ —
+      done 2026-07-10 (see Recent Additions). Exhaust smoke added alongside
+      the existing spark shower, a new falling-fast RCS stabilizer puff
+      effect gives descent a visual signature it previously lacked entirely,
+      and the hull got a racing-stripe + gloss-highlight paint pass.
+- [x] ~~Parachute-on-empty-fuel mechanic~~ — done 2026-07-10 (see Recent
+      Additions). `lander.chuteDeployed`, deploy timer, velocity cap, and
+      canopy visual all implemented and verified via a synchronous
+      multi-frame simulation (headless screenshot's virtual-time-budget
+      doesn't reliably tick `requestAnimationFrame`, so real-time playtest
+      is still worth doing to confirm it *feels* right, even though the
+      mechanics are confirmed correct).
+- [x] Raindrop-on-lens effect — reworked to v3 2026-07-10 (see Recent
+      Additions) using a real rain-on-a-car-window reference photo: added
+      the specular glint and trickle trail that were the actual missing
+      ingredients (v1/v2 were both round-bead displacement with no
+      highlight), and thinned/shrunk everything further per explicit
+      feedback that it needed to be "way more subtle". Not struck through
+      with full confidence — this is the third iteration on the same
+      feedback ("not great" → "way more subtle"), so it's worth a fresh
+      look before assuming it's landed.
 - [ ] **Level-start hitch** (user question, 2026-07-10, answered but not
       fixed) — `physics.js`'s `initLevel()` synchronously rebuilds the
       entire Matter.js engine/world from scratch (`_buildMatterWorld()`),
@@ -509,6 +496,60 @@ needing broader context":
 ---
 
 ## Recent additions
+
+### 2026-07-10 (final push): parachute mechanic, thruster FX, lander paint, rain v3
+- **Parachute-on-empty-fuel mechanic** — if fuel hits 0 while airborne, a
+  `chuteTimer` (`physics/atmosphere.js` `applyGravityAndWind()`) accumulates
+  and, after ~1s (60 frames), sets `lander.chuteDeployed = true`. While
+  deployed, extra drag on `vx` and an asymptotic velocity cap pull `vy`
+  toward ~2.2 (the impact speed the existing damage formula puts at ~12
+  damage — risky but often survivable, matching the "might survive if
+  you're lucky" ask rather than a guaranteed save). Canopy + swaying
+  suspension-line visual in `render/entities.js`'s `drawLander()`,
+  counter-rotating 65% against hull tilt so it doesn't look welded to a
+  banking ship. Both the timer/deploy trigger and the velocity-cap curve
+  were verified with a synchronous 90-frame simulation (headless
+  screenshot's `--virtual-time-budget` doesn't reliably tick
+  `requestAnimationFrame`, so a real multi-frame test needed to manually
+  drive `applyGravityAndWind()` in a loop instead — see
+  `probe-screenshot.html`'s `parachuteSim` script) — confirmed `vy` decaying
+  8.0 → 2.63 over 90 frames with `chuteDeployed` flipping true right on
+  schedule at frame 61.
+- **Thruster smoke + falling-fast RCS puffs** (`physics/entities.js`,
+  alongside the existing "Universal Exhaust particles" spark spawner) —
+  smoke particles (gray, larger, slower, longer-lived) now trail the main
+  flame alongside the sparks; a separate low-frequency spawner fires small
+  cyan stabilizer puffs from the top of the hull whenever the ship is
+  falling fast (`vy > 3.5`) without thrusting, giving descent a visual
+  signature it previously had none of at all (only the upward main flame
+  had any effect). Shares the existing global 300-particle cap
+  (`updateParticles()`), so this can't grow unbounded even under sustained
+  full-power thrust.
+- **"Hot rod" lander paint pass** (`render/entities.js`'s truck-body
+  branch of `drawLander()`) — a center racing stripe (tinted to the same
+  critical/heavy/normal trim color the hull outline already uses, so it
+  reads as one paint job) plus a thin glossy top-edge highlight. Kept
+  layered onto the existing body shapes rather than restructuring the
+  vehicle art, to stay a tasteful evolution rather than a jarring redesign.
+- **Rain droplets v3** — reworked from a real reference photo (rain on a
+  car window) after v1/v2 both read as "not great"/flat. The missing
+  ingredients turned out to be a specular glint (a small bright highlight
+  per drop) and a tapering trickle trail beneath ~40% of drops — round
+  beads with only refraction, no highlight, don't read as "wet glass" no
+  matter how the displacement math is tuned. Explicitly kept far sparser
+  and fainter than the reference (a heavy-rain windshield close-up) per
+  direct feedback that it needs to be "way more subtle" — this is a
+  gameplay overlay the player has to see through, not a photo.
+- **L3 (Glacial Peaks) weather fixed from `'rain'` to `'snow'`** — an ice
+  biome was raining. `startLevel()`'s own weather-inference fallback
+  (`game.js`, grep `'Glacial'`) already special-cases level names
+  containing "Glacial" to snow, but never ran because L3's explicit
+  `weather` config always took precedence over the fallback. One-line fix,
+  found while looking at the "Biome Weather Effects" backlog item.
+- **Background agent dispatched** for the level-editor/renderer schema
+  parity system (see the TODO entry above for the full spec) — running in
+  a separate git worktree, results to be reviewed and merged in a follow-up
+  once it completes.
 
 ### 2026-07-10 (even later): minimap fix, gameplay-fairness bugs, rain v2
 - **Fixed the radar minimap being invisible** (user report: "Where have the

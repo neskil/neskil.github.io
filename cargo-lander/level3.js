@@ -11,7 +11,12 @@ registerLevel({
   hint: "The wind blows constantly from the right — lean left with the side thruster to hold position. Approach the summit from below and to the west, under the overhang. Return to HQ to extract.",
   gravity: 0.15,
   wind: 0.08,
-  weather: "rain",
+  // Was "rain" — a mismatch for an ice biome (Glacial Peaks), and the exact
+  // one the "Biome Weather Effects" backlog item called for. Notably,
+  // startLevel()'s own weather fallback logic (game.js, grep "Glacial")
+  // already infers 'snow' for a level named "Glacial" — it just never ran
+  // because this explicit config value always took precedence.
+  weather: "snow",
   budget: 1500,
   timeLimit: 200,
   padScale: 0.65,
