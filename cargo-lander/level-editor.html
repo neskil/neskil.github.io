@@ -1755,13 +1755,15 @@ function buildOut() {
       if (h.comment) lines.push(`    // ${h.comment}`);
       lines.push('    {');
       lines.push(`      type: ${JSON.stringify(h.type||'zone')},`);
-      if (h.type === 'laser') {
-        lines.push(`      onMs: ${h.onMs ?? 1500},`);
-        lines.push(`      offMs: ${h.offMs ?? 1000},`);
+      if (h.type === 'laser' || h.type === 'incinerator') {
+        if (h.onMs !== undefined) lines.push(`      onMs: ${h.onMs},`);
+        else lines.push(`      onMs: 1500,`);
+        if (h.offMs !== undefined) lines.push(`      offMs: ${h.offMs},`);
+        else lines.push(`      offMs: 1000,`);
         if (h.phaseOffset) lines.push(`      phaseOffset: ${h.phaseOffset},`);
         if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
         if (h.damagePerSec) lines.push(`      damagePerSec: ${h.damagePerSec},`);
-        if (h.thickness) lines.push(`      thickness: ${h.thickness},`);
+        if (h.type === 'laser' && h.thickness) lines.push(`      thickness: ${h.thickness},`);
       } else if (h.type === 'sandworm') {
         if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
       }
