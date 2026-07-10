@@ -2442,7 +2442,12 @@ drawMonster() {
                 // ── MOUTH — massive oval taking up most of the face ────────
                 const mCx = seg.x + Math.cos(headAngle) * seg.r * 0.52;
                 const mCy = seg.y + Math.sin(headAngle) * seg.r * 0.52;
-                const mW = seg.r * 0.72, mH = seg.r * 0.48;
+                
+                const distToLander = lander ? Math.sqrt(hdx * hdx + hdy * hdy) : 1000;
+                const threatOpen = Math.max(0, Math.min(1, 1 - (distToLander - 150) / 450));
+                
+                const mW = seg.r * 0.72;
+                const mH = seg.r * (0.35 + 0.45 * threatOpen + Math.sin(t * 3.5) * 0.05);
 
                 ctx.save();
                 ctx.translate(mCx, mCy);
@@ -2471,35 +2476,41 @@ drawMonster() {
                 ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Teeth — top row (sharp triangles, bone-yellowed not cartoon-white)
+                // Teeth — top row (sharp fangs curving backward)
                 const toothCount = 7;
                 for (let ti = 0; ti < toothCount; ti++) {
                     const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
-                    const tGrad = ctx.createLinearGradient(tx, -mH * 0.85, tx, -mH * 0.15);
+                    const tipX = tx - mW * 0.12;
+                    const tipY = -mH * 0.15;
+                    
+                    const tGrad = ctx.createLinearGradient(tx, -mH * 0.85, tipX, tipY);
                     tGrad.addColorStop(0, 'rgba(200, 185, 140, 0.9)');
                     tGrad.addColorStop(1, 'rgba(120, 80, 60, 0.85)');
                     ctx.fillStyle = tGrad;
                     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(tx - mW * 0.07, -mH * 0.85);
-                    ctx.lineTo(tx, -mH * 0.12);
-                    ctx.lineTo(tx + mW * 0.07, -mH * 0.85);
+                    ctx.moveTo(tx - mW * 0.08, -mH * 0.85);
+                    ctx.quadraticCurveTo(tx - mW * 0.04, -mH * 0.5, tipX, tipY);
+                    ctx.quadraticCurveTo(tx + mW * 0.04, -mH * 0.5, tx + mW * 0.08, -mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
                 }
-                // Bottom row (offset half a tooth)
+                // Bottom row
                 for (let ti = 0; ti < toothCount - 1; ti++) {
                     const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
-                    const tGrad2 = ctx.createLinearGradient(tx, mH * 0.85, tx, mH * 0.18);
+                    const tipX = tx - mW * 0.12;
+                    const tipY = mH * 0.15;
+                    
+                    const tGrad2 = ctx.createLinearGradient(tx, mH * 0.85, tipX, tipY);
                     tGrad2.addColorStop(0, 'rgba(190, 175, 130, 0.88)');
                     tGrad2.addColorStop(1, 'rgba(110, 70, 50, 0.82)');
                     ctx.fillStyle = tGrad2;
                     ctx.beginPath();
-                    ctx.moveTo(tx - mW * 0.065, mH * 0.85);
-                    ctx.lineTo(tx, mH * 0.15);
-                    ctx.lineTo(tx + mW * 0.065, mH * 0.85);
+                    ctx.moveTo(tx - mW * 0.075, mH * 0.85);
+                    ctx.quadraticCurveTo(tx - mW * 0.04, mH * 0.5, tipX, tipY);
+                    ctx.quadraticCurveTo(tx + mW * 0.04, mH * 0.5, tx + mW * 0.075, mH * 0.85);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
