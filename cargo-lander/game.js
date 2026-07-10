@@ -343,13 +343,21 @@ class CargoGame {
         });
 
         this.canvas.addEventListener('mousedown', (e) => {
-            if (e.button === 0) this.mouseLeft = true;
-            if (e.button === 2) this.mouseRight = true;
+            if (e.button === 0) {
+                // Left click - Shoot firework
+                if (this.gameState === 'playing' && this.physics && this.physics.lander && !this.physics.lander.crashed) {
+                    this.shootPlayerFirework(this.physics.lander.x, this.physics.lander.y, this.mouseX, this.mouseY);
+                }
+            } else if (e.button === 2) {
+                // Right click - Grapple (Drone action)
+                if (this.physics && this.physics.lander && this.physics.lander.vehicleType === 'drone') {
+                    if (this.physics.handleAction) this.physics.handleAction();
+                }
+            }
         });
 
         this.canvas.addEventListener('mouseup', (e) => {
-            if (e.button === 0) this.mouseLeft = false;
-            if (e.button === 2) this.mouseRight = false;
+            // Nothing needed for now
         });
 
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -1454,6 +1462,72 @@ class CargoGame {
         this.draw();
 
         requestAnimationFrame((t) => this.loop(t));
+    }
+
+    shootPlayerFirework(startX, startY, targetX, targetY) {
+        if (!this.physics || !this.physics.particles) return;
+        
+        // Calculate direction and speed
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        const speed = 12; // rocket speed
+        const rocketVx = (dx / dist) * speed;
+        const rocketVy = (dy / dist) * speed;
+        
+        const flyTimeMs = (dist / speed) * 16.66; // approx frames
+        
+        const rocket = {
+            x: startX, y: startY,
+            vx: rocketVx, vy: rocketVy,
+            life: 2.0, decay: 0.01,
+            color: '#ffffff', size: 6
+        };
+        this.physics.particles.push(rocket);
+        
+        const exhaustInterval = setInterval(() => {
+            if (rocket.life > 0 && this.gameState === 'playing') {
+                this.physics.particles.push({
+                    x: rocket.x, y: rocket.y,
+                    vx: rocket.vx * 0.1 + (Math.random() - 0.5) * 2,
+                    vy: rocket.vy * 0.1 + Math.random() * 2,
+                    life: 0.6, decay: 0.04,
+                    color: '#f97316', size: 3
+                });
+            } else {
+                clearInterval(exhaustInterval);
+            }
+        }, 30);
+        
+        if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+            CargoAudio.playCollision(2);
+        }
+        
+        setTimeout(() => {
+            if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
+            rocket.life = 0;
+            
+            const bx = startX + rocketVx * (flyTimeMs / 16);
+            const by = startY + rocketVy * (flyTimeMs / 16);
+            
+            const baseHue = Math.random() * 360;
+            for (let i = 0; i < 40; i++) {
+                this.physics.particles.push({
+                    x: bx, y: by,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    gy: 0.05,
+                    life: 1.0 + Math.random() * 1.5,
+                    decay: 0.01 + Math.random() * 0.02,
+                    color: `hsla(${baseHue}, 100%, 60%, 1)`,
+                    size: 2 + Math.random() * 4
+                });
+            }
+            if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+                CargoAudio.playCollision(2);
+            }
+        }, Math.min(flyTimeMs, 2000)); // cap flight time
     }
 
     update(dt) {
