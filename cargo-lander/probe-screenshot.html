@@ -44,11 +44,16 @@
                 const g = iw.game;
                 g.startLevel(levelIdx);
                 setTimeout(() => {
-                    g.freeCam = true;
-                    g.camera.x = camX;
-                    g.camera.y = camY;
-                    g.camera.zoom = camZoom;
-                    g.camera.targetZoom = camZoom;
+                    if (q.get('followcam') !== '1') {
+                        g.freeCam = true;
+                        g.camera.x = camX;
+                        g.camera.y = camY;
+                        g.camera.zoom = camZoom;
+                        g.camera.targetZoom = camZoom;
+                    } else {
+                        g.camera.zoom = camZoom;
+                        g.camera.targetZoom = camZoom;
+                    }
 
                     // &script=eatenByMonster / noCargoExtract — scripted repros for
                     // the 2026-07-10 gameplay fixes (monster-kill = hard fail,
@@ -63,6 +68,48 @@
                         g.physics.lander.currentPad = 'start';
                         g.deliveredCount = 0;
                         g.completeMission();
+                    } else if (script === 'thrusting') {
+                        g.physics.lander.thrusting = true;
+                        g.physics.lander.enginePower = 1;
+                        g.physics.lander.fuel = 100;
+                        g.keys.ArrowUp = true;
+                        g.keys.w = true;
+                    } else if (script === 'falling') {
+                        g.physics.lander.landed = false;
+                        g.physics.lander.vy = 6;
+                        g.physics.lander.fuel = 100;
+                    } else if (script === 'parachuteSim') {
+                        // Manually drives applyGravityAndWind() in a synchronous
+                        // loop instead of relying on requestAnimationFrame (which
+                        // doesn't reliably tick during --screenshot's virtual-time
+                        // fast-forward) — verifies the ~1s deploy delay and the
+                        // velocity cap without needing real animation frames.
+                        const l = g.physics.lander;
+                        l.landed = false; l.fuel = 0; l.vy = 8; l.vx = 0;
+                        const lv = g.physics.currentLevelConfig;
+                        const log = [];
+                        try {
+                            for (let i = 1; i <= 90; i++) {
+                                g.physics.applyGravityAndWind(lv, 1);
+                                if (i === 30 || i === 59 || i === 61 || i === 90) {
+                                    log.push(`f${i}: vy=${l.vy.toFixed(2)} timer=${(l.chuteTimer||0).toFixed(0)} deployed=${!!l.chuteDeployed}`);
+                                }
+                            }
+                        } catch (simErr) {
+                            log.push('SIM ERROR: ' + simErr.message);
+                        }
+                        window.__parachuteSimLog = log;
+                    } else if (script === 'parachute') {
+                        // Headless Chrome's --virtual-time-budget fast-forwards
+                        // setTimeout but doesn't reliably keep requestAnimationFrame
+                        // ticking for --screenshot captures, so the real ~1s timer
+                        // in applyGravityAndWind() can't be observed this way — force
+                        // the deployed state directly to verify the visual instead.
+                        g.physics.lander.landed = false;
+                        g.physics.lander.y -= 300;
+                        g.physics.lander.vy = 8;
+                        g.physics.lander.fuel = 0;
+                        g.physics.lander.chuteDeployed = true;
                     }
 
                     const st = document.createElement('div');
@@ -83,7 +130,10 @@
                             msg += '\nradar-container: ' + (radarContainer ? `found, display=${cs.display} visibility=${cs.visibility} w=${cs.width} h=${cs.height} opacity=${cs.opacity}` : 'MISSING FROM DOM');
                             msg += '\nradar-canvas: ' + (radarCanvas ? `found, ${radarCanvas.width}x${radarCanvas.height}` : 'MISSING FROM DOM');
                             msg += '\nuiCollapsed=' + g.uiCollapsed + ' gameState=' + g.gameState;
+                            const l = g.physics.lander;
+                            msg += '\nlander: fuel=' + l.fuel.toFixed(2) + ' vy=' + l.vy.toFixed(2) + ' chuteTimer=' + (l.chuteTimer || 0).toFixed(1) + ' chuteDeployed=' + !!l.chuteDeployed + ' landed=' + l.landed;
                             msg += '\nconsole errors: ' + (consoleErrors.length ? consoleErrors.join(' || ') : 'none');
+                            if (iw.__parachuteSimLog) msg += '\n' + iw.__parachuteSimLog.join('\n');
                         }
                         st.textContent = msg;
                     } catch (e) { st.style.color = '#f00'; st.textContent = 'probe err: ' + e.message; }

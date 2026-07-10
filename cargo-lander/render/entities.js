@@ -1527,6 +1527,30 @@ drawLander() {
                 ctx.moveTo(-bodyW + 4, 9); ctx.lineTo(bodyW - 4, 9);
                 ctx.stroke();
 
+                // ── Hot-rod racing stripe + gloss highlight ─────────────────────
+                // A center accent stripe (matches the same critical/heavy/normal
+                // trim color already used for the body outline, so it reads as
+                // one coherent paint job rather than a bolted-on decal) plus a
+                // thin glossy highlight along the top edge of the hull.
+                const stripeColor = critical ? '#ef4444' : heavy ? '#f59e0b' : '#38bdf8';
+                ctx.fillStyle = stripeColor;
+                ctx.globalAlpha = 0.85;
+                ctx.beginPath();
+                ctx.moveTo(-2.5, -3);
+                ctx.lineTo(2.5, -3);
+                ctx.lineTo(1.5, 13);
+                ctx.lineTo(-1.5, 13);
+                ctx.closePath();
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-bodyW + 3, -2.5);
+                ctx.lineTo(bodyW - 3, -2.5);
+                ctx.stroke();
+
                 // ── Cockpit dome ──────────────────────────────────────────────
                 const cabW = bodyW * 0.75;
                 ctx.fillStyle = '#0f172a';
@@ -1698,6 +1722,54 @@ drawLander() {
 
                 ctx.restore();
             }
+        }
+
+        // Emergency parachute — deployed by physics/atmosphere.js's
+        // applyGravityAndWind() ~1s after fuel hits 0 while airborne. Counter-
+        // rotates 65% against the hull's tilt (a real chute stays closer to
+        // upright than the vehicle dangling under it) so it doesn't look
+        // rigidly bolted on as the ship tips.
+        if (lander.chuteDeployed && !lander.crashed) {
+            ctx.save();
+            ctx.rotate(-lander.angle * 0.65);
+            const sway = Math.sin(Date.now() * 0.0015 + lander.x * 0.01) * 4;
+            const canopyY = -46;
+            const canopyW = 30;
+            const attachY = -12;
+
+            // Suspension lines from hull attachment points up to the canopy skirt
+            ctx.strokeStyle = 'rgba(226,232,240,0.55)';
+            ctx.lineWidth = 1;
+            for (const side of [-1, 1]) {
+                ctx.beginPath();
+                ctx.moveTo(side * 10, attachY);
+                ctx.lineTo(side * canopyW * 0.8 + sway * 0.3, canopyY + 4);
+                ctx.stroke();
+            }
+
+            // Canopy — a simple ribbed dome, bright enough to read at a glance
+            // as "emergency deploy", not just decorative
+            ctx.fillStyle = '#f8fafc';
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-canopyW + sway, canopyY + 6);
+            ctx.quadraticCurveTo(sway, canopyY - 14, canopyW + sway, canopyY + 6);
+            ctx.quadraticCurveTo(sway * 0.5, canopyY - 2, -canopyW + sway, canopyY + 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Gore lines (the ribs) for a bit of texture
+            ctx.strokeStyle = 'rgba(148,163,184,0.6)';
+            ctx.lineWidth = 0.8;
+            for (let g = -1; g <= 1; g++) {
+                ctx.beginPath();
+                ctx.moveTo(g * canopyW * 0.55 + sway, canopyY + 5);
+                ctx.quadraticCurveTo(sway * 0.7, canopyY - 8, sway, canopyY - 3);
+                ctx.stroke();
+            }
+            ctx.restore();
         }
 
         if (lander.crashed) {

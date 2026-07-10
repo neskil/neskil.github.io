@@ -817,6 +817,27 @@ const CargoPhysicsAtmosphereMixin = {
         const lander = this.lander;
         if (lander.landed) return;
 
+        // Parachute-on-empty-fuel: if fuel runs out mid-air, auto-deploy a
+        // chute after a ~1s delay (60 frames at the project's dt=~1-per-
+        // 60fps-frame convention) rather than instantly, so a brief fuel dip
+        // right before touchdown doesn't trigger it. Once deployed it caps
+        // fall speed low enough to usually survive impact but not
+        // guaranteed — "might survive if you're lucky", not a safety net.
+        // Cancels itself the instant fuel is regained (can only happen by
+        // landing/refueling, which also lands the ship, so in practice this
+        // only ever resets via respawnLander()/spawnLander() building a
+        // fresh lander object).
+        if (lander.fuel <= 0) {
+            lander.chuteTimer = (lander.chuteTimer || 0) + dt;
+            if (lander.chuteTimer > 60 && !lander.chuteDeployed) {
+                lander.chuteDeployed = true;
+                if (window.CargoAudio) CargoAudio.playLoad?.();
+            }
+        } else {
+            lander.chuteTimer = 0;
+            lander.chuteDeployed = false;
+        }
+
         // Apply base gravity (scales with heavy cargo)
         lander.vy += (this.gravity * lander.massMultiplier) * dt;
 
@@ -824,6 +845,15 @@ const CargoPhysicsAtmosphereMixin = {
         const drag = Math.pow(this.LANDER_DRAG, dt);
         lander.vx *= drag;
         lander.vy *= drag;
+
+        if (lander.chuteDeployed) {
+            const chuteDrag = Math.pow(0.90, dt);
+            lander.vx *= chuteDrag;
+            const chuteTerminalVy = 2.2; // ~12 damage on touchdown at this speed — risky, not fatal
+            if (lander.vy > chuteTerminalVy) {
+                lander.vy = chuteTerminalVy + (lander.vy - chuteTerminalVy) * Math.pow(0.82, dt);
+            }
+        }
 
         // Dynamic wind (force proportional to lander area, simplified)
         if (this.wind !== 0) {
