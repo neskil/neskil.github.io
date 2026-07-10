@@ -496,6 +496,7 @@ levels.forEach((lv, i) => {
     if (lv.startX !== undefined) assertFinite(lv.startX, 'startX');
     if (lv.collectionX !== undefined) assertFinite(lv.collectionX, 'collectionX');
     if (lv.padScale !== undefined) assert(isFinite(lv.padScale) && lv.padScale > 0, `padScale must be positive, got ${lv.padScale}`);
+    if (lv.heatHaze !== undefined) assert(typeof lv.heatHaze === 'boolean', `heatHaze must be a boolean, got ${typeof lv.heatHaze}`);
   });
 
   test(`${label} — delivery hubs`, () => {

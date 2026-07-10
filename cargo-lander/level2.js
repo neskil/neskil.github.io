@@ -11,6 +11,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.15,
     wind: 0,
+    heatHaze: true, // desert biome — GPU post-fx shimmer (see shaders.js renderPostFX)
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [

@@ -99,8 +99,36 @@ level1.js…level9.js → levelTest.js → audio.js → shaders.js → physics.j
 
 ## Verification
 Standard protocol for any code change: `node --check <file>.js` on every modified
-JS file, then load the game in a browser via a local static server (no console
-errors), then run the `tests.html` smoke suite (all green).
+JS file (if Node isn't installed in the environment, skip this — loading the
+page and reading the console is the fallback), then load the game in a
+browser via a local static server (no console errors), then run the
+`tests.html` smoke suite (all green).
+
+### Mobile / responsive manual QA
+There's no automated mobile testing — `tests.html` runs headless with a fixed
+1280×720 canvas mock and never touches real CSS layout or `window.innerWidth`.
+Viewport/orientation-dependent behavior (mobile touch controls, the
+`@media` breakpoints in `index.html`, the rotate-to-landscape tip — see
+`game.js`'s `checkOrientationPrompt()`) has to be checked by hand:
+1. Resize the browser viewport (a browser devtools device-emulation panel, or
+   the `preview_resize` tool if driving this through an agent) to a phone
+   portrait size (e.g. 375×812) and a phone landscape size (e.g. 812×375).
+   `checkOrientationPrompt()` gates on aspect ratio + `min(width,height) <=
+   820`, not touch-capability detection, specifically so it's exercisable
+   this way without a real touch device.
+2. At phone-portrait size, start any mission — the rotate-tip
+   (`#rotate-tip`) should appear (non-blocking; "Continue in Portrait"
+   dismisses it for that mission attempt). It should NOT appear on the main
+   menu (menu's own responsive CSS handles narrow layouts already) and
+   should disappear immediately on resize to landscape.
+3. At phone-landscape size, confirm the mission HUD (mission panel, radar,
+   mobile touch controls) doesn't overlap or clip — this is what the
+   `@media (max-width: 480px)`/`768px`/`1024px` rules in `index.html` are
+   for; if something looks wrong, that's where to look.
+4. Check `game.postFXEnabled` (Settings → Visual Effects toggle) still works
+   at small viewports — the post-processing pass reads `window.innerWidth`/
+   `Height` indirectly via `this.canvas.width/height`, so it should adapt
+   automatically, but toggle it off/on once to confirm no visual glitch.
 
 ---
 
@@ -214,6 +242,18 @@ the 2026-07-10 pass (confirmed by grepping the actual code, not just re-reading
 old notes) — struck through and kept as a paper trail. Fresh items are at the
 top.
 
+- [ ] **Post-FX shader follow-ups** (added 2026-07-10, see the Recent
+      Additions entry below for the full feature) — `heatHaze` is currently
+      only set on L2/L4; consider L6 (Amber Dusk/Sand Worm, also a hot biome)
+      or others. The heat-haze amplitude was tuned down once already for
+      text legibility (grep `wobbleX` in `shaders.js`) — if it's extended to
+      more levels, re-check the "PICK UP"/"DELIVER HERE" labels stay
+      readable on each one, camera zoom affects how noticeable the
+      distortion is. Also: `renderPostFX()` only supports up to 4 water
+      bodies per level (`u_waterMin`/`u_waterMax` are fixed-size uniform
+      arrays) — fine for every level so far, but would silently ignore a 5th
+      body if one's ever added; bump the array size + the `Math.min(4, ...)`
+      clamp in `render.js` together if that's ever needed.
 - [ ] **Level Editor: no UI for the `incinerator` hazard type** (added
       2026-07-10, see the Recent Additions entry below) — `level-editor.html`'s
       hazard-tab type dropdown only offers `zone` / `laser` / `crusher` /
@@ -339,6 +379,57 @@ needing broader context":
 ---
 
 ## Recent additions
+
+### 2026-07-10 (later): GPU post-processing shaders + mobile rotate tip
+- **New WebGL post-processing pass** (`shaders.js` `renderPostFX()`, wired
+  into `render.js`'s `draw()`) — a distinct pass from the existing
+  particle/gravity-glow overlay. It uploads the already-drawn Canvas2D scene
+  as a texture (`gl.texImage2D(..., this.canvas)`) and redraws a warped
+  version of it wherever an effect region is active, leaving everything else
+  fully transparent so the untouched scene shows through unmodified via
+  normal alpha compositing. Three effects share one shader program (an
+  `if`/loop per effect type on a single fragment shader, not three separate
+  programs):
+  - **Heat haze** — a gentle screen-wide sine-wave UV wobble, gated by a new
+    per-level `heatHaze: true` flag (set on L2 Desert and L4 Volcanic).
+    Tuned down from an initial pass that was strong enough to visibly garble
+    the "PICK UP"/"DELIVER HERE" world-space text labels (they're drawn in
+    the same pass this samples, so they get distorted right along with the
+    terrain — a real trade-off of doing this as one full-scene texture
+    sample rather than a masked/layered approach).
+  - **Water shimmer** — a localized wave distortion confined to each water
+    body's screen-space bounding box (up to 4 per level, computed in
+    `render.js` from `physics.waterBodies` + camera transform each frame).
+    Applies automatically to any level with water, no per-level flag needed.
+  - **Gravity lensing** — pulls sampled pixels toward `physics.gravityWellPos`
+    within its radius, a cheap stand-in for gravitational lensing that makes
+    the black hole visibly bend whatever's behind it (terrain, stars)
+    instead of just glowing on top of it. Kept deliberately subtle to match
+    this project's established preference for a restrained gravity well (see
+    the "toned down twice" note further down this file).
+  - **Toggleable** via a new Settings checkbox ("Visual Effects") — persisted
+    to `localStorage` (`cargoLanderPostFX`) as `game.postFXEnabled`. Skips
+    the texture upload entirely when off, and also short-circuits per-frame
+    if a level has no water/heat-haze/gravity-well at all, so it costs
+    nothing on levels that don't use it even when the setting is on.
+- **Fixed L9's acid pool never rendering** — found while wiring up water
+  shimmer. `level9.js`'s water body used the old `{x,y,w,h}` rect shape, but
+  `drawWaterBodies()` (`render/terrain.js`) only ever reads the `pts`-polygon
+  shape — no crash, it was just silently skipped every frame. Converted to
+  an equivalent 4-point polygon.
+- **Rotate-to-landscape tip** (`#rotate-tip` in `index.html`,
+  `game.js`'s `checkOrientationPrompt()`/`dismissRotateTip()`) — a
+  non-blocking overlay shown while a mission is active on a portrait,
+  phone/small-tablet-sized viewport (`innerHeight > innerWidth` AND
+  `min(innerWidth,innerHeight) <= 820`). Deliberately gated on aspect ratio
+  rather than touch-capability detection (`'ontouchstart' in window`, used
+  elsewhere in the file for the mobile control buttons) — touch detection is
+  unreliable across hybrid devices, and aspect-ratio gating means the
+  behavior can be exercised by resizing a desktop browser, not just on a
+  real phone. Re-arms on every `startLevel()` call (so it isn't permanently
+  silenced by one dismissal) but never re-shows mid-mission once dismissed.
+  Listens to both `resize` and `orientationchange` (the latter fires
+  slightly earlier on some mobile browsers).
 
 ### 2026-07-10: incinerator hazard, laser cargo cleanup, test suite rebuild
 - **New `incinerator` hazard type** (`physics/atmosphere.js`, `render/entities.js`,
