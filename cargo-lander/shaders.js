@@ -272,7 +272,11 @@ class ShaderOverlay {
                         
                         if (h3 > 0.02) continue; // FAR sparser field per cycle to break grid feel
 
-                        float slide = smoothstep(0.4 + 0.4 * h4, 0.9, yFrac);
+                        float fade = smoothstep(0.4 + 0.4 * h4, 0.9, yFrac);
+                        
+                        // Roughly half the drops just sit there and fade out without sliding
+                        bool isStatic = h1 > 0.5;
+                        float slide = isStatic ? 0.0 : fade;
                         
                         // Let them wander further from the cell center to hide the grid
                         vec2 center = cell * cellSize + vec2(-0.2 + 1.4 * h1, -0.2 + 1.4 * h2) * cellSize;
@@ -326,8 +330,8 @@ class ShaderOverlay {
                             }
                         }
                         
-                        // Fade out as it slides down
-                        result *= (1.0 - slide);
+                        // Fade out over the cycle (whether sliding or static)
+                        result *= (1.0 - fade);
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
                             // Fade in at start, sit, streak, then fade out
