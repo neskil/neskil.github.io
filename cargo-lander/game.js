@@ -1471,32 +1471,31 @@ class CargoGame {
         const level = levels[this.currentLevelIndex];
         const allDelivered = this.deliveredCount >= (level ? (level.targetCargo || 2) : 2);
         const atHQ = lander && lander.landed && lander.currentPad === 'start';
-        if (atHQ && allDelivered && !this._fireworksTriggered && this.gameState === 'playing') {
-            this._fireworksTriggered = true;
-            if (this.physics && this.physics.particles) {
-                for (let burst = 0; burst < 3; burst++) {
-                    setTimeout(() => {
-                        if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
-                        const bx = lander.x + (Math.random() - 0.5) * 300;
-                        const by = lander.y - 100 - Math.random() * 200;
-                        for (let i = 0; i < 60; i++) {
-                            this.physics.particles.push({
-                                x: bx,
-                                y: by,
-                                vx: (Math.random() - 0.5) * 12,
-                                vy: (Math.random() - 0.5) * 12,
-                                life: 1.0 + Math.random() * 1.5,
-                                decay: 0.01 + Math.random() * 0.02,
-                                color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
-                                size: 2 + Math.random() * 4
-                            });
-                        }
-                        if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
-                            CargoAudio.playCollision(2); // quiet pop
-                        }
-                    }, burst * 500);
+        if (atHQ && allDelivered && this.gameState === 'playing') {
+            if (!this._lastFireworkTime || Date.now() - this._lastFireworkTime > 800) {
+                this._lastFireworkTime = Date.now() + Math.random() * 400; // random variance for next burst
+                if (this.physics && this.physics.particles) {
+                    const bx = lander.x + (Math.random() - 0.5) * 300;
+                    const by = lander.y - 100 - Math.random() * 200;
+                    for (let i = 0; i < 60; i++) {
+                        this.physics.particles.push({
+                            x: bx,
+                            y: by,
+                            vx: (Math.random() - 0.5) * 12,
+                            vy: (Math.random() - 0.5) * 12,
+                            life: 1.0 + Math.random() * 1.5,
+                            decay: 0.01 + Math.random() * 0.02,
+                            color: `hsla(${Math.random() * 360}, 100%, 60%, 1)`,
+                            size: 2 + Math.random() * 4
+                        });
+                    }
+                    if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
+                        CargoAudio.playCollision(2); // quiet pop
+                    }
                 }
             }
+        } else {
+            this._lastFireworkTime = 0;
         }
 
         const prevIntegrity = this._lastIntegrity ?? lander.integrity;
