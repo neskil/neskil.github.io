@@ -1481,16 +1481,17 @@ class CargoGame {
                     const startY = lander.y - 10;
                     
                     const rocketVx = (Math.random() - 0.5) * 4;
-                    const rocketVy = -8 - Math.random() * 4;
-                    const flyTimeMs = 600 + Math.random() * 400;
+                    const rocketVy = -4 - Math.random() * 3; // slower ascent (was -8)
+                    const flyTimeMs = 350 + Math.random() * 250; // shorter flight
                     
-                    // Launch rocket
-                    this.physics.particles.push({
+                    // Launch rocket (bright white/yellow core)
+                    const rocket = {
                         x: startX, y: startY,
                         vx: rocketVx, vy: rocketVy,
-                        life: flyTimeMs / 1000, decay: 0.016,
-                        color: '#facc15', size: 4
-                    });
+                        life: 2.0, decay: 0.01, // high life so alpha is 1.0 (fully bright)
+                        color: '#ffffff', size: 7
+                    };
+                    this.physics.particles.push(rocket);
                     
                     if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
                         CargoAudio.playCollision(2); // launch pop
@@ -1498,6 +1499,8 @@ class CargoGame {
                     
                     setTimeout(() => {
                         if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
+                        
+                        rocket.life = 0; // kill the rocket particle
                         
                         const bx = startX + rocketVx * (flyTimeMs / 16);
                         const by = startY + rocketVy * (flyTimeMs / 16);
