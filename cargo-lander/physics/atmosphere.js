@@ -829,7 +829,7 @@ const CargoPhysicsAtmosphereMixin = {
         // fresh lander object).
         if (lander.fuel <= 0) {
             lander.chuteTimer = (lander.chuteTimer || 0) + dt;
-            if (lander.chuteTimer > 60 && !lander.chuteDeployed) {
+            if (lander.chuteTimer > 30 && !lander.chuteDeployed) {
                 lander.chuteDeployed = true;
                 if (window.CargoAudio) CargoAudio.playLoad?.();
             }

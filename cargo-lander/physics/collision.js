@@ -8,8 +8,8 @@ const CargoPhysicsCollisionMixin = {
                 const p1 = poly[i];
                 const p2 = poly[(i + 1) % poly.length];
                 
-                // Only consider upward-facing floor segments (p1.x <= p2.x) to avoid catching ceilings
-                if (p1.x <= targetX && p2.x > targetX) {
+                // Only consider upward-facing floor segments (p1.x < p2.x) to avoid catching ceilings and vertical walls
+                if (p1.x < p2.x && p1.x <= targetX && p2.x >= targetX) {
                     const ratio = (targetX - p1.x) / (p2.x - p1.x);
                     const y = p1.y + ratio * (p2.y - p1.y);
                     if (maxSurfaceY === 0 || y > maxSurfaceY) {
