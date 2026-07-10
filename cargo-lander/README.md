@@ -240,10 +240,13 @@ top.
       the specular glint and trickle trail that were the actual missing
       ingredients (v1/v2 were both round-bead displacement with no
       highlight), and thinned/shrunk everything further per explicit
-      feedback that it needed to be "way more subtle". Not struck through
-      with full confidence — this is the third iteration on the same
-      feedback ("not great" → "way more subtle"), so it's worth a fresh
-      look before assuming it's landed.
+      feedback that it needed to be "way more subtle". **Re-confirmed
+      2026-07-10 (fresh session):** code-reviewed the `droplet()` sparsity
+      gate (`h3 > 0.02 continue` — ~2% of grid cells spawn a drop per
+      cycle) and the `u_rainAmount` refraction/glow weighting
+      (`bodyHit*0.02 + glintHit*0.15`, both tiny), then spot-checked L1 in
+      a live browser session — no longer struck-through-with-doubt, this is
+      confidently done. Only fires when `activeWeather === 'rain'`.
 - [x] **Level-start hitch** (user question, 2026-07-10, answered but not
       fixed) — `physics.js`'s `initLevel()` synchronously rebuilds the
       entire Matter.js engine/world from scratch (`_buildMatterWorld()`),
@@ -664,10 +667,10 @@ number is off by more than ~20.
 - **Procedural Generation Mode:** Procedural generation needs 3 selectable "craziness" (difficulty) levels with varying length, cave presence, and hazard frequency/difficulty. *Status: Completed.*
 - **Biome Weather Effects:** Make maps visually distinct with weather/atmosphere effects: snow storms for ice (L3), rain for grass (L1), oozing effects for goo/crystal (L5), heatwaves for desert/volcanic (L2/L4). *Status: Completed.*
 - **Intro Camera Animation:** Scrapped. The camera now starts instantly centered on the lander at the correct zoom level to keep the start simple and snappy. *Status: Completed.*
-- **Level Spaciousness:** The caves and procedurally generated environments feel a bit too cramped, they should be more spacious. *Status: Planned.*
+- **Level Spaciousness:** The caves and procedurally generated environments feel a bit too cramped, they should be more spacious. *Status: Completed (2026-07-10) — `levelGenerator.js` random-walk step increased (`120-320`→`180-430`) and Y-variance reduced (`150+craziness*100`→`100+craziness*80`) for gentler, more traversable slopes; overhang carve-back also shortened. Verified via procedural "Insane" playtest.*
 - **Predefined Buildings:** The background decorative buildings appear too random and look weird on slanting terrain. They should be manually predefined in the level configuration instead of random. *Status: Completed.*
 - **Pad Visuals (Ovals):** Remove the dashed oval rings around HQ, pickup, and dropoff pads, but keep the off-screen radar ping effect. *Status: Completed.*
 - **Dropoff Feedback:** Add a visual "light" or indicator that turns on when you are at the correct dropoff location. *Status: Completed.*
 - **Cargo Animation & UI:** Improve the cargo drop animation (drop on top of basic lander or next to drone). Show "press space to attach" text for the drone and add this button to the mobile view. *Status: Completed.*
 - **Mobile UI & Radar:** The radar is too big in landscape mode on mobile. Add the ability to collapse both the mission panel and the radar. *Status: Completed.*
-- **UI Uniformity:** Make the HUD/UI more uniform (aligned on the same line, consistent sizing). *Status: Planned.*
+- **UI Uniformity:** Make the HUD/UI more uniform (aligned on the same line, consistent sizing). *Status: Completed (2026-07-10) — mission panel, radar, and toolbar reordered into a consistent top-aligned column layout and share the `.hud-group` class (same background/border/radius/padding) instead of one-off inline styles per panel. Verified visually in-mission.*

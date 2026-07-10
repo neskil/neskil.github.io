@@ -44,13 +44,21 @@ user says so.
       reduce spawn rate/opacity ~30% in the raindrop code (grep `raindrop`
       in `render/effects.js` / `shaders.js`) and screenshot before/after.
       Otherwise mark the README TODO as confidently done.
-- [ ] **0.3 Flavor-text audit.** For each of `level1.js`–`level9.js` +
+- [x] **0.3 Flavor-text audit.** Done 2026-07-10 — fixed L1 (quest text said
+      "3 cargo", config/hint both say 2), L3 (hint never mentioned the two
+      laser hazards guarding the summit gap), L5 (hint omitted the laser +
+      incinerator near the winch shaft), L7 (hint omitted the two 40dmg/sec
+      laser gauntlets), L9 (quest text called the hub "the Suspended Hub",
+      actual hub is named "Cauldron Hub" via `createDeliveryHub()`). L2/L4/
+      L6/L8/levelTest already accurate. 88/88 tests still green. For each of `level1.js`–`level9.js` +
       `levelTest.js`, read `description`/`hint`/`missionTitle` next to the
       level's actual `deliveryHubs`, `allowedTypes`, hazards, and mechanics.
       The L4 "Deep Storage" drift was found by accident; do the systematic
       pass. Fix any mismatches. [VERIFY] (the config-validation tests will
       re-check shapes automatically).
-- [ ] **0.4 Root README refresh.** `README.md` at repo root says just
+- [x] **0.4 Root README refresh.** Already done — root `README.md` now has a
+      proper project index (was "testing"). `old_README.md` is gone from disk
+      (removed prior to this pass). `README.md` at repo root says just
       "testing". Replace with a short index: what lives at neskil.github.io,
       link to `cargo-lander/` (the flagship), one line each for the other
       folders (`games/`, `math/`, `converter/`, `supply-chain/`, `cv/`).
@@ -101,17 +109,34 @@ user says so.
       round-trip: `level-editor.html?autoload=level9.js&dumpExport=1` and
       diff against the source. [VERIFY].
 
-- [ ] **1.5 Fix mobile touch buttons before fullscreen (user-reported bug,
-      2026-07-10).** On mobile, the on-screen control buttons don't respond
-      to taps until the game goes fullscreen. Likely suspects: the uniform
-      CSS `transform: scale()` viewport scaling (README "Mobile scaling")
-      offsetting hit areas from where the buttons are drawn, a z-index/
-      overlay stacking issue, or `touch-action`/pointer-event handlers only
-      being bound in the fullscreen path. Repro without a device: devtools
-      device emulation at 812×375 with touch enabled, start a mission
-      NON-fullscreen, tap each control. Fix so buttons work identically
-      before and after fullscreen. Manual QA per the README's
-      "Mobile / responsive manual QA" section. [VERIFY].
+- [x] **1.5 Fix mobile touch buttons before fullscreen (user-reported bug,
+      2026-07-10).** **Root cause found and fixed 2026-07-10:** `body` and
+      `#game-container` used `height: 100vh`, and `#mobile-controls` is
+      `position: absolute; bottom: 20px` inside that container. Mobile
+      browsers report `100vh` as the height *without* their address-bar/
+      toolbar chrome subtracted, while the canvas itself is sized off
+      `window.innerHeight` (JS, which already accounts for the visible
+      area) — so on a non-fullscreen mobile page the CSS box (and anything
+      bottom-anchored inside it, i.e. the touch buttons) extended past the
+      actually-visible viewport, into the region the browser's own chrome
+      was covering. Fullscreen removes that chrome, `100vh` becomes
+      accurate, and the buttons "start working" — but they were never
+      broken, just off-screen/under the toolbar. Fixed by adding
+      `height: 100dvh` (dynamic viewport height, modern-browser-supported,
+      falls back to the existing `100vh` line above it) to both rules, plus
+      `env(safe-area-inset-bottom)` clearance on `#mobile-controls` for
+      notched devices while in there. Also found and removed two pieces of
+      dead markup discovered while tracing this: a second, never-bound
+      `#mobile-controls` div (duplicate ID — `document.getElementById`
+      always resolves to the first one, so `setupMobileControls()` was
+      always binding the live block; the second had nicer button styling
+      but no HUD-toggle button, so it was left dead rather than swapped in)
+      and an orphaned `#fullscreen-prompt` modal with no JS ever wiring up
+      its Yes/No buttons or showing it. [VERIFY] — 88/88 tests green, no
+      console errors, phone-portrait (375×812) menu/HUD screenshot checked.
+      True on-device touch confirmation still pending (this environment has
+      no real touch hardware) — flagged as a note for whoever next has a
+      physical phone handy.
 
 ## Phase 2 — Feel & performance
 

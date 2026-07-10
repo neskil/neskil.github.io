@@ -37,6 +37,7 @@
             background-image: radial-gradient(circle at 50% 50%, #0f172a 0%, #030712 100%);
             color: var(--text-primary);
             height: 100vh;
+            height: 100dvh;
             width: 100vw;
             display: flex;
             flex-direction: column;
@@ -88,6 +89,7 @@
             top: 0;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             background: #030712;
         }
@@ -540,6 +542,7 @@
         #mobile-controls {
             position: absolute;
             bottom: 20px;
+            bottom: calc(20px + env(safe-area-inset-bottom, 0px));
             left: 20px;
             right: 20px;
             z-index: 50;
@@ -1180,16 +1183,6 @@
                 style="min-width:140px;">Continue in Portrait</button>
         </div>
 
-        <!-- Fullscreen prompt modal (mobile) -->
-        <div id="fullscreen-prompt"
-            style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:20px; font-family:inherit;">
-            <p style="color:#fff; font-size:1.2rem; margin:0; text-align:center; padding: 0 20px;">Play in fullscreen
-                for the best experience?</p>
-            <div style="display:flex; gap:15px;">
-                <button id="fullscreen-yes" class="btn-primary" style="min-width:100px;">Yes ⛶</button>
-                <button id="fullscreen-no" class="btn-secondary" style="min-width:100px;">No thanks</button>
-            </div>
-        </div>
 
         <script>
             function triggerAction() {
@@ -1374,25 +1367,6 @@
         </div>
 
         <div id="hint-ticker"><span id="level-hint">Tip: Land slowly</span></div>
-
-        <!-- Mobile Touch Controls -->
-        <div id="mobile-controls"
-            style="display: none; position: absolute; bottom: 30px; left: 0; right: 0; padding: 0 20px; justify-content: space-between; pointer-events: none; z-index: 9999;">
-            <!-- Movement -->
-            <div style="display: flex; gap: 15px; pointer-events: auto;">
-                <button class="mobile-btn" id="btn-left"
-                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">◀</button>
-                <button class="mobile-btn" id="btn-right"
-                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(99, 102, 241, 0.2); border: 2px solid rgba(99, 102, 241, 0.5); color: #fff; backdrop-filter: blur(4px);">▶</button>
-            </div>
-            <!-- Actions -->
-            <div style="display: flex; gap: 15px; pointer-events: auto;">
-                <button class="mobile-btn" id="btn-action"
-                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(16, 185, 129, 0.2); border: 2px solid rgba(16, 185, 129, 0.5); color: #fff; backdrop-filter: blur(4px);">🎯</button>
-                <button class="mobile-btn" id="btn-thrust"
-                    style="width: 70px; height: 70px; border-radius: 50%; font-size: 24px; background: rgba(239, 68, 68, 0.3); border: 2px solid rgba(239, 68, 68, 0.6); color: #fff; backdrop-filter: blur(4px);">🔥</button>
-            </div>
-        </div>
 
         <!-- CENTER EXTRACT PROMPT -->
         <div id="center-extract-overlay"

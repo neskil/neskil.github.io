@@ -87,7 +87,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Hover directly above the shaft gap in the ceiling. Press E to extend the rope, Q to retract. SPACE releases the cargo. Return to HQ once both crates are in The Pit.",
+    hint: "Hover directly above the shaft gap in the ceiling. Press E to extend the rope, Q to retract. SPACE releases the cargo. A timed laser slices across the shaft gap and an incinerator vent flares on the pit floor — time your lower between cycles. Return to HQ once both crates are in The Pit.",
 
     quests: [
         questPrimary('Lower 2 cargo into The Pit'),

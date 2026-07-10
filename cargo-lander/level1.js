@@ -27,7 +27,7 @@ registerLevel({
 
   // ── Quests ────────────────────────────────────────────────────────────────
   quests: [
-    questPrimary("Deliver 3 cargo to Verdant Depot"),
+    questPrimary("Deliver 2 cargo to Verdant Depot"),
     questNoCrash(),
     questQuick("Complete under 60s", 60)
   ],

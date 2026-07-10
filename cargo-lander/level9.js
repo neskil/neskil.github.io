@@ -40,7 +40,7 @@ registerLevel({
     // ── Quest Definition ─────────────────────────────────────────────────────
     targetCargo: 3,
     quests: [
-        questPrimary("Deliver 3 cargo crates to the Suspended Hub"),
+        questPrimary("Deliver 3 cargo crates to the Cauldron Hub"),
         questNoCrash(400),
         questNoCargoLost("Don't drop cargo in the acid", 500)
     ],
