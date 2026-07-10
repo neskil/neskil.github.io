@@ -99,6 +99,17 @@
                             log.push('SIM ERROR: ' + simErr.message);
                         }
                         window.__parachuteSimLog = log;
+                    } else if (script === 'dropLight') {
+                        const hub = g.physics.deliveryHubs[0];
+                        g.physics.lander.landed = true;
+                        g.physics.lander.currentPad = hub.type;
+                        g.physics.lander.x = hub.x + hub.width / 2;
+                        g.physics.lander.y = hub.y - 14;
+                        g.physics.boxes.push({
+                            id: 'probe-box', x: hub.x + hub.width / 2, y: hub.y - 20,
+                            type: hub.type, size: g.physics.BOX_SIZE, onDeck: true,
+                            emoji: '📦', vx: 0, vy: 0, mass: 1, age: 0,
+                        });
                     } else if (script === 'parachute') {
                         // Headless Chrome's --virtual-time-budget fast-forwards
                         // setTimeout but doesn't reliably keep requestAnimationFrame
