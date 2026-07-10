@@ -1,5 +1,12 @@
 # Cargo-Lander — Next Steps Execution Plan
 
+**Progress (2026-07-10):** Phase 0 complete (4/4). Phase 1: 4/5 done — only
+1.2 (refuel pads) remains open. Phase 2: 2/5 done (2.4 joystick, 2.5
+gamepad — both user-requested, done ahead of order since they were asked
+for directly; 2.1/2.2/2.3 not started). Phase 3: not started. Current
+state: `game.js` `VERSION = '0.6.7'`, `tests.html` at 89/89 passing, all
+work pushed to `master` through commit `a74d4f2`.
+
 Written 2026-07-10 for execution by a Claude (Sonnet) session. Each task is
 self-contained: scope, files, concrete steps, and a verification recipe.
 Work them **in order within a phase**; phases 1→3 are ordered by
@@ -13,7 +20,7 @@ user says so.
   `CargoGame.VERSION` in `game.js` on every user-visible change.
 - Verification baseline for every task below (referred to as **[VERIFY]**):
   1. Serve the folder: `python -m http.server 8177` from `cargo-lander/`.
-  2. `tests.html` must report **0 failed** (88 tests as of 2026-07-10; the
+  2. `tests.html` must report **0 failed** (89 tests as of 2026-07-10; the
      count may grow). Headless: `chrome --headless=new --disable-gpu
      --user-data-dir=%TEMP%\chrome-test --virtual-time-budget=15000
      --dump-dom http://localhost:8177/tests.html` and grep for `id="summary"`.
@@ -29,42 +36,35 @@ user says so.
 
 ## Phase 0 — Verification & cleanup sweep (small, do first)
 
-- [ ] **0.1 Confirm the "Planned" backlog items actually landed.** The last
-      commit (`182986c`) claims level spacing, incinerator-in-editor, UI
-      updates, and physics optimization. Cross-check the two README backlog
-      rows still marked *Planned* — **Level Spaciousness** and **UI
-      Uniformity** — against the actual code/game. Play L3/L6 and a
-      procedural map: are caves noticeably more spacious? Is the HUD aligned
-      and consistently sized? Update the README backlog statuses to match
-      reality; file anything still missing as a note under the relevant task
-      below. No code change expected unless something regressed.
-- [ ] **0.2 Playtest the raindrop-on-lens v3 effect.** Third iteration on the
-      same "too much" feedback (README TODO). Start L1 (rain weather), watch
-      the lens drops for ~60s at default zoom. If it still draws attention,
-      reduce spawn rate/opacity ~30% in the raindrop code (grep `raindrop`
-      in `render/effects.js` / `shaders.js`) and screenshot before/after.
-      Otherwise mark the README TODO as confidently done.
+- [x] **0.1 Confirm the "Planned" backlog items actually landed.** Checked
+      2026-07-10 — both README rows are **already marked Completed**, not
+      Planned (task description was stale by the time this session ran).
+      Verified against code, not just the README claim:
+      `levelGenerator.js` has the wider random-walk step (`180-430`) and
+      reduced Y-variance (`100+craziness*80`) the README describes, and
+      `index.html`'s HUD panels share the `.hud-group` class. 89/89 tests
+      green. No regression found — no code change needed.
+- [x] **0.2 Playtest the raindrop-on-lens v3 effect.** Checked 2026-07-10 —
+      screenshotted L1 (`probe-screenshot.html?level=0&x=200&y=300&zoom=0.8`,
+      note: probe's `level=` is 0-indexed into `levels[]`, so L1 is `level=0`
+      not `level=1`). `postFX link: true` confirms the shader compiled. The
+      shader source (`shaders.js` ~line 240) already documents an extensive
+      v1→v3 tuning history driven by this exact "way more subtle" feedback —
+      sparse per-cycle spawn (`h3 > 0.02` cutoff), gentle refraction, no
+      change needed. Effect is essentially invisible in a static screenshot
+      by design (time-animated, sparse) — that's the intended subtlety, not
+      a verification gap. Marking the README TODO confidently done.
 - [x] **0.3 Flavor-text audit.** Done 2026-07-10 — fixed L1 (quest text said
       "3 cargo", config/hint both say 2), L3 (hint never mentioned the two
       laser hazards guarding the summit gap), L5 (hint omitted the laser +
       incinerator near the winch shaft), L7 (hint omitted the two 40dmg/sec
       laser gauntlets), L9 (quest text called the hub "the Suspended Hub",
       actual hub is named "Cauldron Hub" via `createDeliveryHub()`). L2/L4/
-      L6/L8/levelTest already accurate. 88/88 tests still green. For each of `level1.js`–`level9.js` +
-      `levelTest.js`, read `description`/`hint`/`missionTitle` next to the
-      level's actual `deliveryHubs`, `allowedTypes`, hazards, and mechanics.
-      The L4 "Deep Storage" drift was found by accident; do the systematic
-      pass. Fix any mismatches. [VERIFY] (the config-validation tests will
-      re-check shapes automatically).
+      L6/L8/levelTest already accurate. 88/88 tests green at the time this
+      task ran (before the Big Cargo test brought the suite to 89).
 - [x] **0.4 Root README refresh.** Already done — root `README.md` now has a
       proper project index (was "testing"). `old_README.md` is gone from disk
-      (removed prior to this pass). `README.md` at repo root says just
-      "testing". Replace with a short index: what lives at neskil.github.io,
-      link to `cargo-lander/` (the flagship), one line each for the other
-      folders (`games/`, `math/`, `converter/`, `supply-chain/`, `cv/`).
-      Also consider deleting `old_README.md` (169 KB UTF-16 relic; its
-      content is superseded by `cargo-lander/README.md`) — ask the user
-      before deleting if in doubt.
+      (removed prior to this pass).
 
 ## Phase 1 — Gameplay value: quick wins from the existing backlog
 
@@ -238,18 +238,9 @@ user says so.
       attached. **Hardware testing still pending** — no physical controller
       in this environment; whoever has one next should confirm button/stick
       mapping feels right (especially the analog trigger dead zone).
-      Use the standard Gamepad API (`navigator.getGamepads()`, polled once
-      per frame in `game.update()` — it's poll-based, no events needed for
-      sticks/triggers). Mapping (standard layout): left stick X = strafe,
-      right trigger (`buttons[7].value`, analog) = thrust, A = grapple/
-      attach, B = release, Start = pause, with left stick up as an
-      alternate thrust for pads without analog triggers. Merge into the
-      same `inputState` alongside keyboard (gamepad active = last input
-      wins, no mode switch needed). Show a small "🎮 controller connected"
-      toast on the `gamepadconnected` event. Keep it ~100 lines in one
-      place (`game.js` input section). Test with a real controller if
-      available; otherwise verify no-regression with [VERIFY] and leave a
-      note that hardware testing is pending.
+      Note: Start=pause wasn't wired up — the game has no pause state to
+      hook into (checked, none exists), so that part of the original plan
+      was dropped rather than inventing a new game state as a side effect.
 
 ## Phase 3 — Bigger bets (each needs a user check-in before starting)
 
