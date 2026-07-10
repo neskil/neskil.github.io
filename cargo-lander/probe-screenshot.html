@@ -2,7 +2,11 @@
 <!-- Temporary headless-screenshot probe (not part of the game, safe to delete):
      loads the game in an iframe, jumps to a level, parks the camera at a
      given spot via freeCam, and lets headless Chrome screenshot the result.
-     Usage: probe-screenshot.html?level=8&x=1500&y=750&zoom=0.8 -->
+     Usage: probe-screenshot.html?level=8&x=1500&y=750&zoom=0.8
+     Add &debug=1 to dump extra diagnostics (radar/HUD element state, console
+     errors forwarded from the iframe) into the on-screen status line instead
+     of just the shader link status — used to track down the missing-minimap
+     report on 2026-07-10. -->
 <html>
 
 <body style="margin:0">
@@ -13,11 +17,31 @@
         const camX = parseFloat(q.get('x') || '0');
         const camY = parseFloat(q.get('y') || '0');
         const camZoom = parseFloat(q.get('zoom') || '1');
+        const debug = q.get('debug') === '1';
+
+        const consoleErrors = [];
 
         const f = document.getElementById('f');
         f.addEventListener('load', () => {
+            const iw = f.contentWindow;
+            // &hide=fnName1,fnName2 — no-ops these CargoGame.prototype methods
+            // before the level starts, for bisecting which draw call produces a
+            // given visual (used to track down the "diagonal shading wedge"
+            // report on 2026-07-10 by disabling candidates one at a time).
+            const hide = (q.get('hide') || '').split(',').filter(Boolean);
+            for (const fn of hide) {
+                if (typeof iw.CargoGame.prototype[fn] === 'function') {
+                    iw.CargoGame.prototype[fn] = function () { };
+                }
+            }
+            if (debug) {
+                const origErr = iw.console.error.bind(iw.console);
+                iw.console.error = (...args) => { consoleErrors.push(args.join(' ')); origErr(...args); };
+                iw.addEventListener('error', (e) => consoleErrors.push('window.onerror: ' + e.message));
+            }
+
             setTimeout(() => {
-                const g = f.contentWindow.game;
+                const g = iw.game;
                 g.startLevel(levelIdx);
                 setTimeout(() => {
                     g.freeCam = true;
@@ -26,18 +50,42 @@
                     g.camera.zoom = camZoom;
                     g.camera.targetZoom = camZoom;
 
-                    // Surface shader-compile status in the screenshot itself,
-                    // since headless --screenshot gives us no console access.
+                    // &script=eatenByMonster / noCargoExtract — scripted repros for
+                    // the 2026-07-10 gameplay fixes (monster-kill = hard fail,
+                    // no-cargo overtime-extraction exploit).
+                    const script = q.get('script');
+                    if (script === 'eatenByMonster') {
+                        g.physics.lander.eatenByMonster = true;
+                        g.physics.lander.crashed = true;
+                        g.physics.lander.integrity = 0;
+                    } else if (script === 'noCargoExtract') {
+                        g.physics.lander.landed = true;
+                        g.physics.lander.currentPad = 'start';
+                        g.deliveredCount = 0;
+                        g.completeMission();
+                    }
+
                     const st = document.createElement('div');
-                    st.style.cssText = 'position:fixed;left:4px;bottom:4px;background:#000;color:#0f0;font:12px monospace;padding:2px 6px;z-index:99';
+                    st.style.cssText = 'position:fixed;left:4px;bottom:4px;background:#000;color:#0f0;font:11px monospace;padding:2px 6px;z-index:99;max-width:1270px;white-space:pre-wrap';
                     try {
                         const sh = g.shaders, gl = sh && sh.gl;
-                        st.textContent = !gl ? 'no webgl'
+                        let msg = !gl ? 'no webgl'
                             : 'postFX link: ' + gl.getProgramParameter(sh.postFXProgram, gl.LINK_STATUS);
                         if (gl && !gl.getProgramParameter(sh.postFXProgram, gl.LINK_STATUS)) {
                             st.style.color = '#f00';
-                            st.textContent += ' | ' + gl.getProgramInfoLog(sh.postFXProgram);
+                            msg += ' | ' + gl.getProgramInfoLog(sh.postFXProgram);
                         }
+                        if (debug) {
+                            const doc = iw.document;
+                            const radarContainer = doc.getElementById('radar-container');
+                            const radarCanvas = doc.getElementById('radar-canvas');
+                            const cs = radarContainer ? iw.getComputedStyle(radarContainer) : null;
+                            msg += '\nradar-container: ' + (radarContainer ? `found, display=${cs.display} visibility=${cs.visibility} w=${cs.width} h=${cs.height} opacity=${cs.opacity}` : 'MISSING FROM DOM');
+                            msg += '\nradar-canvas: ' + (radarCanvas ? `found, ${radarCanvas.width}x${radarCanvas.height}` : 'MISSING FROM DOM');
+                            msg += '\nuiCollapsed=' + g.uiCollapsed + ' gameState=' + g.gameState;
+                            msg += '\nconsole errors: ' + (consoleErrors.length ? consoleErrors.join(' || ') : 'none');
+                        }
+                        st.textContent = msg;
                     } catch (e) { st.style.color = '#f00'; st.textContent = 'probe err: ' + e.message; }
                     document.body.appendChild(st);
                 }, 600);

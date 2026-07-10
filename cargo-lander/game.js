@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.3.0';
+    static VERSION = '0.4.0';
 
     constructor() {
         this.canvas = null;
@@ -1763,19 +1763,6 @@ class CargoGame {
             this.career.crashes++;
             this.saveCareer();
 
-            if (lander.busted) {
-                this.missionBudget -= 1000;
-                this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");
-            } else {
-                this.missionBudget -= 400;
-                this.addMessage("Lander Destroyed: -$400", "#ef4444");
-            }
-            this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
-
-            if (this.missionBudget < 0) {
-                this.failMission("Bankrupt! Budget exceeded.");
-            }
-
             // Generate explosion particles
             for (let i = 0; i < 50; i++) {
                 this.physics.particles.push({
@@ -1791,15 +1778,39 @@ class CargoGame {
             }
             if (!this.isMuted && window.CargoAudio) CargoAudio.playCollision(10);
 
-            // Show respawn screen after short delay, keep game state playing for physics
-            setTimeout(() => {
-                if (this.gameState === 'playing') {
-                    const respawnScreen = document.getElementById('respawn-screen');
-                    if (respawnScreen && this.physics.lander && this.physics.lander.crashed) {
-                        respawnScreen.classList.remove('hidden');
-                    }
+            if (lander.eatenByMonster) {
+                // Devoured reads as final, not a fender-bender you press R to
+                // shrug off — straight to a hard mission failure instead of
+                // the usual respawnable-crash flow below. No budget deduction
+                // (there's no mission left to spend it on) and no respawn
+                // screen. See physics/atmosphere.js's monster contact check
+                // for where lander.eatenByMonster gets set.
+                this.addMessage("CONSUMED BY THE ANOMALY", "#ef4444");
+                this.failMission("Consumed by the anomaly.");
+            } else {
+                if (lander.busted) {
+                    this.missionBudget -= 1000;
+                    this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");
+                } else {
+                    this.missionBudget -= 400;
+                    this.addMessage("Lander Destroyed: -$400", "#ef4444");
                 }
-            }, 4000);
+                this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
+
+                if (this.missionBudget < 0) {
+                    this.failMission("Bankrupt! Budget exceeded.");
+                }
+
+                // Show respawn screen after short delay, keep game state playing for physics
+                setTimeout(() => {
+                    if (this.gameState === 'playing') {
+                        const respawnScreen = document.getElementById('respawn-screen');
+                        if (respawnScreen && this.physics.lander && this.physics.lander.crashed) {
+                            respawnScreen.classList.remove('hidden');
+                        }
+                    }
+                }, 4000);
+            }
         }
 
         // Refill alert sound check
@@ -2106,15 +2117,27 @@ class CargoGame {
             return;
         }
 
+        // The manual Extract button/spacebar are already gated on this in the
+        // UI (hidden/no-op until allDelivered), but the overtime countdown's
+        // "made it back to HQ" auto-extraction (update(), grep
+        // "safe extraction") calls completeMission() unconditionally — so
+        // without this check here, running out the mission clock and limping
+        // back to HQ with 0 cargo delivered still paid out a full success
+        // reward. This is the single authoritative gate all callers rely on.
+        const level = levels[this.currentLevelIndex];
+        const allDelivered = this.deliveredCount >= (level.targetCargo || 0);
+        if (!allDelivered) {
+            this.failMission("Extracted without completing deliveries.");
+            return;
+        }
+
         this.gameState = 'level_complete';
         if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
-        
+
         const centerOverlay = document.getElementById('center-extract-overlay');
         if (centerOverlay) centerOverlay.style.display = 'none';
 
         document.getElementById('hud-overlay').style.display = 'none';
-
-        const level = levels[this.currentLevelIndex];
 
         // Evaluate time-gated bonus quests now
         if (level.quests) {

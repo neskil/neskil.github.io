@@ -29,6 +29,7 @@ files load cleanly).
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps with 3 selectable craziness tiers (the `random1`/`random2`/`random3` buttons in the mission grid). |
 | `tests.html` | Browser-based test suite (68 tests as of 2026-07-10: 7 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/terrain/hazards/quests, plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
+| `probe-screenshot.html` | Headless-Chrome visual-verification harness (added 2026-07-10) — loads the game in an iframe and drives it via query string: `?level=N&x=..&y=..&zoom=..` (park the free camera), `&debug=1` (dump element/computed-style diagnostics on screen), `&hide=fn1,fn2` (no-op draw calls to bisect a visual), `&script=name` (scripted repros, e.g. `eatenByMonster`/`noCargoExtract`). See "Headless verification" under Verification, and `CLAUDE.md`, for the full recipe and why it exists. Not part of the shipped game — safe to delete if headless verification stops being needed, but has already caught one bug (the minimap CSS collapse) that reading the code alone missed. |
 
 ### Load order matters
 `index.html` loads the Matter.js CDN script, then `levels.js → levelGenerator.js →
@@ -262,6 +263,88 @@ the 2026-07-10 pass (confirmed by grepping the actual code, not just re-reading
 old notes) — struck through and kept as a paper trail. Fresh items are at the
 top.
 
+- [ ] **Level Editor / renderer parity system** (user request, 2026-07-10) —
+      right now `level-editor.html` has its own hand-written parser +
+      exporter for `registerLevel({...})` configs, maintained by hand in
+      lockstep with whatever fields `level*.js`/`physics.js`/`render/*.js`
+      actually use. Every new field (this session alone added `heatHaze`;
+      recent history added hazard `type` variants, `gravityWell`, weather
+      configs, etc.) requires updating the editor's parser, its UI, *and*
+      its export-block generator, or the editor silently drops/can't-preview
+      the new thing — exactly the "two files in lockstep" problem the user
+      wants solved structurally, not just remembered harder. This is a real
+      refactor, not a quick fix; rough shape of an approach for whoever picks
+      it up:
+      - Define a **single schema** for the level-config shape (field name,
+        type, default, UI widget hint) that both the game and the editor
+        read from, instead of the editor re-deriving field knowledge by
+        parsing `.js` files with a sandboxed `new Function()` eval (see
+        `level-editor.html`'s current loader). A plain JS object/array of
+        field descriptors, imported by both `level-editor.html` and
+        (optionally) validated against in `tests.html`'s "Level Config
+        Validation" category, would let the editor generate its form UI and
+        export block from the schema instead of hand-coded per-field logic.
+      - This doesn't have to happen all at once — start by moving the
+        *editor's* per-field list (name/type/default) into a shared
+        `levelSchema.js` that `tests.html` already partially duplicates
+        (grep "Level Config Validation" — those assertions are effectively
+        an informal schema already, just not shared with the editor).
+      - Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is the harder
+        half — the editor's vertex-drag tooling is bespoke per shape *kind*
+        (zone/laser/etc.), not purely data-driven. Lower priority than the
+        scalar-field parity problem above; tackle after the schema exists.
+      - Out of scope for this to solve on its own: keeping `index.html`'s
+        `<script>` tags in sync when a new `levelN.js` is added — that's a
+        separate, already-known manual step (see `CLAUDE.md`).
+- [ ] **More thruster/flight particle effects + a "hotter" lander design**
+      (user request, 2026-07-10) — main thruster exhaust and side-strafe
+      jets have basic flame/particle effects (`drawLander()`,
+      `render/entities.js`); the ask is more visual richness (smoke trails,
+      heat shimmer off the engine bell, sparks) without hurting performance
+      on lower-end hardware — likely means capping particle counts hard and/
+      or reusing the existing `physics.particles` pool rather than adding a
+      second uncapped system (see the "Weather/wind perf" note further down
+      this file for the existing precedent: hard caps of 120/70 on weather/
+      wind particles). Also explicitly called out: **there's currently no
+      distinct visual effect for descending** (only ascend/thrust-up has a
+      flame) — worth a deliberate "reverse thruster puff" or similar rather
+      than reusing the up-thrust flame flipped. Bundle this with a lander
+      redesign pass ("hot rod" the vehicle art) since both touch the same
+      `drawLander()` code and asking for both separately would mean
+      re-touching the same function twice.
+- [ ] **Parachute-on-empty-fuel mechanic** (user request, 2026-07-10) — if
+      fuel hits 0 mid-air, auto-deploy a parachute after a ~1s delay that
+      decelerates the fall to a survivable-if-lucky speed, instead of a
+      guaranteed hard splat. Needs: a new `lander` state flag (e.g.
+      `chuteDeployed`), a drag/terminal-velocity override in
+      `physics/mechanics.js`'s gravity integration while deployed, and a
+      visual (`render/entities.js`). Interacts with the existing "Refill
+      alert sound" fuel-out logic in `game.js` — check that doesn't need
+      updating too. Should probably *not* apply if `lander.crashed` is
+      already true (no point deploying a chute on a corpse).
+- [ ] **Raindrop-on-lens effect needs a further design pass** — v1 (shipped
+      earlier in this session) read as "not great" in playtest; v2 (same
+      session, `shaders.js` `droplet()`) thinned the density and elongated
+      the beads vertically, which is an improvement but hasn't been
+      re-playtested. If it's still not landing, consider a different
+      technique entirely (e.g. actual falling streak particles in
+      `physics.particles` instead of a lens-distortion shader) rather than
+      continuing to tune the same approach.
+- [ ] **Level-start hitch** (user question, 2026-07-10, answered but not
+      fixed) — `physics.js`'s `initLevel()` synchronously rebuilds the
+      entire Matter.js engine/world from scratch (`_buildMatterWorld()`),
+      regenerates all terrain collision bodies (`generateTerrain()`, convex
+      decomposition of every terrain polygon), spawns the lander, runs the
+      level's `setupPhysics()` callback, and pre-spawns 1-2 ambient traffic
+      vehicles — all in one synchronous call from `startLevel()`. That's the
+      likely source of the brief hitch right as a mission starts (a single
+      slow/GC-heavy frame that resolves itself immediately after). Not
+      fixed — would need either spreading the work across a couple of
+      frames (harder, touches the load-order assumptions the rest of the
+      code makes about a fully-initialized level) or profiling to confirm
+      which specific sub-step actually dominates before optimizing the
+      wrong thing.
+
 - [ ] **Post-FX shader follow-ups** (added 2026-07-10, see the Recent
       Additions entry below for the full feature) — `heatHaze` is currently
       only set on L2/L4; consider L6 (Amber Dusk/Sand Worm, also a hot biome)
@@ -426,6 +509,57 @@ needing broader context":
 ---
 
 ## Recent additions
+
+### 2026-07-10 (even later): minimap fix, gameplay-fairness bugs, rain v2
+- **Fixed the radar minimap being invisible** (user report: "Where have the
+  minimap gone?") — a global `canvas { position: absolute; width:100%;
+  height:100%; }` CSS rule (meant for the two full-screen game canvases)
+  matched every `<canvas>` on the page, including `#radar-canvas`. Pulling
+  it out of flow with no sized positioned ancestor to resolve `100%`
+  against made `#radar-container` (its only in-flow content) collapse to
+  2×2px — just its own border — with `display` still reporting `flex` and
+  zero console errors, so it was easy to misread as "hidden" when it was
+  actually "sized to nothing." Pre-existing bug, unrelated to this
+  session's other changes; not caught until the headless-Chrome `&debug=1`
+  probe dumped computed styles (see `probe-screenshot.html` /
+  the Verification section). Fixed with a `#radar-canvas` override
+  restoring static positioning at its native 260×160 size.
+- **Fixed a reward exploit**: `completeMission()` only checked that the
+  lander was landed at the HQ pad — not that cargo was actually delivered.
+  The manual Extract button/spacebar were already gated correctly by the
+  *UI* (hidden/no-op until `deliveredCount >= targetCargo`), but the
+  overtime countdown's auto-extraction path (`update()`, "safe extraction")
+  called `completeMission()` unconditionally the moment the player reached
+  HQ — so running the clock out and limping home with 0 cargo delivered
+  still paid a full "Extraction Successful!" reward. Fixed by moving the
+  `allDelivered` check into `completeMission()` itself, the one place every
+  caller goes through, instead of relying on each caller to pre-check.
+  Failing this check now routes to `failMission("Extracted without
+  completing deliveries.")` — no reward.
+- **Being eaten by the OOB monster is now a hard mission failure**, not a
+  respawnable crash (user request: "if lander is eaten after time is up =
+  you should lose the level"). Previously the monster's lethal-contact
+  check just called the same `triggerExplosion()` as any terrain/hazard
+  hit, which `game.js`'s crash handler treats as recoverable (-$400,
+  "Press R to deploy replacement", keep playing). Devoured now sets
+  `lander.eatenByMonster` (`physics/atmosphere.js`, at the contact check)
+  and `game.js`'s crash handler branches on it straight to
+  `failMission("Consumed by the anomaly.")` — no budget deduction (nothing
+  left to spend it on), no respawn screen. Other crash sources (terrain,
+  hazards, ambient traffic) are unaffected — still respawnable as before.
+- **Rain droplets v2** — per direct playtest feedback ("wasn't that great"),
+  thinned the field (roughly a third of cells now carry a bead, was half)
+  and elongated each bead vertically so it reads as a trickling drop rather
+  than a floating circle. Flagged in the TODO list for a possible full
+  redesign if this iteration still doesn't land.
+- **Headless-Chrome verification workflow formalized** — added a standing
+  instruction in `CLAUDE.md` (with the full recipe) after it caught the
+  minimap bug that a code-only read-through had missed entirely.
+  `probe-screenshot.html` gained `&debug=1` (element/computed-style dump),
+  `&hide=fn1,fn2` (no-op specific draw calls to bisect a visual), and
+  `&script=name` (scripted repros — `eatenByMonster` and `noCargoExtract`
+  were added to verify the two gameplay fixes above without needing to
+  actually fly a mission to trigger them).
 
 ### 2026-07-10 (latest): post-FX Y-flip fix + rain droplets on the lens
 - **Fixed the post-FX pass rendering effect regions vertically mirrored** —

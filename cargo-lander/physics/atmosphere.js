@@ -412,6 +412,11 @@ const CargoPhysicsAtmosphereMixin = {
             // Lethal Contact — eat the lander. The crashed-state handler (above)
             // then makes the monster dive away and despawn on following frames.
             if (dist < m.size / 2 + lander.width / 2) {
+                lander.eatenByMonster = true; // game.js's crash handler reads this to
+                                                // force a hard mission failure instead
+                                                // of the normal respawnable-crash flow —
+                                                // being devoured reads as final, not a
+                                                // fender-bender you press R to shrug off.
                 this.triggerExplosion();
                 m.vy = Math.abs(m.vy) + 4; // kick it downward so the retreat reads clearly
                 this.outOfBoundsTimer = 0;

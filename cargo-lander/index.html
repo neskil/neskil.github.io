@@ -101,6 +101,20 @@
             height: 100%;
         }
 
+        /* The generic canvas{} rule above is meant for the full-screen game
+           canvases (#cargoCanvas/#webglCanvas) but matches every <canvas> on
+           the page, including the minimap. That pulled #radar-canvas out of
+           flow (position:absolute) with no positioned ancestor giving it a
+           size to resolve 100%/100% against, so #radar-container (its only
+           in-flow content) collapsed to 2x2px — just its own border — making
+           the whole minimap invisible with no console error. Restore normal
+           in-flow sizing at its native 260x160 canvas resolution. */
+        #radar-canvas {
+            position: static;
+            width: 260px;
+            height: 160px;
+        }
+
         #webglCanvas {
             display: none;
             pointer-events: none;
