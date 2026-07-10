@@ -3,6 +3,18 @@
 High-level design plan for improving levels 2–9. **Level 1 is the benchmark — do not touch it.**
 Written for a follow-up implementation session; each level section is independently actionable.
 
+**Status: executed 2026-07-10 (v0.6.8 → v0.7.0).** Every level below (L2–L9) got its planned pass,
+one commit per level, verified via `tests.html` (89/89 passing throughout) and headless
+`probe-screenshot.html` screenshots at each edit. Notable deviations from the original plan:
+- L4 targetCargo raised 3→4 (two hubs, keeps the 2-per-hub feel of L2's sorting lesson).
+- L4/L7/L9 water bodies/lake are flavor-only (drag/buoyancy defaults), not scripted hazards.
+- L8's "escalate the return gauntlet" stretch goal (speed up lasers after final delivery) was
+  **not implemented** — no existing hook accretes hazard state on quest completion; would need an
+  engine-level change beyond level-config scope. Left as a follow-up if desired.
+- Found and fixed a real bug in passing: L9's left-shelf tower had `type: 'comms'`, which has no
+  render branch in `render/entities.js`'s `drawBuildings()` (only antenna/silo/refinery draw) —
+  it was invisible in-game with zero errors. Swapped to `'antenna'`.
+
 ## Why Level 1 works (the benchmark)
 
 Before changing anything, understand what makes L1 good, because most of L2–L9's weaknesses are
