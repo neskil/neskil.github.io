@@ -231,25 +231,33 @@ class ShaderOverlay {
             }
 
             // "Raindrops on the camera lens" (racing-game style): the screen is
-            // divided into cells of cellSize px; roughly half the cells carry one
-            // droplet that slowly trickles down and wraps. Returns (offsetX,
-            // offsetY, coreBrightness) — offset refracts the scene sample
-            // (inverted mini-image, like a real water bead), core feeds a small
-            // highlight so the bead reads as wet glass and not just a smudge.
+            // divided into cells of cellSize px; roughly a third of the cells
+            // carry one droplet that slowly trickles down and wraps. Returns
+            // (offsetX, offsetY, coreBrightness) — offset refracts the scene
+            // sample (inverted mini-image, like a real water bead), core feeds
+            // a small highlight so the bead reads as wet glass.
+            // 2026-07-10: v1 (round beads, uniform density) read as flat/fake
+            // per playtest feedback — v2 elongates each bead vertically (a
+            // trickling drop, not a floating circle) and thins out the field
+            // (h3 > 0.65, was 0.5) so it's a light scatter, not a dense smear.
+            // Still flagged for a further design pass in the README TODO.
             vec3 droplet(vec2 sp, float cellSize, float rad, float seed) {
                 vec2 cell = floor(sp / cellSize);
                 float h1 = hash21(cell + seed);
                 float h2 = hash21(cell + seed + 31.7);
                 float h3 = hash21(cell + seed + 57.3);
-                if (h3 > 0.5) return vec3(0.0); // this cell has no droplet
+                if (h3 > 0.65) return vec3(0.0); // this cell has no droplet
                 float yFrac = fract(h2 + u_time * (0.012 + 0.035 * h1));
                 vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
                 vec2 d = sp - center;
+                // Stretch vertically (thinner effective radius sideways, taller
+                // down the screen) so it reads as a trickling bead, not a dot.
+                vec2 dn = vec2(d.x * 1.6, d.y * 0.75);
                 float r = rad * (0.7 + 0.6 * h2);
-                float dist = length(d);
+                float dist = length(dn);
                 if (dist >= r) return vec3(0.0);
                 float core = 1.0 - dist / r;
-                return vec3(-d * 1.8, core);
+                return vec3(-d * 1.3, core);
             }
 
             void main() {
