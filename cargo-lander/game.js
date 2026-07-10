@@ -1474,24 +1474,47 @@ class CargoGame {
         const allDelivered = this.deliveredCount >= (level ? (level.targetCargo || 2) : 2);
         const atHQ = lander && lander.landed && lander.currentPad === 'start';
         if (atHQ && allDelivered && this.gameState === 'playing') {
-            if (!this._lastFireworkTime || Date.now() - this._lastFireworkTime > 800) {
-                this._lastFireworkTime = Date.now() + Math.random() * 400; // random variance for next burst
+            if (!this._fireworksStartTime) this._fireworksStartTime = Date.now();
+            const elapsed = Date.now() - this._fireworksStartTime;
+            const intense = elapsed < 3000;
+            
+            if (!this._currentFireworkDelay) this._currentFireworkDelay = 0;
+            
+            if (!this._lastFireworkTime || Date.now() - this._lastFireworkTime > this._currentFireworkDelay) {
+                this._currentFireworkDelay = (intense ? 100 : 600) + Math.random() * (intense ? 200 : 1000);
+                this._lastFireworkTime = Date.now();
                 if (this.physics && this.physics.particles) {
-                    const startX = lander.x + (Math.random() - 0.5) * 300;
-                    const startY = lander.y - 10;
+                    const hqPad = this.physics.pads ? this.physics.pads.find(p => p.type === 'start') : null;
+                    const startX = hqPad ? hqPad.x + (Math.random() - 0.5) * hqPad.width : lander.x + (Math.random() - 0.5) * 300;
+                    const startY = hqPad ? hqPad.y : lander.y + 10;
                     
                     const rocketVx = (Math.random() - 0.5) * 4;
-                    const rocketVy = -4 - Math.random() * 3; // slower ascent (was -8)
-                    const flyTimeMs = 350 + Math.random() * 250; // shorter flight
+                    const rocketVy = -5 - Math.random() * 4; // ascent
+                    const flyTimeMs = 400 + Math.random() * 300;
                     
                     // Launch rocket (bright white/yellow core)
                     const rocket = {
                         x: startX, y: startY,
                         vx: rocketVx, vy: rocketVy,
                         life: 2.0, decay: 0.01, // high life so alpha is 1.0 (fully bright)
-                        color: '#ffffff', size: 7
+                        color: '#ffffff', size: 6
                     };
                     this.physics.particles.push(rocket);
+                    
+                    // Rocket exhaust trail
+                    const exhaustInterval = setInterval(() => {
+                        if (rocket.life > 0 && this.gameState === 'playing') {
+                            this.physics.particles.push({
+                                x: rocket.x, y: rocket.y + 2,
+                                vx: rocket.vx * 0.1 + (Math.random() - 0.5) * 2,
+                                vy: rocket.vy * 0.1 + Math.random() * 2,
+                                life: 0.6, decay: 0.04,
+                                color: '#f97316', size: 3
+                            });
+                        } else {
+                            clearInterval(exhaustInterval);
+                        }
+                    }, 30);
                     
                     if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
                         CargoAudio.playCollision(2); // launch pop
@@ -1516,25 +1539,27 @@ class CargoGame {
                                 const speed = 6 + Math.random() * 2;
                                 vx = Math.cos(angle) * speed;
                                 vy = Math.sin(angle) * speed;
+                                gy = 0.03;
                                 color = `hsla(${baseHue}, 100%, 60%, 1)`;
                             } else if (variant === 1) { // Weeping Willow (gravity)
                                 vx = (Math.random() - 0.5) * 8;
                                 vy = (Math.random() - 0.5) * 8 - 4; // slight upward bias initially
-                                gy = 0.2; // gravity pulls it down
+                                gy = 0.12; // strong gravity pulls it down
                                 color = `hsla(${baseHue}, 100%, 60%, 1)`;
                             } else { // Multi-color standard burst
                                 vx = (Math.random() - 0.5) * 12;
                                 vy = (Math.random() - 0.5) * 12;
+                                gy = 0.05; // slight gravity
                                 color = `hsla(${Math.random() * 360}, 100%, 60%, 1)`;
                             }
                             
                             this.physics.particles.push({
                                 x: bx, y: by,
                                 vx: vx, vy: vy, gy: gy,
-                                life: 1.0 + Math.random() * 1.5,
-                                decay: 0.01 + Math.random() * 0.02,
+                                life: 1.5 + Math.random() * 2.0,
+                                decay: 0.008 + Math.random() * 0.015,
                                 color: color,
-                                size: 2 + Math.random() * 4
+                                size: 2 + Math.random() * 5
                             });
                         }
                         if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {
@@ -1545,6 +1570,7 @@ class CargoGame {
             }
         } else {
             this._lastFireworkTime = 0;
+            this._fireworksStartTime = 0;
         }
 
         const prevIntegrity = this._lastIntegrity ?? lander.integrity;
