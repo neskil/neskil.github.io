@@ -465,9 +465,144 @@ test('Game Over Simulation', () => {
     testGame.physics.lander.crashed = true;
   }
   testGame.update(16);
-  
+
   // If update() didn't throw, the crash was handled gracefully
   // crashHandled is set to true inside update() when lander.crashed is detected
+});
+
+// ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────
+// Cheap shape checks over every registered level — catches broken level files
+// (typo'd fields, malformed polygons, undeliverable cargo) without running the
+// game. Optional fields are only validated when present.
+category('Level Config Validation');
+
+// (CARGO_TYPES is already a global const in levelGenerator.js — avoid the
+// lexical collision by using a distinct name here)
+const VALID_CARGO_TYPES = ['normal', 'red', 'blue', 'green', 'tethered', 'heavy'];
+
+levels.forEach((lv, i) => {
+  const label = `L${i + 1} "${lv.name}"`;
+
+  test(`${label} — mission parameters`, () => {
+    assert(typeof lv.name === 'string' && lv.name.length > 0, 'name must be a non-empty string');
+    assert(isFinite(lv.gravity) && lv.gravity > 0, `gravity must be a positive number, got ${lv.gravity}`);
+    assert(isFinite(lv.budget) && lv.budget > 0, `budget must be a positive number, got ${lv.budget}`);
+    assert(isFinite(lv.timeLimit) && lv.timeLimit > 0, `timeLimit must be a positive number, got ${lv.timeLimit}`);
+    assert(Number.isInteger(lv.targetCargo) && lv.targetCargo >= 1, `targetCargo must be an integer >= 1, got ${lv.targetCargo}`);
+    assert(Array.isArray(lv.allowedTypes) && lv.allowedTypes.length > 0, 'allowedTypes must be a non-empty array');
+    for (const t of lv.allowedTypes) {
+      assert(VALID_CARGO_TYPES.includes(t), `unknown cargo type '${t}'`);
+    }
+    if (lv.startX !== undefined) assertFinite(lv.startX, 'startX');
+    if (lv.collectionX !== undefined) assertFinite(lv.collectionX, 'collectionX');
+    if (lv.padScale !== undefined) assert(isFinite(lv.padScale) && lv.padScale > 0, `padScale must be positive, got ${lv.padScale}`);
+  });
+
+  test(`${label} — delivery hubs`, () => {
+    // Most levels declare deliveryHubs statically, but a few (e.g. L9) build
+    // their hubs at runtime via setupPhysics() -> physics.createDeliveryHub().
+    // Skip the static-shape checks for those; there's nothing to validate here
+    // without actually running physics init.
+    if (typeof lv.setupPhysics === 'function' && !Array.isArray(lv.deliveryHubs)) return;
+
+    assert(Array.isArray(lv.deliveryHubs) && lv.deliveryHubs.length > 0, 'must have at least one delivery hub');
+    for (const hub of lv.deliveryHubs) {
+      assert(typeof hub.name === 'string' && hub.name.length > 0, 'every hub needs a name');
+      assertFinite(hub.x, `hub '${hub.name}' x`);
+      assert(typeof hub.color === 'string' && hub.color.length > 0, `hub '${hub.name}' needs a color`);
+      assert(typeof hub.type === 'string' && hub.type.length > 0, `hub '${hub.name}' needs a type`);
+      if (hub.width !== undefined) assert(isFinite(hub.width) && hub.width > 0, `hub '${hub.name}' width must be positive`);
+    }
+    // At least one allowed cargo type must be deliverable somewhere, or the
+    // mission is unwinnable. (Not EVERY type — undeliverable decoy cargo is a
+    // legitimate design, e.g. L6's red boxes.)
+    const hasChute = lv.deliveryHubs.some(h => h.type === 'chute');
+    const deliverable = lv.allowedTypes.some(t => hasChute || lv.deliveryHubs.some(h => h.type === t));
+    assert(deliverable, 'no allowed cargo type can be delivered to any hub — mission is unwinnable');
+  });
+
+  test(`${label} — palette`, () => {
+    assert(lv.palette && typeof lv.palette === 'object', 'palette is required');
+    for (const k of ['skyTop', 'skyMid', 'skyBot', 'terrainFill', 'rockEdge', 'rockGlow', 'fog']) {
+      assert(typeof lv.palette[k] === 'string' && lv.palette[k].length > 0, `palette.${k} is missing`);
+    }
+    // rockGlow is a PARTIAL rgba string by convention — call sites append the
+    // alpha, e.g. `${pal.rockGlow}0.10)` — so it must end with a comma.
+    assert(lv.palette.rockGlow.startsWith('rgba(') && lv.palette.rockGlow.endsWith(','),
+      `palette.rockGlow must be a partial 'rgba(r,g,b,' string, got '${lv.palette.rockGlow}'`);
+  });
+
+  test(`${label} — terrain geometry`, () => {
+    // Levels use either hand-authored polygons or a named procedural terrainType
+    assert(Array.isArray(lv.terrainPolygons) || typeof lv.terrainType === 'string',
+      'level needs terrainPolygons or a terrainType');
+    for (const [pi, poly] of (lv.terrainPolygons || []).entries()) {
+      const pts = Array.isArray(poly) ? poly : poly.pts;
+      assert(Array.isArray(pts) && pts.length >= 3, `terrain polygon ${pi} needs >= 3 points`);
+      for (const p of pts) {
+        assert(isFinite(p.x) && isFinite(p.y), `terrain polygon ${pi} has a non-numeric point`);
+      }
+    }
+    for (const [wi, wb] of (lv.waterBodies || []).entries()) {
+      if (!wb.pts) continue; // legacy {x,width} rects are auto-converted
+      assert(wb.pts.length >= 3, `water body ${wi} needs >= 3 points`);
+      for (const p of wb.pts) {
+        assert(isFinite(p.x) && isFinite(p.y), `water body ${wi} has a non-numeric point`);
+      }
+    }
+  });
+
+  test(`${label} — hazards`, () => {
+    for (const [hi, h] of (lv.hazards || []).entries()) {
+      if (h.type === 'laser') {
+        assert(Array.isArray(h.pts) && h.pts.length === 2, `laser hazard ${hi} needs exactly 2 pts (a line segment)`);
+        for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `laser hazard ${hi} has a non-numeric point`);
+        if (h.onMs !== undefined) assert(h.onMs > 0, `laser hazard ${hi} onMs must be positive`);
+        if (h.offMs !== undefined) assert(h.offMs > 0, `laser hazard ${hi} offMs must be positive`);
+      } else if (h.type === 'incinerator') {
+        assert(Array.isArray(h.pts) && h.pts.length >= 3, `incinerator hazard ${hi} needs >= 3 pts (a closed polygon)`);
+        for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `incinerator hazard ${hi} has a non-numeric point`);
+        if (h.onMs !== undefined) assert(h.onMs > 0, `incinerator hazard ${hi} onMs must be positive`);
+        if (h.offMs !== undefined) assert(h.offMs > 0, `incinerator hazard ${hi} offMs must be positive`);
+      } else if (h.type === 'crusher') {
+        assert([h.x, h.y, h.w, h.h].every(isFinite), `crusher hazard ${hi} needs numeric x/y/w/h`);
+      } else if (h.pts) {
+        assert(h.pts.length >= 3, `'${h.type || 'zone'}' hazard ${hi} needs >= 3 points`);
+        for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `hazard ${hi} has a non-numeric point`);
+      }
+    }
+  });
+
+  test(`${label} — quests`, () => {
+    assert(Array.isArray(lv.quests) && lv.quests.length > 0, 'quests must be a non-empty array');
+    const ids = new Set();
+    for (const q of lv.quests) {
+      assert(typeof q.id === 'string' && q.id.length > 0, 'every quest needs an id');
+      assert(!ids.has(q.id), `duplicate quest id '${q.id}'`);
+      ids.add(q.id);
+      assert(typeof q.text === 'string' && q.text.length > 0, `quest '${q.id}' needs text`);
+      assert(q.type === 'primary' || q.type === 'bonus', `quest '${q.id}' has unknown type '${q.type}'`);
+      if (q.reward !== undefined) assert(isFinite(q.reward) && q.reward > 0, `quest '${q.id}' reward must be positive`);
+    }
+    assert(lv.quests.filter(q => q.type === 'primary').length <= 1, 'at most one primary quest per level');
+  });
+});
+
+// ─── 4c. UPGRADE CATALOG VALIDATION ──────────────────────────────────────────
+category('Upgrade Catalog Validation');
+
+test('Upgrade catalog shape', () => {
+  assert(Array.isArray(upgradeCatalog) && upgradeCatalog.length > 0, 'upgradeCatalog must be a non-empty array');
+  const ids = new Set();
+  for (const u of upgradeCatalog) {
+    assert(typeof u.id === 'string' && u.id.length > 0, 'every upgrade needs an id');
+    assert(!ids.has(u.id), `duplicate upgrade id '${u.id}'`);
+    ids.add(u.id);
+    assert(typeof u.name === 'string' && u.name.length > 0, `upgrade '${u.id}' needs a name`);
+    assert(typeof u.desc === 'string' && u.desc.length > 0, `upgrade '${u.id}' needs a description`);
+    assert(Number.isInteger(u.maxLevel) && u.maxLevel >= 1, `upgrade '${u.id}' maxLevel must be an integer >= 1`);
+    assert(isFinite(u.basePrice) && u.basePrice > 0, `upgrade '${u.id}' basePrice must be positive`);
+  }
 });
 
 // ─── 5. RUN TESTS AND RENDER RESULTS ─────────────────────────────────────────

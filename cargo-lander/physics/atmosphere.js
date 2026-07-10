@@ -662,14 +662,81 @@ const CargoPhysicsAtmosphereMixin = {
             }
         }
 
+        // Handle incinerator zones — a polygon area (unlike the laser's line
+        // segment) that pulses on the same charge → active duty-cycle pattern.
+        // While active it damages the lander AND destroys any cargo box caught
+        // inside (sets box.lost so game.js's removeCargoBox() cleans it up),
+        // unlike the generic 'zone' hazard below which never touches cargo.
+        if (this.hazards && this.hazards.length > 0) {
+            for (const h of this.hazards) {
+                if (h.type !== 'incinerator') continue;
+                if (!h.pts || h.pts.length < 3) continue;
+
+                const onMs = h.onMs ?? 1600;
+                const offMs = h.offMs ?? 1800;
+                const warnMs = h.warnMs ?? 600;
+                const period = onMs + offMs;
+                const t = ((this.hazardTime + (h.phaseOffset || 0)) % period + period) % period;
+                const charging = t >= offMs - warnMs && t < offMs;
+                const active = t >= offMs;
+                h.zoneState = { charging, active }; // exposed for renderer
+
+                if (!active) continue;
+
+                if (!lander.crashed && this.pointInPolygon(lander.x, lander.y, h.pts)) {
+                    const c = this.polygonCentroid(h.pts);
+                    const dx = lander.x - c.x, dy = lander.y - c.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    lander.vx += (dx / dist) * 1.5;
+                    lander.vy += (dy / dist) * 1.5;
+
+                    this.applyDamage(lander, (h.damagePerSec || 30) * dt / 60);
+
+                    if (window.CargoAudio) CargoAudio.playCollision(1);
+                    for (let i = 0; i < 2; i++) {
+                        this.particles.push({
+                            x: lander.x + (Math.random() - 0.5) * 14,
+                            y: lander.y + (Math.random() - 0.5) * 14,
+                            vx: (Math.random() - 0.5) * 3, vy: -Math.random() * 3 - 1,
+                            life: 0.5, decay: 0.05 + Math.random() * 0.05,
+                            color: Math.random() > 0.5 ? '#fb923c' : '#f87171',
+                            size: 2 + Math.random() * 2,
+                        });
+                    }
+                    if (lander.integrity <= 0) this.triggerExplosion();
+                }
+
+                if (this.boxes) {
+                    for (const box of this.boxes) {
+                        if (box.delivered || box.lost) continue;
+                        if (!this.pointInPolygon(box.x, box.y, h.pts)) continue;
+
+                        if (window.CargoAudio) CargoAudio.playCollision(2);
+                        for (let i = 0; i < 10; i++) {
+                            this.particles.push({
+                                x: box.x + (Math.random() - 0.5) * 20,
+                                y: box.y + (Math.random() - 0.5) * 20,
+                                vx: (Math.random() - 0.5) * 4, vy: -Math.random() * 5 - 1,
+                                life: 1.0, decay: 0.03 + Math.random() * 0.04,
+                                color: Math.random() > 0.4 ? '#f97316' : '#fde047',
+                                size: 2 + Math.random() * 3,
+                            });
+                        }
+                        box.lost = true;
+                        box.lostReason = 'incinerator';
+                    }
+                }
+            }
+        }
+
         // Handle generic hazards — each is a polygon zone now (was a circle),
         // so membership is a point-in-polygon test rather than a radius check.
         if (this.hazards && this.hazards.length > 0) {
             const targets = [lander];
             if (this.boxes) targets.push(...this.boxes);
-            
+
             for (const h of this.hazards) {
-                if (h.type === 'laser' || h.type === 'sandworm' || h.type === 'pickup') continue;
+                if (h.type === 'laser' || h.type === 'incinerator' || h.type === 'sandworm' || h.type === 'pickup') continue;
                 
                 if (h.type === 'crusher') {
                     if (lander.crashed) continue;
