@@ -131,7 +131,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Stop at the Fuel Pump (x:1600) before pushing east — the far hubs are too far to reach on a single tank. Navigate below the ceiling through the squeeze corridors, don't graze the glowing rock, and steer clear of the drifting gas pockets. Return to HQ to extract.",
+    hint: "Stop at the Fuel Pump (x:1600) before pushing east — the far hubs are too far to reach on a single tank. Timed laser gates guard both the Fuel Pump and Valley Base, so watch the warning flash before committing. Navigate below the ceiling through the squeeze corridors, don't graze the glowing rock, and steer clear of the drifting gas pockets. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),

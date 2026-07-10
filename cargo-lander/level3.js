@@ -8,7 +8,7 @@ registerLevel({
   name: "L3: Gale-Force Winds",
   missionTitle: "Glacial Peaks — Summit Delivery",
   description: "Katabatic winds howl down from the Glacial Peaks at a constant rate. Your delivery target — Peak Station — is wedged into the ridge summit, blocked from above by an ice overhang. You'll need to fight the crosswind the whole way in, then hold a steady hover long enough to drop cleanly.",
-  hint: "The wind blows constantly from the right — lean left with the side thruster to hold position. Approach the summit from below and to the west, under the overhang. Return to HQ to extract.",
+  hint: "The wind blows constantly from the right — lean left with the side thruster to hold position. A pair of timed lasers guard the saddle above the overhang — watch the warning flash and thread the gap between them. Approach the summit from below and to the west. Return to HQ to extract.",
   gravity: 0.15,
   wind: 0.08,
   // Was "rain" — a mismatch for an ice biome (Glacial Peaks), and the exact
