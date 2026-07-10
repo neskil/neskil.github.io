@@ -21,13 +21,14 @@ files load cleanly).
 | `index.html` | Page shell: all DOM/UI (menus, HUD, overlays, mobile controls), all CSS, and the bootstrap script. Loads the Matter.js CDN script plus all the project's `<script>` files in order (see [Load order matters](#load-order-matters)). |
 | `audio.js` | `CargoAudioController` — a Web Audio API synthesizer. Generates all sound *procedurally* (no audio files): thruster rumble, collisions, explosions, warning beeps, success arpeggios, and an ambient music drone. Exposes global `CargoAudio`. |
 | `shaders.js` | `ShaderOverlay` — a WebGL layer drawn on the `#webglCanvas` on top of the main canvas. Renders glowing particles (point sprites) and the procedural "out-of-bounds monster" (a raymarched noisy blob in a fragment shader). Falls back to Canvas2D in `game.js` if WebGL is unavailable. |
-| `physics.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, particles, and the chasing monster. No rendering here. |
-| `game.js` | `CargoGame` — the orchestrator (5300+ lines). The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD updates, cargo delivery/loss handling, win/lose flow, and **all Canvas2D rendering** (terrain, lander, boxes, hubs, minimap, monster fallback, menu background). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level8.js`/`levels.js`, not here. |
+| `physics.js` + `physics/{collision,mechanics,entities,atmosphere}.js` | `CargoPhysics` — the custom physics engine, built on Matter.js for collision (lander body, box bodies, terrain bodies). Terrain generation, lander integration & collision, cargo-box physics (terrain / deck / box-to-box), the drone winch constraint, magnetic deck, gravity wells, hazards (lasers, incinerator zones, crushers, etc.), particles, ambient traffic, and the chasing monster. No rendering here. |
+| `game.js` | `CargoGame` — the orchestrator. The `requestAnimationFrame` loop, input handling, camera, economy/progression (localStorage), HUD/mission-panel DOM updates, cargo delivery/loss handling, win/lose flow, and the dynamic mission-grid/Dev-panel generation (`generateMissionUI()` — loops over `levels[]`, no per-level manual button wiring needed). Exposes global `game`. Level & upgrade *definitions* live in `level1.js`–`level9.js`/`levels.js`, not here; all Canvas2D rendering lives in `render.js` + `render/*.js`, not here either. |
+| `render.js` + `render/{background,terrain,entities,effects,ui}.js` | All Canvas2D rendering (terrain, lander, boxes, hubs, hazards, minimap, monster fallback, menu background, HUD-adjacent canvas overlays), split out of `game.js`. Loaded after `game.js`; methods are mixed onto `CargoGame.prototype` via `Object.assign`, so they read `this.physics`/`this.camera`/etc. same as if they were still in `game.js`. |
 | `level-editor.html` | **Level Editor** — standalone browser tool for visually editing levels. See [Level Editor](#level-editor) below. |
-| `level1.js` – `level9.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. **Adding a new level file also requires manually wiring it into `index.html`**: its `<script>` tag, a button in the hardcoded `#mission-grid`, and a Dev-panel jump button — none of that is generated from `levels[]`. |
+| `level1.js` – `level9.js`, `levelTest.js` | Individual level configs — registered via `registerLevel()` from `levels.js`. Each defines terrain polygons, hubs, OOB zone, palette, physics, and quests. `levelTest.js` is a sandbox level reachable via `game.startTestLevel()`. Adding a new level file still needs its `<script>` tag added to `index.html` manually — but the mission-grid button and Dev-panel jump button are both auto-generated from `levels[]` by `generateMissionUI()`, no manual wiring needed for those two. |
 | `levels.js` | `registerLevel()` dispatcher + upgrade catalog + quest helper functions (`questPrimary`, `questNoCrash`, etc.). |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps with 3 selectable craziness tiers (the `random1`/`random2`/`random3` buttons in the mission grid). |
-| `tests.html` | Browser-based smoke-test suite (7 behavioral tests as of 2026-07: engine init, level loading, update loop, input simulation, restart cleanup, game-over flow). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
+| `tests.html` | Browser-based test suite (68 tests as of 2026-07-10: 7 behavioral smoke tests — engine init, level loading, update loop, input simulation, restart cleanup, game-over flow — plus a "Level Config Validation" category with cheap shape checks over every registered level's mission params/hubs/palette/terrain/hazards/quests, plus an upgrade-catalog check). Open via a local static server; results post to `#summary` and failures log full stacks to `console.error`. |
 
 ### Load order matters
 `index.html` loads the Matter.js CDN script, then `levels.js → levelGenerator.js →
@@ -206,46 +207,173 @@ All items below were addressed in this batch unless marked otherwise.
 
 ---
 
-## TODO / Future Work (updated 2026-07-05)
+## TODO / Future Work (updated 2026-07-10)
 
-Concrete, code-level items surfaced during the 2026-07-05 repo review — separate
-from the higher-level roadmap below:
+Most of the 2026-07-05 list below turned out to already be done by the time of
+the 2026-07-10 pass (confirmed by grepping the actual code, not just re-reading
+old notes) — struck through and kept as a paper trail. Fresh items are at the
+top.
 
-- [ ] **Delete `scratch_patch.py`** — a one-off, already-applied patch script for
-      the procedural-craziness feature; it's dead weight in the repo. (Left in
-      place pending explicit owner sign-off on the deletion.)
-- [ ] **Generate the mission grid + Dev-panel jump buttons from `levels[]`** —
-      both are hardcoded per level in `index.html`, so every new `levelN.js`
-      needs three manual wiring steps (script tag, mission button, dev button).
-      A loop over `levels[]` at boot would eliminate two of them.
-- [ ] **Split `game.js` (6 400+ lines)** — at minimum pull the ~3 000 lines of
-      Canvas2D drawing into a `render.js`; the draw functions only read state,
-      so the seam is clean. Would also make the Code Map line numbers stop
-      rotting so fast.
-- [ ] **Rebuild the regression test suite** — `tests.html` was rewritten down to
-      7 behavioral smoke tests; the old per-level-config and per-upgrade
-      assertions (166 tests) are gone. Re-add cheap config-shape checks for
-      `level1–9` + the upgrade catalog.
-- [ ] **Cargo-box laser collision** — lasers still only damage the lander
-      (see the hazards section); boxes fly through beams unharmed.
-- [ ] **`music1.mp3` is 6 MB** — the only binary asset of note; re-encode at a
-      lower bitrate (or loop a shorter section) to cut page weight for the
-      GitHub Pages deployment.
-- [ ] **`'advanced'` vehicle dead code** — removed from the UI but still fully
-      implemented in `physics.js` `applyControls()`; either delete or re-expose.
+- [ ] **Level Editor: no UI for the `incinerator` hazard type** (added
+      2026-07-10, see the Recent Additions entry below) — `level-editor.html`'s
+      hazard-tab type dropdown only offers `zone` / `laser` / `crusher` /
+      `pickup` / etc. (grep `val === 'laser'` around line 1460 for the branch
+      to extend). `incinerator` is polygon-based like `zone` (3+ pts, no fixed
+      point count) but needs the same `onMs`/`offMs`/`warnMs` timing fields
+      the laser branch already shows/hides (line ~1379) — copy that pattern
+      rather than inventing a new one.
+- [ ] **Expand `incinerator` hazard to other levels** — currently only used
+      once, in L4 (`level4.js`, lava vent field on the eastern ridge). It's a
+      generic engine feature (`physics/atmosphere.js`, grep `'incinerator'`)
+      that could fit L5 (Crystal Caverns, acid theme), L7 (Bioluminescent
+      Depths, already has `goo`), or a brand new level built around it as the
+      core mechanic — a cargo-run where the player has to time crossings
+      between burn cycles. Validate any new placement against
+      `tests.html`'s "Level Config Validation" category (it checks hazard
+      point counts/timing automatically) before playtesting.
+- [ ] **`level4.js` still has stale flavor text elsewhere?** — worth a
+      full re-read of every level's `description`/`hint` against its actual
+      `deliveryHubs`/`allowedTypes`, since the Sector-4/Deep-Storage mismatch
+      fixed 2026-07-10 was found by accident, not a systematic pass.
+- [x] ~~Delete `scratch_patch.py`~~ — already gone; not present in the repo.
+- [x] ~~Generate the mission grid + Dev-panel jump buttons from `levels[]`~~ —
+      already done (`game.js` `generateMissionUI()`, runs `levels.forEach(...)`
+      building both the `#mission-grid` buttons and the `#dev-panel .dev-row`
+      buttons — no per-level manual wiring needed anymore beyond the
+      `<script>` tag in `index.html`).
+- [x] ~~Split `game.js` into `render.js`~~ — already done; `render.js` +
+      `render/{background,terrain,entities,effects,ui}.js` exist and are
+      loaded after `game.js` in `index.html`. `physics.js` was similarly split
+      into `physics/{collision,mechanics,entities,atmosphere}.js`.
+- [x] Rebuild the regression test suite — done 2026-07-10. `tests.html` now
+      has 68 tests: the original 7 behavioral smoke tests (which were
+      actually silently failing 6/7 — the DOM stub was missing
+      `appendChild`/`dataset` that newer DOM-based UI code needs, now fixed)
+      plus a new "Level Config Validation" category with cheap shape checks
+      per level (mission params, hubs, palette, terrain, hazards, quests) and
+      one upgrade-catalog check.
+- [x] Cargo-box laser collision — done 2026-07-10. Turned out the *physics*
+      side (`physics/atmosphere.js`) already flagged hit boxes with
+      `box.lost = true`, but nothing ever spliced them out of
+      `physics.boxes` or freed the Matter body — `game.js`'s cargo-cleanup
+      pass (`processDeliveries`/similar, grep `box.lost`) now finishes the
+      job through the existing `removeCargoBox()` helper.
+- [x] ~~`music1.mp3` is 6 MB~~ — already re-encoded to 2.3 MB.
+- [x] ~~`'advanced'` vehicle dead code~~ — already fully removed from
+      `physics/entities.js`'s `applyControls()`, not just the UI. Only
+      `'basic'` and `'drone'` remain (grep `vehicleType ===` to confirm).
 - [ ] Remaining user-feedback items in the backlog at the bottom of this file
       (editor playtest/download/upload workflow, intro camera animation,
       predefined background buildings, pad-oval removal, dropoff light,
       cargo-attach UX, mobile radar collapse).
-- [ ] **Delete unused sprite PNGs** — `assets/lander_basic.png`, `lander_drone.png`,
-      `box_standard.png`, `box_red.png`, `box_blue.png`, `box_green.png` were only
-      ever referenced by the now-removed 2D Sprites Mode (`loadSprites()` /
-      `useSprites`, removed 2026-07-05). Nothing loads them anymore — safe to
-      delete once confirmed there's no other consumer.
+- [x] ~~Delete unused sprite PNGs~~ — the whole `assets/` directory referenced
+      by the old 2D Sprites Mode no longer exists in the repo.
+
+---
+
+## Continuing this project (environment + handoff notes, 2026-07-10)
+
+### Local environment
+- **Python is now installed** (`winget install Python.Python.3.12`, done
+  2026-07-10) — a fresh terminal can serve this folder with
+  `python -m http.server 8001` from inside `cargo-lander/`, then open
+  `http://localhost:8001/index.html`. (A terminal open *before* the install
+  won't see `python` on PATH until it's restarted.)
+- If Python isn't on PATH for some reason, there's also a zero-dependency
+  fallback: `.claude/static-server.ps1` (gitignored, machine-local) — a plain
+  PowerShell `HttpListener` static file server, started via
+  `.claude/launch.json`'s `cargo-lander` config. Works without installing
+  anything, just slower to iterate on than the Python server since it's
+  reading files off disk on every request.
+- Node/npm are **not** installed in this environment, so there's no
+  `node --check` for a quick JS syntax lint — rely on loading the page in a
+  browser (console errors are immediate and specific) and the `tests.html`
+  suite instead.
+
+### Verification workflow (per this project's `CLAUDE.md`)
+1. Load `index.html` via a local server — check the browser console for
+   errors on the menu screen and after starting a mission.
+2. Open `tests.html` — should read "68 passed / 0 failed" (as of 2026-07-10;
+   the number grows as more validation tests get added, that's fine, 0 failed
+   is the bar). It auto-runs on load; no button to click.
+3. For anything touching a specific mechanic, exercise it directly in the
+   browser console against the live `game`/`game.physics` objects rather than
+   trusting a code read — e.g. for a hazard: `game.startLevel(N)`, mutate
+   `game.physics.lander.x/y` **and** call
+   `Matter.Body.setPosition(game.physics.landerBody, {x, y})` together (the
+   physics body and the plain-object mirror both need updating — moving only
+   one desyncs them and causes bogus collision damage on the next physics
+   tick, which looks exactly like a real crash bug but isn't one), then drive
+   `game.update(1.0)` in a loop (dt≈1.0 is one real frame at 60fps — passing
+   dt=16 like the "Update Loop Simulation" test does is 16 frames per call
+   and will make anything time-based blow up 16x if you're eyeballing the
+   numbers).
+4. Commit + push once verified, per this repo's standing instruction — don't
+   wait to be asked.
+
+### What's next (see the TODO list above for the full detail on each)
+Picking off the TODO list roughly in order of "self-contained, low risk of
+needing broader context":
+1. **Level Editor support for `incinerator` hazards** — the type dropdown and
+   point-count/timing-field logic in `level-editor.html` only knows about
+   `laser` today; `incinerator` needs the same treatment (it's simpler than
+   laser since it's a normal 3+-point polygon, not a fixed 2-point line — the
+   *timing* fields are what need copying over).
+2. **Use the `incinerator` hazard in more levels** — it's currently only in
+   L4. Good candidates: L5 (Crystal Caverns, already acid-themed) or a new
+   level built around it as the signature mechanic (timed burn-cycle cargo
+   run). Whatever you add, `tests.html`'s validation category will catch
+   malformed hazard configs automatically on next load — no need to
+   hand-verify point counts.
+3. **Full description/hint audit** — the L4 fix (description referenced a
+   "Deep Storage" hub and blue cargo type that don't exist in the actual
+   config) was found by accident while working on something else. Worth a
+   deliberate pass reading every level's `description`/`hint` string next to
+   its `deliveryHubs`/`allowedTypes` to catch any other drift.
+4. The longer-tail user-feedback backlog at the very bottom of this file
+   (editor playtest/download/upload workflow, predefined background
+   buildings, pad-oval removal, dropoff light, cargo-attach UX, mobile radar
+   collapse) — none of these are started; pick whichever the user asks for
+   next rather than guessing priority.
 
 ---
 
 ## Recent additions
+
+### 2026-07-10: incinerator hazard, laser cargo cleanup, test suite rebuild
+- **New `incinerator` hazard type** (`physics/atmosphere.js`, `render/entities.js`,
+  wired into `level4.js`) — a polygon zone (unlike the laser's line segment)
+  that pulses through the same charge → active duty cycle. While active it
+  damages the lander (knockback away from centroid + `damagePerSec` hull
+  loss) and instantly destroys any cargo box caught inside
+  (`box.lost = true`, cleaned up by `game.js`). Renders as a faint dashed
+  outline when idle, a flashing telegraph fill when charging, and a bright
+  pulsing fill with rising embers when active — mirrors the laser's
+  idle/charging/active render language for visual consistency. Demoed as a
+  lava vent field on L4's eastern ridge.
+- **Fixed laser hazards not cleaning up destroyed cargo** — `physics.js` was
+  already flagging hit boxes with `box.lost = true` (and had been since the
+  original laser implementation), but nothing ever spliced them out of
+  `physics.boxes` or freed their Matter body/grapple state, so a box "lost"
+  to a laser kept silently simulating forever. `game.js`'s existing
+  cargo-cleanup pass (the same one that handles abyss-fall and stale-cargo
+  loss) now also handles `box.lost` through the shared `removeCargoBox()`
+  helper.
+- **`tests.html` rebuilt from 7 tests to 68** — the original DOM stub
+  (`document.getElementById` mock) was missing `appendChild`/`dataset`/etc.
+  that the DOM-based notification and mission-panel code needs, so 6 of the
+  7 original behavioral tests had been silently failing. Fixed the stub, then
+  added a new "Level Config Validation" category: cheap shape checks over
+  every registered level's mission params, delivery hubs, palette, terrain
+  geometry, hazards, and quests, plus an upgrade-catalog check. Caught two
+  real gaps in `level9.js` (missing `budget` and `palette`, silently falling
+  back to generic defaults) which are now fixed with values matching the
+  level's "Cavernous Void" theme and its position as the hardest mission.
+- **Fixed stale `level4.js` description** — referenced a "Deep Storage" hub
+  and blue cargo deliveries that don't exist in the level's actual
+  `deliveryHubs`/`allowedTypes` (which only has one "Sector 4" hub taking
+  `normal` cargo). Rewritten to describe the actual mechanic (the new
+  incinerator vent field) instead.
 
 ### 2026-07-05 (afternoon): UX/perf pass
 - **Mission progression gating** — `game.isLevelUnlocked(idx)` requires the previous
