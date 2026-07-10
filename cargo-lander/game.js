@@ -1778,7 +1778,7 @@ class CargoGame {
             }
             if (!this.isMuted && window.CargoAudio) CargoAudio.playCollision(10);
 
-            if (lander.eatenByMonster) {
+            if (lander.eatenByMonster && this.missionTimer <= 0) {
                 // Devoured reads as final, not a fender-bender you press R to
                 // shrug off — straight to a hard mission failure instead of
                 // the usual respawnable-crash flow below. No budget deduction
@@ -1788,7 +1788,10 @@ class CargoGame {
                 this.addMessage("CONSUMED BY THE ANOMALY", "#ef4444");
                 this.failMission("Consumed by the anomaly.");
             } else {
-                if (lander.busted) {
+                if (lander.eatenByMonster) {
+                    this.missionBudget -= 400;
+                    this.addMessage("Lander Consumed: -$400", "#ef4444");
+                } else if (lander.busted) {
                     this.missionBudget -= 1000;
                     this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");
                 } else {

@@ -254,7 +254,7 @@ class ShaderOverlay {
                         float h1 = hash21(cell + seed);
                         float h2 = hash21(cell + seed + 31.7);
                         float h3 = hash21(cell + seed + 57.3);
-                        if (h3 > 0.72) continue; // most cells stay empty — sparse field
+                        if (h3 > 0.90) continue; // most cells stay empty — sparse field
 
                         float yFrac = fract(h2 + u_time * (0.009 + 0.022 * h1));
                         vec2 center = (cell + vec2(0.2 + 0.6 * h1, yFrac)) * cellSize;
@@ -291,7 +291,9 @@ class ShaderOverlay {
                         }
 
                         if (result.z > bestResult.z || result.w > bestResult.w) {
-                            bestResult = result;
+                            // Fade out as it slides down so it mimics a drop appearing, sitting, and evaporating/vanishing
+                            float lifeAlpha = smoothstep(1.0, 0.7, yFrac);
+                            bestResult = result * lifeAlpha;
                         }
                     }
                 }
@@ -319,8 +321,8 @@ class ShaderOverlay {
                 }
 
                 if (u_rainAmount > 0.05) {
-                    vec4 d1 = droplet(screenPos, 170.0, 6.0, 0.0);
-                    vec4 d2 = droplet(screenPos, 95.0, 3.5, 100.0);
+                    vec4 d1 = droplet(screenPos, 130.0, 8.0, 0.0);
+                    vec4 d2 = droplet(screenPos, 75.0, 4.5, 100.0);
                     float bodyHit = max(d1.z, d2.z);
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
