@@ -43,7 +43,11 @@ registerLevel({
         orbitRadius: 140,
     },
 
-    // ── Terrain — seven detached rock/hull platforms, no continuous ground ────
+    // ── Terrain — seven detached rock/hull platforms, no continuous ground.
+    // Silhouettes now vary more: Command Deck and Salvage Chute are visibly
+    // tilted decks, and Cryo Bay's right edge tucks under Fuel Cache's left
+    // edge — a genuine stacked overlap that forces a dip-then-climb approach
+    // instead of a flat crossing ─────────────────────────────────────────────
     terrainPolygons: [
         // Platform A — HQ. startX:-160
         [
@@ -55,39 +59,47 @@ registerLevel({
             { x: 90, y: 580 }, { x: 340, y: 580 },
             { x: 360, y: 660 }, { x: 70, y: 680 }
         ],
-        // Platform C — Command Deck (red hub, x:520) — slightly raised
+        // Platform C — Command Deck (red hub, x:520) — tilted deck, low on the left
         [
-            { x: 430, y: 500 }, { x: 640, y: 500 },
-            { x: 660, y: 580 }, { x: 410, y: 590 }
+            { x: 430, y: 470 }, { x: 640, y: 520 },
+            { x: 660, y: 600 }, { x: 410, y: 560 }
         ],
-        // Platform D — Cryo Bay (blue hub, x:840) — lower shelf, forces a dip under Laser 2
+        // Platform D — Cryo Bay (blue hub, x:840) — lower shelf, forces a dip under
+        // Laser 2; right edge extended to tuck beneath Fuel Cache's left edge
         [
-            { x: 740, y: 660 }, { x: 950, y: 660 },
-            { x: 970, y: 740 }, { x: 720, y: 750 }
+            { x: 740, y: 660 }, { x: 1010, y: 660 },
+            { x: 1030, y: 740 }, { x: 720, y: 750 }
         ],
-        // Platform E — Fuel Cache (refuel, x:1060) — small, tight approach near the well
+        // Platform E — Fuel Cache (refuel, x:1060) — small, tight approach near the
+        // well; sits directly above Cryo Bay's overlapping right edge
         [
-            { x: 990, y: 560 }, { x: 1150, y: 560 },
-            { x: 1170, y: 640 }, { x: 970, y: 650 }
+            { x: 990, y: 540 }, { x: 1150, y: 580 },
+            { x: 1170, y: 660 }, { x: 970, y: 630 }
         ],
-        // Platform F — Salvage Chute (chute hub, x:1300) — wide catch deck
+        // Platform F — Salvage Chute (chute hub, x:1300) — wide catch deck, tilted
+        // down to the right
         [
-            { x: 1180, y: 600 }, { x: 1440, y: 600 },
-            { x: 1460, y: 680 }, { x: 1160, y: 690 }
+            { x: 1180, y: 580 }, { x: 1440, y: 620 },
+            { x: 1460, y: 700 }, { x: 1160, y: 670 }
         ],
-        // Platform G — Terminus Dock (normal hub, x:1660) — final delivery + return leg start
+        // Platform G — Terminus Dock (normal hub, x:1660) — final delivery + return
+        // leg start, dips slightly lower than the rest for a descending finale
         [
-            { x: 1560, y: 560 }, { x: 1800, y: 560 },
-            { x: 1820, y: 640 }, { x: 1540, y: 650 }
+            { x: 1560, y: 580 }, { x: 1800, y: 600 },
+            { x: 1820, y: 680 }, { x: 1540, y: 660 }
         ]
     ],
 
-    // ── Debris — floating hull wreckage; solid obstacles between platforms ────
+    // ── Debris — floating hull wreckage; solid obstacles between platforms, plus
+    // broken greebles jutting straight off a few platform edges ──────────────
     segments: [
         { x1: 400, y1: 420, x2: 470, y2: 460 },   // slants across the Laser-1 approach
         { x1: 700, y1: 380, x2: 760, y2: 440 },   // upper obstacle over the Laser-2 gap
         { x1: 1000, y1: 460, x2: 1080, y2: 500 }, // debris skimming the reactor well
         { x1: 1500, y1: 440, x2: 1580, y2: 480 }, // final debris shard before Terminus Dock
+        { x1: 460, y1: 470, x2: 480, y2: 435 },   // broken antenna stub off Command Deck
+        { x1: 900, y1: 660, x2: 925, y2: 695 },   // hull spur off Cryo Bay
+        { x1: 1250, y1: 605, x2: 1275, y2: 570 }, // spur off Salvage Chute's tilted deck
     ],
 
     // ── Hazards — three laser gauntlet lines + one drifting debris-cloud zone ──
@@ -148,7 +160,7 @@ registerLevel({
     hint: "Watch each laser turret: a fast flash means it's about to fire, a solid magenta beam means it's live — wait it out, then cross while it's dark. The reactor well near the Fuel Cache pulls off-course, so fight the drift early. There's no ground between platforms, only the abyss — don't stall over a gap. Deliver all 4 cargos, then run the gauntlet again back to HQ.",
 
     quests: [
-        questPrimary('Deliver 4 cargo across the derelict station'),
+        questPrimary('Deliver 4 cargo across the derelict station, then breach the gauntlet home'),
         questNoCargoLost('No cargo lost to the void', 500),
         questNoCrash(800),
         questQuick('Finish in under 4 minutes', 60, 900),
