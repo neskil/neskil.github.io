@@ -101,6 +101,18 @@ user says so.
       round-trip: `level-editor.html?autoload=level9.js&dumpExport=1` and
       diff against the source. [VERIFY].
 
+- [ ] **1.5 Fix mobile touch buttons before fullscreen (user-reported bug,
+      2026-07-10).** On mobile, the on-screen control buttons don't respond
+      to taps until the game goes fullscreen. Likely suspects: the uniform
+      CSS `transform: scale()` viewport scaling (README "Mobile scaling")
+      offsetting hit areas from where the buttons are drawn, a z-index/
+      overlay stacking issue, or `touch-action`/pointer-event handlers only
+      being bound in the fullscreen path. Repro without a device: devtools
+      device emulation at 812×375 with touch enabled, start a mission
+      NON-fullscreen, tap each control. Fix so buttons work identically
+      before and after fullscreen. Manual QA per the README's
+      "Mobile / responsive manual QA" section. [VERIFY].
+
 ## Phase 2 — Feel & performance
 
 - [ ] **2.1 Profile then fix the level-start hitch.** Diagnosed but not fixed
@@ -139,6 +151,35 @@ user says so.
       high swing (2.2), and a distinct low-fuel heartbeat that escalates
       below 15%. Keep each under ~20 lines of synth code, matching existing
       patterns in `audio.js`. [VERIFY] by ear in the browser.
+
+- [ ] **2.4 Experimental virtual joystick for mobile (user request,
+      2026-07-10).** Alternative to the button pad: a touch joystick —
+      left-half drag = virtual stick controlling thrust (up) and strafe
+      (left/right), right-half tap = action (grapple/attach), matching the
+      existing button semantics. Implement as a Settings toggle
+      ("Touch controls: Buttons / Joystick (experimental)") persisted in
+      `localStorage`, defaulting to Buttons — do NOT replace the buttons.
+      Render the stick base + nub on the canvas (`render/ui.js`) at the
+      initial touch point (floating origin), feed values into the same
+      `inputState` object `game.update()` already builds, no physics
+      changes. Dead zone ~15%, and thrust should map analog (stick
+      deflection → partial `enginePower`) if the input path allows it —
+      otherwise threshold to on/off first and note the analog follow-up.
+      Depends on 1.5 (touch handling must work pre-fullscreen first).
+      Manual mobile QA + [VERIFY].
+- [ ] **2.5 Gamepad (Xbox controller) support (user request, 2026-07-10).**
+      Use the standard Gamepad API (`navigator.getGamepads()`, polled once
+      per frame in `game.update()` — it's poll-based, no events needed for
+      sticks/triggers). Mapping (standard layout): left stick X = strafe,
+      right trigger (`buttons[7].value`, analog) = thrust, A = grapple/
+      attach, B = release, Start = pause, with left stick up as an
+      alternate thrust for pads without analog triggers. Merge into the
+      same `inputState` alongside keyboard (gamepad active = last input
+      wins, no mode switch needed). Show a small "🎮 controller connected"
+      toast on the `gamepadconnected` event. Keep it ~100 lines in one
+      place (`game.js` input section). Test with a real controller if
+      available; otherwise verify no-regression with [VERIFY] and leave a
+      note that hardware testing is pending.
 
 ## Phase 3 — Bigger bets (each needs a user check-in before starting)
 
