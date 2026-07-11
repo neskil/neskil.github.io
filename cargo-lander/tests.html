@@ -654,7 +654,9 @@ levels.forEach((lv, i) => {
         if (h.onMs !== undefined) assert(h.onMs > 0, `incinerator hazard ${hi} onMs must be positive`);
         if (h.offMs !== undefined) assert(h.offMs > 0, `incinerator hazard ${hi} offMs must be positive`);
       } else if (h.type === 'crusher') {
-        assert([h.x, h.y, h.w, h.h].every(isFinite), `crusher hazard ${hi} needs numeric x/y/w/h`);
+        assert(Array.isArray(h.pts) && h.pts.length === 2, `crusher hazard ${hi} needs exactly 2 pts (a line segment)`);
+        for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `crusher hazard ${hi} has a non-numeric point`);
+        assert(isFinite(h.thickness), `crusher hazard ${hi} needs numeric thickness`);
       } else if (h.pts) {
         assert(h.pts.length >= 3, `'${h.type || 'zone'}' hazard ${hi} needs >= 3 points`);
         for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `hazard ${hi} has a non-numeric point`);
