@@ -409,7 +409,16 @@ class CargoGame {
         
         if (this.currentLevelIndex === 0) {
             setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Use Arrow Keys or WASD to fly", "#34d399") }, 3000);
-            setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Pick up cargo from the crane (Spacebar / Click)", "#34d399") }, 9000);
+            setTimeout(() => {
+                if (this.gameState === 'playing') {
+                    const isDrone = this.physics.lander && this.physics.lander.vehicleType === 'drone';
+                    if (isDrone) {
+                        this.addMessage("TUTORIAL: Pick up cargo from the crane using grapple (Spacebar / Right Click)", "#34d399");
+                    } else {
+                        this.addMessage("TUTORIAL: Land on the Collection Pad to automatically load cargo", "#34d399");
+                    }
+                }
+            }, 9000);
             setTimeout(() => { if (this.gameState === 'playing') this.addMessage("TUTORIAL: Deliver cargo to the glowing Delivery Hubs", "#34d399") }, 15000);
         }
 

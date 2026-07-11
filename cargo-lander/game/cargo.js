@@ -53,7 +53,6 @@ Object.assign(CargoGame.prototype, {
         }
         
         if (totalReward > 0) {
-            this.addMessage(`+$${totalReward}`, '#10b981');
             if (!this.floatingTexts) this.floatingTexts = [];
             const ox = (Math.random() - 0.5) * 40;
             const oy = (Math.random() - 0.5) * 20;
