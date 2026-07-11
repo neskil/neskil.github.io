@@ -8,6 +8,27 @@ backlog" section.
 
 ---
 
+## 2026-07-11 — Vitals gauge cluster + shield gauge (v0.9.0)
+
+User report: FUEL/HULL bars misaligned (the flex-wrap layout wrapped on
+narrow screens), wanted car-style E→F markers, tick indicators, icons, and a
+shield readout for the upgrade.
+- **`#vitals-panel` rebuilt as a CSS grid gauge cluster** (icon+label | E |
+  bar | F columns, `display:contents` row wrappers) — rows stay pixel-aligned
+  at any width. Icons: ⛽ fuel, 🔧 hull, 🛡️ shield.
+- **E / F end-markers** on the fuel gauge and **quarter-tank tick marks**
+  (CSS `repeating-linear-gradient` overlay) on every gauge.
+- **Shield charge gauge** — row hidden until the Shield Generator upgrade is
+  owned; fill tracks `lander.shieldCharge`, flashes bright while a hit is
+  being absorbed (`shieldHitFlash`). Blue→purple gradient fill.
+- LOW FUEL warning moved to a full-width row under the gauges (was inline,
+  contributing to the wrap misalignment). `toggleUI()`'s show-HUD path
+  restores the panel as `grid` (was hardcoded `flex`).
+- `probe-screenshot.html` gained a `&script=shieldGauge` repro (upgrade
+  owned, partial fuel/hull/shield) for headless verification.
+
+---
+
 ## 2026-07-11 — Mobile HUD compaction (v0.8.0)
 
 User report (with phone screenshot): HUD fine on desktop but eats a third of a

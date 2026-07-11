@@ -32,7 +32,7 @@ Object.assign(CargoGame.prototype, {
                 eyeBtn.title = 'Show UI';
             }
         } else {
-            if (vitals) vitals.style.display = 'flex';
+            if (vitals) vitals.style.display = 'grid';
             if (leftPanel) leftPanel.style.display = 'flex';
             if (radarContainer) radarContainer.style.display = 'block';
             if (hudToolbar) hudToolbar.style.display = 'flex';
@@ -165,6 +165,29 @@ Object.assign(CargoGame.prototype, {
                 healthFill.style.background = '#ef4444';
             } else {
                 healthFill.style.background = '#10b981';
+            }
+        }
+
+        // Shield charge gauge — the row only appears once the Shield
+        // Generator upgrade is owned. Fill tracks lander.shieldCharge and
+        // flashes bright for the moments a hit is being absorbed
+        // (shieldHitFlash, set by applyDamage in physics/entities.js).
+        const shieldRow = document.getElementById('shield-row');
+        if (shieldRow) {
+            const hasShield = (this.upgrades?.shieldRegen || 0) > 0;
+            if (hasShield) {
+                shieldRow.classList.remove('hidden');
+                const shieldFill = document.getElementById('shield-fill');
+                if (shieldFill) {
+                    const max = lander.maxShieldCharge || 0;
+                    const pct = max > 0 ? Math.max(0, Math.min(100, ((lander.shieldCharge || 0) / max) * 100)) : 0;
+                    shieldFill.style.width = `${pct}%`;
+                    shieldFill.style.background = (lander.shieldHitFlash > 0)
+                        ? '#e0f2fe'
+                        : 'linear-gradient(90deg, #38bdf8, #818cf8)';
+                }
+            } else {
+                shieldRow.classList.add('hidden');
             }
         }
 
