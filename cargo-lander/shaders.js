@@ -169,24 +169,28 @@ class ShaderOverlay {
                         float normDist = dist / u_wellRadius[i];
                         float eventHorizon = 20.0;
                         
-                        if (dist < eventHorizon) {
-                            finalAlpha = 1.0;
-                        } else {
-                            float angle = atan(diff.y, diff.x);
-                            float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
-                            float pulse = u_wellPulse[i];
-                            float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
-                            
-                            // Shrinking circles feeding into the black hole
-                            float circleDist = normDist * 8.0 + u_time * 3.0;
-                            float circle = fract(circleDist);
-                            float circlePulse = smoothstep(0.6, 0.8, circle) * (1.0 - smoothstep(0.8, 1.0, circle));
-                            intensity += circlePulse * 0.45 * (1.0 - normDist);
-                            
-                            vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
-                            finalColor += color;
-                            finalAlpha = max(finalAlpha, intensity * (1.0 - normDist));
-                        }
+                        float angle = atan(diff.y, diff.x);
+                        float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
+                        float pulse = u_wellPulse[i];
+                        float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
+                        
+                        // Shrinking circles feeding into the black hole
+                        float circleDist = normDist * 8.0 + u_time * 3.0;
+                        float circle = fract(circleDist);
+                        float circlePulse = smoothstep(0.6, 0.8, circle) * (1.0 - smoothstep(0.8, 1.0, circle));
+                        // The closer to the center (normDist near 0), the more opaque. 
+                        // The further out (normDist near 1), the more transparent.
+                        float circleFade = pow(1.0 - normDist, 2.5); // Steep exponential curve
+                        intensity += circlePulse * 0.8 * circleFade;
+                        
+                        vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
+                        
+                        // Soft fade for the event horizon
+                        float ehFade = smoothstep(eventHorizon * 0.6, eventHorizon + 2.0, dist);
+                        
+                        finalColor += mix(vec3(0.0), color, ehFade);
+                        float alphaRaw = max(intensity * (1.0 - normDist), 1.0 - ehFade);
+                        finalAlpha = max(finalAlpha, alphaRaw);
                     }
                 }
                 
@@ -448,9 +452,15 @@ class ShaderOverlay {
                     vec2 diff = screenPos - u_blackholePos[i];
                     float dist = length(diff);
                     if (dist < u_blackholeRadius[i] && dist > 1.0) {
-                        float pull = 1.0 - dist / u_blackholeRadius[i];
-                        pull = pull * pull;
-                        offset += diff * pull * 1.2; // + pushes sampling away from center, shrinking the image. 1.2 is visible but less extreme.
+                        float coreRadius = 20.0 * u_zoom;
+                        // Avoid singularity exactly at the center, but get very strong near the core
+                        float safeDist = max(dist, coreRadius * 0.9);
+                        // Exponential falloff based on distance from the core
+                        float ratio = coreRadius / safeDist; 
+                        // Power curve gives the "exponential" spike near the edge
+                        float pull = pow(ratio, 3.0); 
+                        // Scale the pull so it's not overpowering the whole screen, but intense near the core
+                        offset += diff * pull * 0.6;
                         touched = true;
                     }
                     if (dist < u_blackholeRadius[i] * 0.8) {

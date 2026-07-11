@@ -76,21 +76,31 @@ const CargoPhysicsMechanicsMixin = {
                         // Calculate total path length
                         let totalLen = 0;
                         const segments = [];
-                        for (let i = 0; i < h.pts.length - 1; i++) {
-                            const p1 = h.pts[i], p2 = h.pts[i+1];
+                        const isLoop = h.pts.length > 2;
+                        const numSegs = isLoop ? h.pts.length : h.pts.length - 1;
+                        
+                        for (let i = 0; i < numSegs; i++) {
+                            const p1 = h.pts[i], p2 = h.pts[(i + 1) % h.pts.length];
                             const d = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                             segments.push({ p1, p2, len: d });
                             totalLen += d;
                         }
                         
                         if (totalLen > 0) {
-                            // Ping pong interpolation
                             const duration = totalLen / (speed * 0.5); // relative speed
                             const t = (this.hazardTime || 0) / 1000.0; // seconds
-                            let pingpong = (t / (duration || 1)) % 2.0;
-                            if (pingpong > 1.0) pingpong = 2.0 - pingpong;
+                            let progressFraction = 0;
+                            
+                            if (isLoop) {
+                                // Circular loop (modulo)
+                                progressFraction = (t / (duration || 1)) % 1.0;
+                            } else {
+                                // Ping pong interpolation (for 2 points)
+                                progressFraction = (t / (duration || 1)) % 2.0;
+                                if (progressFraction > 1.0) progressFraction = 2.0 - progressFraction;
+                            }
 
-                            let targetDist = pingpong * totalLen;
+                            let targetDist = progressFraction * totalLen;
                             for (const seg of segments) {
                                 if (targetDist <= seg.len) {
                                     const progress = targetDist / (seg.len || 1);
@@ -100,7 +110,17 @@ const CargoPhysicsMechanicsMixin = {
                                 }
                                 targetDist -= seg.len;
                             }
-                            currentStrength = startForce + (endForce - startForce) * pingpong;
+                            
+                            // Interpolate strength for ping-pong, but for loops just use startForce?
+                            // Or keep it simple: progressFraction smoothly goes 0->1.
+                            if (isLoop) {
+                                // For a loop, it might make sense to interpolate start to end and snap,
+                                // or just use startForce. Let's smoothly transition 0->0.5->1
+                                const loopPingPong = progressFraction < 0.5 ? progressFraction * 2.0 : (1.0 - progressFraction) * 2.0;
+                                currentStrength = startForce + (endForce - startForce) * loopPingPong;
+                            } else {
+                                currentStrength = startForce + (endForce - startForce) * progressFraction;
+                            }
                         }
                     }
                     this.gravityWells.push({ x: wx, y: wy, radius: radius, strength: currentStrength, maxStrength: Math.max(startForce, endForce), pulse: 1.0 });
@@ -123,8 +143,26 @@ const CargoPhysicsMechanicsMixin = {
                 this.lander.vy += (dy / (dist || 1)) * force * dt;
                 
                 if (dist < gw.radius * 0.15) {
-                    this.applyDamage(this.lander, 5 * dt); // Small damage near center
+                    // Small damage near center
+                    this.lander.integrity -= 5 * dt;
+                    if (this.lander.integrity <= 0 && !this.lander.crashed) {
+                        this.triggerExplosion(true);
+                    }
                 }
+            }
+        }
+
+        if (this.lander.swallowed) {
+            this.lander.swallowScale = Math.max(0, this.lander.swallowScale - dt * 0.02);
+            this.lander.angle += dt * 0.1;
+            // Kill velocity so it doesn't bounce around or trigger screen shake
+            this.lander.vx *= 0.8;
+            this.lander.vy *= 0.8;
+            
+            // Pull it exactly to the center of the anomaly
+            if (this.gravityWellPos) {
+                this.lander.x += (this.gravityWellPos.x - this.lander.x) * 0.1 * dt;
+                this.lander.y += (this.gravityWellPos.y - this.lander.y) * 0.1 * dt;
             }
         }
     }

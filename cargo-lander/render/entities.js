@@ -1175,6 +1175,9 @@ drawLander() {
         ctx.save();
         ctx.translate(lander.x, lander.y);
         ctx.rotate(lander.angle);
+        if (lander.swallowScale !== undefined) {
+            ctx.scale(lander.swallowScale, lander.swallowScale);
+        }
 
         // ── Landing legs drawn BEFORE bounce so they stay at ground level ──
         // Only show spring compression while grounded — never during flight/takeoff

@@ -605,13 +605,19 @@ const CargoPhysicsEntitiesMixin = {
                     size: 20 + Math.random() * 26
                 });
             }
+
+            if (window.game && window.game.screenShake) {
+                window.game.screenShake.intensity = Math.max(window.game.screenShake.intensity, 18);
+            }
         }
 
         if (window.game && window.game.screenShake) {
-            window.game.screenShake.intensity = Math.max(window.game.screenShake.intensity, 18);
+            window.game.screenShake.x = (Math.random() - 0.5) * 20;
+            window.game.screenShake.y = (Math.random() - 0.5) * 20;
         }
     },
 
+    updateBoxes(dt) {
         const lander = this.lander;
         const FS = this.MATTER_FORCE_SCALE; // converts vel/frame to Matter force
 
