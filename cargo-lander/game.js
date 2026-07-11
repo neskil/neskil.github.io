@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.7.5';
+    static VERSION = '0.7.7';
 
     constructor() {
         this.canvas = null;
@@ -1027,7 +1027,7 @@ class CargoGame {
         const ch = this.canvas.height;
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom);
-        let desiredZoom = 1.3;
+        let desiredZoom = 1.1;
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
         desiredZoom *= (this.zoomModifier || 1.0);
 
@@ -1855,9 +1855,9 @@ class CargoGame {
         const ch = this.canvas.height;
         const levelFitZoom = Math.min(cw / this.physics.levelWidth, ch / this.physics.levelHeight) * 0.95;
         const minZoom = Math.max(0.45, levelFitZoom); // Cap how far it can zoom out
-        let desiredZoom = 1.3;
+        let desiredZoom = 1.1;
         desiredZoom = Math.max(minZoom, Math.min(1.8, desiredZoom));
-        
+
         // Apply user zoom modifier
         desiredZoom *= (this.zoomModifier || 1.0);
 
