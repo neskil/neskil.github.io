@@ -10,7 +10,7 @@ plans — check it before re-diagnosing an old-sounding bug.
   exercising any new mechanic against the live `game`/`game.physics` objects —
   headless if no interactive browser is available, see below), fix any bugs
   found, then **commit and push** — without waiting to be asked each time.
-- After a feature branch is fully merged into `master` and pushed to remote, clean up the local environment by removing the git worktree (`git worktree remove <branch>`) and deleting the local/remote feature branches to keep the project view tidy.
+- After a feature branch is fully merged into `master` and pushed to remote, ask the user if they want to clean up the branch (delete feature branch and remove git worktree).
 - Bump `CargoGame.VERSION` (top of `game.js`, shown in-game as `vX.Y.Z`) on
   every commit that ships a user-visible change: patch for fixes/tweaks, minor
   for new features. Skip only for docs/comment-only or pure-refactor commits.

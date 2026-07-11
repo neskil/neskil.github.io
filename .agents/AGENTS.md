@@ -27,4 +27,4 @@ This repository uses a simple folder-based routing structure. Each major page or
 
 - **Conventional Commits**: Use descriptive prefixes for commits (e.g., `feat:`, `fix:`, `perf:`, `chore:`).
 - **Local Settings**: Never commit the `.claude/` directory; verify it remains excluded via `.gitignore`.
-- **Worktree & Branch Cleanup**: Once a feature branch has been fully merged into `master` and pushed to origin, clean up by deleting the feature branch (`git branch -d <branch>`) and removing the local worktree (`git worktree remove <branch>`) to prevent cluttering the Source Control panel.
+- **Worktree & Branch Cleanup**: Once a feature branch has been fully merged into `master` and pushed to origin, ask the user if they would like to clean up the branch. If approved, delete the local/remote feature branch and remove the local git worktree.
