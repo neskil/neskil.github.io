@@ -22,7 +22,7 @@ updateWeather(dt) {
         // ── Regular weather particles ──────────────────────────────────────
         if (hasWeather && this.weatherParticles.length < MAX_WEATHER_PARTICLES && Math.random() < 0.6) {
             this.weatherParticles.push({
-                x: camX + (Math.random() - 0.5) * vw * 1.5,
+                x: camX + (Math.random() - 0.5) * vw * 2.0, // Spawn wider to cover off-screen
                 y: camY - vh * 0.6,
                 vx: this.weather === 'snow' ? (Math.random() - 0.5) * 2 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (Math.random() - 0.5) * 3),
                 vy: this.weather === 'snow' ? Math.random() * 2 + 1 : (this.weather === 'rain' ? Math.random() * 8 + 8 : Math.random() * 2 + 1),
@@ -41,8 +41,8 @@ updateWeather(dt) {
             if (this.windStreaks.length < MAX_WIND_STREAKS && Math.random() < spawnRate) {
                 const dir = wind > 0 ? -1 : 1; // spawn on the side wind blows FROM
                 this.windStreaks.push({
-                    x: camX + dir * vw * 0.55 + (Math.random() - 0.5) * vw * 0.35,
-                    y: camY + (Math.random() - 0.5) * vh,
+                    x: camX + dir * vw * 0.85 + (Math.random() - 0.5) * vw * 0.5, // Spawn further off screen
+                    y: camY + (Math.random() - 0.5) * vh * 1.2,
                     vx: wind * (18 + Math.random() * 14),
                     vy: (Math.random() - 0.5) * 1.5,
                     len: 20 + windAbs * 60 + Math.random() * 40,

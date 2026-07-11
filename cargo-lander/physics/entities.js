@@ -529,11 +529,10 @@ const CargoPhysicsEntitiesMixin = {
         }
     },
 
-    triggerExplosion() {
+    triggerExplosion(isSwallowed = false) {
         if (window.DEV_INVULNERABLE) {
             if (this.lander) {
                 this.lander.integrity = 100;
-                // Add a small bounce if hitting the ground or ceiling
                 if (this.lander.vy > 1) this.lander.vy = -this.lander.vy * 0.5;
             }
             return;
@@ -543,74 +542,69 @@ const CargoPhysicsEntitiesMixin = {
         lander.crashed = true;
         lander.integrity = 0;
         lander.thrusting = false;
+        
+        if (isSwallowed) {
+            lander.swallowed = true;
+            lander.swallowScale = 1.0;
+        } else {
+            if (window.CargoAudio) {
+                CargoAudio.playCrash();
+            }
 
-        if (window.CargoAudio) {
-            CargoAudio.playCrash();
-        }
+            for (let i = 0; i < 3; i++) {
+                this.particles.push({
+                    x: lander.x, y: lander.y,
+                    vx: 0, vy: 0,
+                    life: 1.0,
+                    decay: 0.05 + Math.random() * 0.025,
+                    color: 'rgba(255, 244, 214, 0.95)',
+                    size: 45 + Math.random() * 30
+                });
+            }
 
-        // ── Flash core: a couple of huge, near-white particles that decay almost
-        // instantly — reads as a bright pop at the moment of impact. Bigger and a
-        // touch slower than the first pass so it actually registers before fading.
-        for (let i = 0; i < 3; i++) {
-            this.particles.push({
-                x: lander.x, y: lander.y,
-                vx: 0, vy: 0,
-                life: 1.0,
-                decay: 0.05 + Math.random() * 0.025,
-                color: 'rgba(255, 244, 214, 0.95)',
-                size: 45 + Math.random() * 30
-            });
-        }
+            for (let i = 0; i < 55; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.3 + Math.random() * 5.5;
+                this.particles.push({
+                    x: lander.x + (Math.random() - 0.5) * 15,
+                    y: lander.y + (Math.random() - 0.5) * 15,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1.2,
+                    life: 1.0,
+                    decay: 0.009 + Math.random() * 0.016,
+                    color: Math.random() < 0.7 ? `hsla(${15 + Math.random() * 30}, 100%, ${50 + Math.random() * 20}%, 0.9)` : '#facc15',
+                    size: 10 + Math.random() * 16
+                });
+            }
 
-        // ── Fireball: hot core burst — larger and slower-decaying than the first
-        // pass, and thrown out at lower speed so it fills more space instead of
-        // shooting past the frame.
-        for (let i = 0; i < 55; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 1.3 + Math.random() * 5.5;
-            this.particles.push({
-                x: lander.x + (Math.random() - 0.5) * 15,
-                y: lander.y + (Math.random() - 0.5) * 15,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 1.2,
-                life: 1.0,
-                decay: 0.009 + Math.random() * 0.016,
-                color: Math.random() < 0.7 ? `hsla(${15 + Math.random() * 30}, 100%, ${50 + Math.random() * 20}%, 0.9)` : '#facc15',
-                size: 10 + Math.random() * 16
-            });
-        }
+            for (let i = 0; i < 18; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 7;
+                this.particles.push({
+                    x: lander.x, y: lander.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2.5,
+                    life: 1.0,
+                    decay: 0.006 + Math.random() * 0.009,
+                    color: Math.random() < 0.5 ? '#1e293b' : '#475569',
+                    size: 4 + Math.random() * 6
+                });
+            }
 
-        // ── Debris: dark chunks flung out ballistically, faster/further than fire ──
-        for (let i = 0; i < 18; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 3 + Math.random() * 7;
-            this.particles.push({
-                x: lander.x, y: lander.y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 2.5,
-                life: 1.0,
-                decay: 0.006 + Math.random() * 0.009,
-                color: Math.random() < 0.5 ? '#1e293b' : '#475569',
-                size: 4 + Math.random() * 6
-            });
-        }
-
-        // ── Smoke: slow-rising, long-lived, low-alpha — lingers well after the
-        // fire and debris have faded, instead of the blast just vanishing. Larger
-        // puffs than the first pass for a bigger-reading cloud.
-        for (let i = 0; i < 32; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 0.25 + Math.random() * 1.3;
-            this.particles.push({
-                x: lander.x + (Math.random() - 0.5) * 20,
-                y: lander.y + (Math.random() - 0.5) * 20,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 0.5 - Math.random() * 0.5,
-                life: 1.0,
-                decay: 0.0022 + Math.random() * 0.004,
-                color: `rgba(${60 + Math.random() * 30}, ${60 + Math.random() * 30}, ${65 + Math.random() * 30}, 0.5)`,
-                size: 20 + Math.random() * 26
-            });
+            for (let i = 0; i < 32; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 0.25 + Math.random() * 1.3;
+                this.particles.push({
+                    x: lander.x + (Math.random() - 0.5) * 20,
+                    y: lander.y + (Math.random() - 0.5) * 20,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 0.5 - Math.random() * 0.5,
+                    life: 1.0,
+                    decay: 0.0022 + Math.random() * 0.004,
+                    color: `rgba(${60 + Math.random() * 30}, ${60 + Math.random() * 30}, ${65 + Math.random() * 30}, 0.5)`,
+                    size: 20 + Math.random() * 26
+                });
+            }
         }
 
         if (window.game && window.game.screenShake) {
@@ -618,7 +612,6 @@ const CargoPhysicsEntitiesMixin = {
         }
     },
 
-    updateBoxes(dt) {
         const lander = this.lander;
         const FS = this.MATTER_FORCE_SCALE; // converts vel/frame to Matter force
 
