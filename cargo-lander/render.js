@@ -78,16 +78,14 @@ draw() {
         }
 
         // --- Menu Specific Background Rendering ---
-        // Update floating texts
         if (this.floatingTexts) {
             for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
                 const ft = this.floatingTexts[i];
-                ft.life -= 16.6 * 0.001; // changed from 0.01 to match 60fps correctly
-                ft.y -= 16.6 * 0.05; // slower float
+                ft.life -= 16.6 * 0.001; 
+                ft.y -= 16.6 * 0.05; 
                 if (ft.life <= 0) this.floatingTexts.splice(i, 1);
             }
         }
-
         if (this.gameState === 'menu') {
             this.drawMenuBackgroundEntity();
             return; // Don't draw the level geometry
@@ -155,16 +153,15 @@ draw() {
         // 6c. Draw ambient space truck traffic
         this.drawAmbientTraffic();
 
-
-
         // 8.5 Draw Floating Texts
         if (this.floatingTexts) {
             for (const ft of this.floatingTexts) {
                 ctx.save();
                 ctx.font = 'bold 24px Outfit';
                 ctx.textAlign = 'center';
-                ctx.fillStyle = `rgba(16, 185, 129, ${ft.life / 1.5})`;
-                ctx.strokeStyle = `rgba(0, 0, 0, ${ft.life / 1.5})`;
+                ctx.globalAlpha = Math.max(0, ft.life / 1.5);
+                ctx.fillStyle = ft.color || '#10b981';
+                ctx.strokeStyle = 'black';
                 ctx.lineWidth = 3;
                 ctx.strokeText(ft.text, ft.x, ft.y);
                 ctx.fillText(ft.text, ft.x, ft.y);

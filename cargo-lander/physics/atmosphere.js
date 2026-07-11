@@ -990,9 +990,11 @@ const CargoPhysicsAtmosphereMixin = {
                         // Collected!
                         if (c.resource === 'fuel') {
                             this.lander.fuel = Math.min(100, this.lander.fuel + (c.amount || 25));
+                            if (window.game) window.game.addMessage(`+FUEL`, '#60a5fa');
                             if (window.game) window.game.floatingTexts.push({ text: `+FUEL`, x: c.x, y: c.y, life: 1.5, color: '#60a5fa' });
                         } else if (c.resource === 'cash') {
                             this.cash = (this.cash || 0) + (c.amount || 100);
+                            if (window.game) window.game.addMessage(`+$${c.amount||100}`, '#10b981');
                             if (window.game) window.game.floatingTexts.push({ text: `+$${c.amount||100}`, x: c.x, y: c.y, life: 1.5, color: '#10b981' });
                         }
                         this.collectibles.splice(i, 1);
