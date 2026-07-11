@@ -247,10 +247,62 @@ the process).
 | **Pendulum mass physics** | Rope-hung special cargo that destabilizes flight (see backlog). |
 | **Advanced logistics** | More interactive loading/unloading than pad-hovering; persistent ship builds for the harder maps. |
 | **Procedural Expedition mode** | Rogue-like infinite-delivery runs (see backlog). |
+| **Night ops levels** | Darkened scene + lander spotlight cone, ambient hub/hazard glows. **In progress** — see [PLAN.md](PLAN.md). |
 
 Everything earlier in the original roadmap (dynamic weather, Big Cargo,
 biomes, upgrades integration, in-browser level editor) has shipped — see
 HISTORY.md.
+
+### Idea parking lot (not scheduled — grab one if you want a self-contained task)
+
+Unsorted, no priority implied. Each is scoped enough to pick up cold; grep the
+named files/functions before starting, they may have moved.
+
+**Retention / progression**
+- Per-level 3-star medals (Delivered All / No Damage / Time Par), stored per
+  level, shown on the mission grid (`generateMissionUI()` in `game/menu.js`)
+  and victory screen.
+- Post-mission debrief: fuel/damage/cargo/time summary + one contextual tip
+  on failure (`failMission(reason)` already has the cause).
+- Daily Challenge: date-seeded `levelGenerator.js` map (mulberry32 of
+  `YYYY-MM-DD`), shared by all players that day, streak counter.
+- Ghost replay of your own best run per level (record `{x,y,angle,thrust}` at
+  ~10Hz, redraw translucent on top of a live attempt).
+- Career stats page (lifetime missions/cargo/crashes/earnings), next to pilot
+  rank in the menu.
+
+**Accessibility / QoL**
+- Assist options: stability auto-level + gentle gravity toggle, disables
+  highscore/medal recording for that run.
+- Colorblind-safe cargo/hub glyphs (shape stamped on top of the color).
+- Separate music/SFX volume sliders (`audio.js` currently mixes both).
+- Pause menu with one-tap "Restart mission" (re-charges the entry fee).
+- Save export/import as a copy-paste code, bundling the `cargoLander*`
+  localStorage keys — cross-device progress with zero backend.
+
+**Economy**
+- Contract board: pick a mission modifier before launch (storm surcharge,
+  heavy load, no-damage bonus) for a payout multiplier.
+- Mission insurance: pay extra up front, partial refund on failure.
+- Police speeding fines: existing ambient police traffic gets a
+  `speedLimit` level field and a small fine for flying past it too fast.
+
+**Content / mechanics**
+- New hazard type `fan` — directional wind-tunnel zone pushing lander +
+  cargo along a configured vector.
+- Cargo behavior flags `fragile` (damaged/destroyed by hard landings) and
+  `expiresSec` (perishable, countdown ring).
+- Fuel leak below ~30% hull integrity — gives the mid-mission repair action
+  a reason to exist outside of crashes.
+- Dynamic music intensity: crossfade between calm/tense tracks in
+  `music/` based on a computed per-second danger score.
+- Shareable level codes: base64 the editor's export block for copy-paste
+  sharing, paste-to-import next to the existing custom-level upload flow.
+
+**Hygiene** (found during a 2026-07-11 review, still open)
+- `level10.js` is loaded by `index.html` but missing from `tests.html`'s
+  script list — its level config silently skips the schema-driven validation
+  category. Add the `<script>` tag.
 
 ---
 
