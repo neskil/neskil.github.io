@@ -1034,14 +1034,11 @@ drawSingleBox(x, y, type, emoji, box) {
         ctx.lineWidth = 1.5;
         ctx.strokeRect(-halfS + 0.75, -halfS + 0.75, S - 1.5, S - 1.5);
 
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4;
         ctx.font = `${Math.round(S * 0.75)}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
         ctx.fillText(iconText, 0, 1.5);
-        ctx.shadowBlur = 0;
 
         ctx.restore();
 
