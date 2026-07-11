@@ -1220,6 +1220,7 @@ class CargoGame {
     }
 
     respawnLander() {
+        if (this.gameState !== 'playing') return;
         this.crashHandled = false;
 
         const respawnScreen = document.getElementById('respawn-screen');
@@ -1873,13 +1874,15 @@ class CargoGame {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
 
-            let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
-            let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
-            const viewH = this.canvas.height / this.camera.targetZoom;
-            const maxCamY = this.physics.levelHeight - (viewH / 2) + this.cameraVOffset;
-            targetY = Math.min(targetY, maxCamY);
-            this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
-            this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
+            if (!lander.swallowed) {
+                let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
+                let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
+                const viewH = this.canvas.height / this.camera.targetZoom;
+                const maxCamY = this.physics.levelHeight - (viewH / 2) + this.cameraVOffset;
+                targetY = Math.min(targetY, maxCamY);
+                this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
+                this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
+            }
         }
         // -------------------------------
 
