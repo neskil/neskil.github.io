@@ -247,6 +247,7 @@ canvas{display:block}
     </div>
     <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
       <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
+      <label title="Draw this hazard behind the terrain geometry" style="margin-left:12px; cursor:pointer"><input type="checkbox" id="hazard-bg" onchange="setHazardField('behindTerrain', this.checked)"> Behind Terrain</label>
     </div>
     <div id="pt-list-wrap"><div id="pt-list"></div></div>
     <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
@@ -1491,6 +1492,7 @@ function renderPtUI() {
       if (poly.type !== 'zone') {
         colorRow.style.display = '';
         document.getElementById('hazard-color').value = poly.color || '#ff0000';
+        document.getElementById('hazard-bg').checked = !!poly.behindTerrain;
       } else {
         colorRow.style.display = 'none';
       }
@@ -1890,6 +1892,7 @@ function buildOut() {
         if (h.retractMs !== undefined) lines.push(`      retractMs: ${h.retractMs},`);
         if (h.thickness !== undefined) lines.push(`      thickness: ${h.thickness},`);
       }
+      if (h.behindTerrain) lines.push(`      behindTerrain: true,`);
       if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);
       lines.push('      pts: [');
       h.pts.forEach((pt,pi) => lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${pi<h.pts.length-1?',':''}`));

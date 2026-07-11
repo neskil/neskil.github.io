@@ -98,6 +98,17 @@ registerLevel({
         { type: 'laser', pts: [{ x: 685, y: 360 }, { x: 685, y: 760 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, phaseOffset: 900 },
         // Gauntlet Laser 3 — the return gauntlet near Terminus Dock, fastest cycle
         { type: 'laser', pts: [{ x: 1465, y: 400 }, { x: 1465, y: 720 }], onMs: 1100, offMs: 1400, warnMs: 400, damagePerSec: 40, thickness: 14, phaseOffset: 400 },
+        // Massive industrial crusher before the Terminus gauntlet
+        {
+            type: 'crusher',
+            pts: [{ x: 1370, y: 300 }, { x: 1370, y: 750 }],
+            waitUnloadedMs: 1200,
+            crushMs: 200,
+            waitLoadedMs: 600,
+            retractMs: 1000,
+            thickness: 50,
+            color: '#f59e0b'
+        },
         // Drifting debris-cloud zone (standard polygon hazard) over the reactor well —
         // stray shrapnel pulled into orbit by the gravity anomaly
         { pts: [{ x: 1100, y: 380 }, { x: 1180, y: 380 }, { x: 1200, y: 470 }, { x: 1080, y: 470 }] }
