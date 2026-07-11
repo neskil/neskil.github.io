@@ -1,14 +1,62 @@
-# CargoLander — Plan: Night Ops Levels + Lander Spotlight
+# CargoLander — Plan: Hygiene Sweep + Night Ops Levels
 
-Single-feature execution plan. **Read [CLAUDE.md](CLAUDE.md) first** — its
-standing instructions apply: `node --check` each modified file, run
-[tests.html](tests.html) to **0 failed**, exercise the new mechanic against
-the live `game`/`game.physics` objects, bump `CargoGame.VERSION`, then commit
-and push. Check steps off (`[x]`) as they land; when done, archive this file's
-summary into HISTORY.md and delete it, per project convention.
+Execution plan. **Read [CLAUDE.md](CLAUDE.md) first** — its standing
+instructions apply to every item here: `node --check` each modified file, run
+[tests.html](tests.html) to **0 failed**, exercise new mechanics against the
+live `game`/`game.physics` objects, bump `CargoGame.VERSION`, then commit and
+push. One item = one commit. Check steps off (`[x]`) as they land; when done,
+archive a summary into HISTORY.md and delete this file, per project
+convention.
 
 Other ideas surfaced during this review were moved to README.md → "Long-term
-vision" instead of kept here — this plan is scoped to night ops only.
+vision" / "Idea parking lot" instead of kept here — this plan is scoped to
+the Tier 0 hygiene items plus night ops.
+
+Do Tier 0 first (small, independent, no dependencies between them) — then
+the night-ops feature.
+
+---
+
+## Tier 0 — Hygiene & unfinished business (do first, all S)
+
+### 0.1 Register `level10.js` in tests.html  `[ ]`
+`level10.js` (L10: The Crystal Caves) is loaded by `index.html` (script tag
+~line 2233) but **missing from `tests.html`** (its level scripts stop at
+`level9.js`, ~line 309). The suite's schema-driven "Level Config Validation"
+iterates `levels[]`, so L10 is silently never validated — this violates the
+project's own "add to both files" rule (CLAUDE.md).
+- Add `<script src="level10.js"></script>` after level9's tag in `tests.html`.
+- Run the suite; fix any L10 validation failures it surfaces (that's the point).
+- **Verify**: tests.html reports 0 failed and the level-validation category
+  now covers L10.
+
+### 0.2 Retire TODO.txt and fix doc rot  `[ ]`
+Every item in [TODO.txt](TODO.txt) has shipped (verified in code):
+upgrade cost scaling (`game/menu.js` ~line 437, `basePrice * 1.5^level`);
+entry fee + budget risked from `globalCash` (`game.js` ~lines 376–379);
+repo-man game-over below −$5000 + first-negative bank warning
+(`game/menu.js` ~lines 73–92, `repo-man-modal`, `negative-cash-warning`);
+shield regen delay w/ 5s blink (`physics/entities.js` ~line 165
+`shieldDelay = 300`, blink in `game/hud.js` ~line 179); tutorial modal
+(`index.html` `#tutorial-modal`); vehicle models on select buttons (see 0.3
+— already landed).
+- Delete TODO.txt; add a short HISTORY.md entry noting all its items shipped.
+- README fixes: file table says "level1.js – level9.js" → include level10.js;
+  add level10 to the load-order paragraph.
+- **Verify**: README/HISTORY render sensibly; no code changes, no version bump.
+
+### 0.3 Finish & commit the WIP "Vehicle License" picker  `[x]` (already landed)
+This was an uncommitted diff at the time this plan was first drafted; it has
+since been committed (commit `07d4173`, "implement first-time startup pilot
+portrait selector..." and related menu/UI commits). **No action needed** —
+left here only so the history of this plan is legible. If picking this back
+up ever seems relevant, sanity-check `drawVehicleCanvases()` in
+`game/menu.js`: (a) `renderModel` swaps `this.ctx` and stubs
+`this.physics.lander` — confirm menu-time animation can never run while a
+mission is active or leave a stub lander behind when one starts; (b) it uses
+`Date.now()` for animation phase — fine, but the large hidden canvases
+(`canvas-vehicle-*-large`) should skip per-frame draws while their modal is
+closed.
 
 ---
 
