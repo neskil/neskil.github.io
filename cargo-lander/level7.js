@@ -8,8 +8,7 @@
 //   x:1600 — Fuel Pump (refuel station)
 //   x:2100 — Valley Base (green cargo)
 //   x:2280-2450 — a glowing underground lake fills the valley basin (scenery)
-//   x:2550-2900 — a double-bend squeeze corridor (an S-curve, not a single narrow gap),
-//                 with wrecked-hauler debris marking the approach as a warning
+//   x:2550-2900 — a double-bend squeeze corridor (an S-curve, not a single narrow gap)
 //   x:2900 — Reserve Tank (second refuel — the return leg needs it too)
 //   x:3300 — Magma Chute (chute hub, wide catch zone)
 //   x:3500 — Far East Depot (normal cargo)
@@ -82,12 +81,6 @@ registerLevel({
         }
     ],
 
-    // ── Segments — wrecked hauler debris marking the squeeze corridor as a warning ──
-    segments: [
-        { x1: 2550, y1: 380, x2: 2600, y2: 420 },
-        { x1: 2580, y1: 340, x2: 2630, y2: 380 },
-    ],
-
     // ── Mission parameters ────────────────────────────────────────────────────
     targetCargo: 3,
     budget: 4500,
@@ -143,7 +136,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Stop at the Fuel Pump (x:1600) before pushing east, and don't skip the Reserve Tank (x:2900) either — the return trip needs it as much as the outbound leg. A drifting gas pocket guards each of the Fuel Pump and Valley Base approaches, so read your line early. Thread the double-bend squeeze past the wrecked hauler debris without grazing the glowing rock. Return to HQ to extract.",
+    hint: "Stop at the Fuel Pump (x:1600) before pushing east, and don't skip the Reserve Tank (x:2900) either — the return trip needs it as much as the outbound leg. A drifting gas pocket guards each of the Fuel Pump and Valley Base approaches, so read your line early. Thread the double-bend squeeze without grazing the glowing rock. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),

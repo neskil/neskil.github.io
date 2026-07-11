@@ -117,15 +117,6 @@ registerLevel({
         { type: 'blackhole', x: 1500, y: 500, strength: 0.8, radius: 150, orbitRadius: 50 }
     ],
 
-    // ── Segments (Obstacles) ──────────────────────────────────────────────────
-    segments: [
-        // Debris floating above the worm pit
-        { x1: 500, y1: 700, x2: 550, y2: 720 },
-        { x1: 1000, y1: 650, x2: 1080, y2: 680 },
-        // Broken mooring chain hanging from the suspended hub's spire tip
-        { x1: 795, y1: 750, x2: 805, y2: 850 }
-    ],
-
     // ── Buildings ─────────────────────────────────────────────────────────────
     buildings: [
         // Destructible antenna tower on the left shelf (was mistyped 'comms',
@@ -142,8 +133,8 @@ registerLevel({
     // ── Collectibles (Fuel / Cash) ────────────────────────────────────────────
     collectibles: [
         { type: 'cash', x: 800, y: 400, value: 500 }, // Risky cash above suspended hub
-        { type: 'fuel', x: 525, y: 650, amount: 40 }, // Near debris
-        { type: 'fuel', x: 1040, y: 600, amount: 40 }, // Near debris
+        { type: 'fuel', x: 525, y: 650, amount: 40 },
+        { type: 'fuel', x: 1040, y: 600, amount: 40 },
         { type: 'fuel', x: 800, y: 650, amount: 35 } // Dead center of the worm zone — highest risk, dead below the hub
     ],
 
