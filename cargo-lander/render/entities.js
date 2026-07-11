@@ -2456,38 +2456,59 @@ drawMonster() {
                 ctx.translate(mCx, mCy);
                 ctx.rotate(headAngle);
 
-                // Mouth void
-                const mouthGrad = ctx.createRadialGradient(0, 0, 0, 0, mH * 0.3, mW);
-                mouthGrad.addColorStop(0, '#1a0000');
-                mouthGrad.addColorStop(0.6, '#0a0000');
-                mouthGrad.addColorStop(1, '#050000');
-                ctx.fillStyle = mouthGrad;
-                ctx.strokeStyle = 'rgba(0,0,0,0.95)';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, mW, mH, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
+                // ── 1. OUTER LIP RING (segmented flesh plates like the sandworm, but oval and fleshy)
+                const lipPlates = 18;
+                for (let li = 0; li < lipPlates; li++) {
+                    const a0 = (li / lipPlates) * Math.PI * 2;
+                    const a1 = ((li + 0.82) / lipPlates) * Math.PI * 2;
 
-                // Inner throat glow (pulsing red from depth)
+                    const lipRx = mW * 1.05;
+                    const lipRy = mH * 1.05;
+                    const innerRx = mW * 0.85;
+                    const innerRy = mH * 0.85;
+
+                    const plateDark = li % 2 === 0;
+                    ctx.fillStyle = plateDark ? 'rgba(110, 15, 25, 0.95)' : 'rgba(150, 25, 40, 0.95)';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                    ctx.lineWidth = 1.2;
+
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, lipRx, lipRy, 0, a0, a1);
+                    ctx.ellipse(0, 0, innerRx, innerRy, 0, a1, a0, true);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // ── 2. THROAT VOID
+                const mouthGrad = ctx.createRadialGradient(0, 0, 0, 0, mH * 0.3, mW * 0.85);
+                mouthGrad.addColorStop(0, '#000000');
+                mouthGrad.addColorStop(0.5, '#0a0000');
+                mouthGrad.addColorStop(1, '#1a0000');
+                ctx.fillStyle = mouthGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, mW * 0.85, mH * 0.85, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // ── 3. PULSING THROAT GLOW
                 const throatPulse = 0.3 + Math.abs(Math.sin(t * 2.1)) * 0.35;
-                const throatGrad = ctx.createRadialGradient(0, 2, 0, 0, 2, mW * 0.7);
+                const throatGrad = ctx.createRadialGradient(0, 2, 0, 0, 2, mW * 0.5);
                 throatGrad.addColorStop(0, `rgba(255,30,0,${throatPulse})`);
                 throatGrad.addColorStop(1, 'rgba(255,0,0,0)');
                 ctx.fillStyle = throatGrad;
                 ctx.beginPath();
-                ctx.ellipse(0, 2, mW * 0.7, mH * 0.7, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 2, mW * 0.5, mH * 0.5, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Teeth — top row (sharp fangs curving backward and inward)
+                // Teeth — top row (sharp fangs curving backward and inward, scaled to fit inside plates)
                 const toothCount = 7;
                 for (let ti = 0; ti < toothCount; ti++) {
-                    const tx = -mW * 0.88 + (ti / (toothCount - 1)) * mW * 1.76;
-                    const size = 1.0 - Math.pow(Math.abs(tx) / mW, 2) * 0.4;
+                    const tx = -mW * 0.78 + (ti / (toothCount - 1)) * mW * 1.56;
+                    const size = 1.0 - Math.pow(Math.abs(tx) / (mW * 0.8), 2) * 0.4;
                     const tipX = tx * 0.3 - mW * 0.05;
-                    const tipY = -mH * 0.85 + (mH * 0.7 * size);
+                    const tipY = -mH * 0.80 + (mH * 0.7 * size);
                     
-                    const tGrad = ctx.createLinearGradient(tx, -mH * 0.85, tipX, tipY);
+                    const tGrad = ctx.createLinearGradient(tx, -mH * 0.80, tipX, tipY);
                     tGrad.addColorStop(0, 'rgba(200, 185, 140, 0.9)');
                     tGrad.addColorStop(1, 'rgba(120, 80, 60, 0.85)');
                     ctx.fillStyle = tGrad;
@@ -2496,30 +2517,30 @@ drawMonster() {
                     ctx.beginPath();
                     
                     const cpX = (tx + tipX) / 2;
-                    ctx.moveTo(tx - mW * 0.08, -mH * 0.85);
+                    ctx.moveTo(tx - mW * 0.08, -mH * 0.80);
                     ctx.quadraticCurveTo(cpX - mW * 0.04, -mH * 0.5, tipX, tipY);
-                    ctx.quadraticCurveTo(cpX + mW * 0.04, -mH * 0.5, tx + mW * 0.08, -mH * 0.85);
+                    ctx.quadraticCurveTo(cpX + mW * 0.04, -mH * 0.5, tx + mW * 0.08, -mH * 0.80);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
                 }
                 // Bottom row
                 for (let ti = 0; ti < toothCount - 1; ti++) {
-                    const tx = -mW * 0.76 + (ti / (toothCount - 2)) * mW * 1.52;
-                    const size = 1.0 - Math.pow(Math.abs(tx) / mW, 2) * 0.4;
+                    const tx = -mW * 0.68 + (ti / (toothCount - 2)) * mW * 1.36;
+                    const size = 1.0 - Math.pow(Math.abs(tx) / (mW * 0.7), 2) * 0.4;
                     const tipX = tx * 0.3 - mW * 0.05;
-                    const tipY = mH * 0.85 - (mH * 0.7 * size);
+                    const tipY = mH * 0.80 - (mH * 0.7 * size);
                     
-                    const tGrad2 = ctx.createLinearGradient(tx, mH * 0.85, tipX, tipY);
+                    const tGrad2 = ctx.createLinearGradient(tx, mH * 0.80, tipX, tipY);
                     tGrad2.addColorStop(0, 'rgba(190, 175, 130, 0.88)');
                     tGrad2.addColorStop(1, 'rgba(110, 70, 50, 0.82)');
                     ctx.fillStyle = tGrad2;
                     ctx.beginPath();
                     
                     const cpX = (tx + tipX) / 2;
-                    ctx.moveTo(tx - mW * 0.075, mH * 0.85);
+                    ctx.moveTo(tx - mW * 0.075, mH * 0.80);
                     ctx.quadraticCurveTo(cpX - mW * 0.04, mH * 0.5, tipX, tipY);
-                    ctx.quadraticCurveTo(cpX + mW * 0.04, mH * 0.5, tx + mW * 0.075, mH * 0.85);
+                    ctx.quadraticCurveTo(cpX + mW * 0.04, mH * 0.5, tx + mW * 0.075, mH * 0.80);
                     ctx.closePath();
                     ctx.fill();
                     ctx.stroke();
