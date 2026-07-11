@@ -1,314 +1,128 @@
-# CargoLander — Improvement Plan (written 2026-07-11)
+# CargoLander — Plan: Night Ops Levels + Lander Spotlight
 
-Execution plan for the next wave of work. Written to be executed item-by-item
-by an agent. **Read [CLAUDE.md](CLAUDE.md) first** — its standing instructions
-apply to every item here: `node --check` each modified file, run
-[tests.html](tests.html) to **0 failed**, exercise new mechanics against the
-live `game`/`game.physics` objects, bump `CargoGame.VERSION`, then commit and
-push. One item = one commit (or one small branch for M/L items). Check items
-off here (`[x]`) as they land; when the plan is done, archive it into
-HISTORY.md per the project convention.
+Single-feature execution plan. **Read [CLAUDE.md](CLAUDE.md) first** — its
+standing instructions apply: `node --check` each modified file, run
+[tests.html](tests.html) to **0 failed**, exercise the new mechanic against
+the live `game`/`game.physics` objects, bump `CargoGame.VERSION`, then commit
+and push. Check steps off (`[x]`) as they land; when done, archive this file's
+summary into HISTORY.md and delete it, per project convention.
 
-Effort: S = under half a day, M = 1–2 days, L = multi-day.
-Do the tiers in order; within a tier, order is a suggestion.
+Other ideas surfaced during this review were moved to README.md → "Long-term
+vision" instead of kept here — this plan is scoped to night ops only.
 
 ---
 
-## Tier 0 — Hygiene & unfinished business (do first, all S)
+## Feature summary
 
-### 0.1 Register `level10.js` in tests.html  `[ ]`
-`level10.js` (L10: The Crystal Caves) is loaded by `index.html` (script tag
-~line 2233) but **missing from `tests.html`** (its level scripts stop at
-`level9.js`, ~line 309). The suite's schema-driven "Level Config Validation"
-iterates `levels[]`, so L10 is silently never validated — this violates the
-project's own "add to both files" rule (CLAUDE.md).
-- Add `<script src="level10.js"></script>` after level9's tag in `tests.html`.
-- Run the suite; fix any L10 validation failures it surfaces (that's the point).
-- **Verify**: tests.html reports 0 failed and the level-validation category
-  now covers L10.
+A level-config flag (`night: true`) that renders the mission in near-darkness:
+sky/terrain dimmed via a screen-space darkness overlay, a cone of light
+punched out around the lander that moves/rotates with it, and soft ambient
+glows around hubs/hazards/lit landmarks so the map stays navigable without
+fully defeating the darkness. Pure rendering feature — **no physics or
+gameplay-rule changes**, so risk is low and it's fully driven by
+`render.js`/`render/*.js`.
 
-### 0.2 Retire TODO.txt and fix doc rot  `[ ]`
-Every item in [TODO.txt](TODO.txt) has shipped (verified in code):
-upgrade cost scaling (`game/menu.js` ~line 437, `basePrice * 1.5^level`);
-entry fee + budget risked from `globalCash` (`game.js` ~lines 376–379);
-repo-man game-over below −$5000 + first-negative bank warning
-(`game/menu.js` ~lines 73–92, `repo-man-modal`, `negative-cash-warning`);
-shield regen delay w/ 5s blink (`physics/entities.js` ~line 165
-`shieldDelay = 300`, blink in `game/hud.js` ~line 179); tutorial modal
-(`index.html` `#tutorial-modal`); vehicle models on select buttons (item 0.3).
-- Delete TODO.txt; add a short HISTORY.md entry noting all its items shipped.
-- README fixes: file table says "level1.js – level9.js" → include level10.js;
-  add level10 to the load-order paragraph.
-- **Verify**: README/HISTORY render sensibly; no code changes, no version bump.
+## Design decisions (resolve before/while implementing — use best judgment,
+these aren't blocking questions for the user)
 
-### 0.3 Finish & commit the WIP "Vehicle License" picker  `[ ]`
-Uncommitted diff in `game.js`, `game/menu.js`, `index.html`: a main-menu
-vehicle picker with animated lander canvases (sway + occasional thruster
-puffs via `drawVehicleCanvases(dt)` called from `update()` while in menu).
-- Review the diff as-is. Watch two things: (a) `renderModel` swaps `this.ctx`
-  and stubs `this.physics.lander` — confirm menu-time animation can never run
-  while a mission is active or leave a stub lander behind when one starts;
-  (b) it uses `Date.now()` for animation phase — fine, but make sure the
-  large hidden canvases (`canvas-vehicle-*-large`) aren't wasting per-frame
-  draws (the diff's own comment says they're hidden by default — skip them
-  unless their modal is open).
-- **Verify**: menu shows both animated vehicles; start a mission with each;
-  tests 0 failed. Commit with a minor version bump.
+- **Which level(s)?** Don't create a new `level11.js` for this pass — retrofit
+  the flag onto **one existing atmospheric level** first (L5 "crystal"/cave
+  biome or L10 Crystal Caves are natural fits since they're already
+  underground-themed) by adding `night: true` to its config. This keeps the
+  change reviewable in one level instead of a level + a new registration.
+  A dedicated night level/L11 is a good Tier-3-style follow-up once the
+  rendering itself is proven, not part of this plan.
+- **Light source**: only the **lander** casts light for v1 (not hubs/hazards
+  independently) — hubs/hazards get a small fixed-radius ambient glow so
+  they're never *fully* invisible, but the lander's cone is the primary way
+  players see terrain. This is what makes "careful flying" the challenge.
+- **Vehicle difference**: `drone` and `basic` share the same spotlight cone
+  parameters for v1 — don't special-case per vehicle unless playtesting says
+  it's needed.
 
----
+## Implementation steps
 
-## Tier 1 — Existing backlog, now concretized (README backlog items — the
-README's entries remain the source of truth; extra detail here)
+### 1. Schema + level flag  `[ ]`
+- Add `night` (boolean, default `false`) to `levelSchema.js` so the level
+  editor and `tests.html`'s schema-driven validation pick it up for free —
+  follow the existing pattern for boolean scalar fields (e.g. how
+  `outOfBounds: true` shorthand or similar flags are declared).
+- Add `night: true` to the chosen level's config (see Design decisions).
 
-### 1.1 Refueling stations  `[ ]`  (M) — gates item 3.1
-Per README backlog: level-config `refuelPads: [{x, width, pricePerUnit}]`.
-- Add the field to `levelSchema.js` (editor + validation pick it up free).
-- Generalize the HQ refuel logic (`game.js` ~lines 977–984: refuel while
-  landed, cost from `missionBudget`) into a pad-based check; HQ becomes the
-  degenerate case.
-- Render pads in `render/entities.js` (reuse hub-pad drawing w/ a ⛽ marker);
-  HUD toast on refuel start/stop (`addMessage` in `game/hud.js`); pump SFX in
-  `audio.js` (~20-line pattern like existing cues).
-- Place 1–2 pads on L8, L9, L10 (longest maps). Add a behavioral test.
-- **Verify**: land on a pad with partial fuel → fuel rises, budget falls at
-  `pricePerUnit`; stops at full or at budget 0; tests 0 failed.
+### 2. Darkness overlay  `[ ]`
+- In `render.js`'s frame composition (`draw()`), after normal scene rendering
+  (terrain, hubs, entities, particles) but before HUD/UI draws, if
+  `levelConfig.night` is true: draw a full-canvas dark overlay
+  (e.g. `rgba(5, 8, 20, 0.82)`ish — tune by eye) using
+  `ctx.globalCompositeOperation = 'source-over'` on an offscreen canvas/layer
+  so it can be selectively punched through in step 3. A second canvas layer
+  (or an offscreen `OffscreenCanvas`/temp canvas sized to match) is simplest:
+  draw darkness there, punch holes with `destination-out`, then
+  `drawImage` that layer onto the main canvas in one composite.
+- Respect the existing post-FX pipeline order (`shaders.js`
+  `renderPostFX`) — the darkness layer should sit **under** UI/HUD but can
+  be full-scene like other post-FX; check whether it needs to happen before
+  or after `renderPostFX` by testing (heat haze/water shimmer sampling the
+  scene — darkness probably wants to be part of the sampled scene, i.e.
+  applied before post-FX, not after).
 
-### 1.2 Level-start hitch — profile, then fix only the dominant cost  `[ ]`  (M)
-Per README backlog. `performance.now()` around `initLevel()` sub-steps
-(Matter world build, convex decomposition, traffic pre-spawn), L1 vs L8/L9/L10.
-Candidate fixes in order: cache convex decompositions per level; defer
-ambient-traffic pre-spawn a few frames. Do **not** spread `initLevel()`
-across frames without explicit approval (code assumes fully-initialized
-level after `startLevel()`).
-- **Verify**: measured before/after numbers in the commit message; tests green.
+### 3. Lander spotlight cone  `[ ]`
+- On the darkness layer, punch a light shape at the lander's screen position
+  each frame: `ctx.globalCompositeOperation = 'destination-out'`, draw a
+  soft-edged radial gradient (bright alpha at center fading to 0) centered on
+  the lander, plus an optional forward-facing cone (a filled arc/triangle
+  oriented by `lander.angle` and, if using the drone, its facing) for a
+  "flashlight" feel rather than a plain radius. Use `lander.x/y` transformed
+  to screen space the same way other entities are (reuse the camera
+  transform already applied for `render/entities.js` draws).
+- Radius/cone-angle should be tunable constants near the top of the
+  darkness-draw code (e.g. `NIGHT_LIGHT_RADIUS`, `NIGHT_CONE_ANGLE`) — this
+  will need eyeball tuning in a live playtest, don't hardcode magic numbers
+  inline without naming them.
 
-### 1.3 Sound polish pass  `[ ]`  (S–M)
-Per README backlog: refuel pump (pairs with 1.1), big-cargo clamp thunk
-(hook `updateOnDeckStates()` big-box claim), escalating low-fuel heartbeat
-below 15% (tempo scales as fuel → 0), pendulum rope creak (only if 1.4 ships).
-Each ~20 lines in `audio.js` matching existing synth patterns.
-- **Verify**: trigger each cue in a live session; no console errors.
+### 4. Ambient glows for hubs/hazards  `[ ]`
+- Also punch smaller, fixed, dimmer holes (or additive glow draws) around
+  delivery hubs and active hazards (lasers/incinerators already have glow-ish
+  rendering — check `render/entities.js`/`render/terrain.js` for existing
+  glow patterns to reuse rather than invent a new one) so they're always
+  faintly visible even outside the lander's cone. Keep these noticeably
+  dimmer/smaller than the lander's own light — they're wayfinding aids, not
+  a way to trivialize the darkness.
 
-### 1.4 Pendulum-mass special cargo  `[ ]`  (M–L)
-Per README backlog: `cargo: 'pendulum'` — box hangs from the *basic* lander
-on a rope (reuse the drone winch's Matter constraint pattern in
-`physics/entities.js`); delivery = lower the box onto the pad. Introduce on
-one level. Lives or dies on feel — tune swing damping in a real playtest and
-flag for the user to feel-test before calling it done.
+### 5. Readability pass  `[ ]`
+- Re-check world-space text labels (mission markers, hub labels) for
+  legibility against the dark overlay — README's Rendering Notes already
+  flags that post-FX (heat haze) can distort labels; darkness has a similar
+  "check labels after adding this pass" risk. Bump label contrast/add a
+  subtle glow/stroke if needed.
+- Confirm the minimap/radar (`render/ui.js`) is unaffected by the darkness
+  layer (it should read the same regardless of in-world lighting) — if it's
+  drawn as part of the main scene pass instead of as a separate HUD layer,
+  make sure the overlay doesn't accidentally dim it too.
 
-### 1.5 L8 return-gauntlet escalation  `[ ]`  (M)
-Per README backlog: after the final delivery, speed up / phase-flip the laser
-gauntlet ("defense grid alerted"). Needs a small engine hook for
-quest-triggered hazard state: e.g. a level-config callback
-`onAllDelivered(physics)` invoked from `checkCargoDelivery()`
-(`game/cargo.js`) that may mutate `hazard.onMs/offMs/phase`. L9 already uses
-`setupPhysics()` callbacks — follow that pattern.
-- **Verify**: scripted repro in `probe-screenshot.html` (`&script=`) showing
-  changed laser timing post-delivery; tests green.
+### 6. Verification  `[ ]`
+- `node --check` every modified file.
+- `tests.html` → 0 failed, including the new schema field's validation.
+- Live playtest: start the chosen night-flagged level, confirm terrain is
+  legible only near the lander, hubs/hazards give a faint always-visible
+  glow, and the cone follows lander rotation.
+- `probe-screenshot.html?level=<idx>&debug=1` screenshots of the night level
+  from a couple of camera positions — visually confirm darkness + spotlight
+  render correctly headlessly (this is the project's standard way to catch
+  invisible-render bugs without a live browser).
+- Toggle Settings → Visual Effects off/on once at night to confirm nothing
+  about the darkness layer depends on post-FX being enabled (or, if it
+  intentionally does, that turning post-FX off doesn't leave the scene
+  pitch black with no fallback).
 
----
+### 7. Ship it  `[ ]`
+- Bump `CargoGame.VERSION` (minor — new visible feature).
+- Commit, push. Add a short HISTORY.md entry once merged (per CLAUDE.md
+  standing instructions), and note in this file which level got the flag.
 
-## Tier 2 — New high-impact items (best value-per-risk from this review)
-
-### 2.1 Per-level medals (3-star system)  `[ ]`  (M)
-Each mission grades three medals: **Delivered All**, **No Damage**
-(`hadCrash === false` and no `applyDamage` hits — track a flag), **Time Par**
-(finish with ≥25% of `timeLimit` left). Store per-level best medals in
-localStorage (`cargoLanderMedals`), render ★★★ on the mission grid buttons
-(`generateMissionUI()` in `game/menu.js`) and on the victory screen
-(`completeMission()` in `game.js`). Optionally fold medal count into the
-pilot-rank formula (`game/menu.js` ~line 168) alongside highscores.
-- **Why**: turns 10 finished levels into 30 replayable goals — biggest
-  retention win available for the effort.
-- **Verify**: earn/miss each medal in live play; localStorage survives
-  reload; new behavioral test for the grading function.
-
-### 2.2 Post-mission debrief ("why did I fail / how did I do")  `[ ]`  (S–M)
-The victory/game-over screens show payout lines only. Add a compact debrief:
-fuel used, damage taken (and its top source — track source tag in
-`applyDamage()`), cargo lost, time used, medal results (2.1). On failure,
-lead with the cause (`failMission(reason)` already has it) plus one
-contextual tip (e.g. death by laser → "lasers telegraph with a charge glow —
-wait out the cycle").
-- **Why**: converts frustrating deaths into learnable ones; cheap because the
-  stats mostly exist on `game`/`lander` already.
-
-### 2.3 Daily Challenge (seeded procedural mission)  `[ ]`  (M)
-`levelGenerator.js` already makes "Mission ??" maps. Add a date-seeded PRNG
-(mulberry32 of `YYYY-MM-DD`) so everyone gets the same map each day; a
-"Daily Challenge" card on the menu; localStorage for daily best + streak
-counter (`cargoLanderDaily`). One attempt counts for score; free retries
-allowed but flagged. Pure client-side.
-- **Why**: a reason to open the game every day; reuses the generator wholesale.
-- **Verify**: same date string ⇒ identical level (test the seeded generator
-  determinism in tests.html); streak increments across simulated days.
-
-### 2.4 Ghost replay of your best run  `[ ]`  (M–L)
-Record `{x, y, angle, thrust}` at ~10 Hz during a mission (few KB); if the
-run sets a level highscore, persist it (`cargoLanderGhost_<level>`). On
-replay, draw a translucent lander (reuse `drawLander` with alpha) following
-the recorded path, interpolated. Toggle in settings.
-- **Why**: makes highscore-chasing tangible; pairs with 2.1's Time Par medal.
-- **Risk**: memory/size — cap recording length; skip on procedural levels.
-
-### 2.5 Assist options (accessibility)  `[ ]`  (S)
-Settings toggles: **Stability Assist** (auto-level toward angle 0 when no
-input, like the drone's auto-hover but for basic) and **Gentle Gravity**
-(×0.8). Active assists disable highscore/medal recording for the run (show a
-small "ASSIST" tag on the HUD). Wire into `inputState`/lander integration in
-`physics/entities.js` + settings modal in `game/menu.js`.
-- **Why**: the early difficulty cliff is the biggest funnel leak for new
-  players; this is the cheapest fix that doesn't touch level design.
-
-### 2.6 New cargo behavior flags: fragile & timed  `[ ]`  (M)
-Two level-config cargo flags, same pattern as `{big: true}`:
-- `fragile: true` — box takes damage from hard landings/impacts (reuse the
-  impact-speed check from lander damage); destroyed above a threshold; pays
-  a premium. Visual: cracks overlay by damage tier.
-- `expiresSec: N` — perishable; countdown ring drawn over the box
-  (`render/entities.js`); worthless (or lost) at 0.
-Add to a couple of existing levels' cargo lists + schema/tests.
-- **Why**: multiplies challenge variety with zero new level geometry.
-
-### 2.7 Shareable level codes (editor ↔ game)  `[ ]`  (S–M)
-The editor already exports a full `registerLevel({...})` block and the game
-has a custom-level upload flow (`game/menu.js`). Add copy-paste **share
-codes**: JSON → `LZ`-less `btoa(encodeURIComponent(json))` string with a
-`CLV1:` prefix; "Copy share code" in the editor, "Paste share code" next to
-the upload button in the game. Pure client-side sharing via Discord/email.
-- **Why**: community content loop with ~zero new surface; the hard parts
-  (export/import/validation) already exist.
-
----
-
-## Tier 3 — Big bets (plan/confirm with the user before starting; L)
-
-- **3.1 Massive scrolling level** — README's roadmap flagship. Gated on 1.1
-  (refuel pads). 3–4× L8 width, fuel-management core, waypoint hub chain
-  (L9's `setupPhysics()` pattern), minimap as primary nav. **Check with the
-  user before starting.**
-- **3.2 Procedural Expedition mode** — rogue-like run of procedural maps,
-  shared fuel/hull/cash pool, run summary + per-run highscore. Big UI
-  surface; sketch the flow and confirm with the user first. Pairs naturally
-  with 2.3's seeded generator.
-- **3.3 Editor geometry schema-driving** — fold terrain/water/hazard polygons
-  into `levelSchema.js`. Deliberately deferred (bespoke vertex tooling);
-  treat as its own project.
-
-**Parked (unchanged from README)**: unload-drone R&D upgrade; 4-water-body
-uniform bump; automated mobile testing.
-
----
-
-## Tier 4 — Second batch (each self-contained; pick freely after Tier 0–2)
-
-### 4.1 Colorblind-safe cargo/hub markings  `[ ]`  (S)
-Cargo↔hub matching is pure color today. Stamp a per-type glyph on both boxes
-and hub pads (e.g. ● red, ▲ blue, ■ green, no glyph for normal) in
-`render/entities.js` (box draw + hub pad draw), always on — no setting
-needed, it doubles as readability at small zoom.
-- **Verify**: probe screenshot of a level with all cargo types; glyphs match.
-
-### 4.2 Separate Music / SFX volume sliders  `[ ]`  (S)
-`audio.js` (`CargoAudioController`) mixes synth SFX and the `music/` tracks.
-Route them through two master gain nodes; two sliders in the settings modal
-(`game/menu.js`), persisted (`cargoLanderVolumes`).
-- **Verify**: mute music, SFX still audible, and vice-versa; survives reload.
-
-### 4.3 Pause menu with "Restart mission"  `[ ]`  (S)
-There's an options dropdown with Exit Level, but no one-tap restart. Add
-Pause (Esc / ⏸ button): overlay with Resume / Restart Mission / Exit.
-Restart = `startLevel(currentLevelIndex, currentVehicle)` — mind the entry
-fee at `game.js` ~line 377: charge it again (it's the risk mechanic) but say
-so on the button ("Restart — re-pay entry fee $N").
-- **Verify**: restart mid-mission → fresh level, correct cash deduction,
-  timers reset; tests green.
-
-### 4.4 Career stats page  `[ ]`  (S–M)
-Track lifetime counters in localStorage (`cargoLanderStats`): missions flown/
-completed, cargo delivered/lost, crashes, total earnings, flight time.
-Increment in `completeMission`/`failMission`/`checkCargoDelivery`
-(`game.js`, `game/cargo.js`). A "Career" panel in the menu next to pilot
-rank (`game/menu.js`) renders them.
-- **Verify**: play one mission, numbers move correctly; survives reload.
-
-### 4.5 Fuel leak at critical hull  `[ ]`  (S)
-Below 30% integrity, leak fuel slowly (`lander.fuel -= rate * dt` in the
-lander integration, `physics/entities.js`) with a drip particle + HUD warning
-("FUEL LEAK — repair!"). Makes hull damage matter between crashes and gives
-the mid-mission repair action (`game.js` ~line 1237) a real reason to exist.
-- **Verify**: damage lander below 30% → fuel ticks down, warning shows,
-  repairing stops it.
-
-### 4.6 New hazard type: `fan` (directional wind tunnel)  `[ ]`  (M)
-Polygon zone pushing anything inside along a configured vector — updrafts,
-crosswind corridors. Same shape plumbing as `'zone'` (`pointInPolygon()` in
-`physics/collision.js`, tick in `physics/atmosphere.js` `hazard.type`
-branches), force applied to lander **and** free cargo boxes. Render as
-streaming particle lines. Add to the editor's hazard-type dropdown and one
-level.
-- **Verify**: behavioral test (lander in fan zone gains the configured
-  velocity); editor round-trips the new fields.
-
-### 4.7 Contract board (choose your mission modifier)  `[ ]`  (M)
-Before launch, offer 3 randomized contracts for the selected level:
-e.g. "Storm surcharge" (weather forced on, +30% payout), "Heavy load"
-(`heavyCargo: true`, +25%), "No-damage bonus" (2× if hull untouched),
-"Standard". Implement as a modifier object applied over the level config in
-`startLevel()` (`game.js`) + a small picker UI in the mission-start flow
-(`game/menu.js`). Payout multiplier applied in `completeMission()`.
-- **Why**: replayability + player agency on risk, reusing existing knobs
-  (weather, heavyCargo, quest bonuses).
-- **Verify**: each modifier observably changes the mission and the payout math.
-
-### 4.8 Mission insurance  `[ ]`  (S)
-Launch-flow checkbox: pay 15% of `level.budget` extra at start; if the
-mission fails, refund 60% of the risked budget. Hooks: fee in `startLevel()`
-(next to the entry-fee deduction, `game.js` ~line 377), refund in
-`failMission()`. Show on the debrief (2.2). Ties into the repo-man economy —
-a rational tool once players fear the bank.
-- **Verify**: fail with/without insurance → cash difference matches the math.
-
-### 4.9 Dynamic music intensity  `[ ]`  (M)
-The `music/` folder has 5 loops. Add a danger score (low fuel, hull < 40%,
-monster active, inside hazard telegraph) computed per second in `game.js`;
-crossfade between a calm and a tense track via two gain nodes in `audio.js`.
-Keep hysteresis (≥5s between switches) to avoid flapping.
-- **Verify**: hover near the OOB monster → music tenses; land safely → calms.
-
-### 4.10 Save export / import  `[ ]`  (S)
-One "Copy save code" / "Paste save code" pair in settings: bundle all
-`cargoLander*` localStorage keys (README lists them) into
-`CLS1:` + base64 JSON. Validate on import (known keys only, numbers clamped).
-Protects progress across browsers/devices with zero backend.
-- **Verify**: export, wipe localStorage, import → cash/upgrades/highscores
-  restored; garbage input rejected with a message.
-
-### 4.11 Night ops variant + lander spotlight  `[ ]`  (M)
-A level-config flag `night: true`: darken the scene with a multiply overlay
-in `render.js`, punch out a cone of light from the lander (canvas
-composite `destination-out` on the darkness layer) plus soft glows around
-hubs/hazards. Apply to one existing level as a "Night" remix entry or a new
-L11 (remember: script tag in **both** index.html and tests.html).
-- **Why**: dramatic new challenge from pure rendering — zero physics work.
-- **Verify**: probe screenshots day vs night; labels/hubs still findable.
-
-### 4.12 Police speeding fines  `[ ]`  (S–M)
-Police traffic already exists (`physics/atmosphere.js`). Give it teeth in
-populated levels: a `speedLimit` level-config field; flying past a police
-unit above it triggers a chirp + "$100 fine" toast deducted from
-`missionBudget` (with a 10s cooldown). Comedic, thematic, and another budget
-pressure.
-- **Verify**: speed past police → one fine, cooldown respected; slow pass → none.
-
----
-
-## Suggested first-week order
-
-1. **0.1** level10 in tests.html (smallest possible fix, may surface real bugs)
-2. **0.3** commit the vehicle-picker WIP (clear the working tree)
-3. **0.2** retire TODO.txt + doc fixes
-4. **2.5** assist options (cheap, big funnel win)
-5. **2.2** post-mission debrief
-6. **1.1** refueling stations (unlocks the flagship level later)
-7. **2.1** medals (biggest retention item; ends the week on a feature)
+## Explicitly out of scope for this plan
+- A dedicated new `level11.js` night level (follow-up, not required to ship
+  night ops).
+- Per-hazard/per-hub independent light sources beyond the fixed ambient glow.
+- Any gameplay/physics changes (visibility-based hazard difficulty, fuel
+  cost changes, etc.) — this is a rendering-only feature for now.
