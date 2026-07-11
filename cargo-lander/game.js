@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.9.2';
+    static VERSION = '0.9.3';
 
     constructor() {
         this.canvas = null;
@@ -154,6 +154,11 @@ class CargoGame {
         // Sync mute button to initial state
         const muteBtn = document.getElementById('mute-toggle-btn');
         if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
+
+        // Set correct visibility synchronously so there's no flash of touch
+        // controls before the first RAF tick (was relying solely on a CSS
+        // media-query default that ignored gameState/isTouchDevice).
+        this.updateMobileControlsVisibility();
 
         // Show pilot portrait selector on first startup
         if (!this.career.portrait && !localStorage.getItem('cargoLanderHasSeenPortraitSelector')) {

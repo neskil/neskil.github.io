@@ -229,7 +229,8 @@ function _makeCanvas2DStub() {
     save: noop, restore: noop, translate: noop, rotate: noop, scale: noop,
     fillRect: noop, strokeRect: noop, clearRect: noop, beginPath: noop,
     moveTo: noop, lineTo: noop, closePath: noop, fill: noop, stroke: noop,
-    arc: noop, arcTo: noop, quadraticCurveTo: noop, bezierCurveTo: noop,
+    arc: noop, arcTo: noop, ellipse: noop, roundRect: noop, rect: noop,
+    quadraticCurveTo: noop, bezierCurveTo: noop, setLineDash: noop, getLineDash: () => [],
     fillText: noop, strokeText: noop, measureText: () => ({ width: 50 }),
     createLinearGradient: () => ({
       addColorStop: noop,
@@ -307,6 +308,7 @@ window.confirm = () => true;
 <script src="level7.js"></script>
 <script src="level8.js"></script>
 <script src="level9.js"></script>
+<script src="level10.js"></script>
 <script src="levelTest.js"></script>
 <script src="audio.js"></script>
 <script src="shaders.js"></script>
