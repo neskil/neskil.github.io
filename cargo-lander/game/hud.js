@@ -280,12 +280,40 @@ Object.assign(CargoGame.prototype, {
         }
     },
 
+    // Phone-sized viewport check — matches the "Compact HUD" CSS media query
+    // in index.html (@media (max-height: 500px), (max-width: 480px)) so the
+    // JS auto-collapse and the CSS compaction always trigger together.
+    // Deliberately size-based, not touch detection, so it's exercisable by
+    // resizing a desktop browser.
+    isSmallViewport() {
+        return window.innerHeight <= 500 || window.innerWidth <= 480;
+    },
+
+    // Tap the mission panel to toggle between the full card and a slim chip
+    // (time · budget · cargo). Manually opening it pins it open (no
+    // auto-collapse); manually closing it unpins, so the next mission event
+    // pops it open again. Wired via onclick on #mission-panel in index.html.
+    toggleMissionPanel() {
+        this.missionPanelCollapsed = !this.missionPanelCollapsed;
+        this.missionPanelPinned = !this.missionPanelCollapsed;
+        this._missionAutoCollapseAt = 0;
+        const panel = document.getElementById('mission-panel');
+        if (panel) delete panel.dataset.fp; // force rebuild this frame
+    },
+
     updateMissionPanel() {
         const level = levels[this.currentLevelIndex];
         if (!level) return;
 
         const panel = document.getElementById('mission-panel');
         if (!panel) return;
+
+        // Destruct button visibility (runs regardless of collapse state)
+        const btnDestruct = this.uiElements?.btnDestruct || document.getElementById('btn-destruct');
+        if (btnDestruct) {
+            if (this.gameState === 'playing') btnDestruct.classList.remove('hidden');
+            else btnDestruct.classList.add('hidden');
+        }
 
         // ── Time & budget values ──────────────────────────────────────────
         let timeStr, timeColor;
@@ -334,14 +362,58 @@ Object.assign(CargoGame.prototype, {
         const primaryColor = allDelivered ? '#10b981' : '#f8fafc';
         const primaryLabel = allDelivered ? '✓ All cargo delivered!' : (level.quests?.find(q=>q.type==='primary')?.text || `Deliver ${target} cargo`);
 
+        // ── Auto expand/collapse (other-games-style mission card) ─────────
+        // The panel pops open on mission events (a delivery, a bonus quest
+        // resolving, overtime starting) and — on phone-sized viewports only —
+        // auto-shrinks to the chip a few seconds later. _missionEventFp is
+        // reset in startLevel() so mission start counts as an event.
+        const bonusFp = (level.quests || []).map(q => {
+            const s = this.questState[q.id];
+            return s?.completed ? 'c' : s?.failed ? 'f' : '-';
+        }).join('');
+        const eventFp = `${delivered}|${target}|${this.overtimeActive}|${bonusFp}`;
+        if (this._missionEventFp !== eventFp) {
+            this._missionEventFp = eventFp;
+            if (!this.missionPanelPinned) {
+                this.missionPanelCollapsed = false;
+                this._missionAutoCollapseAt = this.isSmallViewport() ? Date.now() + 5000 : 0;
+            }
+        }
+        if (this._missionAutoCollapseAt && Date.now() >= this._missionAutoCollapseAt) {
+            this._missionAutoCollapseAt = 0;
+            if (!this.missionPanelPinned) this.missionPanelCollapsed = true;
+        }
+
+        // ── Collapsed: slim tappable chip (no level name, just live stats) ─
+        if (this.missionPanelCollapsed) {
+            const fp = `C|${timeStr}|${budgetStr}|${delivered}|${target}|${timeColor}`;
+            if (panel.dataset.fp === fp) return;
+            panel.dataset.fp = fp;
+            panel.style.minWidth = '0';
+            panel.style.cursor = 'pointer';
+            panel.innerHTML = `
+                <div style="display:flex;align-items:center;gap:9px;white-space:nowrap;">
+                    <span style="font-size:10px;color:rgba(148,163,184,0.8);">▸</span>
+                    <span style="font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;color:${timeColor};">${timeStr}</span>
+                    <span style="font-size:14px;font-weight:700;color:#10b981;">${budgetStr}</span>
+                    <span style="font-size:13px;font-weight:700;color:${primaryColor};">📦 ${delivered}/${target}</span>
+                </div>`;
+            return;
+        }
+
         // ── Full panel HTML ───────────────────────────────────────────────
         // Use dataset fingerprint to avoid full rebuilds on every frame
         const fp = `${timeStr}|${budgetStr}|${delivered}|${target}|${timeColor}`;
         if (panel.dataset.fp === fp) return; // nothing changed visually
         panel.dataset.fp = fp;
+        panel.style.minWidth = this.isSmallViewport() ? '200px' : '240px';
+        panel.style.cursor = 'pointer';
 
         panel.innerHTML = `
-            <div style="font-size:9px;letter-spacing:.12em;color:rgba(56,189,248,0.7);text-transform:uppercase;margin-bottom:2px;">Mission</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+                <span style="font-size:9px;letter-spacing:.12em;color:rgba(56,189,248,0.7);text-transform:uppercase;">Mission</span>
+                <span style="font-size:10px;color:rgba(148,163,184,0.6);">▾</span>
+            </div>
             <div style="font-weight:700;font-size:14px;color:rgba(248,250,252,0.95);margin-bottom:6px;line-height:1.2;">${level.missionTitle || level.name || ''}</div>
 
             <!-- Key stats: time + budget side-by-side -->
@@ -367,13 +439,6 @@ Object.assign(CargoGame.prototype, {
             </div>
 
             ${bonusHTML}`;
-
-        // Destruct button visibility
-        const btnDestruct = this.uiElements?.btnDestruct || document.getElementById('btn-destruct');
-        if (btnDestruct) {
-            if (this.gameState === 'playing') btnDestruct.classList.remove('hidden');
-            else btnDestruct.classList.add('hidden');
-        }
     },
 
 });

@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.7.6';
+    static VERSION = '0.8.0';
 
     constructor() {
         this.canvas = null;
@@ -338,6 +338,13 @@ class CargoGame {
         this.currentVehicle = vehicleType;
         this.crashHandled = false;
         this._fireworksTriggered = false;
+        // Mission panel starts expanded each mission; clearing the event
+        // fingerprint makes updateMissionPanel treat mission start as an
+        // event (arming the small-viewport auto-collapse timer).
+        this.missionPanelCollapsed = false;
+        this.missionPanelPinned = false;
+        this._missionEventFp = undefined;
+        this._missionAutoCollapseAt = 0;
         const level = levels[idx];
         level.vehicle = vehicleType;
 

@@ -8,6 +8,30 @@ backlog" section.
 
 ---
 
+## 2026-07-11 — Mobile HUD compaction (v0.8.0)
+
+User report (with phone screenshot): HUD fine on desktop but eats a third of a
+phone screen; mission panel "bloated", level name doesn't need to be visible
+all the time; wants other-games-style mission card that auto-hides.
+- **Mission panel is now tap-to-collapse** — collapsed form is a slim chip
+  (`▸ time · budget · 📦 n/m`, no level name). On phone-sized viewports it
+  auto-collapses ~5s after mission start and re-expands (then re-collapses)
+  on mission events: a delivery, a bonus quest resolving, overtime starting.
+  Manually opening pins it open; manually closing re-arms auto behavior.
+  Desktop starts expanded and stays (tap-toggle available everywhere).
+- **Compact HUD media query** (`@media (max-height: 500px), (max-width:
+  480px)` in `index.html`): tighter `.hud-group` padding/gaps/margins, radar
+  scaled 260×160 → 170×105 CSS px and made translucent (opacity 0.62),
+  smaller utility buttons/gauges. `isSmallViewport()` in `game/hud.js` uses
+  the same thresholds so JS auto-collapse and CSS compaction trigger
+  together.
+- `probe-screenshot.html` gained `&vw=&vh=` params to size the game iframe
+  (was hardcoded 1280×800) so responsive layouts can be screenshot-verified
+  headlessly; verified at 900×420 (chip + compact HUD) and 1380×860
+  (unchanged desktop layout), 89/89 tests green.
+
+---
+
 ## 2026-07-11 — Architecture & docs consolidation pass (v0.7.6)
 
 - **Vendored Matter.js** (`vendor/matter.min.js`, 0.19.0 from npm) — `index.html`
