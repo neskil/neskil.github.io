@@ -57,7 +57,7 @@ registerLevel({
     startX: -100,
     collectionX: 0,
     targetCargo: 2,
-    budget: 1200,
+    budget: 600,
     timeLimit: 240,
     allowedTypes: ["normal", "red"],
 

@@ -117,7 +117,7 @@ registerLevel({
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 0.65,           // Tightest pads yet — small station decks, high stakes
     targetCargo: 4,
-    budget: 6000,
+    budget: 3000,
     timeLimit: 300,
     allowedTypes: ["normal", "red", "blue", "tethered"],
     startX: -160,

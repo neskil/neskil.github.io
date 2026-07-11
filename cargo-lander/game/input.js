@@ -58,7 +58,7 @@ Object.assign(CargoGame.prototype, {
                     const allDelivered = level && this.deliveredCount >= level.targetCargo;
                     const atHQ = this.physics.lander.landed && this.physics.lander.currentPad === 'start';
                     if (this.gameState === 'playing' && allDelivered && atHQ) {
-                        this.completeMission();
+                        this.completeMission(false);
                     } else {
                         this.toggleGrapple();
                     }
@@ -126,7 +126,7 @@ Object.assign(CargoGame.prototype, {
                 const allDelivered = level && this.deliveredCount >= level.targetCargo;
                 const atHQ = lander.landed && lander.currentPad === 'start';
                 if (this.gameState === 'playing' && allDelivered && atHQ) {
-                    this.completeMission();
+                        this.completeMission(false);
                 } else {
                     this.toggleGrapple();
                 }

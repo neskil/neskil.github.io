@@ -30,7 +30,7 @@ class CargoGame {
             thrusterEfficiency: 0,
             boostMode: 0,
             magneticDeck: 0,
-            winchExtender: 0,
+            aerodynamics: 0,
             hullPlating: 0,
             shieldRegen: 0
         };
@@ -270,7 +270,32 @@ class CargoGame {
     // Quick console shortcut: game.startTestLevel()
     startTestLevel() { this.startLevel(levels.length - 1); }
 
+    showConfirm(title, message, onConfirm) {
+        document.getElementById('confirm-modal-title').textContent = title;
+        document.getElementById('confirm-modal-desc').innerHTML = message;
+        document.getElementById('confirm-modal').style.display = 'flex';
+        
+        const yesBtn = document.getElementById('confirm-modal-yes');
+        const newYesBtn = yesBtn.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+        
+        newYesBtn.onclick = () => {
+            document.getElementById('confirm-modal').style.display = 'none';
+            if (onConfirm) onConfirm();
+        };
+    }
+
     goToMenu() {
+        if (this.gameState === 'playing' && !this.isPlaytest) {
+            this.showConfirm("Exit Mission?", "If you exit now, your lander will be abandoned and you will forfeit your entire invested budget!", () => {
+                this._executeGoToMenu();
+            });
+            return;
+        }
+        this._executeGoToMenu();
+    }
+
+    _executeGoToMenu() {
         if (this.isPlaytest) {
             window.location.href = 'level-editor.html';
             return;
@@ -347,6 +372,11 @@ class CargoGame {
         this._missionAutoCollapseAt = 0;
         const level = levels[idx];
         level.vehicle = vehicleType;
+
+        // Deduct entry fee and risk the mission budget from global cash
+        const entryFee = 50 + (idx * 50);
+        this.globalCash -= (entryFee + (level.budget || 1000));
+        localStorage.setItem('cargoLanderCash', this.globalCash);
 
         // Update exit buttons text if playtesting
         const exitButtons = [
@@ -893,7 +923,7 @@ class CargoGame {
             if (lander.currentPad === 'start') {
                 this.overtimeActive = false;
                 this.physics.outOfBoundsTimer = 0;
-                this.completeMission(); // safe extraction
+                this.completeMission(true); // safe extraction
             } else if (this.overtimeTimer <= 0) {
                 // Out of time — monster attacks instantly
                 this.overtimeActive = false;
@@ -921,8 +951,12 @@ class CargoGame {
 
     updateShieldRegen(lander, dt) {
         // --- Shield & Hull Regeneration ---
+        if (lander.shieldDelay > 0) {
+            lander.shieldDelay -= dt;
+        }
+
         const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
-        if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
+        if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0 && (!lander.shieldDelay || lander.shieldDelay <= 0)) {
             lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + (dt / 60) * 1.5 * shieldLvl);
             // Shield charge recovers on its own too, a bit slower than a fresh hit
             // would need — it isn't meant to fully block every impact back-to-back.
@@ -1205,7 +1239,7 @@ class CargoGame {
         this.floatingTexts.push({ text: "-$200", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
-    completeMission() {
+    completeMission(force = false) {
         // Must be landed at HQ to extract
         const lander = this.physics.lander;
         if (!lander || !lander.landed || lander.currentPad !== 'start') {
@@ -1213,18 +1247,20 @@ class CargoGame {
             return;
         }
 
-        // The manual Extract button/spacebar are already gated on this in the
-        // UI (hidden/no-op until allDelivered), but the overtime countdown's
-        // "made it back to HQ" auto-extraction (update(), grep
-        // "safe extraction") calls completeMission() unconditionally — so
-        // without this check here, running out the mission clock and limping
-        // back to HQ with 0 cargo delivered still paid out a full success
-        // reward. This is the single authoritative gate all callers rely on.
         const level = levels[this.currentLevelIndex];
         const allDelivered = this.deliveredCount >= (level.targetCargo || 0);
+        
+        let questBonus = 0;
+        let timeBonus = 0;
+        let questLines = '';
+        
         if (!allDelivered) {
-            this.failMission("Extracted without completing deliveries.");
-            return;
+            if (!force) {
+                this.showConfirm("Abort Mission?", "You haven't completed all deliveries. You will keep your remaining budget, but you will forfeit all time and objective bonuses.", () => {
+                    this.completeMission(true);
+                });
+                return;
+            }
         }
 
         this.gameState = 'level_complete';
@@ -1235,43 +1271,47 @@ class CargoGame {
 
         document.getElementById('hud-overlay').style.display = 'none';
 
-        // Evaluate time-gated bonus quests now
-        if (level.quests) {
-            for (const q of level.quests) {
-                if (q.id === 'quick' && q.timeGoal !== undefined) {
-                    if (this.missionTimer > q.timeGoal && !this.questState['quick']?.failed) {
-                        this.questState['quick'] = { completed: true };
+        if (allDelivered) {
+            // Evaluate time-gated bonus quests now
+            if (level.quests) {
+                for (const q of level.quests) {
+                    if (q.id === 'quick' && q.timeGoal !== undefined) {
+                        if (this.missionTimer > q.timeGoal && !this.questState['quick']?.failed) {
+                            this.questState['quick'] = { completed: true };
+                        }
+                    }
+                    if (q.id === 'no_crash' && !this.questState['no_crash']?.failed) {
+                        this.questState['no_crash'] = { completed: true };
+                    }
+                    if (q.id === 'no_cargo_lost' && !this.questState['no_cargo_lost']?.failed) {
+                        this.questState['no_cargo_lost'] = { completed: true };
                     }
                 }
-                if (q.id === 'no_crash' && !this.questState['no_crash']?.failed) {
-                    this.questState['no_crash'] = { completed: true };
-                }
-                if (q.id === 'no_cargo_lost' && !this.questState['no_cargo_lost']?.failed) {
-                    this.questState['no_cargo_lost'] = { completed: true };
+            }
+
+            // Tally quest bonuses
+            if (level.quests) {
+                for (const q of level.quests) {
+                    if (q.reward && this.questState[q.id]?.completed) {
+                        questBonus += q.reward;
+                        questLines += `<p>${q.text}: <span style="color:#10b981;font-weight:600;">+$${q.reward}</span></p>`;
+                    }
                 }
             }
+            timeBonus = Math.floor(this.missionTimer) * 10;
+        } else {
+            questLines = `<p style="color:#ef4444; font-style:italic;">Mission aborted. Bonuses forfeited.</p>`;
         }
 
-        // Tally quest bonuses
-        let questBonus = 0;
-        let questLines = '';
-        if (level.quests) {
-            for (const q of level.quests) {
-                if (q.reward && this.questState[q.id]?.completed) {
-                    questBonus += q.reward;
-                    questLines += `<p>${q.text}: <span style="color:#10b981;font-weight:600;">+$${q.reward}</span></p>`;
-                }
-            }
-        }
-
-        const timeBonus = Math.floor(this.missionTimer) * 10;
         const totalPayout = this.missionBudget + timeBonus + questBonus;
 
         this.globalCash += totalPayout;
         localStorage.setItem('cargoLanderCash', this.globalCash);
 
         // Career + highscore tracking
-        this.career.missionsComplete++;
+        if (allDelivered) {
+            this.career.missionsComplete++;
+        }
         this.saveCareer();
         const prevBest = this.highscores[this.currentLevelIndex] || 0;
         if (totalPayout > prevBest) {
@@ -1282,12 +1322,21 @@ class CargoGame {
         document.getElementById('complete-screen').style.display = 'flex';
         const nextBtn = document.querySelector('#complete-screen .btn-primary');
         if (nextBtn) {
-            nextBtn.textContent = this.isPlaytest ? "Back to Editor ➔" : "Next Mission ➔";
+            nextBtn.textContent = this.isPlaytest ? "Back to Editor ➔" : (allDelivered ? "Next Mission ➔" : "Retry Mission ➔");
+            // If aborted, retry mission starts the same level
+            nextBtn.onclick = () => {
+                if (allDelivered) {
+                    this.nextLevel();
+                } else {
+                    this.startLevel(this.currentLevelIndex);
+                }
+            };
         }
-        document.getElementById('lvl-complete-title').textContent = "Extraction Successful!";
+        document.getElementById('lvl-complete-title').textContent = allDelivered ? "Extraction Successful!" : "Extraction / Aborted";
+        document.getElementById('lvl-complete-title').style.color = allDelivered ? "var(--neon-green)" : "#f59e0b";
         document.getElementById('lvl-complete-details').innerHTML = `
-            <p>Base Contract Payout: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
-            <p>Time Bonus: <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>
+            <p>Retained Budget: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
+            ${allDelivered ? `<p>Time Bonus: <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
             ${questLines}
             <hr style="border:1px solid rgba(255,255,255,0.1);">
             <p>Total Global Cash: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>

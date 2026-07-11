@@ -32,7 +32,7 @@ registerLevel({
     outOfBounds: true,       // Thick lateral fog on the sides
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    budget: 7000,
+    budget: 3500,
     timeLimit: 240,
     allowedTypes: ['heavy'],
 

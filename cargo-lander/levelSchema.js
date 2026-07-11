@@ -53,7 +53,7 @@ const LEVEL_SCHEMA = {
     { key:'gravity',         type:'number',    default:0.11,widget:'number',   label:'Gravity', step:0.01, required:true, positive:true },
     { key:'wind',            type:'number',    default:0,   widget:'number',   label:'Wind', step:0.01 },
     { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather', options:VALID_WEATHER_TYPES },
-    { key:'budget',          type:'number',    default:1000,widget:'number',   label:'Budget', required:true, positive:true },
+    { key:'budget',          type:'number',    default:500,widget:'number',   label:'Budget', required:true, positive:true },
     { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time', required:true, positive:true },
     { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'PadScale', step:0.1, positive:true },
     { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target', required:true, min:1 },

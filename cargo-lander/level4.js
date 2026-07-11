@@ -61,7 +61,7 @@ registerLevel({
     // ── Mission parameters ────────────────────────────────────────────────────
     padScale: 0.85,         // Normal pad scale
     targetCargo: 4,
-    budget: 2400,
+    budget: 1200,
     timeLimit: 210,
     allowedTypes: ["normal", "red"],
     collectionX: -100,      // Pickup depot is behind HQ on the far-left — safe from the vortex

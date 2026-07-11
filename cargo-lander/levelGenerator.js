@@ -35,7 +35,7 @@ function generateProceduralLevel(craziness = 1) {
     
     let targetLength = 2500;
     let targetCargo = 2;
-    let budget = 1000;
+    let budget = 500;
     let timeLimit = 180;
     let gravity = 0.035;
     let wind = 0;
@@ -43,21 +43,21 @@ function generateProceduralLevel(craziness = 1) {
     if (craziness === 1) {
         targetLength = 2500 + Math.random() * 1000;
         targetCargo = 2 + Math.floor(Math.random() * 2);
-        budget = 800 + Math.random() * 500;
+        budget = 400 + Math.random() * 250;
         timeLimit = 180 + Math.random() * 60;
         gravity = 0.035 + Math.random() * 0.01;
         wind = (Math.random() - 0.5) * 0.0005;
     } else if (craziness === 2) {
         targetLength = 4000 + Math.random() * 2000;
         targetCargo = 3 + Math.floor(Math.random() * 3);
-        budget = 1500 + Math.random() * 500;
+        budget = 750 + Math.random() * 250;
         timeLimit = 240 + Math.random() * 120;
         gravity = 0.04 + Math.random() * 0.02;
         wind = (Math.random() - 0.5) * 0.002;
     } else if (craziness === 3) {
         targetLength = 6000 + Math.random() * 4000;
         targetCargo = 5 + Math.floor(Math.random() * 4);
-        budget = 2500 + Math.random() * 1000;
+        budget = 1250 + Math.random() * 500;
         timeLimit = 360 + Math.random() * 180;
         gravity = 0.05 + Math.random() * 0.04;
         wind = (Math.random() - 0.5) * 0.004;

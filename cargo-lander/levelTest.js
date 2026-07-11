@@ -20,7 +20,7 @@ registerLevel({
     // ── Mission ───────────────────────────────────────────────────────────────
     padScale: 1.2,
     targetCargo: 3,
-    budget: 9999,
+    budget: 4999,
     timeLimit: 600,
     allowedTypes: ["normal", "red", "blue", "green"],
 

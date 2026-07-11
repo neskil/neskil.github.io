@@ -69,6 +69,30 @@ Object.assign(CargoGame.prototype, {
     refreshMenuUI() {
         this.refreshVehicleLicenseUI();
         
+        // --- Economy Checks ---
+        if (this.globalCash < -5000) {
+            // Trigger Repo Man Game Over
+            this.upgrades = {
+                thrusterEfficiency: 0,
+                boostMode: 0,
+                magneticDeck: 0,
+                aerodynamics: 0,
+                hullPlating: 0,
+                shieldRegen: 0
+            };
+            this.globalCash = 1000;
+            localStorage.setItem('cargoLanderCash', this.globalCash);
+            localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
+            this.saveCareer(); // We don't reset scores, just save the fact that upgrades reset
+            
+            const repoModal = document.getElementById('repo-man-modal');
+            if (repoModal) repoModal.style.display = 'flex';
+        } else if (this.globalCash < 0 && !localStorage.getItem('cargoLanderHasSeenNegativeWarning')) {
+            localStorage.setItem('cargoLanderHasSeenNegativeWarning', '1');
+            const warnModal = document.getElementById('negative-cash-warning');
+            if (warnModal) warnModal.style.display = 'flex';
+        }
+        
         // Drone tutorial prompt
         const dronePointer = document.getElementById('drone-tutorial-pointer');
         if (dronePointer) {
@@ -179,7 +203,7 @@ Object.assign(CargoGame.prototype, {
             thrusterEfficiency: 0,
             boostMode: 0,
             magneticDeck: 0,
-            winchExtender: 0,
+            aerodynamics: 0,
             hullPlating: 0,
             shieldRegen: 0
         };
@@ -285,6 +309,61 @@ Object.assign(CargoGame.prototype, {
         const droneBtn = document.getElementById('vehicle-license-drone');
         if (basicBtn) basicBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'basic');
         if (droneBtn) droneBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'drone');
+        
+        this.drawVehicleCanvases();
+    },
+
+    drawVehicleCanvases() {
+        if (!this.drawLander) return; // Wait until render script is loaded
+
+        const renderModel = (canvasId, type) => {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2 + 10);
+            
+            // scale down slightly
+            ctx.scale(0.8, 0.8);
+
+            // Mock game context and physics lander
+            const oldCtx = this.ctx;
+            const oldLander = this.physics ? this.physics.lander : null;
+            
+            this.ctx = ctx;
+            if (!this.physics) this.physics = {};
+            this.physics.lander = {
+                x: 0, y: 0, angle: 0,
+                vehicleType: type,
+                fuel: 1, maxFuel: 1,
+                thrustMagnitude: 0,
+                leftThrustRatio: 0,
+                rightThrustRatio: 0,
+                legCompress: 0,
+                integrity: 100, maxIntegrity: 100,
+                ropeLength: 0, ropeMax: 100,
+                winchEngaged: false
+            };
+            
+            // Need a valid upgrade object for drawLander
+            if (!this.upgrades) this.upgrades = {};
+            
+            try {
+                this.drawLander();
+            } catch (e) {
+                console.error("Failed to draw menu lander:", e);
+            }
+            
+            this.ctx = oldCtx;
+            this.physics.lander = oldLander;
+            ctx.restore();
+        };
+
+        renderModel('canvas-vehicle-basic', 'basic');
+        renderModel('canvas-vehicle-drone', 'drone');
+        renderModel('canvas-vehicle-basic-large', 'basic');
+        renderModel('canvas-vehicle-drone-large', 'drone');
     },
 
     startLevelWithVehicle(vehicleType) {
