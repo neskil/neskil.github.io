@@ -197,6 +197,51 @@
             transition: width 0.1s ease, background 0.3s ease;
         }
 
+        /* Vitals gauge cluster (see #vitals-panel markup) */
+        .vital-name {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .vital-icon {
+            font-size: 12px;
+        }
+
+        /* E / F end-markers, car-fuel-gauge style */
+        .gauge-letter {
+            font-size: 9px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: rgba(148, 163, 184, 0.85);
+            min-width: 6px;
+            text-align: center;
+        }
+
+        .gauge-container {
+            position: relative;
+        }
+
+        /* Quarter-tank tick marks overlaid on every gauge */
+        .gauge-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+            background-image: repeating-linear-gradient(90deg,
+                    transparent 0,
+                    transparent calc(25% - 1px),
+                    rgba(10, 15, 28, 0.6) calc(25% - 1px),
+                    rgba(10, 15, 28, 0.6) 25%);
+        }
+
+        #shield-fill {
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+        }
+
         #fuel-fill {
             background: var(--neon-blue);
             width: 100%;
@@ -924,6 +969,51 @@
             }
         }
 
+        /* ===== Compact HUD on phone-sized viewports =====
+           Short landscape (the main phone play orientation, per the rotate tip)
+           or narrow portrait. Shrinks chrome that reads fine at 1:1 on desktop
+           but eats a third of a phone screen: tighter group padding/gaps, a
+           smaller see-through radar. The mission panel handles its own
+           compaction (tap-to-collapse chip — game/hud.js updateMissionPanel).
+           !important is needed where the base layout uses inline styles. */
+        @media (max-height: 500px), (max-width: 480px) {
+            #hud-overlay {
+                top: 4px;
+                left: 6px;
+                right: 6px;
+            }
+
+            .hud-group {
+                padding: 5px 9px;
+                gap: 8px;
+                border-radius: 10px;
+            }
+
+            #hud-left-panel,
+            #hud-right-panel {
+                gap: 8px !important;
+            }
+
+            /* Radar: ~35% smaller and translucent so terrain stays visible
+               behind it; still fully readable. */
+            #radar-canvas {
+                width: 170px;
+                height: 105px;
+            }
+
+            #radar-container {
+                opacity: 0.62;
+            }
+
+            .utility-btn {
+                font-size: 0.72rem;
+            }
+
+            .gauge-container {
+                width: 70px;
+            }
+        }
+
         .hidden {
             display: none !important;
         }
@@ -1414,8 +1504,9 @@
                 <div id="hud-left-panel"
                     style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
                     
-                    <!-- Mission Info Panel -->
-                    <div id="mission-panel" class="hud-group"
+                    <!-- Mission Info Panel — tap to collapse/expand (game/hud.js
+                         toggleMissionPanel; auto-collapses on small viewports) -->
+                    <div id="mission-panel" class="hud-group" onclick="game.toggleMissionPanel()"
                         style="display: flex; flex-direction: column; min-width: 240px; pointer-events: auto;">
                     </div>
 
@@ -1434,20 +1525,43 @@
                     </div>
                 </div>
 
-                <!-- Center Column: Vitals -->
+                <!-- Center Column: Vitals — car-dashboard-style gauge cluster.
+                     display:grid keeps the icon / E / bar / F columns aligned
+                     across rows (the old flex-wrap layout wrapped and
+                     misaligned on narrow screens). Rows are display:contents
+                     wrappers so JS can hide a whole row (shield) with .hidden
+                     while its cells remain grid items when shown. -->
                 <div id="vitals-panel" class="hud-group"
-                    style="pointer-events: auto; justify-content: center; flex-wrap: wrap; height: fit-content; transform-origin: top center;">
-                    <div class="hud-stat">Fuel</div>
-                    <div class="gauge-container">
-                        <div id="fuel-fill" class="gauge-fill"></div>
+                    style="pointer-events: auto; display: grid; grid-template-columns: auto auto auto auto; column-gap: 7px; row-gap: 6px; align-items: center; height: fit-content; transform-origin: top center;">
+                    <div style="display: contents;">
+                        <div class="hud-stat vital-name"><span class="vital-icon">⛽</span>Fuel</div>
+                        <span class="gauge-letter">E</span>
+                        <div class="gauge-container">
+                            <div id="fuel-fill" class="gauge-fill"></div>
+                        </div>
+                        <span class="gauge-letter">F</span>
+                    </div>
+                    <div style="display: contents;">
+                        <div class="hud-stat vital-name"><span class="vital-icon">🔧</span>Hull</div>
+                        <span class="gauge-letter"></span>
+                        <div class="gauge-container">
+                            <div id="health-fill" class="gauge-fill"></div>
+                        </div>
+                        <span class="gauge-letter"></span>
+                    </div>
+                    <!-- Shield charge — hidden unless the Shield Generator
+                         upgrade is owned (game/hud.js updateHUD toggles it
+                         and drives the fill) -->
+                    <div id="shield-row" class="hidden" style="display: contents;">
+                        <div class="hud-stat vital-name"><span class="vital-icon">🛡️</span>Shield</div>
+                        <span class="gauge-letter"></span>
+                        <div class="gauge-container">
+                            <div id="shield-fill" class="gauge-fill"></div>
+                        </div>
+                        <span class="gauge-letter"></span>
                     </div>
                     <div id="low-fuel-warning" class="hidden"
-                        style="color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
-
-                    <div class="hud-stat" style="margin-left: 10px;">Hull</div>
-                    <div class="gauge-container">
-                        <div id="health-fill" class="gauge-fill"></div>
-                    </div>
+                        style="grid-column: 1 / -1; text-align: center; font-size: 0.72rem; color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
                 </div>
 
                 <!-- Right Column: Utility, Radar, Options -->
@@ -2022,7 +2136,7 @@
 
 
     <!-- Matter.js physics engine -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
     <script src="upgrades.js"></script>
     <script src="levels.js"></script>
@@ -2049,6 +2163,10 @@
     <script src="physics/entities.js?v=2"></script>
     <script src="physics/atmosphere.js?v=2"></script>
     <script src="game.js"></script>
+    <script src="game/input.js"></script>
+    <script src="game/menu.js"></script>
+    <script src="game/hud.js"></script>
+    <script src="game/cargo.js"></script>
     <script src="render.js?v=2"></script>
     <script src="render/background.js?v=2"></script>
     <script src="render/terrain.js?v=2"></script>
