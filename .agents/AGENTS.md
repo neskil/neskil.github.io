@@ -11,7 +11,7 @@ This repository uses a simple folder-based routing structure. Each major page or
   - `/cv/`: Curriculum Vitae page.
   - `/games/`: Interactive library of completed games.
   - `/math/` & `/converter/`: Utility and reference applications.
-- **Isolated Applications**: Complex projects like `/cargo-lander/`, `/space-trucking/`, and `/supply-chain/` contain their own dedicated HTML, logic (`/js`), assets, and styling.
+- **Isolated Applications**: Complex projects like `/cargo-lander/` and `/supply-chain/` contain their own dedicated HTML, logic, assets, and styling. `/cargo-lander/` has its own docs — read `cargo-lander/CLAUDE.md` (agent workflow) and `cargo-lander/README.md` (architecture) before working there.
 - **Release Flow**: Develop new projects in their own directories. Do NOT add links to the root `index.html` until the project is completely finished, tested, and approved.
 
 ## 🛠️ Technology Stack & Styling
