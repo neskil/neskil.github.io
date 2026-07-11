@@ -4,7 +4,7 @@
 // Load order in index.html: level1–6 → levels → audio → shaders → physics → game
 
 class CargoGame {
-    static VERSION = '0.7.4';
+    static VERSION = '0.7.5';
 
     constructor() {
         this.canvas = null;
@@ -54,6 +54,16 @@ class CargoGame {
         // Dynamic Camera
         this.camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
         this.introTimer = 0;
+        // Touch devices get a smaller vertical camera offset (see cameraVOffset
+        // below) — the desktop offset pushes the lander noticeably off-center on
+        // a short mobile-landscape viewport, where every pixel of vertical room
+        // is already contested by the HUD panels above and the touch controls below.
+        this.isTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        // World-unit offset subtracted from the lander's Y to get the camera's
+        // vertical focus point — shifts the framing up to show more air/sky above
+        // the lander than below. Smaller on touch devices so the lander sits
+        // closer to true screen-center instead of low in the frame.
+        this.cameraVOffset = this.isTouchDevice ? 50 : 120;
 
         // Settings
         this.isMuted = false; // Always start unmuted
@@ -1024,7 +1034,7 @@ class CargoGame {
         this.camera.zoom = desiredZoom;
         this.camera.targetZoom = desiredZoom;
         this.camera.x = this.physics.lander.x;
-        this.camera.y = this.physics.lander.y - 120;
+        this.camera.y = this.physics.lander.y - this.cameraVOffset;
         this.introTimer = 0;
 
         let weatherType = level?.weather;
@@ -1604,8 +1614,7 @@ class CargoGame {
         // Toggle mobile controls visibility dynamically
         const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
         if (mobileControls) {
-            const isTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-            mobileControls.style.display = (isTouch && this.gameState === 'playing') ? 'flex' : 'none';
+            mobileControls.style.display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
         }
 
         if (this.updateWeather) this.updateWeather(dt);
@@ -1865,9 +1874,9 @@ class CargoGame {
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
 
             let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
-            let targetY = lander.y - 120 + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
+            let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
             const viewH = this.canvas.height / this.camera.targetZoom;
-            const maxCamY = this.physics.levelHeight - (viewH / 2) + 120;
+            const maxCamY = this.physics.levelHeight - (viewH / 2) + this.cameraVOffset;
             targetY = Math.min(targetY, maxCamY);
             this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
             this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
