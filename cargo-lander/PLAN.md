@@ -200,6 +200,109 @@ uniform bump; automated mobile testing.
 
 ---
 
+## Tier 4 — Second batch (each self-contained; pick freely after Tier 0–2)
+
+### 4.1 Colorblind-safe cargo/hub markings  `[ ]`  (S)
+Cargo↔hub matching is pure color today. Stamp a per-type glyph on both boxes
+and hub pads (e.g. ● red, ▲ blue, ■ green, no glyph for normal) in
+`render/entities.js` (box draw + hub pad draw), always on — no setting
+needed, it doubles as readability at small zoom.
+- **Verify**: probe screenshot of a level with all cargo types; glyphs match.
+
+### 4.2 Separate Music / SFX volume sliders  `[ ]`  (S)
+`audio.js` (`CargoAudioController`) mixes synth SFX and the `music/` tracks.
+Route them through two master gain nodes; two sliders in the settings modal
+(`game/menu.js`), persisted (`cargoLanderVolumes`).
+- **Verify**: mute music, SFX still audible, and vice-versa; survives reload.
+
+### 4.3 Pause menu with "Restart mission"  `[ ]`  (S)
+There's an options dropdown with Exit Level, but no one-tap restart. Add
+Pause (Esc / ⏸ button): overlay with Resume / Restart Mission / Exit.
+Restart = `startLevel(currentLevelIndex, currentVehicle)` — mind the entry
+fee at `game.js` ~line 377: charge it again (it's the risk mechanic) but say
+so on the button ("Restart — re-pay entry fee $N").
+- **Verify**: restart mid-mission → fresh level, correct cash deduction,
+  timers reset; tests green.
+
+### 4.4 Career stats page  `[ ]`  (S–M)
+Track lifetime counters in localStorage (`cargoLanderStats`): missions flown/
+completed, cargo delivered/lost, crashes, total earnings, flight time.
+Increment in `completeMission`/`failMission`/`checkCargoDelivery`
+(`game.js`, `game/cargo.js`). A "Career" panel in the menu next to pilot
+rank (`game/menu.js`) renders them.
+- **Verify**: play one mission, numbers move correctly; survives reload.
+
+### 4.5 Fuel leak at critical hull  `[ ]`  (S)
+Below 30% integrity, leak fuel slowly (`lander.fuel -= rate * dt` in the
+lander integration, `physics/entities.js`) with a drip particle + HUD warning
+("FUEL LEAK — repair!"). Makes hull damage matter between crashes and gives
+the mid-mission repair action (`game.js` ~line 1237) a real reason to exist.
+- **Verify**: damage lander below 30% → fuel ticks down, warning shows,
+  repairing stops it.
+
+### 4.6 New hazard type: `fan` (directional wind tunnel)  `[ ]`  (M)
+Polygon zone pushing anything inside along a configured vector — updrafts,
+crosswind corridors. Same shape plumbing as `'zone'` (`pointInPolygon()` in
+`physics/collision.js`, tick in `physics/atmosphere.js` `hazard.type`
+branches), force applied to lander **and** free cargo boxes. Render as
+streaming particle lines. Add to the editor's hazard-type dropdown and one
+level.
+- **Verify**: behavioral test (lander in fan zone gains the configured
+  velocity); editor round-trips the new fields.
+
+### 4.7 Contract board (choose your mission modifier)  `[ ]`  (M)
+Before launch, offer 3 randomized contracts for the selected level:
+e.g. "Storm surcharge" (weather forced on, +30% payout), "Heavy load"
+(`heavyCargo: true`, +25%), "No-damage bonus" (2× if hull untouched),
+"Standard". Implement as a modifier object applied over the level config in
+`startLevel()` (`game.js`) + a small picker UI in the mission-start flow
+(`game/menu.js`). Payout multiplier applied in `completeMission()`.
+- **Why**: replayability + player agency on risk, reusing existing knobs
+  (weather, heavyCargo, quest bonuses).
+- **Verify**: each modifier observably changes the mission and the payout math.
+
+### 4.8 Mission insurance  `[ ]`  (S)
+Launch-flow checkbox: pay 15% of `level.budget` extra at start; if the
+mission fails, refund 60% of the risked budget. Hooks: fee in `startLevel()`
+(next to the entry-fee deduction, `game.js` ~line 377), refund in
+`failMission()`. Show on the debrief (2.2). Ties into the repo-man economy —
+a rational tool once players fear the bank.
+- **Verify**: fail with/without insurance → cash difference matches the math.
+
+### 4.9 Dynamic music intensity  `[ ]`  (M)
+The `music/` folder has 5 loops. Add a danger score (low fuel, hull < 40%,
+monster active, inside hazard telegraph) computed per second in `game.js`;
+crossfade between a calm and a tense track via two gain nodes in `audio.js`.
+Keep hysteresis (≥5s between switches) to avoid flapping.
+- **Verify**: hover near the OOB monster → music tenses; land safely → calms.
+
+### 4.10 Save export / import  `[ ]`  (S)
+One "Copy save code" / "Paste save code" pair in settings: bundle all
+`cargoLander*` localStorage keys (README lists them) into
+`CLS1:` + base64 JSON. Validate on import (known keys only, numbers clamped).
+Protects progress across browsers/devices with zero backend.
+- **Verify**: export, wipe localStorage, import → cash/upgrades/highscores
+  restored; garbage input rejected with a message.
+
+### 4.11 Night ops variant + lander spotlight  `[ ]`  (M)
+A level-config flag `night: true`: darken the scene with a multiply overlay
+in `render.js`, punch out a cone of light from the lander (canvas
+composite `destination-out` on the darkness layer) plus soft glows around
+hubs/hazards. Apply to one existing level as a "Night" remix entry or a new
+L11 (remember: script tag in **both** index.html and tests.html).
+- **Why**: dramatic new challenge from pure rendering — zero physics work.
+- **Verify**: probe screenshots day vs night; labels/hubs still findable.
+
+### 4.12 Police speeding fines  `[ ]`  (S–M)
+Police traffic already exists (`physics/atmosphere.js`). Give it teeth in
+populated levels: a `speedLimit` level-config field; flying past a police
+unit above it triggers a chirp + "$100 fine" toast deducted from
+`missionBudget` (with a 10s cooldown). Comedic, thematic, and another budget
+pressure.
+- **Verify**: speed past police → one fine, cooldown respected; slow pass → none.
+
+---
+
 ## Suggested first-week order
 
 1. **0.1** level10 in tests.html (smallest possible fix, may surface real bugs)
