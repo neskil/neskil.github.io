@@ -109,6 +109,19 @@ Object.assign(CargoGame.prototype, {
             nameInput.value = this.career.pilotName || '';
         }
 
+        // Pilot avatar and nudge highlight
+        const avatarEl = document.getElementById('pilot-avatar');
+        if (avatarEl) {
+            const portrait = this.career.portrait;
+            if (portrait) {
+                avatarEl.innerHTML = `<img src="${portrait}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">`;
+                avatarEl.classList.remove('nudge');
+            } else {
+                avatarEl.textContent = '🚀';
+                avatarEl.classList.add('nudge');
+            }
+        }
+
         // Career stat cells
         this.setText('lc-cash', '$' + this.globalCash.toLocaleString());
         this.setText('lc-deliveries', this.career.totalDeliveries);
@@ -197,6 +210,54 @@ Object.assign(CargoGame.prototype, {
         this.saveCareer();
     },
 
+    openPortraitSelector(autoOpened = false) {
+        const modal = document.getElementById('portrait-select-modal');
+        if (!modal) return;
+
+        // Show/hide the change tip depending on how the modal was opened
+        const note = document.getElementById('portrait-modal-nudge-note');
+        if (note) {
+            note.style.display = autoOpened ? 'none' : 'inline';
+        }
+
+        // Highlight currently selected portrait if any
+        const currentPortrait = this.career.portrait;
+        for (let i = 1; i <= 4; i++) {
+            const card = document.getElementById(`p-card-driver${i}`);
+            if (card) {
+                if (currentPortrait && currentPortrait.includes(`driver${i}.jpg`)) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            }
+        }
+
+        modal.style.display = 'flex';
+    },
+
+    selectPortrait(portraitPath, pilotNameSuggestion) {
+        this.career.portrait = portraitPath;
+        
+        // If the pilot name is currently empty, pre-fill with the suggestion
+        if (!this.career.pilotName) {
+            this.career.pilotName = pilotNameSuggestion;
+            const nameInput = document.getElementById('pilot-name-input');
+            if (nameInput) {
+                nameInput.value = pilotNameSuggestion;
+            }
+        }
+
+        this.saveCareer();
+        this.refreshMenuUI();
+
+        // Close modal
+        const modal = document.getElementById('portrait-select-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    },
+
     confirmResetCareer() {
         if (!confirm('Reset your entire career? This wipes cash, upgrades, deliveries, and high scores. This cannot be undone.')) {
             return;
@@ -210,7 +271,13 @@ Object.assign(CargoGame.prototype, {
             hullPlating: 0,
             shieldRegen: 0
         };
-        this.career = { pilotName: this.career.pilotName, totalDeliveries: 0, missionsComplete: 0, crashes: 0 };
+        this.career = { 
+            pilotName: this.career.pilotName, 
+            portrait: this.career.portrait,
+            totalDeliveries: 0, 
+            missionsComplete: 0, 
+            crashes: 0 
+        };
         this.highscores = {};
 
         localStorage.setItem('cargoLanderCash', this.globalCash);

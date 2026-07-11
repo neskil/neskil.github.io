@@ -155,6 +155,14 @@ class CargoGame {
         const muteBtn = document.getElementById('mute-toggle-btn');
         if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
 
+        // Show pilot portrait selector on first startup
+        if (!this.career.portrait && !localStorage.getItem('cargoLanderHasSeenPortraitSelector')) {
+            localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1');
+            setTimeout(() => {
+                this.openPortraitSelector(true);
+            }, 600);
+        }
+
         // Start game loop
         requestAnimationFrame((t) => this.loop(t));
     }
