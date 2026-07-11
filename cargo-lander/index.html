@@ -1499,15 +1499,15 @@
                 style="position: absolute; top: 80px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 10; pointer-events: none;">
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: flex-start; width: 100%;">
                 <!-- Left Column -->
                 <div id="hud-left-panel"
-                    style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
+                    style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left; justify-self: start;">
                     
                     <!-- Mission Info Panel — tap to collapse/expand (game/hud.js
                          toggleMissionPanel; auto-collapses on small viewports) -->
                     <div id="mission-panel" class="hud-group" onclick="game.toggleMissionPanel()"
-                        style="display: flex; flex-direction: column; min-width: 240px; pointer-events: auto;">
+                         style="display: flex; flex-direction: column; min-width: 240px; pointer-events: auto;">
                     </div>
 
                     <div style="display: flex; gap: 8px;">
@@ -1532,7 +1532,7 @@
                      wrappers so JS can hide a whole row (shield) with .hidden
                      while its cells remain grid items when shown. -->
                 <div id="vitals-panel" class="hud-group"
-                    style="pointer-events: auto; display: grid; grid-template-columns: auto auto auto auto; column-gap: 7px; row-gap: 6px; align-items: center; height: fit-content; transform-origin: top center;">
+                    style="pointer-events: auto; display: grid; grid-template-columns: auto auto auto auto; column-gap: 7px; row-gap: 6px; align-items: center; height: fit-content; transform-origin: top center; justify-self: center;">
                     <div style="display: contents;">
                         <div class="hud-stat vital-name"><span class="vital-icon">⛽</span>Fuel</div>
                         <span class="gauge-letter">E</span>
@@ -1572,7 +1572,7 @@
                      of keeping it on the right (the "Show HUD" button jumping to the
                      opposite side of the screen when unhiding). -->
                 <div id="hud-right-panel"
-                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right; margin-left: auto;">
+                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right; margin-left: auto; justify-self: end;">
 
                     <!-- Hide-UI button and options -->
                     <div style="display: flex; gap: 8px; align-items: center;">
