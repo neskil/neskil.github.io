@@ -232,6 +232,19 @@ canvas{display:block}
         <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('endForce', this.value)">
       </div>
     </div>
+    <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+      <div class="row">
+        <label title="Wait at start position (ms)">waitUnload:</label><input type="number" id="crush-waitu" class="cinput" style="width:40px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
+        <label title="Time to clash (ms)">crushMs:</label><input type="number" id="crush-crush" class="cinput" style="width:40px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
+      </div>
+      <div class="row">
+        <label title="Wait at clash position (ms)">waitLoad:</label><input type="number" id="crush-waitl" class="cinput" style="width:40px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
+        <label title="Time to retract (ms)">retractMs:</label><input type="number" id="crush-retract" class="cinput" style="width:40px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
+      </div>
+      <div class="row">
+        <label title="Width of the crusher blocks">thickness:</label><input type="number" id="crush-thick" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('thickness', this.value)">
+      </div>
+    </div>
     <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
       <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
     </div>
@@ -1465,6 +1478,7 @@ function renderPtUI() {
   const swTimingRow = document.getElementById('sandworm-timing-row');
   const repRow = document.getElementById('repulsor-vector-row');
   const gwRow = document.getElementById('gravwell-properties-row');
+  const crusherRow = document.getElementById('crusher-properties-row');
   const waterRow = document.getElementById('water-properties-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
@@ -1485,6 +1499,7 @@ function renderPtUI() {
       swTimingRow.style.display = poly.type === 'sandworm' ? '' : 'none';
       repRow.style.display = poly.type === 'repulsor' ? '' : 'none';
       gwRow.style.display = poly.type === 'gravwell' ? '' : 'none';
+      crusherRow.style.display = poly.type === 'crusher' ? '' : 'none';
 
       if (poly.type === 'laser' || poly.type === 'incinerator') {
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
@@ -1503,6 +1518,12 @@ function renderPtUI() {
         document.getElementById('gw-radius').value = poly.radius ?? 200;
         document.getElementById('gw-startf').value = poly.startForce ?? 1.5;
         document.getElementById('gw-endf').value = poly.endForce ?? 0;
+      } else if (poly.type === 'crusher') {
+        document.getElementById('crush-waitu').value = poly.waitUnloadedMs ?? 1000;
+        document.getElementById('crush-crush').value = poly.crushMs ?? 200;
+        document.getElementById('crush-waitl').value = poly.waitLoadedMs ?? 500;
+        document.getElementById('crush-retract').value = poly.retractMs ?? 1500;
+        document.getElementById('crush-thick').value = poly.thickness ?? 40;
       }
     } else {
         hazardRow.style.display = 'none';
@@ -1510,6 +1531,7 @@ function renderPtUI() {
         swTimingRow.style.display = 'none';
         repRow.style.display = 'none';
         gwRow.style.display = 'none';
+        crusherRow.style.display = 'none';
     }
     
     if (waterRow) {
@@ -1527,6 +1549,7 @@ function renderPtUI() {
     hazardRow.style.display = 'none';
     timingRow.style.display = 'none';
     if (waterRow) waterRow.style.display = 'none';
+    if (crusherRow) crusherRow.style.display = 'none';
   }
   document.getElementById('pdisp').textContent =
     hasPoly ? `${S.selLayer} ${S.selPoly+1}/${arr.length}` + (S.selPt>=0?`  pt ${S.selPt}`:'') : '';
@@ -1605,7 +1628,7 @@ function setHazardType(val) {
 function setHazardField(field, val) {
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
-  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce'].includes(field)) val = parseFloat(val)||0;
+  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
   arr[S.selPoly][field] = val;
   draw(); updateOut();
 }
@@ -1860,6 +1883,12 @@ function buildOut() {
         if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
         if (h.startForce !== undefined) lines.push(`      startForce: ${h.startForce},`);
         if (h.endForce !== undefined) lines.push(`      endForce: ${h.endForce},`);
+      } else if (h.type === 'crusher') {
+        if (h.waitUnloadedMs !== undefined) lines.push(`      waitUnloadedMs: ${h.waitUnloadedMs},`);
+        if (h.crushMs !== undefined) lines.push(`      crushMs: ${h.crushMs},`);
+        if (h.waitLoadedMs !== undefined) lines.push(`      waitLoadedMs: ${h.waitLoadedMs},`);
+        if (h.retractMs !== undefined) lines.push(`      retractMs: ${h.retractMs},`);
+        if (h.thickness !== undefined) lines.push(`      thickness: ${h.thickness},`);
       }
       if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);
       lines.push('      pts: [');
@@ -2153,6 +2182,14 @@ function nearestEdge(pts,wx,wy) {
 // injected <script> tag has finished, ~500ms later) appends a
 // #headless-export-dump <pre> containing the export textarea's contents —
 // grep the --dump-dom output for it to diff against the source file.
+
+(function restorePlaytest() {
+  const ptSrc = sessionStorage.getItem('playtest_level');
+  if (ptSrc && !new URLSearchParams(location.search).get('autoload')) {
+    applySource(ptSrc);
+    sessionStorage.removeItem('playtest_level');
+  }
+})();
 (function headlessAutoLoad() {
   const params = new URLSearchParams(location.search);
   const auto = params.get('autoload');
