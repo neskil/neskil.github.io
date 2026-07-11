@@ -1169,7 +1169,7 @@ function drawHubs() {
     const {sx} = w2s(hub.x, 0);
     const padHalfW = (hub.width || 80 * S.padScale) / 2;
     const isHov = S.hoverMarker?.hub === hi || S.dragMarker?.hub === hi;
-    const gy = groundYAt(hub.x);
+    const gy = (hub.y != null) ? hub.y : groundYAt(hub.x);
 
     ctx.save();
     // Vertical guide line
@@ -1847,11 +1847,13 @@ function hitPoint(sx,sy) {
 function hitMarker(sx, sy) {
   const HIT_R = 14;
   // Spawn markers: diamond at Y override or terrain surface, or fallback triangle at top
-  const checkSpawn = (worldX, worldY, key) => {
+  const checkSpawn = (worldX, worldY, key, width) => {
     const gy = (worldY != null) ? worldY : groundYAt(worldX);
     if (gy !== null) {
       const {sx:mx, sy:my} = w2s(worldX, gy);
-      if (Math.hypot(sx-mx, sy-my) < HIT_R) return key;
+      const {sx:rx} = w2s(worldX + width, gy);
+      // Check both the diamond area and the pad area
+      if ((sx >= mx - HIT_R && sx <= rx + HIT_R && sy >= my - 22 && sy <= my + HIT_R) || Math.hypot(sx-mx, sy-my) < HIT_R) return key;
     } else {
       const {sx:mx} = w2s(worldX, 0);
       if (Math.abs(sx-mx) < HIT_R && sy > 30 && sy < 68) return key;
@@ -1859,14 +1861,14 @@ function hitMarker(sx, sy) {
     return null;
   };
   let r;
-  if ((r = checkSpawn(S.startX, S.startY, 'hq'))) return r;
-  if (S.collectionX != null && (r = checkSpawn(S.collectionX, S.collectionY, 'depot'))) return r;
+  if ((r = checkSpawn(S.startX, S.startY, 'hq', S.hqWidth || (80 * S.padScale)))) return r;
+  if (S.collectionX != null && (r = checkSpawn(S.collectionX, S.collectionY, 'depot', S.cargoWidth || (100 * S.padScale)))) return r;
 
   // Hubs: pad line on terrain or fallback bar at top
   for (let i=0; i<S.hubs.length; i++) {
     const hub = S.hubs[i];
     const padHalfWpx = (hub.width || 80*S.padScale) * S.view.scale / 2;
-    const gy = groundYAt(hub.x);
+    const gy = (hub.y != null) ? hub.y : groundYAt(hub.x);
     if (gy !== null) {
       const {sx:cx, sy:cy} = w2s(hub.x, gy);
       if (sx >= cx-padHalfWpx-8 && sx <= cx+padHalfWpx+8 && sy >= cy-22 && sy <= cy+8) return {hub:i};
@@ -1942,13 +1944,17 @@ canvas.addEventListener('mousemove', e => {
     const snappedY=Math.round(wy/s)*s;
     if (S.dragMarker==='hq') {
       S.startX=snappedX;
-      if (S.startY != null) S.startY=snappedY;
+      S.startY=snappedY;
       updateEntityPanel();
     } else if (S.dragMarker==='depot') {
       S.collectionX=snappedX;
-      if (S.collectionY != null) S.collectionY=snappedY;
+      S.collectionY=snappedY;
       updateEntityPanel();
-    } else if (S.dragMarker.hub!=null) S.hubs[S.dragMarker.hub].x=snappedX;
+    } else if (S.dragMarker.hub!=null) {
+      S.hubs[S.dragMarker.hub].x=snappedX;
+      S.hubs[S.dragMarker.hub].y=snappedY;
+      updateHubUI();
+    }
     draw(); updateOut(); return;
   }
 
@@ -1986,7 +1992,7 @@ canvas.addEventListener('mousemove', e => {
   const mhov = hitMarker(sx, sy);
   if (mhov !== S.hoverMarker) {
     S.hoverMarker = mhov;
-    canvas.style.cursor = mhov ? 'ew-resize' : (S.mode==='pan'?'grab':S.mode==='add'?'crosshair':'default');
+    canvas.style.cursor = mhov ? 'move' : (S.mode==='pan'?'grab':S.mode==='add'?'crosshair':'default');
     draw();
   }
 });
