@@ -57,53 +57,94 @@ drawHazards() {
             }
             
             if (haz.type === 'crusher') {
-                const timeMs = this.physics.hazardTime || 0;
-                const phaseOff = haz.phase || 0;
-                const period = haz.period || 3000;
-                const t = (Math.sin(((timeMs + phaseOff) / period) * Math.PI * 2) + 1) / 2;
-                const cx = haz.x + (haz.travelX || 0) * t;
-                const cy = haz.y + (haz.travelY || 0) * t;
+                if (!haz.pts || haz.pts.length < 2) continue;
+                const p1 = haz.pts[0];
+                const p2 = haz.pts[1];
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist < 1) dist = 1;
                 
+                const ux = dx / dist;
+                const uy = dy / dist;
+                
+                const thickness = haz.thickness || 40;
                 const cColor = haz.color || '#ef4444';
                 
-                ctx.save();
-                ctx.translate(cx, cy);
-                
-                // Draw metallic block
-                ctx.fillStyle = '#4b5563';
-                ctx.fillRect(0, 0, haz.w, haz.h);
-                
-                // Draw hazard stripes
-                ctx.fillStyle = cColor;
-                const stripeWidth = 20;
-                ctx.beginPath();
-                ctx.rect(0, 0, haz.w, haz.h);
-                ctx.clip();
-                
-                for(let x = -haz.h; x < haz.w + haz.h; x += stripeWidth * 2) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x + stripeWidth, 0);
-                    ctx.lineTo(x - haz.h + stripeWidth, haz.h);
-                    ctx.lineTo(x - haz.h, haz.h);
-                    ctx.fill();
+                // Get progress from physics, or calculate if missing (editor)
+                let progress = 0;
+                if (haz.zoneState && haz.zoneState.progress !== undefined) {
+                    progress = haz.zoneState.progress;
+                } else {
+                    const waitU = haz.waitUnloadedMs || 1000;
+                    const crushT = haz.crushMs || 200;
+                    const waitL = haz.waitLoadedMs || 500;
+                    const retractT = haz.retractMs || 1500;
+                    const cycle = waitU + crushT + waitL + retractT;
+                    const timeMs = (this.physics ? this.physics.hazardTime : performance.now()) + (haz.phaseOffset || 0);
+                    const t = timeMs % cycle;
+                    if (t < waitU) progress = 0;
+                    else if (t < waitU + crushT) progress = (t - waitU) / crushT;
+                    else if (t < waitU + crushT + waitL) progress = 1.0;
+                    else progress = 1.0 - (t - waitU - crushT - waitL) / retractT;
+                    progress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
                 }
                 
-                // Draw outline
-                ctx.strokeStyle = cColor;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(0, 0, haz.w, haz.h);
-                
+                // Draw track
+                ctx.save();
+                ctx.translate(p1.x, p1.y);
+                ctx.rotate(Math.atan2(uy, ux));
+                ctx.strokeStyle = '#374151'; // dark rail
+                ctx.lineWidth = thickness + 4;
+                ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(dist + 20, 0); ctx.stroke();
+                ctx.strokeStyle = '#111827'; // inner groove
+                ctx.lineWidth = thickness - 8;
+                if (ctx.lineWidth > 0) ctx.stroke();
                 ctx.restore();
                 
-                // Draw travel path indicator (faint line)
+                const drawCrusherBlock = () => {
+                    const depth = dist / 2 + 30;
+                    const rightEdge = (dist / 2) * progress;
+                    const leftEdge = rightEdge - depth;
+                    
+                    ctx.fillStyle = '#4b5563';
+                    ctx.fillRect(leftEdge, -thickness/2, depth, thickness);
+                    
+                    ctx.strokeStyle = cColor;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(leftEdge, -thickness/2, depth, thickness);
+                    
+                    ctx.save();
+                    ctx.beginPath(); ctx.rect(leftEdge, -thickness/2, depth, thickness); ctx.clip();
+                    ctx.fillStyle = cColor;
+                    const stripeW = 10;
+                    for (let x = leftEdge - thickness; x < rightEdge; x += stripeW * 2) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, -thickness/2);
+                        ctx.lineTo(x + stripeW, -thickness/2);
+                        ctx.lineTo(x + stripeW - thickness, thickness/2);
+                        ctx.lineTo(x - thickness, thickness/2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                    
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(rightEdge, -thickness/2); ctx.lineTo(rightEdge, thickness/2); ctx.stroke();
+                };
+                
+                // Draw Crusher 1
                 ctx.save();
-                ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(239, 68, 68, 0.2)';
-                ctx.beginPath();
-                ctx.moveTo(haz.x + haz.w/2, haz.y + haz.h/2);
-                ctx.lineTo(haz.x + haz.w/2 + (haz.travelX||0), haz.y + haz.h/2 + (haz.travelY||0));
-                ctx.stroke();
+                ctx.translate(p1.x, p1.y);
+                ctx.rotate(Math.atan2(uy, ux));
+                drawCrusherBlock();
+                ctx.restore();
+                
+                // Draw Crusher 2
+                ctx.save();
+                ctx.translate(p2.x, p2.y);
+                ctx.rotate(Math.atan2(-uy, -ux));
+                drawCrusherBlock();
                 ctx.restore();
                 
                 continue;

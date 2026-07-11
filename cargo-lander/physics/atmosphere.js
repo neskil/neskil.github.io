@@ -744,20 +744,73 @@ const CargoPhysicsAtmosphereMixin = {
                 if (h.type === 'laser' || h.type === 'incinerator' || h.type === 'sandworm' || h.type === 'pickup' || h.type === 'gravwell') continue;
                 
                 if (h.type === 'crusher') {
-                    if (lander.crashed) continue;
-                    const timeMs = this.hazardTime || 0;
-                    const phaseOff = h.phase || 0;
-                    const period = h.period || 3000;
-                    const t = (Math.sin(((timeMs + phaseOff) / period) * Math.PI * 2) + 1) / 2;
-                    const cx = h.x + (h.travelX || 0) * t;
-                    const cy = h.y + (h.travelY || 0) * t;
+                    if (!h.pts || h.pts.length < 2) continue;
+                    const p1 = h.pts[0];
+                    const p2 = h.pts[1];
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 1) continue;
                     
-                    if (lander.x > cx && lander.x < cx + h.w && lander.y > cy && lander.y < cy + h.h) {
-                        this.applyDamage(lander, 25 * dt);
-                        const ky = (h.travelY || 0) < 0 ? -1 : 1;
-                        lander.vy += ky * dt;
-                        this.particles.push({ x: lander.x, y: lander.y, vx: (Math.random() - 0.5)*2, vy: (Math.random() - 0.5)*2, life: 1, color: '#ef4444', size: 3 });
-                        if (lander.integrity <= 0) this.triggerExplosion();
+                    const ux = dx / dist;
+                    const uy = dy / dist;
+                    
+                    const waitU = h.waitUnloadedMs || 1000;
+                    const crushT = h.crushMs || 200;
+                    const waitL = h.waitLoadedMs || 500;
+                    const retractT = h.retractMs || 1500;
+                    const cycle = waitU + crushT + waitL + retractT;
+                    
+                    const timeMs = (this.hazardTime || 0) + (h.phaseOffset || 0);
+                    const t = timeMs % cycle;
+                    
+                    let progress = 0;
+                    if (t < waitU) progress = 0;
+                    else if (t < waitU + crushT) progress = (t - waitU) / crushT;
+                    else if (t < waitU + crushT + waitL) progress = 1.0;
+                    else progress = 1.0 - (t - waitU - crushT - waitL) / retractT;
+                    
+                    // Ease the movement for a mechanical feel (sine ease-in-out)
+                    progress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+                    
+                    const thickness = h.thickness || 40;
+                    
+                    // Store state for rendering
+                    h.zoneState = { progress, ux, uy, dist };
+
+                    for (const target of targets) {
+                        if (target === lander && lander.crashed) continue;
+                        
+                        // Project target onto local axes
+                        const tx = target.x - p1.x;
+                        const ty = target.y - p1.y;
+                        const px = tx * ux + ty * uy; // distance along A-B
+                        const py = tx * (-uy) + ty * ux; // distance perpendicular
+                        
+                        const hitRadius = (target === lander) ? 10 : 8; // approximate collision radii
+                        
+                        // Check if in the danger corridor
+                        if (Math.abs(py) <= thickness / 2 + hitRadius) {
+                            // Check if hit by Crusher 1 or Crusher 2
+                            const c1Edge = (dist / 2) * progress;
+                            const c2Edge = dist - (dist / 2) * progress;
+                            
+                            if (px < c1Edge + hitRadius || px > c2Edge - hitRadius) {
+                                // Instakill crush
+                                if (target === lander) {
+                                    this.applyDamage(lander, 100);
+                                    lander.vx = 0;
+                                    lander.vy = 0;
+                                    for (let i=0; i<5; i++) {
+                                        this.particles.push({ x: lander.x, y: lander.y, vx: (Math.random() - 0.5)*5, vy: (Math.random() - 0.5)*5, life: 1, color: '#ef4444', size: 4 });
+                                    }
+                                    if (lander.integrity <= 0) this.triggerExplosion();
+                                } else {
+                                    target.lost = true;
+                                    target.lostReason = 'crusher';
+                                }
+                            }
+                        }
                     }
                     continue;
                 }
