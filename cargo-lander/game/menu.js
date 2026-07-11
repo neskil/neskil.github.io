@@ -313,8 +313,11 @@ Object.assign(CargoGame.prototype, {
         this.drawVehicleCanvases();
     },
 
-    drawVehicleCanvases() {
+    drawVehicleCanvases(dt = 0) {
         if (!this.drawLander) return; // Wait until render script is loaded
+
+        this.menuAnimTime = (this.menuAnimTime || 0) + dt;
+        const now = Date.now();
 
         const renderModel = (canvasId, type) => {
             const canvas = document.getElementById(canvasId);
@@ -322,7 +325,7 @@ Object.assign(CargoGame.prototype, {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2 + 10);
+            ctx.translate(canvas.width / 2, canvas.height / 2 + (type === 'drone' ? 5 : 10));
             
             // scale down slightly
             ctx.scale(0.8, 0.8);
@@ -333,13 +336,23 @@ Object.assign(CargoGame.prototype, {
             
             this.ctx = ctx;
             if (!this.physics) this.physics = {};
+            
+            // Generate some swaying
+            const sway = Math.sin(now / 1000 + (type === 'basic' ? 0 : 2)) * 0.15;
+            
+            // Occasional thruster fire
+            const isThrusting = (now % (type === 'basic' ? 4000 : 3000)) < 200;
+            const leftThrust = (now % 3500) < 150 ? 1 : 0;
+            const rightThrust = (now % 4200) < 150 ? 1 : 0;
+
             this.physics.lander = {
-                x: 0, y: 0, angle: 0,
+                x: 0, y: 0, 
+                angle: sway,
                 vehicleType: type,
                 fuel: 1, maxFuel: 1,
-                thrustMagnitude: 0,
-                leftThrustRatio: 0,
-                rightThrustRatio: 0,
+                thrustMagnitude: isThrusting ? 1 : 0,
+                leftThrustRatio: leftThrust,
+                rightThrustRatio: rightThrust,
                 legCompress: 0,
                 integrity: 100, maxIntegrity: 100,
                 ropeLength: 0, ropeMax: 100,
@@ -362,6 +375,8 @@ Object.assign(CargoGame.prototype, {
 
         renderModel('canvas-vehicle-basic', 'basic');
         renderModel('canvas-vehicle-drone', 'drone');
+        // No longer rendering the large ones inside the update loop since they only show in a separate modal,
+        // but we'll leave them here just in case. They are hidden by default anyway.
         renderModel('canvas-vehicle-basic-large', 'basic');
         renderModel('canvas-vehicle-drone-large', 'drone');
     },
