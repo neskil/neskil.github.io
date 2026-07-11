@@ -1226,8 +1226,6 @@
             </div>
             <!-- Actions -->
             <div style="display: flex; gap: 15px; align-items: flex-end;">
-                <button class="mobile-btn" id="btn-hud-toggle"
-                    style="background: rgba(120,120,120,0.3); font-size: 16px;">👁️ HUD</button>
                 <button class="mobile-btn" id="btn-action"
                     style="font-size: 14px; line-height: 1.2;">GRAB<br>[SP]</button>
                 <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">🔥</button>
@@ -1275,35 +1273,11 @@
                 btn.addEventListener('pointercancel', release);
             }
 
-            function toggleUICollapse() {
-                if (game) {
-                    game.uiCollapsed = !game.uiCollapsed;
-                    const vitals = document.getElementById('vitals-panel');
-                    const btnGroup = document.getElementById('hud-menu-btn-group');
-                    const dd = document.getElementById('hud-dropdown');
-
-                    if (vitals) vitals.style.display = game.uiCollapsed ? 'none' : 'flex';
-                    // We can choose to keep or hide the menu toggle, hiding everything is cleaner
-                    if (btnGroup) btnGroup.style.display = game.uiCollapsed ? 'none' : 'flex';
-                    if (game.uiCollapsed && dd) dd.style.display = 'none';
-
-                    const leftPanels = document.getElementById('left-panels');
-                    if (leftPanels) {
-                        leftPanels.style.display = game.uiCollapsed ? 'none' : 'block';
-                    }
-                    const radar = document.getElementById('radar-container');
-                    if (radar) {
-                        radar.style.display = game.uiCollapsed ? 'none' : 'flex';
-                    }
-                }
-            }
-
             function setupMobileControls() {
                 bindMobileBtn('btn-left', 'a');
                 bindMobileBtn('btn-right', 'd');
                 bindMobileBtn('btn-thrust', 'w');
                 bindMobileBtn('btn-action', null, triggerAction);
-                bindMobileBtn('btn-hud-toggle', null, toggleUICollapse);
                 setupJoystick();
                 applyTouchControlMode(game && game.touchJoystickEnabled);
             }
@@ -1445,8 +1419,14 @@
                 </div>
 
                 <!-- Right Column: Utility, Radar, Options -->
+                <!-- margin-left:auto pins this column to the right edge on its own —
+                     without it, hiding the HUD (game.toggleUI()) leaves this as the
+                     only visible child of the parent's justify-content:space-between
+                     row, and space-between with a single item left-aligns it instead
+                     of keeping it on the right (the "Show HUD" button jumping to the
+                     opposite side of the screen when unhiding). -->
                 <div id="hud-right-panel"
-                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right;">
+                    style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right; margin-left: auto;">
 
                     <!-- Radar Minimap -->
                     <div id="radar-container" class="hud-group"
