@@ -21,7 +21,6 @@
 //   Platform G — Terminus Dock (normal hub, x:1660) — deliver, then thread all three
 //               lasers again on the way back to HQ for extraction.
 // A drifting reactor gravity well between E and F adds pull to the fuel-stop approach.
-// Debris segments float mid-void as extra collision obstacles between platforms.
 
 registerLevel({
     name: "L8: Orbital Gauntlet",
@@ -88,18 +87,6 @@ registerLevel({
             { x: 1560, y: 580 }, { x: 1800, y: 600 },
             { x: 1820, y: 680 }, { x: 1540, y: 660 }
         ]
-    ],
-
-    // ── Debris — floating hull wreckage; solid obstacles between platforms, plus
-    // broken greebles jutting straight off a few platform edges ──────────────
-    segments: [
-        { x1: 400, y1: 420, x2: 470, y2: 460 },   // slants across the Laser-1 approach
-        { x1: 700, y1: 380, x2: 760, y2: 440 },   // upper obstacle over the Laser-2 gap
-        { x1: 1000, y1: 460, x2: 1080, y2: 500 }, // debris skimming the reactor well
-        { x1: 1500, y1: 440, x2: 1580, y2: 480 }, // final debris shard before Terminus Dock
-        { x1: 460, y1: 470, x2: 480, y2: 435 },   // broken antenna stub off Command Deck
-        { x1: 900, y1: 660, x2: 925, y2: 695 },   // hull spur off Cryo Bay
-        { x1: 1250, y1: 605, x2: 1275, y2: 570 }, // spur off Salvage Chute's tilted deck
     ],
 
     // ── Hazards — three laser gauntlet lines + one drifting debris-cloud zone ──
