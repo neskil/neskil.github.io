@@ -1,13 +1,58 @@
-# Claude Code — Project Context
+# Claude Code — Project Context (cargo-lander)
 
-See **[README.md](README.md)** for full project documentation: architecture, file roles, load order, level/upgrade definitions, known bugs, and design decisions.
+Doc map: **[README.md](README.md)** = current architecture, file roles, load
+order, conventions, verification recipes, and the open TODO backlog.
+**[HISTORY.md](HISTORY.md)** = shipped work, resolved bug sagas, archived
+plans — check it before re-diagnosing an old-sounding bug.
 
 ## Standing instructions
-- After making a code change in this project, test it (browser preview + `tests.html` smoke suite at minimum; exercise any new mechanic directly via `preview_eval` against `game`/`game.physics` if it's not easily reachable by clicking through the UI), fix any bugs found, then commit and push — without waiting to be asked each time.
-- The mission-select grid (`#mission-grid`) and Dev-panel level-jump buttons are auto-generated from `levels[]` by `game.js`'s `generateMissionUI()` — no manual button wiring needed. Adding a new `levelN.js` still requires manually adding its `<script>` tag in `index.html`, or it won't be registered at all.
-- Bump `CargoGame.VERSION` (`game.js`, top of the class — shown bottom-left in-game as `vX.Y.Z`) on every commit that ships a user-visible change: patch (`0.2.0`→`0.2.1`) for fixes/tweaks, minor (`0.2.0`→`0.3.0`) for new features. Skip it only for pure docs/comment-only commits.
-- **When there's no interactive browser preview available (tool outage, non-interactive environment, etc.), verify with headless Chrome instead of skipping verification.** This found and fixed a real bug (2026-07-10: a CSS rule was silently collapsing the minimap to 2×2px — invisible with zero console errors, would never have surfaced from just reading code or running `tests.html`) that a code-only review had missed. Recipe, assuming a static server on port 8177 and Chrome at `C:\Program Files\Google\Chrome\Application\chrome.exe`:
-  - **Test suite**: `chrome --headless=new --disable-gpu --user-data-dir=%TEMP%\chrome-test --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html > out.html`, then grep the dump for `id="summary"` (contains "N passed / 0 failed"). `--virtual-time-budget` fast-forwards timers so the async test run finishes before the DOM is dumped.
-  - **Visual checks**: use `probe-screenshot.html` (this folder) — loads the game in an iframe and exposes query-string controls: `?level=N&x=..&y=..&zoom=..` starts a level and parks the free camera at a world position; `&debug=1` dumps element/computed-style diagnostics (this is what caught the minimap bug — it showed `display=flex` but `w=2px h=2px`, i.e. present in the DOM but laid out to nothing, which a plain "is it visible" check would have missed); `&hide=fnName1,fnName2` no-ops `CargoGame.prototype` methods before the level starts, for bisecting which draw call produces a given visual; `&script=name` runs a scripted repro (add new ones here for future bug hunts rather than one-off console fiddling). Screenshot with `chrome --headless=new --disable-gpu --window-size=1280,800 --virtual-time-budget=8000 --screenshot=out.png "http://localhost:8177/probe-screenshot.html?..."`, then read `out.png` with the Read tool.
-  - The probe also stamps the post-FX shader's link status bottom-left in every screenshot, since a failed WebGL shader compile is otherwise silent (the pass just draws nothing, no exception, no console error).
-  - Full write-up: README.md's "Headless verification" section under Verification.
+- After making a code change in this project, **test it** (tests.html suite +
+  exercising any new mechanic against the live `game`/`game.physics` objects —
+  headless if no interactive browser is available, see below), fix any bugs
+  found, then **commit and push** — without waiting to be asked each time.
+- Bump `CargoGame.VERSION` (top of `game.js`, shown in-game as `vX.Y.Z`) on
+  every commit that ships a user-visible change: patch for fixes/tweaks, minor
+  for new features. Skip only for docs/comment-only or pure-refactor commits.
+- The mission grid and dev-panel jump buttons are auto-generated from
+  `levels[]` (`generateMissionUI()` in `game/menu.js`). Adding a new
+  `levelN.js` still requires manually adding its `<script>` tag in
+  `index.html`, or it won't be registered at all.
+- `game.js` and `physics.js` are classes extended by prototype-mixin files
+  (`game/*.js`, `render.js` + `render/*.js`, `physics/*.js`). If a method
+  isn't in the class file, grep the sibling directories. Keep new methods in
+  the module that matches their concern; script load order lives in
+  `index.html` AND `tests.html` — a new mixin file must be added to both.
+- Cargo removal must go through `removeCargoBox()` (`game/cargo.js`), never a
+  raw `boxes.splice()`.
+
+## Verification (headless — works in any environment)
+Serve the folder (`python3 -m http.server 8177` from `cargo-lander/`), then
+use whatever headless Chromium the environment provides (`chrome`,
+`chromium`, or a Playwright `headless_shell`; on sandboxed Linux add
+`--no-sandbox`):
+
+- **Test suite**: `<chromium> --headless=new --disable-gpu
+  --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html`,
+  then grep the dump for `id="summary"` — must say "N passed / **0 failed**"
+  (89 tests at last count; N grows, 0 failed is the bar).
+  `--virtual-time-budget` fast-forwards timers so the async run completes
+  before the dump.
+- **Visual checks**: `probe-screenshot.html?level=N&x=..&y=..&zoom=..`
+  (0-based level index) + `--window-size=1280,800 --virtual-time-budget=8000
+  --screenshot=out.png`, then Read the PNG. `&debug=1` dumps computed-style
+  diagnostics (this caught a CSS rule silently collapsing the minimap to
+  2×2px — invisible with zero console errors); `&hide=fn1,fn2` no-ops draw
+  calls to bisect a visual; `&script=name` runs scripted repros — add new
+  ones there instead of one-off console fiddling. The probe stamps the
+  post-FX shader link status bottom-left, since a failed WebGL compile is
+  otherwise silent.
+- **Multi-frame mechanics**: `--virtual-time-budget` does NOT reliably tick
+  `requestAnimationFrame` — drive the physics in a synchronous loop instead
+  (see `probe-screenshot.html`'s `parachuteSim` for the pattern).
+- **Console-driven mechanic checks**: move the lander by setting
+  `game.physics.lander.x/y` **and** `Matter.Body.setPosition(
+  game.physics.landerBody, {x,y})` together — updating only one desyncs the
+  body from its mirror and fakes collision damage. Step with
+  `game.update(1.0)` (dt≈1.0 = one 60fps frame).
+
+Full recipes and the mobile manual-QA checklist: README.md → Verification.
