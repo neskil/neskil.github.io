@@ -1068,6 +1068,115 @@
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .pilot-avatar:hover {
+            transform: scale(1.05);
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+        }
+
+        @keyframes avatar-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+
+        .pilot-avatar.nudge {
+            animation: avatar-pulse 2s infinite;
+            border-color: #f59e0b !important;
+        }
+
+        .pilot-avatar.nudge::after {
+            content: '✏️';
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            font-size: 0.65rem;
+            background: #f59e0b;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #0f172a;
+        }
+
+        /* Portrait selector styles */
+        .portrait-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        @media (max-width: 600px) {
+            .portrait-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .portrait-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .portrait-card:hover {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: var(--neon-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+        }
+
+        .portrait-card.selected {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+        }
+
+        .portrait-card-img {
+            width: 80px;
+            height: 80px;
+            min-width: 80px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .portrait-card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .portrait-card-name {
+            font-weight: bold;
+            color: #f8fafc;
+            font-size: 1.1rem;
+        }
+
+        .portrait-card-vibe {
+            font-size: 0.75rem;
+            color: #38bdf8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .portrait-card-bio {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            line-height: 1.4;
         }
 
         .license-title-block {
@@ -1769,7 +1878,7 @@
                     <!-- Pilot License Card -->
                     <div class="pilot-card">
                         <div class="license-header">
-                            <div class="pilot-avatar" id="pilot-avatar">🚀</div>
+                            <div class="pilot-avatar" id="pilot-avatar" onclick="game.openPortraitSelector()" title="Click to change portrait">🚀</div>
                             <div class="license-title-block">
                                 <div class="license-eyebrow">Pilot ID · GCA-7749</div>
                                 <input class="license-name-input" id="pilot-name-input" type="text" maxlength="22"
@@ -2209,6 +2318,54 @@
             <p style="color: var(--text-secondary); margin-bottom: 2rem;">Your Global Cash has fallen below $0. If your debt reaches <strong>-$5,000</strong>, the bank will repossess all your purchased upgrades!</p>
             <div style="text-align: center;">
                 <button class="btn-primary" onclick="document.getElementById('negative-cash-warning').style.display='none'">Understood</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN OVERLAY: PORTRAIT SELECTOR MODAL -->
+    <div id="portrait-select-modal" class="screen-overlay" style="display: none; z-index: 10000;">
+        <div class="screen-content" style="max-width: 800px; text-align: left;">
+            <h2 id="portrait-modal-title" style="color: #38bdf8; margin-top: 0; margin-bottom: 5px;">Choose Your Pilot</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem;">Select a pilot profile card below to set your portrait. Your choice comes with an optional callsign suggestion!</p>
+            
+            <div class="portrait-grid">
+                <div id="p-card-driver1" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver1.jpg', 'Rusty')">
+                    <img class="portrait-card-img" src="assets/portraits/driver1.jpg" alt="Rusty">
+                    <div class="portrait-card-info">
+                        <div class="portrait-card-name">Rusty Henderson</div>
+                        <div class="portrait-card-vibe">Diesel-Head</div>
+                        <div class="portrait-card-bio">30 years hauling hypermatter across the Outer Rim. Believes computer autopilots are a government conspiracy and still uses analog fuzzy dice. Keeps a thermos of high-octane dark roast.</div>
+                    </div>
+                </div>
+                <div id="p-card-driver2" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver2.jpg', 'Gabby')">
+                    <img class="portrait-card-img" src="assets/portraits/driver2.jpg" alt="Gabby">
+                    <div class="portrait-card-info">
+                        <div class="portrait-card-name">Gear-Head Gabby</div>
+                        <div class="portrait-card-vibe">Hyper-Tinkerer</div>
+                        <div class="portrait-card-bio">Gabby can't sit still and drinks three energy drinks per sector. Re-wired her ship's thrusters to blast 15% hotter, even if it occasionally leaks plasma. "Safety is just a recommendation."</div>
+                    </div>
+                </div>
+                <div id="p-card-driver3" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver3.jpg', 'Mac')">
+                    <img class="portrait-card-img" src="assets/portraits/driver3.jpg" alt="Mac">
+                    <div class="portrait-card-info">
+                        <div class="portrait-card-name">Captain Mac Sterling</div>
+                        <div class="portrait-card-vibe">Grey-Beard Veteran</div>
+                        <div class="portrait-card-bio">Retired space naval trucker who wears sunglasses indoors because the suns are always too bright. He has survived sand-worm encounters, black hole near-misses, and terrible station food.</div>
+                    </div>
+                </div>
+                <div id="p-card-driver4" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver4.jpg', 'Sally')">
+                    <img class="portrait-card-img" src="assets/portraits/driver4.jpg" alt="Sally">
+                    <div class="portrait-card-info">
+                        <div class="portrait-card-name">Synthwave Sally</div>
+                        <div class="portrait-card-vibe">Retro-Hauler</div>
+                        <div class="portrait-card-bio">Sally only flies during the night shift (relative to the nearest pulsar). Listens to 80s space-synth on loop, speaks entirely in trucker slang over the radio, and never loses her cool.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="portrait-modal-nudge-note" style="color: #f59e0b; font-size: 0.8rem; display: none;">⚠️ You can change your choice anytime by clicking your avatar.</span>
+                <button class="btn-secondary" onclick="document.getElementById('portrait-select-modal').style.display='none'">Skip for now</button>
             </div>
         </div>
     </div>
