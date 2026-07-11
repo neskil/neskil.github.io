@@ -795,9 +795,12 @@
         }
 
         @media (max-width: 768px) {
-            #mobile-controls {
-                display: flex;
-            }
+            /* #mobile-controls visibility is driven entirely by JS
+               (updateMobileControlsVisibility() in game.js — gated on
+               isTouchDevice && gameState === 'playing'). Forcing display:flex
+               here regardless of touch capability or game state showed the
+               control buttons on the main menu (and on any narrow desktop
+               window) before a mission ever started. */
 
             #mobile-fullscreen-btn {
                 display: flex !important;
