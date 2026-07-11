@@ -1561,10 +1561,10 @@
 
                 <!-- Right Column: Utility, Radar, Options -->
                 <!-- margin-left:auto pins this column to the right edge on its own —
-                     without it, hiding the HUD (game.toggleUI()) leaves this as the
+                     without it, hiding the UI (game.toggleUI()) leaves this as the
                      only visible child of the parent's justify-content:space-between
                      row, and space-between with a single item left-aligns it instead
-                     of keeping it on the right (the "Show HUD" button jumping to the
+                     of keeping it on the right (the "Show UI" button jumping to the
                      opposite side of the screen when unhiding). -->
                 <div id="hud-right-panel"
                     style="display: flex; flex-direction: column; align-items: flex-end; gap: 16px; pointer-events: auto; transform-origin: top right; margin-left: auto; justify-self: end;">
@@ -1585,7 +1585,7 @@
                         </div>
                         <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
                             style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">👁
-                            Hide HUD</button>
+                            Hide UI</button>
                     </div>
 
                     <!-- Radar Minimap -->

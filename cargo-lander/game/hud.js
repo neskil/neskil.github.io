@@ -22,16 +22,13 @@ Object.assign(CargoGame.prototype, {
             if (hudToolbar) hudToolbar.style.display = 'none';
             if (optionsBtn) optionsBtn.style.display = 'none';
             
-            const rightPanel = document.getElementById('hud-right-panel');
-            if (rightPanel) rightPanel.style.marginLeft = 'auto';
-            
             const dropdown = document.getElementById('options-dropdown');
             if (dropdown) dropdown.style.display = 'none';
             
             const eyeBtn = document.getElementById('hide-ui-btn');
             if (eyeBtn) {
                 eyeBtn.style.opacity = '0.5';
-                eyeBtn.textContent = '👁 Show HUD';
+                eyeBtn.textContent = '👁 Show UI';
                 eyeBtn.title = 'Show UI';
             }
         } else {
@@ -41,13 +38,10 @@ Object.assign(CargoGame.prototype, {
             if (hudToolbar) hudToolbar.style.display = 'flex';
             if (optionsBtn) optionsBtn.style.display = 'inline-flex';
             
-            const rightPanel = document.getElementById('hud-right-panel');
-            if (rightPanel) rightPanel.style.marginLeft = '0';
-            
             const eyeBtn = document.getElementById('hide-ui-btn');
             if (eyeBtn) {
                 eyeBtn.style.opacity = '1';
-                eyeBtn.textContent = '👁 Hide HUD';
+                eyeBtn.textContent = '👁 Hide UI';
                 eyeBtn.title = 'Hide UI';
             }
         }
