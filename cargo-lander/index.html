@@ -726,7 +726,15 @@
             -webkit-user-select: none;
             pointer-events: auto;
             backdrop-filter: blur(4px);
-            touch-action: manipulation;
+            /* Was "manipulation", which still leaves the browser's native
+               pinch-zoom gesture live (the page's viewport meta doesn't set
+               user-scalable=no). Two fingers landing on two different
+               buttons at once — e.g. holding thrust while tapping GRAB, or
+               thrust+turn — could get recognized as a pinch and have one
+               touch swallowed by the browser instead of reaching its
+               button. "none" hands every touch on these buttons to our own
+               pointer handlers, which is what multi-touch here depends on. */
+            touch-action: none;
         }
 
         .mobile-btn:active {
