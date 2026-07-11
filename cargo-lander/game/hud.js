@@ -171,9 +171,19 @@ Object.assign(CargoGame.prototype, {
                     const max = lander.maxShieldCharge || 0;
                     const pct = max > 0 ? Math.max(0, Math.min(100, ((lander.shieldCharge || 0) / max) * 100)) : 0;
                     shieldFill.style.width = `${pct}%`;
-                    shieldFill.style.background = (lander.shieldHitFlash > 0)
-                        ? '#e0f2fe'
-                        : 'linear-gradient(90deg, #38bdf8, #818cf8)';
+                    let bg = 'linear-gradient(90deg, #38bdf8, #818cf8)';
+                    if (lander.shieldHitFlash > 0) {
+                        bg = '#e0f2fe';
+                    }
+                    
+                    if (lander.shieldDelay > 0) {
+                        const blink = Math.floor(Date.now() / 150) % 2 === 0;
+                        shieldFill.style.opacity = blink ? '0.3' : '0.8';
+                    } else {
+                        shieldFill.style.opacity = '1';
+                    }
+                    
+                    shieldFill.style.background = bg;
                 }
             } else {
                 shieldRow.classList.add('hidden');
@@ -229,7 +239,13 @@ Object.assign(CargoGame.prototype, {
                             centerTitle.style.color = '#10b981';
                         }
                         if (centerDesc) centerDesc.textContent = 'All cargo delivered safely.';
-                        if (centerBtn) centerBtn.style.display = 'block';
+                        if (centerBtn) {
+                            centerBtn.style.display = 'block';
+                            centerBtn.textContent = '[SPACE] TO EXTRACT';
+                            centerBtn.style.background = '#10b981';
+                            centerBtn.style.borderColor = '#059669';
+                            centerBtn.style.boxShadow = '0 0 20px rgba(16,185,129,0.7)';
+                        }
                         
                         btnExtract.classList.remove('hidden');
                         btnExtract.textContent = '✓ EXTRACT NOW';
@@ -242,10 +258,20 @@ Object.assign(CargoGame.prototype, {
                             centerTitle.textContent = 'HQ Services';
                             centerTitle.style.color = '#38bdf8';
                         }
-                        if (centerDesc) centerDesc.textContent = 'Refuel and repair before taking off.';
-                        if (centerBtn) centerBtn.style.display = 'none';
+                        if (centerDesc) centerDesc.textContent = 'Landed at HQ.';
+                        if (centerBtn) {
+                            centerBtn.style.display = 'block';
+                            centerBtn.textContent = 'ABORT & EXTRACT';
+                            centerBtn.style.background = '#ef4444';
+                            centerBtn.style.borderColor = '#b91c1c';
+                            centerBtn.style.boxShadow = 'none';
+                        }
                         
-                        btnExtract.classList.add('hidden');
+                        btnExtract.classList.remove('hidden');
+                        btnExtract.textContent = 'ABORT & EXTRACT';
+                        btnExtract.style.background = '#ef4444';
+                        btnExtract.style.opacity = '1';
+                        btnExtract.style.cursor = 'pointer';
                     }
                     
                     const btnRefuel = document.getElementById('btn-hq-refuel');

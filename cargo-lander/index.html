@@ -1716,6 +1716,10 @@
                         above, and select your file to play!
                     </div>
 
+                    <div style="margin-top: 1rem; text-align: center;">
+                        <button class="btn-primary" onclick="document.getElementById('tutorial-modal').style.display='flex'" style="width: 100%; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">📖 How to Play / Tutorial</button>
+                    </div>
+
                     <div class="control-help" style="margin-top: 1rem;">
                         <div><span class="kbd-key">W</span> / <span class="kbd-key">▲</span> <span>Thrusters</span>
                         </div>
@@ -1765,18 +1769,22 @@
                             <div style="display:flex; gap:8px;">
                                 <button id="vehicle-license-basic" class="btn-level"
                                     onclick="game.setSelectedVehicle('basic')"
-                                    style="flex:1; text-align:left; padding:8px 10px;">
-                                    <span class="num" style="color:#38bdf8;">Basic Lander</span>
-                                    <span style="font-size:0.7rem; color:var(--text-secondary);">Upright,
-                                        beginner-friendly</span>
+                                    style="flex:1; text-align:left; padding:8px 10px; display: flex; align-items: center; gap: 8px;">
+                                    <canvas id="canvas-vehicle-basic" width="60" height="60" style="pointer-events: none;"></canvas>
+                                    <div>
+                                        <div class="num" style="color:#38bdf8;">Basic Lander</div>
+                                        <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Upright, beginner-friendly</div>
+                                    </div>
                                 </button>
                                 <div style="flex:1; position: relative;">
                                     <button id="vehicle-license-drone" class="btn-level"
                                         onclick="game.setSelectedVehicle('drone')"
-                                        style="width: 100%; text-align:left; padding:8px 10px; height: 100%;">
-                                        <span class="num" style="color:#10b981;">Utility Drone</span>
-                                        <span style="font-size:0.7rem; color:var(--text-secondary);">Auto-hover +
-                                            winch</span>
+                                        style="width: 100%; text-align:left; padding:8px 10px; height: 100%; display: flex; align-items: center; gap: 8px;">
+                                        <canvas id="canvas-vehicle-drone" width="60" height="60" style="pointer-events: none;"></canvas>
+                                        <div>
+                                            <div class="num" style="color:#10b981;">Utility Drone</div>
+                                            <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Auto-hover + winch</div>
+                                        </div>
                                     </button>
                                     <div id="drone-tutorial-pointer"
                                         style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
@@ -1826,16 +1834,22 @@
 
             <div class="level-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                 <button class="btn-level" onclick="game.startLevelWithVehicle('basic')"
-                    style="text-align: left; padding: 20px;">
-                    <h3 style="color: #38bdf8; margin: 0 0 10px 0; font-size: 1.2rem;">Basic Lander</h3>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Gyro-stabilized upright
-                        flight. Up/Down/Left/Right thrusters. Recommended for beginners.</p>
+                    style="text-align: left; padding: 20px; display: flex; gap: 15px; align-items: flex-start;">
+                    <canvas id="canvas-vehicle-basic-large" width="80" height="80" style="pointer-events: none; flex-shrink: 0;"></canvas>
+                    <div>
+                        <h3 style="color: #38bdf8; margin: 0 0 10px 0; font-size: 1.2rem;">Basic Lander</h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Gyro-stabilized upright
+                            flight. Up/Down/Left/Right thrusters. Recommended for beginners.</p>
+                    </div>
                 </button>
                 <button class="btn-level" onclick="game.startLevelWithVehicle('drone')"
-                    style="text-align: left; padding: 20px; border-color: #10b981;">
-                    <h3 style="color: #10b981; margin: 0 0 10px 0; font-size: 1.2rem;">Utility Drone</h3>
-                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Auto-hover capable. Uses an
-                        extendable magnetic winch for precision drops in tight spaces.</p>
+                    style="text-align: left; padding: 20px; border-color: #10b981; display: flex; gap: 15px; align-items: flex-start;">
+                    <canvas id="canvas-vehicle-drone-large" width="80" height="80" style="pointer-events: none; flex-shrink: 0;"></canvas>
+                    <div>
+                        <h3 style="color: #10b981; margin: 0 0 10px 0; font-size: 1.2rem;">Utility Drone</h3>
+                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Auto-hover capable. Uses an
+                            extendable magnetic winch for precision drops in tight spaces.</p>
+                    </div>
                 </button>
             </div>
 
@@ -2132,6 +2146,68 @@
             style="font-size:11px;line-height:1.6;color:#94a3b8;white-space:pre;font-family:'Courier New',monospace;"></pre>
     </div>
 
+
+    <!-- SCREEN OVERLAY: CUSTOM CONFIRM MODAL -->
+    <div id="confirm-modal" class="screen-overlay" style="display: none; z-index: 10001;">
+        <div class="screen-content" style="max-width: 500px; text-align: center;">
+            <h2 id="confirm-modal-title" style="color: #f59e0b; margin-top: 0; font-size: 2rem;">Confirm</h2>
+            <p id="confirm-modal-desc" style="color: var(--text-secondary); margin-bottom: 2rem;">Are you sure?</p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn-secondary" onclick="document.getElementById('confirm-modal').style.display='none'">Cancel</button>
+                <button id="confirm-modal-yes" class="btn-primary" style="background: #ef4444; border-color: #b91c1c;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN OVERLAY: TUTORIAL MODAL -->
+    <div id="tutorial-modal" class="screen-overlay" style="display: none; z-index: 10000;">
+        <div class="screen-content" style="max-width: 600px; text-align: left;">
+            <h2 style="color: #38bdf8; margin-top: 0;">How to Play</h2>
+            <p><strong>Goal:</strong> Transport cargo from the start pad to the colored Delivery Hubs. Don't drop the payload!</p>
+            
+            <h3 style="color: #cbd5e1; margin-bottom: 5px;">Controls</h3>
+            <ul style="color: var(--text-secondary); margin-top: 0;">
+                <li><strong>W / Up Arrow:</strong> Main Thruster</li>
+                <li><strong>A / D / Left / Right:</strong> Rotate</li>
+                <li><strong>Spacebar:</strong> Drop Cargo / Toggle Winch</li>
+            </ul>
+
+            <h3 style="color: #cbd5e1; margin-bottom: 5px;">Economy</h3>
+            <ul style="color: var(--text-secondary); margin-top: 0;">
+                <li>Starting a mission costs an <strong>Entry Fee</strong> and risks the <strong>Mission Budget</strong> from your Global Cash.</li>
+                <li>Delivering cargo earns $300 each to the Mission Budget.</li>
+                <li>If you succeed, the remaining Mission Budget is returned to your Global Cash.</li>
+                <li><strong>Beware:</strong> If your Global Cash drops below -$5000, the bank will repossess your upgrades!</li>
+            </ul>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn-primary" onclick="document.getElementById('tutorial-modal').style.display='none'">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN OVERLAY: REPO MAN MODAL -->
+    <div id="repo-man-modal" class="screen-overlay" style="display: none; z-index: 10000;">
+        <div class="screen-content" style="max-width: 500px;">
+            <h2 style="color: #ef4444; font-size: 2.5rem; margin-bottom: 0.5rem;">BANKRUPTCY</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Your debts exceeded -$5,000. The Intergalactic Bank has repossessed all your lander upgrades to cover the costs.</p>
+            <p style="color: #fca5a5; font-weight: bold; margin-bottom: 2rem;">Your upgrades have been reset, and you were given $1,000 in emergency starting cash.</p>
+            <div style="text-align: center;">
+                <button class="btn-primary" onclick="document.getElementById('repo-man-modal').style.display='none'" style="background: #ef4444; border-color: #b91c1c;">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN OVERLAY: NEGATIVE CASH WARNING -->
+    <div id="negative-cash-warning" class="screen-overlay" style="display: none; z-index: 10000;">
+        <div class="screen-content" style="max-width: 500px;">
+            <h2 style="color: #f59e0b; font-size: 2rem; margin-bottom: 0.5rem;">WARNING: OVERDRAWN</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Your Global Cash has fallen below $0. If your debt reaches <strong>-$5,000</strong>, the bank will repossess all your purchased upgrades!</p>
+            <div style="text-align: center;">
+                <button class="btn-primary" onclick="document.getElementById('negative-cash-warning').style.display='none'">Understood</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>

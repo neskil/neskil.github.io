@@ -34,7 +34,7 @@ const CargoPhysicsEntitiesMixin = {
         const vehicleType = config.vehicle || 'lander';
         
         // Winch Extender upgrade was purchasable but never applied anywhere — wire it in.
-        const ropeMax = (config.ropeLength || 120) + (upgrades.winchExtender || 0) * 50;
+        const ropeMax = (config.ropeLength || 120);
         const maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
 
         // Position lander centered on Start Depot pad
@@ -162,6 +162,7 @@ const CargoPhysicsEntitiesMixin = {
     applyDamage(lander, amount) {
         if (!lander || amount <= 0) return 0;
         lander.shieldAbsorbedThisHit = false;
+        lander.shieldDelay = 300; // 5 seconds at 60fps
 
         if (lander.shieldCharge > 0) {
             const mitigation = 0.65;

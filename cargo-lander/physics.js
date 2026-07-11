@@ -58,8 +58,11 @@ class CargoPhysics {
         this.particles = [];
         this.sandWorm = null;
         this.sandWormSpawned = false;
+
+        // Apply aerodynamic coating upgrade
+        this.LANDER_DRAG = 0.985 + (upgrades.aerodynamics || 0) * 0.003;
+
         this.monster = null; // The Out-Of-Bounds cosmic horror
-        this.sandWorm = null;
         this.outOfBoundsTimer = 0;
         this.wasInFluid = false;
         this.ambientTraffic = [];

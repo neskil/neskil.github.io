@@ -1,0 +1,10 @@
+Cost of upgrades should increase as you go, level 1 cost less than level 3 upgrade.
+
+The budget for each level should come from your global cash (that is what you "risk" for going into the level)
+There should also be a cost (fuel and docking fee). There should be a help box / tutorial that explains the game.
+If you go below 5000 $ you should get "Game over" and it resets your upgrades (repo man takes them) but don't reset the high scores. Then you get back on starting cash.
+You should get warning when first going negative global cash that if you get below 5000 $ the bank will repo your lander and your upgrades.
+
+The different landers should have the actual lander model on the buttons where you select them!
+
+Shield should have a short delay when regenerating after you take a hit (show that by blinking the shield for 5 s)

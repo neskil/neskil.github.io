@@ -15,7 +15,7 @@ registerLevel({
   weather: 'rain',
 
   // ── Mission parameters ────────────────────────────────────────────────────
-  budget: 1000,
+  budget: 500,
   timeLimit: 180,
   padScale: 1.5,
   targetCargo: 2,
