@@ -76,9 +76,30 @@ updateWeather(dt) {
             if (p.type === 'snow' || p.type === 'ash') {
                 p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5 * dt;
             }
-            const sucked = well && Math.hypot(well.x - p.x, well.y - p.y) < 20;
-            if (sucked || p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
-                this.weatherParticles.splice(i, 1);
+            const sucked = well && Math.hypot(well.x - p.x, well.y - p.y) < well.radius * 0.4;
+            let hitTerrain = false;
+            if (this.physics && this.physics.terrainPolygons && (p.type === 'rain' || p.type === 'snow')) {
+                for (const poly of this.physics.terrainPolygons) {
+                    if (this.physics.pointInPolygon(p.x, p.y, poly)) {
+                        hitTerrain = true;
+                        break;
+                    }
+                }
+            }
+
+            if (sucked || hitTerrain || p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
+                if (hitTerrain && p.type === 'rain' && Math.random() < 0.5) {
+                    p.type = 'splash';
+                    p.vy = -Math.random() * 2 - 1;
+                    p.vx = (Math.random() - 0.5) * 2;
+                    p.life = 0.2;
+                    p.size = 1.0;
+                } else {
+                    this.weatherParticles.splice(i, 1);
+                }
+            } else if (p.type === 'splash') {
+                p.life -= dt * 0.05;
+                if (p.life <= 0) this.weatherParticles.splice(i, 1);
             }
         }
 
@@ -152,6 +173,9 @@ drawWeather() {
                 ctx.moveTo(p.x + p.size, p.y);
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             } else if (p.type === 'rain') {
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - p.vx * 2, p.y - p.vy * 2);
+            } else if (p.type === 'splash') {
                 ctx.moveTo(p.x, p.y);
                 ctx.lineTo(p.x - p.vx * 2, p.y - p.vy * 2);
             } else {
