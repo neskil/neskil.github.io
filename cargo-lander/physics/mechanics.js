@@ -135,14 +135,22 @@ const CargoPhysicsMechanicsMixin = {
             const dx = gw.x - this.lander.x;
             const dy = gw.y - this.lander.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < gw.radius) {
+            // Influence radius is larger than visual radius so it gently pulls earlier
+            const pullRadius = gw.radius * 1.5;
+            
+            if (dist < pullRadius) {
                 let pullDist = dist;
                 if (pullDist < 15) pullDist = 15;
-                const force = gw.strength * 2.5 * Math.max(0, 1 - (pullDist / gw.radius));
+                
+                // Quadratic falloff: gentle at the edge, strong near the center
+                const falloff = Math.max(0, 1 - (pullDist / pullRadius));
+                const force = gw.strength * 3.5 * Math.pow(falloff, 2);
+                
                 this.lander.vx += (dx / (dist || 1)) * force * dt;
                 this.lander.vy += (dy / (dist || 1)) * force * dt;
                 
-                if (dist < gw.radius * 0.15) {
+                // Smaller kill radius (was 0.15)
+                if (dist < gw.radius * 0.08) {
                     // Small damage near center
                     this.lander.integrity -= 5 * dt;
                     if (this.lander.integrity <= 0 && !this.lander.crashed) {
