@@ -689,6 +689,10 @@ class CargoGame {
     update(dt) {
         this.updateMobileControlsVisibility();
         if (this.updateWeather) this.updateWeather(dt);
+        
+        if (this.gameState === 'menu' && this.drawVehicleCanvases) {
+            this.drawVehicleCanvases(dt);
+        }
 
         const lander = this.physics.lander;
         if (!lander) return;

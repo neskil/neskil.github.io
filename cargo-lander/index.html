@@ -1679,6 +1679,41 @@
             <div class="menu-panes">
                 <!-- LEFT: Mission Selector -->
                 <div class="menu-left">
+                    <!-- Vehicle License — pick your loadout once here instead of per-mission -->
+                    <div style="margin-bottom: 20px;">
+                        <div class="stat-cell-label" style="margin-bottom:6px;">🚀 Vehicle License</div>
+                        <div style="display:flex; gap:8px;">
+                            <button id="vehicle-license-basic" class="btn-level"
+                                onclick="game.setSelectedVehicle('basic')"
+                                style="flex:1; text-align:left; padding:8px 10px; display: flex; align-items: center; gap: 8px;">
+                                <div style="width: 80px; height: 80px; position: relative; flex-shrink: 0;">
+                                    <canvas id="canvas-vehicle-basic" width="80" height="80" style="pointer-events: none; position: absolute; top:0; left:0;"></canvas>
+                                </div>
+                                <div>
+                                    <div class="num" style="color:#38bdf8;">Basic Lander</div>
+                                    <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Upright, beginner-friendly</div>
+                                </div>
+                            </button>
+                            <div style="flex:1; position: relative;">
+                                <button id="vehicle-license-drone" class="btn-level"
+                                    onclick="game.setSelectedVehicle('drone')"
+                                    style="width: 100%; text-align:left; padding:8px 10px; height: 100%; display: flex; align-items: center; gap: 8px;">
+                                    <div style="width: 80px; height: 80px; position: relative; flex-shrink: 0;">
+                                        <canvas id="canvas-vehicle-drone" width="80" height="80" style="pointer-events: none; position: absolute; top:0; left:0;"></canvas>
+                                    </div>
+                                    <div>
+                                        <div class="num" style="color:#10b981;">Utility Drone</div>
+                                        <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Auto-hover + winch</div>
+                                    </div>
+                                </button>
+                                <div id="drone-tutorial-pointer"
+                                    style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
+                                    Try the Drone! ⬇
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <h2
                         style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.12em;">
                         📡 Select Mission</h2>
@@ -1760,37 +1795,6 @@
                             <div class="stat-cell">
                                 <div class="stat-cell-label">💀 Crashes</div>
                                 <div class="stat-cell-value red" id="lc-crashes">0</div>
-                            </div>
-                        </div>
-
-                        <!-- Vehicle License — pick your loadout once here instead of per-mission -->
-                        <div style="margin-top: 12px;">
-                            <div class="stat-cell-label" style="margin-bottom:6px;">🚀 Vehicle License</div>
-                            <div style="display:flex; gap:8px;">
-                                <button id="vehicle-license-basic" class="btn-level"
-                                    onclick="game.setSelectedVehicle('basic')"
-                                    style="flex:1; text-align:left; padding:8px 10px; display: flex; align-items: center; gap: 8px;">
-                                    <canvas id="canvas-vehicle-basic" width="60" height="60" style="pointer-events: none;"></canvas>
-                                    <div>
-                                        <div class="num" style="color:#38bdf8;">Basic Lander</div>
-                                        <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Upright, beginner-friendly</div>
-                                    </div>
-                                </button>
-                                <div style="flex:1; position: relative;">
-                                    <button id="vehicle-license-drone" class="btn-level"
-                                        onclick="game.setSelectedVehicle('drone')"
-                                        style="width: 100%; text-align:left; padding:8px 10px; height: 100%; display: flex; align-items: center; gap: 8px;">
-                                        <canvas id="canvas-vehicle-drone" width="60" height="60" style="pointer-events: none;"></canvas>
-                                        <div>
-                                            <div class="num" style="color:#10b981;">Utility Drone</div>
-                                            <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Auto-hover + winch</div>
-                                        </div>
-                                    </button>
-                                    <div id="drone-tutorial-pointer"
-                                        style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
-                                        Try the Drone! ⬇
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
