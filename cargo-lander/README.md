@@ -62,7 +62,7 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `audio.js` | `CargoAudioController` — procedural Web Audio synth: thrusters, collisions, explosions, warnings, arpeggios, ambient drone. Exposes global `CargoAudio`. |
 | `levels.js` | `registerLevel()` dispatcher + quest helper functions (`questPrimary`, `questNoCrash`, …). |
 | `upgrades.js` | Upgrade catalog. |
-| `level1.js` – `level9.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html` manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
+| `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
 | `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
@@ -71,7 +71,7 @@ so a method you can't find in the class file lives in one of its `game/` or
 
 ### Load order matters
 `index.html` loads `vendor/matter.min.js`, then `levelSchema.js → upgrades.js →
-levels.js → levelGenerator.js → level1…9.js → levelTest.js → audio.js →
+levels.js → levelGenerator.js → level1…10.js → levelTest.js → audio.js →
 shaders.js → physics.js → physics/*.js → game.js → game/*.js → render.js →
 render/*.js`. Class files must precede their prototype-mixin files;
 `render.js` instantiates `window.game`, so every mixin must load before it;
@@ -101,7 +101,7 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
 
 ### Features
 - **Schema-driven Metadata / Palette / Out of Bounds / Gravity Well panels** — generated from `levelSchema.js`; the loader's defaults and the export-block generator read the same schema. Adding a new scalar field only requires a schema entry (see that file's header comment). Geometry is NOT schema-driven (bespoke per-shape-kind vertex tooling) — see the backlog.
-- **Level file dropdown** — loads any `level1.js`–`level9.js` + `levelTest.js` from the server via `fetch()`, parsing the full `registerLevel({...})` config with a sandboxed `new Function()` eval. L9's `outOfBounds: true` boolean shorthand round-trips verbatim.
+- **Level file dropdown** — loads any `level1.js`–`level10.js` + `levelTest.js` from the server via `fetch()`, parsing the full `registerLevel({...})` config with a sandboxed `new Function()` eval. L9's `outOfBounds: true` boolean shorthand round-trips verbatim.
 - **Terrain / Water / Hazard tabs** — `+ Shape` adds a polygon to the active tab; clicking a shape on canvas auto-switches to its tab. Legacy rect/circle configs are auto-converted to polygons on load.
 - **Hazard types** — per-shape `type` dropdown (zone / laser / incinerator / crusher / pickup / …); the point-editing UI switches between polygon vertices and the laser's fixed 2-point line, with `onMs`/`offMs`/`warnMs` timing fields where applicable.
 - **Palette-based rendering** — sky gradient and terrain fills use each level's palette, matching in-game biome appearance.

@@ -8,6 +8,25 @@ backlog" section.
 
 ---
 
+## 2026-07-11 — TODO.txt retired (v0.9.3)
+
+`TODO.txt` was the game owner's original wishlist; audited against the code
+and every item had already shipped, so the file was deleted rather than left
+to rot:
+- Upgrade cost scaling by tier — `basePrice * 1.5^level` (`game/menu.js`).
+- Mission budget risked from `globalCash` (entry fee + budget deducted at
+  launch, `startLevel()` in `game.js`).
+- Repo-man game-over below −$5000 (resets upgrades, keeps highscores, resets
+  to starting cash) + a one-time warning on first going negative
+  (`game/menu.js`, `repo-man-modal` / `negative-cash-warning`).
+- Help box / tutorial modal (`#tutorial-modal` in `index.html`).
+- Vehicle models rendered live on the vehicle-select buttons (the "Vehicle
+  License" picker, `drawVehicleCanvases()` in `game/menu.js`).
+- Shield regen delay with a 5s blink after taking a hit (`lander.shieldDelay`
+  in `physics/entities.js`, blink in `game/hud.js`).
+
+---
+
 ## 2026-07-11 — Vitals gauge cluster + shield gauge (v0.9.0)
 
 User report: FUEL/HULL bars misaligned (the flex-wrap layout wrapped on
