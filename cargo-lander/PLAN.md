@@ -47,20 +47,28 @@ in the same area (same commit):
   playtest confirms controls hidden on menu, correctly shown mid-mission on
   a touch device.
 
-### 0.2 Retire TODO.txt and fix doc rot  `[ ]`
-Every item in [TODO.txt](TODO.txt) has shipped (verified in code):
-upgrade cost scaling (`game/menu.js` ~line 437, `basePrice * 1.5^level`);
-entry fee + budget risked from `globalCash` (`game.js` ~lines 376–379);
-repo-man game-over below −$5000 + first-negative bank warning
-(`game/menu.js` ~lines 73–92, `repo-man-modal`, `negative-cash-warning`);
-shield regen delay w/ 5s blink (`physics/entities.js` ~line 165
-`shieldDelay = 300`, blink in `game/hud.js` ~line 179); tutorial modal
-(`index.html` `#tutorial-modal`); vehicle models on select buttons (see 0.3
-— already landed).
-- Delete TODO.txt; add a short HISTORY.md entry noting all its items shipped.
-- README fixes: file table says "level1.js – level9.js" → include level10.js;
-  add level10 to the load-order paragraph.
-- **Verify**: README/HISTORY render sensibly; no code changes, no version bump.
+### 0.2 Retire TODO.txt and fix doc rot  `[x]` (done)
+Every item in TODO.txt had shipped (verified in code): upgrade cost scaling
+(`game/menu.js` ~line 437, `basePrice * 1.5^level`); entry fee + budget
+risked from `globalCash` (`game.js` ~lines 376–379); repo-man game-over below
+−$5000 + first-negative bank warning (`game/menu.js` ~lines 73–92,
+`repo-man-modal`, `negative-cash-warning`); shield regen delay w/ 5s blink
+(`physics/entities.js` ~line 165 `shieldDelay = 300`, blink in `game/hud.js`
+~line 179); tutorial modal (`index.html` `#tutorial-modal`); vehicle models
+on select buttons (see 0.3 — already landed).
+- Deleted `TODO.txt`; added a HISTORY.md entry ("TODO.txt retired") listing
+  what each item maps to in the code.
+- README fixes: file table and load-order paragraph now say `level10.js`
+  instead of stopping at `level9.js`; the level-editor's `<script>`-tag
+  reminder now also mentions `tests.html` and the editor's own dropdown
+  (both were missing L10 too — see below).
+- **Extra fix found while doing this**: `level-editor.html`'s "Load Level"
+  dropdown (`#lsel`) also stopped at `level9.js` — L10 was unreachable from
+  the editor's server-load flow (paste-fallback still worked). Added the
+  `level10.js` option.
+- **Verify**: `tests.html` still 97/97, 0 console errors (doc/dropdown-only
+  change, no runtime code touched); editor HTML confirmed to serve the new
+  option.
 
 ### 0.3 Finish & commit the WIP "Vehicle License" picker  `[x]` (already landed)
 This was an uncommitted diff at the time this plan was first drafted; it has
