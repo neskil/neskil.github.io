@@ -19,16 +19,33 @@ the night-ops feature.
 
 ## Tier 0 — Hygiene & unfinished business (do first, all S)
 
-### 0.1 Register `level10.js` in tests.html  `[ ]`
-`level10.js` (L10: The Crystal Caves) is loaded by `index.html` (script tag
-~line 2233) but **missing from `tests.html`** (its level scripts stop at
-`level9.js`, ~line 309). The suite's schema-driven "Level Config Validation"
-iterates `levels[]`, so L10 is silently never validated — this violates the
-project's own "add to both files" rule (CLAUDE.md).
-- Add `<script src="level10.js"></script>` after level9's tag in `tests.html`.
-- Run the suite; fix any L10 validation failures it surfaces (that's the point).
-- **Verify**: tests.html reports 0 failed and the level-validation category
-  now covers L10.
+### 0.1 Register `level10.js` in tests.html  `[x]` (done, commit `c19f422`)
+`level10.js` (L10: The Crystal Caves) was loaded by `index.html` but missing
+from `tests.html`'s script list, so its config silently skipped the
+schema-driven "Level Config Validation" category. Fixed by adding the
+`<script>` tag; L10 passes validation cleanly (89 → 97 tests, since each
+level contributes several validation sub-tests).
+
+While verifying this in a live browser, also found and fixed two more bugs
+in the same area (same commit):
+- **Touch controls visible before entering a level** — `index.html`'s
+  `@media (max-width: 768px) { #mobile-controls { display: flex; } }` forced
+  the ◀▶ GRAB 🔥 flight buttons visible on any narrow viewport — including
+  the main menu, and on non-touch desktop windows resized narrow — fighting
+  the JS logic (`updateMobileControlsVisibility()` in `game.js`) that's
+  supposed to gate them on `isTouchDevice && gameState === 'playing'`. Removed
+  the CSS override; JS is now the sole source of truth. Also added a
+  synchronous call to `updateMobileControlsVisibility()` in `init()` so
+  there's no flash before the first RAF tick.
+- **`tests.html`'s Canvas2D mock was missing `ellipse`/`roundRect`/`rect`/
+  `setLineDash`** — every menu refresh (`refreshMenuUI()` → the vehicle-license
+  picker's `drawVehicleCanvases()` → `drawLander()`) threw a `TypeError`
+  against the stub context, caught and logged as "Failed to draw menu lander"
+  on every single test run. Filled in the stub's missing methods
+  (`_makeCanvas2DStub()` in `tests.html`) — console is now clean.
+- **Verify** (done): `tests.html` → 97/97 passed, 0 console errors; live
+  playtest confirms controls hidden on menu, correctly shown mid-mission on
+  a touch device.
 
 ### 0.2 Retire TODO.txt and fix doc rot  `[ ]`
 Every item in [TODO.txt](TODO.txt) has shipped (verified in code):
