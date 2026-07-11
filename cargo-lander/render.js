@@ -138,9 +138,10 @@ draw() {
             ctx.translate(-this.camera.x, -this.camera.y);
         }
 
+        this.drawHazards(true); // Draw background hazards (behind terrain)
         this.drawTerrain();
         this.drawSegments();
-        this.drawHazards();
+        this.drawHazards(false); // Draw foreground hazards (in front of terrain)
         this.drawCollectibles();
         this.drawRadarPingZone();
 

@@ -114,7 +114,19 @@ registerLevel({
     hazards: [
         // Pulsing Gravity Well above the acid pool pulling ships downwards —
         // stays zoned to the eastern acid side; the worm owns the center pit
-        { type: 'blackhole', x: 1500, y: 500, strength: 0.8, radius: 150, orbitRadius: 50 }
+        {
+            type: 'gravwell',
+            pts: [
+                { x: 1450, y: 500 },
+                { x: 1550, y: 450 },
+                { x: 1650, y: 550 },
+                { x: 1550, y: 600 }
+            ],
+            speed: 120,
+            radius: 180,
+            startForce: 1.0,
+            endForce: 0.2
+        }
     ],
 
     // ── Buildings ─────────────────────────────────────────────────────────────

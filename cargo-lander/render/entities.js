@@ -1,5 +1,5 @@
 Object.assign(CargoGame.prototype, {
-drawHazards() {
+drawHazards(bgMode = false) {
         // Hazards are hand-authored polygons now (was a {x,y,radius} circle) — see
         // physics.js's pointInPolygon-based hazard check.
         if (!this.physics.hazards || this.physics.hazards.length === 0) return;
@@ -8,6 +8,8 @@ drawHazards() {
 
         ctx.save();
         for (const haz of this.physics.hazards) {
+            if (!!haz.behindTerrain !== bgMode) continue;
+            
             if (haz.type === 'laser') {
                 const pts = haz.pts;
                 if (!pts || pts.length < 2) continue;
