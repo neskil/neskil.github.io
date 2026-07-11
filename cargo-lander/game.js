@@ -637,18 +637,73 @@ class CargoGame {
         }, Math.min(flyTimeMs, 2000)); // cap flight time
     }
 
+    // One frame of game logic. Each phase is a method below — the order here is
+    // load-bearing (clock/overtime before the physics tick; camera after it;
+    // auto-load before delivery checks; HUD/panel last).
     update(dt) {
-        // Toggle mobile controls visibility dynamically
-        const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
-        if (mobileControls) {
-            mobileControls.style.display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
-        }
-
+        this.updateMobileControlsVisibility();
         if (this.updateWeather) this.updateWeather(dt);
 
         const lander = this.physics.lander;
         if (!lander) return;
-        
+
+        this.updateFireworks(lander);           // HQ landing celebration
+        this.updateDamageFeedback(lander, dt);  // damage flash + screen shake
+
+        const inputState = this.bundleInput();  // keyboard + gamepad + joystick
+
+        this.updateMissionClock(lander, dt);    // mission timer + overtime
+
+        // Let physics know the actual on-screen half-extents so it can spawn the
+        // monster genuinely off-screen instead of at a fixed world-space offset that
+        // may still land inside the viewport at low zoom.
+        this.physics.viewHalfW = (this.canvas.width / 2) / this.camera.zoom;
+        this.physics.viewHalfH = (this.canvas.height / 2) / this.camera.zoom;
+
+        this.physics.update(dt, levels[this.currentLevelIndex], inputState);
+
+        this.updateRadarPing(dt);               // off-screen monster audio ping
+        this.updateShieldRegen(lander, dt);     // shieldRegen upgrade tick
+        this.updateRefuelPad(lander, dt);       // paid refueling on 'refuel' pads
+        this.updateCamera(lander, dt);          // follow-cam / free-cam
+        this.updateThrusterSound(lander);
+        this.updateCraneAnimations(dt);         // delivery-hub crane + pallets
+        this.updateAutoLoad(dt);                // cargo dispense at collection pad
+
+        this.checkCargoDelivery();
+        this.updateBoxFireState(dt);
+
+        // Score decays slowly while flying (fuel/time consumption)
+        if (!lander.landed && this.score > 30) {
+            this.score -= 0.004 * dt;
+        }
+
+        this.handleCrash(lander);               // one-shot crash/game-over handling
+
+        // Refill alert sound check. Runs AFTER handleCrash on purpose: the
+        // crash handler silences the warning once, and this re-arms it while
+        // fuel is empty mid-air — preserving long-standing behavior.
+        if (lander.fuel <= 0 && !lander.landed) {
+            if (!this.isMuted) CargoAudio.setWarning(true);
+        }
+
+        this.updateMessages(dt);                // legacy canvas-renderer messages
+        this.updateMissionPanel();
+        this.updateHUD();
+    }
+
+    // ── update() phases, in frame order ─────────────────────────────────────
+
+    updateMobileControlsVisibility() {
+        const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
+        if (mobileControls) {
+            mobileControls.style.display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
+        }
+    }
+
+    // HQ Landing Fireworks Celebration — fires while parked at HQ with all
+    // cargo delivered.
+    updateFireworks(lander) {
         // HQ Landing Fireworks Celebration
         const level = levels[this.currentLevelIndex];
         const allDelivered = this.deliveredCount >= (level ? (level.targetCargo || 2) : 2);
@@ -754,7 +809,10 @@ class CargoGame {
             this._lastFireworkTime = 0;
             this._fireworksStartTime = 0;
         }
+    }
 
+    // Red vignette + screen shake driven by hull-integrity drops.
+    updateDamageFeedback(lander, dt) {
         const prevIntegrity = this._lastIntegrity ?? lander.integrity;
         this._lastIntegrity = lander.integrity;
         if (lander.integrity < prevIntegrity - 1) {
@@ -769,7 +827,11 @@ class CargoGame {
             this.screenShake.intensity *= Math.pow(0.75, dt);
             if (this.screenShake.intensity < 0.5) this.screenShake.intensity = 0;
         }
+    }
 
+    // Merges keyboard, gamepad (gp_*) and touch-joystick (joy_*) keys into the
+    // inputState object handed to physics.update().
+    bundleInput() {
         this.pollGamepad();
         const keys = this.keys;
 
@@ -786,7 +848,12 @@ class CargoGame {
             mouseLeft: this.mouseLeft,
             mouseRight: this.mouseRight
         };
+        return inputState;
+    }
 
+    // Mission timer countdown; at 0 starts the 15s overtime window (monster
+    // forced out, reach HQ to auto-extract via completeMission()).
+    updateMissionClock(lander, dt) {
         // --- Mission Clock Update ---
         if (this.missionTimer > 0 && this.gameState === 'playing' && !lander.crashed) {
             this.missionTimer -= (dt / 60);
@@ -821,15 +888,9 @@ class CargoGame {
                 localStorage.setItem('cargoLanderCash', this.globalCash);
             }
         }
+    }
 
-        // Let physics know the actual on-screen half-extents so it can spawn the
-        // monster genuinely off-screen instead of at a fixed world-space offset that
-        // may still land inside the viewport at low zoom.
-        this.physics.viewHalfW = (this.canvas.width / 2) / this.camera.zoom;
-        this.physics.viewHalfH = (this.canvas.height / 2) / this.camera.zoom;
-
-        this.physics.update(dt, levels[this.currentLevelIndex], inputState);
-
+    updateRadarPing(dt) {
         // --- Off-screen monster radar ping ---
         if (this.physics.monster && this.gameState === 'playing') {
             this.radarPingTimer = (this.radarPingTimer || 0) + dt;
@@ -840,7 +901,9 @@ class CargoGame {
         } else {
             this.radarPingTimer = 0;
         }
+    }
 
+    updateShieldRegen(lander, dt) {
         // --- Shield & Hull Regeneration ---
         const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0) {
@@ -852,7 +915,9 @@ class CargoGame {
             }
         }
         if (lander.shieldHitFlash > 0) lander.shieldHitFlash = Math.max(0, lander.shieldHitFlash - 0.04 * dt);
+    }
 
+    updateRefuelPad(lander, dt) {
         // --- Refueling Station Logic ---
         if (lander.landed && lander.currentPad === 'refuel' && this.gameState === 'playing') {
             if (lander.fuel < lander.maxFuel && this.missionBudget > 0) {
@@ -875,7 +940,9 @@ class CargoGame {
                 }
             }
         }
+    }
 
+    updateCamera(lander, dt) {
         // --- Cinematic Camera Update ---
         const cw = this.canvas.width;
         const ch = this.canvas.height;
@@ -910,8 +977,9 @@ class CargoGame {
                 this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
             }
         }
-        // -------------------------------
+    }
 
+    updateThrusterSound(lander) {
         // Sound effect triggers for thrust
         if (!this.isMuted) {
             if (lander.thrusting && lander.fuel > 0 && !lander.crashed) {
@@ -920,7 +988,9 @@ class CargoGame {
                 CargoAudio.setThruster(0);
             }
         }
+    }
 
+    updateCraneAnimations(dt) {
         // Delivery hub crane animations
         for (const h of this.physics.deliveryHubs) {
             if (h.craneAnim) {
@@ -931,7 +1001,11 @@ class CargoGame {
                 }
             }
         }
+    }
 
+    // Cargo dispense sequence while parked on the collection pad: countdown,
+    // spawn (type picked from allowedTypes), escalating delays, roof close.
+    updateAutoLoad(dt) {
         // Auto-load sequence at collection point
         const _col = this.physics.collectionPoint;
         const _lndr = this.physics.lander;
@@ -999,16 +1073,11 @@ class CargoGame {
                 if (_seq.roofOpen <= 0) _col.loadSeq = null;
             }
         }
+    }
 
-        // Check cargo positions for unloading and delivery
-        this.checkCargoDelivery();
-        this.updateBoxFireState(dt);
-
-        // Update score decay slightly for fuel/time consumption
-        if (!lander.landed && this.score > 30) {
-            this.score -= 0.004 * dt; // slow drop over time
-        }
-
+    // One-shot crash handling (guarded by crashHandled): quest fail, career
+    // stats, explosion burst, monster-devour hard fail vs. respawnable crash.
+    handleCrash(lander) {
         // Handle game over if crashed
         if (lander.crashed && !this.crashHandled) {
             this.crashHandled = true;
@@ -1074,23 +1143,15 @@ class CargoGame {
                 }, 4000);
             }
         }
+    }
 
-        // Refill alert sound check
-        if (lander.fuel <= 0 && !lander.landed) {
-            if (!this.isMuted) CargoAudio.setWarning(true);
-        }
-
+    updateMessages(dt) {
         // Update legacy messages array (used by canvas renderer fallback)
         for (let i = this.messages.length - 1; i >= 0; i--) {
             const m = this.messages[i];
             m.life -= 0.0025 * dt;
             if (m.life <= 0) this.messages.splice(i, 1);
         }
-
-        // Update mission panel HTML
-        this.updateMissionPanel();
-
-        this.updateHUD();
     }
 
 

@@ -277,7 +277,7 @@ the file. The class files are small; the bulk is in the mixins.
 | System | Location |
 |---|---|
 | Game state, constructor, `init()` | `game.js` |
-| RAF `loop()` / `update(dt)` — timers, overtime, camera, physics tick | `game.js` |
+| RAF `loop()` / `update(dt)` — a thin ordered sequence of `update*` phase methods (mission clock, physics tick, camera, auto-load, crash handling, …) defined right below it | `game.js` |
 | Mission lifecycle: `startLevel`, `completeMission`, `failMission`, `respawnLander` | `game.js` |
 | Grapple (`toggleGrapple`), refuel/repair/self-destruct dev actions | `game.js` |
 | Keyboard/mouse listeners, gamepad polling | `game/input.js` |
