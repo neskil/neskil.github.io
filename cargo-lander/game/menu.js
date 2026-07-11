@@ -96,7 +96,7 @@ Object.assign(CargoGame.prototype, {
         // Drone tutorial prompt
         const dronePointer = document.getElementById('drone-tutorial-pointer');
         if (dronePointer) {
-            if (this.career.missionsComplete >= 2 && !this.career.hasUsedDrone && this.currentVehicle !== 'drone') {
+            if (this.isLevelUnlocked(1) && !this.career.hasUsedDrone && this.currentVehicle !== 'drone') {
                 dronePointer.style.display = 'block';
             } else {
                 dronePointer.style.display = 'none';
@@ -177,7 +177,10 @@ Object.assign(CargoGame.prototype, {
         const score = upgScore * 0.55 + masterScore * 0.45;
 
         let rank, tier;
-        if (score >= 0.90) { rank = 'Logistics Legend'; tier = 'CLASS S'; }
+        if (!this.highscores[0]) {
+            rank = 'Learner Permit';
+            tier = 'LEARNER';
+        } else if (score >= 0.90) { rank = 'Logistics Legend'; tier = 'CLASS S'; }
         else if (score >= 0.70) { rank = 'Fleet Commander'; tier = 'CLASS A'; }
         else if (score >= 0.50) { rank = 'Senior Pilot'; tier = 'CLASS B'; }
         else if (score >= 0.30) { rank = 'Cargo Pilot'; tier = 'CLASS C'; }
@@ -307,8 +310,27 @@ Object.assign(CargoGame.prototype, {
     refreshVehicleLicenseUI() {
         const basicBtn = document.getElementById('vehicle-license-basic');
         const droneBtn = document.getElementById('vehicle-license-drone');
+        const droneDesc = document.getElementById('drone-desc');
+        const isDroneUnlocked = this.isLevelUnlocked(1);
+
+        if (!isDroneUnlocked && this.currentVehicle === 'drone') {
+            this.currentVehicle = 'basic';
+            localStorage.setItem('cargoLanderVehicle', 'basic');
+        }
+
         if (basicBtn) basicBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'basic');
-        if (droneBtn) droneBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'drone');
+        
+        if (droneBtn) {
+            droneBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'drone' && isDroneUnlocked);
+            droneBtn.classList.toggle('locked-mission', !isDroneUnlocked);
+            droneBtn.disabled = !isDroneUnlocked;
+            
+            if (droneDesc) {
+                droneDesc.textContent = isDroneUnlocked ? "Auto-hover + winch" : "🔒 Complete Mission 1 to unlock";
+                if (!isDroneUnlocked) droneDesc.style.color = '#ef4444'; // Red color for locked
+                else droneDesc.style.color = 'var(--text-secondary)';
+            }
+        }
         
         this.drawVehicleCanvases();
     },

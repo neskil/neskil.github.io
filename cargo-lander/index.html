@@ -1685,7 +1685,7 @@
                         <div style="display:flex; gap:8px;">
                             <button id="vehicle-license-basic" class="btn-level"
                                 onclick="game.setSelectedVehicle('basic')"
-                                style="flex:1; text-align:left; padding:8px 10px; display: flex; align-items: center; gap: 8px;">
+                                style="flex:1; text-align:left; padding:8px 10px; display: flex; flex-direction: row; align-items: center; gap: 8px;">
                                 <div style="width: 80px; height: 80px; position: relative; flex-shrink: 0;">
                                     <canvas id="canvas-vehicle-basic" width="80" height="80" style="pointer-events: none; position: absolute; top:0; left:0;"></canvas>
                                 </div>
@@ -1697,13 +1697,13 @@
                             <div style="flex:1; position: relative;">
                                 <button id="vehicle-license-drone" class="btn-level"
                                     onclick="game.setSelectedVehicle('drone')"
-                                    style="width: 100%; text-align:left; padding:8px 10px; height: 100%; display: flex; align-items: center; gap: 8px;">
+                                    style="width: 100%; text-align:left; padding:8px 10px; height: 100%; display: flex; flex-direction: row; align-items: center; gap: 8px;">
                                     <div style="width: 80px; height: 80px; position: relative; flex-shrink: 0;">
                                         <canvas id="canvas-vehicle-drone" width="80" height="80" style="pointer-events: none; position: absolute; top:0; left:0;"></canvas>
                                     </div>
                                     <div>
                                         <div class="num" style="color:#10b981;">Utility Drone</div>
-                                        <div style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Auto-hover + winch</div>
+                                        <div id="drone-desc" style="font-size:0.7rem; color:var(--text-secondary); line-height: 1.2;">Auto-hover + winch</div>
                                     </div>
                                 </button>
                                 <div id="drone-tutorial-pointer"
@@ -1774,9 +1774,9 @@
                                 <div class="license-eyebrow">Pilot ID · GCA-7749</div>
                                 <input class="license-name-input" id="pilot-name-input" type="text" maxlength="22"
                                     placeholder="Enter callsign…" oninput="game.updatePilotName(this.value)">
-                                <div class="license-rank" id="pilot-rank">Rookie Hauler</div>
+                                <div class="license-rank" id="pilot-rank">Learner Permit</div>
                             </div>
-                            <div class="license-badge" id="pilot-tier">CLASS F</div>
+                            <div class="license-badge" id="pilot-tier">LEARNER</div>
                         </div>
 
                         <div class="stat-grid">
