@@ -741,7 +741,7 @@ const CargoPhysicsAtmosphereMixin = {
             if (this.boxes) targets.push(...this.boxes);
 
             for (const h of this.hazards) {
-                if (h.type === 'laser' || h.type === 'incinerator' || h.type === 'sandworm' || h.type === 'pickup') continue;
+                if (h.type === 'laser' || h.type === 'incinerator' || h.type === 'sandworm' || h.type === 'pickup' || h.type === 'gravwell') continue;
                 
                 if (h.type === 'crusher') {
                     if (lander.crashed) continue;
@@ -787,12 +787,6 @@ const CargoPhysicsAtmosphereMixin = {
                     } else { // default 'zone'
                         if (target !== lander) continue; // default zone only affects lander
                         
-                        const c = this.polygonCentroid(h.pts);
-                        const dx = lander.x - c.x;
-                        const dy = lander.y - c.y;
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                        lander.vx += (dx / dist) * 2;
-                        lander.vy += (dy / dist) * 2;
                         this.applyDamage(lander, 25 * dt); // High damage
 
                         if (window.CargoAudio) CargoAudio.playCollision(2);
