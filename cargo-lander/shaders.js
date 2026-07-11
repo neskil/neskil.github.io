@@ -1,7 +1,7 @@
 class ShaderOverlay {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.gl = this.canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+        this.gl = this.canvas.getContext('webgl', { alpha: true });
         this.initShaders();
         this.initBuffers();
     }
@@ -142,51 +142,49 @@ class ShaderOverlay {
         const fsGravityWellSource = `
             precision mediump float;
             varying vec2 v_uv;
-            
             uniform vec2 u_resolution;
-            uniform vec2 u_wellPos;
-            uniform float u_wellRadius;
-            uniform float u_wellPulse;
             uniform vec2 u_cameraPos;
             uniform float u_zoom;
             uniform float u_time;
+            
+            uniform int u_numWells;
+            uniform vec2 u_wellPos[4];
+            uniform float u_wellRadius[4];
+            uniform float u_wellPulse[4];
             
             void main() {
                 vec2 screenPos = vec2(v_uv.x, 1.0 - v_uv.y) * u_resolution;
                 vec2 worldPos = (screenPos - (u_resolution / 2.0)) / u_zoom + u_cameraPos;
                 
-                vec2 diff = worldPos - u_wellPos;
-                float dist = length(diff);
+                vec3 finalColor = vec3(0.0);
+                float finalAlpha = 0.0;
                 
-                if (dist > u_wellRadius) {
-                    gl_FragColor = vec4(0.0);
-                    return;
+                for (int i = 0; i < 4; i++) {
+                    if (i >= u_numWells) break;
+                    
+                    vec2 diff = worldPos - u_wellPos[i];
+                    float dist = length(diff);
+                    
+                    if (dist <= u_wellRadius[i]) {
+                        float normDist = dist / u_wellRadius[i];
+                        float eventHorizon = 20.0;
+                        
+                        if (dist < eventHorizon) {
+                            finalAlpha = 1.0;
+                        } else {
+                            float angle = atan(diff.y, diff.x);
+                            float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
+                            float pulse = u_wellPulse[i];
+                            float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
+                            
+                            vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
+                            finalColor += color;
+                            finalAlpha = max(finalAlpha, intensity * (1.0 - normDist));
+                        }
+                    }
                 }
                 
-                float normDist = dist / u_wellRadius;
-                // Black hole event horizon
-                float eventHorizon = 20.0;
-                
-                if (dist < eventHorizon) {
-                    // Pure black core
-                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-                    return;
-                }
-                
-                // Swirling accretion disk
-                float angle = atan(diff.y, diff.x);
-                float swirl = sin(angle * 3.0 + u_time * 2.0 - normDist * 10.0);
-                
-                // Pulsing glow — kept calmer than the original 0.5+0.5*swirl range,
-                // which read as a distracting bright pulse rather than ambience.
-                float pulse = u_wellPulse;
-
-                float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
-                
-                // Purple/black lensing effect
-                vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
-                
-                gl_FragColor = vec4(color, intensity * (1.0 - normDist));
+                gl_FragColor = vec4(finalColor, min(1.0, finalAlpha));
             }
         `;
 
@@ -227,9 +225,9 @@ class ShaderOverlay {
             uniform vec2 u_waterMin[4];
             uniform vec2 u_waterMax[4];
 
-            uniform float u_blackholeEnabled;
-            uniform vec2 u_blackholePos;
-            uniform float u_blackholeRadius;
+            uniform int u_numBlackholes;
+            uniform vec2 u_blackholePos[4];
+            uniform float u_blackholeRadius[4];
 
             uniform float u_rainAmount;
 
@@ -375,15 +373,31 @@ class ShaderOverlay {
                     touched = true;
                 }
 
-                if (u_rainAmount > 0.05) {
+                float blackholeFade = 1.0;
+                for (int i = 0; i < 4; i++) {
+                    if (i >= u_numBlackholes) break;
+                    vec2 diff = screenPos - u_blackholePos[i];
+                    float dist = length(diff);
+                    if (dist < u_blackholeRadius[i] && dist > 1.0) {
+                        float pull = 1.0 - dist / u_blackholeRadius[i];
+                        pull = pull * pull;
+                        offset -= diff * pull * 0.35;
+                        touched = true;
+                    }
+                    if (dist < u_blackholeRadius[i] * 0.8) {
+                        blackholeFade = min(blackholeFade, smoothstep(0.0, u_blackholeRadius[i] * 0.8, dist));
+                    }
+                }
+
+                if (u_rainAmount > 0.05 && blackholeFade > 0.01) {
                     vec4 d1 = droplet(screenPos, 120.0, 14.0, 0.0);
                     vec4 d2 = droplet(screenPos, 70.0, 7.0, 100.0);
                     float bodyHit = max(d1.z, d2.z);
                     float glintHit = max(d1.w, d2.w);
                     if (bodyHit > 0.0 || glintHit > 0.0) {
-                        offset += (d1.xy + d2.xy) * u_rainAmount;
+                        offset += (d1.xy + d2.xy) * u_rainAmount * blackholeFade;
                         // Focus on the physical light bending (refraction) rather than drawn color
-                        dropletGlow = (bodyHit * 0.02 + glintHit * 0.15) * u_rainAmount;
+                        dropletGlow = (bodyHit * 0.02 + glintHit * 0.15) * u_rainAmount * blackholeFade;
                         touched = true;
                     }
                 }
@@ -423,21 +437,21 @@ class ShaderOverlay {
                     }
                 }
 
-                if (u_blackholeEnabled > 0.5) {
-                    vec2 diff = screenPos - u_blackholePos;
+                for (int i = 0; i < 4; i++) {
+                    if (i >= u_numBlackholes) break;
+                    vec2 diff = screenPos - u_blackholePos[i];
                     float dist = length(diff);
-                    if (dist < u_blackholeRadius && dist > 1.0) {
-                        // Pull sampled pixels toward the well center — a cheap
-                        // stand-in for gravitational lensing. Kept gentle (this
-                        // project has a stated preference for a subtle well —
-                        // see the README's "toned down twice" note) so it reads
-                        // as a bend in the background, not a warp-y distraction.
-                        float pull = 1.0 - dist / u_blackholeRadius;
+                    if (dist < u_blackholeRadius[i] && dist > 1.0) {
+                        float pull = 1.0 - dist / u_blackholeRadius[i];
                         pull = pull * pull;
-                        offset -= diff * pull * 0.35;
+                        offset += diff * pull * 0.35; // + pushes sampling away from center, shrinking the image
                         touched = true;
                     }
+                    if (dist < u_blackholeRadius[i] * 0.8) {
+                        blackholeFade = min(blackholeFade, smoothstep(0.0, u_blackholeRadius[i] * 0.8, dist));
+                    }
                 }
+
 
                 if (!touched) {
                     gl_FragColor = vec4(0.0);
@@ -573,7 +587,7 @@ class ShaderOverlay {
         const gl = this.gl;
 
         const heatHaze = !!(levelConfig && levelConfig.heatHaze);
-        const hasBlackhole = !!physics.gravityWellPos;
+        const hasBlackhole = physics.gravityWells && physics.gravityWells.length > 0;
         const hasWater = waterRects && waterRects.length > 0;
         const rain = (activeWeather === 'rain' || (levelConfig && levelConfig.weather === 'rain')) ? 1.0 : 0.0;
         if (!heatHaze && !hasBlackhole && !hasWater && !rain) return;
@@ -609,19 +623,27 @@ class ShaderOverlay {
         gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMin"), minArr);
         gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMax"), maxArr);
 
-        if (hasBlackhole) {
-            const gw = physics.gravityWellPos;
-            const screenX = (gw.x - camera.x) * camera.zoom + this.canvas.width / 2;
-            const screenY = (gw.y - camera.y) * camera.zoom + this.canvas.height / 2;
-            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeEnabled"), 1.0);
-            gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_blackholePos"), screenX, screenY);
-            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeRadius"), gw.radius * camera.zoom);
+        if (physics.gravityWells && physics.gravityWells.length > 0) {
+            const count = Math.min(4, physics.gravityWells.length);
+            const posArr = new Float32Array(8);
+            const radArr = new Float32Array(4);
+            for (let i = 0; i < count; i++) {
+                const gw = physics.gravityWells[i];
+                const screenX = (gw.x - camera.x) * camera.zoom + this.canvas.width / 2;
+                const screenY = (gw.y - camera.y) * camera.zoom + this.canvas.height / 2;
+                posArr[i * 2] = screenX;
+                posArr[i * 2 + 1] = screenY;
+                radArr[i] = gw.radius * camera.zoom;
+            }
+            gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_numBlackholes"), count);
+            gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_blackholePos"), posArr);
+            gl.uniform1fv(gl.getUniformLocation(this.postFXProgram, "u_blackholeRadius"), radArr);
         } else {
-            gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_blackholeEnabled"), 0.0);
+            gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_numBlackholes"), 0);
         }
 
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
@@ -632,7 +654,7 @@ class ShaderOverlay {
         gl.clear(gl.COLOR_BUFFER_BIT);
         
         gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
         // --- Render Monster ---
         // Disabled: the detailed monster is now drawn in Canvas2D (game.js drawMonster).
@@ -656,8 +678,7 @@ class ShaderOverlay {
         }
 
         // --- Render Gravity Well ---
-        if (physics.gravityWellPos) {
-            const gw = physics.gravityWellPos;
+        if (physics.gravityWells && physics.gravityWells.length > 0) {
             gl.useProgram(this.gravityWellProgram);
             
             gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -666,12 +687,27 @@ class ShaderOverlay {
             gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
             
             gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_wellPos"), gw.x, gw.y);
-            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_wellRadius"), gw.radius);
-            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_wellPulse"), gw.pulse || 1.0);
             gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
             gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_zoom"), camera.zoom);
             gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
+            
+            const count = Math.min(4, physics.gravityWells.length);
+            const posArr = new Float32Array(8);
+            const radArr = new Float32Array(4);
+            const pulseArr = new Float32Array(4);
+            
+            for (let i = 0; i < count; i++) {
+                const gw = physics.gravityWells[i];
+                posArr[i * 2] = gw.x;
+                posArr[i * 2 + 1] = gw.y;
+                radArr[i] = gw.radius;
+                pulseArr[i] = gw.pulse || 1.0;
+            }
+            
+            gl.uniform1i(gl.getUniformLocation(this.gravityWellProgram, "u_numWells"), count);
+            gl.uniform2fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellPos"), posArr);
+            gl.uniform1fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellRadius"), radArr);
+            gl.uniform1fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellPulse"), pulseArr);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -737,6 +773,9 @@ class ShaderOverlay {
             gl.uniform1f(gl.getUniformLocation(this.particleProgram, "u_zoom"), camera.zoom);
 
             gl.drawArrays(gl.POINTS, 0, count);
+
+            gl.disableVertexAttribArray(aCol);
+            gl.disableVertexAttribArray(aSize);
         }
     }
 }

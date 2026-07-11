@@ -255,7 +255,7 @@ draw() {
             this.shaders.render(this.physics, this.camera);
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.globalCompositeOperation = 'screen'; // Use screen blending like CSS mix-blend-mode
+            ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(this.shaders.canvas, 0, 0);
             ctx.restore();
         }

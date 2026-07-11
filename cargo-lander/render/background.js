@@ -16,11 +16,11 @@ updateWeather(dt) {
         // Hard caps so a runaway camera zoom/wind spike can't let these arrays grow
         // unbounded — this was the main real perf cost, not physics simulation
         // (neither array has ever touched Matter.js; both are plain array updates).
-        const MAX_WEATHER_PARTICLES = 120;
+        const MAX_WEATHER_PARTICLES = 60;
         const MAX_WIND_STREAKS = 70;
-
+        
         // ── Regular weather particles ──────────────────────────────────────
-        if (hasWeather && this.weatherParticles.length < MAX_WEATHER_PARTICLES && Math.random() < 0.8) {
+        if (hasWeather && this.weatherParticles.length < MAX_WEATHER_PARTICLES && Math.random() < 0.6) {
             this.weatherParticles.push({
                 x: camX + (Math.random() - 0.5) * vw * 1.5,
                 y: camY - vh * 0.6,
@@ -603,12 +603,9 @@ _drawFreighterTruck(ctx, t, tw, th) {
         ctx.fill();
         ctx.stroke();
 
-        // Cockpit window (reduced glow)
+        // Cockpit window (no shadowBlur on mobile to save performance)
         ctx.fillStyle = '#38bdf8';
-        ctx.shadowColor = '#0ea5e9';
-        ctx.shadowBlur = 4;
         ctx.fillRect(w * 0.4, -h * 0.05, w * 0.12, h * 0.1);
-        ctx.shadowBlur = 0;
 
         // Side cargo pods (Top and Bottom)
         const cargoColor = Math.floor(th) % 2 === 0 ? shadeColor(t.bodyColor, -15) : shadeColor(t.accentColor, -40);

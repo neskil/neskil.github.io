@@ -222,6 +222,8 @@ drawHazards() {
                 ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
+            } else if (haz.type === 'gravwell') {
+                continue;
             }
 
             const c = this.physics.polygonCentroid(pts);

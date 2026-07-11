@@ -216,10 +216,7 @@ drawNextObjectiveArrow() {
             ctx.textAlign = 'center';
             ctx.font = 'bold 22px sans-serif';
             ctx.fillStyle = 'rgba(255,230,0,0.95)';
-            ctx.shadowColor = 'rgba(255,200,0,0.7)';
-            ctx.shadowBlur = 8;
             ctx.fillText('▼', ax, ay);
-            ctx.shadowBlur = 0;
             ctx.font = 'bold 11px Outfit, sans-serif';
             ctx.fillStyle = 'rgba(255,255,255,0.9)';
             ctx.fillText(label, ax, ay + 16);

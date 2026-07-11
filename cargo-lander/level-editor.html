@@ -196,6 +196,7 @@ canvas{display:block}
         <option value="sandworm">Sandworm Pit</option>
         <option value="repulsor">Repulsor (Wind Tunnel)</option>
         <option value="bouncer">Bouncer (Pinball Bumper)</option>
+        <option value="gravwell">Gravity Well</option>
       </select>
     </div>
     <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
@@ -219,6 +220,16 @@ canvas{display:block}
       <div class="row">
         <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('travelX', this.value)">
         <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:40px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
+      </div>
+    </div>
+    <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+      <div class="row">
+        <label title="Speed to traverse the path">speed:</label><input type="number" id="gw-speed" class="cinput" style="width:40px" placeholder="100" onchange="setHazardField('speed', this.value)">
+        <label title="Radius of the gravity well effect">radius:</label><input type="number" id="gw-radius" class="cinput" style="width:40px" placeholder="200" onchange="setHazardField('radius', this.value)">
+      </div>
+      <div class="row">
+        <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:40px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
+        <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('endForce', this.value)">
       </div>
     </div>
     <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
@@ -459,6 +470,15 @@ function toggleGW() {
   draw(); updateOut();
 }
 
+function updateHubCoords() {
+  S.hubs.forEach((h, i) => {
+    const elX = document.getElementById(`hub-${i}-x`);
+    const elY = document.getElementById(`hub-${i}-y`);
+    if (elX) elX.value = h.x;
+    if (elY) elY.value = h.y != null ? h.y : '';
+  });
+}
+
 function setGW(k, v) { if (S.gravWell) S.gravWell[k] = v; draw(); updateOut(); }
 
 function setQuest(k, v) { S.quests[k] = v; updateOut(); }
@@ -478,8 +498,8 @@ function updateHubUI() {
       </div>
       <div class="row">
         <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="S.hubs[${i}].type=this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">X</label><input type="number" style="width:50px" value="${h.x}" onchange="S.hubs[${i}].x=+this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">Y</label><input type="number" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">X</label><input type="number" id="hub-${i}-x" style="width:50px" value="${h.x}" onchange="S.hubs[${i}].x=+this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
         <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
       </div>
     `;
@@ -734,6 +754,11 @@ function hazardToShape(h, i) {
       shape.warnMs = h.warnMs ?? 400;
       shape.damagePerSec = h.damagePerSec ?? 40;
       shape.thickness = h.thickness ?? 14;
+    } else if (shape.type === 'gravwell') {
+      shape.speed = h.speed ?? 100;
+      shape.radius = h.radius ?? 200;
+      shape.startForce = h.startForce ?? 1.5;
+      shape.endForce = h.endForce ?? 0;
     }
     return shape;
   }
@@ -1061,11 +1086,41 @@ function drawHazards() {
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2 * S.view.scale;
       ctx.stroke();
+    } else if (h.type === 'gravwell' && h.pts.length >= 2) {
+      // Draw path
+      ctx.beginPath();
+      h.pts.forEach((pt, i) => {
+        const p = w2s(pt.x, pt.y);
+        i === 0 ? ctx.moveTo(p.sx, p.sy) : ctx.lineTo(p.sx, p.sy);
+      });
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 2 * S.view.scale;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Draw start position and radius
+      const p = w2s(h.pts[0].x, h.pts[0].y);
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, (h.radius || 200) * S.view.scale, 0, Math.PI*2);
+      ctx.fillStyle = '#a855f7';
+      ctx.globalAlpha = 0.2;
+      ctx.fill();
+      ctx.strokeStyle = '#d8b4fe';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.5;
+      ctx.stroke();
+      
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#d8b4fe';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('startForce: ' + (h.startForce || 1.5), p.sx - 30, p.sy - 15);
     }
     ctx.restore();
   });
 
-  drawShapeList(S.hazardPolys, { layer:'hazard', fillColor:'rgba(239,68,68,0.0)', edgeColor:'#ef4444', fillAlpha:0.1 });
+  const genericHazards = S.hazardPolys.filter(h => h.type !== 'gravwell');
+  drawShapeList(genericHazards, { layer:'hazard', fillColor:'rgba(239,68,68,0.0)', edgeColor:'#ef4444', fillAlpha:0.1 });
 }
 
 function drawGrid(W,H) {
@@ -1409,6 +1464,7 @@ function renderPtUI() {
   const timingRow = document.getElementById('laser-timing-row');
   const swTimingRow = document.getElementById('sandworm-timing-row');
   const repRow = document.getElementById('repulsor-vector-row');
+  const gwRow = document.getElementById('gravwell-properties-row');
   const waterRow = document.getElementById('water-properties-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
@@ -1428,6 +1484,7 @@ function renderPtUI() {
       timingRow.style.display = (poly.type === 'laser' || poly.type === 'incinerator') ? '' : 'none';
       swTimingRow.style.display = poly.type === 'sandworm' ? '' : 'none';
       repRow.style.display = poly.type === 'repulsor' ? '' : 'none';
+      gwRow.style.display = poly.type === 'gravwell' ? '' : 'none';
 
       if (poly.type === 'laser' || poly.type === 'incinerator') {
         document.getElementById('laser-onms').value = poly.onMs ?? 1500;
@@ -1441,10 +1498,18 @@ function renderPtUI() {
       } else if (poly.type === 'repulsor') {
         document.getElementById('rep-fx').value = poly.travelX ?? 0;
         document.getElementById('rep-fy').value = poly.travelY ?? -15;
+      } else if (poly.type === 'gravwell') {
+        document.getElementById('gw-speed').value = poly.speed ?? 100;
+        document.getElementById('gw-radius').value = poly.radius ?? 200;
+        document.getElementById('gw-startf').value = poly.startForce ?? 1.5;
+        document.getElementById('gw-endf').value = poly.endForce ?? 0;
       }
     } else {
         hazardRow.style.display = 'none';
         timingRow.style.display = 'none';
+        swTimingRow.style.display = 'none';
+        repRow.style.display = 'none';
+        gwRow.style.display = 'none';
     }
     
     if (waterRow) {
@@ -1516,6 +1581,15 @@ function setHazardType(val) {
         if (poly.onMs === undefined) poly.onMs = 1500;
         if (poly.offMs === undefined) poly.offMs = 1000;
     }
+  } else if (val === 'gravwell') {
+    if (poly.pts.length < 2) {
+      const p0 = poly.pts[0] || {x:500,y:400};
+      poly.pts = [p0, {x:p0.x+120,y:p0.y}];
+    }
+    if (poly.speed === undefined) poly.speed = 100;
+    if (poly.radius === undefined) poly.radius = 200;
+    if (poly.startForce === undefined) poly.startForce = 1.5;
+    if (poly.endForce === undefined) poly.endForce = 0;
   } else if (val === 'pickup') {
     if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
     else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
@@ -1531,7 +1605,7 @@ function setHazardType(val) {
 function setHazardField(field, val) {
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
-  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY'].includes(field)) val = parseFloat(val)||0;
+  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce'].includes(field)) val = parseFloat(val)||0;
   arr[S.selPoly][field] = val;
   draw(); updateOut();
 }
@@ -1781,6 +1855,11 @@ function buildOut() {
         if (h.type === 'laser' && h.thickness) lines.push(`      thickness: ${h.thickness},`);
       } else if (h.type === 'sandworm') {
         if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
+      } else if (h.type === 'gravwell') {
+        if (h.speed !== undefined) lines.push(`      speed: ${h.speed},`);
+        if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
+        if (h.startForce !== undefined) lines.push(`      startForce: ${h.startForce},`);
+        if (h.endForce !== undefined) lines.push(`      endForce: ${h.endForce},`);
       }
       if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);
       lines.push('      pts: [');
@@ -1953,7 +2032,7 @@ canvas.addEventListener('mousemove', e => {
     } else if (S.dragMarker.hub!=null) {
       S.hubs[S.dragMarker.hub].x=snappedX;
       S.hubs[S.dragMarker.hub].y=snappedY;
-      updateHubUI();
+      updateHubCoords();
     }
     draw(); updateOut(); return;
   }
