@@ -848,6 +848,50 @@
             }
         }
 
+        /* ===== Phone landscape (short viewport height) ===== */
+        /* The HQ Services / extract prompt (#center-extract-overlay) is sized for a
+           tall desktop viewport. In landscape on a phone the viewport is only
+           ~350-450px tall, so its bottom:80px offset plus its own height covered
+           most of the screen — hiding the fuel gauge, radar, and pickup marker
+           behind it. Its buttons use inline styles (font-size/padding set directly
+           in the HTML), which always beat a plain class rule, so these overrides
+           need !important to actually take effect. */
+        @media (max-height: 500px) {
+            #center-extract-overlay {
+                bottom: 8px !important;
+                padding: 6px 14px !important;
+                border-radius: 8px !important;
+            }
+
+            #center-extract-overlay h3 {
+                font-size: 0.8rem !important;
+                margin: 0 0 2px 0 !important;
+                letter-spacing: 1px !important;
+            }
+
+            #center-extract-overlay p {
+                font-size: 0.68rem !important;
+                max-width: 220px !important;
+            }
+
+            #hq-services-container {
+                margin-top: 4px !important;
+                gap: 6px !important;
+            }
+
+            #btn-hq-refuel,
+            #btn-hq-repair {
+                font-size: 0.68rem !important;
+                padding: 4px 8px !important;
+            }
+
+            #center-extract-btn {
+                font-size: 0.8rem !important;
+                padding: 6px 14px !important;
+                margin-top: 6px !important;
+            }
+        }
+
         .hidden {
             display: none !important;
         }
