@@ -93,6 +93,15 @@
                         g.physics.lander.landed = false;
                         g.physics.lander.vy = 6;
                         g.physics.lander.fuel = 100;
+                    } else if (script === 'shieldGauge') {
+                        // Vitals-cluster check: shield upgrade owned (row should
+                        // appear) with partial charge, fuel/hull dropped to
+                        // partial levels so the quarter-tick marks + E/F read.
+                        g.upgrades.shieldRegen = 2;
+                        g.physics.lander.maxShieldCharge = 100;
+                        g.physics.lander.shieldCharge = 60;
+                        g.physics.lander.fuel = g.physics.lander.maxFuel * 0.55;
+                        g.physics.lander.integrity = g.physics.lander.maxIntegrity * 0.8;
                     } else if (script === 'parachuteSim') {
                         // Manually drives applyGravityAndWind() in a synchronous
                         // loop instead of relying on requestAnimationFrame (which
