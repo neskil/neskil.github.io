@@ -177,6 +177,12 @@ class ShaderOverlay {
                             float pulse = u_wellPulse[i];
                             float intensity = (1.0 - normDist) * (0.32 + 0.28 * swirl) * pulse * 0.7;
                             
+                            // Shrinking circles feeding into the black hole
+                            float circleDist = normDist * 8.0 + u_time * 3.0;
+                            float circle = fract(circleDist);
+                            float circlePulse = smoothstep(0.6, 0.8, circle) * (1.0 - smoothstep(0.8, 1.0, circle));
+                            intensity += circlePulse * 0.45 * (1.0 - normDist);
+                            
                             vec3 color = mix(vec3(0.0, 0.0, 0.0), vec3(0.6, 0.2, 0.9), intensity);
                             finalColor += color;
                             finalAlpha = max(finalAlpha, intensity * (1.0 - normDist));
@@ -444,7 +450,7 @@ class ShaderOverlay {
                     if (dist < u_blackholeRadius[i] && dist > 1.0) {
                         float pull = 1.0 - dist / u_blackholeRadius[i];
                         pull = pull * pull;
-                        offset += diff * pull * 0.35; // + pushes sampling away from center, shrinking the image
+                        offset += diff * pull * 1.2; // + pushes sampling away from center, shrinking the image. 1.2 is visible but less extreme.
                         touched = true;
                     }
                     if (dist < u_blackholeRadius[i] * 0.8) {
