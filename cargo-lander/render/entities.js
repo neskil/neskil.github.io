@@ -107,28 +107,31 @@ drawHazards(bgMode = false) {
                 const drawCrusherBlock = () => {
                     const depth = dist / 2 + 30;
                     const rightEdge = (dist / 2) * progress;
-                    const leftEdge = rightEdge - depth;
+                    const leftEdge = Math.max(0, rightEdge - depth);
+                    const drawWidth = rightEdge - leftEdge;
                     
-                    ctx.fillStyle = '#4b5563';
-                    ctx.fillRect(leftEdge, -thickness/2, depth, thickness);
-                    
-                    ctx.strokeStyle = cColor;
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(leftEdge, -thickness/2, depth, thickness);
-                    
-                    ctx.save();
-                    ctx.beginPath(); ctx.rect(leftEdge, -thickness/2, depth, thickness); ctx.clip();
-                    ctx.fillStyle = cColor;
-                    const stripeW = 10;
-                    for (let x = leftEdge - thickness; x < rightEdge; x += stripeW * 2) {
-                        ctx.beginPath();
-                        ctx.moveTo(x, -thickness/2);
-                        ctx.lineTo(x + stripeW, -thickness/2);
-                        ctx.lineTo(x + stripeW - thickness, thickness/2);
-                        ctx.lineTo(x - thickness, thickness/2);
-                        ctx.fill();
+                    if (drawWidth > 0) {
+                        ctx.fillStyle = '#4b5563';
+                        ctx.fillRect(leftEdge, -thickness/2, drawWidth, thickness);
+                        
+                        ctx.strokeStyle = cColor;
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(leftEdge, -thickness/2, drawWidth, thickness);
+                        
+                        ctx.save();
+                        ctx.beginPath(); ctx.rect(leftEdge, -thickness/2, drawWidth, thickness); ctx.clip();
+                        ctx.fillStyle = cColor;
+                        const stripeW = 10;
+                        for (let x = leftEdge - thickness; x < rightEdge; x += stripeW * 2) {
+                            ctx.beginPath();
+                            ctx.moveTo(x, -thickness/2);
+                            ctx.lineTo(x + stripeW, -thickness/2);
+                            ctx.lineTo(x + stripeW - thickness, thickness/2);
+                            ctx.lineTo(x - thickness, thickness/2);
+                            ctx.fill();
+                        }
+                        ctx.restore();
                     }
-                    ctx.restore();
                     
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 3;
