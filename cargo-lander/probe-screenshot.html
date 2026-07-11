@@ -13,6 +13,15 @@
     <iframe id="f" src="index.html" style="width:1280px;height:800px;border:0"></iframe>
     <script>
         const q = new URLSearchParams(location.search);
+        // &vw=900&vh=420 — size the game iframe (default 1280x800), for
+        // checking responsive/mobile layouts headlessly. Set before the iframe
+        // loads its content so the game boots at the target viewport size.
+        {
+            const vw = parseInt(q.get('vw') || '0'), vh = parseInt(q.get('vh') || '0');
+            const fEl = document.getElementById('f');
+            if (vw > 0) fEl.style.width = vw + 'px';
+            if (vh > 0) fEl.style.height = vh + 'px';
+        }
         const levelIdx = parseInt(q.get('level') || '0');
         const camX = parseFloat(q.get('x') || '0');
         const camY = parseFloat(q.get('y') || '0');

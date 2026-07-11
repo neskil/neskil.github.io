@@ -910,6 +910,51 @@
             }
         }
 
+        /* ===== Compact HUD on phone-sized viewports =====
+           Short landscape (the main phone play orientation, per the rotate tip)
+           or narrow portrait. Shrinks chrome that reads fine at 1:1 on desktop
+           but eats a third of a phone screen: tighter group padding/gaps, a
+           smaller see-through radar. The mission panel handles its own
+           compaction (tap-to-collapse chip — game/hud.js updateMissionPanel).
+           !important is needed where the base layout uses inline styles. */
+        @media (max-height: 500px), (max-width: 480px) {
+            #hud-overlay {
+                top: 4px;
+                left: 6px;
+                right: 6px;
+            }
+
+            .hud-group {
+                padding: 5px 9px;
+                gap: 8px;
+                border-radius: 10px;
+            }
+
+            #hud-left-panel,
+            #hud-right-panel {
+                gap: 8px !important;
+            }
+
+            /* Radar: ~35% smaller and translucent so terrain stays visible
+               behind it; still fully readable. */
+            #radar-canvas {
+                width: 170px;
+                height: 105px;
+            }
+
+            #radar-container {
+                opacity: 0.62;
+            }
+
+            .utility-btn {
+                font-size: 0.72rem;
+            }
+
+            .gauge-container {
+                width: 70px;
+            }
+        }
+
         .hidden {
             display: none !important;
         }
@@ -1396,8 +1441,9 @@
                 <div id="hud-left-panel"
                     style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left;">
                     
-                    <!-- Mission Info Panel -->
-                    <div id="mission-panel" class="hud-group"
+                    <!-- Mission Info Panel — tap to collapse/expand (game/hud.js
+                         toggleMissionPanel; auto-collapses on small viewports) -->
+                    <div id="mission-panel" class="hud-group" onclick="game.toggleMissionPanel()"
                         style="display: flex; flex-direction: column; min-width: 240px; pointer-events: auto;">
                     </div>
 

@@ -263,6 +263,7 @@ HISTORY.md.
 - `rockGlow` is a **partial CSS rgba string** like `'rgba(34,197,94,'` — append opacity: `${pal.rockGlow}0.10)`.
 - `localStorage` keys: `cargoLanderCash`, `cargoLanderUpgrades`, `cargoLanderCareer`, `cargoLanderHighscores`, `cargoLanderVehicle`, `cargoLanderPostFX`, `cargoLanderTouchJoystick`, `cargo_lander_ui_scale`.
 - Input paths all merge into the same boolean `game.keys` map: keyboard, gamepad (`gp_left/right/up`, `game/input.js pollGamepad()`), touch joystick (`joy_*`, `setupJoystick()` in `index.html`, enabled via Settings).
+- Mission panel is tap-to-collapse (`toggleMissionPanel` in `game/hud.js`): on phone-sized viewports it auto-shrinks to a time/budget/cargo chip ~5s after mission start and after each mission event (delivery, bonus result, overtime), re-expanding on the next event. `isSmallViewport()` (height ≤ 500 or width ≤ 480) is kept in sync with the "Compact HUD" CSS media query in `index.html`, which also shrinks `.hud-group` padding and renders the radar smaller + translucent. Probe harness takes `&vw=&vh=` to screenshot these layouts headlessly.
 - `padScale` on level config scales all pad widths (L1=1.5 … L4=0.70).
 - `BOX_SIZE = 28`; big cargo = `BOX_SIZE * 1.8`, claims the whole deck.
 - `overtimeActive`/`overtimeTimer`: mission timer at 0 → 15s grace period to reach HQ; auto-extraction pays only if all cargo was delivered.
