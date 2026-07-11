@@ -746,12 +746,17 @@
                 font-size: 0.78rem;
             }
 
-            /* Hide labelled header buttons during mobile play — accessible from menu */
+            /* Was: unconditionally hiding #mute-btn/#dev-btn here. That header row
+               (#nav-header) is persistent across the main menu AND in-game, so this
+               didn't just declutter the in-game HUD as intended — it also removed
+               the Dev button from the main menu on phone-width screens with no
+               replacement (the in-game options dropdown's "Dev Panel" entry only
+               exists once a mission is already running). #dev-btn now stays
+               visible and the header wraps instead (see #nav-header's inline
+               flex-wrap) so it doesn't overflow narrow viewports.
+               #mute-btn (labelled "Audio") is still hidden — mute-toggle-btn, the
+               icon-only speaker button, covers quick mute on phone widths. */
             #mute-btn {
-                display: none;
-            }
-
-            #dev-btn {
                 display: none;
             }
 
@@ -1101,7 +1106,7 @@
             </svg>
             Back to Home
         </a>
-        <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100;">
+        <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100vw - 32px);">
             <button id="fullscreen-toggle-btn" class="utility-btn icon-only" onclick="game.toggleFullscreen()"
                 title="Toggle Fullscreen">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
