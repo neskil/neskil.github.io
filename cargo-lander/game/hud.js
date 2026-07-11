@@ -22,6 +22,9 @@ Object.assign(CargoGame.prototype, {
             if (hudToolbar) hudToolbar.style.display = 'none';
             if (optionsBtn) optionsBtn.style.display = 'none';
             
+            const rightPanel = document.getElementById('hud-right-panel');
+            if (rightPanel) rightPanel.style.marginLeft = 'auto';
+            
             const dropdown = document.getElementById('options-dropdown');
             if (dropdown) dropdown.style.display = 'none';
             
@@ -37,6 +40,9 @@ Object.assign(CargoGame.prototype, {
             if (radarContainer) radarContainer.style.display = 'block';
             if (hudToolbar) hudToolbar.style.display = 'flex';
             if (optionsBtn) optionsBtn.style.display = 'inline-flex';
+            
+            const rightPanel = document.getElementById('hud-right-panel');
+            if (rightPanel) rightPanel.style.marginLeft = '0';
             
             const eyeBtn = document.getElementById('hide-ui-btn');
             if (eyeBtn) {
@@ -95,35 +101,24 @@ Object.assign(CargoGame.prototype, {
     },
 
     addMessage(text, color = '#f8fafc') {
-        // Keep legacy messages array for canvas renderers that may still read it
-        this.messages.push({ text, color, life: 1.0, y: 175 });
-        if (this.messages.length > 4) this.messages.shift();
-
-        // Also create a real DOM notification element
-        const isTutorial = text.startsWith('TUTORIAL:');
-        const label = isTutorial ? text.replace('TUTORIAL: ', '') : text;
-        const container = isTutorial
-            ? (this.uiElements?.tutorialContainer || document.getElementById('tutorial-container'))
-            : (this.uiElements?.notificationsContainer || document.getElementById('notifications-container'));
-
+        const container = this.uiElements?.notificationsContainer || document.getElementById('notifications-container');
         if (!container) return;
 
+        const isTutorial = text.startsWith('TUTORIAL:');
+        const label = isTutorial ? text.replace('TUTORIAL: ', '') : text;
+
         const el = document.createElement('div');
-        el.style.cssText = isTutorial
-            ? `font: 600 11px Outfit,sans-serif; color: ${color}; background: rgba(6,20,16,0.85); border: 1px solid rgba(52,211,153,0.4); border-radius: 8px; padding: 5px 10px; white-space: nowrap; opacity: 1; transition: opacity 0.5s;`
-            : `font: bold 16px Outfit,sans-serif; color: ${color}; background: rgba(5,8,18,0.82); border-radius: 14px; padding: 8px 20px; white-space: nowrap; opacity: 1; transition: opacity 0.5s; text-align: center;`;
+        el.style.cssText = `font: 600 12px Outfit,sans-serif; color: ${color}; background: rgba(6,20,16,0.85); border: 1px solid ${color}66; border-radius: 8px; padding: 6px 12px; white-space: nowrap; opacity: 1; transition: opacity 0.5s; text-shadow: 0 1px 2px rgba(0,0,0,0.8);`;
         el.textContent = isTutorial ? '💡 ' + label : label;
         container.appendChild(el);
 
-        // Fade out and remove after 5 seconds
-        const duration = isTutorial ? 8000 : 5000;
+        const duration = isTutorial ? 8000 : 4000;
         setTimeout(() => {
             el.style.opacity = '0';
             setTimeout(() => el.remove(), 500);
         }, duration);
 
-        // Clamp to max 4 notifications in container
-        while (container.children.length > 4) {
+        while (container.children.length > 5) {
             container.firstChild.remove();
         }
     },

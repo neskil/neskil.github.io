@@ -53,6 +53,7 @@ Object.assign(CargoGame.prototype, {
         }
         
         if (totalReward > 0) {
+            this.addMessage(`+$${totalReward}`, '#10b981');
             if (!this.floatingTexts) this.floatingTexts = [];
             const ox = (Math.random() - 0.5) * 40;
             const oy = (Math.random() - 0.5) * 20;
@@ -75,6 +76,8 @@ Object.assign(CargoGame.prototype, {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
                 this.addMessage("Cargo vaporized by laser! -$200 Budget", "#ef4444");
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push({ text: "-$200", x: box.x, y: box.y - 20, life: 2.0, color: '#ef4444' });
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -97,6 +100,8 @@ Object.assign(CargoGame.prototype, {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
                 this.addMessage("Cargo Lost! -$200 Budget", "#ef4444");
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push({ text: "-$200", x: box.x, y: terrainY - 20, life: 2.0, color: '#ef4444' });
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -130,6 +135,8 @@ Object.assign(CargoGame.prototype, {
                     this.questState['no_cargo_lost'] = { failed: true };
                 }
                 this.addMessage("Cargo went stale and exploded! -$200 Budget", "#f97316");
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push({ text: "-$200", x: box.x, y: box.y - 20, life: 2.0, color: '#f97316' });
 
                 if (this.missionBudget < 0) {
                     this.failMission("Bankrupt! Too much cargo lost.");
@@ -215,6 +222,8 @@ Object.assign(CargoGame.prototype, {
                 }
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playCollision();
                 this.addMessage('Cargo destroyed! -$150', '#ef4444');
+                if (!this.floatingTexts) this.floatingTexts = [];
+                this.floatingTexts.push({ text: "-$150", x: box.x, y: box.y - 20, life: 2.0, color: '#ef4444' });
                 this.missionBudget -= 150;
                 this.removeCargoBox(box, i);
             }

@@ -1123,15 +1123,19 @@ class CargoGame {
                 this.addMessage("CONSUMED BY THE ANOMALY", "#ef4444");
                 this.failMission("Consumed by the anomaly.");
             } else {
+                if (!this.floatingTexts) this.floatingTexts = [];
                 if (lander.eatenByMonster) {
                     this.missionBudget -= 400;
                     this.addMessage("Lander Consumed: -$400", "#ef4444");
+                    this.floatingTexts.push({ text: "-$400", x: lander.x, y: lander.y - 30, life: 2.0, color: '#ef4444' });
                 } else if (lander.busted) {
                     this.missionBudget -= 1000;
                     this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");
+                    this.floatingTexts.push({ text: "-$1000", x: lander.x, y: lander.y - 30, life: 2.0, color: '#ef4444' });
                 } else {
                     this.missionBudget -= 400;
                     this.addMessage("Lander Destroyed: -$400", "#ef4444");
+                    this.floatingTexts.push({ text: "-$400", x: lander.x, y: lander.y - 30, life: 2.0, color: '#ef4444' });
                 }
                 this.addMessage("Press 'R' to deploy replacement", "#fca5a5");
 
@@ -1177,6 +1181,8 @@ class CargoGame {
         lander.fuel = lander.maxFuel;
         if (window.CargoAudio) window.CargoAudio.playClick();
         this.addMessage("Vehicle refueled. -$100 Budget", "#10b981");
+        if (!this.floatingTexts) this.floatingTexts = [];
+        this.floatingTexts.push({ text: "-$100", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
     repairLander() {
@@ -1186,6 +1192,8 @@ class CargoGame {
         lander.integrity = lander.maxIntegrity;
         if (window.CargoAudio) window.CargoAudio.playClick();
         this.addMessage("Integrity restored. -$200 Budget", "#10b981");
+        if (!this.floatingTexts) this.floatingTexts = [];
+        this.floatingTexts.push({ text: "-$200", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
     completeMission() {
