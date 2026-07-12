@@ -250,7 +250,6 @@ drawWaterBodies() {
                 wr = (n >> 16) & 0xff; wg = (n >> 8) & 0xff; wb = n & 0xff;
             }
             const wc = (a) => `rgba(${wr},${wg},${wb},${a})`;
-            const wDeep = `rgba(${Math.round(wr * 0.15)},${Math.round(wg * 0.15)},${Math.round(wb * 0.15)},0.96)`;
             // Lightened toward white for ripple/wave highlight lines
             const brR = Math.round(wr + (255 - wr) * 0.55), brG = Math.round(wg + (255 - wg) * 0.55), brB = Math.round(wb + (255 - wb) * 0.55);
             const wcBright = (a) => `rgba(${brR},${brG},${brB},${a})`;
@@ -262,11 +261,7 @@ drawWaterBodies() {
             pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.closePath();
 
-            const depthGrad = ctx.createLinearGradient(lx, ly, lx, ly + ld);
-            depthGrad.addColorStop(0, wc(0.82));
-            depthGrad.addColorStop(0.5, wc(0.90));
-            depthGrad.addColorStop(1, wDeep);
-            ctx.fillStyle = depthGrad;
+            ctx.fillStyle = wc(0.86);
             ctx.fill();
 
             // Clip all inner content (fish, waves, ripples) to the water polygon
@@ -278,10 +273,6 @@ drawWaterBodies() {
             // Shimmer layer near surface
             ctx.fillStyle = wc(0.12);
             ctx.fillRect(lx, ly, lw, 14);
-
-            // Deeper gradient shift
-            ctx.fillStyle = wc(0.4);
-            ctx.fillRect(lx, ly + 14, lw, ld - 14);
 
             // Animated surface ripples
             ctx.strokeStyle = wc(0.30);
