@@ -161,6 +161,7 @@ canvas{display:block}
       <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
       <button class="btn" onclick="fitView()">Fit</button>
     </div>
+    <button class="btn" style="width:100%; margin-top:5px" onclick="newLevel()" title="Starts a blank level: one rectangle of ground, HQ + Cargo Drop Off evenly spaced, and sensible defaults for every Map Settings field.">+ New Level</button>
     <div id="level-card"></div>
     <details>
       <summary>Or paste JS</summary>
@@ -549,13 +550,25 @@ function schemaFieldRowHTML(setterName, idPrefix, field) {
     }
   }
   
-  let tooltipHTML = '';
-  if (field.desc || field.recommended) {
-    let titleText = (field.desc || '') + (field.recommended ? (field.desc ? '&#13;&#10;' : '') + 'Recommended: ' + field.recommended : '');
-    tooltipHTML = `<span class="tooltip-icon" title="${titleText}">?</span>`;
-  }
-  
+  const parts = [];
+  if (field.desc) parts.push(field.desc);
+  if (field.recommended) parts.push('Recommended: ' + field.recommended);
+  parts.push('Default: ' + formatFieldDefault(field));
+  const tooltipHTML = `<span class="tooltip-icon" title="${parts.join('&#13;&#10;')}">?</span>`;
+
   return `<div class="row"><label>${field.label}${tooltipHTML}</label>${input}</div>`;
+}
+
+// Renders a field's schema `default` for the tooltip — null/undefined read
+// as "none" (e.g. shadowAngle, which falls back to computed terrain-relative
+// values rather than a fixed number) rather than the literal word "null".
+function formatFieldDefault(field) {
+  const d = field.default;
+  if (d === null || d === undefined) return 'none';
+  if (Array.isArray(d)) return d.length ? d.join(', ') : 'none';
+  if (typeof d === 'boolean') return d ? 'true' : 'false';
+  if (d === '') return '(empty)';
+  return String(d);
 }
 
 function buildMetaPanel() {
@@ -1016,6 +1029,41 @@ function resetState() {
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
   document.getElementById('level-card').style.display='none';
+}
+
+// Builds a ready-to-edit blank level — flat rectangle of ground, HQ + Cargo
+// Drop Off evenly spaced along it, LEVEL_SCHEMA's default for every mission
+// parameter (the same defaults now shown in the Map Settings tooltips), and
+// a starter set of quests — a concrete starting point instead of an empty
+// canvas of unset fields.
+function defaultLevelConfig() {
+  const cfg = defaultCfgFromSchema();
+  cfg.name = 'levelNew';
+  cfg.missionTitle = 'New Mission';
+  cfg.description = 'Deliver the cargo to the drop-off point.';
+  cfg.startX = 200;
+  cfg.startY = null;
+  cfg.startDepotWidth = null;
+  cfg.collectionX = 1400;
+  cfg.collectionY = null;
+  cfg.collectionWidth = null;
+  cfg.palette = Object.assign({}, DEFAULT_PAL);
+  cfg.terrainPolygons = [
+    [ {x:-200,y:700}, {x:1800,y:700}, {x:1800,y:900}, {x:-200,y:900} ]
+  ];
+  cfg.waterBodies = [];
+  cfg.hazards = [];
+  cfg.deliveryHubs = [];
+  cfg.quests = [
+    { id:'primary', text:'Deliver 3 cargo to the depot', type:'primary' },
+    { id:'no_crash', text:'Zero crashes', type:'bonus', reward:300 },
+    { id:'no_cargo_lost', text:'No cargo lost', type:'bonus', reward:250 },
+  ];
+  return cfg;
+}
+
+function newLevel() {
+  applyConfig(defaultLevelConfig());
 }
 
 function guessComment(pts, i) {
