@@ -383,6 +383,10 @@
             width: 100%;
         }
 
+        #extra-modes-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
         .btn-level {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--glass-border);
@@ -731,7 +735,7 @@
                 font-size: 0.9rem;
             }
 
-            .level-grid {
+            .level-grid, #extra-modes-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -927,7 +931,7 @@
             }
 
             /* Level grid always single column */
-            .level-grid {
+            .level-grid, #extra-modes-grid {
                 grid-template-columns: 1fr !important;
             }
 
@@ -2132,6 +2136,12 @@
                             Procedural Mission
                             <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Choose your
                                 difficulty</span>
+                        </button>
+                        <button class="btn-level" onclick="window.location.href='level-editor.html'"
+                            style="border-color: var(--neon-blue); background: rgba(56, 189, 248, 0.08);">
+                            <span class="num" style="color: var(--neon-blue);">🛠️ Level Editor</span>
+                            Open Editor
+                            <span style="font-size:0.65rem; color:var(--neon-blue); font-weight:600; margin-top:2px;">Design custom layouts</span>
                         </button>
                         <button class="btn-level" onclick="document.getElementById('custom-level-input').click()"
                             style="border-color: #6366f1; background: rgba(99, 102, 241, 0.1);">
