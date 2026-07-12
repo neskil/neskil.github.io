@@ -271,12 +271,12 @@ Object.assign(CargoGame.prototype, {
             hullPlating: 0,
             shieldRegen: 0
         };
-        this.career = { 
-            pilotName: this.career.pilotName, 
-            portrait: this.career.portrait,
-            totalDeliveries: 0, 
-            missionsComplete: 0, 
-            crashes: 0 
+        this.career = {
+            pilotName: '',
+            portrait: null,
+            totalDeliveries: 0,
+            missionsComplete: 0,
+            crashes: 0
         };
         this.highscores = {};
 
