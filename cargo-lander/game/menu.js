@@ -78,7 +78,8 @@ Object.assign(CargoGame.prototype, {
                 magneticDeck: 0,
                 aerodynamics: 0,
                 hullPlating: 0,
-                shieldRegen: 0
+                shieldRegen: 0,
+                repairKit: 0
             };
             this.globalCash = 1000;
             localStorage.setItem('cargoLanderCash', this.globalCash);
@@ -284,7 +285,8 @@ Object.assign(CargoGame.prototype, {
             magneticDeck: 0,
             aerodynamics: 0,
             hullPlating: 0,
-            shieldRegen: 0
+            shieldRegen: 0,
+                repairKit: 0
         };
         this.career = {
             pilotName: '',
