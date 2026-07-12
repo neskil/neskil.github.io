@@ -298,6 +298,14 @@ named files/functions before starting, they may have moved.
   `music/` based on a computed per-second danger score.
 - Shareable level codes: base64 the editor's export block for copy-paste
   sharing, paste-to-import next to the existing custom-level upload flow.
+- Level editor undo/redo (ctrl-z / ctrl-shift-z): editor state lives in one
+  global `S` object with no history stack today. Snapshot-based approach —
+  push a `JSON.stringify(S)` before each discrete mutation (not every
+  mousemove during a drag; snapshot on drag-start so a single drag is one
+  undo step), pop + restore + re-`draw()`/`updateOut()` on ctrl-z. Moderate
+  effort: state is small and serializable, but the ~20+ mutation entry
+  points (`setCfg`, `setOOB`, `setGW`, point drag/delete/spawn) all need
+  wiring.
 
 **Hygiene** (found during a 2026-07-11 review, still open)
 - `level10.js` is loaded by `index.html` but missing from `tests.html`'s
