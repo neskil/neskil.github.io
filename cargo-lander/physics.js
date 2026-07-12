@@ -82,7 +82,7 @@ class CargoPhysics {
         }
 
         // Pre-spawn 1 or 2 ambient traffic vehicles so the sky isn't empty on load
-        if (this.currentLevelConfig && this.currentLevelConfig.name !== "Depot HQ") {
+        if (this.currentLevelConfig && this.currentLevelConfig.name !== "Depot HQ" && (this.currentLevelConfig.ambientTrafficRate ?? 1) > 0) {
             const numToSpawn = 1 + Math.floor(Math.random() * 2);
             for (let i = 0; i < numToSpawn; i++) {
                 this.trafficSpawnTimer = 500; // force a spawn trigger

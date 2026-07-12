@@ -4,9 +4,17 @@ const CargoPhysicsAtmosphereMixin = {
     updateAmbientTraffic(dt) {
         if (!this.ambientTraffic) this.ambientTraffic = [];
 
-        // Spawn a new truck periodically (max 5 on screen)
+        // ambientTrafficRate (level config, default 1) scales both max
+        // concurrent traffic and spawn frequency — 0 opts a level out of
+        // ambient traffic entirely instead of just tuning it down.
+        const trafficRate = this.currentLevelConfig?.ambientTrafficRate ?? 1;
+        if (trafficRate <= 0) return;
+        const maxTraffic = Math.max(1, Math.round(5 * trafficRate));
+        const spawnIntervalMs = Math.max(60, 420 / trafficRate);
+
+        // Spawn a new truck periodically (max maxTraffic on screen)
         this.trafficSpawnTimer = (this.trafficSpawnTimer || 0) + dt;
-        if (this.trafficSpawnTimer > 420 && this.ambientTraffic.length < 5) {
+        if (this.trafficSpawnTimer > spawnIntervalMs && this.ambientTraffic.length < maxTraffic) {
             this.trafficSpawnTimer = 0;
             const fromRight = Math.random() > 0.5;
             
@@ -430,20 +438,11 @@ const CargoPhysicsAtmosphereMixin = {
                 let inWormZone = false;
                 let riskMultiplier = 1;
 
-                // Support legacy currentLevelConfig values if hazard not used
-                const legacyCX = this.currentLevelConfig.wormPitCX;
-                if (legacyCX !== undefined) {
-                    const legacyCY = this.currentLevelConfig.wormPitCY ?? 580;
-                    const legacyR = this.currentLevelConfig.wormZoneR ?? 300;
-                    const distToZone = Math.hypot(lander.x - legacyCX, lander.y - legacyCY);
-                    if (distToZone < legacyR) {
-                        inWormZone = true;
-                        const norm = distToZone / legacyR;
-                        riskMultiplier = Math.pow(1 - norm, 1.8);
-                    }
-                }
-
-                // Check hazard polygons for sandworm zones
+                // Check hazard polygons for sandworm zones — the worm danger
+                // area is placed as a `sandworm`-type hazard polygon (see the
+                // level editor's Hazard tab) rather than a level-config-level
+                // wormPitCX/CY/wormZoneR triple, so it's editable like any
+                // other shape instead of needing hand-written coordinates.
                 for (const h of this.hazards) {
                     if (h.type === 'sandworm' && h.pts) {
                         if (this.pointInPolygon(lander.x, lander.y, h.pts)) {
