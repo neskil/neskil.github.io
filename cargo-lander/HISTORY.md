@@ -8,6 +8,32 @@ backlog" section.
 
 ---
 
+## 2026-07-11 — Night Ops rework: sonar ping + objective beam (v0.10.1)
+
+User feedback on v0.10.0: the flashlight cone followed `lander.angle` so it
+only ever pointed up(ish), and the overall look wasn't dark/tense enough.
+Reworked `render/night.js`:
+- **Tight lander glow** (radius 210 → 120 world px) and darker overlay
+  (alpha 0.86 → 0.90) — the rest of the level is now genuinely hard to see.
+- **Objective beam replaces the angle-following cone**: a narrow (~9°
+  half-angle, 460 px) searchlight aimed at the next objective — mirrors
+  `drawNextObjectiveArrow()`'s target logic (all delivered → HQ; empty deck
+  → collection point; else the hub matching the first on-deck box) via a
+  shared-logic helper `_nightObjectiveTarget()`.
+- **Sonar ping**: every 5.2 s an annulus wavefront expands from the lander
+  (0→1500 world px over 2.4 s), punched out of the darkness so terrain
+  silhouettes are briefly revealed as it sweeps; hazards light up
+  individually while the wavefront passes within 140 px of them (laser/
+  crusher midpoint or polygon centroid). Hubs keep a constant faint glow.
+- Verified by canvas alpha sampling: beam direction matches
+  `atan2(target - lander)` (lit at 260 px along the beam, dark opposite);
+  mid-travel ping ring reads lit on the wavefront and dark again inside it;
+  L10's two crushers confirmed to have 2-pt `pts` so the reveal path fires.
+  97/97 tests, 0 console errors. Feel-tuning by eye still pending (same
+  caveat as v0.10.0).
+
+---
+
 ## 2026-07-11 — Night Ops: darkness overlay + lander spotlight (v0.10.0)
 
 New level-config flag `night: true` (`levelSchema.js`, alongside `heatHaze`)
