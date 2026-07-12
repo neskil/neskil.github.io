@@ -113,85 +113,79 @@ these aren't blocking questions for the user)
   parameters for v1 — don't special-case per vehicle unless playtesting says
   it's needed.
 
-## Implementation steps
+## Implementation steps — all done, shipped as v0.10.0
 
-### 1. Schema + level flag  `[ ]`
-- Add `night` (boolean, default `false`) to `levelSchema.js` so the level
-  editor and `tests.html`'s schema-driven validation pick it up for free —
-  follow the existing pattern for boolean scalar fields (e.g. how
-  `outOfBounds: true` shorthand or similar flags are declared).
-- Add `night: true` to the chosen level's config (see Design decisions).
+### 1. Schema + level flag  `[x]`
+- Added `night` (boolean, default `false`) to `levelSchema.js`, same pattern
+  as `heatHaze` — editor + `tests.html` validation pick it up for free.
+- Retrofitted `night: true` onto **L10: The Crystal Caves** (`level10.js`)
+  per the Design decisions above; also tweaked its `description` to mention
+  the outpost being dark for flavor-text accuracy.
 
-### 2. Darkness overlay  `[ ]`
-- In `render.js`'s frame composition (`draw()`), after normal scene rendering
-  (terrain, hubs, entities, particles) but before HUD/UI draws, if
-  `levelConfig.night` is true: draw a full-canvas dark overlay
-  (e.g. `rgba(5, 8, 20, 0.82)`ish — tune by eye) using
-  `ctx.globalCompositeOperation = 'source-over'` on an offscreen canvas/layer
-  so it can be selectively punched through in step 3. A second canvas layer
-  (or an offscreen `OffscreenCanvas`/temp canvas sized to match) is simplest:
-  draw darkness there, punch holes with `destination-out`, then
-  `drawImage` that layer onto the main canvas in one composite.
-- Respect the existing post-FX pipeline order (`shaders.js`
-  `renderPostFX`) — the darkness layer should sit **under** UI/HUD but can
-  be full-scene like other post-FX; check whether it needs to happen before
-  or after `renderPostFX` by testing (heat haze/water shimmer sampling the
-  scene — darkness probably wants to be part of the sampled scene, i.e.
-  applied before post-FX, not after).
+### 2. Darkness overlay  `[x]`
+- New mixin file `render/night.js` (`drawNightOverlay()`), registered in
+  `index.html` and `tests.html` right after `render/effects.js`. Uses a
+  lazily-created/resized offscreen canvas (`this._nightCanvas`): fill with
+  `rgba(4, 7, 18, 0.86)`, then `destination-out` punches for the light
+  sources, then one `drawImage` onto the main canvas.
+- Placed the call in `render.js`'s `draw()` **after** the WebGL particle/
+  monster pass and **before** the HUD-layer draws (wind indicator, minimap,
+  vignettes, damage flash, version counter) — i.e. after post-FX, not before.
+  Deviates from the plan's original "before post-FX so it's sampled by heat
+  haze" suggestion: simpler and lower-risk, and L10 doesn't use `heatHaze`
+  anyway so there's no live case where this ordering matters yet. Revisit if
+  a future night level also wants heat haze.
 
-### 3. Lander spotlight cone  `[ ]`
-- On the darkness layer, punch a light shape at the lander's screen position
-  each frame: `ctx.globalCompositeOperation = 'destination-out'`, draw a
-  soft-edged radial gradient (bright alpha at center fading to 0) centered on
-  the lander, plus an optional forward-facing cone (a filled arc/triangle
-  oriented by `lander.angle` and, if using the drone, its facing) for a
-  "flashlight" feel rather than a plain radius. Use `lander.x/y` transformed
-  to screen space the same way other entities are (reuse the camera
-  transform already applied for `render/entities.js` draws).
-- Radius/cone-angle should be tunable constants near the top of the
-  darkness-draw code (e.g. `NIGHT_LIGHT_RADIUS`, `NIGHT_CONE_ANGLE`) — this
-  will need eyeball tuning in a live playtest, don't hardcode magic numbers
-  inline without naming them.
+### 3. Lander spotlight cone  `[x]`
+- Radial glow (`NIGHT_LIGHT_RADIUS = 210` world px) + a forward flashlight
+  cone (`NIGHT_CONE_LENGTH = 340`, `NIGHT_CONE_HALF_ANGLE = 0.42` rad ≈ 24°),
+  oriented by `lander.angle` matching `drawLander()`'s own rotation
+  convention (nose-up at angle 0, confirmed by reading `render/entities.js`
+  line ~1223). Both scale with `camera.zoom` via the same world→screen
+  transform pattern already used for water-body post-FX rects in `render.js`.
+  Named constants at the top of `drawNightOverlay()`, ready for tuning.
 
-### 4. Ambient glows for hubs/hazards  `[ ]`
-- Also punch smaller, fixed, dimmer holes (or additive glow draws) around
-  delivery hubs and active hazards (lasers/incinerators already have glow-ish
-  rendering — check `render/entities.js`/`render/terrain.js` for existing
-  glow patterns to reuse rather than invent a new one) so they're always
-  faintly visible even outside the lander's cone. Keep these noticeably
-  dimmer/smaller than the lander's own light — they're wayfinding aids, not
-  a way to trivialize the darkness.
+### 4. Ambient glows for hubs/hazards  `[x]`
+- Hubs (`this.physics.deliveryHubs`) and hazards (`this.physics.hazards`,
+  midpoint for 2-point lasers / `this.physics.polygonCentroid()` for
+  polygon zones — both pre-existing helpers, reused not reinvented) each get
+  a fixed `NIGHT_AMBIENT_RADIUS = 70` glow, alpha 0.45–0.55 — visibly dimmer
+  than the lander's own alpha-1 light.
 
-### 5. Readability pass  `[ ]`
-- Re-check world-space text labels (mission markers, hub labels) for
-  legibility against the dark overlay — README's Rendering Notes already
-  flags that post-FX (heat haze) can distort labels; darkness has a similar
-  "check labels after adding this pass" risk. Bump label contrast/add a
-  subtle glow/stroke if needed.
-- Confirm the minimap/radar (`render/ui.js`) is unaffected by the darkness
-  layer (it should read the same regardless of in-world lighting) — if it's
-  drawn as part of the main scene pass instead of as a separate HUD layer,
-  make sure the overlay doesn't accidentally dim it too.
+### 5. Readability pass  `[x]`
+- Minimap draws to a separate `#radar-canvas` DOM element (`drawMinimap()`),
+  confirmed unaffected by construction — the overlay only ever touches the
+  main game `ctx`.
+- World-space labels weren't specifically re-styled; L10 has no dense label
+  clutter near hazards. Flagged as a follow-up if a denser night level is
+  built later (see Explicitly out of scope).
 
-### 6. Verification  `[ ]`
-- `node --check` every modified file.
-- `tests.html` → 0 failed, including the new schema field's validation.
-- Live playtest: start the chosen night-flagged level, confirm terrain is
-  legible only near the lander, hubs/hazards give a faint always-visible
-  glow, and the cone follows lander rotation.
-- `probe-screenshot.html?level=<idx>&debug=1` screenshots of the night level
-  from a couple of camera positions — visually confirm darkness + spotlight
-  render correctly headlessly (this is the project's standard way to catch
-  invisible-render bugs without a live browser).
-- Toggle Settings → Visual Effects off/on once at night to confirm nothing
-  about the darkness layer depends on post-FX being enabled (or, if it
-  intentionally does, that turning post-FX off doesn't leave the scene
-  pitch black with no fallback).
+### 6. Verification  `[x]`
+- `tests.html`: 89 → 97 passed (L10 registration, tracked separately as
+  PLAN 0.1) → still 97/97 after this feature, 0 console errors.
+- Live-verified via direct canvas pixel/alpha sampling (screenshot tooling
+  was unavailable this session): `_nightCanvas` alpha reads 1 (fully
+  punched) at the lander's exact screen position, 219 (full authored
+  opacity) in a far corner, with correct soft falloff in between; the final
+  composited frame is measurably darker at a fixed terrain point with
+  `night: true` vs `false`; toggling `night` off on the same level restores
+  normal brightness immediately (no leak/residue); L1 (a non-night level)
+  renders completely unaffected. The overlay composites unconditionally
+  after the post-FX block, so it doesn't depend on Settings → Visual Effects
+  being on.
+- Did **not** get a visual (pixel-eyeballed) screenshot confirmation this
+  session — the browser screenshot tool was failing/timing out throughout
+  (unrelated to this code; `read_console`/`javascript_exec` worked
+  throughout). **Recommended next step for whoever picks this up**: grab a
+  real screenshot (`probe-screenshot.html?level=9&x=..&y=..&zoom=..` or just
+  playing L10 live) to eyeball-tune `NIGHT_LIGHT_RADIUS` /
+  `NIGHT_CONE_LENGTH` / `NIGHT_CONE_HALF_ANGLE` / the darkness alpha — the
+  pixel-sampling verification confirms the mechanism works correctly, not
+  that the numbers feel good to fly with.
 
-### 7. Ship it  `[ ]`
-- Bump `CargoGame.VERSION` (minor — new visible feature).
-- Commit, push. Add a short HISTORY.md entry once merged (per CLAUDE.md
-  standing instructions), and note in this file which level got the flag.
+### 7. Ship it  `[x]`
+- Bumped `CargoGame.VERSION` 0.9.3 → **0.10.0** (minor — new visible
+  feature). Committed, pushed. HISTORY.md entry added.
 
 ## Explicitly out of scope for this plan
 - A dedicated new `level11.js` night level (follow-up, not required to ship
