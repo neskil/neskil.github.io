@@ -285,10 +285,23 @@ Object.assign(CargoGame.prototype, {
 
         localStorage.setItem('cargoLanderCash', this.globalCash);
         localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
+        
+        // Reset tutorial and portrait selector tracking
+        localStorage.removeItem('cargoLanderHasSeenTutorial');
+        localStorage.removeItem('cargoLanderHasSeenPortraitSelector');
+
         this.saveCareer();
         this.saveHighscores();
 
         this.refreshMenuUI();
+
+        // Immediately trigger first-time flow after resetting career
+        localStorage.setItem('cargoLanderHasSeenTutorial', '1');
+        setTimeout(() => {
+            if (typeof window.openTutorialModal === 'function') {
+                window.openTutorialModal();
+            }
+        }, 600);
     },
 
     // ---- Audio settings modal ----

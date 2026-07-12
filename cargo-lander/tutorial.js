@@ -16,6 +16,14 @@
     window.closeTutorialModal = function () {
         modal.style.display = 'none';
         if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+
+        // If first time playing, show pilot selection after tutorial is closed
+        if (window.game && !window.game.career.portrait && !localStorage.getItem('cargoLanderHasSeenPortraitSelector')) {
+            localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1');
+            setTimeout(() => {
+                window.game.openPortraitSelector(true);
+            }, 300);
+        }
     };
 
     function tick() {

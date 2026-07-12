@@ -160,8 +160,15 @@ class CargoGame {
         // media-query default that ignored gameState/isTouchDevice).
         this.updateMobileControlsVisibility();
 
-        // Show pilot portrait selector on first startup
-        if (!this.career.portrait && !localStorage.getItem('cargoLanderHasSeenPortraitSelector')) {
+        // Show tutorial first on first startup, otherwise pilot portrait selector
+        if (!localStorage.getItem('cargoLanderHasSeenTutorial')) {
+            localStorage.setItem('cargoLanderHasSeenTutorial', '1');
+            setTimeout(() => {
+                if (typeof window.openTutorialModal === 'function') {
+                    window.openTutorialModal();
+                }
+            }, 600);
+        } else if (!this.career.portrait && !localStorage.getItem('cargoLanderHasSeenPortraitSelector')) {
             localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1');
             setTimeout(() => {
                 this.openPortraitSelector(true);
