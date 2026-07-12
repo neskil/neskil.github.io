@@ -473,8 +473,21 @@ canvas{display:block}
       <div class="props-panel" id="info-panel"></div>
     </details>
     <details>
-      <summary>Objectives</summary>
+      <summary>Mission Goals &amp; Quests</summary>
       <div class="props-panel" id="objectives-panel"></div>
+      
+      <div class="props-panel" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d;">
+        <div class="sec-title" style="margin-bottom:8px; font-size:11px;">Quests &amp; Bonus Objectives</div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">No Crash</label><input type="checkbox" id="quest-nocrash" onchange="setQuest('nocrash', this.checked)"></div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">No Cargo Lost</label><input type="checkbox" id="quest-nocargo" onchange="setQuest('nocargo', this.checked)"></div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Quick (s)</label><input type="number" id="quest-quick" placeholder="Seconds" onchange="setQuest('quick', this.value?+this.value:null)"></div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Survive Worm</label><input type="checkbox" id="quest-worm" onchange="setQuest('worm', this.checked)"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Rules &amp; Level Parameters</summary>
+      <div class="props-panel" id="rules-panel"></div>
     </details>
     <details>
       <summary>Weather &amp; Environment</summary>
@@ -482,37 +495,42 @@ canvas{display:block}
     </details>
     <details>
       <summary>Level Looks &amp; Palette</summary>
-      <div class="props-panel" id="looks-panel"></div>
+      <div class="props-panel" id="looks-panel-top"></div>
+      
+      <!-- Radar Ping Zone inside Looks after Night Ops -->
+      <div class="props-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #30363d; margin-bottom: 10px;">
+        <div class="row">
+          <label style="width: 120px; font-size: 13px; color: #c9d1d9;">Radar Ping Zone</label>
+          <input type="checkbox" id="rpz-enable" onchange="toggleRadarZone()">
+        </div>
+        <div id="rpz-fields" style="display:none; flex-direction:column; gap:8px; margin-top:8px;"></div>
+      </div>
+
+      <div class="props-panel" id="looks-panel-bottom" style="border-top: 1px dashed #30363d; padding-top: 10px;"></div>
+      
       <div class="props-panel" id="palette-panel" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d;">
         <!-- populated via js -->
       </div>
     </details>
-    <details>
-      <summary>Rules &amp; Campaign</summary>
-      <div class="props-panel" id="rules-panel"></div>
-    </details>
+
     <details>
       <summary>Out of Bounds</summary>
       <div class="props-panel">
-        <div class="row"><label>Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
+        <div id="oob-preset-row" style="display:none; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #30363d;">
+          <div class="row">
+            <label style="width: 120px; font-size: 13px; color: #c9d1d9;" title="Select a preset theme for the Out of Bounds fluid/void.">OOB Preset</label>
+            <select id="oob-preset-selector" onchange="applyOOBPreset(this.value)" style="flex:1; font-size:13px; padding:6px 9px; border-radius:5px; background:#161b22; color:#e6edf3; border:1px solid #30363d;">
+              <option value="">-- Custom --</option>
+              <option value="water">Blue Water</option>
+              <option value="goo">Green Acid/Goo</option>
+              <option value="lava">Orange Lava</option>
+              <option value="sand">Amber Sand</option>
+              <option value="void">Dark Void</option>
+            </select>
+          </div>
+        </div>
         <div id="oob-fields" style="display:none; flex-direction:column; gap:4px"></div>
-      </div>
-    </details>
-    <details>
-      <summary>Radar Ping Zone</summary>
-      <div class="props-panel">
-        <div class="row"><label>Enabled</label><input type="checkbox" id="rpz-enable" onchange="toggleRadarZone()"></div>
-        <div id="rpz-fields" style="display:none; flex-direction:column; gap:4px"></div>
-      </div>
-    </details>
-    <details>
-      <summary>Quests</summary>
-      <div class="props-panel">
-        <div class="row"><label>Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
-        <div class="row"><label>No Crash</label><input type="checkbox" id="quest-nocrash" onchange="setQuest('nocrash', this.checked)"></div>
-        <div class="row"><label>No Cargo</label><input type="checkbox" id="quest-nocargo" onchange="setQuest('nocargo', this.checked)"></div>
-        <div class="row"><label>Quick (s)</label><input type="number" id="quest-quick" placeholder="Seconds" onchange="setQuest('quick', this.value?+this.value:null)"></div>
-        <div class="row"><label>Worm</label><input type="checkbox" id="quest-worm" onchange="setQuest('worm', this.checked)"></div>
       </div>
     </details>
   </div>
@@ -729,19 +747,35 @@ window.addEventListener('click', function(e) {
   }
 });
 
-// Derives a full 7-key palette from a single accent color: dark, low-
-// saturation sky/terrain shades plus the accent itself for rockEdge/
-// rockGlow/fog — a fast starting point the user can still fine-tune per key.
-function generatePaletteFromBase(hex) {
+// Derives a full 7-key palette from a single accent color: dark, medium, or light
+// saturation/lightness sky and terrain shades plus the accent itself.
+function generatePaletteFromBase(hex, mode = 'dark') {
   const { r, g, b } = hexToRgb(hex);
   const { h } = rgbToHsl(r, g, b);
-  S.palette.skyTop      = hslToHex(h, 45, 8);
-  S.palette.skyMid      = hslToHex(h, 40, 15);
-  S.palette.skyBot      = hslToHex(h, 35, 22);
-  S.palette.terrainFill = hslToHex(h, 40, 5);
+  
+  if (mode === 'light') {
+    S.palette.skyTop      = hslToHex(h, 60, 65);
+    S.palette.skyMid      = hslToHex(h, 55, 78);
+    S.palette.skyBot      = hslToHex(h, 50, 88);
+    S.palette.terrainFill = hslToHex(h, 45, 30);
+    S.palette.fog         = `rgba(${r},${g},${b},0.04)`;
+  } else if (mode === 'medium') {
+    S.palette.skyTop      = hslToHex(h, 50, 18);
+    S.palette.skyMid      = hslToHex(h, 45, 30);
+    S.palette.skyBot      = hslToHex(h, 40, 42);
+    S.palette.terrainFill = hslToHex(h, 45, 12);
+    S.palette.fog         = `rgba(${r},${g},${b},0.06)`;
+  } else { // dark
+    S.palette.skyTop      = hslToHex(h, 45, 8);
+    S.palette.skyMid      = hslToHex(h, 40, 15);
+    S.palette.skyBot      = hslToHex(h, 35, 22);
+    S.palette.terrainFill = hslToHex(h, 40, 5);
+    S.palette.fog         = `rgba(${r},${g},${b},0.08)`;
+  }
+  
   S.palette.rockEdge    = rgbToHex(r, g, b);
   S.palette.rockGlow    = `rgba(${r},${g},${b},`;
-  S.palette.fog         = `rgba(${r},${g},${b},0.08)`;
+  
   populatePaletteUI();
   draw(); updateOut();
 }
@@ -793,7 +827,15 @@ function schemaFieldRowHTML(setterName, idPrefix, field) {
   const id = idPrefix + field.key;
   const onchange = schemaOnchangeExpr(setterName, field);
   let input;
-  if (field.widget === 'checkbox') {
+  if (field.key === 'allowedTypes') {
+    const cargoTypes = ['normal', 'red', 'blue', 'green', 'tethered', 'heavy'];
+    input = `<div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:1;">` +
+      cargoTypes.map(t => {
+        return `<label style="display:inline-flex; align-items:center; gap:4px; width:auto; font-size:12px; margin-bottom:0; cursor:pointer; color:#c9d1d9; font-weight:normal;">
+          <input type="checkbox" class="cfg-allowed-type-checkbox" value="${t}" onchange="updateAllowedTypes()"> ${t}
+        </label>`;
+      }).join('') + `</div>`;
+  } else if (field.widget === 'checkbox') {
     input = `<input type="checkbox" id="${id}" onchange="${onchange}">`;
   } else if (field.widget === 'select') {
     const opts = field.options.map(o => `<option value="${o}">${o || '(none)'}</option>`).join('');
@@ -811,7 +853,7 @@ function schemaFieldRowHTML(setterName, idPrefix, field) {
     if (hasSlider) {
       const sliderStep = field.sliderStep ?? field.step ?? 1;
       const sliderOninput = `document.getElementById('${id}').value=this.value; ${setterName}('${field.key}', +this.value)`;
-      input = `<div class="slider-combo"><input type="range" class="field-slider" id="${id}-r" min="${field.sliderMin}" max="${field.sliderMax}" step="${sliderStep}" oninput="${sliderOninput}">${numberInput}</div>`;
+      input = `<div class="slider-combo">${numberInput}<input type="range" class="field-slider" id="${id}-r" min="${field.sliderMin}" max="${field.sliderMax}" step="${sliderStep}" oninput="${sliderOninput}"></div>`;
     } else {
       input = numberInput;
     }
@@ -843,10 +885,11 @@ function buildMetaPanel() {
   
   const sections = {
     info: ['name', 'missionTitle', 'description', 'hint'],
-    objectives: ['targetCargo', 'allowedTypes', 'heavyCargo', 'padScale'],
+    objectives: ['targetCargo', 'allowedTypes', 'heavyCargo'],
     weather: ['weather', 'heatHaze', 'gravity', 'wind'],
-    looks: ['backgroundType', 'night', 'shadowAngle', 'shadowLength'],
-    rules: ['budget', 'timeLimit', 'ambientTrafficRate', 'terrainType']
+    looksTop: ['backgroundType', 'night'],
+    looksBottom: ['shadowAngle', 'shadowLength'],
+    rules: ['budget', 'timeLimit', 'padScale', 'ambientTrafficRate', 'ambientTrafficSpeed', 'ambientTrafficMinY', 'ambientTrafficMaxY', 'terrainType']
   };
 
   document.getElementById('info-panel').innerHTML = fields
@@ -861,8 +904,12 @@ function buildMetaPanel() {
     .filter(f => sections.weather.includes(f.key))
     .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
 
-  document.getElementById('looks-panel').innerHTML = fields
-    .filter(f => sections.looks.includes(f.key))
+  document.getElementById('looks-panel-top').innerHTML = fields
+    .filter(f => sections.looksTop.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('looks-panel-bottom').innerHTML = fields
+    .filter(f => sections.looksBottom.includes(f.key))
     .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
 
   document.getElementById('rules-panel').innerHTML = fields
@@ -946,7 +993,7 @@ function setLayer(layer) {
 
 function setCfg(key, val) {
   if (key === 'allowedTypes') {
-    S.cfg.allowedTypes = val.split(',').map(s=>s.trim()).filter(Boolean);
+    S.cfg.allowedTypes = Array.isArray(val) ? val : val.split(',').map(s=>s.trim()).filter(Boolean);
   } else if (key === 'padScale') {
     S.padScale = val;
   } else {
@@ -955,14 +1002,50 @@ function setCfg(key, val) {
   updateOut();
 }
 
+function updateAllowedTypes() {
+  const selected = [];
+  document.querySelectorAll('.cfg-allowed-type-checkbox').forEach(cb => {
+    if (cb.checked) selected.push(cb.value);
+  });
+  setCfg('allowedTypes', selected);
+}
+
 function toggleOOB() {
   const en = document.getElementById('oob-enable').checked;
   document.getElementById('oob-fields').style.display = en ? 'flex' : 'none';
+  document.getElementById('oob-preset-row').style.display = en ? 'block' : 'none';
   if (en && !S.oob) {
     S.oob = {};
     LEVEL_SCHEMA.outOfBounds.fields.forEach(f => S.oob[f.key] = f.default);
     S.oobIsBoolean = false;
   } else if (!en) { S.oob = null; S.oobIsBoolean = false; }
+  syncAllSliders();
+  draw(); updateOut();
+}
+
+const OOB_PRESETS = {
+  water: { type: 'water', color: '#1d4ed8', mistColor: '#3b82f6', drag: 0.02, buoyancy: 0.05 },
+  goo: { type: 'goo', color: '#064e3b', mistColor: '#10b981', drag: 0.04, buoyancy: 0.06 },
+  lava: { type: 'acid', color: '#7c2d12', mistColor: '#f97316', drag: 0.05, buoyancy: 0.04 },
+  sand: { type: 'sand', color: '#78350f', mistColor: '#d97706', drag: 0.12, buoyancy: 0.00 },
+  void: { type: 'void', color: '#030712', mistColor: '#1e1b4b', drag: 0.00, buoyancy: 0.00 }
+};
+
+function applyOOBPreset(presetKey) {
+  if (!presetKey || !OOB_PRESETS[presetKey]) return;
+  const p = OOB_PRESETS[presetKey];
+  if (!S.oob) {
+    S.oob = {};
+  }
+  Object.assign(S.oob, p);
+  
+  // Update fields in UI
+  document.getElementById('oob-type').value = S.oob.type;
+  document.getElementById('oob-color').value = S.oob.color;
+  document.getElementById('oob-mistColor').value = S.oob.mistColor;
+  document.getElementById('oob-drag').value = S.oob.drag;
+  document.getElementById('oob-buoyancy').value = S.oob.buoyancy;
+  
   syncAllSliders();
   draw(); updateOut();
 }
@@ -1042,6 +1125,9 @@ function populatePaletteUI() {
   const triggerLabel = matchedPreset ? matchedPreset : '-- Custom / Base Derived --';
   const triggerSwatches = matchedPreset ? renderSwatches(COLOR_PRESETS[matchedPreset]) : renderSwatches(S.palette);
 
+  S.paletteGenMode = S.paletteGenMode || 'dark';
+  const genMode = S.paletteGenMode;
+
   let html = `<div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
     <label title="Select a curated color theory preset or existing level theme.">Preset</label>
     <div class="preset-dropdown" id="preset-dropdown-container">
@@ -1063,10 +1149,15 @@ function populatePaletteUI() {
       </div>
     </div>
   </div>
-  <div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
+  <div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d; gap:6px;">
     <label title="Derives the whole palette below from one accent color — sky/terrain shades plus rockEdge/rockGlow/fog. Fine-tune individual keys after.">Base</label>
     <input type="color" id="palette-base-picker" value="${baseHex}">
-    <button class="btn on" style="margin-left:6px; font-size:11px; padding:4px 9px; white-space:nowrap" onclick="generatePaletteFromBase(document.getElementById('palette-base-picker').value)">Generate Palette</button>
+    <select id="palette-generate-mode" onchange="S.paletteGenMode=this.value" style="width:76px; font-size:11px; padding:3px 6px; background:#161b22; color:#e6edf3; border:1px solid #30363d; border-radius:4px; height:24px;">
+      <option value="dark" ${genMode === 'dark' ? 'selected' : ''}>Dark</option>
+      <option value="medium" ${genMode === 'medium' ? 'selected' : ''}>Medium</option>
+      <option value="light" ${genMode === 'light' ? 'selected' : ''}>Light</option>
+    </select>
+    <button class="btn on" style="font-size:11px; padding:4px 9px; white-space:nowrap" onclick="generatePaletteFromBase(document.getElementById('palette-base-picker').value, S.paletteGenMode)">Generate</button>
   </div>`;
   // All 7 LEVEL_SCHEMA.palette.fields keys are editable here. rockGlow/fog
   // are stored as (partial) rgba() strings rather than plain hex — they get
@@ -1272,6 +1363,8 @@ function applyConfig(cfg) {
   if (S.oob) {
     document.getElementById('oob-enable').checked = true;
     document.getElementById('oob-fields').style.display = 'flex';
+    document.getElementById('oob-preset-row').style.display = 'block';
+    document.getElementById('oob-preset-selector').value = '';
     document.getElementById('oob-type').value = S.oob.type || 'water';
     document.getElementById('oob-color').value = S.oob.color || '#3b82f6';
     document.getElementById('oob-mistColor').value = S.oob.mistColor || '#1e3a8a';
@@ -1282,6 +1375,7 @@ function applyConfig(cfg) {
   } else {
     document.getElementById('oob-enable').checked = false;
     document.getElementById('oob-fields').style.display = 'none';
+    document.getElementById('oob-preset-row').style.display = 'none';
   }
 
   if (S.radarZone) {
