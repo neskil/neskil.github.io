@@ -129,6 +129,30 @@ drawNightOverlay() {
         ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(this._nightCanvas, 0, 0);
         ctx.restore();
+
+        // ── Visible sonar wave — expanding stroked rings on top of the punched
+        // darkness, same "multiple fading rings" language as the radar ping
+        // zone effect (drawRadarPingZone() in render/ui.js) so the reveal
+        // reads as a deliberate sonar sweep, not just terrain fading in.
+        if (ringR > 0) {
+            const PING_COLOR = '56, 189, 248'; // matches rockGlow/accent blue used elsewhere
+            const NUM_WAVE_RINGS = 3;
+            const RING_SPACING = 34; // world px between the trailing rings
+            ctx.save();
+            for (let i = 0; i < NUM_WAVE_RINGS; i++) {
+                const rWorld = ringR - i * RING_SPACING;
+                if (rWorld <= 0) continue;
+                const rPx = rWorld * zoom;
+                const ringAlpha = Math.pow(1 - pingT, 1.3) * (0.5 - i * 0.14);
+                if (ringAlpha <= 0.02) continue;
+                ctx.strokeStyle = `rgba(${PING_COLOR}, ${ringAlpha})`;
+                ctx.lineWidth = Math.max(0.6, (2.2 - i * 0.6) * zoom);
+                ctx.beginPath();
+                ctx.arc(lp.x, lp.y, rPx, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
     },
 
 // Mirrors the target-selection logic of drawNextObjectiveArrow (render/ui.js):
