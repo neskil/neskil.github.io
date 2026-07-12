@@ -16,6 +16,14 @@ select,textarea,input[type=number],input[type=text]{
   background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;
   font-family:monospace;font-size:11px;padding:3px 6px
 }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
 select:focus,textarea:focus,input:focus{outline:none;border-color:#58a6ff}
 select{width:100%;padding:4px 6px;margin-bottom:5px}
 
@@ -133,6 +141,26 @@ canvas{display:block}
 }
 .tooltip-icon:hover { background: #58a6ff; color: #fff; }
 
+/* Style scrollbars to match dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #161b22;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #58a6ff;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d #161b22;
+}
+
 </style>
 </head>
 <body>
@@ -173,7 +201,7 @@ canvas{display:block}
   
   <div class="sec">
     <div class="sec-title">Level Config</div>
-    <button class="btn" style="width:100%; padding:8px; font-weight:bold; background:#1c2d3f; border-color:#388bfd" onclick="document.getElementById('map-settings-modal').style.display='flex'">⚙️ Map Settings</button>
+    <button class="btn" style="width:100%; padding:8px; font-weight:bold; background:#1c2d3f; border-color:#388bfd" onclick="toggleMapSettings()">⚙️ Map Settings</button>
   </div>
 
   <div class="sec" style="padding-bottom:4px">
@@ -311,6 +339,8 @@ canvas{display:block}
     <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
     <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
     <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
+    <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
+    <button class="btn" id="t-preview" onclick="togglePreview()">Preview</button>
   </div>
   <div id="snap-bar">
     <label>Snap:</label>
@@ -364,27 +394,33 @@ canvas{display:block}
   <div id="map-settings-body">
     <div class="sec-title" style="margin-bottom:12px;">Map Data</div>
     <details open>
-      <summary>Metadata</summary>
-      <div class="props-panel" id="meta-panel"></div>
+      <summary>Mission Info</summary>
+      <div class="props-panel" id="info-panel"></div>
     </details>
     <details>
-      <summary>Palette</summary>
-      <div class="props-panel" id="palette-panel">
+      <summary>Objectives</summary>
+      <div class="props-panel" id="objectives-panel"></div>
+    </details>
+    <details>
+      <summary>Weather &amp; Environment</summary>
+      <div class="props-panel" id="weather-panel"></div>
+    </details>
+    <details>
+      <summary>Level Looks &amp; Palette</summary>
+      <div class="props-panel" id="looks-panel"></div>
+      <div class="props-panel" id="palette-panel" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #30363d;">
         <!-- populated via js -->
       </div>
+    </details>
+    <details>
+      <summary>Rules &amp; Campaign</summary>
+      <div class="props-panel" id="rules-panel"></div>
     </details>
     <details>
       <summary>Out of Bounds</summary>
       <div class="props-panel">
         <div class="row"><label>Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
         <div id="oob-fields" style="display:none; flex-direction:column; gap:4px"></div>
-      </div>
-    </details>
-    <details>
-      <summary>Gravity Well</summary>
-      <div class="props-panel">
-        <div class="row"><label>Enabled</label><input type="checkbox" id="gw-enable" onchange="toggleGW()"></div>
-        <div id="gw-fields" style="display:none; flex-direction:column; gap:4px"></div>
       </div>
     </details>
     <details>
@@ -420,6 +456,114 @@ const DEFAULT_PAL = {
   skyTop:'#020617', skyMid:'#040b16', skyBot:'#051114',
   terrainFill:'#06101c', rockEdge:'#38bdf8',
   rockGlow:'rgba(56,189,248,', fog:'rgba(56,189,248,0.1)'
+};
+
+const COLOR_PRESETS = {
+  'Grasslands (Level 1)': {
+    skyTop: '#25338fff', skyMid: '#163158', skyBot: '#1f4e25',
+    terrainFill: '#020802', rockEdge: '#4ade80',
+    rockGlow: 'rgba(74,222,128,', fog: 'rgba(74,222,128,0.04)'
+  },
+  'Amber Dunes (Level 2)': {
+    skyTop: '#1c0f03', skyMid: '#3a1f08', skyBot: '#5a2f0c',
+    terrainFill: '#784620', rockEdge: '#fbbf24',
+    rockGlow: 'rgba(251,191,36,', fog: 'rgba(217,119,6,0.08)'
+  },
+  'Deep Space (Level 3)': {
+    skyTop: '#030712', skyMid: '#0b1b36', skyBot: '#132b4b',
+    terrainFill: '#02050a', rockEdge: '#7dd3fc',
+    rockGlow: 'rgba(125,211,252,', fog: 'rgba(125,211,252,0.06)'
+  },
+  'Magma Core (Level 4)': {
+    skyTop: '#0e0403', skyMid: '#1a0602', skyBot: '#2a0a04',
+    terrainFill: '#050100', rockEdge: '#f97316',
+    rockGlow: 'rgba(249,115,22,', fog: 'rgba(249,115,22,0.08)'
+  },
+  'Nebulous Purple (Level 5)': {
+    skyTop: '#040210', skyMid: '#080420', skyBot: '#0c0630',
+    terrainFill: '#020108', rockEdge: '#a855f7',
+    rockGlow: 'rgba(168,85,247,', fog: 'rgba(168,85,247,0.08)'
+  },
+  'Rust Wasteland (Level 6)': {
+    skyTop: '#1a0e03', skyMid: '#3b1e08', skyBot: '#5c3012',
+    terrainFill: '#0a0401', rockEdge: '#d97706',
+    rockGlow: 'rgba(217,119,6,', fog: 'rgba(180,90,6,0.12)'
+  },
+  'Frozen Planet (Level 7)': {
+    skyTop: '#020617', skyMid: '#040b16', skyBot: '#051114',
+    terrainFill: '#010204', rockEdge: '#38bdf8',
+    rockGlow: 'rgba(56,189,248,', fog: 'rgba(56,189,248,0.1)'
+  },
+  'Synthwave (Level 8)': {
+    skyTop: '#050110', skyMid: '#0c0420', skyBot: '#140430',
+    terrainFill: '#03010a', rockEdge: '#a855f7',
+    rockGlow: 'rgba(168,85,247,', fog: 'rgba(244,114,182,0.08)'
+  },
+  'Acid Swamp (Level 9)': {
+    skyTop: '#050107', skyMid: '#0c0410', skyBot: '#14040a',
+    terrainFill: '#020102', rockEdge: '#34d399',
+    rockGlow: 'rgba(52,211,153,', fog: 'rgba(239,68,68,0.06)'
+  },
+  'Glacial Chasm (Level 10)': {
+    skyTop: '#020617', skyMid: '#040b16', skyBot: '#051114',
+    terrainFill: '#010204', rockEdge: '#06b6d4',
+    rockGlow: 'rgba(6,182,212,', fog: 'rgba(6,182,212,0.1)'
+  },
+  'Default Sandbox': {
+    skyTop: '#04071a', skyMid: '#060d1f', skyBot: '#0a1628',
+    terrainFill: '#020408', rockEdge: '#38bdf8',
+    rockGlow: 'rgba(56,189,248,', fog: 'rgba(56,189,248,0.04)'
+  },
+  'Slate Monochromatic': {
+    skyTop: '#0f172a', skyMid: '#1e293b', skyBot: '#334155',
+    terrainFill: '#020617', rockEdge: '#f1f5f9',
+    rockGlow: 'rgba(241,245,249,', fog: 'rgba(241,245,249,0.05)'
+  },
+  'Solar Eclipse': {
+    skyTop: '#0b0805', skyMid: '#1c120a', skyBot: '#2d1c0f',
+    terrainFill: '#040201', rockEdge: '#f59e0b',
+    rockGlow: 'rgba(245,158,11,', fog: 'rgba(245,158,11,0.08)'
+  },
+  'Bioluminescent Abyssal': {
+    skyTop: '#021013', skyMid: '#041d24', skyBot: '#062d35',
+    terrainFill: '#010709', rockEdge: '#06b6d4',
+    rockGlow: 'rgba(6,182,212,', fog: 'rgba(6,182,212,0.06)'
+  },
+  'Cyberpunk Grid': {
+    skyTop: '#050005', skyMid: '#0c000c', skyBot: '#150015',
+    terrainFill: '#000000', rockEdge: '#ff007f',
+    rockGlow: 'rgba(255,0,127,', fog: 'rgba(0,240,255,0.08)'
+  },
+  'Forest Canopy': {
+    skyTop: '#081408', skyMid: '#0f240f', skyBot: '#183818',
+    terrainFill: '#040a04', rockEdge: '#84cc16',
+    rockGlow: 'rgba(132,204,22,', fog: 'rgba(132,204,22,0.06)'
+  },
+  'Crimson Horizon': {
+    skyTop: '#2d0606', skyMid: '#4c0b0b', skyBot: '#6d1010',
+    terrainFill: '#0a0101', rockEdge: '#ef4444',
+    rockGlow: 'rgba(239,68,68,', fog: 'rgba(239,68,68,0.07)'
+  },
+  'Ice & Fire': {
+    skyTop: '#040d1a', skyMid: '#08172e', skyBot: '#0d2547',
+    terrainFill: '#02060e', rockEdge: '#f97316',
+    rockGlow: 'rgba(249,115,22,', fog: 'rgba(249,115,22,0.08)'
+  },
+  'Royal Violet': {
+    skyTop: '#080518', skyMid: '#120b33', skyBot: '#1d1252',
+    terrainFill: '#04020a', rockEdge: '#eab308',
+    rockGlow: 'rgba(234,179,8,', fog: 'rgba(234,179,8,0.05)'
+  },
+  'Toxic Spill': {
+    skyTop: '#10021a', skyMid: '#1d0430', skyBot: '#290642',
+    terrainFill: '#05000a', rockEdge: '#22c55e',
+    rockGlow: 'rgba(34,197,94,', fog: 'rgba(234,179,8,0.1)'
+  },
+  'Muted Vintage': {
+    skyTop: '#1e1c1e', skyMid: '#2d282d', skyBot: '#3d343d',
+    terrainFill: '#151315', rockEdge: '#fda4af',
+    rockGlow: 'rgba(253,164,175,', fog: 'rgba(254,240,138,0.06)'
+  }
 };
 
 // ── Color helpers for the Palette panel ─────────────────────────────────────
@@ -467,6 +611,13 @@ function parseRgbaPrefix(str) {
 function parseRgba(str) {
   const m = /rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\s*\)/.exec(str || '');
   return m ? { r:+m[1], g:+m[2], b:+m[3], a:+m[4] } : { ...hexToRgb('#38bdf8'), a:0.1 };
+}
+
+function applyPalettePreset(name) {
+  if (!name || !COLOR_PRESETS[name]) return;
+  S.palette = Object.assign({}, COLOR_PRESETS[name]);
+  populatePaletteUI();
+  draw(); updateOut();
 }
 
 // Derives a full 7-key palette from a single accent color: dark, low-
@@ -518,7 +669,7 @@ function defaultCfgFromSchema() {
 }
 
 // Builds the onchange handler expression for a schema field's generated
-// <input>/<select>, matching how setCfg()/setOOB()/setGW() already expect to
+// <input>/<select>, matching how setCfg()/setOOB() already expect to
 // be called (raw string for text/select, coerced number, or .checked).
 function schemaOnchangeExpr(setterName, field) {
   if (field.widget === 'checkbox') return `${setterName}('${field.key}', this.checked)`;
@@ -579,8 +730,34 @@ function formatFieldDefault(field) {
 }
 
 function buildMetaPanel() {
-  document.getElementById('meta-panel').innerHTML = LEVEL_SCHEMA.fields
-    .filter(f => !META_EXCLUDE_KEYS.includes(f.key))
+  const fields = LEVEL_SCHEMA.fields.filter(f => !META_EXCLUDE_KEYS.includes(f.key));
+  
+  const sections = {
+    info: ['name', 'missionTitle', 'description', 'hint'],
+    objectives: ['targetCargo', 'allowedTypes', 'heavyCargo', 'padScale'],
+    weather: ['weather', 'heatHaze', 'gravity', 'wind'],
+    looks: ['backgroundType', 'night', 'shadowAngle', 'shadowLength'],
+    rules: ['budget', 'timeLimit', 'ambientTrafficRate', 'terrainType']
+  };
+
+  document.getElementById('info-panel').innerHTML = fields
+    .filter(f => sections.info.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('objectives-panel').innerHTML = fields
+    .filter(f => sections.objectives.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('weather-panel').innerHTML = fields
+    .filter(f => sections.weather.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('looks-panel').innerHTML = fields
+    .filter(f => sections.looks.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('rules-panel').innerHTML = fields
+    .filter(f => sections.rules.includes(f.key))
     .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
 }
 
@@ -590,12 +767,6 @@ function buildOOBPanel() {
 }
 
 function buildGWPanel() {
-  // idPrefix 'mgw-' (not 'gw-') — the Points panel's gravwell hazard sub-type
-  // row already uses id="gw-radius" etc. for an unrelated field; colliding
-  // prefixes meant getElementById('gw-radius') silently grabbed the wrong
-  // (first-in-DOM) element and this panel's slider never synced.
-  document.getElementById('gw-fields').innerHTML = LEVEL_SCHEMA.gravityWell.fields
-    .map(f => schemaFieldRowHTML('setGW', 'mgw-', f)).join('');
 }
 function buildRadarPanel() {
   document.getElementById('rpz-fields').innerHTML = LEVEL_SCHEMA.radarPingZone.fields
@@ -635,6 +806,7 @@ const S = {
   edgePreview: null, // {layer, pi, edgeIdx, pt} — shown in Add pts mode on hover
   hoverMarker: null, // 'hq' | 'depot' | {hub:i} — for cursor feedback
   mode: 'select',
+  previewMode: false,
   snap: 10,
   view: { x:200, y:150, scale:0.35 },
   mouse: { wx:0, wy:0 },
@@ -691,17 +863,6 @@ function toggleOOB() {
 // exists (preserving the `outOfBounds: true` shorthand some levels use).
 function setOOB(k, v) { if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
 
-function toggleGW() {
-  const en = document.getElementById('gw-enable').checked;
-  document.getElementById('gw-fields').style.display = en ? 'flex' : 'none';
-  if (en && !S.gravWell) {
-    S.gravWell = {};
-    LEVEL_SCHEMA.gravityWell.fields.forEach(f => S.gravWell[f.key] = f.default);
-  } else if (!en) S.gravWell = null;
-  syncAllSliders();
-  draw(); updateOut();
-}
-
 function updateHubCoords() {
   S.hubs.forEach((h, i) => {
     const elX = document.getElementById(`hub-${i}-x`);
@@ -711,7 +872,6 @@ function updateHubCoords() {
   });
 }
 
-function setGW(k, v) { if (S.gravWell) S.gravWell[k] = v; draw(); updateOut(); }
 
 function toggleRadarZone() {
   const en = document.getElementById('rpz-enable').checked;
@@ -754,7 +914,30 @@ function updateHubUI() {
 function populatePaletteUI() {
   const p = document.getElementById('palette-panel');
   const baseHex = S.palette.rockEdge || '#38bdf8';
+
+  let matchedPreset = '';
+  for (const [name, pal] of Object.entries(COLOR_PRESETS)) {
+    let match = true;
+    for (const key of Object.keys(pal)) {
+      if (S.palette[key] !== pal[key]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      matchedPreset = name;
+      break;
+    }
+  }
+
   let html = `<div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
+    <label title="Select a curated color theory preset or existing level theme.">Preset</label>
+    <select id="palette-preset-selector" onchange="applyPalettePreset(this.value)" style="flex:1">
+      <option value="" ${matchedPreset === '' ? 'selected' : ''}>-- Custom / Base Derived --</option>
+      ${Object.keys(COLOR_PRESETS).map(name => `<option value="${name}" ${name === matchedPreset ? 'selected' : ''}>${name}</option>`).join('')}
+    </select>
+  </div>
+  <div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
     <label title="Derives the whole palette below from one accent color — sky/terrain shades plus rockEdge/rockGlow/fog. Fine-tune individual keys after.">Base</label>
     <input type="color" id="palette-base-picker" value="${baseHex}">
     <button class="btn on" style="margin-left:6px; font-size:11px; padding:4px 9px; white-space:nowrap" onclick="generatePaletteFromBase(document.getElementById('palette-base-picker').value)">Generate Palette</button>
@@ -894,7 +1077,6 @@ function applyConfig(cfg) {
     hidden: false
   }));
   S.hubs      = cfg.deliveryHubs || [];
-  S.gravWell  = cfg.gravityWell  || null;
   S.radarZone = cfg.radarPingZone || null;
   // L9-style shorthand: `outOfBounds: true` instead of a full config object.
   // Treated as an empty-but-enabled object internally (so the panel/rendering
@@ -974,19 +1156,6 @@ function applyConfig(cfg) {
   } else {
     document.getElementById('oob-enable').checked = false;
     document.getElementById('oob-fields').style.display = 'none';
-  }
-
-  if (S.gravWell) {
-    document.getElementById('gw-enable').checked = true;
-    document.getElementById('gw-fields').style.display = 'flex';
-    document.getElementById('mgw-x').value = S.gravWell.x ?? '';
-    document.getElementById('mgw-y').value = S.gravWell.y ?? '';
-    document.getElementById('mgw-radius').value = S.gravWell.radius ?? '';
-    document.getElementById('mgw-strength').value = S.gravWell.strength ?? '';
-    document.getElementById('mgw-orbitRadius').value = S.gravWell.orbitRadius ?? '';
-  } else {
-    document.getElementById('gw-enable').checked = false;
-    document.getElementById('gw-fields').style.display = 'none';
   }
 
   if (S.radarZone) {
@@ -1145,24 +1314,29 @@ function renderLevelCard(cfg) {
     (oob.type ? `<span class="badge" style="background:${oc}22;color:${oc}">${oob.type}</span>` : '') +
     `grav=${cfg.gravity??'—'} wind=${cfg.wind??0} budget=$${cfg.budget??'—'}<br>` +
     `OOB surface y=${oob.surfaceY??'—'} · monster y=${oob.monsterDepth??'—'}` +
-    (cfg.gravityWell ? `<br>well @ (${cfg.gravityWell.x},${cfg.gravityWell.y}) r=${cfg.gravityWell.radius}` : '') +
     `</div>`;
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
+function togglePreview() {
+  S.previewMode = !S.previewMode;
+  document.getElementById('t-preview').className = 'btn' + (S.previewMode ? ' on' : '');
+  draw();
+}
+
 function draw() {
   const W=canvas.width, H=canvas.height;
   drawSky(W,H);
-  drawOOB(W,H);
+  if (!S.previewMode) drawOOB(W,H);
   drawWaterBodies();
-  drawGrid(W,H);
-  drawSpawnMarkers();
+  if (!S.previewMode) drawGrid(W,H);
+  if (!S.previewMode) drawSpawnMarkers();
   drawHubs();
-  drawGravWell();
-  drawSegments();
+  if (!S.previewMode) drawGravWell();
+  if (!S.previewMode) drawSegments();
   drawPolygons();
-  drawHazards();
-  drawEdgePreview();
+  if (!S.previewMode) drawHazards();
+  if (!S.previewMode) drawEdgePreview();
 }
 
 function drawSky(W,H) {
@@ -1242,7 +1416,7 @@ function drawOOB(W,H) {
 function drawShapeList(list, opts) {
   list.forEach((poly, pi) => {
     if (poly.hidden) return;
-    const isActive = S.selLayer === opts.layer && pi === S.selPoly;
+    const isActive = !S.previewMode && S.selLayer === opts.layer && pi === S.selPoly;
     const ac = POLY_COLORS[pi % POLY_COLORS.length];
     if (poly.pts.length < 2) return;
 
@@ -1271,44 +1445,46 @@ function drawShapeList(list, opts) {
     ctx.lineWidth = isActive ? 2 : 1.5;
     ctx.stroke();
 
-    // Vertex handles
-    poly.pts.forEach((pt, pti) => {
-      const {sx,sy} = w2s(pt.x, pt.y);
-      const isSel = isActive && pti===S.selPt;
+    if (!S.previewMode) {
+      // Vertex handles
+      poly.pts.forEach((pt, pti) => {
+        const {sx,sy} = w2s(pt.x, pt.y);
+        const isSel = isActive && pti===S.selPt;
 
-      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 8 : 5, 0, Math.PI*2);
-      ctx.fillStyle = ac;
-      ctx.globalAlpha = isActive ? (isSel ? 0.30 : 0.14) : 0.06;
-      ctx.fill(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(sx, sy, isSel ? 8 : 5, 0, Math.PI*2);
+        ctx.fillStyle = ac;
+        ctx.globalAlpha = isActive ? (isSel ? 0.30 : 0.14) : 0.06;
+        ctx.fill(); ctx.globalAlpha = 1;
 
-      ctx.beginPath(); ctx.arc(sx, sy, isSel ? 3.5 : 2.5, 0, Math.PI*2);
-      ctx.fillStyle = isSel ? '#fff' : (isActive ? ac : opts.edgeColor);
-      ctx.fill();
-      if (isSel) { ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke(); }
+        ctx.beginPath(); ctx.arc(sx, sy, isSel ? 3.5 : 2.5, 0, Math.PI*2);
+        ctx.fillStyle = isSel ? '#fff' : (isActive ? ac : opts.edgeColor);
+        ctx.fill();
+        if (isSel) { ctx.strokeStyle = ac; ctx.lineWidth = 2; ctx.stroke(); }
 
-      if (isActive) {
-        ctx.fillStyle = '#e6edf3'; ctx.font = '9px monospace';
-        ctx.fillText(pti, sx+7, sy-3);
+        if (isActive) {
+          ctx.fillStyle = '#e6edf3'; ctx.font = '9px monospace';
+          ctx.fillText(pti, sx+7, sy-3);
+        }
+      });
+
+      // Centroid label
+      const fallback = opts.layer==='water' ? 'Water' : opts.layer==='hazard' ? (poly.type||'Hazard') : '';
+      let extraLabel = '';
+      if (opts.layer === 'water') {
+          if (poly.hasBoat) extraLabel += ' ⛵';
+          if (poly.hasFish) extraLabel += ' 🐟';
       }
-    });
-
-    // Centroid label
-    const fallback = opts.layer==='water' ? 'Water' : opts.layer==='hazard' ? (poly.type||'Hazard') : '';
-    let extraLabel = '';
-    if (opts.layer === 'water') {
-        if (poly.hasBoat) extraLabel += ' ⛵';
-        if (poly.hasFish) extraLabel += ' 🐟';
-    }
-    const label = (poly.comment || fallback) + extraLabel;
-    if (label) {
-      const cx = poly.pts.reduce((s,p)=>s+p.x,0)/poly.pts.length;
-      const cy = poly.pts.reduce((s,p)=>s+p.y,0)/poly.pts.length;
-      const {sx,sy} = w2s(cx,cy);
-      ctx.fillStyle = isActive ? ac : ac+'88';
-      ctx.font = (isActive?'bold ':'') + '11px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, sx, sy);
-      ctx.textAlign = 'left';
+      const label = (poly.comment || fallback) + extraLabel;
+      if (label) {
+        const cx = poly.pts.reduce((s,p)=>s+p.x,0)/poly.pts.length;
+        const cy = poly.pts.reduce((s,p)=>s+p.y,0)/poly.pts.length;
+        const {sx,sy} = w2s(cx,cy);
+        ctx.fillStyle = isActive ? ac : ac+'88';
+        ctx.font = (isActive?'bold ':'') + '11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, sx, sy);
+        ctx.textAlign = 'left';
+      }
     }
 
     ctx.restore();
@@ -2089,6 +2265,11 @@ function closeConfirmModal() {
   document.getElementById('confirm-modal').style.display = 'none';
 }
 
+function toggleMapSettings() {
+  const modal = document.getElementById('map-settings-modal');
+  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+}
+
 function insertAtCursor() {
   const arr = activeList();
   if (S.selPoly<0) return;
@@ -2192,15 +2373,6 @@ function buildOut() {
       });
       lines.push(`  },`);
     }
-  }
-
-  // GW
-  if (S.gravWell) {
-    lines.push(`  gravityWell: {`);
-    Object.entries(S.gravWell).forEach(([k,v]) => {
-      if (v != null && v !== '') lines.push(`    ${k}: ${v},`);
-    });
-    lines.push(`  },`);
   }
 
   // Radar Ping Zone
