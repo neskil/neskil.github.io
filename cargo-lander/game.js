@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.12.1';
+    static VERSION = '0.13.0';
 
     constructor() {
         this.canvas = null;
@@ -1297,24 +1297,40 @@ class CargoGame {
         this.floatingTexts.push({ text: "-$100", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
-    // Repair cost scales with how damaged the lander is — a scratch is cheap,
-    // a near-wreck costs close to the full base price. Charged against the
-    // in-level Mission Deposit, same as refueling.
+    // Field Repair Kit upgrade caps how much hull an HQ repair can restore —
+    // L1 tops out at 50% integrity, L2 at 70%, L3 at 90% (never a full fix).
+    static REPAIR_CAP_BY_LEVEL = [0.5, 0.7, 0.9];
+
+    getRepairCap(lander) {
+        const level = this.upgrades?.repairKit || 0;
+        if (level <= 0 || !lander) return 0;
+        const capPct = CargoGame.REPAIR_CAP_BY_LEVEL[Math.min(level, CargoGame.REPAIR_CAP_BY_LEVEL.length) - 1];
+        return lander.maxIntegrity * capPct;
+    }
+
+    // Repair cost scales with how much hull damage is being repaired — a
+    // scratch is cheap, repairing up to the upgrade's cap from a near-wreck
+    // costs close to the full base price. Charged against the in-level
+    // Mission Deposit, same as refueling. Both the damage % and the final
+    // cost are rounded to the nearest 10 for clean numbers.
     getRepairCost(lander) {
-        if (!lander) return 0;
-        const damagePct = 1 - (lander.integrity / lander.maxIntegrity);
+        const cap = this.getRepairCap(lander);
+        if (!lander || cap <= 0 || lander.integrity >= cap) return 0;
         const REPAIR_BASE_COST = 600;
-        return Math.max(1, Math.ceil(REPAIR_BASE_COST * damagePct));
+        const damagePct = Math.round(((cap - lander.integrity) / lander.maxIntegrity) * 100 / 10) * 10;
+        const cost = Math.round((REPAIR_BASE_COST * damagePct / 100) / 10) * 10;
+        return Math.max(10, cost);
     }
 
     repairLander() {
         const lander = this.physics.lander;
-        if (!lander || lander.integrity >= lander.maxIntegrity) return;
+        const cap = this.getRepairCap(lander);
+        if (!lander || cap <= 0 || lander.integrity >= cap) return;
         const cost = this.getRepairCost(lander);
         if (this.missionBudget < cost) return;
         this.missionBudget -= cost;
         this.missionRepairSpend = (this.missionRepairSpend || 0) + cost;
-        lander.integrity = lander.maxIntegrity;
+        lander.integrity = cap;
         if (window.CargoAudio) window.CargoAudio.playClick();
         this.addMessage(`Integrity restored. -$${cost} Deposit`, "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];
@@ -1334,6 +1350,7 @@ class CargoGame {
         
         let questBonus = 0;
         let timeBonus = 0;
+        let timePctRemaining = 0;
         let questLines = '';
         
         if (!allDelivered) {
@@ -1384,9 +1401,10 @@ class CargoGame {
             // unused, not raw seconds — so it rewards efficiency the same way
             // on a 60s sprint as it does on a 300s marathon.
             const timeLimit = this.missionTimeLimit || level.timeLimit || 180;
-            const timePctRemaining = Math.max(0, Math.min(1, this.missionTimer / timeLimit));
+            const timePctRaw = Math.max(0, Math.min(100, (this.missionTimer / timeLimit) * 100));
+            timePctRemaining = Math.round(timePctRaw / 10) * 10;
             const TIME_BONUS_BASE = 1800;
-            timeBonus = Math.floor(timePctRemaining * TIME_BONUS_BASE);
+            timeBonus = Math.round((timePctRemaining / 100) * TIME_BONUS_BASE / 10) * 10;
         } else {
             questLines = `<p style="color:#ef4444; font-style:italic;">Mission aborted. Bonuses forfeited.</p>`;
         }
@@ -1434,7 +1452,7 @@ class CargoGame {
         document.getElementById('lvl-complete-details').innerHTML = `
             ${this.missionRepairSpend > 0 ? `<p>Repairs Paid: <span style="color: #ef4444; font-weight:600;">-$${this.missionRepairSpend}</span></p>` : ''}
             <p>Retained Deposit: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
-            ${allDelivered ? `<p>Time Bonus (${Math.round(timeBonus / 1800 * 100)}% time left): <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
+            ${allDelivered ? `<p>Time Bonus (${timePctRemaining}% time left): <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
             ${questLines}
             <hr style="border:1px solid rgba(255,255,255,0.1);">
             <p>New Bank Balance: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
