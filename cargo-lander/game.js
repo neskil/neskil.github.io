@@ -37,13 +37,16 @@ class CargoGame {
         this.missionBudget = 0;
         this.missionTimer = 0;
 
-        // Persistent career stats (pilot license card + highscores)
         this.career = JSON.parse(localStorage.getItem('cargoLanderCareer')) || {
             pilotName: '',
             totalDeliveries: 0,
             missionsComplete: 0,
-            crashes: 0
+            crashes: 0,
+            hasUsedDrone: false
         };
+        if (this.career.hasUsedDrone === undefined) {
+            this.career.hasUsedDrone = false;
+        }
         this.highscores = JSON.parse(localStorage.getItem('cargoLanderHighscores')) || {};
 
         // Vehicle license — picked once on the main menu instead of per-mission,
@@ -381,6 +384,10 @@ class CargoGame {
         
         this.currentLevelIndex = idx;
         this.currentVehicle = vehicleType;
+        if (vehicleType === 'drone') {
+            this.career.hasUsedDrone = true;
+            this.saveCareer();
+        }
         this.crashHandled = false;
         this._fireworksTriggered = false;
         // Mission panel starts expanded each mission; clearing the event
@@ -1375,6 +1382,15 @@ class CargoGame {
         }
 
         document.getElementById('complete-screen').style.display = 'flex';
+        
+        // Nag about R&D store if player hasn't bought upgrades after playing 2 missions
+        const rdBtnComplete = document.getElementById('rd-shop-btn-complete');
+        if (rdBtnComplete) {
+            const ownedLevels = Object.values(this.upgrades || {}).reduce((s, val) => s + (val || 0), 0);
+            const nagRD = (ownedLevels === 0) && (this.career.missionsComplete >= 2);
+            rdBtnComplete.classList.toggle('nudge', nagRD);
+        }
+        
         const nextBtn = document.querySelector('#complete-screen .btn-primary');
         if (nextBtn) {
             nextBtn.textContent = this.isPlaytest ? "Back to Editor ➔" : (allDelivered ? "Next Mission ➔" : "Retry Mission ➔");
