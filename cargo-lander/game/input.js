@@ -23,8 +23,8 @@ Object.assign(CargoGame.prototype, {
 
         this.canvas.addEventListener('mousedown', (e) => {
             if (e.button === 0) {
-                // Left click - Shoot firework
-                if (this.gameState === 'playing' && this.physics && this.physics.lander && !this.physics.lander.crashed) {
+                // Left click - Shoot firework (requires Firework Launcher upgrade)
+                if (this.gameState === 'playing' && this.physics && this.physics.lander && !this.physics.lander.crashed && (this.upgrades.fireworkLauncher || 0) > 0) {
                     this.shootPlayerFirework(this.physics.lander.x, this.physics.lander.y, this.mouseX, this.mouseY);
                 }
             } else if (e.button === 2) {
