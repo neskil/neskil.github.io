@@ -71,7 +71,7 @@
         // rope — showing both means the diagram never lies about either one.
         const cycle = Math.floor(now / 7000);
         const isDrone = cycle % 2 === 1;
-        const droneYOffset = isDrone ? 42 : 0; // Shift flight path up so drone's winch package lands on pads
+        const droneYOffset = isDrone ? 54 : 0; // Shift flight path up so drone's winch package lands on pads
 
         // Flight arc parameters (quadratic bezier over the pads)
         const startY = padTop - 17 - droneYOffset;
@@ -128,21 +128,49 @@
 
         drawTutLander(ctx, pos.x, pos.y, angle, thrust, isDrone ? 'drone' : 'basic', carryingCargo, now);
 
-        // Draw the delivered cargo sitting on the hub pad for the drone
+        // Draw the delivered cargo falling down onto the hub pad, resting, and then being collected (fading out)
         if (isDrone && t >= 0.85) {
-            ctx.save();
-            ctx.translate(hubX, padTop - 5.6);
-            ctx.scale(0.8, 0.8);
-            const g = window.game;
-            if (g && g.drawSingleBox) {
-                const oldCtx = g.ctx;
-                g.ctx = ctx;
-                g.drawSingleBox(0, 0, 'normal', null, {});
-                g.ctx = oldCtx;
-            } else {
-                drawFallbackCrate(ctx, 0, 0, 0);
+            const dropDuration = 0.04; // from t = 0.85 to 0.89
+            const collectStart = 0.92;
+            const collectDuration = 0.04; // from t = 0.92 to 0.96
+
+            if (t < collectStart + collectDuration) {
+                let boxY;
+                let opacity = 1;
+
+                if (t < 0.85 + dropDuration) {
+                    // Falling down to the pad
+                    const fallFract = (t - 0.85) / dropDuration; // 0 to 1
+                    const easeFall = fallFract * fallFract; // quadratic acceleration
+                    const startFallY = (padTop - 17 - droneYOffset) + 46 * 0.8;
+                    const targetLandY = padTop - 5.6;
+                    boxY = startFallY + (targetLandY - startFallY) * easeFall;
+                } else {
+                    // Resting on the pad
+                    boxY = padTop - 5.6;
+
+                    if (t >= collectStart) {
+                        // Fading out (being collected)
+                        const fadeFract = (t - collectStart) / collectDuration;
+                        opacity = Math.max(0, 1 - fadeFract);
+                    }
+                }
+
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.translate(hubX, boxY);
+                ctx.scale(0.8, 0.8);
+                const g = window.game;
+                if (g && g.drawSingleBox) {
+                    const oldCtx = g.ctx;
+                    g.ctx = ctx;
+                    g.drawSingleBox(0, 0, 'normal', null, {});
+                    g.ctx = oldCtx;
+                } else {
+                    drawFallbackCrate(ctx, 0, 0, 0);
+                }
+                ctx.restore();
             }
-            ctx.restore();
         }
 
         // Vehicle label, top-left — makes the alternation read as intentional
