@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.10.3';
+    static VERSION = '0.10.5';
 
     constructor() {
         this.canvas = null;
@@ -1075,10 +1075,39 @@ class CargoGame {
     updateAutoLoad(dt) {
         // Auto-load sequence at collection point
         const _col = this.physics.collectionPoint;
+        if (!_col) return;
         const _lndr = this.physics.lander;
+        if (!_lndr) return;
+
+        const isDrone = _lndr.vehicleType === 'drone';
+        let active = false;
+        if (isDrone) {
+            const dx = _lndr.x - (_col.x + _col.width / 2);
+            const dy = _lndr.y - (_col.y - 30);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= 90) {
+                active = true;
+            }
+        } else {
+            active = _lndr.landed && _lndr.currentPad === 'collection';
+        }
+
         // First arrival: start countdown, decide target type
-        if (_lndr && _lndr.landed && _lndr.currentPad === 'collection' && !_col.loadSeq) {
-            if (this.physics.boxes.length < 3) {
+        if (active && !_col.loadSeq) {
+            let canSpawn = false;
+            if (isDrone) {
+                // Drone: only 1 cargo spawn at a time, check if there's no box at depot and drone isn't holding one
+                const boxesAtDepot = this.physics.boxes.filter(box => {
+                    return Math.abs(box.x - (_col.x + _col.width / 2)) < 80 && Math.abs(box.y - _col.y) < 60;
+                });
+                if (boxesAtDepot.length === 0 && _lndr.grabbedBoxId === null) {
+                    canSpawn = true;
+                }
+            } else {
+                canSpawn = this.physics.boxes.length < 3;
+            }
+
+            if (canSpawn) {
                 const _lc = levels[this.currentLevelIndex];
                 const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                 const _t = _types[Math.floor(Math.random() * _types.length)];
@@ -1088,7 +1117,7 @@ class CargoGame {
                     countdownMax: 80, 
                     spawned: 0, 
                     roofOpen: 1, 
-                    lx: _lndr.vehicleType === 'drone' ? _lndr.x + 35 : _lndr.x, 
+                    lx: isDrone ? (_col.x + _col.width / 2) : _lndr.x, 
                     targetType: _t, 
                     targetEmoji: this.physics.getRandomCargoEmoji(_t),
                     boxDropped: false 
@@ -1097,7 +1126,7 @@ class CargoGame {
         }
         if (_col.loadSeq) {
             const _seq = _col.loadSeq;
-            const _stillHere = _lndr && _lndr.landed && _lndr.currentPad === 'collection';
+            const _stillHere = active;
             if (!_stillHere && _seq.phase === 'countdown') _seq.phase = 'closing';
 
             if (_seq.phase === 'countdown') {
@@ -1112,7 +1141,14 @@ class CargoGame {
                 }
 
                 if (_seq.countdown <= 0) {
-                    if (this.physics.boxes.length < 3 && _seq.spawned < 3) {
+                    let canSpawnMore = false;
+                    if (isDrone) {
+                        canSpawnMore = false; // Only 1 cargo spawn at a time for drone
+                    } else {
+                        canSpawnMore = this.physics.boxes.length < 3 && _seq.spawned < 3;
+                    }
+
+                    if (canSpawnMore) {
                         const _lc = levels[this.currentLevelIndex];
                         const _types = _lc ? (_lc.allowedTypes || ['normal']) : ['normal'];
                         _seq.targetType = _types[Math.floor(Math.random() * _types.length)];
@@ -1122,13 +1158,8 @@ class CargoGame {
                         _seq.boxDropped = false;
                         
                         // Set offset for next box
-                        if (_lndr.vehicleType === 'drone') {
-                            if (_seq.spawned === 1) _seq.lx = _lndr.x - 35;
-                            else if (_seq.spawned === 2) _seq.lx = _lndr.x + 65;
-                        } else {
-                            if (_seq.spawned === 1) _seq.lx = _lndr.x - 22;
-                            else if (_seq.spawned === 2) _seq.lx = _lndr.x + 22;
-                        }
+                        if (_seq.spawned === 1) _seq.lx = _lndr.x - 22;
+                        else if (_seq.spawned === 2) _seq.lx = _lndr.x + 22;
                     } else {
                         _seq.phase = 'closing';
                     }
