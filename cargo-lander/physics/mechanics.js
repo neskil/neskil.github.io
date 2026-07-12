@@ -48,18 +48,7 @@ const CargoPhysicsMechanicsMixin = {
         this.gravityWellTime = (this.gravityWellTime || 0) + dt * 0.008;
         this.gravityWells = [];
 
-        // 1. Process backwards-compatible single gravity well
-        if (levelConfig.gravityWell) {
-            const well = levelConfig.gravityWell;
-            const orbitR = well.orbitRadius || 180;
-            const wx = well.x + Math.sin(this.gravityWellTime * 0.8) * orbitR;
-            const wy = well.y + Math.cos(this.gravityWellTime * 0.8) * orbitR;
-            const pulseMultiplier = 0.2 + 0.8 * (0.5 + 0.5 * Math.sin(this.gravityWellTime * Math.PI / 16.0));
-            const currentStrength = well.strength * pulseMultiplier;
-            this.gravityWells.push({ x: wx, y: wy, radius: well.radius, strength: currentStrength, maxStrength: well.strength, pulse: pulseMultiplier });
-        }
-
-        // 2. Process gravwell hazards
+        // Process gravwell hazards
         if (levelConfig.hazards) {
             for (const h of levelConfig.hazards) {
                 if (h.type === 'gravwell' && h.pts && h.pts.length >= 1) {

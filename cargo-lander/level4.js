@@ -18,15 +18,6 @@ registerLevel({
     heavyCargo: false,       // Cargo mass no longer affects handling
     heatHaze: true,          // volcanic biome — GPU post-fx shimmer (see shaders.js renderPostFX)
 
-    // Moving gravity well — physics.js reads gravityWell config and applies
-    // a Lissajous-phase orbit so the pull point drifts unpredictably
-    gravityWell: {
-        x: 500,
-        y: 400,
-        strength: 0.35,
-        radius: 200,
-        orbitRadius: 200,   // well orbits its base position (Lissajous phase)
-    },
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
@@ -117,6 +108,7 @@ registerLevel({
     // physics/atmosphere.js's 'incinerator' hazard branch). Sits directly above
     // the exposed lava pit notch in the terrain.
     hazards: [
+        { type: 'gravwell', pts: [{x: 500, y: 200}, {x: 700, y: 400}, {x: 500, y: 600}, {x: 300, y: 400}], startForce: 0.35, endForce: 0.35, radius: 200, speed: 200 },
         { type: 'incinerator', pts: [{ x: 950, y: 550 }, { x: 1150, y: 550 }, { x: 1150, y: 650 }, { x: 950, y: 650 }], onMs: 1500, offMs: 2200, warnMs: 600, damagePerSec: 30 },
     ],
 

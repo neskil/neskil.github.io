@@ -132,12 +132,11 @@ draw() {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         // 3. Draw Gravity Well Anomaly
-        if (levelConfig && levelConfig.gravityWell && this.gameState === 'playing') {
-            // Was checking this.shaderOverlay (never set — the real property is
-            // this.shaders), so the Canvas2D rings always drew on top of the WebGL
-            // gravity well glow too instead of only as its fallback.
+        if (this.physics && this.physics.gravityWells && this.gameState === 'playing') {
             if (!this.shaders || !this.shaders.gl) {
-                this.drawGravityWell(this.physics.gravityWellPos || levelConfig.gravityWell, levelConfig.gravityWell);
+                for (const gw of this.physics.gravityWells) {
+                    this.drawGravityWell(gw, gw);
+                }
             }
         }
 

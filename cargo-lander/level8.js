@@ -32,15 +32,6 @@ registerLevel({
     wind: 0,
     heavyCargo: true,
 
-    // Unstable reactor core — drifts in a slow orbit, dragging the approach to the
-    // Fuel Cache / Salvage Chute stretch off-line if you don't fight the pull.
-    gravityWell: {
-        x: 1180,
-        y: 620,
-        strength: 0.6,
-        radius: 170,
-        orbitRadius: 140,
-    },
 
     // ── Terrain — seven detached rock/hull platforms, no continuous ground.
     // Silhouettes now vary more: Command Deck and Salvage Chute are visibly
@@ -91,6 +82,7 @@ registerLevel({
 
     // ── Hazards — three laser gauntlet lines + one drifting debris-cloud zone ──
     hazards: [
+        { type: 'gravwell', pts: [{x: 1180, y: 480}, {x: 1320, y: 620}, {x: 1180, y: 760}, {x: 1040, y: 620}], startForce: 0.6, endForce: 0.6, radius: 170, speed: 140 },
         // Gauntlet Laser 1 — between Collection Depot and Command Deck
         { type: 'laser', pts: [{ x: 360, y: 380 }, { x: 360, y: 700 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14 },
         // Gauntlet Laser 2 — between Command Deck and Cryo Bay, offset phase so it's
