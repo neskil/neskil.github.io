@@ -1150,7 +1150,7 @@
             100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
         }
 
-        .pilot-avatar.nudge {
+        .pilot-avatar.nudge, .nudge {
             animation: avatar-pulse 2s infinite;
             border-color: #f59e0b !important;
         }
@@ -2216,7 +2216,7 @@
                         <div style="margin-top: 12px;">
                             <div class="stat-cell-label" style="margin-bottom:6px;">🔧 Installed Upgrades</div>
                             <div id="lc-upgrades" style="display:flex; flex-wrap:wrap; gap:4px; min-height:24px; margin-bottom:12px;"></div>
-                            <button class="btn-career amber"
+                            <button id="rd-shop-btn" class="btn-career amber"
                                 style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"
                                 onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
                         </div>
@@ -2346,7 +2346,7 @@
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-secondary" onclick="game.goToMenu()" style="flex:1; margin:0;">Main Menu</button>
-                <button class="btn-secondary" onclick="game.openUpgradeShop()"
+                <button id="rd-shop-btn-complete" class="btn-secondary" onclick="game.openUpgradeShop()"
                     style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
             </div>
         </div>
@@ -2602,7 +2602,7 @@
                     <span class="tut-keys"><span class="keycap">A</span><span class="keycap">D</span><span
                             class="or">or</span><span class="keycap">◀</span><span class="keycap">▶</span></span>
                     <span class="tut-control-arrow">➜</span>
-                    <span class="tut-control-what"><span class="ico">🔄</span><span><strong>Rotate</strong> left /
+                    <span class="tut-control-what"><span class="ico">↔️</span><span><strong>Strafe</strong> left /
                             right</span></span>
                 </div>
                 <div class="tut-control-row">
@@ -2612,7 +2612,7 @@
                             🪝 <strong>Toggle Winch</strong></span></span>
                 </div>
             </div>
-            <div class="tut-touch-hint">📱 On touch screens use the on-screen buttons: ◀ ▶ rotate · 🔥 thrust ·
+            <div class="tut-touch-hint">📱 On touch screens use the on-screen buttons: ◀ ▶ strafe · 🔥 thrust ·
                 GRAB winch</div>
 
             <h3 class="tut-h">💰 Economy</h3>

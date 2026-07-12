@@ -66,9 +66,16 @@
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY); ctx.stroke();
 
+        // Alternate vehicle every other 7s cycle: the basic lander clamps cargo
+        // rigidly to a deck on top, while only the drone winches it below on a
+        // rope — showing both means the diagram never lies about either one.
+        const cycle = Math.floor(now / 7000);
+        const isDrone = cycle % 2 === 1;
+        const droneYOffset = isDrone ? 42 : 0; // Shift flight path up so drone's winch package lands on pads
+
         // Flight arc parameters (quadratic bezier over the pads)
-        const startY = padTop - 17;
-        const apexY = Math.max(28, groundY - 118);
+        const startY = padTop - 17 - droneYOffset;
+        const apexY = Math.max(28, groundY - 118) - droneYOffset;
         const bez = (s) => {
             const u = 1 - s;
             return {
@@ -101,26 +108,42 @@
         drawStartPad(ctx, padX, padTop, groundY, now);
         drawHub(ctx, hubX, padTop, groundY, now);
 
-        // Alternate vehicle every other 7s cycle: the basic lander clamps cargo
-        // rigidly to a deck on top, while only the drone winches it below on a
-        // rope — showing both means the diagram never lies about either one.
-        const cycle = Math.floor(now / 7000);
-        const isDrone = cycle % 2 === 1;
-
         // Timeline: sit (0–.10) → fly (.10–.82) → deliver (.82–1)
         const t = (now % 7000) / 7000;
         let s = Math.min(1, Math.max(0, (t - 0.10) / 0.72));
         s = s * s * (3 - 2 * s); // smoothstep ease
         const pos = bez(s);
-        const prev = bez(Math.max(0, s - 0.02));
-        const vx = pos.x - prev.x;
-        const angle = Math.max(-0.3, Math.min(0.3, vx * 0.05));
+
+        if (isDrone && t >= 0.85) {
+            // Ascend the drone after dropping the cargo
+            const riseFract = (t - 0.85) / 0.15;
+            pos.y -= riseFract * 28;
+        }
+
+        const angle = 0; // Lander/drone stays straight, no rotating/leaning
         const flying = t > 0.10 && t < 0.82;
         let thrust = 0;
         if (flying) thrust = (s < 0.35 || s > 0.72) ? 1 : (Math.sin(now / 90) > 0.2 ? 0.6 : 0);
         const carryingCargo = t < 0.85; // dropped off just before the payout pops up
 
         drawTutLander(ctx, pos.x, pos.y, angle, thrust, isDrone ? 'drone' : 'basic', carryingCargo, now);
+
+        // Draw the delivered cargo sitting on the hub pad for the drone
+        if (isDrone && t >= 0.85) {
+            ctx.save();
+            ctx.translate(hubX, padTop - 5.6);
+            ctx.scale(0.8, 0.8);
+            const g = window.game;
+            if (g && g.drawSingleBox) {
+                const oldCtx = g.ctx;
+                g.ctx = ctx;
+                g.drawSingleBox(0, 0, 'normal', null, {});
+                g.ctx = oldCtx;
+            } else {
+                drawFallbackCrate(ctx, 0, 0, 0);
+            }
+            ctx.restore();
+        }
 
         // Vehicle label, top-left — makes the alternation read as intentional
         ctx.textAlign = 'left';

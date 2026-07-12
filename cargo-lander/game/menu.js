@@ -140,6 +140,14 @@ Object.assign(CargoGame.prototype, {
                 ? owned.map(u => `<span class="upgrade-chip">${u.name} L${this.upgrades[u.id]}</span>`).join('')
                 : '<span style="color:var(--text-secondary); font-size:0.75rem;">None installed yet</span>';
         }
+        
+        // Nag about R&D store if player hasn't bought upgrades after playing 2 missions
+        const rdBtn = document.getElementById('rd-shop-btn');
+        if (rdBtn) {
+            const ownedLevels = Object.values(this.upgrades || {}).reduce((s, val) => s + (val || 0), 0);
+            const nagRD = (ownedLevels === 0) && (this.career.missionsComplete >= 2);
+            rdBtn.classList.toggle('nudge', nagRD);
+        }
 
         // Highscores list + per-mission badges
         const hsList = document.getElementById('hs-list');
@@ -279,7 +287,8 @@ Object.assign(CargoGame.prototype, {
             portrait: null,
             totalDeliveries: 0,
             missionsComplete: 0,
-            crashes: 0
+            crashes: 0,
+            hasUsedDrone: false
         };
         this.highscores = {};
 
@@ -407,6 +416,10 @@ Object.assign(CargoGame.prototype, {
             droneBtn.classList.toggle('vehicle-selected', this.currentVehicle === 'drone' && isDroneUnlocked);
             droneBtn.classList.toggle('locked-mission', !isDroneUnlocked);
             droneBtn.disabled = !isDroneUnlocked;
+            
+            // Nag user to try the drone if unlocked, not tried yet, and not currently selected
+            const nagDrone = isDroneUnlocked && !this.career.hasUsedDrone && this.currentVehicle !== 'drone';
+            droneBtn.classList.toggle('nudge', nagDrone);
             
             if (droneDesc) {
                 droneDesc.textContent = isDroneUnlocked ? "Auto-hover + winch" : "🔒 Complete Mission 1 to unlock";
@@ -576,6 +589,7 @@ Object.assign(CargoGame.prototype, {
             localStorage.setItem('cargoLanderUpgrades', JSON.stringify(this.upgrades));
 
             this.renderUpgradeShop();
+            this.refreshMenuUI();
             if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
         }
     },
