@@ -30,7 +30,7 @@ class CargoPhysics {
         this.MATTER_FORCE_SCALE = 1 / (16.666 * 16.666);
     }
 
-    initLevel(levelConfig, width, height, upgrades = {}) {
+    initLevel(levelConfig, width, height, upgrades = {}, portrait = null) {
         this.currentLevelConfig = levelConfig; // Store for ceiling/terrain queries
         
         let maxX = 1600, maxY = 1300;
@@ -70,7 +70,7 @@ class CargoPhysics {
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this._buildMatterWorld();
         this.generateTerrain(levelConfig);
-        this.spawnLander(levelConfig, upgrades);
+        this.spawnLander(levelConfig, upgrades, portrait);
 
         if (typeof levelConfig.setupPhysics === 'function') {
             levelConfig.setupPhysics(this);

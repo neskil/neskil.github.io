@@ -409,7 +409,7 @@ class CargoGame {
         this.overtimeActive = false;
         this.overtimeTimer = 0;
 
-        this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades);
+        this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades, this.career.portrait);
         this.deliveredCount = 0;
         this.deliveredTypes = {};
         this.questState = {};
@@ -561,7 +561,7 @@ class CargoGame {
         if (respawnScreen) respawnScreen.classList.add('hidden');
 
         const levelConfig = levels[this.currentLevelIndex];
-        this.physics.spawnLander(levelConfig, this.upgrades);
+        this.physics.spawnLander(levelConfig, this.upgrades, this.career.portrait);
     }
 
     toggleGrapple() {

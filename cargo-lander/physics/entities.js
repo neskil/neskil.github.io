@@ -23,7 +23,7 @@ const CargoPhysicsEntitiesMixin = {
         });
     },
 
-    spawnLander(config, upgrades = {}) {
+    spawnLander(config, upgrades = {}, portrait = null) {
         // A fresh spawn (level start or respawn-after-death) should never carry over an
         // active monster/out-of-bounds threat from the previous life — otherwise dying
         // out of bounds and respawning with R just gets the new lander eaten immediately.
@@ -35,7 +35,23 @@ const CargoPhysicsEntitiesMixin = {
         
         // Winch Extender upgrade was purchasable but never applied anywhere — wire it in.
         const ropeMax = (config.ropeLength || 120);
-        const maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
+        let maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
+        let maxFuel = 120;
+        let thrustMult = 1.0 + (upgrades.boostMode || 0) * 0.2;
+        let fuelEff = 1.0 - (upgrades.thrusterEfficiency || 0) * 0.15;
+
+        // Apply portrait stat boosts
+        if (portrait) {
+            if (portrait.includes('driver1.jpg')) { // Rusty: +5% Max Fuel
+                maxFuel *= 1.05;
+            } else if (portrait.includes('driver2.jpg')) { // Gabby: +5% Thrust
+                thrustMult *= 1.05;
+            } else if (portrait.includes('driver3.jpg')) { // Mac: +5% Hull Integrity
+                maxIntegrity *= 1.05;
+            } else if (portrait.includes('driver4.jpg')) { // Sally: +5% Fuel Efficiency (lower is better)
+                fuelEff *= 0.95;
+            }
+        }
 
         // Position lander centered on Start Depot pad
         this.lander = {
@@ -51,12 +67,12 @@ const CargoPhysicsEntitiesMixin = {
             deckWidth: 56,
             deckOffset: 12, // Pixels above center
             basketHeight: 24, // Side wall height for the basket
-            fuel: 120,
-            maxFuel: 120,
+            fuel: maxFuel,
+            maxFuel: maxFuel,
             integrity: maxIntegrity,
             maxIntegrity: maxIntegrity,
-            thrustMultiplier: 1.0 + (upgrades.boostMode || 0) * 0.2,
-            fuelEfficiency: 1.0 - (upgrades.thrusterEfficiency || 0) * 0.15,
+            thrustMultiplier: thrustMult,
+            fuelEfficiency: fuelEff,
             enginePower: 0, // Used for thrust interpolation
             strafePower: 0,
             magneticDeckActive: upgrades.magneticDeck > 0,
