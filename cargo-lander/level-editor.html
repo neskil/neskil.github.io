@@ -601,10 +601,6 @@ function buildRadarPanel() {
   document.getElementById('rpz-fields').innerHTML = LEVEL_SCHEMA.radarPingZone.fields
     .map(f => schemaFieldRowHTML('setRadarZone', 'rpz-', f)).join('');
 }
-buildMetaPanel();
-buildOOBPanel();
-buildGWPanel();
-buildRadarPanel();
 
 const S = {
   // All three shape lists share the same per-item shape: {pts:[{x,y}], comment:'', hidden:false, ...extra}
@@ -643,6 +639,11 @@ const S = {
   view: { x:200, y:150, scale:0.35 },
   mouse: { wx:0, wy:0 },
 };
+
+buildMetaPanel();
+buildOOBPanel();
+buildGWPanel();
+buildRadarPanel();
 
 // ── Shape-layer helpers (terrain / water / hazard share the same editing code) ─
 function listForLayer(layer) {
