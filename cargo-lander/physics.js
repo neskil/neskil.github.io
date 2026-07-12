@@ -62,9 +62,9 @@ class CargoPhysics {
         // Apply aerodynamic coating upgrade
         this.LANDER_DRAG = 0.985 + (upgrades.aerodynamics || 0) * 0.003;
         if (portrait && portrait.includes('driver4.jpg')) {
-            // Bo: +15% Top Speed (achieved by reducing air resistance drag force by 13%)
+            // Bo: +5% Top Speed (achieved by reducing air resistance drag force by 5%)
             const dragForce = 1.0 - this.LANDER_DRAG;
-            this.LANDER_DRAG = 1.0 - (dragForce * 0.87);
+            this.LANDER_DRAG = 1.0 - (dragForce * 0.95);
         }
 
         this.monster = null; // The Out-Of-Bounds cosmic horror

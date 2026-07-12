@@ -16,6 +16,7 @@ registerLevel({
   targetCargo: 2,
   allowedTypes: ["normal","red"],
   backgroundType: "cave",
+  weather: "heatwave",
   heatHaze: true,
   startX: -250,
   startY: 900,
@@ -30,9 +31,9 @@ registerLevel({
     skyTop: "#1c0f03",
     skyMid: "#3a1f08",
     skyBot: "#5a2f0c",
-    terrainFill: "#0a0501",
-    rockEdge: "#f59e0b",
-    rockGlow: "rgba(245,158,11,",
+    terrainFill: "#784620",
+    rockEdge: "#fbbf24",
+    rockGlow: "rgba(251,191,36,",
     fog: "rgba(217,119,6,0.08)",
   },
   outOfBounds: {
@@ -52,7 +53,7 @@ registerLevel({
     // Ceiling
     [
         {x: -2500, y: -500},
-        {x: 760, y: -500},
+        {x: 760, y: -500, invisibleEdge: true},
         {x: 770, y: 580},
         {x: 630, y: 610},
         {x: 460, y: 670},
@@ -90,7 +91,7 @@ registerLevel({
         {x: 1060, y: 840},
         {x: 1080, y: 710},
         {x: 950, y: 630},
-        {x: 770, y: 580},
+        {x: 770, y: 580, invisibleEdge: true},
         {x: 760, y: -500},
         {x: 4100, y: -500},
         {x: 4100, y: 2300},

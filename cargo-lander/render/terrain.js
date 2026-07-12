@@ -445,27 +445,44 @@ drawGroundParallax() {
         const [tr, tg, tb] = hexToRgb(pal.terrainFill);
 
         const layers = [
-            { shift: 60, alpha: 0.55, darken: 0.45 },
-            { shift: 28, alpha: 0.40, darken: 0.65 },
+            { lengthRatio: 1.0, alpha: 0.55, darken: 0.45 },
+            { lengthRatio: 0.466, alpha: 0.40, darken: 0.65 },
         ];
         for (const layer of layers) {
             ctx.fillStyle = `rgba(${Math.floor(tr * layer.darken)},${Math.floor(tg * layer.darken)},${Math.floor(tb * layer.darken)},${layer.alpha})`;
             for (const poly of this.physics.terrainPolygons) {
                 if (!poly || poly.length < 3) continue;
+                if (poly.shadowEnabled === false) continue; // Skip if explicitly disabled
 
                 let area = 0;
+                let cx = 0, cy = 0;
                 for (let i = 0; i < poly.length; i++) {
                     const p1 = poly[i];
                     const p2 = poly[(i + 1) % poly.length];
                     area += (p2.x - p1.x) * (p2.y + p1.y);
+                    cx += p1.x;
+                    cy += p1.y;
                 }
+                cx /= poly.length;
+                cy /= poly.length;
                 const isCeiling = area > 0;
                 const dir = isCeiling ? -1 : 1;
+                
+                // Defaults: 60px down
+                let sLen = (poly.shadowLength !== undefined ? poly.shadowLength : 60) * layer.lengthRatio;
+                let sAngle = (poly.shadowAngle !== undefined ? poly.shadowAngle : 0); // 0 = straight down
+                
+                // Convert angle to radians (0 = down, 90 = right)
+                let rad = sAngle * Math.PI / 180;
+                
+                // Base shadow angle offset
+                let dx = Math.sin(rad) * sLen * dir;
+                let dy = Math.cos(rad) * sLen * dir;
 
                 ctx.beginPath();
-                ctx.moveTo(poly[0].x, poly[0].y + layer.shift * dir);
+                ctx.moveTo(poly[0].x + dx, poly[0].y + dy);
                 for (let i = 1; i < poly.length; i++) {
-                    ctx.lineTo(poly[i].x, poly[i].y + layer.shift * dir);
+                    ctx.lineTo(poly[i].x + dx, poly[i].y + dy);
                 }
                 ctx.closePath();
                 ctx.fill();
@@ -533,7 +550,7 @@ drawTerrain() {
                 const p1 = poly[i];
                 const p2 = poly[(i + 1) % poly.length];
                 // Only stroke floor segments (left-to-right)
-                if (p1.x <= p2.x) {
+                if (p1.x <= p2.x && !p1.invisibleEdge) {
                     if (!drawing) {
                         ctx.moveTo(p1.x, p1.y);
                         drawing = true;
@@ -560,15 +577,31 @@ drawTerrain() {
 
         ctx.fillStyle = shadowColor;
         ctx.beginPath();
-        ctx.moveTo(startX, getH(startX) + 5);
+        let sStarted = false;
+        let lastH = 0;
         for (let x = startX; x <= endX; x += 8) {
-            ctx.lineTo(x, getH(x) + 5);
+            let h = getH(x);
+            if (!sStarted) {
+                ctx.moveTo(x, h + 5);
+                sStarted = true;
+            } else if (Math.abs(h - lastH) > 100) {
+                ctx.lineTo(x - 8, lastH);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(x, h + 5);
+            } else {
+                ctx.lineTo(x, h + 5);
+            }
+            lastH = h;
         }
-        for (let x = endX; x >= startX; x -= 8) {
-            ctx.lineTo(x, getH(x));
+        if (sStarted) {
+            for (let x = endX; x >= startX; x -= 8) {
+                ctx.lineTo(x, getH(x));
+            }
+            ctx.closePath();
+            ctx.fill();
         }
-        ctx.closePath();
-        ctx.fill();
 
         if (this.currentLevelIndex === 0) {
             // ── L1: Grass tufts — snap to world-space grid so they never shift ──
@@ -615,11 +648,19 @@ drawTerrain() {
             ctx.lineJoin = 'round';
             ctx.beginPath();
             let nStarted = false;
+            let lastBaseY = 0;
             for (let x = startX; x <= endX; x += 4) {
                 const baseY = getH(x);
                 const noise = isOverPad(x) ? 0 : (hash(x) - 0.5) * 3.5;
-                if (!nStarted) { ctx.moveTo(x, baseY + noise); nStarted = true; }
-                else ctx.lineTo(x, baseY + noise);
+                if (!nStarted) { 
+                    ctx.moveTo(x, baseY + noise); 
+                    nStarted = true; 
+                } else if (Math.abs(baseY - lastBaseY) > 100) {
+                    ctx.moveTo(x, baseY + noise);
+                } else { 
+                    ctx.lineTo(x, baseY + noise); 
+                }
+                lastBaseY = baseY;
             }
             ctx.stroke();
         }
