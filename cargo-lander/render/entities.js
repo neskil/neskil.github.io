@@ -325,36 +325,7 @@ drawSourcingDepot() {
         const isDrone = lander && lander.vehicleType === 'drone';
 
         if (start) _drawDeployCircle(start.x + start.width / 2, start.y, '#60a5fa');
-        if (collection) {
-            if (isDrone) {
-                const cpCx = collection.x + collection.width / 2;
-                const cpCy = collection.y - 30;
-                const radius = 90;
-                const pulse = 0.5 + Math.abs(Math.sin(Date.now() * 0.003)) * 0.5;
-
-                ctx.save();
-                ctx.fillStyle = `rgba(239, 68, 68, ${0.05 + pulse * 0.03})`;
-                ctx.beginPath();
-                ctx.arc(cpCx, cpCy, radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.strokeStyle = `rgba(239, 68, 68, ${0.4 + pulse * 0.3})`;
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.arc(cpCx, cpCy, radius, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.strokeStyle = `rgba(239, 68, 68, ${0.15 * (1 - pulse)})`;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(cpCx, cpCy, radius + pulse * 15, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                ctx.restore();
-            } else {
-                _drawDeployCircle(collection.x + collection.width / 2, collection.y, '#34d399');
-            }
-        }
+        if (collection) _drawDeployCircle(collection.x + collection.width / 2, collection.y, '#34d399');
         for (const hub of this.physics.deliveryHubs) {
             _drawDeployCircle(hub.x + hub.width / 2, hub.y, hub.color || '#f59e0b');
         }
