@@ -60,6 +60,7 @@ const LEVEL_SCHEMA = {
     { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Types', required:true, enumValues:VALID_CARGO_TYPES },
     { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy' },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze' },
+    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops' },
     { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X' },
     { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y' },
     { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width' },
