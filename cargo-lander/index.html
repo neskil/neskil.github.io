@@ -305,20 +305,20 @@
         }
 
         #menu-screen .screen-content {
-            max-width: 1120px;
-            transform: scale(0.92);
+            max-width: 1280px;
+            transform: scale(1);
             transform-origin: center center;
             animation: menuScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
         @keyframes menuScaleIn {
             from {
-                transform: scale(0.87);
+                transform: scale(0.95);
                 opacity: 0;
             }
 
             to {
-                transform: scale(0.92);
+                transform: scale(1);
                 opacity: 1;
             }
         }
@@ -713,7 +713,7 @@
             }
 
             #menu-screen .screen-content {
-                transform: scale(0.88);
+                transform: scale(0.95);
                 animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
         }
@@ -1061,9 +1061,9 @@
         }
 
         .pilot-avatar {
-            width: 72px;
-            height: 72px;
-            min-width: 72px;
+            width: 90px;
+            height: 120px;
+            min-width: 90px;
             border-radius: 12px;
             background: rgba(56, 189, 248, 0.12);
             border: 1px solid rgba(56, 189, 248, 0.3);
@@ -1149,9 +1149,9 @@
         }
 
         .portrait-card-img {
-            width: 80px;
-            height: 80px;
-            min-width: 80px;
+            width: 90px;
+            height: 120px;
+            min-width: 90px;
             border-radius: 12px;
             object-fit: cover;
             border: 2px solid rgba(255, 255, 255, 0.1);
@@ -1896,9 +1896,11 @@
                                 <div class="license-eyebrow">Pilot ID · GCA-7749</div>
                                 <input class="license-name-input" id="pilot-name-input" type="text" maxlength="22"
                                     placeholder="Enter callsign…" oninput="game.updatePilotName(this.value)">
-                                <div class="license-rank" id="pilot-rank">Learner Permit</div>
+                                <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-top: 4px;">
+                                    <div class="license-badge" id="pilot-tier" style="padding: 2px 6px; font-size: 0.6rem;">LEARNER</div>
+                                    <div class="license-rank" id="pilot-rank">Learner Permit</div>
+                                </div>
                             </div>
-                            <div class="license-badge" id="pilot-tier">LEARNER</div>
                         </div>
 
                         <div class="stat-grid">
