@@ -442,10 +442,12 @@ drawSourcingDepot() {
                     ctx.globalAlpha = 0.4 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.3;
                     ctx.fillRect(start.x, start.y - 2, start.width, 4);
                     
-                    const lightGrad = ctx.createLinearGradient(0, start.y - 30, 0, start.y);
-                    lightGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                    lightGrad.addColorStop(1, '#10b981');
-                    ctx.fillStyle = lightGrad;
+                    ctx.fillStyle = this._grad(`hoverLight|${start.y}|#10b981`, (c) => {
+                        const g = c.createLinearGradient(0, start.y - 30, 0, start.y);
+                        g.addColorStop(0, 'rgba(0,0,0,0)');
+                        g.addColorStop(1, '#10b981');
+                        return g;
+                    });
                     ctx.fillRect(start.x, start.y - 30, start.width, 30);
                 }
                 ctx.globalAlpha = 1.0;
@@ -465,11 +467,13 @@ drawSourcingDepot() {
             // ── Warehouse building behind pad ─────────────────────────────
             const wbX = cx - 18, wbW = cw + 36, wbH = 80, wbY = cy - wbH;
 
-            const bldGrad = ctx.createLinearGradient(wbX, wbY, wbX + wbW, wbY);
-            bldGrad.addColorStop(0, '#0f1e2e');
-            bldGrad.addColorStop(0.5, '#152434');
-            bldGrad.addColorStop(1, '#0c1a28');
-            ctx.fillStyle = bldGrad;
+            ctx.fillStyle = this._grad(`warehouse|${wbX}|${wbW}`, (c) => {
+                const g = c.createLinearGradient(wbX, wbY, wbX + wbW, wbY);
+                g.addColorStop(0, '#0f1e2e');
+                g.addColorStop(0.5, '#152434');
+                g.addColorStop(1, '#0c1a28');
+                return g;
+            });
             ctx.strokeStyle = '#1e3a5f';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -783,12 +787,17 @@ drawDeliveryHubs() {
                 ctx.closePath();
                 ctx.fill();
 
-                // Tractor Beam Cone
+                // Tractor Beam Cone — animated alpha moved to globalAlpha so
+                // the gradient itself is constant and cacheable.
                 const beamAlpha = 0.15 + Math.sin(now * 0.005) * 0.05;
-                const bGrad = ctx.createLinearGradient(0, hub.y - 80, 0, hub.y);
-                bGrad.addColorStop(0, 'transparent');
-                bGrad.addColorStop(1, `rgba(16, 185, 129, ${beamAlpha})`);
-                ctx.fillStyle = bGrad;
+                ctx.fillStyle = this._grad(`tractorBeam|${hub.y}`, (c) => {
+                    const g = c.createLinearGradient(0, hub.y - 80, 0, hub.y);
+                    g.addColorStop(0, 'transparent');
+                    g.addColorStop(1, 'rgba(16, 185, 129, 1)');
+                    return g;
+                });
+                ctx.save();
+                ctx.globalAlpha = beamAlpha;
                 ctx.beginPath();
                 ctx.moveTo(hub.x - 30, hub.y - 80);
                 ctx.lineTo(hub.x + hw + 30, hub.y - 80);
@@ -796,6 +805,7 @@ drawDeliveryHubs() {
                 ctx.lineTo(hub.x + 4, hub.y);
                 ctx.closePath();
                 ctx.fill();
+                ctx.restore();
 
                 // Suction Particle Effects
                 for (let i = 0; i < 6; i++) {
@@ -910,9 +920,12 @@ drawDeliveryHubs() {
             // Glow column beacon — soft tapered light shaft, not a flat box
             const pulse = 0.12 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.1;
             const beaconCx = hub.x + hub.width / 2;
-            const beaconGrad = ctx.createLinearGradient(0, hub.y - 200, 0, hub.y);
-            beaconGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            beaconGrad.addColorStop(1, hub.color);
+            const beaconGrad = this._grad(`hubBeacon|${hub.y}|${hub.color}`, (c) => {
+                const g = c.createLinearGradient(0, hub.y - 200, 0, hub.y);
+                g.addColorStop(0, 'rgba(0,0,0,0)');
+                g.addColorStop(1, hub.color);
+                return g;
+            });
             ctx.save();
             ctx.globalAlpha = pulse;
             ctx.fillStyle = beaconGrad;
@@ -939,10 +952,12 @@ drawDeliveryHubs() {
                 ctx.globalAlpha = 0.4 + Math.abs(Math.sin(Date.now() * 0.01)) * 0.3;
                 ctx.fillRect(hub.x, hub.y - 2, hub.width, 4);
                 
-                const lightGrad = ctx.createLinearGradient(0, hub.y - 30, 0, hub.y);
-                lightGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                lightGrad.addColorStop(1, hub.color);
-                ctx.fillStyle = lightGrad;
+                ctx.fillStyle = this._grad(`hoverLight|${hub.y}|${hub.color}`, (c) => {
+                    const g = c.createLinearGradient(0, hub.y - 30, 0, hub.y);
+                    g.addColorStop(0, 'rgba(0,0,0,0)');
+                    g.addColorStop(1, hub.color);
+                    return g;
+                });
                 ctx.fillRect(hub.x, hub.y - 30, hub.width, 30);
             }
             ctx.globalAlpha = 1.0;
@@ -1000,11 +1015,16 @@ drawDeliveryHubs() {
                 const rpulse = 0.65 + Math.sin(Date.now() * 0.012) * 0.35;
                 const lightX = hub.x + hub.width / 2;
                 const lightY = hub.y - 14;
-                const rGlow = ctx.createRadialGradient(lightX, lightY, 0, lightX, lightY, 12);
-                rGlow.addColorStop(0, `rgba(74, 222, 128, ${rpulse})`);
-                rGlow.addColorStop(1, 'rgba(74, 222, 128, 0)');
-                ctx.fillStyle = rGlow;
+                ctx.fillStyle = this._grad(`dropLight|${lightX}|${lightY}`, (c) => {
+                    const g = c.createRadialGradient(lightX, lightY, 0, lightX, lightY, 12);
+                    g.addColorStop(0, 'rgba(74, 222, 128, 1)');
+                    g.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                    return g;
+                });
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, rpulse));
                 ctx.beginPath(); ctx.arc(lightX, lightY, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
 
                 ctx.fillStyle = '#4ade80';
                 ctx.beginPath(); ctx.arc(lightX, lightY, 3, 0, Math.PI * 2); ctx.fill();

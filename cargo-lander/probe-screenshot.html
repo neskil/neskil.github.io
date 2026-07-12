@@ -19,6 +19,9 @@
         // This page is served from the same origin as the game, so its
         // localStorage is already shared with the iframe once it navigates.
         try { localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1'); } catch (e) {}
+        // Same for the first-run "How to Play" tutorial modal — it otherwise
+        // covers the whole scene in headless screenshots (fresh localStorage).
+        try { localStorage.setItem('cargoLanderHasSeenTutorial', '1'); } catch (e) {}
         document.getElementById('f').src = 'index.html';
 
         const q = new URLSearchParams(location.search);

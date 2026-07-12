@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.13.1';
+    static VERSION = '0.13.2';
 
     constructor() {
         this.canvas = null;
@@ -286,6 +286,56 @@ class CargoGame {
                 parallax: 0.025 + Math.random() * 0.025,
                 col,
             });
+        }
+
+        // ── Bake background sprites ──────────────────────────────────────
+        // draw() used to build a radial gradient per nebula and per halo star
+        // every frame; a smooth gradient upscales invisibly from a small
+        // pre-rendered bitmap, so bake once here and drawImage per frame.
+        try {
+            // Constant per-star fill color; twinkle is applied via globalAlpha.
+            for (const layer of this.bgLayers) {
+                for (const star of layer.objects) {
+                    star.css = `rgb(${star.r},${star.g},${star.b})`;
+                }
+            }
+
+            // Nebula sprites: baked at 192px and scaled up to 2r at draw time.
+            const NEB_TEX = 96;
+            for (const neb of this.bgNebulae) {
+                const c = document.createElement('canvas');
+                c.width = c.height = NEB_TEX * 2;
+                const nctx = c.getContext('2d');
+                const [r, g, b] = neb.col;
+                const ng = nctx.createRadialGradient(NEB_TEX, NEB_TEX, 0, NEB_TEX, NEB_TEX, NEB_TEX);
+                ng.addColorStop(0, `rgba(${r},${g},${b},${neb.alpha})`);
+                ng.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                nctx.fillStyle = ng;
+                nctx.fillRect(0, 0, NEB_TEX * 2, NEB_TEX * 2);
+                neb.sprite = c;
+            }
+
+            // Shared halo-star sprite: soft halo (0.35 alpha at core) with a
+            // solid core dot at 1/3.5 of the halo radius — same proportions
+            // the per-frame gradient code drew. Star alpha scales the whole
+            // sprite via globalAlpha at draw time.
+            const HS = 32; // sprite radius in px
+            const hc = document.createElement('canvas');
+            hc.width = hc.height = HS * 2;
+            const hctx = hc.getContext('2d');
+            const hg = hctx.createRadialGradient(HS, HS, 0, HS, HS, HS);
+            hg.addColorStop(0, 'rgba(235,240,250,0.35)');
+            hg.addColorStop(1, 'rgba(235,240,250,0)');
+            hctx.fillStyle = hg;
+            hctx.fillRect(0, 0, HS * 2, HS * 2);
+            hctx.fillStyle = 'rgb(235,240,250)';
+            hctx.beginPath();
+            hctx.arc(HS, HS, HS / 3.5, 0, Math.PI * 2);
+            hctx.fill();
+            this._haloSprite = hc;
+        } catch (e) {
+            // Sprite baking is an optimization only — draw() falls back to
+            // per-frame gradients when sprites are missing (e.g. mocked ctx).
         }
     }
 
@@ -602,7 +652,8 @@ class CargoGame {
                 // If it's not a drone, only allow grappling specific tetherable cargo
                 if (lander.vehicleType !== 'drone' && box.type !== 'tethered') continue;
 
-                const dist = Math.sqrt(Math.pow(box.x - lander.grappleX, 2) + Math.pow(box.y - lander.grappleY, 2));
+                const dx = box.x - lander.grappleX, dy = box.y - lander.grappleY;
+                const dist = dx * dx + dy * dy; // squared — only compared, never displayed
                 if (dist < minDist) {
                     minDist = dist;
                     closestBox = box;
@@ -779,9 +830,15 @@ class CargoGame {
     // ── update() phases, in frame order ─────────────────────────────────────
 
     updateMobileControlsVisibility() {
+        // Called from update() at 60Hz — only touch the DOM when the computed
+        // value actually changes (repeated identical style writes still cost
+        // style-recalc checks every frame).
+        const display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
+        if (display === this._mobileControlsDisplay) return;
         const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
         if (mobileControls) {
-            mobileControls.style.display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
+            mobileControls.style.display = display;
+            this._mobileControlsDisplay = display;
         }
     }
 
