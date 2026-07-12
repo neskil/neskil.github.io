@@ -8,6 +8,36 @@ backlog" section.
 
 ---
 
+## 2026-07-11 — Night Ops: darkness overlay + lander spotlight (v0.10.0)
+
+New level-config flag `night: true` (`levelSchema.js`, alongside `heatHaze`)
+retrofitted onto **L10: The Crystal Caves** — the outpost's lights are down,
+so you fly the cave gauntlet on the lander's own spotlight.
+- New mixin `render/night.js` (`drawNightOverlay()`): an offscreen canvas
+  filled with a dark overlay, then `destination-out` punches a soft radial
+  glow + forward-facing flashlight cone around the lander (oriented by
+  `lander.angle`, matching `drawLander()`'s own rotation convention), plus
+  smaller fixed ambient glows around delivery hubs and hazards (laser
+  midpoint / polygon centroid via the existing `polygonCentroid()` helper)
+  so the map is never fully unreadable outside the cone.
+- Composites after the WebGL post-FX/particle passes, before the HUD-layer
+  draws (wind indicator, minimap, vignettes) — the minimap draws to a
+  separate `#radar-canvas` element so it's unaffected by construction, and
+  the overlay doesn't depend on Settings → Visual Effects being on.
+- Purely a rendering feature — no physics/gameplay changes.
+- Verified via direct canvas alpha/pixel sampling (screenshot tooling was
+  down this session): the darkness canvas correctly reads alpha 1 (fully
+  lit) at the lander and full authored opacity in a far corner with the
+  expected soft falloff between; a fixed terrain point measurably darkens
+  with `night: true` vs `false` on the same level; non-night levels (L1)
+  render completely unaffected. `tests.html` 97/97, 0 console errors.
+- **Not yet done**: an eyeballed visual pass to tune the light radius/cone
+  angle/darkness alpha for feel — the mechanism is confirmed correct, the
+  numbers are unverified by eye. See PLAN.md step 6 for specifics before
+  archiving this plan further.
+
+---
+
 ## 2026-07-11 — TODO.txt retired (v0.9.3)
 
 `TODO.txt` was the game owner's original wishlist; audited against the code
