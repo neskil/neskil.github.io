@@ -61,6 +61,11 @@ class CargoPhysics {
 
         // Apply aerodynamic coating upgrade
         this.LANDER_DRAG = 0.985 + (upgrades.aerodynamics || 0) * 0.003;
+        if (portrait && portrait.includes('driver4.jpg')) {
+            // Bo: +15% Top Speed (achieved by reducing air resistance drag force by 13%)
+            const dragForce = 1.0 - this.LANDER_DRAG;
+            this.LANDER_DRAG = 1.0 - (dragForce * 0.87);
+        }
 
         this.monster = null; // The Out-Of-Bounds cosmic horror
         this.outOfBoundsTimer = 0;
@@ -164,7 +169,14 @@ class CargoPhysics {
     generateTerrain(config) {
         const w = this.levelWidth;
         const h = this.levelHeight;
-        this.terrainPolygons = config.terrainPolygons || [];
+        this.terrainPolygons = (config.terrainPolygons || []).map(poly => {
+            if (Array.isArray(poly)) return poly;
+            const pts = poly.pts || [];
+            if (poly.shadowEnabled !== undefined) pts.shadowEnabled = poly.shadowEnabled;
+            if (poly.shadowAngle !== undefined) pts.shadowAngle = poly.shadowAngle;
+            if (poly.shadowLength !== undefined) pts.shadowLength = poly.shadowLength;
+            return pts;
+        });
         this.hazards = config.hazards || [];
         this.collectibles = config.collectibles ? config.collectibles.map(c => ({...c})) : [];
         this.waterBodies = config.waterBodies || [];
@@ -215,6 +227,8 @@ class CargoPhysics {
             const THICKNESS = 40;
             for (let i = 0; i < poly.length; i++) {
                 const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
+                if (p1.invisibleEdge) continue;
+                
                 const cx = (p1.x + p2.x) / 2;
                 const cy = (p1.y + p2.y) / 2;
                 const dx = p2.x - p1.x, dy = p2.y - p1.y;
