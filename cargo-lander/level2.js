@@ -5,103 +5,146 @@
 // A ledge partway down the west wall holds a risky cash pickup for players willing to dip in.
 
 registerLevel({
-    name: "L2: Cross-Dock Sorting",
-    missionTitle: "Amber Wastes — Cross-Dock Run",
-    description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
-
-    // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.15,
-    wind: 0,
-    heatHaze: true, // desert biome — GPU post-fx shimmer (see shaders.js renderPostFX)
-
-    // ── Terrain ───────────────────────────────────────────────────────────────
-    terrainPolygons: [
-        [
-            // Western plateau — rolling dune variation; HQ (startX:-100) and
-            // collection depot (collectionX:0) sit on the gentle mid-shelf,
-            // Main Processing hub (x:500) has its own flat pad
-            {x: -400, y: 650}, {x: -320, y: 600}, {x: -220, y: 650}, {x: -140, y: 610},
-            {x: -40, y: 640}, {x: 60, y: 600}, {x: 160, y: 650}, {x: 260, y: 600},
-            {x: 360, y: 630}, {x: 420, y: 600}, {x: 520, y: 610}, {x: 580, y: 590},
-            // West rim spire — rock spur marking the chasm lip
-            {x: 600, y: 560}, {x: 630, y: 600},
-            // Chasm west wall — steep drop to a ledge shelf (cash pickup lives here)
-            {x: 650, y: 820}, {x: 715, y: 830},
-            // Plunge to the abyss floor — the monster waits below
-            {x: 730, y: 1500}, {x: 790, y: 1500},
-            // Chasm east wall — climbs straight back to the eastern plateau
-            {x: 800, y: 600},
-            // Eastern plateau — rolling dune variation; Fragile Handling hub
-            // (x:800) has its own flat pad just past the rim
-            {x: 920, y: 640}, {x: 1000, y: 615}, {x: 1100, y: 650}, {x: 1200, y: 600},
-            {x: 1350, y: 620}, {x: 1500, y: 565}, {x: 1650, y: 590}, {x: 1800, y: 550},
-            // Bottom enclosure
-            {x: 1800, y: 1800}, {x: -400, y: 1800}
-        ],
-        // Ceiling — jagged overhanging rock formation framing both hubs and
-        // the chasm mouth, instead of a flat slab; ample clearance above the
-        // pads (min gap ~400px)
-        [
-            {x: -400, y: -200}, {x: 1800, y: -200},
-            {x: 1800, y: 120}, {x: 1650, y: 180}, {x: 1500, y: 130},
-            {x: 1300, y: 170}, {x: 1150, y: 110},
-            {x: 950, y: 190}, {x: 800, y: 130},
-            {x: 650, y: 170}, {x: 500, y: 110},
-            {x: 350, y: 160}, {x: 200, y: 100},
-            {x: -400, y: 150}
-        ]
+  name: "L2: Cross-Dock Sorting",
+  missionTitle: "Amber Wastes — Cross-Dock Run",
+  description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
+  hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. A cash pickup sits on a ledge partway down the chasm if you're willing to detour. Return to HQ once both are delivered.",
+  gravity: 0.15,
+  budget: 600,
+  timeLimit: 240,
+  padScale: 1.2,
+  targetCargo: 2,
+  allowedTypes: ["normal","red"],
+  backgroundType: "cave",
+  heatHaze: true,
+  startX: -250,
+  startY: 900,
+  collectionX: 220,
+  collectionY: 960,
+  quests: [
+    questPrimary("Sort & deliver 2 cargo"),
+    questNoCargoLost('No cargo lost', 300),
+    questQuick("Complete under 45s", 45, 200)
+  ],
+  palette: {
+    skyTop: "#1c0f03",
+    skyMid: "#3a1f08",
+    skyBot: "#5a2f0c",
+    terrainFill: "#0a0501",
+    rockEdge: "#f59e0b",
+    rockGlow: "rgba(245,158,11,",
+    fog: "rgba(217,119,6,0.08)",
+  },
+  outOfBounds: {
+    type: "sand",
+    color: "rgba(217, 119, 6, 0.7)",
+    mistColor: "rgba(180, 83, 9, 0.4)",
+    surfaceY: 1500,
+    drag: 0.85,
+    buoyancy: -0.2,
+    monsterDepth: 1900,
+  },
+  deliveryHubs: [
+    { x: -230, color: "#38bdf8", type: "normal", name: "Main Processing", y: 1460 },
+    { x: 680, color: "#ef4444", type: "red", name: "Fragile Handling", y: 1440 }
+  ],
+  terrainPolygons: [
+    // Ceiling
+    [
+        {x: -2500, y: -500},
+        {x: 760, y: -500},
+        {x: 770, y: 580},
+        {x: 630, y: 610},
+        {x: 460, y: 670},
+        {x: 290, y: 730},
+        {x: 110, y: 740},
+        {x: -100, y: 710},
+        {x: -280, y: 720},
+        {x: -300, y: 760},
+        {x: -300, y: 770},
+        {x: -300, y: 850},
+        {x: -300, y: 900},
+        {x: -280, y: 900},
+        {x: -100, y: 900},
+        {x: -150, y: 950},
+        {x: -210, y: 1010},
+        {x: -230, y: 1060},
+        {x: -300, y: 1200},
+        {x: -300, y: 1470},
+        {x: -170, y: 1470},
+        {x: -310, y: 1630},
+        {x: -150, y: 1650},
+        {x: -20, y: 1650},
+        {x: 230, y: 1640},
+        {x: 440, y: 1640},
+        {x: 540, y: 1540},
+        {x: 620, y: 1450},
+        {x: 740, y: 1450},
+        {x: 870, y: 1580},
+        {x: 1040, y: 1610},
+        {x: 1200, y: 1610},
+        {x: 1300, y: 1510},
+        {x: 1290, y: 1390},
+        {x: 1110, y: 1200},
+        {x: 1090, y: 1030},
+        {x: 1060, y: 840},
+        {x: 1080, y: 710},
+        {x: 950, y: 630},
+        {x: 770, y: 580},
+        {x: 760, y: -500},
+        {x: 4100, y: -500},
+        {x: 4100, y: 2300},
+        {x: -2500, y: 2400}
     ],
-
-    // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 1.2,
-    startX: -100,
-    collectionX: 0,
-    targetCargo: 2,
-    budget: 600,
-    timeLimit: 240,
-    allowedTypes: ["normal", "red"],
-
-    // ── Environment ───────────────────────────────────────────────────────────
-    outOfBounds: {
-        type: 'sand',
-        color: 'rgba(217, 119, 6, 0.7)',
-        mistColor: 'rgba(180, 83, 9, 0.4)',
-        surfaceY: 1700,
-        drag: 0.85,       // Quicksand: heavy drag
-        buoyancy: -0.2,   // Quicksand: strong push up, but hard to move
-        monsterDepth: 1900
-    },
-
-    // ── Hubs ──────────────────────────────────────────────────────────────────
-    deliveryHubs: [
-        { x: 500, color: "#38bdf8", type: "normal", name: "Main Processing" },
-        { x: 800, color: "#ef4444", type: "red",    name: "Fragile Handling" },
+    // Obstacle 1
+    [
+        {x: 210, y: 960},
+        {x: 280, y: 1050},
+        {x: 340, y: 960}
     ],
-
-    // ── Collectibles ──────────────────────────────────────────────────────────
-    // Risky cash pickup on the chasm ledge — reachable without going all the
-    // way to the abyss floor, but still a detour off the direct hub-to-hub line
-    collectibles: [
-        { type: 'cash', x: 685, y: 790, value: 300 },
+    // Polygon 3
+    [
+        {x: -40, y: 1090},
+        {x: -60, y: 1210},
+        {x: -70, y: 1290},
+        {x: -20, y: 1360},
+        {x: 100, y: 1380},
+        {x: 200, y: 1410},
+        {x: 290, y: 1370},
+        {x: 450, y: 1350},
+        {x: 510, y: 1240},
+        {x: 420, y: 1210},
+        {x: 310, y: 1220},
+        {x: 230, y: 1260},
+        {x: 110, y: 1250},
+        {x: 70, y: 1160},
+        {x: 110, y: 1090},
+        {x: 60, y: 1030},
+        {x: 20, y: 1010},
+        {x: -40, y: 1020}
     ],
-
-    // ── Palette (Desert / Amber) ──────────────────────────────────────────────
-    palette: {
-        skyTop:      '#1c0f03',
-        skyMid:      '#3a1f08',
-        skyBot:      '#5a2f0c',
-        terrainFill: '#0a0501',
-        rockEdge:    '#f59e0b',
-        rockGlow:    'rgba(245,158,11,',
-        fog:         'rgba(217,119,6,0.08)',
-    },
-
-    // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. A cash pickup sits on a ledge partway down the chasm if you're willing to detour. Return to HQ once both are delivered.",
-
-    quests: [
-        questPrimary('Sort & deliver 2 cargo'),
-        questNoCargoLost('No mislabeled deliveries', 300),
-        questQuick('Finish with 45+ sec remaining', 45, 200),
-    ],
+    // Polygon 4
+    [
+        {x: 540, y: 960},
+        {x: 610, y: 960},
+        {x: 680, y: 1020},
+        {x: 690, y: 1110},
+        {x: 760, y: 1160},
+        {x: 820, y: 1200},
+        {x: 870, y: 1240},
+        {x: 930, y: 1220},
+        {x: 870, y: 1110},
+        {x: 860, y: 1040},
+        {x: 780, y: 1020},
+        {x: 770, y: 950},
+        {x: 780, y: 910},
+        {x: 730, y: 850},
+        {x: 650, y: 860},
+        {x: 570, y: 820},
+        {x: 530, y: 810},
+        {x: 470, y: 830},
+        {x: 480, y: 910},
+        {x: 490, y: 960}
+    ]
+  ]
 });

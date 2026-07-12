@@ -59,6 +59,7 @@ const LEVEL_SCHEMA = {
     { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target', required:true, min:1 },
     { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Types', required:true, enumValues:VALID_CARGO_TYPES },
     { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy' },
+    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background', options:['parallax', 'cave'] },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze' },
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops' },
     { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X' },
