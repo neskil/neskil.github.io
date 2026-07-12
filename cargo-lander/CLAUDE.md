@@ -14,6 +14,11 @@ plans — check it before re-diagnosing an old-sounding bug.
 - Bump `CargoGame.VERSION` (top of `game.js`, shown in-game as `vX.Y.Z`) on
   every commit that ships a user-visible change: patch for fixes/tweaks, minor
   for new features. Skip only for docs/comment-only or pure-refactor commits.
+  Whenever you bump it, also update the `?v=X.Y.Z` cache-busting query string
+  on every local `<script src="...">` tag in `index.html` and `tests.html`
+  (GitHub Pages caches aggressively; a stale query string means mobile
+  browsers keep serving old JS after a deploy — bumping it is what forces a
+  fresh fetch without the user needing a manual hard-refresh).
 - The mission grid and dev-panel jump buttons are auto-generated from
   `levels[]` (`generateMissionUI()` in `game/menu.js`). Adding a new
   `levelN.js` still requires manually adding its `<script>` tag in
