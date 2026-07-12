@@ -579,41 +579,6 @@ drawTerrain() {
         const getH = (x) => this.physics.getPolygonSurfaceY(x);
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
-        const hexToRgb = (hex) => {
-            const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-            return [r, g, b];
-        };
-        const [tr, tg, tb] = hexToRgb(pal.terrainFill);
-        const shadowColor = `rgba(${Math.floor(tr * 0.5)},${Math.floor(tg * 0.5)},${Math.floor(tb * 0.5)},0.7)`;
-
-        ctx.fillStyle = shadowColor;
-        ctx.beginPath();
-        let sStarted = false;
-        let lastH = 0;
-        for (let x = startX; x <= endX; x += 8) {
-            let h = getH(x);
-            if (!sStarted) {
-                ctx.moveTo(x, h + 5);
-                sStarted = true;
-            } else if (Math.abs(h - lastH) > 100) {
-                ctx.lineTo(x - 8, lastH);
-                ctx.closePath();
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(x, h + 5);
-            } else {
-                ctx.lineTo(x, h + 5);
-            }
-            lastH = h;
-        }
-        if (sStarted) {
-            for (let x = endX; x >= startX; x -= 8) {
-                ctx.lineTo(x, getH(x));
-            }
-            ctx.closePath();
-            ctx.fill();
-        }
-
         if (this.currentLevelIndex === 0) {
             // ── L1: Grass tufts — snap to world-space grid so they never shift ──
             ctx.lineWidth = 1.3;
