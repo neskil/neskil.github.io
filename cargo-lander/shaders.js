@@ -598,15 +598,35 @@ class ShaderOverlay {
     // rects (see render.js's draw() for how they're computed from camera +
     // physics.waterBodies). Skips the texture upload entirely (the expensive
     // part) when nothing in the current level actually needs distorting.
+    // Uniform/attrib location lookup with per-program caching — getUniformLocation
+    // is a driver round-trip; querying a dozen of them every frame showed up in
+    // profiles. Locations are stable for a linked program, so cache forever.
+    _loc(program, name) {
+        let byProgram = this._locCache || (this._locCache = new Map());
+        let locs = byProgram.get(program);
+        if (!locs) { locs = new Map(); byProgram.set(program, locs); }
+        let loc = locs.get(name);
+        if (loc === undefined) {
+            loc = name.charCodeAt(0) === 97 && name[1] === '_'  // 'a_' prefix
+                ? this.gl.getAttribLocation(program, name)
+                : this.gl.getUniformLocation(program, name);
+            locs.set(name, loc);
+        }
+        return loc;
+    }
+
+    // Returns true if it actually drew anything — callers use this to skip the
+    // full-screen Canvas2D drawImage() composite of this.canvas when the pass
+    // was a no-op (no active effect regions in the level/viewport).
     renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects, activeWeather) {
-        if (!this.gl || !this.postFXProgram) return;
+        if (!this.gl || !this.postFXProgram) return false;
         const gl = this.gl;
 
         const heatHaze = !!(levelConfig && levelConfig.heatHaze);
         const hasBlackhole = physics.gravityWells && physics.gravityWells.length > 0;
         const hasWater = waterRects && waterRects.length > 0;
         const rain = (activeWeather === 'rain' || (levelConfig && levelConfig.weather === 'rain')) ? 1.0 : 0.0;
-        if (!heatHaze && !hasBlackhole && !hasWater && !rain) return;
+        if (!heatHaze && !hasBlackhole && !hasWater && !rain) return false;
 
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -615,34 +635,36 @@ class ShaderOverlay {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.sceneTexture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
-        gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_sceneTex"), 0);
+        gl.uniform1i(this._loc(this.postFXProgram, "u_sceneTex"), 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-        const aPos = gl.getAttribLocation(this.postFXProgram, "a_position");
+        const aPos = this._loc(this.postFXProgram, "a_position");
         gl.enableVertexAttribArray(aPos);
         gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-        gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
-        gl.uniform2f(gl.getUniformLocation(this.postFXProgram, "u_cameraPos"), camera.x, camera.y);
-        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_zoom"), camera.zoom);
-        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
-        gl.uniform1f(gl.getUniformLocation(this.postFXProgram, "u_rainAmount"), rain);
+        gl.uniform2f(this._loc(this.postFXProgram, "u_resolution"), this.canvas.width, this.canvas.height);
+        gl.uniform1f(this._loc(this.postFXProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
+        gl.uniform2f(this._loc(this.postFXProgram, "u_cameraPos"), camera.x, camera.y);
+        gl.uniform1f(this._loc(this.postFXProgram, "u_zoom"), camera.zoom);
+        gl.uniform1f(this._loc(this.postFXProgram, "u_heatHazeEnabled"), heatHaze ? 1.0 : 0.0);
+        gl.uniform1f(this._loc(this.postFXProgram, "u_rainAmount"), rain);
 
         const count = Math.min(4, waterRects ? waterRects.length : 0);
-        const minArr = new Float32Array(8), maxArr = new Float32Array(8);
+        // Reused scratch buffers — these were fresh Float32Array allocations per frame
+        const minArr = this._waterMinArr || (this._waterMinArr = new Float32Array(8));
+        const maxArr = this._waterMaxArr || (this._waterMaxArr = new Float32Array(8));
         for (let i = 0; i < count; i++) {
             minArr[i * 2] = waterRects[i].minX; minArr[i * 2 + 1] = waterRects[i].minY;
             maxArr[i * 2] = waterRects[i].maxX; maxArr[i * 2 + 1] = waterRects[i].maxY;
         }
-        gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_waterCount"), count);
-        gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMin"), minArr);
-        gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_waterMax"), maxArr);
+        gl.uniform1i(this._loc(this.postFXProgram, "u_waterCount"), count);
+        gl.uniform2fv(this._loc(this.postFXProgram, "u_waterMin"), minArr);
+        gl.uniform2fv(this._loc(this.postFXProgram, "u_waterMax"), maxArr);
 
         if (physics.gravityWells && physics.gravityWells.length > 0) {
             const count = Math.min(4, physics.gravityWells.length);
-            const posArr = new Float32Array(8);
-            const radArr = new Float32Array(4);
+            const posArr = this._bhPosArr || (this._bhPosArr = new Float32Array(8));
+            const radArr = this._bhRadArr || (this._bhRadArr = new Float32Array(4));
             for (let i = 0; i < count; i++) {
                 const gw = physics.gravityWells[i];
                 const screenX = (gw.x - camera.x) * camera.zoom + this.canvas.width / 2;
@@ -651,24 +673,40 @@ class ShaderOverlay {
                 posArr[i * 2 + 1] = screenY;
                 radArr[i] = gw.radius * camera.zoom;
             }
-            gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_numBlackholes"), count);
-            gl.uniform2fv(gl.getUniformLocation(this.postFXProgram, "u_blackholePos"), posArr);
-            gl.uniform1fv(gl.getUniformLocation(this.postFXProgram, "u_blackholeRadius"), radArr);
+            gl.uniform1i(this._loc(this.postFXProgram, "u_numBlackholes"), count);
+            gl.uniform2fv(this._loc(this.postFXProgram, "u_blackholePos"), posArr);
+            gl.uniform1fv(this._loc(this.postFXProgram, "u_blackholeRadius"), radArr);
         } else {
-            gl.uniform1i(gl.getUniformLocation(this.postFXProgram, "u_numBlackholes"), 0);
+            gl.uniform1i(this._loc(this.postFXProgram, "u_numBlackholes"), 0);
         }
 
         gl.enable(gl.BLEND);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        this._glCanvasDirty = true; // render() must clear before its own skip check
+        return true;
     }
 
+    // Returns true if anything was drawn (gravity wells or particles) so the
+    // caller can skip the full-screen drawImage composite when idle.
     render(physics, camera) {
-        if (!this.gl) return;
+        if (!this.gl) return false;
         const gl = this.gl;
+        const hasWells = physics.gravityWells && physics.gravityWells.length > 0;
+        const hasParticles = physics.particles && physics.particles.length > 0;
+        // Nothing to draw this frame. Only skip the clear if the canvas is
+        // already blank — otherwise last frame's particles would linger.
+        if (!hasWells && !hasParticles) {
+            if (!this._glCanvasDirty) return false;
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            this._glCanvasDirty = false;
+            return false;
+        }
+        this._glCanvasDirty = true;
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
-        
+
         gl.enable(gl.BLEND);
         gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -698,14 +736,14 @@ class ShaderOverlay {
             gl.useProgram(this.gravityWellProgram);
             
             gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-            const aPos = gl.getAttribLocation(this.gravityWellProgram, "a_position");
+            const aPos = this._loc(this.gravityWellProgram, "a_position");
             gl.enableVertexAttribArray(aPos);
             gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
             
-            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-            gl.uniform2f(gl.getUniformLocation(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
-            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_zoom"), camera.zoom);
-            gl.uniform1f(gl.getUniformLocation(this.gravityWellProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
+            gl.uniform2f(this._loc(this.gravityWellProgram, "u_resolution"), this.canvas.width, this.canvas.height);
+            gl.uniform2f(this._loc(this.gravityWellProgram, "u_cameraPos"), camera.x, camera.y);
+            gl.uniform1f(this._loc(this.gravityWellProgram, "u_zoom"), camera.zoom);
+            gl.uniform1f(this._loc(this.gravityWellProgram, "u_time"), (Date.now() % 10000000) / 1000.0);
             
             const count = Math.min(4, physics.gravityWells.length);
             const posArr = new Float32Array(8);
@@ -720,10 +758,10 @@ class ShaderOverlay {
                 pulseArr[i] = gw.pulse || 1.0;
             }
             
-            gl.uniform1i(gl.getUniformLocation(this.gravityWellProgram, "u_numWells"), count);
-            gl.uniform2fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellPos"), posArr);
-            gl.uniform1fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellRadius"), radArr);
-            gl.uniform1fv(gl.getUniformLocation(this.gravityWellProgram, "u_wellPulse"), pulseArr);
+            gl.uniform1i(this._loc(this.gravityWellProgram, "u_numWells"), count);
+            gl.uniform2fv(this._loc(this.gravityWellProgram, "u_wellPos"), posArr);
+            gl.uniform1fv(this._loc(this.gravityWellProgram, "u_wellRadius"), radArr);
+            gl.uniform1fv(this._loc(this.gravityWellProgram, "u_wellPulse"), pulseArr);
             
             gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
@@ -765,28 +803,28 @@ class ShaderOverlay {
             // Positions
             gl.bindBuffer(gl.ARRAY_BUFFER, this.particlePosBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
-            const aPos = gl.getAttribLocation(this.particleProgram, "a_position");
+            const aPos = this._loc(this.particleProgram, "a_position");
             gl.enableVertexAttribArray(aPos);
             gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
             // Colors
             gl.bindBuffer(gl.ARRAY_BUFFER, this.particleColorBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
-            const aCol = gl.getAttribLocation(this.particleProgram, "a_color");
+            const aCol = this._loc(this.particleProgram, "a_color");
             gl.enableVertexAttribArray(aCol);
             gl.vertexAttribPointer(aCol, 4, gl.FLOAT, false, 0, 0);
 
             // Sizes
             gl.bindBuffer(gl.ARRAY_BUFFER, this.particleSizeBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, sizes, gl.DYNAMIC_DRAW);
-            const aSize = gl.getAttribLocation(this.particleProgram, "a_size");
+            const aSize = this._loc(this.particleProgram, "a_size");
             gl.enableVertexAttribArray(aSize);
             gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, 0, 0);
 
             // Uniforms
-            gl.uniform2f(gl.getUniformLocation(this.particleProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-            gl.uniform2f(gl.getUniformLocation(this.particleProgram, "u_cameraPos"), camera.x, camera.y);
-            gl.uniform1f(gl.getUniformLocation(this.particleProgram, "u_zoom"), camera.zoom);
+            gl.uniform2f(this._loc(this.particleProgram, "u_resolution"), this.canvas.width, this.canvas.height);
+            gl.uniform2f(this._loc(this.particleProgram, "u_cameraPos"), camera.x, camera.y);
+            gl.uniform1f(this._loc(this.particleProgram, "u_zoom"), camera.zoom);
 
             gl.drawArrays(gl.POINTS, 0, count);
 

@@ -1,6 +1,22 @@
 // render.js - Extracted rendering logic for CargoLander
 
 const CargoRendererMixin = {
+// Keyed cache for CanvasGradient objects — building a gradient is a per-call
+// allocation plus color-stop parsing, and dozens were being rebuilt every
+// frame with identical parameters. Key must encode every input the gradient
+// depends on. Animated alphas should be applied via ctx.globalAlpha instead
+// of being baked into the stops so the gradient itself stays cacheable.
+_grad(key, build) {
+    const cache = this._gradCache || (this._gradCache = new Map());
+    let g = cache.get(key);
+    if (g === undefined) {
+        if (cache.size > 400) cache.clear(); // safety valve, never expected in practice
+        g = build(this.ctx);
+        cache.set(key, g);
+    }
+    return g;
+},
+
 draw() {
         const ctx = this.ctx;
         const w = this.canvas.width;
@@ -30,20 +46,29 @@ draw() {
             const camX = this.gameState === 'playing' ? this.camera.x : 0;
             const camY = this.gameState === 'playing' ? this.camera.y : 0;
 
-            // Nebulae (drawn first, behind stars)
+            // Nebulae (drawn first, behind stars) — pre-baked sprites from
+            // generateStars(); drawing a scaled bitmap replaces a per-nebula
+            // radial-gradient build + fill every frame.
             for (const neb of this.bgNebulae) {
                 const sx = neb.x - camX * neb.parallax;
                 const sy = neb.y - camY * neb.parallax;
                 if (sx < -neb.r - 100 || sx > w + neb.r + 100) continue;
-                const ng = ctx.createRadialGradient(sx, sy, 0, sx, sy, neb.r);
-                const [r, g, b] = neb.col;
-                ng.addColorStop(0, `rgba(${r},${g},${b},${neb.alpha})`);
-                ng.addColorStop(1, `rgba(${r},${g},${b},0)`);
-                ctx.fillStyle = ng;
-                ctx.fillRect(sx - neb.r, sy - neb.r, neb.r * 2, neb.r * 2);
+                if (neb.sprite) {
+                    ctx.drawImage(neb.sprite, sx - neb.r, sy - neb.r, neb.r * 2, neb.r * 2);
+                } else {
+                    const ng = ctx.createRadialGradient(sx, sy, 0, sx, sy, neb.r);
+                    const [r, g, b] = neb.col;
+                    ng.addColorStop(0, `rgba(${r},${g},${b},${neb.alpha})`);
+                    ng.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                    ctx.fillStyle = ng;
+                    ctx.fillRect(sx - neb.r, sy - neb.r, neb.r * 2, neb.r * 2);
+                }
             }
 
-            // Star layers
+            // Star layers — twinkle via globalAlpha over a constant per-star
+            // color string (star.css, set at generation) instead of building a
+            // fresh `rgba(...)` string per star per frame; halo stars draw a
+            // shared pre-baked halo sprite instead of a radial gradient each.
             for (const layer of this.bgLayers) {
                 for (const star of layer.objects) {
                     star.phase += star.speed;
@@ -52,31 +77,29 @@ draw() {
                     const sy = star.y - camY * layer.parallax;
                     if (sx < -4 || sx > w + 4 || sy < -4 || sy > h + 4) continue;
                     const a = star.alpha * pulse;
-                    ctx.fillStyle = `rgba(${star.r},${star.g},${star.b},${a})`;
-                    // Bright stars get a soft halo first
-                    if (star.halo) {
-                        const hg = ctx.createRadialGradient(sx, sy, 0, sx, sy, star.size * 3.5);
-                        hg.addColorStop(0, `rgba(${star.r},${star.g},${star.b},${a * 0.35})`);
-                        hg.addColorStop(1, `rgba(${star.r},${star.g},${star.b},0)`);
-                        ctx.fillStyle = hg;
+                    ctx.globalAlpha = a;
+                    if (star.halo && this._haloSprite) {
+                        const hr = star.size * 3.5;
+                        ctx.drawImage(this._haloSprite, sx - hr, sy - hr, hr * 2, hr * 2);
+                    } else {
+                        ctx.fillStyle = star.css || `rgb(${star.r},${star.g},${star.b})`;
                         ctx.beginPath();
-                        ctx.arc(sx, sy, star.size * 3.5, 0, Math.PI * 2);
+                        ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
                         ctx.fill();
-                        ctx.fillStyle = `rgba(${star.r},${star.g},${star.b},${a})`;
                     }
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-                    ctx.fill();
                 }
             }
+            ctx.globalAlpha = 1;
         }
 
         // Top HUD breathing room — dark-to-transparent band so game elements sit below the HTML HUD
         if (this.gameState !== 'menu') {
-            const topGrad = ctx.createLinearGradient(0, 0, 0, 88);
-            topGrad.addColorStop(0, 'rgba(5, 8, 18, 0.65)');
-            topGrad.addColorStop(1, 'rgba(5, 8, 18, 0)');
-            ctx.fillStyle = topGrad;
+            ctx.fillStyle = this._grad('hudTopBand', (c) => {
+                const g = c.createLinearGradient(0, 0, 0, 88);
+                g.addColorStop(0, 'rgba(5, 8, 18, 0.65)');
+                g.addColorStop(1, 'rgba(5, 8, 18, 0)');
+                return g;
+            });
             ctx.fillRect(0, 0, w, 88);
         }
 
@@ -206,12 +229,15 @@ draw() {
                 }
             }
 
-            this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather);
-            ctx.save();
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.drawImage(this.shaders.canvas, 0, 0);
-            ctx.restore();
+            // Only pay for the full-screen composite when the pass actually
+            // drew something (it early-outs when no effect region is active).
+            if (this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather)) {
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.drawImage(this.shaders.canvas, 0, 0);
+                ctx.restore();
+            }
         }
 
         if (this.physics.lander && this.physics.lander.vehicleType !== 'drone') {
@@ -252,9 +278,9 @@ draw() {
 
         ctx.restore(); // Restore camera transform
 
-        // 9. WebGL Render for Particles
-        if (this.shaders) {
-            this.shaders.render(this.physics, this.camera);
+        // 9. WebGL Render for Particles — skip the full-screen composite when
+        // there are no particles or gravity wells to show.
+        if (this.shaders && this.shaders.render(this.physics, this.camera)) {
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.globalCompositeOperation = 'source-over';
@@ -299,12 +325,17 @@ draw() {
 
                 // Draw a more subtle pulsing red vignette
                 ctx.save();
-                const vignetteGrad = ctx.createRadialGradient(w / 2, h / 2, h / 4, w / 2, h / 2, Math.max(w, h));
-                vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
-                vignetteGrad.addColorStop(0.5, `rgba(150, 0, 0, ${threatLevel * 0.1})`);
-                vignetteGrad.addColorStop(1, `rgba(200, 0, 0, ${threatLevel * 0.6})`);
-
-                ctx.fillStyle = vignetteGrad;
+                // Quantize the animated intensity to 5% steps so the gradient
+                // is cacheable instead of rebuilt every frame (~20 variants max
+                // per canvas size).
+                const tq = Math.round(threatLevel * 20) / 20;
+                ctx.fillStyle = this._grad(`threat|${w}x${h}|${tq}`, (c) => {
+                    const g = c.createRadialGradient(w / 2, h / 2, h / 4, w / 2, h / 2, Math.max(w, h));
+                    g.addColorStop(0, 'rgba(0,0,0,0)');
+                    g.addColorStop(0.5, `rgba(150, 0, 0, ${tq * 0.1})`);
+                    g.addColorStop(1, `rgba(200, 0, 0, ${tq * 0.6})`);
+                    return g;
+                });
                 ctx.fillRect(0, 0, w, h);
 
                 // Warning text
@@ -369,12 +400,16 @@ draw() {
 
         // 13b. Damage flash overlay — strong red vignette + bold text
         if (this.damageFlash > 0) {
-            // Solid edge flash
-            const flashGrad = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
-            flashGrad.addColorStop(0, 'rgba(0,0,0,0)');
-            flashGrad.addColorStop(0.5, `rgba(220,10,0,${this.damageFlash * 0.5})`);
-            flashGrad.addColorStop(1, `rgba(255,0,0,${this.damageFlash * 0.92})`);
-            ctx.fillStyle = flashGrad;
+            // Solid edge flash — intensity quantized to 5% steps so the
+            // gradient caches (see threat vignette above).
+            const fq = Math.round(this.damageFlash * 20) / 20;
+            ctx.fillStyle = this._grad(`dmg|${w}x${h}|${fq}`, (c) => {
+                const g = c.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.9);
+                g.addColorStop(0, 'rgba(0,0,0,0)');
+                g.addColorStop(0.5, `rgba(220,10,0,${fq * 0.5})`);
+                g.addColorStop(1, `rgba(255,0,0,${fq * 0.92})`);
+                return g;
+            });
             ctx.fillRect(0, 0, w, h);
             // Full-width top + bottom bars
             ctx.fillStyle = `rgba(255,0,0,${this.damageFlash * 0.55})`;

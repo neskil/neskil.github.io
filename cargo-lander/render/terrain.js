@@ -14,17 +14,23 @@ drawGravityWell(well, baseConfig) {
         // own clip region — so we do nothing extra here.
 
         // ── Base spatial glow ─────────────────────────────────────────────────
-        const grad = ctx.createRadialGradient(well.x, well.y, 15, well.x, well.y, 160);
-        grad.addColorStop(0, 'rgba(0, 0, 0, 1)');
-        grad.addColorStop(0.15, 'rgba(30, 0, 80, 0.9)');
-        grad.addColorStop(0.4, 'rgba(76, 29, 149, 0.55)');
-        grad.addColorStop(0.75, 'rgba(139, 92, 246, 0.15)');
-        grad.addColorStop(1, 'rgba(139, 92, 246, 0)');
-
-        ctx.fillStyle = grad;
+        // Gradient is built once at the origin and translated to the well —
+        // its shape/colors are constant, only the position moves.
+        ctx.save();
+        ctx.translate(well.x, well.y);
+        ctx.fillStyle = this._grad('gravityWellGlow', (c) => {
+            const g = c.createRadialGradient(0, 0, 15, 0, 0, 160);
+            g.addColorStop(0, 'rgba(0, 0, 0, 1)');
+            g.addColorStop(0.15, 'rgba(30, 0, 80, 0.9)');
+            g.addColorStop(0.4, 'rgba(76, 29, 149, 0.55)');
+            g.addColorStop(0.75, 'rgba(139, 92, 246, 0.15)');
+            g.addColorStop(1, 'rgba(139, 92, 246, 0)');
+            return g;
+        });
         ctx.beginPath();
-        ctx.arc(well.x, well.y, 160, 0, Math.PI * 2);
+        ctx.arc(0, 0, 160, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
 
         // ── Animated accretion rings ──────────────────────────────────────────
         // Three concentric rings that cycle inward toward the event horizon,
@@ -107,12 +113,13 @@ drawFluidBounds() {
             ctx.lineTo(gridStartX, depth);
             ctx.closePath();
             
-            const depthGrad = ctx.createLinearGradient(0, oob.surfaceY - 20, 0, oob.surfaceY + 400);
-            depthGrad.addColorStop(0, 'rgba(14, 165, 233, 0.25)'); // Bright surface
-            depthGrad.addColorStop(0.3, 'rgba(14, 100, 200, 0.6)'); // Mid
-            depthGrad.addColorStop(1, 'rgba(4, 25, 60, 0.95)'); // Dark abyss
-            
-            ctx.fillStyle = depthGrad;
+            ctx.fillStyle = this._grad(`fluidDepth|${oob.surfaceY}`, (c) => {
+                const g = c.createLinearGradient(0, oob.surfaceY - 20, 0, oob.surfaceY + 400);
+                g.addColorStop(0, 'rgba(14, 165, 233, 0.25)'); // Bright surface
+                g.addColorStop(0.3, 'rgba(14, 100, 200, 0.6)'); // Mid
+                g.addColorStop(1, 'rgba(4, 25, 60, 0.95)'); // Dark abyss
+                return g;
+            });
             ctx.fill();
 
             // Surface Shimmer / Foam layer
