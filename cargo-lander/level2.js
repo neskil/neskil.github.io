@@ -16,6 +16,8 @@ registerLevel({
   targetCargo: 2,
   allowedTypes: ["normal","red"],
   backgroundType: "cave",
+  shadowAngle: -35,
+  shadowLength: 90,
   weather: "heatwave",
   heatHaze: true,
   startX: -250,

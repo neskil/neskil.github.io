@@ -445,8 +445,8 @@ drawGroundParallax() {
         const [tr, tg, tb] = hexToRgb(pal.terrainFill);
 
         const layers = [
-            { lengthRatio: 1.0, alpha: 0.55, darken: 0.45 },
-            { lengthRatio: 0.466, alpha: 0.40, darken: 0.65 },
+            { lengthRatio: 1.0, alpha: 1.0, darken: 0.20 },
+            { lengthRatio: 0.466, alpha: 1.0, darken: 0.35 },
         ];
         for (const layer of layers) {
             ctx.fillStyle = `rgba(${Math.floor(tr * layer.darken)},${Math.floor(tg * layer.darken)},${Math.floor(tb * layer.darken)},${layer.alpha})`;
@@ -468,9 +468,12 @@ drawGroundParallax() {
                 const isCeiling = area > 0;
                 const dir = isCeiling ? -1 : 1;
                 
-                // Defaults: 60px down
-                let sLen = (poly.shadowLength !== undefined ? poly.shadowLength : 60) * layer.lengthRatio;
-                let sAngle = (poly.shadowAngle !== undefined ? poly.shadowAngle : 0); // 0 = straight down
+                // Defaults: global first, then 60px down
+                let globalLen = lv.shadowLength !== undefined ? lv.shadowLength : 60;
+                let globalAngle = lv.shadowAngle !== undefined ? lv.shadowAngle : 0;
+                
+                let sLen = (poly.shadowLength !== undefined ? poly.shadowLength : globalLen) * layer.lengthRatio;
+                let sAngle = (poly.shadowAngle !== undefined ? poly.shadowAngle : globalAngle);
                 
                 // Convert angle to radians (0 = down, 90 = right)
                 let rad = sAngle * Math.PI / 180;
@@ -479,6 +482,23 @@ drawGroundParallax() {
                 let dx = Math.sin(rad) * sLen * dir;
                 let dy = Math.cos(rad) * sLen * dir;
 
+                // Draw connecting quads (extrusion walls) to avoid gaps
+                ctx.strokeStyle = ctx.fillStyle;
+                ctx.lineWidth = 1.0;
+                for (let i = 0; i < poly.length; i++) {
+                    const p1 = poly[i];
+                    const p2 = poly[(i + 1) % poly.length];
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.lineTo(p2.x + dx, p2.y + dy);
+                    ctx.lineTo(p1.x + dx, p1.y + dy);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke(); // hide antialiasing seams
+                }
+
+                // Draw the back face
                 ctx.beginPath();
                 ctx.moveTo(poly[0].x + dx, poly[0].y + dy);
                 for (let i = 1; i < poly.length; i++) {
