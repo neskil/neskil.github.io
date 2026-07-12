@@ -117,7 +117,6 @@ Object.assign(CargoGame.prototype, {
                 const licensePortrait = portrait.replace('.jpg', '_license.jpg');
                 avatarEl.innerHTML = `
                     <img src="${licensePortrait}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1;">
-                    <img src="assets/portraits/license_border.jpg" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 2; mix-blend-mode: screen; pointer-events: none; opacity: 0.8;">
                 `;
                 avatarEl.classList.remove('nudge');
             } else {
