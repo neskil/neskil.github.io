@@ -269,6 +269,12 @@ draw() {
         if (!this.shaders) this.drawParticles();
         ctx.restore();
 
+        // 9c. Night Ops darkness + lander spotlight — screen-space overlay,
+        // sits above the whole scene (terrain/entities/monster/particles) but
+        // below the HUD-layer draws that follow (wind indicator, minimap,
+        // vignettes, damage flash, version/FPS counter).
+        if (this.drawNightOverlay) this.drawNightOverlay();
+
         // 10. Notifications are now HTML DOM elements — no canvas draw needed
         this.drawNotifications(); // no-op stub kept for safety
 

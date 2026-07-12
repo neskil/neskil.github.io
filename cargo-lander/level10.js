@@ -6,13 +6,14 @@
 registerLevel({
   name: "L10: The Crystal Caves",
   missionTitle: "Crystal Caves — Precision Flying",
-  description: "Navigate the winding Crystal Caves. Ancient automated mining crushers are still active, embedded within the rock walls. Time your passage carefully, as the crushers will smash anything caught between them. Deliver the cargo to the mining outposts and return to HQ.",
+  description: "Navigate the winding Crystal Caves in total darkness — main power to the outpost lights is down, so you're flying on your lander's spotlight alone. Ancient automated mining crushers are still active, embedded within the rock walls. Time your passage carefully, as the crushers will smash anything caught between them. Deliver the cargo to the mining outposts and return to HQ.",
   weather: 'bubbles',
 
   // ── Physics ───────────────────────────────────────────────────────────────
   gravity: 0.15,
   wind: 0,
   heavyCargo: true,
+  night: true,
 
   // ── Terrain ───────────────────────────────────────────────────────────────
   terrainPolygons: [
