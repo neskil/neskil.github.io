@@ -21,12 +21,13 @@ updateWeather(dt) {
         
         // ── Regular weather particles ──────────────────────────────────────
         if (hasWeather && this.weatherParticles.length < MAX_WEATHER_PARTICLES && Math.random() < 0.6) {
+            const isHeatwave = this.weather === 'heatwave';
             this.weatherParticles.push({
                 x: camX + (Math.random() - 0.5) * vw * 2.0, // Spawn wider to cover off-screen
-                y: camY - vh * 0.6,
-                vx: this.weather === 'snow' ? (Math.random() - 0.5) * 2 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (Math.random() - 0.5) * 3),
-                vy: this.weather === 'snow' ? Math.random() * 2 + 1 : (this.weather === 'rain' ? Math.random() * 8 + 8 : Math.random() * 2 + 1),
-                size: this.weather === 'snow' ? Math.random() * 3 + 1 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : Math.random() * 4 + 2),
+                y: isHeatwave ? camY + vh * 0.6 : camY - vh * 0.6,
+                vx: this.weather === 'snow' ? (Math.random() - 0.5) * 2 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (this.weather === 'heatwave' ? (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 3)),
+                vy: this.weather === 'snow' ? Math.random() * 2 + 1 : (this.weather === 'rain' ? Math.random() * 8 + 8 : (this.weather === 'heatwave' ? -(Math.random() * 2 + 1) : Math.random() * 2 + 1)),
+                size: this.weather === 'snow' ? Math.random() * 3 + 1 : (this.weather === 'rain' ? Math.random() * 1.5 + 0.5 : (this.weather === 'heatwave' ? Math.random() * 3 + 1.5 : Math.random() * 4 + 2)),
                 type: this.weather
             });
         }
@@ -73,7 +74,7 @@ updateWeather(dt) {
             }
             p.x += p.vx * dt;
             p.y += p.vy * dt;
-            if (p.type === 'snow' || p.type === 'ash') {
+            if (p.type === 'snow' || p.type === 'ash' || p.type === 'heatwave') {
                 p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5 * dt;
             }
             const sucked = well && Math.hypot(well.x - p.x, well.y - p.y) < well.radius * 0.4;
@@ -87,7 +88,9 @@ updateWeather(dt) {
                 }
             }
 
-            if (sucked || hitTerrain || p.y > camY + vh * 0.6 || p.x < camX - vw || p.x > camX + vw) {
+            const offScreenY = p.type === 'heatwave' ? (p.y < camY - vh * 0.6) : (p.y > camY + vh * 0.6);
+
+            if (sucked || hitTerrain || offScreenY || p.x < camX - vw || p.x > camX + vw) {
                 if (hitTerrain && p.type === 'rain' && Math.random() < 0.5) {
                     p.type = 'splash';
                     p.vy = -Math.random() * 2 - 1;
@@ -162,6 +165,8 @@ drawWeather() {
             ctx.fillStyle = 'rgba(150, 200, 255, 0.4)';
         } else if (this.weather === 'ash') {
             ctx.fillStyle = 'rgba(100, 100, 100, 0.6)';
+        } else if (this.weather === 'heatwave') {
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
         } else if (this.weather === 'bubbles') {
             ctx.strokeStyle = 'rgba(200, 255, 255, 0.5)';
             ctx.lineWidth = 1;
@@ -435,9 +440,9 @@ drawCaveBackground() {
 
         // Slower moving layers, darker, more opaque
         const layers = [
-            { factor: 0.15, freq: 0.003, freq2: 0.007, seed: 1.2, seed2: 3.4, alpha: 0.6, darken: 0.2 },
-            { factor: 0.30, freq: 0.004, freq2: 0.009, seed: 5.6, seed2: 7.8, alpha: 0.8, darken: 0.35 },
-            { factor: 0.50, freq: 0.005, freq2: 0.012, seed: 9.1, seed2: 2.3, alpha: 1.0, darken: 0.5 },
+            { factor: 0.85, freq: 0.003, freq2: 0.007, seed: 1.2, seed2: 3.4, alpha: 0.6, darken: 0.2 },
+            { factor: 0.93, freq: 0.004, freq2: 0.009, seed: 5.6, seed2: 7.8, alpha: 0.8, darken: 0.35 },
+            { factor: 1.00, freq: 0.005, freq2: 0.012, seed: 9.1, seed2: 2.3, alpha: 1.0, darken: 0.5 },
         ];
 
         const camX = this.camera ? this.camera.x : 0;

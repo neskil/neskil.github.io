@@ -182,6 +182,18 @@ canvas{display:block}
       <label>Label:</label>
       <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
     </div>
+    <div id="terrain-shadow-row" style="display:none; margin-top:4px; padding:4px; border:1px solid #30363d; border-radius:4px; background:#0d1117">
+      <div style="font-size:10px; color:#8b949e; margin-bottom:4px">Terrain Shadow</div>
+      <div class="row">
+        <label><input type="checkbox" id="terrain-shadow-enabled" onchange="setTerrainShadow('enabled', this.checked)"> Enabled</label>
+      </div>
+      <div class="row" style="margin-top:2px">
+        <label title="Shadow angle in degrees (0 = down, 90 = right)">Angle:</label>
+        <input type="number" id="terrain-shadow-angle" class="cinput" style="width:40px" placeholder="0" onchange="setTerrainShadow('angle', this.value)">
+        <label title="Base length of the shadow">Length:</label>
+        <input type="number" id="terrain-shadow-length" class="cinput" style="width:40px" placeholder="60" onchange="setTerrainShadow('length', this.value)">
+      </div>
+    </div>
     <div id="water-properties-row" style="display:none; margin-top:4px">
       <label><input type="checkbox" id="water-hasboat" onchange="setWaterField('hasBoat', this.checked)"> Boat ⛵</label>
       <label style="margin-left:8px"><input type="checkbox" id="water-hasfish" onchange="setWaterField('hasFish', this.checked)"> Fish 🐟</label>
@@ -628,11 +640,18 @@ function evalLevel(src) {
 
 function applyConfig(cfg) {
   resetState();
-  S.polygons  = (cfg.terrainPolygons || []).map((pts, i) => ({
-    pts: pts.map(p => ({x:p.x, y:p.y})),
-    comment: guessComment(pts, i),
-    hidden: false
-  }));
+  S.polygons  = (cfg.terrainPolygons || []).map((ptsOrObj, i) => {
+    const isObj = ptsOrObj && !Array.isArray(ptsOrObj);
+    const pts = isObj ? ptsOrObj.pts : ptsOrObj;
+    return {
+      pts: pts.map(p => ({x:p.x, y:p.y})),
+      shadowEnabled: isObj ? ptsOrObj.shadowEnabled : undefined,
+      shadowAngle: isObj ? ptsOrObj.shadowAngle : undefined,
+      shadowLength: isObj ? ptsOrObj.shadowLength : undefined,
+      comment: guessComment(pts, i),
+      hidden: false
+    };
+  });
   // Water/hazard polygon shapes depend on terrain for the legacy-rect/circle
   // migration below (it ray-casts against S.polygons), so build these after.
   S.waterPolys  = (cfg.waterBodies || []).map(waterToShape);
@@ -805,12 +824,16 @@ function guessComment(pts, i) {
 
 function regexParsePolys(src) {
   const polys = [];
-  const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)\s*\}/g;
+  const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)(?:,\s*invisibleEdge\s*:\s*(true|false))?\s*\}/g;
   const blocks = src.split(/\n\s*\[/);
   blocks.slice(1).forEach((block, i) => {
     const pts = []; let m;
     re.lastIndex = 0;
-    while ((m = re.exec(block)) !== null) pts.push({x:+m[1], y:+m[2]});
+    while ((m = re.exec(block)) !== null) {
+      const pt = {x:+m[1], y:+m[2]};
+      if (m[3] === 'true') pt.invisibleEdge = true;
+      pts.push(pt);
+    }
     if (pts.length >= 3) polys.push({pts, comment:`Polygon ${i+1}`, hidden:false});
   });
   return polys;
@@ -1483,8 +1506,18 @@ function renderPtUI() {
   const gwRow = document.getElementById('gravwell-properties-row');
   const crusherRow = document.getElementById('crusher-properties-row');
   const waterRow = document.getElementById('water-properties-row');
+  const terrainShadowRow = document.getElementById('terrain-shadow-row');
   if (hasPoly) {
     document.getElementById('poly-rename').value = arr[S.selPoly].comment || '';
+    if (S.selLayer === 'terrain') {
+      const poly = arr[S.selPoly];
+      terrainShadowRow.style.display = 'block';
+      document.getElementById('terrain-shadow-enabled').checked = poly.shadowEnabled !== false;
+      document.getElementById('terrain-shadow-angle').value = poly.shadowAngle !== undefined ? poly.shadowAngle : '';
+      document.getElementById('terrain-shadow-length').value = poly.shadowLength !== undefined ? poly.shadowLength : '';
+    } else {
+      terrainShadowRow.style.display = 'none';
+    }
     if (S.selLayer === 'hazard') {
       const poly = arr[S.selPoly];
       hazardRow.style.display = '';
@@ -1573,7 +1606,8 @@ function renderPtList() {
       `<span class="pidx">${i}</span>` +
       `<span class="clabel">x</span><input class="cinput" type="number" value="${Math.round(pt.x)}" onchange="setPt(${pi},${i},'x',this.value)" onclick="event.stopPropagation()">` +
       `<span class="clabel">y</span><input class="cinput" type="number" value="${Math.round(pt.y)}" onchange="setPt(${pi},${i},'y',this.value)" onclick="event.stopPropagation()">` +
-      `<span class="xbtn" onclick="deletePt(${pi},${i})">×</span>`;
+      (S.selLayer === 'terrain' ? `<label title="Make edge invisible (stops glowing edge rendering)" style="margin-left:4px; font-size:9px; color:#8b949e" onclick="event.stopPropagation()"><input type="checkbox" ${pt.invisibleEdge?'checked':''} onchange="setPt(${pi},${i},'invisibleEdge',this.checked)"> inv.</label>` : '') +
+      `<span class="xbtn" style="margin-left:auto" onclick="deletePt(${pi},${i})">×</span>`;
     row.onclick = e => {
       if (e.target.tagName==='INPUT'||e.target.classList.contains('xbtn')) return;
       S.selPt=i; renderPtList(); renderSidebar(); draw();
@@ -1629,6 +1663,23 @@ function setHazardType(val) {
   renderSidebar(); renderPtList(); draw(); updateOut();
 }
 
+function setTerrainShadow(field, val) {
+  const arr = activeList();
+  if (!arr.length || S.selPoly < 0 || S.selLayer !== 'terrain') return;
+  const poly = arr[S.selPoly];
+  if (field === 'enabled') {
+    if (val === true) delete poly.shadowEnabled;
+    else poly.shadowEnabled = false;
+  } else if (field === 'angle') {
+    if (val === '' || val === '0') delete poly.shadowAngle;
+    else poly.shadowAngle = +val;
+  } else if (field === 'length') {
+    if (val === '' || val === '60') delete poly.shadowLength;
+    else poly.shadowLength = +val;
+  }
+  updateOut(); draw();
+}
+
 function setHazardField(field, val) {
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
@@ -1645,7 +1696,12 @@ function setWaterField(field, val) {
 }
 
 function setPt(pi, pti, axis, val) {
-  activeList()[pi].pts[pti][axis] = +val;
+  if (axis === 'invisibleEdge') {
+    if (val) activeList()[pi].pts[pti][axis] = true;
+    else delete activeList()[pi].pts[pti][axis];
+  } else {
+    activeList()[pi].pts[pti][axis] = +val;
+  }
   draw(); updateOut();
 }
 
@@ -1925,11 +1981,29 @@ function buildOut() {
   lines.push('  terrainPolygons: [');
   S.polygons.forEach((poly, pi) => {
     if (poly.comment) lines.push(`    // ${poly.comment}`);
-    lines.push('    [');
+    const hasShadowProps = poly.shadowEnabled !== undefined || poly.shadowAngle !== undefined || poly.shadowLength !== undefined;
+    if (hasShadowProps) {
+        lines.push('    {');
+        const props = [];
+        if (poly.shadowEnabled !== undefined) props.push(`shadowEnabled: ${poly.shadowEnabled}`);
+        if (poly.shadowAngle !== undefined) props.push(`shadowAngle: ${poly.shadowAngle}`);
+        if (poly.shadowLength !== undefined) props.push(`shadowLength: ${poly.shadowLength}`);
+        lines.push(`      ${props.join(', ')},`);
+        lines.push('      pts: [');
+    } else {
+        lines.push('    [');
+    }
+    
     poly.pts.forEach((pt,i) => {
       lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${i<poly.pts.length-1?',':''}`);
     });
-    lines.push(`    ]${pi<S.polygons.length-1?',':''}`);
+    
+    if (hasShadowProps) {
+        lines.push(`      ]`);
+        lines.push(`    }${pi<S.polygons.length-1?',':''}`);
+    } else {
+        lines.push(`    ]${pi<S.polygons.length-1?',':''}`);
+    }
   });
   lines.push('  ]');
   lines.push('});');

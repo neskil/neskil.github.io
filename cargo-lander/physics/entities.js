@@ -48,7 +48,7 @@ const CargoPhysicsEntitiesMixin = {
                 thrustMult *= 1.05;
             } else if (portrait.includes('driver3.jpg')) { // Mac: +5% Hull Integrity
                 maxIntegrity *= 1.05;
-            } else if (portrait.includes('driver4.jpg')) { // Bo: +15% Top Speed (drag reduction handled in physics.js)
+            } else if (portrait.includes('driver4.jpg')) { // Bo: +5% Top Speed (drag reduction handled in physics.js)
                 // Drag reduction is handled in physics.js
             }
         }
