@@ -445,8 +445,8 @@ drawGroundParallax() {
         const [tr, tg, tb] = hexToRgb(pal.terrainFill);
 
         const layers = [
-            { lengthRatio: 1.0, alpha: 1.0, darken: 0.20 },
-            { lengthRatio: 0.466, alpha: 1.0, darken: 0.35 },
+            { lengthRatio: 1.0, alpha: 0.55, darken: 0.45 },
+            { lengthRatio: 0.466, alpha: 0.40, darken: 0.65 },
         ];
         for (const layer of layers) {
             ctx.fillStyle = `rgba(${Math.floor(tr * layer.darken)},${Math.floor(tg * layer.darken)},${Math.floor(tb * layer.darken)},${layer.alpha})`;

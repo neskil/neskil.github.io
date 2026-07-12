@@ -123,7 +123,6 @@ draw() {
 
         // 5. Draw Terrain Landscape
         this.drawUnderground();
-        this.drawGroundParallax();
 
         if (levelConfig?.outOfBounds) {
             this.drawFluidBounds();
