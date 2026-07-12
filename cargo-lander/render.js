@@ -22,8 +22,11 @@ draw() {
         ctx.fillStyle = this._skyGrad;
         ctx.fillRect(0, 0, w, h);
 
+        const levelConfig = levels[this.currentLevelIndex];
+        const isCave = levelConfig?.backgroundType === 'cave';
+
         // 2. Parallax background layers
-        if (this.bgLayers) {
+        if (this.bgLayers && !isCave) {
             const camX = this.gameState === 'playing' ? this.camera.x : 0;
             const camY = this.gameState === 'playing' ? this.camera.y : 0;
 
@@ -91,7 +94,11 @@ draw() {
             return; // Don't draw the level geometry
         }
 
-        this.drawParallax();
+        if (isCave) {
+            this.drawCaveBackground();
+        } else {
+            this.drawParallax();
+        }
 
         // Apply Camera Transform for Level rendering
         ctx.save();
@@ -102,13 +109,12 @@ draw() {
         ctx.translate(-this.camera.x, -this.camera.y);
 
         // 3. Draw Gravity Well Anomaly
-        const level = levels[this.currentLevelIndex];
-        if (level && level.gravityWell && this.gameState === 'playing') {
+        if (levelConfig && levelConfig.gravityWell && this.gameState === 'playing') {
             // Was checking this.shaderOverlay (never set — the real property is
             // this.shaders), so the Canvas2D rings always drew on top of the WebGL
             // gravity well glow too instead of only as its fallback.
             if (!this.shaders || !this.shaders.gl) {
-                this.drawGravityWell(this.physics.gravityWellPos || level.gravityWell, level.gravityWell);
+                this.drawGravityWell(this.physics.gravityWellPos || levelConfig.gravityWell, levelConfig.gravityWell);
             }
         }
 
@@ -119,7 +125,6 @@ draw() {
         this.drawUnderground();
         this.drawGroundParallax();
 
-        const levelConfig = levels[this.currentLevelIndex];
         if (levelConfig?.outOfBounds) {
             this.drawFluidBounds();
         }
@@ -285,7 +290,6 @@ draw() {
             // Quest panel is now an HTML element — no canvas draw needed
 
             // 12. Draw Lateral Mist
-            const levelConfig = levels[this.currentLevelIndex];
             if (levelConfig?.outOfBounds) {
                 this.drawMistEdges();
             }

@@ -1214,22 +1214,23 @@ function drawSegments() {
   });
 }
 
-// Returns the topmost terrain y at world x by ray-casting downward through all polygon edges.
 function groundYAt(worldX) {
-  let best = null;
+  let maxSurfaceY = 0;
   S.polygons.forEach(poly => {
     if (poly.hidden) return;
     for (let i = 0; i < poly.pts.length; i++) {
-      const a = poly.pts[i], b = poly.pts[(i+1) % poly.pts.length];
-      if (a.x === b.x) continue;
-      const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
-      if (worldX < minX || worldX > maxX) continue;
-      const t = (worldX - a.x) / (b.x - a.x);
-      const y = a.y + t * (b.y - a.y);
-      if (best === null || y < best) best = y;
+      const p1 = poly.pts[i], p2 = poly.pts[(i+1) % poly.pts.length];
+      // Match the game's logic: only consider upward-facing floor segments (p1.x < p2.x)
+      if (p1.x < p2.x && p1.x <= worldX && p2.x >= worldX) {
+        const ratio = (worldX - p1.x) / (p2.x - p1.x);
+        const y = p1.y + ratio * (p2.y - p1.y);
+        if (maxSurfaceY === 0 || y > maxSurfaceY) {
+          maxSurfaceY = y;
+        }
+      }
     }
   });
-  return best;
+  return maxSurfaceY === 0 ? null : maxSurfaceY;
 }
 
 function drawHubs() {
