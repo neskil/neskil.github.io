@@ -870,6 +870,13 @@
                 margin-bottom: 10px;
             }
 
+            /* Post-extraction details box: inline padding/margin are desktop-sized */
+            #lvl-complete-details {
+                padding: 12px 14px !important;
+                margin-bottom: 12px !important;
+                font-size: 0.88rem;
+            }
+
             /* Compact HUD: keep horizontal, shrink padding/fonts */
             #hud-overlay {
                 top: 8px;
@@ -970,6 +977,58 @@
                 font-size: 0.8rem !important;
                 padding: 6px 14px !important;
                 margin-top: 6px !important;
+            }
+
+            /* Result modals (post-extraction #complete-screen, fail, respawn,
+               victory) are sized for a tall desktop viewport and overflowed a
+               ~350-450px-tall landscape phone. Shrink the whole modal so it
+               fits on screen; !important where inline styles (title font-size,
+               subtitle margin, details-box padding) would otherwise win. */
+            .screen-overlay {
+                padding: 8px;
+            }
+
+            .screen-content {
+                max-width: 480px;
+                padding: 12px 18px;
+                border-radius: 14px;
+            }
+
+            .screen-content h2 {
+                font-size: 1.15rem !important;
+                margin-bottom: 2px !important;
+            }
+
+            .screen-content p.subtitle {
+                font-size: 0.75rem;
+                margin-bottom: 8px !important;
+            }
+
+            #lvl-complete-details {
+                padding: 8px 14px !important;
+                margin-bottom: 10px !important;
+                gap: 3px !important;
+                font-size: 0.82rem;
+                border-radius: 10px !important;
+            }
+
+            #fail-reason,
+            #respawn-screen p {
+                font-size: 0.8rem;
+                margin-bottom: 10px !important;
+            }
+
+            #complete-screen .btn-primary,
+            #complete-screen .btn-secondary,
+            #game-over-screen .btn-primary,
+            #game-over-screen .btn-secondary,
+            #respawn-screen .btn-primary,
+            #respawn-screen .btn-secondary,
+            #victory-screen .btn-primary,
+            #victory-screen .btn-secondary {
+                padding: 8px 12px;
+                font-size: 0.82rem;
+                border-radius: 9px;
             }
         }
 
