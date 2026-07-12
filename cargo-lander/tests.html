@@ -295,23 +295,23 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levelSchema.js?v=0.10.5"></script>
-<script src="upgrades.js?v=0.10.5"></script>
-<script src="levels.js?v=0.10.5"></script>
-<script src="levelGenerator.js?v=0.10.5"></script>
-<script src="level1.js?v=0.10.5"></script>
-<script src="level2.js?v=0.10.5"></script>
-<script src="level3.js?v=0.10.5"></script>
-<script src="level4.js?v=0.10.5"></script>
-<script src="level5.js?v=0.10.5"></script>
-<script src="level6.js?v=0.10.5"></script>
-<script src="level7.js?v=0.10.5"></script>
-<script src="level8.js?v=0.10.5"></script>
-<script src="level9.js?v=0.10.5"></script>
-<script src="level10.js?v=0.10.5"></script>
-<script src="levelTest.js?v=0.10.5"></script>
-<script src="audio.js?v=0.10.5"></script>
-<script src="shaders.js?v=0.10.5"></script>
+<script src="levelSchema.js?v=0.10.8"></script>
+<script src="upgrades.js?v=0.10.8"></script>
+<script src="levels.js?v=0.10.8"></script>
+<script src="levelGenerator.js?v=0.10.8"></script>
+<script src="level1.js?v=0.10.8"></script>
+<script src="level2.js?v=0.10.8"></script>
+<script src="level3.js?v=0.10.8"></script>
+<script src="level4.js?v=0.10.8"></script>
+<script src="level5.js?v=0.10.8"></script>
+<script src="level6.js?v=0.10.8"></script>
+<script src="level7.js?v=0.10.8"></script>
+<script src="level8.js?v=0.10.8"></script>
+<script src="level9.js?v=0.10.8"></script>
+<script src="level10.js?v=0.10.8"></script>
+<script src="levelTest.js?v=0.10.8"></script>
+<script src="audio.js?v=0.10.8"></script>
+<script src="shaders.js?v=0.10.8"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -348,23 +348,23 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics.js?v=0.10.5"></script>
-<script src="physics/collision.js?v=0.10.5"></script>
-<script src="physics/mechanics.js?v=0.10.5"></script>
-<script src="physics/entities.js?v=0.10.5"></script>
-<script src="physics/atmosphere.js?v=0.10.5"></script>
-<script src="game.js?v=0.10.5"></script>
-<script src="game/input.js?v=0.10.5"></script>
-<script src="game/menu.js?v=0.10.5"></script>
-<script src="game/hud.js?v=0.10.5"></script>
-<script src="game/cargo.js?v=0.10.5"></script>
-<script src="render.js?v=0.10.5"></script>
-<script src="render/background.js?v=0.10.5"></script>
-<script src="render/terrain.js?v=0.10.5"></script>
-<script src="render/entities.js?v=0.10.5"></script>
-<script src="render/effects.js?v=0.10.5"></script>
-<script src="render/night.js?v=0.10.5"></script>
-<script src="render/ui.js?v=0.10.5"></script>
+<script src="physics.js?v=0.10.8"></script>
+<script src="physics/collision.js?v=0.10.8"></script>
+<script src="physics/mechanics.js?v=0.10.8"></script>
+<script src="physics/entities.js?v=0.10.8"></script>
+<script src="physics/atmosphere.js?v=0.10.8"></script>
+<script src="game.js?v=0.10.8"></script>
+<script src="game/input.js?v=0.10.8"></script>
+<script src="game/menu.js?v=0.10.8"></script>
+<script src="game/hud.js?v=0.10.8"></script>
+<script src="game/cargo.js?v=0.10.8"></script>
+<script src="render.js?v=0.10.8"></script>
+<script src="render/background.js?v=0.10.8"></script>
+<script src="render/terrain.js?v=0.10.8"></script>
+<script src="render/entities.js?v=0.10.8"></script>
+<script src="render/effects.js?v=0.10.8"></script>
+<script src="render/night.js?v=0.10.8"></script>
+<script src="render/ui.js?v=0.10.8"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -650,6 +650,12 @@ levels.forEach((lv, i) => {
     if (lv.gravityWell === undefined) return;
     assert(typeof lv.gravityWell === 'object', 'gravityWell must be an object');
     schemaCheckSection(lv.gravityWell, LEVEL_SCHEMA.gravityWell.fields, 'gravityWell.');
+  });
+
+  test(`${label} — radar ping zone`, () => {
+    if (lv.radarPingZone === undefined) return;
+    assert(typeof lv.radarPingZone === 'object', 'radarPingZone must be an object');
+    schemaCheckSection(lv.radarPingZone, LEVEL_SCHEMA.radarPingZone.fields, 'radarPingZone.');
   });
 
   test(`${label} — terrain geometry`, () => {
