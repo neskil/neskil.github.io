@@ -161,6 +161,81 @@ canvas{display:block}
   scrollbar-color: #30363d #161b22;
 }
 
+/* Custom Preset Selector styles */
+.preset-dropdown {
+  position: relative;
+  display: inline-block;
+  flex: 1;
+  min-width: 0;
+}
+.preset-dropdown-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  padding: 6px 9px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  color: #c9d1d9;
+  height: 28px;
+  box-sizing: border-box;
+}
+.preset-dropdown-trigger:hover {
+  border-color: #8b949e;
+}
+.preset-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  margin-top: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.preset-dropdown.open .preset-dropdown-menu {
+  display: block;
+}
+.preset-dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 1px solid #21262d;
+  color: #c9d1d9;
+}
+.preset-dropdown-item:last-child {
+  border-bottom: none;
+}
+.preset-dropdown-item:hover {
+  background: #21262d;
+}
+.preset-dropdown-item.selected {
+  background: #1f6feb;
+  color: #fff;
+}
+.preset-swatch-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.preset-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
 </style>
 </head>
 <body>
@@ -613,12 +688,46 @@ function parseRgba(str) {
   return m ? { r:+m[1], g:+m[2], b:+m[3], a:+m[4] } : { ...hexToRgb('#38bdf8'), a:0.1 };
 }
 
+function renderSwatches(pal) {
+  const parseColor = (col, fallback) => {
+    if (!col) return fallback;
+    if (col.startsWith('#')) return col.slice(0, 7);
+    if (col.startsWith('rgba')) {
+      const m = /rgba\(\s*(\d+),\s*(\d+),\s*(\d+),/.exec(col);
+      return m ? `rgb(${m[1]},${m[2]},${m[3]})` : fallback;
+    }
+    return col;
+  };
+  const c1 = parseColor(pal.skyTop, '#000');
+  const c2 = parseColor(pal.skyMid, '#000');
+  const c3 = parseColor(pal.skyBot, '#000');
+  const c4 = parseColor(pal.terrainFill, '#000');
+  const c5 = parseColor(pal.rockEdge, '#fff');
+
+  return `<div class="preset-swatch-row">
+    <div class="preset-swatch" style="background:${c1}" title="Sky Top"></div>
+    <div class="preset-swatch" style="background:${c2}" title="Sky Mid"></div>
+    <div class="preset-swatch" style="background:${c3}" title="Sky Bot"></div>
+    <div class="preset-swatch" style="background:${c4}" title="Terrain"></div>
+    <div class="preset-swatch" style="background:${c5}" title="Rock Edge"></div>
+  </div>`;
+}
+
 function applyPalettePreset(name) {
-  if (!name || !COLOR_PRESETS[name]) return;
-  S.palette = Object.assign({}, COLOR_PRESETS[name]);
+  if (name && COLOR_PRESETS[name]) {
+    S.palette = Object.assign({}, COLOR_PRESETS[name]);
+  }
   populatePaletteUI();
   draw(); updateOut();
 }
+
+// Close custom dropdown on click outside
+window.addEventListener('click', function(e) {
+  if (!e.target.closest('.preset-dropdown')) {
+    const container = document.getElementById('preset-dropdown-container');
+    if (container) container.classList.remove('open');
+  }
+});
 
 // Derives a full 7-key palette from a single accent color: dark, low-
 // saturation sky/terrain shades plus the accent itself for rockEdge/
@@ -626,13 +735,13 @@ function applyPalettePreset(name) {
 function generatePaletteFromBase(hex) {
   const { r, g, b } = hexToRgb(hex);
   const { h } = rgbToHsl(r, g, b);
-  S.palette.skyTop      = hslToHex(h, 60, 4);
-  S.palette.skyMid      = hslToHex(h, 55, 6);
-  S.palette.skyBot      = hslToHex(h, 45, 8);
-  S.palette.terrainFill = hslToHex(h, 45, 7);
+  S.palette.skyTop      = hslToHex(h, 45, 8);
+  S.palette.skyMid      = hslToHex(h, 40, 15);
+  S.palette.skyBot      = hslToHex(h, 35, 22);
+  S.palette.terrainFill = hslToHex(h, 40, 5);
   S.palette.rockEdge    = rgbToHex(r, g, b);
   S.palette.rockGlow    = `rgba(${r},${g},${b},`;
-  S.palette.fog         = `rgba(${r},${g},${b},0.1)`;
+  S.palette.fog         = `rgba(${r},${g},${b},0.08)`;
   populatePaletteUI();
   draw(); updateOut();
 }
@@ -930,12 +1039,29 @@ function populatePaletteUI() {
     }
   }
 
+  const triggerLabel = matchedPreset ? matchedPreset : '-- Custom / Base Derived --';
+  const triggerSwatches = matchedPreset ? renderSwatches(COLOR_PRESETS[matchedPreset]) : renderSwatches(S.palette);
+
   let html = `<div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
     <label title="Select a curated color theory preset or existing level theme.">Preset</label>
-    <select id="palette-preset-selector" onchange="applyPalettePreset(this.value)" style="flex:1">
-      <option value="" ${matchedPreset === '' ? 'selected' : ''}>-- Custom / Base Derived --</option>
-      ${Object.keys(COLOR_PRESETS).map(name => `<option value="${name}" ${name === matchedPreset ? 'selected' : ''}>${name}</option>`).join('')}
-    </select>
+    <div class="preset-dropdown" id="preset-dropdown-container">
+      <div class="preset-dropdown-trigger" onclick="document.getElementById('preset-dropdown-container').classList.toggle('open')">
+        <span>${triggerLabel}</span>
+        ${triggerSwatches}
+      </div>
+      <div class="preset-dropdown-menu">
+        <div class="preset-dropdown-item ${matchedPreset === '' ? 'selected' : ''}" onclick="applyPalettePreset('')">
+          <span>-- Custom / Base Derived --</span>
+          ${renderSwatches(S.palette)}
+        </div>
+        ${Object.entries(COLOR_PRESETS).map(([name, pal]) => `
+          <div class="preset-dropdown-item ${name === matchedPreset ? 'selected' : ''}" onclick="applyPalettePreset('${name}')">
+            <span>${name}</span>
+            ${renderSwatches(pal)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
   </div>
   <div class="row" style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid #30363d">
     <label title="Derives the whole palette below from one accent color — sky/terrain shades plus rockEdge/rockGlow/fog. Fine-tune individual keys after.">Base</label>

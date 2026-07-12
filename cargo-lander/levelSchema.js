@@ -46,26 +46,26 @@ const VALID_OOB_TYPES     = ['water', 'goo', 'sand', 'acid', 'void'];
 const LEVEL_SCHEMA = {
   // Top-level scalar/list fields on the registerLevel({...}) config object.
   fields: [
-    { key:'name',            type:'string',    default:'',  widget:'text',     label:'ID (name)', required:true, desc:'The unique identifier and file name for the level.', recommended:'levelX' },
-    { key:'missionTitle',    type:'string',    default:'',  widget:'text',     label:'Title', desc:'The human-readable title displayed in menus.', recommended:'Keep it short and punchy' },
-    { key:'description',     type:'string',    default:'',  widget:'text',     label:'Desc', desc:'The mission briefing shown to the player before starting.', recommended:'1-2 short sentences' },
-    { key:'hint',            type:'string',    default:'',  widget:'text',     label:'Hint', desc:'Optional tip displayed if the player fails multiple times.', recommended:'Keep it helpful but not obvious' },
-    { key:'gravity',         type:'number',    default:0.11,widget:'number',   label:'Gravity', step:0.01, required:true, positive:true, desc:'Downward acceleration applied to the lander each frame.', recommended:'0.10 - 0.15', sliderMin:0.02, sliderMax:0.3, sliderStep:0.01 },
-    { key:'wind',            type:'number',    default:0,   widget:'number',   label:'Wind', step:0.01, desc:'Horizontal force applied to the lander and particles.', recommended:'-0.05 to 0.05', sliderMin:-0.1, sliderMax:0.1, sliderStep:0.01 },
-    { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather', options:VALID_WEATHER_TYPES, desc:'Visual weather particle effects.', recommended:'Match with wind for best effect' },
-    { key:'budget',          type:'number',    default:500,widget:'number',   label:'Budget', required:true, positive:true, desc:'Starting money for purchasing upgrades.', recommended:'200 - 800', sliderMin:100, sliderMax:1500, sliderStep:50 },
-    { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time', required:true, positive:true, desc:'Maximum time in seconds before the mission fails.', recommended:'120 - 300', sliderMin:30, sliderMax:600, sliderStep:10 },
-    { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'PadScale', step:0.1, positive:true, desc:'Multiplier for the physical width of landing pads.', recommended:'1.0 (0.8 for hard, 1.5 for easy)', sliderMin:0.5, sliderMax:2, sliderStep:0.1 },
-    { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target', required:true, min:1, desc:'Number of cargo pieces that must be successfully delivered.', recommended:'1 - 5', sliderMin:1, sliderMax:12, sliderStep:1 },
-    { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Types', required:true, enumValues:VALID_CARGO_TYPES, desc:'Comma-separated list of cargo types available in this level.', recommended:'normal,red,blue' },
-    { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy', desc:'If true, all cargo weighs significantly more.', recommended:'Use for late-game challenge levels' },
-    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background', options:['parallax', 'cave'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground' },
-    { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Shad Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
-    { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shad Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
-    { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
-    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
-    { key:'terrainType',     type:'string',    default:'', widget:'select', label:'Terrain Type', options:['', 'worm-lair', 'flat'], desc:"Special terrain behavior flag. 'worm-lair' enables the giant Sandworm AI (also requires a sandworm-type hazard polygon marking its zone).", recommended:"worm-lair for Sandworm levels, otherwise leave blank" },
-    { key:'ambientTrafficRate', type:'number', default:1, widget:'number', label:'Traffic Rate', step:0.5, desc:'Multiplier for background ambient traffic (space trucks) density and spawn frequency. 0 disables ambient traffic entirely.', recommended:'0 = none, 1 = normal, 4 = chaotic', sliderMin:0, sliderMax:5, sliderStep:0.5 },
+    { key:'name',            type:'string',    default:'',  widget:'text',     label:'Level ID', required:true, desc:'The unique identifier and file name for the level.', recommended:'levelX' },
+    { key:'missionTitle',    type:'string',    default:'',  widget:'text',     label:'Display Title', desc:'The human-readable title displayed in menus.', recommended:'Keep it short and punchy' },
+    { key:'description',     type:'string',    default:'',  widget:'text',     label:'Briefing Text', desc:'The mission briefing shown to the player before starting.', recommended:'1-2 short sentences' },
+    { key:'hint',            type:'string',    default:'',  widget:'text',     label:'Fail Tip / Hint', desc:'Optional tip displayed if the player fails multiple times.', recommended:'Keep it helpful but not obvious' },
+    { key:'gravity',         type:'number',    default:0.11,widget:'number',   label:'Gravity Pull', step:0.01, required:true, positive:true, desc:'Downward acceleration applied to the lander each frame.', recommended:'0.10 - 0.15', sliderMin:0.02, sliderMax:0.3, sliderStep:0.01 },
+    { key:'wind',            type:'number',    default:0,   widget:'number',   label:'Wind Speed', step:0.01, desc:'Horizontal force applied to the lander and particles.', recommended:'-0.05 to 0.05', sliderMin:-0.1, sliderMax:0.1, sliderStep:0.01 },
+    { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather Effect', options:VALID_WEATHER_TYPES, desc:'Visual weather particle effects.', recommended:'Match with wind for best effect' },
+    { key:'budget',          type:'number',    default:500,widget:'number',   label:'Starting Budget', required:true, positive:true, desc:'Starting money for purchasing upgrades.', recommended:'200 - 800', sliderMin:100, sliderMax:1500, sliderStep:50 },
+    { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time Limit (s)', required:true, positive:true, desc:'Maximum time in seconds before the mission fails.', recommended:'120 - 300', sliderMin:30, sliderMax:600, sliderStep:10 },
+    { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'Pad Width Mult', step:0.1, positive:true, desc:'Multiplier for the physical width of landing pads.', recommended:'1.0 (0.8 for hard, 1.5 for easy)', sliderMin:0.5, sliderMax:2, sliderStep:0.1 },
+    { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target Deliveries', required:true, min:1, desc:'Number of cargo pieces that must be successfully delivered.', recommended:'1 - 5', sliderMin:1, sliderMax:12, sliderStep:1 },
+    { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Allowed Cargo Types', required:true, enumValues:VALID_CARGO_TYPES, desc:'Comma-separated list of cargo types available in this level.', recommended:'normal,red,blue' },
+    { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy Cargo Mode', desc:'If true, all cargo weighs significantly more.', recommended:'Use for late-game challenge levels' },
+    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background Style', options:['parallax', 'cave'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground' },
+    { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Sun/Shadow Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
+    { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shadow Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
+    { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
+    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
+    { key:'terrainType',     type:'string',    default:'', widget:'select', label:'Special Level Mode', options:['', 'worm-lair', 'flat'], desc:"Special terrain behavior flag. 'worm-lair' enables the giant Sandworm AI (also requires a sandworm-type hazard polygon marking its zone).", recommended:"worm-lair for Sandworm levels, otherwise leave blank" },
+    { key:'ambientTrafficRate', type:'number', default:1, widget:'number', label:'Space Traffic Rate', step:0.5, desc:'Multiplier for background ambient traffic (space trucks) density and spawn frequency. 0 disables ambient traffic entirely.', recommended:'0 = none, 1 = normal, 4 = chaotic', sliderMin:0, sliderMax:5, sliderStep:0.5 },
     { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X', desc:'X coordinate for the starting HQ.', recommended:'Place near a flat edge' },
     { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y', desc:'Override Y coordinate for the HQ. If null, snaps to terrain.', recommended:'Leave empty' },
     { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width', desc:'Override physical width of the HQ pad.', recommended:'Leave empty' },
@@ -105,20 +105,6 @@ const LEVEL_SCHEMA = {
       { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y', desc:'The Y coordinate where the instant-kill sand worm will strike from.', recommended:'surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
       { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction applied to the ship when submerged.', recommended:'0.02 - 0.05', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
       { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force applied when submerged.', recommended:'0.04 - 0.08', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
-    ]
-  },
-
-  // gravityWell: {...} — optional object (L4, L8, levelTest). L9 has a
-  // conceptually similar well but expresses it as a `hazards[].type ===
-  // 'blackhole'` entry instead — that's geometry-adjacent hazard data, out of
-  // this schema's scope, and untouched by this pass.
-  gravityWell: {
-    fields: [
-      { key:'x',           type:'number', default:500, widget:'number', label:'X', desc:'Center X coordinate of the gravity well.', recommended:'Place in empty space' },
-      { key:'y',           type:'number', default:500, widget:'number', label:'Y', desc:'Center Y coordinate of the gravity well.', recommended:'Place in empty space' },
-      { key:'radius',      type:'number', default:300, widget:'number', label:'Radius', desc:'The maximum range where the pull effect is felt.', recommended:'200 - 400', sliderMin:20, sliderMax:800, sliderStep:10 },
-      { key:'strength',    type:'number', default:1,   widget:'number', label:'Strength', step:0.1, desc:'The force multiplier pulling the ship toward the center.', recommended:'0.5 - 2.0', sliderMin:0, sliderMax:3, sliderStep:0.1 },
-      { key:'orbitRadius', type:'number', default:0,   widget:'number', label:'Orbit', desc:'The radius at which objects will enter a stable orbit instead of falling into the center.', recommended:'0 for a black hole, 100 for an orbit', sliderMin:0, sliderMax:400, sliderStep:10 },
     ]
   },
 
