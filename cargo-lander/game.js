@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.11.0';
+    static VERSION = '0.12.0';
 
     constructor() {
         this.canvas = null;
@@ -310,7 +310,7 @@ class CargoGame {
 
     goToMenu() {
         if (this.gameState === 'playing' && !this.isPlaytest) {
-            this.showConfirm("Exit Mission?", "If you exit now, your lander will be abandoned and you will forfeit your entire invested budget!", () => {
+            this.showConfirm("Exit Mission?", "If you exit now, your lander will be abandoned and you will forfeit your entire Mission Deposit!", () => {
                 this._executeGoToMenu();
             });
             return;
@@ -400,9 +400,14 @@ class CargoGame {
         const level = levels[idx];
         level.vehicle = vehicleType;
 
-        // Deduct entry fee and risk the mission budget from global cash
-        const entryFee = 50 + (idx * 50);
-        this.globalCash -= (entryFee + (level.budget || 1000));
+        // Maintenance cost (fuel, upkeep) is spent permanently from the Bank.
+        // The mission deposit is also drawn from the Bank, but it isn't spent —
+        // it's carried into the level to cover refueling/repairs/respawns, and
+        // whatever's left comes back to the Bank at the end (see completeMission).
+        // If the deposit runs out mid-level, or the player abandons the mission
+        // via exit-to-menu/bankruptcy, the deposit is lost entirely.
+        const maintenanceCost = 50 + (idx * 50);
+        this.globalCash -= (maintenanceCost + (level.budget || 1000));
         localStorage.setItem('cargoLanderCash', this.globalCash);
 
         // Update exit buttons text if playtesting
@@ -419,9 +424,11 @@ class CargoGame {
         });
 
         this.missionBudget = level.budget || 1000;
-        this.missionTimer = level.timeLimit || 180;
+        this.missionTimeLimit = level.timeLimit || 180;
+        this.missionTimer = this.missionTimeLimit;
         this.overtimeActive = false;
         this.overtimeTimer = 0;
+        this.missionRepairSpend = 0;
 
         this.physics.initLevel(level, this.canvas.width, this.canvas.height, this.upgrades, this.career.portrait);
         this.deliveredCount = 0;
@@ -1285,20 +1292,33 @@ class CargoGame {
         this.missionBudget -= 100;
         lander.fuel = lander.maxFuel;
         if (window.CargoAudio) window.CargoAudio.playClick();
-        this.addMessage("Vehicle refueled. -$100 Budget", "#10b981");
+        this.addMessage("Vehicle refueled. -$100 Deposit", "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];
         this.floatingTexts.push({ text: "-$100", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
+    // Repair cost scales with how damaged the lander is — a scratch is cheap,
+    // a near-wreck costs close to the full base price. Charged against the
+    // in-level Mission Deposit, same as refueling.
+    getRepairCost(lander) {
+        if (!lander) return 0;
+        const damagePct = 1 - (lander.integrity / lander.maxIntegrity);
+        const REPAIR_BASE_COST = 600;
+        return Math.max(1, Math.ceil(REPAIR_BASE_COST * damagePct));
+    }
+
     repairLander() {
         const lander = this.physics.lander;
-        if (!lander || this.missionBudget < 200 || lander.integrity >= lander.maxIntegrity) return;
-        this.missionBudget -= 200;
+        if (!lander || lander.integrity >= lander.maxIntegrity) return;
+        const cost = this.getRepairCost(lander);
+        if (this.missionBudget < cost) return;
+        this.missionBudget -= cost;
+        this.missionRepairSpend = (this.missionRepairSpend || 0) + cost;
         lander.integrity = lander.maxIntegrity;
         if (window.CargoAudio) window.CargoAudio.playClick();
-        this.addMessage("Integrity restored. -$200 Budget", "#10b981");
+        this.addMessage(`Integrity restored. -$${cost} Deposit`, "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];
-        this.floatingTexts.push({ text: "-$200", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
+        this.floatingTexts.push({ text: `-$${cost}`, x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
     completeMission(force = false) {
@@ -1318,7 +1338,7 @@ class CargoGame {
         
         if (!allDelivered) {
             if (!force) {
-                this.showConfirm("Abort Mission?", "You haven't completed all deliveries. You will keep your remaining budget, but you will forfeit all time and objective bonuses.", () => {
+                this.showConfirm("Abort Mission?", "You haven't completed all deliveries. You will keep your remaining Mission Deposit, but you will forfeit all time and objective bonuses.", () => {
                     this.completeMission(true);
                 });
                 return;
@@ -1360,7 +1380,13 @@ class CargoGame {
                     }
                 }
             }
-            timeBonus = Math.floor(this.missionTimer) * 10;
+            // Time bonus scales with the % of the mission's time limit left
+            // unused, not raw seconds — so it rewards efficiency the same way
+            // on a 60s sprint as it does on a 300s marathon.
+            const timeLimit = this.missionTimeLimit || level.timeLimit || 180;
+            const timePctRemaining = Math.max(0, Math.min(1, this.missionTimer / timeLimit));
+            const TIME_BONUS_BASE = 1800;
+            timeBonus = Math.floor(timePctRemaining * TIME_BONUS_BASE);
         } else {
             questLines = `<p style="color:#ef4444; font-style:italic;">Mission aborted. Bonuses forfeited.</p>`;
         }
@@ -1406,11 +1432,12 @@ class CargoGame {
         document.getElementById('lvl-complete-title').textContent = allDelivered ? "Extraction Successful!" : "Extraction / Aborted";
         document.getElementById('lvl-complete-title').style.color = allDelivered ? "var(--neon-green)" : "#f59e0b";
         document.getElementById('lvl-complete-details').innerHTML = `
-            <p>Retained Budget: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
-            ${allDelivered ? `<p>Time Bonus: <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
+            ${this.missionRepairSpend > 0 ? `<p>Repairs Paid: <span style="color: #ef4444; font-weight:600;">-$${this.missionRepairSpend}</span></p>` : ''}
+            <p>Retained Deposit: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
+            ${allDelivered ? `<p>Time Bonus (${Math.round(timeBonus / 1800 * 100)}% time left): <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
             ${questLines}
             <hr style="border:1px solid rgba(255,255,255,0.1);">
-            <p>Total Global Cash: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
+            <p>New Bank Balance: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
         `;
     }
 

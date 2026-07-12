@@ -126,7 +126,11 @@ Object.assign(CargoGame.prototype, {
         }
 
         // Career stat cells
-        this.setText('lc-cash', '$' + this.globalCash.toLocaleString());
+        const isNegativeCash = this.globalCash < 0;
+        this.setText('lc-cash', (isNegativeCash ? '⚠️ ' : '') + '$' + this.globalCash.toLocaleString());
+        const cashEl = document.getElementById('lc-cash');
+        if (cashEl) cashEl.classList.toggle('red', isNegativeCash);
+        if (cashEl) cashEl.classList.toggle('green', !isNegativeCash);
         this.setText('lc-deliveries', this.career.totalDeliveries);
         this.setText('lc-missions', this.career.missionsComplete);
         this.setText('lc-crashes', this.career.crashes);
