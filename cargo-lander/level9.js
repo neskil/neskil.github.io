@@ -25,10 +25,8 @@ registerLevel({
     weatherParticles: 200,   // Heavy weather
     heavyCargo: true,
     ambientTrafficRate: 4,   // Maximum traffic frequency
-    terrainType: 'worm-lair',// Enables the giant Sandworm hazard
-    wormZoneR: 300,          // Range for worm to strike
-    wormPitCX: 800,          // Center of the worm pit
-    wormPitCY: 900,          // Bottom of the worm pit
+    terrainType: 'worm-lair',// Enables the giant Sandworm hazard (zone defined by the
+                              // `sandworm`-type hazard polygon below, centered on 800,900 r:300)
     outOfBounds: true,       // Thick lateral fog on the sides
 
     // ── Mission parameters ────────────────────────────────────────────────────
@@ -60,7 +58,7 @@ registerLevel({
         // Left starting shelf (HQ) — crumbles diagonally into the worm pit instead
         // of a sheer rectangle edge; surface stays flat/near-flat out to x:450 for
         // the depot/cargo spawn and the refinery building, then breaks up right at
-        // the worm zone's western edge (wormPitCX:800, wormZoneR:300 -> zone starts x:500)
+        // the worm zone's western edge (sandworm hazard centered 800,900 r:300 -> zone starts x:500)
         [
             { x: -200, y: 650 }, { x: -100, y: 600 }, { x: 0, y: 630 }, { x: 100, y: 600 },
             { x: 250, y: 610 }, { x: 350, y: 600 }, { x: 450, y: 615 },
@@ -126,6 +124,18 @@ registerLevel({
             radius: 180,
             startForce: 1.0,
             endForce: 0.2
+        },
+        // Worm danger zone — 12-point circle (cx:800, cy:900, r:300) around the
+        // central pit, replacing the old wormPitCX/CY/wormZoneR legacy fields.
+        {
+            type: 'sandworm',
+            spawnRate: 1.0,
+            comment: 'Worm danger zone (central pit)',
+            pts: [
+                {x: 1100, y: 900}, {x: 1060, y: 1050}, {x: 950,  y: 1160}, {x: 800, y: 1200},
+                {x: 650,  y: 1160}, {x: 540,  y: 1050}, {x: 500,  y: 900}, {x: 540, y: 750},
+                {x: 650,  y: 640},  {x: 800,  y: 600},  {x: 950,  y: 640}, {x: 1060, y: 750}
+            ]
         }
     ],
 
@@ -152,7 +162,6 @@ registerLevel({
 
     // ── Setup & Spawns ────────────────────────────────────────────────────────
     startX: 0,               // Player starts on the left shelf
-    defaultVehicle: 'lander',// Start with lander, though drone is highly recommended
 
     setupPhysics: function(physics) {
         // Create the Cargo Pickup Depot

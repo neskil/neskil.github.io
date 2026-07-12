@@ -5,7 +5,8 @@
 //   [2] Cargo pickup — lower-left valley shelf (collectionX: 200), near the lake
 //   [3] Drop-off — upper-right plateau (Eastern Base hub at x:1460)
 //   Lake — central depression; OOB water zone fills the valley floor
-//   Worm Pit — raised central mound; wormPitCX/CY define the AI spawn epicentre
+//   Worm Pit — raised central mound; a `sandworm`-type hazard polygon
+//   (see hazards[] below) marks the AI spawn zone
 // The worm only spawns after all cargo is delivered if the player lingers — or if OOB timeout fires.
 // radarPingZone draws an animated sonar ring over the danger area in game.js.
 
@@ -21,11 +22,6 @@ registerLevel({
     // Radar ping zone — read by drawRadarPingZone() in game.js.
     // color is an RGB string; r is max ping radius; period is ms per cycle.
     radarPingZone: { cx: 900, cy: 580, r: 280, color: '200, 100, 20', period: 3600 },
-
-    // Physics spawn point for the sand worm (can reference the zone above)
-    wormPitCX: 900,
-    wormPitCY: 580,
-    wormZoneR: 280,
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.18,
@@ -88,6 +84,24 @@ registerLevel({
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
         { x: 1460, width: 110, color: "#3b82f6", type: "normal", name: "Eastern Base" }
+    ],
+
+    // ── Hazards ───────────────────────────────────────────────────────────────
+    // Worm danger zone — a 12-point circle (cx:900, cy:580, r:280) around the
+    // central mound, matching the radarPingZone above. spawnRate is the risk
+    // multiplier used by the sand-worm spawn check (see terrainType:'worm-lair'
+    // handling in physics/atmosphere.js) while the lander is inside the zone.
+    hazards: [
+        {
+            type: 'sandworm',
+            spawnRate: 1.0,
+            comment: 'Worm danger zone (central mound)',
+            pts: [
+                {x: 1180, y: 580}, {x: 1143, y: 720}, {x: 1040, y: 823}, {x: 900,  y: 860},
+                {x: 760,  y: 823}, {x: 658,  y: 720}, {x: 620,  y: 580}, {x: 658,  y: 440},
+                {x: 760,  y: 338}, {x: 900,  y: 300}, {x: 1040, y: 338}, {x: 1143, y: 440}
+            ]
+        }
     ],
 
     // ── Palette (Desert / Amber Dusk) ─────────────────────────────────────────
