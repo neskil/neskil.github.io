@@ -404,9 +404,11 @@ function buildGWPanel() {
   document.getElementById('gw-fields').innerHTML = LEVEL_SCHEMA.gravityWell.fields
     .map(f => schemaFieldRowHTML('setGW', 'gw-', f)).join('');
 }
-buildMetaPanel();
-buildOOBPanel();
-buildGWPanel();
+document.addEventListener('DOMContentLoaded', () => {
+  buildMetaPanel();
+  buildOOBPanel();
+  buildGWPanel();
+});
 
 const S = {
   // All three shape lists share the same per-item shape: {pts:[{x,y}], comment:'', hidden:false, ...extra}
