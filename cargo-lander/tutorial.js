@@ -28,9 +28,18 @@
 
     function tick() {
         if (modal.style.display === 'none') { rafId = null; return; }
-        drawScene();
+        if (!document.hidden) drawScene();
         rafId = requestAnimationFrame(tick);
     }
+
+    // Pausing on tab-hide isn't enough on its own (rAF already throttles in
+    // background tabs) — this also stops the modal wasting cycles if the OS
+    // still ticks rAF while the window is merely occluded/minimized.
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && rafId === null && modal.style.display !== 'none') {
+            rafId = requestAnimationFrame(tick);
+        }
+    });
 
     function drawScene() {
         const dpr = window.devicePixelRatio || 1;
