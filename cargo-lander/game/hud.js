@@ -197,7 +197,7 @@ Object.assign(CargoGame.prototype, {
         }
         const budgetEl = this.uiElements?.hudBudget || document.getElementById('hud-budget');
         if (budgetEl) {
-            budgetEl.textContent = `Budget: $${this.missionBudget}`;
+            budgetEl.textContent = `Deposit: $${this.missionBudget}`;
         }
         const timeEl = this.uiElements?.hudTime || document.getElementById('hud-time');
         if (timeEl) {
@@ -284,11 +284,15 @@ Object.assign(CargoGame.prototype, {
                         btnRefuel.style.cursor = btnRefuel.disabled ? 'not-allowed' : 'pointer';
                     }
                     if (btnRepair) {
-                        const needsRepair = lander.integrity < lander.maxIntegrity;
-                        const canAfford = this.missionBudget >= 200;
+                        const hasKit = (this.upgrades?.repairKit || 0) > 0;
+                        const cap = this.getRepairCap(lander);
+                        const needsRepair = hasKit && lander.integrity < cap;
+                        const repairCost = this.getRepairCost(lander);
+                        const canAfford = this.missionBudget >= repairCost;
                         btnRepair.disabled = !needsRepair || !canAfford;
                         btnRepair.style.opacity = btnRepair.disabled ? '0.5' : '1';
                         btnRepair.style.cursor = btnRepair.disabled ? 'not-allowed' : 'pointer';
+                        btnRepair.textContent = !hasKit ? '🔒 Repair (needs Repair Kit)' : (needsRepair ? `🔧 Repair ($${repairCost})` : '🔧 Repair');
                     }
                 }
             } else if (allDelivered) {
@@ -461,7 +465,7 @@ Object.assign(CargoGame.prototype, {
                     <div id="mission-stat-time" style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:${timeColor};line-height:1.1;">${timeStr}</div>
                 </div>
                 <div style="background:rgba(0,0,0,0.25);border-radius:6px;padding:4px 7px;">
-                    <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Budget</div>
+                    <div style="font-size:9px;color:rgba(148,163,184,0.7);letter-spacing:.08em;text-transform:uppercase;">Deposit</div>
                     <div id="mission-stat-budget" style="font-size:17px;font-weight:700;color:#10b981;line-height:1.1;">${budgetStr}</div>
                 </div>
             </div>
