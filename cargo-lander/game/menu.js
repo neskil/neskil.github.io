@@ -114,7 +114,8 @@ Object.assign(CargoGame.prototype, {
         if (avatarEl) {
             const portrait = this.career.portrait;
             if (portrait) {
-                avatarEl.innerHTML = `<img src="${portrait}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">`;
+                const licensePortrait = portrait.replace('.jpg', '_license.jpg');
+                avatarEl.innerHTML = `<img src="${licensePortrait}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">`;
                 avatarEl.classList.remove('nudge');
             } else {
                 avatarEl.textContent = '🚀';
