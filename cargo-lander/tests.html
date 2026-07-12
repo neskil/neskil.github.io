@@ -509,6 +509,34 @@ test('Game Over Simulation', () => {
   // crashHandled is set to true inside update() when lander.crashed is detected
 });
 
+test('Delivery Rewards (Lander vs Drone)', () => {
+  mockLocalStorage.clear();
+  const game = new CargoGame();
+  game.initLevel(getLevel0());
+
+  // 1. Lander delivery
+  game.physics.lander.vehicleType = 'basic';
+  const dummyBox1 = { id: 'box-1', type: 'normal', x: 750, y: 100 };
+  const dummyHub1 = { color: '#38bdf8', type: 'normal', x: 750, y: 300, width: 100, height: 20 };
+  game.missionBudget = 1000;
+  
+  // mock push to avoid matter world errors if box doesn't exist
+  game.physics.boxes.push(dummyBox1);
+  const rewardLander = game.processSuccessfulDelivery(dummyBox1, 0, dummyHub1);
+  assertEquals(rewardLander, 300, 'Lander delivery reward should be $300');
+  assertEquals(game.missionBudget, 1300, 'Lander delivery reward should be added to budget');
+
+  // 2. Drone delivery
+  game.physics.lander.vehicleType = 'drone';
+  const dummyBox2 = { id: 'box-2', type: 'normal', x: 750, y: 100 };
+  const dummyHub2 = { color: '#38bdf8', type: 'normal', x: 750, y: 300, width: 100, height: 20 };
+  
+  game.physics.boxes.push(dummyBox2);
+  const rewardDrone = game.processSuccessfulDelivery(dummyBox2, 0, dummyHub2);
+  assertEquals(rewardDrone, 600, 'Drone delivery reward should be $600 (2x multiplier)');
+  assertEquals(game.missionBudget, 1900, 'Drone delivery reward should be added to budget');
+});
+
 // ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────
 // Cheap shape checks over every registered level — catches broken level files
 // (typo'd fields, malformed polygons, undeliverable cargo) without running the
