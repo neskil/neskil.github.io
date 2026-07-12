@@ -870,6 +870,13 @@
                 margin-bottom: 10px;
             }
 
+            /* Post-extraction details box: inline padding/margin are desktop-sized */
+            #lvl-complete-details {
+                padding: 12px 14px !important;
+                margin-bottom: 12px !important;
+                font-size: 0.88rem;
+            }
+
             /* Compact HUD: keep horizontal, shrink padding/fonts */
             #hud-overlay {
                 top: 8px;
@@ -970,6 +977,58 @@
                 font-size: 0.8rem !important;
                 padding: 6px 14px !important;
                 margin-top: 6px !important;
+            }
+
+            /* Result modals (post-extraction #complete-screen, fail, respawn,
+               victory) are sized for a tall desktop viewport and overflowed a
+               ~350-450px-tall landscape phone. Shrink the whole modal so it
+               fits on screen; !important where inline styles (title font-size,
+               subtitle margin, details-box padding) would otherwise win. */
+            .screen-overlay {
+                padding: 8px;
+            }
+
+            .screen-content {
+                max-width: 480px;
+                padding: 12px 18px;
+                border-radius: 14px;
+            }
+
+            .screen-content h2 {
+                font-size: 1.15rem !important;
+                margin-bottom: 2px !important;
+            }
+
+            .screen-content p.subtitle {
+                font-size: 0.75rem;
+                margin-bottom: 8px !important;
+            }
+
+            #lvl-complete-details {
+                padding: 8px 14px !important;
+                margin-bottom: 10px !important;
+                gap: 3px !important;
+                font-size: 0.82rem;
+                border-radius: 10px !important;
+            }
+
+            #fail-reason,
+            #respawn-screen p {
+                font-size: 0.8rem;
+                margin-bottom: 10px !important;
+            }
+
+            #complete-screen .btn-primary,
+            #complete-screen .btn-secondary,
+            #game-over-screen .btn-primary,
+            #game-over-screen .btn-secondary,
+            #respawn-screen .btn-primary,
+            #respawn-screen .btn-secondary,
+            #victory-screen .btn-primary,
+            #victory-screen .btn-secondary {
+                padding: 8px 12px;
+                font-size: 0.82rem;
+                border-radius: 9px;
             }
         }
 
@@ -1363,6 +1422,228 @@
 
         .btn-career.red:hover {
             background: rgba(239, 68, 68, 0.12);
+        }
+
+        /* ---------- Tutorial ("How to Play") modal ---------- */
+        .tut-scene {
+            position: relative;
+            background: linear-gradient(180deg, rgba(2, 6, 23, 0.95), rgba(15, 23, 42, 0.75));
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin: 12px 0 6px;
+        }
+
+        /* position:static overrides the generic canvas{position:absolute} rule
+           (see #radar-canvas note above) — otherwise .tut-scene collapses to 0px. */
+        .tut-scene canvas {
+            position: static;
+            display: block;
+            width: 100%;
+            height: 170px;
+        }
+
+        .tut-goal {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin: 10px 0 0;
+        }
+
+        .tut-goal strong {
+            color: var(--text-primary);
+        }
+
+        .tut-h {
+            color: #cbd5e1;
+            margin: 18px 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.05rem;
+        }
+
+        /* Fading rule line that fills the space right of each section title */
+        .tut-h::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(148, 163, 184, 0.35), transparent);
+        }
+
+        .tut-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tut-control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
+
+        .tut-keys {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+            min-width: 158px;
+        }
+
+        .tut-keys .or {
+            color: #64748b;
+            font-size: 0.72rem;
+            margin: 0 2px;
+        }
+
+        .keycap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 30px;
+            padding: 0 7px;
+            background: linear-gradient(180deg, #334155, #1e293b);
+            border: 1px solid #475569;
+            border-bottom-width: 3px;
+            border-radius: 7px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+
+        .tut-control-arrow {
+            color: var(--accent-color);
+            font-size: 1.05rem;
+        }
+
+        .tut-control-what {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .tut-control-what .ico {
+            font-size: 1.25rem;
+        }
+
+        .tut-control-what strong {
+            color: var(--text-primary);
+        }
+
+        .tut-touch-hint {
+            margin-top: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px dashed rgba(56, 189, 248, 0.35);
+            color: #7dd3fc;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .tut-econ-flow {
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        .tut-econ-step {
+            flex: 1;
+            text-align: center;
+            padding: 10px 6px;
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .tut-econ-step .ico {
+            font-size: 1.5rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .tut-econ-step .lbl {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.3;
+        }
+
+        .tut-econ-step .lbl strong {
+            color: var(--text-primary);
+        }
+
+        .tut-econ-step .amt {
+            display: block;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-top: 3px;
+        }
+
+        .tut-econ-step .amt.pay {
+            color: #fca5a5;
+        }
+
+        .tut-econ-step .amt.earn {
+            color: #6ee7b7;
+        }
+
+        .tut-econ-arrow {
+            align-self: center;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+            flex: 0 0 auto;
+        }
+
+        .tut-warning {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #fca5a5;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 14px rgba(239, 68, 68, 0.12);
+        }
+
+        .tut-warning .ico {
+            font-size: 1.5rem;
+        }
+
+        @media (max-width: 560px) {
+            .tut-scene canvas {
+                height: 140px;
+            }
+
+            .tut-econ-flow {
+                flex-wrap: wrap;
+            }
+
+            .tut-econ-step {
+                flex: 1 1 40%;
+            }
+
+            .tut-econ-arrow {
+                display: none;
+            }
+
+            .tut-keys {
+                min-width: 0;
+            }
+
+            .tut-control-row {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
@@ -1873,7 +2154,7 @@
                     </div>
 
                     <div style="margin-top: 1rem; text-align: center;">
-                        <button class="btn-primary" onclick="document.getElementById('tutorial-modal').style.display='flex'" style="width: 100%; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">📖 How to Play / Tutorial</button>
+                        <button class="btn-primary" onclick="openTutorialModal()" style="width: 100%; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">📖 How to Play / Tutorial</button>
                     </div>
 
                     <div class="control-help" style="margin-top: 1rem;">
@@ -2288,30 +2569,322 @@
 
     <!-- SCREEN OVERLAY: TUTORIAL MODAL -->
     <div id="tutorial-modal" class="screen-overlay" style="display: none; z-index: 10000;">
-        <div class="screen-content" style="max-width: 600px; text-align: left;">
-            <h2 style="color: #38bdf8; margin-top: 0;">How to Play</h2>
-            <p><strong>Goal:</strong> Transport cargo from the start pad to the colored Delivery Hubs. Don't drop the payload!</p>
-            
-            <h3 style="color: #cbd5e1; margin-bottom: 5px;">Controls</h3>
-            <ul style="color: var(--text-secondary); margin-top: 0;">
-                <li><strong>W / Up Arrow:</strong> Main Thruster</li>
-                <li><strong>A / D / Left / Right:</strong> Rotate</li>
-                <li><strong>Spacebar:</strong> Drop Cargo / Toggle Winch</li>
-            </ul>
+        <div class="screen-content" style="max-width: 640px; text-align: left;">
+            <h2 style="color: #38bdf8; margin-top: 0; margin-bottom: 4px;">🚀 How to Play</h2>
 
-            <h3 style="color: #cbd5e1; margin-bottom: 5px;">Economy</h3>
-            <ul style="color: var(--text-secondary); margin-top: 0;">
-                <li>Starting a mission costs an <strong>Entry Fee</strong> and risks the <strong>Mission Budget</strong> from your Global Cash.</li>
-                <li>Delivering cargo earns $300 each to the Mission Budget.</li>
-                <li>If you succeed, the remaining Mission Budget is returned to your Global Cash.</li>
-                <li><strong>Beware:</strong> If your Global Cash drops below -$5000, the bank will repossess your upgrades!</li>
-            </ul>
+            <div class="tut-scene">
+                <canvas id="tutorial-scene-canvas"></canvas>
+            </div>
+            <p class="tut-goal"><strong>Goal:</strong> Fly the cargo from the <strong
+                    style="color:#6ee7b7;">Start Pad</strong> to the colored <strong
+                    style="color:#f472b6;">Delivery Hubs</strong> — and <strong>don't drop the payload!</strong></p>
+
+            <h3 class="tut-h">🎮 Controls</h3>
+            <div class="tut-controls">
+                <div class="tut-control-row">
+                    <span class="tut-keys"><span class="keycap">W</span><span class="or">or</span><span
+                            class="keycap">▲</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">🔥</span><span><strong>Main Thruster</strong> —
+                            fight gravity</span></span>
+                </div>
+                <div class="tut-control-row">
+                    <span class="tut-keys"><span class="keycap">A</span><span class="keycap">D</span><span
+                            class="or">or</span><span class="keycap">◀</span><span class="keycap">▶</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">🔄</span><span><strong>Rotate</strong> left /
+                            right</span></span>
+                </div>
+                <div class="tut-control-row">
+                    <span class="tut-keys"><span class="keycap" style="min-width:74px;">SPACE</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">📦</span><span><strong>Drop Cargo</strong> /
+                            🪝 <strong>Toggle Winch</strong></span></span>
+                </div>
+            </div>
+            <div class="tut-touch-hint">📱 On touch screens use the on-screen buttons: ◀ ▶ rotate · 🔥 thrust ·
+                GRAB winch</div>
+
+            <h3 class="tut-h">💰 Economy</h3>
+            <div class="tut-econ-flow">
+                <div class="tut-econ-step"><span class="ico">🎫</span><span class="lbl">Pay <strong>Entry
+                            Fee</strong>, risk <strong>Mission Budget</strong><span class="amt pay">− $$$</span></span>
+                </div>
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">📦</span><span class="lbl">Every crate
+                        delivered<span class="amt earn">+ $300</span></span></div>
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">🏁</span><span class="lbl">Finish the mission in one
+                        piece</span></div>
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">💰</span><span class="lbl">Leftover budget goes back
+                        to <strong>Global Cash</strong><span class="amt earn">+ refund</span></span></div>
+            </div>
+            <div class="tut-warning"><span class="ico">🏦</span><span><strong>Beware:</strong> if your Global Cash
+                    drops below <strong>−$5,000</strong>, the bank repossesses your upgrades!</span></div>
 
             <div style="text-align: center; margin-top: 20px;">
-                <button class="btn-primary" onclick="document.getElementById('tutorial-modal').style.display='none'">Got it!</button>
+                <button class="btn-primary" onclick="closeTutorialModal()">Got it — let's fly! 🚀</button>
             </div>
         </div>
     </div>
+
+    <script>
+        // Animated "mission diagram" for the How to Play modal: the lander lifts a
+        // crate off the start pad, slings it along a dashed arc, and sets it down on
+        // the delivery hub. Reuses the game's own drawLander() via the same
+        // mock-lander trick as the vehicle-select previews in game/menu.js.
+        (function () {
+            const modal = document.getElementById('tutorial-modal');
+            const canvas = document.getElementById('tutorial-scene-canvas');
+            let rafId = null;
+
+            window.openTutorialModal = function () {
+                modal.style.display = 'flex';
+                if (rafId === null) rafId = requestAnimationFrame(tick);
+            };
+            window.closeTutorialModal = function () {
+                modal.style.display = 'none';
+                if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+            };
+
+            function tick() {
+                if (modal.style.display === 'none') { rafId = null; return; }
+                drawScene();
+                rafId = requestAnimationFrame(tick);
+            }
+
+            function drawScene() {
+                const dpr = window.devicePixelRatio || 1;
+                const w = canvas.clientWidth || 560;
+                const h = canvas.clientHeight || 170;
+                if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+                    canvas.width = Math.round(w * dpr);
+                    canvas.height = Math.round(h * dpr);
+                }
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, w, h);
+
+                const now = Date.now();
+                const groundY = h - 16;
+                const padTop = groundY - 10;
+                const padX = w * 0.15, hubX = w * 0.85;
+
+                // Twinkling stars (deterministic positions so they don't jitter)
+                for (let i = 0; i < 36; i++) {
+                    const sx = (i * 137.5) % w;
+                    const sy = (i * 61.3) % (groundY - 30);
+                    ctx.globalAlpha = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(now / 700 + i * 1.7));
+                    ctx.fillStyle = '#e2e8f0';
+                    ctx.fillRect(sx, sy, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
+                }
+                ctx.globalAlpha = 1;
+
+                // Ground
+                ctx.fillStyle = 'rgba(30, 41, 59, 0.7)';
+                ctx.fillRect(0, groundY, w, h - groundY);
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(w, groundY); ctx.stroke();
+
+                // Flight arc parameters (quadratic bezier over the pads)
+                const startY = padTop - 17;
+                const apexY = Math.max(28, groundY - 118);
+                const bez = (s) => {
+                    const u = 1 - s;
+                    return {
+                        x: u * u * padX + 2 * u * s * (w / 2) + s * s * hubX,
+                        y: u * u * startY + 2 * u * s * apexY + s * s * startY
+                    };
+                };
+
+                // Dashed flight path with marching-ants animation + arrowhead at hub
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 7]);
+                ctx.lineDashOffset = -(now / 40) % 13;
+                ctx.beginPath();
+                ctx.moveTo(padX, startY);
+                ctx.quadraticCurveTo(w / 2, apexY, hubX, startY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                const tip = bez(0.985);
+                const tang = Math.atan2(startY - tip.y, hubX - tip.x);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.8)';
+                ctx.save();
+                ctx.translate(hubX, startY);
+                ctx.rotate(tang);
+                ctx.beginPath();
+                ctx.moveTo(0, 0); ctx.lineTo(-9, -4.5); ctx.lineTo(-9, 4.5);
+                ctx.closePath(); ctx.fill();
+                ctx.restore();
+
+                drawStartPad(ctx, padX, padTop, groundY, now);
+                drawHub(ctx, hubX, padTop, groundY, now);
+
+                // Timeline: sit (0–.10) → fly (.10–.82) → deliver (.82–1)
+                const t = (now % 7000) / 7000;
+                let s = Math.min(1, Math.max(0, (t - 0.10) / 0.72));
+                s = s * s * (3 - 2 * s); // smoothstep ease
+                const pos = bez(s);
+                const prev = bez(Math.max(0, s - 0.02));
+                const vx = pos.x - prev.x;
+                const angle = Math.max(-0.3, Math.min(0.3, vx * 0.05));
+                const flying = t > 0.10 && t < 0.82;
+                let thrust = 0;
+                if (flying) thrust = (s < 0.35 || s > 0.72) ? 1 : (Math.sin(now / 90) > 0.2 ? 0.6 : 0);
+
+                // Crate: hangs from the winch in flight, rests on the pad surface when low
+                const sway = Math.sin(now / 350) * 7 * Math.sin(Math.PI * s);
+                const crateX = pos.x + sway;
+                const crateY = Math.min(pos.y + 36, padTop - 8);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y + 10);
+                ctx.quadraticCurveTo((pos.x + crateX) / 2, (pos.y + 10 + crateY) / 2 + 3, crateX, crateY - 7);
+                ctx.stroke();
+                drawCrate(ctx, crateX, crateY, angle * 0.5 + sway * 0.01);
+
+                drawTutLander(ctx, pos.x, pos.y, angle, thrust);
+
+                // "+$300" pops up over the hub right after touchdown
+                if (t > 0.84 && t < 0.99) {
+                    const k = (t - 0.84) / 0.15;
+                    ctx.globalAlpha = k < 0.7 ? 1 : (1 - k) / 0.3;
+                    ctx.fillStyle = '#6ee7b7';
+                    ctx.font = '700 15px Outfit, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('+$300', hubX, padTop - 46 - k * 22);
+                    ctx.globalAlpha = 1;
+                }
+            }
+
+            function drawStartPad(ctx, x, top, groundY, now) {
+                drawPlatform(ctx, x, top, groundY, '#10b981');
+                ctx.fillStyle = '#34d399';
+                ctx.font = '700 9px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('START PAD', x, groundY + 11);
+                // Blinking edge lights
+                const on = Math.sin(now / 300) > 0;
+                ctx.fillStyle = on ? '#6ee7b7' : 'rgba(110, 231, 183, 0.25)';
+                ctx.fillRect(x - 34, top - 4, 3, 3);
+                ctx.fillRect(x + 31, top - 4, 3, 3);
+            }
+
+            function drawHub(ctx, x, top, groundY, now) {
+                drawPlatform(ctx, x, top, groundY, '#ec4899');
+                ctx.fillStyle = '#f472b6';
+                ctx.font = '700 9px Outfit, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('DELIVERY HUB', x, groundY + 11);
+                // Pulsing beacon ring
+                const pulse = (now % 1600) / 1600;
+                ctx.strokeStyle = 'rgba(236, 72, 153, ' + (0.55 * (1 - pulse)) + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(x, top - 2, 12 + pulse * 26, (12 + pulse * 26) * 0.35, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                // Beacon mast
+                ctx.strokeStyle = '#f9a8d4';
+                ctx.beginPath(); ctx.moveTo(x + 30, top); ctx.lineTo(x + 30, top - 14); ctx.stroke();
+                ctx.fillStyle = Math.sin(now / 250) > 0 ? '#f472b6' : 'rgba(244, 114, 182, 0.3)';
+                ctx.beginPath(); ctx.arc(x + 30, top - 16, 2.5, 0, Math.PI * 2); ctx.fill();
+            }
+
+            function drawPlatform(ctx, x, top, groundY, color) {
+                const grad = ctx.createLinearGradient(0, top, 0, top + 8);
+                grad.addColorStop(0, '#475569');
+                grad.addColorStop(1, '#1e293b');
+                ctx.fillStyle = grad;
+                ctx.fillRect(x - 36, top, 72, 8);
+                ctx.fillStyle = color;
+                ctx.fillRect(x - 36, top, 72, 2.5);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x - 24, top + 8); ctx.lineTo(x - 24, groundY);
+                ctx.moveTo(x + 24, top + 8); ctx.lineTo(x + 24, groundY);
+                ctx.stroke();
+            }
+
+            function drawCrate(ctx, x, y, tilt) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(tilt);
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(-8, -7, 16, 14);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(-7, -6, 14, 12);
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(-7, -6, 14, 12);
+                ctx.beginPath();
+                ctx.moveTo(-7, -6); ctx.lineTo(7, 6);
+                ctx.moveTo(7, -6); ctx.lineTo(-7, 6);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Renders the real in-game lander model via game.drawLander(), same
+            // mock-swap approach as drawVehicleCanvases() in game/menu.js. Falls back
+            // to a simple vector lander if the game isn't ready yet.
+            function drawTutLander(ctx, x, y, angle, thrust) {
+                const g = window.game;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(0.8, 0.8);
+                if (g && g.drawLander && g.physics) {
+                    const oldCtx = g.ctx;
+                    const oldLander = g.physics.lander;
+                    g.ctx = ctx;
+                    g.physics.lander = {
+                        x: 0, y: 0, angle: angle,
+                        vehicleType: 'basic', width: 34, height: 22,
+                        deckWidth: 56, deckOffset: 12, basketHeight: 24,
+                        fuel: 1, maxFuel: 1,
+                        thrustMagnitude: thrust, leftThrustRatio: 0, rightThrustRatio: 0,
+                        strafePower: 0, legCompress: 0,
+                        integrity: 100, maxIntegrity: 100,
+                        ropeLength: 0, ropeMax: 100, winchEngaged: false
+                    };
+                    try { g.drawLander(); } catch (e) { drawFallbackLander(ctx, angle, thrust); }
+                    g.ctx = oldCtx;
+                    g.physics.lander = oldLander;
+                } else {
+                    drawFallbackLander(ctx, angle, thrust);
+                }
+                ctx.restore();
+            }
+
+            function drawFallbackLander(ctx, angle, thrust) {
+                ctx.save();
+                ctx.rotate(angle);
+                if (thrust > 0) {
+                    ctx.fillStyle = 'rgba(251, 146, 60, ' + (0.5 + 0.5 * thrust) + ')';
+                    ctx.beginPath();
+                    ctx.moveTo(-5, 12); ctx.lineTo(5, 12);
+                    ctx.lineTo(0, 12 + 10 + Math.random() * 6);
+                    ctx.closePath(); ctx.fill();
+                }
+                ctx.fillStyle = '#cbd5e1';
+                ctx.beginPath();
+                ctx.moveTo(-13, 8); ctx.lineTo(-9, -8); ctx.lineTo(9, -8); ctx.lineTo(13, 8);
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath(); ctx.arc(0, -2, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-10, 8); ctx.lineTo(-14, 15);
+                ctx.moveTo(10, 8); ctx.lineTo(14, 15);
+                ctx.stroke();
+                ctx.restore();
+            }
+        })();
+    </script>
 
     <!-- SCREEN OVERLAY: REPO MAN MODAL -->
     <div id="repo-man-modal" class="screen-overlay" style="display: none; z-index: 10000;">
