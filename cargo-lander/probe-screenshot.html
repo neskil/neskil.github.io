@@ -10,8 +10,17 @@
 <html>
 
 <body style="margin:0">
-    <iframe id="f" src="index.html" style="width:1280px;height:800px;border:0"></iframe>
+    <iframe id="f" style="width:1280px;height:800px;border:0"></iframe>
     <script>
+        // Suppress the first-run pilot-portrait selector modal before the
+        // iframe ever loads index.html — game.init() checks this
+        // synchronously during its own script execution (not from a later
+        // callback), so setting it from an iframe 'load' handler is too late.
+        // This page is served from the same origin as the game, so its
+        // localStorage is already shared with the iframe once it navigates.
+        try { localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1'); } catch (e) {}
+        document.getElementById('f').src = 'index.html';
+
         const q = new URLSearchParams(location.search);
         // &vw=900&vh=420 — size the game iframe (default 1280x800), for
         // checking responsive/mobile layouts headlessly. Set before the iframe
