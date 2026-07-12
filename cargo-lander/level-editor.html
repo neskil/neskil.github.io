@@ -388,6 +388,13 @@ canvas{display:block}
       </div>
     </details>
     <details>
+      <summary>Radar Ping Zone</summary>
+      <div class="props-panel">
+        <div class="row"><label>Enabled</label><input type="checkbox" id="rpz-enable" onchange="toggleRadarZone()"></div>
+        <div id="rpz-fields" style="display:none; flex-direction:column; gap:4px"></div>
+      </div>
+    </details>
+    <details>
       <summary>Quests</summary>
       <div class="props-panel">
         <div class="row"><label>Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
@@ -590,9 +597,14 @@ function buildGWPanel() {
   document.getElementById('gw-fields').innerHTML = LEVEL_SCHEMA.gravityWell.fields
     .map(f => schemaFieldRowHTML('setGW', 'mgw-', f)).join('');
 }
+function buildRadarPanel() {
+  document.getElementById('rpz-fields').innerHTML = LEVEL_SCHEMA.radarPingZone.fields
+    .map(f => schemaFieldRowHTML('setRadarZone', 'rpz-', f)).join('');
+}
 buildMetaPanel();
 buildOOBPanel();
 buildGWPanel();
+buildRadarPanel();
 
 const S = {
   // All three shape lists share the same per-item shape: {pts:[{x,y}], comment:'', hidden:false, ...extra}
@@ -603,6 +615,7 @@ const S = {
   segments: [],   // [{x1,y1,x2,y2}]
   hubs: [],       // [{x, width?, color, type, name}]
   gravWell: null, // {x,y,radius,orbitRadius,strength}
+  radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
   palette: Object.assign({}, DEFAULT_PAL),
   startX: 0,
@@ -698,6 +711,18 @@ function updateHubCoords() {
 }
 
 function setGW(k, v) { if (S.gravWell) S.gravWell[k] = v; draw(); updateOut(); }
+
+function toggleRadarZone() {
+  const en = document.getElementById('rpz-enable').checked;
+  document.getElementById('rpz-fields').style.display = en ? 'flex' : 'none';
+  if (en && !S.radarZone) {
+    S.radarZone = {};
+    LEVEL_SCHEMA.radarPingZone.fields.forEach(f => S.radarZone[f.key] = f.default);
+  } else if (!en) S.radarZone = null;
+  syncAllSliders();
+  draw(); updateOut();
+}
+function setRadarZone(k, v) { if (S.radarZone) S.radarZone[k] = v; draw(); updateOut(); }
 
 function setQuest(k, v) { S.quests[k] = v; updateOut(); }
 
@@ -869,6 +894,7 @@ function applyConfig(cfg) {
   }));
   S.hubs      = cfg.deliveryHubs || [];
   S.gravWell  = cfg.gravityWell  || null;
+  S.radarZone = cfg.radarPingZone || null;
   // L9-style shorthand: `outOfBounds: true` instead of a full config object.
   // Treated as an empty-but-enabled object internally (so the panel/rendering
   // code that reads S.oob.<field> keeps working unmodified) with a flag that
@@ -962,6 +988,19 @@ function applyConfig(cfg) {
     document.getElementById('gw-fields').style.display = 'none';
   }
 
+  if (S.radarZone) {
+    document.getElementById('rpz-enable').checked = true;
+    document.getElementById('rpz-fields').style.display = 'flex';
+    document.getElementById('rpz-cx').value = S.radarZone.cx ?? '';
+    document.getElementById('rpz-cy').value = S.radarZone.cy ?? '';
+    document.getElementById('rpz-r').value = S.radarZone.r ?? '';
+    document.getElementById('rpz-color').value = S.radarZone.color ?? '';
+    document.getElementById('rpz-period').value = S.radarZone.period ?? '';
+  } else {
+    document.getElementById('rpz-enable').checked = false;
+    document.getElementById('rpz-fields').style.display = 'none';
+  }
+
   populatePaletteUI();
   updateHubUI();
   document.getElementById('hq-w').value = S.hqWidth || '';
@@ -1011,6 +1050,8 @@ function hazardToShape(h, i) {
       shape.radius = h.radius ?? 200;
       shape.startForce = h.startForce ?? 1.5;
       shape.endForce = h.endForce ?? 0;
+    } else if (shape.type === 'sandworm') {
+      shape.spawnRate = h.spawnRate ?? 1.0;
     }
     return shape;
   }
@@ -1024,7 +1065,7 @@ function hazardToShape(h, i) {
 }
 
 function resetState() {
-  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.oob=null; S.oobIsBoolean=false;
+  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.radarZone=null; S.oob=null; S.oobIsBoolean=false;
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -2097,7 +2138,11 @@ function buildOut() {
     if (f.type === 'boolean') emit = !!v;
     else if (f.type === 'stringList') emit = Array.isArray(v) && v.length > 0;
     else if (f.required) emit = true;
-    else emit = !!v;
+    // Compare against the schema default rather than truthiness — fields
+    // whose default isn't 0/''/null (e.g. ambientTrafficRate defaults to 1)
+    // need their falsy-but-meaningful overrides (0 = "no traffic") emitted,
+    // which a bare `!!v` check would silently drop.
+    else emit = v !== undefined && v !== null && v !== f.default;
     if (!emit) return;
     if (f.type === 'string' || f.type === 'stringList') lines.push(`  ${f.key}: ${JSON.stringify(v)},`);
     else lines.push(`  ${f.key}: ${v},`);
@@ -2153,6 +2198,16 @@ function buildOut() {
     lines.push(`  gravityWell: {`);
     Object.entries(S.gravWell).forEach(([k,v]) => {
       if (v != null && v !== '') lines.push(`    ${k}: ${v},`);
+    });
+    lines.push(`  },`);
+  }
+
+  // Radar Ping Zone
+  if (S.radarZone) {
+    lines.push(`  radarPingZone: {`);
+    Object.entries(S.radarZone).forEach(([k,v]) => {
+      if (v == null || v === '') return;
+      lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
     });
     lines.push(`  },`);
   }

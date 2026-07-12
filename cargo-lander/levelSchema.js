@@ -64,6 +64,8 @@ const LEVEL_SCHEMA = {
     { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shad Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
+    { key:'terrainType',     type:'string',    default:'', widget:'select', label:'Terrain Type', options:['', 'worm-lair', 'flat'], desc:"Special terrain behavior flag. 'worm-lair' enables the giant Sandworm AI (also requires a sandworm-type hazard polygon marking its zone).", recommended:"worm-lair for Sandworm levels, otherwise leave blank" },
+    { key:'ambientTrafficRate', type:'number', default:1, widget:'number', label:'Traffic Rate', step:0.5, desc:'Multiplier for background ambient traffic (space trucks) density and spawn frequency. 0 disables ambient traffic entirely.', recommended:'0 = none, 1 = normal, 4 = chaotic', sliderMin:0, sliderMax:5, sliderStep:0.5 },
     { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X', desc:'X coordinate for the starting HQ.', recommended:'Place near a flat edge' },
     { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y', desc:'Override Y coordinate for the HQ. If null, snaps to terrain.', recommended:'Leave empty' },
     { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width', desc:'Override physical width of the HQ pad.', recommended:'Leave empty' },
@@ -117,6 +119,20 @@ const LEVEL_SCHEMA = {
       { key:'radius',      type:'number', default:300, widget:'number', label:'Radius', desc:'The maximum range where the pull effect is felt.', recommended:'200 - 400', sliderMin:20, sliderMax:800, sliderStep:10 },
       { key:'strength',    type:'number', default:1,   widget:'number', label:'Strength', step:0.1, desc:'The force multiplier pulling the ship toward the center.', recommended:'0.5 - 2.0', sliderMin:0, sliderMax:3, sliderStep:0.1 },
       { key:'orbitRadius', type:'number', default:0,   widget:'number', label:'Orbit', desc:'The radius at which objects will enter a stable orbit instead of falling into the center.', recommended:'0 for a black hole, 100 for an orbit', sliderMin:0, sliderMax:400, sliderStep:10 },
+    ]
+  },
+
+  // radarPingZone: {...} — optional, purely visual (drawRadarPingZone() in
+  // render/ui.js draws an animated sonar ring at cx,cy). `color` is a bare
+  // "r,g,b" string, not a hex/rgba() color — the renderer builds its own
+  // rgba(color, alpha) — so it stays a text field like rockGlow/fog.
+  radarPingZone: {
+    fields: [
+      { key:'cx',     type:'number', default:500,  widget:'number', label:'X', desc:'Center X coordinate of the ping zone.', recommended:'Match a danger-zone hazard, e.g. a sandworm polygon' },
+      { key:'cy',     type:'number', default:500,  widget:'number', label:'Y', desc:'Center Y coordinate of the ping zone.', recommended:'Match a danger-zone hazard, e.g. a sandworm polygon' },
+      { key:'r',      type:'number', default:300,  widget:'number', label:'Radius', desc:'Maximum radius the sonar ring expands to before fading.', recommended:'200 - 400', sliderMin:20, sliderMax:800, sliderStep:10 },
+      { key:'color',  type:'string', default:'210,100,15', widget:'text', label:'Color', desc:'Bare "r,g,b" string (no rgba() wrapper) — the renderer appends its own alpha.', recommended:'200,100,20 (amber warning tone)' },
+      { key:'period', type:'number', default:3800, widget:'number', label:'Period (ms)', desc:'Milliseconds per ping cycle — lower is faster/more urgent.', recommended:'3000 - 4000', sliderMin:500, sliderMax:8000, sliderStep:100 },
     ]
   },
 
