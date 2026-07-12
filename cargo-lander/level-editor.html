@@ -75,9 +75,37 @@ canvas{display:block}
 
 .props-panel { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
 .props-panel .row { margin-bottom: 2px; }
-.props-panel label { width: 60px; font-size: 10px; color: #8b949e; flex-shrink: 0; }
-.props-panel input[type=text], .props-panel input[type=number] { flex: 1; min-width: 0; }
+.props-panel label { width: 85px; font-size: 10px; color: #8b949e; flex-shrink: 0; display: flex; align-items: center; }
+.props-panel input[type=text], .props-panel input[type=number], .props-panel select { flex: 1; min-width: 0; }
 .props-panel input[type=color] { width: 24px; height: 16px; padding: 0; border: none; background: none; cursor: pointer; }
+
+#map-settings-modal {
+  position: absolute; top: 50px; left: 350px; width: 450px; height: 600px;
+  background: rgba(22, 27, 34, 0.95); border: 1px solid #30363d; border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: none; flex-direction: column;
+  z-index: 9999; backdrop-filter: blur(8px);
+}
+#map-settings-header {
+  background: #21262d; border-bottom: 1px solid #30363d; padding: 8px 12px;
+  font-weight: bold; font-size: 11px; color: #c9d1d9; cursor: grab;
+  display: flex; justify-content: space-between; align-items: center; user-select: none;
+  border-top-left-radius: 6px; border-top-right-radius: 6px;
+}
+#map-settings-header:active { cursor: grabbing; }
+#map-settings-close { cursor: pointer; color: #8b949e; font-size: 14px; }
+#map-settings-close:hover { color: #f85149; }
+#map-settings-body { padding: 12px; flex: 1; overflow-y: auto; }
+#map-settings-body details { margin-bottom: 8px; }
+#map-settings-body summary { font-size: 12px; color: #58a6ff; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 4px; }
+#map-settings-resize {
+  position: absolute; bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize;
+}
+.tooltip-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%; background: #30363d;
+  color: #c9d1d9; font-size: 10px; margin-left: 6px; cursor: help; font-weight: bold;
+}
+.tooltip-icon:hover { background: #58a6ff; color: #fff; }
 
 </style>
 </head>
@@ -118,43 +146,11 @@ canvas{display:block}
   
   <div class="sec">
     <div class="sec-title">Level Config</div>
-    <details>
-      <summary>Metadata</summary>
-      <!-- Rows generated from LEVEL_SCHEMA.fields by buildMetaPanel() (see
-           levelSchema.js) — a new scalar mission-param field only needs to be
-           added to the schema, not here. -->
-      <div class="props-panel" id="meta-panel"></div>
-    </details>
+    <button class="btn" style="width:100%; padding:8px; font-weight:bold; background:#1c2d3f; border-color:#388bfd" onclick="document.getElementById('map-settings-modal').style.display='flex'">⚙️ Map Settings</button>
     <details>
       <summary>Palette</summary>
       <div class="props-panel" id="palette-panel">
         <!-- populated via js -->
-      </div>
-    </details>
-    <details>
-      <summary>Out of Bounds</summary>
-      <div class="props-panel">
-        <div class="row"><label>Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
-        <!-- Rows generated from LEVEL_SCHEMA.outOfBounds.fields by buildOOBPanel(). -->
-        <div id="oob-fields" style="display:none; flex-direction:column; gap:4px"></div>
-      </div>
-    </details>
-    <details>
-      <summary>Gravity Well</summary>
-      <div class="props-panel">
-        <div class="row"><label>Enabled</label><input type="checkbox" id="gw-enable" onchange="toggleGW()"></div>
-        <!-- Rows generated from LEVEL_SCHEMA.gravityWell.fields by buildGWPanel(). -->
-        <div id="gw-fields" style="display:none; flex-direction:column; gap:4px"></div>
-      </div>
-    </details>
-    <details>
-      <summary>Quests</summary>
-      <div class="props-panel">
-        <div class="row"><label>Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
-        <div class="row"><label>No Crash</label><input type="checkbox" id="quest-nocrash" onchange="setQuest('nocrash', this.checked)"></div>
-        <div class="row"><label>No Cargo</label><input type="checkbox" id="quest-nocargo" onchange="setQuest('nocargo', this.checked)"></div>
-        <div class="row"><label>Quick (s)</label><input type="number" id="quest-quick" placeholder="Seconds" onchange="setQuest('quick', this.value?+this.value:null)"></div>
-        <div class="row"><label>Worm</label><input type="checkbox" id="quest-worm" onchange="setQuest('worm', this.checked)"></div>
       </div>
     </details>
   </div>
@@ -383,7 +379,14 @@ function schemaFieldRowHTML(setterName, idPrefix, field) {
     const inputType = (field.type === 'number' || field.type === 'integer') ? 'number' : 'text';
     input = `<input type="${inputType}" id="${id}"${stepAttr} onchange="${onchange}">`;
   }
-  return `<div class="row"><label>${field.label}</label>${input}</div>`;
+  
+  let tooltipHTML = '';
+  if (field.desc || field.recommended) {
+    let titleText = (field.desc || '') + (field.recommended ? (field.desc ? '&#13;&#10;' : '') + 'Recommended: ' + field.recommended : '');
+    tooltipHTML = `<span class="tooltip-icon" title="${titleText}">?</span>`;
+  }
+  
+  return `<div class="row"><label>${field.label}${tooltipHTML}</label>${input}</div>`;
 }
 
 function buildMetaPanel() {
@@ -2312,6 +2315,34 @@ document.getElementById('confirm-modal').addEventListener('click', e => {
     closeConfirmModal();
   }
 });
+// Map Settings Modal Dragging & Resizing
+const mapModal = document.getElementById('map-settings-modal');
+const mapHeader = document.getElementById('map-settings-header');
+const mapResize = document.getElementById('map-settings-resize');
+
+let mapModalState = { action: null, startX: 0, startY: 0, startLeft: 0, startTop: 0, startW: 0, startH: 0 };
+
+mapHeader.addEventListener('mousedown', e => {
+  if (e.target.id === 'map-settings-close') return;
+  mapModalState = { action: 'drag', startX: e.clientX, startY: e.clientY, startLeft: mapModal.offsetLeft, startTop: mapModal.offsetTop };
+});
+
+mapResize.addEventListener('mousedown', e => {
+  mapModalState = { action: 'resize', startX: e.clientX, startY: e.clientY, startW: mapModal.offsetWidth, startH: mapModal.offsetHeight };
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', e => {
+  if (mapModalState.action === 'drag') {
+    mapModal.style.left = Math.max(0, mapModalState.startLeft + e.clientX - mapModalState.startX) + 'px';
+    mapModal.style.top = Math.max(0, mapModalState.startTop + e.clientY - mapModalState.startY) + 'px';
+  } else if (mapModalState.action === 'resize') {
+    mapModal.style.width = Math.max(300, mapModalState.startW + e.clientX - mapModalState.startX) + 'px';
+    mapModal.style.height = Math.max(200, mapModalState.startH + e.clientY - mapModalState.startY) + 'px';
+  }
+});
+
+window.addEventListener('mouseup', () => { mapModalState.action = null; });
 </script>
 
 <!-- Deletion Confirmation Modal -->
@@ -2324,6 +2355,46 @@ document.getElementById('confirm-modal').addEventListener('click', e => {
       <button class="btn" onclick="closeConfirmModal()" style="padding:4px 14px;">Cancel</button>
     </div>
   </div>
+</div>
+
+<!-- Map Settings Modal -->
+<div id="map-settings-modal">
+  <div id="map-settings-header">
+    <span>⚙️ Map Settings</span>
+    <span id="map-settings-close" onclick="document.getElementById('map-settings-modal').style.display='none'">&#x2715;</span>
+  </div>
+  <div id="map-settings-body">
+    <div class="sec-title" style="margin-bottom:12px;">Map Data</div>
+    <details open>
+      <summary>Metadata</summary>
+      <div class="props-panel" id="meta-panel"></div>
+    </details>
+    <details>
+      <summary>Out of Bounds</summary>
+      <div class="props-panel">
+        <div class="row"><label>Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
+        <div id="oob-fields" style="display:none; flex-direction:column; gap:4px"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Gravity Well</summary>
+      <div class="props-panel">
+        <div class="row"><label>Enabled</label><input type="checkbox" id="gw-enable" onchange="toggleGW()"></div>
+        <div id="gw-fields" style="display:none; flex-direction:column; gap:4px"></div>
+      </div>
+    </details>
+    <details>
+      <summary>Quests</summary>
+      <div class="props-panel">
+        <div class="row"><label>Primary</label><input type="text" id="quest-primary" onchange="setQuest('primary', this.value)"></div>
+        <div class="row"><label>No Crash</label><input type="checkbox" id="quest-nocrash" onchange="setQuest('nocrash', this.checked)"></div>
+        <div class="row"><label>No Cargo</label><input type="checkbox" id="quest-nocargo" onchange="setQuest('nocargo', this.checked)"></div>
+        <div class="row"><label>Quick (s)</label><input type="number" id="quest-quick" placeholder="Seconds" onchange="setQuest('quick', this.value?+this.value:null)"></div>
+        <div class="row"><label>Worm</label><input type="checkbox" id="quest-worm" onchange="setQuest('worm', this.checked)"></div>
+      </div>
+    </details>
+  </div>
+  <div id="map-settings-resize"></div>
 </div>
 
 </body>

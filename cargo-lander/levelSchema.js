@@ -46,28 +46,30 @@ const VALID_OOB_TYPES     = ['water', 'goo', 'sand', 'acid', 'void'];
 const LEVEL_SCHEMA = {
   // Top-level scalar/list fields on the registerLevel({...}) config object.
   fields: [
-    { key:'name',            type:'string',    default:'',  widget:'text',     label:'ID (name)', required:true },
-    { key:'missionTitle',    type:'string',    default:'',  widget:'text',     label:'Title' },
-    { key:'description',     type:'string',    default:'',  widget:'text',     label:'Desc' },
-    { key:'hint',            type:'string',    default:'',  widget:'text',     label:'Hint' },
-    { key:'gravity',         type:'number',    default:0.11,widget:'number',   label:'Gravity', step:0.01, required:true, positive:true },
-    { key:'wind',            type:'number',    default:0,   widget:'number',   label:'Wind', step:0.01 },
-    { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather', options:VALID_WEATHER_TYPES },
-    { key:'budget',          type:'number',    default:500,widget:'number',   label:'Budget', required:true, positive:true },
-    { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time', required:true, positive:true },
-    { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'PadScale', step:0.1, positive:true },
-    { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target', required:true, min:1 },
-    { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Types', required:true, enumValues:VALID_CARGO_TYPES },
-    { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy' },
-    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background', options:['parallax', 'cave'] },
-    { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze' },
-    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops' },
-    { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X' },
-    { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y' },
-    { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width' },
-    { key:'collectionX',     type:'number',    default:null, nullable:true, widget:'number', label:'X' },
-    { key:'collectionY',     type:'number',    default:null, nullable:true, widget:'number', label:'Y' },
-    { key:'collectionWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width' },
+    { key:'name',            type:'string',    default:'',  widget:'text',     label:'ID (name)', required:true, desc:'The unique identifier and file name for the level.', recommended:'levelX' },
+    { key:'missionTitle',    type:'string',    default:'',  widget:'text',     label:'Title', desc:'The human-readable title displayed in menus.', recommended:'Keep it short and punchy' },
+    { key:'description',     type:'string',    default:'',  widget:'text',     label:'Desc', desc:'The mission briefing shown to the player before starting.', recommended:'1-2 short sentences' },
+    { key:'hint',            type:'string',    default:'',  widget:'text',     label:'Hint', desc:'Optional tip displayed if the player fails multiple times.', recommended:'Keep it helpful but not obvious' },
+    { key:'gravity',         type:'number',    default:0.11,widget:'number',   label:'Gravity', step:0.01, required:true, positive:true, desc:'Downward acceleration applied to the lander each frame.', recommended:'0.10 - 0.15' },
+    { key:'wind',            type:'number',    default:0,   widget:'number',   label:'Wind', step:0.01, desc:'Horizontal force applied to the lander and particles.', recommended:'-0.05 to 0.05' },
+    { key:'weather',         type:'string',    default:'',  widget:'select',   label:'Weather', options:VALID_WEATHER_TYPES, desc:'Visual weather particle effects.', recommended:'Match with wind for best effect' },
+    { key:'budget',          type:'number',    default:500,widget:'number',   label:'Budget', required:true, positive:true, desc:'Starting money for purchasing upgrades.', recommended:'200 - 800' },
+    { key:'timeLimit',       type:'number',    default:300, widget:'number',   label:'Time', required:true, positive:true, desc:'Maximum time in seconds before the mission fails.', recommended:'120 - 300' },
+    { key:'padScale',        type:'number',    default:1,   widget:'number',   label:'PadScale', step:0.1, positive:true, desc:'Multiplier for the physical width of landing pads.', recommended:'1.0 (0.8 for hard, 1.5 for easy)' },
+    { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target', required:true, min:1, desc:'Number of cargo pieces that must be successfully delivered.', recommended:'1 - 5' },
+    { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Types', required:true, enumValues:VALID_CARGO_TYPES, desc:'Comma-separated list of cargo types available in this level.', recommended:'normal,red,blue' },
+    { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy', desc:'If true, all cargo weighs significantly more.', recommended:'Use for late-game challenge levels' },
+    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background', options:['parallax', 'cave'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground' },
+    { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Shad Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
+    { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shad Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
+    { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
+    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
+    { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X', desc:'X coordinate for the starting HQ.', recommended:'Place near a flat edge' },
+    { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y', desc:'Override Y coordinate for the HQ. If null, snaps to terrain.', recommended:'Leave empty' },
+    { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width', desc:'Override physical width of the HQ pad.', recommended:'Leave empty' },
+    { key:'collectionX',     type:'number',    default:null, nullable:true, widget:'number', label:'X', desc:'X coordinate for the Cargo Depot.', recommended:'Place near a flat edge' },
+    { key:'collectionY',     type:'number',    default:null, nullable:true, widget:'number', label:'Y', desc:'Override Y coordinate for the Cargo Depot. If null, snaps to terrain.', recommended:'Leave empty' },
+    { key:'collectionWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width', desc:'Override physical width of the Cargo pad.', recommended:'Leave empty' },
   ],
 
   // palette: {...} — required object on every level; the same 7 keys are
@@ -94,13 +96,13 @@ const LEVEL_SCHEMA = {
   // these sub-fields; see levelSchemaIsOOBObject() below.
   outOfBounds: {
     fields: [
-      { key:'type',         type:'string', default:'water', widget:'select', label:'Type', options:VALID_OOB_TYPES },
-      { key:'color',        type:'color',  default:'',    widget:'color',  label:'Color' },
-      { key:'mistColor',    type:'color',  default:'',    widget:'color',  label:'Mist Color' },
-      { key:'surfaceY',     type:'number', default:600,   widget:'number', label:'Surface Y' },
-      { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y' },
-      { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01 },
-      { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01 },
+      { key:'type',         type:'string', default:'water', widget:'select', label:'Type', options:VALID_OOB_TYPES, desc:'The physical material filling the out-of-bounds area.', recommended:'water, goo, void' },
+      { key:'color',        type:'color',  default:'',    widget:'color',  label:'Color', desc:'Base color of the fluid or void.', recommended:'Match the palette theme' },
+      { key:'mistColor',    type:'color',  default:'',    widget:'color',  label:'Mist Color', desc:'Color of the gradient mist sitting above the surface.', recommended:'Slightly lighter than base color' },
+      { key:'surfaceY',     type:'number', default:600,   widget:'number', label:'Surface Y', desc:'The Y coordinate where the out-of-bounds area begins (grows downwards).', recommended:'Usually below the lowest terrain' },
+      { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y', desc:'The Y coordinate where the instant-kill sand worm will strike from.', recommended:'surfaceY + 300' },
+      { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction applied to the ship when submerged.', recommended:'0.02 - 0.05' },
+      { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force applied when submerged.', recommended:'0.04 - 0.08' },
     ]
   },
 
@@ -110,11 +112,11 @@ const LEVEL_SCHEMA = {
   // this schema's scope, and untouched by this pass.
   gravityWell: {
     fields: [
-      { key:'x',           type:'number', default:500, widget:'number', label:'X' },
-      { key:'y',           type:'number', default:500, widget:'number', label:'Y' },
-      { key:'radius',      type:'number', default:300, widget:'number', label:'Radius' },
-      { key:'strength',    type:'number', default:1,   widget:'number', label:'Strength', step:0.1 },
-      { key:'orbitRadius', type:'number', default:0,   widget:'number', label:'Orbit' },
+      { key:'x',           type:'number', default:500, widget:'number', label:'X', desc:'Center X coordinate of the gravity well.', recommended:'Place in empty space' },
+      { key:'y',           type:'number', default:500, widget:'number', label:'Y', desc:'Center Y coordinate of the gravity well.', recommended:'Place in empty space' },
+      { key:'radius',      type:'number', default:300, widget:'number', label:'Radius', desc:'The maximum range where the pull effect is felt.', recommended:'200 - 400' },
+      { key:'strength',    type:'number', default:1,   widget:'number', label:'Strength', step:0.1, desc:'The force multiplier pulling the ship toward the center.', recommended:'0.5 - 2.0' },
+      { key:'orbitRadius', type:'number', default:0,   widget:'number', label:'Orbit', desc:'The radius at which objects will enter a stable orbit instead of falling into the center.', recommended:'0 for a black hole, 100 for an orbit' },
     ]
   },
 
