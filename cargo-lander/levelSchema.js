@@ -66,6 +66,9 @@ const LEVEL_SCHEMA = {
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
     { key:'terrainType',     type:'string',    default:'', widget:'select', label:'Special Level Mode', options:['', 'worm-lair', 'flat'], desc:"Special terrain behavior flag. 'worm-lair' enables the giant Sandworm AI (also requires a sandworm-type hazard polygon marking its zone).", recommended:"worm-lair for Sandworm levels, otherwise leave blank" },
     { key:'ambientTrafficRate', type:'number', default:1, widget:'number', label:'Space Traffic Rate', step:0.5, desc:'Multiplier for background ambient traffic (space trucks) density and spawn frequency. 0 disables ambient traffic entirely.', recommended:'0 = none, 1 = normal, 4 = chaotic', sliderMin:0, sliderMax:5, sliderStep:0.5 },
+    { key:'ambientTrafficSpeed',type:'number', default:1, widget:'number', label:'Space Traffic Speed',step:0.1, desc:'Speed multiplier for ambient traffic.', recommended:'1.0 = normal, 2.0 = fast', sliderMin:0.1, sliderMax:5, sliderStep:0.1 },
+    { key:'ambientTrafficMinY', type:'number', default:null, nullable:true, widget:'number', label:'Traffic Min Y', desc:'Highest Y coordinate (top) for ambient traffic to spawn.', recommended:'Leave empty for auto' },
+    { key:'ambientTrafficMaxY', type:'number', default:null, nullable:true, widget:'number', label:'Traffic Max Y', desc:'Lowest Y coordinate (bottom) for ambient traffic to spawn.', recommended:'Leave empty for auto' },
     { key:'startX',          type:'number',    default:80,  widget:'number',   label:'X', desc:'X coordinate for the starting HQ.', recommended:'Place near a flat edge' },
     { key:'startY',          type:'number',    default:null, nullable:true, widget:'number', label:'Y', desc:'Override Y coordinate for the HQ. If null, snaps to terrain.', recommended:'Leave empty' },
     { key:'startDepotWidth', type:'number',    default:null, nullable:true, widget:'number', label:'Width', desc:'Override physical width of the HQ pad.', recommended:'Leave empty' },
@@ -98,13 +101,13 @@ const LEVEL_SCHEMA = {
   // these sub-fields; see levelSchemaIsOOBObject() below.
   outOfBounds: {
     fields: [
-      { key:'type',         type:'string', default:'water', widget:'select', label:'Type', options:VALID_OOB_TYPES, desc:'The physical material filling the out-of-bounds area.', recommended:'water, goo, void' },
+      { key:'type',         type:'string', default:'water', widget:'select', label:'Type', options:VALID_OOB_TYPES, desc:'Visual material type. Determines particle effects and rendering style (e.g., bubbles for water/goo, dust for sand, empty space for void). Physics are controlled separately by Drag and Buoyancy below.', recommended:'water, goo, void' },
       { key:'color',        type:'color',  default:'',    widget:'color',  label:'Color', desc:'Base color of the fluid or void.', recommended:'Match the palette theme' },
       { key:'mistColor',    type:'color',  default:'',    widget:'color',  label:'Mist Color', desc:'Color of the gradient mist sitting above the surface.', recommended:'Slightly lighter than base color' },
       { key:'surfaceY',     type:'number', default:600,   widget:'number', label:'Surface Y', desc:'The Y coordinate where the out-of-bounds area begins (grows downwards).', recommended:'Usually below the lowest terrain', sliderMin:0, sliderMax:2500, sliderStep:10 },
       { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y', desc:'The Y coordinate where the instant-kill sand worm will strike from.', recommended:'surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
-      { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction applied to the ship when submerged.', recommended:'0.02 - 0.05', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
-      { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force applied when submerged.', recommended:'0.04 - 0.08', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
+      { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction/resistance applied to the ship when submerged. High drag (0.08+) slows the ship heavily, making it sluggish. Low drag (0.01) allows smooth gliding.', recommended:'0.02 - 0.05', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
+      { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force pushing the ship when submerged. High buoyancy (0.06+) floats the ship up rapidly. Low buoyancy (0.00-0.02) lets the ship sink easily.', recommended:'0.04 - 0.08', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
     ]
   },
 

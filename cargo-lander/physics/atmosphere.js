@@ -23,6 +23,10 @@ const CargoPhysicsAtmosphereMixin = {
             const minTerrainY = allYs.length > 0 ? Math.min(...allYs) : 400;
             const landerY = this.lander ? this.lander.y : minTerrainY;
             
+            // Check for level config overrides
+            const confMinY = this.currentLevelConfig?.ambientTrafficMinY;
+            const confMaxY = this.currentLevelConfig?.ambientTrafficMaxY;
+            
             // Try to spawn above the lander's current view, but constrained by terrain.
             // On tall-terrain levels baseTargetY can go far negative, which used to
             // collapse every spawn onto the same Math.max(80, ...) floor — spread the
@@ -30,6 +34,15 @@ const CargoPhysicsAtmosphereMixin = {
             const skyFloor = 80;
             const baseTargetY = Math.min(landerY - 200, minTerrainY - 100);
             const pickSkyY = () => {
+                if (confMinY != null && confMaxY != null) {
+                    return confMinY + Math.random() * (confMaxY - confMinY);
+                } else if (confMinY != null) {
+                    const maxB = Math.max(confMinY + 300, Math.min(landerY - 200, minTerrainY - 100));
+                    return confMinY + Math.random() * (maxB - confMinY);
+                } else if (confMaxY != null) {
+                    const minB = Math.min(confMaxY - 300, 80);
+                    return minB + Math.random() * (confMaxY - minB);
+                }
                 const y = baseTargetY - Math.random() * 300;
                 return y < skyFloor ? skyFloor + Math.random() * 320 : y;
             };
@@ -47,7 +60,8 @@ const CargoPhysicsAtmosphereMixin = {
             const model = rModel < 0.5 ? 'pickup' : (rModel < 0.90 ? 'freighter' : 'police');
             const truckW = model === 'pickup' ? 55 + Math.random() * 50 : (model === 'police' ? 65 : 80 + Math.random() * 120);
             const truckH = model === 'pickup' ? 20 + Math.random() * 10 : (model === 'police' ? 22 : 16 + Math.random() * 18);
-            const speed = (model === 'police' ? 2.5 + Math.random() : 0.5 + Math.random() * 1.5); // Police are faster
+            const speedMult = this.currentLevelConfig?.ambientTrafficSpeed ?? 1;
+            const speed = (model === 'police' ? 2.5 + Math.random() : 0.5 + Math.random() * 1.5) * speedMult; // Police are faster
             
             const palette = [
                 { body: '#1e3a5f', accent: '#38bdf8', light: '#7dd3fc' },
