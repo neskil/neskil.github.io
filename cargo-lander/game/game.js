@@ -456,8 +456,12 @@ class CargoGame {
         // whatever's left comes back to the Bank at the end (see completeMission).
         // If the deposit runs out mid-level, or the player abandons the mission
         // via exit-to-menu/bankruptcy, the deposit is lost entirely.
-        const maintenanceCost = 50 + (idx * 50);
-        this.globalCash -= (maintenanceCost + (level.budget || 1000));
+        this.missionStartBank = this.globalCash;
+        this.missionInitialDeposit = level.deposit || 1000;
+        this.missionFee = 50 + (idx * 50);
+        this.missionDeliveryEarnings = 0;
+
+        this.globalCash -= (this.missionFee + this.missionInitialDeposit);
         localStorage.setItem('cargoLanderCash', this.globalCash);
 
         // Update exit buttons text if playtesting
@@ -473,7 +477,7 @@ class CargoGame {
             }
         });
 
-        this.missionBudget = level.budget || 1000;
+        this.missionBudget = this.missionInitialDeposit;
         this.missionTimeLimit = level.timeLimit || 180;
         this.missionTimer = this.missionTimeLimit;
         this.overtimeActive = false;
@@ -618,6 +622,24 @@ class CargoGame {
             failScreen.classList.remove('hidden');
             const reasonEl = document.getElementById('fail-reason');
             if (reasonEl) reasonEl.textContent = reason;
+            
+            const netChange = -(this.missionFee + this.missionInitialDeposit);
+            
+            const detailsEl = document.getElementById('fail-details');
+            if (detailsEl) {
+                detailsEl.innerHTML = `
+                    <div style="font-family: monospace; font-size: 0.85rem; line-height: 1.4;">
+                        <div style="display:flex; justify-content:space-between;"><span>Starting Bank:</span> <span>$${(this.missionStartBank || 0).toLocaleString()}</span></div>
+                        <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Upkeep Fee:</span> <span>-$${(this.missionFee || 0).toLocaleString()}</span></div>
+                        <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Deposit Deducted:</span> <span>-$${(this.missionInitialDeposit || 0).toLocaleString()}</span></div>
+                        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                        <div style="display:flex; justify-content:space-between; color: #ef4444; font-weight: bold;"><span>Deposit Returned:</span> <span>$0 (Lost to the dunes)</span></div>
+                        <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                        <div style="display:flex; justify-content:space-between; font-weight: bold; color: #fca5a5;"><span>Net Total:</span> <span>-$${Math.abs(netChange).toLocaleString()}</span></div>
+                        <div style="display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1rem; margin-top: 8px; color: #f59e0b;"><span>New Bank Balance:</span> <span>$${this.globalCash.toLocaleString()}</span></div>
+                    </div>
+                `;
+            }
         }
 
         const respawnScreen = document.getElementById('respawn-screen');
@@ -1491,7 +1513,12 @@ class CargoGame {
             questLines = `<p style="color:#ef4444; font-style:italic;">Mission aborted. Bonuses forfeited.</p>`;
         }
 
-        const totalPayout = this.missionBudget + timeBonus + questBonus;
+        const costsIncurred = this.missionInitialDeposit + this.missionDeliveryEarnings - this.missionBudget;
+        const depositReturned = this.missionBudget;
+        let baseMoney = 0;
+
+        const totalPayout = depositReturned + timeBonus + questBonus + baseMoney;
+        const netChange = totalPayout - (this.missionFee + this.missionInitialDeposit);
 
         this.globalCash += totalPayout;
         localStorage.setItem('cargoLanderCash', this.globalCash);
@@ -1532,12 +1559,22 @@ class CargoGame {
         document.getElementById('lvl-complete-title').textContent = allDelivered ? "Extraction Successful!" : "Extraction / Aborted";
         document.getElementById('lvl-complete-title').style.color = allDelivered ? "var(--neon-green)" : "#f59e0b";
         document.getElementById('lvl-complete-details').innerHTML = `
-            ${this.missionRepairSpend > 0 ? `<p>Repairs Paid: <span style="color: #ef4444; font-weight:600;">-$${this.missionRepairSpend}</span></p>` : ''}
-            <p>Retained Deposit: <span style="color: #10b981; font-weight:600;">$${this.missionBudget}</span></p>
-            ${allDelivered ? `<p>Time Bonus (${timePctRemaining}% time left): <span style="color: #38bdf8; font-weight:600;">+$${timeBonus}</span></p>` : ''}
-            ${questLines}
-            <hr style="border:1px solid rgba(255,255,255,0.1);">
-            <p>New Bank Balance: <span style="color: #f59e0b; font-weight:600;">$${this.globalCash}</span></p>
+            <div style="font-family: monospace; font-size: 0.85rem; line-height: 1.4; margin-bottom: 15px;">
+                <div style="display:flex; justify-content:space-between;"><span>Starting Bank:</span> <span>$${this.missionStartBank.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Upkeep Fee:</span> <span>-$${this.missionFee.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Deposit Deducted:</span> <span>-$${this.missionInitialDeposit.toLocaleString()}</span></div>
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                <div style="display:flex; justify-content:space-between; ${costsIncurred > 0 ? 'color: #fca5a5;' : 'color: #94a3b8;'}"><span>Costs Incurred:</span> <span>-$${costsIncurred.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; ${this.missionDeliveryEarnings > 0 ? 'color: #10b981;' : 'color: #94a3b8;'}"><span>Deliveries (+):</span> <span>+$${this.missionDeliveryEarnings.toLocaleString()}</span></div>
+                ${allDelivered ? `<div style="display:flex; justify-content:space-between; color: #94a3b8;"><span>Base Completion:</span> <span>+$${baseMoney.toLocaleString()}</span></div>` : ''}
+                ${timeBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #38bdf8;"><span>Time Bonus (${timePctRemaining}%):</span> <span>+$${timeBonus.toLocaleString()}</span></div>` : ''}
+                ${questBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #a855f7;"><span>Quest Bonuses:</span> <span>+$${questBonus.toLocaleString()}</span></div>` : ''}
+                <div style="display:flex; justify-content:space-between; color: #10b981;"><span>Deposit Returned:</span> <span>+$${depositReturned.toLocaleString()}</span></div>
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>Net Total:</span> <span>${netChange >= 0 ? '+' : ''}$${netChange.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1rem; margin-top: 8px; color: #f59e0b;"><span>New Bank Balance:</span> <span>$${this.globalCash.toLocaleString()}</span></div>
+            </div>
+            ${!allDelivered ? `<p style="color:#ef4444; font-style:italic; font-size: 0.8rem; text-align: center; margin-top: 10px;">Mission aborted. Completion bonuses forfeited.</p>` : ''}
         `;
     }
 

@@ -30,7 +30,7 @@ registerLevel({
     outOfBounds: true,       // Thick lateral fog on the sides
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    budget: 3500,
+    deposit: 1000,
     timeLimit: 240,
     allowedTypes: ['heavy'],
 

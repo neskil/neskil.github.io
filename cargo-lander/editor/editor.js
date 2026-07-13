@@ -353,7 +353,7 @@ function buildMetaPanel() {
     weather: ['weather', 'heatHaze', 'gravity', 'wind'],
     looksTop: ['backgroundType', 'night'],
     looksBottom: ['shadowAngle', 'shadowLength'],
-    rules: ['budget', 'timeLimit', 'padScale', 'terrainType'],
+    rules: ['deposit', 'timeLimit', 'padScale', 'terrainType'],
     traffic: ['ambientTrafficRate', 'ambientTrafficSpeed', 'ambientTrafficMinY', 'ambientTrafficMaxY']
   };
 
@@ -1112,7 +1112,7 @@ function renderLevelCard(cfg) {
   card.style.display = '';
   card.innerHTML = `<div class="lname">${cfg.name||''}</div><div class="lmeta">` +
     (oob.type ? `<span class="badge" style="background:${oc}22;color:${oc}">${oob.type}</span>` : '') +
-    `grav=${cfg.gravity??'—'} wind=${cfg.wind??0} budget=$${cfg.budget??'—'}<br>` +
+    `grav=${cfg.gravity??'—'} wind=${cfg.wind??0} deposit=$${cfg.deposit??'—'}<br>` +
     `OOB surface y=${oob.surfaceY??'—'} · monster y=${oob.monsterDepth??'—'}` +
     `</div>`;
 }
@@ -2318,7 +2318,7 @@ function buildOut() {
   lines.push(`registerLevel({`);
   lines.push(`  name: ${JSON.stringify(S.cfg.name || 'level')},`);
   // Everything else in the Metadata panel is emitted straight from the
-  // schema: required fields (gravity/budget/timeLimit/targetCargo) always,
+  // schema: required fields (gravity/deposit/timeLimit/targetCargo) always,
   // booleans only when true, stringLists only when non-empty, other optional
   // scalars only when non-empty/non-zero — mirrors what the hand-written
   // per-field version above used to do, one field at a time.

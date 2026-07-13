@@ -10,7 +10,7 @@ registerLevel({
   description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
   hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. A cash pickup sits on a ledge partway down the chasm if you're willing to detour. Return to HQ once both are delivered.",
   gravity: 0.15,
-  budget: 600,
+  deposit: 1000,
   timeLimit: 240,
   padScale: 1.2,
   targetCargo: 2,

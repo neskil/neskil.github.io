@@ -20,7 +20,7 @@ registerLevel({
   // already infers 'snow' for a level named "Glacial" — it just never ran
   // because this explicit config value always took precedence.
   weather: "snow",
-  budget: 750,
+  deposit: 1000,
   timeLimit: 200,
   padScale: 0.8,
   targetCargo: 2,

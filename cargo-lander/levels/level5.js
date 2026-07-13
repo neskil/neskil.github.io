@@ -67,7 +67,7 @@ registerLevel({
     // ── Mission parameters ────────────────────────────────────────────────────
     // No padScale — hub has explicit narrow width defined below
     targetCargo: 2,
-    budget: 900,
+    deposit: 1000,
     timeLimit: 240,
     allowedTypes: ["normal"],
     collectionX: 180,       // Cargo depot further left — player must traverse to reach the shaft
