@@ -2064,13 +2064,13 @@
 
         <!-- CENTER EXTRACT PROMPT -->
         <div id="center-extract-overlay"
-            style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 20px 32px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
+            style="display: none; position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(15, 23, 42, 0.95); border: 2px solid #38bdf8; border-radius: 12px; padding: 12px 24px; text-align: center; backdrop-filter: blur(12px); flex-direction: column; align-items: center; pointer-events: none; box-shadow: 0 0 30px rgba(56,189,248,0.4);">
             <h3 id="center-extract-title"
-                style="margin: 0 0 8px 0; color: #38bdf8; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">
+                style="margin: 0 0 4px 0; color: #38bdf8; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56,189,248,0.5);">
                 HQ Services</h3>
-            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.95rem; max-width: 350px;">Landed
+            <p id="center-extract-desc" style="margin: 0; color: #cbd5e1; font-size: 0.85rem; max-width: 350px;">Landed
                 at HQ.</p>
-            <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 16px; pointer-events: auto;">
+            <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 8px; pointer-events: auto;">
                 <button id="btn-hq-refuel" class="btn-primary"
                     style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;"
                     onclick="game.refuelLander()">⛽ Refuel ($100)</button>
@@ -2079,7 +2079,7 @@
                     onclick="game.repairLander()">🔧 Repair</button>
             </div>
             <button id="center-extract-btn" class="btn-primary"
-                style="display: none; margin-top: 16px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.2rem; font-weight: bold; padding: 14px 28px; box-shadow: 0 0 20px rgba(16,185,129,0.7);"
+                style="display: none; margin-top: 8px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.1rem; font-weight: bold; padding: 10px 24px; box-shadow: 0 0 20px rgba(16,185,129,0.7);"
                 onclick="game.completeMission()">[SPACE] TO EXTRACT</button>
         </div>
     </main>
@@ -2604,7 +2604,10 @@
     <!-- SCREEN OVERLAY: TUTORIAL MODAL -->
     <div id="tutorial-modal" class="screen-overlay" style="display: none; z-index: 10000;">
         <div class="screen-content" style="max-width: 640px; text-align: left;">
-            <h2 style="color: #38bdf8; margin-top: 0; margin-bottom: 4px;">🚀 How to Play</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <h2 style="color: #38bdf8; margin: 0;">🚀 How to Play</h2>
+                <button class="btn-primary" onclick="closeTutorialModal()" style="margin: 0;">Got it — let's fly! 🚀</button>
+            </div>
 
             <div class="tut-scene">
                 <canvas id="tutorial-scene-canvas"></canvas>
@@ -2672,10 +2675,6 @@
                     the <strong>entire deposit is lost</strong>.</span></div>
             <div class="tut-warning"><span class="ico">🏦</span><span><strong>Beware:</strong> if your Bank
                     drops below <strong>−$5,000</strong>, the bank repossesses your upgrades!</span></div>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn-primary" onclick="closeTutorialModal()">Got it — let's fly! 🚀</button>
-            </div>
         </div>
     </div>
 
@@ -2757,44 +2756,44 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="upgrades.js?v=0.15.0"></script>
-    <script src="levels.js?v=0.15.0"></script>
-    <script src="levelGenerator.js?v=0.15.0"></script>
+    <script src="upgrades.js?v=0.16.0"></script>
+    <script src="levels.js?v=0.16.0"></script>
+    <script src="levelGenerator.js?v=0.16.0"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="level1.js?v=0.15.0"></script>
-    <script src="level2.js?v=0.15.0"></script>
-    <script src="level3.js?v=0.15.0"></script>
-    <script src="level4.js?v=0.15.0"></script>
-    <script src="level5.js?v=0.15.0"></script>
-    <script src="level6.js?v=0.15.0"></script>
-    <script src="level7.js?v=0.15.0"></script>
-    <script src="level8.js?v=0.15.0"></script>
-    <script src="level9.js?v=0.15.0"></script>
-    <script src="level10.js?v=0.15.0"></script>
-    <script src="levelTest.js?v=0.15.0"></script>
+    <script src="level1.js?v=0.16.0"></script>
+    <script src="level2.js?v=0.16.0"></script>
+    <script src="level3.js?v=0.16.0"></script>
+    <script src="level4.js?v=0.16.0"></script>
+    <script src="level5.js?v=0.16.0"></script>
+    <script src="level6.js?v=0.16.0"></script>
+    <script src="level7.js?v=0.16.0"></script>
+    <script src="level8.js?v=0.16.0"></script>
+    <script src="level9.js?v=0.16.0"></script>
+    <script src="level10.js?v=0.16.0"></script>
+    <script src="levelTest.js?v=0.16.0"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.15.0"></script>
-    <script src="shaders.js?v=0.15.0"></script>
-    <script src="physics.js?v=0.15.0"></script>
-    <script src="physics/collision.js?v=0.15.0"></script>
-    <script src="physics/mechanics.js?v=0.15.0"></script>
-    <script src="physics/entities.js?v=0.15.0"></script>
-    <script src="physics/atmosphere.js?v=0.15.0"></script>
-    <script src="game.js?v=0.15.0"></script>
-    <script src="game/input.js?v=0.15.0"></script>
-    <script src="game/menu.js?v=0.15.0"></script>
-    <script src="game/hud.js?v=0.15.0"></script>
-    <script src="game/cargo.js?v=0.15.0"></script>
-    <script src="render.js?v=0.15.0"></script>
-    <script src="render/background.js?v=0.15.0"></script>
-    <script src="render/terrain.js?v=0.15.0"></script>
-    <script src="render/entities.js?v=0.15.0"></script>
-    <script src="render/effects.js?v=0.15.0"></script>
-    <script src="render/night.js?v=0.15.0"></script>
-    <script src="render/ui.js?v=0.15.0"></script>
+    <script src="audio.js?v=0.16.0"></script>
+    <script src="shaders.js?v=0.16.0"></script>
+    <script src="physics.js?v=0.16.0"></script>
+    <script src="physics/collision.js?v=0.16.0"></script>
+    <script src="physics/mechanics.js?v=0.16.0"></script>
+    <script src="physics/entities.js?v=0.16.0"></script>
+    <script src="physics/atmosphere.js?v=0.16.0"></script>
+    <script src="game.js?v=0.16.0"></script>
+    <script src="game/input.js?v=0.16.0"></script>
+    <script src="game/menu.js?v=0.16.0"></script>
+    <script src="game/hud.js?v=0.16.0"></script>
+    <script src="game/cargo.js?v=0.16.0"></script>
+    <script src="render.js?v=0.16.0"></script>
+    <script src="render/background.js?v=0.16.0"></script>
+    <script src="render/terrain.js?v=0.16.0"></script>
+    <script src="render/entities.js?v=0.16.0"></script>
+    <script src="render/effects.js?v=0.16.0"></script>
+    <script src="render/night.js?v=0.16.0"></script>
+    <script src="render/ui.js?v=0.16.0"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="tutorial.js?v=0.15.0"></script>
+    <script src="tutorial.js?v=0.16.0"></script>
 
     <script>
         // Start the game!

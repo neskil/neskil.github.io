@@ -366,9 +366,9 @@ drawParallax() {
         // user feedback: "a bit too quick moving") while keeping the same
         // near-moves-faster-than-far ratio between the three layers.
         const layers = [
-            { factor: 0.25, freq: 0.0018, freq2: 0.0031, seed: 1.7, seed2: 4.2, yMin: 0.15, yMax: 0.55, alpha: 0.55, darken: 0.45 },
-            { factor: 0.50, freq: 0.0027, freq2: 0.0049, seed: 7.3, seed2: 2.9, yMin: 0.25, yMax: 0.60, alpha: 0.50, darken: 0.60 },
-            { factor: 0.75, freq: 0.0042, freq2: 0.0071, seed: 3.1, seed2: 8.6, yMin: 0.35, yMax: 0.62, alpha: 0.45, darken: 0.75 },
+            { factor: 0.25, freq: 0.0018, freq2: 0.0031, seed: 1.7, seed2: 4.2, yMin: 0.15, yMax: 0.55, alpha: 1.0, darken: 0.45 },
+            { factor: 0.50, freq: 0.0027, freq2: 0.0049, seed: 7.3, seed2: 2.9, yMin: 0.25, yMax: 0.60, alpha: 1.0, darken: 0.60 },
+            { factor: 0.75, freq: 0.0042, freq2: 0.0071, seed: 3.1, seed2: 8.6, yMin: 0.35, yMax: 0.62, alpha: 1.0, darken: 0.75 },
         ];
 
         const camX = this.camera ? this.camera.x : 0;
@@ -514,6 +514,122 @@ drawCaveBackground() {
             ctx.lineTo(w, 0);
             ctx.closePath();
             ctx.fill();
+        }
+    }
+,
+drawCityBackground() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const lvPal = (levels[this.currentLevelIndex] || {}).palette;
+        const skyBot = lvPal ? lvPal.skyBot : '#0f172a';
+
+        const hexToRgb = (hex) => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return [r, g, b] || [15, 23, 42];
+        };
+        const [sr, sg, sb] = hexToRgb(skyBot.length === 7 ? skyBot : '#0f172a');
+
+        const camX = this.camera ? this.camera.x : 0;
+        const camY = this.camera ? this.camera.y : 0;
+        const zoom = this.camera ? this.camera.zoom : 1;
+        const levelH = this.physics.levelHeight || 2000;
+
+        // A simple hash function for deterministic building heights
+        const hash11 = (p) => {
+            p = (p * 12.9898 + 78.233) % 1;
+            return (p * 43758.5453) % 1;
+        };
+
+        const layers = [
+            { factor: 0.15, alpha: 0.4, darken: 0.2, heightMin: 0.1, heightMax: 0.3, widthMin: 40, widthMax: 100, yBaseOffset: 0.55, windows: false },
+            { factor: 0.30, alpha: 0.6, darken: 0.4, heightMin: 0.2, heightMax: 0.5, widthMin: 60, widthMax: 150, yBaseOffset: 0.65, windows: false },
+            { factor: 0.50, alpha: 0.9, darken: 0.7, heightMin: 0.3, heightMax: 0.7, widthMin: 80, widthMax: 200, yBaseOffset: 0.85, windows: true },
+        ];
+
+        for (let i = 0; i < layers.length; i++) {
+            const layer = layers[i];
+            const dr = Math.round(sr * layer.darken);
+            const dg = Math.round(sg * layer.darken);
+            const db = Math.round(sb * layer.darken);
+            
+            ctx.fillStyle = `rgba(${dr},${dg},${db},${layer.alpha})`;
+            
+            // Average chunk size helps determine grid
+            const avgWidth = (layer.widthMin + layer.widthMax) / 2;
+            const gridSpacing = avgWidth * 1.5;
+            
+            const worldLeft = camX * layer.factor - (w / 2) / zoom;
+            const worldRight = camX * layer.factor + (w / 2) / zoom;
+            
+            const startCol = Math.floor(worldLeft / gridSpacing);
+            const endCol = Math.floor(worldRight / gridSpacing) + 1;
+            
+            const baseYWorld = levelH * layer.yBaseOffset;
+
+            // To avoid the jagged edge bleeding above terrain similar to hills,
+            // we clamp the top parallax height based on terrain.
+            const terrainTopY = this.physics.terrainTopY || 0;
+
+            for (let col = startCol; col <= endCol; col++) {
+                const seed = col + i * 1000; // Unique seed per column and layer
+                const h1 = hash11(seed * 1.1);
+                const h2 = hash11(seed * 2.2);
+                
+                const bWidth = layer.widthMin + h1 * (layer.widthMax - layer.widthMin);
+                const bHeight = levelH * (layer.heightMin + h2 * (layer.heightMax - layer.heightMin));
+                
+                // Slight x offset so buildings aren't rigidly aligned
+                const xOffset = hash11(seed * 3.3) * (gridSpacing - bWidth);
+                
+                const worldX = col * gridSpacing + xOffset;
+                const layerYWorldTop = baseYWorld - bHeight;
+                
+                let parallaxYWorld = layerYWorldTop - (camY - levelH / 2) * (layer.factor * 0.3);
+                parallaxYWorld = Math.max(parallaxYWorld, terrainTopY + 80);
+                
+                let parallaxYWorldBase = baseYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+                
+                const screenX = w / 2 + (worldX - camX * layer.factor) * zoom;
+                const screenY = h / 2 + (parallaxYWorld - camY) * zoom;
+                const screenBaseY = h / 2 + (parallaxYWorldBase - camY) * zoom;
+                const screenWidth = bWidth * zoom;
+                const screenHeight = Math.max(0, screenBaseY - screenY) + 500; // extend down to cover base
+                
+                if (screenHeight > 0) {
+                    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+                    
+                    if (layer.windows && screenWidth > 15) {
+                        const winRows = Math.floor(bHeight / 40);
+                        const winCols = Math.floor(bWidth / 20);
+                        
+                        const isWarm = hash11(seed * 4.4) > 0.5;
+                        const winColor = isWarm 
+                            ? `rgba(253, 186, 116, ${layer.alpha * 0.8})` // Warm orange
+                            : `rgba(125, 211, 252, ${layer.alpha * 0.8})`; // Cool cyan
+                        ctx.fillStyle = winColor;
+                        
+                        for (let r = 0; r < winRows; r++) {
+                            for (let c = 0; c < winCols; c++) {
+                                // Randomly light windows
+                                if (hash11(seed + r * 13 + c * 17) > 0.6) {
+                                    const winX = screenX + (c * 20 + 5) * zoom;
+                                    const winY = screenY + (r * 40 + 10) * zoom;
+                                    const winW = 8 * zoom;
+                                    const winH = 12 * zoom;
+                                    if (winY < h && winY > 0) {
+                                        ctx.fillRect(winX, winY, winW, winH);
+                                    }
+                                }
+                            }
+                        }
+                        // Reset fill style for the next building body
+                        ctx.fillStyle = `rgba(${dr},${dg},${db},${layer.alpha})`;
+                    }
+                }
+            }
         }
     }
 

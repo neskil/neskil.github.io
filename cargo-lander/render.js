@@ -40,6 +40,7 @@ draw() {
 
         const levelConfig = levels[this.currentLevelIndex];
         const isCave = levelConfig?.backgroundType === 'cave';
+        const isCity = levelConfig?.backgroundType === 'city';
 
         // 2. Parallax background layers
         if (this.bgLayers && !isCave) {
@@ -119,6 +120,8 @@ draw() {
 
         if (isCave) {
             this.drawCaveBackground();
+        } else if (isCity) {
+            this.drawCityBackground();
         } else {
             this.drawParallax();
         }

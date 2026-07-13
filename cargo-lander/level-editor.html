@@ -623,6 +623,14 @@ canvas{display:block}
         <div id="oob-fields" style="display:none; flex-direction:column; gap:4px"></div>
       </div>
     </details>
+
+    <details>
+      <summary>World Boundaries</summary>
+      <div class="props-panel">
+        <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Enabled</label><input type="checkbox" id="wb-enable" onchange="toggleWorldBounds()"></div>
+        <div id="world-bounds-fields" style="display:none; flex-direction:column; gap:4px"></div>
+      </div>
+    </details>
   </div>
   <div id="map-settings-resize"></div>
 </div>
@@ -1011,6 +1019,10 @@ function buildOOBPanel() {
   document.getElementById('oob-fields').innerHTML = LEVEL_SCHEMA.outOfBounds.fields
     .map(f => schemaFieldRowHTML('setOOB', 'oob-', f)).join('');
 }
+function buildWorldBoundsPanel() {
+  document.getElementById('world-bounds-fields').innerHTML = LEVEL_SCHEMA.worldBounds.fields
+    .map(f => schemaFieldRowHTML('setWorldBounds', 'wb-', f)).join('');
+}
 
 function buildGWPanel() {
 }
@@ -1030,6 +1042,7 @@ const S = {
   gravWell: null, // {x,y,radius,orbitRadius,strength}
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
+  worldBounds: null,
   palette: Object.assign({}, DEFAULT_PAL),
   startX: 0,
   startY: null,
@@ -1060,6 +1073,7 @@ const S = {
 
 buildMetaPanel();
 buildOOBPanel();
+buildWorldBoundsPanel();
 buildGWPanel();
 buildRadarPanel();
 
@@ -1165,8 +1179,21 @@ function toggleRadarZone() {
   syncAllSliders();
   draw(); updateOut();
 }
-function setRadarZone(k, v) { if (S.radarZone) S.radarZone[k] = v; draw(); updateOut(); }
+function setRadarZone(k, v) { if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
 
+function toggleWorldBounds() {
+  const en = document.getElementById('wb-enable').checked;
+  document.getElementById('world-bounds-fields').style.display = en ? 'flex' : 'none';
+  if (en && !S.worldBounds) {
+    S.worldBounds = {};
+    LEVEL_SCHEMA.worldBounds.fields.forEach(f => S.worldBounds[f.key] = f.default);
+  } else if (!en) { S.worldBounds = null; }
+  syncAllSliders();
+  draw(); updateOut();
+}
+function setWorldBounds(k, v) { if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
+
+// --- Terrain Manipulation ---
 function setQuest(k, v) { S.quests[k] = v; updateOut(); }
 
 function updateHubUI() {
@@ -1405,6 +1432,7 @@ function applyConfig(cfg) {
   // moment the level actually needs the full object form.
   S.oobIsBoolean = cfg.outOfBounds === true;
   S.oob       = cfg.outOfBounds === true ? {} : (cfg.outOfBounds || null);
+  S.worldBounds = cfg.worldBounds || null;
   S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
   // Defaults must mirror physics.js so the editor shows/edits the pad the
   // game actually uses, even when a level file omits these fields.
@@ -1478,6 +1506,14 @@ function applyConfig(cfg) {
     document.getElementById('oob-enable').checked = false;
     document.getElementById('oob-fields').style.display = 'none';
     document.getElementById('oob-preset-row').style.display = 'none';
+  }
+  
+  if (S.worldBounds) {
+    document.getElementById('wb-enable').checked = true;
+    document.getElementById('world-bounds-fields').style.display = 'flex';
+  } else {
+    document.getElementById('wb-enable').checked = false;
+    document.getElementById('world-bounds-fields').style.display = 'none';
   }
 
   if (S.radarZone) {
@@ -2804,6 +2840,16 @@ function buildOut() {
       });
       lines.push(`  },`);
     }
+  }
+
+  // World Bounds
+  if (S.worldBounds) {
+    lines.push(`  worldBounds: {`);
+    Object.entries(S.worldBounds).forEach(([k,v]) => {
+      if (v == null || v === '') return;
+      lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
+    });
+    lines.push(`  },`);
   }
 
   // Radar Ping Zone

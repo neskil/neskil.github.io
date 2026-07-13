@@ -59,7 +59,7 @@ const LEVEL_SCHEMA = {
     { key:'targetCargo',     type:'integer',   default:3,   widget:'number',   label:'Target Deliveries', required:true, min:1, desc:'Number of cargo pieces that must be successfully delivered.', recommended:'1 - 5', sliderMin:1, sliderMax:12, sliderStep:1 },
     { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Allowed Cargo Types', required:true, enumValues:VALID_CARGO_TYPES, desc:'Comma-separated list of cargo types available in this level.', recommended:'normal,red,blue' },
     { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy Cargo Mode', desc:'If true, all cargo weighs significantly more.', recommended:'Use for late-game challenge levels' },
-    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background Style', options:['parallax', 'cave'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground' },
+    { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background Style', options:['parallax', 'cave', 'city'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground, city for urban areas' },
     { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Sun/Shadow Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
     { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shadow Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
@@ -108,6 +108,16 @@ const LEVEL_SCHEMA = {
       { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y', desc:'The Y coordinate where the instant-kill sand worm will strike from.', recommended:'surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
       { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction/resistance applied to the ship when submerged. High drag (0.08+) slows the ship heavily, making it sluggish. Low drag (0.01) allows smooth gliding.', recommended:'0.02 - 0.05', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
       { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force pushing the ship when submerged. High buoyancy (0.06+) floats the ship up rapidly. Low buoyancy (0.00-0.02) lets the ship sink easily.', recommended:'0.04 - 0.08', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
+    ]
+  },
+
+  // worldBounds: {...} — optional object to constrain the player to the playable area
+  worldBounds: {
+    fields: [
+      { key:'ceilingY',      type:'number', default:null,       nullable:true,  widget:'number', label:'Ceiling Y', desc:'Absolute Y coordinate of the upper boundary. E.g. -1000.' },
+      { key:'ceilingAction', type:'string', default:'pushback', widget:'select', label:'Ceiling Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too high.' },
+      { key:'lateralMargin', type:'number', default:null,       nullable:true,  widget:'number', label:'Lateral Margin', desc:'Distance from the left/right edges (0 to levelWidth).' },
+      { key:'lateralAction', type:'string', default:'pushback', widget:'select', label:'Lateral Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too far left or right.' },
     ]
   },
 
