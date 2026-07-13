@@ -185,47 +185,69 @@
                 <option value="gravwell">Gravity Well</option>
               </select>
             </div>
-            <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-              <div class="row">
-                <label>onMs: <span class="tooltip-icon" title="Milliseconds the hazard is active">?</span></label><input type="number" id="laser-onms" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
-                <label>offMs: <span class="tooltip-icon" title="Milliseconds the hazard is disabled">?</span></label><input type="number" id="laser-offms" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
-                <label>phase: <span class="tooltip-icon" title="Phase offset (in ms) to desync this hazard from others">?</span></label><input type="number" id="laser-phase" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
+            <div id="laser-timing-row" style="display:none; margin-top:6px">
+              <div class="row"><label>onMs <span class="tooltip-icon" title="Milliseconds the hazard is active">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-onms" class="cinput" placeholder="1500" onchange="setHazardField('onMs', this.value); document.getElementById('laser-onms-r').value=this.value"><input type="range" class="field-slider" id="laser-onms-r" min="0" max="5000" step="50" oninput="document.getElementById('laser-onms').value=this.value; setHazardField('onMs', this.value)"></div>
               </div>
-              <div class="row">
-                <label>warnMs: <span class="tooltip-icon" title="Milliseconds before firing that the warning indicator is shown">?</span></label><input type="number" id="laser-warn" class="cinput" style="width:45px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
-                <label>dmg/s: <span class="tooltip-icon" title="Hull damage dealt per second of contact (Max Hull is 100)">?</span></label><input type="number" id="laser-dmg" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
-                <label>thick: <span class="tooltip-icon" title="Thickness of the laser or hazard beam">?</span></label><input type="number" id="laser-thick" class="cinput" style="width:40px" placeholder="15" onchange="setHazardField('thickness', this.value)">
+              <div class="row"><label>offMs <span class="tooltip-icon" title="Milliseconds the hazard is disabled">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-offms" class="cinput" placeholder="1000" onchange="setHazardField('offMs', this.value); document.getElementById('laser-offms-r').value=this.value"><input type="range" class="field-slider" id="laser-offms-r" min="0" max="5000" step="50" oninput="document.getElementById('laser-offms').value=this.value; setHazardField('offMs', this.value)"></div>
               </div>
-            </div>
-            <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-              <div class="row">
-                <label>spawnRate: <span class="tooltip-icon" title="Base worms spawned per second.">?</span></label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
-                <label>reach: <span class="tooltip-icon" title="Radius around the hazard center where the worm will strike">?</span></label><input type="number" id="sw-reach" step="10" class="cinput" style="width:45px" onchange="setHazardField('reach', this.value)">
-                <label>proximityScale: <span class="tooltip-icon" title="How much the spawn chance increases as you get closer to the center (0 to 10). 0 = flat chance, 10 = massive increase at center.">?</span></label><input type="number" id="sw-prox" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('proximityScale', this.value)">
+              <div class="row"><label>phase <span class="tooltip-icon" title="Phase offset (in ms) to desync this hazard from others">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-phase" class="cinput" placeholder="0" onchange="setHazardField('phaseOffset', this.value); document.getElementById('laser-phase-r').value=this.value"><input type="range" class="field-slider" id="laser-phase-r" min="0" max="5000" step="50" oninput="document.getElementById('laser-phase').value=this.value; setHazardField('phaseOffset', this.value)"></div>
               </div>
-            </div>
-            <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-              <div class="row">
-                <label>force X: <span class="tooltip-icon" title="Force vector X">?</span></label><input type="number" id="rep-fx" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('travelX', this.value)">
-                <label>force Y: <span class="tooltip-icon" title="Force vector Y">?</span></label><input type="number" id="rep-fy" class="cinput" style="width:45px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
+              <div class="row"><label>warnMs <span class="tooltip-icon" title="Milliseconds before firing that the warning indicator is shown">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-warn" class="cinput" placeholder="800" onchange="setHazardField('warnMs', this.value); document.getElementById('laser-warn-r').value=this.value"><input type="range" class="field-slider" id="laser-warn-r" min="0" max="3000" step="50" oninput="document.getElementById('laser-warn').value=this.value; setHazardField('warnMs', this.value)"></div>
               </div>
-              <div class="row">
-                <label>gustMs: <span class="tooltip-icon" title="Milliseconds the gust blows. Leave both gust/calm at 0 for an always-on wind tunnel.">?</span></label><input type="number" id="rep-gustms" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('gustMs', this.value)">
-                <label>calmMs: <span class="tooltip-icon" title="Milliseconds of calm between gusts.">?</span></label><input type="number" id="rep-calmms" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('calmMs', this.value)">
-                <label>warnMs: <span class="tooltip-icon" title="Milliseconds of flashing warning before the gust hits.">?</span></label><input type="number" id="rep-warnms" class="cinput" style="width:45px" placeholder="400" onchange="setHazardField('warnMs', this.value)">
+              <div class="row"><label>dmg/s <span class="tooltip-icon" title="Hull damage dealt per second of contact (Max Hull is 100)">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-dmg" class="cinput" placeholder="40" onchange="setHazardField('damagePerSec', this.value); document.getElementById('laser-dmg-r').value=this.value"><input type="range" class="field-slider" id="laser-dmg-r" min="0" max="100" step="1" oninput="document.getElementById('laser-dmg').value=this.value; setHazardField('damagePerSec', this.value)"></div>
+              </div>
+              <div class="row"><label>thick <span class="tooltip-icon" title="Thickness of the laser or hazard beam">?</span></label>
+                <div class="slider-combo"><input type="number" id="laser-thick" class="cinput" placeholder="15" onchange="setHazardField('thickness', this.value); document.getElementById('laser-thick-r').value=this.value"><input type="range" class="field-slider" id="laser-thick-r" min="1" max="60" step="1" oninput="document.getElementById('laser-thick').value=this.value; setHazardField('thickness', this.value)"></div>
               </div>
             </div>
-            <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-              <div class="row">
-                <label>speed: <span class="tooltip-icon" title="Speed to traverse the path">?</span></label><input type="number" id="gw-speed" class="cinput" style="width:45px" placeholder="100" onchange="setHazardField('speed', this.value)">
-                <label>radius: <span class="tooltip-icon" title="Radius of the gravity well effect">?</span></label><input type="number" id="gw-radius" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('radius', this.value)">
+            <div id="sandworm-timing-row" style="display:none; margin-top:6px">
+              <div class="row"><label>spawnRate <span class="tooltip-icon" title="Base worms spawned per second.">?</span></label>
+                <div class="slider-combo"><input type="number" id="sw-spawnrate" step="0.1" class="cinput" onchange="setHazardField('spawnRate', this.value); document.getElementById('sw-spawnrate-r').value=this.value"><input type="range" class="field-slider" id="sw-spawnrate-r" min="0" max="5" step="0.1" oninput="document.getElementById('sw-spawnrate').value=this.value; setHazardField('spawnRate', this.value)"></div>
+              </div>
+              <div class="row"><label>reach <span class="tooltip-icon" title="Radius around the hazard center where the worm will strike">?</span></label>
+                <div class="slider-combo"><input type="number" id="sw-reach" step="10" class="cinput" onchange="setHazardField('reach', this.value); document.getElementById('sw-reach-r').value=this.value"><input type="range" class="field-slider" id="sw-reach-r" min="0" max="800" step="10" oninput="document.getElementById('sw-reach').value=this.value; setHazardField('reach', this.value)"></div>
+              </div>
+              <div class="row"><label>proximity <span class="tooltip-icon" title="How much the spawn chance increases as you get closer to the center (0 to 10). 0 = flat chance, 10 = massive increase at center.">?</span></label>
+                <div class="slider-combo"><input type="number" id="sw-prox" step="0.1" class="cinput" onchange="setHazardField('proximityScale', this.value); document.getElementById('sw-prox-r').value=this.value"><input type="range" class="field-slider" id="sw-prox-r" min="0" max="10" step="0.1" oninput="document.getElementById('sw-prox').value=this.value; setHazardField('proximityScale', this.value)"></div>
+              </div>
+            </div>
+            <div id="repulsor-vector-row" style="display:none; margin-top:6px">
+              <div class="row"><label>force X <span class="tooltip-icon" title="Force vector X">?</span></label>
+                <div class="slider-combo"><input type="number" id="rep-fx" class="cinput" placeholder="0" onchange="setHazardField('travelX', this.value); document.getElementById('rep-fx-r').value=this.value"><input type="range" class="field-slider" id="rep-fx-r" min="-30" max="30" step="1" oninput="document.getElementById('rep-fx').value=this.value; setHazardField('travelX', this.value)"></div>
+              </div>
+              <div class="row"><label>force Y <span class="tooltip-icon" title="Force vector Y">?</span></label>
+                <div class="slider-combo"><input type="number" id="rep-fy" class="cinput" placeholder="-15" onchange="setHazardField('travelY', this.value); document.getElementById('rep-fy-r').value=this.value"><input type="range" class="field-slider" id="rep-fy-r" min="-30" max="30" step="1" oninput="document.getElementById('rep-fy').value=this.value; setHazardField('travelY', this.value)"></div>
+              </div>
+              <div class="row"><label>gustMs <span class="tooltip-icon" title="Milliseconds the gust blows. Leave both gust/calm at 0 for an always-on wind tunnel.">?</span></label>
+                <div class="slider-combo"><input type="number" id="rep-gustms" class="cinput" placeholder="0" onchange="setHazardField('gustMs', this.value); document.getElementById('rep-gustms-r').value=this.value"><input type="range" class="field-slider" id="rep-gustms-r" min="0" max="5000" step="50" oninput="document.getElementById('rep-gustms').value=this.value; setHazardField('gustMs', this.value)"></div>
+              </div>
+              <div class="row"><label>calmMs <span class="tooltip-icon" title="Milliseconds of calm between gusts.">?</span></label>
+                <div class="slider-combo"><input type="number" id="rep-calmms" class="cinput" placeholder="0" onchange="setHazardField('calmMs', this.value); document.getElementById('rep-calmms-r').value=this.value"><input type="range" class="field-slider" id="rep-calmms-r" min="0" max="5000" step="50" oninput="document.getElementById('rep-calmms').value=this.value; setHazardField('calmMs', this.value)"></div>
+              </div>
+              <div class="row"><label>warnMs <span class="tooltip-icon" title="Milliseconds of flashing warning before the gust hits.">?</span></label>
+                <div class="slider-combo"><input type="number" id="rep-warnms" class="cinput" placeholder="400" onchange="setHazardField('warnMs', this.value); document.getElementById('rep-warnms-r').value=this.value"><input type="range" class="field-slider" id="rep-warnms-r" min="0" max="3000" step="50" oninput="document.getElementById('rep-warnms').value=this.value; setHazardField('warnMs', this.value)"></div>
+              </div>
+            </div>
+            <div id="gravwell-properties-row" style="display:none; margin-top:6px">
+              <div class="row"><label>speed <span class="tooltip-icon" title="Speed to traverse the path">?</span></label>
+                <div class="slider-combo"><input type="number" id="gw-speed" class="cinput" placeholder="100" onchange="setHazardField('speed', this.value); document.getElementById('gw-speed-r').value=this.value"><input type="range" class="field-slider" id="gw-speed-r" min="0" max="500" step="5" oninput="document.getElementById('gw-speed').value=this.value; setHazardField('speed', this.value)"></div>
+              </div>
+              <div class="row"><label>radius <span class="tooltip-icon" title="Radius of the gravity well effect">?</span></label>
+                <div class="slider-combo"><input type="number" id="gw-radius" class="cinput" placeholder="200" onchange="setHazardField('radius', this.value); document.getElementById('gw-radius-r').value=this.value"><input type="range" class="field-slider" id="gw-radius-r" min="10" max="600" step="10" oninput="document.getElementById('gw-radius').value=this.value; setHazardField('radius', this.value)"></div>
+              </div>
+              <div class="row"><label>startForce <span class="tooltip-icon" title="Force at the center (start)">?</span></label>
+                <div class="slider-combo"><input type="number" id="gw-startf" step="0.1" class="cinput" placeholder="1.5" onchange="setHazardField('startForce', this.value); document.getElementById('gw-startf-r').value=this.value"><input type="range" class="field-slider" id="gw-startf-r" min="0" max="5" step="0.1" oninput="document.getElementById('gw-startf').value=this.value; setHazardField('startForce', this.value)"></div>
+              </div>
+              <div class="row"><label>endForce <span class="tooltip-icon" title="Force at the edge (end)">?</span></label>
+                <div class="slider-combo"><input type="number" id="gw-endf" step="0.1" class="cinput" placeholder="0" onchange="setHazardField('endForce', this.value); document.getElementById('gw-endf-r').value=this.value"><input type="range" class="field-slider" id="gw-endf-r" min="0" max="5" step="0.1" oninput="document.getElementById('gw-endf').value=this.value; setHazardField('endForce', this.value)"></div>
               </div>
               <div class="row">
-                <label>startForce: <span class="tooltip-icon" title="Force at the center (start)">?</span></label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:45px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
-                <label>endForce: <span class="tooltip-icon" title="Force at the edge (end)">?</span></label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('endForce', this.value)">
-              </div>
-              <div class="row">
-                <label>pathMode: <span class="tooltip-icon" title="How the well travels its path: loop cycles through all points in order; pingpong bounces back and forth along the line">?</span></label>
+                <label>pathMode <span class="tooltip-icon" title="How the well travels its path: loop cycles through all points in order; pingpong bounces back and forth along the line">?</span></label>
                 <select id="gw-pathmode" class="cinput" onchange="setHazardField('pathMode', this.value)">
                   <option value="">auto (loop if 3+ pts, else pingpong)</option>
                   <option value="loop">loop</option>
@@ -233,17 +255,21 @@
                 </select>
               </div>
             </div>
-            <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-              <div class="row">
-                <label>waitUnload: <span class="tooltip-icon" title="Wait at start position (ms)">?</span></label><input type="number" id="crush-waitu" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
-                <label>crushMs: <span class="tooltip-icon" title="Time to clash (ms)">?</span></label><input type="number" id="crush-crush" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
+            <div id="crusher-properties-row" style="display:none; margin-top:6px">
+              <div class="row"><label>waitUnload <span class="tooltip-icon" title="Wait at start position (ms)">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-waitu" class="cinput" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value); document.getElementById('crush-waitu-r').value=this.value"><input type="range" class="field-slider" id="crush-waitu-r" min="0" max="5000" step="50" oninput="document.getElementById('crush-waitu').value=this.value; setHazardField('waitUnloadedMs', this.value)"></div>
               </div>
-              <div class="row">
-                <label>waitLoad: <span class="tooltip-icon" title="Wait at clash position (ms)">?</span></label><input type="number" id="crush-waitl" class="cinput" style="width:45px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
-                <label>retractMs: <span class="tooltip-icon" title="Time to retract (ms)">?</span></label><input type="number" id="crush-retract" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
+              <div class="row"><label>crushMs <span class="tooltip-icon" title="Time to clash (ms)">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-crush" class="cinput" placeholder="200" onchange="setHazardField('crushMs', this.value); document.getElementById('crush-crush-r').value=this.value"><input type="range" class="field-slider" id="crush-crush-r" min="0" max="2000" step="50" oninput="document.getElementById('crush-crush').value=this.value; setHazardField('crushMs', this.value)"></div>
               </div>
-              <div class="row">
-                <label>thickness: <span class="tooltip-icon" title="Width of the crusher blocks">?</span></label><input type="number" id="crush-thick" class="cinput" style="width:45px" placeholder="40" onchange="setHazardField('thickness', this.value)">
+              <div class="row"><label>waitLoad <span class="tooltip-icon" title="Wait at clash position (ms)">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-waitl" class="cinput" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value); document.getElementById('crush-waitl-r').value=this.value"><input type="range" class="field-slider" id="crush-waitl-r" min="0" max="5000" step="50" oninput="document.getElementById('crush-waitl').value=this.value; setHazardField('waitLoadedMs', this.value)"></div>
+              </div>
+              <div class="row"><label>retractMs <span class="tooltip-icon" title="Time to retract (ms)">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-retract" class="cinput" placeholder="1500" onchange="setHazardField('retractMs', this.value); document.getElementById('crush-retract-r').value=this.value"><input type="range" class="field-slider" id="crush-retract-r" min="0" max="5000" step="50" oninput="document.getElementById('crush-retract').value=this.value; setHazardField('retractMs', this.value)"></div>
+              </div>
+              <div class="row"><label>thickness <span class="tooltip-icon" title="Width of the crusher blocks">?</span></label>
+                <div class="slider-combo"><input type="number" id="crush-thick" class="cinput" placeholder="40" onchange="setHazardField('thickness', this.value); document.getElementById('crush-thick-r').value=this.value"><input type="range" class="field-slider" id="crush-thick-r" min="5" max="100" step="5" oninput="document.getElementById('crush-thick').value=this.value; setHazardField('thickness', this.value)"></div>
               </div>
             </div>
             <div id="hazard-color-row" class="row" style="display:none; margin-top:6px">

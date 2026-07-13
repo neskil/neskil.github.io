@@ -2614,34 +2614,34 @@ function renderPtUI() {
       crusherRow.style.display = poly.type === 'crusher' ? '' : 'none';
 
       if (poly.type === 'laser' || poly.type === 'incinerator') {
-        document.getElementById('laser-onms').value = poly.onMs ?? 1500;
-        document.getElementById('laser-offms').value = poly.offMs ?? 1000;
-        document.getElementById('laser-phase').value = poly.phaseOffset ?? 0;
-        document.getElementById('laser-warn').value = poly.warnMs ?? 800;
-        document.getElementById('laser-dmg').value = poly.damagePerSec ?? 40;
-        document.getElementById('laser-thick').value = poly.thickness ?? 15;
+        setNumAndSlider('laser-onms', poly.onMs ?? 1500);
+        setNumAndSlider('laser-offms', poly.offMs ?? 1000);
+        setNumAndSlider('laser-phase', poly.phaseOffset ?? 0);
+        setNumAndSlider('laser-warn', poly.warnMs ?? 800);
+        setNumAndSlider('laser-dmg', poly.damagePerSec ?? 40);
+        setNumAndSlider('laser-thick', poly.thickness ?? 15);
       } else if (poly.type === 'sandworm') {
-        document.getElementById('sw-spawnrate').value = poly.spawnRate ?? 1.0;
-        document.getElementById('sw-reach').value = poly.reach ?? 300;
-        document.getElementById('sw-prox').value = poly.proximityScale ?? 0;
+        setNumAndSlider('sw-spawnrate', poly.spawnRate ?? 1.0);
+        setNumAndSlider('sw-reach', poly.reach ?? 300);
+        setNumAndSlider('sw-prox', poly.proximityScale ?? 0);
       } else if (poly.type === 'repulsor') {
-        document.getElementById('rep-fx').value = poly.travelX ?? 0;
-        document.getElementById('rep-fy').value = poly.travelY ?? -15;
-        document.getElementById('rep-gustms').value = poly.gustMs ?? 0;
-        document.getElementById('rep-calmms').value = poly.calmMs ?? 0;
-        document.getElementById('rep-warnms').value = poly.warnMs ?? 400;
+        setNumAndSlider('rep-fx', poly.travelX ?? 0);
+        setNumAndSlider('rep-fy', poly.travelY ?? -15);
+        setNumAndSlider('rep-gustms', poly.gustMs ?? 0);
+        setNumAndSlider('rep-calmms', poly.calmMs ?? 0);
+        setNumAndSlider('rep-warnms', poly.warnMs ?? 400);
       } else if (poly.type === 'gravwell') {
-        document.getElementById('gw-speed').value = poly.speed ?? 100;
-        document.getElementById('gw-radius').value = poly.radius ?? 200;
-        document.getElementById('gw-startf').value = poly.startForce ?? 1.5;
-        document.getElementById('gw-endf').value = poly.endForce ?? 0;
+        setNumAndSlider('gw-speed', poly.speed ?? 100);
+        setNumAndSlider('gw-radius', poly.radius ?? 200);
+        setNumAndSlider('gw-startf', poly.startForce ?? 1.5);
+        setNumAndSlider('gw-endf', poly.endForce ?? 0);
         document.getElementById('gw-pathmode').value = poly.pathMode || '';
       } else if (poly.type === 'crusher') {
-        document.getElementById('crush-waitu').value = poly.waitUnloadedMs ?? 1000;
-        document.getElementById('crush-crush').value = poly.crushMs ?? 200;
-        document.getElementById('crush-waitl').value = poly.waitLoadedMs ?? 500;
-        document.getElementById('crush-retract').value = poly.retractMs ?? 1500;
-        document.getElementById('crush-thick').value = poly.thickness ?? 40;
+        setNumAndSlider('crush-waitu', poly.waitUnloadedMs ?? 1000);
+        setNumAndSlider('crush-crush', poly.crushMs ?? 200);
+        setNumAndSlider('crush-waitl', poly.waitLoadedMs ?? 500);
+        setNumAndSlider('crush-retract', poly.retractMs ?? 1500);
+        setNumAndSlider('crush-thick', poly.thickness ?? 40);
       }
     } else {
         hazardRow.style.display = 'none';
@@ -2790,6 +2790,15 @@ function setTerrainShadow(field, val) {
     else poly.shadowLength = +val;
   }
   updateOut(); draw();
+}
+
+// Sets a hazard property field's number input and, if present, its paired
+// range slider (id + '-r') to the same value.
+function setNumAndSlider(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+  const r = document.getElementById(id + '-r');
+  if (r) r.value = val;
 }
 
 function setHazardField(field, val) {
