@@ -1042,37 +1042,28 @@ const CargoPhysicsAtmosphereMixin = {
     },
 
     updateParticles() {
-        // Check collectible rings
+        // Check mid-air flythrough pickups against the shared COLLECTIBLE_TYPES
+        // registry (levels/collectibleTypes.js) — adding a new pickup type only
+        // requires an entry there, not a new branch here.
         if (this.collectibles && this.collectibles.length > 0 && !this.lander.crashed) {
             for (let i = this.collectibles.length - 1; i >= 0; i--) {
                 const c = this.collectibles[i];
-                if (c.type === 'ring') {
-                    const r = c.radius || 40;
-                    const dx = this.lander.x - c.x;
-                    const dy = this.lander.y - c.y;
-                    if (dx * dx + dy * dy < r * r) {
-                        // Collected!
-                        if (c.resource === 'fuel') {
-                            this.lander.fuel = Math.min(100, this.lander.fuel + (c.amount || 25));
-                            if (window.game) window.game.addMessage(`+FUEL`, '#60a5fa');
-                            if (window.game) window.game.floatingTexts.push({ text: `+FUEL`, x: c.x, y: c.y, life: 1.5, color: '#60a5fa' });
-                        } else if (c.resource === 'cash') {
-                            this.cash = (this.cash || 0) + (c.amount || 100);
-                            if (window.game) window.game.addMessage(`+$${c.amount||100}`, '#10b981');
-                            if (window.game) window.game.floatingTexts.push({ text: `+$${c.amount||100}`, x: c.x, y: c.y, life: 1.5, color: '#10b981' });
-                        }
-                        this.collectibles.splice(i, 1);
+                const def = window.COLLECTIBLE_TYPES && window.COLLECTIBLE_TYPES[c.type];
+                if (!def) continue;
+                const r = c.radius || def.radius || 24;
+                const dx = this.lander.x - c.x;
+                const dy = this.lander.y - c.y;
+                if (dx * dx + dy * dy < r * r) {
+                    const amount = c[def.amountField] != null ? c[def.amountField] : def.defaultAmount;
+                    if (def.resource === 'fuel') {
+                        this.lander.fuel = Math.min(100, this.lander.fuel + amount);
+                    } else if (def.resource === 'cash') {
+                        this.cash = (this.cash || 0) + amount;
                     }
-                } else if (c.type === 'cash') {
-                    const r = c.radius || 24;
-                    const dx = this.lander.x - c.x;
-                    const dy = this.lander.y - c.y;
-                    if (dx * dx + dy * dy < r * r) {
-                        this.cash = (this.cash || 0) + (c.value || 100);
-                        if (window.game) window.game.addMessage(`+$${c.value||100}`, '#10b981');
-                        if (window.game) window.game.floatingTexts.push({ text: `+$${c.value||100}`, x: c.x, y: c.y, life: 1.5, color: '#10b981' });
-                        this.collectibles.splice(i, 1);
-                    }
+                    const msg = def.message ? def.message(amount) : `+${amount}`;
+                    if (window.game) window.game.addMessage(msg, def.messageColor);
+                    if (window.game) window.game.floatingTexts.push({ text: msg, x: c.x, y: c.y, life: 1.5, color: def.messageColor });
+                    this.collectibles.splice(i, 1);
                 }
             }
         }
@@ -1103,12 +1094,37 @@ const CargoPhysicsAtmosphereMixin = {
                 p.size = Math.max(0.5, p.size * 0.98);
             }
 
+            // Terrain collision for thruster exhaust particles only.
+            // _testPointVsSegments is O(segments) and thruster particles are few,
+            // so the total cost is negligible (<1% of frame budget).
+            if (p.thruster && this.segments.length > 0 && !p._settled) {
+                const skin = Math.max(2, p.size);
+                const hit = this._testPointVsSegments(p.x, p.y, skin);
+                if (hit) {
+                    // Push particle out of surface
+                    p.x += hit.nx * hit.pen;
+                    p.y += hit.ny * hit.pen;
+                    // Reflect velocity off normal with damping (more damping for smoke)
+                    const dot = p.vx * hit.nx + p.vy * hit.ny;
+                    const restitution = p.type === 'smoke' ? 0.05 : 0.25;
+                    p.vx = (p.vx - 2 * dot * hit.nx) * restitution;
+                    p.vy = (p.vy - 2 * dot * hit.ny) * restitution;
+                    // Apply surface friction to tangential velocity
+                    p.vx *= 0.4;
+                    p.vy *= 0.4;
+                    // Rapidly fade out after impact for a short splatter/scorch effect
+                    p.decay = Math.max(p.decay, p.type === 'smoke' ? 0.08 : 0.12);
+                    p._settled = true; // only resolve once to avoid tunnelling loops
+                }
+            }
+
             if (p.life <= 0) {
                 // O(1) swap-and-pop instead of O(n) splice
                 this.particles[i] = this.particles[this.particles.length - 1];
                 this.particles.pop();
             }
         }
+
 
         if (this.explosions) {
             for (let i = this.explosions.length - 1; i >= 0; i--) {

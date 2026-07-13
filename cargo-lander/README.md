@@ -64,14 +64,16 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `upgrades.js` | Upgrade catalog. |
 | `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
+| `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
 | `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
 | `tests.html` | Browser test suite (89 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
-`index.html` loads `vendor/matter.min.js`, then `levelSchema.js → upgrades.js →
-levels.js → levelGenerator.js → level1…10.js → levelTest.js → audio.js →
+`index.html` loads `vendor/matter.min.js`, then `upgrades.js →
+levels.js → levelGenerator.js → level1…10.js → levelTest.js →
+collectibleTypes.js → audio.js →
 shaders.js → physics.js → physics/*.js → game.js → game/*.js → render.js →
 render/*.js`. Class files must precede their prototype-mixin files;
 `render.js` instantiates `window.game`, so every mixin must load before it;
@@ -92,6 +94,16 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
   `missionBudget` is per-mission and doubles as the crash/refuel resource.
 - **dt**: the loop normalizes delta time to 60 fps (`dt = elapsedMs / 16.666`),
   so most physics constants are "per 60fps-frame".
+- **Collectibles**: mid-air "flythrough" pickups (`collectibles: [{type, x, y, ...}]`
+  in a level config) — fly the lander body through one to collect it, no
+  winch/landing needed. Types (`cash`, `fuel`) are defined once in
+  `levels/collectibleTypes.js` (color, icon, resource, award amount field,
+  pickup message); `physics/atmosphere.js` (award logic) and
+  `render/entities.js` (token visual) both read that same registry generically,
+  and the level editor's Entities panel lists/add-buttons/exports them too.
+  **To add a new pickup type**, add one entry to `COLLECTIBLE_TYPES` — no
+  other file needs a new branch unless the type wants a bespoke visual (set
+  `draw(ctx, c)` on its registry entry to override the default token look).
 
 ---
 
@@ -106,6 +118,7 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
 - **Hazard types** — per-shape `type` dropdown (zone / laser / incinerator / crusher / pickup / …); the point-editing UI switches between polygon vertices and the laser's fixed 2-point line, with `onMs`/`offMs`/`warnMs` timing fields where applicable.
 - **Palette-based rendering** — sky gradient and terrain fills use each level's palette, matching in-game biome appearance.
 - **Overlays** — OOB surface/monster-depth lines, hub pads as labeled width-bars + guide lines, gravity-well pull/orbit rings, HQ + cargo-depot spawn markers.
+- **Collectibles** — Entities panel has one `+ <Type>` button per entry in `COLLECTIBLE_TYPES` (`levels/collectibleTypes.js`); markers are draggable free-floating tokens (no terrain snapping) with a sidebar list for x/y/amount and delete.
 - **Shape list sidebar** — select, hide/show, rename, per-point x/y inputs.
 - **Snap controls** — 1 / 10 / 50 / 100 world-unit snapping; Shift = ×5.
 - **Export** — live-updating complete `registerLevel({...})` block with one-click Copy; also a playtest button, `.js` download, and upload-back-into-the-game flow.
@@ -368,10 +381,12 @@ the file. The class files are small; the bulk is in the mixins.
 | Polygon/segment collision helpers | `physics/collision.js` |
 | Water bounce, gravity well pull | `physics/mechanics.js` |
 | Gravity/wind, monster AI, ambient traffic, police, particles, hazard ticks | `physics/atmosphere.js` |
+| Mid-air collectible pickup collision/award (`updateParticles`, generic over `COLLECTIBLE_TYPES`) | `physics/atmosphere.js` |
 | Particle/monster WebGL overlay + post-FX pass (`renderPostFX`) | `shaders.js` |
 | Level registry, quest helpers | `levels.js` |
 | Upgrade catalog | `upgrades.js` |
 | Scalar level-config schema (editor + tests) | `levelSchema.js` |
+| Mid-air collectible **type registry** (`cash`/`fuel`/…) — shared by physics, rendering, and the editor | `levels/collectibleTypes.js` |
 
 ## Physics Notes
 - Thruster: **slow spool-up, instant cut-off** (`enginePower = 0` immediately on key release). Side thrusters: `lander.strafePower` (-1..1), same instant cut.

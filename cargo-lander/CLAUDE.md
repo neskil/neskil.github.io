@@ -30,6 +30,12 @@ plans — check it before re-diagnosing an old-sounding bug.
   `index.html` AND `tests.html` — a new mixin file must be added to both.
 - Cargo removal must go through `removeCargoBox()` (`game/cargo.js`), never a
   raw `boxes.splice()`.
+- Mid-air flythrough pickups (`collectibles: [...]` on a level config) are
+  driven by the `COLLECTIBLE_TYPES` registry in `levels/collectibleTypes.js`
+  — physics (award logic), rendering (token visual), and the level editor
+  (Entities panel add-buttons/list/markers/export) all read it generically.
+  Adding a new pickup type is one registry entry there, not new branches in
+  those three places.
 
 ## Verification (headless — works in any environment)
 **Run `./run-tests.sh` first** (from `cargo-lander/`): one command that
