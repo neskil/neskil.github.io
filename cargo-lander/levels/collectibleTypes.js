@@ -15,7 +15,9 @@
 //   amountField   — property name on the collectible object holding the award
 //                    amount (level authors write e.g. `{ type:'cash', value:250 }`)
 //   defaultAmount — used when amountField is absent on the collectible
-//   radius        — default flythrough pickup radius in world px
+//   radius        — visual token radius in world px (does NOT affect pickup)
+//   pickupRadius  — flythrough pickup/collision radius in world px; defaults
+//                    to `radius` if omitted
 //   color/edgeColor — token fill/outline colors (also used by the editor marker)
 //   icon          — single glyph drawn in the token
 //   label         — human label for editor UI ("+ Cash", list headers, etc.)
@@ -27,7 +29,8 @@ window.COLLECTIBLE_TYPES = {
         resource: 'cash',
         amountField: 'value',
         defaultAmount: 100,
-        radius: 36,
+        radius: 24,
+        pickupRadius: 36,
         color: '#facc15',
         edgeColor: '#92400e',
         icon: '$',
@@ -39,10 +42,11 @@ window.COLLECTIBLE_TYPES = {
         resource: 'fuel',
         amountField: 'amount',
         defaultAmount: 25,
-        radius: 34,
+        radius: 22,
+        pickupRadius: 34,
         color: '#60a5fa',
         edgeColor: '#1e3a8a',
-        icon: 'F',
+        icon: '⛽',
         message: () => '+FUEL',
         messageColor: '#60a5fa',
     },
