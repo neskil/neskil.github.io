@@ -198,7 +198,7 @@ class CargoPhysics {
         this.collectionPoint = { x: config.collectionX !== undefined ? config.collectionX : 280, y: config.collectionY !== undefined ? config.collectionY : undefined, width: Math.round(100 * ps), height: 15 };
         this.deliveryHubs = (config.deliveryHubs || []).map(hub => ({
             x: hub.x, y: hub.y !== undefined ? hub.y : undefined, width: Math.round((hub.width || 80) * ps), height: 15,
-            color: hub.color, type: hub.type, name: hub.name || 'Terminal'
+            color: hub.color, type: hub.type, name: hub.name || 'Terminal', style: hub.style
         }));
 
         if (this.startDepot.y === undefined) {

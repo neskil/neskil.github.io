@@ -313,6 +313,60 @@ drawHazards(bgMode = false) {
     }
 
 ,
+// Shared landing-pad base — HQ, Cargo Depot and every delivery hub all call
+// this so the three pad types sit on the terrain identically: same slab,
+// same chevron stripes, same 3px accent bar, same edge glow, same label
+// position. Per-pad extras (extract beacon, loading bar, drop light) stay
+// at the call sites.
+drawPadBase(x, y, w, h, opts = {}) {
+        const ctx = this.ctx;
+        // Slab
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(x, y, w, h);
+        // Chevron stripes clipped to the slab
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+        const sw = 13;
+        ctx.fillStyle = opts.stripe || 'rgba(100,120,160,0.25)';
+        for (let sx = x - h; sx < x + w + h; sx += sw * 2) {
+            ctx.beginPath();
+            ctx.moveTo(sx, y + h); ctx.lineTo(sx + h, y);
+            ctx.lineTo(sx + h + sw, y); ctx.lineTo(sx + sw, y + h);
+            ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+        // Accent bar along the contact line
+        ctx.fillStyle = opts.accent || '#94a3b8';
+        ctx.fillRect(x, y, w, 3);
+        // Pulsing edge glow ("r,g,b" string)
+        if (opts.glowRGB) {
+            const gpulse = 0.4 + Math.abs(Math.sin(Date.now() * 0.003)) * 0.4;
+            const g = ctx.createLinearGradient(x, 0, x + w, 0);
+            g.addColorStop(0, `rgba(${opts.glowRGB},0)`);
+            g.addColorStop(0.5, `rgba(${opts.glowRGB},${gpulse * 0.55})`);
+            g.addColorStop(1, `rgba(${opts.glowRGB},0)`);
+            ctx.strokeStyle = g;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(x, y, w, h);
+        }
+        if (opts.label) {
+            ctx.fillStyle = opts.labelColor || 'rgba(255,255,255,0.7)';
+            ctx.font = '600 10px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(opts.label, x + w / 2, y + 11);
+        }
+    }
+
+,
+// '#rrggbb' → 'r,g,b' (for the pad edge glow); falls back to sky blue.
+_hexToRGB(hex) {
+        const m = /^#([0-9a-f]{6})/i.exec(hex || '');
+        if (!m) return '56,189,248';
+        const n = parseInt(m[1], 16);
+        return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    }
+
+,
 drawSourcingDepot() {
         const ctx = this.ctx;
         const start = this.physics.startDepot;
@@ -382,42 +436,15 @@ drawSourcingDepot() {
             ctx.beginPath(); ctx.arc(hX + 25, hY - 15, 2, 0, Math.PI*2); ctx.fill();
             ctx.restore();
 
-            // Landing Pad
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(start.x, start.y, start.width, start.height);
-
-            // Warning stripes on pad surface
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(start.x, start.y, start.width, start.height);
-            ctx.clip();
-            const stripeW = 14;
-            ctx.fillStyle = 'rgba(100, 120, 160, 0.25)';
-            for (let sx = start.x - start.height; sx < start.x + start.width + start.height; sx += stripeW * 2) {
-                ctx.beginPath();
-                ctx.moveTo(sx, start.y + start.height);
-                ctx.lineTo(sx + start.height, start.y);
-                ctx.lineTo(sx + start.height + stripeW, start.y);
-                ctx.lineTo(sx + stripeW, start.y + start.height);
-                ctx.closePath();
-                ctx.fill();
-            }
-            ctx.restore();
-
-            // Top accent bar — pulses green when extraction ready
-            if (allDelivered) {
-                const pulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.005)) * 0.4;
-                ctx.fillStyle = `rgba(16, 185, 129, ${pulse})`;
-            } else {
-                ctx.fillStyle = '#94a3b8';
-            }
-            ctx.fillRect(start.x, start.y, start.width, 3);
-
-            // Label
-            ctx.fillStyle = allDelivered ? 'rgba(16,185,129,0.9)' : 'rgba(255,255,255,0.5)';
-            ctx.font = '600 10px Outfit, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('HQ', start.x + start.width / 2, start.y + 11);
+            // Landing Pad — shared base (accent pulses green when extraction ready)
+            const hqPulse = 0.6 + Math.abs(Math.sin(Date.now() * 0.005)) * 0.4;
+            this.drawPadBase(start.x, start.y, start.width, start.height, {
+                accent: allDelivered ? `rgba(16, 185, 129, ${hqPulse})` : '#94a3b8',
+                stripe: 'rgba(100, 120, 160, 0.25)',
+                glowRGB: allDelivered ? '16,185,129' : '148,163,184',
+                label: 'HQ',
+                labelColor: allDelivered ? 'rgba(16,185,129,0.9)' : 'rgba(255,255,255,0.5)',
+            });
 
             // "EXTRACT HERE" beacon when all cargo delivered
             if (allDelivered) {
@@ -669,37 +696,14 @@ drawSourcingDepot() {
                 ctx.restore();
             }
 
-            // ── Landing pad surface ───────────────────────────────────────
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(cx, cy, cw, ch);
-
-            ctx.save();
-            ctx.beginPath(); ctx.rect(cx, cy, cw, ch); ctx.clip();
-            const csW = 13;
-            ctx.fillStyle = 'rgba(251,191,36,0.2)';
-            for (let sx = cx - ch; sx < cx + cw + ch; sx += csW * 2) {
-                ctx.beginPath();
-                ctx.moveTo(sx, cy + ch); ctx.lineTo(sx + ch, cy);
-                ctx.lineTo(sx + ch + csW, cy); ctx.lineTo(sx + csW, cy + ch);
-                ctx.closePath(); ctx.fill();
-            }
-            ctx.restore();
-
-            ctx.fillStyle = '#38bdf8';
-            ctx.fillRect(cx, cy, cw, 3);
-
-            const cGlow = ctx.createLinearGradient(cx, 0, cx + cw, 0);
-            cGlow.addColorStop(0, `rgba(56,189,248,0)`);
-            cGlow.addColorStop(0.5, `rgba(56,189,248,${cpulse * 0.55})`);
-            cGlow.addColorStop(1, `rgba(56,189,248,0)`);
-            ctx.strokeStyle = cGlow;
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(cx, cy, cw, ch);
-
-            ctx.fillStyle = 'rgba(56,189,248,0.9)';
-            ctx.font = 'bold 12px Outfit, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('CARGO', cpCx, cy + 12);
+            // ── Landing pad surface — shared base ─────────────────────────
+            this.drawPadBase(cx, cy, cw, ch, {
+                accent: '#38bdf8',
+                stripe: 'rgba(251,191,36,0.2)',
+                glowRGB: '56,189,248',
+                label: 'CARGO',
+                labelColor: 'rgba(56,189,248,0.9)',
+            });
 
             if (_seqActive) {
                 const _pp = 0.7 + Math.abs(Math.sin(now * 0.008)) * 0.3;
@@ -818,15 +822,17 @@ drawDeliveryHubs() {
                 continue;
             }
 
-            // ── Overhead crane on hub ─────────────────────────────────────
-            // Crane height is now anchored off the pad directly (no warehouse
-            // facade) — the pad stays a clear, readable landing surface.
+            // ── Hub structure (selectable per hub via `style`) ────────────
+            // 'crane' (default) keeps the original overhead crane; 'house',
+            // 'depot' and 'silo' draw a background building behind the pad
+            // instead; 'none' leaves a bare pad.
+            const hubStyle = hub.style || 'crane';
             const craneTopY = hub.y - 66;
             const craneX = hcx + hub.width * 0.28;
             const craneArmLeft = hub.x - 6;
 
             // Pallet stack — delivered boxes visibly pile up here instead of
-            // vanishing; this is the crane's actual drop-off target.
+            // vanishing; this is the hub's actual drop-off target (all styles).
             const palletX = craneArmLeft - 16;
             const palletCount = hub.palletCount || 0;
             ctx.fillStyle = '#78350f';
@@ -845,6 +851,7 @@ drawDeliveryHubs() {
                 ctx.strokeRect(pcx - palletCrateS / 2, pcy - palletCrateS / 2, palletCrateS, palletCrateS);
             }
 
+            if (hubStyle === 'crane') {
             ctx.strokeStyle = '#f59e0b';
             ctx.lineWidth = 6;
             ctx.lineCap = 'round';
@@ -916,6 +923,13 @@ drawDeliveryHubs() {
             if (carryingBox) {
                 this.drawSingleBox(trolleyX, craneTopY - 15 + cableLen + 4 + this.physics.BOX_SIZE / 2 + 2, _hubAnim.boxType);
             }
+            } else if (hubStyle === 'house') {
+                this.drawHubHouse(hub, hcx, now);
+            } else if (hubStyle === 'depot') {
+                this.drawHubDepot(hub, hcx, now);
+            } else if (hubStyle === 'silo') {
+                this.drawHubSilo(hub, hcx, now);
+            } // 'none' → bare pad
 
             // Glow column beacon — soft tapered light shaft, not a flat box
             const pulse = 0.12 + Math.abs(Math.sin(Date.now() * 0.002)) * 0.1;
@@ -962,35 +976,15 @@ drawDeliveryHubs() {
             }
             ctx.globalAlpha = 1.0;
 
-            // Hub base — solid slab so the pad reads as flat ground, not terrain
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(hub.x - 4, hub.y, hub.width + 8, hub.height);
-
-            // Hazard chevron stripes — same bold "safe to land here" language
-            // used on the start depot / collection pad, tinted with the hub's color
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(hub.x - 4, hub.y, hub.width + 8, hub.height);
-            ctx.clip();
-            const hsW = 12;
-            ctx.fillStyle = hub.color + '40';
-            for (let sx = hub.x - hub.height - 4; sx < hub.x + hub.width + hub.height + 4; sx += hsW * 2) {
-                ctx.beginPath();
-                ctx.moveTo(sx, hub.y + hub.height);
-                ctx.lineTo(sx + hub.height, hub.y);
-                ctx.lineTo(sx + hub.height + hsW, hub.y);
-                ctx.lineTo(sx + hsW, hub.y + hub.height);
-                ctx.closePath();
-                ctx.fill();
-            }
-            ctx.restore();
-
-            // Bright flat top surface — the actual contact line a pilot reads as "clear to land"
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            ctx.moveTo(hub.x - 4, hub.y); ctx.lineTo(hub.x + hub.width + 4, hub.y);
-            ctx.stroke();
+            // Hub pad — shared base, exactly the pad's physical footprint so it
+            // sits level with (and reads identically to) the HQ / Cargo pads
+            this.drawPadBase(hub.x, hub.y, hub.width, hub.height, {
+                accent: hub.color,
+                stripe: hub.color + '40',
+                glowRGB: this._hexToRGB(hub.color),
+                label: hub.name ? hub.name.toUpperCase() : '',
+                labelColor: '#f8fafc',
+            });
 
             if (hasMatchingCargo) {
                 const bpulse = 0.5 + Math.abs(Math.sin(Date.now() * 0.006)) * 0.5;
@@ -1035,22 +1029,179 @@ drawDeliveryHubs() {
                 ctx.fillText('DROP', lightX, lightY - 14);
             }
 
-            // Glowing boundary line
-            ctx.fillStyle = hub.color;
-            ctx.fillRect(hub.x, hub.y, hub.width, 3);
-
-            // Hub name label (inside pad)
-            ctx.fillStyle = '#f8fafc';
-            ctx.font = '600 10px Outfit, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(hub.name.toUpperCase(), hub.x + hub.width / 2, hub.y + 11);
-
             // Hub type label (below pad)
             ctx.fillStyle = hub.color;
             ctx.font = '500 9px Outfit, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(hub.type ? hub.type.toUpperCase() : '', hub.x + hub.width / 2, hub.y + hub.height + 11);
         }
+    }
+
+,
+// ── Hub background structures (hub.style variants) ──────────────────────
+// Each sits ON hub.y, drawn behind the pad base, tinted with hub.color.
+drawHubHouse(hub, hcx, now) {
+        const ctx = this.ctx;
+        const bw = Math.min(64, hub.width * 0.85), bh = 42;
+        const bx = hcx - bw / 2, byTop = hub.y - bh;
+        const pulse = 0.5 + Math.abs(Math.sin(now * 0.002)) * 0.4;
+
+        // Chimney (behind roof)
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(bx + bw - 16, byTop - 6, 7, 20);
+
+        // Walls
+        ctx.fillStyle = this._grad(`hubHouse|${bx}|${bw}`, (c) => {
+            const g = c.createLinearGradient(bx, 0, bx + bw, 0);
+            g.addColorStop(0, '#16233a');
+            g.addColorStop(1, '#0e1828');
+            return g;
+        });
+        ctx.fillRect(bx, byTop + 12, bw, bh - 12);
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(bx, byTop + 12, bw, bh - 12);
+
+        // Pitched roof
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(bx - 6, byTop + 14);
+        ctx.lineTo(hcx, byTop - 6);
+        ctx.lineTo(bx + bw + 6, byTop + 14);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // Door with hub-colored trim
+        ctx.fillStyle = '#060e18';
+        ctx.fillRect(hcx - 7, hub.y - 17, 14, 17);
+        ctx.strokeStyle = hub.color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(hcx - 7, hub.y - 17, 14, 17);
+
+        // Lit window
+        ctx.fillStyle = `rgba(251,191,36,${0.35 + pulse * 0.5})`;
+        ctx.fillRect(bx + 8, byTop + 19, 11, 10);
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.strokeRect(bx + 8, byTop + 19, 11, 10);
+
+        // Roof-tip beacon in the hub's color
+        ctx.fillStyle = hub.color;
+        ctx.globalAlpha = 0.4 + pulse * 0.6;
+        ctx.beginPath(); ctx.arc(hcx, byTop - 8, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+,
+drawHubDepot(hub, hcx, now) {
+        const ctx = this.ctx;
+        const bw = Math.min(96, hub.width + 16), bh = 46;
+        const bx = hcx - bw / 2, byTop = hub.y - bh;
+        const pulse = 0.5 + Math.abs(Math.sin(now * 0.003)) * 0.4;
+
+        // Flat-roof shed body
+        ctx.fillStyle = this._grad(`hubDepot|${bx}|${bw}`, (c) => {
+            const g = c.createLinearGradient(bx, 0, bx + bw, 0);
+            g.addColorStop(0, '#0f1e2e');
+            g.addColorStop(0.5, '#152434');
+            g.addColorStop(1, '#0c1a28');
+            return g;
+        });
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, byTop, bw, bh, [3, 3, 0, 0]);
+        else ctx.rect(bx, byTop, bw, bh);
+        ctx.fill(); ctx.stroke();
+
+        // Corrugated ribs
+        ctx.strokeStyle = 'rgba(30,58,94,0.8)';
+        ctx.lineWidth = 1;
+        for (let rx = bx + 10; rx < bx + bw - 4; rx += 10) {
+            ctx.beginPath();
+            ctx.moveTo(rx, byTop + 4); ctx.lineTo(rx, hub.y - 2);
+            ctx.stroke();
+        }
+
+        // Roller door with slats
+        const dW = bw * 0.4, dH = bh * 0.55;
+        const dx = hcx - dW / 2, dy = hub.y - dH;
+        ctx.fillStyle = '#060e18';
+        ctx.fillRect(dx, dy, dW, dH);
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.strokeRect(dx, dy, dW, dH);
+        ctx.strokeStyle = 'rgba(51,65,85,0.9)';
+        for (let ly = dy + 4; ly < hub.y - 2; ly += 5) {
+            ctx.beginPath(); ctx.moveTo(dx + 2, ly); ctx.lineTo(dx + dW - 2, ly); ctx.stroke();
+        }
+
+        // Neon roof edge in the hub's color
+        ctx.strokeStyle = hub.color;
+        ctx.globalAlpha = 0.4 + pulse * 0.4;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(bx, byTop); ctx.lineTo(bx + bw, byTop); ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        // Corner strobe
+        const strobeOn = (now % 1200) < 600;
+        ctx.fillStyle = strobeOn ? 'rgba(251,191,36,0.95)' : 'rgba(80,60,10,0.6)';
+        ctx.beginPath(); ctx.arc(bx + 5, byTop + 7, 3, 0, Math.PI * 2); ctx.fill();
+    }
+
+,
+drawHubSilo(hub, hcx, now) {
+        const ctx = this.ctx;
+        const sw2 = 30, sh = 58;
+        const sx0 = hcx - sw2 / 2, top = hub.y - sh;
+        const pulse = 0.5 + Math.abs(Math.sin(now * 0.004)) * 0.5;
+
+        // Cylinder body
+        ctx.fillStyle = this._grad(`hubSilo|${sx0}`, (c) => {
+            const g = c.createLinearGradient(sx0, 0, sx0 + sw2, 0);
+            g.addColorStop(0, '#0e1828');
+            g.addColorStop(0.5, '#1b2b44');
+            g.addColorStop(1, '#0c1626');
+            return g;
+        });
+        ctx.fillRect(sx0, top + 10, sw2, sh - 10);
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.lineWidth = 1.2;
+        ctx.strokeRect(sx0, top + 10, sw2, sh - 10);
+
+        // Dome cap
+        ctx.fillStyle = '#16233a';
+        ctx.beginPath();
+        ctx.arc(hcx, top + 11, sw2 / 2, Math.PI, 0);
+        ctx.fill(); ctx.stroke();
+
+        // Horizontal bands
+        ctx.strokeStyle = 'rgba(30,58,94,0.9)';
+        ctx.lineWidth = 1;
+        for (const fy of [0.3, 0.55, 0.8]) {
+            const ly = top + 10 + (sh - 10) * fy;
+            ctx.beginPath(); ctx.moveTo(sx0 + 1, ly); ctx.lineTo(sx0 + sw2 - 1, ly); ctx.stroke();
+        }
+
+        // Side ladder
+        const lx = sx0 + sw2 + 3;
+        ctx.strokeStyle = '#334155';
+        ctx.beginPath();
+        ctx.moveTo(lx, hub.y); ctx.lineTo(lx, top + 16);
+        ctx.moveTo(lx + 4, hub.y); ctx.lineTo(lx + 4, top + 16);
+        ctx.stroke();
+        for (let ry = top + 20; ry < hub.y - 2; ry += 7) {
+            ctx.beginPath(); ctx.moveTo(lx, ry); ctx.lineTo(lx + 4, ry); ctx.stroke();
+        }
+
+        // Dome beacon in the hub's color
+        ctx.fillStyle = hub.color;
+        ctx.globalAlpha = 0.3 + pulse * 0.7;
+        ctx.beginPath(); ctx.arc(hcx, top - 6, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = hub.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(hcx, top - 4); ctx.lineTo(hcx, top + 2); ctx.stroke();
     }
 
 ,

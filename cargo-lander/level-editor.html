@@ -264,7 +264,10 @@ canvas{display:block}
       <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
       <button class="btn" onclick="fitView()">Fit</button>
     </div>
-    <button class="btn" style="width:100%; margin-top:5px" onclick="newLevel()" title="Starts a blank level: one rectangle of ground, HQ + Cargo Drop Off evenly spaced, and sensible defaults for every Map Settings field.">+ New Level</button>
+    <div class="row" style="margin-top:5px; gap:4px">
+      <button class="btn" style="flex:1" onclick="newLevel()" title="Starts a basic level: one rectangle of ground, HQ + Cargo Drop Off evenly spaced, and sensible defaults for every Map Settings field.">+ New Basic Level</button>
+      <button class="btn" style="flex:1; border-color:#388bfd; color:#58a6ff" onclick="newEmptyLevel()" title="Starts an empty level from scratch: no terrain polygons, but sensible defaults for every Map Settings field.">+ New Scratch Level</button>
+    </div>
     <div id="level-card"></div>
     <details>
       <summary>Or paste JS</summary>
@@ -1098,9 +1101,21 @@ function updateHubUI() {
         <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
         <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
       </div>
+      <div class="row">
+        <label style="width:30px" title="Visual structure drawn behind the pad in-game. 'crane' is the classic yellow crane; house/depot/silo are background buildings; 'none' is a bare pad. (A hub with type 'chute' always renders as a vacuum chute.)">Style</label>
+        <select style="flex:1" onchange="setHubStyle(${i}, this.value)">${HUB_STYLES.map(s=>`<option value="${s}" ${(h.style||'crane')===s?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
     `;
     c.appendChild(d);
   });
+}
+
+const HUB_STYLES = ['crane','house','depot','silo','none'];
+function setHubStyle(i, v) {
+  // 'crane' is the renderer default — omit it so exports stay minimal
+  if (v === 'crane') delete S.hubs[i].style;
+  else S.hubs[i].style = v;
+  draw(); updateOut();
 }
 
 function populatePaletteUI() {
@@ -1497,6 +1512,14 @@ function newLevel() {
   applyConfig(defaultLevelConfig());
 }
 
+function newEmptyLevel() {
+  const cfg = defaultLevelConfig();
+  cfg.name = 'levelScratch';
+  cfg.missionTitle = 'Scratch Level';
+  cfg.terrainPolygons = [];
+  applyConfig(cfg);
+}
+
 function guessComment(pts, i) {
   const ys = pts.map(p=>p.y);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
@@ -1550,7 +1573,7 @@ function draw() {
   if (!S.previewMode) drawOOB(W,H);
   drawWaterBodies();
   if (!S.previewMode) drawGrid(W,H);
-  if (!S.previewMode) drawSpawnMarkers();
+  drawSpawnMarkers();
   drawHubs();
   if (!S.previewMode) drawGravWell();
   if (!S.previewMode) drawSegments();
@@ -1952,9 +1975,18 @@ function drawHubs() {
   S.hubs.forEach((hub, hi) => {
     const col = hub.color || '#ffd700';
     const {sx} = w2s(hub.x, 0);
-    const padHalfW = (hub.width || 80 * S.padScale) / 2;
+    const padW = hub.width || 80 * S.padScale;
+    const padHalfW = padW / 2;
     const isHov = S.hoverMarker?.hub === hi || S.dragMarker?.hub === hi;
     const gy = (hub.y != null) ? hub.y : groundYAt(hub.x);
+
+    if (S.previewMode) {
+      if (gy !== null) {
+        if (hub.type === 'chute') drawGamePreviewChute(hub.x - padHalfW, gy, padW, col);
+        else drawGamePreviewHub(hub.x - padHalfW, gy, padW, col, hub.style || 'crane', hub.name);
+      }
+      return;
+    }
 
     ctx.save();
     // Vertical guide line
@@ -2035,11 +2067,24 @@ function drawGravWell() {
 }
 
 function drawSpawnMarkers() {
+  const hqW = S.hqWidth || (80 * S.padScale);
+  const cargoW = S.cargoWidth || (100 * S.padScale);
+
+  if (S.previewMode) {
+    const hqY = S.startY != null ? S.startY : groundYAt(S.startX);
+    if (hqY !== null) drawGamePreviewHQ(S.startX, hqY, hqW);
+    if (S.collectionX != null) {
+      const cy = S.collectionY != null ? S.collectionY : groundYAt(S.collectionX);
+      if (cy !== null) drawGamePreviewCargo(S.collectionX, cy, cargoW);
+    }
+    return;
+  }
+
   // Widths match physics.js defaults: startDepot = 80*padScale, collectionPoint = 100*padScale
-  spawnZone(S.startX, S.hqWidth || (80 * S.padScale), '#38bdf8', S.startY);
+  spawnZone(S.startX, hqW, '#38bdf8', S.startY);
   spawnLine(S.startX, 'HQ', '#38bdf8', S.hoverMarker==='hq'||S.dragMarker==='hq', S.startY);
   if (S.collectionX != null) {
-    spawnZone(S.collectionX, S.cargoWidth || (100 * S.padScale), '#4ade80', S.collectionY);
+    spawnZone(S.collectionX, cargoW, '#4ade80', S.collectionY);
     spawnLine(S.collectionX, 'Cargo', '#4ade80', S.hoverMarker==='depot'||S.dragMarker==='depot', S.collectionY);
   }
 }
@@ -2998,6 +3043,17 @@ function nearestEdge(pts,wx,wy) {
   if (params.get('openPanels')) {
     document.querySelectorAll('#sidebar details').forEach(d => d.open = true);
   }
+  // &preview=1 — switch to game-preview mode after the level loads, so a
+  // headless --screenshot capture shows the drawGamePreview* rendering.
+  // &hubstyle=house sets every hub's style first (visual spot checks).
+  if (params.get('preview')) {
+    setTimeout(() => {
+      const hs = params.get('hubstyle');
+      if (hs) { S.hubs.forEach(h => h.style = hs); }
+      if (!S.previewMode) togglePreview();
+      fitView();
+    }, 600);
+  }
   if (params.get('dumpExport')) {
     setTimeout(() => {
       const pre = document.createElement('pre');
@@ -3041,6 +3097,189 @@ window.addEventListener('mousemove', e => {
 });
 
 window.addEventListener('mouseup', () => { mapModalState.action = null; });
+
+// ── Game Preview Rendering ──────────────────────────────────────────────────
+// previewPadBase mirrors drawPadBase() in render/entities.js — same 15px slab,
+// chevron stripes, 3px accent bar and label position — so the editor preview
+// matches the game 1:1 and HQ / Cargo / hub pads all render alike.
+const PAD_H = 15;
+function previewPadBase(x, y, w, accent, stripe, label, labelColor) {
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(x, y, w, PAD_H);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x, y, w, PAD_H); ctx.clip();
+  ctx.fillStyle = stripe;
+  for (let sx2 = x - PAD_H; sx2 < x + w + PAD_H; sx2 += 26) {
+    ctx.beginPath();
+    ctx.moveTo(sx2, y + PAD_H); ctx.lineTo(sx2 + PAD_H, y);
+    ctx.lineTo(sx2 + PAD_H + 13, y); ctx.lineTo(sx2 + 13, y + PAD_H);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = accent; ctx.fillRect(x, y, w, 3);
+  if (label) {
+    ctx.fillStyle = labelColor || 'rgba(255,255,255,0.7)';
+    ctx.font = '600 10px Outfit, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + w/2, y + 11);
+  }
+}
+
+function drawGamePreviewHQ(x, y, w) {
+  const hW = 120, hH = 90;
+  const hX = x + w/2 - hW/2, hY = y - hH;
+  ctx.save();
+  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.moveTo(hX, y); ctx.lineTo(hX, hY + 30); ctx.lineTo(hX + hW/2, hY);
+  ctx.lineTo(hX + hW, hY + 30); ctx.lineTo(hX + hW, y); ctx.fill();
+  
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(hX - 5, hY + 32); ctx.lineTo(hX + hW/2, hY - 2); ctx.lineTo(hX + hW + 5, hY + 32); ctx.stroke();
+
+  previewPadBase(x, y, w, '#94a3b8', 'rgba(100,120,160,0.25)', 'HQ', 'rgba(255,255,255,0.5)');
+  ctx.restore();
+}
+
+function drawGamePreviewCargo(x, y, w) {
+  ctx.save();
+  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
+
+  const wbX = x - 18, wbW = w + 36, wbH = 80, wbY = y - wbH;
+  ctx.fillStyle = '#0f1e2e'; ctx.fillRect(wbX, wbY, wbW, wbH);
+  ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.5; ctx.strokeRect(wbX, wbY, wbW, wbH);
+  
+  ctx.strokeStyle = 'rgba(30,58,94,0.8)'; ctx.lineWidth = 1;
+  for (let rx = wbX + 12; rx < wbX + wbW - 4; rx += 12) {
+    ctx.beginPath(); ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2); ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(14, 165, 233, 0.6)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(wbX, wbY); ctx.lineTo(wbX + wbW, wbY); ctx.stroke();
+  
+  const doorW = wbW * 0.32, doorH = wbH * 0.52;
+  for (const dOff of [0.18, 0.57]) {
+    const dx = wbX + wbW * dOff, dy = wbY + wbH - doorH;
+    ctx.fillStyle = '#060e18'; ctx.fillRect(dx, dy, doorW, doorH);
+    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(dx, dy, doorW, doorH);
+    ctx.strokeStyle = 'rgba(56,189,248,0.6)'; ctx.lineWidth = 1;
+    ctx.strokeRect(dx + 2, dy + 2, doorW - 4, doorH - 4);
+  }
+
+  const trackY = wbY - 2;
+  const trackStartX = wbX + 10;
+  const trackEndX = x + w * 0.9;
+  
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(trackStartX, trackY - 18); ctx.lineTo(trackEndX, trackY - 18); ctx.stroke();
+  
+  ctx.lineWidth = 2;
+  for (let sx = trackStartX + 10; sx <= trackEndX - 10; sx += 32) {
+    ctx.beginPath(); ctx.moveTo(sx, trackY - 18); ctx.lineTo(sx, wbY); ctx.stroke();
+  }
+  ctx.lineCap = 'butt';
+
+  const hatchX = wbX + wbW * 0.42;
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(hatchX - 5, trackY - 18 - 4, 10, 7);
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.1;
+  ctx.beginPath(); ctx.moveTo(hatchX, trackY - 18); ctx.lineTo(hatchX, trackY - 18 + 14); ctx.stroke();
+  
+  previewPadBase(x, y, w, '#38bdf8', 'rgba(251,191,36,0.2)', 'CARGO', 'rgba(56,189,248,0.9)');
+  ctx.fillStyle = 'rgba(14, 165, 233, 0.9)'; ctx.font = 'bold 9px Outfit, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('CARGO DEPOT', x + w/2, wbY + 14);
+  ctx.restore();
+}
+
+function drawGamePreviewChute(x, y, w, color) {
+  ctx.save();
+  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
+
+  const hh = 40;
+  ctx.fillStyle = '#334155';
+  ctx.beginPath(); ctx.moveTo(x - 20, y); ctx.lineTo(x + w + 20, y);
+  ctx.lineTo(x + w, y + hh); ctx.lineTo(x, y + hh); ctx.fill();
+  
+  ctx.fillStyle = '#020617';
+  ctx.beginPath(); ctx.moveTo(x - 10, y + 8); ctx.lineTo(x + w + 10, y + 8);
+  ctx.lineTo(x + w - 4, y + hh - 4); ctx.lineTo(x + 4, y + hh - 4); ctx.fill();
+
+  ctx.fillStyle = color; ctx.fillRect(x - 20, y, w + 40, 4);
+
+  ctx.fillStyle = color; ctx.globalAlpha = 0.15;
+  ctx.beginPath(); ctx.moveTo(x - 30, y - 80); ctx.lineTo(x + w + 30, y - 80);
+  ctx.lineTo(x + w - 4, y); ctx.lineTo(x + 4, y); ctx.fill();
+  
+  ctx.restore();
+}
+
+// Hub preview — pad base + the selected background structure, mirroring the
+// hub.style variants in render/entities.js (crane / house / depot / silo / none).
+function drawGamePreviewHub(x, y, w, color, style, name) {
+  ctx.save();
+  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
+
+  const hcx = x + w/2;
+  const craneArmLeft = x - 6;
+
+  if (style === 'crane' || !style) {
+    const craneTopY = y - 66;
+    const craneX = hcx + w * 0.28;
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(craneX, y); ctx.lineTo(craneX, craneTopY - 16); ctx.stroke();
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(craneX, craneTopY - 16); ctx.lineTo(craneArmLeft, craneTopY - 16); ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(craneArmLeft + 20 - 5, craneTopY - 22, 10, 7);
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(craneArmLeft + 20, craneTopY - 15); ctx.lineTo(craneArmLeft + 20, craneTopY - 15 + 22); ctx.stroke();
+  } else if (style === 'house') {
+    const bw = Math.min(64, w * 0.85), bh = 42;
+    const bx = hcx - bw/2, byTop = y - bh;
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(bx + bw - 16, byTop - 6, 7, 20); // chimney
+    ctx.fillStyle = '#16233a'; ctx.fillRect(bx, byTop + 12, bw, bh - 12);
+    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(bx, byTop + 12, bw, bh - 12);
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(bx - 6, byTop + 14); ctx.lineTo(hcx, byTop - 6);
+    ctx.lineTo(bx + bw + 6, byTop + 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#060e18'; ctx.fillRect(hcx - 7, y - 17, 14, 17);
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.strokeRect(hcx - 7, y - 17, 14, 17);
+    ctx.fillStyle = 'rgba(251,191,36,0.7)'; ctx.fillRect(bx + 8, byTop + 19, 11, 10);
+  } else if (style === 'depot') {
+    const bw = Math.min(96, w + 16), bh = 46;
+    const bx = hcx - bw/2, byTop = y - bh;
+    ctx.fillStyle = '#0f1e2e'; ctx.fillRect(bx, byTop, bw, bh);
+    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, byTop, bw, bh);
+    ctx.strokeStyle = 'rgba(30,58,94,0.8)'; ctx.lineWidth = 1;
+    for (let rx = bx + 10; rx < bx + bw - 4; rx += 10) {
+      ctx.beginPath(); ctx.moveTo(rx, byTop + 4); ctx.lineTo(rx, y - 2); ctx.stroke();
+    }
+    const dW = bw * 0.4, dH = bh * 0.55;
+    ctx.fillStyle = '#060e18'; ctx.fillRect(hcx - dW/2, y - dH, dW, dH);
+    ctx.strokeStyle = '#1e3a5f'; ctx.strokeRect(hcx - dW/2, y - dH, dW, dH);
+    ctx.strokeStyle = color; ctx.globalAlpha = 0.7; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(bx, byTop); ctx.lineTo(bx + bw, byTop); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else if (style === 'silo') {
+    const sw2 = 30, sh = 58;
+    const sx0 = hcx - sw2/2, top = y - sh;
+    ctx.fillStyle = '#16233a'; ctx.fillRect(sx0, top + 10, sw2, sh - 10);
+    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(sx0, top + 10, sw2, sh - 10);
+    ctx.beginPath(); ctx.arc(hcx, top + 11, sw2/2, Math.PI, 0); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#334155';
+    ctx.beginPath(); ctx.moveTo(sx0 + sw2 + 3, y); ctx.lineTo(sx0 + sw2 + 3, top + 16); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(hcx, top - 6, 2.5, 0, Math.PI * 2); ctx.fill();
+  } // 'none' → bare pad
+
+  // Pallet stack target (all styles)
+  const palletX = craneArmLeft - 16;
+  ctx.fillStyle = '#78350f'; ctx.fillRect(palletX - 12, y - 4, 24, 4);
+
+  previewPadBase(x, y, w, color, color + '40', (name || 'HUB').toUpperCase(), '#f8fafc');
+  ctx.restore();
+}
 </script>
 
 </body>
