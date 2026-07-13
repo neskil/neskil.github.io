@@ -146,6 +146,19 @@
                             type: hub.type, size: g.physics.BOX_SIZE, onDeck: true,
                             emoji: '📦', vx: 0, vy: 0, mass: 1, age: 0,
                         });
+                    } else if (script === 'hubStyles') {
+                        // Lines up one fake hub per `style` variant next to the
+                        // level's real hub so a single screenshot shows crane /
+                        // house / depot / silo / none rendering side by side.
+                        const base = g.physics.deliveryHubs[0];
+                        ['house', 'depot', 'silo', 'none'].forEach((st, i) => {
+                            g.physics.deliveryHubs.push({
+                                x: base.x + (i + 1) * 160, y: base.y,
+                                width: base.width, height: base.height,
+                                color: ['#f87171', '#4ade80', '#c084fc', '#fbbf24'][i],
+                                type: 'normal', name: st.toUpperCase(), style: st,
+                            });
+                        });
                     } else if (script === 'parachute') {
                         // Headless Chrome's --virtual-time-budget fast-forwards
                         // setTimeout but doesn't reliably keep requestAnimationFrame
