@@ -1032,7 +1032,8 @@ const CargoPhysicsAtmosphereMixin = {
         // World Boundaries — per-edge thresholds + actions from worldBounds
         const wb = this.currentLevelConfig?.worldBounds || {};
         const ceilingY = wb.ceilingY !== undefined && wb.ceilingY !== null ? wb.ceilingY : -3000;
-        const latMargin = wb.lateralMargin !== undefined && wb.lateralMargin !== null ? wb.lateralMargin : 3000;
+        const leftMargin = wb.leftMargin !== undefined && wb.leftMargin !== null ? wb.leftMargin : 3000;
+        const rightMargin = wb.rightMargin !== undefined && wb.rightMargin !== null ? wb.rightMargin : 3000;
         const bottomY = wb.bottomY !== undefined && wb.bottomY !== null ? wb.bottomY : null;
         const ceilingAction = wb.ceilingAction || 'pushback';
         const lateralAction = wb.lateralAction || 'pushback';
@@ -1045,11 +1046,12 @@ const CargoPhysicsAtmosphereMixin = {
         // where "out" begins. Pushback edges are soft nudges, so lingering at
         // them must NOT build the timer (it would summon the worm after ~4s).
         const VIGNETTE_MARGIN = 1000;
-        const warnLatMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, latMargin) : VIGNETTE_MARGIN;
+        const warnLeftMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, leftMargin) : VIGNETTE_MARGIN;
+        const warnRightMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, rightMargin) : VIGNETTE_MARGIN;
         const warnCeilingY = ceilingAction !== 'pushback' ? Math.max(-500, ceilingY) : -500;
         const surfaceY = this.getPolygonSurfaceY ? this.getPolygonSurfaceY(lander.x) : 99999;
 
-        if (lander.x < -warnLatMargin || lander.x > this.levelWidth + warnLatMargin || lander.y < warnCeilingY || lander.y > surfaceY + 80) {
+        if (lander.x < -warnLeftMargin || lander.x > this.levelWidth + warnRightMargin || lander.y < warnCeilingY || lander.y > surfaceY + 80) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
@@ -1065,11 +1067,11 @@ const CargoPhysicsAtmosphereMixin = {
                     const excess = lander.y - bottomY;
                     lander.vy -= (excess * 0.0001) * dt;
                 } else if (edge === 'lateral') {
-                    if (lander.x < -latMargin) {
-                        const excess = (-latMargin) - lander.x;
+                    if (lander.x < -leftMargin) {
+                        const excess = (-leftMargin) - lander.x;
                         lander.vx += (excess * 0.0001) * dt;
-                    } else if (lander.x > this.levelWidth + latMargin) {
-                        const excess = lander.x - (this.levelWidth + latMargin);
+                    } else if (lander.x > this.levelWidth + rightMargin) {
+                        const excess = lander.x - (this.levelWidth + rightMargin);
                         lander.vx -= (excess * 0.0001) * dt;
                     }
                 }
@@ -1091,7 +1093,7 @@ const CargoPhysicsAtmosphereMixin = {
         };
 
         if (lander.y < ceilingY) applyAction(ceilingAction, 'ceiling');
-        if (lander.x < -latMargin || lander.x > this.levelWidth + latMargin) applyAction(lateralAction, 'lateral');
+        if (lander.x < -leftMargin || lander.x > this.levelWidth + rightMargin) applyAction(lateralAction, 'lateral');
         // Bottom's 'monster' case is handled directly in updateMonster() (the
         // classic rise-from-the-depths spawn) — dispatching it here too would
         // just redundantly max the OOB timer.

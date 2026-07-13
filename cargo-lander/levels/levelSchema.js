@@ -123,8 +123,9 @@ const LEVEL_SCHEMA = {
     fields: [
       { key:'ceilingY',      type:'number', default:null,       nullable:true,  widget:'number', label:'Ceiling Y', desc:'Absolute Y coordinate of the upper boundary. E.g. -1000.', recommended:'-1500 to -500', sliderMin:-3000, sliderMax:0, sliderStep:10 },
       { key:'ceilingAction', type:'string', default:'pushback', widget:'select', label:'Ceiling Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too high.' },
-      { key:'lateralMargin', type:'number', default:null,       nullable:true,  widget:'number', label:'Lateral Margin', desc:'Distance from the left/right edges (0 to levelWidth).', recommended:'200 - 800', sliderMin:0, sliderMax:2000, sliderStep:10 },
-      { key:'lateralAction', type:'string', default:'pushback', widget:'select', label:'Lateral Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too far left or right.' },
+      { key:'leftMargin',    type:'number', default:null,       nullable:true,  widget:'number', label:'Left Margin', desc:'Distance past x=0 before the left boundary triggers.', recommended:'200 - 800', sliderMin:0, sliderMax:2000, sliderStep:10 },
+      { key:'rightMargin',   type:'number', default:null,       nullable:true,  widget:'number', label:'Right Margin', desc:'Distance past the level width before the right boundary triggers.', recommended:'200 - 800', sliderMin:0, sliderMax:2000, sliderStep:10 },
+      { key:'lateralAction', type:'string', default:'pushback', widget:'select', label:'Lateral Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too far left or right (applies to both sides).' },
       { key:'bottomY',       type:'number', default:null,       nullable:true,  widget:'number', label:'Bottom Y', desc:'Absolute Y coordinate of the lower boundary. Replaces the old outOfBounds.monsterDepth.', recommended:'outOfBounds surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
       { key:'bottomAction',  type:'string', default:'monster',  widget:'select', label:'Bottom Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander sinks too deep.' },
     ]

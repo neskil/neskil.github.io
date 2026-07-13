@@ -469,7 +469,7 @@ let S = {
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   windGust: null, // {calm,warn,gust,gustMult} — optional calm/warning/gust wind cycle
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy} — the fluid zone
-  worldBounds: null, // {ceilingY,ceilingAction,lateralMargin,lateralAction,bottomY,bottomAction}
+  worldBounds: null, // {ceilingY,ceilingAction,leftMargin,rightMargin,lateralAction,bottomY,bottomAction}
   palette: Object.assign({}, DEFAULT_PAL),
   startX: 0,
   startY: null,
@@ -1867,20 +1867,25 @@ function drawWorldBounds(W,H) {
     if (sy > -20 && sy < H + 20) edgeLine(col, 0, sy, W, sy, `bottom  y=${wb.bottomY} · ${act}`, 8, sy - 5);
   }
 
-  if (wb.lateralMargin != null && wb.lateralMargin !== '') {
+  if (wb.leftMargin != null && wb.leftMargin !== '') {
     const act = wb.lateralAction || 'pushback';
     const col = actionColors[act] || '#58a6ff';
-    const { sx: leftSX } = w2s(-wb.lateralMargin, 0);
-    const { sx: rightSX } = w2s(levelW + +wb.lateralMargin, 0);
+    const { sx: leftSX } = w2s(-wb.leftMargin, 0);
     if (leftSX > 0) edgeBand(col, 0, 0, Math.min(leftSX, W), H);
-    if (rightSX < W) edgeBand(col, Math.max(0, rightSX), 0, W - Math.max(0, rightSX), H);
     if (leftSX > -20 && leftSX < W + 20) {
       edgeLine(col, leftSX, 0, leftSX, H, '', 0, 0);
-      if (!preview) { ctx.save(); ctx.translate(leftSX - 5, 14); ctx.rotate(Math.PI/2); ctx.fillText(`left bound  x=${-wb.lateralMargin} · ${act}`, 0, 0); ctx.restore(); }
+      if (!preview) { ctx.save(); ctx.translate(leftSX - 5, 14); ctx.rotate(Math.PI/2); ctx.fillText(`left bound  x=${-wb.leftMargin} · ${act}`, 0, 0); ctx.restore(); }
     }
+  }
+
+  if (wb.rightMargin != null && wb.rightMargin !== '') {
+    const act = wb.lateralAction || 'pushback';
+    const col = actionColors[act] || '#58a6ff';
+    const { sx: rightSX } = w2s(levelW + +wb.rightMargin, 0);
+    if (rightSX < W) edgeBand(col, Math.max(0, rightSX), 0, W - Math.max(0, rightSX), H);
     if (rightSX > -20 && rightSX < W + 20) {
       edgeLine(col, rightSX, 0, rightSX, H, '', 0, 0);
-      if (!preview) { ctx.save(); ctx.translate(rightSX + 12, 14); ctx.rotate(Math.PI/2); ctx.fillText(`right bound  x=${levelW + +wb.lateralMargin} · ${act}`, 0, 0); ctx.restore(); }
+      if (!preview) { ctx.save(); ctx.translate(rightSX + 12, 14); ctx.rotate(Math.PI/2); ctx.fillText(`right bound  x=${levelW + +wb.rightMargin} · ${act}`, 0, 0); ctx.restore(); }
     }
   }
 
