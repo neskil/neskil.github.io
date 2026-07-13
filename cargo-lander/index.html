@@ -2892,7 +2892,7 @@
             applyEmbedState();
 
             window.addEventListener('message', (ev) => {
-                if (ev.origin !== location.origin) return;
+                if (ev.origin !== location.origin && ev.origin !== 'null' && ev.origin !== 'file://') return;
                 const d = ev.data || {};
                 if (d.type === 'editorCam') {
                     game.freeCam = true;
@@ -2920,7 +2920,7 @@
                 }
             });
             if (window.parent !== window) {
-                window.parent.postMessage({ type: 'embedReady' }, location.origin);
+                window.parent.postMessage({ type: 'embedReady' }, '*');
             }
         }
 
