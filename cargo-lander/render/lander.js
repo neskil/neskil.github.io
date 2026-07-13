@@ -6,7 +6,7 @@ drawLander() {
         const ctx = this.ctx;
 
         const lander = this.physics.lander;
-        if (!lander) return;
+        if (!lander || lander.dismembered) return;
 
         if (lander.vehicleType === 'drone' || lander.grabbedBoxId) {
             if (lander.ropeLength > 0) {
@@ -380,33 +380,34 @@ drawLander() {
                 const sl = 10 + Math.abs(strafe) * 22 + Math.random() * 8;
                 const flameX = strafe < 0 ? hw + 2 : -hw - 2;
                 const flameDir = strafe < 0 ? 1 : -1;
-                const sGrad = ctx.createLinearGradient(flameX, 0, flameX + flameDir * sl, 0);
+                const flameY = 3; // Center of the Side RCS ports (y = 0 to 6)
+                const sGrad = ctx.createLinearGradient(flameX, flameY, flameX + flameDir * sl, flameY);
                 sGrad.addColorStop(0, 'rgba(56, 189, 248, 0.92)');
                 sGrad.addColorStop(0.45, 'rgba(99, 102, 241, 0.65)');
                 sGrad.addColorStop(1, 'rgba(99, 102, 241, 0)');
                 ctx.fillStyle = sGrad;
                 const fw2 = 3.5 + Math.random() * 2.5;
                 ctx.beginPath();
-                ctx.moveTo(flameX, -fw2);
+                ctx.moveTo(flameX, flameY - fw2);
                 ctx.bezierCurveTo(
-                    flameX + flameDir * sl * 0.45, -fw2 * 0.3,
-                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 3,
-                    flameX + flameDir * sl, 0
+                    flameX + flameDir * sl * 0.45, flameY - fw2 * 0.3,
+                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, flameY + (Math.random() - 0.5) * 3,
+                    flameX + flameDir * sl, flameY
                 );
                 ctx.bezierCurveTo(
-                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 3,
-                    flameX + flameDir * sl * 0.45, fw2 * 0.3,
-                    flameX, fw2
+                    flameX + flameDir * sl * 0.82 + (Math.random() - 0.5) * 4, flameY + (Math.random() - 0.5) * 3,
+                    flameX + flameDir * sl * 0.45, flameY + fw2 * 0.3,
+                    flameX, flameY + fw2
                 );
                 ctx.closePath();
                 ctx.fill();
                 // Heat glow
-                const sbGrad = ctx.createRadialGradient(flameX, 0, 0, flameX, 0, sl * 0.5);
+                const sbGrad = ctx.createRadialGradient(flameX, flameY, 0, flameX, flameY, sl * 0.5);
                 sbGrad.addColorStop(0, 'rgba(56,189,248,0.25)');
                 sbGrad.addColorStop(1, 'rgba(56,189,248,0)');
                 ctx.fillStyle = sbGrad;
                 ctx.beginPath();
-                ctx.arc(flameX, 0, sl * 0.5, 0, Math.PI * 2);
+                ctx.arc(flameX, flameY, sl * 0.5, 0, Math.PI * 2);
                 ctx.fill();
             }
 
@@ -651,7 +652,12 @@ drawLander() {
                 const R = Math.max(lander.width, lander.height) * 0.9;
                 const pulse = Math.sin(Date.now() * 0.004) * 0.5 + 0.5;
                 const flash = lander.shieldHitFlash || 0;
-                const baseAlpha = 0.08 + 0.14 * chargeRatio + pulse * 0.04 + flash * 0.45;
+                let baseAlpha = 0.08 + 0.14 * chargeRatio + pulse * 0.04 + flash * 0.45;
+                
+                if (lander.shieldDelay > 0) {
+                    const blink = Math.floor(Date.now() / 150) % 2 === 0;
+                    if (blink) baseAlpha *= 0.3;
+                }
 
                 ctx.save();
 
@@ -737,48 +743,7 @@ drawLander() {
             ctx.restore();
         }
 
-        if (lander.crashed) {
-            // Dark charred overlay
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.beginPath();
-            ctx.arc(0, 0, Math.max(lander.width, lander.height) * 0.5 + 4, 0, Math.PI * 2);
-            ctx.fill();
 
-            // Flickering fire — soft layered gradient flames + rising embers, instead
-            // of three flat solid-color circles.
-            const now = Date.now();
-
-            // Warm ground glow beneath the flames
-            const glow = ctx.createRadialGradient(0, 8, 0, 0, 8, 24);
-            glow.addColorStop(0, 'rgba(251, 146, 60, 0.35)');
-            glow.addColorStop(1, 'rgba(251, 146, 60, 0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath(); ctx.arc(0, 8, 24, 0, Math.PI * 2); ctx.fill();
-
-            for (let i = -1; i <= 1; i++) {
-                const flicker = Math.sin(now * 0.012 + i * 2.1) * 0.5 + 0.5;
-                const fx = i * 11 + Math.sin(now * 0.008 + i) * 3;
-                const h = 15 + flicker * 11;
-                const cy = 6 - h * 0.35;
-                const grad = ctx.createRadialGradient(fx, cy, 1, fx, cy, h * 0.65);
-                grad.addColorStop(0, 'rgba(255, 241, 197, 0.9)');
-                grad.addColorStop(0.45, 'rgba(251, 146, 60, 0.85)');
-                grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.ellipse(fx, cy, 6 + flicker * 2.5, h * 0.65, 0, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Rising embers
-            for (let i = 0; i < 4; i++) {
-                const t = (now * 0.0012 + i * 0.37) % 1.4;
-                const ex = Math.sin(now * 0.003 + i * 3.3) * 9;
-                const ey = 4 - t * 24;
-                ctx.fillStyle = `rgba(253, 186, 116, ${Math.max(0, 1 - t / 1.4) * 0.85})`;
-                ctx.beginPath(); ctx.arc(ex, ey, 1.4, 0, Math.PI * 2); ctx.fill();
-            }
-        }
 
         ctx.restore();
     }
