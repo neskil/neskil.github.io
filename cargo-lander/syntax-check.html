@@ -11,17 +11,17 @@
     document.getElementById('err').textContent = errs.join('\n');
   });
 </script>
-<script src="levels.js"></script>
-<script src="upgrades.js"></script>
+<script src="levels/levels.js"></script>
+<script src="game/upgrades.js"></script>
 <script src="audio.js"></script>
-<script src="game.js"></script>
-<script src="physics.js"></script>
-<script src="render.js"></script>
+<script src="game/game.js"></script>
+<script src="physics/physics.js"></script>
+<script src="render/render.js"></script>
 <script src="render/background.js"></script>
 <script src="render/entities.js"></script>
 <script src="physics/atmosphere.js"></script>
 <script src="game/hud.js"></script>
-<script src="levelSchema.js"></script>
+<script src="levels/levelSchema.js"></script>
 <script>
   if (typeof CargoGame === 'undefined') errs.push('CargoGame still undefined after game.js');
   document.getElementById('err').textContent = errs.join('\n') || 'no errors';
