@@ -11,8 +11,7 @@
 // Load order (index.html): levels → audio → shaders → physics + physics/* →
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
-class CargoGame {
-    static VERSION = '0.15.0';
+    static VERSION = '0.16.0';
 
     constructor() {
         this.canvas = null;
@@ -797,6 +796,13 @@ class CargoGame {
 
         this.physics.update(dt, levels[this.currentLevelIndex], inputState);
 
+        if (lander.cargoLostToBoundary) {
+            lander.cargoLostToBoundary = false;
+            this.addMessage("CARGO LOST TO BOUNDARY", "#f59e0b");
+            this.floatingTexts = this.floatingTexts || [];
+            this.floatingTexts.push({ text: "CARGO LOST", x: lander.x, y: lander.y - 30, life: 2.0, color: '#f59e0b' });
+        }
+
         this.updateRadarPing(dt);               // off-screen monster audio ping
         this.updateShieldRegen(lander, dt);     // shieldRegen upgrade tick
         this.updateRefuelPad(lander, dt);       // paid refueling on 'refuel' pads
@@ -1297,6 +1303,10 @@ class CargoGame {
                     this.missionBudget -= 400;
                     this.addMessage("Lander Consumed: -$400", "#ef4444");
                     this.floatingTexts.push({ text: "-$400", x: lander.x, y: lander.y - 30, life: 2.0, color: '#ef4444' });
+                } else if (lander.policeDestroyed) {
+                    this.missionBudget -= 1000;
+                    this.addMessage("SHOT DOWN BY POLICE: -$1000", "#ef4444");
+                    this.floatingTexts.push({ text: "-$1000", x: lander.x, y: lander.y - 30, life: 2.0, color: '#ef4444' });
                 } else if (lander.busted) {
                     this.missionBudget -= 1000;
                     this.addMessage("BUSTED! Paid $1000 fine.", "#ef4444");

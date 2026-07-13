@@ -975,19 +975,51 @@ const CargoPhysicsAtmosphereMixin = {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
         }
 
-        // Out-of-bounds Lateral push-back (Proportional, starting at 3 screens ~ 3000px)
-        const EDGE_MARGIN = 3000;
-        if (lander.x < -EDGE_MARGIN) {
-            const excess = (-EDGE_MARGIN) - lander.x;
-            lander.vx += (excess * 0.0001) * dt; 
-        } else if (lander.x > this.levelWidth + EDGE_MARGIN) {
-            const excess = lander.x - (this.levelWidth + EDGE_MARGIN);
-            lander.vx -= (excess * 0.0001) * dt;
-        }
-        if (lander.y < -EDGE_MARGIN) {
-            const excess = (-EDGE_MARGIN) - lander.y;
-            lander.vy += (excess * 0.0001) * dt;
-        }
+        // World Boundaries
+        const wb = this.currentLevelConfig?.worldBounds || {};
+        const ceilingY = wb.ceilingY !== undefined && wb.ceilingY !== null ? wb.ceilingY : -3000;
+        const latMargin = wb.lateralMargin !== undefined && wb.lateralMargin !== null ? wb.lateralMargin : 3000;
+        const ceilingAction = wb.ceilingAction || 'pushback';
+        const lateralAction = wb.lateralAction || 'pushback';
+
+        const applyAction = (action, edge) => {
+            if (lander.crashed) return;
+            if (action === 'pushback') {
+                if (edge === 'ceiling') {
+                    const excess = ceilingY - lander.y;
+                    lander.vy += (excess * 0.0001) * dt;
+                } else if (edge === 'lateral') {
+                    if (lander.x < -latMargin) {
+                        const excess = (-latMargin) - lander.x;
+                        lander.vx += (excess * 0.0001) * dt;
+                    } else if (lander.x > this.levelWidth + latMargin) {
+                        const excess = lander.x - (this.levelWidth + latMargin);
+                        lander.vx -= (excess * 0.0001) * dt;
+                    }
+                }
+            } else if (action === 'destroy') {
+                this.applyDamage(lander, lander.maxIntegrity);
+                lander.crashed = true;
+                if (window.CargoAudio) CargoAudio.playCrash();
+            } else if (action === 'police') {
+                this.applyDamage(lander, lander.maxIntegrity);
+                lander.crashed = true;
+                lander.policeDestroyed = true;
+                if (window.CargoAudio) CargoAudio.playCrash();
+            } else if (action === 'monster') {
+                this.outOfBoundsTimer = 999;
+            } else if (action === 'lose_cargo') {
+                if (lander.cargo && lander.cargo.length > 0) {
+                    lander.cargo.forEach(c => { c.lost = true; c.timer = 0; });
+                    lander.cargo = [];
+                    lander.cargoLostToBoundary = true;
+                    if (window.CargoAudio) CargoAudio.playCollision(2);
+                }
+            }
+        };
+
+        if (lander.y < ceilingY) applyAction(ceilingAction, 'ceiling');
+        if (lander.x < -latMargin || lander.x > this.levelWidth + latMargin) applyAction(lateralAction, 'lateral');
     },
 
     updateParticles() {

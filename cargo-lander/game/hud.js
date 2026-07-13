@@ -253,6 +253,7 @@ Object.assign(CargoGame.prototype, {
                         btnExtract.style.opacity = '1';
                         btnExtract.style.cursor = 'pointer';
                     } else {
+                        const justStarted = !this.overtimeActive && (this.missionTimeLimit - this.missionTimer) < 10;
                         centerOverlay.style.borderColor = '#38bdf8';
                         if (centerTitle) {
                             centerTitle.textContent = 'HQ Services';
@@ -260,18 +261,24 @@ Object.assign(CargoGame.prototype, {
                         }
                         if (centerDesc) centerDesc.textContent = 'Landed at HQ.';
                         if (centerBtn) {
-                            centerBtn.style.display = 'block';
-                            centerBtn.textContent = 'ABORT & EXTRACT';
-                            centerBtn.style.background = '#ef4444';
-                            centerBtn.style.borderColor = '#b91c1c';
-                            centerBtn.style.boxShadow = 'none';
+                            centerBtn.style.display = justStarted ? 'none' : 'block';
+                            if (!justStarted) {
+                                centerBtn.textContent = 'ABORT & EXTRACT';
+                                centerBtn.style.background = '#ef4444';
+                                centerBtn.style.borderColor = '#b91c1c';
+                                centerBtn.style.boxShadow = 'none';
+                            }
                         }
                         
-                        btnExtract.classList.remove('hidden');
-                        btnExtract.textContent = 'ABORT & EXTRACT';
-                        btnExtract.style.background = '#ef4444';
-                        btnExtract.style.opacity = '1';
-                        btnExtract.style.cursor = 'pointer';
+                        if (justStarted) {
+                            btnExtract.classList.add('hidden');
+                        } else {
+                            btnExtract.classList.remove('hidden');
+                            btnExtract.textContent = 'ABORT & EXTRACT';
+                            btnExtract.style.background = '#ef4444';
+                            btnExtract.style.opacity = '1';
+                            btnExtract.style.cursor = 'pointer';
+                        }
                     }
                     
                     const btnRefuel = document.getElementById('btn-hq-refuel');
