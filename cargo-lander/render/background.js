@@ -519,9 +519,42 @@ drawCaveBackground() {
 
 ,
 drawAmbientTraffic() {
-        const traffic = this.physics.ambientTraffic;
-        if (!traffic || traffic.length === 0) return;
+        const levelConfig = levels[this.currentLevelIndex] || {};
+        const confMinY = levelConfig.ambientTrafficMinY;
+        const confMaxY = levelConfig.ambientTrafficMaxY;
         const ctx = this.ctx;
+
+        // Visualise the traffic zone as a subtle space lane if explicitly defined
+        if (confMinY != null && confMaxY != null) {
+            ctx.save();
+            const laneH = confMaxY - confMinY;
+            const camX = this.camera ? this.camera.x : 0;
+            // Draw wide enough to cover any ultrawide screen
+            const drawW = (this.canvas.width / (this.camera?.zoom || 1)) * 2;
+            
+            // Faint lane background
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.015)'; 
+            ctx.fillRect(camX - drawW, confMinY, drawW * 2, laneH);
+            
+            // Faint dashed borders
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([40, 40]);
+            
+            // Shift the dash pattern based on time to make the borders "flow"
+            ctx.lineDashOffset = -(Date.now() / 20) % 80;
+            
+            ctx.beginPath();
+            ctx.moveTo(camX - drawW, confMinY);
+            ctx.lineTo(camX + drawW, confMinY);
+            ctx.moveTo(camX - drawW, confMaxY);
+            ctx.lineTo(camX + drawW, confMaxY);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        const traffic = this.physics?.ambientTraffic;
+        if (!traffic || traffic.length === 0) return;
 
         for (const t of traffic) {
             const cx = t.x + t.w / 2;
