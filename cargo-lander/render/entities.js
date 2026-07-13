@@ -217,16 +217,8 @@ drawHazards(bgMode = false) {
             }
 
             if (haz.type === 'sandworm') {
-                ctx.beginPath();
-                pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-                ctx.closePath();
-                ctx.fillStyle = 'rgba(217, 119, 6, 0.025)'; // very faint sandy color
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(217, 119, 6, 0.1)'; // faint outline
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 9]);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                // No zone outline/fill drawn — the danger area is meant to be
+                // invisible to the player (only the radar ping zone hints at it).
                 continue;
             } else if (haz.type === 'repulsor') {
                 ctx.beginPath();
