@@ -581,6 +581,38 @@ drawTerrain() {
             ctx.stroke();
         }
 
+        // Spike hazard edges — instant death on contact, drawn as a jagged triangle band
+        for (const poly of this.physics.terrainPolygons) {
+            if (!poly || poly.length < 3) continue;
+            for (let i = 0; i < poly.length; i++) {
+                const p1 = poly[i];
+                const p2 = poly[(i + 1) % poly.length];
+                if (p1.edgeHazard !== 'spikes') continue;
+                const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len < 1) continue;
+                const ux = dx / len, uy = dy / len;
+                const nx = uy, ny = -ux; // points away from the solid body, toward open air
+                const spikeH = 14, spikeW = 10;
+                ctx.fillStyle = '#e5e7eb';
+                ctx.strokeStyle = '#9ca3af';
+                ctx.lineWidth = 1;
+                for (let d = 0; d < len; d += spikeW) {
+                    const w = Math.min(spikeW, len - d);
+                    const bx1 = p1.x + ux * d, by1 = p1.y + uy * d;
+                    const bx2 = p1.x + ux * (d + w), by2 = p1.y + uy * (d + w);
+                    const mx = p1.x + ux * (d + w / 2), my = p1.y + uy * (d + w / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(bx1, by1);
+                    ctx.lineTo(mx + nx * spikeH, my + ny * spikeH);
+                    ctx.lineTo(bx2, by2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+        }
+
         const padRanges = this.getPadRanges();
         const isOverPad = (x) => padRanges.some(p => x >= p.left - 6 && x <= p.right + 6);
         const getH = (x) => this.physics.getPolygonSurfaceY(x);
