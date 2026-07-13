@@ -434,6 +434,7 @@ const CargoPhysicsEntitiesMixin = {
 
                     this.particles.push({
                         type: 'spark',
+                        thruster: true,
                         x: ex,
                         y: ey,
                         vx: evx,
@@ -450,6 +451,7 @@ const CargoPhysicsEntitiesMixin = {
                     if (Math.random() < lander.enginePower * 0.35) {
                         this.particles.push({
                             type: 'smoke',
+                            thruster: true,
                             x: ex + (Math.random() - 0.5) * 4,
                             y: ey + (Math.random() - 0.5) * 4,
                             vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
@@ -479,6 +481,7 @@ const CargoPhysicsEntitiesMixin = {
                 const py = lander.y + Math.cos(lander.angle + Math.PI) * 14;
                 this.particles.push({
                     type: 'smoke',
+                    thruster: true,
                     x: px,
                     y: py,
                     vx: (Math.random() - 0.5) * 1.5,
@@ -1061,7 +1064,9 @@ const CargoPhysicsEntitiesMixin = {
     spawnDebris(x, y, vx, vy, width, height, type, color, burning = false) {
         const id = Math.random().toString(36).substr(2, 9);
         const piece = {
-            id, x, y, vx, vy, width, height, type, color, burning, angle: 0
+            id, x, y, vx, vy, width, height, type, color, burning, angle: 0,
+            age: 0,      // seconds since spawn
+            opacity: 1   // 1 → 0 during fade-out
         };
         this.debris.push(piece);
 
@@ -1084,8 +1089,38 @@ const CargoPhysicsEntitiesMixin = {
     updateDebris(dt) {
         if (!this.debris) return;
         const FS = this.MATTER_FORCE_SCALE;
+        const BURN_STOP  = 15 * 60; // frames until burning stops  (15 s × 60 fps)
+        const DESPAWN    = 30 * 60; // frames until fully gone     (30 s × 60 fps)
+        const FADE_START = BURN_STOP;
+        const FADE_DUR   = DESPAWN - BURN_STOP; // 15 s × 60 fps fade window
+
         for (let i = this.debris.length - 1; i >= 0; i--) {
             const d = this.debris[i];
+
+            // Advance age (dt is 1 frame; accumulate in frames)
+            d.age += 1;
+
+            // Despawn: remove piece and its physics body
+            if (d.age >= DESPAWN) {
+                const body = this.debrisBodyMap?.get(d.id);
+                if (body && this.matterWorld) {
+                    Matter.Composite.remove(this.matterWorld, body);
+                    this.debrisBodyMap.delete(d.id);
+                }
+                this.debris.splice(i, 1);
+                continue;
+            }
+
+            // Fade opacity during the last 15 s
+            if (d.age >= FADE_START) {
+                d.opacity = 1 - (d.age - FADE_START) / FADE_DUR;
+            }
+
+            // Stop burning after 15 s
+            if (d.burning && d.age >= BURN_STOP) {
+                d.burning = false;
+            }
+
             const body = this.debrisBodyMap?.get(d.id);
             if (body) {
                 // Apply wind and gravity
