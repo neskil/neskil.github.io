@@ -76,6 +76,7 @@ registerLevel({
   // ── Mission parameters ────────────────────────────────────────────────────
   targetCargo: 2,
   deposit: 1000,
+  fee: 500,
   timeLimit: 180,
   allowedTypes: ["normal", "blue"],
   collectionX: 100,

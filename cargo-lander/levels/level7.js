@@ -84,6 +84,7 @@ registerLevel({
     // ── Mission parameters ────────────────────────────────────────────────────
     targetCargo: 3,
     deposit: 1000,
+    fee: 350,
     timeLimit: 360,
     allowedTypes: ["normal", "blue", "green", "tethered"],
     collectionX: 300,        // collection depot on the left side

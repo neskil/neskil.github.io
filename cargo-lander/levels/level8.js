@@ -110,6 +110,7 @@ registerLevel({
     padScale: 0.65,           // Tightest pads yet — small station decks, high stakes
     targetCargo: 4,
     deposit: 1000,
+    fee: 400,
     timeLimit: 300,
     allowedTypes: ["normal", "red", "blue", "tethered"],
     startX: -160,

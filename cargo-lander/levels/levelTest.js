@@ -24,6 +24,7 @@ registerLevel({
     padScale: 1.2,
     targetCargo: 3,
     deposit: 1000,
+    fee: 50,
     timeLimit: 600,
     allowedTypes: ["normal", "red", "blue", "green"],
 

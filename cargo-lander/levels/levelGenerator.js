@@ -203,6 +203,7 @@ function generateProceduralLevel(craziness = 1) {
         padScale: 1.0,
         targetCargo: targetCargo,
         deposit: 1000,
+        fee: 100,
         timeLimit: timeLimit,
         allowedTypes: hubTypes.length > 0 ? hubTypes : ['normal'],
         outOfBounds: oob,

@@ -21,6 +21,7 @@ registerLevel({
   // because this explicit config value always took precedence.
   weather: "snow",
   deposit: 1000,
+  fee: 150,
   timeLimit: 200,
   padScale: 0.8,
   targetCargo: 2,

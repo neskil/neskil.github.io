@@ -11,6 +11,7 @@ registerLevel({
   hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. A cash pickup sits on a ledge partway down the chasm if you're willing to detour. Return to HQ once both are delivered.",
   gravity: 0.15,
   deposit: 1000,
+  fee: 100,
   timeLimit: 240,
   padScale: 1.2,
   targetCargo: 2,
