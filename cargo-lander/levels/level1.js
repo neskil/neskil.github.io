@@ -16,6 +16,7 @@ registerLevel({
 
   // ── Mission parameters ────────────────────────────────────────────────────
   deposit: 1000,
+  fee: 50,
   timeLimit: 180,
   padScale: 1.5,
   targetCargo: 2,

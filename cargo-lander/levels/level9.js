@@ -31,6 +31,7 @@ registerLevel({
 
     // ── Mission parameters ────────────────────────────────────────────────────
     deposit: 1000,
+    fee: 450,
     timeLimit: 240,
     allowedTypes: ['heavy'],
 

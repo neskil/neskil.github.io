@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.8';
+    static VERSION = '0.16.9';
 
     constructor() {
         this.canvas = null;
@@ -458,7 +458,7 @@ class CargoGame {
         // via exit-to-menu/bankruptcy, the deposit is lost entirely.
         this.missionStartBank = this.globalCash;
         this.missionInitialDeposit = level.deposit || 1000;
-        this.missionFee = 50 + (idx * 50);
+        this.missionFee = level.fee != null ? level.fee : (50 + (idx * 50));
         this.missionDeliveryEarnings = 0;
 
         this.globalCash -= (this.missionFee + this.missionInitialDeposit);

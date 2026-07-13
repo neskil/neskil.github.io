@@ -173,8 +173,14 @@ Object.assign(CargoGame.prototype, {
                 btn.disabled = !unlocked;
             }
             if (badge) {
-                badge.textContent = !unlocked ? '🔒 Complete the previous mission to unlock'
-                    : (this.highscores[i] ? 'Best: $' + this.highscores[i].toLocaleString() : '');
+                if (!unlocked) {
+                    badge.textContent = '🔒 Complete the previous mission to unlock';
+                } else {
+                    const fee = lv.fee != null ? lv.fee : (50 + (i * 50));
+                    const deposit = lv.deposit || 1000;
+                    const bestText = this.highscores[i] ? `Best: $${this.highscores[i].toLocaleString()} · ` : '';
+                    badge.textContent = `${bestText}Fee: $${fee} · Deposit: $${deposit.toLocaleString()}`;
+                }
             }
         });
     },
