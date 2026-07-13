@@ -2825,10 +2825,11 @@
 
         // ── Live engine preview (embedded in level-editor.html) ─────────────
         // With ?playtest=1&embed=1 this page runs inside the editor's "Live"
-        // iframe: the real engine renders the level 1:1 while the editor
-        // drives a free camera over postMessage and pushes edited level
-        // source for in-place hot reloads. HUD hidden, audio muted, mission
-        // clock frozen, and the bank balance is left untouched.
+        // iframe as a pure scene viewer: the real engine renders the level 1:1
+        // while the editor drives a free camera over postMessage and pushes
+        // edited level source for in-place hot reloads. No lander, no music,
+        // no mission clock, no gameplay overlays, HUD hidden, and the bank
+        // balance is left untouched.
         function embedStartLevel() {
             // startLevel() permanently deducts maintenance + deposit from the
             // player's saved bank — a preview must not touch real savings.
@@ -2839,18 +2840,48 @@
         }
 
         function initEditorEmbed() {
+            // Silence audio without CargoAudio.setMuted() — that persists to
+            // localStorage and would flip the player's real mute setting.
+            // Neutering init()/setupMusic() guarantees the AudioContext and
+            // the music playlist can never spin up in the embed.
+            if (typeof CargoAudio !== 'undefined') {
+                CargoAudio.muted = true;
+                CargoAudio.init = () => {};
+                CargoAudio.setupMusic = () => {};
+                if (CargoAudio.musicAudio) {
+                    CargoAudio.musicAudio.pause();
+                    CargoAudio.musicAudio = null;
+                }
+            }
+            // Scene viewer: don't render the lander or the pilot-facing
+            // objective arrows (instance-level overrides shadow the
+            // prototype methods; the invisible lander still sits parked
+            // at HQ, which is harmless).
+            game.drawLander = () => {};
+            game.drawNextObjectiveArrow = () => {};
+            // The parked lander still counts as "landed at HQ", which makes
+            // updateExtractionUI() pop the HQ Services DOM overlay with
+            // per-frame inline styles — a stylesheet !important outranks
+            // those. Mobile controls and the rotate tip are gameplay-only.
+            const embedCss = document.createElement('style');
+            embedCss.textContent =
+                '#center-extract-overlay, #mobile-controls, #rotate-tip { display: none !important; }';
+            document.head.appendChild(embedCss);
+
             const applyEmbedState = () => {
-                if (typeof CargoAudio !== 'undefined') CargoAudio.muted = true;
                 game.freeCam = true;
                 if (!game.uiCollapsed) game.toggleUI();
+                // toggleUI leaves its own "Show UI" pill visible — remove
+                // that too; the embed has no interactive game UI at all.
+                const hideBtn = document.getElementById('hide-ui-btn');
+                if (hideBtn) hideBtn.style.display = 'none';
+                // Mission clock never starts: Infinity survives the
+                // per-frame `missionTimer -= dt/60` tick, so the
+                // overtime/fail flow is unreachable.
+                game.missionTimer = Infinity;
+                game.missionTimeLimit = Infinity;
             };
             applyEmbedState();
-            // Keep the mission clock from ever reaching the overtime/fail flow
-            setInterval(() => {
-                game.missionTimer = game.missionTimeLimit;
-                game.overtimeActive = false;
-                game.overtimeTimer = 0;
-            }, 2000);
 
             window.addEventListener('message', (ev) => {
                 if (ev.origin !== location.origin) return;
