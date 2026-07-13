@@ -2757,44 +2757,44 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.16.3"></script>
-    <script src="levels/levels.js?v=0.16.3"></script>
-    <script src="levels/levelGenerator.js?v=0.16.3"></script>
+    <script src="game/upgrades.js?v=0.16.4"></script>
+    <script src="levels/levels.js?v=0.16.4"></script>
+    <script src="levels/levelGenerator.js?v=0.16.4"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.16.3"></script>
-    <script src="levels/level2.js?v=0.16.3"></script>
-    <script src="levels/level3.js?v=0.16.3"></script>
-    <script src="levels/level4.js?v=0.16.3"></script>
-    <script src="levels/level5.js?v=0.16.3"></script>
-    <script src="levels/level6.js?v=0.16.3"></script>
-    <script src="levels/level7.js?v=0.16.3"></script>
-    <script src="levels/level8.js?v=0.16.3"></script>
-    <script src="levels/level9.js?v=0.16.3"></script>
-    <script src="levels/level10.js?v=0.16.3"></script>
-    <script src="levels/levelTest.js?v=0.16.3"></script>
+    <script src="levels/level1.js?v=0.16.4"></script>
+    <script src="levels/level2.js?v=0.16.4"></script>
+    <script src="levels/level3.js?v=0.16.4"></script>
+    <script src="levels/level4.js?v=0.16.4"></script>
+    <script src="levels/level5.js?v=0.16.4"></script>
+    <script src="levels/level6.js?v=0.16.4"></script>
+    <script src="levels/level7.js?v=0.16.4"></script>
+    <script src="levels/level8.js?v=0.16.4"></script>
+    <script src="levels/level9.js?v=0.16.4"></script>
+    <script src="levels/level10.js?v=0.16.4"></script>
+    <script src="levels/levelTest.js?v=0.16.4"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.16.3"></script>
-    <script src="render/shaders.js?v=0.16.3"></script>
-    <script src="physics/physics.js?v=0.16.3"></script>
-    <script src="physics/collision.js?v=0.16.3"></script>
-    <script src="physics/mechanics.js?v=0.16.3"></script>
-    <script src="physics/entities.js?v=0.16.3"></script>
-    <script src="physics/atmosphere.js?v=0.16.3"></script>
-    <script src="game/game.js?v=0.16.3"></script>
-    <script src="game/input.js?v=0.16.3"></script>
-    <script src="game/menu.js?v=0.16.3"></script>
-    <script src="game/hud.js?v=0.16.3"></script>
-    <script src="game/cargo.js?v=0.16.3"></script>
-    <script src="render/render.js?v=0.16.3"></script>
-    <script src="render/background.js?v=0.16.3"></script>
-    <script src="render/terrain.js?v=0.16.3"></script>
-    <script src="render/entities.js?v=0.16.3"></script>
-    <script src="render/effects.js?v=0.16.3"></script>
-    <script src="render/night.js?v=0.16.3"></script>
-    <script src="render/ui.js?v=0.16.3"></script>
+    <script src="audio.js?v=0.16.4"></script>
+    <script src="render/shaders.js?v=0.16.4"></script>
+    <script src="physics/physics.js?v=0.16.4"></script>
+    <script src="physics/collision.js?v=0.16.4"></script>
+    <script src="physics/mechanics.js?v=0.16.4"></script>
+    <script src="physics/entities.js?v=0.16.4"></script>
+    <script src="physics/atmosphere.js?v=0.16.4"></script>
+    <script src="game/game.js?v=0.16.4"></script>
+    <script src="game/input.js?v=0.16.4"></script>
+    <script src="game/menu.js?v=0.16.4"></script>
+    <script src="game/hud.js?v=0.16.4"></script>
+    <script src="game/cargo.js?v=0.16.4"></script>
+    <script src="render/render.js?v=0.16.4"></script>
+    <script src="render/background.js?v=0.16.4"></script>
+    <script src="render/terrain.js?v=0.16.4"></script>
+    <script src="render/entities.js?v=0.16.4"></script>
+    <script src="render/effects.js?v=0.16.4"></script>
+    <script src="render/night.js?v=0.16.4"></script>
+    <script src="render/ui.js?v=0.16.4"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.16.3"></script>
+    <script src="game/tutorial.js?v=0.16.4"></script>
 
     <script>
         // Start the game!
@@ -2820,9 +2820,9 @@
                             const backBtn = document.createElement('a');
                             backBtn.href = 'level-editor.html';
                             backBtn.textContent = '➔ Go back to editor';
-                            backBtn.style.cssText = 'position:fixed; top:20px; left:20px; z-index:10000; padding:12px 24px; font-weight:bold; font-size:16px; font-family:"Outfit",sans-serif; text-decoration:none; color:#ffffff; background:#10b981; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.6); border:1px solid #34d399; transition:transform 0.1s; cursor:pointer;';
-                            backBtn.onmouseover = () => backBtn.style.transform = 'scale(1.05)';
-                            backBtn.onmouseout = () => backBtn.style.transform = 'scale(1)';
+                            backBtn.style.cssText = 'position:fixed; top:75%; left:50%; transform:translateX(-50%); z-index:10000; padding:12px 24px; font-weight:bold; font-size:16px; font-family:"Outfit",sans-serif; text-decoration:none; color:#ffffff; background:#10b981; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.6); border:1px solid #34d399; transition:transform 0.1s; cursor:pointer;';
+                            backBtn.onmouseover = () => backBtn.style.transform = 'translateX(-50%) scale(1.05)';
+                            backBtn.onmouseout = () => backBtn.style.transform = 'translateX(-50%)';
                             document.body.appendChild(backBtn);
                         }
                     }, 50);
