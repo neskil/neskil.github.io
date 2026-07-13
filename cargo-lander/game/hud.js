@@ -195,6 +195,30 @@ Object.assign(CargoGame.prototype, {
                 shieldRow.classList.add('hidden');
             }
         }
+        
+        // Auto Repair bank gauge
+        const repairRow = document.getElementById('repair-row');
+        if (repairRow) {
+            const hasAutoRepair = (this.upgrades?.autoRepair || 0) > 0;
+            if (hasAutoRepair) {
+                repairRow.classList.remove('hidden');
+                const repairFill = document.getElementById('repair-fill');
+                if (repairFill) {
+                    const maxRepair = lander.maxAutoRepairCharge || 1;
+                    const pct = Math.max(0, Math.min(100, ((lander.autoRepairCharge || 0) / maxRepair) * 100));
+                    repairFill.style.width = `${pct}%`;
+                    
+                    if (lander.autoRepairDelay > 0) {
+                        const blink = Math.floor(Date.now() / 150) % 2 === 0;
+                        repairFill.style.opacity = blink ? '0.3' : '0.8';
+                    } else {
+                        repairFill.style.opacity = '1';
+                    }
+                }
+            } else {
+                repairRow.classList.add('hidden');
+            }
+        }
 
         // Update Cargo & Budget stats
         const cargoEl = this.uiElements?.hudCargo || document.getElementById('hud-cargo');
@@ -229,62 +253,77 @@ Object.assign(CargoGame.prototype, {
         if (btnExtract) {
             const allDelivered = this.deliveredCount >= level.targetCargo;
             const atHQ = lander && lander.landed && lander.currentPad === 'start';
+            const atServicePad = lander && lander.landed && lander.currentPad === 'service';
             const isLandedAnywhere = lander && lander.landed;
 
             const svcContainer = document.getElementById('hq-services-container');
 
-            if (atHQ) {
+            if (atHQ || atServicePad) {
                 if (centerOverlay) {
                     centerOverlay.style.display = 'flex';
                     if (svcContainer) svcContainer.style.display = 'flex';
                     
-                    if (allDelivered) {
-                        centerOverlay.style.borderColor = '#10b981';
-                        if (centerTitle) {
-                            centerTitle.textContent = 'Mission Complete';
-                            centerTitle.style.color = '#10b981';
-                        }
-                        if (centerDesc) centerDesc.textContent = 'All cargo delivered safely.';
-                        if (centerBtn) {
-                            centerBtn.style.display = 'block';
-                            centerBtn.textContent = '[SPACE] TO EXTRACT';
-                            centerBtn.style.background = '#10b981';
-                            centerBtn.style.borderColor = '#059669';
-                            centerBtn.style.boxShadow = '0 0 20px rgba(16,185,129,0.7)';
-                        }
-                        
-                        btnExtract.classList.remove('hidden');
-                        btnExtract.textContent = '✓ EXTRACT NOW';
-                        btnExtract.style.background = '#10b981';
-                        btnExtract.style.opacity = '1';
-                        btnExtract.style.cursor = 'pointer';
-                    } else {
-                        const justStarted = !this.overtimeActive && (this.missionTimeLimit - this.missionTimer) < 10;
-                        centerOverlay.style.borderColor = '#38bdf8';
-                        if (centerTitle) {
-                            centerTitle.textContent = 'HQ Services';
-                            centerTitle.style.color = '#38bdf8';
-                        }
-                        if (centerDesc) centerDesc.textContent = 'Landed at HQ.';
-                        if (centerBtn) {
-                            centerBtn.style.display = justStarted ? 'none' : 'block';
-                            if (!justStarted) {
-                                centerBtn.textContent = 'ABORT & EXTRACT';
-                                centerBtn.style.background = '#ef4444';
-                                centerBtn.style.borderColor = '#b91c1c';
-                                centerBtn.style.boxShadow = 'none';
+                    if (atHQ) {
+                        if (allDelivered) {
+                            centerOverlay.style.borderColor = '#10b981';
+                            if (centerTitle) {
+                                centerTitle.textContent = 'Mission Complete';
+                                centerTitle.style.color = '#10b981';
                             }
-                        }
-                        
-                        if (justStarted) {
-                            btnExtract.classList.add('hidden');
-                        } else {
+                            if (centerDesc) centerDesc.textContent = 'All cargo delivered safely.';
+                            if (centerBtn) {
+                                centerBtn.style.display = 'block';
+                                centerBtn.textContent = '[SPACE] TO EXTRACT';
+                                centerBtn.style.background = '#10b981';
+                                centerBtn.style.borderColor = '#059669';
+                                centerBtn.style.boxShadow = '0 0 20px rgba(16,185,129,0.7)';
+                            }
+                            
                             btnExtract.classList.remove('hidden');
-                            btnExtract.textContent = 'ABORT & EXTRACT';
-                            btnExtract.style.background = '#ef4444';
+                            btnExtract.textContent = '✓ EXTRACT NOW';
+                            btnExtract.style.background = '#10b981';
                             btnExtract.style.opacity = '1';
                             btnExtract.style.cursor = 'pointer';
+                        } else {
+                            const justStarted = !this.overtimeActive && (this.missionTimeLimit - this.missionTimer) < 10;
+                            centerOverlay.style.borderColor = '#38bdf8';
+                            if (centerTitle) {
+                                centerTitle.textContent = 'HQ Services';
+                                centerTitle.style.color = '#38bdf8';
+                            }
+                            if (centerDesc) centerDesc.textContent = 'Landed at HQ.';
+                            if (centerBtn) {
+                                centerBtn.style.display = justStarted ? 'none' : 'block';
+                                if (!justStarted) {
+                                    centerBtn.textContent = 'ABORT & EXTRACT';
+                                    centerBtn.style.background = '#ef4444';
+                                    centerBtn.style.borderColor = '#b91c1c';
+                                    centerBtn.style.boxShadow = 'none';
+                                }
+                            }
+                            
+                            if (justStarted) {
+                                btnExtract.classList.add('hidden');
+                            } else {
+                                btnExtract.classList.remove('hidden');
+                                btnExtract.textContent = 'ABORT & EXTRACT';
+                                btnExtract.style.background = '#ef4444';
+                                btnExtract.style.opacity = '1';
+                                btnExtract.style.cursor = 'pointer';
+                            }
                         }
+                    } else {
+                        // At Service Pad
+                        centerOverlay.style.borderColor = '#10b981';
+                        if (centerTitle) {
+                            centerTitle.textContent = 'Service Pad';
+                            centerTitle.style.color = '#10b981';
+                        }
+                        if (centerDesc) centerDesc.textContent = 'Landed at Service Pad.';
+                        if (centerBtn) {
+                            centerBtn.style.display = 'none';
+                        }
+                        btnExtract.classList.add('hidden');
                     }
                     
                     const btnRefuel = document.getElementById('btn-hq-refuel');
@@ -297,15 +336,14 @@ Object.assign(CargoGame.prototype, {
                         btnRefuel.style.cursor = btnRefuel.disabled ? 'not-allowed' : 'pointer';
                     }
                     if (btnRepair) {
-                        const hasKit = (this.upgrades?.repairKit || 0) > 0;
-                        const cap = this.getRepairCap(lander);
-                        const needsRepair = hasKit && lander.integrity < cap;
+                        const cap = this.getRepairCap(lander); // this will be changed to maxIntegrity soon
+                        const needsRepair = lander.integrity < cap;
                         const repairCost = this.getRepairCost(lander);
                         const canAfford = this.missionBudget >= repairCost;
                         btnRepair.disabled = !needsRepair || !canAfford;
                         btnRepair.style.opacity = btnRepair.disabled ? '0.5' : '1';
                         btnRepair.style.cursor = btnRepair.disabled ? 'not-allowed' : 'pointer';
-                        btnRepair.textContent = !hasKit ? '🔒 Repair (needs Repair Kit)' : (needsRepair ? `🔧 Repair ($${repairCost})` : '🔧 Repair');
+                        btnRepair.textContent = needsRepair ? `🔧 Repair ($${repairCost})` : '🔧 Repair';
                     }
                 }
             } else if (allDelivered) {

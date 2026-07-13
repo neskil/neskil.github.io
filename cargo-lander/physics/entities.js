@@ -35,7 +35,7 @@ const CargoPhysicsEntitiesMixin = {
         
         // Winch Extender upgrade was purchasable but never applied anywhere — wire it in.
         const ropeMax = (config.ropeLength || 120);
-        let maxIntegrity = 100 + (upgrades.hullPlating || 0) * 20;
+        let maxIntegrity = 100 + (upgrades.hullPlating || 0) * 10;
         let maxFuel = 120;
         let thrustMult = 1.0 + (upgrades.boostMode || 0) * 0.2;
         let fuelEff = 1.0 - (upgrades.thrusterEfficiency || 0) * 0.15;
@@ -88,6 +88,9 @@ const CargoPhysicsEntitiesMixin = {
             // Shield: a depletable charge that mitigates (not blocks) damage while it
             // lasts, then damage passes through fully to hull until it recharges.
             shieldLevel: upgrades.shieldRegen || 0,
+            maxAutoRepairCharge: (upgrades.autoRepair || 0) * 30,
+            autoRepairCharge: (upgrades.autoRepair || 0) * 30,
+            autoRepairDelay: 0,
             maxShieldCharge: (upgrades.shieldRegen || 0) * 50,
             shieldCharge: (upgrades.shieldRegen || 0) * 50,
             shieldHitFlash: 0
@@ -163,7 +166,7 @@ const CargoPhysicsEntitiesMixin = {
             if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
                 lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
             }
-            if (padType === 'refuel' || padType === 'hq') {
+            if (padType === 'refuel' || padType === 'hq' || padType === 'service') {
                 lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
             }
             // Leg spring decay while parked
@@ -179,6 +182,7 @@ const CargoPhysicsEntitiesMixin = {
         if (!lander || amount <= 0) return 0;
         lander.shieldAbsorbedThisHit = false;
         lander.shieldDelay = 300; // 5 seconds at 60fps
+        lander.autoRepairDelay = 180; // 3 seconds at 60fps
 
         if (lander.shieldCharge > 0) {
             const mitigation = 0.65;
