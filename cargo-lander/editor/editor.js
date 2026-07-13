@@ -1166,7 +1166,12 @@ function hazardToShape(h, i) {
       shape.spawnRate = h.spawnRate ?? 1.0;
       shape.reach = h.reach ?? 300;
       shape.proximityScale = h.proximityScale ?? 0;
+    } else if (shape.type === 'spike') {
+      shape.radius = h.radius ?? 25;
+      shape.damagePerSec = h.damagePerSec ?? 60;
     }
+    if (h.color) shape.color = h.color;
+    if (h.behindTerrain) shape.behindTerrain = true;
     return shape;
   }
   const cx = h.x ?? 0, cy = h.y ?? 0, r = h.radius ?? 40;
@@ -2101,6 +2106,32 @@ function drawHazards() {
       ctx.fillStyle = '#22c55e';
       ctx.globalAlpha = 0.3;
       ctx.fill();
+    } else if (h.type === 'spike' && h.pts.length >= 1) {
+      const p = w2s(h.pts[0].x, h.pts[0].y);
+      const r = (h.radius || 25) * S.view.scale;
+      const col = h.color || '#ef4444';
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, r, 0, Math.PI*2);
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 0.22 + Math.sin(time/150)*0.05;
+      ctx.fill();
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.9;
+      ctx.stroke();
+      // spiky star glyph so it reads as a point hazard, not a zone
+      const spikes = 8;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const a = (i / (spikes * 2)) * Math.PI * 2;
+        const rr = r * (i % 2 === 0 ? 0.55 : 0.22);
+        const px = p.sx + Math.cos(a) * rr, py = p.sy + Math.sin(a) * rr;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 1;
+      ctx.fill();
     } else if (h.type === 'repulsor' && h.pts.length >= 3) {
       ctx.beginPath();
       h.pts.forEach((pt, i) => {
@@ -2580,6 +2611,7 @@ function renderPtUI() {
   const repRow = document.getElementById('repulsor-vector-row');
   const gwRow = document.getElementById('gravwell-properties-row');
   const crusherRow = document.getElementById('crusher-properties-row');
+  const spikeRow = document.getElementById('spike-properties-row');
   const waterRow = document.getElementById('water-properties-row');
   const terrainShadowRow = document.getElementById('terrain-shadow-row');
   if (hasPoly) {
@@ -2612,6 +2644,7 @@ function renderPtUI() {
       repRow.style.display = poly.type === 'repulsor' ? '' : 'none';
       gwRow.style.display = poly.type === 'gravwell' ? '' : 'none';
       crusherRow.style.display = poly.type === 'crusher' ? '' : 'none';
+      spikeRow.style.display = poly.type === 'spike' ? '' : 'none';
 
       if (poly.type === 'laser' || poly.type === 'incinerator') {
         setNumAndSlider('laser-onms', poly.onMs ?? 1500);
@@ -2642,6 +2675,9 @@ function renderPtUI() {
         setNumAndSlider('crush-waitl', poly.waitLoadedMs ?? 500);
         setNumAndSlider('crush-retract', poly.retractMs ?? 1500);
         setNumAndSlider('crush-thick', poly.thickness ?? 40);
+      } else if (poly.type === 'spike') {
+        setNumAndSlider('spike-radius', poly.radius ?? 25);
+        setNumAndSlider('spike-dmg', poly.damagePerSec ?? 60);
       }
     } else {
         hazardRow.style.display = 'none';
@@ -2650,6 +2686,7 @@ function renderPtUI() {
         repRow.style.display = 'none';
         gwRow.style.display = 'none';
         crusherRow.style.display = 'none';
+        spikeRow.style.display = 'none';
     }
     
     if (waterRow) {
@@ -2750,6 +2787,11 @@ function setHazardType(val) {
   } else if (val === 'pickup') {
     if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
     else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
+  } else if (val === 'spike') {
+    if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
+    else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
+    if (poly.radius === undefined) poly.radius = 25;
+    if (poly.damagePerSec === undefined) poly.damagePerSec = 60;
   } else if (val === 'sandworm') {
     let cx = 500, cy = 400;
     if (poly.pts.length > 0) {
@@ -2844,7 +2886,7 @@ function deletePt(pi, pti) {
   const arr = activeList();
   const isHazard = S.selLayer==='hazard';
   const type = arr[pi].type;
-  const minPts = isHazard && (type==='laser' || type==='crusher') ? 2 : (isHazard && type==='pickup' ? 1 : (isHazard && type==='sandworm' ? 3 : 3));
+  const minPts = isHazard && (type==='laser' || type==='crusher') ? 2 : (isHazard && (type==='pickup' || type==='spike') ? 1 : (isHazard && type==='sandworm' ? 3 : 3));
   if (isHazard && type === 'sandworm') { alert('Cannot delete points from a fixed sandworm shape.'); return; }
   if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
   arr[pi].pts.splice(pti,1);
@@ -3153,6 +3195,9 @@ function buildOut() {
         if (h.waitLoadedMs !== undefined) lines.push(`      waitLoadedMs: ${h.waitLoadedMs},`);
         if (h.retractMs !== undefined) lines.push(`      retractMs: ${h.retractMs},`);
         if (h.thickness !== undefined) lines.push(`      thickness: ${h.thickness},`);
+      } else if (h.type === 'spike') {
+        if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
+        if (h.damagePerSec !== undefined) lines.push(`      damagePerSec: ${h.damagePerSec},`);
       }
       if (h.behindTerrain) lines.push(`      behindTerrain: true,`);
       if (h.color) lines.push(`      color: ${JSON.stringify(h.color)},`);

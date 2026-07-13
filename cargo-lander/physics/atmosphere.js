@@ -852,8 +852,41 @@ const CargoPhysicsAtmosphereMixin = {
                     continue;
                 }
 
+                if (h.type === 'spike') {
+                    if (!h.pts || h.pts.length < 1) continue;
+                    const p = h.pts[0];
+                    const radius = h.radius || 25;
+
+                    for (const target of targets) {
+                        if (target === lander && lander.crashed) continue;
+                        const hitRadius = (target === lander) ? 10 : 8;
+                        if (Math.hypot(target.x - p.x, target.y - p.y) > radius + hitRadius) continue;
+
+                        if (target !== lander) {
+                            target.lost = true;
+                            target.lostReason = 'spike';
+                            continue;
+                        }
+
+                        this.applyDamage(lander, (h.damagePerSec || 60) * dt / 60);
+                        if (window.CargoAudio) CargoAudio.playCollision(2);
+                        for (let i = 0; i < 2; i++) {
+                            this.particles.push({
+                                x: lander.x + (Math.random() - 0.5) * 14,
+                                y: lander.y + (Math.random() - 0.5) * 14,
+                                vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+                                life: 0.5, decay: 0.06 + Math.random() * 0.05,
+                                color: '#ef4444',
+                                size: 2 + Math.random() * 2,
+                            });
+                        }
+                        if (lander.integrity <= 0) this.triggerExplosion();
+                    }
+                    continue;
+                }
+
                 if (!h.pts || h.pts.length < 3) continue;
-                
+
                 for (const target of targets) {
                     if (target === lander && lander.crashed) continue;
                     if (!this.pointInPolygon(target.x, target.y, h.pts)) continue;
