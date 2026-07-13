@@ -385,7 +385,7 @@ function makeInput(overrides) {
 function getLevel0() {
   return (typeof levels !== 'undefined' && levels[0]) ? levels[0] : {
     name: 'Test Level', gravity: 0.15, wind: 0,
-    terrainType: 'flat', targetCargo: 2, budget: 1000, timeLimit: 180,
+    terrainType: 'flat', targetCargo: 2, deposit: 1000, timeLimit: 180,
     allowedTypes: ['normal'],
     deliveryHubs: [{ x: 750, color: '#38bdf8', type: 'normal', name: 'Hub' }],
     palette: { skyTop:'#000', skyMid:'#000', skyBot:'#000', terrainFill:'#111', rockEdge:'#22c55e', rockGlow:'rgba(34,197,94,' },

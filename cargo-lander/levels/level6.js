@@ -61,7 +61,7 @@ registerLevel({
 
     // ── Mission parameters ────────────────────────────────────────────────────
     targetCargo: 2,
-    budget: 1250,
+    deposit: 1000,
     timeLimit: 240,
     allowedTypes: ["normal"],
 
