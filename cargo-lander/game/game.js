@@ -1,18 +1,18 @@
-﻿// CargoLander â€” game core: CargoGame class (state, constructor, init), the
+// CargoLander — game core: CargoGame class (state, constructor, init), the
 // requestAnimationFrame loop, update(dt), mission lifecycle (startLevel /
 // completeMission / failMission / respawn), camera, and grapple.
 //
 // The rest of CargoGame is mixed onto its prototype from sibling files:
-//   game/input.js  â€” keyboard/mouse listeners + gamepad polling
-//   game/menu.js   â€” menu screens, settings, upgrade shop, dev panel (DOM)
-//   game/hud.js    â€” in-mission HUD, mission panel, notifications (DOM)
-//   game/cargo.js  â€” cargo delivery, removal (removeCargoBox), payouts, FX
-//   render.js + render/*.js â€” all Canvas2D drawing
-// Load order (index.html): levels â†’ audio â†’ shaders â†’ physics + physics/* â†’
-// game.js â†’ game/* â†’ render.js + render/* (render.js instantiates window.game).
+//   game/input.js  — keyboard/mouse listeners + gamepad polling
+//   game/menu.js   — menu screens, settings, upgrade shop, dev panel (DOM)
+//   game/hud.js    — in-mission HUD, mission panel, notifications (DOM)
+//   game/cargo.js  — cargo delivery, removal (removeCargoBox), payouts, FX
+//   render.js + render/*.js — all Canvas2D drawing
+// Load order (index.html): levels → audio → shaders → physics + physics/* →
+// game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.17.1';
+    static VERSION = '0.17.2';
 
     constructor() {
         this.canvas = null;
@@ -49,7 +49,7 @@ class CargoGame {
         }
         this.highscores = JSON.parse(localStorage.getItem('cargoLanderHighscores')) || {};
 
-        // Vehicle license â€” picked once on the main menu instead of per-mission,
+        // Vehicle license — picked once on the main menu instead of per-mission,
         // reused by Replay / Next Mission / Restart too.
         this.currentVehicle = localStorage.getItem('cargoLanderVehicle') || 'basic';
 
@@ -66,12 +66,12 @@ class CargoGame {
         this.camera = { x: 0, y: 0, zoom: 1, targetZoom: 1 };
         this.introTimer = 0;
         // Touch devices get a smaller vertical camera offset (see cameraVOffset
-        // below) â€” the desktop offset pushes the lander noticeably off-center on
+        // below) — the desktop offset pushes the lander noticeably off-center on
         // a short mobile-landscape viewport, where every pixel of vertical room
         // is already contested by the HUD panels above and the touch controls below.
         this.isTouchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
         // World-unit offset subtracted from the lander's Y to get the camera's
-        // vertical focus point â€” shifts the framing up to show more air/sky above
+        // vertical focus point — shifts the framing up to show more air/sky above
         // the lander than below. Smaller on touch devices so the lander sits
         // closer to true screen-center instead of low in the frame.
         this.cameraVOffset = this.isTouchDevice ? 50 : 120;
@@ -80,17 +80,17 @@ class CargoGame {
         this.isMuted = false; // Always start unmuted
         // Default UI Scale is 100% on desktop, but the HUD panels are absolutely
         // positioned at a fixed base size (only font/padding shrink via @media
-        // rules) â€” on a phone or short mobile-landscape window, 100% overlaps or
+        // rules) — on a phone or short mobile-landscape window, 100% overlaps or
         // runs off-screen well before anyone finds the manual slider in Settings
         // to fix it. Only applies the smaller default on first run; once a value
         // is saved, the manual slider always wins.
         this.uiScale = parseFloat(localStorage.getItem('cargo_lander_ui_scale')) || this.computeDefaultUIScale();
         this.uiCollapsed = false;
-        // GPU post-processing overlay (heat haze / water shimmer / gravity lensing) â€”
+        // GPU post-processing overlay (heat haze / water shimmer / gravity lensing) —
         // on by default, but it's an extra full-screen WebGL pass every frame on top
         // of the existing particle/glow overlay, so let low-end hardware disable it.
         this.postFXEnabled = localStorage.getItem('cargoLanderPostFX') !== '0';
-        // Experimental virtual joystick, replacing the left/thrust mobile buttons â€”
+        // Experimental virtual joystick, replacing the left/thrust mobile buttons —
         // off by default; the D-pad-style buttons stay the default touch scheme.
         this.touchJoystickEnabled = localStorage.getItem('cargoLanderTouchJoystick') === '1';
         this._rotateTipDismissed = false;
@@ -156,7 +156,7 @@ class CargoGame {
 
         // Sync mute button to initial state
         const muteBtn = document.getElementById('mute-toggle-btn');
-        if (muteBtn) muteBtn.textContent = this.isMuted ? 'ðŸ”‡' : 'ðŸ”Š';
+        if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
 
         // Set correct visibility synchronously so there's no flash of touch
         // controls before the first RAF tick (was relying solely on a CSS
@@ -196,7 +196,7 @@ class CargoGame {
 
     // Shows a dismissable "rotate to landscape" tip while a mission is active on a
     // narrow/portrait viewport (phone or small tablet). Aspect-ratio-based rather
-    // than touch-capability-based â€” touch detection is unreliable (hybrid laptops
+    // than touch-capability-based — touch detection is unreliable (hybrid laptops
     // report touch support; tablets on a stand are portrait-fine), and this also
     // means the check is exercisable from a resized desktop browser, not just a
     // real device. Re-armed each time a mission starts (see startLevel()) so it
@@ -223,7 +223,7 @@ class CargoGame {
     generateStars() {
         // Three parallax depths of stars + nebulae
         this.bgLayers = [
-            { objects: [], parallax: 0.018 }, // Deep â€” barely moves
+            { objects: [], parallax: 0.018 }, // Deep — barely moves
             { objects: [], parallax: 0.055 }, // Mid
             { objects: [], parallax: 0.13 }, // Near
         ];
@@ -270,7 +270,7 @@ class CargoGame {
             });
         }
 
-        // Nebulae â€” large color clouds
+        // Nebulae — large color clouds
         const nebulaColors = [
             [59, 130, 246], [139, 92, 246], [236, 72, 153],
             [16, 185, 129], [245, 158, 11],
@@ -288,7 +288,7 @@ class CargoGame {
             });
         }
 
-        // â”€â”€ Bake background sprites â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Bake background sprites ──────────────────────────────────────
         // draw() used to build a radial gradient per nebula and per halo star
         // every frame; a smooth gradient upscales invisibly from a small
         // pre-rendered bitmap, so bake once here and drawImage per frame.
@@ -316,7 +316,7 @@ class CargoGame {
             }
 
             // Shared halo-star sprite: soft halo (0.35 alpha at core) with a
-            // solid core dot at 1/3.5 of the halo radius â€” same proportions
+            // solid core dot at 1/3.5 of the halo radius — same proportions
             // the per-frame gradient code drew. Star alpha scales the whole
             // sprite via globalAlpha at draw time.
             const HS = 32; // sprite radius in px
@@ -334,7 +334,7 @@ class CargoGame {
             hctx.fill();
             this._haloSprite = hc;
         } catch (e) {
-            // Sprite baking is an optimization only â€” draw() falls back to
+            // Sprite baking is an optimization only — draw() falls back to
             // per-frame gradients when sprites are missing (e.g. mocked ctx).
         }
     }
@@ -451,7 +451,7 @@ class CargoGame {
         level.vehicle = vehicleType;
 
         // Maintenance cost (fuel, upkeep) is spent permanently from the Bank.
-        // The mission deposit is also drawn from the Bank, but it isn't spent â€”
+        // The mission deposit is also drawn from the Bank, but it isn't spent —
         // it's carried into the level to cover refueling/repairs/respawns, and
         // whatever's left comes back to the Bank at the end (see completeMission).
         // If the deposit runs out mid-level, or the player abandons the mission
@@ -469,11 +469,11 @@ class CargoGame {
             { el: document.querySelector('#game-over-screen .btn-secondary'), def: "Exit to Menu" },
             { el: document.querySelector('#respawn-screen .btn-secondary'), def: "Exit to Menu" },
             { el: document.querySelector('#victory-screen .btn-secondary'), def: "Main Menu" },
-            { el: document.querySelector('#options-dropdown button[onclick*="goToMenu"]'), def: "ðŸ  Exit Level" }
+            { el: document.querySelector('#options-dropdown button[onclick*="goToMenu"]'), def: "🏠 Exit Level" }
         ];
         exitButtons.forEach(item => {
             if (item.el) {
-                item.el.innerHTML = this.isPlaytest ? "ðŸ“ Back to Editor" : item.def;
+                item.el.innerHTML = this.isPlaytest ? "📝 Back to Editor" : item.def;
             }
         });
 
@@ -498,7 +498,7 @@ class CargoGame {
         localStorage.setItem('cargoLanderStarts', starts);
         if (starts % 3 === 0 && this.isMuted) {
             setTimeout(() => {
-                this.addMessage("ðŸ’¡ Unmute to hear the music & sound effects!", "#38bdf8");
+                this.addMessage("💡 Unmute to hear the music & sound effects!", "#38bdf8");
         const muteBtn = document.getElementById('mute-toggle-btn');
                 if (muteBtn) {
                     muteBtn.style.animation = 'shakeBtn 0.4s ease-in-out 4';
@@ -597,7 +597,7 @@ class CargoGame {
             window.location.href = 'level-editor.html';
             return;
         }
-        if (levels[this.currentLevelIndex] && levels[this.currentLevelIndex].name.includes('Mission â™¾ï¸')) {
+        if (levels[this.currentLevelIndex] && levels[this.currentLevelIndex].name.includes('Mission ♾️')) {
             this.startLevel('random');
         } else if (this.currentLevelIndex + 1 < levels.length) {
             this.startLevel(this.currentLevelIndex + 1);
@@ -675,7 +675,7 @@ class CargoGame {
                 if (lander.vehicleType !== 'drone' && box.type !== 'tethered') continue;
 
                 const dx = box.x - lander.grappleX, dy = box.y - lander.grappleY;
-                const dist = dx * dx + dy * dy; // squared â€” only compared, never displayed
+                const dist = dx * dx + dy * dy; // squared — only compared, never displayed
                 if (dist < minDist) {
                     minDist = dist;
                     closestBox = box;
@@ -686,7 +686,7 @@ class CargoGame {
                 lander.grabbedBoxId = closestBox.id;
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playLoad();
             }
-            // Cargo no longer dispenses from a Space press â€” it spawns via the
+            // Cargo no longer dispenses from a Space press — it spawns via the
             // crane loadSeq while landed on the collection pad, so Space stays
             // purely a grapple grab/release action.
         }
@@ -790,7 +790,7 @@ class CargoGame {
         }, Math.min(flyTimeMs, 2000)); // cap flight time
     }
 
-    // One frame of game logic. Each phase is a method below â€” the order here is
+    // One frame of game logic. Each phase is a method below — the order here is
     // load-bearing (clock/overtime before the physics tick; camera after it;
     // auto-load before delivery checks; HUD/panel last).
     update(dt) {
@@ -870,7 +870,7 @@ class CargoGame {
 
         // Refill alert sound check. Runs AFTER handleCrash on purpose: the
         // crash handler silences the warning once, and this re-arms it while
-        // fuel is empty mid-air â€” preserving long-standing behavior.
+        // fuel is empty mid-air — preserving long-standing behavior.
         if (lander.fuel <= 0 && !lander.landed) {
             if (!this.isMuted) CargoAudio.setWarning(true);
         }
@@ -880,10 +880,10 @@ class CargoGame {
         this.updateHUD();
     }
 
-    // â”€â”€ update() phases, in frame order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── update() phases, in frame order ─────────────────────────────────────
 
     updateMobileControlsVisibility() {
-        // Called from update() at 60Hz â€” only touch the DOM when the computed
+        // Called from update() at 60Hz — only touch the DOM when the computed
         // value actually changes (repeated identical style writes still cost
         // style-recalc checks every frame).
         const display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
@@ -907,7 +907,7 @@ class CargoGame {
         }
     }
 
-    // HQ Landing Fireworks Celebration â€” fires while parked at HQ with all
+    // HQ Landing Fireworks Celebration — fires while parked at HQ with all
     // cargo delivered.
     updateFireworks(lander) {
         // HQ Landing Fireworks Celebration
@@ -1065,12 +1065,12 @@ class CargoGame {
             this.missionTimer -= (dt / 60);
             if (this.missionTimer <= 0) {
                 this.missionTimer = 0;
-                // Don't end immediately â€” trigger overtime: monster warning + 15s to reach HQ
+                // Don't end immediately — trigger overtime: monster warning + 15s to reach HQ
                 if (!this.overtimeActive) {
                     this.overtimeActive = true;
                     this.overtimeTimer = 15;
                     this.physics.outOfBoundsTimer = 999; // force monster spawn immediately
-                    this.addMessage('âš  TIME UP â€” GET BACK TO HQ! 15s', '#ef4444');
+                    this.addMessage('⚠ TIME UP — GET BACK TO HQ! 15s', '#ef4444');
                     if (window.CargoAudio) CargoAudio.playWarning?.();
                 }
             }
@@ -1085,10 +1085,10 @@ class CargoGame {
                 this.physics.outOfBoundsTimer = 0;
                 this.completeMission(true); // safe extraction
             } else if (this.overtimeTimer <= 0) {
-                // Out of time â€” monster attacks instantly
+                // Out of time — monster attacks instantly
                 this.overtimeActive = false;
                 this.physics.outOfBoundsTimer = 999;
-                this.addMessage('CONTRACT FAILED â€” EXTRACTED BY FORCE', '#ef4444');
+                this.addMessage('CONTRACT FAILED — EXTRACTED BY FORCE', '#ef4444');
                 // Cash penalty if not already crashing
                 this.globalCash = Math.max(0, this.globalCash - 500);
                 localStorage.setItem('cargoLanderCash', this.globalCash);
@@ -1118,7 +1118,7 @@ class CargoGame {
         const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0 && (!lander.shieldDelay || lander.shieldDelay <= 0)) {
             // Shield charge recovers on its own too, a bit slower than a fresh hit
-            // would need â€” it isn't meant to fully block every impact back-to-back.
+            // would need — it isn't meant to fully block every impact back-to-back.
             if (lander.maxShieldCharge > 0) {
                 lander.shieldCharge = Math.min(lander.maxShieldCharge, (lander.shieldCharge || 0) + (dt / 60) * (lander.maxShieldCharge / 8));
             }
@@ -1192,7 +1192,7 @@ class CargoGame {
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
-            // Settle deadband â€” the lerp asymptote otherwise re-rasterizes
+            // Settle deadband — the lerp asymptote otherwise re-rasterizes
             // the scene at a slightly different scale every frame forever.
             if (Math.abs(this.camera.targetZoom - this.camera.zoom) < 0.0005) {
                 this.camera.zoom = this.camera.targetZoom;
@@ -1200,8 +1200,8 @@ class CargoGame {
 
             if (!lander.swallowed) {
                 // Velocity-lead is a flight aid; while parked, Matter's
-                // resting-contact micro velocities (Ã—15 lead) wobble the
-                // target a few pixels each frame â€” pad labels visibly
+                // resting-contact micro velocities (×15 lead) wobble the
+                // target a few pixels each frame — pad labels visibly
                 // "bounce" against an otherwise static scene.
                 const lead = lander.landed ? 0 : 15;
                 let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * lead);
@@ -1379,7 +1379,7 @@ class CargoGame {
 
             if (lander.eatenByMonster && this.missionTimer <= 0) {
                 // Devoured reads as final, not a fender-bender you press R to
-                // shrug off â€” straight to a hard mission failure instead of
+                // shrug off — straight to a hard mission failure instead of
                 // the usual respawnable-crash flow below. No budget deduction
                 // (there's no mission left to spend it on) and no respawn
                 // screen. See physics/atmosphere.js's monster contact check
@@ -1459,7 +1459,7 @@ class CargoGame {
         return lander.maxIntegrity;
     }
 
-    // Repair cost scales with how much hull damage is being repaired â€” a
+    // Repair cost scales with how much hull damage is being repaired — a
     // scratch is cheap, repairing up to the upgrade's cap from a near-wreck
     // costs close to the full base price. Charged against the in-level
     // Mission Deposit, same as refueling. Both the damage % and the final
@@ -1554,7 +1554,7 @@ class CargoGame {
                 }
             }
             // Time bonus scales with the % of the mission's time limit left
-            // unused, not raw seconds â€” so it rewards efficiency the same way
+            // unused, not raw seconds — so it rewards efficiency the same way
             // on a 60s sprint as it does on a 300s marathon.
             const timeLimit = this.missionTimeLimit || level.timeLimit || 180;
             const timePctRaw = Math.max(0, Math.min(100, (this.missionTimer / timeLimit) * 100));
@@ -1598,7 +1598,7 @@ class CargoGame {
         
         const nextBtn = document.querySelector('#complete-screen .btn-primary');
         if (nextBtn) {
-            nextBtn.textContent = this.isPlaytest ? "Back to Editor âž”" : (allDelivered ? "Next Mission âž”" : "Retry Mission âž”");
+            nextBtn.textContent = this.isPlaytest ? "Back to Editor ➔" : (allDelivered ? "Next Mission ➔" : "Retry Mission ➔");
             // If aborted, retry mission starts the same level
             nextBtn.onclick = () => {
                 if (allDelivered) {

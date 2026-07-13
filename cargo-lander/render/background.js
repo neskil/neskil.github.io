@@ -656,8 +656,10 @@ drawAmbientTraffic() {
         const confMaxY = levelConfig.ambientTrafficMaxY;
         const ctx = this.ctx;
 
-        // Visualise the traffic zone as a subtle space lane if explicitly defined
-        if (confMinY != null && confMaxY != null) {
+        // Visualise the traffic zone as a subtle space lane if explicitly defined.
+        // Editor-only debug aid (level-editor playtest/live-preview) — must not
+        // leak into a real playthrough of the shipped level.
+        if (this.isPlaytest && confMinY != null && confMaxY != null) {
             ctx.save();
             const laneH = confMaxY - confMinY;
             const camX = this.camera ? this.camera.x : 0;
