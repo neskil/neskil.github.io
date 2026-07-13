@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.13';
+    static VERSION = '0.16.14';
 
     constructor() {
         this.canvas = null;
@@ -887,11 +887,23 @@ class CargoGame {
         // value actually changes (repeated identical style writes still cost
         // style-recalc checks every frame).
         const display = (this.isTouchDevice && this.gameState === 'playing') ? 'flex' : 'none';
-        if (display === this._mobileControlsDisplay) return;
-        const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
-        if (mobileControls) {
-            mobileControls.style.display = display;
-            this._mobileControlsDisplay = display;
+        if (display !== this._mobileControlsDisplay) {
+            const mobileControls = this.uiElements?.mobileControls || document.getElementById('mobile-controls');
+            if (mobileControls) {
+                mobileControls.style.display = display;
+                this._mobileControlsDisplay = display;
+            }
+        }
+
+        // Grapple grab/release button is drone-only.
+        const isDrone = this.physics.lander && this.physics.lander.vehicleType === 'drone';
+        const actionDisplay = isDrone ? 'flex' : 'none';
+        if (actionDisplay !== this._mobileActionDisplay) {
+            const btnAction = document.getElementById('btn-action');
+            if (btnAction) {
+                btnAction.style.display = actionDisplay;
+                this._mobileActionDisplay = actionDisplay;
+            }
         }
     }
 
