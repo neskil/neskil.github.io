@@ -38,8 +38,8 @@ body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;displa
   background:#58a6ff;
 }
 
-.sec{border-bottom:1px solid #30363d}
-div.sec{padding:12px 14px}
+.sec{background:transparent; border-bottom: 1px solid #30363d; padding: 8px 10px;}
+div.sec{background:transparent; border-bottom: 1px solid #30363d; padding: 8px 10px;}
 details.sec > summary {
   cursor:pointer;
   user-select:none;
@@ -433,7 +433,7 @@ canvas{display:block}
       </div>
     </details>
 
-    <details id="pt-panel" class="sec" open>
+    <details id="pt-panel" open style="margin-top:10px; border-top:1px solid #30363d; padding-top:10px;">
       <summary class="sec-title">
         <span class="sec-title-text">Points</span>
         <button class="btn del" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
@@ -866,6 +866,7 @@ function renderSwatches(pal) {
 }
 
 function applyPalettePreset(name) {
+  snapshot();
   if (name && COLOR_PRESETS[name]) {
     S.palette = Object.assign({}, COLOR_PRESETS[name]);
   }
@@ -884,6 +885,7 @@ window.addEventListener('click', function(e) {
 // Derives a full 7-key palette from a single accent color: dark, medium, or light
 // saturation/lightness sky and terrain shades plus the accent itself.
 function generatePaletteFromBase(hex, mode = 'dark') {
+  snapshot();
   const { r, g, b } = hexToRgb(hex);
   const { h } = rgbToHsl(r, g, b);
   
@@ -914,17 +916,20 @@ function generatePaletteFromBase(hex, mode = 'dark') {
   draw(); updateOut();
 }
 function setRockGlowColor(hex) {
+  snapshot();
   const { r, g, b } = hexToRgb(hex);
   S.palette.rockGlow = `rgba(${r},${g},${b},`;
   draw(); updateOut();
 }
 function setFogColor(hex) {
+  snapshot();
   const { a } = parseRgba(S.palette.fog);
   const { r, g, b } = hexToRgb(hex);
   S.palette.fog = `rgba(${r},${g},${b},${a})`;
   draw(); updateOut();
 }
 function setFogAlpha(a) {
+  snapshot();
   const { r, g, b } = parseRgba(S.palette.fog);
   S.palette.fog = `rgba(${r},${g},${b},${a})`;
   draw(); updateOut();
@@ -1072,7 +1077,46 @@ function buildRadarPanel() {
     .map(f => schemaFieldRowHTML('setRadarZone', 'rpz-', f)).join('');
 }
 
-const S = {
+const _undoStack = [];
+const _redoStack = [];
+
+function snapshot() {
+  _undoStack.push(JSON.stringify(S));
+  if (_undoStack.length > 50) _undoStack.shift();
+  _redoStack.length = 0;
+}
+
+function undo() {
+  if (!_undoStack.length) return;
+  _redoStack.push(JSON.stringify(S));
+  S = JSON.parse(_undoStack.pop());
+  _restoreState();
+}
+
+function redo() {
+  if (!_redoStack.length) return;
+  _undoStack.push(JSON.stringify(S));
+  S = JSON.parse(_redoStack.pop());
+  _restoreState();
+}
+
+function _restoreState() {
+  syncLayerButtonsUI();
+  populatePaletteUI();
+  buildMetaPanel();
+  buildOOBPanel();
+  buildWorldBoundsPanel();
+  buildGWPanel();
+  buildRadarPanel();
+  if (typeof updateEntityPanel === 'function') updateEntityPanel();
+  if (typeof updateHubUI === 'function') updateHubUI();
+  renderSidebar();
+  renderPtList();
+  draw();
+  updateOut();
+}
+
+let S = {
   // All three shape lists share the same per-item shape: {pts:[{x,y}], comment:'', hidden:false, ...extra}
   // extra: water items also have `hasBoat`; hazard items also have `type`.
   polygons: [],    // terrain
@@ -1137,6 +1181,7 @@ function setLayer(layer) {
 
 
 function setCfg(key, val) {
+  snapshot();
   if (key === 'allowedTypes') {
     S.cfg.allowedTypes = Array.isArray(val) ? val : val.split(',').map(s=>s.trim()).filter(Boolean);
   } else if (key === 'padScale') {
@@ -1148,6 +1193,7 @@ function setCfg(key, val) {
 }
 
 function updateAllowedTypes() {
+  snapshot();
   const selected = [];
   document.querySelectorAll('.cfg-allowed-type-checkbox').forEach(cb => {
     if (cb.checked) selected.push(cb.value);
@@ -1156,6 +1202,7 @@ function updateAllowedTypes() {
 }
 
 function toggleOOB() {
+  snapshot();
   const en = document.getElementById('oob-enable').checked;
   document.getElementById('oob-fields').style.display = en ? 'flex' : 'none';
   document.getElementById('oob-preset-row').style.display = en ? 'block' : 'none';
@@ -1177,6 +1224,7 @@ const OOB_PRESETS = {
 };
 
 function applyOOBPreset(presetKey) {
+  snapshot();
   if (!presetKey || !OOB_PRESETS[presetKey]) return;
   const p = OOB_PRESETS[presetKey];
   if (!S.oob) {
@@ -1198,7 +1246,7 @@ function applyOOBPreset(presetKey) {
 // Editing any field means the level now needs the full object form, so this
 // also clears S.oobIsBoolean — see applyConfig()'s comment for why that flag
 // exists (preserving the `outOfBounds: true` shorthand some levels use).
-function setOOB(k, v) { if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
+function setOOB(k, v) { snapshot(); if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
 
 function updateHubCoords() {
   S.hubs.forEach((h, i) => {
@@ -1211,6 +1259,7 @@ function updateHubCoords() {
 
 
 function toggleRadarZone() {
+  snapshot();
   const en = document.getElementById('rpz-enable').checked;
   document.getElementById('rpz-fields').style.display = en ? 'flex' : 'none';
   if (en && !S.radarZone) {
@@ -1220,9 +1269,10 @@ function toggleRadarZone() {
   syncAllSliders();
   draw(); updateOut();
 }
-function setRadarZone(k, v) { if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
+function setRadarZone(k, v) { snapshot(); if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
 
 function toggleWorldBounds() {
+  snapshot();
   const en = document.getElementById('wb-enable').checked;
   document.getElementById('world-bounds-fields').style.display = en ? 'flex' : 'none';
   if (en && !S.worldBounds) {
@@ -1232,10 +1282,10 @@ function toggleWorldBounds() {
   syncAllSliders();
   draw(); updateOut();
 }
-function setWorldBounds(k, v) { if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
+function setWorldBounds(k, v) { snapshot(); if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
 
 // --- Terrain Manipulation ---
-function setQuest(k, v) { S.quests[k] = v; updateOut(); }
+function setQuest(k, v) { snapshot(); S.quests[k] = v; updateOut(); }
 
 function updateHubUI() {
   const c = document.getElementById('hub-list');
@@ -1247,14 +1297,14 @@ function updateHubUI() {
     d.innerHTML = `
       <div class="row">
         <span style="font-size:10px;color:#8b949e;width:20px">${i}</span>
-        <label style="width:30px">Name</label><input type="text" value="${h.name||''}" onchange="S.hubs[${i}].name=this.value; updateOut()">
-        <button class="btn del" style="padding:0 5px;margin-left:4px" onclick="S.hubs.splice(${i},1); updateHubUI(); draw(); updateOut()">×</button>
+        <label style="width:30px">Name</label><input type="text" value="${h.name||''}" onchange="snapshot(); S.hubs[${i}].name=this.value; updateOut()">
+        <button class="btn del" style="padding:0 5px;margin-left:4px" onclick="snapshot(); S.hubs.splice(${i},1); updateHubUI(); draw(); updateOut()">×</button>
       </div>
       <div class="row">
-        <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="S.hubs[${i}].type=this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">X</label><input type="number" id="hub-${i}-x" style="width:50px" value="${h.x}" onchange="S.hubs[${i}].x=+this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
-        <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
+        <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="snapshot(); S.hubs[${i}].type=this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">X</label><input type="number" id="hub-${i}-x" style="width:50px" value="${h.x}" onchange="snapshot(); S.hubs[${i}].x=+this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="snapshot(); S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
+        <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="snapshot(); S.hubs[${i}].color=this.value; draw(); updateOut()">
       </div>
       <div class="row">
         <label style="width:30px" title="Visual structure drawn behind the pad in-game. 'crane' is the classic yellow crane; house/depot/silo are background buildings; 'none' is a bare pad. (A hub with type 'chute' always renders as a vacuum chute.)">Style</label>
@@ -1267,6 +1317,7 @@ function updateHubUI() {
 
 const HUB_STYLES = ['crane','house','depot','silo','none'];
 function setHubStyle(i, v) {
+  snapshot();
   // 'crane' is the renderer default — omit it so exports stay minimal
   if (v === 'crane') delete S.hubs[i].style;
   else S.hubs[i].style = v;
@@ -2640,17 +2691,20 @@ function renderPtList() {
 
 function toggleHide(pi, e) {
   e.stopPropagation();
+  snapshot();
   const arr = activeList();
   arr[pi].hidden = !arr[pi].hidden;
   renderSidebar(); draw();
 }
 
 function renameActivePoly(val) {
+  snapshot();
   if (S.selPoly>=0) activeList()[S.selPoly].comment = val;
   renderSidebar(); updateOut();
 }
 
 function setHazardType(val) {
+  snapshot();
   if (S.selLayer !== 'hazard' || S.selPoly<0) return;
   const poly = activeList()[S.selPoly];
   poly.type = val;
@@ -2686,6 +2740,7 @@ function setHazardType(val) {
 }
 
 function setTerrainShadow(field, val) {
+  snapshot();
   const arr = activeList();
   if (!arr.length || S.selPoly < 0 || S.selLayer !== 'terrain') return;
   const poly = arr[S.selPoly];
@@ -2703,6 +2758,7 @@ function setTerrainShadow(field, val) {
 }
 
 function setHazardField(field, val) {
+  snapshot();
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
   if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
@@ -2711,6 +2767,7 @@ function setHazardField(field, val) {
 }
 
 function setWaterField(field, val) {
+  snapshot();
   const arr = activeList();
   if (S.selLayer!=='water' || S.selPoly<0 || S.selPoly>=arr.length) return;
   arr[S.selPoly][field] = val;
@@ -2718,6 +2775,7 @@ function setWaterField(field, val) {
 }
 
 function setPt(pi, pti, axis, val) {
+  snapshot();
   if (axis === 'invisibleEdge') {
     if (val) activeList()[pi].pts[pti][axis] = true;
     else delete activeList()[pi].pts[pti][axis];
@@ -2728,6 +2786,7 @@ function setPt(pi, pti, axis, val) {
 }
 
 function deletePt(pi, pti) {
+  snapshot();
   const arr = activeList();
   const minPts = (S.selLayer==='hazard' && (arr[pi].type==='laser' || arr[pi].type==='crusher')) ? 2 : (S.selLayer==='hazard' && arr[pi].type==='pickup' ? 1 : 3);
   if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
@@ -2737,6 +2796,7 @@ function deletePt(pi, pti) {
 }
 
 function addShape() {
+  snapshot();
   const cx=S.mouse.wx||500, cy=S.mouse.wy||400;
   const arr = activeList();
   let shape;
@@ -2755,6 +2815,7 @@ function addShape() {
 }
 
 function toggleCollectionPoint() {
+  snapshot();
   if (S.collectionX == null) {
     S.collectionX = snap(S.mouse.wx || 500);
   } else {
@@ -2764,12 +2825,14 @@ function toggleCollectionPoint() {
 }
 
 function addDeliveryHub() {
+  snapshot();
   const cx = snap(S.mouse.wx || 500);
   S.hubs.push({ x: cx, color: "#38bdf8", type: "normal", name: "New Hub" }); updateHubUI();
   draw(); updateOut();
 }
 
 function setMarkerCoord(which, axis, val) {
+  snapshot();
   if (which === 'hq') {
     if (axis === 'x') S.startX = +val;
     else S.startY = (val === '' || val == null) ? null : +val;
@@ -2781,6 +2844,7 @@ function setMarkerCoord(which, axis, val) {
 }
 
 function clearMarkerY(which) {
+  snapshot();
   if (which === 'hq') { S.startY = null; document.getElementById('hq-y').value = ''; }
   else { S.collectionY = null; document.getElementById('cargo-y').value = ''; }
   draw(); updateOut();
@@ -2806,6 +2870,7 @@ function deletePoly(confirmed = false) {
     document.getElementById('confirm-modal').style.display = 'flex';
     return;
   }
+  snapshot();
   arr.splice(S.selPoly,1);
   S.selPoly=Math.min(S.selPoly,arr.length-1); S.selPt=-1;
   renderSidebar(); draw(); updateOut();
@@ -2822,6 +2887,7 @@ function toggleMapSettings() {
 }
 
 function insertAtCursor() {
+  snapshot();
   const arr = activeList();
   if (S.selPoly<0) return;
   const poly = arr[S.selPoly];
@@ -3153,6 +3219,7 @@ canvas.addEventListener('mousedown', e => {
     isPan=true; panLast={sx,sy}; canvas.style.cursor='grabbing'; return;
   }
   if (S.mode==='add'&&e.button===0&&S.selPoly>=0) {
+    snapshot();
     const poly=activeList()[S.selPoly];
     if (S.selLayer==='hazard' && poly.type==='laser') return; // laser is a fixed 2-point line
     const idx=nearestEdge(poly.pts,wx,wy);
@@ -3164,10 +3231,11 @@ canvas.addEventListener('mousedown', e => {
   if ((S.mode==='select-pt' || S.mode==='select-poly')&&e.button===0) {
     // Marker drag takes priority over polygon points
     const mhit = hitMarker(sx, sy);
-    if (mhit) { S.dragMarker=mhit; return; }
+    if (mhit) { snapshot(); S.dragMarker=mhit; return; }
 
     const hit=hitPoint(sx,sy);
     if (hit) {
+      snapshot();
       const [layer,pi,pti]=hit;
       if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
       S.selPoly=pi; S.selPt=pti; S.dragging=true; S.dragLayer=layer; S.dragPi=pi; S.dragPti=pti;
@@ -3177,6 +3245,7 @@ canvas.addEventListener('mousedown', e => {
       for (const [layer,arr] of layers) {
         for (let pi=arr.length-1;pi>=0;pi--) {
           if (!arr[pi].hidden&&inPoly(wx,wy,arr[pi].pts)) {
+            snapshot();
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
             S.selPoly=pi; S.selPt=-1;
             // Start whole-polygon body drag
@@ -3295,6 +3364,12 @@ function zoomBy(f) {
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+    if (e.shiftKey) redo();
+    else undo();
+    e.preventDefault();
+    return;
+  }
   if (document.getElementById('confirm-modal').style.display === 'flex') {
     if (e.key === 'Escape') {
       closeConfirmModal();
@@ -3623,7 +3698,85 @@ function drawGamePreviewHub(x, y, w, color, style, name) {
   previewPadBase(x, y, w, color, color + '40', (name || 'HUB').toUpperCase(), '#f8fafc');
   ctx.restore();
 }
-</script>
+// ── Automated Tests (run if ?runTests=1) ────────────────────────────────────
+if (new URLSearchParams(window.location.search).get('runTests') === '1') {
+  window.addEventListener('load', () => {
+    console.log("Starting automated tests...");
+    let passed = 0;
+    let failed = 0;
+    
+    function assertEq(act, exp, msg) {
+      if (act !== exp) {
+        console.error(`FAIL: ${msg} | Expected ${exp}, got ${act}`);
+        failed++;
+      } else {
+        passed++;
+      }
+    }
 
+    try {
+      // 1. Initial State
+      _undoStack.length = 0;
+      _redoStack.length = 0;
+      S.polygons = [];
+      
+      // 2. Perform a mutation
+      S.mouse = { wx: 100, wy: 100 };
+      S.selLayer = 'terrain';
+      addShape(); // Creates a polygon
+      
+      assertEq(S.polygons.length, 1, "addShape() created a polygon");
+      assertEq(_undoStack.length, 1, "addShape() pushed to undo stack");
+      
+      // 3. Perform another mutation
+      S.mouse = { wx: 200, wy: 200 };
+      addShape(); // Creates a second polygon
+      
+      assertEq(S.polygons.length, 2, "addShape() created second polygon");
+      assertEq(_undoStack.length, 2, "undo stack has 2 states");
+      
+      // 4. Undo
+      undo();
+      assertEq(S.polygons.length, 1, "undo() reverted second polygon");
+      assertEq(_redoStack.length, 1, "undo() pushed to redo stack");
+      
+      // 5. Undo again
+      undo();
+      assertEq(S.polygons.length, 0, "undo() reverted first polygon");
+      assertEq(_redoStack.length, 2, "redo stack has 2 states");
+      
+      // 6. Redo
+      redo();
+      assertEq(S.polygons.length, 1, "redo() restored first polygon");
+      
+      // 7. Mutate after undo (should clear redo stack)
+      S.mouse = { wx: 300, wy: 300 };
+      addShape();
+      assertEq(S.polygons.length, 2, "addShape() after undo created new polygon");
+      assertEq(_redoStack.length, 0, "mutation cleared redo stack");
+      
+      if (failed === 0) {
+        console.log(`ALL TESTS PASSED (${passed}/${passed})`);
+        const res = document.createElement('div');
+        res.id = 'test-results';
+        res.textContent = 'PASSED';
+        document.body.appendChild(res);
+      } else {
+        console.error(`${failed} TESTS FAILED`);
+        const res = document.createElement('div');
+        res.id = 'test-results';
+        res.textContent = 'FAILED';
+        document.body.appendChild(res);
+      }
+    } catch(e) {
+      console.error("TEST ERROR:", e);
+      const res = document.createElement('div');
+      res.id = 'test-results';
+      res.textContent = 'ERROR: ' + e.message;
+      document.body.appendChild(res);
+    }
+  });
+}
+</script>
 </body>
 </html>
