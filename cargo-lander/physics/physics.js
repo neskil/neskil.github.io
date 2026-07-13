@@ -119,6 +119,13 @@ class CargoPhysics {
                 for (const pair of event.pairs) {
                     if (pair.bodyA !== this.landerBody && pair.bodyB !== this.landerBody) continue;
                     if (processed) continue;
+                    const other = pair.bodyA === this.landerBody ? pair.bodyB : pair.bodyA;
+                    if (other.label === 'terrain_spikes') {
+                        processed = true;
+                        this.applyDamage(this.lander, this.lander.maxIntegrity);
+                        this.triggerExplosion();
+                        continue;
+                    }
                     processed = true;
                     const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
                     const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
@@ -258,7 +265,7 @@ class CargoPhysics {
                         angle: angle,
                         friction: this.LANDER_FRICTION,
                         restitution: this.BOX_RESTITUTION,
-                        label: 'terrain',
+                        label: p1.edgeHazard === 'spikes' ? 'terrain_spikes' : 'terrain',
                         collisionFilter: { category: 0x0002, mask: 0x0001 | 0x0008 },
                     }
                 );

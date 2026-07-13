@@ -900,7 +900,12 @@ function applyConfig(cfg) {
     const isObj = ptsOrObj && !Array.isArray(ptsOrObj);
     const pts = isObj ? ptsOrObj.pts : ptsOrObj;
     return {
-      pts: pts.map(p => ({x:p.x, y:p.y})),
+      pts: pts.map(p => {
+        const q = {x:p.x, y:p.y};
+        if (p.invisibleEdge) q.invisibleEdge = true;
+        if (p.edgeHazard) q.edgeHazard = p.edgeHazard;
+        return q;
+      }),
       shadowEnabled: isObj ? ptsOrObj.shadowEnabled : undefined,
       shadowAngle: isObj ? ptsOrObj.shadowAngle : undefined,
       shadowLength: isObj ? ptsOrObj.shadowLength : undefined,
@@ -1165,7 +1170,7 @@ function guessComment(pts, i) {
 
 function regexParsePolys(src) {
   const polys = [];
-  const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)(?:,\s*invisibleEdge\s*:\s*(true|false))?\s*\}/g;
+  const re = /\{\s*x\s*:\s*([-\d.]+)\s*,\s*y\s*:\s*([-\d.]+)(?:,\s*invisibleEdge\s*:\s*(true|false))?(?:,\s*edgeHazard\s*:\s*['"](\w+)['"])?\s*\}/g;
   const blocks = src.split(/\n\s*\[/);
   blocks.slice(1).forEach((block, i) => {
     const pts = []; let m;
@@ -1173,6 +1178,7 @@ function regexParsePolys(src) {
     while ((m = re.exec(block)) !== null) {
       const pt = {x:+m[1], y:+m[2]};
       if (m[3] === 'true') pt.invisibleEdge = true;
+      if (m[4]) pt.edgeHazard = m[4];
       pts.push(pt);
     }
     if (pts.length >= 3) polys.push({pts, comment:`Polygon ${i+1}`, hidden:false});
@@ -2525,6 +2531,10 @@ function renderPtList() {
       `<span class="clabel">x</span><input class="cinput" type="number" value="${Math.round(pt.x)}" onchange="setPt(${pi},${i},'x',this.value)" onclick="event.stopPropagation()">` +
       `<span class="clabel">y</span><input class="cinput" type="number" value="${Math.round(pt.y)}" onchange="setPt(${pi},${i},'y',this.value)" onclick="event.stopPropagation()">` +
       (S.selLayer === 'terrain' ? `<label title="Make edge invisible (stops glowing edge rendering)" style="margin-left:4px; font-size:9px; color:#8b949e" onclick="event.stopPropagation()"><input type="checkbox" ${pt.invisibleEdge?'checked':''} onchange="setPt(${pi},${i},'invisibleEdge',this.checked)"> inv.</label>` : '') +
+      (S.selLayer === 'terrain' ? `<select title="Edge hazard between this point and the next" style="margin-left:4px; font-size:9px; background:#161b22; color:#c9d1d9; border:1px solid #30363d" onclick="event.stopPropagation()" onchange="setPt(${pi},${i},'edgeHazard',this.value)">` +
+        `<option value=""${!pt.edgeHazard?' selected':''}>edge: normal</option>` +
+        `<option value="spikes"${pt.edgeHazard==='spikes'?' selected':''}>edge: spikes</option>` +
+        `</select>` : '') +
       `<span class="xbtn" style="margin-left:auto" onclick="deletePt(${pi},${i})">×</span>`;
     row.onclick = e => {
       if (e.target.tagName==='INPUT'||e.target.classList.contains('xbtn')) return;
@@ -2647,6 +2657,9 @@ function setPt(pi, pti, axis, val) {
   const poly = activeList()[pi];
   if (axis === 'invisibleEdge') {
     if (val) poly.pts[pti][axis] = true;
+    else delete poly.pts[pti][axis];
+  } else if (axis === 'edgeHazard') {
+    if (val) poly.pts[pti][axis] = val;
     else delete poly.pts[pti][axis];
   } else {
     if (S.selLayer === 'hazard' && poly.type === 'sandworm') {
@@ -2992,7 +3005,9 @@ function buildOut() {
     }
     
     poly.pts.forEach((pt,i) => {
-      lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}}${i<poly.pts.length-1?',':''}`);
+      const extra = (pt.invisibleEdge ? ', invisibleEdge: true' : '') +
+        (pt.edgeHazard ? `, edgeHazard: ${JSON.stringify(pt.edgeHazard)}` : '');
+      lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}${extra}}${i<poly.pts.length-1?',':''}`);
     });
     
     if (hasShadowProps) {
