@@ -65,7 +65,7 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
-| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
+| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
 | `tests.html` | Browser test suite (89 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
@@ -117,7 +117,7 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
 - **Terrain / Water / Hazard tabs** — `+ Shape` adds a polygon to the active tab; clicking a shape on canvas auto-switches to its tab. Legacy rect/circle configs are auto-converted to polygons on load.
 - **Hazard types** — per-shape `type` dropdown (zone / laser / incinerator / crusher / pickup / …); the point-editing UI switches between polygon vertices and the laser's fixed 2-point line, with `onMs`/`offMs`/`warnMs` timing fields where applicable.
 - **Palette-based rendering** — sky gradient and terrain fills use each level's palette, matching in-game biome appearance.
-- **Overlays** — OOB surface/monster-depth lines, hub pads as labeled width-bars + guide lines, gravity-well pull/orbit rings, HQ + cargo-depot spawn markers.
+- **Overlays** — OOB fluid surface line, world-boundary bands (per-edge tinted band + dashed line labeled with its action; faint tint only in preview mode), hub pads as labeled width-bars + guide lines, gravity-well pull/orbit rings, HQ + cargo-depot spawn markers.
 - **Collectibles** — Entities panel has one `+ <Type>` button per entry in `COLLECTIBLE_TYPES` (`levels/collectibleTypes.js`); markers are draggable free-floating tokens (no terrain snapping) with a sidebar list for x/y/amount and delete.
 - **Shape list sidebar** — select, hide/show, rename, per-point x/y inputs.
 - **Snap controls** — 1 / 10 / 50 / 100 world-unit snapping; Shift = ×5.
@@ -390,7 +390,7 @@ the file. The class files are small; the bulk is in the mixins.
 
 ## Physics Notes
 - Thruster: **slow spool-up, instant cut-off** (`enginePower = 0` immediately on key release). Side thrusters: `lander.strafePower` (-1..1), same instant cut.
-- Out-of-bounds (monster trigger): left/right beyond ±500, and upward beyond y < −600.
+- World boundaries: per-edge thresholds + actions in `worldBounds` (`ceilingY`/`lateralMargin`/`bottomY` with `pushback`/`destroy`/`lose_cargo`/`monster`/`police`). `bottomY` with `monster` (the default) is the classic sink-too-deep worm strike — it absorbed the old `outOfBounds.monsterDepth`. Separately, lingering ~4s past the warning-vignette margins (±1000 lateral, y < −500, or below terrain) also summons the monster; hard-action edges tighten those margins to the configured edge.
 - Moving gravity well: `gravityWellTime` phase + `orbitRadius` from config, exposed as `gravityWellPos`.
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt.
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when the lander escapes).
