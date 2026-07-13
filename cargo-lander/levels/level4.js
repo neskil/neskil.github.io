@@ -3,13 +3,14 @@
 // The defining hazard is a moving gravity well that orbits its base position —
 // physics.js reads gravityWell.orbitRadius and applies a Lissajous phase offset each tick.
 // Two cargo types (normal → Sector 4, red → Deep Storage) force the player to read labels
-// while also fighting the vortex pull. A vent field near the eastern ridge periodically
-// flares molten gas above an exposed lava pit.
+// while also fighting the vortex pull. Two vent fields — one over the western approach,
+// one over the eastern lava pit — periodically flare molten gas. Open sky above (no ceiling)
+// so the vortex and vents are the only things keeping the player honest.
 
 registerLevel({
     name: "L4: Gravity Anomaly",
     missionTitle: "Anomaly Zone — Dual Cargo Sort",
-    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Standard packages go to Sector 4 on the western dip; red-tagged goods belong in Deep Storage on the eastern ridge, past a vent field that periodically flares molten gas over an exposed lava pit. Don't let the vortex pull you off course, and don't let the flare catch you over the lava.",
+    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Standard packages go to Sector 4 on the western dip, past a vent field that guards the HQ approach; red-tagged goods belong in Deep Storage on the eastern ridge, past a second vent field flaring molten gas over an exposed lava pit. Don't let the vortex pull you off course, and don't let either flare catch you.",
     weather: 'ash',
 
     // ── Physics ───────────────────────────────────────────────────────────────
@@ -21,16 +22,6 @@ registerLevel({
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
-        // Ceiling — jagged stalactite drips instead of a flat slab; ample
-        // clearance above the ground (min gap ~350px) so it's pure silhouette
-        [
-            {x: -400, y: -200}, {x: 1800, y: -200},
-            {x: 1800, y: 0}, {x: 1500, y: 0}, {x: 1400, y: 130}, {x: 1300, y: 0},
-            {x: 1100, y: 0}, {x: 1000, y: 150}, {x: 900, y: 0},
-            {x: 700, y: 0}, {x: 600, y: 120}, {x: 500, y: 0},
-            {x: 300, y: 0}, {x: 200, y: 140}, {x: 100, y: 0},
-            {x: -400, y: 0}
-        ],
         // Ground — valley floor shaped around the gravity well, with a lava-pit
         // notch under the vent field and an undulating ridge pad on the east side
         [
@@ -104,17 +95,20 @@ registerLevel({
     },
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    // Lava vent field on the eastern ridge — pulses on a charge/flare duty cycle;
-    // cargo caught inside while it's active is destroyed outright (see
-    // physics/atmosphere.js's 'incinerator' hazard branch). Sits directly above
-    // the exposed lava pit notch in the terrain.
+    // Gravity well drifts in slow orbit over the western dip, dragging the
+    // lander off course near Sector 4. Two lava vent fields pulse on a
+    // charge/flare duty cycle — one over the exposed pit notch en route to
+    // Deep Storage, one guarding the approach out of HQ — and cargo caught
+    // inside while active is destroyed outright (see physics/atmosphere.js's
+    // 'incinerator' hazard branch).
     hazards: [
         { type: 'gravwell', pts: [{x: 500, y: 200}, {x: 700, y: 400}, {x: 500, y: 600}, {x: 300, y: 400}], startForce: 0.35, endForce: 0.35, radius: 200, speed: 200 },
         { type: 'incinerator', pts: [{ x: 950, y: 550 }, { x: 1150, y: 550 }, { x: 1150, y: 650 }, { x: 950, y: 650 }], onMs: 1500, offMs: 2200, warnMs: 600, damagePerSec: 30 },
+        { type: 'incinerator', pts: [{ x: 150, y: 300 }, { x: 350, y: 300 }, { x: 350, y: 480 }, { x: 150, y: 480 }], onMs: 1200, offMs: 1900, warnMs: 500, damagePerSec: 30 },
     ],
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Check the cargo type before flying — normal label = Sector 4 (west dip), red label = Deep Storage (east ridge). The vortex drifts, so don't hover near the centre. Watch the eastern vent field flare before crossing its lava pit. Return to HQ once all crates are sorted.",
+    hint: "Check the cargo type before flying — normal label = Sector 4 (west dip), red label = Deep Storage (east ridge). The vortex drifts, so don't hover near the centre. Watch both vent fields flare — one guards the HQ approach, one guards the eastern lava pit. Return to HQ once all crates are sorted.",
 
     quests: [
         questPrimary('Sort & deliver 4 cargo'),

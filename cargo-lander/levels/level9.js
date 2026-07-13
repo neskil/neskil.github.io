@@ -20,7 +20,8 @@ registerLevel({
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.18,           // Slightly heavier gravity
-    wind: -2.5,              // Strong crosswind blowing left
+    wind: -0.06,              // Crosswind blowing left; scales up hard during gusts (see windGust)
+    windGust: { calm: 4, warn: 1.5, gust: 8, gustMult: 4.5 }, // storm surges — short lulls, long violent gusts
     weather: 'snow',
     weatherParticles: 200,   // Heavy weather
     heavyCargo: true,

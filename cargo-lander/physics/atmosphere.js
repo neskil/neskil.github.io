@@ -941,12 +941,34 @@ const CargoPhysicsAtmosphereMixin = {
         // Dynamic wind (force proportional to lander area, simplified)
         if (this.wind !== 0) {
             const now = Date.now();
-            // Complex wave for unpredictable gusts, varying between roughly 0.4x and 1.6x of base wind
-            const dynamicWind = this.wind * (1.0 + Math.sin(now * 0.002) * 0.4 + Math.sin(now * 0.005) * 0.2);
+            let windMult = 1.0;
+            this.windWarning = false;
+            if (this.windGust) {
+                const g = this.windGust;
+                const calm = g.calm ?? 6;
+                const warn = g.warn ?? 2;
+                const gust = g.gust ?? 6;
+                const cycle = calm + warn + gust;
+                const t = ((now - this.windGustStart) / 1000) % cycle;
+                if (t < calm) {
+                    windMult = 0.35; // light lull between gusts
+                } else if (t < calm + warn) {
+                    windMult = 0.35;
+                    this.windWarning = true; // meter flashes; gust incoming
+                } else {
+                    // Ramp in/out of the gust smoothly rather than snapping.
+                    const gt = t - calm - warn;
+                    const ramp = Math.min(1, Math.min(gt, gust - gt) / 1.0 + 0.15);
+                    windMult = 0.35 + (g.gustMult ?? 3) * ramp;
+                }
+            }
+            // Complex wave for unpredictable texture, varying roughly ±40%/±20% around the target
+            const dynamicWind = this.wind * windMult * (1.0 + Math.sin(now * 0.002) * 0.4 + Math.sin(now * 0.005) * 0.2);
             lander.vx += dynamicWind * 0.02 * dt;
             this.currentWind = dynamicWind;
         } else {
             this.currentWind = 0;
+            this.windWarning = false;
         }
 
         // Minor random drifting for drone

@@ -54,6 +54,12 @@ class CargoPhysics {
         this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.035;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         this.currentWind = this.wind;
+        // Gust cycle: alternates calm → warning (meter flash, no extra force yet) →
+        // gust (wind scaled up by gustMult) → repeat. Omit `windGust` for a level
+        // with constant/no wind (falls back to the old gentle sinusoidal variance).
+        this.windGust = levelConfig.windGust || null;
+        this.windGustStart = Date.now();
+        this.windWarning = false;
         
         this.boxes = [];
         this.particles = [];

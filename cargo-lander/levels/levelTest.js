@@ -11,6 +11,7 @@ registerLevel({
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.15,
     wind: 0.04,
+    windGust: { calm: 5, warn: 2, gust: 4, gustMult: 3 },
 
     hazards: [
         { type: 'gravwell', pts: [{x: 800, y: 320}, {x: 880, y: 400}, {x: 800, y: 480}, {x: 720, y: 400}], startForce: 0.5, endForce: 0.5, radius: 160, speed: 80 }
