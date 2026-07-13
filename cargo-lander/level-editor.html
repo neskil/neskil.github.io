@@ -25,6 +25,7 @@
   </script>
 
 <div id="sidebar">
+  <div id="sidebar-resize-handle"></div>
   <div class="sec" style="border-bottom: 1px solid #30363d; background: transparent; display: flex; justify-content: flex-end; align-items: center; padding: 8px 10px;">
     <div style="display: flex; gap: 6px;">
       <button class="btn" onclick="undo()" title="Undo (Ctrl+Z)" style="padding: 4px 10px; font-size: 11px;">↶ Undo</button>
@@ -367,7 +368,7 @@
     </details>
 
     <details>
-      <summary>Out of Bounds</summary>
+      <summary>Fluid Zone (Out of Bounds)</summary>
       <div class="props-panel">
         <div class="row"><label style="width: 120px; font-size: 13px; color: #c9d1d9;">Enabled</label><input type="checkbox" id="oob-enable" onchange="toggleOOB()"></div>
         <div id="oob-preset-row" style="display:none; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #30363d;">

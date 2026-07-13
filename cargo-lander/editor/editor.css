@@ -1,7 +1,23 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;display:flex;height:100vh;overflow:hidden;font-size:12px}
 
-#sidebar{width:370px;min-width:370px;max-width:800px;background:rgba(22, 27, 34, 0.97);border-right:1px solid #30363d;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+#sidebar{position:relative;width:370px;min-width:150px;max-width:800px;background:rgba(22, 27, 34, 0.97);display:flex;flex-direction:column;overflow:hidden;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+
+#sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background: #30363d;
+  z-index: 10;
+  transition: background 0.15s;
+}
+#sidebar-resize-handle:hover, #sidebar-resize-handle.active {
+  background: #58a6ff;
+  width: 6px;
+}
 
 #sidebar-scrollable {
   flex:1;
