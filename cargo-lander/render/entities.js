@@ -221,11 +221,31 @@ drawHazards(bgMode = false) {
                 // invisible to the player (only the radar ping zone hints at it).
                 continue;
             } else if (haz.type === 'repulsor') {
+                // Duty-cycled gust (gustMs/calmMs set): dim + still while calm,
+                // fast-flashing outline while charging, full streaks while
+                // blowing. Undefined zoneState (no duty cycle set) reads as
+                // always-blowing, matching the original always-on wind tunnel.
+                const isGusty = !!(haz.gustMs || haz.calmMs);
+                const state = haz.zoneState || {};
+                const blowing = !isGusty || state.active;
+
                 ctx.beginPath();
                 pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
                 ctx.closePath();
                 ctx.fillStyle = haz.color || 'rgba(14, 165, 233, 0.1)';
                 ctx.fill();
+
+                if (isGusty && state.charging) {
+                    const flash = Math.sin(now / 40) > 0;
+                    ctx.strokeStyle = flash ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                if (!blowing) continue;
+
                 const c = this.physics.polygonCentroid(pts);
                 const fx = haz.travelX || 0;
                 const fy = haz.travelY || -15;
