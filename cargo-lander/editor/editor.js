@@ -358,7 +358,7 @@ function buildMetaPanel() {
   const sections = {
     info: ['name', 'missionTitle', 'description', 'hint'],
     objectives: ['targetCargo', 'allowedTypes', 'heavyCargo'],
-    weather: ['weather', 'heatHaze', 'gravity', 'wind'],
+    weather: ['weather', 'heatHaze', 'gravity', 'wind', 'windVarianceEnabled', 'windVarianceAmount', 'windVarianceSpeed'],
     looksTop: ['backgroundType', 'night'],
     looksBottom: ['shadowAngle', 'shadowLength'],
     rules: ['deposit', 'timeLimit', 'padScale', 'terrainType'],
@@ -468,8 +468,8 @@ let S = {
   gravWell: null, // {x,y,radius,orbitRadius,strength}
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   windGust: null, // {calm,warn,gust,gustMult} — optional calm/warning/gust wind cycle
-  oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
-  worldBounds: null,
+  oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy} — the fluid zone
+  worldBounds: null, // {ceilingY,ceilingAction,lateralMargin,lateralAction,bottomY,bottomAction}
   palette: Object.assign({}, DEFAULT_PAL),
   startX: 0,
   startY: null,
@@ -655,7 +655,11 @@ function toggleWorldBounds() {
   document.getElementById('world-bounds-fields').style.display = en ? 'flex' : 'none';
   if (en && !S.worldBounds) {
     S.worldBounds = {};
-    LEVEL_SCHEMA.worldBounds.fields.forEach(f => S.worldBounds[f.key] = f.default);
+    LEVEL_SCHEMA.worldBounds.fields.forEach(f => {
+      S.worldBounds[f.key] = f.default;
+      const el = document.getElementById('wb-' + f.key);
+      if (el) el.value = f.default ?? '';
+    });
   } else if (!en) { S.worldBounds = null; }
   syncAllSliders();
   draw(); updateOut();
@@ -977,6 +981,18 @@ function applyConfig(cfg) {
   S.oobIsBoolean = cfg.outOfBounds === true;
   S.oob       = cfg.outOfBounds === true ? {} : (cfg.outOfBounds || null);
   S.worldBounds = cfg.worldBounds || null;
+  // Legacy migration: `outOfBounds.monsterDepth` moved to
+  // `worldBounds.bottomY` + bottomAction:'monster' (all in-repo levels are
+  // updated; this catches old pasted/saved configs so they re-export in the
+  // new shape).
+  if (S.oob && S.oob.monsterDepth != null) {
+    if (!S.worldBounds) S.worldBounds = {};
+    if (S.worldBounds.bottomY == null) {
+      S.worldBounds.bottomY = S.oob.monsterDepth;
+      S.worldBounds.bottomAction = 'monster';
+    }
+    delete S.oob.monsterDepth;
+  }
   S.palette   = Object.assign({}, DEFAULT_PAL, cfg.palette || {});
   // Defaults must mirror physics.js so the editor shows/edits the pad the
   // game actually uses, even when a level file omits these fields.
@@ -1051,7 +1067,6 @@ function applyConfig(cfg) {
     document.getElementById('oob-color').value = S.oob.color || '#3b82f6';
     document.getElementById('oob-mistColor').value = S.oob.mistColor || '#1e3a8a';
     document.getElementById('oob-surfaceY').value = S.oob.surfaceY ?? '';
-    document.getElementById('oob-monsterDepth').value = S.oob.monsterDepth ?? '';
     document.getElementById('oob-drag').value = S.oob.drag ?? '';
     document.getElementById('oob-buoyancy').value = S.oob.buoyancy ?? '';
   } else {
@@ -1063,6 +1078,10 @@ function applyConfig(cfg) {
   if (S.worldBounds) {
     document.getElementById('wb-enable').checked = true;
     document.getElementById('world-bounds-fields').style.display = 'flex';
+    LEVEL_SCHEMA.worldBounds.fields.forEach(f => {
+      const el = document.getElementById('wb-' + f.key);
+      if (el) el.value = S.worldBounds[f.key] ?? (f.widget === 'select' ? f.default : '');
+    });
   } else {
     document.getElementById('wb-enable').checked = false;
     document.getElementById('world-bounds-fields').style.display = 'none';
@@ -1251,7 +1270,7 @@ function renderLevelCard(cfg) {
   card.innerHTML = `<div class="lname">${cfg.name||''}</div><div class="lmeta">` +
     (oob.type ? `<span class="badge" style="background:${oc}22;color:${oc}">${oob.type}</span>` : '') +
     `grav=${cfg.gravity??'—'} wind=${cfg.wind??0} deposit=$${cfg.deposit??'—'}<br>` +
-    `OOB surface y=${oob.surfaceY??'—'} · monster y=${oob.monsterDepth??'—'}` +
+    `OOB surface y=${oob.surfaceY??'—'} · bottom y=${cfg.worldBounds?.bottomY??'—'}` +
     `</div>`;
 }
 
@@ -1727,6 +1746,7 @@ function draw() {
   const W=canvas.width, H=canvas.height;
   drawSky(W,H);
   if (!S.previewMode) drawOOB(W,H);
+  drawWorldBounds(W,H); // draws full annotations in normal mode, a faint approximate tint in preview
   if (!S.previewMode) drawTrafficBand(W,H);
   drawWaterBodies();
   if (!S.previewMode) drawGrid(W,H);
@@ -1754,7 +1774,7 @@ function drawSky(W,H) {
 
 function drawOOB(W,H) {
   if (!S.oob) return;
-  const { surfaceY, monsterDepth, color, mistColor, type } = S.oob;
+  const { surfaceY, color, mistColor, type } = S.oob;
   if (surfaceY == null) return;
 
   const { sy: surfSY } = w2s(0, surfaceY);
@@ -1793,24 +1813,78 @@ function drawOOB(W,H) {
     ctx.restore();
   }
 
-  // Monster depth line
-  if (monsterDepth != null) {
-    const { sy: monSY } = w2s(0, monsterDepth);
-    if (monSY > -20 && monSY < H + 20) {
-      ctx.save();
-      ctx.strokeStyle = '#f85149';
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.5;
-      ctx.setLineDash([3,6]);
-      ctx.beginPath(); ctx.moveTo(0,monSY); ctx.lineTo(W,monSY); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#f85149';
-      ctx.font = '10px monospace';
-      ctx.fillText(`monster depth  y=${monsterDepth}`, 8, monSY - 4);
-      ctx.restore();
+}
+
+// World-boundary bands — one tinted band + dashed edge line per configured
+// edge (ceiling / left / right / bottom), labeled with its action. In preview
+// mode the labels and dashes are dropped and only a faint tint remains, an
+// approximation of how "out there" reads in-game.
+function drawWorldBounds(W,H) {
+  if (!S.worldBounds) return;
+  const wb = S.worldBounds;
+  const actionColors = { pushback:'#58a6ff', destroy:'#f85149', police:'#f85149', lose_cargo:'#d29922', monster:'#f85149' };
+  const preview = S.previewMode;
+  const bandAlpha = preview ? 0.10 : 0.16;
+
+  // Mirrors physics.js's levelWidth derivation: explicit levelWidth (not an
+  // editor field today) or the rightmost terrain vertex, min 1600.
+  let levelW = 1600;
+  S.polygons.forEach(p => p.pts.forEach(pt => { if (pt.x > levelW) levelW = pt.x; }));
+
+  const edgeBand = (fill, x, y, w, h) => {
+    ctx.fillStyle = fill;
+    ctx.globalAlpha = bandAlpha;
+    ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  };
+  const edgeLine = (col, x1, y1, x2, y2, label, lx, ly) => {
+    if (preview) return;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8,4]);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = col;
+    ctx.font = '10px monospace';
+    ctx.fillText(label, lx, ly);
+  };
+
+  ctx.save();
+
+  if (wb.ceilingY != null && wb.ceilingY !== '') {
+    const act = wb.ceilingAction || 'pushback';
+    const col = actionColors[act] || '#58a6ff';
+    const { sy } = w2s(0, +wb.ceilingY);
+    if (sy > 0) edgeBand(col, 0, 0, W, Math.min(sy, H));
+    if (sy > -20 && sy < H + 20) edgeLine(col, 0, sy, W, sy, `ceiling  y=${wb.ceilingY} · ${act}`, 8, sy - 5);
+  }
+
+  if (wb.bottomY != null && wb.bottomY !== '') {
+    const act = wb.bottomAction || 'monster';
+    const col = actionColors[act] || '#f85149';
+    const { sy } = w2s(0, +wb.bottomY);
+    if (sy < H) edgeBand(col, 0, Math.max(0, sy), W, H - Math.max(0, sy));
+    if (sy > -20 && sy < H + 20) edgeLine(col, 0, sy, W, sy, `bottom  y=${wb.bottomY} · ${act}`, 8, sy - 5);
+  }
+
+  if (wb.lateralMargin != null && wb.lateralMargin !== '') {
+    const act = wb.lateralAction || 'pushback';
+    const col = actionColors[act] || '#58a6ff';
+    const { sx: leftSX } = w2s(-wb.lateralMargin, 0);
+    const { sx: rightSX } = w2s(levelW + +wb.lateralMargin, 0);
+    if (leftSX > 0) edgeBand(col, 0, 0, Math.min(leftSX, W), H);
+    if (rightSX < W) edgeBand(col, Math.max(0, rightSX), 0, W - Math.max(0, rightSX), H);
+    if (leftSX > -20 && leftSX < W + 20) {
+      edgeLine(col, leftSX, 0, leftSX, H, '', 0, 0);
+      if (!preview) { ctx.save(); ctx.translate(leftSX - 5, 14); ctx.rotate(Math.PI/2); ctx.fillText(`left bound  x=${-wb.lateralMargin} · ${act}`, 0, 0); ctx.restore(); }
+    }
+    if (rightSX > -20 && rightSX < W + 20) {
+      edgeLine(col, rightSX, 0, rightSX, H, '', 0, 0);
+      if (!preview) { ctx.save(); ctx.translate(rightSX + 12, 14); ctx.rotate(Math.PI/2); ctx.fillText(`right bound  x=${levelW + +wb.lateralMargin} · ${act}`, 0, 0); ctx.restore(); }
     }
   }
+
+  ctx.restore();
 }
 
 function drawTrafficBand(W,H) {
@@ -2422,8 +2496,9 @@ function fitView() {
     minX=Math.min(minX,pt.x); maxX=Math.max(maxX,pt.x);
     minY=Math.min(minY,pt.y); maxY=Math.max(maxY,pt.y);
   }));
-  // Include OOB surface in vertical range so it's visible
+  // Include OOB surface / bottom boundary in vertical range so they're visible
   if (S.oob?.surfaceY != null) maxY = Math.max(maxY, S.oob.surfaceY + 100);
+  if (S.worldBounds?.bottomY != null) maxY = Math.max(maxY, S.worldBounds.bottomY + 100);
   const pad=80;
   const sw=canvas.width-pad*2, sh=canvas.height-pad*2;
   const scale = Math.min(sw/(maxX-minX||100), sh/(maxY-minY||100), 2);
@@ -2880,7 +2955,7 @@ function buildOut() {
     if (f.key === 'padScale') { if (S.padScale !== 1) lines.push(`  padScale: ${S.padScale},`); return; }
     const v = S.cfg[f.key];
     let emit;
-    if (f.type === 'boolean') emit = !!v;
+    if (f.type === 'boolean') emit = !!v !== !!f.default; // emit only the non-default state, whichever way that goes
     else if (f.type === 'stringList') emit = Array.isArray(v) && v.length > 0;
     else if (f.required) emit = true;
     // Compare against the schema default rather than truthiness — fields

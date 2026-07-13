@@ -12,6 +12,8 @@ registerLevel({
     gravity: 0.15,
     wind: 0.04,
     windGust: { calm: 5, warn: 2, gust: 4, gustMult: 3 },
+    windVarianceAmount: 0.4,  // wider wander than the 0.25 default, for testing
+    windVarianceSpeed: 1.6,   // and faster-cycling too
 
     hazards: [
         { type: 'gravwell', pts: [{x: 800, y: 320}, {x: 880, y: 400}, {x: 800, y: 480}, {x: 720, y: 400}], startForce: 0.5, endForce: 0.5, radius: 160, speed: 80 }

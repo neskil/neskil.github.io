@@ -79,7 +79,10 @@ registerLevel({
         surfaceY: 780,     // matches the valley floor height
         drag: 0.92,
         buoyancy: -0.18,
-        monsterDepth: 1050
+    },
+    worldBounds: {
+        bottomY: 1050,
+        bottomAction: 'monster'
     },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────

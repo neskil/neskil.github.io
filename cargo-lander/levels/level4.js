@@ -84,7 +84,10 @@ registerLevel({
         surfaceY: 1200,     // Molten plasma pool below terrain
         drag: 0.96,         // Thick plasma — slows descent but the monster still comes
         buoyancy: -0.1,
-        monsterDepth: 1600
+    },
+    worldBounds: {
+        bottomY: 1600,
+        bottomAction: 'monster'
     },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────

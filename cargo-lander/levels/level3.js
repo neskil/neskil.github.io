@@ -49,9 +49,12 @@ registerLevel({
     color: "rgba(168, 85, 247, 0.7)", // Purple acid
     mistColor: "rgba(168, 85, 247, 0.4)", // Purple mist
     surfaceY: 800,
-    monsterDepth: 1200,
     drag: 5,
     buoyancy: 0.01,
+  },
+  worldBounds: {
+    bottomY: 1200,
+    bottomAction: 'monster'
   },
   deliveryHubs: [
     { x: 1070, color: "#38bdf8", type: "normal", name: "Peak Station" }
