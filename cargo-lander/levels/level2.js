@@ -46,7 +46,9 @@ registerLevel({
   },
   worldBounds: {
     bottomY: 1900,
-    bottomAction: 'monster'
+    bottomAction: 'monster',
+    leftMargin: 3000,
+    rightMargin: 3000
   },
   deliveryHubs: [
     { x: -230, color: "#38bdf8", type: "normal", name: "Main Processing", y: 1460 },
