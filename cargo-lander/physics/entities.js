@@ -77,6 +77,7 @@ const CargoPhysicsEntitiesMixin = {
             strafePower: 0,
             magneticDeckActive: upgrades.magneticDeck > 0,
             magneticStrength: upgrades.magneticDeck > 0 ? (upgrades.magneticDeck * 0.2) : 0,
+            magneticRange: upgrades.magneticDeck > 0 ? (120 + upgrades.magneticDeck * 20) : 120,
             thrusting: false,
             rotatingLeft: false,
             rotatingRight: false,
@@ -816,8 +817,9 @@ const CargoPhysicsEntitiesMixin = {
                 const dx = deckX - body.position.x;
                 const dy = deckY - body.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0 && dist < 120) {
-                    const fMag = (1 - dist / 120) * lander.magneticStrength * FS * dt;
+                const range = lander.magneticRange || 120;
+                if (dist > 0 && dist < range) {
+                    const fMag = (1 - dist / range) * lander.magneticStrength * FS * dt;
                     Matter.Body.applyForce(body, body.position, { x: (dx / dist) * fMag * body.mass, y: (dy / dist) * fMag * body.mass });
                 }
             }
