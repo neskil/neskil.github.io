@@ -315,9 +315,17 @@ function schemaFieldRowHTML(setterName, idPrefix, field) {
       : onchange;
     const numberInput = `<input type="${inputType}" id="${id}"${stepAttr} onchange="${numberOnchange}">`;
     if (hasSlider) {
+      let sliderMin = field.sliderMin;
+      let sliderMax = field.sliderMax;
+      if (field.key === 'ambientTrafficMinY' || field.key === 'ambientTrafficMaxY') {
+        const defaults = getTrafficDefaults();
+        const span = Math.max(1000, defaults.defMax - defaults.defMin);
+        sliderMin = Math.round(defaults.defMin - span);
+        sliderMax = Math.round(defaults.defMax + span);
+      }
       const sliderStep = field.sliderStep ?? field.step ?? 1;
       const sliderOninput = `document.getElementById('${id}').value=this.value; ${setterName}('${field.key}', +this.value)`;
-      input = `<div class="slider-combo">${numberInput}<input type="range" class="field-slider" id="${id}-r" min="${field.sliderMin}" max="${field.sliderMax}" step="${sliderStep}" oninput="${sliderOninput}"></div>`;
+      input = `<div class="slider-combo">${numberInput}<input type="range" class="field-slider" id="${id}-r" min="${sliderMin}" max="${sliderMax}" step="${sliderStep}" oninput="${sliderOninput}"></div>`;
     } else {
       input = numberInput;
     }
@@ -959,6 +967,7 @@ function applyConfig(cfg) {
 
   renderLevelCard(cfg);
   fitView();
+  buildMetaPanel(); // Rebuild panel so the sliders get dynamic limits based on terrain
   renderSidebar();
   updateEntityPanel();
 
@@ -969,7 +978,14 @@ function applyConfig(cfg) {
     if (f.key === 'padScale') { el.value = S.padScale; return; } // routed to S.padScale, not S.cfg
     const v = S.cfg[f.key];
     if (f.widget === 'checkbox') el.checked = !!v;
-    else el.value = Array.isArray(v) ? v.join(', ') : (v ?? '');
+    else {
+      el.value = Array.isArray(v) ? v.join(', ') : (v ?? '');
+      // Update slider if it exists
+      const slider = document.getElementById('cfg-' + f.key + '-r');
+      if (slider) {
+        slider.value = v ?? '';
+      }
+    }
   });
 
   document.getElementById('quest-primary').value = S.quests.primary;
@@ -1179,10 +1195,394 @@ function renderLevelCard(cfg) {
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
+// ── Draw ──────────────────────────────────────────────────────────────────────
+let previewTraffic = [];
+let previewTrafficSpawnTimer = 0;
+let previewAnimId = null;
+let previewLastTime = 0;
+
+function getTrafficDefaults() {
+  let minPolyY = null;
+  let maxPolyY = null;
+  if (S.polygons && S.polygons.length > 0) {
+    S.polygons.forEach(poly => {
+      if (poly.hidden) return;
+      poly.pts.forEach(pt => {
+        if (minPolyY === null || pt.y < minPolyY) minPolyY = pt.y;
+        if (maxPolyY === null || pt.y > maxPolyY) maxPolyY = pt.y;
+      });
+    });
+  }
+  if (minPolyY === null || maxPolyY === null) {
+    minPolyY = 0;
+    maxPolyY = 1000;
+  }
+  const len = maxPolyY - minPolyY;
+  const defMin = minPolyY - 0.75 * len;
+  const defMax = minPolyY;
+  return { defMin, defMax };
+}
+
+function updatePreviewTraffic(dt) {
+  const trafficRate = S.cfg.ambientTrafficRate ?? 1;
+  if (trafficRate <= 0) {
+    previewTraffic = [];
+    return;
+  }
+
+  // Update existing traffic
+  for (let i = previewTraffic.length - 1; i >= 0; i--) {
+    const t = previewTraffic[i];
+    t.x += t.vx * dt;
+    t.lightPhase += dt * 4;
+
+    // Boundary check
+    let minX = -1000;
+    let maxX = 3000;
+    if (S.polygons && S.polygons.length > 0) {
+      S.polygons.forEach(poly => {
+        poly.pts.forEach(pt => {
+          if (pt.x - 500 < minX) minX = pt.x - 500;
+          if (pt.x + 500 > maxX) maxX = pt.x + 500;
+        });
+      });
+    }
+
+    if (t.vx > 0 && t.x > maxX) {
+      previewTraffic.splice(i, 1);
+    } else if (t.vx < 0 && t.x < minX) {
+      previewTraffic.splice(i, 1);
+    }
+  }
+
+  // Spawn new traffic
+  const maxTraffic = Math.max(1, Math.round(5 * trafficRate));
+  const spawnInterval = Math.max(1.0, 7.0 / trafficRate);
+
+  previewTrafficSpawnTimer += dt;
+  if (previewTrafficSpawnTimer > spawnInterval && previewTraffic.length < maxTraffic) {
+    previewTrafficSpawnTimer = 0;
+    spawnPreviewTruck();
+  }
+}
+
+function spawnPreviewTruck() {
+  let minX = -1000;
+  let maxX = 3000;
+  if (S.polygons && S.polygons.length > 0) {
+    S.polygons.forEach(poly => {
+      poly.pts.forEach(pt => {
+        if (pt.x - 500 < minX) minX = pt.x - 500;
+        if (pt.x + 500 > maxX) maxX = pt.x + 500;
+      });
+    });
+  }
+
+  let tMin = S.cfg.ambientTrafficMinY;
+  let tMax = S.cfg.ambientTrafficMaxY;
+  if (tMin === '' || tMin === undefined) tMin = null;
+  if (tMax === '' || tMax === undefined) tMax = null;
+
+  const defaults = getTrafficDefaults();
+  const topY = tMin !== null ? Number(tMin) : defaults.defMin;
+  const botY = tMax !== null ? Number(tMax) : defaults.defMax;
+
+  const y = topY + Math.random() * (botY - topY);
+  const goRight = Math.random() < 0.5;
+  const x = goRight ? minX : maxX;
+
+  const speedMult = S.cfg.ambientTrafficSpeed ?? 1;
+  const speed = (1.5 + Math.random() * 1.5) * 60 * speedMult;
+  const vx = goRight ? speed : -speed;
+
+  const rModel = Math.random();
+  const model = rModel < 0.5 ? 'pickup' : (rModel < 0.90 ? 'freighter' : 'police');
+
+  const pickupColors = ['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6', '#6366f1', '#3b82f6', '#0ea5e9'];
+  const freighterColors = ['#f59e0b', '#10b981', '#14b8a6', '#06b6d4', '#64748b'];
+  const bodyColor = model === 'pickup'
+    ? pickupColors[Math.floor(Math.random() * pickupColors.length)]
+    : (model === 'freighter' ? freighterColors[Math.floor(Math.random() * freighterColors.length)] : '#1e3a8a');
+
+  const accentColor = model === 'police' ? '#ef4444' : '#38bdf8';
+
+  previewTraffic.push({
+    x,
+    y,
+    vx,
+    vy: 0,
+    w: model === 'freighter' ? 52 : 32,
+    h: model === 'freighter' ? 18 : 12,
+    model,
+    bodyColor,
+    accentColor,
+    hasCargoBox: Math.random() < 0.6,
+    lightPhase: Math.random() * Math.PI * 2
+  });
+}
+
+function shadeColor(hex, amount) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, Math.max(0, (n >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((n >> 8) & 0xff) + amount));
+  const b = Math.min(255, Math.max(0, (n & 0xff) + amount));
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function drawPreviewPickup(t) {
+  const tw = t.w, th = t.h;
+  const w = tw * 1.1;
+  const h = th * 0.9;
+
+  ctx.fillStyle = t.bodyColor;
+  ctx.strokeStyle = shadeColor(t.bodyColor, -40);
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.4, -h * 0.2);
+  ctx.lineTo(w * 0.1, -h * 0.3);
+  ctx.lineTo(w * 0.4, 0);
+  ctx.lineTo(w * 0.1, h * 0.4);
+  ctx.lineTo(-w * 0.4, h * 0.3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.35, -h * 0.15);
+  ctx.lineTo(0, -h * 0.15);
+  ctx.lineTo(-w * 0.1, h * 0.15);
+  ctx.lineTo(-w * 0.35, h * 0.15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  if (t.hasCargoBox) {
+    ctx.fillStyle = t.accentColor;
+    ctx.fillRect(-w * 0.28, -h * 0.08, w * 0.2, h * 0.16);
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-w * 0.28, -h * 0.08, w * 0.2, h * 0.16);
+  }
+
+  ctx.fillStyle = 'rgba(14, 165, 233, 0.4)';
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.1, -h * 0.2);
+  ctx.lineTo(w * 0.25, -h * 0.05);
+  ctx.lineTo(w * 0.25, h * 0.05);
+  ctx.lineTo(w * 0.1, h * 0.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(-w * 0.45, -h * 0.15, w * 0.05, h * 0.3);
+
+  const fl = 8 + Math.abs(Math.sin(t.lightPhase * 8)) * 8;
+  const eg = ctx.createLinearGradient(-w * 0.45, 0, -w * 0.45 - fl, 0);
+  eg.addColorStop(0, '#60a5fa');
+  eg.addColorStop(0.5, '#3b82f6');
+  eg.addColorStop(1, 'rgba(59,130,246,0)');
+  ctx.fillStyle = eg;
+  ctx.beginPath();
+  ctx.moveTo(-w * 0.45, -h * 0.1);
+  ctx.lineTo(-w * 0.45 - fl, 0);
+  ctx.lineTo(-w * 0.45, h * 0.1);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawPreviewFreighter(t) {
+  const tw = t.w, th = t.h;
+  const h = th * 1.2;
+  const w = tw * 1.1;
+
+  const hullGrad = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+  hullGrad.addColorStop(0, shadeColor(t.bodyColor, 10));
+  hullGrad.addColorStop(0.5, t.bodyColor);
+  hullGrad.addColorStop(1, shadeColor(t.bodyColor, -30));
+  ctx.fillStyle = hullGrad;
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1.5;
+
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-w * 0.45, -h * 0.25, w * 0.8, h * 0.5, 4);
+  else ctx.rect(-w * 0.45, -h * 0.25, w * 0.8, h * 0.5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = shadeColor(t.bodyColor, 20);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.35, -h * 0.2);
+  ctx.lineTo(w * 0.55, -h * 0.1);
+  ctx.lineTo(w * 0.55, h * 0.1);
+  ctx.lineTo(w * 0.35, h * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillRect(w * 0.4, -h * 0.05, w * 0.12, h * 0.1);
+
+  const cargoColor = shadeColor(t.bodyColor, -15);
+  for (const sign of [-1, 1]) {
+    const py = sign * (h * 0.35);
+    ctx.fillStyle = cargoColor;
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w * 0.3, py - h * 0.15, w * 0.5, h * 0.3, 3);
+    else ctx.rect(-w * 0.3, py - h * 0.15, w * 0.5, h * 0.3);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = '#475569';
+  ctx.fillRect(-w * 0.55, -h * 0.3, w * 0.1, h * 0.2);
+  ctx.fillRect(-w * 0.55, h * 0.1, w * 0.1, h * 0.2);
+
+  for (const ey of [-h * 0.2, h * 0.2]) {
+    const fl = 10 + Math.abs(Math.sin(t.lightPhase * 6)) * 10;
+    const eg2 = ctx.createLinearGradient(-w * 0.55, 0, -w * 0.55 - fl, 0);
+    eg2.addColorStop(0, t.accentColor);
+    eg2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = eg2;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.55, ey - h * 0.08);
+    ctx.lineTo(-w * 0.55 - fl, ey);
+    ctx.lineTo(-w * 0.55, ey + h * 0.08);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawPreviewPolice(t) {
+  const tw = t.w, th = t.h;
+  const h = th;
+  const w = tw;
+
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.moveTo(-w/2, 0);
+  ctx.lineTo(-w*0.4, -h*0.3);
+  ctx.lineTo(w*0.2, -h*0.3);
+  ctx.lineTo(w*0.4, 0);
+  ctx.lineTo(w/2, h/2);
+  ctx.lineTo(-w/2, h/2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.2, 0);
+  ctx.lineTo(w*0.2, 0);
+  ctx.lineTo(w*0.25, h*0.4);
+  ctx.lineTo(-w*0.25, h*0.4);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.5)';
+  ctx.beginPath();
+  ctx.moveTo(-w*0.1, -h*0.3);
+  ctx.lineTo(w*0.1, -h*0.3);
+  ctx.lineTo(w*0.3, 0);
+  ctx.lineTo(-w*0.3, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  const time = Date.now() / 150;
+  const flashPhase = time % 2;
+  const redFlash = flashPhase < 1;
+  const blueFlash = !redFlash;
+
+  ctx.fillStyle = redFlash ? '#ef4444' : '#1e3a8a';
+  ctx.fillRect(-w*0.05, -h*0.4, w*0.05, h*0.1);
+  ctx.fillStyle = blueFlash ? '#3b82f6' : '#7f1d1d';
+  ctx.fillRect(0, -h*0.4, w*0.05, h*0.1);
+
+  if (redFlash) {
+    const glow = ctx.createRadialGradient(-w*0.025, -h*0.35, 0, -w*0.025, -h*0.35, 25);
+    glow.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(-w*0.025, -h*0.35, 25, 0, Math.PI*2); ctx.fill();
+  } else {
+    const glow = ctx.createRadialGradient(w*0.025, -h*0.35, 0, w*0.025, -h*0.35, 25);
+    glow.addColorStop(0, 'rgba(59, 130, 246, 0.4)');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(w*0.025, -h*0.35, 25, 0, Math.PI*2); ctx.fill();
+  }
+
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(-w/2 - 6, h*0.1, 6, h*0.3);
+}
+
+function drawPreviewTraffic() {
+  previewTraffic.forEach(t => {
+    const { sx, sy } = w2s(t.x, t.y);
+    if (sx < -100 || sx > canvas.width + 100 || sy < -100 || sy > canvas.height + 100) return;
+
+    ctx.save();
+    ctx.globalAlpha = 0.65;
+    ctx.translate(sx, sy);
+    ctx.scale(S.view.scale, S.view.scale);
+
+    const movingLeft = t.vx < 0;
+    if (movingLeft) ctx.scale(-1, 1);
+
+    if (t.model === 'pickup') {
+      drawPreviewPickup(t);
+    } else if (t.model === 'police') {
+      drawPreviewPolice(t);
+    } else {
+      drawPreviewFreighter(t);
+    }
+
+    ctx.restore();
+  });
+}
+
 function togglePreview() {
   S.previewMode = !S.previewMode;
   document.getElementById('t-preview').className = 'btn' + (S.previewMode ? ' on' : '');
+  if (S.previewMode) {
+    startPreviewLoop();
+  } else {
+    stopPreviewLoop();
+  }
   draw();
+}
+
+function startPreviewLoop() {
+  if (previewAnimId) return;
+  previewLastTime = performance.now();
+  previewTraffic = [];
+  previewTrafficSpawnTimer = 0;
+
+  function tick(timestamp) {
+    if (!S.previewMode) {
+      previewAnimId = null;
+      return;
+    }
+    const dt = (timestamp - previewLastTime) / 1000;
+    previewLastTime = timestamp;
+
+    updatePreviewTraffic(dt);
+    draw();
+
+    previewAnimId = requestAnimationFrame(tick);
+  }
+  previewAnimId = requestAnimationFrame(tick);
+}
+
+function stopPreviewLoop() {
+  if (previewAnimId) {
+    cancelAnimationFrame(previewAnimId);
+    previewAnimId = null;
+  }
+  previewTraffic = [];
 }
 
 // ── Live engine preview ──────────────────────────────────────────────────────
@@ -1277,6 +1677,7 @@ function draw() {
   drawPolygons();
   if (!S.previewMode) drawHazards();
   if (!S.previewMode) drawEdgePreview();
+  if (S.previewMode) drawPreviewTraffic();
   sendLiveCam(); // keep the live engine preview's free camera in sync
 }
 
@@ -1357,10 +1758,10 @@ function drawTrafficBand(W,H) {
   let tMax = S.cfg.ambientTrafficMaxY;
   if (tMin === '' || tMin === undefined) tMin = null;
   if (tMax === '' || tMax === undefined) tMax = null;
-  if (tMin === null && tMax === null) return;
   
-  const topY = tMin !== null ? Number(tMin) : -20000;
-  const botY = tMax !== null ? Number(tMax) : (tMin !== null ? Number(tMin) + 2000 : 0);
+  const defaults = getTrafficDefaults();
+  const topY = tMin !== null ? Number(tMin) : defaults.defMin;
+  const botY = tMax !== null ? Number(tMax) : defaults.defMax;
   
   const { sy: syTop } = w2s(0, topY);
   const { sy: syBot } = w2s(0, botY);
@@ -1382,13 +1783,13 @@ function drawTrafficBand(W,H) {
     ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y1); ctx.stroke();
     ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
     ctx.font = '10px monospace';
-    ctx.fillText(`TRAFFIC MIN Y (${topY})`, 10, y1 - 4);
+    ctx.fillText(`TRAFFIC MIN Y (${Math.round(topY)})${tMin === null ? ' (AUTO)' : ''}`, 10, y1 - 4);
   }
   if (y2 >= 0 && y2 <= H) {
     ctx.beginPath(); ctx.moveTo(0, y2); ctx.lineTo(W, y2); ctx.stroke();
     ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
     ctx.font = '10px monospace';
-    ctx.fillText(`TRAFFIC MAX Y (${botY})`, 10, y2 + 12);
+    ctx.fillText(`TRAFFIC MAX Y (${Math.round(botY)})${tMax === null ? ' (AUTO)' : ''}`, 10, y2 + 12);
   }
   ctx.restore();
 }
