@@ -205,9 +205,9 @@ drawRadarPingZone() {
                     let cx = 0, cy = 0;
                     for (let p of h.pts) { cx += p.x; cy += p.y; }
                     cx /= h.pts.length; cy /= h.pts.length;
-                    
+
                     const reach = h.reach || 300;
-                    drawZone(cx, cy, reach, '210,100,15', 3800);
+                    drawZone(cx, cy, reach, h.color || '210,100,15', h.period || 3800);
                 }
             }
         }
