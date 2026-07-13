@@ -117,9 +117,11 @@ class CargoPhysics {
                     const lv = this.landerBody.velocity; // pre-impulse at collisionStart time
                     const impactSpeed = Math.sqrt(lv.x * lv.x + lv.y * lv.y);
                     if (impactSpeed < 1.0) continue;
-                    const onPad = this._getLanderPad() !== null;
-                    const damageThreshold = onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0;
-                    const surfaceMultiplier = onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16;
+                    const padType = this._getLanderPad();
+                    const onPad = padType !== null;
+                    const onCollectionPad = padType === 'collection';
+                    const damageThreshold = onCollectionPad ? (this.lander.legsDeployed ? 2.2 : 1.8) : (onPad ? (this.lander.legsDeployed ? 3.5 : 1.8) : 1.0);
+                    const surfaceMultiplier = onCollectionPad ? (this.lander.legsDeployed ? 3.5 : 3.5) : (onPad ? (this.lander.legsDeployed ? 1.5 : 3.5) : 16);
                     if (impactSpeed > damageThreshold) {
                         const damage = Math.pow(impactSpeed - damageThreshold, 1.8) * surfaceMultiplier;
                         const hullDamage = this.applyDamage(this.lander, damage);
