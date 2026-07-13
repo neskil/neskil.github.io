@@ -619,6 +619,8 @@ drawDeliveryHubs() {
                 this.drawHubDepot(hub, hcx, now);
             } else if (hubStyle === 'silo') {
                 this.drawHubSilo(hub, hcx, now);
+            } else if (hubStyle === 'repair') {
+                this.drawHubRepair(hub, hcx, now);
             } // 'none' → bare pad
 
             // Glow column beacon — soft tapered light shaft, not a flat box
@@ -730,6 +732,25 @@ drawDeliveryHubs() {
 ,
 // ── Hub background structures (hub.style variants) ──────────────────────
 // Each sits ON hub.y, drawn behind the pad base, tinted with hub.color.
+drawHubRepair(hub, hcx, now) {
+        const ctx = this.ctx;
+        const bw = Math.min(80, hub.width * 0.9), bh = 16;
+        const bx = hcx - bw / 2, byTop = hub.y - bh;
+        const pulse = 0.5 + Math.abs(Math.sin(now * 0.003)) * 0.4;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.moveTo(bx + 6, byTop); ctx.lineTo(bx + bw - 6, byTop);
+        ctx.lineTo(bx + bw, hub.y); ctx.lineTo(bx, hub.y);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(bx + 10, byTop + 4, bw - 20, 6);
+
+        ctx.fillStyle = `rgba(16, 185, 129, ${pulse})`; // Glowing repair green
+        ctx.fillRect(bx + 14, byTop + 6, bw - 28, 2);
+    }
+,
 drawHubHouse(hub, hcx, now) {
         const ctx = this.ctx;
         const bw = Math.min(64, hub.width * 0.85), bh = 42;
