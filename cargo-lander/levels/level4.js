@@ -87,7 +87,9 @@ registerLevel({
     },
     worldBounds: {
         bottomY: 1600,
-        bottomAction: 'monster'
+        bottomAction: 'monster',
+        leftMargin: 3000,
+        rightMargin: 3000
     },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────

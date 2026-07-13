@@ -54,7 +54,9 @@ registerLevel({
   },
   worldBounds: {
     bottomY: 1200,
-    bottomAction: 'monster'
+    bottomAction: 'monster',
+    leftMargin: 3000,
+    rightMargin: 3000
   },
   deliveryHubs: [
     { x: 1070, color: "#38bdf8", type: "normal", name: "Peak Station" }
