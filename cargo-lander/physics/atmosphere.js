@@ -324,8 +324,8 @@ const CargoPhysicsAtmosphereMixin = {
                     if (m.trail.length > 800) m.trail.pop();
                 }
 
-                const oob = levelConfig.outOfBounds;
-                const despawnDepth = (oob && oob.monsterDepth) ? oob.monsterDepth + 400 : 1800;
+                const wbBottom = levelConfig.worldBounds?.bottomY;
+                const despawnDepth = wbBottom != null ? wbBottom + 400 : 1800;
                 // Minimum time before it's allowed to leave, even if it reaches despawn
                 // depth quickly — previously it could vanish almost instantly after the kill.
                 const minRetreatTime = pauseFrames + 90; // ~1.5s of visible retreat
@@ -352,9 +352,12 @@ const CargoPhysicsAtmosphereMixin = {
             this.idleChuteTimer = 0;
         }
 
-        // Spawn logic: Trigger if lander sinks below monsterDepth OR stays out of bounds too long OR stranded with chute
-        const oob = levelConfig.outOfBounds;
-        const tooDeep = oob && lander.y > oob.monsterDepth;
+        // Spawn logic: Trigger if lander sinks below the bottom world boundary
+        // (worldBounds.bottomY with the 'monster' action — the old
+        // outOfBounds.monsterDepth) OR stays out of bounds too long OR stranded with chute
+        const wb = levelConfig.worldBounds || {};
+        const tooDeep = wb.bottomY != null && (wb.bottomAction || 'monster') === 'monster'
+            && lander.y > wb.bottomY;
         if (tooDeep || this.outOfBoundsTimer > 250 || this.idleChuteTimer > 600) { // ~4s OOB, ~10s stranded
             if (!this.monster) {
                 // Spawn monster genuinely outside the current viewport (not just a fixed
@@ -364,7 +367,7 @@ const CargoPhysicsAtmosphereMixin = {
                 let spawnX = lander.x;
                 let spawnY = lander.y;
                 if (tooDeep) {
-                    spawnY = Math.max(oob.monsterDepth + 200, lander.y + marginY);
+                    spawnY = Math.max(wb.bottomY + 200, lander.y + marginY);
                 } else {
                     spawnX = lander.x < -150 ? lander.x - marginX
                         : (lander.x > this.levelWidth + 150 ? lander.x + marginX
@@ -962,8 +965,17 @@ const CargoPhysicsAtmosphereMixin = {
                     windMult = 0.35 + (g.gustMult ?? 3) * ramp;
                 }
             }
-            // Complex wave for unpredictable texture, varying roughly ±40%/±20% around the target
-            const dynamicWind = this.wind * windMult * (1.0 + Math.sin(now * 0.002) * 0.4 + Math.sin(now * 0.005) * 0.2);
+            // Layered sine texture — every level breathes a bit even with no gust cycle
+            // configured, roughly ±10-30% around the target (three unrelated frequencies
+            // so it doesn't read as a single obvious oscillation). Phase is seeded per
+            // level load (windGustStart) so two levels with the same wind value don't
+            // drift in lockstep.
+            const seed = this.windGustStart % 6283; // ~2*pi*1000, arbitrary decorrelation
+            const variance = 1.0
+                + Math.sin(now * 0.0013 + seed * 0.001) * 0.15
+                + Math.sin(now * 0.0031 + seed * 0.002) * 0.08
+                + Math.sin(now * 0.0007 + seed * 0.003) * 0.05;
+            const dynamicWind = this.wind * windMult * variance;
             lander.vx += dynamicWind * 0.02 * dt;
             this.currentWind = dynamicWind;
         } else {
@@ -1010,22 +1022,31 @@ const CargoPhysicsAtmosphereMixin = {
             this.wasInFluid = false;
         }
 
-        // Track how far out we are for the vignette warning (1000px ~ 1 screen)
+        // World Boundaries — per-edge thresholds + actions from worldBounds
+        const wb = this.currentLevelConfig?.worldBounds || {};
+        const ceilingY = wb.ceilingY !== undefined && wb.ceilingY !== null ? wb.ceilingY : -3000;
+        const latMargin = wb.lateralMargin !== undefined && wb.lateralMargin !== null ? wb.lateralMargin : 3000;
+        const bottomY = wb.bottomY !== undefined && wb.bottomY !== null ? wb.bottomY : null;
+        const ceilingAction = wb.ceilingAction || 'pushback';
+        const lateralAction = wb.lateralAction || 'pushback';
+        const bottomAction = wb.bottomAction || 'monster';
+
+        // Track how far out we are for the vignette warning (1000px ~ 1 screen).
+        // When a worldBounds edge with a hard action (anything but pushback) is
+        // configured tighter than the old fixed margins, the warning starts at
+        // that edge instead — the vignette and the actual consequence agree on
+        // where "out" begins. Pushback edges are soft nudges, so lingering at
+        // them must NOT build the timer (it would summon the worm after ~4s).
         const VIGNETTE_MARGIN = 1000;
+        const warnLatMargin = lateralAction !== 'pushback' ? Math.min(VIGNETTE_MARGIN, latMargin) : VIGNETTE_MARGIN;
+        const warnCeilingY = ceilingAction !== 'pushback' ? Math.max(-500, ceilingY) : -500;
         const surfaceY = this.getPolygonSurfaceY ? this.getPolygonSurfaceY(lander.x) : 99999;
-        
-        if (lander.x < -VIGNETTE_MARGIN || lander.x > this.levelWidth + VIGNETTE_MARGIN || lander.y < -500 || lander.y > surfaceY + 80) {
+
+        if (lander.x < -warnLatMargin || lander.x > this.levelWidth + warnLatMargin || lander.y < warnCeilingY || lander.y > surfaceY + 80) {
             this.outOfBoundsTimer = (this.outOfBoundsTimer || 0) + dt;
         } else {
             this.outOfBoundsTimer = Math.max(0, (this.outOfBoundsTimer || 0) - dt * 2);
         }
-
-        // World Boundaries
-        const wb = this.currentLevelConfig?.worldBounds || {};
-        const ceilingY = wb.ceilingY !== undefined && wb.ceilingY !== null ? wb.ceilingY : -3000;
-        const latMargin = wb.lateralMargin !== undefined && wb.lateralMargin !== null ? wb.lateralMargin : 3000;
-        const ceilingAction = wb.ceilingAction || 'pushback';
-        const lateralAction = wb.lateralAction || 'pushback';
 
         const applyAction = (action, edge) => {
             if (lander.crashed) return;
