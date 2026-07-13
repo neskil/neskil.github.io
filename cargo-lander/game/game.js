@@ -635,7 +635,7 @@ class CargoGame {
                         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
                         <div style="display:flex; justify-content:space-between; color: #ef4444; font-weight: bold;"><span>Deposit Returned:</span> <span>$0 (Lost to the dunes)</span></div>
                         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
-                        <div style="display:flex; justify-content:space-between; font-weight: bold; color: #fca5a5;"><span>Net Total:</span> <span>-$${Math.abs(netChange).toLocaleString()}</span></div>
+                        <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>${netChange >= 0 ? 'Net Gain' : 'Net Loss'}:</span> <span>${netChange >= 0 ? '+' : '-'}$${Math.abs(netChange).toLocaleString()}</span></div>
                         <div style="display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1rem; margin-top: 8px; color: #f59e0b;"><span>New Bank Balance:</span> <span>$${this.globalCash.toLocaleString()}</span></div>
                     </div>
                 `;
@@ -828,6 +828,7 @@ class CargoGame {
 
         this.updateRadarPing(dt);               // off-screen monster audio ping
         this.updateShieldRegen(lander, dt);     // shieldRegen upgrade tick
+        this.updateAutoRepair(lander, dt);      // autoRepair upgrade tick
         this.updateRefuelPad(lander, dt);       // paid refueling on 'refuel' pads
         this.updateCamera(lander, dt);          // follow-cam / free-cam
         this.updateThrusterSound(lander);
@@ -1089,6 +1090,23 @@ class CargoGame {
             }
         }
         if (lander.shieldHitFlash > 0) lander.shieldHitFlash = Math.max(0, lander.shieldHitFlash - 0.04 * dt);
+    }
+
+    updateAutoRepair(lander, dt) {
+        if (lander.autoRepairDelay > 0) {
+            lander.autoRepairDelay -= dt;
+        }
+
+        const repairLvl = this.upgrades?.['autoRepair'] || 0;
+        if (repairLvl > 0 && !lander.crashed && lander.integrity > 0 && (!lander.autoRepairDelay || lander.autoRepairDelay <= 0)) {
+            if (lander.integrity < lander.maxIntegrity && lander.autoRepairCharge > 0) {
+                // Repair at a fast rate until bank is empty or hull is full
+                // 30 hull per second? Let's say 20 hull per second.
+                const healAmount = Math.min(lander.autoRepairCharge, (dt / 60) * 20, lander.maxIntegrity - lander.integrity);
+                lander.integrity += healAmount;
+                lander.autoRepairCharge -= healAmount;
+            }
+        }
     }
 
     updateRefuelPad(lander, dt) {
@@ -1401,15 +1419,10 @@ class CargoGame {
         this.floatingTexts.push({ text: "-$100", x: lander.x, y: lander.y - 30, life: 1.5, color: '#ef4444' });
     }
 
-    // Field Repair Kit upgrade caps how much hull an HQ repair can restore —
-    // L1 tops out at 50% integrity, L2 at 70%, L3 at 90% (never a full fix).
-    static REPAIR_CAP_BY_LEVEL = [0.5, 0.7, 0.9];
-
+    // Repairs at HQ or Service Pads are now always available and restore hull up to 100%.
     getRepairCap(lander) {
-        const level = this.upgrades?.repairKit || 0;
-        if (level <= 0 || !lander) return 0;
-        const capPct = CargoGame.REPAIR_CAP_BY_LEVEL[Math.min(level, CargoGame.REPAIR_CAP_BY_LEVEL.length) - 1];
-        return lander.maxIntegrity * capPct;
+        if (!lander) return 0;
+        return lander.maxIntegrity;
     }
 
     // Repair cost scales with how much hull damage is being repaired — a
@@ -1429,7 +1442,7 @@ class CargoGame {
     repairLander() {
         const lander = this.physics.lander;
         const cap = this.getRepairCap(lander);
-        if (!lander || cap <= 0 || lander.integrity >= cap) return;
+        if (!lander || lander.integrity >= cap) return;
         const cost = this.getRepairCost(lander);
         if (this.missionBudget < cost) return;
         this.missionBudget -= cost;
@@ -1573,8 +1586,7 @@ class CargoGame {
                 ${timeBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #38bdf8;"><span>Time Bonus (${timePctRemaining}%):</span> <span>+$${timeBonus.toLocaleString()}</span></div>` : ''}
                 ${questBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #a855f7;"><span>Quest Bonuses:</span> <span>+$${questBonus.toLocaleString()}</span></div>` : ''}
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
-                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${totalPayout >= 0 ? '#10b981' : '#fca5a5'};"><span>Total Payout:</span> <span>${totalPayout >= 0 ? '+' : ''}$${totalPayout.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>Net Gain:</span> <span>${netChange >= 0 ? '+' : ''}$${netChange.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>${netChange >= 0 ? 'Net Gain' : 'Net Loss'}:</span> <span>${netChange >= 0 ? '+' : ''}$${netChange.toLocaleString()}</span></div>
                 <div style="display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1rem; margin-top: 8px; color: #f59e0b;"><span>New Bank Balance:</span> <span>$${this.globalCash.toLocaleString()}</span></div>
             </div>
             ${!allDelivered ? `<p style="color:#ef4444; font-style:italic; font-size: 0.8rem; text-align: center; margin-top: 10px;">Mission aborted. Completion bonuses forfeited.</p>` : ''}

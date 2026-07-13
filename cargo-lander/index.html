@@ -242,6 +242,10 @@
             background: linear-gradient(90deg, #38bdf8, #818cf8);
         }
 
+        #repair-fill {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+
         #fuel-fill {
             background: var(--neon-blue);
             width: 100%;
@@ -1982,6 +1986,15 @@
                         <span class="gauge-letter"></span>
                         <div class="gauge-container">
                             <div id="shield-fill" class="gauge-fill"></div>
+                        </div>
+                        <span class="gauge-letter"></span>
+                    </div>
+                    <!-- Auto Repair bank — hidden unless the Auto Repair upgrade is owned -->
+                    <div id="repair-row" class="hidden" style="display: contents;">
+                        <div class="hud-stat vital-name"><span class="vital-icon">🩹</span>Repair</div>
+                        <span class="gauge-letter"></span>
+                        <div class="gauge-container">
+                            <div id="repair-fill" class="gauge-fill"></div>
                         </div>
                         <span class="gauge-letter"></span>
                     </div>
