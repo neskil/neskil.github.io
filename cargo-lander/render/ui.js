@@ -145,8 +145,6 @@ drawMinimap() {
 
 ,
 drawRadarPingZone() {
-        if (this.uiCollapsed) return;
-        
         const ctx = this.ctx;
         const now = Date.now();
         
