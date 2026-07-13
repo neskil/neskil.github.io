@@ -2,13 +2,12 @@
 // Biome: Amber Wastes. Two hubs separated by a yawning chasm in the plateau.
 // First sorting challenge: normal vs. fragile (red) cargo must go to different hubs.
 // The chasm in the terrain is impassable — it forces the player to read hub type before landing.
-// A ledge partway down the west wall holds a risky cash pickup for players willing to dip in.
 
 registerLevel({
   name: "L2: Cross-Dock Sorting",
   missionTitle: "Amber Wastes — Cross-Dock Run",
   description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
-  hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. A cash pickup sits on a ledge partway down the chasm if you're willing to detour. Return to HQ once both are delivered.",
+  hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. Return to HQ once both are delivered.",
   gravity: 0.15,
   deposit: 1000,
   fee: 100,

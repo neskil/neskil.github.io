@@ -435,6 +435,8 @@ function _restoreState() {
   buildRadarPanel();
   if (typeof updateEntityPanel === 'function') updateEntityPanel();
   if (typeof updateHubUI === 'function') updateHubUI();
+  if (typeof renderCollectibleAddRow === 'function') renderCollectibleAddRow();
+  if (typeof updateCollectibleUI === 'function') updateCollectibleUI();
   renderSidebar();
   renderPtList();
   draw();
@@ -449,6 +451,7 @@ let S = {
   hazardPolys: [], // hazards
   segments: [],   // [{x1,y1,x2,y2}]
   hubs: [],       // [{x, width?, color, type, name}]
+  collectibles: [], // [{type, x, y, ...amountField}] — see levels/collectibleTypes.js
   gravWell: null, // {x,y,radius,orbitRadius,strength}
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
@@ -634,6 +637,61 @@ function updateHubUI() {
       <div class="row">
         <label style="width:30px" title="Visual structure drawn behind the pad in-game. 'crane' is the classic yellow crane; house/depot/silo are background buildings; 'none' is a bare pad. (A hub with type 'chute' always renders as a vacuum chute.)">Style</label>
         <select style="flex:1" onchange="setHubStyle(${i}, this.value)">${HUB_STYLES.map(s=>`<option value="${s}" ${(h.style||'crane')===s?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
+    `;
+    c.appendChild(d);
+  });
+}
+
+// ── Collectibles (mid-air flythrough pickups) ──────────────────────────────
+// Types come from the shared registry (levels/collectibleTypes.js) so adding
+// a new pickup type doesn't require touching the editor at all.
+function renderCollectibleAddRow() {
+  const row = document.getElementById('collectible-add-row');
+  if (!row || !window.COLLECTIBLE_TYPE_LIST) return;
+  row.innerHTML = window.COLLECTIBLE_TYPE_LIST.map(t => {
+    const def = window.COLLECTIBLE_TYPES[t];
+    return `<button class="btn" onclick="addCollectible('${t}')">+ ${def.label}</button>`;
+  }).join('');
+}
+
+function addCollectible(type) {
+  snapshot();
+  const def = window.COLLECTIBLE_TYPES[type];
+  const item = { type, x: snap(S.mouse.wx || 500), y: snap(S.mouse.wy || 400) };
+  item[def.amountField] = def.defaultAmount;
+  S.collectibles.push(item);
+  updateCollectibleUI(); draw(); updateOut();
+}
+
+function updateCollectibleCoords() {
+  S.collectibles.forEach((c, i) => {
+    const elX = document.getElementById(`coll-${i}-x`);
+    const elY = document.getElementById(`coll-${i}-y`);
+    if (elX) elX.value = c.x;
+    if (elY) elY.value = c.y;
+  });
+}
+
+function updateCollectibleUI() {
+  const c = document.getElementById('collectible-list');
+  if (!c) return;
+  c.innerHTML = '';
+  S.collectibles.forEach((item, i) => {
+    const def = window.COLLECTIBLE_TYPES[item.type] || {};
+    const d = document.createElement('div');
+    d.className = 'props-panel';
+    d.style.border = '1px solid #30363d'; d.style.padding = '4px'; d.style.borderRadius = '4px';
+    d.innerHTML = `
+      <div class="row">
+        <span style="font-size:10px;color:#8b949e;width:20px">${i}</span>
+        <span style="width:40px;font-size:11px;color:${def.color||'#fff'}">${def.label||item.type}</span>
+        <button class="btn del" style="padding:0 5px;margin-left:auto" onclick="snapshot(); S.collectibles.splice(${i},1); updateCollectibleUI(); draw(); updateOut()">×</button>
+      </div>
+      <div class="row">
+        <label style="width:20px">X</label><input type="number" id="coll-${i}-x" style="width:50px" value="${item.x}" onchange="snapshot(); S.collectibles[${i}].x=+this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="coll-${i}-y" style="width:50px" value="${item.y}" onchange="snapshot(); S.collectibles[${i}].y=+this.value; draw(); updateOut()">
+        <label style="width:50px;margin-left:4px" title="${def.amountField||'amount'}">${def.amountField||'amount'}</label><input type="number" style="width:55px" value="${item[def.amountField]!=null?item[def.amountField]:def.defaultAmount}" onchange="snapshot(); S.collectibles[${i}]['${def.amountField}']=+this.value; updateOut()">
       </div>
     `;
     c.appendChild(d);
@@ -852,6 +910,7 @@ function applyConfig(cfg) {
     hidden: false
   }));
   S.hubs      = cfg.deliveryHubs || [];
+  S.collectibles = (cfg.collectibles || []).map(c => ({...c}));
   S.radarZone = cfg.radarPingZone || null;
   // L9-style shorthand: `outOfBounds: true` instead of a full config object.
   // Treated as an empty-but-enabled object internally (so the panel/rendering
@@ -960,6 +1019,7 @@ function applyConfig(cfg) {
 
   populatePaletteUI();
   updateHubUI();
+  updateCollectibleUI();
   document.getElementById('hq-w').value = S.hqWidth || '';
   document.getElementById('cargo-w').value = S.cargoWidth || '';
 
@@ -1022,7 +1082,7 @@ function hazardToShape(h, i) {
 }
 
 function resetState() {
-  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.gravWell=null; S.radarZone=null; S.oob=null; S.oobIsBoolean=false;
+  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.collectibles=[]; S.gravWell=null; S.radarZone=null; S.oob=null; S.oobIsBoolean=false;
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -1057,6 +1117,7 @@ function defaultLevelConfig() {
   cfg.waterBodies = [];
   cfg.hazards = [];
   cfg.deliveryHubs = [];
+  cfg.collectibles = [];
   cfg.quests = [
     { id:'primary', text:'Deliver 3 cargo to the depot', type:'primary' },
     { id:'no_crash', text:'Zero crashes', type:'bonus', reward:300 },
@@ -1210,6 +1271,7 @@ function draw() {
   if (!S.previewMode) drawGrid(W,H);
   drawSpawnMarkers();
   drawHubs();
+  drawCollectibleMarkers();
   if (!S.previewMode) drawGravWell();
   if (!S.previewMode) drawSegments();
   drawPolygons();
@@ -1757,6 +1819,28 @@ function drawGravWell() {
   ctx.fillText(`gravity well  str=${strength}`, sx+12, sy+2);
   ctx.fillText(`r=${radius}  orbit=${orbitRadius}`, sx+12, sy+14);
   ctx.restore();
+}
+
+// Collectibles are free-floating points (no terrain-surface snapping like
+// hubs), so this draws a simple draggable token straight from {x,y}.
+function drawCollectibleMarkers() {
+  S.collectibles.forEach((c, i) => {
+    const def = window.COLLECTIBLE_TYPES && window.COLLECTIBLE_TYPES[c.type];
+    if (!def) return;
+    const {sx, sy} = w2s(c.x, c.y);
+    const r = (c.radius || def.radius || 24) * S.view.scale;
+    const isHov = S.hoverMarker?.collectible === i || S.dragMarker?.collectible === i;
+    ctx.save();
+    ctx.globalAlpha = isHov ? 1 : 0.85;
+    ctx.fillStyle = def.color;
+    ctx.beginPath(); ctx.arc(sx, sy, Math.max(r, 6), 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = def.edgeColor; ctx.lineWidth = isHov ? 3 : 2; ctx.stroke();
+    ctx.fillStyle = def.edgeColor;
+    ctx.font = `bold ${Math.max(Math.round(r*0.9), 10)}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(def.icon || '?', sx, sy+1);
+    ctx.restore();
+  });
 }
 
 function drawSpawnMarkers() {
@@ -2416,6 +2500,17 @@ function buildOut() {
     lines.push('  ],');
   }
   
+  if (S.collectibles.length) {
+    lines.push('  collectibles: [');
+    S.collectibles.forEach((c,i) => {
+      const fields = Object.entries(c)
+        .map(([k,v]) => `${k}: ${typeof v==='string'?JSON.stringify(v):v}`)
+        .join(', ');
+      lines.push(`    { ${fields} }${i<S.collectibles.length-1?',':''}`);
+    });
+    lines.push('  ],');
+  }
+
   if (S.waterPolys.length) {
     lines.push('  waterBodies: [');
     S.waterPolys.forEach((wb, i) => {
@@ -2600,6 +2695,15 @@ function hitMarker(sx, sy) {
     }
   }
 
+  // Collectibles: free-floating circular token at {x,y}
+  for (let i=0; i<S.collectibles.length; i++) {
+    const item = S.collectibles[i];
+    const def = window.COLLECTIBLE_TYPES && window.COLLECTIBLE_TYPES[item.type];
+    const itemR = (item.radius || def?.radius || 24) * S.view.scale;
+    const {sx:cx, sy:cy} = w2s(item.x, item.y);
+    if (Math.hypot(sx-cx, sy-cy) < Math.max(itemR, HIT_R)) return {collectible:i};
+  }
+
   return null;
 }
 
@@ -2681,6 +2785,10 @@ canvas.addEventListener('mousemove', e => {
       S.hubs[S.dragMarker.hub].x=snappedX;
       S.hubs[S.dragMarker.hub].y=snappedY;
       updateHubCoords();
+    } else if (S.dragMarker.collectible!=null) {
+      S.collectibles[S.dragMarker.collectible].x=snappedX;
+      S.collectibles[S.dragMarker.collectible].y=snappedY;
+      updateCollectibleCoords();
     }
     draw(); updateOut(); return;
   }

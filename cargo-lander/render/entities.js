@@ -554,47 +554,44 @@ drawCollectibles() {
         const ctx = this.ctx;
         ctx.save();
         for (const c of this.physics.collectibles) {
-            if (c.type === 'ring') {
-                ctx.strokeStyle = '#fbbf24'; // amber-400
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(c.x, c.y, c.radius || 20, 0, Math.PI * 2);
-                ctx.stroke();
-                // inner glow
-                ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
-                ctx.lineWidth = 8;
-                ctx.stroke();
-            } else if (c.type === 'cash') {
-                const r = c.radius || 24;
-                const bob = Math.sin(Date.now() * 0.003 + c.x) * 3;
-                const cy = c.y + bob;
-                // coin body
-                const grad = ctx.createRadialGradient(c.x - r * 0.3, cy - r * 0.3, r * 0.1, c.x, cy, r);
-                grad.addColorStop(0, '#fde68a');
-                grad.addColorStop(0.7, '#facc15');
-                grad.addColorStop(1, '#b45309');
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(c.x, cy, r, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.strokeStyle = '#92400e';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                // dollar sign
-                ctx.fillStyle = '#92400e';
-                ctx.font = `bold ${Math.round(r * 1.1)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('$', c.x, cy + 1);
-                // faint pulse ring to signal "flythrough" pickup
-                ctx.strokeStyle = 'rgba(250, 204, 21, 0.35)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(c.x, cy, r + 6, 0, Math.PI * 2);
-                ctx.stroke();
-            }
+            const def = window.COLLECTIBLE_TYPES && window.COLLECTIBLE_TYPES[c.type];
+            if (!def) continue;
+            if (def.draw) { def.draw(ctx, c); continue; }
+            this.drawCollectibleToken(ctx, c, def);
         }
         ctx.restore();
+    }
+
+// Default flythrough-pickup visual: a bobbing token bearing the type's icon,
+// tinted with its color/edgeColor. Types needing a bespoke look can set a
+// `draw(ctx, c)` function on their COLLECTIBLE_TYPES entry instead.
+,
+drawCollectibleToken(ctx, c, def) {
+        const r = c.radius || def.radius || 24;
+        const bob = Math.sin(Date.now() * 0.003 + c.x) * 3;
+        const cy = c.y + bob;
+        const grad = ctx.createRadialGradient(c.x - r * 0.3, cy - r * 0.3, r * 0.1, c.x, cy, r);
+        grad.addColorStop(0, def.color);
+        grad.addColorStop(0.7, def.color);
+        grad.addColorStop(1, def.edgeColor);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(c.x, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = def.edgeColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = def.edgeColor;
+        ctx.font = `bold ${Math.round(r * 1.1)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.icon || '?', c.x, cy + 1);
+        // faint pulse ring to signal "flythrough" pickup
+        ctx.strokeStyle = def.color + '59'; // ~35% alpha
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(c.x, cy, r + 6, 0, Math.PI * 2);
+        ctx.stroke();
     }
 
 });
