@@ -18,7 +18,7 @@ registerLevel({
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.10,          // Lighter gravity — easier hovering while managing the rope
-    wind: 0,
+    wind: 0.008,            // Whisper-light draft — kept minimal, the winch drop is a precision test
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
@@ -55,7 +55,7 @@ registerLevel({
     // ── Hazards ───────────────────────────────────────────────────────────────
     hazards: [
         // Incinerator vent on the right side of the pit floor — the level's one timed threat
-        { type: 'incinerator', pts: [{x: 800, y: 950}, {x: 880, y: 880}, {x: 1000, y: 950}], onMs: 1500, offMs: 2000, warnMs: 500, damagePerSec: 30 }
+        { type: 'incinerator', pts: [{x: 800, y: 950}, {x: 880, y: 880}, {x: 1000, y: 950}], onMs: 1500, offMs: 2000, warnMs: 500, damagePerSec: 30, behindTerrain: true }
     ],
 
     // ── Collectibles ──────────────────────────────────────────────────────────

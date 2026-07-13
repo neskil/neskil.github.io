@@ -409,6 +409,10 @@ function buildRadarPanel() {
   document.getElementById('rpz-fields').innerHTML = LEVEL_SCHEMA.radarPingZone.fields
     .map(f => schemaFieldRowHTML('setRadarZone', 'rpz-', f)).join('');
 }
+function buildWindGustPanel() {
+  document.getElementById('windgust-fields').innerHTML = LEVEL_SCHEMA.windGust.fields
+    .map(f => schemaFieldRowHTML('setWindGust', 'windgust-', f)).join('');
+}
 
 const _undoStack = [];
 const _redoStack = [];
@@ -441,6 +445,7 @@ function _restoreState() {
   buildWorldBoundsPanel();
   buildGWPanel();
   buildRadarPanel();
+  buildWindGustPanel();
   if (typeof updateEntityPanel === 'function') updateEntityPanel();
   if (typeof updateHubUI === 'function') updateHubUI();
   if (typeof renderCollectibleAddRow === 'function') renderCollectibleAddRow();
@@ -462,6 +467,7 @@ let S = {
   collectibles: [], // [{type, x, y, ...amountField}] — see levels/collectibleTypes.js
   gravWell: null, // {x,y,radius,orbitRadius,strength}
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
+  windGust: null, // {calm,warn,gust,gustMult} — optional calm/warning/gust wind cycle
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy,monsterDepth}
   worldBounds: null,
   palette: Object.assign({}, DEFAULT_PAL),
@@ -497,6 +503,7 @@ buildOOBPanel();
 buildWorldBoundsPanel();
 buildGWPanel();
 buildRadarPanel();
+buildWindGustPanel();
 
 // ── Shape-layer helpers (terrain / water / hazard share the same editing code) ─
 function listForLayer(layer) {
@@ -525,7 +532,29 @@ function setCfg(key, val) {
   } else {
     S.cfg[key] = val;
   }
+  if (key === 'ambientTrafficMinY' || key === 'ambientTrafficMaxY') {
+    enforceTrafficYOrder(key);
+  }
   updateOut();
+  draw();
+}
+
+// Traffic Min Y must stay <= Traffic Max Y (min = top of band, max = bottom).
+// When the user drags one past the other, push the other field's value to
+// match and keep its number+slider DOM inputs in sync.
+function enforceTrafficYOrder(changedKey) {
+  const otherKey = changedKey === 'ambientTrafficMinY' ? 'ambientTrafficMaxY' : 'ambientTrafficMinY';
+  const changedVal = S.cfg[changedKey];
+  const otherVal = S.cfg[otherKey];
+  if (changedVal == null || otherVal == null) return;
+  const violates = changedKey === 'ambientTrafficMinY' ? changedVal > otherVal : changedVal < otherVal;
+  if (!violates) return;
+  S.cfg[otherKey] = changedVal;
+  const id = 'cfg-' + otherKey;
+  const numEl = document.getElementById(id);
+  const sliderEl = document.getElementById(id + '-r');
+  if (numEl) numEl.value = changedVal;
+  if (sliderEl) sliderEl.value = changedVal;
 }
 
 function updateAllowedTypes() {
@@ -606,6 +635,19 @@ function toggleRadarZone() {
   draw(); updateOut();
 }
 function setRadarZone(k, v) { snapshot(); if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
+
+function toggleWindGust() {
+  snapshot();
+  const en = document.getElementById('windgust-enable').checked;
+  document.getElementById('windgust-fields').style.display = en ? 'flex' : 'none';
+  if (en && !S.windGust) {
+    S.windGust = {};
+    LEVEL_SCHEMA.windGust.fields.forEach(f => S.windGust[f.key] = f.default);
+  } else if (!en) S.windGust = null;
+  syncAllSliders();
+  draw(); updateOut();
+}
+function setWindGust(k, v) { snapshot(); if (S.windGust) { S.windGust[k] = v; } draw(); updateOut(); }
 
 function toggleWorldBounds() {
   snapshot();
@@ -925,6 +967,7 @@ function applyConfig(cfg) {
   S.hubs      = cfg.deliveryHubs || [];
   S.collectibles = (cfg.collectibles || []).map(c => ({...c}));
   S.radarZone = cfg.radarPingZone || null;
+  S.windGust = cfg.windGust || null;
   // L9-style shorthand: `outOfBounds: true` instead of a full config object.
   // Treated as an empty-but-enabled object internally (so the panel/rendering
   // code that reads S.oob.<field> keeps working unmodified) with a flag that
@@ -1038,6 +1081,18 @@ function applyConfig(cfg) {
     document.getElementById('rpz-fields').style.display = 'none';
   }
 
+  if (S.windGust) {
+    document.getElementById('windgust-enable').checked = true;
+    document.getElementById('windgust-fields').style.display = 'flex';
+    document.getElementById('windgust-calm').value = S.windGust.calm ?? '';
+    document.getElementById('windgust-warn').value = S.windGust.warn ?? '';
+    document.getElementById('windgust-gust').value = S.windGust.gust ?? '';
+    document.getElementById('windgust-gustMult').value = S.windGust.gustMult ?? '';
+  } else {
+    document.getElementById('windgust-enable').checked = false;
+    document.getElementById('windgust-fields').style.display = 'none';
+  }
+
   populatePaletteUI();
   updateHubUI();
   updateCollectibleUI();
@@ -1103,7 +1158,7 @@ function hazardToShape(h, i) {
 }
 
 function resetState() {
-  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.collectibles=[]; S.gravWell=null; S.radarZone=null; S.oob=null; S.oobIsBoolean=false;
+  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.collectibles=[]; S.gravWell=null; S.radarZone=null; S.windGust=null; S.oob=null; S.oobIsBoolean=false;
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -2897,6 +2952,16 @@ function buildOut() {
   if (S.radarZone) {
     lines.push(`  radarPingZone: {`);
     Object.entries(S.radarZone).forEach(([k,v]) => {
+      if (v == null || v === '') return;
+      lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
+    });
+    lines.push(`  },`);
+  }
+
+  // Wind Gust Cycle
+  if (S.windGust) {
+    lines.push(`  windGust: {`);
+    Object.entries(S.windGust).forEach(([k,v]) => {
       if (v == null || v === '') return;
       lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
     });
