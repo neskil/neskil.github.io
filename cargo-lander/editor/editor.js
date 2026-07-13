@@ -3569,8 +3569,32 @@ mapResize.addEventListener('mousedown', e => {
   e.preventDefault();
 });
 
+// Sidebar Resizing
+const sidebarEl = document.getElementById('sidebar');
+const sidebarHandle = document.getElementById('sidebar-resize-handle');
+let sidebarResizing = false;
+
+sidebarHandle.addEventListener('mousedown', e => {
+  sidebarResizing = true;
+  sidebarHandle.classList.add('active');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
 window.addEventListener('mousemove', e => {
-  if (mapModalState.action === 'drag') {
+  if (sidebarResizing) {
+    const newWidth = Math.max(220, Math.min(800, e.clientX));
+    sidebarEl.style.width = newWidth + 'px';
+    sidebarEl.style.minWidth = newWidth + 'px';
+    
+    // Auto-update the map-settings left offset so it stays relative to the sidebar
+    if (mapModal) {
+      mapModal.style.left = (newWidth + 40) + 'px';
+    }
+    
+    resize(); // Trigger editor canvas redraw and width sync
+  } else if (mapModalState.action === 'drag') {
     mapModal.style.left = Math.max(0, mapModalState.startLeft + e.clientX - mapModalState.startX) + 'px';
     mapModal.style.top = Math.max(0, mapModalState.startTop + e.clientY - mapModalState.startY) + 'px';
   } else if (mapModalState.action === 'resize') {
@@ -3579,7 +3603,15 @@ window.addEventListener('mousemove', e => {
   }
 });
 
-window.addEventListener('mouseup', () => { mapModalState.action = null; });
+window.addEventListener('mouseup', () => {
+  if (sidebarResizing) {
+    sidebarResizing = false;
+    sidebarHandle.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+  mapModalState.action = null;
+});
 
 // ── Game Preview Rendering ──────────────────────────────────────────────────
 // previewPadBase mirrors drawPadBase() in render/entities.js — same 15px slab,
