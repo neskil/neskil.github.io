@@ -118,6 +118,12 @@ Object.assign(CargoGame.prototype, {
     },
 
     updateHUD() {
+        const centerOverlay = document.getElementById('center-extract-overlay');
+        if (this.gameState !== 'playing') {
+            if (centerOverlay) centerOverlay.style.display = 'none';
+            return;
+        }
+
         const lander = this.physics.lander;
         const level = levels[this.currentLevelIndex];
 
