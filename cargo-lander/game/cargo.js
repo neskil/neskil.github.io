@@ -170,7 +170,7 @@ Object.assign(CargoGame.prototype, {
         this.saveCareer();
         
         const isDrone = this.physics.lander && this.physics.lander.vehicleType === 'drone';
-        const deliveryReward = isDrone ? 600 : 300;
+        const deliveryReward = isDrone ? 400 : 300;
         this.missionBudget += deliveryReward; // Add directly to mission ledger
         this.missionDeliveryEarnings = (this.missionDeliveryEarnings || 0) + deliveryReward;
         this.addMessage(`Delivery Complete! +$${deliveryReward}`, "#10b981");
