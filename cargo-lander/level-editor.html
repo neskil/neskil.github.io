@@ -146,6 +146,11 @@ canvas{display:block}
 #statusbar span{color:#c9d1d9}
 
 #kbd{position:absolute;top:8px;left:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:10px;color:#8b949e;pointer-events:none;line-height:1.6}
+/* On-canvas zoom buttons — sit above the live preview iframe (z-index 4)
+   so view navigation stays clickable in both edit and live modes. */
+#zoom-controls{position:absolute;right:8px;bottom:30px;z-index:6;display:flex;flex-direction:column;gap:4px}
+#zoom-controls button{width:30px;height:30px;background:rgba(13,17,23,.85);border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:16px;line-height:1;cursor:pointer}
+#zoom-controls button:hover{background:#21262d;border-color:#8b949e}
 /* Live engine preview — the real game rendered in an iframe over the canvas.
    pointer-events:none so the editor's pan/zoom/drag still lands on the canvas
    beneath; the game camera follows via postMessage. */
@@ -504,7 +509,8 @@ canvas{display:block}
     <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
     <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
     <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
-    <button class="btn" id="t-preview" onclick="togglePreview()">Preview</button>
+    <span style="font-size:10px;color:#8b949e">Preview:</span>
+    <button class="btn" id="t-preview" onclick="togglePreview()" title="Lightweight canvas preview — fast approximation drawn by the editor itself; markers stay draggable.">Light</button>
     <button class="btn" id="t-live" onclick="toggleLivePreview()" title="Render the level with the actual game engine (live iframe). Pan/zoom stays in sync; edits hot-reload after ~1s.">▶ Live</button>
   </div>
   <div id="snap-bar">
@@ -531,6 +537,11 @@ canvas{display:block}
   <canvas id="main"></canvas>
   <div id="kbd">S=select · A=add pts · P=pan · F=fit · Del=delete pt<br>Add mode: click near edge to insert point on it · hover shows preview<br>Terrain/Water/Hazard tabs switch which shapes "+ Shape" adds to · click any shape to select it regardless of tab<br>Drag HQ/Cargo/Hub bars to reposition · scroll=zoom · Alt+drag=pan</div>
   <div id="lvl-overlay"></div>
+  <div id="zoom-controls">
+    <button onclick="zoomBy(1.25)" title="Zoom in (scroll wheel)">+</button>
+    <button onclick="zoomBy(1/1.25)" title="Zoom out (scroll wheel)">−</button>
+    <button onclick="fitView()" title="Fit level (F)" style="font-size:12px">⛶</button>
+  </div>
   <div id="statusbar">
     x: <span id="sx">0</span> &nbsp; y: <span id="sy">0</span>
     &nbsp;&nbsp; snap: <span id="sdisp">10</span>
@@ -3172,6 +3183,18 @@ canvas.addEventListener('wheel', e => {
   S.view.x=e.offsetX-wx*S.view.scale; S.view.y=e.offsetY-wy*S.view.scale;
   draw();
 },{passive:false});
+
+// Button-driven zoom (#zoom-controls) — same clamps as the wheel handler,
+// anchored on the canvas centre. draw() propagates the new view to the live
+// engine preview when it's open.
+function zoomBy(f) {
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const {wx, wy} = s2w(cx, cy);
+  S.view.scale = Math.max(0.04, Math.min(4, S.view.scale * f));
+  S.view.x = cx - wx * S.view.scale;
+  S.view.y = cy - wy * S.view.scale;
+  draw();
+}
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
