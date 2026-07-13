@@ -143,9 +143,6 @@ draw() {
             }
         }
 
-        // 4. Draw Delivery Hub Zones (Hologram beacons)
-        this.drawDeliveryHubs();
-
         // 5. Draw Terrain Landscape
         this.drawUnderground();
 
@@ -172,7 +169,10 @@ draw() {
         this.drawHazards(false); // Draw foreground hazards (in front of terrain)
         this.drawCollectibles();
 
-        // 6. Draw Cargo Sourcing Depot Building
+        // 6. Draw Delivery Hub Zones (crane/house/depot/silo structures + beacons)
+        this.drawDeliveryHubs();
+
+        // 6a. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();
         this.drawNextObjectiveArrow();
 
