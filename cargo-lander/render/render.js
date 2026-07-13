@@ -165,12 +165,12 @@ draw() {
             ctx.translate(-this.camera.x, -this.camera.y);
         }
 
+        this.drawRadarPingZone(); // Draw radar ping behind the solid terrain
         this.drawHazards(true); // Draw background hazards (behind terrain)
         this.drawTerrain();
         this.drawSegments();
         this.drawHazards(false); // Draw foreground hazards (in front of terrain)
         this.drawCollectibles();
-        this.drawRadarPingZone();
 
         // 6. Draw Cargo Sourcing Depot Building
         this.drawSourcingDepot();

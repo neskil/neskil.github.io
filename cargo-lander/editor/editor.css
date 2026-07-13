@@ -110,7 +110,7 @@ details textarea{width:100%;height:70px;margin-top:5px;resize:vertical;font-size
 .pdot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 .pname{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pcnt{font-size:11px;color:#8b949e}
-.peye{font-size:13px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover{color:#e6edf3}
+.peye, .plock{font-size:13px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover, .plock:hover{color:#e6edf3}
 
 #pt-panel{display:none}
 #pt-panel .sec-title{margin-bottom:5px}

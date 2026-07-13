@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Level Editor — Cargo Lander</title>
-<link rel="stylesheet" href="editor/editor.css?v=0.16.5">
+<link rel="stylesheet" href="editor/editor.css?v=0.16.6">
 </head>
 <body>
 
@@ -196,8 +196,9 @@
             </div>
             <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
               <div class="row">
-                <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
+                <label title="Base worms spawned per second.">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
                 <label title="Radius around the hazard center where the worm will strike">reach:</label><input type="number" id="sw-reach" step="10" class="cinput" style="width:45px" onchange="setHazardField('reach', this.value)">
+                <label title="How much the spawn chance increases as you get closer to the center (0 to 10). 0 = flat chance, 10 = massive increase at center.">proximityScale:</label><input type="number" id="sw-prox" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('proximityScale', this.value)">
               </div>
             </div>
             <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
@@ -384,7 +385,7 @@
 </div>
 
 <script src="levels/levelSchema.js"></script>
-<script src="editor/editor.js?v=0.16.5"></script>
+<script src="editor/editor.js?v=0.16.6"></script>
 </body>
 </html>
 
