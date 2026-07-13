@@ -17,6 +17,7 @@ registerLevel({
   targetCargo: 2,
   allowedTypes: ["normal","red"],
   backgroundType: "cave",
+  terrainType: "worm-lair",
   heatHaze: true,
   ambientTrafficRate: 0,
   ambientTrafficSpeed: 0.1,
