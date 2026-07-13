@@ -11,8 +11,13 @@ drawParticles() {
                 ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(p.x, p.y);
-                // Stretch spark along its velocity vector
-                ctx.lineTo(p.x - p.vx * 2.5, p.y - p.vy * 2.5);
+                // Stretch spark along its velocity vector relative to the lander/camera
+                const lander = this.physics.lander;
+                const lvx = (lander && !lander.crashed) ? lander.vx : 0;
+                const lvy = (lander && !lander.crashed) ? lander.vy : 0;
+                const dx = p.vx - lvx;
+                const dy = p.vy - lvy;
+                ctx.lineTo(p.x - dx * 2.2, p.y - dy * 2.2);
                 ctx.stroke();
             } else if (p.type === 'ring') {
                 ctx.strokeStyle = p.color;

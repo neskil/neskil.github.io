@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.7';
+    static VERSION = '0.16.8';
 
     constructor() {
         this.canvas = null;
@@ -772,16 +772,16 @@ class CargoGame {
             const by = startY + rocketVy * (flyTimeMs / 16);
             
             const baseHue = Math.random() * 360;
-            for (let i = 0; i < 40; i++) {
+            for (let i = 0; i < 80; i++) {
                 this.physics.particles.push({
                     x: bx, y: by,
                     vx: (Math.random() - 0.5) * 10,
                     vy: (Math.random() - 0.5) * 10,
                     gy: 0.05,
-                    life: 1.0 + Math.random() * 1.5,
-                    decay: 0.01 + Math.random() * 0.02,
+                    life: 1.5 + Math.random() * 2.0,
+                    decay: 0.008 + Math.random() * 0.012,
                     color: `hsla(${baseHue}, 100%, 60%, 1)`,
-                    size: 2 + Math.random() * 4
+                    size: 3 + Math.random() * 5
                 });
             }
             if (!this.isMuted && window.CargoAudio && window.CargoAudio.playCollision) {

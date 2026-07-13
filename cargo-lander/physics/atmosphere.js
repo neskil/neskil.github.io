@@ -1021,14 +1021,10 @@ const CargoPhysicsAtmosphereMixin = {
                     }
                 }
             } else if (action === 'destroy') {
-                this.applyDamage(lander, lander.maxIntegrity);
-                lander.crashed = true;
-                if (window.CargoAudio) CargoAudio.playCrash();
+                this.triggerExplosion();
             } else if (action === 'police') {
-                this.applyDamage(lander, lander.maxIntegrity);
-                lander.crashed = true;
+                this.triggerExplosion();
                 lander.policeDestroyed = true;
-                if (window.CargoAudio) CargoAudio.playCrash();
             } else if (action === 'monster') {
                 this.outOfBoundsTimer = 999;
             } else if (action === 'lose_cargo') {
@@ -1076,6 +1072,14 @@ const CargoPhysicsAtmosphereMixin = {
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
+
+            // Apply air resistance/drag to make them trail behind
+            if (p.type === 'smoke' || p.type === 'spark') {
+                const drag = p.type === 'smoke' ? 0.90 : 0.96;
+                p.vx *= drag;
+                p.vy *= drag;
+            }
+
             p.x += p.vx;
             p.y += p.vy;
             if (p.gy) p.vy += p.gy; // support gravity for some particles

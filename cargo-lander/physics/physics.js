@@ -138,7 +138,9 @@ class CargoPhysics {
                                 size: 2.5 + Math.random() * 2.5,
                             });
                         }
-                        if (this.lander.integrity <= 0) this.lander.crashed = true;
+                        if (this.lander.integrity <= 0) {
+                            this.triggerExplosion();
+                        }
                     }
                 }
             });
