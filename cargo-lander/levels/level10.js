@@ -11,7 +11,7 @@ registerLevel({
 
   // ── Physics ───────────────────────────────────────────────────────────────
   gravity: 0.15,
-  wind: 0,
+  wind: 0.012,      // Light cave draft — subtle, the darkness/crusher timing is the real challenge
   heavyCargo: true,
   night: true,
 

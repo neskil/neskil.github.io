@@ -11,7 +11,7 @@ registerLevel({
 
   // ── Physics ──────────────────────────────────────────────────────────────
   gravity: 0.15,
-  wind: 0,
+  wind: 0.01,       // Barely-there breeze — first level, don't fight the player on tilt yet
   weather: 'rain',
 
   // ── Mission parameters ────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ registerLevel({
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.10,           // Low — station void, but the reactor well fights this
-    wind: 0,
+    wind: 0.01,              // Faint atmosphere venting from hull breaches — not real "wind" in vacuum, kept tiny
     heavyCargo: true,
 
 

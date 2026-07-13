@@ -333,6 +333,16 @@
     <details>
       <summary>Weather &amp; Environment</summary>
       <div class="props-panel" id="weather-panel"></div>
+
+      <!-- Wind Gust Cycle — optional calm/warning/gust layer on top of the
+           base Wind Speed field above (see levelSchema.js's windGust section) -->
+      <div class="props-panel" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #30363d;">
+        <div class="row">
+          <label style="width: 120px; font-size: 13px; color: #c9d1d9;">Wind Gust Cycle</label>
+          <input type="checkbox" id="windgust-enable" onchange="toggleWindGust()">
+        </div>
+        <div id="windgust-fields" style="display:none; flex-direction:column; gap:8px; margin-top:8px;"></div>
+      </div>
     </details>
     <details>
       <summary>Level Looks &amp; Palette</summary>

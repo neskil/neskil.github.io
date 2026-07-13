@@ -136,6 +136,20 @@ const LEVEL_SCHEMA = {
     ]
   },
 
+  // windGust: {...} — optional object layering a calm/warning/gust cycle on
+  // top of the base `wind` value (physics/atmosphere.js). Read by ui.js's
+  // wind-indicator element for the pre-gust flash + soft audio cue. Purely
+  // additive — a level with `wind` but no `windGust` just gets the old
+  // constant-with-gentle-variance behavior.
+  windGust: {
+    fields: [
+      { key:'calm',     type:'number', default:6, widget:'number', label:'Calm (s)', step:0.5, positive:true, desc:'Seconds of light lull between gusts.', recommended:'4 - 10', sliderMin:1, sliderMax:20, sliderStep:0.5 },
+      { key:'warn',     type:'number', default:2, widget:'number', label:'Warning (s)', step:0.5, positive:true, desc:'Seconds the meter flashes amber before the gust hits — telegraphs the surge.', recommended:'1.5 - 3', sliderMin:0.5, sliderMax:6, sliderStep:0.5 },
+      { key:'gust',     type:'number', default:6, widget:'number', label:'Gust (s)', step:0.5, positive:true, desc:'Seconds the wind stays at full gust strength before easing back to calm.', recommended:'4 - 8', sliderMin:1, sliderMax:20, sliderStep:0.5 },
+      { key:'gustMult', type:'number', default:3, widget:'number', label:'Gust Multiplier', step:0.1, positive:true, desc:'Peak wind during a gust, as a multiple of the base Wind Speed.', recommended:'2.5 - 4.5', sliderMin:1, sliderMax:8, sliderStep:0.1 },
+    ]
+  },
+
   // quests: [...] — a list built from questPrimary()/questNoCrash()/etc.
   // helper calls (levels.js), not a flat scalar/object shape, so it isn't
   // form-generated from this schema like the sections above (the editor's

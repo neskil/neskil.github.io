@@ -314,9 +314,20 @@ drawNotifications() {
 
 ,
 drawWindIndicator() {
-        const ctx = this.ctx;
+        // Renders as an HTML element (#wind-indicator, see index.html's center HUD
+        // column) rather than to canvas — it used to draw at the same screen
+        // position as the fuel/hull vitals panel and was invisible, fully covered
+        // by that panel's opaque background. Kept as a same-named method (like
+        // drawNotifications()) so render.js's per-frame call site is unchanged.
+        const el = this._windEl || (this._windEl = document.getElementById('wind-indicator'));
+        if (!el) return;
+
         const baseWind = this.physics.wind;
-        if (Math.abs(baseWind) < 0.015) return;
+        if (Math.abs(baseWind) < 0.008) {
+            if (!el.classList.contains('hidden')) el.classList.add('hidden');
+            return;
+        }
+        el.classList.remove('hidden');
 
         const currentWind = this.physics.currentWind || baseWind;
         const dir = baseWind > 0 ? 1 : -1;
@@ -349,32 +360,12 @@ drawWindIndicator() {
             b = Math.round(b + (11 - b) * pulse);
         }
 
-        const cx = this.canvas.width / 2;
-        const cy = 80;
+        el.style.color = `rgba(${r},${g},${b},0.95)`;
+        el.style.borderColor = `rgba(${r},${g},${b},${warning ? 0.5 + pulse * 0.5 : 0.4})`;
+        el.style.boxShadow = warning ? `0 0 ${6 + pulse * 8}px rgba(${r},${g},${b},${0.35 + pulse * 0.35})` : 'none';
 
-        // ── Background pill ────────────────────────────────────────────────
-        const pillW = 140, pillH = 26;
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
-        ctx.translate(-cx, -cy);
-
-        ctx.fillStyle = 'rgba(0,10,30,0.55)';
-        ctx.strokeStyle = `rgba(${r},${g},${b},${warning ? 0.35 + pulse * 0.45 : 0.35})`;
-        ctx.lineWidth = warning ? 1 + pulse : 1;
-        if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, cy - pillH - 2, pillW, pillH, 6);
-        else ctx.rect(cx - pillW / 2, cy - pillH - 2, pillW, pillH);
-        ctx.fill(); ctx.stroke();
-
-        // ── Label ─────────────────────────────────────────────────────────
-        ctx.fillStyle = `rgba(${r},${g},${b},0.9)`;
-        ctx.font = '600 12px Outfit, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
         const gustLabel = warning ? ' (INCOMING)' : (gustRatio > 1.25 ? ' (GUSTING)' : '');
-        ctx.fillText(`${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`, cx, cy - pillH / 2 - 2);
-
-        ctx.restore();
+        el.textContent = `${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`;
     }
 
 });
