@@ -6,10 +6,11 @@ const CargoPhysicsMechanicsMixin = {
         const lander = this.lander;
         if (!lander || lander.crashed) return;
 
+        const landerBottom = lander.y + lander.height / 2;
         let inWater = false;
         for (const body of this.waterBodies) {
             if (!body.pts || body.pts.length < 3) continue;
-            if (this.pointInPolygon(lander.x, lander.y, body.pts)) { inWater = true; break; }
+            if (this.pointInPolygon(lander.x, landerBottom, body.pts)) { inWater = true; break; }
         }
 
         if (inWater) {
