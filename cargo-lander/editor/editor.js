@@ -2609,6 +2609,9 @@ function renderPtUI() {
       } else if (poly.type === 'repulsor') {
         document.getElementById('rep-fx').value = poly.travelX ?? 0;
         document.getElementById('rep-fy').value = poly.travelY ?? -15;
+        document.getElementById('rep-gustms').value = poly.gustMs ?? 0;
+        document.getElementById('rep-calmms').value = poly.calmMs ?? 0;
+        document.getElementById('rep-warnms').value = poly.warnMs ?? 400;
       } else if (poly.type === 'gravwell') {
         document.getElementById('gw-speed').value = poly.speed ?? 100;
         document.getElementById('gw-radius').value = poly.radius ?? 200;
@@ -2774,7 +2777,7 @@ function setHazardField(field, val) {
   snapshot();
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
-  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
+  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','gustMs','calmMs','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
   arr[S.selPoly][field] = val;
   draw(); updateOut();
 }
@@ -3102,6 +3105,12 @@ function buildOut() {
         if (h.type === 'laser' && h.thickness) lines.push(`      thickness: ${h.thickness},`);
       } else if (h.type === 'sandworm') {
         if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
+      } else if (h.type === 'repulsor') {
+        if (h.travelX !== undefined) lines.push(`      travelX: ${h.travelX},`);
+        if (h.travelY !== undefined) lines.push(`      travelY: ${h.travelY},`);
+        if (h.gustMs) lines.push(`      gustMs: ${h.gustMs},`);
+        if (h.calmMs) lines.push(`      calmMs: ${h.calmMs},`);
+        if (h.warnMs) lines.push(`      warnMs: ${h.warnMs},`);
       } else if (h.type === 'gravwell') {
         if (h.speed !== undefined) lines.push(`      speed: ${h.speed},`);
         if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);

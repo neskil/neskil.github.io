@@ -209,6 +209,11 @@
                 <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('travelX', this.value)">
                 <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:45px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
               </div>
+              <div class="row">
+                <label title="Milliseconds the gust blows. Leave both gust/calm at 0 for an always-on wind tunnel.">gustMs:</label><input type="number" id="rep-gustms" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('gustMs', this.value)">
+                <label title="Milliseconds of calm between gusts.">calmMs:</label><input type="number" id="rep-calmms" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('calmMs', this.value)">
+                <label title="Milliseconds of flashing warning before the gust hits.">warnMs:</label><input type="number" id="rep-warnms" class="cinput" style="width:45px" placeholder="400" onchange="setHazardField('warnMs', this.value)">
+              </div>
             </div>
             <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
               <div class="row">

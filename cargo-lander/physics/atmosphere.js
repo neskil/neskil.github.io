@@ -711,6 +711,10 @@ const CargoPhysicsAtmosphereMixin = {
         // While active it damages the lander AND destroys any cargo box caught
         // inside (sets box.lost so game.js's removeCargoBox() cleans it up),
         // unlike the generic 'zone' hazard below which never touches cargo.
+        // Pure damage/burn — no knockback — so it reads distinctly from the
+        // 'repulsor' wind hazard below, which is knockback-only and never
+        // damages. Keeping the two effects (push vs. burn) on separate hazard
+        // types avoids them feeling like the same mechanic reskinned.
         if (this.hazards && this.hazards.length > 0) {
             for (const h of this.hazards) {
                 if (h.type !== 'incinerator') continue;
@@ -728,12 +732,6 @@ const CargoPhysicsAtmosphereMixin = {
                 if (!active) continue;
 
                 if (!lander.crashed && this.pointInPolygon(lander.x, lander.y, h.pts)) {
-                    const c = this.polygonCentroid(h.pts);
-                    const dx = lander.x - c.x, dy = lander.y - c.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                    lander.vx += (dx / dist) * 1.5;
-                    lander.vy += (dy / dist) * 1.5;
-
                     this.applyDamage(lander, (h.damagePerSec || 30) * dt / 60);
 
                     if (window.CargoAudio) CargoAudio.playCollision(1);
@@ -861,7 +859,25 @@ const CargoPhysicsAtmosphereMixin = {
                     if (!this.pointInPolygon(target.x, target.y, h.pts)) continue;
                     
                     if (h.type === 'repulsor') {
-                        // Apply constant wind force
+                        // Wind: pure knockback, never damages. Optionally
+                        // duty-cycled (gustMs/calmMs set) into a temporary gust
+                        // that telegraphs a moment before it blows, instead of
+                        // the original always-on wind tunnel — set only on the
+                        // lander target since the on/off state is a single
+                        // shared clock, computed once per hazard below.
+                        if (h.gustMs || h.calmMs) {
+                            if (target === lander) {
+                                const gustMs = h.gustMs ?? 1200;
+                                const calmMs = h.calmMs ?? 1400;
+                                const warnMs = h.warnMs ?? 400;
+                                const period = gustMs + calmMs;
+                                const t = ((this.hazardTime + (h.phaseOffset || 0)) % period + period) % period;
+                                const charging = t >= calmMs - warnMs && t < calmMs;
+                                const active = t >= calmMs;
+                                h.zoneState = { charging, active };
+                            }
+                            if (!h.zoneState?.active) continue;
+                        }
                         target.vx += (h.travelX || 0) * dt;
                         target.vy += (h.travelY || 0) * dt;
                     } else if (h.type === 'bouncer') {
