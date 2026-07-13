@@ -427,7 +427,9 @@ const CargoPhysicsEntitiesMixin = {
                 const ex = lander.x + n.ox * cosA - n.oy * sinA;
                 const ey = lander.y + n.ox * sinA + n.oy * cosA;
 
-                if (Math.random() < lander.enginePower * dt) {
+                const isDrone = lander.vehicleType === 'drone';
+                const sparkChance = isDrone ? lander.enginePower * dt * 0.5 : lander.enginePower * dt;
+                if (Math.random() < sparkChance) {
                     const exhaustSpeed = 7 + Math.random() * 7;
                     const evx = lander.vx + rx * exhaustSpeed + (Math.random() - 0.5) * 2;
                     const evy = lander.vy + ry * exhaustSpeed + (Math.random() - 0.5) * 2;
@@ -440,15 +442,15 @@ const CargoPhysicsEntitiesMixin = {
                         vx: evx,
                         vy: evy,
                         life: 1.0,
-                        decay: (0.04 + Math.random() * 0.03) * dt,
-                        color: lander.vehicleType === 'drone'
-                            ? `rgba(186, 230, 253, ${0.4 * lander.enginePower})`
+                        decay: (isDrone ? 0.06 + Math.random() * 0.04 : 0.04 + Math.random() * 0.03) * dt,
+                        color: isDrone
+                            ? `rgba(186, 230, 253, ${0.2 * lander.enginePower})`
                             : `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
-                        size: (lander.vehicleType === 'drone' ? 2.5 : 4) + Math.random() * 6 * lander.enginePower
+                        size: (isDrone ? 1.5 : 4) + Math.random() * (isDrone ? 3 : 6) * lander.enginePower
                     });
 
                     // Exhaust smoke
-                    if (Math.random() < lander.enginePower * 0.35) {
+                    if (Math.random() < lander.enginePower * (isDrone ? 0.18 : 0.35)) {
                         this.particles.push({
                             type: 'smoke',
                             thruster: true,
@@ -457,11 +459,11 @@ const CargoPhysicsEntitiesMixin = {
                             vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
                             vy: evy * 0.3 + (Math.random() - 0.5) * 1.2,
                             life: 1.0,
-                            decay: (0.012 + Math.random() * 0.01) * dt,
-                            color: lander.vehicleType === 'drone'
-                                ? `rgba(200, 220, 240, ${0.15 * lander.enginePower})`
+                            decay: (isDrone ? 0.02 + Math.random() * 0.015 : 0.012 + Math.random() * 0.01) * dt,
+                            color: isDrone
+                                ? `rgba(200, 220, 240, ${0.08 * lander.enginePower})`
                                 : `hsla(${210 + Math.random() * 20}, 12%, ${55 + Math.random() * 20}%, ${0.35 * lander.enginePower})`,
-                            size: 3 + Math.random() * 5
+                            size: (isDrone ? 2 : 3) + Math.random() * (isDrone ? 3 : 5)
                         });
                     }
                 }

@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.12';
+    static VERSION = '0.16.13';
 
     constructor() {
         this.canvas = null;
@@ -668,7 +668,7 @@ class CargoGame {
         } else {
             // Try to grab cargo
             let closestBox = null;
-            let minDist = 65; // Grab radius
+            let minDist = 65 * 65; // Grab radius (squared, compared against squared distance)
 
             for (const box of this.physics.boxes) {
                 // If it's not a drone, only allow grappling specific tetherable cargo
