@@ -406,41 +406,63 @@ const CargoPhysicsEntitiesMixin = {
         lander.fuel = Math.max(0, lander.fuel);
 
         // Universal Exhaust particles (scaled by engine power)
-        if (lander.thrusting && lander.fuel > 0 && Math.random() < lander.enginePower * dt) {
-            const ex = lander.x + Math.sin(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-            const ey = lander.y + Math.cos(lander.angle) * 15 + (Math.random() - 0.5) * 6;
-            const evx = lander.vx + Math.sin(lander.angle) * 4 + (Math.random() - 0.5) * 2;
-            const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
+        if (lander.thrusting && lander.fuel > 0) {
+            const nozzles = [];
+            if (lander.vehicleType === 'drone') {
+                // Drone rotors: 4 corners wash downwards
+                nozzles.push({ ox: -21, oy: -10 }, { ox: 21, oy: -10 }, { ox: -21, oy: 10 }, { ox: 21, oy: 10 });
+            } else {
+                // Space truck: 2 main nozzles at bottom
+                nozzles.push({ ox: -9, oy: 16 }, { ox: 9, oy: 16 });
+            }
 
-            this.particles.push({
-                type: 'spark',
-                x: ex,
-                y: ey,
-                vx: evx,
-                vy: evy,
-                life: 1.0,
-                decay: (0.04 + Math.random() * 0.03) * dt,
-                color: `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
-                size: 4 + Math.random() * 6 * lander.enginePower
-            });
+            const cosA = Math.cos(lander.angle);
+            const sinA = Math.sin(lander.angle);
+            // Local exhaust direction is downwards: (0, 1) relative to lander. Rotated is (-sinA, cosA).
+            const rx = -sinA;
+            const ry = cosA;
 
-            // Exhaust smoke — sparser, bigger, slower, longer-lived than the
-            // spark shower above; drifts rather than shooting outward, giving
-            // the plume some body instead of reading as pure fire. Shares the
-            // global 300-particle cap (updateParticles()) so this can't grow
-            // unbounded even under sustained full-power thrust.
-            if (Math.random() < lander.enginePower * 0.35 * dt) {
-                this.particles.push({
-                    type: 'smoke',
-                    x: ex + (Math.random() - 0.5) * 4,
-                    y: ey + (Math.random() - 0.5) * 4,
-                    vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
-                    vy: evy * 0.3 + (Math.random() - 0.5) * 1.2,
-                    life: 1.0,
-                    decay: (0.012 + Math.random() * 0.01) * dt,
-                    color: `hsla(${210 + Math.random() * 20}, 12%, ${55 + Math.random() * 20}%, ${0.35 * lander.enginePower})`,
-                    size: 3 + Math.random() * 5
-                });
+            for (const n of nozzles) {
+                // Nozzle world coordinates
+                const ex = lander.x + n.ox * cosA - n.oy * sinA;
+                const ey = lander.y + n.ox * sinA + n.oy * cosA;
+
+                if (Math.random() < lander.enginePower * dt) {
+                    const exhaustSpeed = 7 + Math.random() * 7;
+                    const evx = lander.vx + rx * exhaustSpeed + (Math.random() - 0.5) * 2;
+                    const evy = lander.vy + ry * exhaustSpeed + (Math.random() - 0.5) * 2;
+
+                    this.particles.push({
+                        type: 'spark',
+                        x: ex,
+                        y: ey,
+                        vx: evx,
+                        vy: evy,
+                        life: 1.0,
+                        decay: (0.04 + Math.random() * 0.03) * dt,
+                        color: lander.vehicleType === 'drone'
+                            ? `rgba(186, 230, 253, ${0.4 * lander.enginePower})`
+                            : `hsla(${20 + Math.random() * 30}, 100%, 60%, ${lander.enginePower})`,
+                        size: (lander.vehicleType === 'drone' ? 2.5 : 4) + Math.random() * 6 * lander.enginePower
+                    });
+
+                    // Exhaust smoke
+                    if (Math.random() < lander.enginePower * 0.35) {
+                        this.particles.push({
+                            type: 'smoke',
+                            x: ex + (Math.random() - 0.5) * 4,
+                            y: ey + (Math.random() - 0.5) * 4,
+                            vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
+                            vy: evy * 0.3 + (Math.random() - 0.5) * 1.2,
+                            life: 1.0,
+                            decay: (0.012 + Math.random() * 0.01) * dt,
+                            color: lander.vehicleType === 'drone'
+                                ? `rgba(200, 220, 240, ${0.15 * lander.enginePower})`
+                                : `hsla(${210 + Math.random() * 20}, 12%, ${55 + Math.random() * 20}%, ${0.35 * lander.enginePower})`,
+                            size: 3 + Math.random() * 5
+                        });
+                    }
+                }
             }
         }
 

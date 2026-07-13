@@ -637,13 +637,19 @@ Object.assign(CargoGame.prototype, {
                 const viewW = cw / this.camera.zoom;
                 const viewH = ch / this.camera.zoom;
                 
-                const startX = this.camera.x; // center of screen x
-                const startY = this.camera.y + (viewH / 2); // bottom edge y
-                
-                const targetX = this.camera.x + (Math.random() - 0.5) * (viewW * 0.5); // spread around center
-                const targetY = this.camera.y + (Math.random() - 0.5) * (viewH * 0.3); // spread around center y
-                
-                this.shootPlayerFirework(startX, startY, targetX, targetY);
+                // Launch 3 fireworks with slight delays
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        if (this.gameState !== 'menu') return;
+                        const startX = this.camera.x + (Math.random() - 0.5) * (viewW * 0.2); // spread around center at bottom
+                        const startY = this.camera.y + (viewH / 2); // bottom edge y
+                        
+                        const targetX = this.camera.x + (Math.random() - 0.5) * (viewW * 0.6); // spread around center
+                        const targetY = this.camera.y + (Math.random() - 0.5) * (viewH * 0.3); // spread around center y
+                        
+                        this.shootPlayerFirework(startX, startY, targetX, targetY);
+                    }, i * 200);
+                }
             }
         }
     },
