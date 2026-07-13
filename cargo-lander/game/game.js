@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.17.9';
+    static VERSION = '0.17.10';
 
     constructor() {
         this.canvas = null;
