@@ -9,6 +9,7 @@ class CargoPhysics {
         this.lander = null;
         this.boxes = [];
         this.particles = [];
+        this.debris = [];
 
         // Engine / Global Defaults
         this.LANDER_THRUST = 0.08;
@@ -56,6 +57,7 @@ class CargoPhysics {
         
         this.boxes = [];
         this.particles = [];
+        this.debris = [];
         this.sandWorm = null;
         this.sandWormSpawned = false;
 
@@ -341,6 +343,7 @@ class CargoPhysics {
         this.updateMonster(levelConfig, dt);
         this.updatePolice(dt);
         this.updateAmbientTraffic(dt);
+        this.updateDebris(dt);
         this.updateParticles();
     }
 

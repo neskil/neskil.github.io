@@ -196,27 +196,28 @@ Object.assign(CargoGame.prototype, {
             }
         }
         
-        // Auto Repair bank gauge
-        const repairRow = document.getElementById('repair-row');
-        if (repairRow) {
+        // Auto Repair bank gauge icon
+        const autoRepairIcon = document.getElementById('auto-repair-icon');
+        if (autoRepairIcon) {
             const hasAutoRepair = (this.upgrades?.autoRepair || 0) > 0;
             if (hasAutoRepair) {
-                repairRow.classList.remove('hidden');
-                const repairFill = document.getElementById('repair-fill');
-                if (repairFill) {
-                    const maxRepair = lander.maxAutoRepairCharge || 1;
-                    const pct = Math.max(0, Math.min(100, ((lander.autoRepairCharge || 0) / maxRepair) * 100));
-                    repairFill.style.width = `${pct}%`;
-                    
+                autoRepairIcon.classList.remove('hidden');
+                
+                if (lander.autoRepairCharge > 0) {
                     if (lander.autoRepairDelay > 0) {
                         const blink = Math.floor(Date.now() / 150) % 2 === 0;
-                        repairFill.style.opacity = blink ? '0.3' : '0.8';
+                        autoRepairIcon.style.opacity = blink ? '0.3' : '1.0';
+                        autoRepairIcon.style.filter = '';
                     } else {
-                        repairFill.style.opacity = '1';
+                        autoRepairIcon.style.opacity = '1.0';
+                        autoRepairIcon.style.filter = 'drop-shadow(0 0 5px #10b981)';
                     }
+                } else {
+                    autoRepairIcon.style.opacity = '0.2';
+                    autoRepairIcon.style.filter = 'grayscale(100%)';
                 }
             } else {
-                repairRow.classList.add('hidden');
+                autoRepairIcon.classList.add('hidden');
             }
         }
 
@@ -245,7 +246,6 @@ Object.assign(CargoGame.prototype, {
 
         // Toggle extraction button — must be at HQ to activate
         const btnExtract = this.uiElements?.btnExtract || document.getElementById('btn-extract');
-        const centerOverlay = document.getElementById('center-extract-overlay');
         const centerBtn = document.getElementById('center-extract-btn');
         const centerDesc = document.getElementById('center-extract-desc');
         const centerTitle = document.getElementById('center-extract-title');

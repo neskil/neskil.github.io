@@ -564,28 +564,57 @@ Object.assign(CargoGame.prototype, {
         const grid = document.getElementById('upgrade-grid');
         grid.innerHTML = '';
 
+        // Group upgrades by category
+        const categories = {};
         upgradeCatalog.forEach(upg => {
-            const currentLvl = this.upgrades[upg.id] || 0;
-            const cost = upg.basePrice * Math.pow(1.5, currentLvl);
-            const isMax = currentLvl >= upg.maxLevel;
-            const canAfford = this.globalCash >= cost;
+            const cat = upg.category || 'General';
+            if (!categories[cat]) categories[cat] = [];
+            categories[cat].push(upg);
+        });
 
-            const btnHtml = isMax ?
-                `<button class="btn-level" disabled style="opacity: 0.5; border-color: #64748b; cursor: not-allowed; padding: 8px 16px;">Maxed</button>` :
-                `<button class="btn-primary" onclick="game.purchaseUpgrade('${upg.id}', ${cost})" ${!canAfford ? 'disabled style="opacity:0.5; cursor:not-allowed; padding: 8px 16px;"' : 'style="background: #10b981; padding: 8px 16px;"'}>Buy $${Math.floor(cost)}</button>`;
-
+        for (const [catName, upgs] of Object.entries(categories)) {
+            // Add category header
             grid.innerHTML += `
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; text-align: left;">
-                    <div>
-                        <h3 style="margin: 0 0 5px 0; color: #f8fafc;">${upg.name} <span style="color: #38bdf8; font-size: 0.9em;">(Lvl ${currentLvl}/${upg.maxLevel})</span></h3>
-                        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">${upg.desc}</p>
-                    </div>
-                    <div>
-                        ${btnHtml}
-                    </div>
+                <div style="grid-column: 1 / -1; margin-top: 15px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; text-align: left;">
+                    <h3 style="color: #cbd5e1; margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px;">${catName}</h3>
                 </div>
             `;
-        });
+
+            upgs.forEach(upg => {
+                const currentLvl = this.upgrades[upg.id] || 0;
+                const cost = upg.basePrice * Math.pow(1.5, currentLvl);
+                const isMax = currentLvl >= upg.maxLevel;
+                const canAfford = this.globalCash >= cost;
+
+                const btnHtml = isMax ?
+                    `<button class="btn-level" disabled style="opacity: 0.5; border-color: #64748b; cursor: not-allowed; padding: 8px 16px; width: 100px;">Maxed</button>` :
+                    `<button class="btn-primary" onclick="game.purchaseUpgrade('${upg.id}', ${cost})" ${!canAfford ? 'disabled style="opacity:0.5; cursor:not-allowed; padding: 8px 16px; width: 100px;"' : 'style="background: #10b981; padding: 8px 16px; width: 100px;"'}>Buy $${Math.floor(cost)}</button>`;
+
+                const iconBox = `
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-right: 15px; flex-shrink: 0; box-shadow: inset 0 0 10px rgba(0,0,0,0.2);">
+                        ${upg.icon || '📦'}
+                    </div>
+                `;
+
+                grid.innerHTML += `
+                    <div style="background: linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.01)); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; text-align: left; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='translateX(5px)'; this.style.borderColor='rgba(255,255,255,0.2)';" onmouseout="this.style.transform='none'; this.style.borderColor='var(--glass-border)';">
+                        <div style="display: flex; align-items: center; flex: 1; padding-right: 10px;">
+                            ${iconBox}
+                            <div>
+                                <h3 style="margin: 0 0 4px 0; color: #f8fafc; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    ${upg.name} 
+                                    <span style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2); white-space: nowrap;">Lvl ${currentLvl}/${upg.maxLevel}</span>
+                                </h3>
+                                <p style="margin: 0; color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">${upg.desc}</p>
+                            </div>
+                        </div>
+                        <div style="margin-left: auto; flex-shrink: 0;">
+                            ${btnHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        }
     },
 
     purchaseUpgrade(id, cost) {
@@ -599,6 +628,23 @@ Object.assign(CargoGame.prototype, {
             this.renderUpgradeShop();
             this.refreshMenuUI();
             if (!this.isMuted && window.CargoAudio) CargoAudio.playSuccess();
+
+            // Firework animation! Launch from bottom of the screen to the center
+            if (this.canvas && this.camera && this.shootPlayerFirework) {
+                const cw = this.canvas.width;
+                const ch = this.canvas.height;
+                // Determine camera bounds in world coordinates
+                const viewW = cw / this.camera.zoom;
+                const viewH = ch / this.camera.zoom;
+                
+                const startX = this.camera.x; // center of screen x
+                const startY = this.camera.y + (viewH / 2); // bottom edge y
+                
+                const targetX = this.camera.x + (Math.random() - 0.5) * (viewW * 0.5); // spread around center
+                const targetY = this.camera.y + (Math.random() - 0.5) * (viewH * 0.3); // spread around center y
+                
+                this.shootPlayerFirework(startX, startY, targetX, targetY);
+            }
         }
     },
 

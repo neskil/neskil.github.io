@@ -1080,12 +1080,31 @@ const CargoPhysicsAtmosphereMixin = {
             p.y += p.vy;
             if (p.gy) p.vy += p.gy; // support gravity for some particles
             p.life -= p.decay;
-            p.size = Math.max(0.5, p.size * 0.98);
+            
+            if (p.type === 'ring') {
+                p.size *= 1.08;
+            } else if (p.type === 'smoke') {
+                p.size *= 1.015;
+            } else {
+                p.size = Math.max(0.5, p.size * 0.98);
+            }
 
             if (p.life <= 0) {
                 // O(1) swap-and-pop instead of O(n) splice
                 this.particles[i] = this.particles[this.particles.length - 1];
                 this.particles.pop();
+            }
+        }
+
+        if (this.explosions) {
+            for (let i = this.explosions.length - 1; i >= 0; i--) {
+                const ex = this.explosions[i];
+                ex.timer -= 0.016;
+                ex.radius += (ex.maxRadius - ex.radius) * 0.1;
+                if (ex.timer <= 0) {
+                    this.explosions[i] = this.explosions[this.explosions.length - 1];
+                    this.explosions.pop();
+                }
             }
         }
     }
