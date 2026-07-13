@@ -81,7 +81,7 @@ registerLevel({
         {
             type: 'repulsor',
             color: 'rgba(14, 165, 233, 0.18)',
-            travelX: -6, travelY: 10,
+            travelX: -0.15, travelY: 0.25,
             pts: [
                 {x: 1500, y: 440}, {x: 1580, y: 440},
                 {x: 1580, y: 560}, {x: 1500, y: 560}
@@ -91,7 +91,7 @@ registerLevel({
         {
             type: 'repulsor',
             color: 'rgba(14, 165, 233, 0.18)',
-            travelX: -6, travelY: -10,
+            travelX: -0.15, travelY: -0.25,
             pts: [
                 {x: 2000, y: 230}, {x: 2080, y: 230},
                 {x: 2080, y: 360}, {x: 2000, y: 360}
