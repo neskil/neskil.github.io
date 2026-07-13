@@ -2771,7 +2771,7 @@ function nearestEdge(pts,wx,wy) {
 // driven without clicking through the UI in an interactive browser:
 //   level-editor.html?autoload=level4.js&dumpExport=1
 // loads level4.js via the normal loadFromServer() path, then (once the
-tag has finished, ~500ms later) appends a
+// injected script tag has finished, ~500ms later) appends a
 // #headless-export-dump <pre> containing the export textarea's contents —
 // grep the --dump-dom output for it to diff against the source file.
 
