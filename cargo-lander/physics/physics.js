@@ -327,9 +327,21 @@ class CargoPhysics {
         this.applyGravityAndWind(levelConfig, dt);
         this.applyGravityWell(levelConfig, dt);
 
-        // Step custom kinematics for the lander unconditionally
-        this.integrateLander(dt);
-        this.resolveSegmentCollisions();
+        // Step custom kinematics for the lander unconditionally.
+        // resolveSegmentCollisions is a discrete point-vs-segment test with a
+        // small skin margin — at high speed a single big integration step can
+        // move the lander clean past a terrain segment before the check ever
+        // sees an overlap (tunneling straight through the ground/pad). Substep
+        // the integrate+resolve pair so no single step covers more than the
+        // collision skin width.
+        const speed = Math.sqrt(this.lander.vx * this.lander.vx + this.lander.vy * this.lander.vy);
+        const maxStepDist = 4; // < SKIN (5) used by resolveSegmentCollisions
+        const substeps = Math.min(20, Math.max(1, Math.ceil((speed * dt) / maxStepDist)));
+        const subDt = dt / substeps;
+        for (let i = 0; i < substeps; i++) {
+            this.integrateLander(subDt);
+            this.resolveSegmentCollisions();
+        }
         this.applyWaterBounce(dt);
 
         if (this.landerBody) {
