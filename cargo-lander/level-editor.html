@@ -146,6 +146,13 @@ canvas{display:block}
 #statusbar span{color:#c9d1d9}
 
 #kbd{position:absolute;top:8px;left:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:10px;color:#8b949e;pointer-events:none;line-height:1.6}
+/* Live engine preview — the real game rendered in an iframe over the canvas.
+   pointer-events:none so the editor's pan/zoom/drag still lands on the canvas
+   beneath; the game camera follows via postMessage. */
+/* height matches the editor canvas (wrap minus the 22px status strip — see
+   resize()) so the world→screen mapping is pixel-identical in both views */
+#live-preview-frame{position:absolute;top:0;left:0;width:100%;height:calc(100% - 22px);border:0;pointer-events:none;z-index:4}
+#live-preview-badge{position:absolute;top:8px;right:8px;z-index:5;background:rgba(16,185,129,.15);border:1px solid #34d399;color:#34d399;border-radius:4px;padding:3px 8px;font-size:10px;pointer-events:none}
 #lvl-overlay{position:absolute;top:8px;right:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;color:#58a6ff;pointer-events:none;display:none}
 
 .props-panel { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
@@ -498,6 +505,7 @@ canvas{display:block}
     <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
     <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
     <button class="btn" id="t-preview" onclick="togglePreview()">Preview</button>
+    <button class="btn" id="t-live" onclick="toggleLivePreview()" title="Render the level with the actual game engine (live iframe). Pan/zoom stays in sync; edits hot-reload after ~1s.">▶ Live</button>
   </div>
   <div id="snap-bar">
     <label>Snap:</label>
@@ -1646,6 +1654,84 @@ function togglePreview() {
   draw();
 }
 
+// ── Live engine preview ──────────────────────────────────────────────────────
+// Renders the level with the ACTUAL game engine: an iframe loads
+// index.html?playtest=1&embed=1 (see index.html's initEditorEmbed()) over the
+// canvas. The editor keeps input focus (iframe is pointer-events:none) and
+// streams its pan/zoom as free-camera updates over postMessage; edits are
+// hot-reloaded into the running engine after a short debounce.
+// `var` (not let): resize() → draw() → sendLiveCam() runs during initial
+// script evaluation, before this line — let would throw a TDZ ReferenceError.
+var liveFrame = null, liveReady = false, liveLevelTimer = null;
+
+function toggleLivePreview() {
+  if (liveFrame) { closeLivePreview(); return; }
+  // Pre-dismiss the game's first-run modals (same origin → shared storage),
+  // and hand the level over exactly like the Playtest button does.
+  try {
+    localStorage.setItem('cargoLanderHasSeenPortraitSelector', '1');
+    localStorage.setItem('cargoLanderHasSeenTutorial', '1');
+  } catch (e) {}
+  sessionStorage.setItem('playtest_level', buildOut());
+  liveFrame = document.createElement('iframe');
+  liveFrame.id = 'live-preview-frame';
+  liveFrame.src = 'index.html?playtest=1&embed=1';
+  wrap.appendChild(liveFrame);
+  const badge = document.createElement('div');
+  badge.id = 'live-preview-badge';
+  badge.textContent = '▶ LIVE ENGINE — pan/zoom follows editor, edits hot-reload';
+  wrap.appendChild(badge);
+  document.getElementById('t-live').className = 'btn on';
+}
+
+function closeLivePreview() {
+  if (liveFrame) liveFrame.remove();
+  const badge = document.getElementById('live-preview-badge');
+  if (badge) badge.remove();
+  liveFrame = null; liveReady = false;
+  clearTimeout(liveLevelTimer);
+  document.getElementById('t-live').className = 'btn';
+}
+
+// Editor view → game free-camera: the game maps world→screen as
+// (wx - cam.x) * zoom + canvasW/2, the editor as wx * scale + view.x, and the
+// iframe covers the canvas exactly, so cam = world point at the canvas centre
+// and zoom = the editor scale.
+function liveCamFromView() {
+  return {
+    x: (canvas.width / 2 - S.view.x) / S.view.scale,
+    y: (canvas.height / 2 - S.view.y) / S.view.scale,
+    zoom: S.view.scale,
+  };
+}
+
+function sendLiveCam() {
+  if (!liveFrame || !liveReady || !liveFrame.contentWindow) return;
+  const c = liveCamFromView();
+  liveFrame.contentWindow.postMessage({ type: 'editorCam', ...c }, location.origin);
+}
+
+// Debounced hot reload of the whole level into the running engine.
+function scheduleLiveLevelSync() {
+  if (!liveFrame) return;
+  clearTimeout(liveLevelTimer);
+  liveLevelTimer = setTimeout(() => {
+    if (!liveFrame || !liveReady || !liveFrame.contentWindow) return;
+    liveFrame.contentWindow.postMessage(
+      { type: 'editorLevel', src: buildOut(), cam: liveCamFromView() },
+      location.origin
+    );
+  }, 700);
+}
+
+window.addEventListener('message', (ev) => {
+  if (ev.origin !== location.origin) return;
+  if (ev.data && ev.data.type === 'embedReady') {
+    liveReady = true;
+    sendLiveCam();
+  }
+});
+
 function draw() {
   const W=canvas.width, H=canvas.height;
   drawSky(W,H);
@@ -1659,6 +1745,7 @@ function draw() {
   drawPolygons();
   if (!S.previewMode) drawHazards();
   if (!S.previewMode) drawEdgePreview();
+  sendLiveCam(); // keep the live engine preview's free camera in sync
 }
 
 function drawSky(W,H) {
@@ -2836,7 +2923,10 @@ function buildOut() {
 }
 
 
-function updateOut() { document.getElementById('out').value = buildOut(); }
+function updateOut() {
+  document.getElementById('out').value = buildOut();
+  scheduleLiveLevelSync(); // hot-reload the live engine preview, debounced
+}
 
 function copyOut() {
   navigator.clipboard.writeText(document.getElementById('out').value).then(() => {
@@ -3131,6 +3221,14 @@ function nearestEdge(pts,wx,wy) {
       if (hs) { S.hubs.forEach(h => h.style = hs); }
       if (!S.previewMode) togglePreview();
       fitView();
+    }, 600);
+  }
+  // &live=1 — open the live engine preview after the level loads (headless
+  // visual checks of the editor↔engine embed).
+  if (params.get('live')) {
+    setTimeout(() => {
+      fitView();
+      if (!liveFrame) toggleLivePreview();
     }, 600);
   }
   if (params.get('dumpExport')) {

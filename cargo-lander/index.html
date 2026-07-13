@@ -2757,44 +2757,44 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="upgrades.js?v=0.14.0"></script>
-    <script src="levels.js?v=0.14.0"></script>
-    <script src="levelGenerator.js?v=0.14.0"></script>
+    <script src="upgrades.js?v=0.15.0"></script>
+    <script src="levels.js?v=0.15.0"></script>
+    <script src="levelGenerator.js?v=0.15.0"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="level1.js?v=0.14.0"></script>
-    <script src="level2.js?v=0.14.0"></script>
-    <script src="level3.js?v=0.14.0"></script>
-    <script src="level4.js?v=0.14.0"></script>
-    <script src="level5.js?v=0.14.0"></script>
-    <script src="level6.js?v=0.14.0"></script>
-    <script src="level7.js?v=0.14.0"></script>
-    <script src="level8.js?v=0.14.0"></script>
-    <script src="level9.js?v=0.14.0"></script>
-    <script src="level10.js?v=0.14.0"></script>
-    <script src="levelTest.js?v=0.14.0"></script>
+    <script src="level1.js?v=0.15.0"></script>
+    <script src="level2.js?v=0.15.0"></script>
+    <script src="level3.js?v=0.15.0"></script>
+    <script src="level4.js?v=0.15.0"></script>
+    <script src="level5.js?v=0.15.0"></script>
+    <script src="level6.js?v=0.15.0"></script>
+    <script src="level7.js?v=0.15.0"></script>
+    <script src="level8.js?v=0.15.0"></script>
+    <script src="level9.js?v=0.15.0"></script>
+    <script src="level10.js?v=0.15.0"></script>
+    <script src="levelTest.js?v=0.15.0"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.14.0"></script>
-    <script src="shaders.js?v=0.14.0"></script>
-    <script src="physics.js?v=0.14.0"></script>
-    <script src="physics/collision.js?v=0.14.0"></script>
-    <script src="physics/mechanics.js?v=0.14.0"></script>
-    <script src="physics/entities.js?v=0.14.0"></script>
-    <script src="physics/atmosphere.js?v=0.14.0"></script>
-    <script src="game.js?v=0.14.0"></script>
-    <script src="game/input.js?v=0.14.0"></script>
-    <script src="game/menu.js?v=0.14.0"></script>
-    <script src="game/hud.js?v=0.14.0"></script>
-    <script src="game/cargo.js?v=0.14.0"></script>
-    <script src="render.js?v=0.14.0"></script>
-    <script src="render/background.js?v=0.14.0"></script>
-    <script src="render/terrain.js?v=0.14.0"></script>
-    <script src="render/entities.js?v=0.14.0"></script>
-    <script src="render/effects.js?v=0.14.0"></script>
-    <script src="render/night.js?v=0.14.0"></script>
-    <script src="render/ui.js?v=0.14.0"></script>
+    <script src="audio.js?v=0.15.0"></script>
+    <script src="shaders.js?v=0.15.0"></script>
+    <script src="physics.js?v=0.15.0"></script>
+    <script src="physics/collision.js?v=0.15.0"></script>
+    <script src="physics/mechanics.js?v=0.15.0"></script>
+    <script src="physics/entities.js?v=0.15.0"></script>
+    <script src="physics/atmosphere.js?v=0.15.0"></script>
+    <script src="game.js?v=0.15.0"></script>
+    <script src="game/input.js?v=0.15.0"></script>
+    <script src="game/menu.js?v=0.15.0"></script>
+    <script src="game/hud.js?v=0.15.0"></script>
+    <script src="game/cargo.js?v=0.15.0"></script>
+    <script src="render.js?v=0.15.0"></script>
+    <script src="render/background.js?v=0.15.0"></script>
+    <script src="render/terrain.js?v=0.15.0"></script>
+    <script src="render/entities.js?v=0.15.0"></script>
+    <script src="render/effects.js?v=0.15.0"></script>
+    <script src="render/night.js?v=0.15.0"></script>
+    <script src="render/ui.js?v=0.15.0"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="tutorial.js?v=0.14.0"></script>
+    <script src="tutorial.js?v=0.15.0"></script>
 
     <script>
         // Start the game!
@@ -2803,6 +2803,7 @@
         // Check if we are playtesting a level from the editor
         if (window.location.search.includes('playtest=1')) {
             game.isPlaytest = true;
+            const isEmbed = window.location.search.includes('embed=1');
             const ptData = sessionStorage.getItem('playtest_level');
             if (ptData) {
                 try {
@@ -2810,11 +2811,78 @@
                     eval(ptData);
                     // The new level is pushed to the end of the levels array
                     setTimeout(() => {
-                        game.startLevel(levels.length - 1);
+                        if (isEmbed) {
+                            embedStartLevel();
+                            initEditorEmbed();
+                        } else {
+                            game.startLevel(levels.length - 1);
+                        }
                     }, 50);
                 } catch (e) {
                     console.error("Failed to parse or load playtest level:", e);
                 }
+            }
+        }
+
+        // ── Live engine preview (embedded in level-editor.html) ─────────────
+        // With ?playtest=1&embed=1 this page runs inside the editor's "Live"
+        // iframe: the real engine renders the level 1:1 while the editor
+        // drives a free camera over postMessage and pushes edited level
+        // source for in-place hot reloads. HUD hidden, audio muted, mission
+        // clock frozen, and the bank balance is left untouched.
+        function embedStartLevel() {
+            // startLevel() permanently deducts maintenance + deposit from the
+            // player's saved bank — a preview must not touch real savings.
+            const savedCash = game.globalCash;
+            game.startLevel(levels.length - 1);
+            game.globalCash = savedCash;
+            localStorage.setItem('cargoLanderCash', savedCash);
+        }
+
+        function initEditorEmbed() {
+            const applyEmbedState = () => {
+                if (typeof CargoAudio !== 'undefined') CargoAudio.muted = true;
+                game.freeCam = true;
+                if (!game.uiCollapsed) game.toggleUI();
+            };
+            applyEmbedState();
+            // Keep the mission clock from ever reaching the overtime/fail flow
+            setInterval(() => {
+                game.missionTimer = game.missionTimeLimit;
+                game.overtimeActive = false;
+                game.overtimeTimer = 0;
+            }, 2000);
+
+            window.addEventListener('message', (ev) => {
+                if (ev.origin !== location.origin) return;
+                const d = ev.data || {};
+                if (d.type === 'editorCam') {
+                    game.freeCam = true;
+                    game.camera.x = d.x;
+                    game.camera.y = d.y;
+                    game.camera.zoom = d.zoom;
+                    game.camera.targetZoom = d.zoom;
+                } else if (d.type === 'editorLevel' && typeof d.src === 'string') {
+                    try {
+                        // Swap the previous playtest level out instead of
+                        // growing levels[] on every edit
+                        levels.pop();
+                        eval(d.src);
+                        embedStartLevel();
+                        applyEmbedState();
+                        if (d.cam) {
+                            game.camera.x = d.cam.x;
+                            game.camera.y = d.cam.y;
+                            game.camera.zoom = d.cam.zoom;
+                            game.camera.targetZoom = d.cam.zoom;
+                        }
+                    } catch (e) {
+                        console.error('Live preview reload failed:', e);
+                    }
+                }
+            });
+            if (window.parent !== window) {
+                window.parent.postMessage({ type: 'embedReady' }, location.origin);
             }
         }
 
