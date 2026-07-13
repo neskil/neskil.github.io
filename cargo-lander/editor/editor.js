@@ -2146,7 +2146,23 @@ function drawHazards() {
       ctx.setLineDash([5, 5]);
       ctx.stroke();
       ctx.setLineDash([]);
-      
+
+      // Draw waypoint markers when the well loops through all points
+      const isLoopMode = h.pathMode === 'loop' || (!h.pathMode && h.pts.length > 2);
+      if (isLoopMode) {
+        h.pts.forEach(pt => {
+          const pp = w2s(pt.x, pt.y);
+          ctx.beginPath();
+          ctx.arc(pp.sx, pp.sy, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#d8b4fe';
+          ctx.globalAlpha = 1;
+          ctx.fill();
+          ctx.strokeStyle = '#a855f7';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        });
+      }
+
       // Draw start position and radius
       const p = w2s(h.pts[0].x, h.pts[0].y);
       ctx.beginPath();
@@ -2617,6 +2633,7 @@ function renderPtUI() {
         document.getElementById('gw-radius').value = poly.radius ?? 200;
         document.getElementById('gw-startf').value = poly.startForce ?? 1.5;
         document.getElementById('gw-endf').value = poly.endForce ?? 0;
+        document.getElementById('gw-pathmode').value = poly.pathMode || '';
       } else if (poly.type === 'crusher') {
         document.getElementById('crush-waitu').value = poly.waitUnloadedMs ?? 1000;
         document.getElementById('crush-crush').value = poly.crushMs ?? 200;
@@ -3116,6 +3133,7 @@ function buildOut() {
         if (h.radius !== undefined) lines.push(`      radius: ${h.radius},`);
         if (h.startForce !== undefined) lines.push(`      startForce: ${h.startForce},`);
         if (h.endForce !== undefined) lines.push(`      endForce: ${h.endForce},`);
+        if (h.pathMode) lines.push(`      pathMode: ${JSON.stringify(h.pathMode)},`);
       } else if (h.type === 'crusher') {
         if (h.waitUnloadedMs !== undefined) lines.push(`      waitUnloadedMs: ${h.waitUnloadedMs},`);
         if (h.crushMs !== undefined) lines.push(`      crushMs: ${h.crushMs},`);
@@ -3191,15 +3209,23 @@ function copyOut() {
 
 function copyWithAIPrompt() {
   const levelCode = document.getElementById('out').value;
-  const prompt = `I am working on a level for a lunar lander game. 
-Here is the current code for the level:
+  const nameMatch = levelCode.match(/name:\s*"([^"]*)"/);
+  const levelName = nameMatch ? nameMatch[1] : '(unnamed level)';
+  const prompt = `I am working on a level for Cargo Lander, a lunar-lander-style cargo delivery game, built with a custom JS level format registered via \`registerLevel({...})\`.
+
+Here is the current code for the level "${levelName}":
 
 \`\`\`javascript
 ${levelCode}
 \`\`\`
 
-Please help me update this level. 
-When you provide the updated level code, please provide ONLY the complete \`registerLevel({...})\` call in a single javascript code block, so I can easily copy and paste it back into my level editor. Do not explain every little change unless I ask. Make sure the output is syntactically valid.
+Please help me update this level based on my requested changes below. Some things to keep in mind:
+- Keep all fields not mentioned in my request unchanged, unless a change I ask for requires touching them (e.g. moving a delivery hub also means updating nearby terrain).
+- Coordinates are in world-space pixels; y increases downward. Keep new/moved terrain, hazards, and hubs consistent with the existing coordinate scale of this level.
+- Preserve valid JS syntax: array/object structure, trailing commas removed, quotes matched.
+- If my request is ambiguous or missing key details (e.g. "add a hazard" without saying where), make a reasonable choice consistent with the rest of the level and briefly note the assumption.
+
+When you provide the updated level code, reply with ONLY the complete \`registerLevel({...})\` call in a single javascript code block, so I can copy and paste it back into my level editor. Do not explain every little change unless I ask. Make sure the output is syntactically valid.
 
 My requested changes are: [TYPE YOUR CHANGES HERE]`;
 

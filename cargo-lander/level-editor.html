@@ -224,6 +224,14 @@
                 <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:45px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
                 <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('endForce', this.value)">
               </div>
+              <div class="row">
+                <label title="How the well travels its path: loop cycles through all points in order; pingpong bounces back and forth along the line">pathMode:</label>
+                <select id="gw-pathmode" class="cinput" onchange="setHazardField('pathMode', this.value)">
+                  <option value="">auto (loop if 3+ pts, else pingpong)</option>
+                  <option value="loop">loop</option>
+                  <option value="pingpong">pingpong</option>
+                </select>
+              </div>
             </div>
             <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
               <div class="row">
