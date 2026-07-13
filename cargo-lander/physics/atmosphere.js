@@ -1063,6 +1063,16 @@ const CargoPhysicsAtmosphereMixin = {
                         }
                         this.collectibles.splice(i, 1);
                     }
+                } else if (c.type === 'cash') {
+                    const r = c.radius || 24;
+                    const dx = this.lander.x - c.x;
+                    const dy = this.lander.y - c.y;
+                    if (dx * dx + dy * dy < r * r) {
+                        this.cash = (this.cash || 0) + (c.value || 100);
+                        if (window.game) window.game.addMessage(`+$${c.value||100}`, '#10b981');
+                        if (window.game) window.game.floatingTexts.push({ text: `+$${c.value||100}`, x: c.x, y: c.y, life: 1.5, color: '#10b981' });
+                        this.collectibles.splice(i, 1);
+                    }
                 }
             }
         }

@@ -564,6 +564,34 @@ drawCollectibles() {
                 ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
                 ctx.lineWidth = 8;
                 ctx.stroke();
+            } else if (c.type === 'cash') {
+                const r = c.radius || 24;
+                const bob = Math.sin(Date.now() * 0.003 + c.x) * 3;
+                const cy = c.y + bob;
+                // coin body
+                const grad = ctx.createRadialGradient(c.x - r * 0.3, cy - r * 0.3, r * 0.1, c.x, cy, r);
+                grad.addColorStop(0, '#fde68a');
+                grad.addColorStop(0.7, '#facc15');
+                grad.addColorStop(1, '#b45309');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(c.x, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // dollar sign
+                ctx.fillStyle = '#92400e';
+                ctx.font = `bold ${Math.round(r * 1.1)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('$', c.x, cy + 1);
+                // faint pulse ring to signal "flythrough" pickup
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.35)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(c.x, cy, r + 6, 0, Math.PI * 2);
+                ctx.stroke();
             }
         }
         ctx.restore();

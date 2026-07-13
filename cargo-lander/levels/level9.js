@@ -155,7 +155,7 @@ registerLevel({
 
     // ── Collectibles (Fuel / Cash) ────────────────────────────────────────────
     collectibles: [
-        { type: 'cash', x: 800, y: 400, value: 500 }, // Risky cash above suspended hub
+        { type: 'cash', x: 800, y: 400, value: 500 }, // Risky flythrough cash above suspended hub
         { type: 'fuel', x: 525, y: 650, amount: 40 },
         { type: 'fuel', x: 1040, y: 600, amount: 40 },
         { type: 'fuel', x: 800, y: 650, amount: 35 } // Dead center of the worm zone — highest risk, dead below the hub

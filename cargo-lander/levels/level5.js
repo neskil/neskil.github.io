@@ -59,7 +59,8 @@ registerLevel({
     ],
 
     // ── Collectibles ──────────────────────────────────────────────────────────
-    // Cash pickup tucked in the shaft's alcove pocket — needs a sideways winch swing to reach
+    // Cash pickup tucked in the shaft's alcove pocket — grab it by flying the lander
+    // body through it (no winch needed), but the alcove is tight and close to the wall
     collectibles: [
         { type: 'cash', x: 620, y: 610, value: 250 },
     ],
