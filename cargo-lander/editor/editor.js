@@ -1462,6 +1462,21 @@ function drawHazards() {
       }
       ctx.restore();
     } else if (h.type === 'sandworm' && h.pts.length >= 3) {
+      // Draw reach radius preview
+      const cx = h.pts.reduce((s,p)=>s+p.x,0)/h.pts.length;
+      const cy = h.pts.reduce((s,p)=>s+p.y,0)/h.pts.length;
+      const cp = w2s(cx, cy);
+      ctx.beginPath();
+      ctx.arc(cp.sx, cp.sy, (h.reach || 300) * S.view.scale, 0, Math.PI*2);
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.5;
+      ctx.stroke();
+      ctx.fillStyle = '#b45309';
+      ctx.globalAlpha = 0.1;
+      ctx.fill();
+
+      // Draw triangle
       ctx.beginPath();
       h.pts.forEach((pt, i) => {
         const p = w2s(pt.x, pt.y);
@@ -1962,6 +1977,7 @@ function renderPtUI() {
         document.getElementById('laser-thick').value = poly.thickness ?? 15;
       } else if (poly.type === 'sandworm') {
         document.getElementById('sw-spawnrate').value = poly.spawnRate ?? 1.0;
+        document.getElementById('sw-reach').value = poly.reach ?? 300;
       } else if (poly.type === 'repulsor') {
         document.getElementById('rep-fx').value = poly.travelX ?? 0;
         document.getElementById('rep-fy').value = poly.travelY ?? -15;
@@ -2072,6 +2088,20 @@ function setHazardType(val) {
   } else if (val === 'pickup') {
     if (poly.pts.length > 1) poly.pts = [poly.pts[0]];
     else if (poly.pts.length < 1) poly.pts = [{x:500,y:400}];
+  } else if (val === 'sandworm') {
+    let cx = 500, cy = 400;
+    if (poly.pts.length > 0) {
+      cx = poly.pts.reduce((s,p) => s + p.x, 0) / poly.pts.length;
+      cy = poly.pts.reduce((s,p) => s + p.y, 0) / poly.pts.length;
+    }
+    const r = 20;
+    poly.pts = [
+      {x: cx, y: cy - r},
+      {x: cx - r*0.866, y: cy + r*0.5},
+      {x: cx + r*0.866, y: cy + r*0.5}
+    ];
+    if (poly.spawnRate === undefined) poly.spawnRate = 1.0;
+    if (poly.reach === undefined) poly.reach = 300;
   } else if (poly.pts.length < 3) {
     const p0 = poly.pts[0] || {x:500,y:400};
     const p1 = poly.pts[1] || {x:p0.x+80,y:p0.y};
@@ -2118,11 +2148,18 @@ function setWaterField(field, val) {
 
 function setPt(pi, pti, axis, val) {
   snapshot();
+  const poly = activeList()[pi];
   if (axis === 'invisibleEdge') {
-    if (val) activeList()[pi].pts[pti][axis] = true;
-    else delete activeList()[pi].pts[pti][axis];
+    if (val) poly.pts[pti][axis] = true;
+    else delete poly.pts[pti][axis];
   } else {
-    activeList()[pi].pts[pti][axis] = +val;
+    if (S.selLayer === 'hazard' && poly.type === 'sandworm') {
+        const oldVal = poly.pts[pti][axis];
+        const delta = (+val) - oldVal;
+        poly.pts.forEach(p => { p[axis] += delta; });
+    } else {
+        poly.pts[pti][axis] = +val;
+    }
   }
   draw(); updateOut();
 }
@@ -2130,7 +2167,10 @@ function setPt(pi, pti, axis, val) {
 function deletePt(pi, pti) {
   snapshot();
   const arr = activeList();
-  const minPts = (S.selLayer==='hazard' && (arr[pi].type==='laser' || arr[pi].type==='crusher')) ? 2 : (S.selLayer==='hazard' && arr[pi].type==='pickup' ? 1 : 3);
+  const isHazard = S.selLayer==='hazard';
+  const type = arr[pi].type;
+  const minPts = isHazard && (type==='laser' || type==='crusher') ? 2 : (isHazard && type==='pickup' ? 1 : (isHazard && type==='sandworm' ? 3 : 3));
+  if (isHazard && type === 'sandworm') { alert('Cannot delete points from a fixed sandworm shape.'); return; }
   if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
   arr[pi].pts.splice(pti,1);
   if (S.selPt>=arr[pi].pts.length) S.selPt=arr[pi].pts.length-1;
@@ -2646,8 +2686,16 @@ canvas.addEventListener('mousemove', e => {
   // Dragging a shape vertex (terrain, water, or hazard — same mechanism for all three)
   if (S.dragging&&S.dragPti>=0) {
     const s=e.shiftKey?S.snap*5:S.snap;
-    const pt=listForLayer(S.dragLayer)[S.dragPi].pts[S.dragPti];
-    pt.x=Math.round(wx/s)*s; pt.y=Math.round(wy/s)*s;
+    const poly=listForLayer(S.dragLayer)[S.dragPi];
+    if (S.dragLayer === 'hazard' && poly.type === 'sandworm') {
+        const pt=poly.pts[S.dragPti];
+        const dx = Math.round(wx/s)*s - pt.x;
+        const dy = Math.round(wy/s)*s - pt.y;
+        poly.pts.forEach(p => { p.x += dx; p.y += dy; });
+    } else {
+        const pt=poly.pts[S.dragPti];
+        pt.x=Math.round(wx/s)*s; pt.y=Math.round(wy/s)*s;
+    }
     renderPtList(); draw(); updateOut(); return;
   }
 

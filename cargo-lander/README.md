@@ -133,19 +133,27 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
 
 ## Verification
 
-Standard protocol for any code change:
-1. `node --check <file>.js` on every modified JS file (if Node is missing,
-   loading the page and reading the console is the fallback).
-2. Serve the folder (`python3 -m http.server 8177` from `cargo-lander/`), load
-   `index.html`, start a mission — no console errors.
-3. Open `tests.html` — auto-runs; must report **0 failed** (89 tests at last
-   count; the number grows over time, 0 failed is the bar).
-4. For anything touching a specific mechanic, exercise it against the live
-   `game`/`game.physics` objects in the console rather than trusting a code
-   read. Gotchas: move the lander by setting `game.physics.lander.x/y` **and**
-   `Matter.Body.setPosition(game.physics.landerBody, {x,y})` together (moving
-   only one desyncs them → bogus collision damage); drive `game.update(1.0)`
-   in a loop (dt≈1.0 = one 60fps frame).
+**One command runs everything:** `./run-tests.sh` (bash; auto-detects
+Chrome/Chromium and python, serves the folder itself, exits non-zero on any
+failure). It runs, in order:
+1. **Boot smoke** — `syntax-check.html`: loads every game script in
+   `index.html`'s order, fails on any parse/load error, and asserts core
+   globals plus one method per prototype-mixin file (catches a broken file
+   AND a mixin that silently never attached). Keep its script list in sync
+   with `index.html` when adding files.
+2. **Test suite** — `tests.html` must report **0 failed**.
+3. **Editor self-tests** — `level-editor.html?runTests=1` (undo/redo logic).
+4. **Editor export round-trip** — `?autoload=level1.js&dumpExport=1`.
+5. **Game boot probe** — `probe-screenshot.html` renders L1 and stamps the
+   post-FX shader link status (implies the full script chain boots).
+
+Standard protocol for any code change: run `./run-tests.sh`, then for
+anything touching a specific mechanic, exercise it against the live
+`game`/`game.physics` objects rather than trusting a code read. Gotchas:
+move the lander by setting `game.physics.lander.x/y` **and**
+`Matter.Body.setPosition(game.physics.landerBody, {x,y})` together (moving
+only one desyncs them → bogus collision damage); drive `game.update(1.0)`
+in a loop (dt≈1.0 = one 60fps frame).
 
 ### Headless verification (no interactive browser needed)
 Any headless Chromium works (`chrome`, `chromium`, or a Playwright
@@ -349,7 +357,10 @@ the file. The class files are small; the bulk is in the mixins.
 | Frame composition (`draw()`), post-FX region setup, `shadeColor` helper | `render.js` |
 | Sky/parallax, weather, ambient traffic drawing | `render/background.js` |
 | Terrain, water, gravity well, mist/fluid bounds, underground | `render/terrain.js` |
-| Lander, boxes, hubs, depot, hazards, monster, sandworm, buildings | `render/entities.js` |
+| Hazards, cargo boxes, background buildings, collectibles | `render/entities.js` |
+| Pad base (`drawPadBase`), HQ depot, delivery hubs + hub styles (crane/house/depot/silo) | `render/pads.js` |
+| The lander/drone vehicle drawing | `render/lander.js` |
+| Sandworm, police interceptors, OOB monster | `render/creatures.js` |
 | Particles | `render/effects.js` |
 | Minimap, radar ping, objective arrow, notifications, wind indicator | `render/ui.js` |
 | `initLevel`, Matter world build, terrain generation, `update()` | `physics.js` |
