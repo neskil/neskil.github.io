@@ -311,6 +311,23 @@ canvas{display:block}
 </head>
 <body>
 
+  <!-- On-Screen Error Logger for Debugging -->
+  <div id="error-log"
+      style="position: absolute; top: 0; left: 0; z-index: 9999; background: rgb(180,0,0); color: white; padding: 12px 16px; width: 100%; display: none; font-family: monospace; font-size: 14px; pointer-events: none; box-shadow: 0 4px 24px rgba(0,0,0,0.8);">
+  </div>
+  <script>
+      window.onerror = function (msg, url, line, col, error) {
+          const log = document.getElementById('error-log');
+          log.style.display = 'block';
+          log.innerHTML += `<b>Error:</b> ${msg} <br><b>Line:</b> ${line}:${col}<br><b>Stack:</b> ${error ? error.stack : ''}<hr>`;
+      };
+      window.addEventListener('unhandledrejection', function (event) {
+          const log = document.getElementById('error-log');
+          log.style.display = 'block';
+          log.innerHTML += `<b>Unhandled Promise:</b> ${event.reason}<hr>`;
+      });
+  </script>
+
 <div id="sidebar">
   <div class="sec" style="border-bottom: 1px solid #30363d; background: #161b22; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;">
     <div style="font-size:14px; font-weight:bold; color:#e6edf3;">Level Editor</div>
@@ -321,22 +338,25 @@ canvas{display:block}
   </div>
 
   <div class="sec" style="background:#0d1117; border-bottom: 1px solid #30363d; padding: 12px 14px;">
-    <div id="toolbar" style="display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
-      <span style="font-size:11px;color:#8b949e; width: 35px;">Mode:</span>
-      <button class="btn on" id="m-select-pt" onclick="setMode('select-pt')">Pts</button> <button class="btn" id="m-select-poly" onclick="setMode('select-poly')">Body</button>
-      <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
-      <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
-      <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
-      <span style="font-size:10px;color:#8b949e">Preview:</span>
-      <button class="btn" id="t-preview" onclick="togglePreview()" title="Lightweight canvas preview — fast approximation drawn by the editor itself; markers stay draggable.">Light</button>
-      <button class="btn" id="t-live" onclick="toggleLivePreview()" title="Render the level with the actual game engine (live iframe). Pan/zoom stays in sync; edits hot-reload after ~1s.">▶ Live</button>
-    </div>
-    <div id="snap-bar" style="display:flex; gap:4px; align-items:center;">
-      <span style="font-size:11px;color:#8b949e; width: 35px;">Snap:</span>
-      <button class="btn" id="sn1"  onclick="setSnap(1)">1</button>
-      <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
-      <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
-      <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
+    <div id="toolbar" style="display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; gap:4px; align-items:center;">
+        <span style="font-size:11px;color:#8b949e; width: 48px;">Mode:</span>
+        <button class="btn on" id="m-select-pt" onclick="setMode('select-pt')">Pts</button> <button class="btn" id="m-select-poly" onclick="setMode('select-poly')">Body</button>
+        <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
+        <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
+      </div>
+      <div id="snap-bar" style="display:flex; gap:4px; align-items:center;">
+        <span style="font-size:11px;color:#8b949e; width: 48px;">Snap:</span>
+        <button class="btn" id="sn1"  onclick="setSnap(1)">1</button>
+        <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
+        <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
+        <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
+      </div>
+      <div style="display:flex; gap:4px; align-items:center;">
+        <span style="font-size:11px;color:#8b949e; width: 48px;">Preview:</span>
+        <button class="btn" id="t-preview" onclick="togglePreview()" title="Lightweight canvas preview — fast approximation drawn by the editor itself; markers stay draggable.">Approximation</button>
+        <button class="btn" id="t-live" onclick="toggleLivePreview()" title="Render the level with the actual game engine (live iframe). Pan/zoom stays in sync; edits hot-reload after ~1s.">▶ Full</button>
+      </div>
     </div>
   </div>
 
@@ -1436,7 +1456,15 @@ function evalLevel(src) {
     // eslint-disable-next-line no-new-func
     new Function('registerLevel','questPrimary','questNoCrash','questNoCargoLost','questQuick','questSurviveWorm', src)
       (rl, qP, qNC, qNL, qQ, qSW);
-  } catch(e) { console.warn('evalLevel failed:', e); return null; }
+  } catch(e) {
+    console.warn('evalLevel failed:', e);
+    const log = document.getElementById('error-log');
+    if (log) {
+      log.style.display = 'block';
+      log.innerHTML += `<b>Parse Error:</b> ${e.message}<br><b>Stack:</b> ${e.stack}<hr>`;
+    }
+    return null;
+  }
   return captured;
 }
 
@@ -1639,6 +1667,11 @@ function resetState() {
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
   document.getElementById('level-card').style.display='none';
+  const errLog = document.getElementById('error-log');
+  if (errLog) {
+    errLog.style.display = 'none';
+    errLog.innerHTML = '';
+  }
 }
 
 // Builds a ready-to-edit blank level — flat rectangle of ground, HQ + Cargo
@@ -1785,7 +1818,7 @@ function liveCamFromView() {
 function sendLiveCam() {
   if (!liveFrame || !liveReady || !liveFrame.contentWindow) return;
   const c = liveCamFromView();
-  liveFrame.contentWindow.postMessage({ type: 'editorCam', ...c }, location.origin);
+  liveFrame.contentWindow.postMessage({ type: 'editorCam', ...c }, '*');
 }
 
 // Debounced hot reload of the whole level into the running engine.
@@ -1796,13 +1829,12 @@ function scheduleLiveLevelSync() {
     if (!liveFrame || !liveReady || !liveFrame.contentWindow) return;
     liveFrame.contentWindow.postMessage(
       { type: 'editorLevel', src: buildOut(), cam: liveCamFromView() },
-      location.origin
+      '*'
     );
   }, 700);
 }
 
 window.addEventListener('message', (ev) => {
-  if (ev.origin !== location.origin) return;
   if (ev.data && ev.data.type === 'embedReady') {
     liveReady = true;
     sendLiveCam();
@@ -2483,8 +2515,9 @@ function fitView() {
 // ── Mode & Snap ───────────────────────────────────────────────────────────────
 function setMode(m) {
   S.mode = m;
-  ['select','add','pan'].forEach(id => {
-    document.getElementById('m-'+id).className = 'btn' + (id===m?' on':'');
+  ['select-pt','select-poly','add','pan'].forEach(id => {
+    const el = document.getElementById('m-'+id);
+    if (el) el.className = 'btn' + (id===m?' on':'');
   });
   canvas.style.cursor = m==='pan'?'grab' : m==='add'?'crosshair':'default';
 }
@@ -3180,7 +3213,7 @@ canvas.addEventListener('mousedown', e => {
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
             S.selPoly=pi; S.selPt=-1;
             // Start whole-polygon body drag
-            if (document.getElementById('grab-poly-toggle').checked) {
+            if (S.mode === 'select-poly') {
               S.dragPolyBody = { layer, pi, startWx:wx, startWy:wy, origPts:arr[pi].pts.map(p=>({...p})) };
             }
             renderSidebar(); renderPtList(); draw(); return;
@@ -3623,6 +3656,26 @@ function drawGamePreviewHub(x, y, w, color, style, name) {
   previewPadBase(x, y, w, color, color + '40', (name || 'HUB').toUpperCase(), '#f8fafc');
   ctx.restore();
 }
+
+// Persist sidebar sections (details tags) state
+document.querySelectorAll('#sidebar details').forEach((det, i) => {
+  const summary = det.querySelector('summary');
+  const title = summary ? summary.textContent.trim().replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : `sec-${i}`;
+  const key = `cargo-editor-sec-${title}`;
+  
+  const saved = localStorage.getItem(key);
+  if (saved !== null) {
+    if (saved === 'true') {
+      det.setAttribute('open', '');
+    } else {
+      det.removeAttribute('open');
+    }
+  }
+  
+  det.addEventListener('toggle', () => {
+    localStorage.setItem(key, det.open);
+  });
+});
 </script>
 
 </body>
