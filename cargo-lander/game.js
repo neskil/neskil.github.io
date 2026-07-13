@@ -11,7 +11,8 @@
 // Load order (index.html): levels → audio → shaders → physics + physics/* →
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
-    static VERSION = '0.16.0';
+class CargoGame {
+    static VERSION = '0.16.1';
 
     constructor() {
         this.canvas = null;
