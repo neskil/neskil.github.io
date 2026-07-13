@@ -106,19 +106,24 @@ const LEVEL_SCHEMA = {
       { key:'color',        type:'color',  default:'',    widget:'color',  label:'Color', desc:'Base color of the fluid or void.', recommended:'Match the palette theme' },
       { key:'mistColor',    type:'color',  default:'',    widget:'color',  label:'Mist Color', desc:'Color of the gradient mist sitting above the surface.', recommended:'Slightly lighter than base color' },
       { key:'surfaceY',     type:'number', default:600,   widget:'number', label:'Surface Y', desc:'The Y coordinate where the out-of-bounds area begins (grows downwards).', recommended:'Usually below the lowest terrain', sliderMin:0, sliderMax:2500, sliderStep:10 },
-      { key:'monsterDepth', type:'number', default:900,   widget:'number', label:'Monster Y', desc:'The Y coordinate where the instant-kill sand worm will strike from.', recommended:'surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
       { key:'drag',         type:'number', default:0.02,  widget:'number', label:'Drag', step:0.01, desc:'Friction/resistance applied to the ship when submerged. High drag (0.08+) slows the ship heavily, making it sluggish. Low drag (0.01) allows smooth gliding.', recommended:'0.02 - 0.05', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
       { key:'buoyancy',     type:'number', default:0.05,  widget:'number', label:'Buoyancy', step:0.01, desc:'Upward force pushing the ship when submerged. High buoyancy (0.06+) floats the ship up rapidly. Low buoyancy (0.00-0.02) lets the ship sink easily.', recommended:'0.04 - 0.08', sliderMin:0, sliderMax:0.2, sliderStep:0.01 },
     ]
   },
 
-  // worldBounds: {...} — optional object to constrain the player to the playable area
+  // worldBounds: {...} — optional object to constrain the player to the playable
+  // area, one threshold + action per edge. `bottomY` absorbed the old
+  // `outOfBounds.monsterDepth` field (bottomAction:'monster' reproduces the
+  // classic sink-too-deep worm strike) — outOfBounds is now purely the fluid
+  // zone (visuals + drag/buoyancy).
   worldBounds: {
     fields: [
       { key:'ceilingY',      type:'number', default:null,       nullable:true,  widget:'number', label:'Ceiling Y', desc:'Absolute Y coordinate of the upper boundary. E.g. -1000.' },
       { key:'ceilingAction', type:'string', default:'pushback', widget:'select', label:'Ceiling Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too high.' },
       { key:'lateralMargin', type:'number', default:null,       nullable:true,  widget:'number', label:'Lateral Margin', desc:'Distance from the left/right edges (0 to levelWidth).' },
       { key:'lateralAction', type:'string', default:'pushback', widget:'select', label:'Lateral Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander goes too far left or right.' },
+      { key:'bottomY',       type:'number', default:null,       nullable:true,  widget:'number', label:'Bottom Y', desc:'Absolute Y coordinate of the lower boundary. Replaces the old outOfBounds.monsterDepth.', recommended:'outOfBounds surfaceY + 300', sliderMin:0, sliderMax:3000, sliderStep:10 },
+      { key:'bottomAction',  type:'string', default:'monster',  widget:'select', label:'Bottom Action', options:['pushback', 'destroy', 'lose_cargo', 'monster', 'police'], desc:'What happens when the lander sinks too deep.' },
     ]
   },
 
