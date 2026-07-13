@@ -3,311 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Level Editor — Cargo Lander</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;display:flex;height:100vh;overflow:hidden;font-size:12px}
-
-#sidebar{width:310px;min-width:310px;max-width:800px;background:rgba(22, 27, 34, 0.97);border-right:1px solid #30363d;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,0.5)}
-
-#sidebar-scrollable {
-  flex:1;
-  overflow-y:auto;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-}
-#sidebar-scrollable::-webkit-scrollbar,
-#poly-list::-webkit-scrollbar,
-#pt-list-wrap::-webkit-scrollbar {
-  width:8px;
-}
-#sidebar-scrollable::-webkit-scrollbar-track,
-#poly-list::-webkit-scrollbar-track,
-#pt-list-wrap::-webkit-scrollbar-track {
-  background:#161b22;
-}
-#sidebar-scrollable::-webkit-scrollbar-thumb,
-#poly-list::-webkit-scrollbar-thumb,
-#pt-list-wrap::-webkit-scrollbar-thumb {
-  background:#30363d;
-  border-radius:4px;
-}
-#sidebar-scrollable::-webkit-scrollbar-thumb:hover,
-#poly-list::-webkit-scrollbar-thumb:hover,
-#pt-list-wrap::-webkit-scrollbar-thumb:hover {
-  background:#58a6ff;
-}
-
-.sec{border-bottom:1px solid #30363d}
-div.sec{padding:12px 14px}
-details.sec > summary {
-  cursor:pointer;
-  user-select:none;
-  list-style:none;
-}
-details.sec > summary::-webkit-details-marker {
-  display:none;
-}
-details.sec > summary.sec-title {
-  padding:12px 14px;
-  margin-bottom:0;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-details.sec > summary.sec-title:hover {
-  background:#21262d;
-}
-details.sec > .sec-content {
-  padding:12px 14px;
-}
-.sec-title-text {
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-.sec-title-text::before {
-  content:"▼";
-  font-size:10px;
-  color:#8b949e;
-  transition:transform 0.2s ease;
-  display:inline-block;
-}
-details:not([open]) .sec-title-text::before {
-  transform:rotate(-90deg);
-}
-
-.sec-title{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.05em;color:#c9d1d9;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
-
-select,textarea,input[type=number],input[type=text]{
-  background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:5px;
-  font-family:monospace;font-size:12px;padding:5px 8px
-}
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type=number] {
-  -moz-appearance: textfield;
-}
-select:focus,textarea:focus,input:focus{outline:none;border-color:#58a6ff}
-select{width:100%;padding:6px 8px;margin-bottom:5px}
-
-.row{display:flex;gap:4px;align-items:center}
-.btn{padding:5px 10px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:5px;cursor:pointer;font:12px monospace;white-space:nowrap;user-select:none}
-.btn:hover{background:#30363d}
-.btn.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
-.btn.on:hover{background:#388bfd}
-.btn.del{color:#f85149}.btn.del:hover{background:#2d1515;border-color:#f85149}
-
-#level-card{background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:9px 11px;margin-top:6px;display:none}
-#level-card .lname{font-size:13px;font-weight:700;color:#58a6ff;margin-bottom:4px}
-#level-card .lmeta{font-size:11px;color:#8b949e;line-height:1.7}
-.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;margin-right:4px}
-
-details>summary{font-size:11px;color:#8b949e;cursor:pointer;margin-top:5px;user-select:none}
-details textarea{width:100%;height:70px;margin-top:5px;resize:vertical;font-size:11px}
-
-#poly-list{overflow-y:auto;padding:7px;min-height:40px}
-.pitem{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
-.pitem:hover{background:#21262d}
-.pitem.active{background:#1c2d3f;border-color:#388bfd}
-.pdot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.pname{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pcnt{font-size:11px;color:#8b949e}
-.peye{font-size:13px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover{color:#e6edf3}
-
-#pt-panel{display:none}
-#pt-panel .sec-title{margin-bottom:5px}
-#pt-list-wrap{max-height:150px;overflow-y:auto}
-.ptrow{display:flex;align-items:center;gap:3px;padding:3px 4px;border-radius:4px;cursor:pointer}
-.ptrow:hover{background:#21262d}.ptrow.sel{background:#1c2d3f}
-.pidx{color:#8b949e;width:18px;font-size:11px;flex-shrink:0}
-.clabel{color:#8b949e;font-size:11px}
-.cinput{width:50px;font-size:11px;padding:2px 5px}
-.xbtn{color:#6e7681;font-size:14px;cursor:pointer;line-height:1}.xbtn:hover{color:#f85149}
-
-#rename-row{display:flex;gap:4px;margin-bottom:5px;align-items:center}
-#rename-row label{font-size:11px;color:#8b949e;white-space:nowrap}
-#rename-row input{flex:1;font-size:12px}
-
-#canvas-wrap{flex:1;position:relative;overflow:hidden}
-canvas{display:block}
-
-#statusbar{position:absolute;bottom:0;left:0;right:0;height:24px;background:rgba(13,17,23,.88);border-top:1px solid #30363d;display:flex;align-items:center;padding:0 12px;gap:16px;font-size:11px;color:#8b949e;pointer-events:none}
-#statusbar span{color:#c9d1d9}
-
-#lvl-overlay{position:absolute;top:10px;right:10px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:5px;padding:6px 12px;font-size:12px;font-weight:700;color:#58a6ff;pointer-events:none;display:none}
-/* On-canvas zoom buttons — sit above the live preview iframe (z-index 4)
-   so view navigation stays clickable in both edit and live modes. */
-#zoom-controls{position:absolute;right:8px;bottom:30px;z-index:6;display:flex;flex-direction:column;gap:4px}
-#zoom-controls button{width:30px;height:30px;background:rgba(13,17,23,.85);border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:16px;line-height:1;cursor:pointer}
-#zoom-controls button:hover{background:#21262d;border-color:#8b949e}
-/* Live engine preview — the real game rendered in an iframe over the canvas.
-   pointer-events:none so the editor's pan/zoom/drag still lands on the canvas
-   beneath; the game camera follows via postMessage. */
-/* height matches the editor canvas (wrap minus the 22px status strip — see
-   resize()) so the world→screen mapping is pixel-identical in both views */
-#live-preview-frame{position:absolute;top:0;left:0;width:100%;height:calc(100% - 22px);border:0;pointer-events:none;z-index:4}
-#live-preview-badge{position:absolute;top:8px;right:8px;z-index:5;background:rgba(16,185,129,.15);border:1px solid #34d399;color:#34d399;border-radius:4px;padding:3px 8px;font-size:10px;pointer-events:none}
-
-.props-panel { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
-.props-panel .row { margin-bottom: 2px; }
-.props-panel label { width: 85px; font-size: 11px; color: #8b949e; flex-shrink: 0; display: flex; align-items: center; }
-.props-panel input[type=text], .props-panel input[type=number], .props-panel select { flex: 1; min-width: 0; }
-.props-panel input[type=color] { width: 24px; height: 18px; padding: 0; border: none; background: none; cursor: pointer; }
-
-#map-settings-modal {
-  position: absolute; top: 40px; left: 350px; width: 620px; height: 760px;
-  min-width: 380px; min-height: 300px;
-  background: rgba(22, 27, 34, 0.97); border: 1px solid #30363d; border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: none; flex-direction: column;
-  z-index: 9999; backdrop-filter: blur(8px);
-}
-#map-settings-header {
-  background: #21262d; border-bottom: 1px solid #30363d; padding: 10px 14px;
-  font-weight: bold; font-size: 13px; color: #e6edf3; cursor: grab;
-  display: flex; justify-content: space-between; align-items: center; user-select: none;
-  border-top-left-radius: 6px; border-top-right-radius: 6px;
-}
-#map-settings-header:active { cursor: grabbing; }
-#map-settings-close { cursor: pointer; color: #c9d1d9; font-size: 16px; }
-#map-settings-close:hover { color: #f85149; }
-#map-settings-body { padding: 14px 16px; flex: 1; overflow-y: auto; }
-#map-settings-body details { margin-bottom: 12px; }
-#map-settings-body summary { font-size: 13px; color: #58a6ff; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
-
-/* Larger, higher-contrast labels/inputs than the cramped sidebar defaults —
-   this panel isn't fighting for space in a 310px column, so favor legibility. */
-#map-settings-body .props-panel { gap: 8px; }
-#map-settings-body .props-panel .row { margin-bottom: 0; }
-#map-settings-body .props-panel label { width: 120px; font-size: 13px; color: #c9d1d9; }
-#map-settings-body .props-panel input[type=text],
-#map-settings-body .props-panel input[type=number],
-#map-settings-body .props-panel select {
-  font-size: 13px; padding: 6px 9px; border-radius: 5px; background: #161b22;
-}
-#map-settings-body .props-panel input[type=color] { width: 32px; height: 22px; }
-
-/* Flat number inputs — hide the native spinner buttons everywhere in the modal. */
-#map-settings-body input[type=number] { -moz-appearance: textfield; }
-#map-settings-body input[type=number]::-webkit-inner-spin-button,
-#map-settings-body input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-
-.slider-combo { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.slider-combo input[type=number] { flex: 0 0 68px; width: 68px; }
-.field-slider {
-  flex: 1; min-width: 0; height: 4px; accent-color: #58a6ff; cursor: pointer;
-  background: transparent;
-}
-
-#map-settings-resize {
-  position: absolute; bottom: 0; right: 0; width: 15px; height: 15px; cursor: nwse-resize;
-}
-.tooltip-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 50%; background: #30363d;
-  color: #e6edf3; font-size: 11px; margin-left: 6px; cursor: help; font-weight: bold;
-}
-.tooltip-icon:hover { background: #58a6ff; color: #fff; }
-
-/* Style scrollbars to match dark theme */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #161b22;
-}
-::-webkit-scrollbar-thumb {
-  background: #30363d;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #58a6ff;
-}
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #30363d #161b22;
-}
-
-/* Custom Preset Selector styles */
-.preset-dropdown {
-  position: relative;
-  display: inline-block;
-  flex: 1;
-  min-width: 0;
-}
-.preset-dropdown-trigger {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 5px;
-  padding: 6px 9px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 13px;
-  color: #c9d1d9;
-  height: 28px;
-  box-sizing: border-box;
-}
-.preset-dropdown-trigger:hover {
-  border-color: #8b949e;
-}
-.preset-dropdown-menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 5px;
-  margin-top: 4px;
-  max-height: 250px;
-  overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-}
-.preset-dropdown.open .preset-dropdown-menu {
-  display: block;
-}
-.preset-dropdown-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 9px;
-  cursor: pointer;
-  font-size: 12px;
-  border-bottom: 1px solid #21262d;
-  color: #c9d1d9;
-}
-.preset-dropdown-item:last-child {
-  border-bottom: none;
-}
-.preset-dropdown-item:hover {
-  background: #21262d;
-}
-.preset-dropdown-item.selected {
-  background: #1f6feb;
-  color: #fff;
-}
-.preset-swatch-row {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-}
-.preset-swatch {
-  width: 11px;
-  height: 11px;
-  border-radius: 2px;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-</style>
+<link rel="stylesheet" href="editor/editor.css">
 </head>
 <body>
 
@@ -453,7 +149,7 @@ canvas{display:block}
       </div>
     </details>
 
-    <details id="pt-panel" class="sec" open>
+    <details id="pt-panel" open style="margin-top:10px; border-top:1px solid #30363d; padding-top:10px;">
       <summary class="sec-title">
         <span class="sec-title-text">Points</span>
         <button class="btn del" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
@@ -886,6 +582,7 @@ function renderSwatches(pal) {
 }
 
 function applyPalettePreset(name) {
+  snapshot();
   if (name && COLOR_PRESETS[name]) {
     S.palette = Object.assign({}, COLOR_PRESETS[name]);
   }
@@ -904,6 +601,7 @@ window.addEventListener('click', function(e) {
 // Derives a full 7-key palette from a single accent color: dark, medium, or light
 // saturation/lightness sky and terrain shades plus the accent itself.
 function generatePaletteFromBase(hex, mode = 'dark') {
+  snapshot();
   const { r, g, b } = hexToRgb(hex);
   const { h } = rgbToHsl(r, g, b);
   
@@ -934,17 +632,20 @@ function generatePaletteFromBase(hex, mode = 'dark') {
   draw(); updateOut();
 }
 function setRockGlowColor(hex) {
+  snapshot();
   const { r, g, b } = hexToRgb(hex);
   S.palette.rockGlow = `rgba(${r},${g},${b},`;
   draw(); updateOut();
 }
 function setFogColor(hex) {
+  snapshot();
   const { a } = parseRgba(S.palette.fog);
   const { r, g, b } = hexToRgb(hex);
   S.palette.fog = `rgba(${r},${g},${b},${a})`;
   draw(); updateOut();
 }
 function setFogAlpha(a) {
+  snapshot();
   const { r, g, b } = parseRgba(S.palette.fog);
   S.palette.fog = `rgba(${r},${g},${b},${a})`;
   draw(); updateOut();
@@ -1092,7 +793,46 @@ function buildRadarPanel() {
     .map(f => schemaFieldRowHTML('setRadarZone', 'rpz-', f)).join('');
 }
 
-const S = {
+const _undoStack = [];
+const _redoStack = [];
+
+function snapshot() {
+  _undoStack.push(JSON.stringify(S));
+  if (_undoStack.length > 50) _undoStack.shift();
+  _redoStack.length = 0;
+}
+
+function undo() {
+  if (!_undoStack.length) return;
+  _redoStack.push(JSON.stringify(S));
+  S = JSON.parse(_undoStack.pop());
+  _restoreState();
+}
+
+function redo() {
+  if (!_redoStack.length) return;
+  _undoStack.push(JSON.stringify(S));
+  S = JSON.parse(_redoStack.pop());
+  _restoreState();
+}
+
+function _restoreState() {
+  syncLayerButtonsUI();
+  populatePaletteUI();
+  buildMetaPanel();
+  buildOOBPanel();
+  buildWorldBoundsPanel();
+  buildGWPanel();
+  buildRadarPanel();
+  if (typeof updateEntityPanel === 'function') updateEntityPanel();
+  if (typeof updateHubUI === 'function') updateHubUI();
+  renderSidebar();
+  renderPtList();
+  draw();
+  updateOut();
+}
+
+let S = {
   // All three shape lists share the same per-item shape: {pts:[{x,y}], comment:'', hidden:false, ...extra}
   // extra: water items also have `hasBoat`; hazard items also have `type`.
   polygons: [],    // terrain
@@ -1157,6 +897,7 @@ function setLayer(layer) {
 
 
 function setCfg(key, val) {
+  snapshot();
   if (key === 'allowedTypes') {
     S.cfg.allowedTypes = Array.isArray(val) ? val : val.split(',').map(s=>s.trim()).filter(Boolean);
   } else if (key === 'padScale') {
@@ -1168,6 +909,7 @@ function setCfg(key, val) {
 }
 
 function updateAllowedTypes() {
+  snapshot();
   const selected = [];
   document.querySelectorAll('.cfg-allowed-type-checkbox').forEach(cb => {
     if (cb.checked) selected.push(cb.value);
@@ -1176,6 +918,7 @@ function updateAllowedTypes() {
 }
 
 function toggleOOB() {
+  snapshot();
   const en = document.getElementById('oob-enable').checked;
   document.getElementById('oob-fields').style.display = en ? 'flex' : 'none';
   document.getElementById('oob-preset-row').style.display = en ? 'block' : 'none';
@@ -1197,6 +940,7 @@ const OOB_PRESETS = {
 };
 
 function applyOOBPreset(presetKey) {
+  snapshot();
   if (!presetKey || !OOB_PRESETS[presetKey]) return;
   const p = OOB_PRESETS[presetKey];
   if (!S.oob) {
@@ -1218,7 +962,7 @@ function applyOOBPreset(presetKey) {
 // Editing any field means the level now needs the full object form, so this
 // also clears S.oobIsBoolean — see applyConfig()'s comment for why that flag
 // exists (preserving the `outOfBounds: true` shorthand some levels use).
-function setOOB(k, v) { if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
+function setOOB(k, v) { snapshot(); if (S.oob) { S.oob[k] = v; S.oobIsBoolean = false; } draw(); updateOut(); }
 
 function updateHubCoords() {
   S.hubs.forEach((h, i) => {
@@ -1231,6 +975,7 @@ function updateHubCoords() {
 
 
 function toggleRadarZone() {
+  snapshot();
   const en = document.getElementById('rpz-enable').checked;
   document.getElementById('rpz-fields').style.display = en ? 'flex' : 'none';
   if (en && !S.radarZone) {
@@ -1240,9 +985,10 @@ function toggleRadarZone() {
   syncAllSliders();
   draw(); updateOut();
 }
-function setRadarZone(k, v) { if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
+function setRadarZone(k, v) { snapshot(); if (S.radarZone) { S.radarZone[k] = v; } draw(); updateOut(); }
 
 function toggleWorldBounds() {
+  snapshot();
   const en = document.getElementById('wb-enable').checked;
   document.getElementById('world-bounds-fields').style.display = en ? 'flex' : 'none';
   if (en && !S.worldBounds) {
@@ -1252,10 +998,10 @@ function toggleWorldBounds() {
   syncAllSliders();
   draw(); updateOut();
 }
-function setWorldBounds(k, v) { if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
+function setWorldBounds(k, v) { snapshot(); if (S.worldBounds) { S.worldBounds[k] = v; } draw(); updateOut(); }
 
 // --- Terrain Manipulation ---
-function setQuest(k, v) { S.quests[k] = v; updateOut(); }
+function setQuest(k, v) { snapshot(); S.quests[k] = v; updateOut(); }
 
 function updateHubUI() {
   const c = document.getElementById('hub-list');
@@ -1267,14 +1013,14 @@ function updateHubUI() {
     d.innerHTML = `
       <div class="row">
         <span style="font-size:10px;color:#8b949e;width:20px">${i}</span>
-        <label style="width:30px">Name</label><input type="text" value="${h.name||''}" onchange="S.hubs[${i}].name=this.value; updateOut()">
-        <button class="btn del" style="padding:0 5px;margin-left:4px" onclick="S.hubs.splice(${i},1); updateHubUI(); draw(); updateOut()">×</button>
+        <label style="width:30px">Name</label><input type="text" value="${h.name||''}" onchange="snapshot(); S.hubs[${i}].name=this.value; updateOut()">
+        <button class="btn del" style="padding:0 5px;margin-left:4px" onclick="snapshot(); S.hubs.splice(${i},1); updateHubUI(); draw(); updateOut()">×</button>
       </div>
       <div class="row">
-        <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="S.hubs[${i}].type=this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">X</label><input type="number" id="hub-${i}-x" style="width:50px" value="${h.x}" onchange="S.hubs[${i}].x=+this.value; draw(); updateOut()">
-        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
-        <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="S.hubs[${i}].color=this.value; draw(); updateOut()">
+        <label style="width:30px">Type</label><input type="text" style="width:40px" value="${h.type||''}" onchange="snapshot(); S.hubs[${i}].type=this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">X</label><input type="number" id="hub-${i}-x" style="width:50px" value="${h.x}" onchange="snapshot(); S.hubs[${i}].x=+this.value; draw(); updateOut()">
+        <label style="width:20px;margin-left:4px">Y</label><input type="number" id="hub-${i}-y" style="width:45px" placeholder="auto" value="${h.y != null ? h.y : ''}" onchange="snapshot(); S.hubs[${i}].y=(this.value === '' ? null : +this.value); draw(); updateOut()">
+        <input type="color" style="margin-left:4px" title="Hub color" value="${h.color||'#ffd700'}" onchange="snapshot(); S.hubs[${i}].color=this.value; draw(); updateOut()">
       </div>
       <div class="row">
         <label style="width:30px" title="Visual structure drawn behind the pad in-game. 'crane' is the classic yellow crane; house/depot/silo are background buildings; 'none' is a bare pad. (A hub with type 'chute' always renders as a vacuum chute.)">Style</label>
@@ -1287,6 +1033,7 @@ function updateHubUI() {
 
 const HUB_STYLES = ['crane','house','depot','silo','none'];
 function setHubStyle(i, v) {
+  snapshot();
   // 'crane' is the renderer default — omit it so exports stay minimal
   if (v === 'crane') delete S.hubs[i].style;
   else S.hubs[i].style = v;
@@ -2673,17 +2420,20 @@ function renderPtList() {
 
 function toggleHide(pi, e) {
   e.stopPropagation();
+  snapshot();
   const arr = activeList();
   arr[pi].hidden = !arr[pi].hidden;
   renderSidebar(); draw();
 }
 
 function renameActivePoly(val) {
+  snapshot();
   if (S.selPoly>=0) activeList()[S.selPoly].comment = val;
   renderSidebar(); updateOut();
 }
 
 function setHazardType(val) {
+  snapshot();
   if (S.selLayer !== 'hazard' || S.selPoly<0) return;
   const poly = activeList()[S.selPoly];
   poly.type = val;
@@ -2719,6 +2469,7 @@ function setHazardType(val) {
 }
 
 function setTerrainShadow(field, val) {
+  snapshot();
   const arr = activeList();
   if (!arr.length || S.selPoly < 0 || S.selLayer !== 'terrain') return;
   const poly = arr[S.selPoly];
@@ -2736,6 +2487,7 @@ function setTerrainShadow(field, val) {
 }
 
 function setHazardField(field, val) {
+  snapshot();
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
   if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
@@ -2744,6 +2496,7 @@ function setHazardField(field, val) {
 }
 
 function setWaterField(field, val) {
+  snapshot();
   const arr = activeList();
   if (S.selLayer!=='water' || S.selPoly<0 || S.selPoly>=arr.length) return;
   arr[S.selPoly][field] = val;
@@ -2751,6 +2504,7 @@ function setWaterField(field, val) {
 }
 
 function setPt(pi, pti, axis, val) {
+  snapshot();
   if (axis === 'invisibleEdge') {
     if (val) activeList()[pi].pts[pti][axis] = true;
     else delete activeList()[pi].pts[pti][axis];
@@ -2761,6 +2515,7 @@ function setPt(pi, pti, axis, val) {
 }
 
 function deletePt(pi, pti) {
+  snapshot();
   const arr = activeList();
   const minPts = (S.selLayer==='hazard' && (arr[pi].type==='laser' || arr[pi].type==='crusher')) ? 2 : (S.selLayer==='hazard' && arr[pi].type==='pickup' ? 1 : 3);
   if (arr[pi].pts.length<=minPts) { alert(`Minimum ${minPts} points.`); return; }
@@ -2770,6 +2525,7 @@ function deletePt(pi, pti) {
 }
 
 function addShape() {
+  snapshot();
   const cx=S.mouse.wx||500, cy=S.mouse.wy||400;
   const arr = activeList();
   let shape;
@@ -2788,6 +2544,7 @@ function addShape() {
 }
 
 function toggleCollectionPoint() {
+  snapshot();
   if (S.collectionX == null) {
     S.collectionX = snap(S.mouse.wx || 500);
   } else {
@@ -2797,12 +2554,14 @@ function toggleCollectionPoint() {
 }
 
 function addDeliveryHub() {
+  snapshot();
   const cx = snap(S.mouse.wx || 500);
   S.hubs.push({ x: cx, color: "#38bdf8", type: "normal", name: "New Hub" }); updateHubUI();
   draw(); updateOut();
 }
 
 function setMarkerCoord(which, axis, val) {
+  snapshot();
   if (which === 'hq') {
     if (axis === 'x') S.startX = +val;
     else S.startY = (val === '' || val == null) ? null : +val;
@@ -2814,6 +2573,7 @@ function setMarkerCoord(which, axis, val) {
 }
 
 function clearMarkerY(which) {
+  snapshot();
   if (which === 'hq') { S.startY = null; document.getElementById('hq-y').value = ''; }
   else { S.collectionY = null; document.getElementById('cargo-y').value = ''; }
   draw(); updateOut();
@@ -2839,6 +2599,7 @@ function deletePoly(confirmed = false) {
     document.getElementById('confirm-modal').style.display = 'flex';
     return;
   }
+  snapshot();
   arr.splice(S.selPoly,1);
   S.selPoly=Math.min(S.selPoly,arr.length-1); S.selPt=-1;
   renderSidebar(); draw(); updateOut();
@@ -2855,6 +2616,7 @@ function toggleMapSettings() {
 }
 
 function insertAtCursor() {
+  snapshot();
   const arr = activeList();
   if (S.selPoly<0) return;
   const poly = arr[S.selPoly];
@@ -3186,6 +2948,7 @@ canvas.addEventListener('mousedown', e => {
     isPan=true; panLast={sx,sy}; canvas.style.cursor='grabbing'; return;
   }
   if (S.mode==='add'&&e.button===0&&S.selPoly>=0) {
+    snapshot();
     const poly=activeList()[S.selPoly];
     if (S.selLayer==='hazard' && poly.type==='laser') return; // laser is a fixed 2-point line
     const idx=nearestEdge(poly.pts,wx,wy);
@@ -3197,10 +2960,11 @@ canvas.addEventListener('mousedown', e => {
   if ((S.mode==='select-pt' || S.mode==='select-poly')&&e.button===0) {
     // Marker drag takes priority over polygon points
     const mhit = hitMarker(sx, sy);
-    if (mhit) { S.dragMarker=mhit; return; }
+    if (mhit) { snapshot(); S.dragMarker=mhit; return; }
 
     const hit=hitPoint(sx,sy);
     if (hit) {
+      snapshot();
       const [layer,pi,pti]=hit;
       if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
       S.selPoly=pi; S.selPt=pti; S.dragging=true; S.dragLayer=layer; S.dragPi=pi; S.dragPti=pti;
@@ -3210,6 +2974,7 @@ canvas.addEventListener('mousedown', e => {
       for (const [layer,arr] of layers) {
         for (let pi=arr.length-1;pi>=0;pi--) {
           if (!arr[pi].hidden&&inPoly(wx,wy,arr[pi].pts)) {
+            snapshot();
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
             S.selPoly=pi; S.selPt=-1;
             // Start whole-polygon body drag
@@ -3328,6 +3093,12 @@ function zoomBy(f) {
 
 // ── Keyboard ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+    if (e.shiftKey) redo();
+    else undo();
+    e.preventDefault();
+    return;
+  }
   if (document.getElementById('confirm-modal').style.display === 'flex') {
     if (e.key === 'Escape') {
       closeConfirmModal();
@@ -3391,292 +3162,7 @@ function nearestEdge(pts,wx,wy) {
 // driven without clicking through the UI in an interactive browser:
 //   level-editor.html?autoload=level4.js&dumpExport=1
 // loads level4.js via the normal loadFromServer() path, then (once the
-// injected <script> tag has finished, ~500ms later) appends a
-// #headless-export-dump <pre> containing the export textarea's contents —
-// grep the --dump-dom output for it to diff against the source file.
-
-(function restorePlaytest() {
-  const ptSrc = sessionStorage.getItem('playtest_level');
-  if (ptSrc && !new URLSearchParams(location.search).get('autoload')) {
-    applySource(ptSrc);
-    sessionStorage.removeItem('playtest_level');
-  }
-})();
-(function headlessAutoLoad() {
-  const params = new URLSearchParams(location.search);
-  const auto = params.get('autoload');
-  if (!auto) return;
-  document.getElementById('lsel').value = auto;
-  loadFromServer();
-  if (params.get('openPanels')) {
-    document.querySelectorAll('#sidebar details').forEach(d => d.open = true);
-  }
-  // &preview=1 — switch to game-preview mode after the level loads, so a
-  // headless --screenshot capture shows the drawGamePreview* rendering.
-  // &hubstyle=house sets every hub's style first (visual spot checks).
-  if (params.get('preview')) {
-    setTimeout(() => {
-      const hs = params.get('hubstyle');
-      if (hs) { S.hubs.forEach(h => h.style = hs); }
-      if (!S.previewMode) togglePreview();
-      fitView();
-    }, 600);
-  }
-  // &live=1 — open the live engine preview after the level loads (headless
-  // visual checks of the editor↔engine embed).
-  if (params.get('live')) {
-    setTimeout(() => {
-      fitView();
-      if (!liveFrame) toggleLivePreview();
-    }, 600);
-  }
-  if (params.get('dumpExport')) {
-    setTimeout(() => {
-      const pre = document.createElement('pre');
-      pre.id = 'headless-export-dump';
-      pre.textContent = document.getElementById('out').value;
-      document.body.appendChild(pre);
-    }, 500);
-  }
-})();
-
-document.getElementById('confirm-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('confirm-modal')) {
-    closeConfirmModal();
-  }
-});
-// Map Settings Modal Dragging & Resizing
-const mapModal = document.getElementById('map-settings-modal');
-const mapHeader = document.getElementById('map-settings-header');
-const mapResize = document.getElementById('map-settings-resize');
-
-let mapModalState = { action: null, startX: 0, startY: 0, startLeft: 0, startTop: 0, startW: 0, startH: 0 };
-
-mapHeader.addEventListener('mousedown', e => {
-  if (e.target.id === 'map-settings-close') return;
-  mapModalState = { action: 'drag', startX: e.clientX, startY: e.clientY, startLeft: mapModal.offsetLeft, startTop: mapModal.offsetTop };
-});
-
-mapResize.addEventListener('mousedown', e => {
-  mapModalState = { action: 'resize', startX: e.clientX, startY: e.clientY, startW: mapModal.offsetWidth, startH: mapModal.offsetHeight };
-  e.preventDefault();
-});
-
-window.addEventListener('mousemove', e => {
-  if (mapModalState.action === 'drag') {
-    mapModal.style.left = Math.max(0, mapModalState.startLeft + e.clientX - mapModalState.startX) + 'px';
-    mapModal.style.top = Math.max(0, mapModalState.startTop + e.clientY - mapModalState.startY) + 'px';
-  } else if (mapModalState.action === 'resize') {
-    mapModal.style.width = Math.max(300, mapModalState.startW + e.clientX - mapModalState.startX) + 'px';
-    mapModal.style.height = Math.max(200, mapModalState.startH + e.clientY - mapModalState.startY) + 'px';
-  }
-});
-
-window.addEventListener('mouseup', () => { mapModalState.action = null; });
-
-// ── Game Preview Rendering ──────────────────────────────────────────────────
-// previewPadBase mirrors drawPadBase() in render/entities.js — same 15px slab,
-// chevron stripes, 3px accent bar and label position — so the editor preview
-// matches the game 1:1 and HQ / Cargo / hub pads all render alike.
-const PAD_H = 15;
-function previewPadBase(x, y, w, accent, stripe, label, labelColor) {
-  ctx.fillStyle = '#1e293b'; ctx.fillRect(x, y, w, PAD_H);
-  ctx.save();
-  ctx.beginPath(); ctx.rect(x, y, w, PAD_H); ctx.clip();
-  ctx.fillStyle = stripe;
-  for (let sx2 = x - PAD_H; sx2 < x + w + PAD_H; sx2 += 26) {
-    ctx.beginPath();
-    ctx.moveTo(sx2, y + PAD_H); ctx.lineTo(sx2 + PAD_H, y);
-    ctx.lineTo(sx2 + PAD_H + 13, y); ctx.lineTo(sx2 + 13, y + PAD_H);
-    ctx.closePath(); ctx.fill();
-  }
-  ctx.restore();
-  ctx.fillStyle = accent; ctx.fillRect(x, y, w, 3);
-  if (label) {
-    ctx.fillStyle = labelColor || 'rgba(255,255,255,0.7)';
-    ctx.font = '600 10px Outfit, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(label, x + w/2, y + 11);
-  }
-}
-
-function drawGamePreviewHQ(x, y, w) {
-  const hW = 120, hH = 90;
-  const hX = x + w/2 - hW/2, hY = y - hH;
-  ctx.save();
-  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
-
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath(); ctx.moveTo(hX, y); ctx.lineTo(hX, hY + 30); ctx.lineTo(hX + hW/2, hY);
-  ctx.lineTo(hX + hW, hY + 30); ctx.lineTo(hX + hW, y); ctx.fill();
-  
-  ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.moveTo(hX - 5, hY + 32); ctx.lineTo(hX + hW/2, hY - 2); ctx.lineTo(hX + hW + 5, hY + 32); ctx.stroke();
-
-  previewPadBase(x, y, w, '#94a3b8', 'rgba(100,120,160,0.25)', 'HQ', 'rgba(255,255,255,0.5)');
-  ctx.restore();
-}
-
-function drawGamePreviewCargo(x, y, w) {
-  ctx.save();
-  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
-
-  const wbX = x - 18, wbW = w + 36, wbH = 80, wbY = y - wbH;
-  ctx.fillStyle = '#0f1e2e'; ctx.fillRect(wbX, wbY, wbW, wbH);
-  ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.5; ctx.strokeRect(wbX, wbY, wbW, wbH);
-  
-  ctx.strokeStyle = 'rgba(30,58,94,0.8)'; ctx.lineWidth = 1;
-  for (let rx = wbX + 12; rx < wbX + wbW - 4; rx += 12) {
-    ctx.beginPath(); ctx.moveTo(rx, wbY + 4); ctx.lineTo(rx, wbY + wbH - 2); ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(14, 165, 233, 0.6)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(wbX, wbY); ctx.lineTo(wbX + wbW, wbY); ctx.stroke();
-  
-  const doorW = wbW * 0.32, doorH = wbH * 0.52;
-  for (const dOff of [0.18, 0.57]) {
-    const dx = wbX + wbW * dOff, dy = wbY + wbH - doorH;
-    ctx.fillStyle = '#060e18'; ctx.fillRect(dx, dy, doorW, doorH);
-    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(dx, dy, doorW, doorH);
-    ctx.strokeStyle = 'rgba(56,189,248,0.6)'; ctx.lineWidth = 1;
-    ctx.strokeRect(dx + 2, dy + 2, doorW - 4, doorH - 4);
-  }
-
-  const trackY = wbY - 2;
-  const trackStartX = wbX + 10;
-  const trackEndX = x + w * 0.9;
-  
-  ctx.strokeStyle = '#334155'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(trackStartX, trackY - 18); ctx.lineTo(trackEndX, trackY - 18); ctx.stroke();
-  
-  ctx.lineWidth = 2;
-  for (let sx = trackStartX + 10; sx <= trackEndX - 10; sx += 32) {
-    ctx.beginPath(); ctx.moveTo(sx, trackY - 18); ctx.lineTo(sx, wbY); ctx.stroke();
-  }
-  ctx.lineCap = 'butt';
-
-  const hatchX = wbX + wbW * 0.42;
-  ctx.fillStyle = '#475569';
-  ctx.fillRect(hatchX - 5, trackY - 18 - 4, 10, 7);
-  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.1;
-  ctx.beginPath(); ctx.moveTo(hatchX, trackY - 18); ctx.lineTo(hatchX, trackY - 18 + 14); ctx.stroke();
-  
-  previewPadBase(x, y, w, '#38bdf8', 'rgba(251,191,36,0.2)', 'CARGO', 'rgba(56,189,248,0.9)');
-  ctx.fillStyle = 'rgba(14, 165, 233, 0.9)'; ctx.font = 'bold 9px Outfit, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('CARGO DEPOT', x + w/2, wbY + 14);
-  ctx.restore();
-}
-
-function drawGamePreviewChute(x, y, w, color) {
-  ctx.save();
-  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
-
-  const hh = 40;
-  ctx.fillStyle = '#334155';
-  ctx.beginPath(); ctx.moveTo(x - 20, y); ctx.lineTo(x + w + 20, y);
-  ctx.lineTo(x + w, y + hh); ctx.lineTo(x, y + hh); ctx.fill();
-  
-  ctx.fillStyle = '#020617';
-  ctx.beginPath(); ctx.moveTo(x - 10, y + 8); ctx.lineTo(x + w + 10, y + 8);
-  ctx.lineTo(x + w - 4, y + hh - 4); ctx.lineTo(x + 4, y + hh - 4); ctx.fill();
-
-  ctx.fillStyle = color; ctx.fillRect(x - 20, y, w + 40, 4);
-
-  ctx.fillStyle = color; ctx.globalAlpha = 0.15;
-  ctx.beginPath(); ctx.moveTo(x - 30, y - 80); ctx.lineTo(x + w + 30, y - 80);
-  ctx.lineTo(x + w - 4, y); ctx.lineTo(x + 4, y); ctx.fill();
-  
-  ctx.restore();
-}
-
-// Hub preview — pad base + the selected background structure, mirroring the
-// hub.style variants in render/entities.js (crane / house / depot / silo / none).
-function drawGamePreviewHub(x, y, w, color, style, name) {
-  ctx.save();
-  const origin = w2s(0, 0); ctx.translate(origin.sx, origin.sy); ctx.scale(S.view.scale, S.view.scale);
-
-  const hcx = x + w/2;
-  const craneArmLeft = x - 6;
-
-  if (style === 'crane' || !style) {
-    const craneTopY = y - 66;
-    const craneX = hcx + w * 0.28;
-    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 6; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(craneX, y); ctx.lineTo(craneX, craneTopY - 16); ctx.stroke();
-    ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(craneX, craneTopY - 16); ctx.lineTo(craneArmLeft, craneTopY - 16); ctx.stroke();
-    ctx.lineCap = 'butt';
-
-    ctx.fillStyle = '#475569';
-    ctx.fillRect(craneArmLeft + 20 - 5, craneTopY - 22, 10, 7);
-    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(craneArmLeft + 20, craneTopY - 15); ctx.lineTo(craneArmLeft + 20, craneTopY - 15 + 22); ctx.stroke();
-  } else if (style === 'house') {
-    const bw = Math.min(64, w * 0.85), bh = 42;
-    const bx = hcx - bw/2, byTop = y - bh;
-    ctx.fillStyle = '#1e293b'; ctx.fillRect(bx + bw - 16, byTop - 6, 7, 20); // chimney
-    ctx.fillStyle = '#16233a'; ctx.fillRect(bx, byTop + 12, bw, bh - 12);
-    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(bx, byTop + 12, bw, bh - 12);
-    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(bx - 6, byTop + 14); ctx.lineTo(hcx, byTop - 6);
-    ctx.lineTo(bx + bw + 6, byTop + 14); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#060e18'; ctx.fillRect(hcx - 7, y - 17, 14, 17);
-    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.strokeRect(hcx - 7, y - 17, 14, 17);
-    ctx.fillStyle = 'rgba(251,191,36,0.7)'; ctx.fillRect(bx + 8, byTop + 19, 11, 10);
-  } else if (style === 'depot') {
-    const bw = Math.min(96, w + 16), bh = 46;
-    const bx = hcx - bw/2, byTop = y - bh;
-    ctx.fillStyle = '#0f1e2e'; ctx.fillRect(bx, byTop, bw, bh);
-    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, byTop, bw, bh);
-    ctx.strokeStyle = 'rgba(30,58,94,0.8)'; ctx.lineWidth = 1;
-    for (let rx = bx + 10; rx < bx + bw - 4; rx += 10) {
-      ctx.beginPath(); ctx.moveTo(rx, byTop + 4); ctx.lineTo(rx, y - 2); ctx.stroke();
-    }
-    const dW = bw * 0.4, dH = bh * 0.55;
-    ctx.fillStyle = '#060e18'; ctx.fillRect(hcx - dW/2, y - dH, dW, dH);
-    ctx.strokeStyle = '#1e3a5f'; ctx.strokeRect(hcx - dW/2, y - dH, dW, dH);
-    ctx.strokeStyle = color; ctx.globalAlpha = 0.7; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(bx, byTop); ctx.lineTo(bx + bw, byTop); ctx.stroke();
-    ctx.globalAlpha = 1;
-  } else if (style === 'silo') {
-    const sw2 = 30, sh = 58;
-    const sx0 = hcx - sw2/2, top = y - sh;
-    ctx.fillStyle = '#16233a'; ctx.fillRect(sx0, top + 10, sw2, sh - 10);
-    ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1.2; ctx.strokeRect(sx0, top + 10, sw2, sh - 10);
-    ctx.beginPath(); ctx.arc(hcx, top + 11, sw2/2, Math.PI, 0); ctx.fill(); ctx.stroke();
-    ctx.strokeStyle = '#334155';
-    ctx.beginPath(); ctx.moveTo(sx0 + sw2 + 3, y); ctx.lineTo(sx0 + sw2 + 3, top + 16); ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(hcx, top - 6, 2.5, 0, Math.PI * 2); ctx.fill();
-  } // 'none' → bare pad
-
-  // Pallet stack target (all styles)
-  const palletX = craneArmLeft - 16;
-  ctx.fillStyle = '#78350f'; ctx.fillRect(palletX - 12, y - 4, 24, 4);
-
-  previewPadBase(x, y, w, color, color + '40', (name || 'HUB').toUpperCase(), '#f8fafc');
-  ctx.restore();
-}
-
-// Persist sidebar sections (details tags) state
-document.querySelectorAll('#sidebar details').forEach((det, i) => {
-  const summary = det.querySelector('summary');
-  const title = summary ? summary.textContent.trim().replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : `sec-${i}`;
-  const key = `cargo-editor-sec-${title}`;
-  
-  const saved = localStorage.getItem(key);
-  if (saved !== null) {
-    if (saved === 'true') {
-      det.setAttribute('open', '');
-    } else {
-      det.removeAttribute('open');
-    }
-  }
-  
-  det.addEventListener('toggle', () => {
-    localStorage.setItem(key, det.open);
-  });
-});
-</script>
-
+// injected <script src="editor/editor.js"></script>
 </body>
 </html>
+
