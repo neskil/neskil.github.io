@@ -337,8 +337,6 @@ canvas{display:block}
       <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
       <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
       <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
-      <span style="font-size:10px;color:#8b949e;margin-left:4px;flex:1">Shift=×5</span>
-      <label style="font-size:10px;color:#8b949e;cursor:pointer" title="When dragging in select mode, grab entire shapes instead of single points"><input type="checkbox" id="grab-poly-toggle" checked> Full Poly</label>
     </div>
   </div>
 
@@ -391,6 +389,24 @@ canvas{display:block}
             <button class="btn" id="copy-ai-btn" onclick="copyWithAIPrompt()" style="flex:1; background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3);" title="Copy level code with a prompt ready for AI assistants">Copy for AI</button>
           </div>
         </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary class="sec-title"><span class="sec-title-text">Help & Shortcuts</span></summary>
+      <div class="sec-content" style="font-size:11px; color:#8b949e; line-height:1.6;">
+        <div style="margin-bottom:2px"><strong>S</strong> = Toggle Select Pt/Poly</div>
+        <div style="margin-bottom:2px"><strong>Shift</strong> = Snap ×5</div>
+        <div style="margin-bottom:2px"><strong>A</strong> = Add Points Mode</div>
+        <div style="margin-bottom:2px"><strong>P</strong> = Pan Mode</div>
+        <div style="margin-bottom:2px"><strong>F</strong> = Fit View to Screen</div>
+        <div style="margin-bottom:2px"><strong>Del</strong> = Delete selected pt</div>
+        <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
+        <div style="margin-bottom:4px"><strong>Add Mode:</strong> click near edge to insert point on it (hover shows preview).</div>
+        <div style="margin-bottom:4px"><strong>Tabs:</strong> Terrain/Water/Hazard tabs switch which shape "+ Add" creates.</div>
+        <div style="margin-bottom:4px"><strong>Select:</strong> click any shape to select it regardless of tab.</div>
+        <div style="margin-bottom:4px"><strong>Camera:</strong> scroll = zoom, Alt+drag = pan.</div>
+        <div style="margin-bottom:4px"><strong>Entities:</strong> Drag HQ/Cargo/Hub bars directly to reposition.</div>
       </div>
     </details>
 
@@ -594,6 +610,10 @@ canvas{display:block}
     <details>
       <summary>Rules &amp; Level Parameters</summary>
       <div class="props-panel" id="rules-panel"></div>
+    </details>
+    <details>
+      <summary>Space Traffic &amp; AI</summary>
+      <div class="props-panel" id="traffic-panel"></div>
     </details>
     <details>
       <summary>Weather &amp; Environment</summary>
@@ -1003,7 +1023,8 @@ function buildMetaPanel() {
     weather: ['weather', 'heatHaze', 'gravity', 'wind'],
     looksTop: ['backgroundType', 'night'],
     looksBottom: ['shadowAngle', 'shadowLength'],
-    rules: ['budget', 'timeLimit', 'padScale', 'ambientTrafficRate', 'ambientTrafficSpeed', 'ambientTrafficMinY', 'ambientTrafficMaxY', 'terrainType']
+    rules: ['budget', 'timeLimit', 'padScale', 'terrainType'],
+    traffic: ['ambientTrafficRate', 'ambientTrafficSpeed', 'ambientTrafficMinY', 'ambientTrafficMaxY']
   };
 
   document.getElementById('info-panel').innerHTML = fields
@@ -1028,6 +1049,10 @@ function buildMetaPanel() {
 
   document.getElementById('rules-panel').innerHTML = fields
     .filter(f => sections.rules.includes(f.key))
+    .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
+
+  document.getElementById('traffic-panel').innerHTML = fields
+    .filter(f => sections.traffic.includes(f.key))
     .map(f => schemaFieldRowHTML('setCfg', 'cfg-', f)).join('');
 }
 
@@ -1788,6 +1813,7 @@ function draw() {
   const W=canvas.width, H=canvas.height;
   drawSky(W,H);
   if (!S.previewMode) drawOOB(W,H);
+  if (!S.previewMode) drawTrafficBand(W,H);
   drawWaterBodies();
   if (!S.previewMode) drawGrid(W,H);
   drawSpawnMarkers();
@@ -1869,6 +1895,48 @@ function drawOOB(W,H) {
       ctx.restore();
     }
   }
+}
+
+function drawTrafficBand(W,H) {
+  if (!S.cfg) return;
+  let tMin = S.cfg.ambientTrafficMinY;
+  let tMax = S.cfg.ambientTrafficMaxY;
+  if (tMin === '' || tMin === undefined) tMin = null;
+  if (tMax === '' || tMax === undefined) tMax = null;
+  if (tMin === null && tMax === null) return;
+  
+  const topY = tMin !== null ? Number(tMin) : -20000;
+  const botY = tMax !== null ? Number(tMax) : (tMin !== null ? Number(tMin) + 2000 : 0);
+  
+  const { sy: syTop } = w2s(0, topY);
+  const { sy: syBot } = w2s(0, botY);
+  
+  const y1 = Math.min(syTop, syBot);
+  const y2 = Math.max(syTop, syBot);
+  
+  if (y2 < 0 || y1 > H) return;
+  
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 200, 50, 0.05)';
+  ctx.fillRect(0, y1, W, y2 - y1);
+  
+  ctx.strokeStyle = 'rgba(255, 200, 50, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([10, 10]);
+  
+  if (y1 >= 0 && y1 <= H) {
+    ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y1); ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
+    ctx.font = '10px monospace';
+    ctx.fillText(`TRAFFIC MIN Y (${topY})`, 10, y1 - 4);
+  }
+  if (y2 >= 0 && y2 <= H) {
+    ctx.beginPath(); ctx.moveTo(0, y2); ctx.lineTo(W, y2); ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
+    ctx.font = '10px monospace';
+    ctx.fillText(`TRAFFIC MAX Y (${botY})`, 10, y2 + 12);
+  }
+  ctx.restore();
 }
 
 // Generalized polygon-shape drawing — used for terrain, water, and hazard
