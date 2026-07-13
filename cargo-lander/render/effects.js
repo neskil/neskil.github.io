@@ -1,9 +1,13 @@
 Object.assign(CargoGame.prototype, {
-drawParticles() {
+drawParticles(behindLander = false) {
         const particles = this.physics.particles;
         if (!particles.length) return;
         const ctx = this.ctx;
         for (const p of particles) {
+            // When called before the lander, only draw thruster exhausts.
+            // When called after the lander, skip them so they don't overlap.
+            if (behindLander ? !p.thruster : p.thruster) continue;
+
             ctx.globalAlpha = p.life;
             if (p.type === 'spark') {
                 ctx.strokeStyle = p.color;
@@ -52,3 +56,4 @@ drawParticles() {
     }
 
 });
+

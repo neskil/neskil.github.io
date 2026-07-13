@@ -198,6 +198,8 @@ draw() {
             }
         }
 
+        // Draw thruster exhaust particles behind the lander
+        this.drawParticles(true);
         // Draw entities before postFX so they get reflected in the water
         this.drawBoxes();
         this.drawLander();
@@ -319,7 +321,7 @@ draw() {
         this.drawMonster();
         this.drawPolice();
         this.drawSandWorm();
-        this.drawParticles();
+        this.drawParticles(false);
         ctx.restore();
 
         // 9c. Night Ops darkness + lander spotlight — screen-space overlay,
@@ -473,7 +475,8 @@ draw() {
             ctx.save();
             ctx.translate(d.x, d.y);
             ctx.rotate(d.angle);
-            
+            ctx.globalAlpha = d.opacity ?? 1;
+
             ctx.fillStyle = d.color;
             ctx.strokeStyle = '#0f172a';
             ctx.lineWidth = 1;
