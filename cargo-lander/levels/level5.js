@@ -82,7 +82,10 @@ registerLevel({
         surfaceY: 1200,     // Acid pool — highly buoyant but the monster still attacks
         drag: 0.9,
         buoyancy: -0.25,
-        monsterDepth: 1500
+    },
+    worldBounds: {
+        bottomY: 1500,
+        bottomAction: 'monster'
     },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────

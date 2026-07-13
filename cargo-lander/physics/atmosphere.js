@@ -966,15 +966,22 @@ const CargoPhysicsAtmosphereMixin = {
                 }
             }
             // Layered sine texture — every level breathes a bit even with no gust cycle
-            // configured, roughly ±10-30% around the target (three unrelated frequencies
-            // so it doesn't read as a single obvious oscillation). Phase is seeded per
-            // level load (windGustStart) so two levels with the same wind value don't
-            // drift in lockstep.
-            const seed = this.windGustStart % 6283; // ~2*pi*1000, arbitrary decorrelation
-            const variance = 1.0
-                + Math.sin(now * 0.0013 + seed * 0.001) * 0.15
-                + Math.sin(now * 0.0031 + seed * 0.002) * 0.08
-                + Math.sin(now * 0.0007 + seed * 0.003) * 0.05;
+            // configured, unless windVarianceEnabled is explicitly false (three
+            // unrelated frequencies so it doesn't read as a single obvious
+            // oscillation). Phase is seeded per level load (windGustStart) so two
+            // levels with the same wind value don't drift in lockstep. The three
+            // terms' base amplitudes (0.15/0.08/0.05, summing to a ±0.28 default
+            // swing) are scaled together by windVarianceAmount; windVarianceSpeed
+            // scales how fast the wander cycles.
+            let variance = 1.0;
+            if (this.windVarianceEnabled) {
+                const seed = this.windGustStart % 6283; // ~2*pi*1000, arbitrary decorrelation
+                const spd = this.windVarianceSpeed ?? 1.0;
+                const ampScale = (this.windVarianceAmount ?? 0.25) / 0.28;
+                variance += Math.sin(now * 0.0013 * spd + seed * 0.001) * 0.15 * ampScale
+                          + Math.sin(now * 0.0031 * spd + seed * 0.002) * 0.08 * ampScale
+                          + Math.sin(now * 0.0007 * spd + seed * 0.003) * 0.05 * ampScale;
+            }
             const dynamicWind = this.wind * windMult * variance;
             lander.vx += dynamicWind * 0.02 * dt;
             this.currentWind = dynamicWind;
@@ -1054,6 +1061,9 @@ const CargoPhysicsAtmosphereMixin = {
                 if (edge === 'ceiling') {
                     const excess = ceilingY - lander.y;
                     lander.vy += (excess * 0.0001) * dt;
+                } else if (edge === 'bottom') {
+                    const excess = lander.y - bottomY;
+                    lander.vy -= (excess * 0.0001) * dt;
                 } else if (edge === 'lateral') {
                     if (lander.x < -latMargin) {
                         const excess = (-latMargin) - lander.x;
@@ -1082,6 +1092,10 @@ const CargoPhysicsAtmosphereMixin = {
 
         if (lander.y < ceilingY) applyAction(ceilingAction, 'ceiling');
         if (lander.x < -latMargin || lander.x > this.levelWidth + latMargin) applyAction(lateralAction, 'lateral');
+        // Bottom's 'monster' case is handled directly in updateMonster() (the
+        // classic rise-from-the-depths spawn) — dispatching it here too would
+        // just redundantly max the OOB timer.
+        if (bottomY != null && bottomAction !== 'monster' && lander.y > bottomY) applyAction(bottomAction, 'bottom');
     },
 
     updateParticles() {

@@ -60,6 +60,15 @@ class CargoPhysics {
         this.windGust = levelConfig.windGust || null;
         this.windGustStart = Date.now();
         this.windWarning = false;
+        // Layered-sine turbulence on top of the base wind (see atmosphere.js).
+        // windVarianceAmount is the total peak swing as a fraction of the base
+        // wind value (0.25 = wanders roughly ±25%); windVarianceSpeed scales how
+        // fast it wanders. Defaults reproduce the original always-on texture for
+        // levels that don't set these explicitly; windVarianceEnabled lets a
+        // level opt out entirely for a perfectly steady wind.
+        this.windVarianceEnabled = levelConfig.windVarianceEnabled !== undefined ? levelConfig.windVarianceEnabled : true;
+        this.windVarianceAmount  = levelConfig.windVarianceAmount  !== undefined ? levelConfig.windVarianceAmount  : 0.25;
+        this.windVarianceSpeed   = levelConfig.windVarianceSpeed   !== undefined ? levelConfig.windVarianceSpeed   : 1.0;
         
         this.boxes = [];
         this.particles = [];

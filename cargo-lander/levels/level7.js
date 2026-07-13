@@ -115,7 +115,10 @@ registerLevel({
         surfaceY: 1000,
         drag: 0.95,
         buoyancy: -0.1,
-        monsterDepth: 1200
+    },
+    worldBounds: {
+        bottomY: 1200,
+        bottomAction: 'monster'
     },
 
     // ── Hubs ──────────────────────────────────────────────────────────────────

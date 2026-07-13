@@ -43,7 +43,10 @@ registerLevel({
     surfaceY: 1500,
     drag: 0.85,
     buoyancy: -0.2,
-    monsterDepth: 1900,
+  },
+  worldBounds: {
+    bottomY: 1900,
+    bottomAction: 'monster'
   },
   deliveryHubs: [
     { x: -230, color: "#38bdf8", type: "normal", name: "Main Processing", y: 1460 },

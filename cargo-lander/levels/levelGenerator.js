@@ -184,7 +184,6 @@ function generateProceduralLevel(craziness = 1) {
         surfaceY: 1300,
         drag: 0.95,
         buoyancy: -0.1,
-        monsterDepth: 1500
     };
 
     return {
@@ -207,6 +206,7 @@ function generateProceduralLevel(craziness = 1) {
         timeLimit: timeLimit,
         allowedTypes: hubTypes.length > 0 ? hubTypes : ['normal'],
         outOfBounds: oob,
+        worldBounds: { bottomY: 1500, bottomAction: 'monster' },
         deliveryHubs: hubs,
         palette: biome.palette,
         hint: "This sector was procedurally generated. Expect the unexpected.",
