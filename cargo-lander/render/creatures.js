@@ -122,14 +122,14 @@ drawSandWorm() {
             const isHead = i === 0;
 
             const bGrad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r);
-            bGrad.addColorStop(0,    '#1a0d00');
-            bGrad.addColorStop(0.45, '#331a00');
-            bGrad.addColorStop(0.72, '#5c2a00');
-            bGrad.addColorStop(0.88, '#8f4300');
-            bGrad.addColorStop(1,    '#c05800');
+            bGrad.addColorStop(0,    '#20120a');
+            bGrad.addColorStop(0.45, '#341c0e');
+            bGrad.addColorStop(0.72, '#472510');
+            bGrad.addColorStop(0.88, '#5a2f12');
+            bGrad.addColorStop(1,    '#6a3814');
             ctx.fillStyle = bGrad;
-            ctx.strokeStyle = `rgba(220, 120, 20, ${0.5 + glowPulse * 0.3})`;
-            ctx.lineWidth = isHead ? 3 : 2;
+            ctx.strokeStyle = `rgba(150, 80, 20, ${0.3 + glowPulse * 0.2})`;
+            ctx.lineWidth = isHead ? 2 : 1.2;
             ctx.beginPath();
             ctx.arc(seg.x, seg.y, seg.r, 0, Math.PI * 2);
             ctx.fill();

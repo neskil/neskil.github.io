@@ -448,10 +448,12 @@ drawCaveBackground() {
         };
         const [sr, sg, sb] = hexToRgb(skyBot.length === 7 ? skyBot : '#0f172a');
 
-        // Slower moving layers, darker, more opaque
+        // Slower moving layers, darker, more opaque.
+        // Horizontal factors are set closer to 1.0 (0.95, 0.98, 1.00) so they move less relative to the
+        // foreground cave walls, making the cave background feel more static and solid.
         const layers = [
-            { factor: 0.85, freq: 0.003, freq2: 0.007, seed: 1.2, seed2: 3.4, alpha: 0.6, darken: 0.2 },
-            { factor: 0.93, freq: 0.004, freq2: 0.009, seed: 5.6, seed2: 7.8, alpha: 0.8, darken: 0.35 },
+            { factor: 0.95, freq: 0.003, freq2: 0.007, seed: 1.2, seed2: 3.4, alpha: 0.6, darken: 0.2 },
+            { factor: 0.98, freq: 0.004, freq2: 0.009, seed: 5.6, seed2: 7.8, alpha: 0.8, darken: 0.35 },
             { factor: 1.00, freq: 0.005, freq2: 0.012, seed: 9.1, seed2: 2.3, alpha: 1.0, darken: 0.5 },
         ];
 
@@ -492,7 +494,10 @@ drawCaveBackground() {
                 const amplitudeWorld = levelH * 0.4;
                 const layerYWorld = baseYWorld - t * amplitudeWorld; 
                 
-                let parallaxYWorld = layerYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+                // Vertical parallax uses positive coefficient and scales with (1 - layer.factor)
+                // so that the closest background layer doesn't drift vertically relative to the foreground,
+                // and other layers have correct (not reverse) vertical parallax.
+                let parallaxYWorld = layerYWorld + (camY - levelH / 2) * ((1 - layer.factor) * 0.3);
                 
                 const screenY = h / 2 + (parallaxYWorld - camY) * zoom;
                 ctx.lineTo(sx, screenY);
@@ -516,7 +521,8 @@ drawCaveBackground() {
                 const amplitudeWorld = levelH * 0.4;
                 const layerYWorld = baseYWorld + t * amplitudeWorld; 
                 
-                let parallaxYWorld = layerYWorld - (camY - levelH / 2) * (layer.factor * 0.3);
+                // Vertical parallax uses positive coefficient and scales with (1 - layer.factor)
+                let parallaxYWorld = layerYWorld + (camY - levelH / 2) * ((1 - layer.factor) * 0.3);
                 
                 const screenY = h / 2 + (parallaxYWorld - camY) * zoom;
                 ctx.lineTo(sx, screenY);
