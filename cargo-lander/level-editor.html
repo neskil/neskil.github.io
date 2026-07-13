@@ -175,6 +175,7 @@
               <label>Type:</label>
               <select id="hazard-type-select" onchange="setHazardType(this.value)">
                 <option value="zone">Damage Zone</option>
+                <option value="spike">Spike (Point)</option>
                 <option value="laser">Laser</option>
                 <option value="incinerator">Incinerator</option>
                 <option value="crusher">Moving Crusher</option>
@@ -207,7 +208,7 @@
             </div>
             <div id="sandworm-timing-row" style="display:none; margin-top:6px">
               <div class="row"><label>spawnRate <span class="tooltip-icon" title="Base worms spawned per second.">?</span></label>
-                <div class="slider-combo"><input type="number" id="sw-spawnrate" step="0.1" class="cinput" onchange="setHazardField('spawnRate', this.value); document.getElementById('sw-spawnrate-r').value=this.value"><input type="range" class="field-slider" id="sw-spawnrate-r" min="0" max="5" step="0.1" oninput="document.getElementById('sw-spawnrate').value=this.value; setHazardField('spawnRate', this.value)"></div>
+                <div class="slider-combo"><input type="number" id="sw-spawnrate" step="0.1" class="cinput" onchange="setHazardField('spawnRate', this.value); document.getElementById('sw-spawnrate-r').value=this.value"><input type="range" class="field-slider" id="sw-spawnrate-r" min="0" max="20" step="0.1" oninput="document.getElementById('sw-spawnrate').value=this.value; setHazardField('spawnRate', this.value)"></div>
               </div>
               <div class="row"><label>reach <span class="tooltip-icon" title="Radius around the hazard center where the worm will strike">?</span></label>
                 <div class="slider-combo"><input type="number" id="sw-reach" step="10" class="cinput" onchange="setHazardField('reach', this.value); document.getElementById('sw-reach-r').value=this.value"><input type="range" class="field-slider" id="sw-reach-r" min="0" max="800" step="10" oninput="document.getElementById('sw-reach').value=this.value; setHazardField('reach', this.value)"></div>
@@ -270,6 +271,14 @@
               </div>
               <div class="row"><label>thickness <span class="tooltip-icon" title="Width of the crusher blocks">?</span></label>
                 <div class="slider-combo"><input type="number" id="crush-thick" class="cinput" placeholder="40" onchange="setHazardField('thickness', this.value); document.getElementById('crush-thick-r').value=this.value"><input type="range" class="field-slider" id="crush-thick-r" min="5" max="100" step="5" oninput="document.getElementById('crush-thick').value=this.value; setHazardField('thickness', this.value)"></div>
+              </div>
+            </div>
+            <div id="spike-properties-row" style="display:none; margin-top:6px">
+              <div class="row"><label>radius <span class="tooltip-icon" title="Radius of the spike's damage circle">?</span></label>
+                <div class="slider-combo"><input type="number" id="spike-radius" class="cinput" placeholder="25" onchange="setHazardField('radius', this.value); document.getElementById('spike-radius-r').value=this.value"><input type="range" class="field-slider" id="spike-radius-r" min="5" max="150" step="1" oninput="document.getElementById('spike-radius').value=this.value; setHazardField('radius', this.value)"></div>
+              </div>
+              <div class="row"><label>dmg/s <span class="tooltip-icon" title="Hull damage dealt per second of contact (Max Hull is 100)">?</span></label>
+                <div class="slider-combo"><input type="number" id="spike-dmg" class="cinput" placeholder="60" onchange="setHazardField('damagePerSec', this.value); document.getElementById('spike-dmg-r').value=this.value"><input type="range" class="field-slider" id="spike-dmg-r" min="0" max="100" step="1" oninput="document.getElementById('spike-dmg').value=this.value; setHazardField('damagePerSec', this.value)"></div>
               </div>
             </div>
             <div id="hazard-color-row" class="row" style="display:none; margin-top:6px">

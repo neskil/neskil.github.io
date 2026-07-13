@@ -157,6 +157,37 @@ drawHazards(bgMode = false) {
                 continue;
             }
 
+            if (haz.type === 'spike') {
+                if (!haz.pts || haz.pts.length < 1) continue;
+                const p = haz.pts[0];
+                const r = haz.radius || 25;
+                const col = haz.color || '#ef4444';
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+                ctx.fillStyle = col;
+                ctx.globalAlpha = 0.18 + Math.sin(now / 150) * 0.05;
+                ctx.fill();
+                ctx.strokeStyle = col;
+                ctx.globalAlpha = 0.7;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                const spikes = 8;
+                ctx.beginPath();
+                for (let i = 0; i < spikes * 2; i++) {
+                    const a = (i / (spikes * 2)) * Math.PI * 2;
+                    const rr = r * (i % 2 === 0 ? 0.55 : 0.22);
+                    const px = p.x + Math.cos(a) * rr, py = p.y + Math.sin(a) * rr;
+                    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fillStyle = col;
+                ctx.globalAlpha = 1;
+                ctx.fill();
+                continue;
+            }
+
             const pts = haz.pts;
             if (!pts || pts.length < 3) continue;
 
