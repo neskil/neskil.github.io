@@ -126,10 +126,11 @@ const CargoPhysicsEntitiesMixin = {
         const l = this.lander;
         if (!l) return null;
         const xTol = 30;
-        if (l.x >= this.startDepot.x - xTol && l.x <= this.startDepot.x + this.startDepot.width + xTol) return 'start';
-        if (l.x >= this.collectionPoint.x - xTol && l.x <= this.collectionPoint.x + this.collectionPoint.width + xTol) return 'collection';
+        const yTol = 60; // pads can share x-space at very different heights (e.g. a shelf above a lower hub)
+        if (l.x >= this.startDepot.x - xTol && l.x <= this.startDepot.x + this.startDepot.width + xTol && Math.abs(l.y - this.startDepot.y) <= yTol) return 'start';
+        if (l.x >= this.collectionPoint.x - xTol && l.x <= this.collectionPoint.x + this.collectionPoint.width + xTol && Math.abs(l.y - this.collectionPoint.y) <= yTol) return 'collection';
         for (const hub of this.deliveryHubs) {
-            if (l.x >= hub.x - xTol && l.x <= hub.x + hub.width + xTol) return hub.type;
+            if (l.x >= hub.x - xTol && l.x <= hub.x + hub.width + xTol && Math.abs(l.y - hub.y) <= yTol) return hub.type;
         }
         return null;
     },
@@ -143,8 +144,8 @@ const CargoPhysicsEntitiesMixin = {
         const bottom = lander.y + hh;
 
         // Check bottom edge against terrain polygons
-        const gyL = this.getPolygonSurfaceY(lander.x - hw);
-        const gyR = this.getPolygonSurfaceY(lander.x + hw);
+        const gyL = this.getPolygonSurfaceY(lander.x - hw, bottom);
+        const gyR = this.getPolygonSurfaceY(lander.x + hw, bottom);
         const groundY = Math.min(gyL, gyR);
         const distToGround = groundY - bottom;
 

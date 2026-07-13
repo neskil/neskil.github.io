@@ -1,13 +1,20 @@
 // collision.js - Extracted physics logic
 
 const CargoPhysicsCollisionMixin = {
-    getPolygonSurfaceY(targetX) {
+    // refY, if given, is the y of the point we're measuring from (e.g. the
+    // lander). We then return the nearest floor at or below refY, so an
+    // overhang shelf resolves to the shelf itself rather than a deeper cave
+    // floor stacked underneath it at the same x. Without refY, falls back to
+    // the deepest matching floor (used for out-of-bounds/spawn checks that
+    // want the ultimate floor beneath any overhangs).
+    getPolygonSurfaceY(targetX, refY) {
         let maxSurfaceY = 0; // The lowest physical surface (largest Y on screen) that we find
+        let nearestAboveRef = null;
         for (const poly of this.terrainPolygons) {
             for (let i = 0; i < poly.length; i++) {
                 const p1 = poly[i];
                 const p2 = poly[(i + 1) % poly.length];
-                
+
                 if (p1.invisibleEdge) continue;
 
                 // Only consider upward-facing floor segments (p1.x < p2.x) to avoid catching ceilings and vertical walls
@@ -17,9 +24,13 @@ const CargoPhysicsCollisionMixin = {
                     if (maxSurfaceY === 0 || y > maxSurfaceY) {
                         maxSurfaceY = y;
                     }
+                    if (refY !== undefined && y >= refY - 20 && (nearestAboveRef === null || y < nearestAboveRef)) {
+                        nearestAboveRef = y;
+                    }
                 }
             }
         }
+        if (refY !== undefined && nearestAboveRef !== null) return nearestAboveRef;
         return maxSurfaceY || this.levelHeight * 0.7;
     },
 
