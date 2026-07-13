@@ -1918,6 +1918,7 @@ function renderSidebar() {
       `<div class="pdot" style="background:${col};opacity:${poly.hidden?.4:1}"></div>` +
       `<span class="pname" style="opacity:${poly.hidden?.4:1}">${poly.comment||fallback}</span>` +
       `<span class="pcnt">${poly.pts.length}pt</span>` +
+      `<span class="plock" title="toggle lock" onclick="toggleLock(${i},event)">${poly.locked?'🔒':'🔓'}</span>` +
       `<span class="peye" title="toggle visibility" onclick="toggleHide(${i},event)">${poly.hidden?'◌':'●'}</span>`;
     d.onclick = () => { S.selPoly=i; S.selPt=-1; renderSidebar(); renderPtList(); draw(); };
     listEl.appendChild(d);
@@ -1978,6 +1979,7 @@ function renderPtUI() {
       } else if (poly.type === 'sandworm') {
         document.getElementById('sw-spawnrate').value = poly.spawnRate ?? 1.0;
         document.getElementById('sw-reach').value = poly.reach ?? 300;
+        document.getElementById('sw-prox').value = poly.proximityScale ?? 0;
       } else if (poly.type === 'repulsor') {
         document.getElementById('rep-fx').value = poly.travelX ?? 0;
         document.getElementById('rep-fy').value = poly.travelY ?? -15;
@@ -2055,6 +2057,14 @@ function toggleHide(pi, e) {
   renderSidebar(); draw();
 }
 
+function toggleLock(pi, e) {
+  e.stopPropagation();
+  snapshot();
+  const arr = activeList();
+  arr[pi].locked = !arr[pi].locked;
+  renderSidebar(); draw();
+}
+
 function renameActivePoly(val) {
   snapshot();
   if (S.selPoly>=0) activeList()[S.selPoly].comment = val;
@@ -2102,6 +2112,7 @@ function setHazardType(val) {
     ];
     if (poly.spawnRate === undefined) poly.spawnRate = 1.0;
     if (poly.reach === undefined) poly.reach = 300;
+    if (poly.proximityScale === undefined) poly.proximityScale = 0;
   } else if (poly.pts.length < 3) {
     const p0 = poly.pts[0] || {x:500,y:400};
     const p1 = poly.pts[1] || {x:p0.x+80,y:p0.y};
@@ -2545,7 +2556,7 @@ function hitPoint(sx,sy) {
   const layers = [['hazard',S.hazardPolys], ['water',S.waterPolys], ['terrain',S.polygons]];
   for (const [layer, arr] of layers) {
     for (let pi=arr.length-1; pi>=0; pi--) {
-      if (arr[pi].hidden) continue;
+      if (arr[pi].hidden || arr[pi].locked) continue;
       for (let pti=0; pti<arr[pi].pts.length; pti++) {
         const {sx:px,sy:py} = w2s(arr[pi].pts[pti].x, arr[pi].pts[pti].y);
         if (Math.hypot(sx-px,sy-py)<HIT) return [layer,pi,pti];
@@ -2626,7 +2637,7 @@ canvas.addEventListener('mousedown', e => {
       const layers = [['hazard',S.hazardPolys], ['water',S.waterPolys], ['terrain',S.polygons]];
       for (const [layer,arr] of layers) {
         for (let pi=arr.length-1;pi>=0;pi--) {
-          if (!arr[pi].hidden&&inPoly(wx,wy,arr[pi].pts)) {
+          if (!arr[pi].hidden&&!arr[pi].locked&&inPoly(wx,wy,arr[pi].pts)) {
             snapshot();
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
             S.selPoly=pi; S.selPt=-1;

@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.5';
+    static VERSION = '0.16.6';
 
     constructor() {
         this.canvas = null;
@@ -1118,15 +1118,29 @@ class CargoGame {
         } else {
             this.camera.targetZoom = desiredZoom;
             this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05 * dt;
+            // Settle deadband — the lerp asymptote otherwise re-rasterizes
+            // the scene at a slightly different scale every frame forever.
+            if (Math.abs(this.camera.targetZoom - this.camera.zoom) < 0.0005) {
+                this.camera.zoom = this.camera.targetZoom;
+            }
 
             if (!lander.swallowed) {
-                let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * 15);
-                let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * 15); // Shift camera up to show more air
+                // Velocity-lead is a flight aid; while parked, Matter's
+                // resting-contact micro velocities (×15 lead) wobble the
+                // target a few pixels each frame — pad labels visibly
+                // "bounce" against an otherwise static scene.
+                const lead = lander.landed ? 0 : 15;
+                let targetX = lander.x + (Math.max(-200, Math.min(200, lander.vx || 0)) * lead);
+                let targetY = lander.y - this.cameraVOffset + (Math.max(-200, Math.min(200, lander.vy || 0)) * lead); // Shift camera up to show more air
                 const viewH = this.canvas.height / this.camera.targetZoom;
                 const maxCamY = this.physics.levelHeight - (viewH / 2) + this.cameraVOffset;
                 targetY = Math.min(targetY, maxCamY);
                 this.camera.x += (targetX - this.camera.x) * 0.08 * dt;
                 this.camera.y += (targetY - this.camera.y) * 0.08 * dt;
+                // Sub-pixel settle: snap once close so a static scene stays
+                // pixel-stable instead of shimmering at the asymptote.
+                if (Math.abs(targetX - this.camera.x) < 0.3) this.camera.x = targetX;
+                if (Math.abs(targetY - this.camera.y) < 0.3) this.camera.y = targetY;
             }
         }
     }

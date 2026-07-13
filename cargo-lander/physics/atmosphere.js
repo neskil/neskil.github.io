@@ -464,9 +464,14 @@ const CargoPhysicsAtmosphereMixin = {
                         cx /= h.pts.length; cy /= h.pts.length;
                         
                         const reach = h.reach || 300;
-                        if (Math.hypot(lander.x - cx, lander.y - cy) <= reach) {
+                        const dist = Math.hypot(lander.x - cx, lander.y - cy);
+                        if (dist <= reach) {
                             inWormZone = true;
-                            riskMultiplier = h.spawnRate || 1.0;
+                            let baseRate = h.spawnRate || 1.0;
+                            let proxScale = h.proximityScale || 0;
+                            // As distance goes from reach -> 0, factor goes from 0 -> 1
+                            let proximityFactor = 1 - (dist / reach);
+                            riskMultiplier = baseRate * (1 + (proximityFactor * proxScale));
                             break;
                         }
                     }
