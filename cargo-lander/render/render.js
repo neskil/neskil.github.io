@@ -201,6 +201,7 @@ draw() {
         // Draw entities before postFX so they get reflected in the water
         this.drawBoxes();
         this.drawLander();
+        this.drawDebris();
 
         // 8.7 WebGL Post-Processing Distortion Pass (heat haze / water shimmer /
         // gravity lensing) — samples the scene just drawn above (terrain, hubs,
@@ -231,9 +232,29 @@ draw() {
                 }
             }
 
+            const heatSources = [];
+            if (this.physics.lander && this.physics.lander.thrusting && !this.physics.lander.crashed) {
+                const l = this.physics.lander;
+                const dx = Math.sin(l.angle);
+                const dy = Math.cos(l.angle);
+                
+                heatSources.push({ x: l.x + dx * 20, y: l.y + dy * 20, radius: 25 });
+                heatSources.push({ x: l.x + dx * 40, y: l.y + dy * 40, radius: 30 });
+                heatSources.push({ x: l.x + dx * 65, y: l.y + dy * 65, radius: 40 });
+            }
+            if (this.physics.explosions) {
+                for (const ex of this.physics.explosions) {
+                    heatSources.push({
+                        x: ex.x,
+                        y: ex.y,
+                        radius: ex.radius
+                    });
+                }
+            }
+
             // Only pay for the full-screen composite when the pass actually
             // drew something (it early-outs when no effect region is active).
-            if (this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather)) {
+            if (this.shaders.renderPostFX(this.physics, this.camera, this.canvas, levels[this.currentLevelIndex], waterRects, this.weather, heatSources)) {
                 ctx.save();
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.globalCompositeOperation = 'source-over';
@@ -298,7 +319,7 @@ draw() {
         this.drawMonster();
         this.drawPolice();
         this.drawSandWorm();
-        if (!this.shaders) this.drawParticles();
+        this.drawParticles();
         ctx.restore();
 
         // 9c. Night Ops darkness + lander spotlight — screen-space overlay,
@@ -440,6 +461,37 @@ draw() {
         if (this.displayFps !== undefined) {
             ctx.fillStyle = this.displayFps >= 50 ? 'rgba(74, 222, 128, 0.6)' : 'rgba(251, 191, 36, 0.75)';
             ctx.fillText(`${this.displayFps} FPS`, 14 + 48, h - 14);
+        }
+        ctx.restore();
+    },
+
+    drawDebris() {
+        if (!this.physics.debris) return;
+        const ctx = this.ctx;
+        ctx.save();
+        for (const d of this.physics.debris) {
+            ctx.save();
+            ctx.translate(d.x, d.y);
+            ctx.rotate(d.angle);
+            
+            ctx.fillStyle = d.color;
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1;
+            
+            // Just draw the bounding rect for debris
+            ctx.beginPath();
+            ctx.roundRect(-d.width / 2, -d.height / 2, d.width, d.height, 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Add some interior detail lines to look more like mechanical wreckage
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            ctx.moveTo(-d.width / 4, -d.height / 4);
+            ctx.lineTo(d.width / 4, d.height / 4);
+            ctx.stroke();
+
+            ctx.restore();
         }
         ctx.restore();
     }

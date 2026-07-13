@@ -147,7 +147,7 @@ const CargoPhysicsCollisionMixin = {
             const speed = Math.sqrt(lander.vx * lander.vx + lander.vy * lander.vy);
             if (speed > 1.5 && window.CargoAudio) CargoAudio.playCollision(speed);
 
-            const damage = Math.max(0, Math.pow(Math.max(0, speed - 1.2), 1.8) * 12);
+            const damage = Math.max(0, Math.pow(Math.max(0, speed - (lander.safeImpactSpeed || 1.2)), 1.8) * 12);
             if (damage > 0) {
                 this.applyDamage(lander, damage);
                 // Sparks

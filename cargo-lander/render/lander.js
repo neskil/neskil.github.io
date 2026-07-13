@@ -703,43 +703,124 @@ drawLander() {
         if (lander.chuteDeployed && !lander.crashed) {
             ctx.save();
             ctx.rotate(-lander.angle * 0.65);
-            const sway = Math.sin(Date.now() * 0.0015 + lander.x * 0.01) * 4;
-            const canopyY = -46;
-            const canopyW = 30;
+
+            // Compute deployment progress (0 to 1) based on chuteTimer (starts at 30)
+            const progress = (lander.chuteTimer && lander.chuteTimer > 30)
+                ? Math.min(1, (lander.chuteTimer - 30) / 20)
+                : 1;
+
+            // Dimensions: wider canopy, stretching vertically as it opens
+            const targetCanopyW = 38;
+            const canopyW = 6 + (targetCanopyW - 6) * progress;
+            const canopyY = -18 + (-52 - -18) * progress;
             const attachY = -12;
 
-            // Suspension lines from hull attachment points up to the canopy skirt
-            ctx.strokeStyle = 'rgba(226,232,240,0.55)';
-            ctx.lineWidth = 1;
-            for (const side of [-1, 1]) {
+            // Dynamic sway and high-frequency opening flutter
+            const flutter = Math.sin(Date.now() * 0.05) * 1.5 * (1 - progress) * Math.min(2, Math.max(0.5, lander.vy || 1));
+            const baseSway = Math.sin(Date.now() * 0.0015 + lander.x * 0.01) * 5 * progress;
+            const sway = baseSway + flutter;
+
+            // Skirt Y helper: returns bottom canopy edge Y coordinate at horizontal fraction k (-1..1)
+            const getSkirtY = (k) => canopyY + (6 - 8 * (1 - k * k)) * progress;
+
+            // Suspension lines: 4 lines radiating from hull to canopy skirt, bunching when closed
+            ctx.strokeStyle = 'rgba(226, 232, 240, 0.6)';
+            ctx.lineWidth = 0.8;
+            const attachPoints = [
+                { startX: -10, k: -0.85 },
+                { startX: -10, k: -0.3 },
+                { startX: 10, k: 0.3 },
+                { startX: 10, k: 0.85 }
+            ];
+            for (const pt of attachPoints) {
                 ctx.beginPath();
-                ctx.moveTo(side * 10, attachY);
-                ctx.lineTo(side * canopyW * 0.8 + sway * 0.3, canopyY + 4);
+                ctx.moveTo(pt.startX, attachY);
+                ctx.lineTo(canopyW * pt.k + sway, getSkirtY(pt.k));
                 ctx.stroke();
             }
 
-            // Canopy — a simple ribbed dome, bright enough to read at a glance
-            // as "emergency deploy", not just decorative
-            ctx.fillStyle = '#f8fafc';
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 1.2;
+            // Draw base canopy dome filled with gradient emergency red
+            const domeGrad = ctx.createLinearGradient(-canopyW + sway, canopyY - 14 * progress, canopyW + sway, canopyY + 6 * progress);
+            domeGrad.addColorStop(0, '#b91c1c');
+            domeGrad.addColorStop(0.4, '#ef4444');
+            domeGrad.addColorStop(1, '#991b1b');
+
+            ctx.fillStyle = domeGrad;
             ctx.beginPath();
-            ctx.moveTo(-canopyW + sway, canopyY + 6);
-            ctx.quadraticCurveTo(sway, canopyY - 14, canopyW + sway, canopyY + 6);
-            ctx.quadraticCurveTo(sway * 0.5, canopyY - 2, -canopyW + sway, canopyY + 6);
+            ctx.moveTo(-canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway, canopyY - 14 * progress, canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway * 0.5, canopyY - 2 * progress, -canopyW + sway, canopyY + 6 * progress);
             ctx.closePath();
             ctx.fill();
+
+            // Draw White stripe gores on top of base canopy (Gores 2 and 4 out of 5)
+            const drawGore = (kStart, kEnd) => {
+                ctx.fillStyle = '#f8fafc';
+                ctx.beginPath();
+                ctx.moveTo(canopyW * kStart + sway, getSkirtY(kStart));
+                ctx.quadraticCurveTo(
+                    canopyW * kStart * 0.6 + sway, canopyY - 5 * progress,
+                    canopyW * kStart * 0.15 + sway, canopyY - 13 * progress
+                );
+                ctx.lineTo(canopyW * kEnd * 0.15 + sway, canopyY - 13 * progress);
+                ctx.quadraticCurveTo(
+                    canopyW * kEnd * 0.6 + sway, canopyY - 5 * progress,
+                    canopyW * kEnd + sway, getSkirtY(kEnd)
+                );
+                ctx.quadraticCurveTo(
+                    canopyW * (kStart + kEnd) * 0.5 + sway * 0.5, getSkirtY((kStart + kEnd) * 0.5) + 2 * progress,
+                    canopyW * kStart + sway, getSkirtY(kStart)
+                );
+                ctx.closePath();
+                ctx.fill();
+            };
+
+            drawGore(-0.6, -0.2);
+            drawGore(0.2, 0.6);
+
+            // 3D Shadow overlay to give the canopy depth and volume
+            const shadowGrad = ctx.createRadialGradient(
+                sway - canopyW * 0.3, canopyY - 8 * progress, 2 * progress,
+                sway, canopyY - 2 * progress, canopyW * 1.2
+            );
+            shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+            shadowGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(-canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway, canopyY - 14 * progress, canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway * 0.5, canopyY - 2 * progress, -canopyW + sway, canopyY + 6 * progress);
+            ctx.closePath();
+            ctx.clip();
+            ctx.fillStyle = shadowGrad;
+            ctx.fill();
+            ctx.restore();
+
+            // Black/Dark slate outline matching the sprite art style
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(-canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway, canopyY - 14 * progress, canopyW + sway, canopyY + 6 * progress);
+            ctx.quadraticCurveTo(sway * 0.5, canopyY - 2 * progress, -canopyW + sway, canopyY + 6 * progress);
+            ctx.closePath();
             ctx.stroke();
 
-            // Gore lines (the ribs) for a bit of texture
-            ctx.strokeStyle = 'rgba(148,163,184,0.6)';
+            // Draw gore partition lines (ribs)
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
             ctx.lineWidth = 0.8;
-            for (let g = -1; g <= 1; g++) {
+            for (const k of [-0.6, -0.2, 0.2, 0.6]) {
                 ctx.beginPath();
-                ctx.moveTo(g * canopyW * 0.55 + sway, canopyY + 5);
-                ctx.quadraticCurveTo(sway * 0.7, canopyY - 8, sway, canopyY - 3);
+                ctx.moveTo(canopyW * k + sway, getSkirtY(k));
+                ctx.quadraticCurveTo(
+                    canopyW * k * 0.6 + sway, canopyY - 5 * progress,
+                    canopyW * k * 0.15 + sway, canopyY - 13 * progress
+                );
                 ctx.stroke();
             }
+
             ctx.restore();
         }
 

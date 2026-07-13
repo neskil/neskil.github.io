@@ -57,7 +57,7 @@ const CargoPhysicsEntitiesMixin = {
         this.lander = {
             vehicleType: vehicleType,
             x: this.startDepot.x + this.startDepot.width / 2,
-            y: this.startDepot.y - 90,
+            y: this.startDepot.y - 25,
             vx: 0,
             vy: 0,
             angle: 0,
@@ -93,7 +93,9 @@ const CargoPhysicsEntitiesMixin = {
             autoRepairDelay: 0,
             maxShieldCharge: (upgrades.shieldRegen || 0) * 50,
             shieldCharge: (upgrades.shieldRegen || 0) * 50,
-            shieldHitFlash: 0
+            shieldDelay: 0,
+            shieldHitFlash: 0,
+            safeImpactSpeed: 1.2 * (1 + (upgrades.hullResistance || 0) * 0.05)
         };
         this._spawnLanderBody();
     },
@@ -163,9 +165,6 @@ const CargoPhysicsEntitiesMixin = {
             lander.angle = 0;
             lander.landed = true;
             lander.currentPad = padType;
-            if (padType === 'start' && lander.integrity < lander.maxIntegrity) {
-                lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + 0.1);
-            }
             if (padType === 'refuel' || padType === 'hq' || padType === 'service') {
                 lander.fuel = Math.min(lander.maxFuel, lander.fuel + 0.3);
             }
@@ -414,6 +413,7 @@ const CargoPhysicsEntitiesMixin = {
             const evy = lander.vy + Math.cos(lander.angle) * 4 + (Math.random() - 0.5) * 2;
 
             this.particles.push({
+                type: 'spark',
                 x: ex,
                 y: ey,
                 vx: evx,
@@ -431,6 +431,7 @@ const CargoPhysicsEntitiesMixin = {
             // unbounded even under sustained full-power thrust.
             if (Math.random() < lander.enginePower * 0.35 * dt) {
                 this.particles.push({
+                    type: 'smoke',
                     x: ex + (Math.random() - 0.5) * 4,
                     y: ey + (Math.random() - 0.5) * 4,
                     vx: evx * 0.35 + (Math.random() - 0.5) * 1.2,
@@ -455,6 +456,7 @@ const CargoPhysicsEntitiesMixin = {
                 const px = lander.x + Math.sin(lander.angle + Math.PI) * 14 + (Math.random() - 0.5) * 8;
                 const py = lander.y + Math.cos(lander.angle + Math.PI) * 14;
                 this.particles.push({
+                    type: 'smoke',
                     x: px,
                     y: py,
                     vx: (Math.random() - 0.5) * 1.5,
@@ -475,6 +477,7 @@ const CargoPhysicsEntitiesMixin = {
             const spawnX = this.lander.x + (this.currentWind > 0 ? -1200 : 1200) + (Math.random() - 0.5) * 400;
             const spawnY = this.lander.y + (Math.random() - 0.5) * 1200;
             this.particles.push({
+                type: 'spark',
                 x: spawnX,
                 y: spawnY,
                 vx: this.currentWind * (12 + Math.random() * 8),
@@ -487,6 +490,37 @@ const CargoPhysicsEntitiesMixin = {
         }
 
         const lander = this.lander;
+
+        // Heavy damage smoke trail
+        if (lander.integrity > 0 && lander.integrity < lander.maxIntegrity * 0.35 && !lander.landed) {
+            if (Math.random() < 0.4 * dt) {
+                this.particles.push({
+                    type: 'smoke',
+                    x: lander.x + (Math.random() - 0.5) * lander.width,
+                    y: lander.y + (Math.random() - 0.5) * lander.height,
+                    vx: lander.vx * 0.2 + (Math.random() - 0.5) * 1.5,
+                    vy: lander.vy * 0.2 - 1.0 - Math.random() * 1.5,
+                    life: 1.0,
+                    decay: 0.015 + Math.random() * 0.015,
+                    color: 'rgba(30, 41, 59, 0.7)',
+                    size: 4 + Math.random() * 6
+                });
+            }
+            if (Math.random() < 0.15 * dt) {
+                this.particles.push({
+                    type: 'spark',
+                    x: lander.x + (Math.random() - 0.5) * lander.width,
+                    y: lander.y + (Math.random() - 0.5) * lander.height,
+                    vx: lander.vx * 0.5 + (Math.random() - 0.5) * 4,
+                    vy: lander.vy * 0.5 - Math.random() * 4,
+                    life: 1.0,
+                    decay: 0.05 + Math.random() * 0.05,
+                    color: '#facc15',
+                    size: 2 + Math.random() * 2
+                });
+            }
+        }
+
         lander.x += lander.vx * dt;
         lander.y += lander.vy * dt;
         
@@ -564,22 +598,63 @@ const CargoPhysicsEntitiesMixin = {
         lander.integrity = 0;
         lander.thrusting = false;
         
+        lander.dismembered = true; // Hide the main hull in rendering
         if (isSwallowed) {
             lander.swallowed = true;
             lander.swallowScale = 1.0;
-        } else {
-            if (window.CargoAudio) {
-                CargoAudio.playCrash();
+        }
+
+        if (window.CargoAudio) {
+            CargoAudio.playCrash();
+        }
+
+            // --- Generate Debris ---
+            const baseVx = lander.vx * 0.5;
+            const baseVy = lander.vy * 0.5;
+
+            if (lander.vehicleType === 'drone') {
+                // Core body
+                this.spawnDebris(lander.x, lander.y, baseVx + (Math.random()-0.5)*3, baseVy - 2 - Math.random()*2, 20, 16, 'drone_core', '#1e293b', true);
+                // 4 Motor pods
+                for (let i=0; i<4; i++) {
+                    const px = lander.x + (i%2===0?-21:21);
+                    const py = lander.y + (i<2?-10:10);
+                    this.spawnDebris(px, py, baseVx + (i%2===0?-4:4) + Math.random(), baseVy - 1 - Math.random()*3, 11, 11, 'drone_pod', '#253548', Math.random() > 0.5);
+                }
+            } else {
+                // Space Truck (Basic Lander)
+                // Cabin
+                this.spawnDebris(lander.x, lander.y - 10, baseVx + (Math.random()-0.5)*2, baseVy - 3 - Math.random()*2, 30, 20, 'cabin', '#0f172a', true);
+                // Engine block
+                this.spawnDebris(lander.x, lander.y + 10, baseVx + (Math.random()-0.5)*2, baseVy - 1 - Math.random()*2, 26, 14, 'engine', '#1e293b', true);
+                // Left leg
+                this.spawnDebris(lander.x - 20, lander.y + 14, baseVx - 3 - Math.random(), baseVy - Math.random(), 8, 16, 'leg', '#fbbf24', false);
+                // Right leg
+                this.spawnDebris(lander.x + 20, lander.y + 14, baseVx + 3 + Math.random(), baseVy - Math.random(), 8, 16, 'leg', '#fbbf24', false);
+                // Left clamp
+                this.spawnDebris(lander.x - 15, lander.y + 35, baseVx - 2 - Math.random(), baseVy + Math.random(), 6, 20, 'clamp', '#1e293b', false);
+                // Right clamp
+                this.spawnDebris(lander.x + 15, lander.y + 35, baseVx + 2 + Math.random(), baseVy + Math.random(), 6, 20, 'clamp', '#1e293b', false);
             }
+
+            if (!this.explosions) this.explosions = [];
+            this.explosions.push({
+                x: lander.x,
+                y: lander.y,
+                radius: 40,
+                maxRadius: 200 + Math.random() * 100,
+                timer: 1.0
+            });
 
             for (let i = 0; i < 3; i++) {
                 this.particles.push({
+                    type: 'ring',
                     x: lander.x, y: lander.y,
                     vx: 0, vy: 0,
                     life: 1.0,
                     decay: 0.05 + Math.random() * 0.025,
                     color: 'rgba(255, 244, 214, 0.95)',
-                    size: 45 + Math.random() * 30
+                    size: 15 + Math.random() * 10
                 });
             }
 
@@ -587,6 +662,7 @@ const CargoPhysicsEntitiesMixin = {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 1.3 + Math.random() * 5.5;
                 this.particles.push({
+                    type: 'spark',
                     x: lander.x + (Math.random() - 0.5) * 15,
                     y: lander.y + (Math.random() - 0.5) * 15,
                     vx: Math.cos(angle) * speed,
@@ -602,6 +678,7 @@ const CargoPhysicsEntitiesMixin = {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 3 + Math.random() * 7;
                 this.particles.push({
+                    type: 'spark',
                     x: lander.x, y: lander.y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed - 2.5,
@@ -612,16 +689,17 @@ const CargoPhysicsEntitiesMixin = {
                 });
             }
 
-            for (let i = 0; i < 32; i++) {
+            for (let i = 0; i < 16; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 0.25 + Math.random() * 1.3;
                 this.particles.push({
+                    type: 'smoke',
                     x: lander.x + (Math.random() - 0.5) * 20,
                     y: lander.y + (Math.random() - 0.5) * 20,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed - 0.5 - Math.random() * 0.5,
                     life: 1.0,
-                    decay: 0.0022 + Math.random() * 0.004,
+                    decay: 0.01 + Math.random() * 0.015,
                     color: `rgba(${60 + Math.random() * 30}, ${60 + Math.random() * 30}, ${65 + Math.random() * 30}, 0.5)`,
                     size: 20 + Math.random() * 26
                 });
@@ -630,7 +708,6 @@ const CargoPhysicsEntitiesMixin = {
             if (window.game && window.game.screenShake) {
                 window.game.screenShake.intensity = Math.max(window.game.screenShake.intensity, 18);
             }
-        }
 
         if (window.game && window.game.screenShake) {
             window.game.screenShake.x = (Math.random() - 0.5) * 20;
@@ -955,6 +1032,65 @@ const CargoPhysicsEntitiesMixin = {
                         box.vy += imp * ty;
                     }
                 }
+            }
+        }
+    },
+
+    spawnDebris(x, y, vx, vy, width, height, type, color, burning = false) {
+        const id = Math.random().toString(36).substr(2, 9);
+        const piece = {
+            id, x, y, vx, vy, width, height, type, color, burning, angle: 0
+        };
+        this.debris.push(piece);
+
+        if (this.matterWorld) {
+            const body = Matter.Bodies.rectangle(x, y, width, height, {
+                friction: this.LANDER_FRICTION,
+                restitution: 0.45,
+                frictionAir: 0.015,
+                label: 'debris',
+                collisionFilter: { category: 0x0008, mask: 0x0001 | 0x0002 | 0x0004 | 0x0008 }
+            });
+            Matter.Body.setVelocity(body, { x: vx, y: vy });
+            Matter.Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.4);
+            Matter.Composite.add(this.matterWorld, body);
+            if (!this.debrisBodyMap) this.debrisBodyMap = new Map();
+            this.debrisBodyMap.set(id, body);
+        }
+    },
+
+    updateDebris(dt) {
+        if (!this.debris) return;
+        const FS = this.MATTER_FORCE_SCALE;
+        for (let i = this.debris.length - 1; i >= 0; i--) {
+            const d = this.debris[i];
+            const body = this.debrisBodyMap?.get(d.id);
+            if (body) {
+                // Apply wind and gravity
+                Matter.Body.applyForce(body, body.position, {
+                    x: this.currentWind * 0.01 * body.mass * FS,
+                    y: this.gravity * body.mass * FS,
+                });
+                d.x = body.position.x;
+                d.y = body.position.y;
+                d.vx = body.velocity.x;
+                d.vy = body.velocity.y;
+                d.angle = body.angle;
+            }
+
+            if (d.burning && Math.random() < 0.15 * dt) {
+                // emit smoke/sparks
+                this.particles.push({
+                    type: Math.random() > 0.5 ? 'smoke' : 'spark',
+                    x: d.x + (Math.random() - 0.5) * d.width,
+                    y: d.y + (Math.random() - 0.5) * d.height,
+                    vx: d.vx * 0.4 + (Math.random() - 0.5) * 2,
+                    vy: d.vy * 0.4 - 1 - Math.random() * 2,
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.03,
+                    color: Math.random() > 0.6 ? '#facc15' : (Math.random() > 0.5 ? '#ef4444' : 'rgba(30,40,50,0.6)'),
+                    size: 4 + Math.random() * 5
+                });
             }
         }
     }

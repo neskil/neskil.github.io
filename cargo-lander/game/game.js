@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.16.6';
+    static VERSION = '0.16.7';
 
     constructor() {
         this.canvas = null;
@@ -747,7 +747,7 @@ class CargoGame {
         this.physics.particles.push(rocket);
         
         const exhaustInterval = setInterval(() => {
-            if (rocket.life > 0 && this.gameState === 'playing') {
+            if (rocket.life > 0 && (this.gameState === 'playing' || this.gameState === 'menu')) {
                 this.physics.particles.push({
                     x: rocket.x, y: rocket.y,
                     vx: rocket.vx * 0.1 + (Math.random() - 0.5) * 2,
@@ -765,7 +765,7 @@ class CargoGame {
         }
         
         setTimeout(() => {
-            if (this.gameState !== 'playing' && this.gameState !== 'level_complete') return;
+            if (this.gameState !== 'playing' && this.gameState !== 'level_complete' && this.gameState !== 'menu') return;
             rocket.life = 0;
             
             const bx = startX + rocketVx * (flyTimeMs / 16);
@@ -797,8 +797,31 @@ class CargoGame {
         this.updateMobileControlsVisibility();
         if (this.updateWeather) this.updateWeather(dt);
         
-        if (this.gameState === 'menu' && this.drawVehicleCanvases) {
-            this.drawVehicleCanvases(dt);
+        if (this.gameState === 'menu') {
+            if (this.drawVehicleCanvases) {
+                this.drawVehicleCanvases(dt);
+            }
+            // Update particles for menu effects/fireworks
+            if (this.physics && this.physics.particles) {
+                for (let i = this.physics.particles.length - 1; i >= 0; i--) {
+                    const p = this.physics.particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.gy) p.vy += p.gy;
+                    p.life -= p.decay;
+                    if (p.type === 'ring') {
+                        p.size *= 1.08;
+                    } else if (p.type === 'smoke') {
+                        p.size *= 1.015;
+                    } else {
+                        p.size = Math.max(0.5, p.size * 0.98);
+                    }
+                    if (p.life <= 0) {
+                        this.physics.particles[i] = this.physics.particles[this.physics.particles.length - 1];
+                        this.physics.particles.pop();
+                    }
+                }
+            }
         }
 
         const lander = this.physics.lander;
@@ -1082,7 +1105,6 @@ class CargoGame {
 
         const shieldLvl = this.upgrades?.['shieldRegen'] || 0;
         if (shieldLvl > 0 && !lander.crashed && lander.integrity > 0 && (!lander.shieldDelay || lander.shieldDelay <= 0)) {
-            lander.integrity = Math.min(lander.maxIntegrity, lander.integrity + (dt / 60) * 1.5 * shieldLvl);
             // Shield charge recovers on its own too, a bit slower than a fresh hit
             // would need — it isn't meant to fully block every impact back-to-back.
             if (lander.maxShieldCharge > 0) {
@@ -1432,8 +1454,10 @@ class CargoGame {
     // cost are rounded to the nearest 10 for clean numbers.
     getRepairCost(lander) {
         const cap = this.getRepairCap(lander);
-        if (!lander || cap <= 0 || lander.integrity >= cap) return 0;
-        const REPAIR_BASE_COST = 600;
+        const needsHull = lander && cap > 0 && lander.integrity < cap;
+        const needsAuto = lander && lander.maxAutoRepairCharge > 0 && lander.autoRepairCharge < lander.maxAutoRepairCharge;
+        if (!needsHull && !needsAuto) return 0;
+        const REPAIR_BASE_COST = 300;
         const damagePct = Math.round(((cap - lander.integrity) / lander.maxIntegrity) * 100 / 10) * 10;
         const cost = Math.round((REPAIR_BASE_COST * damagePct / 100) / 10) * 10;
         return Math.max(10, cost);
@@ -1442,12 +1466,15 @@ class CargoGame {
     repairLander() {
         const lander = this.physics.lander;
         const cap = this.getRepairCap(lander);
-        if (!lander || lander.integrity >= cap) return;
+        const needsHull = lander && cap > 0 && lander.integrity < cap;
+        const needsAuto = lander && lander.maxAutoRepairCharge > 0 && lander.autoRepairCharge < lander.maxAutoRepairCharge;
+        if (!needsHull && !needsAuto) return;
         const cost = this.getRepairCost(lander);
         if (this.missionBudget < cost) return;
         this.missionBudget -= cost;
         this.missionRepairSpend = (this.missionRepairSpend || 0) + cost;
         lander.integrity = cap;
+        if (lander.maxAutoRepairCharge > 0) lander.autoRepairCharge = lander.maxAutoRepairCharge;
         if (window.CargoAudio) window.CargoAudio.playClick();
         this.addMessage(`Integrity restored. -$${cost} Deposit`, "#10b981");
         if (!this.floatingTexts) this.floatingTexts = [];

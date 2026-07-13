@@ -343,6 +343,16 @@ drawMenuBackgroundEntity() {
 
             ctx.restore();
         }
+
+        // Draw menu particles (like shop purchase fireworks)
+        if (this.physics && this.physics.particles && this.physics.particles.length > 0) {
+            ctx.save();
+            ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+            ctx.scale(this.camera.zoom, this.camera.zoom);
+            ctx.translate(-this.camera.x, -this.camera.y);
+            this.drawParticles();
+            ctx.restore();
+        }
     }
 
 ,

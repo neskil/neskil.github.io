@@ -239,6 +239,9 @@ class ShaderOverlay {
             uniform vec2 u_blackholePos[4];
             uniform float u_blackholeRadius[4];
 
+            uniform int u_numHeatSources;
+            uniform vec3 u_heatSources[8];
+
             uniform float u_rainAmount;
 
             float hash21(vec2 p) {
@@ -381,6 +384,20 @@ class ShaderOverlay {
                     float wobbleY = sin(screenPos.x * 0.015 + u_time * 1.2) * 0.6;
                     offset += vec2(wobbleX, wobbleY);
                     touched = true;
+                }
+
+                for (int i = 0; i < 8; i++) {
+                    if (i >= u_numHeatSources) break;
+                    vec2 diff = screenPos - u_heatSources[i].xy;
+                    float dist = length(diff);
+                    float rad = u_heatSources[i].z;
+                    if (dist < rad && rad > 0.0) {
+                        float falloff = pow(1.0 - (dist / rad), 1.5);
+                        float wobbleX = sin(screenPos.y * 0.15 + u_time * 25.0) * 1.0 * falloff;
+                        float wobbleY = sin(screenPos.x * 0.15 + u_time * 20.0) * 1.0 * falloff;
+                        offset += vec2(wobbleX, wobbleY);
+                        touched = true;
+                    }
                 }
 
                 float blackholeFade = 1.0;
@@ -618,7 +635,7 @@ class ShaderOverlay {
     // Returns true if it actually drew anything — callers use this to skip the
     // full-screen Canvas2D drawImage() composite of this.canvas when the pass
     // was a no-op (no active effect regions in the level/viewport).
-    renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects, activeWeather) {
+    renderPostFX(physics, camera, sourceCanvas, levelConfig, waterRects, activeWeather, heatSources) {
         if (!this.gl || !this.postFXProgram) return false;
         const gl = this.gl;
 
@@ -626,7 +643,8 @@ class ShaderOverlay {
         const hasBlackhole = physics.gravityWells && physics.gravityWells.length > 0;
         const hasWater = waterRects && waterRects.length > 0;
         const rain = (activeWeather === 'rain' || (levelConfig && levelConfig.weather === 'rain')) ? 1.0 : 0.0;
-        if (!heatHaze && !hasBlackhole && !hasWater && !rain) return false;
+        const hasLocalHeat = heatSources && heatSources.length > 0;
+        if (!heatHaze && !hasBlackhole && !hasWater && !rain && !hasLocalHeat) return false;
 
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -678,6 +696,23 @@ class ShaderOverlay {
             gl.uniform1fv(this._loc(this.postFXProgram, "u_blackholeRadius"), radArr);
         } else {
             gl.uniform1i(this._loc(this.postFXProgram, "u_numBlackholes"), 0);
+        }
+
+        if (hasLocalHeat) {
+            const count = Math.min(8, heatSources.length);
+            const heatArr = this._heatArr || (this._heatArr = new Float32Array(24));
+            for (let i = 0; i < count; i++) {
+                const hs = heatSources[i];
+                const screenX = (hs.x - camera.x) * camera.zoom + this.canvas.width / 2;
+                const screenY = (hs.y - camera.y) * camera.zoom + this.canvas.height / 2;
+                heatArr[i * 3] = screenX;
+                heatArr[i * 3 + 1] = screenY;
+                heatArr[i * 3 + 2] = hs.radius * camera.zoom;
+            }
+            gl.uniform1i(this._loc(this.postFXProgram, "u_numHeatSources"), count);
+            gl.uniform3fv(this._loc(this.postFXProgram, "u_heatSources"), heatArr);
+        } else {
+            gl.uniform1i(this._loc(this.postFXProgram, "u_numHeatSources"), 0);
         }
 
         gl.enable(gl.BLEND);
@@ -767,69 +802,8 @@ class ShaderOverlay {
         }
 
         // --- Render Particles ---
-        if (physics.particles && physics.particles.length > 0) {
-            const count = physics.particles.length;
-            const positions = new Float32Array(count * 2);
-            const colors = new Float32Array(count * 4);
-            const sizes = new Float32Array(count);
-
-            for (let i = 0; i < count; i++) {
-                const p = physics.particles[i];
-                positions[i * 2] = p.x;
-                positions[i * 2 + 1] = p.y;
-                
-                // Color parsing
-                let rgba = [1,1,1,1];
-                if (p.color.startsWith('hsl')) {
-                    rgba = this.parseHsla(p.color);
-                } else if (p.color === '#e2e8f0') {
-                    rgba = [226/255, 232/255, 240/255, 1];
-                } else if (p.color === '#475569') {
-                    rgba = [71/255, 85/255, 105/255, 1];
-                }
-                // apply alpha/life
-                rgba[3] = p.life;
-                
-                colors[i * 4] = rgba[0];
-                colors[i * 4 + 1] = rgba[1];
-                colors[i * 4 + 2] = rgba[2];
-                colors[i * 4 + 3] = rgba[3];
-                
-                sizes[i] = p.size * 2.5; // Slightly larger for soft WebGL dots
-            }
-
-            gl.useProgram(this.particleProgram);
-
-            // Positions
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.particlePosBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
-            const aPos = this._loc(this.particleProgram, "a_position");
-            gl.enableVertexAttribArray(aPos);
-            gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-            // Colors
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.particleColorBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, colors, gl.DYNAMIC_DRAW);
-            const aCol = this._loc(this.particleProgram, "a_color");
-            gl.enableVertexAttribArray(aCol);
-            gl.vertexAttribPointer(aCol, 4, gl.FLOAT, false, 0, 0);
-
-            // Sizes
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.particleSizeBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, sizes, gl.DYNAMIC_DRAW);
-            const aSize = this._loc(this.particleProgram, "a_size");
-            gl.enableVertexAttribArray(aSize);
-            gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, 0, 0);
-
-            // Uniforms
-            gl.uniform2f(this._loc(this.particleProgram, "u_resolution"), this.canvas.width, this.canvas.height);
-            gl.uniform2f(this._loc(this.particleProgram, "u_cameraPos"), camera.x, camera.y);
-            gl.uniform1f(this._loc(this.particleProgram, "u_zoom"), camera.zoom);
-
-            gl.drawArrays(gl.POINTS, 0, count);
-
-            gl.disableVertexAttribArray(aCol);
-            gl.disableVertexAttribArray(aSize);
-        }
+        // Disabled: Particles are now drawn exclusively in Canvas2D to support
+        // advanced vector shapes (sparks, smoke, rings) instead of soft dots.
+        // if (physics.particles && physics.particles.length > 0) { ... }
     }
 }
