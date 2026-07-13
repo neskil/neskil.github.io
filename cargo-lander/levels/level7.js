@@ -17,17 +17,28 @@
 // The two laser gauntlets that used to guard the Fuel Pump and Valley Base were cut
 // (2026-07-10 design pass) — lasers in a cave read as anti-theme, and dying late on a 4km
 // run to a hard timer was more frustrating than skillful. Their job is done instead by two
-// drifting gas pockets, relocated to sit directly in each hub's approach corridor.
+// gas pockets sitting in each hub's approach corridor.
+//
+// BUGFIX (2026-07-13): those gas pockets were missing a `type` field, which made them fall
+// into physics/atmosphere.js's default 'zone' branch — 25 dmg/frame, i.e. an unmarked
+// instakill on a static polygon with zero telegraphing, not the "drift off course" hazard
+// the design called for. Given `type:'zone'` a hazard also can't move (only gravwell/crusher
+// have motion logic), so the old "drifting" description was never accurate either. Switched
+// both to `type:'repulsor'`, which shoves the lander sideways with a constant force while
+// inside — survivable, readable (animated flow-arrow render, cyan fill matches the cave
+// palette), and does what a "gas pocket" should: push you off your line, not kill you for
+// touching it.
 
 registerLevel({
     name: "L7: The Deep Haul",
     missionTitle: "Bioluminescent Depths — Long Haul",
-    description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type. Fuel is tight; there are two refuel pumps along the route, one just past the halfway point and one deep in the squeeze corridor beyond it. Navigate the undulating cave without touching the glowing rock walls, and don't drift into the drifting gas pockets guarding the two mid-route hubs.",
+    description: "The Bioluminescent Depths stretch nearly 4 km underground. Multiple delivery nodes are buried deep in the cave network — each accepting a different cargo type, plus a vacuum chute near the far end that will take any cargo you're still holding. Fuel is tight; there are two refuel pumps along the route, one just past the halfway point and one deep in the squeeze corridor beyond it. Navigate the undulating cave without touching the glowing rock walls, and hold your line through the gas pockets guarding the two mid-route hubs — they'll shove you off course, not through you.",
     weather: 'bubbles',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.16,
-    wind: 0,
+    wind: 0.03,       // Cave draft — mild most of the time, see windGust below
+    windGust: { calm: 9, warn: 2.5, gust: 5, gustMult: 3.2 }, // periodic draft surge through the tunnel
     heavyCargo: true, // Cargo weight affects lander handling
 
     // ── Terrain ───────────────────────────────────────────────────────────────
@@ -62,18 +73,25 @@ registerLevel({
         ]
     ],
 
-    // ── Hazards — two drifting gas pockets guarding the Fuel Pump and Valley Base
+    // ── Hazards — two gas pockets guarding the Fuel Pump and Valley Base
     // approaches (relocated from open mid-air stretches to do the lasers' old job) ──
     hazards: [
-        // Guards the Fuel Pump (x:1600) approach — floats in the open corridor before the pad
+        // Guards the Fuel Pump (x:1600) approach — floats in the open corridor before the pad.
+        // Shoves the lander down/back away from the pad's approach line.
         {
+            type: 'repulsor',
+            color: 'rgba(14, 165, 233, 0.18)',
+            travelX: -6, travelY: 10,
             pts: [
                 {x: 1500, y: 440}, {x: 1580, y: 440},
                 {x: 1580, y: 560}, {x: 1500, y: 560}
             ]
         },
-        // Guards the Valley Base (x:2100) approach
+        // Guards the Valley Base (x:2100) approach — pushes up/back away from the pad.
         {
+            type: 'repulsor',
+            color: 'rgba(14, 165, 233, 0.18)',
+            travelX: -6, travelY: -10,
             pts: [
                 {x: 2000, y: 230}, {x: 2080, y: 230},
                 {x: 2080, y: 360}, {x: 2000, y: 360}
@@ -137,7 +155,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Stop at the Fuel Pump (x:1600) before pushing east, and don't skip the Reserve Tank (x:2900) either — the return trip needs it as much as the outbound leg. A drifting gas pocket guards each of the Fuel Pump and Valley Base approaches, so read your line early. Thread the double-bend squeeze without grazing the glowing rock. Return to HQ to extract.",
+    hint: "Stop at the Fuel Pump (x:1600) before pushing east, and don't skip the Reserve Tank (x:2900) either — the return trip needs it as much as the outbound leg. A gas pocket guards each of the Fuel Pump and Valley Base approaches — it'll push you off your line, so counter-thrust through it rather than fighting straight against it. Thread the double-bend squeeze without grazing the glowing rock. If you end up holding a tethered box, grapple it in (it can't be hand-carried) and drop it at the Magma Chute (x:3300) — it takes any cargo type. Return to HQ to extract.",
 
     quests: [
         questPrimary('Deliver 3 cargos across the cave'),

@@ -21,11 +21,11 @@ registerLevel({
 
     // Radar ping zone — read by drawRadarPingZone() in game.js.
     // color is an RGB string; r is max ping radius; period is ms per cycle.
-    radarPingZone: { cx: 900, cy: 580, r: 280, color: '200, 100, 20', period: 3600 },
+    radarPingZone: { cx: 900, cy: 580, r: 280, color: '200, 100, 20', period: 5400 },
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.18,
-    wind: 0,
+    wind: 0.02,       // Light, constant desert breeze — texture, not a real obstacle
     heatHaze: true,
 
     // ── Terrain ───────────────────────────────────────────────────────────────

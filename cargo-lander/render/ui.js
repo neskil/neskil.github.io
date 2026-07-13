@@ -168,7 +168,7 @@ drawRadarPingZone() {
                 const offset = (i / NUM_PINGS) * period;
                 const t = ((now + offset) % period) / period; // 0→1
                 const ringR = t * maxR;
-                const alpha = Math.pow(1 - t, 1.6) * 0.30;
+                const alpha = Math.pow(1 - t, 2.6) * 0.30;
                 ctx.strokeStyle = `rgba(${color}, ${alpha})`;
                 ctx.lineWidth = 1.5 + (1 - t) * 2;
                 ctx.beginPath();
@@ -316,23 +316,38 @@ drawNotifications() {
 drawWindIndicator() {
         const ctx = this.ctx;
         const baseWind = this.physics.wind;
-        if (Math.abs(baseWind) < 0.05) return;
+        if (Math.abs(baseWind) < 0.015) return;
 
         const currentWind = this.physics.currentWind || baseWind;
         const dir = baseWind > 0 ? 1 : -1;
         const absBase = Math.abs(baseWind);
-        
+        const warning = !!this.physics.windWarning;
+
+        // One soft cue when a gust warning starts (edge-triggered, not looping)
+        if (warning && !this._windWarnedLast && window.CargoAudio?.playWindWarning) {
+            window.CargoAudio.playWindWarning();
+        }
+        this._windWarnedLast = warning;
+
         // Smooth the readout so it doesn't jitter rapidly
         if (this._windDisplaySmooth === undefined) this._windDisplaySmooth = Math.abs(currentWind);
         this._windDisplaySmooth += (Math.abs(currentWind) - this._windDisplaySmooth) * 0.06;
         const absCurrent = this._windDisplaySmooth;
-        const gustRatio = absCurrent / (absBase || 1); 
+        const gustRatio = absCurrent / (absBase || 1);
 
         // Determine color from strength: cyan → yellow → red
         const str = Math.min(1, absBase / 0.4);
-        const r = Math.round(56 + str * 199);
-        const g = Math.round(189 - str * 89);
-        const b = Math.round(248 - str * 248);
+        let r = Math.round(56 + str * 199);
+        let g = Math.round(189 - str * 89);
+        let b = Math.round(248 - str * 248);
+
+        // Warning flash: pulse toward amber while the gust is incoming
+        const pulse = warning ? (Math.sin(Date.now() * 0.012) * 0.5 + 0.5) : 0;
+        if (warning) {
+            r = Math.round(r + (245 - r) * pulse);
+            g = Math.round(g + (158 - g) * pulse);
+            b = Math.round(b + (11 - b) * pulse);
+        }
 
         const cx = this.canvas.width / 2;
         const cy = 80;
@@ -343,10 +358,10 @@ drawWindIndicator() {
         ctx.translate(cx, cy);
         ctx.scale(this.uiScale || 1.0, this.uiScale || 1.0);
         ctx.translate(-cx, -cy);
-        
+
         ctx.fillStyle = 'rgba(0,10,30,0.55)';
-        ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(${r},${g},${b},${warning ? 0.35 + pulse * 0.45 : 0.35})`;
+        ctx.lineWidth = warning ? 1 + pulse : 1;
         if (ctx.roundRect) ctx.roundRect(cx - pillW / 2, cy - pillH - 2, pillW, pillH, 6);
         else ctx.rect(cx - pillW / 2, cy - pillH - 2, pillW, pillH);
         ctx.fill(); ctx.stroke();
@@ -356,7 +371,7 @@ drawWindIndicator() {
         ctx.font = '600 12px Outfit, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const gustLabel = gustRatio > 1.25 ? ' (GUSTING)' : '';
+        const gustLabel = warning ? ' (INCOMING)' : (gustRatio > 1.25 ? ' (GUSTING)' : '');
         ctx.fillText(`${dir > 0 ? '▶' : '◀'} ${(absCurrent * 10).toFixed(1)} m/s${gustLabel}`, cx, cy - pillH / 2 - 2);
 
         ctx.restore();

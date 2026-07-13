@@ -220,11 +220,11 @@ drawHazards(bgMode = false) {
                 ctx.beginPath();
                 pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
                 ctx.closePath();
-                ctx.fillStyle = 'rgba(217, 119, 6, 0.05)'; // very faint sandy color
+                ctx.fillStyle = 'rgba(217, 119, 6, 0.025)'; // very faint sandy color
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(217, 119, 6, 0.2)'; // faint outline
+                ctx.strokeStyle = 'rgba(217, 119, 6, 0.1)'; // faint outline
                 ctx.lineWidth = 1;
-                ctx.setLineDash([4, 4]);
+                ctx.setLineDash([3, 9]);
                 ctx.stroke();
                 ctx.setLineDash([]);
                 continue;

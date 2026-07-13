@@ -260,6 +260,16 @@ class CargoAudioController {
         }
     }
 
+    playWindWarning() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        // Soft rising two-note whistle — a gust cue, not an alarm.
+        this.playTone(220, 0.35, 0.045, now);
+        this.playTone(277.18, 0.4, 0.04, now + 0.15);
+    }
+
     playRadarPing() {
         if (this.muted) return;
         this.init();
