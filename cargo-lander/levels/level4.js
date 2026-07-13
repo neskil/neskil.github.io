@@ -1,53 +1,80 @@
 // Level 4 — Gravity Anomaly
 // Biome: Volcanic / Lava Rock / Orange-Red.
-// The defining hazard is a moving gravity well that orbits its base position —
-// physics.js reads gravityWell.orbitRadius and applies a Lissajous phase offset each tick.
-// Two cargo types (normal → Sector 4, red → Deep Storage) force the player to read labels
-// while also fighting the vortex pull. Two vent fields — one over the western approach,
-// one over the eastern lava pit — periodically flare molten gas. Open sky above (no ceiling)
-// so the vortex and vents are the only things keeping the player honest.
-
+// Redesigned (2026-07-13) around a one-way loop instead of an open dual-hub
+// sort: HQ sits on a surface plateau far west, the cargo depot sits atop a
+// tall ridge pillar far east — the direct route between them drifts through
+// the level's one gravity well (a wormhole-style vortex, orbiting mid-air).
+// Cargo gets carried back and dropped inside a cave alcove in the middle of
+// the map; a lava vent field guards the cave's mouth (the "heat" gate) so
+// the player has to time the flare before ducking in to deliver. Getting
+// back to HQ from the cave doesn't require re-running the vent/vortex
+// gauntlet — a low tunnel under the valley connects the cave straight back
+// to the base of the HQ cliff.
 registerLevel({
     name: "L4: Gravity Anomaly",
-    missionTitle: "Anomaly Zone — Dual Cargo Sort",
-    description: "Sector 4 sits inside a classified Anomaly Zone where a gravitational vortex drifts in slow orbit, dragging anything nearby off course. Standard packages go to Sector 4 on the western dip, past a vent field that guards the HQ approach; red-tagged goods belong in Deep Storage on the eastern ridge, past a second vent field flaring molten gas over an exposed lava pit. Don't let the vortex pull you off course, and don't let either flare catch you.",
+    missionTitle: "Anomaly Zone — Vortex Run",
+    description: "HQ sits on a western plateau; the cargo dock is atop a ridge pillar far to the east, past a gravitational vortex drifting in slow orbit over the open valley. Bring each crate back to the Hollow — a cave alcove carved into the ridge below the dock — but a lava vent guards its mouth, flaring on a duty cycle. Time the flare, duck inside to deliver, then take the low tunnel under the valley floor straight back to HQ instead of running the vortex a second time.",
     weather: 'ash',
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.28,           // Heavy gravity — volcanic world has dense core
-    wind: 0,
+    wind: 0.015,             // Faint volcanic updraft — texture, the vortex is the real hazard here
     heavyCargo: false,       // Cargo mass no longer affects handling
     heatHaze: true,          // volcanic biome — GPU post-fx shimmer (see shaders.js renderPostFX)
 
-
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
-        // Ground — valley floor shaped around the gravity well, with a lava-pit
-        // notch under the vent field and an undulating ridge pad on the east side
+        // Ground — HQ plateau (west) down into the valley, a shaft dropping
+        // into the shortcut tunnel, back up into the Hollow cave floor, the
+        // vent-guarded neck, then up the eastern ridge to the dock plateau.
         [
-            // Left approach and HQ spawn area
-            {x: -400, y: 650}, {x: 100, y: 650},
-            // Main wide dip for the hub (Sector 4)
-            {x: 200, y: 650}, {x: 300, y: 550}, {x: 600, y: 550}, {x: 700, y: 650},
-            // Lava pit notch — exposed pool under the vent field's flare zone
-            {x: 800, y: 640}, {x: 870, y: 700}, {x: 970, y: 700}, {x: 1040, y: 640},
-            {x: 1150, y: 650},
-            // Eastern ridge — gentle rise to a landing pad for Deep Storage (x:1300)
-            {x: 1200, y: 600}, {x: 1400, y: 600}, {x: 1450, y: 650},
-            {x: 1800, y: 650},
+            // HQ plateau
+            {x: -400, y: 230}, {x: 100, y: 230},
+            // Cliff down to the valley floor
+            {x: 180, y: 600}, {x: 260, y: 600},
+            // West tunnel shaft — drops into the shortcut corridor
+            {x: 260, y: 900},
+            // Tunnel floor running east under the valley
+            {x: 560, y: 900},
+            // East tunnel shaft — climbs back up into the Hollow's floor
+            {x: 560, y: 650}, {x: 650, y: 650},
+            // The Hollow — cave floor (delivery hub sits at x:800)
+            {x: 950, y: 650},
+            // Vent-guarded neck rising out of the cave mouth
+            {x: 1000, y: 550}, {x: 1050, y: 450},
+            // Climb the eastern ridge to the dock plateau (cargo depot at x:1300)
+            {x: 1100, y: 230}, {x: 1600, y: 230},
+            // Descend the far east cliff
+            {x: 1650, y: 400}, {x: 1800, y: 650},
             // Enclosure
             {x: 1800, y: 1800}, {x: -400, y: 1800}
+        ],
+        // The Hollow's cave roof — a floating rock mass overhanging the
+        // delivery floor (x:650-950) so it reads as an enclosed cave, dipping
+        // low toward the vent neck at its eastern edge.
+        [
+            {x: 600, y: 100}, {x: 1080, y: 100},
+            {x: 1080, y: 480}, {x: 950, y: 400}, {x: 750, y: 350}, {x: 650, y: 420},
+            {x: 600, y: 100}
+        ],
+        // Shortcut tunnel lid — seals the trench between the two shaft mouths
+        // (x:260 and x:560) into a low tunnel; the shafts themselves stay open
+        // to the sky so the entrances read clearly.
+        [
+            {x: 260, y: 500}, {x: 560, y: 500}, {x: 560, y: 650}, {x: 260, y: 650},
+            {x: 260, y: 500}
         ]
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────
-    padScale: 0.85,         // Normal pad scale
+    padScale: 0.85,
     targetCargo: 4,
     deposit: 1000,
     fee: 200,
-    timeLimit: 210,
-    allowedTypes: ["normal", "red"],
-    collectionX: -100,      // Pickup depot is behind HQ on the far-left — safe from the vortex
+    timeLimit: 220,
+    allowedTypes: ["normal"],
+    startX: -100,           // HQ on the western plateau
+    collectionX: 1300,      // Cargo dock atop the eastern ridge pillar
 
     // ── Environment ───────────────────────────────────────────────────────────
     outOfBounds: {
@@ -62,25 +89,7 @@ registerLevel({
 
     // ── Hubs ──────────────────────────────────────────────────────────────────
     deliveryHubs: [
-        { x: 410,  color: "#22c55e", type: "normal", name: "Sector 4" },
-        { x: 1300, color: "#ef4444", type: "red",    name: "Deep Storage" },
-    ],
-
-    // ── Water Bodies ──────────────────────────────────────────────────────────
-    // Exposed lava pool sitting in the terrain notch beneath the vent field —
-    // decorative, not an OOB zone; the incinerator hazard flares just above it.
-    waterBodies: [
-        {
-            hasBoat: false,
-            color: 'rgba(249, 115, 22, 0.6)',
-            surfaceColor: '#f97316',
-            pts: [
-                {x: 870, y: 700},
-                {x: 970, y: 700},
-                {x: 970, y: 660},
-                {x: 870, y: 660}
-            ]
-        }
+        { x: 800, color: "#22c55e", type: "normal", name: "The Hollow" },
     ],
 
     // ── Palette (Volcanic / Orange-Red) ──────────────────────────────────────
@@ -95,24 +104,22 @@ registerLevel({
     },
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    // Gravity well drifts in slow orbit over the western dip, dragging the
-    // lander off course near Sector 4. Two lava vent fields pulse on a
-    // charge/flare duty cycle — one over the exposed pit notch en route to
-    // Deep Storage, one guarding the approach out of HQ — and cargo caught
-    // inside while active is destroyed outright (see physics/atmosphere.js's
-    // 'incinerator' hazard branch).
+    // One gravity well (the level's defining vortex) orbits over the open
+    // valley between HQ and the Hollow — directly in the path of the direct
+    // route to the dock. One lava vent guards the Hollow's cave mouth on a
+    // charge/flare duty cycle; cargo caught inside while it's active is
+    // destroyed outright (see physics/atmosphere.js's 'incinerator' branch).
     hazards: [
-        { type: 'gravwell', pts: [{x: 500, y: 200}, {x: 700, y: 400}, {x: 500, y: 600}, {x: 300, y: 400}], startForce: 0.35, endForce: 0.35, radius: 200, speed: 200 },
-        { type: 'incinerator', pts: [{ x: 950, y: 550 }, { x: 1150, y: 550 }, { x: 1150, y: 650 }, { x: 950, y: 650 }], onMs: 1500, offMs: 2200, warnMs: 600, damagePerSec: 30 },
-        { type: 'incinerator', pts: [{ x: 150, y: 300 }, { x: 350, y: 300 }, { x: 350, y: 480 }, { x: 150, y: 480 }], onMs: 1200, offMs: 1900, warnMs: 500, damagePerSec: 30 },
+        { type: 'gravwell', pts: [{x: 400, y: 150}, {x: 550, y: 300}, {x: 400, y: 450}, {x: 250, y: 300}], startForce: 0.35, endForce: 0.35, radius: 180, speed: 160 },
+        { type: 'incinerator', pts: [{ x: 900, y: 400 }, { x: 1100, y: 400 }, { x: 1100, y: 650 }, { x: 900, y: 650 }], onMs: 1500, offMs: 2200, warnMs: 600, damagePerSec: 30, behindTerrain: true },
     ],
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Check the cargo type before flying — normal label = Sector 4 (west dip), red label = Deep Storage (east ridge). The vortex drifts, so don't hover near the centre. Watch both vent fields flare — one guards the HQ approach, one guards the eastern lava pit. Return to HQ once all crates are sorted.",
+    hint: "Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. Watch the vent flare before ducking into the Hollow to deliver. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
 
     quests: [
-        questPrimary('Sort & deliver 4 cargo'),
-        questNoCargoLost('No cargo sucked into the vortex or dropped in the lava', 400),
+        questPrimary('Deliver 4 cargo to The Hollow'),
+        questNoCargoLost('No cargo sucked into the vortex or caught in the vent', 400),
         questQuick('Finish with 20+ sec remaining', 20, 250),
     ],
 });
