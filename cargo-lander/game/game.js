@@ -1564,14 +1564,17 @@ class CargoGame {
                 <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Upkeep Fee:</span> <span>-$${this.missionFee.toLocaleString()}</span></div>
                 <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Deposit Deducted:</span> <span>-$${this.missionInitialDeposit.toLocaleString()}</span></div>
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                <div style="display:flex; justify-content:space-between; font-weight: bold;"><span>Bank:</span> <span>$${(this.missionStartBank - this.missionFee - this.missionInitialDeposit).toLocaleString()}</span></div>
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
+                <div style="display:flex; justify-content:space-between; color: #10b981;"><span>Deposit Refund:</span> <span>+$${this.missionInitialDeposit.toLocaleString()}</span></div>
                 <div style="display:flex; justify-content:space-between; ${costsIncurred > 0 ? 'color: #fca5a5;' : 'color: #94a3b8;'}"><span>Costs Incurred:</span> <span>-$${costsIncurred.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; ${this.missionDeliveryEarnings > 0 ? 'color: #10b981;' : 'color: #94a3b8;'}"><span>Deliveries (+):</span> <span>+$${this.missionDeliveryEarnings.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; ${this.missionDeliveryEarnings > 0 ? 'color: #10b981;' : 'color: #94a3b8;'}"><span>Deliveries:</span> <span>+$${this.missionDeliveryEarnings.toLocaleString()}</span></div>
                 ${allDelivered ? `<div style="display:flex; justify-content:space-between; color: #94a3b8;"><span>Base Completion:</span> <span>+$${baseMoney.toLocaleString()}</span></div>` : ''}
                 ${timeBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #38bdf8;"><span>Time Bonus (${timePctRemaining}%):</span> <span>+$${timeBonus.toLocaleString()}</span></div>` : ''}
                 ${questBonus > 0 ? `<div style="display:flex; justify-content:space-between; color: #a855f7;"><span>Quest Bonuses:</span> <span>+$${questBonus.toLocaleString()}</span></div>` : ''}
-                <div style="display:flex; justify-content:space-between; color: #10b981;"><span>Deposit Returned:</span> <span>+$${depositReturned.toLocaleString()}</span></div>
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
-                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>Net Total:</span> <span>${netChange >= 0 ? '+' : ''}$${netChange.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${totalPayout >= 0 ? '#10b981' : '#fca5a5'};"><span>Total Payout:</span> <span>${totalPayout >= 0 ? '+' : ''}$${totalPayout.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; font-weight: bold; color: ${netChange >= 0 ? '#10b981' : '#fca5a5'};"><span>Net Gain:</span> <span>${netChange >= 0 ? '+' : ''}$${netChange.toLocaleString()}</span></div>
                 <div style="display:flex; justify-content:space-between; font-weight: bold; font-size: 1.1rem; margin-top: 8px; color: #f59e0b;"><span>New Bank Balance:</span> <span>$${this.globalCash.toLocaleString()}</span></div>
             </div>
             ${!allDelivered ? `<p style="color:#ef4444; font-style:italic; font-size: 0.8rem; text-align: center; margin-top: 10px;">Mission aborted. Completion bonuses forfeited.</p>` : ''}

@@ -640,7 +640,7 @@ function updateHubUI() {
   });
 }
 
-const HUB_STYLES = ['crane','house','depot','silo','none'];
+const HUB_STYLES = ['crane','house','depot','silo','repair','none'];
 function setHubStyle(i, v) {
   snapshot();
   // 'crane' is the renderer default — omit it so exports stay minimal
@@ -3053,6 +3053,18 @@ function drawGamePreviewHub(x, y, w, color, style, name) {
     ctx.fillRect(craneArmLeft + 20 - 5, craneTopY - 22, 10, 7);
     ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(craneArmLeft + 20, craneTopY - 15); ctx.lineTo(craneArmLeft + 20, craneTopY - 15 + 22); ctx.stroke();
+  } else if (style === 'repair') {
+    const bw = Math.min(80, w * 0.9), bh = 16;
+    const bx = hcx - bw/2, byTop = y - bh;
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(bx + 6, byTop); ctx.lineTo(bx + bw - 6, byTop);
+    ctx.lineTo(bx + bw, y); ctx.lineTo(bx, y);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(bx + 10, byTop + 4, bw - 20, 6);
+    ctx.fillStyle = '#10b981'; // glowing repair green
+    ctx.fillRect(bx + 14, byTop + 6, bw - 28, 2);
   } else if (style === 'house') {
     const bw = Math.min(64, w * 0.85), bh = 42;
     const bx = hcx - bw/2, byTop = y - bh;
