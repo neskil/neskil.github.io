@@ -66,7 +66,7 @@ const CargoPhysicsMechanicsMixin = {
                         // Calculate total path length
                         let totalLen = 0;
                         const segments = [];
-                        const isLoop = h.pts.length > 2;
+                        const isLoop = h.pathMode === 'loop' || (h.pathMode !== 'pingpong' && h.pts.length > 2);
                         const numSegs = isLoop ? h.pts.length : h.pts.length - 1;
                         
                         for (let i = 0; i < numSegs; i++) {
