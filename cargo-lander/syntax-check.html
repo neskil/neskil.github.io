@@ -1,29 +1,79 @@
 <!doctype html>
-<!-- Temporary script-load smoke check (safe to delete): loads each core game
-     script alone and dumps any parse/runtime error into #err for headless
-     --dump-dom capture. -->
+<!-- Boot smoke check: loads every game script in index.html's order and dumps
+     any parse/load error into #err for headless capture (run-tests.sh greps
+     it). Also asserts the core globals and one method from each prototype-
+     mixin file, so a script tag missing from THIS list — or a mixin that
+     silently failed to attach — turns the check red instead of passing by
+     omission. The editor (editor/editor.js) is NOT loaded here: it needs the
+     level-editor.html DOM; run-tests.sh covers it via ?runTests=1 instead.
+     Keep the script list in sync with index.html when adding files. -->
 <html><body>
-<pre id="err">no errors</pre>
+<pre id="err">loading…</pre>
 <script>
   const errs = [];
   window.addEventListener('error', e => {
-    errs.push(`${e.filename}:${e.lineno}:${e.colno} ${e.message}`);
-    document.getElementById('err').textContent = errs.join('\n');
+    errs.push(`${e.filename ? e.filename.split('/').slice(-2).join('/') : '?'}:${e.lineno}:${e.colno} ${e.message}`);
   });
 </script>
-<script src="levels/levels.js"></script>
+<script src="vendor/matter.min.js"></script>
 <script src="game/upgrades.js"></script>
+<script src="levels/levels.js"></script>
+<script src="levels/levelGenerator.js"></script>
+<script src="levels/level1.js"></script>
+<script src="levels/level2.js"></script>
+<script src="levels/level3.js"></script>
+<script src="levels/level4.js"></script>
+<script src="levels/level5.js"></script>
+<script src="levels/level6.js"></script>
+<script src="levels/level7.js"></script>
+<script src="levels/level8.js"></script>
+<script src="levels/level9.js"></script>
+<script src="levels/level10.js"></script>
+<script src="levels/levelTest.js"></script>
+<script src="levels/levelSchema.js"></script>
 <script src="audio.js"></script>
-<script src="game/game.js"></script>
+<script src="render/shaders.js"></script>
 <script src="physics/physics.js"></script>
+<script src="physics/collision.js"></script>
+<script src="physics/mechanics.js"></script>
+<script src="physics/entities.js"></script>
+<script src="physics/atmosphere.js"></script>
+<script src="game/game.js"></script>
+<script src="game/input.js"></script>
+<script src="game/menu.js"></script>
+<script src="game/hud.js"></script>
+<script src="game/cargo.js"></script>
 <script src="render/render.js"></script>
 <script src="render/background.js"></script>
+<script src="render/terrain.js"></script>
 <script src="render/entities.js"></script>
-<script src="physics/atmosphere.js"></script>
-<script src="game/hud.js"></script>
-<script src="levels/levelSchema.js"></script>
+<script src="render/pads.js"></script>
+<script src="render/lander.js"></script>
+<script src="render/creatures.js"></script>
+<script src="render/effects.js"></script>
+<script src="render/night.js"></script>
+<script src="render/ui.js"></script>
+<script src="game/tutorial.js"></script>
 <script>
-  if (typeof CargoGame === 'undefined') errs.push('CargoGame still undefined after game.js');
+  // Core globals + one representative method per mixin file — a missing or
+  // broken file shows up as a named assertion instead of a silent pass.
+  const checks = {
+    'CargoGame class':            () => typeof CargoGame === 'function',
+    'CargoPhysics class':         () => typeof CargoPhysics === 'function',
+    'levels registered (>= 11)':  () => Array.isArray(levels) && levels.length >= 11,
+    'LEVEL_SCHEMA':               () => typeof LEVEL_SCHEMA === 'object',
+    'game/input.js mixin':        () => typeof CargoGame.prototype.setupEventListeners === 'function' && typeof CargoGame.prototype.pollGamepad === 'function',
+    'render/entities.js mixin':   () => typeof CargoGame.prototype.drawHazards === 'function',
+    'render/pads.js mixin':       () => typeof CargoGame.prototype.drawPadBase === 'function' && typeof CargoGame.prototype.drawDeliveryHubs === 'function',
+    'render/lander.js mixin':     () => typeof CargoGame.prototype.drawLander === 'function',
+    'render/creatures.js mixin':  () => typeof CargoGame.prototype.drawSandWorm === 'function' && typeof CargoGame.prototype.drawMonster === 'function',
+    'render/terrain.js mixin':    () => typeof CargoGame.prototype.drawTerrain === 'function',
+    'physics mixins':             () => typeof CargoPhysics.prototype.initLevel === 'function',
+  };
+  for (const [name, fn] of Object.entries(checks)) {
+    try { if (!fn()) errs.push('ASSERT FAILED: ' + name); }
+    catch (e) { errs.push('ASSERT THREW: ' + name + ' — ' + e.message); }
+  }
   document.getElementById('err').textContent = errs.join('\n') || 'no errors';
 </script>
 </body></html>

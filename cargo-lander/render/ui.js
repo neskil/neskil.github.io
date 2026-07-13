@@ -146,56 +146,71 @@ drawMinimap() {
 ,
 drawRadarPingZone() {
         if (this.uiCollapsed) return;
+        
+        const ctx = this.ctx;
+        const now = Date.now();
+        
+        const drawZone = (cx, cy, maxR, color, period) => {
+            // ── Soft ambient glow — no hard edge ─────────────────────────────────
+            const glowAlpha = 0.06 + 0.04 * Math.sin(now * 0.0009);
+            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * 1.1);
+            grad.addColorStop(0, `rgba(${color}, ${glowAlpha * 2.2})`);
+            grad.addColorStop(0.5, `rgba(${color}, ${glowAlpha})`);
+            grad.addColorStop(1, `rgba(${color}, 0)`);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR * 1.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ── Expanding ping rings — fade to nothing before reaching maxR ───────
+            const NUM_PINGS = 3;
+            for (let i = 0; i < NUM_PINGS; i++) {
+                const offset = (i / NUM_PINGS) * period;
+                const t = ((now + offset) % period) / period; // 0→1
+                const ringR = t * maxR;
+                const alpha = Math.pow(1 - t, 1.6) * 0.30;
+                ctx.strokeStyle = `rgba(${color}, ${alpha})`;
+                ctx.lineWidth = 1.5 + (1 - t) * 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // ── Tremor dots — subtle ground-plane orbit ───────────────────────────
+            ctx.save();
+            for (let i = 0; i < 5; i++) {
+                const angle = (now * 0.0004 + i * 1.257) % (Math.PI * 2);
+                const drift = maxR * 0.22 + maxR * 0.14 * Math.abs(Math.sin(now * 0.0007 + i));
+                const px = cx + Math.cos(angle) * drift;
+                const py = cy + Math.sin(angle) * drift * 0.35;
+                const dotAlpha = 0.15 + 0.10 * Math.sin(now * 0.002 + i * 2);
+                ctx.fillStyle = `rgba(${color}, ${dotAlpha})`;
+                ctx.beginPath();
+                ctx.arc(px, py, 1.8 + Math.abs(Math.sin(now * 0.003 + i)), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        };
+
         const cfg = this.physics.currentLevelConfig;
         const zone = cfg?.radarPingZone;
-        if (!zone) return;
-
-        const ctx = this.ctx;
-        const { cx, cy } = zone;
-        const maxR = zone.r ?? 300;
-        const color = zone.color ?? '210,100,15';
-        const period = zone.period ?? 3800;
-        const now = Date.now();
-
-        // ── Soft ambient glow — no hard edge ─────────────────────────────────
-        const glowAlpha = 0.06 + 0.04 * Math.sin(now * 0.0009);
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * 1.1);
-        grad.addColorStop(0, `rgba(${color}, ${glowAlpha * 2.2})`);
-        grad.addColorStop(0.5, `rgba(${color}, ${glowAlpha})`);
-        grad.addColorStop(1, `rgba(${color}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, maxR * 1.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // ── Expanding ping rings — fade to nothing before reaching maxR ───────
-        const NUM_PINGS = 3;
-        for (let i = 0; i < NUM_PINGS; i++) {
-            const offset = (i / NUM_PINGS) * period;
-            const t = ((now + offset) % period) / period; // 0→1
-            const ringR = t * maxR;
-            const alpha = Math.pow(1 - t, 1.6) * 0.30;
-            ctx.strokeStyle = `rgba(${color}, ${alpha})`;
-            ctx.lineWidth = 1.5 + (1 - t) * 2;
-            ctx.beginPath();
-            ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-            ctx.stroke();
+        if (zone) {
+            drawZone(zone.cx, zone.cy, zone.r ?? 300, zone.color ?? '210,100,15', zone.period ?? 3800);
         }
 
-        // ── Tremor dots — subtle ground-plane orbit ───────────────────────────
-        ctx.save();
-        for (let i = 0; i < 5; i++) {
-            const angle = (now * 0.0004 + i * 1.257) % (Math.PI * 2);
-            const drift = maxR * 0.22 + maxR * 0.14 * Math.abs(Math.sin(now * 0.0007 + i));
-            const px = cx + Math.cos(angle) * drift;
-            const py = cy + Math.sin(angle) * drift * 0.35;
-            const dotAlpha = 0.15 + 0.10 * Math.sin(now * 0.002 + i * 2);
-            ctx.fillStyle = `rgba(${color}, ${dotAlpha})`;
-            ctx.beginPath();
-            ctx.arc(px, py, 1.8 + Math.abs(Math.sin(now * 0.003 + i)), 0, Math.PI * 2);
-            ctx.fill();
+        // Also draw radar ping zones for any sandworm hazards
+        if (this.physics.hazards) {
+            for (const h of this.physics.hazards) {
+                if (h.type === 'sandworm' && h.pts && h.pts.length > 0) {
+                    let cx = 0, cy = 0;
+                    for (let p of h.pts) { cx += p.x; cy += p.y; }
+                    cx /= h.pts.length; cy /= h.pts.length;
+                    
+                    const reach = h.reach || 300;
+                    drawZone(cx, cy, reach, '210,100,15', 3800);
+                }
+            }
         }
-        ctx.restore();
     }
 
 ,

@@ -454,15 +454,33 @@ const CargoPhysicsAtmosphereMixin = {
 
                 // Check hazard polygons for sandworm zones — the worm danger
                 // area is placed as a `sandworm`-type hazard polygon (see the
-                // level editor's Hazard tab) rather than a level-config-level
-                // wormPitCX/CY/wormZoneR triple, so it's editable like any
-                // other shape instead of needing hand-written coordinates.
+                // level editor's Hazard tab).
+                let hasSandwormHazard = false;
                 for (const h of this.hazards) {
-                    if (h.type === 'sandworm' && h.pts) {
-                        if (this.pointInPolygon(lander.x, lander.y, h.pts)) {
+                    if (h.type === 'sandworm' && h.pts && h.pts.length > 0) {
+                        hasSandwormHazard = true;
+                        let cx = 0, cy = 0;
+                        for (let p of h.pts) { cx += p.x; cy += p.y; }
+                        cx /= h.pts.length; cy /= h.pts.length;
+                        
+                        const reach = h.reach || 300;
+                        if (Math.hypot(lander.x - cx, lander.y - cy) <= reach) {
                             inWormZone = true;
                             riskMultiplier = h.spawnRate || 1.0;
                             break;
+                        }
+                    }
+                }
+                
+                // Play radar ping if there is a sandworm hazard in the level.
+                // It helps build tension and tells the player a sandworm is lurking.
+                if (hasSandwormHazard) {
+                    this.wormRadarTimer = (this.wormRadarTimer || 0) + dt;
+                    const pingPeriod = inWormZone ? 60 : 220; // Faster ping when inside the danger zone
+                    if (this.wormRadarTimer >= pingPeriod) {
+                        this.wormRadarTimer = 0;
+                        if (window.CargoAudio && CargoAudio.playRadarPing) {
+                            CargoAudio.playRadarPing();
                         }
                     }
                 }

@@ -32,8 +32,12 @@ plans — check it before re-diagnosing an old-sounding bug.
   raw `boxes.splice()`.
 
 ## Verification (headless — works in any environment)
-Serve the folder (`python3 -m http.server 8177` from `cargo-lander/`), then
-use whatever headless Chromium the environment provides (`chrome`,
+**Run `./run-tests.sh` first** (from `cargo-lander/`): one command that
+serves the folder and runs the boot smoke (`syntax-check.html` — every
+script parses + every mixin attached), the tests.html suite, the editor
+self-tests + export round-trip, and a game boot probe; exits non-zero on any
+failure. The recipes below are for drilling into a specific failure or
+visual, using whatever headless Chromium the environment provides (`chrome`,
 `chromium`, or a Playwright `headless_shell`; on sandboxed Linux add
 `--no-sandbox`):
 
