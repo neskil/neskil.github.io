@@ -745,6 +745,10 @@ const s2w = (sx,sy) => ({ wx: (sx-S.view.x)/S.view.scale, wy: (sy-S.view.y)/S.vi
 
 // ── Resize ────────────────────────────────────────────────────────────────────
 function resize() {
+  // First-load race: the window/pane can report width 0 before layout
+  // settles, which used to latch a 0×0 canvas — a blank editor until the
+  // next real resize event. Retry on the next frame instead.
+  if (wrap.clientWidth === 0) { requestAnimationFrame(resize); return; }
   canvas.width  = wrap.clientWidth;
   canvas.height = wrap.clientHeight - 22;
   draw();
