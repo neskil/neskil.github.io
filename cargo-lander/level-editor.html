@@ -7,7 +7,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;display:flex;height:100vh;overflow:hidden;font-size:12px}
 
-#sidebar{width:310px;min-width:310px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
+#sidebar{width:310px;min-width:310px;max-width:800px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;resize:horizontal}
 
 #sidebar-scrollable {
   flex:1;
@@ -19,7 +19,7 @@ body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;displa
 #sidebar-scrollable::-webkit-scrollbar,
 #poly-list::-webkit-scrollbar,
 #pt-list-wrap::-webkit-scrollbar {
-  width:6px;
+  width:8px;
 }
 #sidebar-scrollable::-webkit-scrollbar-track,
 #poly-list::-webkit-scrollbar-track,
@@ -30,16 +30,16 @@ body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;displa
 #poly-list::-webkit-scrollbar-thumb,
 #pt-list-wrap::-webkit-scrollbar-thumb {
   background:#30363d;
-  border-radius:3px;
+  border-radius:4px;
 }
 #sidebar-scrollable::-webkit-scrollbar-thumb:hover,
 #poly-list::-webkit-scrollbar-thumb:hover,
 #pt-list-wrap::-webkit-scrollbar-thumb:hover {
-  background:#8b949e;
+  background:#58a6ff;
 }
 
 .sec{border-bottom:1px solid #30363d}
-div.sec{padding:9px 11px}
+div.sec{padding:12px 14px}
 details.sec > summary {
   cursor:pointer;
   user-select:none;
@@ -49,7 +49,7 @@ details.sec > summary::-webkit-details-marker {
   display:none;
 }
 details.sec > summary.sec-title {
-  padding:9px 11px;
+  padding:12px 14px;
   margin-bottom:0;
   display:flex;
   justify-content:space-between;
@@ -59,7 +59,7 @@ details.sec > summary.sec-title:hover {
   background:#21262d;
 }
 details.sec > .sec-content {
-  padding:9px 11px;
+  padding:12px 14px;
 }
 .sec-title-text {
   display:inline-flex;
@@ -68,7 +68,7 @@ details.sec > .sec-content {
 }
 .sec-title-text::before {
   content:"▼";
-  font-size:8px;
+  font-size:10px;
   color:#8b949e;
   transition:transform 0.2s ease;
   display:inline-block;
@@ -77,11 +77,11 @@ details:not([open]) .sec-title-text::before {
   transform:rotate(-90deg);
 }
 
-.sec-title{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#8b949e;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
+.sec-title{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.05em;color:#c9d1d9;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
 
 select,textarea,input[type=number],input[type=text]{
-  background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:4px;
-  font-family:monospace;font-size:11px;padding:3px 6px
+  background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:5px;
+  font-family:monospace;font-size:12px;padding:5px 8px
 }
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button {
@@ -92,67 +92,59 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 select:focus,textarea:focus,input:focus{outline:none;border-color:#58a6ff}
-select{width:100%;padding:4px 6px;margin-bottom:5px}
+select{width:100%;padding:6px 8px;margin-bottom:5px}
 
 .row{display:flex;gap:4px;align-items:center}
-.btn{padding:3px 10px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:4px;cursor:pointer;font:11px monospace;white-space:nowrap;user-select:none}
+.btn{padding:5px 10px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:5px;cursor:pointer;font:12px monospace;white-space:nowrap;user-select:none}
 .btn:hover{background:#30363d}
 .btn.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
 .btn.on:hover{background:#388bfd}
 .btn.del{color:#f85149}.btn.del:hover{background:#2d1515;border-color:#f85149}
 
-#level-card{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:7px 9px;margin-top:6px;display:none}
-#level-card .lname{font-size:12px;font-weight:700;color:#58a6ff;margin-bottom:4px}
-#level-card .lmeta{font-size:10px;color:#8b949e;line-height:1.7}
-.badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;margin-right:4px}
+#level-card{background:#0d1117;border:1px solid #30363d;border-radius:5px;padding:9px 11px;margin-top:6px;display:none}
+#level-card .lname{font-size:13px;font-weight:700;color:#58a6ff;margin-bottom:4px}
+#level-card .lmeta{font-size:11px;color:#8b949e;line-height:1.7}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;margin-right:4px}
 
-details>summary{font-size:10px;color:#8b949e;cursor:pointer;margin-top:5px;user-select:none}
-details textarea{width:100%;height:70px;margin-top:5px;resize:none;font-size:10px}
+details>summary{font-size:11px;color:#8b949e;cursor:pointer;margin-top:5px;user-select:none}
+details textarea{width:100%;height:70px;margin-top:5px;resize:vertical;font-size:11px}
 
 #poly-list{overflow-y:auto;padding:7px;min-height:40px}
 .pitem{display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
 .pitem:hover{background:#21262d}
 .pitem.active{background:#1c2d3f;border-color:#388bfd}
-.pdot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
-.pname{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pcnt{font-size:10px;color:#8b949e}
-.peye{font-size:12px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover{color:#e6edf3}
+.pdot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.pname{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcnt{font-size:11px;color:#8b949e}
+.peye{font-size:13px;color:#8b949e;cursor:pointer;padding:0 2px}.peye:hover{color:#e6edf3}
 
 #pt-panel{display:none}
 #pt-panel .sec-title{margin-bottom:5px}
 #pt-list-wrap{max-height:150px;overflow-y:auto}
-.ptrow{display:flex;align-items:center;gap:3px;padding:2px 3px;border-radius:3px;cursor:pointer}
+.ptrow{display:flex;align-items:center;gap:3px;padding:3px 4px;border-radius:4px;cursor:pointer}
 .ptrow:hover{background:#21262d}.ptrow.sel{background:#1c2d3f}
-.pidx{color:#8b949e;width:18px;font-size:10px;flex-shrink:0}
-.clabel{color:#8b949e;font-size:10px}
-.cinput{width:50px;font-size:10px;padding:1px 4px}
-.xbtn{color:#6e7681;font-size:13px;cursor:pointer;line-height:1}.xbtn:hover{color:#f85149}
+.pidx{color:#8b949e;width:18px;font-size:11px;flex-shrink:0}
+.clabel{color:#8b949e;font-size:11px}
+.cinput{width:50px;font-size:11px;padding:2px 5px}
+.xbtn{color:#6e7681;font-size:14px;cursor:pointer;line-height:1}.xbtn:hover{color:#f85149}
 
 #rename-row{display:flex;gap:4px;margin-bottom:5px;align-items:center}
-#rename-row label{font-size:10px;color:#8b949e;white-space:nowrap}
-#rename-row input{flex:1;font-size:11px}
-
-#toolbar{padding:7px 9px;border-top:1px solid #30363d;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-#snap-bar{padding:5px 9px;border-top:1px solid #30363d;display:flex;gap:4px;align-items:center}
-#snap-bar label{font-size:10px;color:#8b949e}
-
-#out-area{padding:7px 9px;border-top:1px solid #30363d}
-#out-area textarea{width:100%;height:68px;resize:none;color:#79c0ff;font-size:10px}
+#rename-row label{font-size:11px;color:#8b949e;white-space:nowrap}
+#rename-row input{flex:1;font-size:12px}
 
 #canvas-wrap{flex:1;position:relative;overflow:hidden}
 canvas{display:block}
 
-#statusbar{position:absolute;bottom:0;left:0;right:0;height:22px;background:rgba(13,17,23,.88);border-top:1px solid #30363d;display:flex;align-items:center;padding:0 10px;gap:16px;font-size:10px;color:#8b949e;pointer-events:none}
+#statusbar{position:absolute;bottom:0;left:0;right:0;height:24px;background:rgba(13,17,23,.88);border-top:1px solid #30363d;display:flex;align-items:center;padding:0 12px;gap:16px;font-size:11px;color:#8b949e;pointer-events:none}
 #statusbar span{color:#c9d1d9}
 
-#kbd{position:absolute;top:8px;left:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:10px;color:#8b949e;pointer-events:none;line-height:1.6}
-#lvl-overlay{position:absolute;top:8px;right:8px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:4px;padding:4px 10px;font-size:11px;font-weight:700;color:#58a6ff;pointer-events:none;display:none}
+#lvl-overlay{position:absolute;top:10px;right:10px;background:rgba(13,17,23,.75);border:1px solid #30363d;border-radius:5px;padding:6px 12px;font-size:12px;font-weight:700;color:#58a6ff;pointer-events:none;display:none}
 
 .props-panel { margin-top: 4px; display: flex; flex-direction: column; gap: 4px; }
 .props-panel .row { margin-bottom: 2px; }
-.props-panel label { width: 85px; font-size: 10px; color: #8b949e; flex-shrink: 0; display: flex; align-items: center; }
+.props-panel label { width: 85px; font-size: 11px; color: #8b949e; flex-shrink: 0; display: flex; align-items: center; }
 .props-panel input[type=text], .props-panel input[type=number], .props-panel select { flex: 1; min-width: 0; }
-.props-panel input[type=color] { width: 24px; height: 16px; padding: 0; border: none; background: none; cursor: pointer; }
+.props-panel input[type=color] { width: 24px; height: 18px; padding: 0; border: none; background: none; cursor: pointer; }
 
 #map-settings-modal {
   position: absolute; top: 40px; left: 350px; width: 620px; height: 760px;
@@ -308,42 +300,77 @@ canvas{display:block}
 <body>
 
 <div id="sidebar">
-  <div class="sec" style="border-bottom: 2px solid #30363d; background: rgba(56, 189, 248, 0.04); padding: 9px 11px;">
-    <a href="index.html" class="btn on" style="display: block; text-align: center; text-decoration: none; padding: 6px 10px; font-weight: bold; background: #10b981; border-color: #10b981;">➔ Back to Game</a>
+  <div class="sec" style="border-bottom: 1px solid #30363d; background: #161b22; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;">
+    <div style="font-size:14px; font-weight:bold; color:#e6edf3;">Level Editor</div>
+    <a href="index.html" class="btn on" style="text-decoration: none; padding: 4px 10px; font-weight: bold; background: #10b981; border-color: #10b981; font-size: 11px;">➔ Game</a>
+  </div>
+
+  <div class="sec" style="background:#0d1117; border-bottom: 1px solid #30363d; padding: 12px 14px;">
+    <div id="toolbar" style="display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
+      <span style="font-size:11px;color:#8b949e; width: 35px;">Mode:</span>
+      <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
+      <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
+      <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
+      <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
+      <button class="btn" id="t-preview" onclick="togglePreview()">Preview</button>
+    </div>
+    <div id="snap-bar" style="display:flex; gap:4px; align-items:center;">
+      <span style="font-size:11px;color:#8b949e; width: 35px;">Snap:</span>
+      <button class="btn" id="sn1"  onclick="setSnap(1)">1</button>
+      <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
+      <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
+      <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
+      <span style="font-size:10px;color:#8b949e;margin-left:4px">Shift=×5</span>
+    </div>
   </div>
 
   <div id="sidebar-scrollable">
     <details class="sec" open>
-      <summary class="sec-title"><span class="sec-title-text">Load Level</span></summary>
+      <summary class="sec-title"><span class="sec-title-text">Import / Export</span></summary>
       <div class="sec-content">
-        <select id="lsel">
-          <option value="">— choose level file —</option>
-          <option value="level1.js">level1.js — L1: Local Distribution</option>
-          <option value="level2.js">level2.js — L2: Cross-Dock Sorting</option>
-          <option value="level3.js">level3.js — L3: Gale-Force Winds</option>
-          <option value="level4.js">level4.js — L4: Gravity Anomaly</option>
-          <option value="level5.js">level5.js — L5: The Needle's Eye</option>
-          <option value="level6.js">level6.js — L6: Sand Worm's Lair</option>
-          <option value="level7.js">level7.js — L7: The Deep Haul</option>
-          <option value="level8.js">level8.js — L8: Orbital Gauntlet</option>
-          <option value="level9.js">level9.js — L9: The Cauldron</option>
-          <option value="level10.js">level10.js — L10: The Crystal Caves</option>
-          <option value="levelTest.js">levelTest.js — Sandbox</option>
-        </select>
-        <div class="row">
-          <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
-          <button class="btn" onclick="fitView()">Fit</button>
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:#8b949e;margin-bottom:4px;text-transform:uppercase;">Load</div>
+          <select id="lsel">
+            <option value="">— choose level file —</option>
+            <option value="level1.js">level1.js — L1: Local Distribution</option>
+            <option value="level2.js">level2.js — L2: Cross-Dock Sorting</option>
+            <option value="level3.js">level3.js — L3: Gale-Force Winds</option>
+            <option value="level4.js">level4.js — L4: Gravity Anomaly</option>
+            <option value="level5.js">level5.js — L5: The Needle's Eye</option>
+            <option value="level6.js">level6.js — L6: Sand Worm's Lair</option>
+            <option value="level7.js">level7.js — L7: The Deep Haul</option>
+            <option value="level8.js">level8.js — L8: Orbital Gauntlet</option>
+            <option value="level9.js">level9.js — L9: The Cauldron</option>
+            <option value="level10.js">level10.js — L10: The Crystal Caves</option>
+            <option value="levelTest.js">levelTest.js — Sandbox</option>
+          </select>
+          <div class="row">
+            <button class="btn on" onclick="loadFromServer()" style="flex:1">Load from server</button>
+            <button class="btn" onclick="fitView()">Fit</button>
+          </div>
+          <div class="row" style="margin-top:5px; gap:4px">
+            <button class="btn" style="flex:1" onclick="newLevel()" title="Starts a basic level">+ Basic</button>
+            <button class="btn" style="flex:1; border-color:#388bfd; color:#58a6ff" onclick="newEmptyLevel()" title="Starts an empty level">+ Scratch</button>
+          </div>
+          <div id="level-card"></div>
+          <details style="margin-top:8px;">
+            <summary>Or paste JS</summary>
+            <textarea id="paste-in" placeholder="Paste full registerLevel({...}) or just terrainPolygons: [...]"></textarea>
+            <button class="btn on" style="width:100%;margin-top:4px" onclick="loadFromPaste()">Parse &amp; load</button>
+          </details>
         </div>
-        <div class="row" style="margin-top:5px; gap:4px">
-          <button class="btn" style="flex:1" onclick="newLevel()" title="Starts a basic level: one rectangle of ground, HQ + Cargo Drop Off evenly spaced, and sensible defaults for every Map Settings field.">+ New Basic Level</button>
-          <button class="btn" style="flex:1; border-color:#388bfd; color:#58a6ff" onclick="newEmptyLevel()" title="Starts an empty level from scratch: no terrain polygons, but sensible defaults for every Map Settings field.">+ New Scratch Level</button>
+        
+        <div style="height:1px; background:#30363d; margin: 12px 0;"></div>
+        
+        <div>
+          <div class="row" style="margin-bottom:6px">
+            <span style="font-size:10px;color:#8b949e;flex:1;text-transform:uppercase;">Export</span>
+            <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">Playtest</button>
+            <button class="btn" id="download-btn" onclick="downloadJS()" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.4);">Download</button>
+          </div>
+          <textarea id="out" readonly style="height:80px; width:100%; resize:vertical; color:#79c0ff; font-size:11px; margin-bottom:4px;"></textarea>
+          <button class="btn" id="copy-btn" onclick="copyOut()" style="width:100%;">Copy to Clipboard</button>
         </div>
-        <div id="level-card"></div>
-        <details>
-          <summary>Or paste JS</summary>
-          <textarea id="paste-in" placeholder="Paste full registerLevel({...}) or just terrainPolygons: [...]"></textarea>
-          <button class="btn on" style="width:100%;margin-top:3px" onclick="loadFromPaste()">Parse &amp; load</button>
-        </details>
       </div>
     </details>
 
@@ -363,36 +390,36 @@ canvas{display:block}
           <button class="btn" id="lyr-hazard" onclick="setLayer('hazard')">Hazard</button>
           <button class="btn" id="lyr-segments" onclick="setLayer('segments')">Segments</button>
         </div>
-        <div style="margin-top:6px; margin-bottom:8px">
+        <div style="margin-top:8px; margin-bottom:10px">
           <button class="btn" id="add-shape-btn" onclick="addShape()" style="width:100%; border-color:#388bfd; color:#58a6ff">+ Add Terrain</button>
         </div>
-        <div id="poly-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #30363d; border-radius: 4px; padding: 4px; background: #0d1117;"></div>
+        <div id="poly-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #30363d; border-radius: 5px; padding: 6px; background: #0d1117;"></div>
       </div>
     </details>
 
     <details id="pt-panel" class="sec" open>
       <summary class="sec-title">
         <span class="sec-title-text">Points</span>
-        <button class="btn del" style="padding:1px 6px;font-size:10px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
+        <button class="btn del" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
       </summary>
       <div class="sec-content">
         <div id="rename-row">
           <label>Label:</label>
           <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
         </div>
-        <div id="terrain-shadow-row" style="display:none; margin-top:4px; padding:4px; border:1px solid #30363d; border-radius:4px; background:#0d1117">
-          <div style="font-size:10px; color:#8b949e; margin-bottom:4px">Terrain Shadow</div>
+        <div id="terrain-shadow-row" style="display:none; margin-top:6px; padding:6px; border:1px solid #30363d; border-radius:5px; background:#0d1117">
+          <div style="font-size:11px; color:#8b949e; margin-bottom:6px">Terrain Shadow</div>
           <div class="row">
             <label><input type="checkbox" id="terrain-shadow-enabled" onchange="setTerrainShadow('enabled', this.checked)"> Enabled</label>
           </div>
-          <div class="row" style="margin-top:2px">
+          <div class="row" style="margin-top:4px">
             <label title="Shadow angle in degrees (0 = down, 90 = right)">Angle:</label>
-            <input type="number" id="terrain-shadow-angle" class="cinput" style="width:40px" placeholder="0" onchange="setTerrainShadow('angle', this.value)">
+            <input type="number" id="terrain-shadow-angle" class="cinput" style="width:45px" placeholder="0" onchange="setTerrainShadow('angle', this.value)">
             <label title="Base length of the shadow">Length:</label>
-            <input type="number" id="terrain-shadow-length" class="cinput" style="width:40px" placeholder="60" onchange="setTerrainShadow('length', this.value)">
+            <input type="number" id="terrain-shadow-length" class="cinput" style="width:45px" placeholder="60" onchange="setTerrainShadow('length', this.value)">
           </div>
         </div>
-        <div id="water-properties-row" style="display:none; margin-top:4px">
+        <div id="water-properties-row" style="display:none; margin-top:6px">
           <label><input type="checkbox" id="water-hasboat" onchange="setWaterField('hasBoat', this.checked)"> Boat ⛵</label>
           <label style="margin-left:8px"><input type="checkbox" id="water-hasfish" onchange="setWaterField('hasFish', this.checked)"> Fish 🐟</label>
         </div>
@@ -410,58 +437,58 @@ canvas{display:block}
             <option value="gravwell">Gravity Well</option>
           </select>
         </div>
-        <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+        <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
           <div class="row">
-            <label title="Milliseconds the hazard is active">onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:40px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
-            <label title="Milliseconds the hazard is disabled">offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:40px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
-            <label title="Phase offset (in ms) to desync this hazard from others">phase:</label><input type="number" id="laser-phase" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
+            <label title="Milliseconds the hazard is active">onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
+            <label title="Milliseconds the hazard is disabled">offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
+            <label title="Phase offset (in ms) to desync this hazard from others">phase:</label><input type="number" id="laser-phase" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
           </div>
           <div class="row">
-            <label title="Milliseconds before firing that the warning indicator is shown">warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:40px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
-            <label title="Hull damage dealt per second of contact (Max Hull is 100)">dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:35px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
-            <label title="Thickness of the laser or hazard beam">thick:</label><input type="number" id="laser-thick" class="cinput" style="width:35px" placeholder="15" onchange="setHazardField('thickness', this.value)">
-          </div>
-        </div>
-        <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
-          <div class="row">
-            <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:40px" onchange="setHazardField('spawnRate', this.value)">
+            <label title="Milliseconds before firing that the warning indicator is shown">warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:45px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
+            <label title="Hull damage dealt per second of contact (Max Hull is 100)">dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
+            <label title="Thickness of the laser or hazard beam">thick:</label><input type="number" id="laser-thick" class="cinput" style="width:40px" placeholder="15" onchange="setHazardField('thickness', this.value)">
           </div>
         </div>
-        <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+        <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
           <div class="row">
-            <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('travelX', this.value)">
-            <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:40px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
+            <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
           </div>
         </div>
-        <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+        <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
           <div class="row">
-            <label title="Speed to traverse the path">speed:</label><input type="number" id="gw-speed" class="cinput" style="width:40px" placeholder="100" onchange="setHazardField('speed', this.value)">
-            <label title="Radius of the gravity well effect">radius:</label><input type="number" id="gw-radius" class="cinput" style="width:40px" placeholder="200" onchange="setHazardField('radius', this.value)">
-          </div>
-          <div class="row">
-            <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:40px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
-            <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:40px" placeholder="0" onchange="setHazardField('endForce', this.value)">
+            <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('travelX', this.value)">
+            <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:45px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
           </div>
         </div>
-        <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:4px">
+        <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
           <div class="row">
-            <label title="Wait at start position (ms)">waitUnload:</label><input type="number" id="crush-waitu" class="cinput" style="width:40px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
-            <label title="Time to clash (ms)">crushMs:</label><input type="number" id="crush-crush" class="cinput" style="width:40px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
+            <label title="Speed to traverse the path">speed:</label><input type="number" id="gw-speed" class="cinput" style="width:45px" placeholder="100" onchange="setHazardField('speed', this.value)">
+            <label title="Radius of the gravity well effect">radius:</label><input type="number" id="gw-radius" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('radius', this.value)">
           </div>
           <div class="row">
-            <label title="Wait at clash position (ms)">waitLoad:</label><input type="number" id="crush-waitl" class="cinput" style="width:40px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
-            <label title="Time to retract (ms)">retractMs:</label><input type="number" id="crush-retract" class="cinput" style="width:40px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
-          </div>
-          <div class="row">
-            <label title="Width of the crusher blocks">thickness:</label><input type="number" id="crush-thick" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('thickness', this.value)">
+            <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:45px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
+            <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('endForce', this.value)">
           </div>
         </div>
-        <div id="hazard-color-row" class="row" style="display:none; margin-top:4px">
+        <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+          <div class="row">
+            <label title="Wait at start position (ms)">waitUnload:</label><input type="number" id="crush-waitu" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
+            <label title="Time to clash (ms)">crushMs:</label><input type="number" id="crush-crush" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
+          </div>
+          <div class="row">
+            <label title="Wait at clash position (ms)">waitLoad:</label><input type="number" id="crush-waitl" class="cinput" style="width:45px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
+            <label title="Time to retract (ms)">retractMs:</label><input type="number" id="crush-retract" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
+          </div>
+          <div class="row">
+            <label title="Width of the crusher blocks">thickness:</label><input type="number" id="crush-thick" class="cinput" style="width:45px" placeholder="40" onchange="setHazardField('thickness', this.value)">
+          </div>
+        </div>
+        <div id="hazard-color-row" class="row" style="display:none; margin-top:6px">
           <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
           <label title="Draw this hazard behind the terrain geometry" style="margin-left:12px; cursor:pointer"><input type="checkbox" id="hazard-bg" onchange="setHazardField('behindTerrain', this.checked)"> Behind Terrain</label>
         </div>
         <div id="pt-list-wrap"><div id="pt-list"></div></div>
-        <button class="btn" style="margin-top:5px;width:100%;font-size:10px" onclick="insertAtCursor()">+ insert point at cursor</button>
+        <button class="btn" style="margin-top:8px;width:100%;font-size:11px" onclick="insertAtCursor()">+ insert point at cursor</button>
       </div>
     </details>
 
@@ -472,56 +499,45 @@ canvas{display:block}
           <button class="btn" onclick="toggleCollectionPoint()">Cargo Drop Off</button>
           <button class="btn" onclick="addDeliveryHub()">+ Hub</button>
         </div>
-        <div id="hub-list" style="margin-top:6px; display:flex; flex-direction:column; gap:4px;"></div>
-        <div id="entity-props" style="margin-top:6px">
+        <div id="hub-list" style="margin-top:8px; display:flex; flex-direction:column; gap:4px;"></div>
+        <div id="entity-props" style="margin-top:8px">
           <div class="row" style="gap:3px;margin-bottom:3px">
-            <span style="color:#38bdf8;min-width:36px;font-size:10px">HQ</span>
+            <span style="color:#38bdf8;min-width:36px;font-size:11px">HQ</span>
             <span class="clabel">x</span><input class="cinput" type="number" id="hq-x" style="width:52px" onchange="setMarkerCoord('hq','x',+this.value)">
-            <span class="clabel">y</span><input class="cinput" type="number" id="hq-y" style="width:40px" placeholder="auto" onchange="setMarkerCoord('hq','y',this.value)"> <span class="clabel">w</span><input class="cinput" type="number" id="hq-w" style="width:40px" placeholder="80" onchange="setMarkerCoord('hq','width',this.value)">
-            <button class="btn" style="font-size:9px;padding:1px 5px" onclick="clearMarkerY('hq')" title="Reset Y to terrain surface">⊥</button>
+            <span class="clabel">y</span><input class="cinput" type="number" id="hq-y" style="width:45px" placeholder="auto" onchange="setMarkerCoord('hq','y',this.value)"> <span class="clabel">w</span><input class="cinput" type="number" id="hq-w" style="width:45px" placeholder="80" onchange="setMarkerCoord('hq','width',this.value)">
+            <button class="btn" style="font-size:10px;padding:2px 6px" onclick="clearMarkerY('hq')" title="Reset Y to terrain surface">⊥</button>
           </div>
           <div id="cargo-entity-row" class="row" style="gap:3px;display:none">
-            <span style="color:#4ade80;min-width:36px;font-size:10px">Cargo</span>
+            <span style="color:#4ade80;min-width:36px;font-size:11px">Cargo</span>
             <span class="clabel">x</span><input class="cinput" type="number" id="cargo-x" style="width:52px" onchange="setMarkerCoord('cargo','x',+this.value)">
-            <span class="clabel">y</span><input class="cinput" type="number" id="cargo-y" style="width:40px" placeholder="auto" onchange="setMarkerCoord('cargo','y',this.value)"> <span class="clabel">w</span><input class="cinput" type="number" id="cargo-w" style="width:40px" placeholder="100" onchange="setMarkerCoord('cargo','width',this.value)">
-            <button class="btn" style="font-size:9px;padding:1px 5px" onclick="clearMarkerY('cargo')" title="Reset Y to terrain surface">⊥</button>
+            <span class="clabel">y</span><input class="cinput" type="number" id="cargo-y" style="width:45px" placeholder="auto" onchange="setMarkerCoord('cargo','y',this.value)"> <span class="clabel">w</span><input class="cinput" type="number" id="cargo-w" style="width:45px" placeholder="100" onchange="setMarkerCoord('cargo','width',this.value)">
+            <button class="btn" style="font-size:10px;padding:2px 6px" onclick="clearMarkerY('cargo')" title="Reset Y to terrain surface">⊥</button>
           </div>
         </div>
       </div>
     </details>
-  </div>
-
-  <div id="toolbar">
-    <span style="font-size:10px;color:#8b949e">Mode:</span>
-    <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
-    <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
-    <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
-    <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
-    <button class="btn" id="t-preview" onclick="togglePreview()">Preview</button>
-  </div>
-  <div id="snap-bar">
-    <label>Snap:</label>
-    <button class="btn" id="sn1"  onclick="setSnap(1)">1</button>
-    <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
-    <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
-    <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
-    <span style="font-size:10px;color:#8b949e;margin-left:2px">Shift=×5</span>
-  </div>
-
-  <div id="out-area">
-    <div class="row" style="margin-bottom:4px">
-      <span style="font-size:10px;color:#8b949e;flex:1">Export — positions + polygons</span>
-      <button class="btn" id="copy-btn" onclick="copyOut()">Copy</button>
-      <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="margin-left: 5px; background: rgba(16, 185, 129, 0.2); color: #34d399;">Playtest</button>
-      <button class="btn" id="download-btn" onclick="downloadJS()" style="margin-left: 5px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">Download .js</button>
-    </div>
-    <textarea id="out" readonly style="height:90px"></textarea>
+    
+    <details class="sec">
+      <summary class="sec-title"><span class="sec-title-text">Help & Shortcuts</span></summary>
+      <div class="sec-content" style="font-size:11px; color:#8b949e; line-height:1.6;">
+        <div style="margin-bottom:2px"><strong>S</strong> = Select Mode</div>
+        <div style="margin-bottom:2px"><strong>A</strong> = Add Points Mode</div>
+        <div style="margin-bottom:2px"><strong>P</strong> = Pan Mode</div>
+        <div style="margin-bottom:2px"><strong>F</strong> = Fit View to Screen</div>
+        <div style="margin-bottom:2px"><strong>Del</strong> = Delete selected pt</div>
+        <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
+        <div style="margin-bottom:4px"><strong>Add Mode:</strong> click near edge to insert point on it (hover shows preview).</div>
+        <div style="margin-bottom:4px"><strong>Tabs:</strong> Terrain/Water/Hazard tabs switch which shape "+ Add" creates.</div>
+        <div style="margin-bottom:4px"><strong>Select:</strong> click any shape to select it regardless of tab.</div>
+        <div style="margin-bottom:4px"><strong>Camera:</strong> scroll = zoom, Alt+drag = pan.</div>
+        <div style="margin-bottom:4px"><strong>Entities:</strong> Drag HQ/Cargo/Hub bars directly to reposition.</div>
+      </div>
+    </details>
   </div>
 </div>
 
 <div id="canvas-wrap">
   <canvas id="main"></canvas>
-  <div id="kbd">S=select · A=add pts · P=pan · F=fit · Del=delete pt<br>Add mode: click near edge to insert point on it · hover shows preview<br>Terrain/Water/Hazard tabs switch which shapes "+ Shape" adds to · click any shape to select it regardless of tab<br>Drag HQ/Cargo/Hub bars to reposition · scroll=zoom · Alt+drag=pan</div>
   <div id="lvl-overlay"></div>
   <div id="statusbar">
     x: <span id="sx">0</span> &nbsp; y: <span id="sy">0</span>
