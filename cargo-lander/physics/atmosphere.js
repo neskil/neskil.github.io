@@ -1050,7 +1050,7 @@ const CargoPhysicsAtmosphereMixin = {
                 const c = this.collectibles[i];
                 const def = window.COLLECTIBLE_TYPES && window.COLLECTIBLE_TYPES[c.type];
                 if (!def) continue;
-                const r = c.radius || def.radius || 24;
+                const r = c.pickupRadius || def.pickupRadius || c.radius || def.radius || 24;
                 const dx = this.lander.x - c.x;
                 const dy = this.lander.y - c.y;
                 if (dx * dx + dy * dy < r * r) {
