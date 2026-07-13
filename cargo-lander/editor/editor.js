@@ -1750,13 +1750,13 @@ function draw() {
   if (!S.previewMode) drawTrafficBand(W,H);
   drawWaterBodies();
   if (!S.previewMode) drawGrid(W,H);
-  drawSpawnMarkers();
-  drawHubs();
-  drawCollectibleMarkers();
   if (!S.previewMode) drawGravWell();
   if (!S.previewMode) drawSegments();
   drawPolygons();
   if (!S.previewMode) drawHazards();
+  drawSpawnMarkers();
+  drawHubs();
+  drawCollectibleMarkers();
   if (!S.previewMode) drawEdgePreview();
   if (S.previewMode) drawPreviewTraffic();
   sendLiveCam(); // keep the live engine preview's free camera in sync
