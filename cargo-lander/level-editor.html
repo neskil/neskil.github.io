@@ -312,10 +312,10 @@ canvas{display:block}
 <body>
 
 <div id="sidebar">
-  <div class="sec" style="border-bottom: 1px solid #30363d; background: #161b22; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;">
-    <div style="font-size:14px; font-weight:bold; color:#e6edf3;">Level Editor</div>
+  <div class="sec" style="border-bottom: 1px solid #30363d; background: transparent; display: flex; justify-content: flex-end; align-items: center; padding: 8px 10px;">
     <div style="display: flex; gap: 6px;">
-      <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">Playtest</button>
+      <button class="btn" onclick="toggleMapSettings()" style="padding: 4px 10px; font-weight:bold; background: rgba(56, 139, 253, 0.2); border-color: rgba(56, 139, 253, 0.4); color: #58a6ff; font-size: 11px;">⚙️ Map Settings</button>
+      <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="padding: 4px 10px; background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4); font-size: 11px;">Playtest</button>
       <a href="index.html" class="btn on" style="text-decoration: none; padding: 4px 10px; font-weight: bold; background: #10b981; border-color: #10b981; font-size: 11px;">➔ Exit</a>
     </div>
   </div>
@@ -410,12 +410,7 @@ canvas{display:block}
       </div>
     </details>
 
-    <details class="sec" open>
-      <summary class="sec-title"><span class="sec-title-text">Level Config</span></summary>
-      <div class="sec-content">
-        <button class="btn" style="width:100%; padding:8px; font-weight:bold; background:#1c2d3f; border-color:#388bfd" onclick="toggleMapSettings()">⚙️ Map Settings</button>
-      </div>
-    </details>
+
 
     <details class="sec" open>
       <summary class="sec-title"><span class="sec-title-text">Shapes</span></summary>
@@ -430,101 +425,101 @@ canvas{display:block}
           <button class="btn" id="add-shape-btn" onclick="addShape()" style="width:100%; border-color:#388bfd; color:#58a6ff">+ Add Terrain</button>
         </div>
         <div id="poly-list" style="max-height: 250px; overflow-y: auto; border: 1px solid #30363d; border-radius: 5px; padding: 6px; background: #0d1117;"></div>
-      </div>
-    </details>
 
-    <details id="pt-panel" open style="margin-top:10px; border-top:1px solid #30363d; padding-top:10px;">
-      <summary class="sec-title">
-        <span class="sec-title-text">Points</span>
-        <button class="btn del" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
-      </summary>
-      <div class="sec-content">
-        <div id="rename-row">
-          <label>Label:</label>
-          <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
-        </div>
-        <div id="terrain-shadow-row" style="display:none; margin-top:6px; padding:6px; border:1px solid #30363d; border-radius:5px; background:#0d1117">
-          <div style="font-size:11px; color:#8b949e; margin-bottom:6px">Terrain Shadow</div>
-          <div class="row">
-            <label><input type="checkbox" id="terrain-shadow-enabled" onchange="setTerrainShadow('enabled', this.checked)"> Enabled</label>
+        <details id="pt-panel" open style="margin-top:10px; border-top:1px solid #30363d; padding-top:10px;">
+          <summary class="sec-title">
+            <span class="sec-title-text">Points</span>
+            <button class="btn del" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation(); deletePoly()">delete poly</button>
+          </summary>
+          <div class="sec-content">
+            <div id="rename-row">
+              <label>Label:</label>
+              <input type="text" id="poly-rename" oninput="renameActivePoly(this.value)">
+            </div>
+            <div id="terrain-shadow-row" style="display:none; margin-top:6px; padding:6px; border:1px solid #30363d; border-radius:5px; background:#0d1117">
+              <div style="font-size:11px; color:#8b949e; margin-bottom:6px">Terrain Shadow</div>
+              <div class="row">
+                <label><input type="checkbox" id="terrain-shadow-enabled" onchange="setTerrainShadow('enabled', this.checked)"> Enabled</label>
+              </div>
+              <div class="row" style="margin-top:4px">
+                <label title="Shadow angle in degrees (0 = down, 90 = right)">Angle:</label>
+                <input type="number" id="terrain-shadow-angle" class="cinput" style="width:45px" placeholder="0" onchange="setTerrainShadow('angle', this.value)">
+                <label title="Base length of the shadow">Length:</label>
+                <input type="number" id="terrain-shadow-length" class="cinput" style="width:45px" placeholder="60" onchange="setTerrainShadow('length', this.value)">
+              </div>
+            </div>
+            <div id="water-properties-row" style="display:none; margin-top:6px">
+              <label><input type="checkbox" id="water-hasboat" onchange="setWaterField('hasBoat', this.checked)"> Boat ⛵</label>
+              <label style="margin-left:8px"><input type="checkbox" id="water-hasfish" onchange="setWaterField('hasFish', this.checked)"> Fish 🐟</label>
+            </div>
+            <div id="hazard-type-row" style="display:none">
+              <label>Type:</label>
+              <select id="hazard-type-select" onchange="setHazardType(this.value)">
+                <option value="zone">Damage Zone</option>
+                <option value="laser">Laser</option>
+                <option value="incinerator">Incinerator</option>
+                <option value="crusher">Moving Crusher</option>
+                <option value="pickup">Fuel/Cash Ring</option>
+                <option value="sandworm">Sandworm Pit</option>
+                <option value="repulsor">Repulsor (Wind Tunnel)</option>
+                <option value="bouncer">Bouncer (Pinball Bumper)</option>
+                <option value="gravwell">Gravity Well</option>
+              </select>
+            </div>
+            <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+              <div class="row">
+                <label title="Milliseconds the hazard is active">onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
+                <label title="Milliseconds the hazard is disabled">offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
+                <label title="Phase offset (in ms) to desync this hazard from others">phase:</label><input type="number" id="laser-phase" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
+              </div>
+              <div class="row">
+                <label title="Milliseconds before firing that the warning indicator is shown">warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:45px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
+                <label title="Hull damage dealt per second of contact (Max Hull is 100)">dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
+                <label title="Thickness of the laser or hazard beam">thick:</label><input type="number" id="laser-thick" class="cinput" style="width:40px" placeholder="15" onchange="setHazardField('thickness', this.value)">
+              </div>
+            </div>
+            <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+              <div class="row">
+                <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
+              </div>
+            </div>
+            <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+              <div class="row">
+                <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('travelX', this.value)">
+                <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:45px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
+              </div>
+            </div>
+            <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+              <div class="row">
+                <label title="Speed to traverse the path">speed:</label><input type="number" id="gw-speed" class="cinput" style="width:45px" placeholder="100" onchange="setHazardField('speed', this.value)">
+                <label title="Radius of the gravity well effect">radius:</label><input type="number" id="gw-radius" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('radius', this.value)">
+              </div>
+              <div class="row">
+                <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:45px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
+                <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('endForce', this.value)">
+              </div>
+            </div>
+            <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
+              <div class="row">
+                <label title="Wait at start position (ms)">waitUnload:</label><input type="number" id="crush-waitu" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
+                <label title="Time to clash (ms)">crushMs:</label><input type="number" id="crush-crush" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
+              </div>
+              <div class="row">
+                <label title="Wait at clash position (ms)">waitLoad:</label><input type="number" id="crush-waitl" class="cinput" style="width:45px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
+                <label title="Time to retract (ms)">retractMs:</label><input type="number" id="crush-retract" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
+              </div>
+              <div class="row">
+                <label title="Width of the crusher blocks">thickness:</label><input type="number" id="crush-thick" class="cinput" style="width:45px" placeholder="40" onchange="setHazardField('thickness', this.value)">
+              </div>
+            </div>
+            <div id="hazard-color-row" class="row" style="display:none; margin-top:6px">
+              <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
+              <label title="Draw this hazard behind the terrain geometry" style="margin-left:12px; cursor:pointer"><input type="checkbox" id="hazard-bg" onchange="setHazardField('behindTerrain', this.checked)"> Behind Terrain</label>
+            </div>
+            <div id="pt-list-wrap"><div id="pt-list"></div></div>
+            <button class="btn" style="margin-top:8px;width:100%;font-size:11px" onclick="insertAtCursor()">+ insert point at cursor</button>
           </div>
-          <div class="row" style="margin-top:4px">
-            <label title="Shadow angle in degrees (0 = down, 90 = right)">Angle:</label>
-            <input type="number" id="terrain-shadow-angle" class="cinput" style="width:45px" placeholder="0" onchange="setTerrainShadow('angle', this.value)">
-            <label title="Base length of the shadow">Length:</label>
-            <input type="number" id="terrain-shadow-length" class="cinput" style="width:45px" placeholder="60" onchange="setTerrainShadow('length', this.value)">
-          </div>
-        </div>
-        <div id="water-properties-row" style="display:none; margin-top:6px">
-          <label><input type="checkbox" id="water-hasboat" onchange="setWaterField('hasBoat', this.checked)"> Boat ⛵</label>
-          <label style="margin-left:8px"><input type="checkbox" id="water-hasfish" onchange="setWaterField('hasFish', this.checked)"> Fish 🐟</label>
-        </div>
-        <div id="hazard-type-row" style="display:none">
-          <label>Type:</label>
-          <select id="hazard-type-select" onchange="setHazardType(this.value)">
-            <option value="zone">Damage Zone</option>
-            <option value="laser">Laser</option>
-            <option value="incinerator">Incinerator</option>
-            <option value="crusher">Moving Crusher</option>
-            <option value="pickup">Fuel/Cash Ring</option>
-            <option value="sandworm">Sandworm Pit</option>
-            <option value="repulsor">Repulsor (Wind Tunnel)</option>
-            <option value="bouncer">Bouncer (Pinball Bumper)</option>
-            <option value="gravwell">Gravity Well</option>
-          </select>
-        </div>
-        <div id="laser-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-          <div class="row">
-            <label title="Milliseconds the hazard is active">onMs:</label><input type="number" id="laser-onms" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('onMs', this.value)">
-            <label title="Milliseconds the hazard is disabled">offMs:</label><input type="number" id="laser-offms" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('offMs', this.value)">
-            <label title="Phase offset (in ms) to desync this hazard from others">phase:</label><input type="number" id="laser-phase" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('phaseOffset', this.value)">
-          </div>
-          <div class="row">
-            <label title="Milliseconds before firing that the warning indicator is shown">warnMs:</label><input type="number" id="laser-warn" class="cinput" style="width:45px" placeholder="800" onchange="setHazardField('warnMs', this.value)">
-            <label title="Hull damage dealt per second of contact (Max Hull is 100)">dmg/s:</label><input type="number" id="laser-dmg" class="cinput" style="width:40px" placeholder="40" onchange="setHazardField('damagePerSec', this.value)">
-            <label title="Thickness of the laser or hazard beam">thick:</label><input type="number" id="laser-thick" class="cinput" style="width:40px" placeholder="15" onchange="setHazardField('thickness', this.value)">
-          </div>
-        </div>
-        <div id="sandworm-timing-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-          <div class="row">
-            <label title="Worms spawned per second">spawnRate:</label><input type="number" id="sw-spawnrate" step="0.1" class="cinput" style="width:45px" onchange="setHazardField('spawnRate', this.value)">
-          </div>
-        </div>
-        <div id="repulsor-vector-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-          <div class="row">
-            <label title="Force vector X">force X:</label><input type="number" id="rep-fx" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('travelX', this.value)">
-            <label title="Force vector Y">force Y:</label><input type="number" id="rep-fy" class="cinput" style="width:45px" placeholder="-15" onchange="setHazardField('travelY', this.value)">
-          </div>
-        </div>
-        <div id="gravwell-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-          <div class="row">
-            <label title="Speed to traverse the path">speed:</label><input type="number" id="gw-speed" class="cinput" style="width:45px" placeholder="100" onchange="setHazardField('speed', this.value)">
-            <label title="Radius of the gravity well effect">radius:</label><input type="number" id="gw-radius" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('radius', this.value)">
-          </div>
-          <div class="row">
-            <label title="Force at the center (start)">startForce:</label><input type="number" id="gw-startf" step="0.1" class="cinput" style="width:45px" placeholder="1.5" onchange="setHazardField('startForce', this.value)">
-            <label title="Force at the edge (end)">endForce:</label><input type="number" id="gw-endf" step="0.1" class="cinput" style="width:45px" placeholder="0" onchange="setHazardField('endForce', this.value)">
-          </div>
-        </div>
-        <div id="crusher-properties-row" style="display:none; flex-wrap:wrap; gap:4px; margin-top:6px">
-          <div class="row">
-            <label title="Wait at start position (ms)">waitUnload:</label><input type="number" id="crush-waitu" class="cinput" style="width:45px" placeholder="1000" onchange="setHazardField('waitUnloadedMs', this.value)">
-            <label title="Time to clash (ms)">crushMs:</label><input type="number" id="crush-crush" class="cinput" style="width:45px" placeholder="200" onchange="setHazardField('crushMs', this.value)">
-          </div>
-          <div class="row">
-            <label title="Wait at clash position (ms)">waitLoad:</label><input type="number" id="crush-waitl" class="cinput" style="width:45px" placeholder="500" onchange="setHazardField('waitLoadedMs', this.value)">
-            <label title="Time to retract (ms)">retractMs:</label><input type="number" id="crush-retract" class="cinput" style="width:45px" placeholder="1500" onchange="setHazardField('retractMs', this.value)">
-          </div>
-          <div class="row">
-            <label title="Width of the crusher blocks">thickness:</label><input type="number" id="crush-thick" class="cinput" style="width:45px" placeholder="40" onchange="setHazardField('thickness', this.value)">
-          </div>
-        </div>
-        <div id="hazard-color-row" class="row" style="display:none; margin-top:6px">
-          <label title="Custom hex color for this hazard (optional)">Color:</label><input type="color" id="hazard-color" style="margin-left:4px" onchange="setHazardField('color', this.value)">
-          <label title="Draw this hazard behind the terrain geometry" style="margin-left:12px; cursor:pointer"><input type="checkbox" id="hazard-bg" onchange="setHazardField('behindTerrain', this.checked)"> Behind Terrain</label>
-        </div>
-        <div id="pt-list-wrap"><div id="pt-list"></div></div>
-        <button class="btn" style="margin-top:8px;width:100%;font-size:11px" onclick="insertAtCursor()">+ insert point at cursor</button>
+        </details>
       </div>
     </details>
 
