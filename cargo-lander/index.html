@@ -2815,6 +2815,14 @@
                             initEditorEmbed();
                         } else {
                             game.startLevel(levels.length - 1);
+                            
+                            const backBtn = document.createElement('a');
+                            backBtn.href = 'level-editor.html';
+                            backBtn.textContent = '➔ Go back to editor';
+                            backBtn.style.cssText = 'position:fixed; top:20px; left:20px; z-index:10000; padding:12px 24px; font-weight:bold; font-size:16px; font-family:"Outfit",sans-serif; text-decoration:none; color:#ffffff; background:#10b981; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.6); border:1px solid #34d399; transition:transform 0.1s; cursor:pointer;';
+                            backBtn.onmouseover = () => backBtn.style.transform = 'scale(1.05)';
+                            backBtn.onmouseout = () => backBtn.style.transform = 'scale(1)';
+                            document.body.appendChild(backBtn);
                         }
                     }, 50);
                 } catch (e) {
