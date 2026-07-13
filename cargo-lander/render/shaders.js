@@ -805,5 +805,7 @@ class ShaderOverlay {
         // Disabled: Particles are now drawn exclusively in Canvas2D to support
         // advanced vector shapes (sparks, smoke, rings) instead of soft dots.
         // if (physics.particles && physics.particles.length > 0) { ... }
+
+        return true;
     }
 }
