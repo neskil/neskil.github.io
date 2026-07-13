@@ -7,7 +7,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Courier New',monospace;background:#0d1117;color:#e6edf3;display:flex;height:100vh;overflow:hidden;font-size:12px}
 
-#sidebar{width:310px;min-width:310px;max-width:800px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;resize:horizontal}
+#sidebar{width:310px;min-width:310px;max-width:800px;background:rgba(22, 27, 34, 0.97);border-right:1px solid #30363d;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,0.5)}
 
 #sidebar-scrollable {
   flex:1;
@@ -314,13 +314,16 @@ canvas{display:block}
 <div id="sidebar">
   <div class="sec" style="border-bottom: 1px solid #30363d; background: #161b22; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px;">
     <div style="font-size:14px; font-weight:bold; color:#e6edf3;">Level Editor</div>
-    <a href="index.html" class="btn on" style="text-decoration: none; padding: 4px 10px; font-weight: bold; background: #10b981; border-color: #10b981; font-size: 11px;">➔ Game</a>
+    <div style="display: flex; gap: 6px;">
+      <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">Playtest</button>
+      <a href="index.html" class="btn on" style="text-decoration: none; padding: 4px 10px; font-weight: bold; background: #10b981; border-color: #10b981; font-size: 11px;">➔ Exit</a>
+    </div>
   </div>
 
   <div class="sec" style="background:#0d1117; border-bottom: 1px solid #30363d; padding: 12px 14px;">
     <div id="toolbar" style="display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
       <span style="font-size:11px;color:#8b949e; width: 35px;">Mode:</span>
-      <button class="btn on" id="m-select" onclick="setMode('select')">Select</button>
+      <button class="btn on" id="m-select-pt" onclick="setMode('select-pt')">Pts</button> <button class="btn" id="m-select-poly" onclick="setMode('select-poly')">Body</button>
       <button class="btn" id="m-add" onclick="setMode('add')">Add pts</button>
       <button class="btn" id="m-pan" onclick="setMode('pan')">Pan</button>
       <div style="width:1px;height:14px;background:#30363d;margin:0 4px"></div>
@@ -334,7 +337,8 @@ canvas{display:block}
       <button class="btn on" id="sn10" onclick="setSnap(10)">10</button>
       <button class="btn" id="sn50" onclick="setSnap(50)">50</button>
       <button class="btn" id="sn100" onclick="setSnap(100)">100</button>
-      <span style="font-size:10px;color:#8b949e;margin-left:4px">Shift=×5</span>
+      <span style="font-size:10px;color:#8b949e;margin-left:4px;flex:1">Shift=×5</span>
+      <label style="font-size:10px;color:#8b949e;cursor:pointer" title="When dragging in select mode, grab entire shapes instead of single points"><input type="checkbox" id="grab-poly-toggle" checked> Full Poly</label>
     </div>
   </div>
 
@@ -379,11 +383,13 @@ canvas{display:block}
         <div>
           <div class="row" style="margin-bottom:6px">
             <span style="font-size:10px;color:#8b949e;flex:1;text-transform:uppercase;">Export</span>
-            <button class="btn" id="playtest-btn" onclick="playtestLevel()" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-color: rgba(16, 185, 129, 0.4);">Playtest</button>
             <button class="btn" id="download-btn" onclick="downloadJS()" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.4);">Download</button>
           </div>
           <textarea id="out" readonly style="height:80px; width:100%; resize:vertical; color:#79c0ff; font-size:11px; margin-bottom:4px;"></textarea>
-          <button class="btn" id="copy-btn" onclick="copyOut()" style="width:100%;">Copy to Clipboard</button>
+          <div class="row" style="gap:4px">
+            <button class="btn" id="copy-btn" onclick="copyOut()" style="flex:1;">Copy to Clipboard</button>
+            <button class="btn" id="copy-ai-btn" onclick="copyWithAIPrompt()" style="flex:1; background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3);" title="Copy level code with a prompt ready for AI assistants">Copy for AI</button>
+          </div>
         </div>
       </div>
     </details>
@@ -528,23 +534,6 @@ canvas{display:block}
             <button class="btn" style="font-size:10px;padding:2px 6px" onclick="clearMarkerY('cargo')" title="Reset Y to terrain surface">⊥</button>
           </div>
         </div>
-      </div>
-    </details>
-    
-    <details class="sec">
-      <summary class="sec-title"><span class="sec-title-text">Help & Shortcuts</span></summary>
-      <div class="sec-content" style="font-size:11px; color:#8b949e; line-height:1.6;">
-        <div style="margin-bottom:2px"><strong>S</strong> = Select Mode</div>
-        <div style="margin-bottom:2px"><strong>A</strong> = Add Points Mode</div>
-        <div style="margin-bottom:2px"><strong>P</strong> = Pan Mode</div>
-        <div style="margin-bottom:2px"><strong>F</strong> = Fit View to Screen</div>
-        <div style="margin-bottom:2px"><strong>Del</strong> = Delete selected pt</div>
-        <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
-        <div style="margin-bottom:4px"><strong>Add Mode:</strong> click near edge to insert point on it (hover shows preview).</div>
-        <div style="margin-bottom:4px"><strong>Tabs:</strong> Terrain/Water/Hazard tabs switch which shape "+ Add" creates.</div>
-        <div style="margin-bottom:4px"><strong>Select:</strong> click any shape to select it regardless of tab.</div>
-        <div style="margin-bottom:4px"><strong>Camera:</strong> scroll = zoom, Alt+drag = pan.</div>
-        <div style="margin-bottom:4px"><strong>Entities:</strong> Drag HQ/Cargo/Hub bars directly to reposition.</div>
       </div>
     </details>
   </div>
@@ -2431,7 +2420,7 @@ function setMode(m) {
   });
   canvas.style.cursor = m==='pan'?'grab' : m==='add'?'crosshair':'default';
 }
-setMode('select');
+setMode('select-pt');
 
 function setSnap(n) {
   S.snap = n;
@@ -3008,6 +2997,28 @@ function copyOut() {
   });
 }
 
+function copyWithAIPrompt() {
+  const levelCode = document.getElementById('out').value;
+  const prompt = `I am working on a level for a lunar lander game. 
+Here is the current code for the level:
+
+\`\`\`javascript
+${levelCode}
+\`\`\`
+
+Please help me update this level. 
+When you provide the updated level code, please provide ONLY the complete \`registerLevel({...})\` call in a single javascript code block, so I can easily copy and paste it back into my level editor. Do not explain every little change unless I ask. Make sure the output is syntactically valid.
+
+My requested changes are: [TYPE YOUR CHANGES HERE]`;
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    const b = document.getElementById('copy-ai-btn');
+    const oldText = b.textContent;
+    b.textContent='Copied Prompt!'; 
+    setTimeout(()=>b.textContent=oldText,1400);
+  });
+}
+
 // ── Mouse ─────────────────────────────────────────────────────────────────────
 const HIT = 10;
 let isPan=false, panLast=null;
@@ -3082,7 +3093,7 @@ canvas.addEventListener('mousedown', e => {
     S.selPt=idx+1; S.edgePreview=null;
     renderSidebar(); renderPtList(); draw(); updateOut(); return;
   }
-  if (S.mode==='select'&&e.button===0) {
+  if ((S.mode==='select-pt' || S.mode==='select-poly')&&e.button===0) {
     // Marker drag takes priority over polygon points
     const mhit = hitMarker(sx, sy);
     if (mhit) { S.dragMarker=mhit; return; }
@@ -3101,7 +3112,9 @@ canvas.addEventListener('mousedown', e => {
             if (layer !== S.selLayer) { S.selLayer = layer; syncLayerButtonsUI(); }
             S.selPoly=pi; S.selPt=-1;
             // Start whole-polygon body drag
-            S.dragPolyBody = { layer, pi, startWx:wx, startWy:wy, origPts:arr[pi].pts.map(p=>({...p})) };
+            if (document.getElementById('grab-poly-toggle').checked) {
+              S.dragPolyBody = { layer, pi, startWx:wx, startWy:wy, origPts:arr[pi].pts.map(p=>({...p})) };
+            }
             renderSidebar(); renderPtList(); draw(); return;
           }
         }
@@ -3226,7 +3239,7 @@ document.addEventListener('keydown', e => {
   }
   const tag=e.target.tagName;
   if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') return;
-  if (e.key==='s') setMode('select');
+  if (e.key==='s') setMode(S.mode === 'select-pt' ? 'select-poly' : 'select-pt');
   if (e.key==='a') setMode('add');
   if (e.key==='p') setMode('pan');
   if (e.key==='f') fitView();
