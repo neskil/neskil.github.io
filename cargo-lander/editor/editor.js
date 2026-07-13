@@ -1164,6 +1164,8 @@ function hazardToShape(h, i) {
       shape.endForce = h.endForce ?? 0;
     } else if (shape.type === 'sandworm') {
       shape.spawnRate = h.spawnRate ?? 1.0;
+      shape.reach = h.reach ?? 300;
+      shape.proximityScale = h.proximityScale ?? 0;
     }
     return shape;
   }
@@ -2794,7 +2796,7 @@ function setHazardField(field, val) {
   snapshot();
   const arr = activeList();
   if (S.selLayer!=='hazard' || S.selPoly<0 || S.selPoly>=arr.length) return;
-  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','travelX','travelY','gustMs','calmMs','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
+  if (['onMs','offMs','phaseOffset','warnMs','damagePerSec','thickness','spawnRate','reach','proximityScale','travelX','travelY','gustMs','calmMs','speed','radius','startForce','endForce','waitUnloadedMs','crushMs','waitLoadedMs','retractMs'].includes(field)) val = parseFloat(val)||0;
   arr[S.selPoly][field] = val;
   draw(); updateOut();
 }
@@ -3122,6 +3124,8 @@ function buildOut() {
         if (h.type === 'laser' && h.thickness) lines.push(`      thickness: ${h.thickness},`);
       } else if (h.type === 'sandworm') {
         if (h.spawnRate !== undefined) lines.push(`      spawnRate: ${h.spawnRate},`);
+        if (h.reach !== undefined) lines.push(`      reach: ${h.reach},`);
+        if (h.proximityScale !== undefined) lines.push(`      proximityScale: ${h.proximityScale},`);
       } else if (h.type === 'repulsor') {
         if (h.travelX !== undefined) lines.push(`      travelX: ${h.travelX},`);
         if (h.travelY !== undefined) lines.push(`      travelY: ${h.travelY},`);
@@ -3225,7 +3229,7 @@ Please help me update this level based on my requested changes below. Some thing
 - Preserve valid JS syntax: array/object structure, trailing commas removed, quotes matched.
 - If my request is ambiguous or missing key details (e.g. "add a hazard" without saying where), make a reasonable choice consistent with the rest of the level and briefly note the assumption.
 
-When you provide the updated level code, reply with ONLY the complete \`registerLevel({...})\` call in a single javascript code block, so I can copy and paste it back into my level editor. Do not explain every little change unless I ask. Make sure the output is syntactically valid.
+If you have file access to the Cargo Lander repo, apply the change directly to the matching \`levels/levelN.js\` file (treating the code block above as the current state — it may be newer than the file on disk) and just summarize what changed. Otherwise, reply with ONLY the complete \`registerLevel({...})\` call in a single javascript code block, so I can copy and paste it back into my level editor. Do not explain every little change unless I ask. Make sure the output is syntactically valid.
 
 My requested changes are: [TYPE YOUR CHANGES HERE]`;
 
