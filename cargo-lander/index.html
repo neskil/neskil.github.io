@@ -798,7 +798,8 @@
             touch-action: none;
         }
 
-        .mobile-btn:active {
+        .mobile-btn:active,
+        .mobile-btn.mobile-btn-pressed {
             background: rgba(255, 255, 255, 0.3);
             transform: scale(0.95);
         }
@@ -1830,11 +1831,60 @@
                 btn.addEventListener('pointercancel', release);
             }
 
+            // Opposing d-pad buttons (left/right, up/down) as a linked group: once a
+            // pointer is captured on one button, the browser routes its move/up events
+            // to that same button even after the finger slides onto its neighbor — so
+            // a plain per-button binding "sticks" on whichever key was pressed first.
+            // This hit-tests every pointermove against all buttons in the group and
+            // swaps the active key (and pressed-visual) when the finger crosses into a
+            // sibling, so dragging from ◀ to ▶ (or ▲ to ▼) switches input like a d-pad.
+            function bindMobileGroup(pairs) {
+                const btns = pairs
+                    .map(p => ({ ...p, el: document.getElementById(p.id) }))
+                    .filter(p => p.el);
+                if (!btns.length) return;
+                const activeByPointer = new Map(); // pointerId -> currently-pressed pair (or null)
+
+                const setPressed = (pair, val) => {
+                    if (!pair) return;
+                    if (pair.key) game.keys[pair.key] = val;
+                    pair.el.classList.toggle('mobile-btn-pressed', val);
+                };
+
+                const hitTest = (x, y) => btns.find(b => {
+                    const r = b.el.getBoundingClientRect();
+                    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+                }) || null;
+
+                btns.forEach(b => {
+                    b.el.addEventListener('pointerdown', e => {
+                        e.preventDefault();
+                        setPressed(b, true);
+                        activeByPointer.set(e.pointerId, b);
+                        try { b.el.setPointerCapture(e.pointerId); } catch (err) { /* best-effort */ }
+                    });
+                    b.el.addEventListener('pointermove', e => {
+                        if (!activeByPointer.has(e.pointerId)) return;
+                        const current = activeByPointer.get(e.pointerId);
+                        const hit = hitTest(e.clientX, e.clientY);
+                        if (hit === current) return;
+                        setPressed(current, false);
+                        setPressed(hit, true);
+                        activeByPointer.set(e.pointerId, hit);
+                    });
+                    const release = e => {
+                        if (!activeByPointer.has(e.pointerId)) return;
+                        setPressed(activeByPointer.get(e.pointerId), false);
+                        activeByPointer.delete(e.pointerId);
+                    };
+                    b.el.addEventListener('pointerup', release);
+                    b.el.addEventListener('pointercancel', release);
+                });
+            }
+
             function setupMobileControls() {
-                bindMobileBtn('btn-left', 'a');
-                bindMobileBtn('btn-right', 'd');
-                bindMobileBtn('btn-thrust', 'w');
-                bindMobileBtn('btn-down', 's');
+                bindMobileGroup([{ id: 'btn-left', key: 'a' }, { id: 'btn-right', key: 'd' }]);
+                bindMobileGroup([{ id: 'btn-thrust', key: 'w' }, { id: 'btn-down', key: 's' }]);
                 bindMobileBtn('btn-action', null, triggerAction);
                 setupJoystick();
                 applyTouchControlMode(game && game.touchJoystickEnabled);
@@ -2781,48 +2831,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.18.2"></script>
-    <script src="levels/levels.js?v=0.18.2"></script>
-    <script src="levels/levelGenerator.js?v=0.18.2"></script>
+    <script src="game/upgrades.js?v=0.18.3"></script>
+    <script src="levels/levels.js?v=0.18.3"></script>
+    <script src="levels/levelGenerator.js?v=0.18.3"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.18.2"></script>
-    <script src="levels/level2.js?v=0.18.2"></script>
-    <script src="levels/level3.js?v=0.18.2"></script>
-    <script src="levels/level4.js?v=0.18.2"></script>
-    <script src="levels/level5.js?v=0.18.2"></script>
-    <script src="levels/level6.js?v=0.18.2"></script>
-    <script src="levels/level7.js?v=0.18.2"></script>
-    <script src="levels/level8.js?v=0.18.2"></script>
-    <script src="levels/level9.js?v=0.18.2"></script>
-    <script src="levels/level10.js?v=0.18.2"></script>
-    <script src="levels/levelTest.js?v=0.18.2"></script>
-    <script src="levels/collectibleTypes.js?v=0.18.2"></script>
+    <script src="levels/level1.js?v=0.18.3"></script>
+    <script src="levels/level2.js?v=0.18.3"></script>
+    <script src="levels/level3.js?v=0.18.3"></script>
+    <script src="levels/level4.js?v=0.18.3"></script>
+    <script src="levels/level5.js?v=0.18.3"></script>
+    <script src="levels/level6.js?v=0.18.3"></script>
+    <script src="levels/level7.js?v=0.18.3"></script>
+    <script src="levels/level8.js?v=0.18.3"></script>
+    <script src="levels/level9.js?v=0.18.3"></script>
+    <script src="levels/level10.js?v=0.18.3"></script>
+    <script src="levels/levelTest.js?v=0.18.3"></script>
+    <script src="levels/collectibleTypes.js?v=0.18.3"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.18.2"></script>
-    <script src="render/shaders.js?v=0.18.2"></script>
-    <script src="physics/physics.js?v=0.18.2"></script>
-    <script src="physics/collision.js?v=0.18.2"></script>
-    <script src="physics/mechanics.js?v=0.18.2"></script>
-    <script src="physics/entities.js?v=0.18.2"></script>
-    <script src="physics/atmosphere.js?v=0.18.2"></script>
-    <script src="game/game.js?v=0.18.2"></script>
-    <script src="game/input.js?v=0.18.2"></script>
-    <script src="game/menu.js?v=0.18.2"></script>
-    <script src="game/hud.js?v=0.18.2"></script>
-    <script src="game/cargo.js?v=0.18.2"></script>
-    <script src="render/render.js?v=0.18.2"></script>
-    <script src="render/background.js?v=0.18.2"></script>
-    <script src="render/terrain.js?v=0.18.2"></script>
-    <script src="render/entities.js?v=0.18.2"></script>
-    <script src="render/pads.js?v=0.18.2"></script>
-    <script src="render/lander.js?v=0.18.2"></script>
-    <script src="render/creatures.js?v=0.18.2"></script>
-    <script src="render/effects.js?v=0.18.2"></script>
-    <script src="render/night.js?v=0.18.2"></script>
-    <script src="render/ui.js?v=0.18.2"></script>
+    <script src="audio.js?v=0.18.3"></script>
+    <script src="render/shaders.js?v=0.18.3"></script>
+    <script src="physics/physics.js?v=0.18.3"></script>
+    <script src="physics/collision.js?v=0.18.3"></script>
+    <script src="physics/mechanics.js?v=0.18.3"></script>
+    <script src="physics/entities.js?v=0.18.3"></script>
+    <script src="physics/atmosphere.js?v=0.18.3"></script>
+    <script src="game/game.js?v=0.18.3"></script>
+    <script src="game/input.js?v=0.18.3"></script>
+    <script src="game/menu.js?v=0.18.3"></script>
+    <script src="game/hud.js?v=0.18.3"></script>
+    <script src="game/cargo.js?v=0.18.3"></script>
+    <script src="render/render.js?v=0.18.3"></script>
+    <script src="render/background.js?v=0.18.3"></script>
+    <script src="render/terrain.js?v=0.18.3"></script>
+    <script src="render/entities.js?v=0.18.3"></script>
+    <script src="render/pads.js?v=0.18.3"></script>
+    <script src="render/lander.js?v=0.18.3"></script>
+    <script src="render/creatures.js?v=0.18.3"></script>
+    <script src="render/effects.js?v=0.18.3"></script>
+    <script src="render/night.js?v=0.18.3"></script>
+    <script src="render/ui.js?v=0.18.3"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.18.2"></script>
+    <script src="game/tutorial.js?v=0.18.3"></script>
 
     <script>
         // Start the game!
