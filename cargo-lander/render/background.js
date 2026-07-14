@@ -245,10 +245,14 @@ drawMenuBackgroundEntity() {
             };
         }
 
+        // Menu fly-bys advance per rendered frame — scale by renderDt (1.0 at
+        // 60Hz, 0.5 at 120Hz) so they cruise at the same speed on any display.
+        const fdt = this.renderDt || 1;
+
         if (this.menuMonster) {
             const mm = this.menuMonster;
-            mm.x += mm.vx;
-            mm.t += 0.04;
+            mm.x += mm.vx * fdt;
+            mm.t += 0.04 * fdt;
 
             // Draw simplified monster silhouette
             const t3 = Date.now() / 1000;
@@ -302,8 +306,8 @@ drawMenuBackgroundEntity() {
         }
 
         for (const e of this.menuEntities) {
-            e.x += e.vx;
-            e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale);
+            e.x += e.vx * fdt;
+            e.y += Math.sin((Date.now() + e.offset) / 500) * (1.5 * e.scale) * fdt;
 
             if (e.vx > 0 && e.x > this.canvas.width + 200) {
                 e.x = -200;
