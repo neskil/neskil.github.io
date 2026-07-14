@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.17.16';
+    static VERSION = '0.18.0';
 
     constructor() {
         this.canvas = null;
@@ -714,14 +714,105 @@ class CargoGame {
 
         // Step physics and logic at a fixed 60Hz rate
         while (this.physicsAccumulator >= FIXED_TIME_STEP) {
+            this._snapshotInterpState();
             this.update(1.0); // dt is always 1.0 since we step exactly 1/60th of a second
             this.physicsAccumulator -= FIXED_TIME_STEP;
         }
 
+        // Length of this render frame in 60fps-frame units (1.0 at 60Hz, 0.5 at
+        // 120Hz) — draw-path cosmetics that advance per rendered frame scale by
+        // this so they play at the same speed on any refresh rate.
+        this.renderDt = Math.min(4, deltaTime / FIXED_TIME_STEP);
+
         this._updateDevReadout(1.0);
-        this.draw();
+        // Render between physics steps: substitute positions lerped toward the
+        // latest step by the accumulator fraction, draw, then restore. try/finally
+        // so a draw exception can't leave lerped values in the live sim state.
+        this._applyInterpState(this.physicsAccumulator / FIXED_TIME_STEP);
+        try {
+            this.draw();
+        } finally {
+            this._restoreInterpState();
+        }
 
         requestAnimationFrame((t) => this.loop(t));
+    }
+
+    // ── Render interpolation ────────────────────────────────────────────────
+    // Physics steps at a fixed 60Hz; displays above that render between steps.
+    // _snapshotInterpState() (called before each physics step) remembers where
+    // the moving entities were, _applyInterpState(alpha) substitutes positions
+    // lerped from that snapshot toward the fresh step for the duration of
+    // draw(), and _restoreInterpState() puts the true values back. Render code
+    // reads the same fields it always did and needs no changes.
+    _snapshotInterpState() {
+        const ph = this.physics;
+        if (!ph) { this._interpPrev = null; return; }
+        const prev = this._interpPrev = this._interpPrev || { boxes: new Map() };
+        const l = ph.lander;
+        prev.lander = l ? { x: l.x, y: l.y, angle: l.angle } : null;
+        prev.monster = ph.monster ? { x: ph.monster.x, y: ph.monster.y } : null;
+        prev.police = ph.police ? { x: ph.police.x, y: ph.police.y } : null;
+        prev.camera = { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom };
+        prev.boxes.clear();
+        if (ph.boxes) for (const b of ph.boxes) prev.boxes.set(b.id, { x: b.x, y: b.y });
+    }
+
+    _applyInterpState(alpha) {
+        this._interpSaved = null;
+        const ph = this.physics;
+        const prev = this._interpPrev;
+        if (!ph || !prev || !(alpha > 0) || alpha >= 1) return;
+        // A jump longer than this is a teleport (respawn, level load, box
+        // dispense) — snap to the new position instead of streaking across it.
+        const MAX_JUMP = 200;
+        const lerp = (a, b) => (Math.abs(b - a) > MAX_JUMP ? b : a + (b - a) * alpha);
+        const saved = this._interpSaved = { boxes: [] };
+
+        const l = ph.lander;
+        if (l && prev.lander) {
+            saved.lander = { x: l.x, y: l.y, angle: l.angle };
+            l.x = lerp(prev.lander.x, l.x);
+            l.y = lerp(prev.lander.y, l.y);
+            l.angle = prev.lander.angle + (l.angle - prev.lander.angle) * alpha;
+        }
+        if (ph.monster && prev.monster) {
+            saved.monster = { x: ph.monster.x, y: ph.monster.y };
+            ph.monster.x = lerp(prev.monster.x, ph.monster.x);
+            ph.monster.y = lerp(prev.monster.y, ph.monster.y);
+        }
+        if (ph.police && prev.police) {
+            saved.police = { x: ph.police.x, y: ph.police.y };
+            ph.police.x = lerp(prev.police.x, ph.police.x);
+            ph.police.y = lerp(prev.police.y, ph.police.y);
+        }
+        if (prev.camera) {
+            saved.camera = { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom };
+            this.camera.x = lerp(prev.camera.x, this.camera.x);
+            this.camera.y = lerp(prev.camera.y, this.camera.y);
+            this.camera.zoom = prev.camera.zoom + (this.camera.zoom - prev.camera.zoom) * alpha;
+        }
+        if (ph.boxes) {
+            for (const b of ph.boxes) {
+                const p = prev.boxes.get(b.id);
+                if (!p) continue;
+                saved.boxes.push({ b, x: b.x, y: b.y });
+                b.x = lerp(p.x, b.x);
+                b.y = lerp(p.y, b.y);
+            }
+        }
+    }
+
+    _restoreInterpState() {
+        const saved = this._interpSaved;
+        if (!saved) return;
+        this._interpSaved = null;
+        const ph = this.physics;
+        if (saved.lander && ph && ph.lander) Object.assign(ph.lander, saved.lander);
+        if (saved.monster && ph && ph.monster) Object.assign(ph.monster, saved.monster);
+        if (saved.police && ph && ph.police) Object.assign(ph.police, saved.police);
+        if (saved.camera) Object.assign(this.camera, saved.camera);
+        for (const e of saved.boxes) { e.b.x = e.x; e.b.y = e.y; }
     }
 
     shootPlayerFirework(startX, startY, targetX, targetY) {
@@ -876,6 +967,7 @@ class CargoGame {
         }
 
         this.updateMessages(dt);                // legacy canvas-renderer messages
+        this.updateFloatingTexts(dt);           // reward/penalty popups
         this.updateMissionPanel();
         this.updateHUD();
     }
@@ -1430,6 +1522,19 @@ class CargoGame {
             const m = this.messages[i];
             m.life -= 0.0025 * dt;
             if (m.life <= 0) this.messages.splice(i, 1);
+        }
+    }
+
+    // Reward/penalty popups ("+$120", "CARGO LOST"). Stepped here at the fixed
+    // 60Hz rate — used to advance inside draw(), which made them fade twice as
+    // fast on a 120Hz display. Rates match the old per-frame 16.6ms constants.
+    updateFloatingTexts(dt) {
+        if (!this.floatingTexts) return;
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.life -= 0.0166 * dt;
+            ft.y -= 0.83 * dt;
+            if (ft.life <= 0) this.floatingTexts.splice(i, 1);
         }
     }
 
