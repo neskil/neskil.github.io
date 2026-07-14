@@ -108,7 +108,7 @@
            the page, including the minimap. That pulled #radar-canvas out of
            flow (position:absolute) with no positioned ancestor giving it a
            size to resolve 100%/100% against, so #radar-container (its only
-           in-flow content) collapsed to 2x2px â€” just its own border â€” making
+           in-flow content) collapsed to 2x2px — just its own border — making
            the whole minimap invisible with no console error. Restore normal
            in-flow sizing at its native 260x160 canvas resolution. */
         #radar-canvas {
@@ -124,13 +124,13 @@
         }
 
         /* Glass HUD Overlays */
-        /* Was z-index:10 â€” #mobile-controls (the touch d-pad/action buttons) sits
+        /* Was z-index:10 — #mobile-controls (the touch d-pad/action buttons) sits
            at z-index:50 as a *sibling* of #hud-overlay under #game-container, and
            an element's explicit z-index always beats DOM order regardless of which
            one comes later in the markup. That left the fullscreen/mute/settings
            toolbar and its Exit Level/Settings/Dev Panel/Editor dropdown rendering
            BELOW the mobile GRAB/thrust buttons whenever they overlapped on a short
-           landscape viewport â€” the dropdown's own z-index:20 couldn't help, since
+           landscape viewport — the dropdown's own z-index:20 couldn't help, since
            it's capped by its ancestor #hud-overlay's stacking context regardless of
            its own value. Raised above #mobile-controls so the HUD (radar, toolbar,
            options dropdown) always renders on top, as intended. */
@@ -146,7 +146,7 @@
             right: 12px;
             bottom: 0;
             display: none;
-            /* Shown dynamically during play â€” use block/flex toggled via JS */
+            /* Shown dynamically during play — use block/flex toggled via JS */
             pointer-events: none;
         }
 
@@ -762,7 +762,7 @@
         }
 
         /* Mobile Touch Controls */
-        /* Sized up from 60x60/24px â€” most phone play happens in landscape (per the
+        /* Sized up from 60x60/24px — most phone play happens in landscape (per the
            rotate-tip), where viewport width is well over the 480px breakpoint that
            used to be the only place these got bigger, so nearly everyone was stuck
            with the smaller base size. */
@@ -790,8 +790,8 @@
             /* Was "manipulation", which still leaves the browser's native
                pinch-zoom gesture live (the page's viewport meta doesn't set
                user-scalable=no). Two fingers landing on two different
-               buttons at once â€” e.g. holding thrust while tapping GRAB, or
-               thrust+turn â€” could get recognized as a pinch and have one
+               buttons at once — e.g. holding thrust while tapping GRAB, or
+               thrust+turn — could get recognized as a pinch and have one
                touch swallowed by the browser instead of reaching its
                button. "none" hands every touch on these buttons to our own
                pointer handlers, which is what multi-touch here depends on. */
@@ -805,7 +805,7 @@
 
         @media (max-width: 768px) {
             /* #mobile-controls visibility is driven entirely by JS
-               (updateMobileControlsVisibility() in game.js â€” gated on
+               (updateMobileControlsVisibility() in game.js — gated on
                isTouchDevice && gameState === 'playing'). Forcing display:flex
                here regardless of touch capability or game state showed the
                control buttons on the main menu (and on any narrow desktop
@@ -838,13 +838,13 @@
 
             /* Was: unconditionally hiding #mute-btn/#dev-btn here. That header row
                (#nav-header) is persistent across the main menu AND in-game, so this
-               didn't just declutter the in-game HUD as intended â€” it also removed
+               didn't just declutter the in-game HUD as intended — it also removed
                the Dev button from the main menu on phone-width screens with no
                replacement (the in-game options dropdown's "Dev Panel" entry only
                exists once a mission is already running). #dev-btn now stays
                visible and the header wraps instead (see #nav-header's inline
                flex-wrap) so it doesn't overflow narrow viewports.
-               #mute-btn (labelled "Audio") is still hidden â€” mute-toggle-btn, the
+               #mute-btn (labelled "Audio") is still hidden — mute-toggle-btn, the
                icon-only speaker button, covers quick mute on phone widths. */
             #mute-btn {
                 display: none;
@@ -915,7 +915,7 @@
                 padding: 3px 8px;
             }
 
-            /* Hide keyboard hints â€” irrelevant on touch */
+            /* Hide keyboard hints — irrelevant on touch */
             .control-help {
                 display: none;
             }
@@ -949,7 +949,7 @@
         /* The HQ Services / extract prompt (#center-extract-overlay) is sized for a
            tall desktop viewport. In landscape on a phone the viewport is only
            ~350-450px tall, so its bottom:80px offset plus its own height covered
-           most of the screen â€” hiding the fuel gauge, radar, and pickup marker
+           most of the screen — hiding the fuel gauge, radar, and pickup marker
            behind it. Its buttons use inline styles (font-size/padding set directly
            in the HTML), which always beat a plain class rule, so these overrides
            need !important to actually take effect. */
@@ -1046,7 +1046,7 @@
            or narrow portrait. Shrinks chrome that reads fine at 1:1 on desktop
            but eats a third of a phone screen: tighter group padding/gaps, a
            smaller see-through radar. The mission panel handles its own
-           compaction (tap-to-collapse chip â€” game/hud.js updateMissionPanel).
+           compaction (tap-to-collapse chip — game/hud.js updateMissionPanel).
            !important is needed where the base layout uses inline styles. */
         @media (max-height: 500px), (max-width: 480px) {
             #hud-overlay {
@@ -1161,7 +1161,7 @@
         }
 
         .pilot-avatar.nudge::after {
-            content: 'âœï¸';
+            content: '✏️';
             position: absolute;
             bottom: -4px;
             right: -4px;
@@ -1444,7 +1444,7 @@
         }
 
         /* position:static overrides the generic canvas{position:absolute} rule
-           (see #radar-canvas note above) â€” otherwise .tut-scene collapses to 0px. */
+           (see #radar-canvas note above) — otherwise .tut-scene collapses to 0px. */
         .tut-scene canvas {
             position: static;
             display: block;
@@ -1766,10 +1766,10 @@
         <div id="mobile-controls">
             <!-- Movement (button mode) -->
             <div id="mobile-btn-group" style="display: flex; gap: 15px;">
-                <button class="mobile-btn" id="btn-left">â—€</button>
-                <button class="mobile-btn" id="btn-right">â–¶</button>
+                <button class="mobile-btn" id="btn-left">◀</button>
+                <button class="mobile-btn" id="btn-right">▶</button>
             </div>
-            <!-- Movement (experimental joystick mode) â€” hidden unless enabled in Settings -->
+            <!-- Movement (experimental joystick mode) — hidden unless enabled in Settings -->
             <div id="joystick-zone" style="display: none; width: 110px; height: 110px; border-radius: 50%;
                 background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
                 position: relative; touch-action: none; pointer-events: auto;
@@ -1778,20 +1778,20 @@
                     background: rgba(99,102,241,0.45); border: 1px solid rgba(99,102,241,0.8);
                     position: absolute; left: 32px; top: 32px; pointer-events: none;"></div>
             </div>
-            <!-- Grapple grab/release â€” drone only (see updateMobileControlsVisibility) -->
+            <!-- Grapple grab/release — drone only (see updateMobileControlsVisibility) -->
             <button class="mobile-btn" id="btn-action"
                 style="display: none; font-size: 14px; line-height: 1.2;">GRAB<br>[SP]</button>
             <!-- Vertical thrust: up (ascend/burn) and down (descend/reverse) -->
             <div style="display: flex; flex-direction: column; gap: 15px;">
-                <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">â–²</button>
-                <button class="mobile-btn" id="btn-down">â–¼</button>
+                <button class="mobile-btn" id="btn-thrust" style="background: rgba(239,68,68,0.3);">▲</button>
+                <button class="mobile-btn" id="btn-down">▼</button>
             </div>
         </div>
 
         <!-- Rotate-to-landscape tip (mobile, portrait, shown while a mission is active) -->
         <div id="rotate-tip"
             style="display:none; position:fixed; inset:0; z-index:9998; background:rgba(3,7,18,0.88); align-items:center; justify-content:center; flex-direction:column; gap:16px; font-family:inherit; text-align:center; padding:24px;">
-            <div style="font-size:3rem; animation: rotate-tip-spin 1.8s ease-in-out infinite;">ðŸ“±</div>
+            <div style="font-size:3rem; animation: rotate-tip-spin 1.8s ease-in-out infinite;">📱</div>
             <p style="color:#fff; font-size:1.1rem; margin:0; max-width:320px; line-height:1.4;">Rotate your device to
                 <b>landscape</b> for the best view of the mission.</p>
             <button id="rotate-tip-dismiss" class="btn-secondary" onclick="game.dismissRotateTip()"
@@ -1808,14 +1808,14 @@
                 }
             }
 
-            // Multi-touch mobile controls via pointer capture â€” each finger stays bound
+            // Multi-touch mobile controls via pointer capture — each finger stays bound
             // to the button it started on, so simultaneous presses work independently.
             function bindMobileBtn(id, key, onDown, onUp) {
                 const btn = document.getElementById(id);
                 if (!btn) return;
                 btn.addEventListener('pointerdown', e => {
                     e.preventDefault();
-                    // Register the press first â€” setPointerCapture can throw on some
+                    // Register the press first — setPointerCapture can throw on some
                     // mobile browsers/OS versions, which must not silently skip the
                     // actual input (it was previously called before the key write).
                     if (key) game.keys[key] = true;
@@ -1840,9 +1840,9 @@
                 applyTouchControlMode(game && game.touchJoystickEnabled);
             }
 
-            // Experimental virtual joystick (Settings â†’ Touch Controls: Joystick).
+            // Experimental virtual joystick (Settings → Touch Controls: Joystick).
             // Floating-origin drag: the stick's center is wherever the finger first
-            // lands, not a fixed screen position â€” feels more natural on a touch
+            // lands, not a fixed screen position — feels more natural on a touch
             // surface than requiring a precise tap on a fixed base. Feeds the same
             // boolean this.keys used by the button controls (thresholded past a
             // dead zone rather than analog), so no physics/inputState changes needed.
@@ -1937,7 +1937,7 @@
                 <div id="hud-left-panel"
                     style="display: flex; flex-direction: column; align-items: flex-start; gap: 16px; transform-origin: top left; justify-self: start;">
                     
-                    <!-- Mission Info Panel â€” tap to collapse/expand (game/hud.js
+                    <!-- Mission Info Panel — tap to collapse/expand (game/hud.js
                          toggleMissionPanel; auto-collapses on small viewports) -->
                     <div id="mission-panel" class="hud-group" onclick="game.toggleMissionPanel()"
                          style="display: flex; flex-direction: column; min-width: 240px; pointer-events: auto;">
@@ -1958,9 +1958,9 @@
                 <!-- Center Column: Vitals gauge cluster + wind indicator, stacked so
                      neither one covers the other (the wind meter used to be drawn on
                      the canvas at this same screen position and was silently hidden
-                     behind this opaque HTML panel â€” moved to HTML for good). -->
+                     behind this opaque HTML panel — moved to HTML for good). -->
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; justify-self: center;">
-                <!-- Vitals â€” car-dashboard-style gauge cluster.
+                <!-- Vitals — car-dashboard-style gauge cluster.
                      display:grid keeps the icon / E / bar / F columns aligned
                      across rows (the old flex-wrap layout wrapped and
                      misaligned on narrow screens). Rows are display:contents
@@ -1969,7 +1969,7 @@
                 <div id="vitals-panel" class="hud-group"
                     style="pointer-events: auto; display: grid; grid-template-columns: auto auto auto auto; column-gap: 7px; row-gap: 6px; align-items: center; height: fit-content; transform-origin: top center;">
                     <div style="display: contents;">
-                        <div class="hud-stat vital-name"><span class="vital-icon">â›½</span>Fuel</div>
+                        <div class="hud-stat vital-name"><span class="vital-icon">⛽</span>Fuel</div>
                         <span class="gauge-letter">E</span>
                         <div class="gauge-container">
                             <div id="fuel-fill" class="gauge-fill"></div>
@@ -1979,21 +1979,21 @@
                     <!-- Health gauge -->
                     <div id="health-row" style="display: contents;">
                         <div class="hud-stat vital-name">
-                            <span class="vital-icon">ðŸš€</span>Hull
+                            <span class="vital-icon">🚀</span>Hull
                         </div>
                         <span class="gauge-letter"></span>
                         <div class="gauge-container">
                             <div id="health-fill" class="gauge-fill"></div>
                         </div>
                         <span class="gauge-letter" style="position: relative;">
-                            <span id="auto-repair-icon" class="hidden" style="font-size: 1.1em; display: inline-block;">ðŸ”§</span>
+                            <span id="auto-repair-icon" class="hidden" style="font-size: 1.1em; display: inline-block;">🔧</span>
                         </span>
                     </div>
-                    <!-- Shield charge â€” hidden unless the Shield Generator
+                    <!-- Shield charge — hidden unless the Shield Generator
                          upgrade is owned (game/hud.js updateHUD toggles it
                          and drives the fill) -->
                     <div id="shield-row" class="hidden" style="display: contents;">
-                        <div class="hud-stat vital-name"><span class="vital-icon">ðŸ›¡ï¸</span>Shield</div>
+                        <div class="hud-stat vital-name"><span class="vital-icon">🛡️</span>Shield</div>
                         <span class="gauge-letter"></span>
                         <div class="gauge-container">
                             <div id="shield-fill" class="gauge-fill"></div>
@@ -2003,7 +2003,7 @@
                     <div id="low-fuel-warning" class="hidden"
                         style="grid-column: 1 / -1; text-align: center; font-size: 0.72rem; color: #ef4444; font-weight: bold; text-shadow: 0 0 5px #ef4444;">LOW FUEL</div>
                 </div>
-                <!-- Wind indicator â€” hidden (display:none) whenever wind is negligible;
+                <!-- Wind indicator — hidden (display:none) whenever wind is negligible;
                      game/hud.js updateWindIndicator() drives text/color/pulse each frame. -->
                 <div id="wind-indicator" class="hud-group hidden"
                     style="pointer-events: none; padding: 5px 14px; font: 600 12px Outfit, sans-serif; text-align: center; white-space: nowrap; transition: border-color 0.15s, color 0.15s;">
@@ -2011,7 +2011,7 @@
                 </div>
 
                 <!-- Right Column: Utility, Radar, Options -->
-                <!-- margin-left:auto pins this column to the right edge on its own â€”
+                <!-- margin-left:auto pins this column to the right edge on its own —
                      without it, hiding the UI (game.toggleUI()) leaves this as the
                      only visible child of the parent's justify-content:space-between
                      row, and space-between with a single item left-aligns it instead
@@ -2023,19 +2023,19 @@
                     <!-- Hide-UI button and options -->
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <div id="hud-toolbar" class="hud-group" style="padding: 6px 8px;">
-                            <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">ðŸ“º
+                            <button class="utility-btn" onclick="game.toggleFullscreen();" title="Fullscreen">📺
                                 Fullscreen</button>
                             <button class="utility-btn icon-only" id="mute-btn-top" onclick="game.toggleMuteQuick();"
-                                title="Mute/Unmute" style="width: 32px; height: 32px;">ðŸ”Š</button>
+                                title="Mute/Unmute" style="width: 32px; height: 32px;">🔊</button>
                             <button class="utility-btn icon-only" id="hud-options-btn"
                                 onclick="toggleOptionsDropdown();" title="Options"
-                                style="width: 32px; height: 32px; font-size: 16px;">âš™ï¸</button>
+                                style="width: 32px; height: 32px; font-size: 16px;">⚙️</button>
                             <button class="utility-btn icon-only hidden" id="btn-destruct" onclick="game.selfDestruct();"
                                 title="Self Destruct"
-                                style="width: 32px; height: 32px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; border-radius: 6px; font-size: 14px;">â˜ ï¸</button>
+                                style="width: 32px; height: 32px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; border-radius: 6px; font-size: 14px;">☠️</button>
                         </div>
                         <button class="utility-btn" id="hide-ui-btn" onclick="game.toggleUI();" title="Hide UI"
-                            style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">ðŸ‘
+                            style="height: 32px; pointer-events: auto; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; backdrop-filter: blur(12px); padding: 4px 10px; font-size: 0.75rem;">👁
                             Hide UI</button>
                     </div>
 
@@ -2056,13 +2056,13 @@
                         <div id="options-dropdown" class="hud-group"
                             style="display: none; flex-direction: column; align-items: flex-start; background: rgba(15, 23, 42, 0.92); width: 175px; position: absolute; top: 0; right: 0; z-index: 20; backdrop-filter: blur(16px);">
                             <button class="utility-btn" onclick="game.goToMenu(); toggleOptionsDropdown();"
-                                style="width: 100%; justify-content: flex-start;">ðŸ  Exit Level</button>
+                                style="width: 100%; justify-content: flex-start;">🏠 Exit Level</button>
                             <button class="utility-btn" onclick="game.openSettings(); toggleOptionsDropdown();"
-                                style="width: 100%; justify-content: flex-start;">âš™ï¸ Settings</button>
+                                style="width: 100%; justify-content: flex-start;">⚙️ Settings</button>
                             <button class="utility-btn" onclick="game.toggleDevPanel(); toggleOptionsDropdown();"
-                                style="width: 100%; justify-content: flex-start; color:#a5b4fc;">ðŸ›  Dev Panel</button>
+                                style="width: 100%; justify-content: flex-start; color:#a5b4fc;">🛠 Dev Panel</button>
                             <a href="level-editor.html" class="utility-btn"
-                                style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">ðŸ“
+                                style="width: 100%; justify-content: flex-start; color:#34d399; text-decoration:none; box-sizing: border-box;">📝
                                 Editor</a>
                             <div id="ui-scale-container"
                                 style="width: 100%; padding: 4px 8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 4px;">
@@ -2094,10 +2094,10 @@
             <div id="hq-services-container" style="display: flex; gap: 12px; margin-top: 8px; pointer-events: auto;">
                 <button id="btn-hq-refuel" class="btn-primary"
                     style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;"
-                    onclick="game.refuelLander()">â›½ Refuel ($100)</button>
+                    onclick="game.refuelLander()">⛽ Refuel ($100)</button>
                 <button id="btn-hq-repair" class="btn-primary"
                     style="font-size: 0.9rem; padding: 8px 16px; background: #334155; border-color: #475569;"
-                    onclick="game.repairLander()">ðŸ”§ Repair</button>
+                    onclick="game.repairLander()">🔧 Repair</button>
             </div>
             <button id="center-extract-btn" class="btn-primary"
                 style="display: none; margin-top: 8px; pointer-events: auto; background: #10b981; border-color: #059669; font-size: 1.1rem; font-weight: bold; padding: 10px 24px; box-shadow: 0 0 20px rgba(16,185,129,0.7);"
@@ -2108,7 +2108,7 @@
     <!-- SCREEN OVERLAY: MENU SCREEN -->
     <div id="menu-screen" class="screen-overlay">
         <div class="screen-content">
-            <!-- Mobile-only fullscreen prompt â€” touch play needs the browser chrome
+            <!-- Mobile-only fullscreen prompt — touch play needs the browser chrome
                  out of the way and the small icon-only fullscreen button up in the
                  header row is easy to miss on a phone, so give it its own full-width
                  button right at the top of the menu (hidden on desktop). -->
@@ -2123,17 +2123,17 @@
             </button>
             <div style="text-align: center; margin-bottom: 18px;">
                 <h1>CargoLander</h1>
-                <p class="subtitle" style="margin-bottom: 0;">Supply Chain Physics Â· Transport cargo to color-coded
-                    Delivery Hubs Â· Don&apos;t drop the payload!</p>
+                <p class="subtitle" style="margin-bottom: 0;">Supply Chain Physics · Transport cargo to color-coded
+                    Delivery Hubs · Don&apos;t drop the payload!</p>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">&copy; Niklas Billgren</div>
             </div>
 
             <div class="menu-panes">
                 <!-- LEFT: Mission Selector -->
                 <div class="menu-left">
-                    <!-- Vehicle License â€” pick your loadout once here instead of per-mission -->
+                    <!-- Vehicle License — pick your loadout once here instead of per-mission -->
                     <div style="margin-bottom: 20px;">
-                        <div class="stat-cell-label" style="margin-bottom:6px;">ðŸš€ Vehicle License</div>
+                        <div class="stat-cell-label" style="margin-bottom:6px;">🚀 Vehicle License</div>
                         <div style="display:flex; gap:8px;">
                             <button id="vehicle-license-basic" class="btn-level"
                                 onclick="game.setSelectedVehicle('basic')"
@@ -2160,7 +2160,7 @@
                                 </button>
                                 <div id="drone-tutorial-pointer"
                                     style="display: none; position: absolute; top: -35px; left: 50%; transform: translateX(-50%); background: #10b981; color: #fff; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); pointer-events: none; white-space: nowrap; z-index: 10; animation: pulse 2s infinite;">
-                                    Try the Drone! â¬‡
+                                    Try the Drone! ⬇
                                 </div>
                             </div>
                         </div>
@@ -2168,30 +2168,30 @@
 
                     <h2
                         style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; letter-spacing: 0.12em;">
-                        ðŸ“¡ Select Mission</h2>
+                        📡 Select Mission</h2>
                     <div class="level-grid" id="mission-grid">
                         <!-- Dynamic missions will be injected here by game.js -->
                     </div>
 
                     <h2
                         style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin: 14px 0 10px; letter-spacing: 0.12em;">
-                        ðŸ§ª Endless &amp; Custom</h2>
+                        🧪 Endless &amp; Custom</h2>
                     <div class="level-grid" id="extra-modes-grid">
                         <button class="btn-level" onclick="game.openProceduralConfig()" style="border-color: #4ade80;">
-                            <span class="num" style="color: #4ade80;">â™¾ï¸ Mission â™¾ï¸ Â· Endless</span>
+                            <span class="num" style="color: #4ade80;">♾️ Mission ♾️ · Endless</span>
                             Procedural Mission
                             <span style="font-size:0.65rem; color:#4ade80; font-weight:600; margin-top:2px;">Choose your
                                 difficulty</span>
                         </button>
                         <button class="btn-level" onclick="window.location.href='level-editor.html'"
                             style="border-color: var(--neon-blue); background: rgba(56, 189, 248, 0.08);">
-                            <span class="num" style="color: var(--neon-blue);">ðŸ› ï¸ Level Editor</span>
+                            <span class="num" style="color: var(--neon-blue);">🛠️ Level Editor</span>
                             Open Editor
                             <span style="font-size:0.65rem; color:var(--neon-blue); font-weight:600; margin-top:2px;">Design custom layouts</span>
                         </button>
                         <button class="btn-level" onclick="document.getElementById('custom-level-input').click()"
                             style="border-color: #6366f1; background: rgba(99, 102, 241, 0.1);">
-                            <span class="num" style="color: #818cf8;">ðŸ“ Load Custom Level</span>
+                            <span class="num" style="color: #818cf8;">📁 Load Custom Level</span>
                             From .js file
                             <span style="font-size:0.65rem; color:#6366f1; font-weight:600; margin-top:2px;">Import
                                 created levels</span>
@@ -2202,7 +2202,7 @@
 
                     <div
                         style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; line-height: 1.4; text-align: left;">
-                        ðŸ’¡ <b>Custom Levels:</b> You can design your own custom layouts in the <a
+                        💡 <b>Custom Levels:</b> You can design your own custom layouts in the <a
                             href="level-editor.html"
                             style="color: var(--neon-blue); text-decoration: underline; font-weight: 600;">Level
                             Editor</a>. Simply download the level as a <code>.js</code> file, click "Load Custom Level"
@@ -2210,11 +2210,11 @@
                     </div>
 
                     <div style="margin-top: 1rem; text-align: center;">
-                        <button class="btn-primary" onclick="openTutorialModal()" style="width: 100%; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">ðŸ“– How to Play / Tutorial</button>
+                        <button class="btn-primary" onclick="openTutorialModal()" style="width: 100%; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">📖 How to Play / Tutorial</button>
                     </div>
 
                     <div class="control-help" style="margin-top: 1rem;">
-                        <div><span class="kbd-key">W</span> / <span class="kbd-key">â–²</span> <span>Thrusters</span>
+                        <div><span class="kbd-key">W</span> / <span class="kbd-key">▲</span> <span>Thrusters</span>
                         </div>
                         <div><span class="kbd-key">A</span> / <span class="kbd-key">D</span> <span>Rotate</span></div>
                         <div><span class="kbd-key">Space</span> <span>Drop Cargo</span></div>
@@ -2227,11 +2227,11 @@
                     <!-- Pilot License Card -->
                     <div class="pilot-card">
                         <div class="license-header">
-                            <div class="pilot-avatar" id="pilot-avatar" onclick="game.openPortraitSelector()" title="Click to change portrait">ðŸš€</div>
+                            <div class="pilot-avatar" id="pilot-avatar" onclick="game.openPortraitSelector()" title="Click to change portrait">🚀</div>
                             <div class="license-title-block">
-                                <div class="license-eyebrow">Pilot ID Â· GCA-7749</div>
+                                <div class="license-eyebrow">Pilot ID · GCA-7749</div>
                                 <input class="license-name-input" id="pilot-name-input" type="text" maxlength="22"
-                                    placeholder="Enter callsignâ€¦" oninput="game.updatePilotName(this.value)">
+                                    placeholder="Enter callsign…" oninput="game.updatePilotName(this.value)">
                                 <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-top: 4px;">
                                     <div class="license-badge" id="pilot-tier" style="padding: 2px 6px; font-size: 0.6rem;">LEARNER</div>
                                     <div class="license-rank" id="pilot-rank">Learner Permit</div>
@@ -2241,36 +2241,36 @@
 
                         <div class="stat-grid">
                             <div class="stat-cell">
-                                <div class="stat-cell-label">ðŸ’° Bank</div>
+                                <div class="stat-cell-label">💰 Bank</div>
                                 <div class="stat-cell-value green" id="lc-cash">$1,000</div>
                             </div>
                             <div class="stat-cell">
-                                <div class="stat-cell-label">ðŸ“¦ Deliveries</div>
+                                <div class="stat-cell-label">📦 Deliveries</div>
                                 <div class="stat-cell-value blue" id="lc-deliveries">0</div>
                             </div>
                             <div class="stat-cell">
-                                <div class="stat-cell-label">âœ… Missions</div>
+                                <div class="stat-cell-label">✅ Missions</div>
                                 <div class="stat-cell-value amber" id="lc-missions">0</div>
                             </div>
                             <div class="stat-cell">
-                                <div class="stat-cell-label">ðŸ’€ Crashes</div>
+                                <div class="stat-cell-label">💀 Crashes</div>
                                 <div class="stat-cell-value red" id="lc-crashes">0</div>
                             </div>
                         </div>
 
                         <!-- Upgrade bar -->
                         <div style="margin-top: 12px;">
-                            <div class="stat-cell-label" style="margin-bottom:6px;">ðŸ”§ Installed Upgrades</div>
+                            <div class="stat-cell-label" style="margin-bottom:6px;">🔧 Installed Upgrades</div>
                             <div id="lc-upgrades" style="display:flex; flex-wrap:wrap; gap:4px; min-height:24px; margin-bottom:12px;"></div>
                             <button id="rd-shop-btn" class="btn-career amber"
                                 style="padding: 12px; font-size: 16px; font-weight: bold; width: 100%; box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);"
-                                onclick="game.openUpgradeShop()">ðŸ”§ R&amp;D Shop</button>
+                                onclick="game.openUpgradeShop()">🔧 R&amp;D Shop</button>
                         </div>
                     </div>
 
                     <!-- Personal Bests -->
                     <div class="highscores-card">
-                        <div class="hs-title">ðŸ† Personal Best Payouts</div>
+                        <div class="hs-title">🏆 Personal Best Payouts</div>
                         <div id="hs-list"></div>
                     </div>
 
@@ -2278,7 +2278,7 @@
                     <div class="career-actions" style="flex-direction: column; gap: 8px;">
 
                         <button onclick="game.confirmResetCareer()"
-                            style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 14px; cursor: pointer; text-decoration: underline;">âš 
+                            style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 14px; cursor: pointer; text-decoration: underline;">⚠
                             Reset Career</button>
                     </div>
                 </div>
@@ -2327,7 +2327,7 @@
     <div id="procedural-config-screen" class="screen-overlay" style="display: none;">
         <div class="screen-content" style="max-width: 480px;">
             <h2 style="color: #4ade80; margin-bottom: 0.5rem;">Procedural Mission</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Pick a difficulty â€” higher settings mean
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Pick a difficulty — higher settings mean
                 longer terrain, more hazards, and tighter margins for fuel and cargo.</p>
 
             <div style="text-align: left; margin-bottom: 1.5rem;">
@@ -2345,7 +2345,7 @@
                 </div>
                 <p id="proc-difficulty-desc"
                     style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;">
-                    Standard length and hazard frequency â€” a good default run.</p>
+                    Standard length and hazard frequency — a good default run.</p>
             </div>
 
             <div style="display: flex; gap: 10px; justify-content: center;">
@@ -2387,7 +2387,7 @@
             </div>
 
             <div style="display:flex; gap:10px; margin-bottom: 10px;">
-                <button class="btn-primary" onclick="game.nextLevel()" style="flex:1; margin:0;">Next Mission âž”</button>
+                <button class="btn-primary" onclick="game.nextLevel()" style="flex:1; margin:0;">Next Mission ➔</button>
                 <button class="btn-secondary" onclick="game.restartLevel()" style="flex:1; margin:0;">Replay</button>
             </div>
             <div style="display:flex; gap:10px;">
@@ -2461,7 +2461,7 @@
                     <div>
                         <div style="font-weight: 600; color: var(--text-primary);">Visual Effects</div>
                         <div style="font-size: 0.72rem; color: var(--text-secondary);">Heat haze, water shimmer,
-                            gravity lensing â€” disable if the game feels slow</div>
+                            gravity lensing — disable if the game feels slow</div>
                     </div>
                     <input type="checkbox" id="setting-postfx" onchange="game.setPostFXEnabled(this.checked)"
                         style="width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin-left: 12px;">
@@ -2471,7 +2471,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <div style="font-weight: 600; color: var(--text-primary);">Touch Controls: Joystick</div>
-                        <div style="font-size: 0.72rem; color: var(--text-secondary);">Experimental â€” swaps the
+                        <div style="font-size: 0.72rem; color: var(--text-secondary);">Experimental — swaps the
                             left/thrust buttons for a virtual joystick on mobile</div>
                     </div>
                     <input type="checkbox" id="setting-joystick" onchange="game.setTouchJoystickEnabled(this.checked)"
@@ -2533,9 +2533,9 @@
     <div id="dev-panel"
         style="display:none;position:fixed;top:50px;right:10px;width:300px;background:rgba(5,10,20,0.95);border:1px solid rgba(99,102,241,0.4);border-radius:10px;padding:12px;z-index:9999;font-family:'Outfit',sans-serif;font-size:12px;color:#cbd5e1;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <span style="font-weight:700;font-size:13px;color:#a5b4fc;">ðŸ›  Dev Controls</span>
+            <span style="font-weight:700;font-size:13px;color:#a5b4fc;">🛠 Dev Controls</span>
             <button onclick="game.toggleDevPanel()"
-                style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">Ã—</button>
+                style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;">×</button>
         </div>
 
         <div style="color:#6366f1;font-size:10px;font-weight:600;letter-spacing:.08em;margin:0 0 6px;">LEVEL</div>
@@ -2628,8 +2628,8 @@
     <div id="tutorial-modal" class="screen-overlay" style="display: none; z-index: 10000;">
         <div class="screen-content" style="max-width: 640px; text-align: left;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-                <h2 style="color: #38bdf8; margin: 0;">ðŸš€ How to Play</h2>
-                <button class="btn-primary" onclick="closeTutorialModal()" style="margin: 0;">Got it â€” let's fly! ðŸš€</button>
+                <h2 style="color: #38bdf8; margin: 0;">🚀 How to Play</h2>
+                <button class="btn-primary" onclick="closeTutorialModal()" style="margin: 0;">Got it — let's fly! 🚀</button>
             </div>
 
             <div class="tut-scene">
@@ -2637,67 +2637,67 @@
             </div>
             <p class="tut-goal"><strong>Goal:</strong> Fly the cargo from the <strong
                     style="color:#6ee7b7;">Start Pad</strong> to the colored <strong
-                    style="color:#f472b6;">Delivery Hubs</strong> â€” and <strong>don't drop the payload!</strong></p>
+                    style="color:#f472b6;">Delivery Hubs</strong> — and <strong>don't drop the payload!</strong></p>
 
-            <h3 class="tut-h">ðŸŽ® Controls</h3>
+            <h3 class="tut-h">🎮 Controls</h3>
             <div class="tut-controls">
                 <div class="tut-control-row">
                     <span class="tut-keys"><span class="keycap">W</span><span class="or">or</span><span
-                            class="keycap">â–²</span></span>
-                    <span class="tut-control-arrow">âžœ</span>
-                    <span class="tut-control-what"><span class="ico">ðŸ”¥</span><span><strong>Main Thruster</strong> â€”
+                            class="keycap">▲</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">🔥</span><span><strong>Main Thruster</strong> —
                             fight gravity</span></span>
                 </div>
                 <div class="tut-control-row">
                     <span class="tut-keys"><span class="keycap">S</span><span class="or">or</span><span
-                            class="keycap">â–¼</span></span>
-                    <span class="tut-control-arrow">âžœ</span>
-                    <span class="tut-control-what"><span class="ico">â¬‡ï¸</span><span><strong>Fly Down</strong> â€”
+                            class="keycap">▼</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">⬇️</span><span><strong>Fly Down</strong> —
                             descend faster</span></span>
                 </div>
                 <div class="tut-control-row">
                     <span class="tut-keys"><span class="keycap">A</span><span class="keycap">D</span><span
-                            class="or">or</span><span class="keycap">â—€</span><span class="keycap">â–¶</span></span>
-                    <span class="tut-control-arrow">âžœ</span>
-                    <span class="tut-control-what"><span class="ico">â†”ï¸</span><span><strong>Strafe</strong> left /
+                            class="or">or</span><span class="keycap">◀</span><span class="keycap">▶</span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">↔️</span><span><strong>Strafe</strong> left /
                             right</span></span>
                 </div>
                 <div class="tut-control-row">
                     <span class="tut-keys"><span class="keycap" style="min-width:74px;">SPACE</span></span>
-                    <span class="tut-control-arrow">âžœ</span>
-                    <span class="tut-control-what"><span class="ico">ðŸ“¦</span><span><strong>Drop Cargo</strong> /
-                            ðŸª <strong>Toggle Winch</strong></span></span>
+                    <span class="tut-control-arrow">➜</span>
+                    <span class="tut-control-what"><span class="ico">📦</span><span><strong>Drop Cargo</strong> /
+                            🪝 <strong>Toggle Winch</strong></span></span>
                 </div>
             </div>
-            <div class="tut-touch-hint">ðŸ“± On touch screens use the on-screen buttons: â—€ â–¶ strafe Â· ðŸ”¥ thrust Â·
+            <div class="tut-touch-hint">📱 On touch screens use the on-screen buttons: ◀ ▶ strafe · 🔥 thrust ·
                 GRAB winch</div>
 
-            <h3 class="tut-h">ðŸ’° Economy</h3>
+            <h3 class="tut-h">💰 Economy</h3>
             <div class="tut-econ-flow">
-                <div class="tut-econ-step"><span class="ico">ðŸ”§</span><span class="lbl">Pay <strong>Maintenance
-                            Cost</strong> (fuel, upkeep) from the <strong>Bank</strong><span class="amt pay">âˆ’ $$</span></span>
+                <div class="tut-econ-step"><span class="ico">🔧</span><span class="lbl">Pay <strong>Maintenance
+                            Cost</strong> (fuel, upkeep) from the <strong>Bank</strong><span class="amt pay">− $$</span></span>
                 </div>
-                <span class="tut-econ-arrow">âžœ</span>
-                <div class="tut-econ-step"><span class="ico">ðŸ’¼</span><span class="lbl">Take out a <strong>Mission
-                            Deposit</strong> to spend in-level<span class="amt pay">âˆ’ $$$</span></span></div>
-                <span class="tut-econ-arrow">âžœ</span>
-                <div class="tut-econ-step"><span class="ico">ðŸ“¦</span><span class="lbl">Every crate
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">💼</span><span class="lbl">Take out a <strong>Mission
+                            Deposit</strong> to spend in-level<span class="amt pay">− $$$</span></span></div>
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">📦</span><span class="lbl">Every crate
                         delivered<span class="amt earn">+ $300</span></span></div>
-                <span class="tut-econ-arrow">âžœ</span>
-                <div class="tut-econ-step"><span class="ico">ðŸ</span><span class="lbl">Finish the mission in one
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">🏁</span><span class="lbl">Finish the mission in one
                         piece</span></div>
-                <span class="tut-econ-arrow">âžœ</span>
-                <div class="tut-econ-step"><span class="ico">ðŸ¦</span><span class="lbl">Leftover deposit goes back
+                <span class="tut-econ-arrow">➜</span>
+                <div class="tut-econ-step"><span class="ico">🏦</span><span class="lbl">Leftover deposit goes back
                         to the <strong>Bank</strong><span class="amt earn">+ bonuses</span></span></div>
             </div>
-            <div class="tut-econ-note"><span class="ico">âš ï¸</span><span>Refueling is paid out of your Mission
-                    Deposit. HQ hull repairs require the <strong>Field Repair Kit</strong> R&amp;D upgrade â€” a
+            <div class="tut-econ-note"><span class="ico">⚠️</span><span>Refueling is paid out of your Mission
+                    Deposit. HQ hull repairs require the <strong>Field Repair Kit</strong> R&amp;D upgrade — a
                     badly damaged lander costs more to fix, and each kit level only repairs up to 50/70/90% hull.
                     Abort a mission early and you keep
                     whatever's left in your deposit; but if you go bankrupt in-level or exit without extracting,
                     the <strong>entire deposit is lost</strong>.</span></div>
-            <div class="tut-warning"><span class="ico">ðŸ¦</span><span><strong>Beware:</strong> if your Bank
-                    drops below <strong>âˆ’$5,000</strong>, the bank repossesses your upgrades!</span></div>
+            <div class="tut-warning"><span class="ico">🏦</span><span><strong>Beware:</strong> if your Bank
+                    drops below <strong>−$5,000</strong>, the bank repossesses your upgrades!</span></div>
         </div>
     </div>
 
@@ -2737,7 +2737,7 @@
                         <div class="portrait-card-name">Rusty Henderson</div>
                         <div class="portrait-card-vibe">Diesel-Head</div>
                         <div class="portrait-card-bio">30 years hauling hypermatter across the Outer Rim. Believes computer autopilots are a government conspiracy and still uses analog fuzzy dice. Keeps a thermos of high-octane dark roast.</div>
-                        <div class="portrait-card-stat">âœ¨ +5% Max Fuel</div>
+                        <div class="portrait-card-stat">✨ +5% Max Fuel</div>
                     </div>
                 </div>
                 <div id="p-card-driver2" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver2.jpg', 'Gabby')">
@@ -2746,7 +2746,7 @@
                         <div class="portrait-card-name">Gear-Head Gabby</div>
                         <div class="portrait-card-vibe">Hyper-Tinkerer</div>
                         <div class="portrait-card-bio">Gabby can't sit still and drinks three energy drinks per sector. Re-wired her ship's thrusters to blast 15% hotter, even if it occasionally leaks plasma. "Safety is just a recommendation."</div>
-                        <div class="portrait-card-stat">âœ¨ +5% Thrust Power</div>
+                        <div class="portrait-card-stat">✨ +5% Thrust Power</div>
                     </div>
                 </div>
                 <div id="p-card-driver3" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver3.jpg', 'Mac')">
@@ -2754,8 +2754,8 @@
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Captain Mac Sterling</div>
                         <div class="portrait-card-vibe">Self-Certified Legend</div>
-                        <div class="portrait-card-bio">Claims he invented reverse thrust and has a tattoo to prove it. Hasn't taken the sunglasses off since 2189 â€” even his doctor has stopped asking. Rates every crash out of 10 and calls his own average "a very respectable 7".</div>
-                        <div class="portrait-card-stat">âœ¨ +5% Hull Integrity</div>
+                        <div class="portrait-card-bio">Claims he invented reverse thrust and has a tattoo to prove it. Hasn't taken the sunglasses off since 2189 — even his doctor has stopped asking. Rates every crash out of 10 and calls his own average "a very respectable 7".</div>
+                        <div class="portrait-card-stat">✨ +5% Hull Integrity</div>
                     </div>
                 </div>
                 <div id="p-card-driver4" class="portrait-card" onclick="game.selectPortrait('assets/portraits/driver4.jpg', 'Bo')">
@@ -2763,14 +2763,14 @@
                     <div class="portrait-card-info">
                         <div class="portrait-card-name">Bubblegum Bo</div>
                         <div class="portrait-card-vibe">Open-Mic Cowboy</div>
-                        <div class="portrait-card-bio">Narrates his own landings over open comms like a golf commentator. Holds the sector record for biggest bubble blown during re-entry â€” the bubble survived, his eyebrows didn't. Fixes everything with the same one wrench.</div>
-                        <div class="portrait-card-stat">âœ¨ +5% Top Speed</div>
+                        <div class="portrait-card-bio">Narrates his own landings over open comms like a golf commentator. Holds the sector record for biggest bubble blown during re-entry — the bubble survived, his eyebrows didn't. Fixes everything with the same one wrench.</div>
+                        <div class="portrait-card-stat">✨ +5% Top Speed</div>
                     </div>
                 </div>
             </div>
 
             <div style="text-align: right; margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <span id="portrait-modal-nudge-note" style="color: #f59e0b; font-size: 0.8rem; display: none;">âš ï¸ You can change your choice anytime by clicking your avatar.</span>
+                <span id="portrait-modal-nudge-note" style="color: #f59e0b; font-size: 0.8rem; display: none;">⚠️ You can change your choice anytime by clicking your avatar.</span>
                 <button class="btn-secondary" onclick="document.getElementById('portrait-select-modal').style.display='none'">Skip for now</button>
             </div>
         </div>
@@ -2779,48 +2779,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.17.15"></script>
-    <script src="levels/levels.js?v=0.17.15"></script>
-    <script src="levels/levelGenerator.js?v=0.17.15"></script>
+    <script src="game/upgrades.js?v=0.17.16"></script>
+    <script src="levels/levels.js?v=0.17.16"></script>
+    <script src="levels/levelGenerator.js?v=0.17.16"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.17.15"></script>
-    <script src="levels/level2.js?v=0.17.15"></script>
-    <script src="levels/level3.js?v=0.17.15"></script>
-    <script src="levels/level4.js?v=0.17.15"></script>
-    <script src="levels/level5.js?v=0.17.15"></script>
-    <script src="levels/level6.js?v=0.17.15"></script>
-    <script src="levels/level7.js?v=0.17.15"></script>
-    <script src="levels/level8.js?v=0.17.15"></script>
-    <script src="levels/level9.js?v=0.17.15"></script>
-    <script src="levels/level10.js?v=0.17.15"></script>
-    <script src="levels/levelTest.js?v=0.17.15"></script>
-    <script src="levels/collectibleTypes.js?v=0.17.15"></script>
+    <script src="levels/level1.js?v=0.17.16"></script>
+    <script src="levels/level2.js?v=0.17.16"></script>
+    <script src="levels/level3.js?v=0.17.16"></script>
+    <script src="levels/level4.js?v=0.17.16"></script>
+    <script src="levels/level5.js?v=0.17.16"></script>
+    <script src="levels/level6.js?v=0.17.16"></script>
+    <script src="levels/level7.js?v=0.17.16"></script>
+    <script src="levels/level8.js?v=0.17.16"></script>
+    <script src="levels/level9.js?v=0.17.16"></script>
+    <script src="levels/level10.js?v=0.17.16"></script>
+    <script src="levels/levelTest.js?v=0.17.16"></script>
+    <script src="levels/collectibleTypes.js?v=0.17.16"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.17.15"></script>
-    <script src="render/shaders.js?v=0.17.15"></script>
-    <script src="physics/physics.js?v=0.17.15"></script>
-    <script src="physics/collision.js?v=0.17.15"></script>
-    <script src="physics/mechanics.js?v=0.17.15"></script>
-    <script src="physics/entities.js?v=0.17.15"></script>
-    <script src="physics/atmosphere.js?v=0.17.15"></script>
-    <script src="game/game.js?v=0.17.15"></script>
-    <script src="game/input.js?v=0.17.15"></script>
-    <script src="game/menu.js?v=0.17.15"></script>
-    <script src="game/hud.js?v=0.17.15"></script>
-    <script src="game/cargo.js?v=0.17.15"></script>
-    <script src="render/render.js?v=0.17.15"></script>
-    <script src="render/background.js?v=0.17.15"></script>
-    <script src="render/terrain.js?v=0.17.15"></script>
-    <script src="render/entities.js?v=0.17.15"></script>
-    <script src="render/pads.js?v=0.17.15"></script>
-    <script src="render/lander.js?v=0.17.15"></script>
-    <script src="render/creatures.js?v=0.17.15"></script>
-    <script src="render/effects.js?v=0.17.15"></script>
-    <script src="render/night.js?v=0.17.15"></script>
-    <script src="render/ui.js?v=0.17.15"></script>
+    <script src="audio.js?v=0.17.16"></script>
+    <script src="render/shaders.js?v=0.17.16"></script>
+    <script src="physics/physics.js?v=0.17.16"></script>
+    <script src="physics/collision.js?v=0.17.16"></script>
+    <script src="physics/mechanics.js?v=0.17.16"></script>
+    <script src="physics/entities.js?v=0.17.16"></script>
+    <script src="physics/atmosphere.js?v=0.17.16"></script>
+    <script src="game/game.js?v=0.17.16"></script>
+    <script src="game/input.js?v=0.17.16"></script>
+    <script src="game/menu.js?v=0.17.16"></script>
+    <script src="game/hud.js?v=0.17.16"></script>
+    <script src="game/cargo.js?v=0.17.16"></script>
+    <script src="render/render.js?v=0.17.16"></script>
+    <script src="render/background.js?v=0.17.16"></script>
+    <script src="render/terrain.js?v=0.17.16"></script>
+    <script src="render/entities.js?v=0.17.16"></script>
+    <script src="render/pads.js?v=0.17.16"></script>
+    <script src="render/lander.js?v=0.17.16"></script>
+    <script src="render/creatures.js?v=0.17.16"></script>
+    <script src="render/effects.js?v=0.17.16"></script>
+    <script src="render/night.js?v=0.17.16"></script>
+    <script src="render/ui.js?v=0.17.16"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.17.15"></script>
+    <script src="game/tutorial.js?v=0.17.16"></script>
 
     <script>
         // Start the game!
@@ -2845,7 +2845,7 @@
                             
                             const backBtn = document.createElement('a');
                             backBtn.href = 'level-editor.html';
-                            backBtn.textContent = 'âž” Go back to editor';
+                            backBtn.textContent = '➔ Go back to editor';
                             backBtn.style.cssText = 'position:fixed; top:75%; left:50%; transform:translateX(-50%); z-index:10000; padding:12px 24px; font-weight:bold; font-size:16px; font-family:"Outfit",sans-serif; text-decoration:none; color:#ffffff; background:#10b981; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,0.6); border:1px solid #34d399; transition:transform 0.1s; cursor:pointer;';
                             backBtn.onmouseover = () => backBtn.style.transform = 'translateX(-50%) scale(1.05)';
                             backBtn.onmouseout = () => backBtn.style.transform = 'translateX(-50%)';
@@ -2858,7 +2858,7 @@
             }
         }
 
-        // â”€â”€ Live engine preview (embedded in level-editor.html) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Live engine preview (embedded in level-editor.html) ─────────────
         // With ?playtest=1&embed=1 this page runs inside the editor's "Live"
         // iframe as a pure scene viewer: the real engine renders the level 1:1
         // while the editor drives a free camera over postMessage and pushes
@@ -2867,7 +2867,7 @@
         // balance is left untouched.
         function embedStartLevel() {
             // startLevel() permanently deducts maintenance + deposit from the
-            // player's saved bank â€” a preview must not touch real savings.
+            // player's saved bank — a preview must not touch real savings.
             const savedCash = game.globalCash;
             game.startLevel(levels.length - 1);
             game.globalCash = savedCash;
@@ -2875,7 +2875,7 @@
         }
 
         function initEditorEmbed() {
-            // Silence audio without CargoAudio.setMuted() â€” that persists to
+            // Silence audio without CargoAudio.setMuted() — that persists to
             // localStorage and would flip the player's real mute setting.
             // Neutering init()/setupMusic() guarantees the AudioContext and
             // the music playlist can never spin up in the embed.
@@ -2896,7 +2896,7 @@
             game.drawNextObjectiveArrow = () => {};
             // The parked lander still counts as "landed at HQ", which makes
             // updateExtractionUI() pop the HQ Services DOM overlay with
-            // per-frame inline styles â€” a stylesheet !important outranks
+            // per-frame inline styles — a stylesheet !important outranks
             // those. Mobile controls and the rotate tip are gameplay-only.
             const embedCss = document.createElement('style');
             embedCss.textContent =
@@ -2906,7 +2906,7 @@
             const applyEmbedState = () => {
                 game.freeCam = true;
                 if (!game.uiCollapsed) game.toggleUI();
-                // toggleUI leaves its own "Show UI" pill visible â€” remove
+                // toggleUI leaves its own "Show UI" pill visible — remove
                 // that too; the embed has no interactive game UI at all.
                 const hideBtn = document.getElementById('hide-ui-btn');
                 if (hideBtn) hideBtn.style.display = 'none';

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CargoLander â€” Test Suite</title>
+<title>CargoLander — Test Suite</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -65,10 +65,10 @@
 </style>
 </head>
 <body>
-<h1>CargoLander â€” Test Suite</h1>
-<p class="subtitle">Self-contained browser test runner â€” no external dependencies</p>
+<h1>CargoLander — Test Suite</h1>
+<p class="subtitle">Self-contained browser test runner — no external dependencies</p>
 
-<div id="summary">Loading testsâ€¦</div>
+<div id="summary">Loading tests…</div>
 <div id="results"></div>
 
 <!-- Hidden canvas elements the game scripts may look for -->
@@ -76,7 +76,7 @@
 <canvas id="webglCanvas" width="1280" height="720"></canvas>
 
 <script>
-// â”€â”€â”€ 1. MINIMAL TEST FRAMEWORK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── 1. MINIMAL TEST FRAMEWORK ───────────────────────────────────────────────
 
 const _tests   = [];
 let _currentCategory = 'Uncategorised';
@@ -98,7 +98,7 @@ function assertEquals(a, b, msg) {
 function assertClose(a, b, tolerance, msg) {
   if (typeof tolerance !== 'number') tolerance = 1e-9;
   if (Math.abs(a - b) > tolerance) {
-    throw new Error((msg ? msg + ': ' : '') + `expected ${b} Â± ${tolerance}, got ${a}`);
+    throw new Error((msg ? msg + ': ' : '') + `expected ${b} ± ${tolerance}, got ${a}`);
   }
 }
 
@@ -106,7 +106,7 @@ function assertFinite(v, msg) {
   if (!isFinite(v)) throw new Error((msg || 'Value') + ` is not finite: ${v}`);
 }
 
-// â”€â”€â”€ 2. BROWSER MOCKS (must exist before loading scripts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── 2. BROWSER MOCKS (must exist before loading scripts) ────────────────────
 
 // --- localStorage mock ---
 const _lsStore = {};
@@ -275,7 +275,7 @@ window.innerHeight = window.innerHeight || 720;
 // Stub requestAnimationFrame so game.init() doesn't kick off a real loop
 const _realRAF = window.requestAnimationFrame;
 window.requestAnimationFrame = (cb) => {
-  // Do NOT call cb â€” just return a fake ID
+  // Do NOT call cb — just return a fake ID
   return 1;
 };
 
@@ -292,27 +292,27 @@ window.confirm = () => true;
   game.js's `new ShaderOverlay('webglCanvas')` never touches real WebGL APIs.
   CargoAudio will use our MockAudioContext.
   CargoGame constructor reads localStorage (our mock) and creates CargoPhysics.
-  'game' singleton is created but init() is NOT called here â€” tests call it explicitly.
+  'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.17.15"></script>
-<script src="game/upgrades.js?v=0.17.15"></script>
-<script src="levels/levels.js?v=0.17.15"></script>
-<script src="levels/levelGenerator.js?v=0.17.15"></script>
-<script src="levels/level1.js?v=0.17.15"></script>
-<script src="levels/level2.js?v=0.17.15"></script>
-<script src="levels/level3.js?v=0.17.15"></script>
-<script src="levels/level4.js?v=0.17.15"></script>
-<script src="levels/level5.js?v=0.17.15"></script>
-<script src="levels/level6.js?v=0.17.15"></script>
-<script src="levels/level7.js?v=0.17.15"></script>
-<script src="levels/level8.js?v=0.17.15"></script>
-<script src="levels/level9.js?v=0.17.15"></script>
-<script src="levels/level10.js?v=0.17.15"></script>
-<script src="levels/levelTest.js?v=0.17.15"></script>
-<script src="levels/collectibleTypes.js?v=0.17.15"></script>
-<script src="audio.js?v=0.17.15"></script>
-<script src="render/shaders.js?v=0.17.15"></script>
+<script src="levels/levelSchema.js?v=0.17.16"></script>
+<script src="game/upgrades.js?v=0.17.16"></script>
+<script src="levels/levels.js?v=0.17.16"></script>
+<script src="levels/levelGenerator.js?v=0.17.16"></script>
+<script src="levels/level1.js?v=0.17.16"></script>
+<script src="levels/level2.js?v=0.17.16"></script>
+<script src="levels/level3.js?v=0.17.16"></script>
+<script src="levels/level4.js?v=0.17.16"></script>
+<script src="levels/level5.js?v=0.17.16"></script>
+<script src="levels/level6.js?v=0.17.16"></script>
+<script src="levels/level7.js?v=0.17.16"></script>
+<script src="levels/level8.js?v=0.17.16"></script>
+<script src="levels/level9.js?v=0.17.16"></script>
+<script src="levels/level10.js?v=0.17.16"></script>
+<script src="levels/levelTest.js?v=0.17.16"></script>
+<script src="levels/collectibleTypes.js?v=0.17.16"></script>
+<script src="audio.js?v=0.17.16"></script>
+<script src="render/shaders.js?v=0.17.16"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -321,7 +321,7 @@ window.confirm = () => true;
 (function patchShaderOverlay() {
   const proto = ShaderOverlay.prototype;
 
-  // Guard initShaders and initBuffers â€” called from constructor
+  // Guard initShaders and initBuffers — called from constructor
   const _initShaders = proto.initShaders;
   proto.initShaders = function() {
     if (!this.gl) return; // skip if no WebGL context
@@ -334,14 +334,14 @@ window.confirm = () => true;
     return _initBuffers.call(this);
   };
 
-  // Guard resize â€” called after init()
+  // Guard resize — called after init()
   const _resize = proto.resize;
   proto.resize = function(w, h) {
     if (!this.gl) return;
     return _resize.call(this, w, h);
   };
 
-  // Guard render â€” called every frame
+  // Guard render — called every frame
   const _render = proto.render;
   proto.render = function(physics, camera) {
     if (!this.gl) return;
@@ -349,29 +349,29 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.17.15"></script>
-<script src="physics/collision.js?v=0.17.15"></script>
-<script src="physics/mechanics.js?v=0.17.15"></script>
-<script src="physics/entities.js?v=0.17.15"></script>
-<script src="physics/atmosphere.js?v=0.17.15"></script>
-<script src="game/game.js?v=0.17.15"></script>
-<script src="game/input.js?v=0.17.15"></script>
-<script src="game/menu.js?v=0.17.15"></script>
-<script src="game/hud.js?v=0.17.15"></script>
-<script src="game/cargo.js?v=0.17.15"></script>
-<script src="render/render.js?v=0.17.15"></script>
-<script src="render/background.js?v=0.17.15"></script>
-<script src="render/terrain.js?v=0.17.15"></script>
-<script src="render/entities.js?v=0.17.15"></script>
-<script src="render/pads.js?v=0.17.15"></script>
-<script src="render/lander.js?v=0.17.15"></script>
-<script src="render/creatures.js?v=0.17.15"></script>
-<script src="render/effects.js?v=0.17.15"></script>
-<script src="render/night.js?v=0.17.15"></script>
-<script src="render/ui.js?v=0.17.15"></script>
+<script src="physics/physics.js?v=0.17.16"></script>
+<script src="physics/collision.js?v=0.17.16"></script>
+<script src="physics/mechanics.js?v=0.17.16"></script>
+<script src="physics/entities.js?v=0.17.16"></script>
+<script src="physics/atmosphere.js?v=0.17.16"></script>
+<script src="game/game.js?v=0.17.16"></script>
+<script src="game/input.js?v=0.17.16"></script>
+<script src="game/menu.js?v=0.17.16"></script>
+<script src="game/hud.js?v=0.17.16"></script>
+<script src="game/cargo.js?v=0.17.16"></script>
+<script src="render/render.js?v=0.17.16"></script>
+<script src="render/background.js?v=0.17.16"></script>
+<script src="render/terrain.js?v=0.17.16"></script>
+<script src="render/entities.js?v=0.17.16"></script>
+<script src="render/pads.js?v=0.17.16"></script>
+<script src="render/lander.js?v=0.17.16"></script>
+<script src="render/creatures.js?v=0.17.16"></script>
+<script src="render/effects.js?v=0.17.16"></script>
+<script src="render/night.js?v=0.17.16"></script>
+<script src="render/ui.js?v=0.17.16"></script>
 
 <script>
-// â”€â”€â”€ 3. HELPER: build a minimal input-state object for physics.update() â”€â”€â”€â”€â”€â”€
+// ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
 function makeInput(overrides) {
   return Object.assign({
     up: false, down: false, left: false, right: false,
@@ -394,7 +394,7 @@ function getLevel0() {
   };
 }
 
-// â”€â”€â”€ 4. BEHAVIORAL SMOKE TESTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── 4. BEHAVIORAL SMOKE TESTS ───────────────────────────────────────────────
 category('Behavioral Smoke Tests');
 
 let testGame;
@@ -472,7 +472,7 @@ test('Level Restart & State Cleanup', () => {
   testGame.update(16);
 });
 
-test('Big Cargo â€” deck single-load capacity', () => {
+test('Big Cargo — deck single-load capacity', () => {
   // Big/oversized crates (spawnCargo(..., {big: true})) should claim the
   // entire basic-lander deck: once one is attached, no other box (big or
   // normal) can also attach until it's removed. Level 1 uses the basic
@@ -542,17 +542,17 @@ test('Delivery Rewards (Lander vs Drone)', () => {
   assertEquals(game.missionBudget, 1700, 'Drone delivery reward should be added to budget');
 });
 
-// â”€â”€â”€ 4b. LEVEL CONFIG VALIDATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Cheap shape checks over every registered level â€” catches broken level files
+// ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────
+// Cheap shape checks over every registered level — catches broken level files
 // (typo'd fields, malformed polygons, undeliverable cargo) without running the
 // game. Optional fields are only validated when present.
 //
 // The scalar/object-shaped fields (mission params, palette, outOfBounds,
-// gravityWell) are checked generically against LEVEL_SCHEMA (levelSchema.js â€”
+// gravityWell) are checked generically against LEVEL_SCHEMA (levelSchema.js —
 // shared with level-editor.html) instead of a hand-written assertion per
 // field, so a new schema field is automatically covered here too. Geometry
 // (terrainPolygons/waterBodies/hazards/deliveryHubs/quests) stays hand-checked
-// below â€” it's out of the schema's scope, see levelSchema.js's header comment.
+// below — it's out of the schema's scope, see levelSchema.js's header comment.
 category('Level Config Validation');
 
 // Checks a single schema field's value against its declared type/constraints.
@@ -607,15 +607,15 @@ function schemaCheckSection(obj, sectionFields, labelPrefix) {
 levels.forEach((lv, i) => {
   const label = `L${i + 1} "${lv.name}"`;
 
-  test(`${label} â€” mission parameters`, () => {
+  test(`${label} — mission parameters`, () => {
     // startX/startY/collectionX/collectionY/startDepotWidth/collectionWidth
-    // are part of LEVEL_SCHEMA.fields too â€” schemaCheckSection covers them
+    // are part of LEVEL_SCHEMA.fields too — schemaCheckSection covers them
     // generically like everything else here (none are required, so they're
     // simply skipped on levels that omit them).
     schemaCheckSection(lv, LEVEL_SCHEMA.fields, '');
   });
 
-  test(`${label} â€” delivery hubs`, () => {
+  test(`${label} — delivery hubs`, () => {
     // Most levels declare deliveryHubs statically, but a few (e.g. L9) build
     // their hubs at runtime via setupPhysics() -> physics.createDeliveryHub().
     // Skip the static-shape checks for those; there's nothing to validate here
@@ -631,56 +631,56 @@ levels.forEach((lv, i) => {
       if (hub.width !== undefined) assert(isFinite(hub.width) && hub.width > 0, `hub '${hub.name}' width must be positive`);
     }
     // At least one allowed cargo type must be deliverable somewhere, or the
-    // mission is unwinnable. (Not EVERY type â€” undeliverable decoy cargo is a
+    // mission is unwinnable. (Not EVERY type — undeliverable decoy cargo is a
     // legitimate design, e.g. L6's red boxes.)
     const hasChute = lv.deliveryHubs.some(h => h.type === 'chute');
     const deliverable = lv.allowedTypes.some(t => hasChute || lv.deliveryHubs.some(h => h.type === t));
-    assert(deliverable, 'no allowed cargo type can be delivered to any hub â€” mission is unwinnable');
+    assert(deliverable, 'no allowed cargo type can be delivered to any hub — mission is unwinnable');
   });
 
-  test(`${label} â€” palette`, () => {
+  test(`${label} — palette`, () => {
     assert(lv.palette && typeof lv.palette === 'object', 'palette is required');
     schemaCheckSection(lv.palette, LEVEL_SCHEMA.palette.fields, 'palette.');
   });
 
-  test(`${label} â€” out of bounds`, () => {
+  test(`${label} — out of bounds`, () => {
     // L9 uses the bare boolean `true` shorthand ("thick lateral fog, no zone
-    // mechanics") instead of the full object â€” nothing further to check.
+    // mechanics") instead of the full object — nothing further to check.
     if (lv.outOfBounds === undefined || typeof lv.outOfBounds === 'boolean') return;
     assert(typeof lv.outOfBounds === 'object', 'outOfBounds must be an object or boolean');
     schemaCheckSection(lv.outOfBounds, LEVEL_SCHEMA.outOfBounds.fields, 'outOfBounds.');
   });
 
-  test(`${label} â€” world bounds`, () => {
+  test(`${label} — world bounds`, () => {
     if (lv.worldBounds === undefined) return;
     assert(typeof lv.worldBounds === 'object', 'worldBounds must be an object');
     schemaCheckSection(lv.worldBounds, LEVEL_SCHEMA.worldBounds.fields, 'worldBounds.');
-    // monsterDepth was folded into worldBounds.bottomY â€” a level regressing to
+    // monsterDepth was folded into worldBounds.bottomY — a level regressing to
     // the old field would silently lose its worm boundary.
     if (lv.outOfBounds && typeof lv.outOfBounds === 'object') {
-      assert(lv.outOfBounds.monsterDepth === undefined, 'outOfBounds.monsterDepth is retired â€” use worldBounds.bottomY');
+      assert(lv.outOfBounds.monsterDepth === undefined, 'outOfBounds.monsterDepth is retired — use worldBounds.bottomY');
     }
   });
 
-  test(`${label} â€” gravity well`, () => {
+  test(`${label} — gravity well`, () => {
     if (lv.gravityWell === undefined) return;
     assert(typeof lv.gravityWell === 'object', 'gravityWell must be an object');
     schemaCheckSection(lv.gravityWell, LEVEL_SCHEMA.gravityWell.fields, 'gravityWell.');
   });
 
-  test(`${label} â€” radar ping zone`, () => {
+  test(`${label} — radar ping zone`, () => {
     if (lv.radarPingZone === undefined) return;
     assert(typeof lv.radarPingZone === 'object', 'radarPingZone must be an object');
     schemaCheckSection(lv.radarPingZone, LEVEL_SCHEMA.radarPingZone.fields, 'radarPingZone.');
   });
 
-  test(`${label} â€” wind gust cycle`, () => {
+  test(`${label} — wind gust cycle`, () => {
     if (lv.windGust === undefined) return;
     assert(typeof lv.windGust === 'object', 'windGust must be an object');
     schemaCheckSection(lv.windGust, LEVEL_SCHEMA.windGust.fields, 'windGust.');
   });
 
-  test(`${label} â€” terrain geometry`, () => {
+  test(`${label} — terrain geometry`, () => {
     // Levels use either hand-authored polygons or a named procedural terrainType
     assert(Array.isArray(lv.terrainPolygons) || typeof lv.terrainType === 'string',
       'level needs terrainPolygons or a terrainType');
@@ -700,7 +700,7 @@ levels.forEach((lv, i) => {
     }
   });
 
-  test(`${label} â€” hazards`, () => {
+  test(`${label} — hazards`, () => {
     for (const [hi, h] of (lv.hazards || []).entries()) {
       if (h.type === 'laser') {
         assert(Array.isArray(h.pts) && h.pts.length === 2, `laser hazard ${hi} needs exactly 2 pts (a line segment)`);
@@ -723,7 +723,7 @@ levels.forEach((lv, i) => {
     }
   });
 
-  test(`${label} â€” quests`, () => {
+  test(`${label} — quests`, () => {
     assert(Array.isArray(lv.quests) && lv.quests.length > 0, 'quests must be a non-empty array');
     const ids = new Set();
     for (const q of lv.quests) {
@@ -738,7 +738,7 @@ levels.forEach((lv, i) => {
   });
 });
 
-// â”€â”€â”€ 4c. UPGRADE CATALOG VALIDATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── 4c. UPGRADE CATALOG VALIDATION ──────────────────────────────────────────
 category('Upgrade Catalog Validation');
 
 test('Upgrade catalog shape', () => {
@@ -755,7 +755,7 @@ test('Upgrade catalog shape', () => {
   }
 });
 
-// â”€â”€â”€ 5. RUN TESTS AND RENDER RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── 5. RUN TESTS AND RENDER RESULTS ─────────────────────────────────────────
 (function runTests() {
   let passed = 0, failed = 0, skipped = 0;
   const byCategory = {};
@@ -766,12 +766,12 @@ test('Upgrade catalog shape', () => {
     try {
       t.fn();
       passed++;
-      console.log(`  âœ… ${t.name}`);
+      console.log(`  ✅ ${t.name}`);
     } catch (e) {
       status = 'fail';
       error = e.stack || e.message || String(e);
       failed++;
-      console.error(`  âŒ ${t.name}\n     ${error}`);
+      console.error(`  ❌ ${t.name}\n     ${error}`);
     }
     byCategory[t.category].push({ name: t.name, status, error });
   }
@@ -779,7 +779,7 @@ test('Upgrade catalog shape', () => {
   // Build summary
   const summaryEl = document.getElementById('summary');
   summaryEl.innerHTML =
-    `Tests complete â€” ` +
+    `Tests complete — ` +
     `<span class="pass">${passed} passed</span> / ` +
     `<span class="fail">${failed} failed</span>` +
     (skipped ? ` / <span class="skip">${skipped} skipped</span>` : '') +
