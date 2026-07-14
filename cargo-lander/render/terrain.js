@@ -362,8 +362,9 @@ drawWaterBodies() {
                     ctx.lineWidth = 1;
                     ctx.strokeRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height);
 
-                    // Box sinking bubbles
-                    if (box.vy > 0.5 && Math.random() < 0.3) {
+                    // Box sinking bubbles (spawned per rendered frame — scale the
+                    // rate by renderDt so 120Hz doesn't double the bubble stream)
+                    if (box.vy > 0.5 && Math.random() < 0.3 * (this.renderDt || 1)) {
                         this.physics.particles.push({
                             x: box.x + (Math.random() - 0.5) * box.width,
                             y: box.y - box.height / 2,

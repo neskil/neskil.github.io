@@ -105,14 +105,8 @@ draw() {
         }
 
         // --- Menu Specific Background Rendering ---
-        if (this.floatingTexts) {
-            for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-                const ft = this.floatingTexts[i];
-                ft.life -= 16.6 * 0.001; 
-                ft.y -= 16.6 * 0.05; 
-                if (ft.life <= 0) this.floatingTexts.splice(i, 1);
-            }
-        }
+        // (floating reward/penalty texts advance in updateFloatingTexts() at the
+        // fixed 60Hz step; here they are only drawn)
         if (this.gameState === 'menu') {
             this.drawMenuBackgroundEntity();
             return; // Don't draw the level geometry
