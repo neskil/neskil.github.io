@@ -152,16 +152,21 @@ registerLevel({
         {x: 4100, y: 2300},
         {x: -2500, y: 2400}
     ],
-    // Polygon 2
+    // Polygon 2 — HQ landing platform. Vertex order matters here: the flat
+    // top edge (y:1040, matching startY) must run left-to-right so
+    // getPolygonSurfaceY()'s upward-facing-floor scan (physics/collision.js)
+    // picks it up. It used to run right-to-left (excluded as a "ceiling"),
+    // so the lander could physically rest on the platform but never
+    // registered as landed at HQ.
     [
         {x: 250, y: 1040},
-        {x: 230, y: 1090},
-        {x: 260, y: 1150},
-        {x: 350, y: 1130},
-        {x: 420, y: 1140},
-        {x: 430, y: 1070},
+        {x: 320, y: 1040},
         {x: 410, y: 1040},
-        {x: 320, y: 1040}
+        {x: 430, y: 1070},
+        {x: 420, y: 1140},
+        {x: 350, y: 1130},
+        {x: 260, y: 1150},
+        {x: 230, y: 1090}
     ],
     // Polygon 3
     [
