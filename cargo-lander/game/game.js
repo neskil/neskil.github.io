@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.18.1';
+    static VERSION = '0.18.2';
 
     constructor() {
         this.canvas = null;
@@ -75,6 +75,10 @@ class CargoGame {
         // the lander than below. Smaller on touch devices so the lander sits
         // closer to true screen-center instead of low in the frame.
         this.cameraVOffset = this.isTouchDevice ? 50 : 120;
+        // Touch devices default to a more zoomed-out camera (more level
+        // visible at once, since there's no mouse to scroll/pan by and touch
+        // controls already eat screen space) — manual slider always wins once saved.
+        this.zoomModifier = parseFloat(localStorage.getItem('cargo_lander_zoom_modifier')) || (this.isTouchDevice ? 0.8 : 1.0);
 
         // Settings
         this.isMuted = false; // Always start unmuted

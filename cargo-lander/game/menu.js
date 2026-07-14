@@ -341,6 +341,11 @@ Object.assign(CargoGame.prototype, {
         const joystickCb = document.getElementById('setting-joystick');
         if (joystickCb) joystickCb.checked = this.touchJoystickEnabled;
 
+        const zoomSlider = document.getElementById('setting-zoom');
+        if (zoomSlider) zoomSlider.value = this.zoomModifier;
+        const zoomLabel = document.getElementById('zoom-value-label');
+        if (zoomLabel) zoomLabel.textContent = this.zoomModifier.toFixed(1) + 'x';
+
         const mv = Math.round(CargoAudio.musicVolume * 100);
         const sv = Math.round(CargoAudio.sfxVolume * 100);
         const musicSlider = document.getElementById('setting-music-vol');
@@ -365,6 +370,7 @@ Object.assign(CargoGame.prototype, {
 
     setZoomModifier(value) {
         this.zoomModifier = value;
+        localStorage.setItem('cargo_lander_zoom_modifier', value);
         const label = document.getElementById('zoom-value-label');
         if (label) label.textContent = value.toFixed(1) + 'x';
     },
