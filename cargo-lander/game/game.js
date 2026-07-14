@@ -158,6 +158,9 @@ class CargoGame {
         const muteBtn = document.getElementById('mute-toggle-btn');
         if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
 
+        const menuVersion = document.getElementById('menu-version');
+        if (menuVersion) menuVersion.textContent = `v${CargoGame.VERSION}`;
+
         // Set correct visibility synchronously so there's no flash of touch
         // controls before the first RAF tick (was relying solely on a CSS
         // media-query default that ignored gameState/isTouchDevice).
