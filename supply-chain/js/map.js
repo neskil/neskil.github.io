@@ -8,8 +8,10 @@ SC.map = (function() {
     let nodeSeq = 0;
     function makeNode(kind, x, y, opts) {
         opts = opts || {};
+        const id = opts.id !== undefined ? opts.id : nodeSeq;
+        nodeSeq = Math.max(nodeSeq, id + 1);
         const n = {
-            id: nodeSeq++,
+            id,
             kind,                       // 'supplier' | 'factory' | 'city'
             x, y,
             mat: opts.mat || null,      // supplier material key

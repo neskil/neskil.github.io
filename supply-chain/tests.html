@@ -15,15 +15,16 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.0.0"></script>
-    <script src="js/state.js?v=1.0.0"></script>
-    <script src="js/sfx.js?v=1.0.0"></script>
-    <script src="js/map.js?v=1.0.0"></script>
-    <script src="js/camera.js?v=1.0.0"></script>
-    <script src="js/roads.js?v=1.0.0"></script>
-    <script src="js/factories.js?v=1.0.0"></script>
-    <script src="js/economy.js?v=1.0.0"></script>
-    <script src="js/vehicles.js?v=1.0.0"></script>
+    <script src="js/config.js?v=1.1.0"></script>
+    <script src="js/state.js?v=1.1.0"></script>
+    <script src="js/save.js?v=1.1.0"></script>
+    <script src="js/sfx.js?v=1.1.0"></script>
+    <script src="js/map.js?v=1.1.0"></script>
+    <script src="js/camera.js?v=1.1.0"></script>
+    <script src="js/roads.js?v=1.1.0"></script>
+    <script src="js/factories.js?v=1.1.0"></script>
+    <script src="js/economy.js?v=1.1.0"></script>
+    <script src="js/vehicles.js?v=1.1.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -212,6 +213,87 @@
         const n1 = SC.map.unlockNext();
         assert('unlockNext activates a site', n1 && n1.active);
         assert('starter products craftable', SC.economy.craftableProducts().includes('purple'));
+    })();
+
+    // ── Save / restore round-trip ───────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 3000;
+        SC.state.delivered = 7;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.vehicles.addTruck(F);
+        F.inv.red = 2; // loose stock must survive
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+
+        const data = SC.save.serialize();
+        SC.save.restore(data);
+        const st = SC.state;
+        assert('restore keeps scalars', st.money === moneyBefore && st.delivered === 7);
+        assert('restore rebuilds nodes and edges', st.nodes.length === 4 && st.edges.length === 3);
+        assert('restore keeps adjacency routable', (function() {
+            const s1 = st.nodes.find(n => n.mat === 'red');
+            const c = st.nodes.find(n => n.kind === 'city');
+            return !!SC.roads.findPath(s1, c);
+        })());
+        assert('restore keeps trucks at their node', st.trucks.length === 1 &&
+            st.trucks[0].node.kind === 'factory');
+        assert('restore re-plans open orders', st.orders.length === 1 &&
+            st.orders[0].planned && st.orders[0].qty === order.qty);
+        assert('factory inventory survives (loose + claimed)', (function() {
+            // 2 loose red saved; the re-planned task re-claims what it needs
+            const f = st.nodes.find(n => n.kind === 'factory');
+            const claimed = f.queue.reduce((s, t) => s + (t.have.red || 0), 0);
+            return (f.inv.red || 0) + claimed === 2;
+        })());
+        assert('new ids continue after restored ones', (function() {
+            const maxId = Math.max(...st.nodes.map(n => n.id));
+            return SC.map.makeNode('city', 50, 50, { active: true }).id === maxId + 1;
+        })());
+    })();
+
+    // ── Save: partial delivery + in-transit recovery ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        order.qty = 2;
+        SC.economy.planOrder(order);
+        order.deliveredUnits = 1;
+        // A truck mid-haul with a raw destined for F must fold into F's inv
+        const truck = SC.vehicles.addTruck(S1);
+        truck.cargo = 'red';
+        truck.job = { type: 'raw', item: 'red', pickup: S1, drop: F, order, task: F.queue[0] };
+
+        const data = SC.save.serialize();
+        SC.save.restore(data);
+        const st = SC.state;
+        const f = st.nodes.find(n => n.kind === 'factory');
+        assert('re-plan only covers undelivered units', f.queue.length === 1);
+        assert('in-transit raw recovered into factory stock', (function() {
+            const claimed = f.queue.reduce((s, t) => s + (t.have.red || 0), 0);
+            return (f.inv.red || 0) + claimed >= 1;
+        })());
+        assert('restored order keeps delivered progress',
+            st.orders[0].deliveredUnits === 1 && st.orders[0].qty === 2);
+    })();
+
+    // ── Save: store/load/clear via localStorage ─────
+    (function() {
+        fixture();
+        SC.save.store();
+        assert('store persists to localStorage', SC.save.exists());
+        assert('load restores a stored game', SC.save.load() && SC.state.nodes.length === 4);
+        SC.save.clear();
+        assert('clear removes the save', !SC.save.exists());
+        localStorage.setItem(SC.save.KEY, '{broken json');
+        assert('corrupt save is rejected and cleared', !SC.save.load() && !SC.save.exists());
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
