@@ -122,6 +122,13 @@
         }
 
         .card {
+            --accent-rgb: 99, 102, 241;
+            --rx: 0deg;
+            --ry: 0deg;
+            --ty: 0px;
+            --mx: 50%;
+            --my: 50%;
+            --mag: 0;
             background: var(--card-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -132,7 +139,9 @@
             flex-direction: column;
             justify-content: space-between;
             align-items: flex-start;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), background 0.4s ease, border-color 0.4s ease,
+                box-shadow 0.4s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
@@ -141,30 +150,28 @@
             overflow: hidden;
         }
 
+        /* Glare that tracks the pointer/tilt, tinted per card category (see accent-rgb rules below). */
         .card::before {
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
+            border-radius: inherit;
+            background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
+            opacity: calc(0.05 + var(--mag) * 0.3);
+            transition: opacity 0.35s ease;
+            pointer-events: none;
         }
 
         .card:hover {
-            transform: translateY(-10px);
             background: var(--card-hover-bg);
             border-color: rgba(255, 255, 255, 0.2);
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
-        .card:hover::before {
-            opacity: 1;
-        }
-
         .card-icon {
             font-size: 2.5rem;
             margin-bottom: 1.5rem;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(var(--accent-rgb), 0.14);
             width: 60px;
             height: 60px;
             display: flex;
@@ -217,23 +224,33 @@
             transform: translateX(4px);
         }
 
-        /* ── Holo shine (CargoLander card) ── */
-        #card-cargo-lander {
-            --rx: 0deg;
-            --ry: 0deg;
-            --ty: 0px;
-            --mx: 50%;
-            --my: 50%;
-            --op: 0;
-            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
-            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-            will-change: transform;
+        /* ── Card categories: shared accent per group (icon tint + glare color; math/supply-chain also tint the link) ── */
+        #card-converter,
+        #card-math,
+        #card-math-game {
+            --accent-rgb: 245, 158, 11;
         }
 
-        #card-cargo-lander:hover {
-            transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
+        #card-converter .card-link,
+        #card-math .card-link,
+        #card-math-game .card-link {
+            color: rgb(245, 158, 11);
         }
 
+        #card-supply-chain {
+            --accent-rgb: 45, 212, 191;
+        }
+
+        #card-supply-chain .card-link {
+            color: rgb(45, 212, 191);
+        }
+
+        /* CV keeps the default accent color but a noticeably quieter glare — "dry" on purpose. */
+        #card-cv::before {
+            opacity: calc(0.03 + var(--mag) * 0.12);
+        }
+
+        /* ── Holo shine (CargoLander card) — layers on top of the standard glare above ── */
         #card-cargo-lander::after {
             content: '';
             position: absolute;
@@ -241,18 +258,18 @@
             z-index: 5;
             border-radius: inherit;
             background:
-                radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 32%),
+                radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
                 repeating-linear-gradient(115deg,
-                    rgba(255, 0, 150, 0.22) 0%,
-                    rgba(255, 231, 0, 0.22) 14%,
-                    rgba(0, 255, 163, 0.22) 28%,
-                    rgba(0, 199, 255, 0.22) 42%,
-                    rgba(184, 0, 255, 0.22) 56%,
-                    rgba(255, 0, 150, 0.22) 70%);
-            background-size: 220% 220%, 260% 260%;
-            background-position: var(--mx) var(--my), calc(var(--mx) * 1.4) calc(var(--my) * 1.4);
+                    rgba(255, 0, 150, 0.32) 0%,
+                    rgba(255, 231, 0, 0.32) 12%,
+                    rgba(0, 255, 163, 0.32) 24%,
+                    rgba(0, 199, 255, 0.32) 36%,
+                    rgba(184, 0, 255, 0.32) 48%,
+                    rgba(255, 0, 150, 0.32) 60%);
+            background-size: 200% 200%, 420% 420%;
+            background-position: var(--mx) var(--my), var(--mx) var(--my);
             mix-blend-mode: overlay;
-            opacity: var(--op);
+            opacity: calc(0.18 + var(--mag) * 0.55);
             transition: opacity 0.4s ease;
             pointer-events: none;
         }
@@ -1027,64 +1044,86 @@
             }
         }
 
-        /* ── Holo shine: tilts + shimmers with mouse (desktop) or tilt (mobile) ── */
+        /* ── Card tilt + glare: every card gets a gentle 3D tilt that follows the mouse or a
+           finger drag; CargoLander gets a bigger tilt plus the rainbow holo layer on top,
+           and can also be driven by the device's accelerometer/gyro on mobile. ── */
         (function () {
-            const holoCard = document.getElementById('card-cargo-lander');
-            if (!holoCard) return;
-
-            const MAX_TILT = 10; // deg, kept modest so it reads as a shine, not a wobble
-            const BASE_OP = 0.1; // faint sheen at rest
-            const PEAK_OP = 0.55; // sheen strength at full tilt
-
             function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
-            // Opacity follows how far off-center the tilt is, not a flat on/off switch —
-            // subtle when idle, builds up as you actually tilt toward an edge.
-            function opacityFromTilt(rx, ry) {
-                const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * MAX_TILT), 0, 1);
-                return BASE_OP + mag * (PEAK_OP - BASE_OP);
+            function attachTilt(card, { maxTilt = 7, lift = -6 } = {}) {
+                function setVars(rx, ry, ty, mx, my, mag) {
+                    card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+                    card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+                    card.style.setProperty('--ty', ty + 'px');
+                    card.style.setProperty('--mx', mx.toFixed(1) + '%');
+                    card.style.setProperty('--my', my.toFixed(1) + '%');
+                    card.style.setProperty('--mag', mag.toFixed(2));
+                }
+
+                // Magnitude (0..1) drives glare opacity — subtle near center, builds up toward the edges.
+                function fromPoint(clientX, clientY) {
+                    const rect = card.getBoundingClientRect();
+                    const px = clamp((clientX - rect.left) / rect.width, 0, 1);
+                    const py = clamp((clientY - rect.top) / rect.height, 0, 1);
+                    const rx = clamp((0.5 - py) * maxTilt * 2, -maxTilt, maxTilt);
+                    const ry = clamp((px - 0.5) * maxTilt * 2, -maxTilt, maxTilt);
+                    const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
+                    // Keep the glare a few % inside the border so it never sits right on the rounded-corner seam.
+                    setVars(rx, ry, lift, 5 + px * 90, 5 + py * 90, mag);
+                }
+
+                function reset() {
+                    card.style.transition = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
+                    setVars(0, 0, 0, 50, 50, 0);
+                }
+
+                card.addEventListener('mouseenter', () => {
+                    card.style.transition = 'transform 0.15s ease-out';
+                });
+                card.addEventListener('mousemove', (e) => fromPoint(e.clientX, e.clientY));
+                card.addEventListener('mouseleave', reset);
+
+                card.addEventListener('touchstart', (e) => {
+                    card.style.transition = 'transform 0.15s ease-out';
+                    if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
+                }, { passive: true });
+                card.addEventListener('touchmove', (e) => {
+                    if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
+                }, { passive: true });
+                card.addEventListener('touchend', reset);
+                card.addEventListener('touchcancel', reset);
+
+                return { setVars };
             }
 
-            function setVars(rx, ry, ty, mx, my, op) {
-                holoCard.style.setProperty('--rx', rx.toFixed(2) + 'deg');
-                holoCard.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-                holoCard.style.setProperty('--ty', ty + 'px');
-                holoCard.style.setProperty('--mx', mx.toFixed(1) + '%');
-                holoCard.style.setProperty('--my', my.toFixed(1) + '%');
-                holoCard.style.setProperty('--op', op.toFixed(2));
-            }
-
-            holoCard.addEventListener('mouseenter', () => {
-                holoCard.style.transition = 'transform 0.15s ease-out';
+            const tiltApis = new Map();
+            document.querySelectorAll('.card').forEach((card) => {
+                const isHolo = card.id === 'card-cargo-lander';
+                const isDry = card.id === 'card-cv';
+                tiltApis.set(card, attachTilt(card, {
+                    maxTilt: isHolo ? 12 : (isDry ? 5 : 7),
+                    lift: isHolo ? -10 : (isDry ? -4 : -6)
+                }));
             });
 
-            holoCard.addEventListener('mousemove', (e) => {
-                const rect = holoCard.getBoundingClientRect();
-                const px = (e.clientX - rect.left) / rect.width;
-                const py = (e.clientY - rect.top) / rect.height;
-                const rx = clamp((0.5 - py) * MAX_TILT * 2, -MAX_TILT, MAX_TILT);
-                const ry = clamp((px - 0.5) * MAX_TILT * 2, -MAX_TILT, MAX_TILT);
-                setVars(rx, ry, -6, px * 100, py * 100, opacityFromTilt(rx, ry));
-            });
-
-            holoCard.addEventListener('mouseleave', () => {
-                holoCard.style.transition = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
-                setVars(0, 0, 0, 50, 50, 0);
-            });
-
-            // Mobile: tilt the card with the device's accelerometer/gyro instead.
+            // Mobile: CargoLander also tilts with the device's accelerometer/gyro, on top of touch.
+            const holoCard = document.getElementById('card-cargo-lander');
             const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
-            if (isTouch && window.DeviceOrientationEvent) {
+            if (holoCard && isTouch && window.DeviceOrientationEvent) {
+                const MAX_TILT = 12;
+                const holoApi = tiltApis.get(holoCard);
+
                 function onOrientation(e) {
                     if (e.beta === null || e.gamma === null) return;
                     const beta = clamp(e.beta - 45, -45, 45); // ~45deg = normal phone-in-hand angle
                     const gamma = clamp(e.gamma, -45, 45);
-                    const rx = clamp(beta * -0.22, -MAX_TILT, MAX_TILT);
-                    const ry = clamp(gamma * 0.22, -MAX_TILT, MAX_TILT);
-                    const mx = clamp(50 + gamma * 1.1, 0, 100);
-                    const my = clamp(50 + beta * 1.1, 0, 100);
+                    const rx = clamp(beta * -0.26, -MAX_TILT, MAX_TILT);
+                    const ry = clamp(gamma * 0.26, -MAX_TILT, MAX_TILT);
+                    const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * MAX_TILT), 0, 1);
+                    const mx = clamp(50 + gamma * 1.1, 5, 95);
+                    const my = clamp(50 + beta * 1.1, 5, 95);
                     holoCard.style.transition = 'transform 0.15s linear';
-                    setVars(rx, ry, -3, mx, my, opacityFromTilt(rx, ry));
+                    holoApi.setVars(rx, ry, -6, mx, my, mag);
                 }
 
                 function enableOrientation() {
