@@ -9,8 +9,12 @@ class CargoAudioController {
         this.warningOsc = null;
         this.isWarningPlaying = false;
         
+        // Muted by default for a first-time visitor (no saved preference yet) —
+        // autoplaying music/thrusters on a page a stranger just opened is more
+        // likely to startle than delight. Once the player makes an explicit
+        // choice (mute toggle or Settings checkbox), that choice always wins.
         const savedMute = localStorage.getItem('cargoLanderMuted');
-        this.muted = savedMute ? savedMute === 'true' : false;
+        this.muted = savedMute ? savedMute === 'true' : true;
 
         // Settings & Music
         this.musicVolume = 0.5;
