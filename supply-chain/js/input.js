@@ -40,16 +40,19 @@ SC.input = (function() {
         return null;
     }
 
-    // Manual site placement (research-unlocked): every tap while active
-    // tries to place there; success or an unaffordable attempt exits the
-    // mode, an out-of-bounds/too-close spot lets the player retry.
+    // Manual site placement: every tap while active tries to place there;
+    // success or an unaffordable attempt exits the mode, an out-of-bounds/
+    // too-close spot lets the player retry. Suppliers/factories need the
+    // 'manualPlacement' research; truck yards don't (a base mechanic).
     function handlePlacementTap(sx, sy) {
         const st = SC.state;
         const w = SC.camera.toWorld(sx, sy);
         const res = SC.placement.place(st.placeMode.kind, st.placeMode.good, w.x, w.y);
         if (res.ok) {
             SC.sfx.play('build');
-            SC.emit('toast', { text: `${SC.nameOf(st.placeMode.good)} ${st.placeMode.kind} placed for $${SC.placement.price(st.placeMode.kind)}`, kind: 'good' });
+            const what = st.placeMode.kind === 'yard' ? 'Truck yard' : `${SC.nameOf(st.placeMode.good)} ${st.placeMode.kind}`;
+            SC.emit('toast', { text: `${what} placed for $${SC.placement.price(st.placeMode.kind)}`, kind: 'good' });
+            if (st.placeMode.kind === 'yard') st.activeYard = res.node; // new yard becomes the default for future truck buys
             st.placeMode = null;
         } else if (res.reason === 'invalid') {
             SC.sfx.play('error');

@@ -15,19 +15,19 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.9.1"></script>
-    <script src="js/state.js?v=1.9.1"></script>
-    <script src="js/save.js?v=1.9.1"></script>
-    <script src="js/sfx.js?v=1.9.1"></script>
-    <script src="js/map.js?v=1.9.1"></script>
-    <script src="js/camera.js?v=1.9.1"></script>
-    <script src="js/roads.js?v=1.9.1"></script>
-    <script src="js/factories.js?v=1.9.1"></script>
-    <script src="js/economy.js?v=1.9.1"></script>
-    <script src="js/vehicles.js?v=1.9.1"></script>
-    <script src="js/inspect.js?v=1.9.1"></script>
-    <script src="js/research.js?v=1.9.1"></script>
-    <script src="js/placement.js?v=1.9.1"></script>
+    <script src="js/config.js?v=1.9.2"></script>
+    <script src="js/state.js?v=1.9.2"></script>
+    <script src="js/save.js?v=1.9.2"></script>
+    <script src="js/sfx.js?v=1.9.2"></script>
+    <script src="js/map.js?v=1.9.2"></script>
+    <script src="js/camera.js?v=1.9.2"></script>
+    <script src="js/roads.js?v=1.9.2"></script>
+    <script src="js/factories.js?v=1.9.2"></script>
+    <script src="js/economy.js?v=1.9.2"></script>
+    <script src="js/vehicles.js?v=1.9.2"></script>
+    <script src="js/inspect.js?v=1.9.2"></script>
+    <script src="js/research.js?v=1.9.2"></script>
+    <script src="js/placement.js?v=1.9.2"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -146,7 +146,12 @@
         assert('order fully delivered', SC.state.delivered === 1 && SC.state.orders.length === 0);
         assert('payout received', SC.state.money === before + order.payout);
         assert('factory queue drained', F.queue.length === 0 && !F.crafting);
-        assert('trucks idle again', SC.state.trucks.every(t => !t.jobs.length && !t.path && !t.cargo.length));
+        // A truck may still be travelling back to its home yard right after
+        // its last delivery — give that a little time to finish before
+        // checking full idleness (no job, no path, no cargo, parked home).
+        for (let i = 0; i < 500; i++) SC.vehicles.tick(0.1);
+        assert('trucks idle and parked at their home yard', SC.state.trucks.every(t =>
+            !t.jobs.length && !t.path && !t.cargo.length && t.node === t.homeYard));
     })();
 
     // ── Expiry cancels work ─────────────────────────
@@ -264,6 +269,108 @@
             SC.state.delivered === 1 && SC.state.money === before + order.payout);
         assert('no leftover jobs or cargo after the run', SC.state.jobs.length === 0 &&
             SC.state.trucks.every(t => !t.jobs.length && t.cargo.length === 0));
+    })();
+
+    // ── Truck yards: pricing, HQ as default, isYard ─────
+    (function() {
+        fixture();
+        assert('HQ counts as a yard even without a yard node',
+            SC.isYard(SC.state.nodes.find(n => n.isHQ)));
+        assert('a plain city is not a yard', !SC.isYard(SC.state.nodes.find(n => n.kind === 'city' && !n.isHQ) || { kind: 'city' }));
+        assert('yard price grows with yards bought', (function() {
+            const p0 = SC.yardPrice();
+            SC.state.yardsBought = 2;
+            return SC.yardPrice() > p0;
+        })());
+    })();
+
+    // ── Truck yards: placement (not research-gated), activeYard, buyTruck ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.state.activeYard = C; // HQ
+
+        assert('yard placement works without any research done',
+            !SC.research.isDone('manualPlacement'));
+        const before = SC.state.money;
+        const price = SC.yardPrice();
+        const res = SC.placement.place('yard', null, 900, 900);
+        assert('yard placed on open land and charged the growing price',
+            res.ok && res.node.kind === 'yard' && SC.state.money === before - price);
+        assert('yardsBought incremented', SC.state.yardsBought === 1);
+        assert('a second yard now costs more', SC.yardPrice() > price);
+        assert('new yard is itself a yard', SC.isYard(res.node));
+
+        SC.state.activeYard = res.node;
+        const truckBefore = SC.state.trucks.length;
+        const tRes = SC.vehicles.buyTruck();
+        assert('bought truck stations at the active yard',
+            tRes.ok && tRes.truck.homeYard === res.node && tRes.truck.node === res.node);
+        assert('trucks list grew by one', SC.state.trucks.length === truckBefore + 1);
+
+        SC.state.activeYard = null;
+        const tRes2 = SC.vehicles.buyTruck();
+        assert('a null/invalid active yard falls back to HQ',
+            tRes2.ok && tRes2.truck.homeYard.isHQ);
+    })();
+
+    // ── Truck yards: idle trucks return home, dispatch favors home region ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
+        const hq = SC.map.makeNode('city', 0, 0, { active: true, isHQ: true });
+        const yard = SC.map.makeNode('yard', 1000, 0, { active: true });
+        const supplierNearYard = SC.map.makeNode('supplier', 1000, 200, { active: true, mat: 'wheat' });
+        const factory = SC.map.makeNode('factory', 1000, 400, { active: true, recipe: 'bread' });
+        SC.state.money = 100000;
+        SC.roads.build(hq, yard);
+        SC.roads.build(yard, supplierNearYard);
+        SC.roads.build(supplierNearYard, factory);
+
+        // A truck idling at HQ (far from the job) vs one already at the
+        // yard (right next to it) — dispatch should favor the nearer one.
+        const farTruck = SC.vehicles.addTruck(hq, hq);
+        const nearTruck = SC.vehicles.addTruck(yard, yard);
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: supplierNearYard, drop: factory, order: null, task: null });
+        SC.vehicles.dispatch();
+        assert('dispatch picks the truck already near its yard over the far one',
+            nearTruck.jobs.length === 1 && farTruck.jobs.length === 0);
+
+        // An idle truck away from its yard heads back when there's no work.
+        const wanderer = SC.vehicles.addTruck(factory, yard); // parked far from home
+        SC.vehicles.dispatch();
+        assert('idle truck with no work heads toward its home yard',
+            wanderer.phase === 'returning' && !!wanderer.path);
+        for (let i = 0; i < 200 && wanderer.path; i++) SC.vehicles.tick(0.1);
+        assert('truck eventually arrives at its home yard',
+            !wanderer.path && wanderer.node === yard);
+
+        // Already-home trucks don't get sent anywhere.
+        const settled = SC.vehicles.addTruck(hq, hq);
+        SC.vehicles.dispatch();
+        assert('a truck already at its home yard stays put', !settled.path && settled.phase === null);
+    })();
+
+    // ── Save keeps yards, activeYard, and per-truck homeYard ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        const yard = SC.placement.place('yard', null, 900, 900).node;
+        SC.roads.build(C, yard);
+        SC.state.activeYard = yard;
+        const truck = SC.vehicles.addTruck(yard, yard);
+
+        const data = SC.save.serialize();
+        SC.save.restore(data);
+        const st = SC.state;
+        assert('yardsBought survives restore', st.yardsBought === 1);
+        const restoredYard = st.nodes.find(n => n.kind === 'yard');
+        assert('yard node restored', !!restoredYard);
+        assert('activeYard restored to the yard node', st.activeYard === restoredYard);
+        const restoredTruck = st.trucks.find(t => t.homeYard === restoredYard);
+        assert('truck homeYard restored to the yard node', !!restoredTruck);
     })();
 
     // ── Camera math ─────────────────────────────────
