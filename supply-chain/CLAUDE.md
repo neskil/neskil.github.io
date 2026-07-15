@@ -1,8 +1,12 @@
 # Claude Code — Project Context (supply-chain)
 
-**Supply Chain Tycoon**: a Mini-Metro-ish logistics game. Cities place
-orders, factories combine two raw materials into a product, the player
-builds roads and buys trucks/factories/upgrades; dispatch is automatic.
+**Supply Chain Tycoon**: a Mini-Metro-ish logistics game. HQ (⭐) is the
+only order-placing location at the start; more customer DCs (🏢) unlock
+over time on their own clock (`nextCustomerIn`, independent of the
+supplier/factory milestone track — see `SC.map.unlockNext(filterFn)`).
+Factories combine two raw materials/intermediates into a product
+(emoji-first identity, e.g. 🌾+💧→🍞, 🪨+⚫→🔩→+💾→🚗), the player builds
+roads and buys trucks/factories/upgrades; dispatch is automatic.
 
 Doc map: **[README.md](README.md)** = architecture, module roles, game
 rules, and the TODO backlog. This folder is fully self-contained — it
@@ -42,5 +46,8 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   Screenshot it with `--window-size=1280,800 --virtual-time-budget=6000
   --screenshot=out.png` and Read the PNG: expect roads, trucks, order
   bubbles, and money ≠ starting value. `?nohelp=1` skips the help overlay
-  without running the probe.
+  without running the probe. Add `&dc=1` to force `nextCustomerIn` down to
+  3s so a second (customer DC) city appears within a short probe window —
+  otherwise the default 50-70s first-spawn delay means most probes only
+  ever show HQ.
 - **Mobile layout**: same screenshot with `--window-size=390,844`.

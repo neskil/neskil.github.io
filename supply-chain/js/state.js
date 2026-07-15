@@ -23,6 +23,8 @@ SC.newState = function() {
         orders: [],         // see economy.js
         nextOrderIn: 8,
         orderSeq: 0,
+        nextCustomerIn: SC.CONFIG.CUSTOMER_SPAWN_FIRST[0] +
+            Math.random() * (SC.CONFIG.CUSTOMER_SPAWN_FIRST[1] - SC.CONFIG.CUSTOMER_SPAWN_FIRST[0]),
 
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
