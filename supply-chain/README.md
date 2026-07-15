@@ -12,9 +12,14 @@ that ambient animation as its background — it now lives independently at
 
 ## Game rules
 
-- **Materials & recipes**: three raw materials (red/blue/yellow ore, from
-  supplier hexagons). A factory (square) turns two raws into one product:
-  red+blue → purple, yellow+blue → green, red+yellow → orange.
+- **Goods & recipes** (emoji-first, colors are accents): suppliers
+  (hexagons) provide raw goods; each factory (square) is dedicated to one
+  recipe. 🌾wheat+💧water→🍞bread (bakery), 🧶wool+🛞rubber→👟sneakers
+  (sneaker factory), and the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
+  🔩steel+💾chips→🚗cars (car factory). Steel is an intermediate — cities
+  only order `orderable` goods; the planner recursively schedules smelter
+  runs and inter-factory hauls for deeper chains. The goods tree lives in
+  `js/config.js` (`SC.GOODS`) — adding a good/recipe is one entry there.
 - **Orders**: cities (circles) place timed orders (product × qty, payout).
   The planner picks the cheapest operational factory that can reach both
   ingredient suppliers and the ordering city over the road network; if

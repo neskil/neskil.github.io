@@ -14,7 +14,8 @@ SC.map = (function() {
             id,
             kind,                       // 'supplier' | 'factory' | 'city'
             x, y,
-            mat: opts.mat || null,      // supplier material key
+            mat: opts.mat || null,      // supplier raw-good key
+            recipe: opts.recipe || null,// factory output good key
             active: !!opts.active,      // visible & usable
             forSale: !!opts.forSale,    // inactive factory site, buyable
             isHQ: !!opts.isHQ,
@@ -116,27 +117,31 @@ SC.map = (function() {
         }
         const hq = makeNode('city', hx, hy, { active: true, isHQ: true });
 
+        // Bread chain to start: bakery + wheat & water suppliers near HQ
         const fSpot = spotNear(hx, hy, 300, md) || randomLandSpot(md);
-        const factory = makeNode('factory', fSpot.x, fSpot.y, { active: true });
+        const factory = makeNode('factory', fSpot.x, fSpot.y, { active: true, recipe: 'bread' });
         const s1 = spotNear(factory.x, factory.y, 320, md) || randomLandSpot(md);
-        makeNode('supplier', s1.x, s1.y, { active: true, mat: 'red' });
+        makeNode('supplier', s1.x, s1.y, { active: true, mat: 'wheat' });
         const s2 = spotNear(factory.x, factory.y, 320, md) || randomLandSpot(md);
-        makeNode('supplier', s2.x, s2.y, { active: true, mat: 'blue' });
+        makeNode('supplier', s2.x, s2.y, { active: true, mat: 'water' });
 
         // Locked pool, activated by delivery milestones. Order matters:
-        // yellow supplier early so all three products become craftable.
+        // the sneaker chain arrives first, then the two-tier car chain
+        // (ore + coal -> smelter -> steel; steel + chips -> car factory).
         const pool = [
-            ['supplier', { mat: 'yellow' }],
+            ['supplier', { mat: 'wool' }],
+            ['supplier', { mat: 'rubber' }],
+            ['factory', { forSale: true, recipe: 'shoes' }],
             ['city', {}],
-            ['factory', { forSale: true }],
-            ['supplier', { mat: 'red' }],
+            ['supplier', { mat: 'ore' }],
+            ['supplier', { mat: 'coal' }],
+            ['factory', { forSale: true, recipe: 'steel' }],
+            ['supplier', { mat: 'chips' }],
+            ['factory', { forSale: true, recipe: 'car' }],
             ['city', {}],
-            ['supplier', { mat: 'blue' }],
-            ['factory', { forSale: true }],
-            ['city', {}],
-            ['supplier', { mat: 'yellow' }],
-            ['city', {}],
-            ['factory', { forSale: true }],
+            ['supplier', { mat: 'wheat' }],
+            ['factory', { forSale: true, recipe: 'bread' }],
+            ['supplier', { mat: 'water' }],
             ['city', {}]
         ];
         for (const [kind, opts] of pool) {

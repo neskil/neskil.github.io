@@ -151,6 +151,14 @@ SC.render = (function() {
         ctx.fillText(text, wx, wy);
     }
 
+    // Emoji drawn in world units so it zooms with the map
+    function emoji(ch, wx, wy, size) {
+        ctx.font = `${size}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ch, wx, wy + size * 0.06);
+    }
+
     function hexPath(x, y, r) {
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -187,11 +195,12 @@ SC.render = (function() {
 
             ctx.lineWidth = 2;
             if (n.kind === 'supplier') {
-                hexPath(n.x, n.y, R);
-                ctx.fillStyle = SC.MATERIALS[n.mat].color + '55';
+                hexPath(n.x, n.y, R + 2);
+                ctx.fillStyle = SC.colorOf(n.mat) + '33';
                 ctx.fill();
-                ctx.strokeStyle = SC.MATERIALS[n.mat].color;
+                ctx.strokeStyle = SC.colorOf(n.mat);
                 ctx.stroke();
+                emoji(SC.emojiOf(n.mat), n.x, n.y, 17);
             } else if (n.kind === 'factory') {
                 ctx.beginPath();
                 ctx.rect(n.x - R, n.y - R, R * 2, R * 2);
@@ -202,18 +211,22 @@ SC.render = (function() {
                     ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
                     ctx.stroke();
                     ctx.setLineDash([]);
+                    ctx.globalAlpha = 0.45;
+                    emoji(SC.emojiOf(n.recipe), n.x, n.y, 17);
+                    ctx.globalAlpha = 1;
                     label(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, n.x, n.y - R - 14, '#94a3b8', 11);
                 } else {
-                    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.22)';
                     ctx.fill();
                     ctx.strokeStyle = 'rgba(226, 232, 240, 0.9)';
                     ctx.stroke();
+                    emoji(SC.emojiOf(n.recipe), n.x, n.y, 17);
                     // Crafting progress ring
                     if (n.crafting) {
                         const frac = Math.min(1, n.crafting.t / SC.craftTime());
                         ctx.beginPath();
                         ctx.arc(n.x, n.y, R + 6, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-                        ctx.strokeStyle = SC.PRODUCTS[n.crafting.task.product].color;
+                        ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
                         ctx.lineWidth = 3;
                         ctx.stroke();
                     }
@@ -242,9 +255,9 @@ SC.render = (function() {
         const z = SC.camera.cam.zoom;
         for (const [city, orders] of byCity) {
             orders.forEach((o, i) => {
-                const bx = city.x + (i - (orders.length - 1) / 2) * (34 / Math.max(z, 0.6));
+                const bx = city.x + (i - (orders.length - 1) / 2) * (36 / Math.max(z, 0.6));
                 const by = city.y - 38;
-                const r = 13;
+                const r = 14;
                 const frac = Math.max(0, o.deadline / o.deadlineTotal);
                 const urgent = frac < 0.25;
 
@@ -259,15 +272,12 @@ SC.render = (function() {
                 // Deadline arc
                 ctx.beginPath();
                 ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-                ctx.strokeStyle = urgent ? '#f87171' : SC.PRODUCTS[o.product].color;
+                ctx.strokeStyle = urgent ? '#f87171' : SC.colorOf(o.product);
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Product dot + remaining qty
-                ctx.beginPath();
-                ctx.arc(bx, by, 5.5, 0, Math.PI * 2);
-                ctx.fillStyle = SC.PRODUCTS[o.product].color;
-                ctx.fill();
+                // Ordered product + remaining qty
+                emoji(SC.emojiOf(o.product), bx, by, 15);
                 const left = o.qty - o.deliveredUnits;
                 if (left > 1) label(String(left), bx + r + 2, by - r + 2, '#f8fafc', 10);
                 if (o.noRoute) label('no route!', bx, by - r - 12, '#f87171', 10);
@@ -338,6 +348,10 @@ SC.render = (function() {
             ctx.fillRect(-3, -4, 7, 8);
             ctx.fillRect(-12, -4, 7, 8);
             ctx.restore();
+            if (t.cargo) {
+                ctx.shadowBlur = 0;
+                emoji(SC.emojiOf(t.cargo), t.x, t.y - 13, 13);
+            }
         }
     }
 

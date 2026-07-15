@@ -15,16 +15,16 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.1.0"></script>
-    <script src="js/state.js?v=1.1.0"></script>
-    <script src="js/save.js?v=1.1.0"></script>
-    <script src="js/sfx.js?v=1.1.0"></script>
-    <script src="js/map.js?v=1.1.0"></script>
-    <script src="js/camera.js?v=1.1.0"></script>
-    <script src="js/roads.js?v=1.1.0"></script>
-    <script src="js/factories.js?v=1.1.0"></script>
-    <script src="js/economy.js?v=1.1.0"></script>
-    <script src="js/vehicles.js?v=1.1.0"></script>
+    <script src="js/config.js?v=1.2.0"></script>
+    <script src="js/state.js?v=1.2.0"></script>
+    <script src="js/save.js?v=1.2.0"></script>
+    <script src="js/sfx.js?v=1.2.0"></script>
+    <script src="js/map.js?v=1.2.0"></script>
+    <script src="js/camera.js?v=1.2.0"></script>
+    <script src="js/roads.js?v=1.2.0"></script>
+    <script src="js/factories.js?v=1.2.0"></script>
+    <script src="js/economy.js?v=1.2.0"></script>
+    <script src="js/vehicles.js?v=1.2.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -43,9 +43,9 @@
         SC.map._resetSeq();
         SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
                            halfWidths: [40, 40] };
-        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'red' });
-        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'blue' });
-        const F  = SC.map.makeNode('factory',  400, 200, { active: true });
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
         const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
         return { S1, S2, F, C };
     }
@@ -106,7 +106,7 @@
         SC.roads.build(S2, F);
         SC.roads.build(F, C);
         const order = SC.economy.spawnOrder();
-        assert('spawned order is craftable purple x1', order && order.product === 'purple' && order.qty === 1);
+        assert('spawned order is craftable bread x1', order && order.product === 'bread' && order.qty === 1);
         assert('planning succeeds with full route', SC.economy.planOrder(order) && order.factory === F);
         assert('one craft task queued', F.queue.length === 1);
         assert('two raw haul jobs created', SC.state.jobs.length === 2 &&
@@ -116,9 +116,9 @@
         SC.newState(); SC.map._resetSeq();
         SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }], halfWidths: [40, 40] };
         const A = SC.map.makeNode('city', 700, 200, { active: true });
-        SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'red' });
-        SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'blue' });
-        SC.map.makeNode('factory', 400, 200, { active: true });
+        SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        SC.map.makeNode('factory', 400, 200, { active: true, recipe: 'bread' });
         const o2 = SC.economy.spawnOrder();
         assert('no-route order flagged', !SC.economy.planOrder(o2) && o2.noRoute);
     })();
@@ -202,17 +202,17 @@
         SC.map._resetSeq();
         SC.map.generateWorld();
         const active = SC.state.nodes.filter(n => n.active);
-        assert('starter cluster: HQ, factory, red+blue suppliers', (function() {
+        assert('starter cluster: HQ, bakery, wheat+water suppliers', (function() {
             return active.some(n => n.isHQ) &&
-                   active.some(n => n.kind === 'factory' && !n.forSale) &&
-                   active.some(n => n.mat === 'red') &&
-                   active.some(n => n.mat === 'blue');
+                   active.some(n => n.kind === 'factory' && !n.forSale && n.recipe === 'bread') &&
+                   active.some(n => n.mat === 'wheat') &&
+                   active.some(n => n.mat === 'water');
         })());
         assert('no node spawned in the river', SC.state.nodes.every(n => !SC.map.isInRiver(n.x, n.y)));
         assert('locked pool exists for milestones', SC.state.nodes.some(n => !n.active));
         const n1 = SC.map.unlockNext();
         assert('unlockNext activates a site', n1 && n1.active);
-        assert('starter products craftable', SC.economy.craftableProducts().includes('purple'));
+        assert('starter products craftable', SC.economy.craftableProducts().includes('bread'));
     })();
 
     // ── Save / restore round-trip ───────────────────
@@ -224,7 +224,7 @@
         SC.roads.build(S2, F);
         SC.roads.build(F, C);
         SC.vehicles.addTruck(F);
-        F.inv.red = 2; // loose stock must survive
+        F.inv.wheat = 2; // loose stock must survive
         const order = SC.economy.spawnOrder();
         SC.economy.planOrder(order);
         const moneyBefore = SC.state.money;
@@ -235,7 +235,7 @@
         assert('restore keeps scalars', st.money === moneyBefore && st.delivered === 7);
         assert('restore rebuilds nodes and edges', st.nodes.length === 4 && st.edges.length === 3);
         assert('restore keeps adjacency routable', (function() {
-            const s1 = st.nodes.find(n => n.mat === 'red');
+            const s1 = st.nodes.find(n => n.mat === 'wheat');
             const c = st.nodes.find(n => n.kind === 'city');
             return !!SC.roads.findPath(s1, c);
         })());
@@ -246,8 +246,8 @@
         assert('factory inventory survives (loose + claimed)', (function() {
             // 2 loose red saved; the re-planned task re-claims what it needs
             const f = st.nodes.find(n => n.kind === 'factory');
-            const claimed = f.queue.reduce((s, t) => s + (t.have.red || 0), 0);
-            return (f.inv.red || 0) + claimed === 2;
+            const claimed = f.queue.reduce((s, t) => s + (t.have.wheat || 0), 0);
+            return (f.inv.wheat || 0) + claimed === 2;
         })());
         assert('new ids continue after restored ones', (function() {
             const maxId = Math.max(...st.nodes.map(n => n.id));
@@ -268,8 +268,8 @@
         order.deliveredUnits = 1;
         // A truck mid-haul with a raw destined for F must fold into F's inv
         const truck = SC.vehicles.addTruck(S1);
-        truck.cargo = 'red';
-        truck.job = { type: 'raw', item: 'red', pickup: S1, drop: F, order, task: F.queue[0] };
+        truck.cargo = 'wheat';
+        truck.job = { type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: F.queue[0] };
 
         const data = SC.save.serialize();
         SC.save.restore(data);
@@ -277,8 +277,8 @@
         const f = st.nodes.find(n => n.kind === 'factory');
         assert('re-plan only covers undelivered units', f.queue.length === 1);
         assert('in-transit raw recovered into factory stock', (function() {
-            const claimed = f.queue.reduce((s, t) => s + (t.have.red || 0), 0);
-            return (f.inv.red || 0) + claimed >= 1;
+            const claimed = f.queue.reduce((s, t) => s + (t.have.wheat || 0), 0);
+            return (f.inv.wheat || 0) + claimed >= 1;
         })());
         assert('restored order keeps delivered progress',
             st.orders[0].deliveredUnits === 1 && st.orders[0].qty === 2);
@@ -294,6 +294,59 @@
         assert('clear removes the save', !SC.save.exists());
         localStorage.setItem(SC.save.KEY, '{broken json');
         assert('corrupt save is rejected and cleared', !SC.save.load() && !SC.save.exists());
+    })();
+
+    // ── Two-tier chain: ore+coal -> smelter -> steel -> car factory ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [10, 10] };
+        const ore   = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'ore' });
+        const coal  = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'coal' });
+        const smelt = SC.map.makeNode('factory',  300, 200, { active: true, recipe: 'steel' });
+        const chips = SC.map.makeNode('supplier', 500, 100, { active: true, mat: 'chips' });
+        const carF  = SC.map.makeNode('factory',  500, 200, { active: true, recipe: 'car' });
+        const city  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        SC.state.money = 100000;
+        SC.roads.build(ore, smelt);
+        SC.roads.build(coal, smelt);
+        SC.roads.build(smelt, carF);
+        SC.roads.build(chips, carF);
+        SC.roads.build(carF, city);
+
+        assert('car craftable only with the full chain', SC.economy.craftableProducts().join() === 'car');
+        const order = SC.economy.spawnOrder();
+        assert('spawned order is a car order', order && order.product === 'car');
+        SC.economy.planOrder(order);
+        assert('car order planned at the car factory', order.planned && order.factory === carF);
+        assert('smelter queued an intermediate steel task',
+            smelt.queue.length === 1 && smelt.queue[0].product === 'steel' &&
+            smelt.queue[0].parentTask === carF.queue[0]);
+        assert('raw jobs target the right factories', SC.state.jobs.length === 3 &&
+            SC.state.jobs.filter(j => j.drop === smelt).length === 2 &&
+            SC.state.jobs.filter(j => j.drop === carF && j.item === 'chips').length === 1);
+
+        SC.vehicles.addTruck(smelt);
+        SC.vehicles.addTruck(carF);
+        const before = SC.state.money;
+        for (let i = 0; i < 6000 && SC.state.orders.length; i++) {
+            SC.vehicles.tick(0.1);
+            SC.factories.tick(0.1);
+        }
+        assert('car delivered through the two-tier chain',
+            SC.state.delivered === 1 && SC.state.money === before + order.payout);
+        assert('no leftover tasks or jobs', SC.state.jobs.length === 0 &&
+            smelt.queue.length === 0 && carF.queue.length === 0);
+    })();
+
+    // ── Goods tree sanity ───────────────────────────
+    (function() {
+        assert('chain depths: bread=1, car=2', SC.depthOf('bread') === 1 && SC.depthOf('car') === 2);
+        assert('every crafted good has a building name',
+            Object.keys(SC.GOODS).every(k => SC.GOODS[k].raw || !!SC.GOODS[k].building));
+        assert('every input exists in the goods table',
+            Object.keys(SC.GOODS).every(k => (SC.GOODS[k].inputs || []).every(m => !!SC.GOODS[m])));
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

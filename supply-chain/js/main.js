@@ -72,8 +72,8 @@ SC.runProbe = function(seconds) {
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))
         .sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
-    SC.roads.build(f, nearest('supplier', 'red'));
-    SC.roads.build(f, nearest('supplier', 'blue'));
+    SC.roads.build(f, nearest('supplier', 'wheat'));
+    SC.roads.build(f, nearest('supplier', 'water'));
     SC.roads.build(f, nearest('city'));
     const o = SC.economy.spawnOrder();
     if (o) SC.economy.planOrder(o);
