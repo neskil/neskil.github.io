@@ -129,6 +129,12 @@
             --mx: 50%;
             --my: 50%;
             --mag: 0;
+            /* Stacked flat layers underneath give the card a slight physical edge/thickness. */
+            --edge-shadow:
+                0 1px 0 rgba(4, 6, 16, 0.85),
+                0 2.5px 0 rgba(4, 6, 16, 0.7),
+                0 4px 0 rgba(4, 6, 16, 0.55),
+                0 5.5px 0 rgba(4, 6, 16, 0.4);
             background: var(--card-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -142,6 +148,7 @@
             transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
             transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), background 0.4s ease, border-color 0.4s ease,
                 box-shadow 0.4s ease;
+            box-shadow: var(--edge-shadow), 0 8px 18px rgba(0, 0, 0, 0.25);
             cursor: pointer;
             text-decoration: none;
             color: inherit;
@@ -165,7 +172,7 @@
         .card:hover {
             background: var(--card-hover-bg);
             border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--edge-shadow), 0 20px 40px rgba(0, 0, 0, 0.3);
         }
 
         .card-icon {
@@ -1044,21 +1051,39 @@
             }
         }
 
-        /* ── Card tilt + glare: every card gets a gentle 3D tilt that follows the mouse or a
-           finger drag; CargoLander gets a bigger tilt plus the rainbow holo layer on top,
-           and can also be driven by the device's accelerometer/gyro on mobile. ── */
+        /* ── Card tilt + glare ──
+           Every card gets a gentle 3D tilt + colored glare. Three sources feed it,
+           highest-priority first:
+             1. Direct interaction — mouse hover or a finger on the card. Always wins.
+             2. Ambient, mobile only, when nothing is being touched:
+                a) accelerometer tilt, relative to a "neutral" holding angle that's
+                   captured on first reading and then slowly drifts to track wherever
+                   the phone actually settles (no hardcoded "held at 45°" assumption,
+                   and a deliberate tilt relaxes back to center after a few seconds).
+                b) a scroll-linked bend — cards above the viewport's vertical center
+                   tilt one way, cards below tilt the other, flat in the middle — so
+                   the whole grid reads like a gentle concave shelf as you scroll.
+                Both (a) and (b) are additive.
+           CargoLander gets a bigger tilt range plus the rainbow holo layer on top,
+           which rides the same --mag value as everything else. ── */
         (function () {
             function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
+            const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+            const activeCards = new Set(); // cards currently under direct mouse/touch control
+            const cardTilt = new Map(); // card -> { maxTilt, lift }
+
+            function applyVars(card, rx, ry, ty, mx, my, mag) {
+                card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+                card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+                card.style.setProperty('--ty', ty + 'px');
+                card.style.setProperty('--mx', mx.toFixed(1) + '%');
+                card.style.setProperty('--my', my.toFixed(1) + '%');
+                card.style.setProperty('--mag', mag.toFixed(2));
+            }
+
             function attachTilt(card, { maxTilt = 7, lift = -6 } = {}) {
-                function setVars(rx, ry, ty, mx, my, mag) {
-                    card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
-                    card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-                    card.style.setProperty('--ty', ty + 'px');
-                    card.style.setProperty('--mx', mx.toFixed(1) + '%');
-                    card.style.setProperty('--my', my.toFixed(1) + '%');
-                    card.style.setProperty('--mag', mag.toFixed(2));
-                }
+                cardTilt.set(card, { maxTilt, lift });
 
                 // Magnitude (0..1) drives glare opacity — subtle near center, builds up toward the edges.
                 function fromPoint(clientX, clientY) {
@@ -1069,63 +1094,104 @@
                     const ry = clamp((px - 0.5) * maxTilt * 2, -maxTilt, maxTilt);
                     const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
                     // Keep the glare a few % inside the border so it never sits right on the rounded-corner seam.
-                    setVars(rx, ry, lift, 5 + px * 90, 5 + py * 90, mag);
+                    applyVars(card, rx, ry, lift, 5 + px * 90, 5 + py * 90, mag);
                 }
 
-                function reset() {
-                    card.style.transition = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
-                    setVars(0, 0, 0, 50, 50, 0);
-                }
-
-                card.addEventListener('mouseenter', () => {
+                function activate() {
+                    activeCards.add(card);
                     card.style.transition = 'transform 0.15s ease-out';
-                });
+                }
+
+                function release() {
+                    activeCards.delete(card);
+                    // On mobile, hand control back to the ambient loop (next frame) instead of
+                    // snapping to flat — it picks up right where release left off, transitioning
+                    // smoothly toward wherever the phone/scroll say the card should rest.
+                    card.style.transition = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
+                    if (!isTouch) applyVars(card, 0, 0, 0, 50, 50, 0);
+                }
+
+                card.addEventListener('mouseenter', activate);
                 card.addEventListener('mousemove', (e) => fromPoint(e.clientX, e.clientY));
-                card.addEventListener('mouseleave', reset);
+                card.addEventListener('mouseleave', release);
 
                 card.addEventListener('touchstart', (e) => {
-                    card.style.transition = 'transform 0.15s ease-out';
+                    activate();
                     if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
                 }, { passive: true });
                 card.addEventListener('touchmove', (e) => {
                     if (e.touches[0]) fromPoint(e.touches[0].clientX, e.touches[0].clientY);
                 }, { passive: true });
-                card.addEventListener('touchend', reset);
-                card.addEventListener('touchcancel', reset);
-
-                return { setVars };
+                card.addEventListener('touchend', release);
+                card.addEventListener('touchcancel', release);
             }
 
-            const tiltApis = new Map();
             document.querySelectorAll('.card').forEach((card) => {
                 const isHolo = card.id === 'card-cargo-lander';
                 const isDry = card.id === 'card-cv';
-                tiltApis.set(card, attachTilt(card, {
+                attachTilt(card, {
                     maxTilt: isHolo ? 12 : (isDry ? 5 : 7),
                     lift: isHolo ? -10 : (isDry ? -4 : -6)
-                }));
+                });
             });
 
-            // Mobile: CargoLander also tilts with the device's accelerometer/gyro, on top of touch.
-            const holoCard = document.getElementById('card-cargo-lander');
-            const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
-            if (holoCard && isTouch && window.DeviceOrientationEvent) {
-                const MAX_TILT = 12;
-                const holoApi = tiltApis.get(holoCard);
+            if (!isTouch) return; // ambient accelerometer/scroll bend is mobile-only
 
-                function onOrientation(e) {
-                    if (e.beta === null || e.gamma === null) return;
-                    const beta = clamp(e.beta - 45, -45, 45); // ~45deg = normal phone-in-hand angle
-                    const gamma = clamp(e.gamma, -45, 45);
-                    const rx = clamp(beta * -0.26, -MAX_TILT, MAX_TILT);
-                    const ry = clamp(gamma * 0.26, -MAX_TILT, MAX_TILT);
-                    const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * MAX_TILT), 0, 1);
-                    const mx = clamp(50 + gamma * 1.1, 5, 95);
-                    const my = clamp(50 + beta * 1.1, 5, 95);
-                    holoCard.style.transition = 'transform 0.15s linear';
-                    holoApi.setVars(rx, ry, -6, mx, my, mag);
+            const SCROLL_BEND_DEG = 5; // max additional tilt from a card's position in the viewport
+            const BASELINE_HALFLIFE_S = 3; // how fast "neutral" drifts to track your current hold angle
+
+            let lastBeta = null, lastGamma = null;
+            let baselineBeta = null, baselineGamma = null;
+            let lastTick = null;
+
+            function onOrientation(e) {
+                if (e.beta === null || e.gamma === null) return;
+                lastBeta = e.beta;
+                lastGamma = e.gamma;
+                if (baselineBeta === null) { baselineBeta = e.beta; baselineGamma = e.gamma; }
+            }
+
+            function ambientTick(now) {
+                const dt = lastTick === null ? 0 : Math.min((now - lastTick) / 1000, 0.25);
+                lastTick = now;
+
+                let deltaBeta = 0, deltaGamma = 0;
+                if (lastBeta !== null) {
+                    if (dt > 0) {
+                        const drift = 1 - Math.pow(0.5, dt / BASELINE_HALFLIFE_S);
+                        baselineBeta += (lastBeta - baselineBeta) * drift;
+                        baselineGamma += (lastGamma - baselineGamma) * drift;
+                    }
+                    deltaBeta = clamp(lastBeta - baselineBeta, -45, 45);
+                    deltaGamma = clamp(lastGamma - baselineGamma, -45, 45);
                 }
 
+                const viewportCenter = window.innerHeight / 2;
+                document.querySelectorAll('.card').forEach((card) => {
+                    if (activeCards.has(card)) return; // under direct control — leave it alone
+                    const { maxTilt } = cardTilt.get(card) || { maxTilt: 7 };
+                    const accelRx = clamp(deltaBeta * -0.3, -maxTilt, maxTilt);
+                    const accelRy = clamp(deltaGamma * 0.3, -maxTilt, maxTilt);
+
+                    const rect = card.getBoundingClientRect();
+                    const centerY = rect.top + rect.height / 2;
+                    const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
+                    const bend = norm * SCROLL_BEND_DEG;
+
+                    const rx = clamp(accelRx + bend, -maxTilt, maxTilt);
+                    const ry = accelRy;
+                    const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
+                    const mx = clamp(50 + deltaGamma * 1.1, 5, 95);
+                    const my = clamp(50 + deltaBeta * 1.1, 5, 95);
+                    applyVars(card, rx, ry, 0, mx, my, mag);
+                });
+
+                requestAnimationFrame(ambientTick);
+            }
+
+            requestAnimationFrame(ambientTick);
+
+            if (window.DeviceOrientationEvent) {
                 function enableOrientation() {
                     window.addEventListener('deviceorientation', onOrientation);
                 }
