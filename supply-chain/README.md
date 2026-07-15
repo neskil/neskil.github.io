@@ -15,11 +15,18 @@ that ambient animation as its background — it now lives independently at
 - **Goods & recipes** (emoji-first, colors are accents): suppliers
   (hexagons) provide raw goods; each factory (square) is dedicated to one
   recipe. 🌾wheat+💧water→🍞bread (bakery), 🧶wool+🛞rubber→👟sneakers
-  (sneaker factory), and the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
-  🔩steel+💾chips→🚗cars (car factory). Steel is an intermediate — cities
-  only order `orderable` goods; the planner recursively schedules smelter
-  runs and inter-factory hauls for deeper chains. The goods tree lives in
-  `js/config.js` (`SC.GOODS`) — adding a good/recipe is one entry there.
+  (sneaker factory), the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
+  🔩steel+💾chips→🚗cars (car factory), and the three-tier chain
+  🟠copper+🛞rubber→🧵wire (wire mill), 🧵wire+💾chips→🔌circuit board
+  (circuit factory), 🔌circuit+🔩steel→🤖robots (robot factory). Steel,
+  chips and rubber are each shared by two recipes, so one supplier's
+  placement (and the roads to it) can matter for more than one product.
+  Steel/wire/circuit are intermediates — cities only order `orderable`
+  goods; the planner recursively schedules factory-to-factory runs for
+  chains of any depth (nothing in `economy.js`/`factories.js` is
+  hardcoded to 2 tiers). The goods tree lives in `js/config.js`
+  (`SC.GOODS`) — adding a good/recipe is one entry there, plus a pool
+  entry in `js/map.js` if it should be unlockable.
 - **Orders**: HQ (⭐) is the only order-placing location at the start.
   New customer DCs (🏢) unlock on their own independent timer (~50-70s for
   the first, ~90-140s between further ones — `CUSTOMER_SPAWN_FIRST` /
@@ -85,12 +92,6 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 See `PLAN.md` for the full phased roadmap; short version below (kept in
 sync with it):
 
-- **Build vs Inspect mode toggle** *(in progress)* — Inspect: hover/hold
-  a node for a tooltip (factory recipe+inputs, supplier's consumers, or a
-  city's open orders) and a road highlight of the relevant connections.
-- **Deeper, shared supply chains** — some raw/intermediate goods should
-  feed more than one recipe, and at least one chain should run 3 tiers
-  deep, for more multi-step planning.
 - Truck capacity upgrade (haul 2+ items per trip).
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.

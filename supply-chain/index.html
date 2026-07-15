@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.5.0">
+    <link rel="stylesheet" href="style.css?v=1.6.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -82,7 +82,10 @@
                DCs will start ordering too as you play. Each factory turns two
                ingredients into its product — the bakery 🍞 needs wheat and
                water, the smelter 🔩 turns ore and coal into steel for the car
-               factory 🚗. Your trucks do the hauling — but only where roads exist.</p>
+               factory 🚗. Some chains run deeper and share ingredients: the
+               robot factory 🤖 needs a circuit board 🔌 (itself made from wire
+               🧵 and electronics 💾) plus the same steel your cars use. Your
+               trucks do the hauling — but only where roads exist.</p>
             <ul>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
@@ -96,25 +99,28 @@
                 <span>🧶+🛞→👟</span>
                 <span>🪨+⚫→🔩</span>
                 <span>🔩+💾→🚗</span>
+                <span>🟠+🛞→🧵</span>
+                <span>🧵+💾→🔌</span>
+                <span>🔌+🔩→🤖</span>
             </div>
             <button id="help-start">Start hauling</button>
         </div>
     </div>
 
-    <script src="js/config.js?v=1.5.0"></script>
-    <script src="js/state.js?v=1.5.0"></script>
-    <script src="js/save.js?v=1.5.0"></script>
-    <script src="js/sfx.js?v=1.5.0"></script>
-    <script src="js/map.js?v=1.5.0"></script>
-    <script src="js/camera.js?v=1.5.0"></script>
-    <script src="js/roads.js?v=1.5.0"></script>
-    <script src="js/factories.js?v=1.5.0"></script>
-    <script src="js/economy.js?v=1.5.0"></script>
-    <script src="js/vehicles.js?v=1.5.0"></script>
-    <script src="js/inspect.js?v=1.5.0"></script>
-    <script src="js/render.js?v=1.5.0"></script>
-    <script src="js/input.js?v=1.5.0"></script>
-    <script src="js/ui.js?v=1.5.0"></script>
-    <script src="js/main.js?v=1.5.0"></script>
+    <script src="js/config.js?v=1.6.0"></script>
+    <script src="js/state.js?v=1.6.0"></script>
+    <script src="js/save.js?v=1.6.0"></script>
+    <script src="js/sfx.js?v=1.6.0"></script>
+    <script src="js/map.js?v=1.6.0"></script>
+    <script src="js/camera.js?v=1.6.0"></script>
+    <script src="js/roads.js?v=1.6.0"></script>
+    <script src="js/factories.js?v=1.6.0"></script>
+    <script src="js/economy.js?v=1.6.0"></script>
+    <script src="js/vehicles.js?v=1.6.0"></script>
+    <script src="js/inspect.js?v=1.6.0"></script>
+    <script src="js/render.js?v=1.6.0"></script>
+    <script src="js/input.js?v=1.6.0"></script>
+    <script src="js/ui.js?v=1.6.0"></script>
+    <script src="js/main.js?v=1.6.0"></script>
 </body>
 </html>

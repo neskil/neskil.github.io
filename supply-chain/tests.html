@@ -15,17 +15,17 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.5.0"></script>
-    <script src="js/state.js?v=1.5.0"></script>
-    <script src="js/save.js?v=1.5.0"></script>
-    <script src="js/sfx.js?v=1.5.0"></script>
-    <script src="js/map.js?v=1.5.0"></script>
-    <script src="js/camera.js?v=1.5.0"></script>
-    <script src="js/roads.js?v=1.5.0"></script>
-    <script src="js/factories.js?v=1.5.0"></script>
-    <script src="js/economy.js?v=1.5.0"></script>
-    <script src="js/vehicles.js?v=1.5.0"></script>
-    <script src="js/inspect.js?v=1.5.0"></script>
+    <script src="js/config.js?v=1.6.0"></script>
+    <script src="js/state.js?v=1.6.0"></script>
+    <script src="js/save.js?v=1.6.0"></script>
+    <script src="js/sfx.js?v=1.6.0"></script>
+    <script src="js/map.js?v=1.6.0"></script>
+    <script src="js/camera.js?v=1.6.0"></script>
+    <script src="js/roads.js?v=1.6.0"></script>
+    <script src="js/factories.js?v=1.6.0"></script>
+    <script src="js/economy.js?v=1.6.0"></script>
+    <script src="js/vehicles.js?v=1.6.0"></script>
+    <script src="js/inspect.js?v=1.6.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -387,6 +387,71 @@
             smelt.queue.length === 0 && carF.queue.length === 0);
     })();
 
+    // ── Three-tier chain: copper+rubber -> wire mill -> wire ->
+    // circuit factory (+chips) -> circuit -> robot factory (+steel) ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [10, 10] };
+        const ore    = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'ore' });
+        const coal   = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'coal' });
+        const smelt  = SC.map.makeNode('factory',  300, 200, { active: true, recipe: 'steel' });
+        const copper = SC.map.makeNode('supplier', 100, 500, { active: true, mat: 'copper' });
+        const rubber = SC.map.makeNode('supplier', 100, 700, { active: true, mat: 'rubber' });
+        const wireF  = SC.map.makeNode('factory',  300, 600, { active: true, recipe: 'wire' });
+        const chips  = SC.map.makeNode('supplier', 500, 500, { active: true, mat: 'chips' });
+        const circF  = SC.map.makeNode('factory',  500, 600, { active: true, recipe: 'circuit' });
+        const robotF = SC.map.makeNode('factory',  500, 350, { active: true, recipe: 'robot' });
+        const city   = SC.map.makeNode('city',     700, 400, { active: true, isHQ: true });
+        SC.state.money = 100000;
+        SC.roads.build(ore, smelt);
+        SC.roads.build(coal, smelt);
+        SC.roads.build(smelt, robotF);
+        SC.roads.build(copper, wireF);
+        SC.roads.build(rubber, wireF);
+        SC.roads.build(wireF, circF);
+        SC.roads.build(chips, circF);
+        SC.roads.build(circF, robotF);
+        SC.roads.build(robotF, city);
+
+        assert('robot craftable only with the full 3-tier chain',
+            SC.economy.craftableProducts().includes('robot'));
+        // Build the order by hand (rather than spawnOrder, which picks a
+        // random craftable product) so the test is deterministic.
+        const o = { id: ++SC.state.orderSeq, city, product: 'robot', qty: 1, deliveredUnits: 0,
+                    payout: 900, deadline: 300, deadlineTotal: 300, planned: false, noRoute: false, done: false };
+        SC.state.orders.push(o);
+        assert('robot order plans through wire -> circuit -> robot',
+            SC.economy.planOrder(o) && o.factory === robotF);
+        assert('circuit factory queued an intermediate circuit task',
+            circF.queue.length === 1 && circF.queue[0].product === 'circuit' &&
+            circF.queue[0].parentTask === robotF.queue[0]);
+        assert('wire mill queued an intermediate wire task feeding the circuit task',
+            wireF.queue.length === 1 && wireF.queue[0].product === 'wire' &&
+            wireF.queue[0].parentTask === circF.queue[0]);
+        assert('raw jobs cover all base inputs (ore/coal, copper/rubber, chips)',
+            SC.state.jobs.length === 5 &&
+            SC.state.jobs.filter(j => j.drop === smelt).length === 2 &&
+            SC.state.jobs.filter(j => j.drop === wireF).length === 2 &&
+            SC.state.jobs.filter(j => j.drop === circF && j.item === 'chips').length === 1);
+
+        SC.vehicles.addTruck(smelt);
+        SC.vehicles.addTruck(wireF);
+        SC.vehicles.addTruck(circF);
+        SC.vehicles.addTruck(robotF);
+        const before = SC.state.money;
+        for (let i = 0; i < 8000 && SC.state.orders.length; i++) {
+            SC.vehicles.tick(0.1);
+            SC.factories.tick(0.1);
+        }
+        assert('robot delivered through the three-tier chain',
+            SC.state.delivered === 1 && SC.state.money === before + o.payout);
+        assert('no leftover tasks or jobs anywhere in the chain', SC.state.jobs.length === 0 &&
+            smelt.queue.length === 0 && wireF.queue.length === 0 &&
+            circF.queue.length === 0 && robotF.queue.length === 0);
+    })();
+
     // ── Credit line & debt interest ──────────────────
     (function() {
         const { S1, S2, F, C } = fixture();
@@ -435,11 +500,16 @@
 
     // ── Goods tree sanity ───────────────────────────
     (function() {
-        assert('chain depths: bread=1, car=2', SC.depthOf('bread') === 1 && SC.depthOf('car') === 2);
+        assert('chain depths: bread=1, car=2, robot=3',
+            SC.depthOf('bread') === 1 && SC.depthOf('car') === 2 && SC.depthOf('robot') === 3);
         assert('every crafted good has a building name',
             Object.keys(SC.GOODS).every(k => SC.GOODS[k].raw || !!SC.GOODS[k].building));
         assert('every input exists in the goods table',
             Object.keys(SC.GOODS).every(k => (SC.GOODS[k].inputs || []).every(m => !!SC.GOODS[m])));
+        assert('rubber, chips and steel are each shared by two recipes', (function() {
+            const usedBy = m => Object.keys(SC.GOODS).filter(k => (SC.GOODS[k].inputs || []).includes(m));
+            return usedBy('rubber').length === 2 && usedBy('chips').length === 2 && usedBy('steel').length === 2;
+        })());
     })();
 
     // ── Inspect mode: factory/supplier/city info + highlight paths ──
