@@ -50,7 +50,7 @@ SC.input = (function() {
                     st.selectedNode = node; // chain roads mini-metro style
                 } else if (res.reason === 'money') {
                     SC.sfx.play('error');
-                    SC.emit('toast', { text: `Not enough money — road costs $${res.cost}`, kind: 'error' });
+                    SC.emit('toast', { text: `Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, kind: 'error' });
                 } else if (SC.roads.findEdge(st.selectedNode, node)) {
                     st.selectedNode = node; // road already there: just move selection
                     SC.sfx.play('click');
@@ -73,7 +73,7 @@ SC.input = (function() {
                         SC.emit('toast', { text: `${building} ${SC.emojiOf(node.recipe)} purchased!`, kind: 'good' });
                     } else {
                         SC.sfx.play('error');
-                        SC.emit('toast', { text: `Not enough money — ${building.toLowerCase()} costs $${res.cost}`, kind: 'error' });
+                        SC.emit('toast', { text: `Credit limit reached — ${building.toLowerCase()} costs $${res.cost}`, kind: 'error' });
                     }
                     pendingBuy = null;
                 } else {

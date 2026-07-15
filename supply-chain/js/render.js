@@ -122,7 +122,7 @@ SC.render = (function() {
         })();
         if (!q) return;
 
-        const affordable = SC.state.money >= q.cost;
+        const affordable = SC.canAfford(q.cost);
         ctx.beginPath();
         ctx.moveTo(sel.x, sel.y);
         ctx.lineTo(end.x, end.y);
