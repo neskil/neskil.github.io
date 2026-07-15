@@ -68,6 +68,7 @@ SC.init = function() {
 SC.runProbe = function(seconds) {
     SC.state.gameStarted = true;
     SC.state.money = Math.max(SC.state.money, 5000);
+    if (new URLSearchParams(location.search).has('dc')) SC.state.nextCustomerIn = 3;
     const f = SC.factories.all()[0];
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))

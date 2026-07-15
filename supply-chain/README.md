@@ -20,17 +20,22 @@ that ambient animation as its background — it now lives independently at
   only order `orderable` goods; the planner recursively schedules smelter
   runs and inter-factory hauls for deeper chains. The goods tree lives in
   `js/config.js` (`SC.GOODS`) — adding a good/recipe is one entry there.
-- **Orders**: cities (circles) place timed orders (product × qty, payout).
-  The planner picks the cheapest operational factory that can reach both
-  ingredient suppliers and the ordering city over the road network; if
-  none exists the order shows "no route!" until you build one.
+- **Orders**: HQ (⭐) is the only order-placing location at the start.
+  New customer DCs (🏢) unlock on their own independent timer (~50-70s for
+  the first, ~90-140s between further ones — `CUSTOMER_SPAWN_FIRST` /
+  `CUSTOMER_SPAWN_INTERVAL` in `config.js`) and start placing orders too.
+  Each order is a timed request (product × qty, payout); the planner picks
+  the cheapest operational factory chain that can reach both the raw
+  suppliers and the ordering HQ/DC over the road network — if none exists
+  the order shows "no route!" until you build one.
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
 - **Trucks**: haul one item each; idle trucks take the nearest pending
   job. Buy more at the shop (price grows per truck); they spawn at HQ.
-- **Growth**: every 4 filled orders a locked site activates — new cities,
-  suppliers, or factory sites you can buy (tap twice).
+- **Growth**: every 3 filled orders a locked supplier/factory site
+  activates (buy factory sites with a tap-twice); this track never
+  touches cities — see Orders above for how customer DCs unlock.
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - Endless play; "Filled" vs "Missed" on the HUD is the score.
 
@@ -42,12 +47,13 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 
 | File | Role |
 |---|---|
-| `js/config.js` | Constants, materials, recipes, prices, `SC.VERSION` |
+| `js/config.js` | Constants, `SC.GOODS` tree (emoji/recipes/prices), `SC.VERSION` |
 | `js/state.js` | `SC.state` factory, pub/sub, derived getters (prices, speeds) |
-| `js/map.js` | World gen: river, node sites, starter cluster, milestone unlocks |
+| `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
+| `js/map.js` | World gen: river, node sites, starter cluster; `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
 | `js/roads.js` | Road build/demolish/quote + Dijkstra pathfinding |
-| `js/factories.js` | Craft tasks, raw intake, production ticks, site purchase |
-| `js/economy.js` | Orders (spawn/plan/deliver/expire), money, upgrades |
+| `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
+| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
 | `js/vehicles.js` | Trucks, haul jobs, dispatcher, movement |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |

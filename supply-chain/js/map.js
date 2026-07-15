@@ -151,9 +151,13 @@ SC.map = (function() {
         return SC.state.nodes;
     }
 
-    // Activate the next locked site. Returns the node or null.
-    function unlockNext() {
-        const next = SC.state.nodes.find(n => !n.active);
+    // Activate the next locked site matching `filterFn` (pool order is
+    // preserved either way, since inactive non-matching nodes are simply
+    // skipped). No filter = next locked site of any kind. Used to keep
+    // supplier/factory milestones and customer-DC spawns on separate,
+    // independently-ordered tracks through the same pool.
+    function unlockNext(filterFn) {
+        const next = SC.state.nodes.find(n => !n.active && (!filterFn || filterFn(n)));
         if (!next) return null;
         next.active = true;
         return next;

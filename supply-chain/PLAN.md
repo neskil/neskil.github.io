@@ -8,12 +8,15 @@ growth, pan/pinch camera).
 
 - **A. Fail state**: BOTH — mode picker at new-game: "Standard"
   (reputation hearts, game over) and "Zen" (endless, current behaviour).
-- **B. Dispatch**: compromise — trucks get a **home depot (DC)**. HQ is
-  the first DC; more can be built/bought later. Trucks belong to a
-  specific DC, start from it, return to it when idle, and the player
-  sets how many trucks are stationed at each DC. Dispatch stays
+- **B. Dispatch**: compromise — trucks get a **home depot**. HQ is
+  the first depot; more can be built/bought later. Trucks belong to a
+  specific depot, start from it, return to it when idle, and the player
+  sets how many trucks are stationed at each depot. Dispatch stays
   automatic within that constraint (a truck only takes jobs, preferring
   ones near its home region). No per-route manual pinning.
+  ⚠️ **Naming note**: "DC" is now taken — v1.3.0 introduced customer DCs
+  (🏢, order-*placing* cities that unlock over time). Truck home depots
+  need a different name when B is implemented (e.g. "truck depot" / "yard").
 - **C. Visuals**: stay abstract — sprites are out. But refresh the art
   direction: doesn't need to keep the current sci-fi glow look; explore
   a warmer/cleaner abstract style in a dedicated visual pass.
@@ -23,6 +26,12 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.3.0: HQ (⭐) is the sole order-placing location at game start;
+  customer DCs (🏢) unlock on their own independent timer (not tied to
+  delivery milestones), so demand visibly expands beyond HQ over a
+  session. Emoji icons now sit on a solid backing plate (bigger, no
+  longer fighting node shapes/progress rings for legibility) on
+  suppliers, factories, order bubbles, and truck cargo.
 - v1.2.0: emoji goods tree (🌾💧→🍞, 🧶🛞→👟, 🪨⚫→🔩→+💾→🚗) with
   specialized factories (bakery, smelter, car/sneaker factory) and
   recursive multi-tier order planning; colors demoted to accents.

@@ -153,10 +153,23 @@ SC.render = (function() {
 
     // Emoji drawn in world units so it zooms with the map
     function emoji(ch, wx, wy, size) {
-        ctx.font = `${size}px sans-serif`;
+        ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(ch, wx, wy + size * 0.06);
+    }
+
+    // Emoji on a solid backing plate so the glyph reads clearly instead of
+    // fighting the translucent node shape / progress rings behind it.
+    function emojiPlate(ch, wx, wy, r, size) {
+        ctx.beginPath();
+        ctx.arc(wx, wy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.stroke();
+        emoji(ch, wx, wy, size);
     }
 
     function hexPath(x, y, r) {
@@ -195,15 +208,15 @@ SC.render = (function() {
 
             ctx.lineWidth = 2;
             if (n.kind === 'supplier') {
-                hexPath(n.x, n.y, R + 2);
+                hexPath(n.x, n.y, R + 4);
                 ctx.fillStyle = SC.colorOf(n.mat) + '33';
                 ctx.fill();
                 ctx.strokeStyle = SC.colorOf(n.mat);
                 ctx.stroke();
-                emoji(SC.emojiOf(n.mat), n.x, n.y, 17);
+                emojiPlate(SC.emojiOf(n.mat), n.x, n.y, R - 2, 19);
             } else if (n.kind === 'factory') {
                 ctx.beginPath();
-                ctx.rect(n.x - R, n.y - R, R * 2, R * 2);
+                ctx.rect(n.x - R - 2, n.y - R - 2, (R + 2) * 2, (R + 2) * 2);
                 if (n.forSale) {
                     ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
                     ctx.fill();
@@ -211,37 +224,39 @@ SC.render = (function() {
                     ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    ctx.globalAlpha = 0.45;
-                    emoji(SC.emojiOf(n.recipe), n.x, n.y, 17);
+                    ctx.globalAlpha = 0.55;
+                    emojiPlate(SC.emojiOf(n.recipe), n.x, n.y, R - 2, 19);
                     ctx.globalAlpha = 1;
-                    label(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, n.x, n.y - R - 14, '#94a3b8', 11);
+                    label(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, n.x, n.y - R - 16, '#94a3b8', 11);
                 } else {
                     ctx.fillStyle = 'rgba(148, 163, 184, 0.22)';
                     ctx.fill();
                     ctx.strokeStyle = 'rgba(226, 232, 240, 0.9)';
                     ctx.stroke();
-                    emoji(SC.emojiOf(n.recipe), n.x, n.y, 17);
-                    // Crafting progress ring
+                    // Crafting progress ring (drawn first so the plate sits on top, unbroken)
                     if (n.crafting) {
                         const frac = Math.min(1, n.crafting.t / SC.craftTime());
                         ctx.beginPath();
-                        ctx.arc(n.x, n.y, R + 6, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+                        ctx.arc(n.x, n.y, R + 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
                         ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
                         ctx.lineWidth = 3;
                         ctx.stroke();
                     }
+                    emojiPlate(SC.emojiOf(n.recipe), n.x, n.y, R - 2, 19);
                     if (n.queue.length > 0) {
-                        label(String(n.queue.length + (n.crafting ? 1 : 0)), n.x + R + 10 / z, n.y - R, '#94a3b8', 11);
+                        label(String(n.queue.length + (n.crafting ? 1 : 0)), n.x + R + 12 / z, n.y - R - 2, '#94a3b8', 11);
                     }
                 }
-            } else { // city
+            } else { // city — HQ is the only order-taker at first; customer
+                      // DCs (🏢) unlock over time and start placing orders
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, R, 0, Math.PI * 2);
-                ctx.fillStyle = n.isHQ ? 'rgba(56, 189, 248, 0.25)' : 'rgba(148, 163, 184, 0.2)';
+                ctx.arc(n.x, n.y, R + 2, 0, Math.PI * 2);
+                ctx.fillStyle = n.isHQ ? 'rgba(56, 189, 248, 0.25)' : 'rgba(52, 211, 153, 0.18)';
                 ctx.fill();
-                ctx.strokeStyle = n.isHQ ? 'rgba(56, 189, 248, 0.9)' : 'rgba(226, 232, 240, 0.85)';
+                ctx.strokeStyle = n.isHQ ? 'rgba(56, 189, 248, 0.9)' : 'rgba(52, 211, 153, 0.75)';
                 ctx.stroke();
-                if (n.isHQ) label('HQ', n.x, n.y + R + 14, '#38bdf8', 11);
+                emojiPlate(n.isHQ ? '⭐' : '🏢', n.x, n.y, R - 2, 19);
+                label(n.isHQ ? 'HQ' : 'DC', n.x, n.y + R + 16, n.isHQ ? '#38bdf8' : '#34d399', 11);
             }
         }
     }
@@ -255,15 +270,15 @@ SC.render = (function() {
         const z = SC.camera.cam.zoom;
         for (const [city, orders] of byCity) {
             orders.forEach((o, i) => {
-                const bx = city.x + (i - (orders.length - 1) / 2) * (36 / Math.max(z, 0.6));
-                const by = city.y - 38;
-                const r = 14;
+                const bx = city.x + (i - (orders.length - 1) / 2) * (40 / Math.max(z, 0.6));
+                const by = city.y - 40;
+                const r = 16;
                 const frac = Math.max(0, o.deadline / o.deadlineTotal);
                 const urgent = frac < 0.25;
 
                 ctx.beginPath();
                 ctx.arc(bx, by, r, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillStyle = '#1e293b';
                 ctx.fill();
                 ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.5)';
                 ctx.lineWidth = 1.5;
@@ -277,10 +292,10 @@ SC.render = (function() {
                 ctx.stroke();
 
                 // Ordered product + remaining qty
-                emoji(SC.emojiOf(o.product), bx, by, 15);
+                emoji(SC.emojiOf(o.product), bx, by, 18);
                 const left = o.qty - o.deliveredUnits;
-                if (left > 1) label(String(left), bx + r + 2, by - r + 2, '#f8fafc', 10);
-                if (o.noRoute) label('no route!', bx, by - r - 12, '#f87171', 10);
+                if (left > 1) label(String(left), bx + r + 3, by - r + 3, '#f8fafc', 10);
+                if (o.noRoute) label('no route!', bx, by - r - 13, '#f87171', 10);
             });
         }
     }
@@ -350,7 +365,7 @@ SC.render = (function() {
             ctx.restore();
             if (t.cargo) {
                 ctx.shadowBlur = 0;
-                emoji(SC.emojiOf(t.cargo), t.x, t.y - 13, 13);
+                emojiPlate(SC.emojiOf(t.cargo), t.x, t.y - 16, 9, 13);
             }
         }
     }
