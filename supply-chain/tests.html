@@ -15,16 +15,16 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.2.0"></script>
-    <script src="js/state.js?v=1.2.0"></script>
-    <script src="js/save.js?v=1.2.0"></script>
-    <script src="js/sfx.js?v=1.2.0"></script>
-    <script src="js/map.js?v=1.2.0"></script>
-    <script src="js/camera.js?v=1.2.0"></script>
-    <script src="js/roads.js?v=1.2.0"></script>
-    <script src="js/factories.js?v=1.2.0"></script>
-    <script src="js/economy.js?v=1.2.0"></script>
-    <script src="js/vehicles.js?v=1.2.0"></script>
+    <script src="js/config.js?v=1.3.0"></script>
+    <script src="js/state.js?v=1.3.0"></script>
+    <script src="js/save.js?v=1.3.0"></script>
+    <script src="js/sfx.js?v=1.3.0"></script>
+    <script src="js/map.js?v=1.3.0"></script>
+    <script src="js/camera.js?v=1.3.0"></script>
+    <script src="js/roads.js?v=1.3.0"></script>
+    <script src="js/factories.js?v=1.3.0"></script>
+    <script src="js/economy.js?v=1.3.0"></script>
+    <script src="js/vehicles.js?v=1.3.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -210,9 +210,55 @@
         })());
         assert('no node spawned in the river', SC.state.nodes.every(n => !SC.map.isInRiver(n.x, n.y)));
         assert('locked pool exists for milestones', SC.state.nodes.some(n => !n.active));
+        assert('HQ is the only active order-taking city at start',
+            active.filter(n => n.kind === 'city').length === 1 && active.find(n => n.kind === 'city').isHQ);
+        assert('locked pool still holds customer DCs for later', SC.state.nodes.some(n => n.kind === 'city' && !n.active));
         const n1 = SC.map.unlockNext();
-        assert('unlockNext activates a site', n1 && n1.active);
+        assert('unlockNext (no filter) activates a site', n1 && n1.active);
         assert('starter products craftable', SC.economy.craftableProducts().includes('bread'));
+    })();
+
+    // ── Milestone unlocks skip cities; the customer timer only unlocks cities ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.generateWorld();
+
+        for (let i = 0; i < 20; i++) {
+            const n = SC.map.unlockNext(x => x.kind !== 'city');
+            if (!n) break;
+            assert('kind-filtered unlockNext never activates a city', n.kind !== 'city');
+        }
+        assert('every supplier/factory is now active', SC.state.nodes
+            .filter(n => n.kind !== 'city').every(n => n.active));
+        assert('customer DCs are still locked (milestones do not touch cities)',
+            SC.state.nodes.filter(n => n.kind === 'city').some(n => !n.active));
+
+        const dc = SC.map.unlockNext(x => x.kind === 'city');
+        assert('city-filtered unlockNext activates a city', dc && dc.kind === 'city' && dc.active);
+    })();
+
+    // ── Customer DC spawn timer ──────────────────────
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.generateWorld();
+        SC.state.nextCustomerIn = 5;
+
+        for (let i = 0; i < 40 && SC.state.nodes.filter(n => n.kind === 'city' && n.active).length < 2; i++) {
+            SC.economy.tick(1);
+        }
+        assert('a second order-taking city appears after its timer elapses',
+            SC.state.nodes.filter(n => n.kind === 'city' && n.active).length === 2);
+        assert('spawnOrder can now pick either active city', (function() {
+            SC.state.money = 100000;
+            const seen = new Set();
+            for (let i = 0; i < 60; i++) {
+                const o = SC.economy.spawnOrder();
+                if (o) { seen.add(o.city); SC.state.orders.splice(SC.state.orders.indexOf(o), 1); }
+            }
+            return seen.size >= 1; // both cities are eligible; RNG may still favor one in 60 tries
+        })());
     })();
 
     // ── Save / restore round-trip ───────────────────

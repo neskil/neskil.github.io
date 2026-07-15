@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.2.0';
+SC.VERSION = '1.3.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -37,8 +37,14 @@ SC.CONFIG = {
     ORDER_DEPTH_SLACK: 0.5,    // extra deadline fraction per chain tier past 1
     SALVAGE_PAY: 15,           // cargo delivered after its order expired
 
-    // A new locked site activates every N deliveries
-    MILESTONE_EVERY: 3
+    // A new locked supplier/factory site activates every N deliveries.
+    // New customer DCs (cities) are separate: they unlock on their own
+    // timer below, not tied to delivery count, since only HQ takes orders
+    // at the start and new demand should feel like it's arriving on its
+    // own schedule.
+    MILESTONE_EVERY: 3,
+    CUSTOMER_SPAWN_FIRST: [50, 70],     // seconds until the 2nd order city appears
+    CUSTOMER_SPAWN_INTERVAL: [90, 140]  // seconds between further ones
 };
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a

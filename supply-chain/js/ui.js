@@ -171,7 +171,7 @@ SC.ui = (function() {
         SC.on('salvage', () => toast(`Late delivery salvaged for ${fmt(SC.CONFIG.SALVAGE_PAY)}`, 'info'));
         SC.on('unlock', n => {
             SC.sfx.play('unlock');
-            const what = n.kind === 'city' ? 'A new city appeared'
+            const what = n.kind === 'city' ? 'A new customer DC 🏢 is now placing orders'
                        : n.kind === 'supplier' ? `A ${SC.nameOf(n.mat).toLowerCase()} ${SC.emojiOf(n.mat)} supplier appeared`
                        : `A ${SC.GOODS[n.recipe].building.toLowerCase()} ${SC.emojiOf(n.recipe)} site is up for sale`;
             toast(`📍 ${what}!`, 'good');
