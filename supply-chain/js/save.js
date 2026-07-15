@@ -9,6 +9,7 @@ window.SC = window.SC || {};
 
 SC.save = (function() {
     const KEY = 'scTycoonSave.v1';
+    const FORMAT = 2; // v2: emoji goods tree + factory recipes
 
     function serialize() {
         const st = SC.state;
@@ -33,7 +34,7 @@ SC.save = (function() {
         }
 
         return {
-            v: 1,
+            v: FORMAT,
             money: st.money, earnedTotal: st.earnedTotal,
             delivered: st.delivered, missed: st.missed,
             trucksBought: st.trucksBought,
@@ -41,7 +42,7 @@ SC.save = (function() {
             upgrades: Object.assign({}, st.upgrades),
             river: st.river,
             nodes: st.nodes.map(n => ({
-                id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat,
+                id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
                 active: n.active, forSale: n.forSale, isHQ: n.isHQ,
                 inv: inv.get(n.id) || {}
             })),
@@ -73,7 +74,7 @@ SC.save = (function() {
         const byId = new Map();
         for (const nd of data.nodes) {
             const n = SC.map.makeNode(nd.kind, nd.x, nd.y, {
-                id: nd.id, mat: nd.mat, active: nd.active,
+                id: nd.id, mat: nd.mat, recipe: nd.recipe, active: nd.active,
                 forSale: nd.forSale, isHQ: nd.isHQ
             });
             n.inv = Object.assign({}, nd.inv);
@@ -114,7 +115,7 @@ SC.save = (function() {
     function load() {
         let data = null;
         try { data = JSON.parse(localStorage.getItem(KEY)); } catch (e) { /* corrupt */ }
-        if (!data || data.v !== 1 || !data.nodes || !data.river) {
+        if (!data || data.v !== FORMAT || !data.nodes || !data.river) {
             clear();
             return false;
         }

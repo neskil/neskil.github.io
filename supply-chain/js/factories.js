@@ -12,12 +12,16 @@ SC.factories = (function() {
         return SC.state.nodes.filter(operational);
     }
 
-    // One craft task = one unit of product for one order.
-    function makeTask(factory, productKey, order) {
+    // One craft task = one unit of `productKey` for one order. `deliverTo`
+    // is the ordering city for finished goods; for intermediates it is the
+    // downstream factory, and `parentTask` is the task the output feeds.
+    function makeTask(factory, productKey, order, deliverTo, parentTask) {
         const needs = {};
-        SC.PRODUCTS[productKey].inputs.forEach(m => { needs[m] = (needs[m] || 0) + 1; });
+        SC.GOODS[productKey].inputs.forEach(m => { needs[m] = (needs[m] || 0) + 1; });
         const task = {
             factory, order, product: productKey,
+            deliverTo: deliverTo || (order && order.city),
+            parentTask: parentTask || null,
             needs, have: {}, cancelled: false
         };
         // Claim any loose inventory already sitting at the factory
@@ -82,14 +86,26 @@ SC.factories = (function() {
                     const task = f.crafting.task;
                     f.crafting = null;
                     SC.emit('crafted', { factory: f, product: task.product });
-                    SC.vehicles.addJob({
-                        type: 'product',
-                        item: task.product,
-                        pickup: f,
-                        drop: task.order.city,
-                        order: task.order,
-                        task: null
-                    });
+                    if (task.parentTask) {
+                        // Intermediate good: haul it on to the downstream factory
+                        SC.vehicles.addJob({
+                            type: 'raw',
+                            item: task.product,
+                            pickup: f,
+                            drop: task.deliverTo,
+                            order: task.order,
+                            task: task.parentTask
+                        });
+                    } else {
+                        SC.vehicles.addJob({
+                            type: 'product',
+                            item: task.product,
+                            pickup: f,
+                            drop: task.deliverTo,
+                            order: task.order,
+                            task: null
+                        });
+                    }
                 }
             }
         }

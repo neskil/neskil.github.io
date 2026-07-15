@@ -46,11 +46,11 @@ SC.ui = (function() {
     }
 
     function orderRow(o) {
-        const p = SC.PRODUCTS[o.product];
+        const p = SC.GOODS[o.product];
         const frac = Math.max(0, o.deadline / o.deadlineTotal);
         const left = o.qty - o.deliveredUnits;
         return `<div class="order ${frac < 0.25 ? 'urgent' : ''}" data-order="${o.id}">
-            <span class="chip" style="background:${p.color}"></span>
+            <span class="chip">${p.emoji}</span>
             <span class="oname">${left}× ${p.name}</span>
             <span class="opay">${fmt(o.payout)}</span>
             ${o.noRoute ? '<span class="oroute">no route!</span>' : ''}
@@ -84,21 +84,26 @@ SC.ui = (function() {
     // Tap an order row: fly the camera to its city and light up the
     // planned route (city↔factory↔suppliers). Unplanned orders just pulse
     // the city so "no route!" is locatable.
+    // Walk the planned sourcing tree (suppliers -> smelter -> factory -> city)
+    // collecting every road leg for the highlight overlay.
+    function collectRoutePaths(pick, dest, paths) {
+        const leg = SC.roads.findPath(pick.node, dest);
+        if (leg) paths.push(leg.path);
+        if (pick.srcs) {
+            for (const m of Object.keys(pick.srcs)) {
+                collectRoutePaths(pick.srcs[m], pick.node, paths);
+            }
+        }
+    }
+
     function focusOrder(order) {
         const zoom = Math.max(SC.camera.cam.zoom, 0.85);
         SC.camera.focus(order.city.x, order.city.y, zoom);
         const paths = [];
-        if (order.route) {
-            const toCity = SC.roads.findPath(order.route.factory, order.city);
-            if (toCity) paths.push(toCity.path);
-            for (const m of Object.keys(order.route.sups)) {
-                const leg = SC.roads.findPath(order.route.sups[m], order.route.factory);
-                if (leg) paths.push(leg.path);
-            }
-        }
+        if (order.route) collectRoutePaths(order.route, order.city, paths);
         SC.state.highlight = {
             paths,
-            color: SC.PRODUCTS[order.product].color,
+            color: SC.GOODS[order.product].color,
             city: order.city,
             until: SC.state.time + 3
         };
@@ -167,8 +172,8 @@ SC.ui = (function() {
         SC.on('unlock', n => {
             SC.sfx.play('unlock');
             const what = n.kind === 'city' ? 'A new city appeared'
-                       : n.kind === 'supplier' ? `A new ${SC.MATERIALS[n.mat].name.toLowerCase()} supplier appeared`
-                       : 'A factory site is up for sale';
+                       : n.kind === 'supplier' ? `A ${SC.nameOf(n.mat).toLowerCase()} ${SC.emojiOf(n.mat)} supplier appeared`
+                       : `A ${SC.GOODS[n.recipe].building.toLowerCase()} ${SC.emojiOf(n.recipe)} site is up for sale`;
             toast(`📍 ${what}!`, 'good');
         });
     }
