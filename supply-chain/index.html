@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.9.2">
+    <link rel="stylesheet" href="style.css?v=1.10.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -67,8 +67,10 @@
                 <span class="price">$450</span>
             </button>
 
-            <div class="shop-section-title">🔬 Research</div>
-            <div id="research-list"></div>
+            <button class="shop-btn" id="btn-research-tree">
+                <span class="sname">🔬 Research</span>
+                <span class="price" id="research-shortcut-status">Open tree</span>
+            </button>
 
             <div class="shop-section-title hidden" id="build-title">📍 Build (premium placement)</div>
             <div id="build-list"></div>
@@ -76,6 +78,19 @@
     </div>
 
     <div id="toast"></div>
+
+    <div id="research-overlay" class="hidden">
+        <div class="research-tree-card">
+            <div class="research-tree-header">
+                <h1>🔬 Research Tree</h1>
+                <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
+            </div>
+            <div class="research-tree-wrap">
+                <svg id="research-tree-edges"></svg>
+                <div id="research-tree-nodes"></div>
+            </div>
+        </div>
+    </div>
 
     <div id="menu-overlay" class="hidden">
         <div class="menu-card">
@@ -128,22 +143,22 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.9.2"></script>
-    <script src="js/state.js?v=1.9.2"></script>
-    <script src="js/save.js?v=1.9.2"></script>
-    <script src="js/sfx.js?v=1.9.2"></script>
-    <script src="js/map.js?v=1.9.2"></script>
-    <script src="js/camera.js?v=1.9.2"></script>
-    <script src="js/roads.js?v=1.9.2"></script>
-    <script src="js/factories.js?v=1.9.2"></script>
-    <script src="js/economy.js?v=1.9.2"></script>
-    <script src="js/vehicles.js?v=1.9.2"></script>
-    <script src="js/inspect.js?v=1.9.2"></script>
-    <script src="js/research.js?v=1.9.2"></script>
-    <script src="js/placement.js?v=1.9.2"></script>
-    <script src="js/render.js?v=1.9.2"></script>
-    <script src="js/input.js?v=1.9.2"></script>
-    <script src="js/ui.js?v=1.9.2"></script>
-    <script src="js/main.js?v=1.9.2"></script>
+    <script src="js/config.js?v=1.10.0"></script>
+    <script src="js/state.js?v=1.10.0"></script>
+    <script src="js/save.js?v=1.10.0"></script>
+    <script src="js/sfx.js?v=1.10.0"></script>
+    <script src="js/map.js?v=1.10.0"></script>
+    <script src="js/camera.js?v=1.10.0"></script>
+    <script src="js/roads.js?v=1.10.0"></script>
+    <script src="js/factories.js?v=1.10.0"></script>
+    <script src="js/economy.js?v=1.10.0"></script>
+    <script src="js/vehicles.js?v=1.10.0"></script>
+    <script src="js/inspect.js?v=1.10.0"></script>
+    <script src="js/research.js?v=1.10.0"></script>
+    <script src="js/placement.js?v=1.10.0"></script>
+    <script src="js/render.js?v=1.10.0"></script>
+    <script src="js/input.js?v=1.10.0"></script>
+    <script src="js/ui.js?v=1.10.0"></script>
+    <script src="js/main.js?v=1.10.0"></script>
 </body>
 </html>

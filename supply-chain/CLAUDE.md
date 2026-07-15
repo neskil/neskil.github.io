@@ -18,7 +18,14 @@ Don't couple the two again.)
 
 ## Standing instructions
 - After a code change, **run the test suite** (below), fix what breaks,
-  then commit and push without waiting to be asked.
+  then **commit**, **merge in the latest `origin/master`** (fetch + merge,
+  resolving any conflicts — this project runs several agent sessions in
+  parallel, hence the "Merge master: reconcile…" commits throughout
+  history), and **push**, all without waiting to be asked. Only skip the
+  merge/push step if the repo's git workflow for this session pins you to
+  a review branch instead (e.g. a PR-based harness) — in that case commit
+  and push to that branch and let the normal review/merge flow take it
+  from there.
 - Bump `SC.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change, and update the `?v=X.Y.Z` cache-busting query on
   every local `<script>`/`<link>` tag in `index.html` AND `tests.html`
@@ -64,5 +71,20 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   hauls (the ×N badge over a truck) show up without a long probe.
   `&yard=1` builds a second truck yard near HQ, stations a truck there,
   and sets it as the active yard, for screenshotting the yard marker/
-  per-yard truck counts.
-- **Mobile layout**: same screenshot with `--window-size=390,844`.
+  per-yard truck counts. `&techtree=1` opens the 🔬 Research overlay
+  (its own menu, separate from the Shop panel's Build/Buy list) on load,
+  for screenshotting the tree layout.
+- **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
+  found while building the research-tree overlay: this Chromium build
+  enforces a **hard ~500px minimum layout viewport** in headless mode —
+  `document.documentElement.clientWidth` reads 500 for any `--window-size`
+  narrower than that (confirmed at 320/390/450/499, all clamp to 500;
+  501+ tracks the requested size), while `--screenshot` still crops to
+  the requested (e.g. 390×844) pixel dimensions. So a "mobile" screenshot
+  below ~500 wide shows a left-edge *crop* of the 500px-wide layout, not
+  a true narrow-viewport render — centered elements (`margin: auto` /
+  flex `justify-content: center`) will look like they overflow the right
+  edge even when they're correctly centered in the real (500px) layout.
+  Don't chase that as a CSS bug; verify centered/capped-width overlays at
+  `--window-size=500,844` or wider instead, or note the discrepancy and
+  reason about the real (unclamped) viewport port math by hand.
