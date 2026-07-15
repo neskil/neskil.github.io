@@ -26,6 +26,14 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.5.0: research tree (`SC.RESEARCH`, one project at a time, paid
+  upfront + timed) with Site Requisition (unlocks manual placement below)
+  and a stacking Credit Line II/III. Manual placement: pick a good in the
+  Shop panel's Build section, tap the map to drop that supplier/factory
+  anywhere on land at a premium, with a live green/red ghost preview.
+  This is the "player-placed sites locked behind research, plus
+  research-boosted credit line" ask — promotions (temporary demand
+  boosts) are the natural next research node, not yet built.
 - v1.4.0: credit line (spend to −$1,500; debt bleeds 10%/min interest,
   red HUD readout) so a cash crunch can't deadlock the early game; a
   proper ☰ menu (pauses the sim: stats, autosave status + Save now,
@@ -79,6 +87,13 @@ growth, pan/pinch camera).
 9. **Contracts** — occasional long-running deals: "3× green every 60s for
    5 minutes at a locked-in rate". Creates steady demand you can build
    dedicated infrastructure for.
+9b. **Promotions research** — a purchasable research node (or repeatable
+   research-gated action) that temporarily boosts order frequency/payout
+   for one chosen good, e.g. "+50% bread orders for 3 minutes". Lighter
+   than Contracts (no locked-in rate/infrastructure commitment) and
+   reuses the `research.js` machinery already in place — natural next
+   entry in `SC.RESEARCH` once a design for repeatable (vs. one-shot)
+   research is settled (the current tree assumes each id completes once).
 10. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
 

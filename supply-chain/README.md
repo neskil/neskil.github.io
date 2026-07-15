@@ -44,6 +44,16 @@ that ambient animation as its background — it now lives independently at
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
+- **Research** (Shop panel): one project at a time, paid upfront, takes
+  real time, then unlocks its effect — `SC.RESEARCH` in `config.js`.
+  Ships with Site Requisition (unlocks manual placement, below) and a
+  two-tier Credit Line II/III (each raises the credit limit, stacking).
+- **Manual placement** (needs Site Requisition researched): pick a good
+  in the Shop panel's Build section, then tap the map to drop that
+  supplier/factory anywhere on land — at a premium over the free
+  milestone/customer-DC unlocks (`PLACEMENT_SUPPLIER_PRICE`,
+  `PLACEMENT_FACTORY_MULT`). A dashed ghost preview shows the spot and
+  cost, red where blocked (in the river or too close to another site).
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - Endless play; "Filled" vs "Missed" on the HUD is the score.
 
@@ -63,6 +73,8 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
 | `js/vehicles.js` | Trucks, haul jobs, dispatcher, movement |
+| `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
+| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance), locked behind research |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build |
@@ -80,3 +92,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy.
+- More research nodes (truck capacity, order-pay boosts, faster
+  milestones); a "promotions" tech that temporarily boosts demand for a
+  chosen good, per the plan's next-steps discussion.
+- Research cancel/refund (currently a started project can't be aborted).

@@ -205,6 +205,61 @@ html, body {
 .shop-btn .price { color: var(--good); font-weight: 700; }
 .shop-btn .lvl { color: var(--accent-color); font-size: 0.65rem; letter-spacing: 1px; }
 
+.shop-section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin: 0.7rem 0 0.4rem;
+}
+.shop-section-title.hidden { display: none; }
+
+/* ── Research ────────────────────────────────────── */
+.research-row {
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.35rem;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: rgba(15, 23, 42, 0.5);
+    font-size: 0.8rem;
+}
+.research-row.done { opacity: 0.6; }
+.research-row.locked { opacity: 0.45; }
+.research-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.2rem;
+}
+.research-name { font-weight: 600; }
+.research-desc { color: var(--text-secondary); font-size: 0.72rem; margin-bottom: 0.4rem; }
+.research-btn {
+    width: 100%;
+    padding: 0.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--card-border);
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+.research-btn:hover:not(:disabled) { border-color: var(--accent-color); }
+.research-btn:disabled { opacity: 0.5; cursor: default; }
+.research-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    margin-top: 0.3rem;
+}
+.research-bar div { height: 100%; background: var(--accent-color); border-radius: 2px; }
+
+/* ── Build (manual placement) ───────────────────────*/
+.build-btn.active {
+    border-color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.18);
+}
+
 /* ── Toast ───────────────────────────────────────── */
 #toast {
     position: fixed;

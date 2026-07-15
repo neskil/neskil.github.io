@@ -37,9 +37,32 @@ SC.input = (function() {
         return null;
     }
 
-    function handleTap(sx, sy) {
-        const node = nodeAtScreen(sx, sy);
+    // Manual site placement (research-unlocked): every tap while active
+    // tries to place there; success or an unaffordable attempt exits the
+    // mode, an out-of-bounds/too-close spot lets the player retry.
+    function handlePlacementTap(sx, sy) {
         const st = SC.state;
+        const w = SC.camera.toWorld(sx, sy);
+        const res = SC.placement.place(st.placeMode.kind, st.placeMode.good, w.x, w.y);
+        if (res.ok) {
+            SC.sfx.play('build');
+            SC.emit('toast', { text: `${SC.nameOf(st.placeMode.good)} ${st.placeMode.kind} placed for $${SC.placement.price(st.placeMode.kind)}`, kind: 'good' });
+            st.placeMode = null;
+        } else if (res.reason === 'invalid') {
+            SC.sfx.play('error');
+            SC.emit('toast', { text: 'Too close to the river or another site — try elsewhere', kind: 'error' });
+        } else if (res.reason === 'money') {
+            SC.sfx.play('error');
+            SC.emit('toast', { text: `Credit limit reached — costs $${res.cost}`, kind: 'error' });
+            st.placeMode = null;
+        }
+    }
+
+    function handleTap(sx, sy) {
+        const st = SC.state;
+        if (st.placeMode) { handlePlacementTap(sx, sy); return; }
+
+        const node = nodeAtScreen(sx, sy);
 
         if (node) {
             pendingDemolish = null;
@@ -179,6 +202,9 @@ SC.input = (function() {
         attach,
         getHover: () => hover,
         getPendingDemolish: () => pendingDemolish,
-        _handleTap: handleTap
+        _handleTap: handleTap,
+        // Headless verification hook: force a hover point without a real
+        // pointermove, so placement/road ghost previews can be screenshotted.
+        _setDebugHover: (x, y) => { hover = { x, y }; }
     };
 })();
