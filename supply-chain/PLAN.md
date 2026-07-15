@@ -23,6 +23,9 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.2.0: emoji goods tree (🌾💧→🍞, 🧶🛞→👟, 🪨⚫→🔩→+💾→🚗) with
+  specialized factories (bakery, smelter, car/sneaker factory) and
+  recursive multi-tier order planning; colors demoted to accents.
 - v1.1.0: autosave/resume (+ restart button), money floaters at the
   point of spend/earn, tap an order row to jump to its city with the
   planned route highlighted.

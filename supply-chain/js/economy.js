@@ -13,10 +13,19 @@ SC.economy = (function() {
             n.kind === 'supplier' && n.active && (!mat || n.mat === mat));
     }
 
-    // Products whose every input has at least one active supplier
+    // Can this good be produced with today's suppliers and factories?
+    // (Raw: an active supplier exists. Crafted: an operational factory
+    // with the recipe exists and every input can itself be sourced.)
+    function canSource(good) {
+        const g = SC.GOODS[good];
+        if (g.raw) return activeSuppliers(good).length > 0;
+        return SC.factories.all().some(f => f.recipe === good) &&
+               g.inputs.every(canSource);
+    }
+
     function craftableProducts() {
-        return Object.keys(SC.PRODUCTS).filter(p =>
-            SC.PRODUCTS[p].inputs.every(m => activeSuppliers(m).length > 0));
+        return Object.keys(SC.GOODS).filter(p =>
+            SC.GOODS[p].orderable && canSource(p));
     }
 
     function rand(a, b) { return a + Math.random() * (b - a); }
@@ -29,15 +38,19 @@ SC.economy = (function() {
         const product = products[Math.floor(Math.random() * products.length)];
         const qty = 1 + Math.floor(Math.random() * Math.min(3, 1 + SC.state.delivered / 5));
 
-        // Distance bonus estimated from the nearest operational factory
+        // Distance bonus estimated from the nearest factory with the recipe
         let nearest = Infinity;
         for (const f of SC.factories.all()) {
-            nearest = Math.min(nearest, Math.hypot(f.x - city.x, f.y - city.y));
+            if (f.recipe === product) {
+                nearest = Math.min(nearest, Math.hypot(f.x - city.x, f.y - city.y));
+            }
         }
         if (nearest === Infinity) nearest = 400;
-        const payout = Math.round((qty * (C().ORDER_BASE_PAY + C().ORDER_DIST_PAY * nearest)) / 5) * 5;
+        const payout = Math.round((qty * (SC.GOODS[product].value + C().ORDER_DIST_PAY * nearest)) / 5) * 5;
 
-        const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]);
+        // Deeper chains (steel -> car) get extra deadline slack
+        const slack = 1 + C().ORDER_DEPTH_SLACK * (SC.depthOf(product) - 1);
+        const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]) * slack;
         const order = {
             id: ++SC.state.orderSeq,
             city, product, qty,
@@ -52,46 +65,71 @@ SC.economy = (function() {
         return order;
     }
 
-    // Pick the operational factory with the cheapest total haul
-    // (each raw's nearest reachable supplier -> factory, factory -> city),
-    // then create craft tasks and raw haul jobs.
-    function planOrder(order) {
-        if (order.planned) return true;
+    // Where can one unit of `good` come from, to be used at `dest`?
+    // Raw goods: the nearest connected supplier. Crafted goods: the
+    // factory with that recipe whose own inputs are also sourceable,
+    // minimizing (inputs -> factory -> dest) haul distance.
+    function bestSourceFor(good, dest) {
+        const g = SC.GOODS[good];
+        if (g.raw) {
+            let best = null, bestD = Infinity;
+            for (const s of activeSuppliers(good)) {
+                const d = SC.roads.pathDist(s, dest);
+                if (d < bestD) { bestD = d; best = s; }
+            }
+            return best && { node: best, dist: bestD };
+        }
         let best = null, bestCost = Infinity;
         for (const f of SC.factories.all()) {
-            const toCity = SC.roads.pathDist(f, order.city);
-            if (toCity === Infinity) continue;
-            let cost = toCity, sups = {};
-            for (const m of SC.PRODUCTS[order.product].inputs) {
-                let sBest = null, sDist = Infinity;
-                for (const s of activeSuppliers(m)) {
-                    const d = SC.roads.pathDist(s, f);
-                    if (d < sDist) { sDist = d; sBest = s; }
-                }
-                if (!sBest) { cost = Infinity; break; }
-                cost += sDist;
-                sups[m] = sBest;
+            if (f.recipe !== good) continue;
+            const toDest = SC.roads.pathDist(f, dest);
+            if (toDest === Infinity) continue;
+            let cost = toDest, srcs = {};
+            for (const m of g.inputs) {
+                const src = bestSourceFor(m, f);
+                if (!src) { cost = Infinity; break; }
+                cost += src.dist;
+                srcs[m] = src;
             }
-            if (cost < bestCost) { bestCost = cost; best = { f, sups }; }
+            if (cost < bestCost) { bestCost = cost; best = { node: f, dist: cost, srcs }; }
         }
-        if (!best) {
+        return best;
+    }
+
+    // Create the craft task for one unit of `good` at the chosen factory,
+    // plus haul jobs for its raw inputs and recursive tasks for crafted
+    // inputs. `pick` comes from bestSourceFor so the whole tree is known
+    // to be routable before any task is created.
+    function planUnit(pick, good, deliverTo, order, parentTask) {
+        const task = SC.factories.makeTask(pick.node, good, order, deliverTo, parentTask);
+        for (const m of SC.factories.missingInputs(task)) {
+            const src = pick.srcs[m];
+            if (SC.GOODS[m].raw) {
+                SC.vehicles.addJob({
+                    type: 'raw', item: m,
+                    pickup: src.node, drop: pick.node,
+                    order, task
+                });
+            } else {
+                planUnit(src, m, pick.node, order, task);
+            }
+        }
+    }
+
+    function planOrder(order) {
+        if (order.planned) return true;
+        const pick = bestSourceFor(order.product, order.city);
+        if (!pick) {
             order.noRoute = true;
             return false;
         }
         for (let u = order.deliveredUnits; u < order.qty; u++) {
-            const task = SC.factories.makeTask(best.f, order.product, order);
-            for (const m of SC.factories.missingInputs(task)) {
-                SC.vehicles.addJob({
-                    type: 'raw', item: m,
-                    pickup: best.sups[m], drop: best.f,
-                    order, task
-                });
-            }
+            planUnit(pick, order.product, order.city, order, null);
         }
         order.planned = true;
         order.noRoute = false;
-        order.factory = best.f;
-        order.route = { factory: best.f, sups: best.sups }; // for UI highlighting
+        order.factory = pick.node;
+        order.route = pick; // for UI highlighting
         return true;
     }
 
