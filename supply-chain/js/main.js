@@ -42,6 +42,7 @@ SC.init = function() {
             SC.economy.tick(dt);
             SC.factories.tick(dt);
             SC.vehicles.tick(dt);
+            SC.research.tick(dt);
             saveTimer += dt;
             if (saveTimer >= SC.CONFIG.AUTOSAVE_INTERVAL && !wantFresh) {
                 saveTimer = 0;
@@ -92,6 +93,23 @@ SC.runProbe = function(seconds) {
     }
     // Force a debt balance so the red HUD/credit UI can be screenshotted
     if (p.has('debt')) SC.state.money = -Math.abs(parseFloat(p.get('debt')) || 800);
+    // Instantly complete research so the placement UI can be screenshotted
+    if (p.has('research')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        for (const id of p.get('research').split(',')) {
+            if (SC.RESEARCH[id]) SC.state.research.completed[id] = true;
+        }
+    }
+    // Arm placement mode so the ghost preview can be screenshotted, e.g.
+    // ?placemode=supplier:wheat
+    if (p.has('placemode')) {
+        const [kind, good] = p.get('placemode').split(':');
+        SC.state.placeMode = { kind, good };
+    }
+    if (p.has('hoverAt')) {
+        const [hx, hy] = p.get('hoverAt').split(',').map(Number);
+        SC.input._setDebugHover(hx, hy);
+    }
 };
 
 document.addEventListener('DOMContentLoaded', SC.init);

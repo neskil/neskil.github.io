@@ -42,6 +42,10 @@ SC.save = (function() {
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
             upgrades: Object.assign({}, st.upgrades),
+            research: {
+                completed: Object.assign({}, st.research.completed),
+                active: st.research.active ? Object.assign({}, st.research.active) : null
+            },
             river: st.river,
             nodes: st.nodes.map(n => ({
                 id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
@@ -73,6 +77,10 @@ SC.save = (function() {
         st.orderSeq = data.orderSeq;
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
+        if (data.research) {
+            st.research.completed = Object.assign({}, data.research.completed);
+            st.research.active = data.research.active ? Object.assign({}, data.research.active) : null;
+        }
         st.river = data.river;
 
         const byId = new Map();

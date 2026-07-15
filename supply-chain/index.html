@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.4.0">
+    <link rel="stylesheet" href="style.css?v=1.5.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -48,6 +48,12 @@
                 <span class="sname">🏭 Factory speed <span class="lvl"></span></span>
                 <span class="price">$280</span>
             </button>
+
+            <div class="shop-section-title">🔬 Research</div>
+            <div id="research-list"></div>
+
+            <div class="shop-section-title hidden" id="build-title">📍 Build (premium placement)</div>
+            <div id="build-list"></div>
         </div>
     </div>
 
@@ -82,6 +88,7 @@
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. New sites appear as you deliver.</li>
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds 10% interest per minute — pay it off fast.</li>
+                <li><b>Research:</b> in the Shop panel, invest upfront and wait it out to unlock upgrades like manual site placement and a bigger credit line.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
             </ul>
             <div class="recipes">
@@ -94,19 +101,21 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.4.0"></script>
-    <script src="js/state.js?v=1.4.0"></script>
-    <script src="js/save.js?v=1.4.0"></script>
-    <script src="js/sfx.js?v=1.4.0"></script>
-    <script src="js/map.js?v=1.4.0"></script>
-    <script src="js/camera.js?v=1.4.0"></script>
-    <script src="js/roads.js?v=1.4.0"></script>
-    <script src="js/factories.js?v=1.4.0"></script>
-    <script src="js/economy.js?v=1.4.0"></script>
-    <script src="js/vehicles.js?v=1.4.0"></script>
-    <script src="js/render.js?v=1.4.0"></script>
-    <script src="js/input.js?v=1.4.0"></script>
-    <script src="js/ui.js?v=1.4.0"></script>
-    <script src="js/main.js?v=1.4.0"></script>
+    <script src="js/config.js?v=1.5.0"></script>
+    <script src="js/state.js?v=1.5.0"></script>
+    <script src="js/save.js?v=1.5.0"></script>
+    <script src="js/sfx.js?v=1.5.0"></script>
+    <script src="js/map.js?v=1.5.0"></script>
+    <script src="js/camera.js?v=1.5.0"></script>
+    <script src="js/roads.js?v=1.5.0"></script>
+    <script src="js/factories.js?v=1.5.0"></script>
+    <script src="js/economy.js?v=1.5.0"></script>
+    <script src="js/vehicles.js?v=1.5.0"></script>
+    <script src="js/research.js?v=1.5.0"></script>
+    <script src="js/placement.js?v=1.5.0"></script>
+    <script src="js/render.js?v=1.5.0"></script>
+    <script src="js/input.js?v=1.5.0"></script>
+    <script src="js/ui.js?v=1.5.0"></script>
+    <script src="js/main.js?v=1.5.0"></script>
 </body>
 </html>
