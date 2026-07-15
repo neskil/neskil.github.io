@@ -88,12 +88,6 @@ SC.input = (function() {
                 pendingBuy = null;
                 return;
             }
-            if (node === st.selectedNode) {
-                st.selectedNode = null;
-                pendingBuy = null;
-                SC.sfx.play('click');
-                return;
-            }
             if (node.kind === 'factory' && node.forSale) {
                 const building = SC.GOODS[node.recipe].building;
                 if (pendingBuy === node) {
@@ -112,6 +106,12 @@ SC.input = (function() {
                     SC.sfx.play('click');
                     SC.emit('toast', { text: `Tap again to buy this ${building.toLowerCase()} ${SC.emojiOf(node.recipe)} for $${SC.CONFIG.FACTORY_SITE_PRICE}`, kind: 'info' });
                 }
+                return;
+            }
+            if (node === st.selectedNode) {
+                st.selectedNode = null;
+                pendingBuy = null;
+                SC.sfx.play('click');
                 return;
             }
             st.selectedNode = node;
