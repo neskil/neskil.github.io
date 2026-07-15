@@ -340,6 +340,10 @@ SC.ui = (function() {
         });
         $('menu-newgame').addEventListener('click', () => {
             if (newGameArmed) {
+                // Reloading fires pagehide/beforeunload, whose autosave flush
+                // (main.js) would otherwise re-persist this still-in-memory
+                // state right after clear() and undo the reset.
+                SC.state.gameStarted = false;
                 SC.save.clear();
                 location.reload();
                 return;
