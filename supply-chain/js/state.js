@@ -12,9 +12,11 @@ SC.newState = function() {
         time: 0,
         money: SC.CONFIG.START_MONEY,
         earnedTotal: 0,
+        interestPaid: 0,
         delivered: 0,
         missed: 0,
         trucksBought: 0,
+        paused: false,      // menu open — sim frozen, not persisted
 
         nodes: [],          // see map.js makeNode()
         river: null,        // { spine: [{x,y}], halfWidths: [w] }
@@ -36,6 +38,13 @@ SC.newState = function() {
         gameStarted: false
     };
     return SC.state;
+};
+
+// Purchases may dip into the credit line: affordable as long as the
+// resulting balance stays above -CREDIT_LIMIT. Debt accrues interest
+// (see economy.tick).
+SC.canAfford = function(cost) {
+    return SC.state.money - cost >= -SC.CONFIG.CREDIT_LIMIT;
 };
 
 SC.truckSpeed = function() {

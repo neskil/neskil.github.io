@@ -49,5 +49,6 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   without running the probe. Add `&dc=1` to force `nextCustomerIn` down to
   3s so a second (customer DC) city appears within a short probe window —
   otherwise the default 50-70s first-spawn delay means most probes only
-  ever show HQ.
+  ever show HQ. `&debt=900` forces a negative balance post-probe (red
+  debt HUD / credit-limit UI); `&menu=1` opens the ☰ menu overlay on load.
 - **Mobile layout**: same screenshot with `--window-size=390,844`.

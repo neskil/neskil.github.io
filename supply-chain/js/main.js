@@ -37,13 +37,13 @@ SC.init = function() {
         let dt = Math.min(0.05, (now - last) / 1000);
         last = now;
 
-        if (SC.state.gameStarted) {
+        if (SC.state.gameStarted && !SC.state.paused) {
             SC.state.time += dt;
             SC.economy.tick(dt);
             SC.factories.tick(dt);
             SC.vehicles.tick(dt);
             saveTimer += dt;
-            if (saveTimer >= 5 && !wantFresh) {
+            if (saveTimer >= SC.CONFIG.AUTOSAVE_INTERVAL && !wantFresh) {
                 saveTimer = 0;
                 SC.save.store();
             }
@@ -54,9 +54,14 @@ SC.init = function() {
     }
     requestAnimationFrame(loop);
 
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden && SC.state.gameStarted && !wantFresh) SC.save.store();
-    });
+    // Save on every way a mobile browser can kill the tab: backgrounding
+    // (visibilitychange), bfcache eviction / close (pagehide), and desktop
+    // close (beforeunload). localStorage writes are synchronous, so these
+    // are safe places to flush.
+    const flush = () => { if (SC.state.gameStarted && !wantFresh) SC.save.store(); };
+    document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
 
     const probe = params.get('probe');
     if (probe !== null) SC.runProbe(parseFloat(probe) || 20);
@@ -68,7 +73,8 @@ SC.init = function() {
 SC.runProbe = function(seconds) {
     SC.state.gameStarted = true;
     SC.state.money = Math.max(SC.state.money, 5000);
-    if (new URLSearchParams(location.search).has('dc')) SC.state.nextCustomerIn = 3;
+    const p = new URLSearchParams(location.search);
+    if (p.has('dc')) SC.state.nextCustomerIn = 3;
     const f = SC.factories.all()[0];
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))
@@ -84,6 +90,8 @@ SC.runProbe = function(seconds) {
         SC.factories.tick(0.05);
         SC.vehicles.tick(0.05);
     }
+    // Force a debt balance so the red HUD/credit UI can be screenshotted
+    if (p.has('debt')) SC.state.money = -Math.abs(parseFloat(p.get('debt')) || 800);
 };
 
 document.addEventListener('DOMContentLoaded', SC.init);

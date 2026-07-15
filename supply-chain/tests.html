@@ -15,16 +15,16 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.3.0"></script>
-    <script src="js/state.js?v=1.3.0"></script>
-    <script src="js/save.js?v=1.3.0"></script>
-    <script src="js/sfx.js?v=1.3.0"></script>
-    <script src="js/map.js?v=1.3.0"></script>
-    <script src="js/camera.js?v=1.3.0"></script>
-    <script src="js/roads.js?v=1.3.0"></script>
-    <script src="js/factories.js?v=1.3.0"></script>
-    <script src="js/economy.js?v=1.3.0"></script>
-    <script src="js/vehicles.js?v=1.3.0"></script>
+    <script src="js/config.js?v=1.4.0"></script>
+    <script src="js/state.js?v=1.4.0"></script>
+    <script src="js/save.js?v=1.4.0"></script>
+    <script src="js/sfx.js?v=1.4.0"></script>
+    <script src="js/map.js?v=1.4.0"></script>
+    <script src="js/camera.js?v=1.4.0"></script>
+    <script src="js/roads.js?v=1.4.0"></script>
+    <script src="js/factories.js?v=1.4.0"></script>
+    <script src="js/economy.js?v=1.4.0"></script>
+    <script src="js/vehicles.js?v=1.4.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -384,6 +384,52 @@
             SC.state.delivered === 1 && SC.state.money === before + order.payout);
         assert('no leftover tasks or jobs', SC.state.jobs.length === 0 &&
             smelt.queue.length === 0 && carF.queue.length === 0);
+    })();
+
+    // ── Credit line & debt interest ──────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        const q = SC.roads.quote(S1, F); // ~$190
+
+        // Build into the red: cash below cost but within the credit line
+        SC.state.money = 50;
+        const res = SC.roads.build(S1, F);
+        assert('purchase can dip into the credit line', res.ok && SC.state.money < 0);
+
+        // Blocked when it would breach -CREDIT_LIMIT
+        SC.state.money = -SC.CONFIG.CREDIT_LIMIT + 10;
+        const res2 = SC.roads.build(S2, F);
+        assert('purchase past the credit limit is rejected',
+            !res2.ok && res2.reason === 'money');
+        assert('canAfford mirrors the limit',
+            SC.canAfford(10) && !SC.canAfford(11));
+
+        // Interest bleeds while negative, and only while negative
+        SC.state.money = -1000;
+        SC.state.interestPaid = 0;
+        SC.economy.tick(60); // one minute in one tick
+        assert('debt accrues ~10% interest per minute',
+            approx(SC.state.money, -1100, 1) && approx(SC.state.interestPaid, 100, 1));
+        SC.state.money = 500;
+        const ip = SC.state.interestPaid;
+        SC.economy.tick(60);
+        assert('no interest while balance is positive', SC.state.interestPaid === ip);
+
+        // Truck and upgrade purchases honor the credit line too
+        SC.state.money = 0;
+        assert('truck buyable on credit', SC.vehicles.buyTruck().ok && SC.state.money < 0);
+        SC.state.money = -SC.CONFIG.CREDIT_LIMIT;
+        assert('upgrade blocked at the limit', !SC.economy.buyUpgrade('truckSpeed').ok);
+    })();
+
+    // ── Save keeps debt state ────────────────────────
+    (function() {
+        fixture();
+        SC.state.money = -800;
+        SC.state.interestPaid = 42;
+        SC.save.restore(SC.save.serialize());
+        assert('negative balance and interestPaid survive a round-trip',
+            SC.state.money === -800 && SC.state.interestPaid === 42);
     })();
 
     // ── Goods tree sanity ───────────────────────────
