@@ -66,10 +66,14 @@ that ambient animation as its background — it now lives independently at
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
-- **Research** (Shop panel): one project at a time, paid upfront, takes
-  real time, then unlocks its effect — `SC.RESEARCH` in `config.js`.
-  Ships with Site Requisition (unlocks manual placement, below) and a
-  two-tier Credit Line II/III (each raises the credit limit, stacking).
+- **Research**: one project at a time, paid upfront, takes real time,
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Ships with Site
+  Requisition (unlocks manual placement, below) and a two-tier Credit
+  Line II/III (each raises the credit limit, stacking). The Shop panel
+  keeps a one-line shortcut (progress/available count); tapping it opens
+  the full tree in its own overlay, laid out left-to-right by
+  prerequisite depth with connecting lines to its `requires` (not a flat
+  list — see `updateResearchTree`/`researchTiers` in `ui.js`).
 - **Manual placement** (needs Site Requisition researched): pick a good
   in the Shop panel's Build section, then tap the map to drop that
   supplier/factory anywhere on land — at a premium over the free
@@ -123,7 +127,9 @@ sync with it):
   Inspect-mode hold gesture above uses the same long-press primitive).
 - More research nodes (order-pay boosts, faster milestones); a
   "promotions" tech that temporarily boosts demand for a chosen good,
-  per the plan's next-steps discussion.
+  per the plan's next-steps discussion. The tree UI (own overlay,
+  branching by tier) is built — it just has few branches to show until
+  these land.
 - Research cancel/refund (currently a started project can't be aborted).
 - Reassigning an existing truck to a different yard (today you choose a
   yard at purchase time only; there's no way to move a truck already

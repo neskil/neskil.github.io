@@ -315,6 +315,50 @@ html, body {
 }
 .research-bar div { height: 100%; background: var(--accent-color); border-radius: 2px; }
 
+/* ── Research tree overlay ──────────────────────── */
+#research-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#research-overlay.hidden { display: none; }
+.research-tree-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 1.2rem;
+    width: 760px;
+    max-width: 92vw;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+.research-tree-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+.research-tree-header h1 { font-size: 1.1rem; }
+.research-tree-wrap {
+    position: relative;
+    overflow: auto;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.35);
+}
+#research-tree-nodes { position: relative; }
+.rt-node { position: absolute; box-sizing: border-box; margin-bottom: 0; }
+#research-tree-edges { position: absolute; top: 0; left: 0; pointer-events: none; }
+.rt-edge { fill: none; stroke: rgba(148, 163, 184, 0.35); stroke-width: 2; }
+.rt-edge.rt-edge-done { stroke: var(--good); stroke-width: 2.5; }
+
 /* ── Build (manual placement) ───────────────────────*/
 .build-btn.active {
     border-color: var(--accent-color);
@@ -508,4 +552,5 @@ html, body {
     .hud-item span:last-child { font-size: 0.8rem; }
     #orders-panel { top: 4rem; right: 0.5rem; width: 220px; }
     #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 220px; }
+    .research-tree-card { padding: 0.8rem; }
 }
