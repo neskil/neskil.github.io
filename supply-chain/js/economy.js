@@ -78,7 +78,7 @@ SC.economy = (function() {
             order.noRoute = true;
             return false;
         }
-        for (let u = 0; u < order.qty; u++) {
+        for (let u = order.deliveredUnits; u < order.qty; u++) {
             const task = SC.factories.makeTask(best.f, order.product, order);
             for (const m of SC.factories.missingInputs(task)) {
                 SC.vehicles.addJob({
@@ -91,6 +91,7 @@ SC.economy = (function() {
         order.planned = true;
         order.noRoute = false;
         order.factory = best.f;
+        order.route = { factory: best.f, sups: best.sups }; // for UI highlighting
         return true;
     }
 

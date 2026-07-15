@@ -49,7 +49,7 @@ SC.ui = (function() {
         const p = SC.PRODUCTS[o.product];
         const frac = Math.max(0, o.deadline / o.deadlineTotal);
         const left = o.qty - o.deliveredUnits;
-        return `<div class="order ${frac < 0.25 ? 'urgent' : ''}">
+        return `<div class="order ${frac < 0.25 ? 'urgent' : ''}" data-order="${o.id}">
             <span class="chip" style="background:${p.color}"></span>
             <span class="oname">${left}× ${p.name}</span>
             <span class="opay">${fmt(o.payout)}</span>
@@ -81,7 +81,51 @@ SC.ui = (function() {
         }
     }
 
+    // Tap an order row: fly the camera to its city and light up the
+    // planned route (city↔factory↔suppliers). Unplanned orders just pulse
+    // the city so "no route!" is locatable.
+    function focusOrder(order) {
+        const zoom = Math.max(SC.camera.cam.zoom, 0.85);
+        SC.camera.focus(order.city.x, order.city.y, zoom);
+        const paths = [];
+        if (order.route) {
+            const toCity = SC.roads.findPath(order.route.factory, order.city);
+            if (toCity) paths.push(toCity.path);
+            for (const m of Object.keys(order.route.sups)) {
+                const leg = SC.roads.findPath(order.route.sups[m], order.route.factory);
+                if (leg) paths.push(leg.path);
+            }
+        }
+        SC.state.highlight = {
+            paths,
+            color: SC.PRODUCTS[order.product].color,
+            city: order.city,
+            until: SC.state.time + 3
+        };
+        SC.sfx.play('click');
+    }
+
+    function restart() {
+        SC.save.clear();
+        location.reload();
+    }
+
+    let restartArmed = false;
     function bind() {
+        $('orders-list').addEventListener('click', e => {
+            const row = e.target.closest('[data-order]');
+            if (!row) return;
+            const order = SC.state.orders.find(o => o.id === +row.dataset.order);
+            if (order) focusOrder(order);
+        });
+
+        $('btn-restart').addEventListener('click', () => {
+            if (restartArmed) { restart(); return; }
+            restartArmed = true;
+            toast('Tap ↺ again to abandon this game and start over', 'error');
+            setTimeout(() => { restartArmed = false; }, 3000);
+        });
+
         $('btn-truck').addEventListener('click', () => {
             const res = SC.vehicles.buyTruck();
             if (res.ok) { SC.sfx.play('cash'); toast('New truck delivered to HQ', 'good'); }
@@ -134,7 +178,8 @@ SC.ui = (function() {
         updateOrders();
         updateShop();
         updateHUD();
-        if (localStorage.getItem('scTycoonHelpSeen') === 'true' ||
+        if (SC.state.gameStarted || // restored from autosave in main.js
+            localStorage.getItem('scTycoonHelpSeen') === 'true' ||
             new URLSearchParams(location.search).has('nohelp') ||
             new URLSearchParams(location.search).has('probe')) {
             $('help-overlay').classList.add('hidden');
