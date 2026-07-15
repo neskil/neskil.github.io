@@ -718,6 +718,12 @@ Object.assign(CargoGame.prototype, {
         if (ingameBtn) ingameBtn.textContent = this.isMuted ? '🔇' : '🔊';
         const muteCb = document.getElementById('setting-mute');
         if (muteCb) muteCb.checked = this.isMuted;
+        // Main-menu-only nudge bubble pointing at the mute button — sound is
+        // muted by default for first-time visitors, so this is the one thing
+        // that tells them there's music to turn on. Purely tied to mute state,
+        // so it comes back on its own whenever the game is (re-)muted.
+        const audioNudge = document.getElementById('audio-nudge');
+        if (audioNudge) audioNudge.style.display = this.isMuted ? 'block' : 'none';
     },
 
     toggleMuteQuick() {
