@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.6.0';
+SC.VERSION = '1.8.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -31,10 +31,13 @@ SC.CONFIG = {
 
     CRAFT_TIME: 4,             // seconds per product at level 0
 
-    // Upgrade tracks: price of level n = base * growth^n
+    // Upgrade tracks: price of level n = base * growth^n. truckCapacity
+    // is additive (1 unit per level, i.e. 1 + boost*level) rather than
+    // multiplicative like the other two.
     UPGRADES: {
-        truckSpeed:   { base: 300, growth: 1.6, boost: 0.25, max: 5, label: 'Truck Speed' },
-        factorySpeed: { base: 280, growth: 1.6, boost: 0.25, max: 5, label: 'Factory Speed' }
+        truckSpeed:    { base: 300, growth: 1.6, boost: 0.25, max: 5, label: 'Truck Speed' },
+        factorySpeed:  { base: 280, growth: 1.6, boost: 0.25, max: 5, label: 'Factory Speed' },
+        truckCapacity: { base: 450, growth: 1.8, boost: 1,    max: 3, label: 'Truck Capacity' }
     },
 
     ORDER_INTERVAL: [14, 24],  // seconds between new orders (shrinks as you level)
@@ -51,8 +54,34 @@ SC.CONFIG = {
     // own schedule.
     MILESTONE_EVERY: 3,
     CUSTOMER_SPAWN_FIRST: [50, 70],     // seconds until the 2nd order city appears
-    CUSTOMER_SPAWN_INTERVAL: [90, 140]  // seconds between further ones
+    CUSTOMER_SPAWN_INTERVAL: [90, 140], // seconds between further ones
+
+    // Manual placement (unlocked by the 'manualPlacement' research): price
+    // to drop a site yourself, at a premium over the free milestone unlocks.
+    PLACEMENT_SUPPLIER_PRICE: 900,
+    PLACEMENT_FACTORY_MULT: 2.5,  // × FACTORY_SITE_PRICE
+    PLACEMENT_MIN_DIST: 110       // looser than generated-map NODE_MIN_DIST
 };
+
+// Research tree: one active project at a time, paid upfront, takes `time`
+// seconds, then unlocks its effect. `requires` lists prerequisite ids.
+// RESEARCH_ORDER fixes menu display order (object key order isn't a
+// contract to rely on across engines).
+SC.RESEARCH = {
+    manualPlacement: {
+        name: 'Site Requisition', emoji: '📍', cost: 900, time: 70, requires: [],
+        desc: 'Place a supplier or factory anywhere on the map yourself, for a premium.'
+    },
+    creditLine2: {
+        name: 'Credit Line II', emoji: '💳', cost: 700, time: 50, requires: [],
+        desc: 'Raises your credit limit by $1,000.', creditBonus: 1000
+    },
+    creditLine3: {
+        name: 'Credit Line III', emoji: '💳', cost: 1800, time: 100, requires: ['creditLine2'],
+        desc: 'Raises your credit limit by another $2,000.', creditBonus: 2000
+    }
+};
+SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'creditLine3'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city

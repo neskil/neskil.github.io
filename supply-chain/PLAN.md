@@ -26,16 +26,35 @@ growth, pan/pinch camera).
 
 ## Shipped
 
-- v1.6.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
+*(v1.7.0/v1.8.0 below were developed in parallel with v1.5.0/v1.6.0 on
+another branch, under those same version numbers; renumbered on merge —
+no functional overlap, just a numbering collision.)*
+
+- v1.8.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
   🧵wire+💾chips→🔌circuit factory, 🔌circuit+🔩steel→🤖robot factory) —
   rubber, chips and steel are now each shared by two recipes, so one
   supplier's roads matter for more than one product. No planner changes
   needed; `economy.bestSourceFor`/`planUnit` were already generic over
   chain depth.
-- v1.5.0: Build vs Inspect mode toggle (top right). Inspect: hover
+- v1.7.0: Build vs Inspect mode toggle (top right). Inspect: hover
   (mouse) or hold (touch, long-press) a node for a tooltip — a factory's
   inputs and their connected/unreachable status, a supplier's consuming
   factories, or a city's open orders — with the relevant roads glowing.
+- v1.6.0: truck capacity upgrade. Trucks default to hauling one item, but
+  the dispatcher now bundles any other pending job sharing the exact same
+  pickup and drop onto the same trip, up to the truck's capacity; the
+  Truck Capacity upgrade (Shop panel, 3 levels) raises that cap. Trucks
+  hauling more than one item show a ×N badge. Truck state internally
+  moved from a single `job`/`cargo` pair to `jobs[]`/`cargo[]` arrays
+  (vehicles.js, save.js, render.js, ui.js all updated).
+- v1.5.0: research tree (`SC.RESEARCH`, one project at a time, paid
+  upfront + timed) with Site Requisition (unlocks manual placement below)
+  and a stacking Credit Line II/III. Manual placement: pick a good in the
+  Shop panel's Build section, tap the map to drop that supplier/factory
+  anywhere on land at a premium, with a live green/red ghost preview.
+  This is the "player-placed sites locked behind research, plus
+  research-boosted credit line" ask — promotions (temporary demand
+  boosts) are the natural next research node, not yet built.
 - v1.4.0: credit line (spend to −$1,500; debt bleeds 10%/min interest,
   red HUD readout) so a cash crunch can't deadlock the early game; a
   proper ☰ menu (pauses the sim: stats, autosave status + Save now,
@@ -61,12 +80,11 @@ growth, pan/pinch camera).
 2. ~~Money & event feedback~~ — shipped v1.1.0.
 3. ~~Order → map linking~~ — shipped v1.1.0 (tap an order row → route
    highlight). Generalized by item 6 below.
-4. **Truck capacity upgrade track** — haul 2–3 items per trip; makes the
-   shop more interesting and reduces late-game truck spam.
+4. ~~Truck capacity upgrade track~~ — shipped v1.6.0.
 5. **Tutorialize the first order** — instead of only the text overlay:
    dim the map, arrow at HQ + nearest supplier, "build a road here". The
    overlay stays as reference.
-6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.5.0. Detail kept
+6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.7.0. Detail kept
    below for reference:
    - **Build** (current behaviour, default): tap-tap builds/demolishes
      roads, tap a for-sale site to buy it — unchanged.
@@ -108,9 +126,16 @@ growth, pan/pinch camera).
 10. **Contracts** — occasional long-running deals: "3× green every 60s for
     5 minutes at a locked-in rate". Creates steady demand you can build
     dedicated infrastructure for.
+10b. **Promotions research** — a purchasable research node (or repeatable
+    research-gated action) that temporarily boosts order frequency/payout
+    for one chosen good, e.g. "+50% bread orders for 3 minutes". Lighter
+    than Contracts (no locked-in rate/infrastructure commitment) and
+    reuses the `research.js` machinery already in place — natural next
+    entry in `SC.RESEARCH` once a design for repeatable (vs. one-shot)
+    research is settled (the current tree assumes each id completes once).
 11. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
-12. ~~Deeper, shared supply chains~~ — shipped v1.6.0 (the 🟠🧵🔌🤖 chain,
+12. ~~Deeper, shared supply chains~~ — shipped v1.8.0 (the 🟠🧵🔌🤖 chain,
     see Shipped above). Detail kept below for reference:
     - `SC.depthOf`, the recursive planner (`economy.bestSourceFor`/
       `planUnit`), and `SC.factories.canSource` are already

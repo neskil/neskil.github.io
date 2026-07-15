@@ -21,6 +21,7 @@ SC.render = (function() {
         SC.on('roadDemolished', d => addFloater((d.edge.a.x + d.edge.b.x) / 2, (d.edge.a.y + d.edge.b.y) / 2, `+$${d.refund}`, '#34d399'));
         SC.on('sitePurchased', d => addFloater(d.node.x, d.node.y - 24, `−$${d.price}`, '#f87171'));
         SC.on('truckBought', d => addFloater(d.truck.x, d.truck.y - 24, `−$${d.price}`, '#f87171'));
+        SC.on('sitePlaced', d => addFloater(d.node.x, d.node.y - 24, `−$${d.cost}`, '#f87171'));
     }
 
     function resize() {
@@ -135,6 +136,31 @@ SC.render = (function() {
         const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
         label(`$${q.cost}${q.bridge ? ' (bridge)' : ''}`, mx, my - 14,
               affordable ? '#34d399' : '#f87171');
+    }
+
+    // Preview for manual site placement (research-unlocked): a dashed
+    // hex/square at the pointer, green when the spot is buildable.
+    function drawPlacementGhost() {
+        const pm = SC.state.placeMode;
+        const hover = SC.input.getHover && SC.input.getHover();
+        if (!pm || !hover) return;
+        const valid = SC.canAfford(SC.placement.price(pm.kind)) && SC.placement.canPlaceAt(hover.x, hover.y);
+        const cost = SC.placement.price(pm.kind);
+        const color = valid ? 'rgba(52, 211, 153, 0.85)' : 'rgba(248, 113, 113, 0.85)';
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        if (pm.kind === 'supplier') hexPath(hover.x, hover.y, 20);
+        else { ctx.beginPath(); ctx.rect(hover.x - 18, hover.y - 18, 36, 36); }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.globalAlpha = 0.85;
+        emoji(SC.emojiOf(pm.good), hover.x, hover.y, 19);
+        ctx.globalAlpha = 1;
+        label(`$${cost}${valid ? '' : ' — blocked'}`, hover.x, hover.y - 32,
+              valid ? '#34d399' : '#f87171', 11);
     }
 
     // Screen-constant-size text at a world position
@@ -377,21 +403,26 @@ SC.render = (function() {
 
     function drawTrucks() {
         for (const t of SC.state.trucks) {
+            // A bundle always shares one pickup+drop (see vehicles.dispatch),
+            // so every item in t.cargo is the same good — just show the
+            // count when it's more than one.
+            const item = t.cargo[0];
             ctx.save();
             ctx.translate(t.x, t.y);
             ctx.rotate(t.path ? (t.angle || 0) : 0);
-            const body = t.cargo ? SC.colorOf(t.cargo) : '#94a3b8';
+            const body = item ? SC.colorOf(item) : '#94a3b8';
             ctx.fillStyle = body;
-            ctx.shadowBlur = t.cargo ? 6 : 0;
+            ctx.shadowBlur = item ? 6 : 0;
             ctx.shadowColor = body;
             // cab + two trailer segments, echoing the original ambient sim
             ctx.fillRect(6, -3.5, 6, 7);
             ctx.fillRect(-3, -4, 7, 8);
             ctx.fillRect(-12, -4, 7, 8);
             ctx.restore();
-            if (t.cargo) {
+            if (item) {
                 ctx.shadowBlur = 0;
-                emojiPlate(SC.emojiOf(t.cargo), t.x, t.y - 16, 9, 13);
+                emojiPlate(SC.emojiOf(item), t.x, t.y - 16, 9, 13);
+                if (t.cargo.length > 1) label('×' + t.cargo.length, t.x + 10, t.y - 22, '#f8fafc', 9);
             }
         }
     }
@@ -407,6 +438,7 @@ SC.render = (function() {
         drawHighlight(now);
         drawInspectHighlight(now);
         drawGhostRoad();
+        drawPlacementGhost();
         drawOrderBubbles();
         drawNodes(now);
         drawTrucks();

@@ -27,9 +27,12 @@ SC.save = (function() {
             inv.set(n.id, copy);
         }
         for (const t of st.trucks) {
-            if (t.cargo && t.job && t.job.type === 'raw' && inv.has(t.job.drop.id)) {
-                const c = inv.get(t.job.drop.id);
-                c[t.cargo] = (c[t.cargo] || 0) + 1;
+            if (t.phase !== 'toDrop') continue; // only already-picked-up cargo counts as "delivered"
+            for (const job of t.jobs) {
+                if (job.type === 'raw' && inv.has(job.drop.id)) {
+                    const c = inv.get(job.drop.id);
+                    c[job.item] = (c[job.item] || 0) + 1;
+                }
             }
         }
 
@@ -42,6 +45,10 @@ SC.save = (function() {
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
             upgrades: Object.assign({}, st.upgrades),
+            research: {
+                completed: Object.assign({}, st.research.completed),
+                active: st.research.active ? Object.assign({}, st.research.active) : null
+            },
             river: st.river,
             nodes: st.nodes.map(n => ({
                 id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
@@ -73,6 +80,10 @@ SC.save = (function() {
         st.orderSeq = data.orderSeq;
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
+        if (data.research) {
+            st.research.completed = Object.assign({}, data.research.completed);
+            st.research.active = data.research.active ? Object.assign({}, data.research.active) : null;
+        }
         st.river = data.river;
 
         const byId = new Map();
