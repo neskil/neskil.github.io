@@ -33,6 +33,14 @@ that ambient animation as its background — it now lives independently at
   (refused while a truck is on it).
 - **Trucks**: haul one item each; idle trucks take the nearest pending
   job. Buy more at the shop (price grows per truck); they spawn at HQ.
+- **Credit line**: purchases may push the balance negative down to
+  −$1,500 (`CREDIT_LIMIT`); debt accrues 10%/min interest
+  (`DEBT_INTEREST_PER_MIN`), charged continuously in `economy.tick`.
+  The HUD flips to a red "Debt" readout while under water.
+- **Menu (☰)**: pauses the sim; shows session stats (incl. interest
+  paid) and autosave status, with Save now / Sound / How to play /
+  New game (two-tap confirm). The game autosaves every 5s and on
+  visibilitychange/pagehide/beforeunload, so closing the tab is safe.
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
@@ -70,6 +78,5 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 - Truck capacity upgrade (haul 2+ items per trip).
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
-- Save/load game state to localStorage.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy.

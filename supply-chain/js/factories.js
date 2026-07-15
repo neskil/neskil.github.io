@@ -114,7 +114,7 @@ SC.factories = (function() {
     function buySite(node) {
         if (node.kind !== 'factory' || !node.active || !node.forSale) return { ok: false, reason: 'invalid' };
         const price = SC.CONFIG.FACTORY_SITE_PRICE;
-        if (SC.state.money < price) return { ok: false, reason: 'money', cost: price };
+        if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
         SC.state.money -= price;
         node.forSale = false;
         SC.economy && SC.economy.onNetworkChanged();

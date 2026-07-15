@@ -36,6 +36,7 @@ SC.save = (function() {
         return {
             v: FORMAT,
             money: st.money, earnedTotal: st.earnedTotal,
+            interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
             trucksBought: st.trucksBought,
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
@@ -63,6 +64,7 @@ SC.save = (function() {
         const st = SC.state;
         st.money = data.money;
         st.earnedTotal = data.earnedTotal;
+        st.interestPaid = data.interestPaid || 0;
         st.delivered = data.delivered;
         st.missed = data.missed;
         st.trucksBought = data.trucksBought;
@@ -108,9 +110,12 @@ SC.save = (function() {
         return st;
     }
 
+    let lastSavedAt = null; // Date.now() of the last successful store
+
     function store() {
         try {
             localStorage.setItem(KEY, JSON.stringify(serialize()));
+            lastSavedAt = Date.now();
         } catch (e) { /* quota/private mode — play on without saving */ }
     }
 
@@ -138,5 +143,6 @@ SC.save = (function() {
         localStorage.removeItem(KEY);
     }
 
-    return { serialize, restore, store, load, exists, clear, KEY };
+    return { serialize, restore, store, load, exists, clear, KEY,
+             getLastSavedAt: () => lastSavedAt };
 })();

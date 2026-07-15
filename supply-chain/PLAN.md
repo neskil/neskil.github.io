@@ -26,6 +26,12 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.4.0: credit line (spend to −$1,500; debt bleeds 10%/min interest,
+  red HUD readout) so a cash crunch can't deadlock the early game; a
+  proper ☰ menu (pauses the sim: stats, autosave status + Save now,
+  sound, help, two-tap New game) replacing the three top-right icon
+  buttons; extra save flushes on pagehide/beforeunload for mobile tab
+  kills.
 - v1.3.0: HQ (⭐) is the sole order-placing location at game start;
   customer DCs (🏢) unlock on their own independent timer (not tied to
   delivery milestones), so demand visibly expands beyond HQ over a

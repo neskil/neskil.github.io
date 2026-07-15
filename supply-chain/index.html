@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.3.0">
+    <link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -12,16 +12,14 @@
     <a href="../index.html" id="back-btn" title="Back to Home">←</a>
 
     <div id="hud">
-        <div class="hud-item money"><span class="hud-label">Money</span><span id="hud-money">$0</span></div>
+        <div class="hud-item money" id="hud-money-item"><span class="hud-label" id="hud-money-label">Money</span><span id="hud-money">$0</span></div>
         <div class="hud-item"><span class="hud-label">Trucks idle</span><span id="hud-trucks">0/0</span></div>
         <div class="hud-item"><span class="hud-label">Filled</span><span id="hud-delivered">0</span></div>
         <div class="hud-item"><span class="hud-label">Missed</span><span id="hud-missed">0</span></div>
     </div>
 
     <div id="top-right">
-        <button id="btn-help" class="icon-btn" title="How to play">?</button>
-        <button id="btn-mute" class="icon-btn" title="Toggle sound">🔊</button>
-        <button id="btn-restart" class="icon-btn" title="New game">↺</button>
+        <button id="btn-menu" class="icon-btn" title="Menu">☰</button>
     </div>
 
     <div id="orders-panel" class="panel">
@@ -55,6 +53,22 @@
 
     <div id="toast"></div>
 
+    <div id="menu-overlay" class="hidden">
+        <div class="menu-card">
+            <div class="menu-title">
+                <h1>Supply Chain Tycoon</h1>
+                <span class="version" id="menu-version"></span>
+            </div>
+            <div class="menu-stats" id="menu-stats"></div>
+            <div class="menu-save" id="menu-save-status"></div>
+            <button class="menu-btn primary" id="menu-resume">▶ Resume</button>
+            <button class="menu-btn" id="menu-save">💾 Save now</button>
+            <button class="menu-btn" id="menu-sound">🔊 Sound</button>
+            <button class="menu-btn" id="menu-help">❓ How to play</button>
+            <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
+        </div>
+    </div>
+
     <div id="help-overlay">
         <div class="help-card">
             <h1>Supply Chain Tycoon</h1>
@@ -67,6 +81,7 @@
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. New sites appear as you deliver.</li>
+                <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds 10% interest per minute — pay it off fast.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
             </ul>
             <div class="recipes">
@@ -79,19 +94,19 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.3.0"></script>
-    <script src="js/state.js?v=1.3.0"></script>
-    <script src="js/save.js?v=1.3.0"></script>
-    <script src="js/sfx.js?v=1.3.0"></script>
-    <script src="js/map.js?v=1.3.0"></script>
-    <script src="js/camera.js?v=1.3.0"></script>
-    <script src="js/roads.js?v=1.3.0"></script>
-    <script src="js/factories.js?v=1.3.0"></script>
-    <script src="js/economy.js?v=1.3.0"></script>
-    <script src="js/vehicles.js?v=1.3.0"></script>
-    <script src="js/render.js?v=1.3.0"></script>
-    <script src="js/input.js?v=1.3.0"></script>
-    <script src="js/ui.js?v=1.3.0"></script>
-    <script src="js/main.js?v=1.3.0"></script>
+    <script src="js/config.js?v=1.4.0"></script>
+    <script src="js/state.js?v=1.4.0"></script>
+    <script src="js/save.js?v=1.4.0"></script>
+    <script src="js/sfx.js?v=1.4.0"></script>
+    <script src="js/map.js?v=1.4.0"></script>
+    <script src="js/camera.js?v=1.4.0"></script>
+    <script src="js/roads.js?v=1.4.0"></script>
+    <script src="js/factories.js?v=1.4.0"></script>
+    <script src="js/economy.js?v=1.4.0"></script>
+    <script src="js/vehicles.js?v=1.4.0"></script>
+    <script src="js/render.js?v=1.4.0"></script>
+    <script src="js/input.js?v=1.4.0"></script>
+    <script src="js/ui.js?v=1.4.0"></script>
+    <script src="js/main.js?v=1.4.0"></script>
 </body>
 </html>

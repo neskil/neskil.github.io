@@ -23,7 +23,7 @@ SC.roads = (function() {
     function build(a, b) {
         const q = quote(a, b);
         if (!q) return { ok: false, reason: 'invalid' };
-        if (SC.state.money < q.cost) return { ok: false, reason: 'money', cost: q.cost };
+        if (!SC.canAfford(q.cost)) return { ok: false, reason: 'money', cost: q.cost };
         SC.state.money -= q.cost;
         const edge = { a, b, len: q.len, bridge: q.bridge, cost: q.cost };
         SC.state.edges.push(edge);
