@@ -195,6 +195,15 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
+        $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.().catch(() => {});
+        } else {
+            document.exitFullscreen?.();
+        }
     }
 
     function menuOpen() { return !$('menu-overlay').classList.contains('hidden'); }
@@ -240,6 +249,13 @@ SC.ui = (function() {
         $('menu-sound').addEventListener('click', () => {
             SC.sfx.toggleMute();
             updateMenuInfo();
+        });
+        $('menu-fullscreen').addEventListener('click', () => {
+            SC.sfx.play('click');
+            toggleFullscreen();
+        });
+        document.addEventListener('fullscreenchange', () => {
+            if (menuOpen()) updateMenuInfo();
         });
         $('menu-help').addEventListener('click', () => {
             $('menu-overlay').classList.add('hidden'); // stay paused while reading
