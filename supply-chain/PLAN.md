@@ -47,71 +47,104 @@ growth, pan/pinch camera).
 
 ## Phase 1 — Stickiness & feel (small, high-value)
 
-1. **Autosave / resume** — persist `SC.state` to localStorage every few
-   seconds and on tab close; "Continue" vs "New game" on the help screen.
-   Without it every reload wipes progress, which caps session length.
-   Needs a serializer (nodes/edges/orders hold object refs → save by id).
-2. **Money & event feedback** — floating "+$450" at the city on payout,
-   red "−$180" when building, brief camera-shake-free flash on expiry.
-   Cheap to do in render.js, big juice payoff.
-3. **Order → map linking** — tap an order row to pan/zoom to its city;
-   highlight the planned route (city ↔ factory ↔ suppliers) while held.
-   Makes "no route!" self-explanatory.
+1. ~~Autosave / resume~~ — shipped v1.1.0.
+2. ~~Money & event feedback~~ — shipped v1.1.0.
+3. ~~Order → map linking~~ — shipped v1.1.0 (tap an order row → route
+   highlight). Generalized by item 6 below.
 4. **Truck capacity upgrade track** — haul 2–3 items per trip; makes the
    shop more interesting and reduces late-game truck spam.
 5. **Tutorialize the first order** — instead of only the text overlay:
    dim the map, arrow at HQ + nearest supplier, "build a road here". The
    overlay stays as reference.
+6. **Interaction modes: Build vs Inspect** *(in progress — 2026-07-15)* —
+   right now the map only has one gesture (tap-tap to build/demolish a
+   road). Add a mode toggle in the top bar:
+   - **Build** (current behaviour, default): tap-tap builds/demolishes
+     roads, tap a for-sale site to buy it — unchanged.
+   - **Inspect**: tapping doesn't build. Hovering (mouse) or holding
+     (touch, long-press like the demolish-confirm gesture) a node opens
+     an info tooltip and highlights the relevant roads, reusing/
+     generalizing the order-route highlight overlay (`SC.state.highlight`)
+     from item 3:
+     - **Factory**: recipe + emoji, its inputs (raw or intermediate) with
+       connected/unreachable status per input, distance if connected.
+       Highlights the path(s) from the best-connected source(s) of each
+       input up to this factory (recursing through intermediates, e.g.
+       hovering the car factory lights up the smelter's own ore/coal
+       roads too).
+     - **Supplier**: which good it provides, and which active factories
+       currently use that good, with connected/unreachable status per
+       factory. Highlights the roads to the connected ones.
+     - **City (HQ/DC)**: its open orders and their planned routes (same
+       overlay `focusOrder` already draws, just triggered by hover
+       instead of tapping the order row).
+   - Pure logic (which nodes relate to which, path collection) lives in
+     a new `js/inspect.js` next to economy.js/roads.js so it's headless
+     testable; only the tooltip DOM/positioning and the mode-toggle
+     button live in ui.js/input.js.
 
 ## Phase 2 — Strategic depth
 
-6. **Fail state / difficulty ramp** — currently endless and consequence-free.
+7. **Fail state / difficulty ramp** — currently endless and consequence-free.
    Proposal: reputation hearts (start 5); each expired order costs one;
    0 = game over screen with stats + restart. Deadlines/order pace tighten
    as delivered count grows. (Alternative: keep endless "zen" mode as a
    toggle.)
-7. **Road congestion** — per-edge speed drops when >N trucks are on it;
+8. **Road congestion** — per-edge speed drops when >N trucks are on it;
    rendered as the road glowing warmer. Rewards building parallel routes
    and ring roads instead of one mega-highway.
-8. **River ferries** — a cheaper-but-slower alternative to bridges: build
+9. **River ferries** — a cheaper-but-slower alternative to bridges: build
    a dock pair, ferry shuttles on a fixed cadence (reuses the old sim's
    boat visual). Bridges = fast + expensive, ferries = cheap + queueing.
-9. **Contracts** — occasional long-running deals: "3× green every 60s for
-   5 minutes at a locked-in rate". Creates steady demand you can build
-   dedicated infrastructure for.
-10. **Factory specialization** — optional: assign a factory a single
+10. **Contracts** — occasional long-running deals: "3× green every 60s for
+    5 minutes at a locked-in rate". Creates steady demand you can build
+    dedicated infrastructure for.
+11. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
+12. **Deeper, shared supply chains** *(next up after item 6)* — today
+    every raw good feeds exactly one recipe (wheat/water only ever make
+    bread) and chains are at most 2 tiers deep (ore+coal→steel→+chips→
+    car). Rework `SC.GOODS` so:
+    - Some raw/intermediate goods are shared inputs across multiple
+      recipes (e.g. a good feeds two different factories), so a single
+      supplier's placement matters for more than one product and roads
+      do double duty — this is the "resources used in multiple places"
+      request.
+    - At least one chain goes 3 tiers deep, for more multi-step planning
+      and more interesting factory placement.
+    - `SC.depthOf`, the recursive planner (`economy.bestSourceFor`/
+      `planUnit`), and `SC.factories.canSource` are already
+      recursive/generic over chain depth — this should mostly be new
+      `SC.GOODS` entries plus map-gen pool changes, not planner surgery.
+      Re-verify `ORDER_DEPTH_SLACK`/payout scaling still feels fair at
+      depth 3.
 
 ## Phase 3 — Content & replayability
 
-11. **Seeded worlds** — replace `Math.random` in map gen with a seeded
+13. **Seeded worlds** — replace `Math.random` in map gen with a seeded
     PRNG; URL `?seed=x` shares a map; enables a "daily challenge".
-    (Also makes generated-world tests deterministic — do this early if 6+
+    (Also makes generated-world tests deterministic — do this early if 7+
     lands, the fail state wants fair comparisons.)
-12. **Stats & achievements screen** — deliveries per product, money
+14. **Stats & achievements screen** — deliveries per product, money
     curve, busiest road; milestones ("First bridge", "10-truck fleet").
-13. **Bigger maps / regions** — after the map fills, unlock an adjacent
+15. **Bigger maps / regions** — after the map fills, unlock an adjacent
     region connected by a highway (new camera bounds, same state).
 
 ## Tech housekeeping (ongoing, fold into the above)
 
-- **Seeded RNG module** (`js/rng.js`) — prerequisite for 11, helps tests.
+- **Seeded RNG module** (`js/rng.js`) — prerequisite for 13, helps tests.
 - **Pathfinding cache** — Dijkstra runs per dispatch/planning tick; fine
   now (~30 nodes), cache distances keyed on a `networkVersion` counter
-  before congestion (7) multiplies calls.
+  before congestion (8) multiplies calls — inspect mode (6) adds more
+  per-hover `bestSourceFor`/`pathDist` calls too, worth watching.
 - **Interaction tests** — drive `SC.input._handleTap` in tests.html
   (build/select/demolish/buy flows are currently only hand-tested).
 - **Sound pass** — truck-departure blip, ambient loop, separate music/sfx
   toggles (pattern already in cargo-lander's audio.js).
 
-## Open questions (answer inline)
+## Open questions
 
-- **A. Fail state or endless?** Hearts/game-over (6) vs endless score
-  chase — or both via a mode picker?
-- **B. Dispatch control**: keep fully automatic dispatch, or add opt-in
-  manual control (e.g. pin a truck to a route, Mini-Metro-line style)?
-  Manual control is a big design fork — worth deciding before Phase 2.
-- **C. Visual direction**: stay abstract (shapes/glow, current look) or
-  move toward tiny sprites (buildings, truck art)?
-- **D. Priorities**: suggested order is 1 → 2 → 3 → 6 → 4 → 7 → 11 → …
-  — reorder as you see fit.
+None outstanding — A/B/C/D above are the settled answers to what used to
+be open here. (Removed the old duplicate "Open questions" list that
+predated those decisions and still asked A–D as unresolved with
+now-stale item numbers.)

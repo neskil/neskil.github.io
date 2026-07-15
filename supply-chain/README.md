@@ -31,6 +31,12 @@ that ambient animation as its background — it now lives independently at
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
+- **Modes** (top-right toggle): **Build** (🔨, default) is the road
+  tap-tap flow above. **Inspect** (🔍) disables building; hovering
+  (mouse) or holding (touch, same long-press timing as the demolish
+  gesture) a node instead opens a tooltip and glows the relevant roads —
+  a factory's needed ingredients and whether each is connected, a
+  supplier's consuming factories, or a city's open orders and routes.
 - **Trucks**: haul one item each; idle trucks take the nearest pending
   job. Buy more at the shop (price grows per truck); they spawn at HQ.
 - **Credit line**: purchases may push the balance negative down to
@@ -63,9 +69,10 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
 | `js/vehicles.js` | Trucks, haul jobs, dispatcher, movement |
+| `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
-| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build |
+| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Inspect hover/hold |
 | `js/ui.js` | HUD, orders/shop panels, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |
 | `js/main.js` | Bootstrap, game loop, `?probe=N` headless verification hook |
@@ -75,8 +82,18 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 
 ## TODO backlog
 
+See `PLAN.md` for the full phased roadmap; short version below (kept in
+sync with it):
+
+- **Build vs Inspect mode toggle** *(in progress)* — Inspect: hover/hold
+  a node for a tooltip (factory recipe+inputs, supplier's consumers, or a
+  city's open orders) and a road highlight of the relevant connections.
+- **Deeper, shared supply chains** — some raw/intermediate goods should
+  feed more than one recipe, and at least one chain should run 3 tiers
+  deep, for more multi-step planning.
 - Truck capacity upgrade (haul 2+ items per trip).
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
-- Touch: long-press as an alternative to double-tap for demolish/buy.
+- Touch: long-press as an alternative to double-tap for demolish/buy (the
+  Inspect-mode hold gesture above uses the same long-press primitive).
