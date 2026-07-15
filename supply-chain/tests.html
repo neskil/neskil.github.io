@@ -15,16 +15,17 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.4.0"></script>
-    <script src="js/state.js?v=1.4.0"></script>
-    <script src="js/save.js?v=1.4.0"></script>
-    <script src="js/sfx.js?v=1.4.0"></script>
-    <script src="js/map.js?v=1.4.0"></script>
-    <script src="js/camera.js?v=1.4.0"></script>
-    <script src="js/roads.js?v=1.4.0"></script>
-    <script src="js/factories.js?v=1.4.0"></script>
-    <script src="js/economy.js?v=1.4.0"></script>
-    <script src="js/vehicles.js?v=1.4.0"></script>
+    <script src="js/config.js?v=1.5.0"></script>
+    <script src="js/state.js?v=1.5.0"></script>
+    <script src="js/save.js?v=1.5.0"></script>
+    <script src="js/sfx.js?v=1.5.0"></script>
+    <script src="js/map.js?v=1.5.0"></script>
+    <script src="js/camera.js?v=1.5.0"></script>
+    <script src="js/roads.js?v=1.5.0"></script>
+    <script src="js/factories.js?v=1.5.0"></script>
+    <script src="js/economy.js?v=1.5.0"></script>
+    <script src="js/vehicles.js?v=1.5.0"></script>
+    <script src="js/inspect.js?v=1.5.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -439,6 +440,44 @@
             Object.keys(SC.GOODS).every(k => SC.GOODS[k].raw || !!SC.GOODS[k].building));
         assert('every input exists in the goods table',
             Object.keys(SC.GOODS).every(k => (SC.GOODS[k].inputs || []).every(m => !!SC.GOODS[m])));
+    })();
+
+    // ── Inspect mode: factory/supplier/city info + highlight paths ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+
+        let info = SC.inspect.infoFor(F);
+        assert('factory info before roads: both inputs unconnected',
+            info.kind === 'factory' && info.inputs.every(i => !i.connected));
+        assert('no highlight paths before any road exists',
+            SC.inspect.highlightPathsFor(info).length === 0);
+
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        info = SC.inspect.infoFor(F);
+        assert('factory info after roads: both inputs connected',
+            info.inputs.every(i => i.connected && i.dist > 0));
+        assert('highlight paths cover both supplier legs',
+            SC.inspect.highlightPathsFor(info).length === 2);
+
+        const sInfo = SC.inspect.infoFor(S1);
+        assert('supplier info lists the bakery as a connected consumer',
+            sInfo.kind === 'supplier' && sInfo.consumers.length === 1 &&
+            sInfo.consumers[0].factory === F && sInfo.consumers[0].connected);
+        assert('supplier highlight path reaches the factory',
+            SC.inspect.highlightPathsFor(sInfo)[0].includes(F));
+
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const cInfo = SC.inspect.infoFor(C);
+        assert('city info lists its open order', cInfo.kind === 'city' && cInfo.orders.length === 1);
+        assert('city highlight includes the full route (2 supplier legs + factory->city leg)',
+            SC.inspect.highlightPathsFor(cInfo).length === 3);
+
+        assert('infoFor is null for inactive nodes',
+            SC.inspect.infoFor(SC.map.makeNode('supplier', 900, 900, { mat: 'ore' })) === null);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

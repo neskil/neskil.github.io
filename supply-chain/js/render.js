@@ -300,31 +300,57 @@ SC.render = (function() {
         }
     }
 
-    // Glowing overlay on the roads serving a tapped order (see ui.js)
-    function drawHighlight(now) {
-        const h = SC.state.highlight;
-        if (!h || now > h.until) return;
-        const fade = Math.min(1, (h.until - now) / 0.5);
+    // Shared glow-line renderer for both the order-route and Inspect-mode
+    // highlight overlays.
+    function drawGlowPaths(paths, color, alpha) {
         ctx.lineCap = 'round';
-        for (const path of h.paths) {
+        for (const path of paths) {
             ctx.beginPath();
             path.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y));
-            ctx.strokeStyle = h.color;
-            ctx.globalAlpha = 0.55 * fade;
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
             ctx.lineWidth = 8;
             ctx.shadowBlur = 12;
-            ctx.shadowColor = h.color;
+            ctx.shadowColor = color;
             ctx.stroke();
         }
         ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
         ctx.lineCap = 'butt';
+    }
+
+    // Glowing overlay on the roads serving a tapped order (see ui.js)
+    function drawHighlight(now) {
+        const h = SC.state.highlight;
+        if (!h || now > h.until) return;
+        const fade = Math.min(1, (h.until - now) / 0.5);
+        drawGlowPaths(h.paths, h.color, 0.55 * fade);
         // Pulse the ordering city
         const pulse = 22 + Math.sin(now * 6) * 4;
         ctx.beginPath();
         ctx.arc(h.city.x, h.city.y, pulse, 0, Math.PI * 2);
         ctx.strokeStyle = h.color;
         ctx.globalAlpha = 0.8 * fade;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // Inspect mode: glow the roads relevant to the hovered/held node, for
+    // as long as it stays hovered/held (no fade timer, unlike drawHighlight).
+    function drawInspectHighlight(now) {
+        if (SC.state.mode !== 'inspect') return;
+        const node = SC.input.getInspectNode && SC.input.getInspectNode();
+        const info = SC.inspect.infoFor(node);
+        if (!info) return;
+        const paths = SC.inspect.highlightPathsFor(info);
+        const color = info.kind === 'supplier' ? SC.colorOf(info.mat) : '#38bdf8';
+        const pulse = 1 + Math.sin(now * 6) * 0.15;
+        drawGlowPaths(paths, color, 0.6 * pulse);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 24, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.8;
         ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.globalAlpha = 1;
@@ -379,6 +405,7 @@ SC.render = (function() {
         drawWorld(dt);
         drawRoads();
         drawHighlight(now);
+        drawInspectHighlight(now);
         drawGhostRoad();
         drawOrderBubbles();
         drawNodes(now);

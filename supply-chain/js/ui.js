@@ -70,9 +70,65 @@ SC.ui = (function() {
         $('orders-count').textContent = SC.state.orders.length;
     }
 
+    // ── Inspect mode: hover/hold tooltip ────────
+    function inspectTooltipHTML(info) {
+        if (info.kind === 'factory') {
+            const rows = info.inputs.map(inp => `
+                <div class="itip-row ${inp.connected ? '' : 'itip-bad'}">
+                    <span>${SC.emojiOf(inp.good)} ${SC.nameOf(inp.good)}</span>
+                    <span>${inp.connected ? Math.round(inp.dist) + 'u' : 'no route!'}</span>
+                </div>`).join('');
+            const forSale = info.node.forSale
+                ? ` <span class="itip-forsale">(for sale $${SC.CONFIG.FACTORY_SITE_PRICE})</span>` : '';
+            return `<div class="itip-title">${SC.emojiOf(info.recipe)} ${info.building}${forSale}</div>
+                    <div class="itip-sub">Needs</div>${rows}`;
+        }
+        if (info.kind === 'supplier') {
+            const rows = info.consumers.length ? info.consumers.map(c => `
+                <div class="itip-row ${c.connected ? '' : 'itip-bad'}">
+                    <span>${SC.emojiOf(c.factory.recipe)} ${SC.GOODS[c.factory.recipe].building}</span>
+                    <span>${c.connected ? Math.round(c.dist) + 'u' : 'no route!'}</span>
+                </div>`).join('') : '<div class="itip-row itip-bad">No factory needs this yet</div>';
+            return `<div class="itip-title">${SC.emojiOf(info.mat)} ${SC.nameOf(info.mat)} supplier</div>
+                    <div class="itip-sub">Used by</div>${rows}`;
+        }
+        const rows = info.orders.length ? info.orders.map(o => {
+            const left = o.qty - o.deliveredUnits;
+            return `<div class="itip-row ${o.noRoute ? 'itip-bad' : ''}">
+                <span>${left}× ${SC.emojiOf(o.product)} ${SC.nameOf(o.product)}</span>
+                <span>${o.noRoute ? 'no route!' : 'routed'}</span>
+            </div>`;
+        }).join('') : '<div class="itip-row">No open orders right now</div>';
+        return `<div class="itip-title">${info.node.isHQ ? '⭐ HQ' : '🏢 Customer DC'}</div>
+                <div class="itip-sub">Open orders</div>${rows}`;
+    }
+
+    function updateInspectTooltip() {
+        const el = $('inspect-tooltip');
+        const node = SC.state.mode === 'inspect' && SC.input.getInspectNode && SC.input.getInspectNode();
+        const info = node && SC.inspect.infoFor(node);
+        if (!info) { el.classList.remove('show'); return; }
+        el.innerHTML = inspectTooltipHTML(info);
+        const p = SC.camera.toScreen(node.x, node.y);
+        el.style.left = p.x + 'px';
+        el.style.top = (p.y - 34) + 'px';
+        el.classList.add('show');
+    }
+
+    function setMode(mode) {
+        if (SC.state.mode === mode) return;
+        SC.state.mode = mode;
+        SC.state.selectedNode = null;
+        SC.input.reset();
+        $('mode-build').classList.toggle('active', mode === 'build');
+        $('mode-inspect').classList.toggle('active', mode === 'inspect');
+        SC.sfx.play('click');
+    }
+
     let ordersTimer = 0, lastOrderCount = -1;
     function update(dt) {
         updateHUD();
+        updateInspectTooltip();
         ordersTimer += dt;
         if (SC.state.orders.length !== lastOrderCount) {
             lastOrderCount = SC.state.orders.length;
@@ -88,24 +144,14 @@ SC.ui = (function() {
 
     // Tap an order row: fly the camera to its city and light up the
     // planned route (city↔factory↔suppliers). Unplanned orders just pulse
-    // the city so "no route!" is locatable.
-    // Walk the planned sourcing tree (suppliers -> smelter -> factory -> city)
-    // collecting every road leg for the highlight overlay.
-    function collectRoutePaths(pick, dest, paths) {
-        const leg = SC.roads.findPath(pick.node, dest);
-        if (leg) paths.push(leg.path);
-        if (pick.srcs) {
-            for (const m of Object.keys(pick.srcs)) {
-                collectRoutePaths(pick.srcs[m], pick.node, paths);
-            }
-        }
-    }
-
+    // the city so "no route!" is locatable. Path-collection logic (walking
+    // the sourcing pick tree) lives in inspect.js and is shared with the
+    // Inspect-mode hover highlight.
     function focusOrder(order) {
         const zoom = Math.max(SC.camera.cam.zoom, 0.85);
         SC.camera.focus(order.city.x, order.city.y, zoom);
         const paths = [];
-        if (order.route) collectRoutePaths(order.route, order.city, paths);
+        if (order.route) SC.inspect.collectRoutePaths(order.route, order.city, paths);
         SC.state.highlight = {
             paths,
             color: SC.GOODS[order.product].color,
@@ -164,6 +210,9 @@ SC.ui = (function() {
             const order = SC.state.orders.find(o => o.id === +row.dataset.order);
             if (order) focusOrder(order);
         });
+
+        $('mode-build').addEventListener('click', () => setMode('build'));
+        $('mode-inspect').addEventListener('click', () => setMode('inspect'));
 
         $('btn-menu').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });
         $('menu-resume').addEventListener('click', () => { SC.sfx.play('click'); closeMenu(); });

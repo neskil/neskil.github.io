@@ -35,6 +35,7 @@ SC.newState = function() {
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
+        mode: 'build',      // 'build' (default, current tap-to-build) | 'inspect'
         gameStarted: false
     };
     return SC.state;
