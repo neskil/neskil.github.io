@@ -31,7 +31,7 @@ SC.newState = function() {
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
 
-        upgrades: { truckSpeed: 0, factorySpeed: 0 },
+        upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
         research: { completed: {}, active: null }, // active: { id, t } elapsed seconds
 
         selectedNode: null, // node picked as road start (input.js)
@@ -60,6 +60,11 @@ SC.truckSpeed = function() {
 SC.craftTime = function() {
     const u = SC.CONFIG.UPGRADES.factorySpeed;
     return SC.CONFIG.CRAFT_TIME / (1 + u.boost * SC.state.upgrades.factorySpeed);
+};
+
+SC.truckCapacity = function() {
+    const u = SC.CONFIG.UPGRADES.truckCapacity;
+    return 1 + u.boost * SC.state.upgrades.truckCapacity;
 };
 
 SC.upgradePrice = function(key) {

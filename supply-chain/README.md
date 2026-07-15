@@ -31,8 +31,12 @@ that ambient animation as its background — it now lives independently at
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
-- **Trucks**: haul one item each; idle trucks take the nearest pending
-  job. Buy more at the shop (price grows per truck); they spawn at HQ.
+- **Trucks**: haul one item each by default; idle trucks take the nearest
+  pending job and — capacity allowing — bundle in any other pending job
+  that shares the exact same pickup and drop, so one trip can carry
+  several units at once. Buy more at the shop (price grows per truck);
+  they spawn at HQ. The Truck Capacity upgrade raises how many a truck
+  can bundle per trip.
 - **Credit line**: purchases may push the balance negative down to
   −$1,500 (`CREDIT_LIMIT`); debt accrues 10%/min interest
   (`DEBT_INTEREST_PER_MIN`), charged continuously in `economy.tick`.
@@ -72,7 +76,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/roads.js` | Road build/demolish/quote + Dijkstra pathfinding |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
-| `js/vehicles.js` | Trucks, haul jobs, dispatcher, movement |
+| `js/vehicles.js` | Trucks, haul jobs, dispatcher (bundles same-route jobs up to capacity), movement |
 | `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance), locked behind research |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
@@ -87,7 +91,6 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 
 ## TODO backlog
 
-- Truck capacity upgrade (haul 2+ items per trip).
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.

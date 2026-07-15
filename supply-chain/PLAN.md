@@ -26,6 +26,13 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.6.0: truck capacity upgrade. Trucks default to hauling one item, but
+  the dispatcher now bundles any other pending job sharing the exact same
+  pickup and drop onto the same trip, up to the truck's capacity; the
+  Truck Capacity upgrade (Shop panel, 3 levels) raises that cap. Trucks
+  hauling more than one item show a ×N badge. Truck state internally
+  moved from a single `job`/`cargo` pair to `jobs[]`/`cargo[]` arrays
+  (vehicles.js, save.js, render.js, ui.js all updated).
 - v1.5.0: research tree (`SC.RESEARCH`, one project at a time, paid
   upfront + timed) with Site Requisition (unlocks manual placement below)
   and a stacking Credit Line II/III. Manual placement: pick a good in the
@@ -65,8 +72,7 @@ growth, pan/pinch camera).
 3. **Order → map linking** — tap an order row to pan/zoom to its city;
    highlight the planned route (city ↔ factory ↔ suppliers) while held.
    Makes "no route!" self-explanatory.
-4. **Truck capacity upgrade track** — haul 2–3 items per trip; makes the
-   shop more interesting and reduces late-game truck spam.
+4. ~~Truck capacity upgrade track~~ — shipped in v1.6.0.
 5. **Tutorialize the first order** — instead of only the text overlay:
    dim the map, arrow at HQ + nearest supplier, "build a road here". The
    overlay stays as reference.
