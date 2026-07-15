@@ -148,7 +148,10 @@ SC.economy = (function() {
             SC.state.delivered++;
             SC.emit('orderComplete', order);
             if (SC.state.delivered % C().MILESTONE_EVERY === 0) {
-                const node = SC.map.unlockNext();
+                // Milestones only unlock suppliers/factories — new customer
+                // DCs arrive on their own timer in tick(), so HQ stays the
+                // sole order-placing location until one shows up.
+                const node = SC.map.unlockNext(n => n.kind !== 'city');
                 if (node) SC.emit('unlock', node);
             }
         }
@@ -171,6 +174,18 @@ SC.economy = (function() {
 
     let planTimer = 0;
     function tick(dt) {
+        // New customer DCs (cities) unlock on their own clock, independent
+        // of delivery milestones — HQ is the only order-placing location
+        // until one appears.
+        SC.state.nextCustomerIn -= dt;
+        if (SC.state.nextCustomerIn <= 0) {
+            const node = SC.map.unlockNext(n => n.kind === 'city');
+            if (node) SC.emit('unlock', node);
+            SC.state.nextCustomerIn = node
+                ? rand(C().CUSTOMER_SPAWN_INTERVAL[0], C().CUSTOMER_SPAWN_INTERVAL[1])
+                : Infinity; // pool exhausted — stop checking
+        }
+
         // New orders arrive a bit faster as you level up
         SC.state.nextOrderIn -= dt;
         if (SC.state.nextOrderIn <= 0 && SC.state.orders.length < C().ORDER_MAX_ACTIVE) {

@@ -39,6 +39,7 @@ SC.save = (function() {
             delivered: st.delivered, missed: st.missed,
             trucksBought: st.trucksBought,
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
+            nextCustomerIn: st.nextCustomerIn,
             upgrades: Object.assign({}, st.upgrades),
             river: st.river,
             nodes: st.nodes.map(n => ({
@@ -68,6 +69,7 @@ SC.save = (function() {
         st.time = data.time;
         st.nextOrderIn = data.nextOrderIn;
         st.orderSeq = data.orderSeq;
+        st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         st.river = data.river;
 
