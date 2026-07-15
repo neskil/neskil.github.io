@@ -30,6 +30,7 @@ SC.roads = (function() {
         a.edges.push(b);
         b.edges.push(a);
         SC.economy && SC.economy.onNetworkChanged();
+        SC.emit('roadBuilt', edge);
         return { ok: true, edge };
     }
 
@@ -45,8 +46,10 @@ SC.roads = (function() {
         SC.state.edges.splice(i, 1);
         edge.a.edges.splice(edge.a.edges.indexOf(edge.b), 1);
         edge.b.edges.splice(edge.b.edges.indexOf(edge.a), 1);
-        SC.state.money += Math.round(edge.cost * SC.CONFIG.ROAD_REFUND);
+        const refund = Math.round(edge.cost * SC.CONFIG.ROAD_REFUND);
+        SC.state.money += refund;
         SC.economy && SC.economy.onNetworkChanged();
+        SC.emit('roadDemolished', { edge, refund });
         return true;
     }
 

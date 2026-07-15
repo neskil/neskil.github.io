@@ -2,13 +2,23 @@
 window.SC = window.SC || {};
 
 SC.init = function() {
-    SC.newState();
-    SC.map._resetSeq();
-    SC.map.generateWorld();
+    // Resume the autosaved game unless this is a fresh/probe run
+    const params = new URLSearchParams(location.search);
+    const wantFresh = params.has('probe') || params.has('new');
+    let restored = false;
+    if (!wantFresh && SC.save.exists()) restored = SC.save.load();
 
-    const hq = SC.state.nodes.find(n => n.isHQ);
-    for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(hq);
+    if (!restored) {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.generateWorld();
+        const start = SC.state.nodes.find(n => n.isHQ);
+        for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(start);
+    } else {
+        SC.state.gameStarted = true;
+    }
 
+    const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
     const canvas = document.getElementById('gameCanvas');
     SC.render.attach(canvas);
     SC.input.attach(canvas);
@@ -19,8 +29,10 @@ SC.init = function() {
     SC.on('unlock', n => { n.unlockAt = SC.state.time; });
 
     SC.ui.init();
+    if (restored) SC.emit('toast', { text: 'Game restored from autosave', kind: 'info' });
 
     let last = performance.now();
+    let saveTimer = 0;
     function loop(now) {
         let dt = Math.min(0.05, (now - last) / 1000);
         last = now;
@@ -30,6 +42,11 @@ SC.init = function() {
             SC.economy.tick(dt);
             SC.factories.tick(dt);
             SC.vehicles.tick(dt);
+            saveTimer += dt;
+            if (saveTimer >= 5 && !wantFresh) {
+                saveTimer = 0;
+                SC.save.store();
+            }
         }
         SC.render.frame(dt, SC.state.time);
         SC.ui.update(dt);
@@ -37,7 +54,11 @@ SC.init = function() {
     }
     requestAnimationFrame(loop);
 
-    const probe = new URLSearchParams(location.search).get('probe');
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && SC.state.gameStarted && !wantFresh) SC.save.store();
+    });
+
+    const probe = params.get('probe');
     if (probe !== null) SC.runProbe(parseFloat(probe) || 20);
 };
 
