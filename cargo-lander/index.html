@@ -804,19 +804,6 @@
             transform: scale(0.95);
         }
 
-        @media (max-width: 768px) {
-            /* #mobile-controls visibility is driven entirely by JS
-               (updateMobileControlsVisibility() in game.js — gated on
-               isTouchDevice && gameState === 'playing'). Forcing display:flex
-               here regardless of touch capability or game state showed the
-               control buttons on the main menu (and on any narrow desktop
-               window) before a mission ever started. */
-
-            #mobile-fullscreen-btn {
-                display: flex !important;
-            }
-        }
-
         /* ===== Phone / narrow viewport ===== */
         @media (max-width: 480px) {
 
@@ -835,20 +822,6 @@
             .utility-btn {
                 padding: 5px 8px;
                 font-size: 0.78rem;
-            }
-
-            /* Was: unconditionally hiding #mute-btn/#dev-btn here. That header row
-               (#nav-header) is persistent across the main menu AND in-game, so this
-               didn't just declutter the in-game HUD as intended — it also removed
-               the Dev button from the main menu on phone-width screens with no
-               replacement (the in-game options dropdown's "Dev Panel" entry only
-               exists once a mission is already running). #dev-btn now stays
-               visible and the header wraps instead (see #nav-header's inline
-               flex-wrap) so it doesn't overflow narrow viewports.
-               #mute-btn (labelled "Audio") is still hidden — mute-toggle-btn, the
-               icon-only speaker button, covers quick mute on phone widths. */
-            #mute-btn {
-                display: none;
             }
 
             /* Tighter overlay padding so content fits */
@@ -1708,53 +1681,6 @@
             </svg>
             Back to Home
         </a>
-        <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 100; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100vw - 32px);">
-            <button id="fullscreen-toggle-btn" class="utility-btn icon-only" onclick="game.toggleFullscreen()"
-                title="Toggle Fullscreen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <path
-                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
-                    </path>
-                </svg>
-            </button>
-            <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()"
-                title="Toggle Mute">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                </svg>
-            </button>
-            <button id="mute-btn" class="utility-btn" onclick="game.openSettings()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path
-                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
-                    </path>
-                </svg>
-                Audio
-            </button>
-            <button id="dev-btn" class="utility-btn" onclick="game.toggleDevPanel()"
-                style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <polyline points="16 18 22 12 16 6"></polyline>
-                    <polyline points="8 6 2 12 8 18"></polyline>
-                </svg>
-                Dev
-            </button>
-            <a href="level-editor.html" class="utility-btn"
-                style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#34d399;text-decoration:none;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                </svg>
-                Editor
-            </a>
-        </div>
     </header>
 
     <main id="game-container">
@@ -2163,12 +2089,12 @@
     <!-- SCREEN OVERLAY: MENU SCREEN -->
     <div id="menu-screen" class="screen-overlay">
         <div class="screen-content">
-            <!-- Mobile-only fullscreen prompt — touch play needs the browser chrome
-                 out of the way and the small icon-only fullscreen button up in the
-                 header row is easy to miss on a phone, so give it its own full-width
-                 button right at the top of the menu (hidden on desktop). -->
+            <!-- Fullscreen entry point — used to be mobile-only, backed up on desktop
+                 by a small icon-only button in the top header row. That header row
+                 was removed as redundant with the rest of the menu, so this
+                 full-width button now shows on every screen size. -->
             <button id="mobile-fullscreen-btn" class="utility-btn" onclick="game.toggleFullscreen()"
-                style="display:none; width:100%; justify-content:center; margin-bottom:14px; padding:12px; font-size:0.95rem; background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.4); color:#38bdf8;">
+                style="width:100%; justify-content:center; margin-bottom:14px; padding:12px; font-size:0.95rem; background:rgba(56,189,248,0.12); border-color:rgba(56,189,248,0.4); color:#38bdf8;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" style="width:18px;height:18px;">
                     <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
@@ -2330,7 +2256,42 @@
                     </div>
 
                     <!-- Action buttons -->
-                    <div class="career-actions" style="flex-direction: column; gap: 8px;">
+                    <div class="career-actions" style="flex-direction: column; gap: 8px; align-items: center;">
+
+                        <!-- Dev/Settings/Mute — used to live in a separate top header
+                             row that was redundant with the rest of the menu (the
+                             Editor button already exists above, in Endless & Custom).
+                             Same ids as before, just relocated, so game.js's
+                             getElementById lookups keep working unchanged. -->
+                        <div style="display: flex; gap: 8px;">
+                            <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()"
+                                title="Toggle Mute">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                </svg>
+                            </button>
+                            <button id="mute-btn" class="utility-btn icon-only" onclick="game.openSettings()"
+                                title="Settings">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path
+                                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                                    </path>
+                                </svg>
+                            </button>
+                            <button id="dev-btn" class="utility-btn icon-only" onclick="game.toggleDevPanel()"
+                                title="Dev Panel"
+                                style="background:rgba(99,102,241,0.15);border-color:rgba(99,102,241,0.4);color:#a5b4fc;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polyline points="16 18 22 12 16 6"></polyline>
+                                    <polyline points="8 6 2 12 8 18"></polyline>
+                                </svg>
+                            </button>
+                        </div>
 
                         <button onclick="game.confirmResetCareer()"
                             style="background: none; border: none; color: #ef4444; opacity: 0.6; font-size: 14px; cursor: pointer; text-decoration: underline;">⚠
@@ -2836,48 +2797,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.18.4"></script>
-    <script src="levels/levels.js?v=0.18.4"></script>
-    <script src="levels/levelGenerator.js?v=0.18.4"></script>
+    <script src="game/upgrades.js?v=0.18.5"></script>
+    <script src="levels/levels.js?v=0.18.5"></script>
+    <script src="levels/levelGenerator.js?v=0.18.5"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.18.4"></script>
-    <script src="levels/level2.js?v=0.18.4"></script>
-    <script src="levels/level3.js?v=0.18.4"></script>
-    <script src="levels/level4.js?v=0.18.4"></script>
-    <script src="levels/level5.js?v=0.18.4"></script>
-    <script src="levels/level6.js?v=0.18.4"></script>
-    <script src="levels/level7.js?v=0.18.4"></script>
-    <script src="levels/level8.js?v=0.18.4"></script>
-    <script src="levels/level9.js?v=0.18.4"></script>
-    <script src="levels/level10.js?v=0.18.4"></script>
-    <script src="levels/levelTest.js?v=0.18.4"></script>
-    <script src="levels/collectibleTypes.js?v=0.18.4"></script>
+    <script src="levels/level1.js?v=0.18.5"></script>
+    <script src="levels/level2.js?v=0.18.5"></script>
+    <script src="levels/level3.js?v=0.18.5"></script>
+    <script src="levels/level4.js?v=0.18.5"></script>
+    <script src="levels/level5.js?v=0.18.5"></script>
+    <script src="levels/level6.js?v=0.18.5"></script>
+    <script src="levels/level7.js?v=0.18.5"></script>
+    <script src="levels/level8.js?v=0.18.5"></script>
+    <script src="levels/level9.js?v=0.18.5"></script>
+    <script src="levels/level10.js?v=0.18.5"></script>
+    <script src="levels/levelTest.js?v=0.18.5"></script>
+    <script src="levels/collectibleTypes.js?v=0.18.5"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.18.4"></script>
-    <script src="render/shaders.js?v=0.18.4"></script>
-    <script src="physics/physics.js?v=0.18.4"></script>
-    <script src="physics/collision.js?v=0.18.4"></script>
-    <script src="physics/mechanics.js?v=0.18.4"></script>
-    <script src="physics/entities.js?v=0.18.4"></script>
-    <script src="physics/atmosphere.js?v=0.18.4"></script>
-    <script src="game/game.js?v=0.18.4"></script>
-    <script src="game/input.js?v=0.18.4"></script>
-    <script src="game/menu.js?v=0.18.4"></script>
-    <script src="game/hud.js?v=0.18.4"></script>
-    <script src="game/cargo.js?v=0.18.4"></script>
-    <script src="render/render.js?v=0.18.4"></script>
-    <script src="render/background.js?v=0.18.4"></script>
-    <script src="render/terrain.js?v=0.18.4"></script>
-    <script src="render/entities.js?v=0.18.4"></script>
-    <script src="render/pads.js?v=0.18.4"></script>
-    <script src="render/lander.js?v=0.18.4"></script>
-    <script src="render/creatures.js?v=0.18.4"></script>
-    <script src="render/effects.js?v=0.18.4"></script>
-    <script src="render/night.js?v=0.18.4"></script>
-    <script src="render/ui.js?v=0.18.4"></script>
+    <script src="audio.js?v=0.18.5"></script>
+    <script src="render/shaders.js?v=0.18.5"></script>
+    <script src="physics/physics.js?v=0.18.5"></script>
+    <script src="physics/collision.js?v=0.18.5"></script>
+    <script src="physics/mechanics.js?v=0.18.5"></script>
+    <script src="physics/entities.js?v=0.18.5"></script>
+    <script src="physics/atmosphere.js?v=0.18.5"></script>
+    <script src="game/game.js?v=0.18.5"></script>
+    <script src="game/input.js?v=0.18.5"></script>
+    <script src="game/menu.js?v=0.18.5"></script>
+    <script src="game/hud.js?v=0.18.5"></script>
+    <script src="game/cargo.js?v=0.18.5"></script>
+    <script src="render/render.js?v=0.18.5"></script>
+    <script src="render/background.js?v=0.18.5"></script>
+    <script src="render/terrain.js?v=0.18.5"></script>
+    <script src="render/entities.js?v=0.18.5"></script>
+    <script src="render/pads.js?v=0.18.5"></script>
+    <script src="render/lander.js?v=0.18.5"></script>
+    <script src="render/creatures.js?v=0.18.5"></script>
+    <script src="render/effects.js?v=0.18.5"></script>
+    <script src="render/night.js?v=0.18.5"></script>
+    <script src="render/ui.js?v=0.18.5"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.18.4"></script>
+    <script src="game/tutorial.js?v=0.18.5"></script>
 
     <script>
         // Start the game!

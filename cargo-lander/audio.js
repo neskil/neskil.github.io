@@ -84,7 +84,19 @@ class CargoAudioController {
     }
 
     setThruster(intensity) {
-        if (this.muted) return;
+        if (this.muted) {
+            // toggleMute()/setMuted() call setThruster(0) to silence a thruster
+            // that's actively rumbling at the moment mute is engaged — that call
+            // lands here (this.muted is already true by then), so silence the
+            // gain node directly instead of just no-oping, or the last playing
+            // gain value keeps ringing until the next unmuted setThruster call.
+            if (this.thrusterGain && this.ctx) {
+                const now = this.ctx.currentTime;
+                this.thrusterGain.gain.cancelScheduledValues(now);
+                this.thrusterGain.gain.setTargetAtTime(0, now, 0.05);
+            }
+            return;
+        }
         this.init(); // Ensure initialized on first interaction
         if (!this.ctx) return;
 
@@ -400,5 +412,11 @@ class CargoAudioController {
     }
 }
 
-// Global audio singleton
+// Global audio singleton. Also assigned to window explicitly — a top-level
+// `const` in a classic (non-module) script creates a global lexical binding
+// but does NOT become a `window` property, and most call sites across the
+// codebase guard on `window.CargoAudio` before playing a sound. Without this,
+// that guard was always false and those sounds (collisions, crashes, load/
+// unload, clicks, radar pings, wind warnings, splashes) silently never played.
 const CargoAudio = new CargoAudioController();
+window.CargoAudio = CargoAudio;

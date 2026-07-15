@@ -366,6 +366,7 @@ Object.assign(CargoGame.prototype, {
     toggleMuteFromCheckbox(checked) {
         this.isMuted = checked;
         if (window.CargoAudio) CargoAudio.setMuted(checked);
+        this.updateMuteUI();
     },
 
     setZoomModifier(value) {
@@ -699,17 +700,11 @@ Object.assign(CargoGame.prototype, {
         reader.readAsText(file);
     },
 
-    toggleMute() {
-        this.isMuted = CargoAudio.toggleMute();
-        const btn = document.getElementById('mute-btn');
-        if (btn) {
-            btn.textContent = this.isMuted ? '🔇' : '🔊';
-        }
-    },
-
-    toggleMuteQuick() {
-        this.isMuted = CargoAudio.toggleMute();
-        // Update main menu SVG button
+    // Syncs every mute-state UI element to this.isMuted: the main menu's
+    // icon-only SVG button, the in-game HUD's emoji button, and the Settings
+    // modal checkbox. Called on init and after anything changes the mute
+    // state, so all three always agree instead of drifting independently.
+    updateMuteUI() {
         const menuBtn = document.getElementById('mute-toggle-btn');
         if (menuBtn) {
             const svg = menuBtn.querySelector('svg');
@@ -719,9 +714,15 @@ Object.assign(CargoGame.prototype, {
                     : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
             }
         }
-        // Update in-game emoji button
         const ingameBtn = document.getElementById('mute-btn-top');
         if (ingameBtn) ingameBtn.textContent = this.isMuted ? '🔇' : '🔊';
+        const muteCb = document.getElementById('setting-mute');
+        if (muteCb) muteCb.checked = this.isMuted;
+    },
+
+    toggleMuteQuick() {
+        this.isMuted = CargoAudio.toggleMute();
+        this.updateMuteUI();
     },
 
     toggleFullscreen() {
