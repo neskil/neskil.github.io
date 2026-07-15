@@ -377,21 +377,26 @@ SC.render = (function() {
 
     function drawTrucks() {
         for (const t of SC.state.trucks) {
+            // A bundle always shares one pickup+drop (see vehicles.dispatch),
+            // so every item in t.cargo is the same good — just show the
+            // count when it's more than one.
+            const item = t.cargo[0];
             ctx.save();
             ctx.translate(t.x, t.y);
             ctx.rotate(t.path ? (t.angle || 0) : 0);
-            const body = t.cargo ? SC.colorOf(t.cargo) : '#94a3b8';
+            const body = item ? SC.colorOf(item) : '#94a3b8';
             ctx.fillStyle = body;
-            ctx.shadowBlur = t.cargo ? 6 : 0;
+            ctx.shadowBlur = item ? 6 : 0;
             ctx.shadowColor = body;
             // cab + two trailer segments, echoing the original ambient sim
             ctx.fillRect(6, -3.5, 6, 7);
             ctx.fillRect(-3, -4, 7, 8);
             ctx.fillRect(-12, -4, 7, 8);
             ctx.restore();
-            if (t.cargo) {
+            if (item) {
                 ctx.shadowBlur = 0;
-                emojiPlate(SC.emojiOf(t.cargo), t.x, t.y - 16, 9, 13);
+                emojiPlate(SC.emojiOf(item), t.x, t.y - 16, 9, 13);
+                if (t.cargo.length > 1) label('×' + t.cargo.length, t.x + 10, t.y - 22, '#f8fafc', 9);
             }
         }
     }
