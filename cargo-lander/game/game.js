@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.18.4';
+    static VERSION = '0.19.0';
 
     constructor() {
         this.canvas = null;
@@ -81,7 +81,14 @@ class CargoGame {
         this.zoomModifier = parseFloat(localStorage.getItem('cargo_lander_zoom_modifier')) || (this.isTouchDevice ? 0.8 : 1.0);
 
         // Settings
-        this.isMuted = false; // Always start unmuted
+        // Mirrors CargoAudio's own persisted mute flag (localStorage) instead of
+        // always starting false — audio.js loads before game.js, so CargoAudio
+        // already exists here. Previously this always reset to false on reload,
+        // desyncing from CargoAudio.muted: a player who muted last session got
+        // silent thruster/music (CargoAudio enforces its own flag) but every
+        // isMuted-gated SFX call site still thought it was unmuted, and the mute
+        // button/checkbox showed the wrong icon/state.
+        this.isMuted = (typeof CargoAudio !== 'undefined') ? CargoAudio.muted : false;
         // Default UI Scale is 100% on desktop, but the HUD panels are absolutely
         // positioned at a fixed base size (only font/padding shrink via @media
         // rules) — on a phone or short mobile-landscape window, 100% overlaps or
@@ -158,9 +165,14 @@ class CargoGame {
             this.shaders.resize(this.canvas.width, this.canvas.height);
         }
 
-        // Sync mute button to initial state
-        const muteBtn = document.getElementById('mute-toggle-btn');
-        if (muteBtn) muteBtn.textContent = this.isMuted ? '🔇' : '🔊';
+        // Sync mute button/checkbox to initial state. Was setting
+        // muteBtn.textContent directly here — mute-toggle-btn's content is an
+        // <svg> icon, not text, so that wiped the icon out on every page load
+        // and replaced it with a plain-text emoji. toggleMuteQuick()'s later
+        // svg.querySelector('svg') calls then found nothing to update, so the
+        // button visually never reflected mute state again after the first
+        // load. updateMuteUI() (game/menu.js) updates the SVG in place instead.
+        this.updateMuteUI();
 
         const menuVersion = document.getElementById('menu-version');
         if (menuVersion) menuVersion.textContent = `v${CargoGame.VERSION}`;
