@@ -26,6 +26,16 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.6.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
+  🧵wire+💾chips→🔌circuit factory, 🔌circuit+🔩steel→🤖robot factory) —
+  rubber, chips and steel are now each shared by two recipes, so one
+  supplier's roads matter for more than one product. No planner changes
+  needed; `economy.bestSourceFor`/`planUnit` were already generic over
+  chain depth.
+- v1.5.0: Build vs Inspect mode toggle (top right). Inspect: hover
+  (mouse) or hold (touch, long-press) a node for a tooltip — a factory's
+  inputs and their connected/unreachable status, a supplier's consuming
+  factories, or a city's open orders — with the relevant roads glowing.
 - v1.4.0: credit line (spend to −$1,500; debt bleeds 10%/min interest,
   red HUD readout) so a cash crunch can't deadlock the early game; a
   proper ☰ menu (pauses the sim: stats, autosave status + Save now,
@@ -56,9 +66,8 @@ growth, pan/pinch camera).
 5. **Tutorialize the first order** — instead of only the text overlay:
    dim the map, arrow at HQ + nearest supplier, "build a road here". The
    overlay stays as reference.
-6. **Interaction modes: Build vs Inspect** *(in progress — 2026-07-15)* —
-   right now the map only has one gesture (tap-tap to build/demolish a
-   road). Add a mode toggle in the top bar:
+6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.5.0. Detail kept
+   below for reference:
    - **Build** (current behaviour, default): tap-tap builds/demolishes
      roads, tap a for-sale site to buy it — unchanged.
    - **Inspect**: tapping doesn't build. Hovering (mouse) or holding
@@ -101,17 +110,8 @@ growth, pan/pinch camera).
     dedicated infrastructure for.
 11. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
-12. **Deeper, shared supply chains** *(next up after item 6)* — today
-    every raw good feeds exactly one recipe (wheat/water only ever make
-    bread) and chains are at most 2 tiers deep (ore+coal→steel→+chips→
-    car). Rework `SC.GOODS` so:
-    - Some raw/intermediate goods are shared inputs across multiple
-      recipes (e.g. a good feeds two different factories), so a single
-      supplier's placement matters for more than one product and roads
-      do double duty — this is the "resources used in multiple places"
-      request.
-    - At least one chain goes 3 tiers deep, for more multi-step planning
-      and more interesting factory placement.
+12. ~~Deeper, shared supply chains~~ — shipped v1.6.0 (the 🟠🧵🔌🤖 chain,
+    see Shipped above). Detail kept below for reference:
     - `SC.depthOf`, the recursive planner (`economy.bestSourceFor`/
       `planUnit`), and `SC.factories.canSource` are already
       recursive/generic over chain depth — this should mostly be new
