@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.5.0';
+SC.VERSION = '1.6.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -31,10 +31,13 @@ SC.CONFIG = {
 
     CRAFT_TIME: 4,             // seconds per product at level 0
 
-    // Upgrade tracks: price of level n = base * growth^n
+    // Upgrade tracks: price of level n = base * growth^n. truckCapacity
+    // is additive (1 unit per level, i.e. 1 + boost*level) rather than
+    // multiplicative like the other two.
     UPGRADES: {
-        truckSpeed:   { base: 300, growth: 1.6, boost: 0.25, max: 5, label: 'Truck Speed' },
-        factorySpeed: { base: 280, growth: 1.6, boost: 0.25, max: 5, label: 'Factory Speed' }
+        truckSpeed:    { base: 300, growth: 1.6, boost: 0.25, max: 5, label: 'Truck Speed' },
+        factorySpeed:  { base: 280, growth: 1.6, boost: 0.25, max: 5, label: 'Factory Speed' },
+        truckCapacity: { base: 450, growth: 1.8, boost: 1,    max: 3, label: 'Truck Capacity' }
     },
 
     ORDER_INTERVAL: [14, 24],  // seconds between new orders (shrinks as you level)

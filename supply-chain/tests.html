@@ -15,18 +15,18 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.5.0"></script>
-    <script src="js/state.js?v=1.5.0"></script>
-    <script src="js/save.js?v=1.5.0"></script>
-    <script src="js/sfx.js?v=1.5.0"></script>
-    <script src="js/map.js?v=1.5.0"></script>
-    <script src="js/camera.js?v=1.5.0"></script>
-    <script src="js/roads.js?v=1.5.0"></script>
-    <script src="js/factories.js?v=1.5.0"></script>
-    <script src="js/economy.js?v=1.5.0"></script>
-    <script src="js/vehicles.js?v=1.5.0"></script>
-    <script src="js/research.js?v=1.5.0"></script>
-    <script src="js/placement.js?v=1.5.0"></script>
+    <script src="js/config.js?v=1.6.0"></script>
+    <script src="js/state.js?v=1.6.0"></script>
+    <script src="js/save.js?v=1.6.0"></script>
+    <script src="js/sfx.js?v=1.6.0"></script>
+    <script src="js/map.js?v=1.6.0"></script>
+    <script src="js/camera.js?v=1.6.0"></script>
+    <script src="js/roads.js?v=1.6.0"></script>
+    <script src="js/factories.js?v=1.6.0"></script>
+    <script src="js/economy.js?v=1.6.0"></script>
+    <script src="js/vehicles.js?v=1.6.0"></script>
+    <script src="js/research.js?v=1.6.0"></script>
+    <script src="js/placement.js?v=1.6.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -145,7 +145,7 @@
         assert('order fully delivered', SC.state.delivered === 1 && SC.state.orders.length === 0);
         assert('payout received', SC.state.money === before + order.payout);
         assert('factory queue drained', F.queue.length === 0 && !F.crafting);
-        assert('trucks idle again', SC.state.trucks.every(t => !t.job && !t.path && !t.cargo));
+        assert('trucks idle again', SC.state.trucks.every(t => !t.jobs.length && !t.path && !t.cargo.length));
     })();
 
     // ── Expiry cancels work ─────────────────────────
@@ -179,6 +179,90 @@
         const t0 = SC.truckPrice();
         SC.state.trucksBought = 2;
         assert('truck price grows with fleet', SC.truckPrice() > t0);
+    })();
+
+    // ── Truck capacity: base, upgrade effect, bundling, partial cancel ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        assert('base truck capacity is 1', SC.truckCapacity() === 1);
+        SC.economy.buyUpgrade('truckCapacity');
+        assert('capacity upgrade raises capacity by the configured boost',
+            SC.truckCapacity() === 1 + SC.CONFIG.UPGRADES.truckCapacity.boost);
+
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max; // capacity 4
+        const truck = SC.vehicles.addTruck(S1);
+
+        // Three separate raw jobs, same pickup+drop: one truck should
+        // scoop up all three in a single bundle (capacity allows it).
+        const order = { id: 99, city: C, product: 'bread', qty: 3, deliveredUnits: 0,
+                         payout: 300, deadline: 100, deadlineTotal: 100,
+                         planned: true, noRoute: false, done: false };
+        for (let i = 0; i < 3; i++) {
+            SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: null });
+        }
+        SC.vehicles.dispatch();
+        assert('one truck bundles multiple same-route jobs up to capacity',
+            truck.jobs.length === 3 && SC.state.jobs.length === 0);
+
+        // A fourth, different-route job stays queued — bundling only
+        // pools jobs sharing the exact same pickup and drop.
+        SC.vehicles.addJob({ type: 'raw', item: 'water', pickup: S2, drop: F, order, task: null });
+        const truck2 = SC.vehicles.addTruck(S2);
+        SC.vehicles.dispatch();
+        assert('a different pickup/drop job does not join the first bundle',
+            truck.jobs.length === 3 && truck2.jobs.length === 1);
+
+        // Cancelling one order's jobs trims the bundle without aborting
+        // jobs from a different order sharing the same route. Start the
+        // truck away from the pickup so it's still mid-transit ('toPickup')
+        // when we cancel — a same-node pickup would complete instantly.
+        const order2 = { id: 100, city: C, product: 'bread', qty: 1, deliveredUnits: 0,
+                          payout: 100, deadline: 100, deadlineTotal: 100,
+                          planned: true, noRoute: false, done: false };
+        const mixedTruck = SC.vehicles.addTruck(F);
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: null });
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: order2, task: null });
+        SC.vehicles.dispatch();
+        assert('mixed-order bundle formed', mixedTruck.jobs.length === 2);
+        assert('truck still travelling toward pickup', mixedTruck.phase === 'toPickup' && !!mixedTruck.path);
+        SC.vehicles.cancelJobsForOrder(order2);
+        assert('cancelling one order only removes its job from the bundle',
+            mixedTruck.jobs.length === 1 && mixedTruck.jobs[0].order === order);
+        assert('truck with a remaining job keeps hauling', mixedTruck.phase === 'toPickup');
+
+        SC.vehicles.cancelJobsForOrder(order);
+        assert('cancelling the last job in a bundle idles the truck',
+            mixedTruck.jobs.length === 0 && mixedTruck.phase === null);
+    })();
+
+    // ── Truck capacity: multi-unit haul delivers correctly end-to-end ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.vehicles.addTruck(F);
+        SC.vehicles.addTruck(F);
+
+        const order = SC.economy.spawnOrder();
+        order.qty = 3;
+        SC.economy.planOrder(order);
+
+        const before = SC.state.money;
+        for (let i = 0; i < 4000 && SC.state.orders.length; i++) {
+            SC.vehicles.tick(0.1);
+            SC.factories.tick(0.1);
+        }
+        assert('multi-unit order delivered with capacity upgrade active',
+            SC.state.delivered === 1 && SC.state.money === before + order.payout);
+        assert('no leftover jobs or cargo after the run', SC.state.jobs.length === 0 &&
+            SC.state.trucks.every(t => !t.jobs.length && t.cargo.length === 0));
     })();
 
     // ── Camera math ─────────────────────────────────
@@ -316,8 +400,9 @@
         order.deliveredUnits = 1;
         // A truck mid-haul with a raw destined for F must fold into F's inv
         const truck = SC.vehicles.addTruck(S1);
-        truck.cargo = 'wheat';
-        truck.job = { type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: F.queue[0] };
+        truck.phase = 'toDrop';
+        truck.cargo = ['wheat'];
+        truck.jobs = [{ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: F.queue[0] }];
 
         const data = SC.save.serialize();
         SC.save.restore(data);
