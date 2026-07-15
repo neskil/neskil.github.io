@@ -1163,7 +1163,8 @@
 
             if (!isTouch) return; // ambient accelerometer/scroll bend is mobile-only
 
-            const SCROLL_BEND_DEG = 5; // max additional tilt from a card's position in the viewport
+            const SCROLL_BEND_FRACTION = 1; // bend can reach up to 100% of a card's own maxTilt at the very edge
+            const SCROLL_BEND_POWER = 5; // higher = flatter through the middle, sharper kick right at the edges
             const BASELINE_HALFLIFE_S = 3; // how fast "neutral" drifts to track your current hold angle
 
             let lastBeta = null, lastGamma = null;
@@ -1202,7 +1203,10 @@
                     const rect = card.getBoundingClientRect();
                     const centerY = rect.top + rect.height / 2;
                     const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
-                    const bend = norm * SCROLL_BEND_DEG;
+                    // Eased, not linear: stays fairly flat through the middle of the scroll range and
+                    // then ramps up sharply in roughly the last 5-10% as a card nears the viewport edge.
+                    const eased = Math.sign(norm) * Math.pow(Math.abs(norm), SCROLL_BEND_POWER);
+                    const bend = eased * maxTilt * SCROLL_BEND_FRACTION;
 
                     const rx = clamp(accelRx + bend, -maxTilt, maxTilt);
                     const ry = accelRy;
