@@ -14,9 +14,8 @@ growth, pan/pinch camera).
   sets how many trucks are stationed at each depot. Dispatch stays
   automatic within that constraint (a truck only takes jobs, preferring
   ones near its home region). No per-route manual pinning.
-  ⚠️ **Naming note**: "DC" is now taken — v1.3.0 introduced customer DCs
-  (🏢, order-*placing* cities that unlock over time). Truck home depots
-  need a different name when B is implemented (e.g. "truck depot" / "yard").
+  ✅ Shipped in v1.7.0 as **truck yards** (settled the naming collision
+  with customer DCs — see below).
 - **C. Visuals**: stay abstract — sprites are out. But refresh the art
   direction: doesn't need to keep the current sci-fi glow look; explore
   a warmer/cleaner abstract style in a dedicated visual pass.
@@ -26,6 +25,19 @@ growth, pan/pinch camera).
 
 ## Shipped
 
+- v1.7.0: truck yards (decision B). HQ (⭐) is always a yard; more can be
+  built via the Shop panel (not research-gated, price grows per yard like
+  trucks do — reuses the manual-placement tap-to-place flow from v1.5.0).
+  Buying a truck stations it at whichever yard is selected in a new Shop
+  dropdown. Idle trucks with no work head back to their home yard.
+  Dispatch was upgraded from "each truck grabs its own nearest job in
+  array order" to true nearest-truck-to-job matching, repeated until no
+  more idle trucks or jobs match — this is what actually makes a truck's
+  home yard matter for which jobs it wins, closing a gap the old
+  algorithm quietly had even before yards existed. Yard nodes render
+  distinctly (🅿️, violet) with a live parked-truck count; HQ shows its
+  own count too. Save format bumped to v3 (trucks[] now carries per-truck
+  homeYard; old saves reset).
 - v1.6.0: truck capacity upgrade. Trucks default to hauling one item, but
   the dispatcher now bundles any other pending job sharing the exact same
   pickup and drop onto the same trip, up to the truck's capacity; the

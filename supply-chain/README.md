@@ -31,12 +31,17 @@ that ambient animation as its background — it now lives independently at
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
-- **Trucks**: haul one item each by default; idle trucks take the nearest
-  pending job and — capacity allowing — bundle in any other pending job
-  that shares the exact same pickup and drop, so one trip can carry
-  several units at once. Buy more at the shop (price grows per truck);
-  they spawn at HQ. The Truck Capacity upgrade raises how many a truck
-  can bundle per trip.
+- **Trucks & yards**: HQ (⭐) is always a yard; build more (Shop panel,
+  price grows per yard like trucks do) to station trucks nearer distant
+  routes. Buying a truck stations it at whichever yard is picked in the
+  Shop's dropdown. Idle trucks head back to their home yard when there's
+  no work, and dispatch matches the *globally* nearest idle truck to each
+  job — so a truck parked at a yard near the action beats one that would
+  have to cross the map, purely from where it's stationed (no manual
+  route-pinning). Trucks haul one item each by default; capacity allowing,
+  a truck also bundles any other pending job that shares the exact same
+  pickup and drop, so one trip can carry several units at once. The Truck
+  Capacity upgrade raises how many a truck can bundle per trip.
 - **Credit line**: purchases may push the balance negative down to
   −$1,500 (`CREDIT_LIMIT`); debt accrues 10%/min interest
   (`DEBT_INTEREST_PER_MIN`), charged continuously in `economy.tick`.
@@ -58,6 +63,9 @@ that ambient animation as its background — it now lives independently at
   milestone/customer-DC unlocks (`PLACEMENT_SUPPLIER_PRICE`,
   `PLACEMENT_FACTORY_MULT`). A dashed ghost preview shows the spot and
   cost, red where blocked (in the river or too close to another site).
+  Truck yards use the same tap-to-place flow and ghost preview but are
+  **not** research-gated (`SC.placement.place('yard', ...)`) — a base
+  mechanic, not a premium bailout.
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - Endless play; "Filled" vs "Missed" on the HUD is the score.
 
@@ -76,9 +84,9 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/roads.js` | Road build/demolish/quote + Dijkstra pathfinding |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
-| `js/vehicles.js` | Trucks, haul jobs, dispatcher (bundles same-route jobs up to capacity), movement |
+| `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), movement |
 | `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
-| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance), locked behind research |
+| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build |
@@ -95,7 +103,10 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy.
-- More research nodes (truck capacity, order-pay boosts, faster
-  milestones); a "promotions" tech that temporarily boosts demand for a
-  chosen good, per the plan's next-steps discussion.
+- More research nodes (order-pay boosts, faster milestones); a
+  "promotions" tech that temporarily boosts demand for a chosen good,
+  per the plan's next-steps discussion.
 - Research cancel/refund (currently a started project can't be aborted).
+- Reassigning an existing truck to a different yard (today you choose a
+  yard at purchase time only; there's no way to move a truck already
+  in the fleet).

@@ -1,13 +1,15 @@
-// Manual site placement — locked behind the 'manualPlacement' research.
-// Lets the player drop a supplier or factory anywhere on land, at a
-// premium over the free milestone/customer-DC unlocks. Pure logic.
+// Manual site placement. Suppliers/factories are locked behind the
+// 'manualPlacement' research and cost a premium over the free milestone/
+// customer-DC unlocks; truck yards are a base mechanic (not research-
+// gated) with their own growing price, like buying another truck. Pure
+// logic — shares the same tap-to-place UI flow (input.js/render.js).
 window.SC = window.SC || {};
 
 SC.placement = (function() {
     function price(kind) {
-        return kind === 'supplier'
-            ? SC.CONFIG.PLACEMENT_SUPPLIER_PRICE
-            : Math.round(SC.CONFIG.FACTORY_SITE_PRICE * SC.CONFIG.PLACEMENT_FACTORY_MULT);
+        if (kind === 'supplier') return SC.CONFIG.PLACEMENT_SUPPLIER_PRICE;
+        if (kind === 'yard') return SC.yardPrice();
+        return Math.round(SC.CONFIG.FACTORY_SITE_PRICE * SC.CONFIG.PLACEMENT_FACTORY_MULT);
     }
 
     function canPlaceAt(x, y) {
@@ -18,17 +20,25 @@ SC.placement = (function() {
         return SC.state.nodes.every(n => Math.hypot(n.x - x, n.y - y) >= C.PLACEMENT_MIN_DIST);
     }
 
-    // kind: 'supplier' (good = raw material key) or 'factory' (good = recipe key)
+    // kind: 'supplier' (good = raw material key), 'factory' (good = recipe
+    // key), or 'yard' (good unused).
     function place(kind, good, x, y) {
-        if (!SC.research.isDone('manualPlacement')) return { ok: false, reason: 'locked' };
+        if (kind !== 'yard' && !SC.research.isDone('manualPlacement')) return { ok: false, reason: 'locked' };
         if (!canPlaceAt(x, y)) return { ok: false, reason: 'invalid' };
         const cost = price(kind);
         if (!SC.canAfford(cost)) return { ok: false, reason: 'money', cost };
         SC.state.money -= cost;
-        const opts = kind === 'supplier' ? { active: true, mat: good } : { active: true, recipe: good };
-        const node = SC.map.makeNode(kind, x, y, opts);
+        let node;
+        if (kind === 'yard') {
+            node = SC.map.makeNode('yard', x, y, { active: true });
+            SC.state.yardsBought++;
+        } else {
+            const opts = kind === 'supplier' ? { active: true, mat: good } : { active: true, recipe: good };
+            node = SC.map.makeNode(kind, x, y, opts);
+        }
         SC.economy.onNetworkChanged(); // orders waiting on this good can now plan
         SC.emit('sitePlaced', { node, cost });
+        if (kind === 'yard') SC.emit('yardBuilt', node);
         return { ok: true, node };
     }
 

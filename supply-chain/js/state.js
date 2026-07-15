@@ -30,13 +30,15 @@ SC.newState = function() {
 
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
+        yardsBought: 0,
+        activeYard: null,   // yard/HQ node new truck purchases station at (main.js sets to HQ)
 
         upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
         research: { completed: {}, active: null }, // active: { id, t } elapsed seconds
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
-        placeMode: null,    // { kind: 'supplier'|'factory', good } — manual placement (input.js)
+        placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
         gameStarted: false
     };
     return SC.state;
@@ -76,4 +78,14 @@ SC.upgradePrice = function(key) {
 SC.truckPrice = function() {
     return Math.round(SC.CONFIG.TRUCK_PRICE *
         Math.pow(SC.CONFIG.TRUCK_PRICE_GROWTH, SC.state.trucksBought));
+};
+
+SC.yardPrice = function() {
+    return Math.round(SC.CONFIG.YARD_PRICE *
+        Math.pow(SC.CONFIG.YARD_PRICE_GROWTH, SC.state.yardsBought));
+};
+
+// HQ always counts as a yard, plus any purchased 'yard' nodes.
+SC.isYard = function(node) {
+    return !!node && (node.isHQ || node.kind === 'yard');
 };

@@ -13,7 +13,8 @@ SC.init = function() {
         SC.map._resetSeq();
         SC.map.generateWorld();
         const start = SC.state.nodes.find(n => n.isHQ);
-        for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(start);
+        SC.state.activeYard = start;
+        for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(start, start);
     } else {
         SC.state.gameStarted = true;
     }
@@ -110,6 +111,24 @@ SC.runProbe = function(seconds) {
     if (p.has('hoverAt')) {
         const [hx, hy] = p.get('hoverAt').split(',').map(Number);
         SC.input._setDebugHover(hx, hy);
+    }
+    // Build a second truck yard near HQ and station a truck there, so the
+    // yard marker + per-yard truck count can be screenshotted. Try a ring
+    // of offsets since the starter cluster's exact layout is randomized.
+    if (p.has('yard')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        let res = { ok: false };
+        for (let a = 0; a < 16 && !res.ok; a++) {
+            const angle = (a / 16) * Math.PI * 2;
+            const x = hq.x + Math.cos(angle) * 350, y = hq.y + Math.sin(angle) * 350;
+            if (SC.placement.canPlaceAt(x, y)) res = SC.placement.place('yard', null, x, y);
+        }
+        if (res.ok) {
+            SC.roads.build(hq, res.node);
+            SC.state.activeYard = res.node;
+            SC.vehicles.buyTruck();
+        }
     }
 };
 
