@@ -14,9 +14,8 @@ growth, pan/pinch camera).
   sets how many trucks are stationed at each depot. Dispatch stays
   automatic within that constraint (a truck only takes jobs, preferring
   ones near its home region). No per-route manual pinning.
-  ⚠️ **Naming note**: "DC" is now taken — v1.3.0 introduced customer DCs
-  (🏢, order-*placing* cities that unlock over time). Truck home depots
-  need a different name when B is implemented (e.g. "truck depot" / "yard").
+  ✅ Shipped in v1.7.0 as **truck yards** (settled the naming collision
+  with customer DCs — see below).
 - **C. Visuals**: stay abstract — sprites are out. But refresh the art
   direction: doesn't need to keep the current sci-fi glow look; explore
   a warmer/cleaner abstract style in a dedicated visual pass.
@@ -26,11 +25,29 @@ growth, pan/pinch camera).
 
 ## Shipped
 
-*(v1.8.0/v1.9.0 below were developed in parallel with several same-numbered
-releases on another branch — v1.5.0/v1.6.0, then a v1.7.0 for screen-edge
-arrows; renumbered twice on merge to land after all of them. No
-functional overlap, just repeated numbering collisions from parallel work.)*
+*(v1.8.0-v1.9.2 below were developed in parallel across two branches —
+this one and another doing v1.5.0/v1.6.0 Build vs Inspect + the robot
+chain, then a v1.7.0 for screen-edge arrows and a fullscreen toggle;
+renumbered on merge to land after all of them in one consistent
+sequence. No functional overlap, just repeated numbering collisions from
+parallel work — see `js/config.js` `SC.VERSION` for the number that
+actually shipped.)*
 
+- v1.9.2: truck yards (decision B). HQ (⭐) is always a yard; more can be
+  built via the Shop panel (not research-gated, price grows per yard like
+  trucks do — reuses the manual-placement tap-to-place flow from v1.5.0).
+  Buying a truck stations it at whichever yard is selected in a new Shop
+  dropdown. Idle trucks with no work head back to their home yard.
+  Dispatch was upgraded from "each truck grabs its own nearest job in
+  array order" to true nearest-truck-to-job matching, repeated until no
+  more idle trucks or jobs match — this is what actually makes a truck's
+  home yard matter for which jobs it wins, closing a gap the old
+  algorithm quietly had even before yards existed. Yard nodes render
+  distinctly (🅿️, violet) with a live parked-truck count; HQ shows its
+  own count too. Save format bumped to v3 (trucks[] now carries per-truck
+  homeYard; old saves reset).
+- v1.9.1: screen-edge arrows point toward unconnected nodes that are
+  currently off-screen; a full-screen toggle was added to the menu.
 - v1.9.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
   🧵wire+💾chips→🔌circuit factory, 🔌circuit+🔩steel→🤖robot factory) —
   rubber, chips and steel are now each shared by two recipes, so one
@@ -163,6 +180,11 @@ functional overlap, just repeated numbering collisions from parallel work.)*
   now (~30 nodes), cache distances keyed on a `networkVersion` counter
   before congestion (8) multiplies calls — inspect mode (6) adds more
   per-hover `bestSourceFor`/`pathDist` calls too, worth watching.
+  `vehicles.dispatch()` (v1.9.2) went from O(idle+jobs) to a repeated
+  global-nearest-match (worst case O(min(idle,jobs) × idle × jobs) per
+  tick) to make yards' home-region preference actually work — still fine
+  at current fleet sizes, but the first thing to optimize (or cache) if
+  trucks/jobs both grow a lot.
 - **Interaction tests** — drive `SC.input._handleTap` in tests.html
   (build/select/demolish/buy flows are currently only hand-tested).
 - **Sound pass** — truck-departure blip, ambient loop, separate music/sfx

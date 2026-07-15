@@ -1,18 +1,23 @@
 // Trucks and the job dispatcher. Jobs are single-item hauls; idle trucks
-// pick the nearest reachable pending job. Pure logic.
+// pick the nearest reachable pending job. Each truck has a home yard
+// (HQ or a purchased 'yard' node) it returns to when there's no work,
+// which is what makes dispatch naturally favor jobs near that yard —
+// no separate "prefer home region" rule needed, since idle trucks simply
+// cluster there between jobs. Pure logic.
 window.SC = window.SC || {};
 
 SC.vehicles = (function() {
     let truckSeq = 0, jobSeq = 0;
 
-    function addTruck(node) {
+    function addTruck(node, homeYard) {
         const t = {
             id: truckSeq++,
             node,                 // node the truck is at / last passed
             x: node.x, y: node.y,
+            homeYard: homeYard || node,
             path: null, pathIdx: 0, progress: 0,
             cargo: [],             // item keys being hauled this trip (bundled, same pickup+drop)
-            jobs: [], phase: null  // 'toPickup' | 'toDrop'
+            jobs: [], phase: null  // 'toPickup' | 'toDrop' | 'returning'
         };
         SC.state.trucks.push(t);
         return t;
@@ -58,6 +63,7 @@ SC.vehicles = (function() {
         truck.y = truck.node.y;
         truck.path = null;
 
+        if (truck.phase === 'returning') { truck.phase = null; return; }
         if (!truck.jobs.length) return;
         if (truck.phase === 'toPickup') {
             const first = truck.jobs[0];
@@ -85,35 +91,56 @@ SC.vehicles = (function() {
         }
     }
 
-    // Assign pending jobs to idle trucks (nearest truck first). A truck
-    // with spare capacity bundles additional jobs that share the exact
-    // same pickup and drop as the one it just claimed, so one trip can
-    // carry several units of the same haul (e.g. multiple raw units for
-    // one factory, or several units of one product to one city).
+    // Assign pending jobs to idle trucks. Repeatedly matches the globally
+    // closest (idle truck, job) pair — not just "each truck grabs its own
+    // nearest job" in array order — so a truck parked at a yard near the
+    // job wins it over one that would have to cross the map, even if the
+    // farther truck happens to be earlier in the trucks list. Combined
+    // with idle trucks heading home to their yard (below), this is what
+    // makes dispatch favor a truck's home region. A truck with spare
+    // capacity bundles additional jobs that share the exact same pickup
+    // and drop as the one it just claimed, so one trip can carry several
+    // units of the same haul (e.g. multiple raw units for one factory, or
+    // several units of one product to one city).
     function dispatch() {
         const jobs = SC.state.jobs;
-        if (!jobs.length) return;
-        const idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
         const capacity = SC.truckCapacity();
-        for (const truck of idle) {
-            let best = null, bestDist = Infinity, bestRoute = null;
-            for (const job of jobs) {
-                if (!SC.roads.findPath(job.pickup, job.drop)) continue;
-                const r = SC.roads.findPath(truck.node, job.pickup);
-                if (r && r.dist < bestDist) { best = job; bestDist = r.dist; bestRoute = r; }
+        let idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
+
+        while (idle.length && jobs.length) {
+            let bestTruck = null, bestJob = null, bestDist = Infinity, bestRoute = null;
+            for (const truck of idle) {
+                for (const job of jobs) {
+                    if (!SC.roads.findPath(job.pickup, job.drop)) continue;
+                    const r = SC.roads.findPath(truck.node, job.pickup);
+                    if (r && r.dist < bestDist) { bestDist = r.dist; bestTruck = truck; bestJob = job; bestRoute = r; }
+                }
             }
-            if (!best) continue;
-            const bundle = [best];
+            if (!bestTruck) break; // no remaining job is reachable by any idle truck
+
+            const bundle = [bestJob];
             if (capacity > 1) {
                 for (const job of jobs) {
                     if (bundle.length >= capacity) break;
-                    if (job !== best && job.pickup === best.pickup && job.drop === best.drop) bundle.push(job);
+                    if (job !== bestJob && job.pickup === bestJob.pickup && job.drop === bestJob.drop) bundle.push(job);
                 }
             }
             for (const job of bundle) jobs.splice(jobs.indexOf(job), 1);
-            truck.jobs = bundle;
-            truck.phase = 'toPickup';
-            setPath(truck, bestRoute.path);
+            bestTruck.jobs = bundle;
+            bestTruck.phase = 'toPickup';
+            setPath(bestTruck, bestRoute.path);
+            idle = idle.filter(t => t !== bestTruck);
+        }
+
+        // Trucks left with no work head back to their home yard, if not
+        // there already.
+        for (const truck of idle) {
+            if (truck.node === truck.homeYard) continue;
+            const home = SC.roads.findPath(truck.node, truck.homeYard);
+            if (home && home.path.length > 1) {
+                truck.phase = 'returning';
+                setPath(truck, home.path);
+            }
         }
     }
 
@@ -153,7 +180,8 @@ SC.vehicles = (function() {
         SC.state.money -= price;
         SC.state.trucksBought++;
         const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
-        const truck = addTruck(hq);
+        const yard = SC.isYard(SC.state.activeYard) ? SC.state.activeYard : hq;
+        const truck = addTruck(yard, yard);
         SC.emit('truckBought', { truck, price });
         return { ok: true, truck };
     }
