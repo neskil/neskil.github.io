@@ -485,12 +485,16 @@
             display: flex;
             align-items: center;
             gap: 0.9rem;
+            width: 100%;
             padding: 0.9rem 1.1rem;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 14px;
             text-decoration: none;
             color: inherit;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
             transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
         }
 
@@ -659,6 +663,14 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
+            <button type="button" class="vault-row" id="vault-danger-button">
+                <div class="vault-row-icon">🚨</div>
+                <div class="vault-row-body">
+                    <div class="vault-row-title">Do Not Press</div>
+                    <div class="vault-row-desc">Seriously. Don't.</div>
+                </div>
+                <span class="vault-row-arrow">→</span>
+            </button>
         </div>
     </div>
 
@@ -979,6 +991,11 @@
             document.body.style.overflow = '';
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
+
+        document.getElementById('vault-danger-button').addEventListener('click', () => {
+            closeVault();
+            setTimeout(() => triggerGravityGlitch(), 350); // let the vault slide away first
+        });
 
         /* ── Secret animation: Konami code gravity glitch ── */
         const konamiSeq = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
