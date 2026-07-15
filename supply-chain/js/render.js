@@ -21,6 +21,7 @@ SC.render = (function() {
         SC.on('roadDemolished', d => addFloater((d.edge.a.x + d.edge.b.x) / 2, (d.edge.a.y + d.edge.b.y) / 2, `+$${d.refund}`, '#34d399'));
         SC.on('sitePurchased', d => addFloater(d.node.x, d.node.y - 24, `−$${d.price}`, '#f87171'));
         SC.on('truckBought', d => addFloater(d.truck.x, d.truck.y - 24, `−$${d.price}`, '#f87171'));
+        SC.on('sitePlaced', d => addFloater(d.node.x, d.node.y - 24, `−$${d.cost}`, '#f87171'));
     }
 
     function resize() {
@@ -135,6 +136,31 @@ SC.render = (function() {
         const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
         label(`$${q.cost}${q.bridge ? ' (bridge)' : ''}`, mx, my - 14,
               affordable ? '#34d399' : '#f87171');
+    }
+
+    // Preview for manual site placement (research-unlocked): a dashed
+    // hex/square at the pointer, green when the spot is buildable.
+    function drawPlacementGhost() {
+        const pm = SC.state.placeMode;
+        const hover = SC.input.getHover && SC.input.getHover();
+        if (!pm || !hover) return;
+        const valid = SC.canAfford(SC.placement.price(pm.kind)) && SC.placement.canPlaceAt(hover.x, hover.y);
+        const cost = SC.placement.price(pm.kind);
+        const color = valid ? 'rgba(52, 211, 153, 0.85)' : 'rgba(248, 113, 113, 0.85)';
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 5]);
+        if (pm.kind === 'supplier') hexPath(hover.x, hover.y, 20);
+        else { ctx.beginPath(); ctx.rect(hover.x - 18, hover.y - 18, 36, 36); }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.globalAlpha = 0.85;
+        emoji(SC.emojiOf(pm.good), hover.x, hover.y, 19);
+        ctx.globalAlpha = 1;
+        label(`$${cost}${valid ? '' : ' — blocked'}`, hover.x, hover.y - 32,
+              valid ? '#34d399' : '#f87171', 11);
     }
 
     // Screen-constant-size text at a world position
@@ -380,6 +406,7 @@ SC.render = (function() {
         drawRoads();
         drawHighlight(now);
         drawGhostRoad();
+        drawPlacementGhost();
         drawOrderBubbles();
         drawNodes(now);
         drawTrucks();
