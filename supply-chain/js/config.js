@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.7.0';
+SC.VERSION = '1.9.2';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -102,11 +102,18 @@ SC.GOODS = {
     ore:    { emoji: '🪨', name: 'Iron ore',    color: '#9aa3ad', raw: true },
     coal:   { emoji: '⚫', name: 'Coal',        color: '#64748b', raw: true },
     chips:  { emoji: '💾', name: 'Electronics', color: '#8fa8bf', raw: true },
-    // crafted
-    steel:  { emoji: '🔩', name: 'Steel',    color: '#cbd5e1', inputs: ['ore', 'coal'], building: 'Smelter' },
-    bread:  { emoji: '🍞', name: 'Bread',    color: '#f59e0b', inputs: ['wheat', 'water'], orderable: true, value: 150, building: 'Bakery' },
-    shoes:  { emoji: '👟', name: 'Sneakers', color: '#34d399', inputs: ['wool', 'rubber'], orderable: true, value: 230, building: 'Sneaker factory' },
-    car:    { emoji: '🚗', name: 'Cars',     color: '#b07cd8', inputs: ['steel', 'chips'], orderable: true, value: 480, building: 'Car factory' }
+    copper: { emoji: '🟠', name: 'Copper',      color: '#c2703d', raw: true },
+    // crafted (intermediates feed deeper chains; only `orderable` ones
+    // appear in city orders). rubber, chips and steel are each shared by
+    // two different recipes below, and the robot chain runs 3 tiers deep
+    // (wire -> circuit -> robot) — see README "Goods & recipes".
+    steel:   { emoji: '🔩', name: 'Steel',        color: '#cbd5e1', inputs: ['ore', 'coal'], building: 'Smelter' },
+    wire:    { emoji: '🧵', name: 'Wire',         color: '#e08a3c', inputs: ['copper', 'rubber'], building: 'Wire mill' },
+    circuit: { emoji: '🔌', name: 'Circuit board', color: '#facc15', inputs: ['wire', 'chips'], building: 'Circuit factory' },
+    bread:   { emoji: '🍞', name: 'Bread',    color: '#f59e0b', inputs: ['wheat', 'water'], orderable: true, value: 150, building: 'Bakery' },
+    shoes:   { emoji: '👟', name: 'Sneakers', color: '#34d399', inputs: ['wool', 'rubber'], orderable: true, value: 230, building: 'Sneaker factory' },
+    car:     { emoji: '🚗', name: 'Cars',     color: '#b07cd8', inputs: ['steel', 'chips'], orderable: true, value: 480, building: 'Car factory' },
+    robot:   { emoji: '🤖', name: 'Robots',   color: '#94a3b8', inputs: ['circuit', 'steel'], orderable: true, value: 900, building: 'Robot factory' }
 };
 
 SC.colorOf = function(item) { return SC.GOODS[item].color; };

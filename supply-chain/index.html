@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.7.0">
+    <link rel="stylesheet" href="style.css?v=1.9.2">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -19,8 +19,14 @@
     </div>
 
     <div id="top-right">
+        <div id="mode-toggle" class="mode-toggle">
+            <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
+            <button id="mode-inspect" class="mode-btn" title="Inspect: hover/hold a node for its connections">🔍</button>
+        </div>
         <button id="btn-menu" class="icon-btn" title="Menu">☰</button>
     </div>
+
+    <div id="inspect-tooltip"></div>
 
     <div id="orders-panel" class="panel">
         <div class="panel-header" id="orders-header">
@@ -82,6 +88,7 @@
             <button class="menu-btn primary" id="menu-resume">▶ Resume</button>
             <button class="menu-btn" id="menu-save">💾 Save now</button>
             <button class="menu-btn" id="menu-sound">🔊 Sound</button>
+            <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
             <button class="menu-btn" id="menu-help">❓ How to play</button>
             <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
         </div>
@@ -94,7 +101,10 @@
                DCs will start ordering too as you play. Each factory turns two
                ingredients into its product — the bakery 🍞 needs wheat and
                water, the smelter 🔩 turns ore and coal into steel for the car
-               factory 🚗. Your trucks do the hauling — but only where roads exist.</p>
+               factory 🚗. Some chains run deeper and share ingredients: the
+               robot factory 🤖 needs a circuit board 🔌 (itself made from wire
+               🧵 and electronics 💾) plus the same steel your cars use. Your
+               trucks do the hauling — but only where roads exist.</p>
             <ul>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
@@ -103,32 +113,37 @@
                 <li><b>Research:</b> in the Shop panel, invest upfront and wait it out to unlock upgrades like manual site placement and a bigger credit line.</li>
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
+                <li><b>Inspect mode (🔍, top right):</b> hover or hold a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up.</li>
             </ul>
             <div class="recipes">
                 <span>🌾+💧→🍞</span>
                 <span>🧶+🛞→👟</span>
                 <span>🪨+⚫→🔩</span>
                 <span>🔩+💾→🚗</span>
+                <span>🟠+🛞→🧵</span>
+                <span>🧵+💾→🔌</span>
+                <span>🔌+🔩→🤖</span>
             </div>
             <button id="help-start">Start hauling</button>
         </div>
     </div>
 
-    <script src="js/config.js?v=1.7.0"></script>
-    <script src="js/state.js?v=1.7.0"></script>
-    <script src="js/save.js?v=1.7.0"></script>
-    <script src="js/sfx.js?v=1.7.0"></script>
-    <script src="js/map.js?v=1.7.0"></script>
-    <script src="js/camera.js?v=1.7.0"></script>
-    <script src="js/roads.js?v=1.7.0"></script>
-    <script src="js/factories.js?v=1.7.0"></script>
-    <script src="js/economy.js?v=1.7.0"></script>
-    <script src="js/vehicles.js?v=1.7.0"></script>
-    <script src="js/research.js?v=1.7.0"></script>
-    <script src="js/placement.js?v=1.7.0"></script>
-    <script src="js/render.js?v=1.7.0"></script>
-    <script src="js/input.js?v=1.7.0"></script>
-    <script src="js/ui.js?v=1.7.0"></script>
-    <script src="js/main.js?v=1.7.0"></script>
+    <script src="js/config.js?v=1.9.2"></script>
+    <script src="js/state.js?v=1.9.2"></script>
+    <script src="js/save.js?v=1.9.2"></script>
+    <script src="js/sfx.js?v=1.9.2"></script>
+    <script src="js/map.js?v=1.9.2"></script>
+    <script src="js/camera.js?v=1.9.2"></script>
+    <script src="js/roads.js?v=1.9.2"></script>
+    <script src="js/factories.js?v=1.9.2"></script>
+    <script src="js/economy.js?v=1.9.2"></script>
+    <script src="js/vehicles.js?v=1.9.2"></script>
+    <script src="js/inspect.js?v=1.9.2"></script>
+    <script src="js/research.js?v=1.9.2"></script>
+    <script src="js/placement.js?v=1.9.2"></script>
+    <script src="js/render.js?v=1.9.2"></script>
+    <script src="js/input.js?v=1.9.2"></script>
+    <script src="js/ui.js?v=1.9.2"></script>
+    <script src="js/main.js?v=1.9.2"></script>
 </body>
 </html>

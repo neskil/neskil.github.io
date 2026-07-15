@@ -38,6 +38,7 @@ SC.newState = function() {
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
+        mode: 'build',      // 'build' (default, current tap-to-build) | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
         gameStarted: false
     };
