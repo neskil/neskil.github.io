@@ -22,7 +22,7 @@ SC.ui = (function() {
         $('hud-money-label').textContent = inDebt
             ? `Debt (${Math.round(SC.CONFIG.DEBT_INTEREST_PER_MIN * 100)}%/min)` : 'Money';
         $('hud-money-item').classList.toggle('debt', inDebt);
-        const idle = st.trucks.filter(t => !t.job && !t.path).length;
+        const idle = st.trucks.filter(t => !t.jobs.length && !t.path).length;
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
         $('hud-delivered').textContent = st.delivered;
         $('hud-missed').textContent = st.missed;

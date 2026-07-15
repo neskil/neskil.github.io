@@ -58,4 +58,6 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   `manualPlacement` researched — pass both together); `&hoverAt=x,y`
   (world coords) fakes a pointer position via `SC.input._setDebugHover`
   so the placement/road ghost preview renders without a real pointermove.
+  `&capacity=1` maxes the truck-capacity upgrade so bundled multi-item
+  hauls (the ×N badge over a truck) show up without a long probe.
 - **Mobile layout**: same screenshot with `--window-size=390,844`.

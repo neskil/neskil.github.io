@@ -27,9 +27,12 @@ SC.save = (function() {
             inv.set(n.id, copy);
         }
         for (const t of st.trucks) {
-            if (t.cargo && t.job && t.job.type === 'raw' && inv.has(t.job.drop.id)) {
-                const c = inv.get(t.job.drop.id);
-                c[t.cargo] = (c[t.cargo] || 0) + 1;
+            if (t.phase !== 'toDrop') continue; // only already-picked-up cargo counts as "delivered"
+            for (const job of t.jobs) {
+                if (job.type === 'raw' && inv.has(job.drop.id)) {
+                    const c = inv.get(job.drop.id);
+                    c[job.item] = (c[job.item] || 0) + 1;
+                }
             }
         }
 

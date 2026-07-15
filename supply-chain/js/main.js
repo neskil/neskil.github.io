@@ -76,6 +76,7 @@ SC.runProbe = function(seconds) {
     SC.state.money = Math.max(SC.state.money, 5000);
     const p = new URLSearchParams(location.search);
     if (p.has('dc')) SC.state.nextCustomerIn = 3;
+    if (p.has('capacity')) SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
     const f = SC.factories.all()[0];
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))

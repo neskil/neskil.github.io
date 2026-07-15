@@ -11,8 +11,8 @@ SC.vehicles = (function() {
             node,                 // node the truck is at / last passed
             x: node.x, y: node.y,
             path: null, pathIdx: 0, progress: 0,
-            cargo: null,          // item key while hauling
-            job: null, phase: null // 'toPickup' | 'toDrop'
+            cargo: [],             // item keys being hauled this trip (bundled, same pickup+drop)
+            jobs: [], phase: null  // 'toPickup' | 'toDrop'
         };
         SC.state.trucks.push(t);
         return t;
@@ -30,14 +30,18 @@ SC.vehicles = (function() {
             if (jobs[i].order === order) jobs.splice(i, 1);
         }
         for (const t of SC.state.trucks) {
-            if (t.job && t.job.order === order && t.phase === 'toPickup') {
-                // Abort: finish the current segment, then idle
-                t.job = null;
+            if (t.phase !== 'toPickup') continue; // loaded trucks finish their run; salvage handles the drop
+            const before = t.jobs.length;
+            t.jobs = t.jobs.filter(j => j.order !== order);
+            if (t.jobs.length === before) continue;
+            if (t.jobs.length === 0) {
+                // Nothing left in this bundle: abort the trip, finish the
+                // current road segment, then idle.
                 t.phase = null;
                 if (t.path) t.path = t.path.slice(0, t.pathIdx + 2);
             }
-            // Loaded trucks ('toDrop') finish their run; salvage is
-            // handled at the drop point.
+            // Bundle partially trimmed: remaining jobs share the same
+            // pickup/drop, so the in-flight route is still valid.
         }
     }
 
@@ -54,35 +58,43 @@ SC.vehicles = (function() {
         truck.y = truck.node.y;
         truck.path = null;
 
-        const job = truck.job;
-        if (!job) return;
+        if (!truck.jobs.length) return;
         if (truck.phase === 'toPickup') {
-            const route = SC.roads.findPath(job.pickup, job.drop);
-            if (!route) { // network changed underneath us: give the job back
-                truck.job = null; truck.phase = null;
-                SC.state.jobs.push(job);
+            const first = truck.jobs[0];
+            const route = SC.roads.findPath(first.pickup, first.drop);
+            if (!route) { // network changed underneath us: give the jobs back
+                SC.state.jobs.push(...truck.jobs);
+                truck.jobs = [];
+                truck.phase = null;
                 return;
             }
-            truck.cargo = job.item;
+            truck.cargo = truck.jobs.map(j => j.item);
             truck.phase = 'toDrop';
             setPath(truck, route.path);
         } else if (truck.phase === 'toDrop') {
-            if (job.type === 'raw') {
-                SC.factories.receiveRaw(job.drop, job.item, job.task);
-            } else {
-                SC.economy.deliverProduct(job.order, job.item);
+            for (const job of truck.jobs) {
+                if (job.type === 'raw') {
+                    SC.factories.receiveRaw(job.drop, job.item, job.task);
+                } else {
+                    SC.economy.deliverProduct(job.order, job.item);
+                }
             }
-            truck.cargo = null;
-            truck.job = null;
+            truck.cargo = [];
+            truck.jobs = [];
             truck.phase = null;
         }
     }
 
-    // Assign pending jobs to idle trucks (nearest truck first).
+    // Assign pending jobs to idle trucks (nearest truck first). A truck
+    // with spare capacity bundles additional jobs that share the exact
+    // same pickup and drop as the one it just claimed, so one trip can
+    // carry several units of the same haul (e.g. multiple raw units for
+    // one factory, or several units of one product to one city).
     function dispatch() {
         const jobs = SC.state.jobs;
         if (!jobs.length) return;
-        const idle = SC.state.trucks.filter(t => !t.job && !t.path);
+        const idle = SC.state.trucks.filter(t => !t.jobs.length && !t.path);
+        const capacity = SC.truckCapacity();
         for (const truck of idle) {
             let best = null, bestDist = Infinity, bestRoute = null;
             for (const job of jobs) {
@@ -91,8 +103,15 @@ SC.vehicles = (function() {
                 if (r && r.dist < bestDist) { best = job; bestDist = r.dist; bestRoute = r; }
             }
             if (!best) continue;
-            jobs.splice(jobs.indexOf(best), 1);
-            truck.job = best;
+            const bundle = [best];
+            if (capacity > 1) {
+                for (const job of jobs) {
+                    if (bundle.length >= capacity) break;
+                    if (job !== best && job.pickup === best.pickup && job.drop === best.drop) bundle.push(job);
+                }
+            }
+            for (const job of bundle) jobs.splice(jobs.indexOf(job), 1);
+            truck.jobs = bundle;
             truck.phase = 'toPickup';
             setPath(truck, bestRoute.path);
         }
