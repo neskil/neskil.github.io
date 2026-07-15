@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Supply Chain Tycoon — logic tests</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1rem; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
+    <script src="js/config.js?v=1.0.0"></script>
+    <script src="js/state.js?v=1.0.0"></script>
+    <script src="js/sfx.js?v=1.0.0"></script>
+    <script src="js/map.js?v=1.0.0"></script>
+    <script src="js/camera.js?v=1.0.0"></script>
+    <script src="js/roads.js?v=1.0.0"></script>
+    <script src="js/factories.js?v=1.0.0"></script>
+    <script src="js/economy.js?v=1.0.0"></script>
+    <script src="js/vehicles.js?v=1.0.0"></script>
+
+    <script>
+    let passed = 0, failed = 0;
+    function assert(name, cond, detail) {
+        const div = document.createElement('div');
+        if (cond) { passed++; div.className = 'pass'; div.textContent = '✓ ' + name; }
+        else { failed++; div.className = 'fail'; div.textContent = '✗ ' + name + (detail ? ' — ' + detail : ''); }
+        document.getElementById('results').appendChild(div);
+    }
+    function approx(a, b, eps) { return Math.abs(a - b) <= (eps || 0.001); }
+
+    // Deterministic fixture: straight vertical river at x=1100, halfW=40.
+    // S1(red) and S2(blue) -> F -> C, all on the left bank.
+    function fixture() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [40, 40] };
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'red' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'blue' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        return { S1, S2, F, C };
+    }
+
+    // ── Map / river ─────────────────────────────────
+    (function() {
+        fixture();
+        assert('point inside river detected', SC.map.isInRiver(1100, 500));
+        assert('point on land not in river', !SC.map.isInRiver(300, 500));
+        assert('segment across river detected', SC.map.segmentCrossesRiver(900, 500, 1300, 500));
+        assert('segment on one bank does not cross', !SC.map.segmentCrossesRiver(100, 100, 700, 300));
+    })();
+
+    // ── Roads: quote, build, demolish ───────────────
+    (function() {
+        const { S1, S2, F } = fixture();
+        const q = SC.roads.quote(S1, S2);
+        assert('road quote length', approx(q.len, 200));
+        assert('road quote cost = len * rate', q.cost === Math.round(200 * SC.CONFIG.ROAD_COST_PER_UNIT));
+        assert('bridge multiplier applied', (function() {
+            const A = SC.map.makeNode('city', 900, 500, { active: true });
+            const B = SC.map.makeNode('city', 1300, 500, { active: true });
+            const qb = SC.roads.quote(A, B);
+            return qb.bridge && qb.cost === Math.round(400 * SC.CONFIG.ROAD_COST_PER_UNIT * SC.CONFIG.BRIDGE_MULT);
+        })());
+
+        const m0 = SC.state.money;
+        const res = SC.roads.build(S1, F);
+        assert('build succeeds and charges money', res.ok && SC.state.money === m0 - res.edge.cost);
+        assert('adjacency updated', S1.edges.includes(F) && F.edges.includes(S1));
+        assert('duplicate road rejected', SC.roads.quote(S1, F) === null);
+
+        const money1 = SC.state.money;
+        assert('demolish refunds half', SC.roads.demolish(res.edge) &&
+            SC.state.money === money1 + Math.round(res.edge.cost * SC.CONFIG.ROAD_REFUND));
+        assert('adjacency removed after demolish', !S1.edges.includes(F));
+    })();
+
+    // ── Pathfinding ─────────────────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.roads.build(S1, S2);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const r = SC.roads.findPath(S1, C);
+        assert('Dijkstra finds multi-hop path', r && r.path.length === 4 && r.path[0] === S1 && r.path[3] === C);
+        assert('unreachable returns null', SC.roads.findPath(S1, SC.map.makeNode('city', 2000, 1000, { active: true })) === null);
+        SC.roads.build(S1, F);
+        const r2 = SC.roads.findPath(S1, C);
+        assert('Dijkstra prefers the shorter route', r2.path.length === 3 && approx(r2.dist, Math.hypot(300, 100) + 300));
+    })();
+
+    // ── Order planning ──────────────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        assert('spawned order is craftable purple x1', order && order.product === 'purple' && order.qty === 1);
+        assert('planning succeeds with full route', SC.economy.planOrder(order) && order.factory === F);
+        assert('one craft task queued', F.queue.length === 1);
+        assert('two raw haul jobs created', SC.state.jobs.length === 2 &&
+            SC.state.jobs.every(j => j.type === 'raw' && j.drop === F));
+
+        // Unplanned when disconnected
+        SC.newState(); SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }], halfWidths: [40, 40] };
+        const A = SC.map.makeNode('city', 700, 200, { active: true });
+        SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'red' });
+        SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'blue' });
+        SC.map.makeNode('factory', 400, 200, { active: true });
+        const o2 = SC.economy.spawnOrder();
+        assert('no-route order flagged', !SC.economy.planOrder(o2) && o2.noRoute);
+    })();
+
+    // ── Full haul cycle: raws -> craft -> delivery -> payout ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.vehicles.addTruck(F);
+        SC.vehicles.addTruck(F);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+
+        const before = SC.state.money;
+        for (let i = 0; i < 3000 && SC.state.orders.length; i++) {
+            SC.vehicles.tick(0.1);
+            SC.factories.tick(0.1);
+        }
+        assert('order fully delivered', SC.state.delivered === 1 && SC.state.orders.length === 0);
+        assert('payout received', SC.state.money === before + order.payout);
+        assert('factory queue drained', F.queue.length === 0 && !F.crafting);
+        assert('trucks idle again', SC.state.trucks.every(t => !t.job && !t.path && !t.cargo));
+    })();
+
+    // ── Expiry cancels work ─────────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        SC.economy.expireOrder(order);
+        assert('expiry removes order and counts a miss', SC.state.orders.length === 0 && SC.state.missed === 1);
+        assert('expiry cancels pending jobs', SC.state.jobs.length === 0);
+        assert('expiry clears factory queue', F.queue.length === 0);
+    })();
+
+    // ── Economy: upgrades & truck prices ────────────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const p0 = SC.upgradePrice('truckSpeed');
+        const s0 = SC.truckSpeed();
+        const res = SC.economy.buyUpgrade('truckSpeed');
+        assert('upgrade purchase levels up and charges', res.ok &&
+            SC.state.upgrades.truckSpeed === 1 && SC.state.money === 100000 - p0);
+        assert('truck speed increased', SC.truckSpeed() > s0);
+        SC.state.upgrades.truckSpeed = SC.CONFIG.UPGRADES.truckSpeed.max;
+        assert('maxed upgrade rejected', SC.upgradePrice('truckSpeed') === null &&
+            !SC.economy.buyUpgrade('truckSpeed').ok);
+        const t0 = SC.truckPrice();
+        SC.state.trucksBought = 2;
+        assert('truck price grows with fleet', SC.truckPrice() > t0);
+    })();
+
+    // ── Camera math ─────────────────────────────────
+    (function() {
+        SC.newState();
+        SC.camera.setViewport(1200, 800);
+        SC.camera.fitWorld();
+        const w = SC.camera.toWorld(600, 400);
+        const s = SC.camera.toScreen(w.x, w.y);
+        assert('toScreen inverts toWorld', approx(s.x, 600, 0.01) && approx(s.y, 400, 0.01));
+        const anchor = SC.camera.toWorld(300, 200);
+        SC.camera.zoomAt(300, 200, 1.5);
+        const after = SC.camera.toWorld(300, 200);
+        assert('zoomAt keeps anchor point fixed', approx(anchor.x, after.x, 0.5) && approx(anchor.y, after.y, 0.5));
+        SC.camera.pan(-10000, -10000);
+        const cam = SC.camera.cam;
+        assert('pan clamps to world bounds', cam.x <= SC.CONFIG.WORLD_W + 120 && cam.y <= SC.CONFIG.WORLD_H + 120);
+    })();
+
+    // ── Generated world sanity ──────────────────────
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.generateWorld();
+        const active = SC.state.nodes.filter(n => n.active);
+        assert('starter cluster: HQ, factory, red+blue suppliers', (function() {
+            return active.some(n => n.isHQ) &&
+                   active.some(n => n.kind === 'factory' && !n.forSale) &&
+                   active.some(n => n.mat === 'red') &&
+                   active.some(n => n.mat === 'blue');
+        })());
+        assert('no node spawned in the river', SC.state.nodes.every(n => !SC.map.isInRiver(n.x, n.y)));
+        assert('locked pool exists for milestones', SC.state.nodes.some(n => !n.active));
+        const n1 = SC.map.unlockNext();
+        assert('unlockNext activates a site', n1 && n1.active);
+        assert('starter products craftable', SC.economy.craftableProducts().includes('purple'));
+    })();
+
+    document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
+    document.getElementById('summary').className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>
