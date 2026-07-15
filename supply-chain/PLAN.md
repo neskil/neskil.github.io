@@ -26,17 +26,18 @@ growth, pan/pinch camera).
 
 ## Shipped
 
-*(v1.7.0/v1.8.0 below were developed in parallel with v1.5.0/v1.6.0 on
-another branch, under those same version numbers; renumbered on merge —
-no functional overlap, just a numbering collision.)*
+*(v1.8.0/v1.9.0 below were developed in parallel with several same-numbered
+releases on another branch — v1.5.0/v1.6.0, then a v1.7.0 for screen-edge
+arrows; renumbered twice on merge to land after all of them. No
+functional overlap, just repeated numbering collisions from parallel work.)*
 
-- v1.8.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
+- v1.9.0: three-tier robot chain (🟠copper+🛞rubber→🧵wire mill,
   🧵wire+💾chips→🔌circuit factory, 🔌circuit+🔩steel→🤖robot factory) —
   rubber, chips and steel are now each shared by two recipes, so one
   supplier's roads matter for more than one product. No planner changes
   needed; `economy.bestSourceFor`/`planUnit` were already generic over
   chain depth.
-- v1.7.0: Build vs Inspect mode toggle (top right). Inspect: hover
+- v1.8.0: Build vs Inspect mode toggle (top right). Inspect: hover
   (mouse) or hold (touch, long-press) a node for a tooltip — a factory's
   inputs and their connected/unreachable status, a supplier's consuming
   factories, or a city's open orders — with the relevant roads glowing.
@@ -84,7 +85,7 @@ no functional overlap, just a numbering collision.)*
 5. **Tutorialize the first order** — instead of only the text overlay:
    dim the map, arrow at HQ + nearest supplier, "build a road here". The
    overlay stays as reference.
-6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.7.0. Detail kept
+6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.8.0. Detail kept
    below for reference:
    - **Build** (current behaviour, default): tap-tap builds/demolishes
      roads, tap a for-sale site to buy it — unchanged.
@@ -135,7 +136,7 @@ no functional overlap, just a numbering collision.)*
     research is settled (the current tree assumes each id completes once).
 11. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
-12. ~~Deeper, shared supply chains~~ — shipped v1.8.0 (the 🟠🧵🔌🤖 chain,
+12. ~~Deeper, shared supply chains~~ — shipped v1.9.0 (the 🟠🧵🔌🤖 chain,
     see Shipped above). Detail kept below for reference:
     - `SC.depthOf`, the recursive planner (`economy.bestSourceFor`/
       `planUnit`), and `SC.factories.canSource` are already
