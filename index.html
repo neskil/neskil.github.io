@@ -283,8 +283,9 @@
             mix-blend-mode: overlay;
         }
 
-        /* Supply Chain's own shine — a slow periodic diagonal sweep, not tilt-driven like the
-           others, so it reads as a distinct style from CargoLander's holo foil. */
+        /* Supply Chain's own shine — a diagonal sweep band, distinct in shape from CargoLander's
+           holo foil. Driven by the same --mx/--my as everything else (mouse/touch position on
+           desktop, scroll position feeding into --my on mobile — see ambientTick), not a timer. */
         #card-supply-chain::after {
             content: '';
             position: absolute;
@@ -297,22 +298,11 @@
                     rgba(45, 212, 191, 0.35) 55%,
                     transparent 70%);
             background-size: 250% 250%;
+            background-position: var(--mx) var(--my);
             mix-blend-mode: overlay;
+            opacity: calc(0.35 + var(--mag) * 0.45);
+            transition: opacity 0.35s ease;
             pointer-events: none;
-            animation: supply-shine 6s ease-in-out infinite;
-        }
-
-        @keyframes supply-shine {
-
-            0%,
-            55% {
-                background-position: -60% -60%;
-            }
-
-            75%,
-            100% {
-                background-position: 160% 160%;
-            }
         }
 
         /* ── Holo shine (CargoLander card) — layers on top of the standard glare above ── */
@@ -1293,7 +1283,9 @@
                     const ry = accelRy;
                     const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
                     const mx = clamp(50 + deltaGamma * 1.1, 5, 95);
-                    const my = clamp(50 + deltaBeta * 1.1, 5, 95);
+                    // Scroll position feeds the glare/sweep position too, not just tilt — so a card's
+                    // shine visibly slides as it moves through the viewport, even without accelerometer access.
+                    const my = clamp(50 + deltaBeta * 1.1 + norm * 30, 5, 95);
                     applyVars(card, rx, ry, 0, mx, my, mag);
                 });
 
