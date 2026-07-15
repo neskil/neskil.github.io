@@ -127,7 +127,11 @@ SC.map = (function() {
 
         // Locked pool, activated by delivery milestones. Order matters:
         // the sneaker chain arrives first, then the two-tier car chain
-        // (ore + coal -> smelter -> steel; steel + chips -> car factory).
+        // (ore + coal -> smelter -> steel; steel + chips -> car factory),
+        // then the three-tier robot chain — it reuses rubber, chips and
+        // steel from the earlier chains (copper + rubber -> wire mill;
+        // wire + chips -> circuit factory; circuit + steel -> robot
+        // factory), so those roads/suppliers now do double duty.
         const pool = [
             ['supplier', { mat: 'wool' }],
             ['supplier', { mat: 'rubber' }],
@@ -142,7 +146,11 @@ SC.map = (function() {
             ['supplier', { mat: 'wheat' }],
             ['factory', { forSale: true, recipe: 'bread' }],
             ['supplier', { mat: 'water' }],
-            ['city', {}]
+            ['city', {}],
+            ['supplier', { mat: 'copper' }],
+            ['factory', { forSale: true, recipe: 'wire' }],
+            ['factory', { forSale: true, recipe: 'circuit' }],
+            ['factory', { forSale: true, recipe: 'robot' }]
         ];
         for (const [kind, opts] of pool) {
             const spot = randomLandSpot(md);

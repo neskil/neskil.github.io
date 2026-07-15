@@ -3,7 +3,8 @@
 window.SC = window.SC || {};
 
 SC.input = (function() {
-    const TAP_SLOP = 8; // px of movement before a press becomes a drag
+    const TAP_SLOP = 8;     // px of movement before a press becomes a drag
+    const HOLD_MS = 350;    // touch hold duration before Inspect mode shows info
 
     let canvas = null;
     const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved}
@@ -11,6 +12,8 @@ SC.input = (function() {
     let hover = null;           // world pos of the mouse, for the ghost road
     let pendingDemolish = null; // edge tapped once, awaiting confirm tap
     let pendingBuy = null;      // for-sale factory tapped once
+    let inspectNode = null;     // Inspect mode: node currently hovered/held
+    let holdTimer = null;       // Inspect mode (touch): pending long-press
 
     function nodeAtScreen(sx, sy) {
         let best = null, bestD = 30; // px hit radius
@@ -63,6 +66,7 @@ SC.input = (function() {
 
     function handleTap(sx, sy) {
         const st = SC.state;
+        if (st.mode === 'inspect') return; // Inspect mode: hover/hold only, no building
         if (st.placeMode) { handlePlacementTap(sx, sy); return; }
 
         const node = nodeAtScreen(sx, sy);
@@ -148,6 +152,19 @@ SC.input = (function() {
         };
     }
 
+    function clearHoldTimer() {
+        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    }
+
+    // Called when Inspect mode's build-mode leftovers (selection, pending
+    // demolish/buy) need clearing, e.g. right after a mode switch.
+    function reset() {
+        pendingDemolish = null;
+        pendingBuy = null;
+        inspectNode = null;
+        clearHoldTimer();
+    }
+
     function attach(cv) {
         canvas = cv;
         canvas.style.touchAction = 'none';
@@ -159,17 +176,34 @@ SC.input = (function() {
                 startX: e.clientX, startY: e.clientY, moved: false
             });
             if (pointers.size === 2) pinch = pinchState();
+
+            // Inspect mode (touch): a still finger for HOLD_MS "peeks" the
+            // node's info tooltip, same primitive as a long-press elsewhere.
+            // Mouse doesn't need this — pointermove hover covers it live.
+            if (SC.state.mode === 'inspect' && e.pointerType !== 'mouse') {
+                clearHoldTimer();
+                const id = e.pointerId;
+                holdTimer = setTimeout(() => {
+                    const p = pointers.get(id);
+                    if (p && !p.moved) inspectNode = nodeAtScreen(p.x, p.y);
+                }, HOLD_MS);
+            }
         });
 
         canvas.addEventListener('pointermove', e => {
             const p = pointers.get(e.pointerId);
             if (!p) {
                 hover = SC.camera.toWorld(e.clientX, e.clientY);
+                if (SC.state.mode === 'inspect') inspectNode = nodeAtScreen(e.clientX, e.clientY);
                 return;
             }
             const dx = e.clientX - p.x, dy = e.clientY - p.y;
             p.x = e.clientX; p.y = e.clientY;
-            if (Math.hypot(p.x - p.startX, p.y - p.startY) > TAP_SLOP) p.moved = true;
+            if (Math.hypot(p.x - p.startX, p.y - p.startY) > TAP_SLOP) {
+                p.moved = true;
+                clearHoldTimer(); // moving cancels a pending hold — this is a pan
+                if (SC.state.mode === 'inspect') inspectNode = null;
+            }
 
             if (pointers.size === 2) {
                 const now = pinchState();
@@ -186,6 +220,8 @@ SC.input = (function() {
             const p = pointers.get(e.pointerId);
             pointers.delete(e.pointerId);
             if (pointers.size < 2) pinch = null;
+            clearHoldTimer();
+            if (SC.state.mode === 'inspect' && e.pointerType !== 'mouse') inspectNode = null;
             if (p && !p.moved && e.type === 'pointerup' && pointers.size === 0) {
                 handleTap(e.clientX, e.clientY);
             }
@@ -198,11 +234,13 @@ SC.input = (function() {
             SC.camera.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
         }, { passive: false });
 
-        canvas.addEventListener('pointerleave', () => { hover = null; });
+        canvas.addEventListener('pointerleave', () => { hover = null; inspectNode = null; });
     }
 
     return {
         attach,
+        reset,
+        getInspectNode: () => inspectNode,
         getHover: () => hover,
         getPendingDemolish: () => pendingDemolish,
         _handleTap: handleTap,

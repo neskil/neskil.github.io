@@ -15,11 +15,18 @@ that ambient animation as its background — it now lives independently at
 - **Goods & recipes** (emoji-first, colors are accents): suppliers
   (hexagons) provide raw goods; each factory (square) is dedicated to one
   recipe. 🌾wheat+💧water→🍞bread (bakery), 🧶wool+🛞rubber→👟sneakers
-  (sneaker factory), and the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
-  🔩steel+💾chips→🚗cars (car factory). Steel is an intermediate — cities
-  only order `orderable` goods; the planner recursively schedules smelter
-  runs and inter-factory hauls for deeper chains. The goods tree lives in
-  `js/config.js` (`SC.GOODS`) — adding a good/recipe is one entry there.
+  (sneaker factory), the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
+  🔩steel+💾chips→🚗cars (car factory), and the three-tier chain
+  🟠copper+🛞rubber→🧵wire (wire mill), 🧵wire+💾chips→🔌circuit board
+  (circuit factory), 🔌circuit+🔩steel→🤖robots (robot factory). Steel,
+  chips and rubber are each shared by two recipes, so one supplier's
+  placement (and the roads to it) can matter for more than one product.
+  Steel/wire/circuit are intermediates — cities only order `orderable`
+  goods; the planner recursively schedules factory-to-factory runs for
+  chains of any depth (nothing in `economy.js`/`factories.js` is
+  hardcoded to 2 tiers). The goods tree lives in `js/config.js`
+  (`SC.GOODS`) — adding a good/recipe is one entry there, plus a pool
+  entry in `js/map.js` if it should be unlockable.
 - **Orders**: HQ (⭐) is the only order-placing location at the start.
   New customer DCs (🏢) unlock on their own independent timer (~50-70s for
   the first, ~90-140s between further ones — `CUSTOMER_SPAWN_FIRST` /
@@ -31,6 +38,12 @@ that ambient animation as its background — it now lives independently at
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
+- **Modes** (top-right toggle): **Build** (🔨, default) is the road
+  tap-tap flow above. **Inspect** (🔍) disables building; hovering
+  (mouse) or holding (touch, same long-press timing as the demolish
+  gesture) a node instead opens a tooltip and glows the relevant roads —
+  a factory's needed ingredients and whether each is connected, a
+  supplier's consuming factories, or a city's open orders and routes.
 - **Trucks & yards**: HQ (⭐) is always a yard; build more (Shop panel,
   price grows per yard like trucks do) to station trucks nearer distant
   routes. Buying a truck stations it at whichever yard is picked in the
@@ -85,11 +98,12 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), movement |
+| `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
 | `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
-| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build |
+| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Inspect hover/hold |
 | `js/ui.js` | HUD, orders/shop panels, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |
 | `js/main.js` | Bootstrap, game loop, `?probe=N` headless verification hook |
@@ -99,10 +113,14 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 
 ## TODO backlog
 
+See `PLAN.md` for the full phased roadmap; short version below (kept in
+sync with it):
+
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
-- Touch: long-press as an alternative to double-tap for demolish/buy.
+- Touch: long-press as an alternative to double-tap for demolish/buy (the
+  Inspect-mode hold gesture above uses the same long-press primitive).
 - More research nodes (order-pay boosts, faster milestones); a
   "promotions" tech that temporarily boosts demand for a chosen good,
   per the plan's next-steps discussion.

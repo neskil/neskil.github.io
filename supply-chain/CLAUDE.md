@@ -5,8 +5,10 @@ only order-placing location at the start; more customer DCs (🏢) unlock
 over time on their own clock (`nextCustomerIn`, independent of the
 supplier/factory milestone track — see `SC.map.unlockNext(filterFn)`).
 Factories combine two raw materials/intermediates into a product
-(emoji-first identity, e.g. 🌾+💧→🍞, 🪨+⚫→🔩→+💾→🚗), the player builds
-roads and buys trucks/factories/upgrades; dispatch is automatic.
+(emoji-first identity, e.g. 🌾+💧→🍞, 🪨+⚫→🔩→+💾→🚗, and the 3-tier
+🟠+🛞→🧵→+💾→🔌→+🔩→🤖 chain that shares rubber/chips/steel with the
+sneaker/car chains), the player builds roads and buys trucks/factories/
+upgrades; dispatch is automatic.
 
 Doc map: **[README.md](README.md)** = architecture, module roles, game
 rules, and the TODO backlog. This folder is fully self-contained — it
@@ -28,8 +30,8 @@ Don't couple the two again.)
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
 - New script files must be added to `index.html`; logic modules also to
   `tests.html`. Load order matters: config → state → save → sfx → map →
-  camera → roads → factories → economy → vehicles → research → placement →
-  (render → input → ui → main).
+  camera → roads → factories → economy → vehicles → inspect → research →
+  placement → (render → input → ui → main).
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,
@@ -38,7 +40,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (39 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (110 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds

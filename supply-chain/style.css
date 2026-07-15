@@ -108,6 +108,67 @@ html, body {
 }
 .icon-btn:hover { background: rgba(40, 50, 70, 0.9); }
 
+.mode-toggle {
+    display: flex;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.mode-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.mode-btn:hover { color: var(--text-primary); }
+.mode-btn.active {
+    background: var(--accent-color);
+    color: #0f172a;
+}
+
+/* ── Inspect-mode tooltip ────────────────────────── */
+#inspect-tooltip {
+    position: fixed;
+    z-index: 150;
+    transform: translate(-50%, -100%);
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.78rem;
+    min-width: 160px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+}
+#inspect-tooltip.show { opacity: 1; }
+.itip-title { font-weight: 700; margin-bottom: 0.15rem; }
+.itip-forsale { color: var(--text-secondary); font-weight: 400; font-size: 0.72rem; }
+.itip-sub {
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0.3rem 0 0.15rem;
+}
+.itip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.1rem 0;
+}
+.itip-row.itip-bad { color: var(--bad); }
+
 /* ── Panels ──────────────────────────────────────── */
 .panel {
     position: fixed;

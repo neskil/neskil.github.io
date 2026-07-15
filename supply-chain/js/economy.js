@@ -227,5 +227,5 @@ SC.economy = (function() {
     }
 
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
-             onNetworkChanged, tick, buyUpgrade, craftableProducts };
+             onNetworkChanged, tick, buyUpgrade, craftableProducts, bestSourceFor };
 })();

@@ -355,31 +355,57 @@ SC.render = (function() {
         }
     }
 
-    // Glowing overlay on the roads serving a tapped order (see ui.js)
-    function drawHighlight(now) {
-        const h = SC.state.highlight;
-        if (!h || now > h.until) return;
-        const fade = Math.min(1, (h.until - now) / 0.5);
+    // Shared glow-line renderer for both the order-route and Inspect-mode
+    // highlight overlays.
+    function drawGlowPaths(paths, color, alpha) {
         ctx.lineCap = 'round';
-        for (const path of h.paths) {
+        for (const path of paths) {
             ctx.beginPath();
             path.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y));
-            ctx.strokeStyle = h.color;
-            ctx.globalAlpha = 0.55 * fade;
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
             ctx.lineWidth = 8;
             ctx.shadowBlur = 12;
-            ctx.shadowColor = h.color;
+            ctx.shadowColor = color;
             ctx.stroke();
         }
         ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
         ctx.lineCap = 'butt';
+    }
+
+    // Glowing overlay on the roads serving a tapped order (see ui.js)
+    function drawHighlight(now) {
+        const h = SC.state.highlight;
+        if (!h || now > h.until) return;
+        const fade = Math.min(1, (h.until - now) / 0.5);
+        drawGlowPaths(h.paths, h.color, 0.55 * fade);
         // Pulse the ordering city
         const pulse = 22 + Math.sin(now * 6) * 4;
         ctx.beginPath();
         ctx.arc(h.city.x, h.city.y, pulse, 0, Math.PI * 2);
         ctx.strokeStyle = h.color;
         ctx.globalAlpha = 0.8 * fade;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // Inspect mode: glow the roads relevant to the hovered/held node, for
+    // as long as it stays hovered/held (no fade timer, unlike drawHighlight).
+    function drawInspectHighlight(now) {
+        if (SC.state.mode !== 'inspect') return;
+        const node = SC.input.getInspectNode && SC.input.getInspectNode();
+        const info = SC.inspect.infoFor(node);
+        if (!info) return;
+        const paths = SC.inspect.highlightPathsFor(info);
+        const color = info.kind === 'supplier' ? SC.colorOf(info.mat) : '#38bdf8';
+        const pulse = 1 + Math.sin(now * 6) * 0.15;
+        drawGlowPaths(paths, color, 0.6 * pulse);
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 24, 0, Math.PI * 2);
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.8;
         ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.globalAlpha = 1;
@@ -430,6 +456,63 @@ SC.render = (function() {
         }
     }
 
+    function nodeIndicatorColor(n) {
+        if (n.kind === 'supplier') return SC.colorOf(n.mat);
+        if (n.kind === 'factory') return SC.colorOf(n.recipe);
+        return n.isHQ ? '#38bdf8' : '#34d399';
+    }
+
+    // Screen-edge arrows pointing at active, unconnected nodes that have
+    // scrolled off the viewport — otherwise a freshly-unlocked site (or the
+    // starter suppliers, before the first roads exist) can go unnoticed
+    // until the player happens to pan past it. Drawn in screen space so
+    // arrows stay a constant size and hug the viewport edge at any zoom.
+    function drawOffscreenArrows() {
+        const w = window.innerWidth, h = window.innerHeight;
+        const cx = w / 2, cy = h / 2;
+        const margin = 34;
+        const halfW = w / 2 - margin, halfH = h / 2 - margin;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (const n of SC.state.nodes) {
+            if (!n.active || n.edges.length > 0) continue;
+            const p = SC.camera.toScreen(n.x, n.y);
+            if (p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h) continue;
+
+            const dx = p.x - cx, dy = p.y - cy;
+            const scale = Math.min(halfW / Math.abs(dx || 1e-6), halfH / Math.abs(dy || 1e-6));
+            const ex = cx + dx * scale, ey = cy + dy * scale;
+            const angle = Math.atan2(dy, dx);
+            const pulse = 0.55 + 0.45 * Math.sin(seaTime * 4);
+
+            ctx.save();
+            ctx.translate(ex, ey);
+            ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(14, 0);
+            ctx.lineTo(-8, -8);
+            ctx.lineTo(-8, 8);
+            ctx.closePath();
+            ctx.globalAlpha = pulse;
+            ctx.fillStyle = nodeIndicatorColor(n);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+
+            const icon = n.kind === 'supplier' ? SC.emojiOf(n.mat)
+                       : n.kind === 'factory' ? SC.emojiOf(n.recipe)
+                       : (n.isHQ ? '⭐' : '🏢');
+            ctx.globalAlpha = pulse;
+            ctx.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(icon, ex - Math.cos(angle) * 20, ey - Math.sin(angle) * 20);
+            ctx.globalAlpha = 1;
+        }
+    }
+
     function frame(dt, now) {
         const cam = SC.camera.cam;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -439,12 +522,14 @@ SC.render = (function() {
         drawWorld(dt);
         drawRoads();
         drawHighlight(now);
+        drawInspectHighlight(now);
         drawGhostRoad();
         drawPlacementGhost();
         drawOrderBubbles();
         drawNodes(now);
         drawTrucks();
         drawFloaters(dt);
+        drawOffscreenArrows();
     }
 
     return { attach, frame, resize };
