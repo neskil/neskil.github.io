@@ -241,17 +241,17 @@
             z-index: 5;
             border-radius: inherit;
             background:
-                radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 42%),
+                radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 32%),
                 repeating-linear-gradient(115deg,
-                    rgba(255, 0, 150, 0.5) 0%,
-                    rgba(255, 231, 0, 0.5) 8%,
-                    rgba(0, 255, 163, 0.5) 16%,
-                    rgba(0, 199, 255, 0.5) 24%,
-                    rgba(184, 0, 255, 0.5) 32%,
-                    rgba(255, 0, 150, 0.5) 40%);
-            background-size: 220% 220%, 300% 300%;
+                    rgba(255, 0, 150, 0.22) 0%,
+                    rgba(255, 231, 0, 0.22) 14%,
+                    rgba(0, 255, 163, 0.22) 28%,
+                    rgba(0, 199, 255, 0.22) 42%,
+                    rgba(184, 0, 255, 0.22) 56%,
+                    rgba(255, 0, 150, 0.22) 70%);
+            background-size: 220% 220%, 260% 260%;
             background-position: var(--mx) var(--my), calc(var(--mx) * 1.4) calc(var(--my) * 1.4);
-            mix-blend-mode: color-dodge;
+            mix-blend-mode: overlay;
             opacity: var(--op);
             transition: opacity 0.4s ease;
             pointer-events: none;
@@ -1032,7 +1032,18 @@
             const holoCard = document.getElementById('card-cargo-lander');
             if (!holoCard) return;
 
+            const MAX_TILT = 10; // deg, kept modest so it reads as a shine, not a wobble
+            const BASE_OP = 0.1; // faint sheen at rest
+            const PEAK_OP = 0.55; // sheen strength at full tilt
+
             function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+            // Opacity follows how far off-center the tilt is, not a flat on/off switch —
+            // subtle when idle, builds up as you actually tilt toward an edge.
+            function opacityFromTilt(rx, ry) {
+                const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * MAX_TILT), 0, 1);
+                return BASE_OP + mag * (PEAK_OP - BASE_OP);
+            }
 
             function setVars(rx, ry, ty, mx, my, op) {
                 holoCard.style.setProperty('--rx', rx.toFixed(2) + 'deg');
@@ -1040,7 +1051,7 @@
                 holoCard.style.setProperty('--ty', ty + 'px');
                 holoCard.style.setProperty('--mx', mx.toFixed(1) + '%');
                 holoCard.style.setProperty('--my', my.toFixed(1) + '%');
-                holoCard.style.setProperty('--op', op);
+                holoCard.style.setProperty('--op', op.toFixed(2));
             }
 
             holoCard.addEventListener('mouseenter', () => {
@@ -1051,9 +1062,9 @@
                 const rect = holoCard.getBoundingClientRect();
                 const px = (e.clientX - rect.left) / rect.width;
                 const py = (e.clientY - rect.top) / rect.height;
-                const rx = clamp((0.5 - py) * 16, -16, 16);
-                const ry = clamp((px - 0.5) * 16, -16, 16);
-                setVars(rx, ry, -8, px * 100, py * 100, 1);
+                const rx = clamp((0.5 - py) * MAX_TILT * 2, -MAX_TILT, MAX_TILT);
+                const ry = clamp((px - 0.5) * MAX_TILT * 2, -MAX_TILT, MAX_TILT);
+                setVars(rx, ry, -6, px * 100, py * 100, opacityFromTilt(rx, ry));
             });
 
             holoCard.addEventListener('mouseleave', () => {
@@ -1068,12 +1079,12 @@
                     if (e.beta === null || e.gamma === null) return;
                     const beta = clamp(e.beta - 45, -45, 45); // ~45deg = normal phone-in-hand angle
                     const gamma = clamp(e.gamma, -45, 45);
-                    const rx = clamp(beta * -0.35, -16, 16);
-                    const ry = clamp(gamma * 0.35, -16, 16);
+                    const rx = clamp(beta * -0.22, -MAX_TILT, MAX_TILT);
+                    const ry = clamp(gamma * 0.22, -MAX_TILT, MAX_TILT);
                     const mx = clamp(50 + gamma * 1.1, 0, 100);
                     const my = clamp(50 + beta * 1.1, 0, 100);
-                    holoCard.style.transition = 'transform 0.12s linear';
-                    setVars(rx, ry, -4, mx, my, 0.85);
+                    holoCard.style.transition = 'transform 0.15s linear';
+                    setVars(rx, ry, -3, mx, my, opacityFromTilt(rx, ry));
                 }
 
                 function enableOrientation() {
