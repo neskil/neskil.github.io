@@ -44,8 +44,12 @@ that ambient animation as its background — it now lives independently at
   gesture) a node instead opens a tooltip and glows the relevant roads —
   a factory's needed ingredients and whether each is connected, a
   supplier's consuming factories, or a city's open orders and routes.
-- **Trucks**: haul one item each; idle trucks take the nearest pending
-  job. Buy more at the shop (price grows per truck); they spawn at HQ.
+- **Trucks**: haul one item each by default; idle trucks take the nearest
+  pending job and — capacity allowing — bundle in any other pending job
+  that shares the exact same pickup and drop, so one trip can carry
+  several units at once. Buy more at the shop (price grows per truck);
+  they spawn at HQ. The Truck Capacity upgrade raises how many a truck
+  can bundle per trip.
 - **Credit line**: purchases may push the balance negative down to
   −$1,500 (`CREDIT_LIMIT`); debt accrues 10%/min interest
   (`DEBT_INTEREST_PER_MIN`), charged continuously in `economy.tick`.
@@ -57,6 +61,16 @@ that ambient animation as its background — it now lives independently at
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
+- **Research** (Shop panel): one project at a time, paid upfront, takes
+  real time, then unlocks its effect — `SC.RESEARCH` in `config.js`.
+  Ships with Site Requisition (unlocks manual placement, below) and a
+  two-tier Credit Line II/III (each raises the credit limit, stacking).
+- **Manual placement** (needs Site Requisition researched): pick a good
+  in the Shop panel's Build section, then tap the map to drop that
+  supplier/factory anywhere on land — at a premium over the free
+  milestone/customer-DC unlocks (`PLACEMENT_SUPPLIER_PRICE`,
+  `PLACEMENT_FACTORY_MULT`). A dashed ghost preview shows the spot and
+  cost, red where blocked (in the river or too close to another site).
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - Endless play; "Filled" vs "Missed" on the HUD is the score.
 
@@ -75,8 +89,10 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/roads.js` | Road build/demolish/quote + Dijkstra pathfinding |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
-| `js/vehicles.js` | Trucks, haul jobs, dispatcher, movement |
+| `js/vehicles.js` | Trucks, haul jobs, dispatcher (bundles same-route jobs up to capacity), movement |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
+| `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
+| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance), locked behind research |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Inspect hover/hold |
@@ -92,9 +108,12 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 See `PLAN.md` for the full phased roadmap; short version below (kept in
 sync with it):
 
-- Truck capacity upgrade (haul 2+ items per trip).
 - Curved/waypoint roads; road congestion or per-road speed.
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy (the
   Inspect-mode hold gesture above uses the same long-press primitive).
+- More research nodes (order-pay boosts, faster milestones); a
+  "promotions" tech that temporarily boosts demand for a chosen good,
+  per the plan's next-steps discussion.
+- Research cancel/refund (currently a started project can't be aborted).

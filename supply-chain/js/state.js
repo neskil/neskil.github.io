@@ -31,21 +31,26 @@ SC.newState = function() {
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
 
-        upgrades: { truckSpeed: 0, factorySpeed: 0 },
+        upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
+        research: { completed: {}, active: null }, // active: { id, t } elapsed seconds
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
         mode: 'build',      // 'build' (default, current tap-to-build) | 'inspect'
+        placeMode: null,    // { kind: 'supplier'|'factory', good } — manual placement (input.js)
         gameStarted: false
     };
     return SC.state;
 };
 
 // Purchases may dip into the credit line: affordable as long as the
-// resulting balance stays above -CREDIT_LIMIT. Debt accrues interest
-// (see economy.tick).
+// resulting balance stays above -CREDIT_LIMIT (raised by completed
+// creditBonus research). Debt accrues interest (see economy.tick).
+SC.creditLimit = function() {
+    return SC.CONFIG.CREDIT_LIMIT + SC.research.creditBonus();
+};
 SC.canAfford = function(cost) {
-    return SC.state.money - cost >= -SC.CONFIG.CREDIT_LIMIT;
+    return SC.state.money - cost >= -SC.creditLimit();
 };
 
 SC.truckSpeed = function() {
@@ -56,6 +61,11 @@ SC.truckSpeed = function() {
 SC.craftTime = function() {
     const u = SC.CONFIG.UPGRADES.factorySpeed;
     return SC.CONFIG.CRAFT_TIME / (1 + u.boost * SC.state.upgrades.factorySpeed);
+};
+
+SC.truckCapacity = function() {
+    const u = SC.CONFIG.UPGRADES.truckCapacity;
+    return 1 + u.boost * SC.state.upgrades.truckCapacity;
 };
 
 SC.upgradePrice = function(key) {

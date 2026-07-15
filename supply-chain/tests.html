@@ -15,17 +15,19 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.6.0"></script>
-    <script src="js/state.js?v=1.6.0"></script>
-    <script src="js/save.js?v=1.6.0"></script>
-    <script src="js/sfx.js?v=1.6.0"></script>
-    <script src="js/map.js?v=1.6.0"></script>
-    <script src="js/camera.js?v=1.6.0"></script>
-    <script src="js/roads.js?v=1.6.0"></script>
-    <script src="js/factories.js?v=1.6.0"></script>
-    <script src="js/economy.js?v=1.6.0"></script>
-    <script src="js/vehicles.js?v=1.6.0"></script>
-    <script src="js/inspect.js?v=1.6.0"></script>
+    <script src="js/config.js?v=1.8.0"></script>
+    <script src="js/state.js?v=1.8.0"></script>
+    <script src="js/save.js?v=1.8.0"></script>
+    <script src="js/sfx.js?v=1.8.0"></script>
+    <script src="js/map.js?v=1.8.0"></script>
+    <script src="js/camera.js?v=1.8.0"></script>
+    <script src="js/roads.js?v=1.8.0"></script>
+    <script src="js/factories.js?v=1.8.0"></script>
+    <script src="js/economy.js?v=1.8.0"></script>
+    <script src="js/vehicles.js?v=1.8.0"></script>
+    <script src="js/inspect.js?v=1.8.0"></script>
+    <script src="js/research.js?v=1.8.0"></script>
+    <script src="js/placement.js?v=1.8.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -144,7 +146,7 @@
         assert('order fully delivered', SC.state.delivered === 1 && SC.state.orders.length === 0);
         assert('payout received', SC.state.money === before + order.payout);
         assert('factory queue drained', F.queue.length === 0 && !F.crafting);
-        assert('trucks idle again', SC.state.trucks.every(t => !t.job && !t.path && !t.cargo));
+        assert('trucks idle again', SC.state.trucks.every(t => !t.jobs.length && !t.path && !t.cargo.length));
     })();
 
     // ── Expiry cancels work ─────────────────────────
@@ -178,6 +180,90 @@
         const t0 = SC.truckPrice();
         SC.state.trucksBought = 2;
         assert('truck price grows with fleet', SC.truckPrice() > t0);
+    })();
+
+    // ── Truck capacity: base, upgrade effect, bundling, partial cancel ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        assert('base truck capacity is 1', SC.truckCapacity() === 1);
+        SC.economy.buyUpgrade('truckCapacity');
+        assert('capacity upgrade raises capacity by the configured boost',
+            SC.truckCapacity() === 1 + SC.CONFIG.UPGRADES.truckCapacity.boost);
+
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max; // capacity 4
+        const truck = SC.vehicles.addTruck(S1);
+
+        // Three separate raw jobs, same pickup+drop: one truck should
+        // scoop up all three in a single bundle (capacity allows it).
+        const order = { id: 99, city: C, product: 'bread', qty: 3, deliveredUnits: 0,
+                         payout: 300, deadline: 100, deadlineTotal: 100,
+                         planned: true, noRoute: false, done: false };
+        for (let i = 0; i < 3; i++) {
+            SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: null });
+        }
+        SC.vehicles.dispatch();
+        assert('one truck bundles multiple same-route jobs up to capacity',
+            truck.jobs.length === 3 && SC.state.jobs.length === 0);
+
+        // A fourth, different-route job stays queued — bundling only
+        // pools jobs sharing the exact same pickup and drop.
+        SC.vehicles.addJob({ type: 'raw', item: 'water', pickup: S2, drop: F, order, task: null });
+        const truck2 = SC.vehicles.addTruck(S2);
+        SC.vehicles.dispatch();
+        assert('a different pickup/drop job does not join the first bundle',
+            truck.jobs.length === 3 && truck2.jobs.length === 1);
+
+        // Cancelling one order's jobs trims the bundle without aborting
+        // jobs from a different order sharing the same route. Start the
+        // truck away from the pickup so it's still mid-transit ('toPickup')
+        // when we cancel — a same-node pickup would complete instantly.
+        const order2 = { id: 100, city: C, product: 'bread', qty: 1, deliveredUnits: 0,
+                          payout: 100, deadline: 100, deadlineTotal: 100,
+                          planned: true, noRoute: false, done: false };
+        const mixedTruck = SC.vehicles.addTruck(F);
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: null });
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: order2, task: null });
+        SC.vehicles.dispatch();
+        assert('mixed-order bundle formed', mixedTruck.jobs.length === 2);
+        assert('truck still travelling toward pickup', mixedTruck.phase === 'toPickup' && !!mixedTruck.path);
+        SC.vehicles.cancelJobsForOrder(order2);
+        assert('cancelling one order only removes its job from the bundle',
+            mixedTruck.jobs.length === 1 && mixedTruck.jobs[0].order === order);
+        assert('truck with a remaining job keeps hauling', mixedTruck.phase === 'toPickup');
+
+        SC.vehicles.cancelJobsForOrder(order);
+        assert('cancelling the last job in a bundle idles the truck',
+            mixedTruck.jobs.length === 0 && mixedTruck.phase === null);
+    })();
+
+    // ── Truck capacity: multi-unit haul delivers correctly end-to-end ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.vehicles.addTruck(F);
+        SC.vehicles.addTruck(F);
+
+        const order = SC.economy.spawnOrder();
+        order.qty = 3;
+        SC.economy.planOrder(order);
+
+        const before = SC.state.money;
+        for (let i = 0; i < 4000 && SC.state.orders.length; i++) {
+            SC.vehicles.tick(0.1);
+            SC.factories.tick(0.1);
+        }
+        assert('multi-unit order delivered with capacity upgrade active',
+            SC.state.delivered === 1 && SC.state.money === before + order.payout);
+        assert('no leftover jobs or cargo after the run', SC.state.jobs.length === 0 &&
+            SC.state.trucks.every(t => !t.jobs.length && t.cargo.length === 0));
     })();
 
     // ── Camera math ─────────────────────────────────
@@ -315,8 +401,9 @@
         order.deliveredUnits = 1;
         // A truck mid-haul with a raw destined for F must fold into F's inv
         const truck = SC.vehicles.addTruck(S1);
-        truck.cargo = 'wheat';
-        truck.job = { type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: F.queue[0] };
+        truck.phase = 'toDrop';
+        truck.cargo = ['wheat'];
+        truck.jobs = [{ type: 'raw', item: 'wheat', pickup: S1, drop: F, order, task: F.queue[0] }];
 
         const data = SC.save.serialize();
         SC.save.restore(data);
@@ -496,6 +583,139 @@
         SC.save.restore(SC.save.serialize());
         assert('negative balance and interestPaid survive a round-trip',
             SC.state.money === -800 && SC.state.interestPaid === 42);
+    })();
+
+    // ── Research: start, tick, unlock, one-at-a-time, prerequisites ──
+    (function() {
+        fixture();
+        SC.state.money = 10000;
+
+        assert('locked tech unavailable until its prereq is done', !SC.research.isAvailable('creditLine3'));
+        assert('unlocked tech with no prereqs is available', SC.research.isAvailable('manualPlacement'));
+        assert('not started: no progress', SC.research.progress('manualPlacement') === 0);
+
+        const cost = SC.RESEARCH.manualPlacement.cost;
+        const before = SC.state.money;
+        const res = SC.research.start('manualPlacement');
+        assert('starting research charges cost upfront', res.ok && SC.state.money === before - cost);
+        assert('a second project cannot start while one is active', !SC.research.canStart('creditLine2'));
+        assert('manualPlacement not usable mid-research', !SC.research.isDone('manualPlacement'));
+
+        SC.research.tick(SC.RESEARCH.manualPlacement.time / 2);
+        assert('progress advances mid-research', approx(SC.research.progress('manualPlacement'), 0.5, 0.02));
+        assert('not yet done at the halfway point', !SC.research.isDone('manualPlacement'));
+
+        SC.research.tick(SC.RESEARCH.manualPlacement.time / 2 + 0.01);
+        assert('research completes after its full duration', SC.research.isDone('manualPlacement'));
+        assert('active project clears on completion', !SC.state.research.active);
+        assert('creditLine2 startable once the slot frees up', SC.research.canStart('creditLine2'));
+
+        SC.research.start('creditLine2');
+        SC.research.tick(SC.RESEARCH.creditLine2.time + 0.01);
+        assert('creditLine3 becomes available once its prereq is done', SC.research.isAvailable('creditLine3'));
+        assert('creditLine bonus feeds SC.creditLimit', SC.creditLimit() === SC.CONFIG.CREDIT_LIMIT + 1000);
+
+        SC.research.start('creditLine3');
+        SC.research.tick(SC.RESEARCH.creditLine3.time + 0.01);
+        assert('stacked creditBonus research raises the limit further',
+            SC.creditLimit() === SC.CONFIG.CREDIT_LIMIT + 1000 + 2000);
+
+        assert('cannot start an already-completed tech', !SC.research.canStart('manualPlacement'));
+    })();
+
+    // ── Research: affordability gate (credit line applies, but has a floor) ──
+    (function() {
+        fixture();
+        SC.state.money = -SC.CONFIG.CREDIT_LIMIT; // already at the credit floor
+        assert('too poor (at the credit limit) to start research', !SC.research.canStart('manualPlacement') &&
+            !SC.research.start('manualPlacement').ok);
+        assert('money unchanged after a failed start attempt', SC.state.money === -SC.CONFIG.CREDIT_LIMIT);
+
+        SC.state.money = 10; // short on cash but the credit line covers it
+        assert('research can still be started on credit', SC.research.canStart('manualPlacement') &&
+            SC.research.start('manualPlacement').ok && SC.state.money < 0);
+    })();
+
+    // ── Manual placement: locked without research ────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const res = SC.placement.place('supplier', 'wheat', 900, 900);
+        assert('placement blocked before manualPlacement is researched',
+            !res.ok && res.reason === 'locked');
+        assert('no node created when locked', SC.state.nodes.length === 4);
+    })();
+
+    // ── Manual placement: valid spot, cost, river/overlap rejection ──
+    (function() {
+        fixture();
+        SC.state.money = 10000;
+        SC.state.research.completed.manualPlacement = true;
+
+        assert('supplier placement price', SC.placement.price('supplier') === SC.CONFIG.PLACEMENT_SUPPLIER_PRICE);
+        assert('factory placement price is the FACTORY_SITE_PRICE premium',
+            SC.placement.price('factory') === Math.round(SC.CONFIG.FACTORY_SITE_PRICE * SC.CONFIG.PLACEMENT_FACTORY_MULT));
+
+        assert('spot in the river is invalid', !SC.placement.canPlaceAt(1100, 700));
+        assert('spot right next to an existing node is invalid', !SC.placement.canPlaceAt(105, 105));
+        assert('open land far from everything is valid', SC.placement.canPlaceAt(900, 900));
+
+        const before = SC.state.money;
+        const res = SC.placement.place('supplier', 'ore', 900, 900);
+        assert('placement succeeds on open land and charges the premium',
+            res.ok && SC.state.money === before - SC.placement.price('supplier'));
+        assert('placed node is active immediately with the chosen material',
+            res.node.active && res.node.mat === 'ore' && res.node.kind === 'supplier');
+        assert('placed node joins SC.state.nodes', SC.state.nodes.includes(res.node));
+
+        const res2 = SC.placement.place('factory', 'shoes', 900, 900);
+        assert('overlapping placement rejected', !res2.ok && res2.reason === 'invalid');
+
+        SC.state.money = 0;
+        const res3 = SC.placement.place('factory', 'shoes', 1600, 900);
+        assert('unaffordable placement rejected', !res3.ok && res3.reason === 'money');
+    })();
+
+    // ── Manual placement unblocks an otherwise-stuck order ──
+    (function() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
+        const wheatSup = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const bakery = SC.map.makeNode('factory', 300, 100, { active: true, recipe: 'bread' });
+        const city = SC.map.makeNode('city', 500, 100, { active: true, isHQ: true });
+        SC.state.money = 100000;
+        SC.roads.build(wheatSup, bakery);
+        SC.roads.build(bakery, city);
+        SC.state.research.completed.manualPlacement = true;
+
+        // No water supplier exists yet, so bread has no route at all
+        // (built directly rather than via spawnOrder, since bread isn't
+        // even in craftableProducts() until a water source exists).
+        const order = { id: 1, city, product: 'bread', qty: 1, deliveredUnits: 0,
+                         payout: 200, deadline: 100, deadlineTotal: 100,
+                         planned: false, noRoute: false, done: false };
+        SC.state.orders.push(order);
+        assert('order cannot plan without a water supplier', !SC.economy.planOrder(order) && order.noRoute);
+
+        const placed = SC.placement.place('supplier', 'water', 300, 300);
+        SC.roads.build(placed.node, bakery);
+        assert('order now plans once the missing supplier is placed', SC.economy.planOrder(order));
+    })();
+
+    // ── Save keeps research state ────────────────────
+    (function() {
+        fixture();
+        SC.state.research.completed.manualPlacement = true;
+        SC.research.start('creditLine2');
+        SC.research.tick(5);
+        const t = SC.state.research.active.t;
+
+        SC.save.restore(SC.save.serialize());
+        assert('completed research survives a round-trip', SC.state.research.completed.manualPlacement === true);
+        assert('in-progress research survives with its elapsed time',
+            SC.state.research.active && SC.state.research.active.id === 'creditLine2' &&
+            approx(SC.state.research.active.t, t, 0.001));
     })();
 
     // ── Goods tree sanity ───────────────────────────

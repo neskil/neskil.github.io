@@ -29,8 +29,9 @@ Don't couple the two again.)
   runnable headless). Only `render/input/ui/main` touch the DOM. Logic
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
 - New script files must be added to `index.html`; logic modules also to
-  `tests.html`. Load order matters: config → state → map/camera → roads →
-  factories → economy → vehicles → (render → input → ui → main).
+  `tests.html`. Load order matters: config → state → save → sfx → map →
+  camera → roads → factories → economy → vehicles → inspect → research →
+  placement → (render → input → ui → main).
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,
@@ -53,4 +54,12 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   otherwise the default 50-70s first-spawn delay means most probes only
   ever show HQ. `&debt=900` forces a negative balance post-probe (red
   debt HUD / credit-limit UI); `&menu=1` opens the ☰ menu overlay on load.
+  `&research=manualPlacement,creditLine2` instantly completes those techs
+  (also tops up money so the Build section/menu are screenshotable).
+  `&placemode=factory:shoes` arms manual-placement mode (requires
+  `manualPlacement` researched — pass both together); `&hoverAt=x,y`
+  (world coords) fakes a pointer position via `SC.input._setDebugHover`
+  so the placement/road ghost preview renders without a real pointermove.
+  `&capacity=1` maxes the truck-capacity upgrade so bundled multi-item
+  hauls (the ×N badge over a truck) show up without a long probe.
 - **Mobile layout**: same screenshot with `--window-size=390,844`.
