@@ -720,10 +720,22 @@ Object.assign(CargoGame.prototype, {
         if (muteCb) muteCb.checked = this.isMuted;
         // Main-menu-only nudge bubble pointing at the mute button — sound is
         // muted by default for first-time visitors, so this is the one thing
-        // that tells them there's music to turn on. Purely tied to mute state,
-        // so it comes back on its own whenever the game is (re-)muted.
+        // that tells them there's music to turn on. Tied to mute state, but
+        // dismissing it (the × button) snoozes it for a day even while still
+        // muted, so it doesn't nag on every single visit.
         const audioNudge = document.getElementById('audio-nudge');
-        if (audioNudge) audioNudge.style.display = this.isMuted ? 'block' : 'none';
+        if (audioNudge) {
+            const dismissedAt = parseInt(localStorage.getItem('cargoLanderAudioNudgeDismissedAt') || '0', 10);
+            const oneDayMs = 24 * 60 * 60 * 1000;
+            const shouldShow = this.isMuted && (Date.now() - dismissedAt >= oneDayMs);
+            audioNudge.style.display = shouldShow ? 'flex' : 'none';
+        }
+    },
+
+    dismissAudioNudge() {
+        localStorage.setItem('cargoLanderAudioNudgeDismissedAt', String(Date.now()));
+        const audioNudge = document.getElementById('audio-nudge');
+        if (audioNudge) audioNudge.style.display = 'none';
     },
 
     toggleMuteQuick() {
