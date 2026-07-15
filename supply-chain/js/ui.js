@@ -17,7 +17,11 @@ SC.ui = (function() {
 
     function updateHUD() {
         const st = SC.state;
-        $('hud-money').textContent = fmt(st.money);
+        const inDebt = st.money < 0;
+        $('hud-money').textContent = (inDebt ? '−' : '') + fmt(Math.abs(st.money));
+        $('hud-money-label').textContent = inDebt
+            ? `Debt (${Math.round(SC.CONFIG.DEBT_INTEREST_PER_MIN * 100)}%/min)` : 'Money';
+        $('hud-money-item').classList.toggle('debt', inDebt);
         const idle = st.trucks.filter(t => !t.job && !t.path).length;
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
         $('hud-delivered').textContent = st.delivered;
@@ -28,7 +32,7 @@ SC.ui = (function() {
         const st = SC.state;
         const tb = $('btn-truck');
         tb.querySelector('.price').textContent = fmt(SC.truckPrice());
-        tb.disabled = st.money < SC.truckPrice();
+        tb.disabled = !SC.canAfford(SC.truckPrice());
 
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             const btn = $('btn-' + key);
@@ -40,7 +44,7 @@ SC.ui = (function() {
                 btn.disabled = true;
             } else {
                 btn.querySelector('.price').textContent = fmt(price);
-                btn.disabled = st.money < price;
+                btn.disabled = !SC.canAfford(price);
             }
         }
     }
@@ -78,6 +82,7 @@ SC.ui = (function() {
             ordersTimer = 0;
             updateOrders();
             updateShop();
+            if (menuOpen()) updateMenuInfo(); // keep "last saved Xs ago" ticking
         }
     }
 
@@ -110,12 +115,48 @@ SC.ui = (function() {
         SC.sfx.play('click');
     }
 
-    function restart() {
-        SC.save.clear();
-        location.reload();
+    // ── Menu (☰): pauses the sim while open ─────────
+    function fmtDuration(s) {
+        const m = Math.floor(s / 60);
+        return m > 0 ? `${m}m ${Math.floor(s % 60)}s` : `${Math.floor(s)}s`;
     }
 
-    let restartArmed = false;
+    function updateMenuInfo() {
+        const st = SC.state;
+        $('menu-stats').innerHTML = `
+            <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
+            <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+            <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
+            <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+            <div><span>Trucks</span><b>${st.trucks.length}</b></div>
+            <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>`;
+        const at = SC.save.getLastSavedAt();
+        $('menu-save-status').textContent = at
+            ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
+            : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
+        $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
+    }
+
+    function menuOpen() { return !$('menu-overlay').classList.contains('hidden'); }
+
+    function openMenu() {
+        SC.state.paused = true;
+        updateMenuInfo();
+        $('menu-overlay').classList.remove('hidden');
+    }
+
+    function closeMenu() {
+        $('menu-overlay').classList.add('hidden');
+        resetNewGameArm();
+        SC.state.paused = false;
+    }
+
+    let newGameArmed = false;
+    function resetNewGameArm() {
+        newGameArmed = false;
+        $('menu-newgame').textContent = '🗑 New game';
+    }
+
     function bind() {
         $('orders-list').addEventListener('click', e => {
             const row = e.target.closest('[data-order]');
@@ -124,32 +165,51 @@ SC.ui = (function() {
             if (order) focusOrder(order);
         });
 
-        $('btn-restart').addEventListener('click', () => {
-            if (restartArmed) { restart(); return; }
-            restartArmed = true;
-            toast('Tap ↺ again to abandon this game and start over', 'error');
-            setTimeout(() => { restartArmed = false; }, 3000);
+        $('btn-menu').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });
+        $('menu-resume').addEventListener('click', () => { SC.sfx.play('click'); closeMenu(); });
+        $('menu-overlay').addEventListener('click', e => {
+            if (e.target === $('menu-overlay')) closeMenu(); // tap outside the card
+        });
+        $('menu-save').addEventListener('click', () => {
+            SC.save.store();
+            SC.sfx.play('click');
+            updateMenuInfo();
+            toast('Game saved', 'good');
+        });
+        $('menu-sound').addEventListener('click', () => {
+            SC.sfx.toggleMute();
+            updateMenuInfo();
+        });
+        $('menu-help').addEventListener('click', () => {
+            $('menu-overlay').classList.add('hidden'); // stay paused while reading
+            resetNewGameArm();
+            $('help-overlay').classList.remove('hidden');
+        });
+        $('menu-newgame').addEventListener('click', () => {
+            if (newGameArmed) {
+                SC.save.clear();
+                location.reload();
+                return;
+            }
+            newGameArmed = true;
+            $('menu-newgame').textContent = '⚠ Tap again — current game will be lost';
+            setTimeout(resetNewGameArm, 4000);
         });
 
         $('btn-truck').addEventListener('click', () => {
             const res = SC.vehicles.buyTruck();
             if (res.ok) { SC.sfx.play('cash'); toast('New truck delivered to HQ', 'good'); }
-            else { SC.sfx.play('error'); toast(`Not enough money — truck costs ${fmt(res.cost)}`, 'error'); }
+            else { SC.sfx.play('error'); toast(`Credit limit reached — truck costs ${fmt(res.cost)}`, 'error'); }
             updateShop();
         });
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             $('btn-' + key).addEventListener('click', () => {
                 const res = SC.economy.buyUpgrade(key);
                 if (res.ok) { SC.sfx.play('cash'); toast(`${SC.CONFIG.UPGRADES[key].label} upgraded!`, 'good'); }
-                else if (res.reason === 'money') { SC.sfx.play('error'); toast('Not enough money', 'error'); }
+                else if (res.reason === 'money') { SC.sfx.play('error'); toast('Credit limit reached', 'error'); }
                 updateShop();
             });
         }
-        $('btn-mute').addEventListener('click', () => {
-            $('btn-mute').textContent = SC.sfx.toggleMute() ? '🔇' : '🔊';
-        });
-        $('btn-mute').textContent = SC.sfx.isMuted() ? '🔇' : '🔊';
-
         $('orders-header').addEventListener('click', () =>
             $('orders-panel').classList.toggle('collapsed'));
         $('shop-header').addEventListener('click', () =>
@@ -159,9 +219,8 @@ SC.ui = (function() {
             $('help-overlay').classList.add('hidden');
             localStorage.setItem('scTycoonHelpSeen', 'true');
             SC.state.gameStarted = true;
+            SC.state.paused = false; // in case help was opened via the menu
         });
-        $('btn-help').addEventListener('click', () =>
-            $('help-overlay').classList.remove('hidden'));
 
         // Game event feedback
         SC.on('toast', d => toast(d.text, d.kind));
@@ -180,6 +239,7 @@ SC.ui = (function() {
 
     function init() {
         bind();
+        $('menu-version').textContent = 'v' + SC.VERSION;
         updateOrders();
         updateShop();
         updateHUD();
@@ -194,6 +254,8 @@ SC.ui = (function() {
             $('orders-panel').classList.add('collapsed');
             $('shop-panel').classList.add('collapsed');
         }
+        // Headless verification hook (see CLAUDE.md): open the menu on load
+        if (new URLSearchParams(location.search).has('menu')) openMenu();
     }
 
     return { init, update, toast };

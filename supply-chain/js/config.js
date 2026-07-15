@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.3.0';
+SC.VERSION = '1.4.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -11,6 +11,13 @@ SC.CONFIG = {
 
     START_MONEY: 1200,
     START_TRUCKS: 2,
+
+    // Credit line: purchases may push the balance negative down to
+    // -CREDIT_LIMIT, but debt accrues interest continuously.
+    CREDIT_LIMIT: 1500,
+    DEBT_INTEREST_PER_MIN: 0.10, // 10% of the outstanding debt per minute
+
+    AUTOSAVE_INTERVAL: 5,        // seconds between autosaves
 
     ROAD_COST_PER_UNIT: 0.6,
     BRIDGE_MULT: 3,            // river crossings cost extra

@@ -174,6 +174,15 @@ SC.economy = (function() {
 
     let planTimer = 0;
     function tick(dt) {
+        // Debt interest: a negative balance bleeds continuously. Interest
+        // can push the debt past the credit limit (purchases stay blocked
+        // until deliveries pay it back down).
+        if (SC.state.money < 0) {
+            const interest = -SC.state.money * (C().DEBT_INTEREST_PER_MIN / 60) * dt;
+            SC.state.money -= interest;
+            SC.state.interestPaid += interest;
+        }
+
         // New customer DCs (cities) unlock on their own clock, independent
         // of delivery milestones — HQ is the only order-placing location
         // until one appears.
@@ -211,7 +220,7 @@ SC.economy = (function() {
     function buyUpgrade(key) {
         const price = SC.upgradePrice(key);
         if (price === null) return { ok: false, reason: 'maxed' };
-        if (SC.state.money < price) return { ok: false, reason: 'money', cost: price };
+        if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
         SC.state.money -= price;
         SC.state.upgrades[key]++;
         return { ok: true, level: SC.state.upgrades[key] };

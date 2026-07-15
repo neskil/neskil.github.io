@@ -130,7 +130,7 @@ SC.vehicles = (function() {
 
     function buyTruck() {
         const price = SC.truckPrice();
-        if (SC.state.money < price) return { ok: false, reason: 'money', cost: price };
+        if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
         SC.state.money -= price;
         SC.state.trucksBought++;
         const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
