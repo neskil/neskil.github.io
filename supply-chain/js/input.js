@@ -65,21 +65,22 @@ SC.input = (function() {
                 return;
             }
             if (node.kind === 'factory' && node.forSale) {
+                const building = SC.GOODS[node.recipe].building;
                 if (pendingBuy === node) {
                     const res = SC.factories.buySite(node);
                     if (res.ok) {
                         SC.sfx.play('cash');
-                        SC.emit('toast', { text: 'Factory purchased!', kind: 'good' });
+                        SC.emit('toast', { text: `${building} ${SC.emojiOf(node.recipe)} purchased!`, kind: 'good' });
                     } else {
                         SC.sfx.play('error');
-                        SC.emit('toast', { text: `Not enough money — factory costs $${res.cost}`, kind: 'error' });
+                        SC.emit('toast', { text: `Not enough money — ${building.toLowerCase()} costs $${res.cost}`, kind: 'error' });
                     }
                     pendingBuy = null;
                 } else {
                     pendingBuy = node;
                     st.selectedNode = node;
                     SC.sfx.play('click');
-                    SC.emit('toast', { text: `Tap again to buy this factory for $${SC.CONFIG.FACTORY_SITE_PRICE}`, kind: 'info' });
+                    SC.emit('toast', { text: `Tap again to buy this ${building.toLowerCase()} ${SC.emojiOf(node.recipe)} for $${SC.CONFIG.FACTORY_SITE_PRICE}`, kind: 'info' });
                 }
                 return;
             }
