@@ -152,12 +152,13 @@ SC.render = (function() {
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 5]);
         if (pm.kind === 'supplier') hexPath(hover.x, hover.y, 20);
+        else if (pm.kind === 'yard') { ctx.beginPath(); ctx.arc(hover.x, hover.y, 20, 0, Math.PI * 2); }
         else { ctx.beginPath(); ctx.rect(hover.x - 18, hover.y - 18, 36, 36); }
         ctx.stroke();
         ctx.setLineDash([]);
 
         ctx.globalAlpha = 0.85;
-        emoji(SC.emojiOf(pm.good), hover.x, hover.y, 19);
+        emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), hover.x, hover.y, 19);
         ctx.globalAlpha = 1;
         label(`$${cost}${valid ? '' : ' — blocked'}`, hover.x, hover.y - 32,
               valid ? '#34d399' : '#f87171', 11);
@@ -273,6 +274,23 @@ SC.render = (function() {
                         label(String(n.queue.length + (n.crafting ? 1 : 0)), n.x + R + 12 / z, n.y - R - 2, '#94a3b8', 11);
                     }
                 }
+            } else if (n.kind === 'yard') {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, R + 2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(167, 139, 250, 0.2)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(167, 139, 250, 0.85)';
+                ctx.stroke();
+                if (n === SC.state.activeYard) {
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, R + 7, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(167, 139, 250, 0.45)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+                emojiPlate('🅿️', n.x, n.y, R - 2, 19);
+                const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
+                label(`${parked} 🚚`, n.x, n.y + R + 16, '#a78bfa', 11);
             } else { // city — HQ is the only order-taker at first; customer
                       // DCs (🏢) unlock over time and start placing orders
                 ctx.beginPath();
@@ -281,8 +299,19 @@ SC.render = (function() {
                 ctx.fill();
                 ctx.strokeStyle = n.isHQ ? 'rgba(56, 189, 248, 0.9)' : 'rgba(52, 211, 153, 0.75)';
                 ctx.stroke();
+                if (n.isHQ && n === SC.state.activeYard) {
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, R + 7, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
                 emojiPlate(n.isHQ ? '⭐' : '🏢', n.x, n.y, R - 2, 19);
                 label(n.isHQ ? 'HQ' : 'DC', n.x, n.y + R + 16, n.isHQ ? '#38bdf8' : '#34d399', 11);
+                if (n.isHQ) {
+                    const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
+                    label(`${parked} 🚚`, n.x, n.y + R + 32, '#38bdf8', 10);
+                }
             }
         }
     }

@@ -9,7 +9,7 @@ window.SC = window.SC || {};
 
 SC.save = (function() {
     const KEY = 'scTycoonSave.v1';
-    const FORMAT = 2; // v2: emoji goods tree + factory recipes
+    const FORMAT = 3; // v3: truck yards (trucks[] now {nodeId, homeYardId} objects)
 
     function serialize() {
         const st = SC.state;
@@ -42,6 +42,8 @@ SC.save = (function() {
             interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
             trucksBought: st.trucksBought,
+            yardsBought: st.yardsBought,
+            activeYardId: st.activeYard ? st.activeYard.id : null,
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
             upgrades: Object.assign({}, st.upgrades),
@@ -56,7 +58,10 @@ SC.save = (function() {
                 inv: inv.get(n.id) || {}
             })),
             edges: st.edges.map(e => ({ a: e.a.id, b: e.b.id, cost: e.cost })),
-            trucks: st.trucks.map(t => (t.node || st.nodes[0]).id),
+            trucks: st.trucks.map(t => ({
+                nodeId: (t.node || st.nodes[0]).id,
+                homeYardId: (t.homeYard || t.node || st.nodes[0]).id
+            })),
             orders: st.orders.map(o => ({
                 id: o.id, cityId: o.city.id, product: o.product,
                 qty: o.qty, deliveredUnits: o.deliveredUnits, payout: o.payout,
@@ -75,6 +80,7 @@ SC.save = (function() {
         st.delivered = data.delivered;
         st.missed = data.missed;
         st.trucksBought = data.trucksBought;
+        st.yardsBought = data.yardsBought || 0;
         st.time = data.time;
         st.nextOrderIn = data.nextOrderIn;
         st.orderSeq = data.orderSeq;
@@ -104,8 +110,11 @@ SC.save = (function() {
             a.edges.push(b);
             b.edges.push(a);
         }
-        for (const nodeId of data.trucks) {
-            SC.vehicles.addTruck(byId.get(nodeId) || st.nodes[0]);
+        st.activeYard = byId.get(data.activeYardId) || st.nodes.find(n => n.isHQ) || st.nodes[0];
+        for (const t of data.trucks) {
+            const node = byId.get(t.nodeId) || st.nodes[0];
+            const homeYard = byId.get(t.homeYardId) || node;
+            SC.vehicles.addTruck(node, homeYard);
         }
         for (const od of data.orders) {
             const city = byId.get(od.cityId);

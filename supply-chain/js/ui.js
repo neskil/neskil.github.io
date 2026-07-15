@@ -33,6 +33,7 @@ SC.ui = (function() {
         const tb = $('btn-truck');
         tb.querySelector('.price').textContent = fmt(SC.truckPrice());
         tb.disabled = !SC.canAfford(SC.truckPrice());
+        updateYards();
 
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             const btn = $('btn-' + key);
@@ -49,6 +50,31 @@ SC.ui = (function() {
         }
         updateResearch();
         updateBuild();
+    }
+
+    // ── Truck yards: HQ is always one; more can be built (not research-
+    // gated). New trucks station at whichever yard is picked below.
+    function yardLabel(n) {
+        return n.isHQ ? 'HQ' : `Yard #${n.id}`;
+    }
+
+    function updateYards() {
+        const st = SC.state;
+        const yards = st.nodes.filter(SC.isYard);
+        if (!st.activeYard || !yards.includes(st.activeYard)) st.activeYard = yards[0];
+
+        const sel = $('yard-select');
+        sel.innerHTML = yards.map(n =>
+            `<option value="${n.id}">${yardLabel(n)} — ${st.trucks.filter(t => t.homeYard === n).length} 🚚</option>`
+        ).join('');
+        sel.value = String(st.activeYard.id);
+
+        const btn = $('btn-yard');
+        const price = SC.yardPrice();
+        const active = st.placeMode && st.placeMode.kind === 'yard';
+        btn.classList.toggle('active', !!active);
+        btn.querySelector('.price').textContent = active ? 'Tap map…' : fmt(price);
+        btn.disabled = !active && !SC.canAfford(price);
     }
 
     // ── Research & Build (Shop panel sections) ──────
@@ -187,7 +213,7 @@ SC.ui = (function() {
             <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
             <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
             <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
-            <div><span>Trucks</span><b>${st.trucks.length}</b></div>
+            <div><span>Trucks / yards</span><b>${st.trucks.length} / ${st.nodes.filter(SC.isYard).length}</b></div>
             <div><span>Researching</span><b>${research}</b></div>
             <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>`;
         const at = SC.save.getLastSavedAt();
@@ -259,8 +285,24 @@ SC.ui = (function() {
 
         $('btn-truck').addEventListener('click', () => {
             const res = SC.vehicles.buyTruck();
-            if (res.ok) { SC.sfx.play('cash'); toast('New truck delivered to HQ', 'good'); }
+            if (res.ok) { SC.sfx.play('cash'); toast(`New truck stationed at ${yardLabel(SC.state.activeYard)}`, 'good'); }
             else { SC.sfx.play('error'); toast(`Credit limit reached — truck costs ${fmt(res.cost)}`, 'error'); }
+            updateShop();
+        });
+        $('yard-select').addEventListener('change', e => {
+            const node = SC.state.nodes.find(n => n.id === +e.target.value);
+            if (node) SC.state.activeYard = node;
+        });
+        $('btn-yard').addEventListener('click', () => {
+            const st = SC.state;
+            if (st.placeMode && st.placeMode.kind === 'yard') {
+                st.placeMode = null; // tapping again cancels
+            } else {
+                st.selectedNode = null; // don't fight the road-building ghost
+                st.placeMode = { kind: 'yard', good: null };
+                SC.emit('toast', { text: `Tap the map to place a truck yard — ${fmt(SC.yardPrice())}`, kind: 'info' });
+            }
+            SC.sfx.play('click');
             updateShop();
         });
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {

@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.6.0';
+SC.VERSION = '1.7.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -60,7 +60,13 @@ SC.CONFIG = {
     // to drop a site yourself, at a premium over the free milestone unlocks.
     PLACEMENT_SUPPLIER_PRICE: 900,
     PLACEMENT_FACTORY_MULT: 2.5,  // × FACTORY_SITE_PRICE
-    PLACEMENT_MIN_DIST: 110       // looser than generated-map NODE_MIN_DIST
+    PLACEMENT_MIN_DIST: 110,      // looser than generated-map NODE_MIN_DIST
+
+    // Truck yards: not research-gated (a base mechanic, not a premium
+    // bailout). HQ always counts as the first yard. Price grows per yard
+    // bought, same shape as TRUCK_PRICE/TRUCK_PRICE_GROWTH.
+    YARD_PRICE: 1200,
+    YARD_PRICE_GROWTH: 1.5
 };
 
 // Research tree: one active project at a time, paid upfront, takes `time`

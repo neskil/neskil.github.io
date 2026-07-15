@@ -60,4 +60,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   so the placement/road ghost preview renders without a real pointermove.
   `&capacity=1` maxes the truck-capacity upgrade so bundled multi-item
   hauls (the ×N badge over a truck) show up without a long probe.
+  `&yard=1` builds a second truck yard near HQ, stations a truck there,
+  and sets it as the active yard, for screenshotting the yard marker/
+  per-yard truck counts.
 - **Mobile layout**: same screenshot with `--window-size=390,844`.
