@@ -102,6 +102,7 @@ SC.factories = (function() {
         SC.state.money -= price;
         node.forSale = false;
         SC.economy && SC.economy.onNetworkChanged();
+        SC.emit('sitePurchased', { node, price });
         return { ok: true };
     }
 

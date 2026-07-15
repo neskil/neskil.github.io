@@ -30,6 +30,7 @@ SC.newState = function() {
         upgrades: { truckSpeed: 0, factorySpeed: 0 },
 
         selectedNode: null, // node picked as road start (input.js)
+        highlight: null,    // { paths, color, city, until } — order route overlay
         gameStarted: false
     };
     return SC.state;

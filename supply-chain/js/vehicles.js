@@ -134,7 +134,9 @@ SC.vehicles = (function() {
         SC.state.money -= price;
         SC.state.trucksBought++;
         const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
-        return { ok: true, truck: addTruck(hq) };
+        const truck = addTruck(hq);
+        SC.emit('truckBought', { truck, price });
+        return { ok: true, truck };
     }
 
     return { addTruck, addJob, cancelJobsForOrder, dispatch, tick, buyTruck };

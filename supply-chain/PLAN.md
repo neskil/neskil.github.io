@@ -1,8 +1,31 @@
 # Supply Chain Tycoon — development plan (v1 → v2)
 
-Status: **draft for review** — comment/strike/reorder freely; nothing here
-is committed work yet. Baseline is v1.0.0 (playable core loop: roads,
-trucks, orders, upgrades, milestone map growth, pan/pinch camera).
+Status: **agreed 2026-07-15** (decisions below). Baseline is v1.0.0
+(playable core loop: roads, trucks, orders, upgrades, milestone map
+growth, pan/pinch camera).
+
+## Decisions (owner review, 2026-07-15)
+
+- **A. Fail state**: BOTH — mode picker at new-game: "Standard"
+  (reputation hearts, game over) and "Zen" (endless, current behaviour).
+- **B. Dispatch**: compromise — trucks get a **home depot (DC)**. HQ is
+  the first DC; more can be built/bought later. Trucks belong to a
+  specific DC, start from it, return to it when idle, and the player
+  sets how many trucks are stationed at each DC. Dispatch stays
+  automatic within that constraint (a truck only takes jobs, preferring
+  ones near its home region). No per-route manual pinning.
+- **C. Visuals**: stay abstract — sprites are out. But refresh the art
+  direction: doesn't need to keep the current sci-fi glow look; explore
+  a warmer/cleaner abstract style in a dedicated visual pass.
+- **D. Priority order approved**: autosave → feedback → order-linking →
+  fail state (with mode picker) → truck capacity → depots (B) →
+  congestion → seeds → rest.
+
+## Shipped
+
+- v1.1.0: autosave/resume (+ restart button), money floaters at the
+  point of spend/earn, tap an order row to jump to its city with the
+  planned route highlighted.
 
 ## Phase 1 — Stickiness & feel (small, high-value)
 

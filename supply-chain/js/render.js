@@ -4,12 +4,23 @@ window.SC = window.SC || {};
 SC.render = (function() {
     let canvas = null, ctx = null, dpr = 1;
     let seaTime = 0;
+    let floaters = []; // rising "+$x"/"−$x" texts, world-anchored
+
+    function addFloater(x, y, text, color) {
+        floaters.push({ x, y, text, color, t: 0 });
+    }
 
     function attach(cv) {
         canvas = cv;
         ctx = canvas.getContext('2d');
         resize();
         window.addEventListener('resize', resize);
+
+        SC.on('orderComplete', o => addFloater(o.city.x, o.city.y - 24, `+$${o.payout}`, '#34d399'));
+        SC.on('roadBuilt', e => addFloater((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2, `−$${e.cost}`, '#f87171'));
+        SC.on('roadDemolished', d => addFloater((d.edge.a.x + d.edge.b.x) / 2, (d.edge.a.y + d.edge.b.y) / 2, `+$${d.refund}`, '#34d399'));
+        SC.on('sitePurchased', d => addFloater(d.node.x, d.node.y - 24, `−$${d.price}`, '#f87171'));
+        SC.on('truckBought', d => addFloater(d.truck.x, d.truck.y - 24, `−$${d.price}`, '#f87171'));
     }
 
     function resize() {
@@ -264,6 +275,55 @@ SC.render = (function() {
         }
     }
 
+    // Glowing overlay on the roads serving a tapped order (see ui.js)
+    function drawHighlight(now) {
+        const h = SC.state.highlight;
+        if (!h || now > h.until) return;
+        const fade = Math.min(1, (h.until - now) / 0.5);
+        ctx.lineCap = 'round';
+        for (const path of h.paths) {
+            ctx.beginPath();
+            path.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y));
+            ctx.strokeStyle = h.color;
+            ctx.globalAlpha = 0.55 * fade;
+            ctx.lineWidth = 8;
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = h.color;
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.lineCap = 'butt';
+        // Pulse the ordering city
+        const pulse = 22 + Math.sin(now * 6) * 4;
+        ctx.beginPath();
+        ctx.arc(h.city.x, h.city.y, pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = h.color;
+        ctx.globalAlpha = 0.8 * fade;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    function drawFloaters(dt) {
+        const z = SC.camera.cam.zoom;
+        for (let i = floaters.length - 1; i >= 0; i--) {
+            const f = floaters[i];
+            f.t += dt;
+            if (f.t >= 1.6) { floaters.splice(i, 1); continue; }
+            const rise = f.t * 28 / Math.max(z, 0.5);
+            ctx.font = `700 ${15 / z}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = Math.min(1, 2 * (1.6 - f.t));
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+            ctx.fillText(f.text, f.x + 1 / z, f.y - rise + 1 / z);
+            ctx.fillStyle = f.color;
+            ctx.fillText(f.text, f.x, f.y - rise);
+            ctx.globalAlpha = 1;
+        }
+    }
+
     function drawTrucks() {
         for (const t of SC.state.trucks) {
             ctx.save();
@@ -289,10 +349,12 @@ SC.render = (function() {
                          -cam.x * cam.zoom * dpr, -cam.y * cam.zoom * dpr);
         drawWorld(dt);
         drawRoads();
+        drawHighlight(now);
         drawGhostRoad();
         drawOrderBubbles();
         drawNodes(now);
         drawTrucks();
+        drawFloaters(dt);
     }
 
     return { attach, frame, resize };
