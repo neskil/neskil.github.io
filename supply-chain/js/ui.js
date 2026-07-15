@@ -48,7 +48,8 @@ SC.ui = (function() {
                 btn.disabled = !SC.canAfford(price);
             }
         }
-        updateResearch();
+        updateResearchShortcut();
+        updateResearchTree();
         updateBuild();
     }
 
@@ -78,7 +79,22 @@ SC.ui = (function() {
     }
 
     // ── Research & Build (Shop panel sections) ──────
-    function researchRow(id) {
+    // The Shop panel keeps a one-line shortcut (bottom-left, always visible);
+    // the full branching tech tree lives in its own overlay (#research-overlay)
+    // so it has room to lay out prerequisite branches instead of a flat list.
+    function updateResearchShortcut() {
+        const st = SC.state;
+        const status = $('research-shortcut-status');
+        if (st.research.active) {
+            const id = st.research.active.id;
+            status.textContent = `${SC.RESEARCH[id].emoji} ${Math.round(SC.research.progress(id) * 100)}%`;
+        } else {
+            const available = SC.RESEARCH_ORDER.filter(SC.research.isAvailable).length;
+            status.textContent = available ? `${available} available` : 'Open tree';
+        }
+    }
+
+    function researchNodeHTML(id, pos) {
         const t = SC.RESEARCH[id];
         const done = SC.research.isDone(id);
         const active = SC.state.research.active && SC.state.research.active.id === id;
@@ -92,20 +108,82 @@ SC.ui = (function() {
             btn = `<div class="research-bar"><div style="width:${pct}%"></div></div>
                    <div class="research-desc" style="margin:0.3rem 0 0;text-align:center">${left}s left</div>`;
         } else if (locked) {
-            const reqNames = t.requires.map(r => SC.RESEARCH[r].name).join(', ');
-            btn = `<div class="research-btn" disabled style="cursor:default">🔒 Requires ${reqNames}</div>`;
+            btn = '<div class="research-btn" disabled style="cursor:default">🔒 Locked</div>';
         } else {
             btn = `<button class="research-btn" data-research="${id}" ${SC.state.research.active || !SC.canAfford(t.cost) ? 'disabled' : ''}>Research — ${fmt(t.cost)} · ${t.time}s</button>`;
         }
-        return `<div class="research-row ${done ? 'done' : ''} ${locked ? 'locked' : ''}">
+        return `<div class="rt-node research-row ${done ? 'done' : ''} ${locked ? 'locked' : ''}"
+                     style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px">
             <div class="research-top"><span class="research-name">${t.emoji} ${t.name}</span></div>
             <div class="research-desc">${t.desc}</div>
             ${btn}
         </div>`;
     }
 
-    function updateResearch() {
-        $('research-list').innerHTML = SC.RESEARCH_ORDER.map(researchRow).join('');
+    // Tier = longest prerequisite chain to a root (0 = no requires), so the
+    // tree reads left-to-right in dependency order regardless of RESEARCH_ORDER.
+    function researchTiers() {
+        const cache = {};
+        function tierOf(id) {
+            if (cache[id] !== undefined) return cache[id];
+            const reqs = SC.RESEARCH[id].requires;
+            return cache[id] = reqs.length ? 1 + Math.max(...reqs.map(tierOf)) : 0;
+        }
+        const byTier = {};
+        for (const id of SC.RESEARCH_ORDER) (byTier[tierOf(id)] = byTier[tierOf(id)] || []).push(id);
+        return byTier;
+    }
+
+    const RT_COL_W = 210, RT_ROW_H = 132, RT_NODE_W = 176, RT_NODE_H_HALF = 46, RT_PAD = 20;
+
+    function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
+
+    function updateResearchTree() {
+        if (!researchTreeOpen()) return;
+        const byTier = researchTiers();
+        const tierKeys = Object.keys(byTier).map(Number).sort((a, b) => a - b);
+        const positions = {};
+        let maxRows = 1;
+        tierKeys.forEach(tier => {
+            byTier[tier].forEach((id, row) => {
+                positions[id] = { x: RT_PAD + tier * RT_COL_W, y: RT_PAD + row * RT_ROW_H, w: RT_NODE_W };
+            });
+            maxRows = Math.max(maxRows, byTier[tier].length);
+        });
+        const width = RT_PAD * 2 + tierKeys.length * RT_COL_W;
+        const height = RT_PAD * 2 + maxRows * RT_ROW_H;
+
+        const nodesEl = $('research-tree-nodes');
+        nodesEl.style.width = width + 'px';
+        nodesEl.style.height = height + 'px';
+        nodesEl.innerHTML = SC.RESEARCH_ORDER.map(id => researchNodeHTML(id, positions[id])).join('');
+
+        const svg = $('research-tree-edges');
+        svg.setAttribute('width', width);
+        svg.setAttribute('height', height);
+        let edges = '';
+        for (const id of SC.RESEARCH_ORDER) {
+            const to = positions[id];
+            for (const req of SC.RESEARCH[id].requires) {
+                const from = positions[req];
+                if (!from) continue;
+                const x1 = from.x + from.w, y1 = from.y + RT_NODE_H_HALF;
+                const x2 = to.x, y2 = to.y + RT_NODE_H_HALF;
+                const midX = (x1 + x2) / 2;
+                edges += `<path d="M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}"
+                    class="rt-edge ${SC.research.isDone(req) ? 'rt-edge-done' : ''}" />`;
+            }
+        }
+        svg.innerHTML = edges;
+    }
+
+    function openResearchTree() {
+        $('research-overlay').classList.remove('hidden');
+        updateResearchTree();
+    }
+
+    function closeResearchTree() {
+        $('research-overlay').classList.add('hidden');
     }
 
     function buildRow(kind, good) {
@@ -384,7 +462,12 @@ SC.ui = (function() {
             });
         }
 
-        $('research-list').addEventListener('click', e => {
+        $('btn-research-tree').addEventListener('click', () => { SC.sfx.play('click'); openResearchTree(); });
+        $('research-tree-close').addEventListener('click', () => { SC.sfx.play('click'); closeResearchTree(); });
+        $('research-overlay').addEventListener('click', e => {
+            if (e.target === $('research-overlay')) closeResearchTree(); // tap outside the card
+        });
+        $('research-tree-nodes').addEventListener('click', e => {
             const btn = e.target.closest('[data-research]');
             if (!btn || btn.disabled) return;
             const res = SC.research.start(btn.dataset.research);
@@ -457,6 +540,8 @@ SC.ui = (function() {
         }
         // Headless verification hook (see CLAUDE.md): open the menu on load
         if (new URLSearchParams(location.search).has('menu')) openMenu();
+        // ...and/or the research tree overlay
+        if (new URLSearchParams(location.search).has('techtree')) openResearchTree();
     }
 
     return { init, update, toast };
