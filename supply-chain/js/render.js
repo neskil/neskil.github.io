@@ -617,13 +617,13 @@ SC.render = (function() {
             if (n.active && n !== sel && Math.hypot(n.x - hover.x, n.y - hover.y) < 40) target = n;
         }
         const end = target ? { x: target.x, y: target.y } : hover;
-        const ferryOpt = { ferry: SC.state.buildFerry };
-        const q = target ? SC.roads.quote(sel, target, ferryOpt) : (() => {
+        // Shows the bridge cost when crossing the river — the actual
+        // bridge-vs-ferry choice happens in a modal once the road is tapped.
+        const q = target ? SC.roads.quote(sel, target) : (() => {
             const len = Math.hypot(sel.x - end.x, sel.y - end.y);
             const bridge = SC.map.segmentCrossesRiver(sel.x, sel.y, end.x, end.y);
-            const ferry = SC.state.buildFerry && bridge;
-            const mult = ferry ? SC.CONFIG.FERRY_COST_MULT : (bridge ? SC.CONFIG.BRIDGE_MULT : 1);
-            return { len, bridge, ferry, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) };
+            const mult = bridge ? SC.CONFIG.BRIDGE_MULT : 1;
+            return { len, bridge, ferry: false, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) };
         })();
         if (!q) return;
 

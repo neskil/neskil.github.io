@@ -121,9 +121,10 @@ that ambient animation as its background — it now lives independently at
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer
   paved legs.
-- **Congestion** (feature-flagged via `SC.state.congestionEnabled`,
-  toggle anytime from the ☰ menu; defaults per difficulty — on for
-  Normal/Hard, off for Easy/Sandbox): once more than
+- **Congestion** (`SC.state.congestionEnabled`, a difficulty trait fixed
+  for the run — on for Normal/Hard, off for Easy/Sandbox; not a normal
+  player-facing toggle, see the `?dev=1` dev panel below for A/B
+  comparison): once more than
   `CONGESTION_THRESHOLD` trucks share an edge at once, each additional
   truck slows it multiplicatively (`CONGESTION_STEP`, floored at
   `CONGESTION_FLOOR` — never a full stop). `SC.roads.speedMult` folds
@@ -132,11 +133,13 @@ that ambient animation as its background — it now lives independently at
   *and* Dijkstra's routing weight — dispatch naturally prefers a
   quieter parallel road over a jammed one. The road glows warmer the
   busier it gets (`render.drawRoads`).
-- **Ferries**: a cheaper-but-slower alternative to a bridge, chosen at
-  *build* time via the Shop panel's "Ferry crossings" toggle — any road
-  drawn across the river while it's on builds `edge.ferry = true`
-  instead of a bridge, at `FERRY_COST_MULT` (cheaper than
-  `BRIDGE_MULT`) but `FERRY_SPEED_MULT` (slower than a normal road,
+- **Ferries**: a cheaper-but-slower alternative to a bridge. Tapping a
+  road across the river no longer builds it outright — `input.js` emits
+  `crossingChoice` instead, and `ui.js` pops a Bridge-vs-Ferry modal
+  (both costs quoted live via `SC.roads.quote`) so the pick happens in
+  context rather than via a pre-set toggle. Choosing Ferry builds
+  `edge.ferry = true` instead of a bridge, at `FERRY_COST_MULT` (cheaper
+  than `BRIDGE_MULT`) but `FERRY_SPEED_MULT` (slower than a normal road,
   folded into `speedMult` the same way the highway boost is). A ferry
   can't be paved into a highway (`upgradeQuote` rejects it — it's a
   boat, not a road surface); congestion (if enabled) still applies on

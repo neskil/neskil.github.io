@@ -28,6 +28,16 @@ SC.ui = (function() {
         for (const btn of $('speed-toggle').children) {
             btn.classList.toggle('active', +btn.dataset.speed === st.speed);
         }
+        updateDevPanel();
+    }
+
+    // ── Dev-only A/B panel (?dev=1): congestion is otherwise fixed by
+    // difficulty for the whole run — this lets the developer flip it live
+    // to compare with/without it. Not shown to normal players. ──
+    function updateDevPanel() {
+        const btn = $('dev-congestion');
+        btn.classList.toggle('active', SC.state.congestionEnabled);
+        btn.textContent = SC.state.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
     }
 
     function setSpeed(n) {
@@ -58,16 +68,7 @@ SC.ui = (function() {
         updateResearchShortcut();
         updateResearchTree();
         updatePromo();
-        updateFerryMode();
         updateBuild();
-    }
-
-    // ── Ferry-crossing toggle: Build mode's river crossings build a
-    // cheaper, slower ferry instead of a bridge while this is on ──
-    function updateFerryMode() {
-        const btn = $('btn-ferry-mode');
-        btn.classList.toggle('active', SC.state.buildFerry);
-        btn.querySelector('.price').textContent = SC.state.buildFerry ? 'On' : 'Off';
     }
 
     // ── Promotions (Marketing Blitz): repeatable paid demand burst ──
@@ -219,6 +220,39 @@ SC.ui = (function() {
 
     function closeResearchTree() {
         $('research-overlay').classList.add('hidden');
+    }
+
+    // ── River-crossing choice: input.js emits this instead of building
+    // immediately whenever a tapped road would cross the river, so the
+    // bridge-vs-ferry pick happens in context rather than a pre-set toggle ──
+    let pendingCrossing = null;
+    function openCrossingChoice(d) {
+        pendingCrossing = d;
+        const bridgeQuote = SC.roads.quote(d.a, d.b);
+        const ferryQuote = SC.roads.quote(d.a, d.b, { ferry: true });
+        if (!bridgeQuote || !ferryQuote) { pendingCrossing = null; return; }
+        $('crossing-bridge-cost').textContent = fmt(bridgeQuote.cost);
+        $('crossing-ferry-cost').textContent = fmt(ferryQuote.cost);
+        $('crossing-overlay').classList.remove('hidden');
+    }
+
+    function closeCrossingChoice() {
+        pendingCrossing = null;
+        $('crossing-overlay').classList.add('hidden');
+    }
+
+    function chooseCrossing(ferry) {
+        if (!pendingCrossing) return;
+        const { a, b } = pendingCrossing;
+        const res = SC.roads.build(a, b, { ferry });
+        if (res.ok) {
+            SC.sfx.play('build');
+            SC.state.selectedNode = b; // chain roads mini-metro style
+        } else if (res.reason === 'money') {
+            SC.sfx.play('error');
+            toast(`Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, 'error');
+        }
+        closeCrossingChoice();
     }
 
     function buildRow(kind, good) {
@@ -405,7 +439,6 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
-        $('menu-congestion').textContent = st.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
     }
 
@@ -466,6 +499,16 @@ SC.ui = (function() {
             updateContractOffer();
         });
 
+        $('crossing-bridge').addEventListener('click', () => chooseCrossing(false));
+        $('crossing-ferry').addEventListener('click', () => chooseCrossing(true));
+        $('crossing-cancel').addEventListener('click', () => { SC.sfx.play('click'); closeCrossingChoice(); });
+
+        $('dev-congestion').addEventListener('click', () => {
+            SC.state.congestionEnabled = !SC.state.congestionEnabled;
+            SC.sfx.play('click');
+            updateDevPanel();
+        });
+
         $('mode-build').addEventListener('click', () => setMode('build'));
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
@@ -492,11 +535,6 @@ SC.ui = (function() {
         });
         $('menu-sound').addEventListener('click', () => {
             SC.sfx.toggleMute();
-            updateMenuInfo();
-        });
-        $('menu-congestion').addEventListener('click', () => {
-            SC.state.congestionEnabled = !SC.state.congestionEnabled;
-            SC.sfx.play('click');
             updateMenuInfo();
         });
         $('menu-fullscreen').addEventListener('click', () => {
@@ -554,14 +592,6 @@ SC.ui = (function() {
                 SC.emit('toast', { text: `Tap the map to place a truck yard — ${fmt(SC.yardPrice())}`, kind: 'info' });
             }
             SC.sfx.play('click');
-            updateShop();
-        });
-        $('btn-ferry-mode').addEventListener('click', () => {
-            SC.state.buildFerry = !SC.state.buildFerry;
-            SC.sfx.play('click');
-            toast(SC.state.buildFerry
-                ? 'Ferry crossings on — river roads will build cheaper and slower'
-                : 'Ferry crossings off — river roads build as bridges again', 'info');
             updateShop();
         });
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
@@ -632,6 +662,7 @@ SC.ui = (function() {
         });
         SC.on('orderExpired', () => { SC.sfx.play('expire'); toast('An order expired — customer walked away', 'error'); });
         SC.on('contractOffered', () => { SC.sfx.play('unlock'); toast('📜 New contract offer available!', 'info'); });
+        SC.on('crossingChoice', openCrossingChoice);
         SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });
         SC.on('crafted', () => SC.sfx.play('craft'));
         SC.on('salvage', () => toast(`Late delivery salvaged for ${fmt(SC.CONFIG.SALVAGE_PAY)}`, 'info'));
@@ -723,6 +754,13 @@ SC.ui = (function() {
         if (new URLSearchParams(location.search).has('menu')) openMenu();
         // ...and/or the research tree overlay
         if (new URLSearchParams(location.search).has('techtree')) openResearchTree();
+        // Dev-only A/B panel (?dev=1): lets the developer flip congestion
+        // live to compare with/without it, outside the normal difficulty-
+        // locked flow.
+        if (params.has('dev')) {
+            $('dev-panel').classList.remove('hidden');
+            updateDevPanel();
+        }
     }
 
     return { init, update, toast };
