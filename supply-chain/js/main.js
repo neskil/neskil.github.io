@@ -9,7 +9,9 @@ SC.init = function() {
     if (!wantFresh && SC.save.exists()) restored = SC.save.load();
 
     if (!restored) {
-        SC.newState();
+        // Difficulty is chosen on the new-game screen (written to
+        // localStorage by the picker so it survives the reload).
+        SC.newState(localStorage.getItem('scTycoonDifficulty') || 'normal');
         SC.map._resetSeq();
         SC.map.generateWorld();
         const start = SC.state.nodes.find(n => n.isHQ);
@@ -38,7 +40,7 @@ SC.init = function() {
         let dt = Math.min(0.05, (now - last) / 1000);
         last = now;
 
-        if (SC.state.gameStarted && !SC.state.paused) {
+        if (SC.state.gameStarted && !SC.state.paused && !SC.state.gameOver) {
             SC.state.time += dt;
             SC.economy.tick(dt);
             SC.factories.tick(dt);
@@ -60,7 +62,7 @@ SC.init = function() {
     // (visibilitychange), bfcache eviction / close (pagehide), and desktop
     // close (beforeunload). localStorage writes are synchronous, so these
     // are safe places to flush.
-    const flush = () => { if (SC.state.gameStarted && !wantFresh) SC.save.store(); };
+    const flush = () => { if (SC.state.gameStarted && !wantFresh && !SC.state.gameOver) SC.save.store(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
     window.addEventListener('pagehide', flush);
     window.addEventListener('beforeunload', flush);
@@ -95,6 +97,25 @@ SC.runProbe = function(seconds) {
     }
     // Force a debt balance so the red HUD/credit UI can be screenshotted
     if (p.has('debt')) SC.state.money = -Math.abs(parseFloat(p.get('debt')) || 800);
+    // Default-countdown / game-over screenshots: &doom=N puts the balance
+    // beyond the credit limit with N seconds on the clock; &gameover=1
+    // triggers the foreclosure overlay directly.
+    if (p.has('doom')) {
+        SC.state.money = -(SC.creditLimit() + 800);
+        SC.state.defaultIn = parseFloat(p.get('doom')) || SC.diff().defaultGrace;
+    }
+    if (p.has('gameover')) {
+        SC.state.money = -(SC.creditLimit() + 800);
+        SC.state.gameOver = true;
+        SC.emit('gameOver', { debt: -SC.state.money });
+    }
+    // Complete the promotions tech and light one up (&promo=1)
+    if (p.has('promo')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        SC.state.research.completed.premiumContracts = true;
+        SC.state.research.completed.promotions = true;
+        SC.economy.startPromotion();
+    }
     // Instantly complete research so the placement UI can be screenshotted
     if (p.has('research')) {
         SC.state.money = Math.max(SC.state.money, 50000);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.12.0">
+    <link rel="stylesheet" href="style.css?v=1.13.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -77,6 +77,11 @@
                 <span class="price" id="research-shortcut-status">Open tree</span>
             </button>
 
+            <button class="shop-btn hidden" id="btn-promo">
+                <span class="sname">📣 Run promotion</span>
+                <span class="price">$600</span>
+            </button>
+
             <div class="shop-section-title hidden" id="build-title">📍 Build (premium placement)</div>
             <div id="build-list"></div>
         </div>
@@ -94,6 +99,18 @@
                 <svg id="research-tree-edges"></svg>
                 <div id="research-tree-nodes"></div>
             </div>
+        </div>
+    </div>
+
+    <div id="gameover-overlay" class="hidden">
+        <div class="menu-card">
+            <div class="menu-title">
+                <h1>🏦 Loan defaulted!</h1>
+            </div>
+            <p class="gameover-text">The debt spiralled past your credit limit and the
+               grace period ran out — the bank has foreclosed on the company.</p>
+            <div class="menu-stats" id="gameover-stats"></div>
+            <button class="menu-btn primary" id="gameover-restart">↻ Start a new company</button>
         </div>
     </div>
 
@@ -129,7 +146,7 @@
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. New sites appear as you deliver.</li>
-                <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds 10% interest per minute — pay it off fast.</li>
+                <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>
                 <li><b>Research:</b> in the Shop panel, invest upfront and wait it out to unlock upgrades like manual site placement and a bigger credit line.</li>
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, top right): tap a supplier twice to raise its stock cap and refill rate.</li>
@@ -146,26 +163,30 @@
                 <span>🧵+💾→🔌</span>
                 <span>🔌+🔩→🤖</span>
             </div>
+            <div id="difficulty-section">
+                <div class="shop-section-title" style="margin-top:0">Difficulty</div>
+                <div id="difficulty-picker"></div>
+            </div>
             <button id="help-start">Start hauling</button>
         </div>
     </div>
 
-    <script src="js/config.js?v=1.12.0"></script>
-    <script src="js/state.js?v=1.12.0"></script>
-    <script src="js/save.js?v=1.12.0"></script>
-    <script src="js/sfx.js?v=1.12.0"></script>
-    <script src="js/map.js?v=1.12.0"></script>
-    <script src="js/camera.js?v=1.12.0"></script>
-    <script src="js/roads.js?v=1.12.0"></script>
-    <script src="js/factories.js?v=1.12.0"></script>
-    <script src="js/economy.js?v=1.12.0"></script>
-    <script src="js/vehicles.js?v=1.12.0"></script>
-    <script src="js/inspect.js?v=1.12.0"></script>
-    <script src="js/research.js?v=1.12.0"></script>
-    <script src="js/placement.js?v=1.12.0"></script>
-    <script src="js/render.js?v=1.12.0"></script>
-    <script src="js/input.js?v=1.12.0"></script>
-    <script src="js/ui.js?v=1.12.0"></script>
-    <script src="js/main.js?v=1.12.0"></script>
+    <script src="js/config.js?v=1.13.0"></script>
+    <script src="js/state.js?v=1.13.0"></script>
+    <script src="js/save.js?v=1.13.0"></script>
+    <script src="js/sfx.js?v=1.13.0"></script>
+    <script src="js/map.js?v=1.13.0"></script>
+    <script src="js/camera.js?v=1.13.0"></script>
+    <script src="js/roads.js?v=1.13.0"></script>
+    <script src="js/factories.js?v=1.13.0"></script>
+    <script src="js/economy.js?v=1.13.0"></script>
+    <script src="js/vehicles.js?v=1.13.0"></script>
+    <script src="js/inspect.js?v=1.13.0"></script>
+    <script src="js/research.js?v=1.13.0"></script>
+    <script src="js/placement.js?v=1.13.0"></script>
+    <script src="js/render.js?v=1.13.0"></script>
+    <script src="js/input.js?v=1.13.0"></script>
+    <script src="js/ui.js?v=1.13.0"></script>
+    <script src="js/main.js?v=1.13.0"></script>
 </body>
 </html>

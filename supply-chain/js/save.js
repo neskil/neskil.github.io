@@ -38,6 +38,7 @@ SC.save = (function() {
 
         return {
             v: FORMAT,
+            difficulty: st.difficulty,
             money: st.money, earnedTotal: st.earnedTotal,
             interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
@@ -46,6 +47,7 @@ SC.save = (function() {
             activeYardId: st.activeYard ? st.activeYard.id : null,
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
+            promoUntil: st.promoUntil, defaultIn: st.defaultIn,
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
@@ -72,7 +74,7 @@ SC.save = (function() {
     }
 
     function restore(data) {
-        SC.newState();
+        SC.newState(data.difficulty || 'normal');
         SC.map._resetSeq();
         const st = SC.state;
         st.money = data.money;
@@ -86,6 +88,8 @@ SC.save = (function() {
         st.nextOrderIn = data.nextOrderIn;
         st.orderSeq = data.orderSeq;
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
+        st.promoUntil = data.promoUntil || 0;
+        st.defaultIn = data.defaultIn !== undefined ? data.defaultIn : null;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         if (data.research) {
             st.research.completed = Object.assign({}, data.research.completed);

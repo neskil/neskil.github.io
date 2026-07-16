@@ -19,8 +19,9 @@ SC.ui = (function() {
         const st = SC.state;
         const inDebt = st.money < 0;
         $('hud-money').textContent = (inDebt ? '−' : '') + fmt(Math.abs(st.money));
-        $('hud-money-label').textContent = inDebt
-            ? `Debt (${Math.round(SC.CONFIG.DEBT_INTEREST_PER_MIN * 100)}%/min)` : 'Money';
+        $('hud-money-label').textContent = st.defaultIn !== null
+            ? `⚠ DEFAULT IN ${Math.max(0, Math.ceil(st.defaultIn))}s`
+            : inDebt ? `Debt (${Math.round(SC.diff().interestPerMin * 100)}%/min)` : 'Money';
         $('hud-money-item').classList.toggle('debt', inDebt);
         const idle = st.trucks.filter(t => !t.jobs.length && !t.path).length;
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
@@ -50,7 +51,22 @@ SC.ui = (function() {
         }
         updateResearchShortcut();
         updateResearchTree();
+        updatePromo();
         updateBuild();
+    }
+
+    // ── Promotions (Marketing Blitz): repeatable paid demand burst ──
+    function updatePromo() {
+        const btn = $('btn-promo');
+        btn.classList.toggle('hidden', !SC.research.isDone('promotions'));
+        if (btn.classList.contains('hidden')) return;
+        if (SC.economy.isPromoActive()) {
+            btn.disabled = true;
+            btn.querySelector('.price').textContent = `${Math.ceil(SC.economy.promoTimeLeft())}s left`;
+        } else {
+            btn.disabled = !SC.canAfford(SC.CONFIG.PROMO_COST);
+            btn.querySelector('.price').textContent = fmt(SC.CONFIG.PROMO_COST);
+        }
     }
 
     // ── Truck yards: HQ is always one; more can be built (not research-
@@ -341,6 +357,7 @@ SC.ui = (function() {
             ? `${SC.RESEARCH[st.research.active.id].name} (${Math.round(SC.research.progress(st.research.active.id) * 100)}%)`
             : 'None';
         $('menu-stats').innerHTML = `
+            <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
             <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
             <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
             <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
@@ -423,16 +440,18 @@ SC.ui = (function() {
         $('menu-help').addEventListener('click', () => {
             $('menu-overlay').classList.add('hidden'); // stay paused while reading
             resetNewGameArm();
+            $('difficulty-section').classList.add('hidden'); // mid-run: mode is locked in
             $('help-overlay').classList.remove('hidden');
         });
         $('menu-newgame').addEventListener('click', () => {
             if (newGameArmed) {
                 // Reloading fires pagehide/beforeunload, whose autosave flush
                 // (main.js) would otherwise re-persist this still-in-memory
-                // state right after clear() and undo the reset.
+                // state right after clear() and undo the reset. ?new=1
+                // routes through the new-game screen (difficulty picker).
                 SC.state.gameStarted = false;
                 SC.save.clear();
-                location.reload();
+                location.href = location.pathname + '?new=1';
                 return;
             }
             newGameArmed = true;
@@ -477,6 +496,12 @@ SC.ui = (function() {
             });
         }
 
+        $('btn-promo').addEventListener('click', () => {
+            const res = SC.economy.startPromotion();
+            if (res.ok) { SC.sfx.play('cash'); toast(`📣 Promotion running — ${SC.CONFIG.PROMO_DURATION}s of extra orders!`, 'good'); }
+            else if (res.reason === 'money') { SC.sfx.play('error'); toast(`Credit limit reached — promotion costs ${fmt(res.cost)}`, 'error'); }
+            updateShop();
+        });
         $('btn-research-tree').addEventListener('click', () => { SC.sfx.play('click'); openResearchTree(); });
         $('research-tree-close').addEventListener('click', () => { SC.sfx.play('click'); closeResearchTree(); });
         $('research-overlay').addEventListener('click', e => {
@@ -510,6 +535,11 @@ SC.ui = (function() {
         $('shop-header').addEventListener('click', () =>
             $('shop-panel').classList.toggle('collapsed'));
 
+        $('gameover-restart').addEventListener('click', () => {
+            SC.save.clear();
+            location.href = location.pathname + '?new=1'; // fresh run, difficulty picker shown
+        });
+
         $('help-start').addEventListener('click', () => {
             $('help-overlay').classList.add('hidden');
             localStorage.setItem('scTycoonHelpSeen', 'true');
@@ -534,21 +564,75 @@ SC.ui = (function() {
             SC.sfx.play('unlock');
             toast(`🔬 Research complete: ${SC.RESEARCH[id].name}!`, 'good');
         });
+        SC.on('debtWarning', d => {
+            SC.sfx.play('error');
+            toast(`🏦 Debt past your credit limit — recover within ${Math.round(d.grace)}s or the bank forecloses!`, 'error');
+        });
+        SC.on('debtRecovered', () => toast('Debt back within the credit limit — default averted', 'good'));
+        SC.on('gameOver', d => {
+            SC.sfx.play('expire');
+            SC.save.clear(); // a defaulted company doesn't get resurrected on reload
+            const st = SC.state;
+            $('gameover-stats').innerHTML = `
+                <div><span>Final debt</span><b class="neg">−${fmt(Math.abs(d.debt))}</b></div>
+                <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
+                <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+                <div><span>Time survived</span><b>${fmtDuration(st.time)}</b></div>`;
+            $('gameover-overlay').classList.remove('hidden');
+        });
+    }
+
+    // ── Difficulty picker (new-game screen only) ─────
+    function updateDifficultyPicker() {
+        const d = SC.state.difficulty;
+        $('difficulty-picker').innerHTML = SC.DIFFICULTY_ORDER.map(k => {
+            const p = SC.DIFFICULTIES[k];
+            return `<button class="diff-btn ${k === d ? 'active' : ''}" data-diff="${k}">
+                <span class="diff-name">${p.emoji} ${p.label}</span>
+                <span class="diff-desc">${p.desc}</span>
+            </button>`;
+        }).join('');
+    }
+
+    function bindDifficultyPicker() {
+        $('difficulty-picker').addEventListener('click', e => {
+            const btn = e.target.closest('[data-diff]');
+            if (!btn || SC.state.gameStarted) return;
+            const k = btn.dataset.diff;
+            localStorage.setItem('scTycoonDifficulty', k); // future new games default here
+            // The world is still untouched pre-start, so the preset can
+            // apply in place: swap the mode and its starting money.
+            SC.state.difficulty = k;
+            SC.state.money = SC.DIFFICULTIES[k].startMoney;
+            SC.sfx.play('click');
+            updateDifficultyPicker();
+            updateHUD();
+        });
     }
 
     function init() {
         bind();
+        bindDifficultyPicker();
         $('menu-version').textContent = 'v' + SC.VERSION;
         updateOrders();
         updateShop();
         updateHUD();
-        if (SC.state.gameStarted || // restored from autosave in main.js
-            localStorage.getItem('scTycoonHelpSeen') === 'true' ||
-            new URLSearchParams(location.search).has('nohelp') ||
-            new URLSearchParams(location.search).has('probe')) {
+        const params = new URLSearchParams(location.search);
+        // ?new=1 (menu "New game" / post-foreclosure restart) always routes
+        // through the new-game screen so the difficulty can be picked.
+        const forceNewScreen = params.has('new') && !params.has('nohelp') && !params.has('probe');
+        if (!forceNewScreen &&
+            (SC.state.gameStarted || // restored from autosave in main.js
+             localStorage.getItem('scTycoonHelpSeen') === 'true' ||
+             params.has('nohelp') || params.has('probe'))) {
             $('help-overlay').classList.add('hidden');
             SC.state.gameStarted = true;
         }
+        // The picker only makes sense before a world has been played on —
+        // opening Help mid-game (via the menu) hides it.
+        $('difficulty-section').classList.toggle('hidden', SC.state.gameStarted);
+        updateDifficultyPicker();
         if (window.innerWidth <= 768) {
             $('orders-panel').classList.add('collapsed');
             $('shop-panel').classList.add('collapsed');
