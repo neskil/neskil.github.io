@@ -53,10 +53,27 @@ SC.roads = (function() {
         return true;
     }
 
+    // Congestion (feature-flagged, see SC.state.congestionEnabled):
+    // trucks beyond CONGESTION_THRESHOLD sharing an edge right now slow
+    // it down multiplicatively, floored at CONGESTION_FLOOR. Read live
+    // off vehicles.js each call, so it reacts in real time as trucks
+    // arrive/leave the edge — including inside Dijkstra's own weighting
+    // below, which is what makes routing actually prefer a quieter
+    // parallel road over a jammed one.
+    function congestionMult(edge) {
+        if (!SC.state.congestionEnabled || !SC.vehicles) return 1;
+        const excess = SC.vehicles.truckCountOnEdge(edge) - SC.CONFIG.CONGESTION_THRESHOLD;
+        return excess > 0
+            ? Math.max(SC.CONFIG.CONGESTION_FLOOR, 1 - SC.CONFIG.CONGESTION_STEP * excess)
+            : 1;
+    }
+
     // Highways (edge.level 1, unlocked by 'pavedRoads' research) move
-    // trucks HIGHWAY_SPEED_MULT× faster on that edge.
+    // trucks HIGHWAY_SPEED_MULT× faster on that edge; congestion (when
+    // enabled) then slows an overloaded edge back down on top of that.
     function speedMult(edge) {
-        return edge && edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : 1;
+        if (!edge) return 1;
+        return (edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : 1) * congestionMult(edge);
     }
 
     // Quote for upgrading a road to a highway; null when not possible.
@@ -118,5 +135,5 @@ SC.roads = (function() {
     }
 
     return { findEdge, quote, build, demolish, findPath, pathDist,
-             speedMult, upgradeQuote, upgrade };
+             speedMult, congestionMult, upgradeQuote, upgrade };
 })();

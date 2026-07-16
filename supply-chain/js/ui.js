@@ -379,6 +379,7 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
+        $('menu-congestion').textContent = st.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
     }
 
@@ -448,6 +449,11 @@ SC.ui = (function() {
         });
         $('menu-sound').addEventListener('click', () => {
             SC.sfx.toggleMute();
+            updateMenuInfo();
+        });
+        $('menu-congestion').addEventListener('click', () => {
+            SC.state.congestionEnabled = !SC.state.congestionEnabled;
+            SC.sfx.play('click');
             updateMenuInfo();
         });
         $('menu-fullscreen').addEventListener('click', () => {
