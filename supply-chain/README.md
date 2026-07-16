@@ -143,6 +143,17 @@ that ambient animation as its background — it now lives independently at
   top, so trucks queueing for the boat reuses the exact same mechanic
   as a jammed road queue. Renders as a distinct teal dashed line with a
   small ⛴ shuttling back and forth along the crossing.
+- **Contracts**: `rollContractOffer` occasionally proposes a bulk order
+  at a locked-in `CONTRACT_RATE_BONUS` premium rate. A non-blocking card
+  lets you Accept or Decline within `CONTRACT_OFFER_EXPIRE` before it's
+  withdrawn (one offer/active contract at a time). Accepting
+  (`acceptContract`) is implemented as a regular order flagged
+  `contract: true` — reuses the same planning/delivery/expiry pipeline
+  as any other order, styled with a gold outline and 📜 in the Orders
+  panel. Unlike a normal missed order (just a tally, no cost), missing
+  an accepted contract's deadline (`expireOrder`) charges a penalty
+  proportional to however many units are still undelivered
+  (`CONTRACT_PENALTY_MULT × missingUnits × perUnitRate`).
 - **Per-yard truck prices**: the truck price ladder tracks trucks homed
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
@@ -190,13 +201,13 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
 | `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
-| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer |
+| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
-| `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
-| `js/render.js` | Canvas drawing (world coords under camera transform) |
+| `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
+| `js/render.js` | Canvas drawing (isometric 2.5D): projected land/river/road ribbons on the ground, extruded diamond-prism buildings with shadows, depth-sorted back-to-front, upright billboarded trucks/labels/order-bubbles |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold |
 | `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |

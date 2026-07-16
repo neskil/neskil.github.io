@@ -247,7 +247,7 @@ SC.ui = (function() {
         const p = SC.GOODS[o.product];
         const frac = Math.max(0, o.deadline / o.deadlineTotal);
         const left = o.qty - o.deliveredUnits;
-        return `<div class="order ${frac < 0.25 ? 'urgent' : ''}" data-order="${o.id}">
+        return `<div class="order ${frac < 0.25 ? 'urgent' : ''} ${o.contract ? 'contract' : ''}" data-order="${o.id}">
             <span class="chip">${p.emoji}</span>
             <span class="oname">${left}× ${p.name}</span>
             <span class="opay">${fmt(o.payout)}</span>
@@ -262,6 +262,22 @@ SC.ui = (function() {
             ? SC.state.orders.map(orderRow).join('')
             : '<div class="orders-empty">No open orders — they arrive on their own.</div>';
         $('orders-count').textContent = SC.state.orders.length;
+    }
+
+    // ── Contract offer: Accept/Decline card, non-blocking ──
+    function updateContractOffer() {
+        const offer = SC.state.contractOffer;
+        const card = $('contract-offer');
+        card.classList.toggle('hidden', !offer);
+        if (!offer) return;
+        const g = SC.GOODS[offer.product];
+        const dest = offer.city.isHQ ? 'HQ' : 'a customer DC';
+        const penalty = Math.round(offer.payout * SC.CONFIG.CONTRACT_PENALTY_MULT);
+        $('contract-terms').innerHTML = `
+            <div class="contract-title">${g.emoji} ${offer.qty}× ${g.name} for ${dest}</div>
+            <div class="contract-detail">Deadline: ${fmtDuration(offer.deadline)} · Payout: <b>${fmt(offer.payout)}</b></div>
+            <div class="contract-penalty">⚠ Miss it and pay up to ${fmt(penalty)} in penalties</div>`;
+        $('contract-timer').style.width = `${Math.max(0, offer.timeLeft / SC.CONFIG.CONTRACT_OFFER_EXPIRE) * 100}%`;
     }
 
     // ── Inspect mode: hover/hold tooltip ────────
@@ -337,6 +353,7 @@ SC.ui = (function() {
             ordersTimer = 0;
             updateOrders();
             updateShop();
+            updateContractOffer(); // keeps the offer's countdown bar ticking
             if (menuOpen()) updateMenuInfo(); // keep "last saved Xs ago" ticking
         }
     }
@@ -432,6 +449,21 @@ SC.ui = (function() {
             if (!row) return;
             const order = SC.state.orders.find(o => o.id === +row.dataset.order);
             if (order) focusOrder(order);
+        });
+
+        $('contract-accept').addEventListener('click', () => {
+            const res = SC.economy.acceptContract();
+            if (res.ok) {
+                SC.sfx.play('cash');
+                toast(`📜 Contract accepted: ${res.order.qty}× ${SC.nameOf(res.order.product)}`, 'good');
+            }
+            updateContractOffer();
+            updateOrders();
+        });
+        $('contract-decline').addEventListener('click', () => {
+            SC.economy.declineContract();
+            SC.sfx.play('click');
+            updateContractOffer();
         });
 
         $('mode-build').addEventListener('click', () => setMode('build'));
@@ -594,8 +626,13 @@ SC.ui = (function() {
 
         // Game event feedback
         SC.on('toast', d => toast(d.text, d.kind));
-        SC.on('orderComplete', o => { SC.sfx.play('cash'); toast(`Order filled: +${fmt(o.payout)}`, 'good'); });
+        SC.on('orderComplete', o => {
+            SC.sfx.play('cash');
+            toast(o.contract ? `📜 Contract fulfilled! +${fmt(o.payout)}` : `Order filled: +${fmt(o.payout)}`, 'good');
+        });
         SC.on('orderExpired', () => { SC.sfx.play('expire'); toast('An order expired — customer walked away', 'error'); });
+        SC.on('contractOffered', () => { SC.sfx.play('unlock'); toast('📜 New contract offer available!', 'info'); });
+        SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });
         SC.on('crafted', () => SC.sfx.play('craft'));
         SC.on('salvage', () => toast(`Late delivery salvaged for ${fmt(SC.CONFIG.SALVAGE_PAY)}`, 'info'));
         SC.on('unlock', n => {

@@ -49,7 +49,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (110 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (343 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
@@ -95,6 +95,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   deterministically. `&ferry=1` builds a ferry crossing from HQ to a
   node mirrored across the river (guaranteed to cross it regardless of
   map seed) for screenshotting the teal dashed line/shuttling boat.
+  `&contract=1` force-rolls a contract offer (skips the random
+  `CONTRACT_INTERVAL` wait) for screenshotting the Accept/Decline card;
+  `&contract=accept` also auto-accepts it into a real (gold-outlined,
+  📜) order in the Orders panel.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —

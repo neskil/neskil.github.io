@@ -35,6 +35,7 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.19.0: **contracts**. Per item 10 below — details there.
 - v1.18.0: **river ferries**. Per item 9 below — details there.
 - v1.17.0: **road congestion**, feature-flagged. Per item 8 below —
   details there.
@@ -217,9 +218,19 @@ actually shipped.)*
    boat without a separate queue simulation. A boat emoji shuttles back
    and forth along the crossing for the promised visual, short of a full
    dock/sprite treatment (that's Decision C's dedicated visual pass).
-10. **Contracts** — occasional long-running deals: "3× green every 60s for
-    5 minutes at a locked-in rate". Creates steady demand you can build
-    dedicated infrastructure for.
+10. ~~Contracts~~ — shipped v1.19.0, scoped to reuse the existing order
+    machinery instead of a parallel demand system: `rollContractOffer`
+    proposes a bulk deal (bigger `qty`, `CONTRACT_RATE_BONUS` premium
+    per-unit rate) on its own clock; the player Accepts or Declines a
+    non-blocking card within `CONTRACT_OFFER_EXPIRE`. Accepting
+    (`acceptContract`) turns the offer into a regular order flagged
+    `contract: true`, planned/delivered/paid through the normal pipeline.
+    The owner's requested twist — "penalty if you miss it" — lives in
+    `expireOrder`: a missed contract charges `CONTRACT_PENALTY_MULT ×
+    missingUnits × perUnitRate` on top of the miss, scaled so a
+    near-complete contract stings less than an untouched one; a normal
+    order still misses for free. One contract (offer or active) at a
+    time.
 10b. ~~Promotions research~~ — shipped v1.13.0 as Marketing Blitz: a
     one-shot tech unlocking a *repeatable paid Shop action* (global
     demand burst), which settled the repeatable-research question
