@@ -282,6 +282,19 @@ SC.render = (function() {
         return { base: '#10b981', fw: 24, h: 40, icon: '🏢' };
     }
 
+    // Screen point a tap/hover should hit-test against for a node — the
+    // roof icon, raised above the flat ground point by the building's
+    // iso-projected height (up to 54px at zoom 1 for HQ), same as
+    // drawNodeBody's `tc`. Exported so input.js's node picking and the
+    // inspect tooltip line up with what's actually drawn, instead of
+    // hit-testing the ground point a building's tall icon visually sits
+    // well above (which made tapping a node — especially HQ — miss).
+    function nodeIconAnchor(n) {
+        const sp = nodeSpec(n);
+        const g = S(n.x, n.y);
+        return { x: g.x, y: g.y - sp.h * zoom() };
+    }
+
     // Extruded diamond prism rising `hpx` px from ground point (gx, gy).
     function prism(gx, gy, fw, hpx, base, opts) {
         opts = opts || {};
@@ -773,5 +786,5 @@ SC.render = (function() {
         drawOffscreenArrows(now);
     }
 
-    return { attach, frame, resize };
+    return { attach, frame, resize, nodeIconAnchor };
 })();

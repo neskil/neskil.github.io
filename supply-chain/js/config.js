@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.21.0';
+SC.VERSION = '1.22.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
