@@ -50,6 +50,12 @@ SC.save = (function() {
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
             promoUntil: st.promoUntil, defaultIn: st.defaultIn,
+            nextContractIn: st.nextContractIn,
+            contractOffer: st.contractOffer ? {
+                cityId: st.contractOffer.city.id, product: st.contractOffer.product,
+                qty: st.contractOffer.qty, payout: st.contractOffer.payout,
+                deadline: st.contractOffer.deadline, timeLeft: st.contractOffer.timeLeft
+            } : null,
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
@@ -72,7 +78,8 @@ SC.save = (function() {
             orders: st.orders.map(o => ({
                 id: o.id, cityId: o.city.id, product: o.product,
                 qty: o.qty, deliveredUnits: o.deliveredUnits, payout: o.payout,
-                deadline: o.deadline, deadlineTotal: o.deadlineTotal
+                deadline: o.deadline, deadlineTotal: o.deadlineTotal,
+                contract: !!o.contract
             }))
         };
     }
@@ -94,6 +101,7 @@ SC.save = (function() {
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.promoUntil = data.promoUntil || 0;
         st.defaultIn = data.defaultIn !== undefined ? data.defaultIn : null;
+        st.nextContractIn = data.nextContractIn !== undefined ? data.nextContractIn : st.nextContractIn;
         st.seed = data.seed || null;
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
@@ -136,8 +144,19 @@ SC.save = (function() {
                 id: od.id, city, product: od.product, qty: od.qty,
                 deliveredUnits: od.deliveredUnits, payout: od.payout,
                 deadline: od.deadline, deadlineTotal: od.deadlineTotal,
-                planned: false, noRoute: false, done: false
+                planned: false, noRoute: false, done: false,
+                contract: !!od.contract
             });
+        }
+        if (data.contractOffer) {
+            const city = byId.get(data.contractOffer.cityId);
+            if (city) {
+                st.contractOffer = {
+                    product: data.contractOffer.product, city,
+                    qty: data.contractOffer.qty, payout: data.contractOffer.payout,
+                    deadline: data.contractOffer.deadline, timeLeft: data.contractOffer.timeLeft
+                };
+            }
         }
         SC.economy.onNetworkChanged(); // rebuild plans, tasks and haul jobs
         return st;

@@ -187,6 +187,14 @@ SC.runProbe = function(seconds) {
             }
         }
     }
+    // Force a contract offer card (&contract=1), or an already-accepted
+    // contract order (&contract=accept), so both UI states are screenshotable
+    // without waiting on the random CONTRACT_INTERVAL timer.
+    if (p.has('contract')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        SC.economy.rollContractOffer();
+        if (p.get('contract') === 'accept') SC.economy.acceptContract();
+    }
     // Arm placement mode so the ghost preview can be screenshotted, e.g.
     // ?placemode=supplier:wheat
     if (p.has('placemode')) {

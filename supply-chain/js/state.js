@@ -27,11 +27,14 @@ SC.newState = function(difficulty) {
         river: null,        // { spine: [{x,y}], halfWidths: [w] }
         edges: [],          // { a, b, len, bridge, cost }
 
-        orders: [],         // see economy.js
+        orders: [],         // see economy.js — a contract is a regular order with `contract: true`
         nextOrderIn: 8,
         orderSeq: 0,
         nextCustomerIn: SC.CONFIG.CUSTOMER_SPAWN_FIRST[0] +
             Math.random() * (SC.CONFIG.CUSTOMER_SPAWN_FIRST[1] - SC.CONFIG.CUSTOMER_SPAWN_FIRST[0]),
+        contractOffer: null, // { product, city, qty, payout, deadline, timeLeft } awaiting Accept/Decline
+        nextContractIn: SC.CONFIG.CONTRACT_INTERVAL[0] +
+            Math.random() * (SC.CONFIG.CONTRACT_INTERVAL[1] - SC.CONFIG.CONTRACT_INTERVAL[0]),
 
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
