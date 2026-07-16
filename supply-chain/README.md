@@ -132,11 +132,13 @@ that ambient animation as its background — it now lives independently at
   *and* Dijkstra's routing weight — dispatch naturally prefers a
   quieter parallel road over a jammed one. The road glows warmer the
   busier it gets (`render.drawRoads`).
-- **Ferries**: a cheaper-but-slower alternative to a bridge, chosen at
-  *build* time via the Shop panel's "Ferry crossings" toggle — any road
-  drawn across the river while it's on builds `edge.ferry = true`
-  instead of a bridge, at `FERRY_COST_MULT` (cheaper than
-  `BRIDGE_MULT`) but `FERRY_SPEED_MULT` (slower than a normal road,
+- **Ferries**: a cheaper-but-slower alternative to a bridge. Tapping a
+  road across the river no longer builds it outright — `input.js` emits
+  `crossingChoice` instead, and `ui.js` pops a Bridge-vs-Ferry modal
+  (both costs quoted live via `SC.roads.quote`) so the pick happens in
+  context rather than via a pre-set toggle. Choosing Ferry builds
+  `edge.ferry = true` instead of a bridge, at `FERRY_COST_MULT` (cheaper
+  than `BRIDGE_MULT`) but `FERRY_SPEED_MULT` (slower than a normal road,
   folded into `speedMult` the same way the highway boost is). A ferry
   can't be paved into a highway (`upgradeQuote` rejects it — it's a
   boat, not a road surface); congestion (if enabled) still applies on
