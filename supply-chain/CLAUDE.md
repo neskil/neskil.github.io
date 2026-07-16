@@ -92,7 +92,9 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   screenshot of a known layout. `&jam=1` force-enables congestion and
   parks 4 trucks mid-span on the factory→HQ edge (bypassing real
   dispatch timing) so the red congestion glow can be screenshotted
-  deterministically.
+  deterministically. `&ferry=1` builds a ferry crossing from HQ to a
+  node mirrored across the river (guaranteed to cross it regardless of
+  map seed) for screenshotting the teal dashed line/shuttling boat.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —
