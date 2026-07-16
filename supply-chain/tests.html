@@ -1303,6 +1303,126 @@
             approx(SC.state.defaultIn, 17.5));
     })();
 
+    // ── Congestion: feature-flag defaults per difficulty ──
+    (function() {
+        SC.newState('easy');
+        assert('easy defaults congestion off', SC.state.congestionEnabled === false);
+        SC.newState('normal');
+        assert('normal defaults congestion on', SC.state.congestionEnabled === true);
+        SC.newState('hard');
+        assert('hard defaults congestion on', SC.state.congestionEnabled === true);
+        SC.newState('sandbox');
+        assert('sandbox defaults congestion off', SC.state.congestionEnabled === false);
+    })();
+
+    // ── Congestion: truckCountOnEdge counts trucks on that edge either way ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        const e1 = SC.roads.build(S1, F).edge;
+        SC.roads.build(S2, F);
+        assert('no trucks on a fresh edge', SC.vehicles.truckCountOnEdge(e1) === 0);
+
+        const t1 = SC.vehicles.addTruck(S1);
+        t1.path = [S1, F]; t1.pathIdx = 0; // travelling a -> b
+        const t2 = SC.vehicles.addTruck(F);
+        t2.path = [F, S1]; t2.pathIdx = 0; // travelling b -> a (same edge, other direction)
+        const t3 = SC.vehicles.addTruck(S2);
+        t3.path = [S2, F]; t3.pathIdx = 0; // a different edge entirely
+        const idle = SC.vehicles.addTruck(S1); // no path: not travelling anywhere
+        assert('counts trucks on the edge regardless of direction, ignores others',
+            SC.vehicles.truckCountOnEdge(e1) === 2);
+        assert('a truck past the last segment index does not count', (function() {
+            t1.pathIdx = 1; // arrived
+            const n = SC.vehicles.truckCountOnEdge(e1);
+            t1.pathIdx = 0;
+            return n === 1; // only t2 left
+        })());
+    })();
+
+    // ── Congestion: speedMult combines with highways, respects the flag ──
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        SC.state.congestionEnabled = true;
+        const edge = SC.roads.build(S1, F).edge;
+
+        function jamWith(n) {
+            SC.state.trucks.length = 0;
+            for (let i = 0; i < n; i++) {
+                const t = SC.vehicles.addTruck(S1);
+                t.path = [S1, F]; t.pathIdx = 0;
+            }
+        }
+
+        jamWith(SC.CONFIG.CONGESTION_THRESHOLD);
+        assert('at/under the threshold, no slowdown', SC.roads.speedMult(edge) === 1);
+
+        jamWith(SC.CONFIG.CONGESTION_THRESHOLD + 2);
+        const expected = 1 - SC.CONFIG.CONGESTION_STEP * 2;
+        assert('past the threshold, speed drops per excess truck',
+            approx(SC.roads.speedMult(edge), expected, 0.001));
+
+        jamWith(SC.CONFIG.CONGESTION_THRESHOLD + 50);
+        assert('congestion never drops speed below the floor',
+            approx(SC.roads.speedMult(edge), SC.CONFIG.CONGESTION_FLOOR, 0.001));
+
+        SC.state.research.completed.pavedRoads = true;
+        SC.roads.upgrade(edge);
+        assert('congestion stacks multiplicatively with the highway boost',
+            approx(SC.roads.speedMult(edge), SC.CONFIG.HIGHWAY_SPEED_MULT * SC.CONFIG.CONGESTION_FLOOR, 0.001));
+
+        SC.state.congestionEnabled = false;
+        assert('disabling the flag removes congestion but keeps the highway boost',
+            approx(SC.roads.speedMult(edge), SC.CONFIG.HIGHWAY_SPEED_MULT, 0.001));
+    })();
+
+    // ── Congestion: Dijkstra routes around a jammed edge (flag-gated) ──
+    (function() {
+        // Two parallel routes of equal length from A to B: a direct edge,
+        // and a two-hop detour through M — same total distance, so
+        // findPath is indifferent until one gets jammed.
+        SC.newState('normal'); // congestion on by default
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 5000, y: 0 }, { x: 5000, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
+        const A = SC.map.makeNode('city', 0, 0, { active: true, isHQ: true });
+        const B = SC.map.makeNode('city', 400, 0, { active: true });
+        const M = SC.map.makeNode('supplier', 200, -1, { active: true, mat: 'wheat' }); // ~= 400 total, matches direct
+        SC.state.money = 100000;
+        const direct = SC.roads.build(A, B).edge;
+        SC.roads.build(A, M);
+        SC.roads.build(M, B);
+
+        assert('an uncongested direct edge is chosen over an equal-length detour',
+            SC.roads.findPath(A, B).path.length === 2);
+
+        for (let i = 0; i < SC.CONFIG.CONGESTION_THRESHOLD + 6; i++) {
+            const t = SC.vehicles.addTruck(A);
+            t.path = [A, B]; t.pathIdx = 0;
+        }
+        assert('a jammed direct edge is routed around once congestion matters',
+            SC.roads.findPath(A, B).path.length === 3);
+
+        SC.state.congestionEnabled = false;
+        assert('with the flag off, the jam is ignored and the direct edge wins again',
+            SC.roads.findPath(A, B).path.length === 2);
+    })();
+
+    // ── Save round-trip: congestion flag (both explicit states) ──
+    (function() {
+        const { S1, F, C } = fixture(); // fixture uses SC.newState() -> 'normal' default (on)
+        SC.state.money = 100000;
+        SC.state.congestionEnabled = false; // override the difficulty default
+        SC.save.restore(SC.save.serialize());
+        assert('an explicitly disabled congestion flag survives a round-trip',
+            SC.state.congestionEnabled === false);
+
+        SC.state.congestionEnabled = true;
+        SC.save.restore(SC.save.serialize());
+        assert('an explicitly enabled congestion flag survives a round-trip',
+            SC.state.congestionEnabled === true);
+    })();
+
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
     document.getElementById('summary').className = failed ? 'fail' : 'pass';
     </script>

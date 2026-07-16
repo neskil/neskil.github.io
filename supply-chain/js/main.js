@@ -95,9 +95,10 @@ SC.runProbe = function(seconds) {
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))
         .sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0];
+    const city = nearest('city');
     SC.roads.build(f, nearest('supplier', 'wheat'));
     SC.roads.build(f, nearest('supplier', 'water'));
-    SC.roads.build(f, nearest('city'));
+    SC.roads.build(f, city);
     const o = SC.economy.spawnOrder();
     if (o) SC.economy.planOrder(o);
     for (let t = 0; t < seconds; t += 0.05) {
@@ -154,6 +155,26 @@ SC.runProbe = function(seconds) {
     if (p.has('drain')) {
         for (const n of SC.state.nodes) {
             if (n.kind === 'supplier') n.stock = Math.min(n.stock, 1);
+        }
+    }
+    // Force-jam the factory->HQ edge with several trucks parked mid-span,
+    // so the congestion glow overlay can be screenshotted without waiting
+    // on real dispatch timing (&jam=1; also flips congestion on regardless
+    // of difficulty default).
+    if (p.has('jam')) {
+        SC.state.congestionEnabled = true;
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const edge = SC.roads.findEdge(f, city);
+        if (edge) {
+            for (let i = 0; i < 4; i++) {
+                const truck = SC.vehicles.addTruck(f, f);
+                truck.path = [edge.a, edge.b];
+                truck.pathIdx = 0;
+                truck.progress = 0.25 + i * 0.15;
+                truck.phase = 'toDrop';
+                truck.x = edge.a.x + (edge.b.x - edge.a.x) * truck.progress;
+                truck.y = edge.a.y + (edge.b.y - edge.a.y) * truck.progress;
+            }
         }
     }
     // Arm placement mode so the ghost preview can be screenshotted, e.g.
