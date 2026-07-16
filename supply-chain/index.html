@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.18.0">
+    <link rel="stylesheet" href="style.css?v=1.19.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -30,6 +30,18 @@
     </div>
 
     <div id="inspect-tooltip"></div>
+
+    <div id="contract-offer" class="hidden">
+        <div class="contract-card">
+            <div class="contract-header">📜 Contract Offer</div>
+            <div id="contract-terms"></div>
+            <div class="contract-timer-bar"><div id="contract-timer"></div></div>
+            <div class="contract-actions">
+                <button class="menu-btn primary" id="contract-accept">✔ Accept</button>
+                <button class="menu-btn" id="contract-decline">✕ Decline</button>
+            </div>
+        </div>
+    </div>
 
     <div id="orders-panel" class="panel">
         <div class="panel-header" id="orders-header">
@@ -161,6 +173,7 @@
                 <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
                 <li><b>Congestion:</b> on by default (Normal/Hard difficulty), a busy road glows warmer and slows down past a few trucks — build parallel routes instead of one mega-highway. Toggle it anytime from the ☰ menu.</li>
                 <li><b>Fast-forward:</b> the 1×/2×/4× toggle under the HUD speeds up the whole sim — orders, crafting, trucks, interest, everything.</li>
+                <li><b>Contracts:</b> occasionally a bulk-order card offers a locked-in premium rate — Accept or Decline before the timer runs out. An accepted contract is a big order with its own deadline; miss it and you pay a penalty on top of the failure, not just a missed order.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
                 <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
             </ul>
@@ -181,23 +194,23 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.18.0"></script>
-    <script src="js/state.js?v=1.18.0"></script>
-    <script src="js/save.js?v=1.18.0"></script>
-    <script src="js/sfx.js?v=1.18.0"></script>
-    <script src="js/rng.js?v=1.18.0"></script>
-    <script src="js/map.js?v=1.18.0"></script>
-    <script src="js/camera.js?v=1.18.0"></script>
-    <script src="js/roads.js?v=1.18.0"></script>
-    <script src="js/factories.js?v=1.18.0"></script>
-    <script src="js/economy.js?v=1.18.0"></script>
-    <script src="js/vehicles.js?v=1.18.0"></script>
-    <script src="js/inspect.js?v=1.18.0"></script>
-    <script src="js/research.js?v=1.18.0"></script>
-    <script src="js/placement.js?v=1.18.0"></script>
-    <script src="js/render.js?v=1.18.0"></script>
-    <script src="js/input.js?v=1.18.0"></script>
-    <script src="js/ui.js?v=1.18.0"></script>
-    <script src="js/main.js?v=1.18.0"></script>
+    <script src="js/config.js?v=1.19.0"></script>
+    <script src="js/state.js?v=1.19.0"></script>
+    <script src="js/save.js?v=1.19.0"></script>
+    <script src="js/sfx.js?v=1.19.0"></script>
+    <script src="js/rng.js?v=1.19.0"></script>
+    <script src="js/map.js?v=1.19.0"></script>
+    <script src="js/camera.js?v=1.19.0"></script>
+    <script src="js/roads.js?v=1.19.0"></script>
+    <script src="js/factories.js?v=1.19.0"></script>
+    <script src="js/economy.js?v=1.19.0"></script>
+    <script src="js/vehicles.js?v=1.19.0"></script>
+    <script src="js/inspect.js?v=1.19.0"></script>
+    <script src="js/research.js?v=1.19.0"></script>
+    <script src="js/placement.js?v=1.19.0"></script>
+    <script src="js/render.js?v=1.19.0"></script>
+    <script src="js/input.js?v=1.19.0"></script>
+    <script src="js/ui.js?v=1.19.0"></script>
+    <script src="js/main.js?v=1.19.0"></script>
 </body>
 </html>
