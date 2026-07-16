@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.18.0"></script>
-    <script src="js/state.js?v=1.18.0"></script>
-    <script src="js/save.js?v=1.18.0"></script>
-    <script src="js/sfx.js?v=1.18.0"></script>
-    <script src="js/rng.js?v=1.18.0"></script>
-    <script src="js/map.js?v=1.18.0"></script>
-    <script src="js/camera.js?v=1.18.0"></script>
-    <script src="js/roads.js?v=1.18.0"></script>
-    <script src="js/factories.js?v=1.18.0"></script>
-    <script src="js/economy.js?v=1.18.0"></script>
-    <script src="js/vehicles.js?v=1.18.0"></script>
-    <script src="js/inspect.js?v=1.18.0"></script>
-    <script src="js/research.js?v=1.18.0"></script>
-    <script src="js/placement.js?v=1.18.0"></script>
+    <script src="js/config.js?v=1.19.0"></script>
+    <script src="js/state.js?v=1.19.0"></script>
+    <script src="js/save.js?v=1.19.0"></script>
+    <script src="js/sfx.js?v=1.19.0"></script>
+    <script src="js/rng.js?v=1.19.0"></script>
+    <script src="js/map.js?v=1.19.0"></script>
+    <script src="js/camera.js?v=1.19.0"></script>
+    <script src="js/roads.js?v=1.19.0"></script>
+    <script src="js/factories.js?v=1.19.0"></script>
+    <script src="js/economy.js?v=1.19.0"></script>
+    <script src="js/vehicles.js?v=1.19.0"></script>
+    <script src="js/inspect.js?v=1.19.0"></script>
+    <script src="js/research.js?v=1.19.0"></script>
+    <script src="js/placement.js?v=1.19.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1505,6 +1505,139 @@
         const restored = SC.state.edges.find(e =>
             (e.a.x === 900 && e.b.x === 1300) || (e.a.x === 1300 && e.b.x === 900));
         assert('ferry flag survives a save round-trip', restored && restored.ferry === true);
+    })();
+
+    // ── Contracts: offer generation ─────────────────────────
+    (function() {
+        const { F, C } = fixture();
+        SC.state.money = 100000;
+        const offer = SC.economy.rollContractOffer();
+        assert('offer is generated with a city, product, qty and payout',
+            offer && offer.city && offer.product && offer.qty > 0 && offer.payout > 0);
+        assert('offer starts with the full countdown', offer.timeLeft === SC.CONFIG.CONTRACT_OFFER_EXPIRE);
+        assert('offer is stashed on state.contractOffer', SC.state.contractOffer === offer);
+        assert('a second roll is a no-op while one is pending (one at a time)', (function() {
+            const before = SC.state.contractOffer;
+            SC.economy.rollContractOffer();
+            return SC.state.contractOffer === before;
+        })());
+    })();
+
+    // ── Contracts: accept turns the offer into a real order ────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const offer = SC.economy.rollContractOffer();
+        const qty = offer.qty, payout = offer.payout;
+        const res = SC.economy.acceptContract();
+        assert('accept succeeds and returns the new order', res.ok && res.order);
+        assert('offer is cleared once accepted', SC.state.contractOffer === null);
+        assert('the resulting order carries the offer terms and the contract flag',
+            res.order.contract === true && res.order.qty === qty && res.order.payout === payout);
+        assert('the contract order is planned like a normal order (route exists)',
+            SC.state.orders.includes(res.order) && res.order.planned);
+        assert('accepting with no pending offer fails cleanly',
+            !SC.economy.acceptContract().ok);
+    })();
+
+    // ── Contracts: decline clears the offer and resets the timer ─
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.economy.rollContractOffer();
+        const res = SC.economy.declineContract();
+        assert('decline succeeds', res.ok);
+        assert('offer is cleared on decline', SC.state.contractOffer === null);
+        assert('nextContractIn is reset to a fresh interval', SC.state.nextContractIn > 0);
+        assert('declining with no pending offer fails cleanly', !SC.economy.declineContract().ok);
+    })();
+
+    // ── Contracts: missing one charges a penalty proportional to the shortfall ─
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.economy.rollContractOffer();
+        const { order } = SC.economy.acceptContract();
+        const moneyBefore = SC.state.money;
+        const expectedPenalty = Math.round(order.qty * (order.payout / order.qty) * SC.CONFIG.CONTRACT_PENALTY_MULT);
+        SC.economy.expireOrder(order);
+        assert('a fully-missed contract charges the full proportional penalty',
+            SC.state.money === moneyBefore - expectedPenalty);
+        assert('expiring a contract does not count as a plain missed order tally bump only',
+            SC.state.missed === 1);
+    })();
+
+    // ── Contracts: a normal (non-contract) order still misses for free ─
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+        SC.economy.expireOrder(order);
+        assert('a plain missed order carries no monetary penalty', SC.state.money === moneyBefore);
+    })();
+
+    // ── Contracts: partial delivery reduces the penalty ─────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.economy.rollContractOffer();
+        const { order } = SC.economy.acceptContract();
+        order.deliveredUnits = Math.floor(order.qty / 2);
+        const moneyBefore = SC.state.money;
+        const missingUnits = order.qty - order.deliveredUnits;
+        const expectedPenalty = Math.round(missingUnits * (order.payout / order.qty) * SC.CONFIG.CONTRACT_PENALTY_MULT);
+        SC.economy.expireOrder(order);
+        assert('a partially-delivered contract is penalized less than a fully-missed one',
+            SC.state.money === moneyBefore - expectedPenalty && expectedPenalty > 0);
+    })();
+
+    // ── Contracts: tick-loop countdown, auto-decline and re-roll ─
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.state.nextContractIn = 0.05;
+        SC.economy.tick(0.1); // rolls an offer once nextContractIn elapses
+        assert('an offer appears once nextContractIn elapses', SC.state.contractOffer !== null);
+        SC.state.contractOffer.timeLeft = 0.05;
+        SC.economy.tick(0.1); // offer's own countdown auto-declines it
+        assert('an unanswered offer auto-declines once its own timer runs out',
+            SC.state.contractOffer === null);
+    })();
+
+    // ── Contracts: save round-trip for offer, order flag and timer ─
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.economy.rollContractOffer();
+        SC.state.nextContractIn = 42;
+        const data = SC.save.serialize();
+        SC.save.restore(data);
+        assert('a pending contract offer survives a save round-trip',
+            SC.state.contractOffer && SC.state.contractOffer.city && SC.state.contractOffer.qty > 0);
+        assert('nextContractIn survives a save round-trip', SC.state.nextContractIn === 42);
+
+        SC.economy.acceptContract();
+        const data2 = SC.save.serialize();
+        SC.save.restore(data2);
+        assert('an accepted contract order keeps its contract flag across a round-trip',
+            SC.state.orders.some(o => o.contract === true));
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
