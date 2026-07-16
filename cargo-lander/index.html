@@ -728,6 +728,51 @@
             }
         }
 
+        /* Speech-bubble style nudge anchored directly above the button it
+           points at (e.g. #audio-nudge above the mute button), with a CSS
+           triangle tail and a small × to dismiss it. */
+        .nudge-bubble {
+            position: absolute;
+            bottom: calc(100% + 12px);
+            right: -6px;
+            background: #38bdf8;
+            color: #06202e;
+            padding: 7px 26px 7px 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.72rem;
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.45);
+            white-space: nowrap;
+            z-index: 30;
+            animation: pulse 2s infinite;
+        }
+
+        .nudge-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            right: 16px;
+            border: 6px solid transparent;
+            border-top-color: #38bdf8;
+        }
+
+        .nudge-bubble-close {
+            position: absolute;
+            top: 50%;
+            right: 3px;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            border: none;
+            background: none;
+            color: #06202e;
+            font-size: 0.95rem;
+            line-height: 1;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0;
+        }
+
         @media (max-width: 1024px) {
             #game-container {
                 width: 100%;
@@ -2105,17 +2150,6 @@
 
     <!-- SCREEN OVERLAY: MENU SCREEN -->
     <div id="menu-screen" class="screen-overlay">
-        <!-- Sound is muted by default for first-time visitors (autoplaying
-             audio on a page a stranger just opened is more startling than
-             delightful) — this nudge is the one hint that there's music to
-             turn on. Shown/hidden purely by mute state (updateMuteUI() in
-             game/menu.js), so it reappears any time the game is muted. Sits
-             above the menu card rather than layered over its title, and
-             points down at the mute button in the card's top utility row. -->
-        <div id="audio-nudge"
-            style="display: none; margin-bottom: 10px; background: #38bdf8; color: #06202e; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.72rem; box-shadow: 0 4px 14px rgba(56,189,248,0.45); pointer-events: none; white-space: nowrap; z-index: 30; animation: pulse 2s infinite;">
-            🔈 Psst — enable sound for some sweet tunes! ⬇
-        </div>
         <div class="screen-content">
             <!-- Top utility row — fullscreen + mute/settings/dev used to be split
                  across a full-width "Enter Fullscreen" button here and a separate
@@ -2135,14 +2169,29 @@
                     </svg>
                     Enter Fullscreen
                 </button>
-                <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()"
-                    title="Toggle Mute">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                    </svg>
-                </button>
+                <div style="position: relative;">
+                    <button id="mute-toggle-btn" class="utility-btn icon-only" onclick="game.toggleMuteQuick()"
+                        title="Toggle Mute">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                    </button>
+                    <!-- Sound is muted by default for first-time visitors (autoplaying
+                         audio on a page a stranger just opened is more startling than
+                         delightful) — this speech-bubble nudge is the one hint that
+                         there's music to turn on. Shown/hidden by mute state
+                         (updateMuteUI() in game/menu.js); dismissing it via the ×
+                         snoozes it for a day (dismissAudioNudge()) even if still
+                         muted, so it doesn't nag on every visit. Anchored right above
+                         the mute button it points at, rather than floating far away. -->
+                    <div id="audio-nudge" class="nudge-bubble" style="display: none;">
+                        <button type="button" class="nudge-bubble-close" aria-label="Dismiss"
+                            onclick="event.stopPropagation(); game.dismissAudioNudge()">&times;</button>
+                        🔈 Psst — enable sound for some sweet tunes!
+                    </div>
+                </div>
                 <button id="mute-btn" class="utility-btn icon-only" onclick="game.openSettings()" title="Settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -2821,48 +2870,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.19.1"></script>
-    <script src="levels/levels.js?v=0.19.1"></script>
-    <script src="levels/levelGenerator.js?v=0.19.1"></script>
+    <script src="game/upgrades.js?v=0.19.3"></script>
+    <script src="levels/levels.js?v=0.19.3"></script>
+    <script src="levels/levelGenerator.js?v=0.19.3"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.19.1"></script>
-    <script src="levels/level2.js?v=0.19.1"></script>
-    <script src="levels/level3.js?v=0.19.1"></script>
-    <script src="levels/level4.js?v=0.19.1"></script>
-    <script src="levels/level5.js?v=0.19.1"></script>
-    <script src="levels/level6.js?v=0.19.1"></script>
-    <script src="levels/level7.js?v=0.19.1"></script>
-    <script src="levels/level8.js?v=0.19.1"></script>
-    <script src="levels/level9.js?v=0.19.1"></script>
-    <script src="levels/level10.js?v=0.19.1"></script>
-    <script src="levels/levelTest.js?v=0.19.1"></script>
-    <script src="levels/collectibleTypes.js?v=0.19.1"></script>
+    <script src="levels/level1.js?v=0.19.3"></script>
+    <script src="levels/level2.js?v=0.19.3"></script>
+    <script src="levels/level3.js?v=0.19.3"></script>
+    <script src="levels/level4.js?v=0.19.3"></script>
+    <script src="levels/level5.js?v=0.19.3"></script>
+    <script src="levels/level6.js?v=0.19.3"></script>
+    <script src="levels/level7.js?v=0.19.3"></script>
+    <script src="levels/level8.js?v=0.19.3"></script>
+    <script src="levels/level9.js?v=0.19.3"></script>
+    <script src="levels/level10.js?v=0.19.3"></script>
+    <script src="levels/levelTest.js?v=0.19.3"></script>
+    <script src="levels/collectibleTypes.js?v=0.19.3"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.19.1"></script>
-    <script src="render/shaders.js?v=0.19.1"></script>
-    <script src="physics/physics.js?v=0.19.1"></script>
-    <script src="physics/collision.js?v=0.19.1"></script>
-    <script src="physics/mechanics.js?v=0.19.1"></script>
-    <script src="physics/entities.js?v=0.19.1"></script>
-    <script src="physics/atmosphere.js?v=0.19.1"></script>
-    <script src="game/game.js?v=0.19.1"></script>
-    <script src="game/input.js?v=0.19.1"></script>
-    <script src="game/menu.js?v=0.19.1"></script>
-    <script src="game/hud.js?v=0.19.1"></script>
-    <script src="game/cargo.js?v=0.19.1"></script>
-    <script src="render/render.js?v=0.19.1"></script>
-    <script src="render/background.js?v=0.19.1"></script>
-    <script src="render/terrain.js?v=0.19.1"></script>
-    <script src="render/entities.js?v=0.19.1"></script>
-    <script src="render/pads.js?v=0.19.1"></script>
-    <script src="render/lander.js?v=0.19.1"></script>
-    <script src="render/creatures.js?v=0.19.1"></script>
-    <script src="render/effects.js?v=0.19.1"></script>
-    <script src="render/night.js?v=0.19.1"></script>
-    <script src="render/ui.js?v=0.19.1"></script>
+    <script src="audio.js?v=0.19.3"></script>
+    <script src="render/shaders.js?v=0.19.3"></script>
+    <script src="physics/physics.js?v=0.19.3"></script>
+    <script src="physics/collision.js?v=0.19.3"></script>
+    <script src="physics/mechanics.js?v=0.19.3"></script>
+    <script src="physics/entities.js?v=0.19.3"></script>
+    <script src="physics/atmosphere.js?v=0.19.3"></script>
+    <script src="game/game.js?v=0.19.3"></script>
+    <script src="game/input.js?v=0.19.3"></script>
+    <script src="game/menu.js?v=0.19.3"></script>
+    <script src="game/hud.js?v=0.19.3"></script>
+    <script src="game/cargo.js?v=0.19.3"></script>
+    <script src="render/render.js?v=0.19.3"></script>
+    <script src="render/background.js?v=0.19.3"></script>
+    <script src="render/terrain.js?v=0.19.3"></script>
+    <script src="render/entities.js?v=0.19.3"></script>
+    <script src="render/pads.js?v=0.19.3"></script>
+    <script src="render/lander.js?v=0.19.3"></script>
+    <script src="render/creatures.js?v=0.19.3"></script>
+    <script src="render/effects.js?v=0.19.3"></script>
+    <script src="render/night.js?v=0.19.3"></script>
+    <script src="render/ui.js?v=0.19.3"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.19.1"></script>
+    <script src="game/tutorial.js?v=0.19.3"></script>
 
     <script>
         // Start the game!
