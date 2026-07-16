@@ -28,6 +28,16 @@ SC.ui = (function() {
         for (const btn of $('speed-toggle').children) {
             btn.classList.toggle('active', +btn.dataset.speed === st.speed);
         }
+        updateDevPanel();
+    }
+
+    // ── Dev-only A/B panel (?dev=1): congestion is otherwise fixed by
+    // difficulty for the whole run — this lets the developer flip it live
+    // to compare with/without it. Not shown to normal players. ──
+    function updateDevPanel() {
+        const btn = $('dev-congestion');
+        btn.classList.toggle('active', SC.state.congestionEnabled);
+        btn.textContent = SC.state.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
     }
 
     function setSpeed(n) {
@@ -429,7 +439,6 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
-        $('menu-congestion').textContent = st.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
     }
 
@@ -494,6 +503,12 @@ SC.ui = (function() {
         $('crossing-ferry').addEventListener('click', () => chooseCrossing(true));
         $('crossing-cancel').addEventListener('click', () => { SC.sfx.play('click'); closeCrossingChoice(); });
 
+        $('dev-congestion').addEventListener('click', () => {
+            SC.state.congestionEnabled = !SC.state.congestionEnabled;
+            SC.sfx.play('click');
+            updateDevPanel();
+        });
+
         $('mode-build').addEventListener('click', () => setMode('build'));
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
@@ -520,11 +535,6 @@ SC.ui = (function() {
         });
         $('menu-sound').addEventListener('click', () => {
             SC.sfx.toggleMute();
-            updateMenuInfo();
-        });
-        $('menu-congestion').addEventListener('click', () => {
-            SC.state.congestionEnabled = !SC.state.congestionEnabled;
-            SC.sfx.play('click');
             updateMenuInfo();
         });
         $('menu-fullscreen').addEventListener('click', () => {
@@ -744,6 +754,13 @@ SC.ui = (function() {
         if (new URLSearchParams(location.search).has('menu')) openMenu();
         // ...and/or the research tree overlay
         if (new URLSearchParams(location.search).has('techtree')) openResearchTree();
+        // Dev-only A/B panel (?dev=1): lets the developer flip congestion
+        // live to compare with/without it, outside the normal difficulty-
+        // locked flow.
+        if (params.has('dev')) {
+            $('dev-panel').classList.remove('hidden');
+            updateDevPanel();
+        }
     }
 
     return { init, update, toast };
