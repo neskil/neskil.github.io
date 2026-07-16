@@ -496,49 +496,63 @@ SC.render = (function() {
     // starter suppliers, before the first roads exist) can go unnoticed
     // until the player happens to pan past it. Drawn in screen space so
     // arrows stay a constant size and hug the viewport edge at any zoom.
-    function drawOffscreenArrows() {
+    // Also used for a tapped order's city (see ui.js focusOrder): instead
+    // of yanking/zooming the camera to it, we leave the view alone and
+    // just point at it if it isn't currently visible.
+    function drawOffscreenArrow(wx, wy, color, icon, alpha) {
         const w = window.innerWidth, h = window.innerHeight;
         const cx = w / 2, cy = h / 2;
         const margin = 34;
         const halfW = w / 2 - margin, halfH = h / 2 - margin;
 
+        const p = SC.camera.toScreen(wx, wy);
+        if (p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h) return;
+
+        const dx = p.x - cx, dy = p.y - cy;
+        const scale = Math.min(halfW / Math.abs(dx || 1e-6), halfH / Math.abs(dy || 1e-6));
+        const ex = cx + dx * scale, ey = cy + dy * scale;
+        const angle = Math.atan2(dy, dx);
+
+        ctx.save();
+        ctx.translate(ex, ey);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(14, 0);
+        ctx.lineTo(-8, -8);
+        ctx.lineTo(-8, 8);
+        ctx.closePath();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.globalAlpha = alpha;
+        ctx.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, ex - Math.cos(angle) * 20, ey - Math.sin(angle) * 20);
+        ctx.globalAlpha = 1;
+    }
+
+    function drawOffscreenArrows(now) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const pulse = 0.55 + 0.45 * Math.sin(seaTime * 4);
         for (const n of SC.state.nodes) {
             if (!n.active || n.edges.length > 0) continue;
-            const p = SC.camera.toScreen(n.x, n.y);
-            if (p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h) continue;
-
-            const dx = p.x - cx, dy = p.y - cy;
-            const scale = Math.min(halfW / Math.abs(dx || 1e-6), halfH / Math.abs(dy || 1e-6));
-            const ex = cx + dx * scale, ey = cy + dy * scale;
-            const angle = Math.atan2(dy, dx);
-            const pulse = 0.55 + 0.45 * Math.sin(seaTime * 4);
-
-            ctx.save();
-            ctx.translate(ex, ey);
-            ctx.rotate(angle);
-            ctx.beginPath();
-            ctx.moveTo(14, 0);
-            ctx.lineTo(-8, -8);
-            ctx.lineTo(-8, 8);
-            ctx.closePath();
-            ctx.globalAlpha = pulse;
-            ctx.fillStyle = nodeIndicatorColor(n);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(15, 23, 42, 0.6)';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.restore();
-
             const icon = n.kind === 'supplier' ? SC.emojiOf(n.mat)
                        : n.kind === 'factory' ? SC.emojiOf(n.recipe)
                        : (n.isHQ ? '⭐' : '🏢');
-            ctx.globalAlpha = pulse;
-            ctx.font = '15px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(icon, ex - Math.cos(angle) * 20, ey - Math.sin(angle) * 20);
-            ctx.globalAlpha = 1;
+            drawOffscreenArrow(n.x, n.y, nodeIndicatorColor(n), icon, pulse);
+        }
+
+        const h = SC.state.highlight;
+        if (h && now <= h.until) {
+            const fade = Math.min(1, (h.until - now) / 0.5);
+            const icon = h.city.isHQ ? '⭐' : '🏢';
+            drawOffscreenArrow(h.city.x, h.city.y, h.color, icon, pulse * fade);
         }
     }
 
@@ -558,7 +572,7 @@ SC.render = (function() {
         drawNodes(now);
         drawTrucks();
         drawFloaters(dt);
-        drawOffscreenArrows();
+        drawOffscreenArrows(now);
     }
 
     return { attach, frame, resize };

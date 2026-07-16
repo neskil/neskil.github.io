@@ -306,14 +306,15 @@ SC.ui = (function() {
         }
     }
 
-    // Tap an order row: fly the camera to its city and light up the
-    // planned route (city↔factory↔suppliers). Unplanned orders just pulse
-    // the city so "no route!" is locatable. Path-collection logic (walking
-    // the sourcing pick tree) lives in inspect.js and is shared with the
-    // Inspect-mode hover highlight.
+    // Tap an order row: light up the planned route (city↔factory↔suppliers)
+    // and pulse the ordering city, without moving or zooming the camera —
+    // if the city is off-screen, render.js draws a pointing arrow at the
+    // viewport edge instead (same language as the "unconnected site"
+    // off-screen arrows). Unplanned orders just pulse the city so
+    // "no route!" is locatable. Path-collection logic (walking the sourcing
+    // pick tree) lives in inspect.js and is shared with the Inspect-mode
+    // hover highlight.
     function focusOrder(order) {
-        const zoom = Math.max(SC.camera.cam.zoom, 0.85);
-        SC.camera.focus(order.city.x, order.city.y, zoom);
         const paths = [];
         if (order.route) SC.inspect.collectRoutePaths(order.route, order.city, paths);
         SC.state.highlight = {
