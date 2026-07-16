@@ -39,11 +39,14 @@ that ambient animation as its background — it now lives independently at
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
 - **Modes** (bottom-right toggle): **Build** (🔨, default) is the road
-  tap-tap flow above. **Inspect** (🔍) disables building; hovering
-  (mouse) or tapping (touch — tap again, or elsewhere, to dismiss) a node
-  instead opens a tooltip and glows the relevant roads — a factory's
-  needed ingredients and whether each is connected, a supplier's
-  consuming factories, or a city's open orders and routes.
+  tap-tap flow above. **Upgrade** (⬆️) turns taps into upgrades: tap a
+  supplier twice to level its stock cap/regen, or a road twice to pave
+  it into a highway (see Supplier stock / Highways below). **Inspect**
+  (🔍) disables building; hovering (mouse) or tapping (touch — tap
+  again, or elsewhere, to dismiss) a node instead opens a tooltip and
+  glows the relevant roads — a factory's needed ingredients and whether
+  each is connected, a supplier's consuming factories (plus its stock
+  level), or a city's open orders and routes.
 - **Trucks & yards**: HQ (⭐) is always a yard; build more (Shop panel,
   price grows per yard like trucks do) to station trucks nearer distant
   routes. Buying a truck stations it at whichever yard is picked in the
@@ -56,13 +59,17 @@ that ambient animation as its background — it now lives independently at
   pickup and drop, so one trip can carry several units at once. The Truck
   Capacity upgrade raises how many a truck can bundle per trip.
 - **Credit line**: purchases may push the balance negative down to
-  −$1,500 (`CREDIT_LIMIT`); debt accrues 10%/min interest
-  (`DEBT_INTEREST_PER_MIN`), charged continuously in `economy.tick`.
-  The HUD flips to a red "Debt" readout while under water.
-- **Menu (☰)**: pauses the sim; shows session stats (incl. interest
-  paid) and autosave status, with Save now / Sound / How to play /
-  New game (two-tap confirm). The game autosaves every 5s and on
-  visibilitychange/pagehide/beforeunload, so closing the tab is safe.
+  −$1,500 (`CREDIT_LIMIT`, raised by Credit Line research); debt accrues
+  interest continuously in `economy.tick` at the difficulty's rate
+  (`SC.diff().interestPerMin` — 15%/min on Normal). The HUD flips to a
+  red "Debt" readout while under water, and to a `⚠ DEFAULT IN Ns`
+  countdown past the limit (see Default fail state below).
+- **Menu (☰)**: pauses the sim; shows session stats (difficulty,
+  interest paid, fleet/yards) and autosave status, with Save now /
+  Sound / Full screen / How to play / New game (two-tap confirm; routes
+  through the new-game screen so the difficulty can be re-picked). The
+  game autosaves every 5s and on visibilitychange/pagehide/beforeunload,
+  so closing the tab is safe.
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
@@ -141,21 +148,21 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 
 | File | Role |
 |---|---|
-| `js/config.js` | Constants, `SC.GOODS` tree (emoji/recipes/prices), `SC.VERSION` |
-| `js/state.js` | `SC.state` factory, pub/sub, derived getters (prices, speeds) |
+| `js/config.js` | Constants, `SC.GOODS` tree (emoji/recipes/prices), `SC.RESEARCH` techs, `SC.DIFFICULTIES` presets, `SC.VERSION` |
+| `js/state.js` | `SC.state` factory, pub/sub, derived getters (prices, speeds, `SC.diff()`, supplier cap/regen, per-yard truck price) |
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
 | `js/map.js` | World gen: river, node sites, starter cluster; `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
-| `js/roads.js` | Road build/demolish/quote + Dijkstra pathfinding |
+| `js/roads.js` | Road build/demolish/quote, highway upgrades, Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
-| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, upgrades, customer-DC spawn timer |
-| `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), movement |
+| `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer |
+| `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
-| `js/research.js` | Tech tree: one active project, cost/time, `SC.RESEARCH` effects (credit bonus, unlocks) |
+| `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
 | `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
 | `js/render.js` | Canvas drawing (world coords under camera transform) |
-| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Inspect hover/hold |
-| `js/ui.js` | HUD, orders/shop panels, toasts, help overlay |
+| `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold |
+| `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |
 | `js/main.js` | Bootstrap, game loop, `?probe=N` headless verification hook |
 
@@ -167,9 +174,9 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 See `PLAN.md` for the full phased roadmap; short version below (kept in
 sync with it):
 
-- Curved/waypoint roads; road congestion or per-road speed.
+- Curved/waypoint roads; road congestion (per-road speed *upgrades*
+  landed as highways in v1.11; congestion slowdowns did not).
 - Sound of moving trucks / ambient loop; music toggle separate from sfx.
-- Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy (the
   Inspect-mode hold gesture above uses the same long-press primitive).
 - Promotions landed in v1.13 as a research-unlocked *repeatable shop

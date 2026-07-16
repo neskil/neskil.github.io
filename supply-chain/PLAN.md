@@ -1,13 +1,23 @@
 # Supply Chain Tycoon — development plan (v1 → v2)
 
-Status: **agreed 2026-07-15** (decisions below). Baseline is v1.0.0
-(playable core loop: roads, trucks, orders, upgrades, milestone map
-growth, pan/pinch camera).
+Status: **agreed 2026-07-15** (decisions below); last synced with
+shipped reality **2026-07-16 (v1.13.0)**. Baseline is v1.0.0 (playable
+core loop: roads, trucks, orders, upgrades, milestone map growth,
+pan/pinch camera).
 
 ## Decisions (owner review, 2026-07-15)
 
 - **A. Fail state**: BOTH — mode picker at new-game: "Standard"
   (reputation hearts, game over) and "Zen" (endless, current behaviour).
+  ✅ Superseded & shipped in v1.13.0 with a different design, per owner
+  feedback that going negative felt too easy: instead of reputation
+  hearts, the fail state is **loan default** (interest compounding the
+  balance below the credit limit starts a grace countdown → bank
+  forecloses), and the mode picker became four **difficulty presets**
+  (Easy/Normal/Hard set interest rate, deadline multiplier, grace and
+  starting money; **Sandbox** is the "Zen" endless mode — no interest,
+  no foreclosure). Missed orders still only cost the payout and a
+  "Missed" tally, not hearts.
 - **B. Dispatch**: compromise — trucks get a **home depot**. HQ is
   the first depot; more can be built/bought later. Trucks belong to a
   specific depot, start from it, return to it when idle, and the player
@@ -24,6 +34,40 @@ growth, pan/pinch camera).
   congestion → seeds → rest.
 
 ## Shipped
+
+- v1.13.0: **promotions + loan-default fail state + difficulty modes**.
+  Marketing Blitz research unlocks a repeatable paid Shop action ($600 →
+  45s of ~3× faster order arrivals and a higher order cap; the tech
+  stays one-shot, the *action* repeats — this settled 10b's open
+  "repeatable research" design question). Interest compounding the
+  balance below the credit limit starts a persisted grace countdown
+  (HUD `⚠ DEFAULT IN Ns`); running it out forecloses the run (game-over
+  overlay, save wiped). Difficulty presets on the new-game screen —
+  Easy 10%/min + full deadlines (the pre-1.13 tuning), Normal 15%/min +
+  20% tighter deadlines (new baseline), Hard 20%/min + 35% tighter,
+  Sandbox rich/no-interest/no-fail — fixed per run and saved.
+- v1.12.0: four techs deepening the tree to 11 across 3 tiers (Premium
+  Contracts +15% payouts → Regional Marketing, faster customer DCs;
+  Bulk Logistics +2 capacity cap; Preservatives +25% deadlines);
+  research effect fields made fully generic (additive `bonusSum`,
+  multiplicative `customerSpawnMult`, cap-raising `upgradeMaxBonus`);
+  truck reassignment (free "move an idle truck here" under the yard
+  picker); order cap now scales +2 per active customer DC.
+- v1.11.0: **supplier stock** (finite, regenerating, per-supplier
+  upgradable cap/regen; trucks wait at a dry supplier in a 'loading'
+  phase), **highways** (Asphalt Paving research + Upgrade mode paves a
+  road; trucks 1.6× faster there, Dijkstra weighs travel time),
+  **Upgrade mode** as a third mode button, per-yard truck price ladders
+  (a new yard resets the price; yard price growth is the lever), +25%
+  payout per chain tier, and four techs (Asphalt Paving → Overdrive
+  Engines; Fertilizer Program → Factory Automation). Save format v4.
+- v1.10.0: research got its own menu — the Shop keeps a one-line
+  shortcut, the full tree lives in an overlay laid out by prerequisite
+  tier with SVG dependency lines (green when the prereq is done).
+- v1.10.1-and-around (parallel branches, master): New Game reset no
+  longer silently undone by the unload autosave flush; forgiving touch
+  tap threshold; corner-UI relayout (menu+HUD top-left, mode toggle
+  bottom-right, back button into the menu).
 
 *(v1.8.0-v1.9.2 below were developed in parallel across two branches —
 this one and another doing v1.5.0/v1.6.0 Build vs Inspect + the robot
@@ -130,27 +174,32 @@ actually shipped.)*
 
 ## Phase 2 — Strategic depth
 
-7. **Fail state / difficulty ramp** — currently endless and consequence-free.
-   Proposal: reputation hearts (start 5); each expired order costs one;
-   0 = game over screen with stats + restart. Deadlines/order pace tighten
-   as delivered count grows. (Alternative: keep endless "zen" mode as a
-   toggle.)
+7. ~~Fail state~~ — shipped v1.13.0 as loan default + difficulty
+   presets (see Decision A above for how the design changed from the
+   reputation-hearts proposal). Still open from this item: the
+   **within-run difficulty ramp** (deadlines/order pace tightening as
+   the delivered count grows — each run is currently flat), and
+   whether missed orders should carry any penalty beyond the lost
+   payout. Revisit together with the deferred faster-milestone
+   research (README backlog).
 8. **Road congestion** — per-edge speed drops when >N trucks are on it;
    rendered as the road glowing warmer. Rewards building parallel routes
-   and ring roads instead of one mega-highway.
+   and ring roads instead of one mega-highway. (The *positive* half of
+   per-edge speed shipped in v1.11 as highways — `edge.level`,
+   `SC.roads.speedMult`, and time-weighted Dijkstra are exactly the
+   plumbing congestion would reuse with a dynamic multiplier < 1.)
 9. **River ferries** — a cheaper-but-slower alternative to bridges: build
    a dock pair, ferry shuttles on a fixed cadence (reuses the old sim's
    boat visual). Bridges = fast + expensive, ferries = cheap + queueing.
 10. **Contracts** — occasional long-running deals: "3× green every 60s for
     5 minutes at a locked-in rate". Creates steady demand you can build
     dedicated infrastructure for.
-10b. **Promotions research** — a purchasable research node (or repeatable
-    research-gated action) that temporarily boosts order frequency/payout
-    for one chosen good, e.g. "+50% bread orders for 3 minutes". Lighter
-    than Contracts (no locked-in rate/infrastructure commitment) and
-    reuses the `research.js` machinery already in place — natural next
-    entry in `SC.RESEARCH` once a design for repeatable (vs. one-shot)
-    research is settled (the current tree assumes each id completes once).
+10b. ~~Promotions research~~ — shipped v1.13.0 as Marketing Blitz: a
+    one-shot tech unlocking a *repeatable paid Shop action* (global
+    demand burst), which settled the repeatable-research question
+    without touching the one-shot tree. Remaining refinement if wanted:
+    targeting a **chosen good** ("+50% bread orders") instead of all
+    demand — the original per-good idea from this item.
 11. **Factory specialization** — optional: assign a factory a single
     recipe for a crafting-speed bonus; generalists stay flexible.
 12. ~~Deeper, shared supply chains~~ — shipped v1.9.0 (the 🟠🧵🔌🤖 chain,
@@ -176,6 +225,9 @@ actually shipped.)*
 ## Tech housekeeping (ongoing, fold into the above)
 
 - **Seeded RNG module** (`js/rng.js`) — prerequisite for 13, helps tests.
+- ~~Generic research effects~~ — done in v1.12 (`bonusSum` /
+  `customerSpawnMult` / `upgradeMaxBonus`): a new tech is one config
+  entry, no new accessor code.
 - **Pathfinding cache** — Dijkstra runs per dispatch/planning tick; fine
   now (~30 nodes), cache distances keyed on a `networkVersion` counter
   before congestion (8) multiplies calls — inspect mode (6) adds more
