@@ -100,13 +100,14 @@ html, body {
 .hud-item.money span:last-child { color: var(--good); }
 .hud-item.money.debt span:last-child { color: var(--bad); }
 
-/* ── Fast-forward toggle: its own pill, stacked below the top-left
-   bar rather than sharing its row — the row is already tight against
-   the Orders panel on phones, so a 3rd control there would overlap it. */
+/* ── Fast-forward toggle: stacked above the build/upgrade/inspect
+   selector in the bottom-right corner — same segmented-pill language
+   (padding/gap/border-radius) as #mode-toggle below it, just sized for
+   text instead of icons, so the two read as one family of controls. */
 #speed-toggle {
     position: fixed;
-    top: 4.2rem;
-    left: 1rem;
+    bottom: 4.2rem;
+    right: 1rem;
     z-index: 100;
     display: flex;
     background: var(--card-bg);
@@ -118,9 +119,12 @@ html, body {
     -webkit-backdrop-filter: blur(12px);
 }
 .speed-btn {
-    width: 32px;
-    height: 28px;
-    border-radius: 999px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
     border: none;
     background: transparent;
     color: var(--text-secondary);
@@ -640,8 +644,8 @@ html, body {
 @media (max-width: 768px) {
     .icon-btn { width: 38px; height: 38px; }
     .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
-    #speed-toggle { top: 3.6rem; }
-    .speed-btn { width: 28px; height: 24px; font-size: 0.7rem; }
+    #speed-toggle { bottom: 3.8rem; }
+    .speed-btn { width: 32px; height: 32px; font-size: 0.68rem; }
 
     .hud-item { padding: 0.32rem 0.55rem; min-width: 0; }
     .hud-label { font-size: 0.56rem; }
