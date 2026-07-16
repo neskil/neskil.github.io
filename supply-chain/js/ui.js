@@ -76,6 +76,10 @@ SC.ui = (function() {
         btn.classList.toggle('active', !!active);
         btn.querySelector('.price').textContent = active ? 'Tap map…' : fmt(price);
         btn.disabled = !active && !SC.canAfford(price);
+
+        // Move-truck: needs an idle truck homed somewhere else
+        $('btn-moveTruck').disabled = !st.trucks.some(t =>
+            !t.jobs.length && t.homeYard !== st.activeYard && (!t.path || t.phase === 'returning'));
     }
 
     // ── Research & Build (Shop panel sections) ──────
@@ -446,6 +450,12 @@ SC.ui = (function() {
         $('yard-select').addEventListener('change', e => {
             const node = SC.state.nodes.find(n => n.id === +e.target.value);
             if (node) SC.state.activeYard = node;
+        });
+        $('btn-moveTruck').addEventListener('click', () => {
+            const res = SC.vehicles.reassignTruck(SC.state.activeYard);
+            if (res.ok) { SC.sfx.play('click'); toast(`Truck rebased to ${yardLabel(SC.state.activeYard)}`, 'good'); }
+            else { SC.sfx.play('error'); toast('No idle truck available at another yard', 'error'); }
+            updateShop();
         });
         $('btn-yard').addEventListener('click', () => {
             const st = SC.state;
