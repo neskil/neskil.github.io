@@ -321,7 +321,7 @@ SC.ui = (function() {
         const info = node && SC.inspect.infoFor(node);
         if (!info) { el.classList.remove('show'); return; }
         el.innerHTML = inspectTooltipHTML(info);
-        const p = SC.camera.toScreen(node.x, node.y);
+        const p = SC.render.nodeIconAnchor(node);
         el.style.left = p.x + 'px';
         el.style.top = (p.y - 34) + 'px';
         el.classList.add('show');
