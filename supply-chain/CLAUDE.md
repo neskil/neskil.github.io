@@ -98,7 +98,15 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   `&contract=1` force-rolls a contract offer (skips the random
   `CONTRACT_INTERVAL` wait) for screenshotting the Accept/Decline card;
   `&contract=accept` also auto-accepts it into a real (gold-outlined,
-  📜) order in the Orders panel.
+  📜) order in the Orders panel. `&crossing=1` fires the Bridge-vs-Ferry
+  `crossingChoice` modal directly (same mirrored-node trick as
+  `&ferry=1`) for screenshotting the choice UI without tapping a real
+  river-crossing road. `?dev=1` (a standing dev flag, not a one-shot
+  probe modifier — usable on a normal run too, not just `?probe=`) shows
+  a small pill under the top-left HUD bar that live-toggles
+  `SC.state.congestionEnabled`; congestion is otherwise fixed by
+  difficulty for the whole run and isn't a player-facing option, so this
+  is the way to A/B a map with/without it during development.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —

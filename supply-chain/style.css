@@ -102,6 +102,41 @@ html, body {
 .hud-item.money span:last-child { color: var(--good); }
 .hud-item.money.debt span:last-child { color: var(--bad); }
 
+/* ── Dev-only A/B panel: same segmented-pill language as #speed-toggle/
+   #mode-toggle, stacked under the top-left HUD bar. Only shown for
+   ?dev=1 — congestion is otherwise fixed by difficulty for a run; this
+   lets the developer flip it live to compare, it's not a player option. */
+#dev-panel {
+    position: fixed;
+    top: 4.2rem;
+    left: 1rem;
+    z-index: 100;
+    display: flex;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    padding: 3px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+#dev-panel.hidden { display: none; }
+.dev-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.dev-btn:hover { color: var(--text-primary); }
+.dev-btn.active {
+    background: var(--accent-color);
+    color: #0f172a;
+}
+
 /* ── Fast-forward toggle: stacked above the build/upgrade/inspect
    selector in the bottom-right corner — same segmented-pill language
    (padding/gap/border-radius) as #mode-toggle below it, just sized for
@@ -441,6 +476,35 @@ html, body {
 }
 .shop-btn.hidden { display: none; }
 
+/* ── River-crossing choice overlay ───────────────── */
+#crossing-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 310;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#crossing-overlay.hidden { display: none; }
+.crossing-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 0.9rem;
+}
+#crossing-bridge, #crossing-ferry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+}
+.crossing-cost { color: var(--good); font-weight: 700; }
+#crossing-bridge.primary .crossing-cost { color: #0f172a; }
+
 /* ── Research tree overlay ──────────────────────── */
 #research-overlay {
     position: fixed;
@@ -685,6 +749,7 @@ html, body {
        #top-left/#orders-panel share one top; #shop-panel/#mode-toggle
        (and #speed-toggle stacked above it) share one bottom. */
     #top-left { top: 0.5rem; }
+    #dev-panel { top: 3.7rem; left: 0.5rem; }
     #mode-toggle { bottom: 0.5rem; }
     .icon-btn { width: 38px; height: 38px; }
     .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }

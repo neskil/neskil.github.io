@@ -35,6 +35,11 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.23.0: **congestion is difficulty-only**; the ☰-menu toggle is gone,
+  replaced by a `?dev=1` dev-only A/B panel. Per item 8 below — details
+  there.
+- v1.20.0: **river-crossing choice modal** replaces the ferry build-mode
+  toggle. Per item 9 below — details there.
 - v1.19.0: **contracts**. Per item 10 below — details there.
 - v1.18.0: **river ferries**. Per item 9 below — details there.
 - v1.17.0: **road congestion**, feature-flagged. Per item 8 below —
@@ -205,19 +210,29 @@ actually shipped.)*
    weighting, so dispatch actually prefers a quieter parallel road. A
    busy road glows warmer (`render.drawRoads`). Shipped as a **feature
    flag** (`SC.state.congestionEnabled`) per the owner's request: on by
-   default for Normal/Hard, off for Easy/Sandbox, toggle anytime from
-   the ☰ menu regardless of difficulty.
+   default for Normal/Hard, off for Easy/Sandbox. v1.17.0-v1.22.0 also
+   exposed a live ☰-menu toggle so any run could override the default;
+   v1.23.0 removed that player-facing toggle — congestion is now purely
+   a difficulty trait, fixed for the run like interest rate or deadlines
+   — and replaced it with a `?dev=1` dev-only panel (pill under the
+   top-left HUD bar) that flips `congestionEnabled` live for the owner's
+   own A/B comparison during development, not for normal play.
 9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
    "dock pair + fixed-cadence shuttle" proposal to an edge-level
-   alternative chosen at build time (Shop panel toggle): a road across
-   the river builds as `edge.ferry` instead of a bridge — `FERRY_COST_MULT`
-   cheaper than `BRIDGE_MULT`, but `FERRY_SPEED_MULT` slower, can't be
-   paved into a highway. No new node kind or scheduling clock — the
-   "queueing" half of the ask is congestion (if enabled) applying to a
-   ferry edge same as any other, which reads as trucks queueing for the
-   boat without a separate queue simulation. A boat emoji shuttles back
-   and forth along the crossing for the promised visual, short of a full
-   dock/sprite treatment (that's Decision C's dedicated visual pass).
+   alternative: a road across the river builds as `edge.ferry` instead
+   of a bridge — `FERRY_COST_MULT` cheaper than `BRIDGE_MULT`, but
+   `FERRY_SPEED_MULT` slower, can't be paved into a highway. No new node
+   kind or scheduling clock — the "queueing" half of the ask is
+   congestion (if enabled) applying to a ferry edge same as any other,
+   which reads as trucks queueing for the boat without a separate queue
+   simulation. A boat emoji shuttles back and forth along the crossing
+   for the promised visual, short of a full dock/sprite treatment
+   (that's Decision C's dedicated visual pass). v1.18.0 chose the ferry
+   at build time via a persistent Shop panel toggle; v1.20.0 replaced
+   that with a `crossingChoice` modal that pops up in context the moment
+   a tapped road actually crosses the river (Bridge vs. Ferry, costs
+   shown live) — the toggle needed remembering to flip on/off around
+   each crossing, which the owner found convoluted.
 10. ~~Contracts~~ — shipped v1.19.0, scoped to reuse the existing order
     machinery instead of a parallel demand system: `rollContractOffer`
     proposes a bulk deal (bigger `qty`, `CONTRACT_RATE_BONUS` premium
