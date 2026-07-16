@@ -44,11 +44,13 @@ SC.newState = function(difficulty) {
         defaultIn: null,    // default countdown while below -creditLimit (null = safe)
         gameOver: false,    // defaulted — sim frozen, overlay shown
         speed: 1,           // fast-forward multiplier: 1/2/4, see main.js's loop
+        congestionEnabled: SC.DIFFICULTIES[difficulty].congestion, // live toggle, see roads.speedMult
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
         mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
+        buildFerry: false,  // Build-mode toggle: river crossings build as a ferry, not a bridge
         gameStarted: false
     };
     return SC.state;

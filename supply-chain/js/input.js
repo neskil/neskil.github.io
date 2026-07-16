@@ -130,7 +130,7 @@ SC.input = (function() {
         if (node) {
             pendingDemolish = null;
             if (st.selectedNode && st.selectedNode !== node) {
-                const res = SC.roads.build(st.selectedNode, node);
+                const res = SC.roads.build(st.selectedNode, node, { ferry: st.buildFerry });
                 if (res.ok) {
                     SC.sfx.play('build');
                     st.selectedNode = node; // chain roads mini-metro style
