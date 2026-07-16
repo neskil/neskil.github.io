@@ -7,7 +7,6 @@ SC.input = (function() {
     const TOUCH_TAP_SLOP = 20; // fingers wobble more than a mouse click; too tight
                                 // and a background tap-to-cancel misreads as a pan,
                                 // leaving road building armed for the next real tap
-    const HOLD_MS = 350;    // touch hold duration before Inspect mode shows info
 
     let canvas = null;
     const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved, pointerType}
@@ -16,8 +15,7 @@ SC.input = (function() {
     let pendingDemolish = null; // edge tapped once, awaiting confirm tap
     let pendingBuy = null;      // for-sale factory tapped once
     let pendingUpgrade = null;  // Upgrade mode: node/edge tapped once, awaiting confirm
-    let inspectNode = null;     // Inspect mode: node currently hovered/held
-    let holdTimer = null;       // Inspect mode (touch): pending long-press
+    let inspectNode = null;     // Inspect mode: node currently hovered (mouse) or tapped (touch)
 
     function nodeAtScreen(sx, sy) {
         let best = null, bestD = 30; // px hit radius
@@ -118,7 +116,12 @@ SC.input = (function() {
 
     function handleTap(sx, sy) {
         const st = SC.state;
-        if (st.mode === 'inspect') return; // Inspect mode: hover/hold only, no building
+        if (st.mode === 'inspect') { // tap a node to show/hide its info (mouse also gets live hover)
+            const node = nodeAtScreen(sx, sy);
+            inspectNode = (node && node === inspectNode) ? null : node;
+            if (node) SC.sfx.play('click');
+            return;
+        }
         if (st.mode === 'upgrade') { handleUpgradeTap(sx, sy); return; }
         if (st.placeMode) { handlePlacementTap(sx, sy); return; }
 
@@ -205,10 +208,6 @@ SC.input = (function() {
         };
     }
 
-    function clearHoldTimer() {
-        if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    }
-
     // Called when Inspect mode's build-mode leftovers (selection, pending
     // demolish/buy) need clearing, e.g. right after a mode switch.
     function reset() {
@@ -216,7 +215,6 @@ SC.input = (function() {
         pendingBuy = null;
         pendingUpgrade = null;
         inspectNode = null;
-        clearHoldTimer();
     }
 
     function attach(cv) {
@@ -231,18 +229,6 @@ SC.input = (function() {
                 pointerType: e.pointerType
             });
             if (pointers.size === 2) pinch = pinchState();
-
-            // Inspect mode (touch): a still finger for HOLD_MS "peeks" the
-            // node's info tooltip, same primitive as a long-press elsewhere.
-            // Mouse doesn't need this — pointermove hover covers it live.
-            if (SC.state.mode === 'inspect' && e.pointerType !== 'mouse') {
-                clearHoldTimer();
-                const id = e.pointerId;
-                holdTimer = setTimeout(() => {
-                    const p = pointers.get(id);
-                    if (p && !p.moved) inspectNode = nodeAtScreen(p.x, p.y);
-                }, HOLD_MS);
-            }
         });
 
         canvas.addEventListener('pointermove', e => {
@@ -256,8 +242,7 @@ SC.input = (function() {
             p.x = e.clientX; p.y = e.clientY;
             const slop = p.pointerType === 'mouse' ? TAP_SLOP : TOUCH_TAP_SLOP;
             if (Math.hypot(p.x - p.startX, p.y - p.startY) > slop) {
-                p.moved = true;
-                clearHoldTimer(); // moving cancels a pending hold — this is a pan
+                p.moved = true; // this is a pan, not a tap — drop any shown inspect info
                 if (SC.state.mode === 'inspect') inspectNode = null;
             }
 
@@ -276,8 +261,6 @@ SC.input = (function() {
             const p = pointers.get(e.pointerId);
             pointers.delete(e.pointerId);
             if (pointers.size < 2) pinch = null;
-            clearHoldTimer();
-            if (SC.state.mode === 'inspect' && e.pointerType !== 'mouse') inspectNode = null;
             if (p && !p.moved && e.type === 'pointerup' && pointers.size === 0) {
                 handleTap(e.clientX, e.clientY);
             }

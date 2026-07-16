@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.11.0">
+    <link rel="stylesheet" href="style.css?v=1.12.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -22,7 +22,7 @@
         <div id="mode-toggle" class="mode-toggle">
             <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
             <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
-            <button id="mode-inspect" class="mode-btn" title="Inspect: hover/hold a node for its connections">🔍</button>
+            <button id="mode-inspect" class="mode-btn" title="Inspect: hover or tap a node for its connections">🔍</button>
         </div>
         <button id="btn-menu" class="icon-btn" title="Menu">☰</button>
     </div>
@@ -131,7 +131,7 @@
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, top right): tap a supplier twice to raise its stock cap and refill rate.</li>
                 <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
-                <li><b>Inspect mode (🔍, top right):</b> hover or hold a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up.</li>
+                <li><b>Inspect mode (🔍, top right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
             </ul>
             <div class="recipes">
                 <span>🌾+💧→🍞</span>
@@ -146,22 +146,22 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.11.0"></script>
-    <script src="js/state.js?v=1.11.0"></script>
-    <script src="js/save.js?v=1.11.0"></script>
-    <script src="js/sfx.js?v=1.11.0"></script>
-    <script src="js/map.js?v=1.11.0"></script>
-    <script src="js/camera.js?v=1.11.0"></script>
-    <script src="js/roads.js?v=1.11.0"></script>
-    <script src="js/factories.js?v=1.11.0"></script>
-    <script src="js/economy.js?v=1.11.0"></script>
-    <script src="js/vehicles.js?v=1.11.0"></script>
-    <script src="js/inspect.js?v=1.11.0"></script>
-    <script src="js/research.js?v=1.11.0"></script>
-    <script src="js/placement.js?v=1.11.0"></script>
-    <script src="js/render.js?v=1.11.0"></script>
-    <script src="js/input.js?v=1.11.0"></script>
-    <script src="js/ui.js?v=1.11.0"></script>
-    <script src="js/main.js?v=1.11.0"></script>
+    <script src="js/config.js?v=1.12.0"></script>
+    <script src="js/state.js?v=1.12.0"></script>
+    <script src="js/save.js?v=1.12.0"></script>
+    <script src="js/sfx.js?v=1.12.0"></script>
+    <script src="js/map.js?v=1.12.0"></script>
+    <script src="js/camera.js?v=1.12.0"></script>
+    <script src="js/roads.js?v=1.12.0"></script>
+    <script src="js/factories.js?v=1.12.0"></script>
+    <script src="js/economy.js?v=1.12.0"></script>
+    <script src="js/vehicles.js?v=1.12.0"></script>
+    <script src="js/inspect.js?v=1.12.0"></script>
+    <script src="js/research.js?v=1.12.0"></script>
+    <script src="js/placement.js?v=1.12.0"></script>
+    <script src="js/render.js?v=1.12.0"></script>
+    <script src="js/input.js?v=1.12.0"></script>
+    <script src="js/ui.js?v=1.12.0"></script>
+    <script src="js/main.js?v=1.12.0"></script>
 </body>
 </html>
