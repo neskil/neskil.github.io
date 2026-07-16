@@ -130,7 +130,13 @@ SC.input = (function() {
         if (node) {
             pendingDemolish = null;
             if (st.selectedNode && st.selectedNode !== node) {
-                const res = SC.roads.build(st.selectedNode, node, { ferry: st.buildFerry });
+                if (!SC.roads.findEdge(st.selectedNode, node) &&
+                    SC.map.segmentCrossesRiver(st.selectedNode.x, st.selectedNode.y, node.x, node.y)) {
+                    SC.emit('crossingChoice', { a: st.selectedNode, b: node });
+                    pendingBuy = null;
+                    return;
+                }
+                const res = SC.roads.build(st.selectedNode, node);
                 if (res.ok) {
                     SC.sfx.play('build');
                     st.selectedNode = node; // chain roads mini-metro style
