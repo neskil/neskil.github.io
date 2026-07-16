@@ -104,6 +104,21 @@ SC.CONFIG = {
     ORDER_DEPTH_VALUE: 0.25,   // extra payout fraction per chain tier past 1
     SALVAGE_PAY: 15,           // cargo delivered after its order expired
 
+    // Contracts: occasional bulk-order offers at a locked-in premium
+    // rate. A card lets you Accept or Decline within CONTRACT_OFFER_EXPIRE
+    // before it's withdrawn; accepting turns it into a regular (large)
+    // order with a longer deadline. Unlike a normal missed order (just a
+    // tally, no cost), failing to deliver the full quantity in time
+    // charges a penalty on top — proportional to however many units are
+    // still missing, so a near-complete contract stings less than an
+    // untouched one. Only one contract (offer or active) at a time.
+    CONTRACT_INTERVAL: [150, 240],  // seconds between offer attempts
+    CONTRACT_OFFER_EXPIRE: 25,      // seconds to accept before withdrawn
+    CONTRACT_QTY: [4, 7],
+    CONTRACT_DURATION: [150, 220],  // seconds to fulfil once accepted
+    CONTRACT_RATE_BONUS: 1.35,      // locked-in premium over the normal per-unit value
+    CONTRACT_PENALTY_MULT: 0.6,     // × missing units' value, charged on failure
+
     // A new locked supplier/factory site activates every N deliveries.
     // New customer DCs (cities) are separate: they unlock on their own
     // timer below, not tied to delivery count, since only HQ takes orders

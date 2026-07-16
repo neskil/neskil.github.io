@@ -170,7 +170,16 @@ SC.economy = (function() {
         SC.state.missed++;
         SC.factories.cancelTasksForOrder(order);
         SC.vehicles.cancelJobsForOrder(order);
-        SC.emit('orderExpired', order);
+        if (order.contract) {
+            // Penalty scales with however many units are still missing, so
+            // a near-complete contract stings less than an untouched one.
+            const missingUnits = order.qty - order.deliveredUnits;
+            const penalty = Math.round(missingUnits * (order.payout / order.qty) * C().CONTRACT_PENALTY_MULT);
+            SC.state.money -= penalty;
+            SC.emit('contractFailed', { order, penalty });
+        } else {
+            SC.emit('orderExpired', order);
+        }
     }
 
     // Roads/factories changed: retry orders that had no route
@@ -204,6 +213,65 @@ SC.economy = (function() {
         SC.state.money -= C().PROMO_COST;
         SC.state.promoUntil = SC.state.time + C().PROMO_DURATION;
         SC.emit('promoStarted', { until: SC.state.promoUntil });
+        return { ok: true };
+    }
+
+    // ── Contracts: occasional bulk-order offers at a locked-in premium
+    // rate. rollContractOffer proposes one; the player Accepts (turns it
+    // into a real order via acceptContract) or Declines/lets it expire
+    // (declineContract) within CONTRACT_OFFER_EXPIRE. ──
+    function rollContractOffer() {
+        // Only one contract (offer or active) at a time.
+        if (SC.state.contractOffer || SC.state.orders.some(o => o.contract)) return null;
+        const cities = activeCities();
+        const products = craftableProducts();
+        if (!cities.length || !products.length) return null;
+        const city = cities[Math.floor(Math.random() * cities.length)];
+        const product = products[Math.floor(Math.random() * products.length)];
+        const qty = Math.floor(rand(C().CONTRACT_QTY[0], C().CONTRACT_QTY[1] + 1));
+
+        let nearest = Infinity;
+        for (const f of SC.factories.all()) {
+            if (f.recipe === product) nearest = Math.min(nearest, Math.hypot(f.x - city.x, f.y - city.y));
+        }
+        if (nearest === Infinity) nearest = 400;
+
+        // Same shape as spawnOrder's payout formula, plus the locked-in
+        // CONTRACT_RATE_BONUS premium that's the whole appeal of accepting.
+        const depthMult = 1 + C().ORDER_DEPTH_VALUE * (SC.depthOf(product) - 1);
+        const payout = Math.round((qty * (SC.GOODS[product].value * depthMult * C().CONTRACT_RATE_BONUS +
+            C().ORDER_DIST_PAY * nearest) * (1 + SC.research.payoutBonus())) / 5) * 5;
+        const deadline = rand(C().CONTRACT_DURATION[0], C().CONTRACT_DURATION[1]) * SC.diff().deadlineMult;
+
+        SC.state.contractOffer = { product, city, qty, payout, deadline, timeLeft: C().CONTRACT_OFFER_EXPIRE };
+        SC.emit('contractOffered', SC.state.contractOffer);
+        return SC.state.contractOffer;
+    }
+
+    function acceptContract() {
+        const offer = SC.state.contractOffer;
+        if (!offer) return { ok: false, reason: 'none' };
+        const order = {
+            id: ++SC.state.orderSeq,
+            city: offer.city, product: offer.product, qty: offer.qty,
+            deliveredUnits: 0,
+            payout: offer.payout,
+            deadline: offer.deadline, deadlineTotal: offer.deadline,
+            planned: false, noRoute: false, done: false,
+            contract: true
+        };
+        SC.state.orders.push(order);
+        planOrder(order);
+        SC.state.contractOffer = null;
+        SC.emit('contractAccepted', order);
+        return { ok: true, order };
+    }
+
+    function declineContract() {
+        if (!SC.state.contractOffer) return { ok: false };
+        SC.emit('contractDeclined', SC.state.contractOffer);
+        SC.state.contractOffer = null;
+        SC.state.nextContractIn = rand(C().CONTRACT_INTERVAL[0], C().CONTRACT_INTERVAL[1]);
         return { ok: true };
     }
 
@@ -261,6 +329,17 @@ SC.economy = (function() {
             SC.emit('debtRecovered');
         }
 
+        // Contract offers: a pending one just counts down to auto-decline;
+        // a new one is only rolled when nothing is pending or already
+        // accepted (one contract, offer or active, at a time).
+        if (SC.state.contractOffer) {
+            SC.state.contractOffer.timeLeft -= dt;
+            if (SC.state.contractOffer.timeLeft <= 0) declineContract();
+        } else if (!SC.state.orders.some(o => o.contract)) {
+            SC.state.nextContractIn -= dt;
+            if (SC.state.nextContractIn <= 0) rollContractOffer();
+        }
+
         // New customer DCs (cities) unlock on their own clock, independent
         // of delivery milestones — HQ is the only order-placing location
         // until one appears.
@@ -309,5 +388,6 @@ SC.economy = (function() {
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
              craftableProducts, bestSourceFor, maxActiveOrders,
-             isPromoActive, promoTimeLeft, startPromotion };
+             isPromoActive, promoTimeLeft, startPromotion,
+             rollContractOffer, acceptContract, declineContract };
 })();
