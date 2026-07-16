@@ -3,11 +3,14 @@
 window.SC = window.SC || {};
 
 SC.input = (function() {
-    const TAP_SLOP = 8;     // px of movement before a press becomes a drag
+    const TAP_SLOP = 8;        // px of movement before a mouse press becomes a drag
+    const TOUCH_TAP_SLOP = 20; // fingers wobble more than a mouse click; too tight
+                                // and a background tap-to-cancel misreads as a pan,
+                                // leaving road building armed for the next real tap
     const HOLD_MS = 350;    // touch hold duration before Inspect mode shows info
 
     let canvas = null;
-    const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved}
+    const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved, pointerType}
     let pinch = null;           // {dist, cx, cy}
     let hover = null;           // world pos of the mouse, for the ghost road
     let pendingDemolish = null; // edge tapped once, awaiting confirm tap
@@ -138,12 +141,6 @@ SC.input = (function() {
                 pendingBuy = null;
                 return;
             }
-            if (node === st.selectedNode) {
-                st.selectedNode = null;
-                pendingBuy = null;
-                SC.sfx.play('click');
-                return;
-            }
             if (node.kind === 'factory' && node.forSale) {
                 const building = SC.GOODS[node.recipe].building;
                 if (pendingBuy === node) {
@@ -162,6 +159,12 @@ SC.input = (function() {
                     SC.sfx.play('click');
                     SC.emit('toast', { text: `Tap again to buy this ${building.toLowerCase()} ${SC.emojiOf(node.recipe)} for $${SC.CONFIG.FACTORY_SITE_PRICE}`, kind: 'info' });
                 }
+                return;
+            }
+            if (node === st.selectedNode) {
+                st.selectedNode = null;
+                pendingBuy = null;
+                SC.sfx.play('click');
                 return;
             }
             st.selectedNode = node;
@@ -224,7 +227,8 @@ SC.input = (function() {
             canvas.setPointerCapture(e.pointerId);
             pointers.set(e.pointerId, {
                 x: e.clientX, y: e.clientY,
-                startX: e.clientX, startY: e.clientY, moved: false
+                startX: e.clientX, startY: e.clientY, moved: false,
+                pointerType: e.pointerType
             });
             if (pointers.size === 2) pinch = pinchState();
 
@@ -250,7 +254,8 @@ SC.input = (function() {
             }
             const dx = e.clientX - p.x, dy = e.clientY - p.y;
             p.x = e.clientX; p.y = e.clientY;
-            if (Math.hypot(p.x - p.startX, p.y - p.startY) > TAP_SLOP) {
+            const slop = p.pointerType === 'mouse' ? TAP_SLOP : TOUCH_TAP_SLOP;
+            if (Math.hypot(p.x - p.startX, p.y - p.startY) > slop) {
                 p.moved = true;
                 clearHoldTimer(); // moving cancels a pending hold — this is a pan
                 if (SC.state.mode === 'inspect') inspectNode = null;
