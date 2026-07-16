@@ -74,7 +74,12 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   per-yard truck counts. `&highway=1` completes pavedRoads and paves all
   built roads (highway styling); `&suplevel=2` levels every supplier up
   twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
-  bars). `&techtree=1` opens the 🔬 Research overlay
+  bars). `&doom=42` forces a balance beyond the credit limit with 42s
+  on the default countdown (⚠ HUD state); `&gameover=1` triggers the
+  foreclosure overlay; `&promo=1` completes Marketing Blitz and starts
+  a promotion (shop button shows the running timer). `?new=1` (no
+  probe) shows the new-game screen incl. the difficulty picker.
+  `&techtree=1` opens the 🔬 Research overlay
   (its own menu, separate from the Shop panel's Build/Buy list) on load,
   for screenshotting the tree layout.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
