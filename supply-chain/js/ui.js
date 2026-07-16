@@ -25,8 +25,6 @@ SC.ui = (function() {
         $('hud-money-item').classList.toggle('debt', inDebt);
         const idle = st.trucks.filter(t => !t.jobs.length && !t.path).length;
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
-        $('hud-delivered').textContent = st.delivered;
-        $('hud-missed').textContent = st.missed;
         for (const btn of $('speed-toggle').children) {
             btn.classList.toggle('active', +btn.dataset.speed === st.speed);
         }
