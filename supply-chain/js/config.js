@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.11.0';
+SC.VERSION = '1.12.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -65,7 +65,8 @@ SC.CONFIG = {
 
     ORDER_INTERVAL: [14, 24],  // seconds between new orders (shrinks as you level)
     ORDER_DEADLINE: [100, 160],// seconds to fulfil
-    ORDER_MAX_ACTIVE: 6,
+    ORDER_MAX_ACTIVE: 6,       // base cap; +ORDER_PER_CITY per DC beyond HQ
+    ORDER_PER_CITY: 2,         // demand scales with the customer network
     ORDER_DIST_PAY: 0.35,      // $ per world-unit of factory->city distance
     ORDER_DEPTH_SLACK: 0.5,    // extra deadline fraction per chain tier past 1
     ORDER_DEPTH_VALUE: 0.25,   // extra payout fraction per chain tier past 1
@@ -128,10 +129,31 @@ SC.RESEARCH = {
         name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 110, requires: ['fertilizer'],
         desc: 'Raises the Factory Speed upgrade cap by 3 levels.',
         upgradeMaxBonus: { factorySpeed: 3 }
+    },
+    premiumContracts: {
+        name: 'Premium Contracts', emoji: '💰', cost: 1400, time: 80, requires: ['creditLine2'],
+        desc: 'Negotiate better rates — all order payouts +15%.',
+        payoutBonus: 0.15
+    },
+    rapidExpansion: {
+        name: 'Regional Marketing', emoji: '🏙️', cost: 2200, time: 120, requires: ['premiumContracts'],
+        desc: 'Word gets around — new customer DCs appear 40% sooner.',
+        customerSpawnMult: 0.6
+    },
+    coldStorage: {
+        name: 'Preservatives', emoji: '🧊', cost: 1200, time: 80, requires: ['fertilizer'],
+        desc: 'Goods keep longer — order deadlines +25%.',
+        deadlineBonus: 0.25
+    },
+    bulkLogistics: {
+        name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 120, requires: ['overdrive'],
+        desc: 'Raises the Truck Capacity upgrade cap by 2 levels.',
+        upgradeMaxBonus: { truckCapacity: 2 }
     }
 };
 SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
-                     'creditLine3', 'overdrive', 'automation'];
+                     'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
+                     'rapidExpansion', 'bulkLogistics'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city

@@ -15,19 +15,19 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.11.0"></script>
-    <script src="js/state.js?v=1.11.0"></script>
-    <script src="js/save.js?v=1.11.0"></script>
-    <script src="js/sfx.js?v=1.11.0"></script>
-    <script src="js/map.js?v=1.11.0"></script>
-    <script src="js/camera.js?v=1.11.0"></script>
-    <script src="js/roads.js?v=1.11.0"></script>
-    <script src="js/factories.js?v=1.11.0"></script>
-    <script src="js/economy.js?v=1.11.0"></script>
-    <script src="js/vehicles.js?v=1.11.0"></script>
-    <script src="js/inspect.js?v=1.11.0"></script>
-    <script src="js/research.js?v=1.11.0"></script>
-    <script src="js/placement.js?v=1.11.0"></script>
+    <script src="js/config.js?v=1.12.0"></script>
+    <script src="js/state.js?v=1.12.0"></script>
+    <script src="js/save.js?v=1.12.0"></script>
+    <script src="js/sfx.js?v=1.12.0"></script>
+    <script src="js/map.js?v=1.12.0"></script>
+    <script src="js/camera.js?v=1.12.0"></script>
+    <script src="js/roads.js?v=1.12.0"></script>
+    <script src="js/factories.js?v=1.12.0"></script>
+    <script src="js/economy.js?v=1.12.0"></script>
+    <script src="js/vehicles.js?v=1.12.0"></script>
+    <script src="js/inspect.js?v=1.12.0"></script>
+    <script src="js/research.js?v=1.12.0"></script>
+    <script src="js/placement.js?v=1.12.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1052,6 +1052,85 @@
         assert('supplier level survives a round-trip', rS1.level === 1);
         assert('supplier stock survives a round-trip', approx(rS1.stock, 3.5, 0.001));
         assert('highway level survives a round-trip', SC.state.edges[0].level === 1);
+    })();
+
+    // ── Premium Contracts / Preservatives: payout & deadline bonuses ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        // F(400,200) -> C(700,200) = 300u: payout is fully deterministic
+        const o1 = SC.economy.spawnOrder();
+        const base = Math.round((SC.GOODS.bread.value + SC.CONFIG.ORDER_DIST_PAY * 300) / 5) * 5;
+        assert('baseline bread payout matches the formula', o1.payout === base);
+
+        SC.state.research.completed.premiumContracts = true;
+        const o2 = SC.economy.spawnOrder();
+        const boosted = Math.round(((SC.GOODS.bread.value + SC.CONFIG.ORDER_DIST_PAY * 300) * 1.15) / 5) * 5;
+        assert('premium contracts boost payouts by 15%', o2.payout === boosted && o2.payout > o1.payout);
+
+        assert('baseline deadline stays in its config range',
+            o1.deadline >= SC.CONFIG.ORDER_DEADLINE[0] && o1.deadline <= SC.CONFIG.ORDER_DEADLINE[1]);
+        SC.state.research.completed.coldStorage = true;
+        const o3 = SC.economy.spawnOrder();
+        assert('preservatives stretch deadlines by 25%',
+            o3.deadline >= SC.CONFIG.ORDER_DEADLINE[0] * 1.25 &&
+            o3.deadline <= SC.CONFIG.ORDER_DEADLINE[1] * 1.25);
+    })();
+
+    // ── Regional Marketing / Bulk Logistics research effects ──
+    (function() {
+        fixture();
+        assert('customer spawn multiplier is 1 with no research', SC.research.customerSpawnMult() === 1);
+        SC.state.research.completed.rapidExpansion = true;
+        assert('regional marketing shortens customer spawn intervals',
+            approx(SC.research.customerSpawnMult(), SC.RESEARCH.rapidExpansion.customerSpawnMult));
+
+        SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
+        assert('truckCapacity capped without bulk logistics', SC.upgradePrice('truckCapacity') === null);
+        SC.state.research.completed.bulkLogistics = true;
+        assert('bulk logistics raises the capacity cap by 2',
+            SC.upgradeMax('truckCapacity') === SC.CONFIG.UPGRADES.truckCapacity.max + 2 &&
+            SC.upgradePrice('truckCapacity') !== null);
+    })();
+
+    // ── Order cap scales with the customer network ──
+    (function() {
+        fixture(); // one active city (HQ)
+        assert('order cap is the base with only HQ active',
+            SC.economy.maxActiveOrders() === SC.CONFIG.ORDER_MAX_ACTIVE);
+        SC.map.makeNode('city', 900, 900, { active: true });
+        SC.map.makeNode('city', 1500, 300, { active: true });
+        assert('each extra active DC raises the order cap',
+            SC.economy.maxActiveOrders() === SC.CONFIG.ORDER_MAX_ACTIVE + 2 * SC.CONFIG.ORDER_PER_CITY);
+        assert('inactive cities do not count', (function() {
+            SC.map.makeNode('city', 1800, 900, { active: false });
+            return SC.economy.maxActiveOrders() === SC.CONFIG.ORDER_MAX_ACTIVE + 2 * SC.CONFIG.ORDER_PER_CITY;
+        })());
+    })();
+
+    // ── Truck reassignment: idle trucks re-home between yards ──
+    (function() {
+        const { S1, F, C } = fixture(); // C is HQ
+        SC.state.money = 100000;
+        const yard = SC.map.makeNode('yard', 900, 900, { active: true });
+        const t1 = SC.vehicles.addTruck(C, C);
+        const t2 = SC.vehicles.addTruck(C, C);
+
+        const res = SC.vehicles.reassignTruck(yard);
+        assert('an idle truck re-homes to the target yard',
+            res.ok && res.truck.homeYard === yard);
+        assert('other trucks keep their home', [t1, t2].filter(t => t.homeYard === C).length === 1);
+
+        // Busy trucks are not eligible
+        SC.roads.build(S1, F);
+        const busy = [t1, t2].find(t => t.homeYard === C);
+        busy.jobs = [{ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: null, task: null }];
+        busy.phase = 'toPickup';
+        const res2 = SC.vehicles.reassignTruck(C); // pull one back to HQ
+        assert('a truck with jobs is not eligible to move',
+            res2.ok === true ? res2.truck !== busy : true);
+        const res3 = SC.vehicles.reassignTruck(SC.map.makeNode('city', 1900, 1200, { active: true }));
+        assert('reassigning to a non-yard is rejected', !res3.ok && res3.reason === 'invalid');
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

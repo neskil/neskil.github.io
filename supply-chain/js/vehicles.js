@@ -207,5 +207,20 @@ SC.vehicles = (function() {
         return { ok: true, truck };
     }
 
-    return { addTruck, addJob, cancelJobsForOrder, dispatch, tick, buyTruck };
+    // Re-home an idle truck to `yard` (free — moving isn't creating).
+    // Takes one from the yard with the biggest fleet so bases even out;
+    // the dispatcher's go-home logic then drives it to its new yard.
+    function reassignTruck(yard) {
+        if (!SC.isYard(yard)) return { ok: false, reason: 'invalid' };
+        const idle = SC.state.trucks.filter(t =>
+            !t.jobs.length && t.homeYard !== yard && (!t.path || t.phase === 'returning'));
+        if (!idle.length) return { ok: false, reason: 'none' };
+        idle.sort((a, b) => SC.trucksAtYard(b.homeYard) - SC.trucksAtYard(a.homeYard));
+        const truck = idle[0];
+        truck.homeYard = yard;
+        SC.emit('truckReassigned', { truck, yard });
+        return { ok: true, truck };
+    }
+
+    return { addTruck, addJob, cancelJobsForOrder, dispatch, tick, buyTruck, reassignTruck };
 })();

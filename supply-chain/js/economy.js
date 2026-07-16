@@ -48,12 +48,16 @@ SC.economy = (function() {
         if (nearest === Infinity) nearest = 400;
         // Deeper chains pay a premium on top of the good's base value —
         // multi-tier logistics (car, robot) should out-earn bread runs.
+        // Premium Contracts research boosts every payout on top.
         const depthMult = 1 + C().ORDER_DEPTH_VALUE * (SC.depthOf(product) - 1);
-        const payout = Math.round((qty * (SC.GOODS[product].value * depthMult + C().ORDER_DIST_PAY * nearest)) / 5) * 5;
+        const payout = Math.round((qty * (SC.GOODS[product].value * depthMult + C().ORDER_DIST_PAY * nearest) *
+            (1 + SC.research.payoutBonus())) / 5) * 5;
 
-        // Deeper chains (steel -> car) get extra deadline slack
+        // Deeper chains (steel -> car) get extra deadline slack;
+        // Preservatives research stretches every deadline further.
         const slack = 1 + C().ORDER_DEPTH_SLACK * (SC.depthOf(product) - 1);
-        const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]) * slack;
+        const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]) * slack *
+            (1 + SC.research.deadlineBonus());
         const order = {
             id: ++SC.state.orderSeq,
             city, product, qty,
@@ -175,6 +179,13 @@ SC.economy = (function() {
         }
     }
 
+    // Demand scales with the customer network: each active DC beyond HQ
+    // raises the concurrent-order cap, so a grown map generates enough
+    // work to pay for its grown costs.
+    function maxActiveOrders() {
+        return C().ORDER_MAX_ACTIVE + C().ORDER_PER_CITY * Math.max(0, activeCities().length - 1);
+    }
+
     // Suppliers regenerate stock toward their (level-scaled) cap; trucks
     // arriving at a dry supplier wait in the 'loading' phase (vehicles.js).
     function tickSuppliers(dt) {
@@ -217,13 +228,14 @@ SC.economy = (function() {
             const node = SC.map.unlockNext(n => n.kind === 'city');
             if (node) SC.emit('unlock', node);
             SC.state.nextCustomerIn = node
-                ? rand(C().CUSTOMER_SPAWN_INTERVAL[0], C().CUSTOMER_SPAWN_INTERVAL[1])
+                ? rand(C().CUSTOMER_SPAWN_INTERVAL[0], C().CUSTOMER_SPAWN_INTERVAL[1]) *
+                  SC.research.customerSpawnMult() // Regional Marketing shortens the wait
                 : Infinity; // pool exhausted — stop checking
         }
 
         // New orders arrive a bit faster as you level up
         SC.state.nextOrderIn -= dt;
-        if (SC.state.nextOrderIn <= 0 && SC.state.orders.length < C().ORDER_MAX_ACTIVE) {
+        if (SC.state.nextOrderIn <= 0 && SC.state.orders.length < maxActiveOrders()) {
             const o = spawnOrder();
             if (o) planOrder(o);
             const pace = Math.max(0.5, 1 - SC.state.delivered * 0.02);
@@ -254,5 +266,5 @@ SC.economy = (function() {
 
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
-             craftableProducts, bestSourceFor };
+             craftableProducts, bestSourceFor, maxActiveOrders };
 })();
