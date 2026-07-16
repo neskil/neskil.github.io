@@ -34,6 +34,16 @@ SC.CONFIG = {
     BRIDGE_MULT: 3,            // river crossings cost extra
     ROAD_REFUND: 0.5,          // fraction returned when demolishing
 
+    // Ferries: a cheaper-but-slower alternative to a bridge, chosen at
+    // build time (toggle in the Shop panel) for any road crossing the
+    // river. Half the speed of a normal road, but a much smaller premium
+    // than BRIDGE_MULT's 3x. Congestion (if enabled) still applies on
+    // top — trucks queueing for the boat is the same mechanic as trucks
+    // queueing on a jammed road, just re-used. Can't be paved into a
+    // highway (see roads.upgradeQuote).
+    FERRY_COST_MULT: 1.4,
+    FERRY_SPEED_MULT: 0.5,
+
     // Truck price ladders PER YARD: the nth truck stationed at a given
     // yard costs base * growth^n, so building a new yard "resets" the
     // ladder there. The counterweight is YARD_PRICE_GROWTH below — each
@@ -48,6 +58,17 @@ SC.CONFIG = {
     // length like building does (bridges cost extra again).
     ROAD_UPGRADE_PER_UNIT: 0.9,
     HIGHWAY_SPEED_MULT: 1.6,
+
+    // Congestion (toggle: SC.state.congestionEnabled, defaulted per
+    // difficulty below, flippable anytime from the pause menu): once
+    // more than CONGESTION_THRESHOLD trucks share an edge at the same
+    // moment, each additional truck slows that edge by CONGESTION_STEP
+    // (multiplicative), down to a CONGESTION_FLOOR minimum — never a
+    // full stop. Applies to both truck movement and Dijkstra's routing
+    // weight, so dispatch naturally prefers a parallel, less-jammed road.
+    CONGESTION_THRESHOLD: 2,
+    CONGESTION_STEP: 0.18,
+    CONGESTION_FLOOR: 0.35,
 
     // Suppliers hold a finite stock that regenerates over time; trucks
     // wait at an empty supplier until enough stock accumulates. Each
@@ -109,27 +130,29 @@ SC.CONFIG = {
 // run (persisted in the save). Normal is the balance baseline: 15%/min
 // interest and 20% shorter order deadlines than the original tuning.
 // Easy keeps the pre-1.13 pace; Sandbox never forecloses (noFail) and
-// starts rich, for players who just want to build networks.
+// starts rich, for players who just want to build networks. `congestion`
+// is only the DEFAULT for SC.state.congestionEnabled — a live toggle in
+// the pause menu overrides it for the rest of the run either way.
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
-        interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90,
-        desc: 'Relaxed deadlines, gentle interest.'
+        interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
+        desc: 'Relaxed deadlines, gentle interest, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
-        interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60,
-        desc: 'Tight deadlines, 15%/min debt interest.'
+        interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
+        desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
-        interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45,
-        desc: 'Brutal deadlines, punishing interest.'
+        interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
+        desc: 'Brutal deadlines, punishing interest, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
-        interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true,
-        desc: 'Deep pockets, no interest, no bankruptcy.'
+        interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
+        desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
     }
 };
 SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];

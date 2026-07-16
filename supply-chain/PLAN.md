@@ -35,6 +35,14 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.18.0: **river ferries**. Per item 9 below — details there.
+- v1.17.0: **road congestion**, feature-flagged. Per item 8 below —
+  details there.
+- v1.15.0-v1.16.0 (parallel branches, master): top-left corner UI
+  consolidated into one pill (☰ + money/debt + idle trucks), Filled/
+  Missed HUD tiles dropped (already in the ☰ menu's stats), back button
+  moved into the menu, fast-forward toggle repositioned to avoid
+  overlapping the Orders panel on phones.
 - v1.14.0: **fast-forward + seeded worlds**. A 1×/2×/4× toggle under the
   HUD runs `speed` fixed-size sub-steps of `economy`/`factories`/
   `vehicles`/`research`.tick per animation frame (same dt each sub-step,
@@ -188,15 +196,27 @@ actually shipped.)*
    whether missed orders should carry any penalty beyond the lost
    payout. Revisit together with the deferred faster-milestone
    research (README backlog).
-8. **Road congestion** — per-edge speed drops when >N trucks are on it;
-   rendered as the road glowing warmer. Rewards building parallel routes
-   and ring roads instead of one mega-highway. (The *positive* half of
-   per-edge speed shipped in v1.11 as highways — `edge.level`,
-   `SC.roads.speedMult`, and time-weighted Dijkstra are exactly the
-   plumbing congestion would reuse with a dynamic multiplier < 1.)
-9. **River ferries** — a cheaper-but-slower alternative to bridges: build
-   a dock pair, ferry shuttles on a fixed cadence (reuses the old sim's
-   boat visual). Bridges = fast + expensive, ferries = cheap + queueing.
+8. ~~Road congestion~~ — shipped v1.17.0, reusing exactly the highway
+   plumbing this item predicted: `edge.level`'s `speedMult` gained a
+   `congestionMult` factor (`SC.vehicles.truckCountOnEdge` beyond
+   `CONGESTION_THRESHOLD` slows an edge multiplicatively, floored at
+   `CONGESTION_FLOOR`), read live by both truck movement and Dijkstra's
+   weighting, so dispatch actually prefers a quieter parallel road. A
+   busy road glows warmer (`render.drawRoads`). Shipped as a **feature
+   flag** (`SC.state.congestionEnabled`) per the owner's request: on by
+   default for Normal/Hard, off for Easy/Sandbox, toggle anytime from
+   the ☰ menu regardless of difficulty.
+9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
+   "dock pair + fixed-cadence shuttle" proposal to an edge-level
+   alternative chosen at build time (Shop panel toggle): a road across
+   the river builds as `edge.ferry` instead of a bridge — `FERRY_COST_MULT`
+   cheaper than `BRIDGE_MULT`, but `FERRY_SPEED_MULT` slower, can't be
+   paved into a highway. No new node kind or scheduling clock — the
+   "queueing" half of the ask is congestion (if enabled) applying to a
+   ferry edge same as any other, which reads as trucks queueing for the
+   boat without a separate queue simulation. A boat emoji shuttles back
+   and forth along the crossing for the promised visual, short of a full
+   dock/sprite treatment (that's Decision C's dedicated visual pass).
 10. **Contracts** — occasional long-running deals: "3× green every 60s for
     5 minutes at a locked-in rate". Creates steady demand you can build
     dedicated infrastructure for.
