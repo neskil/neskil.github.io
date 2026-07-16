@@ -642,9 +642,14 @@ html, body {
    the whole bar stays clear of the Orders panel on the right. Orders
    itself is narrowed a bit too on phones so the two don't touch. */
 @media (max-width: 768px) {
+    /* Same 0.5rem inset on every corner element so their edges line up:
+       #top-left/#orders-panel share one top; #shop-panel/#mode-toggle
+       (and #speed-toggle stacked above it) share one bottom. */
+    #top-left { top: 0.5rem; }
+    #mode-toggle { bottom: 0.5rem; }
     .icon-btn { width: 38px; height: 38px; }
     .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
-    #speed-toggle { bottom: 3.8rem; }
+    #speed-toggle { bottom: 3.5rem; }
     .speed-btn { width: 32px; height: 32px; font-size: 0.68rem; }
 
     .hud-item { padding: 0.32rem 0.55rem; min-width: 0; }
