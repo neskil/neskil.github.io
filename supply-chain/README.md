@@ -138,6 +138,19 @@ that ambient animation as its background — it now lives independently at
   **not** research-gated (`SC.placement.place('yard', ...)`) — a base
   mechanic, not a premium bailout.
 - **Camera**: drag to pan, wheel/pinch to zoom.
+- **Fast-forward**: the 1×/2×/4× toggle under the HUD (`SC.state.speed`)
+  runs that many fixed-size sub-steps of `economy`/`factories`/
+  `vehicles`/`research`.tick per animation frame — same dt each
+  sub-step, so nothing behaves differently at higher speeds, there's
+  just more simulated time per rendered frame. Resets to 1× each
+  session (not persisted, like `paused`).
+- **Seeded worlds**: map generation (river shape, node placement) runs
+  on a seeded PRNG (`js/rng.js`) instead of `Math.random`, so
+  `?seed=xyz` on a fresh game reproduces that exact map. The pause menu
+  shows the current seed — tap it to copy a shareable `?seed=` link.
+  Gameplay randomness (order contents/timing, customer-DC spawn jitter)
+  intentionally still uses `Math.random`, so a shared seed reproduces
+  the map, not a full deterministic playthrough.
 - Endless play; "Filled" vs "Missed" on the HUD is the score.
 
 ## Architecture
@@ -151,7 +164,8 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/config.js` | Constants, `SC.GOODS` tree (emoji/recipes/prices), `SC.RESEARCH` techs, `SC.DIFFICULTIES` presets, `SC.VERSION` |
 | `js/state.js` | `SC.state` factory, pub/sub, derived getters (prices, speeds, `SC.diff()`, supplier cap/regen, per-yard truck price) |
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
-| `js/map.js` | World gen: river, node sites, starter cluster; `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
+| `js/rng.js` | Seeded PRNG (xmur3 hash + mulberry32 stream) used only by map.js's world gen, so `?seed=` reproduces a map |
+| `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
 | `js/roads.js` | Road build/demolish/quote, highway upgrades, Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer |
@@ -164,7 +178,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold |
 | `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |
-| `js/main.js` | Bootstrap, game loop, `?probe=N` headless verification hook |
+| `js/main.js` | Bootstrap, game loop (fast-forward runs N sub-steps/frame), `?probe=N`/`?seed=`/`?speed=` headless verification hooks |
 
 `tests.html` runs the logic modules against hand-built deterministic maps
 (straight river, fixed nodes) — see CLAUDE.md for the headless recipes.
