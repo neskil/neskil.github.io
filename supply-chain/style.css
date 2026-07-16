@@ -53,7 +53,9 @@ html, body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     overflow: hidden;
+    cursor: pointer; /* the whole bar opens the menu, not just the ☰ icon */
 }
+#top-left:hover { background: rgba(40, 50, 70, 0.9); }
 
 .icon-btn {
     width: 42px;
