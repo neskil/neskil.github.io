@@ -33,34 +33,20 @@ html, body {
 }
 #gameCanvas:active { cursor: grabbing; }
 
-#back-btn {
+/* ── Top-left: menu + HUD stack ─────────────────── */
+#top-left {
     position: fixed;
     top: 1rem;
     left: 1rem;
     z-index: 100;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    color: var(--text-primary);
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    font-size: 1.1rem;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
 }
-#back-btn:hover { background: rgba(40, 50, 70, 0.9); }
 
 /* ── HUD ─────────────────────────────────────────── */
 #hud {
-    position: fixed;
-    top: 1rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
     display: flex;
     gap: 0.5rem;
 }
@@ -86,14 +72,6 @@ html, body {
 .hud-item.money.debt span:last-child { color: var(--bad); }
 .hud-item.money.debt { border-color: rgba(248, 113, 113, 0.5); }
 
-#top-right {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 100;
-    display: flex;
-    gap: 0.5rem;
-}
 .icon-btn {
     width: 42px;
     height: 42px;
@@ -108,7 +86,12 @@ html, body {
 }
 .icon-btn:hover { background: rgba(40, 50, 70, 0.9); }
 
-.mode-toggle {
+/* ── Bottom-right: build/upgrade/inspect selector ─── */
+#mode-toggle {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 100;
     display: flex;
     background: var(--card-bg);
     border: 1px solid var(--card-border);
@@ -181,7 +164,7 @@ html, body {
     width: 270px;
     overflow: hidden;
 }
-#orders-panel { top: 4.5rem; right: 1rem; }
+#orders-panel { top: 1rem; right: 1rem; }
 #shop-panel { bottom: 1rem; left: 1rem; }
 
 .panel-header {
@@ -527,6 +510,8 @@ html, body {
     color: var(--text-primary);
     font-size: 0.88rem;
     text-align: left;
+    text-decoration: none;
+    box-sizing: border-box;
     cursor: pointer;
 }
 .menu-btn:hover { border-color: var(--accent-color); }
@@ -598,11 +583,39 @@ html, body {
 #help-start:hover { filter: brightness(1.1); }
 
 /* ── Mobile ──────────────────────────────────────── */
+/* HUD stacks under the hamburger in the top-left corner (its own column,
+   independent of the Shop/mode-toggle corners below and the Orders panel
+   on the right) — shrunk into a money-on-top, 3-stats-below block so the
+   whole #top-left column stays narrower than the gap to Orders on the
+   right. Orders itself is narrowed a bit on phones so the two don't touch. */
 @media (max-width: 768px) {
-    #hud { top: auto; bottom: 4.2rem; gap: 0.35rem; }
-    .hud-item { padding: 0.3rem 0.55rem; min-width: 58px; }
-    .hud-item span:last-child { font-size: 0.8rem; }
-    #orders-panel { top: 4rem; right: 0.5rem; width: 220px; }
-    #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 220px; }
+    .icon-btn { width: 38px; height: 38px; }
+    .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
+    #top-left { gap: 0.5rem; }
+
+    #hud {
+        flex-wrap: wrap;
+        width: 132px;
+        gap: 0.3rem;
+    }
+    .hud-item { padding: 0.26rem 0.35rem; min-width: 0; flex: 1 1 calc(33.333% - 0.2rem); }
+    .hud-item.money { flex: 1 1 100%; }
+    .hud-label { font-size: 0.56rem; }
+    .hud-item span:last-child { font-size: 0.74rem; }
+
+    #orders-panel { top: 0.5rem; right: 0.5rem; width: 180px; }
+    #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 190px; }
+    .panel-header { padding: 0.6rem 0.8rem; }
+    .panel-header h2 { font-size: 0.85rem; }
     .research-tree-card { padding: 0.8rem; }
+}
+
+/* Narrow phones (older/smaller devices): shrink further so the top-left
+   HUD column and the Orders panel keep clear of each other. */
+@media (max-width: 380px) {
+    #orders-panel, #shop-panel { width: 150px; }
+    #hud { width: 108px; }
+    .hud-label { font-size: 0.5rem; }
+    .hud-item span:last-child { font-size: 0.66rem; }
+    .shop-btn, .order { font-size: 0.72rem; }
 }

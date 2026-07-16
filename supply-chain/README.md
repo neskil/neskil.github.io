@@ -38,12 +38,12 @@ that ambient animation as its background — it now lives independently at
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
   (refused while a truck is on it).
-- **Modes** (top-right toggle): **Build** (🔨, default) is the road
+- **Modes** (bottom-right toggle): **Build** (🔨, default) is the road
   tap-tap flow above. **Inspect** (🔍) disables building; hovering
-  (mouse) or holding (touch, same long-press timing as the demolish
-  gesture) a node instead opens a tooltip and glows the relevant roads —
-  a factory's needed ingredients and whether each is connected, a
-  supplier's consuming factories, or a city's open orders and routes.
+  (mouse) or tapping (touch — tap again, or elsewhere, to dismiss) a node
+  instead opens a tooltip and glows the relevant roads — a factory's
+  needed ingredients and whether each is connected, a supplier's
+  consuming factories, or a city's open orders and routes.
 - **Trucks & yards**: HQ (⭐) is always a yard; build more (Shop panel,
   price grows per yard like trucks do) to station trucks nearer distant
   routes. Buying a truck stations it at whichever yard is picked in the

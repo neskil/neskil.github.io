@@ -9,22 +9,20 @@
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <a href="../index.html" id="back-btn" title="Back to Home">←</a>
-
-    <div id="hud">
-        <div class="hud-item money" id="hud-money-item"><span class="hud-label" id="hud-money-label">Money</span><span id="hud-money">$0</span></div>
-        <div class="hud-item"><span class="hud-label">Trucks idle</span><span id="hud-trucks">0/0</span></div>
-        <div class="hud-item"><span class="hud-label">Filled</span><span id="hud-delivered">0</span></div>
-        <div class="hud-item"><span class="hud-label">Missed</span><span id="hud-missed">0</span></div>
+    <div id="top-left">
+        <button id="btn-menu" class="icon-btn" title="Menu">☰</button>
+        <div id="hud">
+            <div class="hud-item money" id="hud-money-item"><span class="hud-label" id="hud-money-label">Money</span><span id="hud-money">$0</span></div>
+            <div class="hud-item"><span class="hud-label">Trucks idle</span><span id="hud-trucks">0/0</span></div>
+            <div class="hud-item"><span class="hud-label">Filled</span><span id="hud-delivered">0</span></div>
+            <div class="hud-item"><span class="hud-label">Missed</span><span id="hud-missed">0</span></div>
+        </div>
     </div>
 
-    <div id="top-right">
-        <div id="mode-toggle" class="mode-toggle">
-            <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
-            <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
-            <button id="mode-inspect" class="mode-btn" title="Inspect: hover/hold a node for its connections">🔍</button>
-        </div>
-        <button id="btn-menu" class="icon-btn" title="Menu">☰</button>
+    <div id="mode-toggle" class="mode-toggle">
+        <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
+        <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
+        <button id="mode-inspect" class="mode-btn" title="Inspect: hover or tap a node for its connections">🔍</button>
     </div>
 
     <div id="inspect-tooltip"></div>
@@ -128,6 +126,7 @@
             <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
             <button class="menu-btn" id="menu-help">❓ How to play</button>
             <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
+            <a class="menu-btn" id="menu-exit" href="../index.html">🚪 Exit to home</a>
         </div>
     </div>
 
@@ -149,10 +148,10 @@
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>
                 <li><b>Research:</b> in the Shop panel, invest upfront and wait it out to unlock upgrades like manual site placement and a bigger credit line.</li>
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
-                <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, top right): tap a supplier twice to raise its stock cap and refill rate.</li>
+                <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, bottom right): tap a supplier twice to raise its stock cap and refill rate.</li>
                 <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
-                <li><b>Inspect mode (🔍, top right):</b> hover or hold a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up.</li>
+                <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
             </ul>
             <div class="recipes">
                 <span>🌾+💧→🍞</span>
