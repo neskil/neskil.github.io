@@ -195,6 +195,16 @@ SC.runProbe = function(seconds) {
         SC.economy.rollContractOffer();
         if (p.get('contract') === 'accept') SC.economy.acceptContract();
     }
+    // Fire the Bridge-vs-Ferry crossing-choice modal (&crossing=1), using
+    // the same mirrored-node trick as &ferry=1, so it's screenshotable
+    // without manually tapping a river-crossing road.
+    if (p.has('crossing')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        const rv = SC.map.riverAt(hq.y);
+        const other = SC.map.makeNode('yard', rv.x + (rv.x - hq.x), hq.y, { active: true });
+        SC.emit('crossingChoice', { a: hq, b: other });
+    }
     // Arm placement mode so the ghost preview can be screenshotted, e.g.
     // ?placemode=supplier:wheat
     if (p.has('placemode')) {

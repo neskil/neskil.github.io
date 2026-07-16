@@ -58,16 +58,7 @@ SC.ui = (function() {
         updateResearchShortcut();
         updateResearchTree();
         updatePromo();
-        updateFerryMode();
         updateBuild();
-    }
-
-    // ── Ferry-crossing toggle: Build mode's river crossings build a
-    // cheaper, slower ferry instead of a bridge while this is on ──
-    function updateFerryMode() {
-        const btn = $('btn-ferry-mode');
-        btn.classList.toggle('active', SC.state.buildFerry);
-        btn.querySelector('.price').textContent = SC.state.buildFerry ? 'On' : 'Off';
     }
 
     // ── Promotions (Marketing Blitz): repeatable paid demand burst ──
@@ -219,6 +210,39 @@ SC.ui = (function() {
 
     function closeResearchTree() {
         $('research-overlay').classList.add('hidden');
+    }
+
+    // ── River-crossing choice: input.js emits this instead of building
+    // immediately whenever a tapped road would cross the river, so the
+    // bridge-vs-ferry pick happens in context rather than a pre-set toggle ──
+    let pendingCrossing = null;
+    function openCrossingChoice(d) {
+        pendingCrossing = d;
+        const bridgeQuote = SC.roads.quote(d.a, d.b);
+        const ferryQuote = SC.roads.quote(d.a, d.b, { ferry: true });
+        if (!bridgeQuote || !ferryQuote) { pendingCrossing = null; return; }
+        $('crossing-bridge-cost').textContent = fmt(bridgeQuote.cost);
+        $('crossing-ferry-cost').textContent = fmt(ferryQuote.cost);
+        $('crossing-overlay').classList.remove('hidden');
+    }
+
+    function closeCrossingChoice() {
+        pendingCrossing = null;
+        $('crossing-overlay').classList.add('hidden');
+    }
+
+    function chooseCrossing(ferry) {
+        if (!pendingCrossing) return;
+        const { a, b } = pendingCrossing;
+        const res = SC.roads.build(a, b, { ferry });
+        if (res.ok) {
+            SC.sfx.play('build');
+            SC.state.selectedNode = b; // chain roads mini-metro style
+        } else if (res.reason === 'money') {
+            SC.sfx.play('error');
+            toast(`Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, 'error');
+        }
+        closeCrossingChoice();
     }
 
     function buildRow(kind, good) {
@@ -466,6 +490,10 @@ SC.ui = (function() {
             updateContractOffer();
         });
 
+        $('crossing-bridge').addEventListener('click', () => chooseCrossing(false));
+        $('crossing-ferry').addEventListener('click', () => chooseCrossing(true));
+        $('crossing-cancel').addEventListener('click', () => { SC.sfx.play('click'); closeCrossingChoice(); });
+
         $('mode-build').addEventListener('click', () => setMode('build'));
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
@@ -556,14 +584,6 @@ SC.ui = (function() {
             SC.sfx.play('click');
             updateShop();
         });
-        $('btn-ferry-mode').addEventListener('click', () => {
-            SC.state.buildFerry = !SC.state.buildFerry;
-            SC.sfx.play('click');
-            toast(SC.state.buildFerry
-                ? 'Ferry crossings on — river roads will build cheaper and slower'
-                : 'Ferry crossings off — river roads build as bridges again', 'info');
-            updateShop();
-        });
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             $('btn-' + key).addEventListener('click', () => {
                 const res = SC.economy.buyUpgrade(key);
@@ -632,6 +652,7 @@ SC.ui = (function() {
         });
         SC.on('orderExpired', () => { SC.sfx.play('expire'); toast('An order expired — customer walked away', 'error'); });
         SC.on('contractOffered', () => { SC.sfx.play('unlock'); toast('📜 New contract offer available!', 'info'); });
+        SC.on('crossingChoice', openCrossingChoice);
         SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });
         SC.on('crafted', () => SC.sfx.play('craft'));
         SC.on('salvage', () => toast(`Late delivery salvaged for ${fmt(SC.CONFIG.SALVAGE_PAY)}`, 'info'));
