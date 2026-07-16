@@ -121,6 +121,20 @@ SC.render = (function() {
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
+            // Congestion: an overloaded edge glows warmer, hottest at the
+            // busiest roads — the visual cue for "build a parallel route".
+            if (SC.state.congestionEnabled && e !== pending && e !== pendingUp) {
+                const excess = SC.vehicles.truckCountOnEdge(e) - SC.CONFIG.CONGESTION_THRESHOLD;
+                if (excess > 0) {
+                    const heat = Math.min(1, excess / 3);
+                    ctx.beginPath();
+                    ctx.moveTo(e.a.x, e.a.y);
+                    ctx.lineTo(e.b.x, e.b.y);
+                    ctx.strokeStyle = `rgba(248, 113, 113, ${0.25 + heat * 0.5})`;
+                    ctx.lineWidth = 5 + heat * 3;
+                    ctx.stroke();
+                }
+            }
         }
     }
 
