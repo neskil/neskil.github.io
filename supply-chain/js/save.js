@@ -39,6 +39,7 @@ SC.save = (function() {
         return {
             v: FORMAT,
             difficulty: st.difficulty,
+            seed: st.seed,
             money: st.money, earnedTotal: st.earnedTotal,
             interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
@@ -90,6 +91,7 @@ SC.save = (function() {
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.promoUntil = data.promoUntil || 0;
         st.defaultIn = data.defaultIn !== undefined ? data.defaultIn : null;
+        st.seed = data.seed || null;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         if (data.research) {
             st.research.completed = Object.assign({}, data.research.completed);

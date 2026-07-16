@@ -27,6 +27,14 @@ SC.ui = (function() {
         $('hud-trucks').textContent = `${idle}/${st.trucks.length}`;
         $('hud-delivered').textContent = st.delivered;
         $('hud-missed').textContent = st.missed;
+        for (const btn of $('speed-toggle').children) {
+            btn.classList.toggle('active', +btn.dataset.speed === st.speed);
+        }
+    }
+
+    function setSpeed(n) {
+        SC.state.speed = n;
+        SC.sfx.play('click');
     }
 
     function updateShop() {
@@ -359,6 +367,7 @@ SC.ui = (function() {
             : 'None';
         $('menu-stats').innerHTML = `
             <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
+            <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'}</b></div>
             <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
             <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
             <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
@@ -405,6 +414,11 @@ SC.ui = (function() {
     }
 
     function bind() {
+        $('speed-toggle').addEventListener('click', e => {
+            const btn = e.target.closest('[data-speed]');
+            if (btn) setSpeed(+btn.dataset.speed);
+        });
+
         $('orders-list').addEventListener('click', e => {
             const row = e.target.closest('[data-order]');
             if (!row) return;
@@ -420,6 +434,13 @@ SC.ui = (function() {
         $('menu-resume').addEventListener('click', () => { SC.sfx.play('click'); closeMenu(); });
         $('menu-overlay').addEventListener('click', e => {
             if (e.target === $('menu-overlay')) closeMenu(); // tap outside the card
+        });
+        $('menu-stats').addEventListener('click', e => {
+            if (!e.target.closest('#menu-seed-value') || !SC.state.seed) return;
+            const shareUrl = `${location.origin}${location.pathname}?seed=${encodeURIComponent(SC.state.seed)}`;
+            (navigator.clipboard?.writeText(shareUrl) || Promise.reject())
+                .then(() => toast(`Seed link copied: ${SC.state.seed}`, 'good'))
+                .catch(() => toast(`Seed: ${SC.state.seed} (copy failed — no clipboard access)`, 'info'));
         });
         $('menu-save').addEventListener('click', () => {
             SC.save.store();

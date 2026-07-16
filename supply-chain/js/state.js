@@ -13,6 +13,7 @@ SC.newState = function(difficulty) {
     if (!SC.DIFFICULTIES[difficulty]) difficulty = 'normal';
     SC.state = {
         difficulty,
+        seed: null,         // world seed, set by map.generateWorld(); shareable via ?seed=
         time: 0,
         money: SC.DIFFICULTIES[difficulty].startMoney,
         earnedTotal: 0,
@@ -42,6 +43,7 @@ SC.newState = function(difficulty) {
         promoUntil: 0,      // sim time the running promotion ends (0 = none)
         defaultIn: null,    // default countdown while below -creditLimit (null = safe)
         gameOver: false,    // defaulted — sim frozen, overlay shown
+        speed: 1,           // fast-forward multiplier: 1/2/4, see main.js's loop
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay

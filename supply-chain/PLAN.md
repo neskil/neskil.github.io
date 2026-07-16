@@ -35,6 +35,12 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.14.0: **fast-forward + seeded worlds**. A 1×/2×/4× toggle under the
+  HUD runs `speed` fixed-size sub-steps of `economy`/`factories`/
+  `vehicles`/`research`.tick per animation frame (same dt each sub-step,
+  so nothing desyncs at higher multipliers — just more simulated time
+  per frame, not bigger/riskier steps); resets to 1× each session (not
+  persisted, like `paused`). Seeded worlds per item 13 below.
 - v1.13.0: **promotions + loan-default fail state + difficulty modes**.
   Marketing Blitz research unlocks a repeatable paid Shop action ($600 →
   45s of ~3× faster order arrivals and a higher order cap; the tech
@@ -213,10 +219,17 @@ actually shipped.)*
 
 ## Phase 3 — Content & replayability
 
-13. **Seeded worlds** — replace `Math.random` in map gen with a seeded
-    PRNG; URL `?seed=x` shares a map; enables a "daily challenge".
-    (Also makes generated-world tests deterministic — do this early if 7+
-    lands, the fail state wants fair comparisons.)
+13. ~~Seeded worlds~~ — shipped v1.14.0: `js/rng.js` (xmur3 + mulberry32,
+    the "Seeded RNG module" from Tech housekeeping below) replaced every
+    `Math.random` call in `map.js`'s world generation (river shape, node
+    placement); `SC.map.generateWorld(seed)` takes an optional seed and
+    records it on `SC.state.seed`. `?seed=xyz` on a fresh game reproduces
+    that exact map; the pause menu shows the current seed and copies a
+    shareable `?seed=` link on tap. Gameplay randomness (order contents/
+    timing, customer-DC spawn jitter) intentionally stays on `Math.random`
+    — only the map layout is reproducible, not a full deterministic
+    replay. "Daily challenge" (share today's date as the seed) and
+    generated-world test determinism are still open follow-ups.
 14. **Stats & achievements screen** — deliveries per product, money
     curve, busiest road; milestones ("First bridge", "10-truck fleet").
 15. **Bigger maps / regions** — after the map fills, unlock an adjacent
@@ -224,7 +237,7 @@ actually shipped.)*
 
 ## Tech housekeeping (ongoing, fold into the above)
 
-- **Seeded RNG module** (`js/rng.js`) — prerequisite for 13, helps tests.
+- ~~Seeded RNG module~~ (`js/rng.js`) — shipped alongside 13 above.
 - ~~Generic research effects~~ — done in v1.12 (`bonusSum` /
   `customerSpawnMult` / `upgradeMaxBonus`): a new tech is one config
   entry, no new accessor code.
