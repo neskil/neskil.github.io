@@ -67,13 +67,25 @@ that ambient animation as its background — it now lives independently at
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Ships with Site
-  Requisition (unlocks manual placement, below) and a two-tier Credit
-  Line II/III (each raises the credit limit, stacking). The Shop panel
-  keeps a one-line shortcut (progress/available count); tapping it opens
-  the full tree in its own overlay, laid out left-to-right by
-  prerequisite depth with connecting lines to its `requires` (not a flat
-  list — see `updateResearchTree`/`researchTiers` in `ui.js`).
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Eleven techs
+  across four branches: Site Requisition (manual placement); Credit
+  Line II/III → Premium Contracts (+15% payouts) → Regional Marketing
+  (customer DCs arrive 40% sooner); Asphalt Paving (highways) →
+  Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
+  cap); Fertilizer Program (+50% supplier regen) → Factory Automation
+  (+3 factory-speed cap) and Preservatives (+25% order deadlines).
+  Effect fields are generic — additive bonuses (`creditBonus`,
+  `payoutBonus`, `deadlineBonus`, `supplierRegenBonus`) sum via
+  `research.bonusSum`, `customerSpawnMult` multiplies, and
+  `upgradeMaxBonus` raises upgrade caps. The Shop panel keeps a
+  one-line shortcut (progress/available count); tapping it opens the
+  full tree in its own overlay, laid out left-to-right by prerequisite
+  depth with connecting lines to its `requires` (not a flat list — see
+  `updateResearchTree`/`researchTiers` in `ui.js`).
+- **Demand scaling**: the concurrent-order cap grows with the customer
+  network (`economy.maxActiveOrders` = base + `ORDER_PER_CITY` per
+  active DC beyond HQ), so a grown map generates enough work to pay
+  for its grown costs.
 - **Supplier stock**: suppliers hold a finite stockpile that regenerates
   over time (`SUPPLIER_REGEN`) up to a cap; a truck arriving at a dry
   supplier waits there (`'loading'` phase) until stock catches up. Each
@@ -143,13 +155,13 @@ sync with it):
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy (the
   Inspect-mode hold gesture above uses the same long-press primitive).
-- More research nodes (order-pay boosts, faster milestones); a
-  "promotions" tech that temporarily boosts demand for a chosen good,
-  per the plan's next-steps discussion. (The tree UI and four new techs
-  — Asphalt Paving, Overdrive Engines, Fertilizer Program, Factory
-  Automation — landed in v1.10/1.11; promotions/repeatable research is
-  still open.)
+- A "promotions" tech that temporarily boosts demand for a chosen good,
+  per the plan's next-steps discussion — the one backlog research idea
+  still open, since it needs repeatable/timed research (the current
+  tree assumes each id completes once). Order-pay boosts, faster
+  customer growth, and cap-raising techs all landed in v1.10–1.12.
 - Research cancel/refund (currently a started project can't be aborted).
-- Reassigning an existing truck to a different yard (today you choose a
-  yard at purchase time only; there's no way to move a truck already
-  in the fleet).
+- Faster-milestone research (unlock a site every 2 deliveries instead
+  of 3) — considered for v1.12 but deferred: milestone pace is the main
+  faucet controlling map growth, and cheapening it risks flooding the
+  midgame with sites; revisit alongside a difficulty ramp.

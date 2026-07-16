@@ -48,14 +48,32 @@ SC.research = (function() {
         }
     }
 
-    // Sum of creditBonus across completed research — read by SC.creditLimit.
-    function creditBonus() {
+    // Sum a numeric effect field across completed research. Additive
+    // effects (creditBonus, payoutBonus, ...) all use this shape.
+    function bonusSum(field) {
         let b = 0;
         for (const id in SC.state.research.completed) {
             const t = SC.RESEARCH[id];
-            if (t && t.creditBonus) b += t.creditBonus;
+            if (t && t[field]) b += t[field];
         }
         return b;
+    }
+
+    // Read by SC.creditLimit / economy.spawnOrder / SC.supplierRegen.
+    function creditBonus() { return bonusSum('creditBonus'); }
+    function payoutBonus() { return bonusSum('payoutBonus'); }
+    function deadlineBonus() { return bonusSum('deadlineBonus'); }
+    function supplierRegenBonus() { return bonusSum('supplierRegenBonus'); }
+
+    // Multiplicative: product of every completed tech's customerSpawnMult
+    // (Regional Marketing's 0.6 shortens the wait for new customer DCs).
+    function customerSpawnMult() {
+        let m = 1;
+        for (const id in SC.state.research.completed) {
+            const t = SC.RESEARCH[id];
+            if (t && t.customerSpawnMult) m *= t.customerSpawnMult;
+        }
+        return m;
     }
 
     // Extra upgrade levels unlocked for `key` (e.g. Overdrive Engines
@@ -69,17 +87,7 @@ SC.research = (function() {
         return b;
     }
 
-    // Global supplier regen multiplier bonus (Fertilizer Program) —
-    // read by SC.supplierRegen.
-    function supplierRegenBonus() {
-        let b = 0;
-        for (const id in SC.state.research.completed) {
-            const t = SC.RESEARCH[id];
-            if (t && t.supplierRegenBonus) b += t.supplierRegenBonus;
-        }
-        return b;
-    }
-
     return { isDone, isAvailable, activeId, canStart, start, progress, tick,
-             creditBonus, upgradeMaxBonus, supplierRegenBonus };
+             creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,
+             customerSpawnMult, upgradeMaxBonus };
 })();
