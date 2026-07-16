@@ -5,6 +5,13 @@ window.SC = window.SC || {};
 SC.map = (function() {
     const C = () => SC.CONFIG;
 
+    // Set fresh by generateWorld(seed) each new map; every other function
+    // below reads from it instead of Math.random, so a given seed always
+    // lays out the same river/nodes. Falls back to a real-random seed if
+    // generateWorld is ever called without one (shouldn't happen outside
+    // very old tests).
+    let rng = SC.rng.create(SC.rng.randomSeed());
+
     let nodeSeq = 0;
     function makeNode(kind, x, y, opts) {
         opts = opts || {};
@@ -36,13 +43,13 @@ SC.map = (function() {
     function generateRiver() {
         const spine = [], halfWidths = [];
         const steps = 16;
-        let cx = C().WORLD_W * (0.42 + Math.random() * 0.16);
+        let cx = C().WORLD_W * (0.42 + rng.next() * 0.16);
         for (let i = 0; i <= steps; i++) {
             const y = (i / steps) * C().WORLD_H;
-            cx += (Math.random() - 0.5) * C().WORLD_W * 0.07;
+            cx += (rng.next() - 0.5) * C().WORLD_W * 0.07;
             cx = Math.max(C().WORLD_W * 0.28, Math.min(C().WORLD_W * 0.72, cx));
             spine.push({ x: cx, y });
-            halfWidths.push(C().WORLD_W * (0.02 + Math.random() * 0.012));
+            halfWidths.push(C().WORLD_W * (0.02 + rng.next() * 0.012));
         }
         SC.state.river = { spine, halfWidths };
     }
@@ -79,8 +86,8 @@ SC.map = (function() {
 
     function randomLandSpot(minDist) {
         for (let a = 0; a < 200; a++) {
-            const x = C().NODE_MARGIN + Math.random() * (C().WORLD_W - 2 * C().NODE_MARGIN);
-            const y = C().NODE_MARGIN + Math.random() * (C().WORLD_H - 2 * C().NODE_MARGIN);
+            const x = C().NODE_MARGIN + rng.next() * (C().WORLD_W - 2 * C().NODE_MARGIN);
+            const y = C().NODE_MARGIN + rng.next() * (C().WORLD_H - 2 * C().NODE_MARGIN);
             if (!isInRiver(x, y) && Math.abs(x - riverAt(y).x) > riverAt(y).halfW + 50 &&
                 farFromOthers(x, y, minDist)) return { x, y };
         }
@@ -90,8 +97,8 @@ SC.map = (function() {
     // Spot near (px,py) at roughly the given distance, on land, clear of others.
     function spotNear(px, py, dist, minDist) {
         for (let a = 0; a < 200; a++) {
-            const ang = Math.random() * Math.PI * 2;
-            const d = dist * (0.7 + Math.random() * 0.6);
+            const ang = rng.next() * Math.PI * 2;
+            const d = dist * (0.7 + rng.next() * 0.6);
             const x = px + Math.cos(ang) * d, y = py + Math.sin(ang) * d;
             if (x < C().NODE_MARGIN || x > C().WORLD_W - C().NODE_MARGIN ||
                 y < C().NODE_MARGIN || y > C().WORLD_H - C().NODE_MARGIN) continue;
@@ -103,21 +110,28 @@ SC.map = (function() {
         return null;
     }
 
-    function generateWorld() {
+    // seed: any string/number. Same seed -> same river shape and node
+    // layout (this is the whole map — milestone/customer-DC unlock order
+    // through the pool is deterministic already, so a seed fully
+    // reproduces a shared map). Omit for a fresh random one.
+    function generateWorld(seed) {
+        const usedSeed = (seed !== undefined && seed !== null && seed !== '') ? seed : SC.rng.randomSeed();
+        rng = SC.rng.create(usedSeed);
+        SC.state.seed = String(usedSeed);
         nodeSeq = 0;
         generateRiver();
         const md = C().NODE_MIN_DIST;
 
         // Starter cluster on one river side: HQ city, factory, red+blue suppliers.
-        const side = Math.random() < 0.5 ? -1 : 1;
+        const side = rng.next() < 0.5 ? -1 : 1;
         let hx, hy;
         for (let a = 0; ; a++) {
-            hy = C().WORLD_H * (0.35 + Math.random() * 0.3);
+            hy = C().WORLD_H * (0.35 + rng.next() * 0.3);
             const rv = riverAt(hy);
             const room = side < 0 ? rv.x - rv.halfW - C().NODE_MARGIN
                                   : C().WORLD_W - C().NODE_MARGIN - (rv.x + rv.halfW);
-            hx = side < 0 ? C().NODE_MARGIN + room * (0.3 + Math.random() * 0.4)
-                          : rv.x + rv.halfW + room * (0.3 + Math.random() * 0.4);
+            hx = side < 0 ? C().NODE_MARGIN + room * (0.3 + rng.next() * 0.4)
+                          : rv.x + rv.halfW + room * (0.3 + rng.next() * 0.4);
             if (!isInRiver(hx, hy) || a > 50) break;
         }
         const hq = makeNode('city', hx, hy, { active: true, isHQ: true });

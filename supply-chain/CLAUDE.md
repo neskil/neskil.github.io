@@ -36,9 +36,11 @@ Don't couple the two again.)
   runnable headless). Only `render/input/ui/main` touch the DOM. Logic
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
 - New script files must be added to `index.html`; logic modules also to
-  `tests.html`. Load order matters: config → state → save → sfx → map →
-  camera → roads → factories → economy → vehicles → inspect → research →
-  placement → (render → input → ui → main).
+  `tests.html`. Load order matters: config → state → save → sfx → rng →
+  map → camera → roads → factories → economy → vehicles → inspect →
+  research → placement → (render → input → ui → main). (`rng.js` must
+  precede `map.js`: `SC.map`'s IIFE calls `SC.rng.create(...)` at
+  load time to seed its default RNG.)
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,
@@ -81,7 +83,13 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   probe) shows the new-game screen incl. the difficulty picker.
   `&techtree=1` opens the 🔬 Research overlay
   (its own menu, separate from the Shop panel's Build/Buy list) on load,
-  for screenshotting the tree layout.
+  for screenshotting the tree layout. `&speed=N` sets the fast-forward
+  multiplier (1/2/4) before the probe loop runs — mostly useful for
+  eyeballing that higher speeds don't desync anything over a longer
+  synchronous probe. `&seed=xyz` reproduces a specific map (river shape,
+  node layout) instead of a random one — same mechanism as the shareable
+  `?seed=` on a real new game; pair with `probe` to get a deterministic
+  screenshot of a known layout.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —
