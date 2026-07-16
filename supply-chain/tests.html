@@ -15,19 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.14.0"></script>
-    <script src="js/state.js?v=1.14.0"></script>
-    <script src="js/save.js?v=1.14.0"></script>
-    <script src="js/sfx.js?v=1.14.0"></script>
-    <script src="js/map.js?v=1.14.0"></script>
-    <script src="js/camera.js?v=1.14.0"></script>
-    <script src="js/roads.js?v=1.14.0"></script>
-    <script src="js/factories.js?v=1.14.0"></script>
-    <script src="js/economy.js?v=1.14.0"></script>
-    <script src="js/vehicles.js?v=1.14.0"></script>
-    <script src="js/inspect.js?v=1.14.0"></script>
-    <script src="js/research.js?v=1.14.0"></script>
-    <script src="js/placement.js?v=1.14.0"></script>
+    <script src="js/config.js?v=1.15.0"></script>
+    <script src="js/state.js?v=1.15.0"></script>
+    <script src="js/save.js?v=1.15.0"></script>
+    <script src="js/sfx.js?v=1.15.0"></script>
+    <script src="js/rng.js?v=1.15.0"></script>
+    <script src="js/map.js?v=1.15.0"></script>
+    <script src="js/camera.js?v=1.15.0"></script>
+    <script src="js/roads.js?v=1.15.0"></script>
+    <script src="js/factories.js?v=1.15.0"></script>
+    <script src="js/economy.js?v=1.15.0"></script>
+    <script src="js/vehicles.js?v=1.15.0"></script>
+    <script src="js/inspect.js?v=1.15.0"></script>
+    <script src="js/research.js?v=1.15.0"></script>
+    <script src="js/placement.js?v=1.15.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -419,6 +420,73 @@
         const n1 = SC.map.unlockNext();
         assert('unlockNext (no filter) activates a site', n1 && n1.active);
         assert('starter products craftable', SC.economy.craftableProducts().includes('bread'));
+    })();
+
+    // ── Seeded RNG: deterministic stream, independent of global state ──
+    (function() {
+        const a = SC.rng.create('daily-2026-07-16');
+        const b = SC.rng.create('daily-2026-07-16');
+        const seqA = [a.next(), a.next(), a.next()];
+        const seqB = [b.next(), b.next(), b.next()];
+        assert('same seed produces the same sequence', seqA.every((v, i) => v === seqB[i]));
+
+        const c = SC.rng.create('a-completely-different-seed');
+        assert('a different seed produces a different sequence',
+            c.next() !== SC.rng.create('daily-2026-07-16').next());
+
+        assert('next() stays in [0, 1)', seqA.every(v => v >= 0 && v < 1));
+        const r = SC.rng.create('range-test');
+        for (let i = 0; i < 20; i++) {
+            const v = r.range(5, 10);
+            assert('range() stays within bounds', v >= 5 && v < 10);
+        }
+        const ri = SC.rng.create('int-test');
+        for (let i = 0; i < 20; i++) {
+            const v = ri.int(1, 3);
+            assert('int() is an integer within inclusive bounds',
+                Number.isInteger(v) && v >= 1 && v <= 3);
+        }
+        assert('randomSeed produces a non-empty string', typeof SC.rng.randomSeed() === 'string' &&
+            SC.rng.randomSeed().length > 0);
+    })();
+
+    // ── Seeded worlds: same seed -> identical map, different -> different ──
+    (function() {
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld('shared-map-42');
+        const seedA = SC.state.seed;
+        const nodesA = SC.state.nodes.map(n => ({ kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe }));
+        const riverA = JSON.stringify(SC.state.river);
+
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld('shared-map-42');
+        const nodesB = SC.state.nodes.map(n => ({ kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe }));
+        const riverB = JSON.stringify(SC.state.river);
+
+        assert('generateWorld records the seed used', seedA === 'shared-map-42');
+        assert('same seed reproduces an identical river', riverA === riverB);
+        assert('same seed reproduces an identical node layout',
+            nodesA.length === nodesB.length &&
+            nodesA.every((n, i) => JSON.stringify(n) === JSON.stringify(nodesB[i])));
+
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld('a-totally-different-seed');
+        const nodesC = SC.state.nodes.map(n => ({ x: n.x, y: n.y }));
+        assert('a different seed produces a different layout',
+            JSON.stringify(nodesC) !== JSON.stringify(nodesA.map(n => ({ x: n.x, y: n.y }))));
+
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld(); // no seed -> random
+        assert('an unseeded world still records a (random) seed',
+            typeof SC.state.seed === 'string' && SC.state.seed.length > 0);
+    })();
+
+    // ── Save round-trip: seed survives ──────────────
+    (function() {
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld('save-me-42');
+        SC.save.restore(SC.save.serialize());
+        assert('seed survives a save round-trip', SC.state.seed === 'save-me-42');
     })();
 
     // ── Milestone unlocks skip cities; the customer timer only unlocks cities ──
