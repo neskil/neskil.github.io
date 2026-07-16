@@ -25,7 +25,7 @@ SC.roads = (function() {
         if (!q) return { ok: false, reason: 'invalid' };
         if (!SC.canAfford(q.cost)) return { ok: false, reason: 'money', cost: q.cost };
         SC.state.money -= q.cost;
-        const edge = { a, b, len: q.len, bridge: q.bridge, cost: q.cost };
+        const edge = { a, b, len: q.len, bridge: q.bridge, cost: q.cost, level: 0 };
         SC.state.edges.push(edge);
         a.edges.push(b);
         b.edges.push(a);
@@ -53,7 +53,35 @@ SC.roads = (function() {
         return true;
     }
 
-    // Dijkstra over the road graph. Returns { path: [nodes], dist } or null.
+    // Highways (edge.level 1, unlocked by 'pavedRoads' research) move
+    // trucks HIGHWAY_SPEED_MULT× faster on that edge.
+    function speedMult(edge) {
+        return edge && edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : 1;
+    }
+
+    // Quote for upgrading a road to a highway; null when not possible.
+    function upgradeQuote(edge) {
+        if (!edge || edge.level > 0) return null;
+        if (!SC.research.isDone('pavedRoads')) return null;
+        const cost = Math.round(edge.len * SC.CONFIG.ROAD_UPGRADE_PER_UNIT *
+            (edge.bridge ? SC.CONFIG.BRIDGE_MULT : 1));
+        return { cost };
+    }
+
+    function upgrade(edge) {
+        const q = upgradeQuote(edge);
+        if (!q) return { ok: false, reason: 'invalid' };
+        if (!SC.canAfford(q.cost)) return { ok: false, reason: 'money', cost: q.cost };
+        SC.state.money -= q.cost;
+        edge.level = 1;
+        SC.economy && SC.economy.onNetworkChanged();
+        SC.emit('roadUpgraded', { edge, cost: q.cost });
+        return { ok: true, edge };
+    }
+
+    // Dijkstra over the road graph, weighted by travel TIME (highway
+    // edges count len/speedMult), so routing prefers upgraded roads.
+    // Returns { path: [nodes], dist } or null.
     function findPath(from, to) {
         if (from === to) return { path: [from], dist: 0 };
         const dist = new Map([[from, 0]]);
@@ -70,7 +98,7 @@ SC.roads = (function() {
             done.add(cur);
             for (const nb of cur.edges) {
                 const e = findEdge(cur, nb);
-                const d = dist.get(cur) + e.len;
+                const d = dist.get(cur) + e.len / speedMult(e);
                 if (!dist.has(nb) || d < dist.get(nb)) {
                     dist.set(nb, d);
                     prev.set(nb, cur);
@@ -89,5 +117,6 @@ SC.roads = (function() {
         return r ? r.dist : Infinity;
     }
 
-    return { findEdge, quote, build, demolish, findPath, pathDist };
+    return { findEdge, quote, build, demolish, findPath, pathDist,
+             speedMult, upgradeQuote, upgrade };
 })();

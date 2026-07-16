@@ -15,19 +15,19 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.10.1"></script>
-    <script src="js/state.js?v=1.10.1"></script>
-    <script src="js/save.js?v=1.10.1"></script>
-    <script src="js/sfx.js?v=1.10.1"></script>
-    <script src="js/map.js?v=1.10.1"></script>
-    <script src="js/camera.js?v=1.10.1"></script>
-    <script src="js/roads.js?v=1.10.1"></script>
-    <script src="js/factories.js?v=1.10.1"></script>
-    <script src="js/economy.js?v=1.10.1"></script>
-    <script src="js/vehicles.js?v=1.10.1"></script>
-    <script src="js/inspect.js?v=1.10.1"></script>
-    <script src="js/research.js?v=1.10.1"></script>
-    <script src="js/placement.js?v=1.10.1"></script>
+    <script src="js/config.js?v=1.11.0"></script>
+    <script src="js/state.js?v=1.11.0"></script>
+    <script src="js/save.js?v=1.11.0"></script>
+    <script src="js/sfx.js?v=1.11.0"></script>
+    <script src="js/map.js?v=1.11.0"></script>
+    <script src="js/camera.js?v=1.11.0"></script>
+    <script src="js/roads.js?v=1.11.0"></script>
+    <script src="js/factories.js?v=1.11.0"></script>
+    <script src="js/economy.js?v=1.11.0"></script>
+    <script src="js/vehicles.js?v=1.11.0"></script>
+    <script src="js/inspect.js?v=1.11.0"></script>
+    <script src="js/research.js?v=1.11.0"></script>
+    <script src="js/placement.js?v=1.11.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -182,9 +182,18 @@
         SC.state.upgrades.truckSpeed = SC.CONFIG.UPGRADES.truckSpeed.max;
         assert('maxed upgrade rejected', SC.upgradePrice('truckSpeed') === null &&
             !SC.economy.buyUpgrade('truckSpeed').ok);
+        // Truck prices ladder per yard: growth tracks trucks homed at the
+        // active yard, and a fresh yard resets the ladder to base price.
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        SC.state.activeYard = hq;
         const t0 = SC.truckPrice();
-        SC.state.trucksBought = 2;
-        assert('truck price grows with fleet', SC.truckPrice() > t0);
+        assert('first truck at a yard costs base price', t0 === SC.CONFIG.TRUCK_PRICE);
+        SC.vehicles.addTruck(hq, hq);
+        SC.vehicles.addTruck(hq, hq);
+        assert('truck price grows with trucks at the active yard', SC.truckPrice() > t0);
+        const yard = SC.map.makeNode('yard', 900, 900, { active: true });
+        SC.state.activeYard = yard;
+        assert('a new yard resets the truck price ladder', SC.truckPrice() === SC.CONFIG.TRUCK_PRICE);
     })();
 
     // ── Truck capacity: base, upgrade effect, bundling, partial cancel ──
@@ -875,6 +884,174 @@
 
         assert('infoFor is null for inactive nodes',
             SC.inspect.infoFor(SC.map.makeNode('supplier', 900, 900, { mat: 'ore' })) === null);
+    })();
+
+    // ── Supplier stock: cap, regen, consumption, trucks wait when dry ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        assert('supplier starts with a full stockpile', S1.stock === SC.supplierCap(S1));
+        assert('base cap matches config', SC.supplierCap(S1) === SC.CONFIG.SUPPLIER_STOCK_CAP);
+
+        S1.stock = 2;
+        SC.economy.tickSuppliers(4);
+        assert('stock regenerates over time', approx(S1.stock, 2 + SC.CONFIG.SUPPLIER_REGEN * 4, 0.01));
+        SC.economy.tickSuppliers(10000);
+        assert('regen stops at the cap', S1.stock === SC.supplierCap(S1));
+
+        SC.roads.build(S1, F);
+        const truck = SC.vehicles.addTruck(S1);
+        const before = S1.stock;
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: null, task: null });
+        SC.vehicles.dispatch();
+        assert('pickup consumes one unit of supplier stock',
+            S1.stock === before - 1 && truck.phase === 'toDrop');
+    })();
+
+    // ── Supplier stock: dry supplier makes the truck wait ('loading') ──
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        S1.stock = 0;
+        const truck = SC.vehicles.addTruck(S1);
+        SC.vehicles.addJob({ type: 'raw', item: 'wheat', pickup: S1, drop: F, order: null, task: null });
+        SC.vehicles.dispatch();
+        assert('truck at a dry supplier waits in the loading phase', truck.phase === 'loading');
+        assert('loading truck is not counted as idle for dispatch', truck.jobs.length === 1);
+
+        // Regen refills the stock; the waiting truck then loads and departs
+        for (let i = 0; i < 100 && truck.phase === 'loading'; i++) {
+            SC.economy.tickSuppliers(0.1);
+            SC.vehicles.tick(0.1);
+        }
+        assert('truck departs once regen catches up', truck.phase === 'toDrop' || truck.phase === null);
+        assert('the loaded unit was taken from stock', S1.stock < 1);
+    })();
+
+    // ── Supplier upgrades: price ladder, cap/regen boost, max level ──
+    (function() {
+        const { S1 } = fixture();
+        SC.state.money = 100000;
+        const p0 = SC.supplierUpgradePrice(S1);
+        assert('level-0 upgrade costs the base price', p0 === SC.CONFIG.SUPPLIER_UPGRADE_BASE);
+        const cap0 = SC.supplierCap(S1), regen0 = SC.supplierRegen(S1);
+        const res = SC.economy.upgradeSupplier(S1);
+        assert('upgrade charges and levels the supplier',
+            res.ok && S1.level === 1 && SC.state.money === 100000 - p0);
+        assert('upgrade raises cap and regen',
+            SC.supplierCap(S1) > cap0 && SC.supplierRegen(S1) > regen0);
+        assert('next level costs more', SC.supplierUpgradePrice(S1) > p0);
+        S1.level = SC.CONFIG.SUPPLIER_MAX_LEVEL;
+        assert('maxed supplier cannot upgrade further',
+            SC.supplierUpgradePrice(S1) === null && !SC.economy.upgradeSupplier(S1).ok);
+        assert('cities cannot be supplier-upgraded',
+            !SC.economy.upgradeSupplier(SC.state.nodes.find(n => n.kind === 'city')).ok);
+
+        // Fertilizer research boosts every supplier's regen globally
+        const r0 = SC.supplierRegen(S1);
+        SC.state.research.completed.fertilizer = true;
+        assert('fertilizer research boosts supplier regen',
+            approx(SC.supplierRegen(S1), r0 * (1 + SC.RESEARCH.fertilizer.supplierRegenBonus), 0.001));
+    })();
+
+    // ── Road upgrades: research gate, cost, routing and truck speed ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        const e1 = SC.roads.build(S1, F).edge;
+        assert('road upgrade locked before pavedRoads research',
+            SC.roads.upgradeQuote(e1) === null && !SC.roads.upgrade(e1).ok);
+
+        SC.state.research.completed.pavedRoads = true;
+        const q = SC.roads.upgradeQuote(e1);
+        assert('upgrade quote scales with length',
+            q && q.cost === Math.round(e1.len * SC.CONFIG.ROAD_UPGRADE_PER_UNIT));
+        const m0 = SC.state.money;
+        assert('upgrade charges and marks the edge a highway',
+            SC.roads.upgrade(e1).ok && e1.level === 1 && SC.state.money === m0 - q.cost);
+        assert('an edge cannot be upgraded twice', SC.roads.upgradeQuote(e1) === null);
+
+        // Dijkstra weighs highways by travel time, so a paved detour of
+        // equal length beats the unpaved one.
+        assert('pathfinding dist shrinks on a highway',
+            approx(SC.roads.pathDist(S1, F), e1.len / SC.CONFIG.HIGHWAY_SPEED_MULT, 0.01));
+
+        // A truck physically crosses a highway edge faster than an
+        // identical-length normal one: count ticks to finish each leg.
+        const e2 = SC.roads.build(S2, F).edge; // same 316.23u length as S1->F, unpaved
+        function ticksToTraverse(from, to) {
+            const truck = SC.vehicles.addTruck(from);
+            truck.phase = 'returning'; // plain travel, no pickup/drop logic
+            truck.path = SC.roads.findPath(from, to).path;
+            truck.pathIdx = 0; truck.progress = 0;
+            let n = 0;
+            while (truck.path && n < 1000) { SC.vehicles.tick(0.05); n++; }
+            SC.state.trucks.pop();
+            return n;
+        }
+        const hwyTicks = ticksToTraverse(S1, F); // paved leg
+        const stdTicks = ticksToTraverse(S2, F); // unpaved leg
+        assert('truck crosses a highway edge faster than a normal one',
+            hwyTicks < stdTicks && approx(stdTicks / hwyTicks, SC.CONFIG.HIGHWAY_SPEED_MULT, 0.2));
+    })();
+
+    // ── Research-gated upgrade caps (Overdrive / Automation) ──
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.state.upgrades.truckSpeed = SC.CONFIG.UPGRADES.truckSpeed.max;
+        assert('truckSpeed capped at config max without research',
+            SC.upgradePrice('truckSpeed') === null);
+        SC.state.research.completed.overdrive = true;
+        assert('overdrive research raises the truckSpeed cap',
+            SC.upgradeMax('truckSpeed') === SC.CONFIG.UPGRADES.truckSpeed.max + 3 &&
+            SC.upgradePrice('truckSpeed') !== null);
+        assert('buying past the old cap works once researched',
+            SC.economy.buyUpgrade('truckSpeed').ok &&
+            SC.state.upgrades.truckSpeed === SC.CONFIG.UPGRADES.truckSpeed.max + 1);
+        assert('factorySpeed cap untouched by overdrive',
+            SC.upgradeMax('factorySpeed') === SC.CONFIG.UPGRADES.factorySpeed.max);
+    })();
+
+    // ── Deeper chains pay a value premium ───────────
+    (function() {
+        // A world where ONLY robots (depth 3) are craftable: the spawned
+        // order's payout must include the 1.5× depth premium on top of
+        // base value (robot city sits right next to the factory, so the
+        // distance term stays small).
+        SC.newState(); SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
+        const city = SC.map.makeNode('city', 100, 100, { active: true, isHQ: true });
+        SC.map.makeNode('factory', 150, 100, { active: true, recipe: 'robot' });
+        SC.map.makeNode('factory', 300, 100, { active: true, recipe: 'circuit' });
+        SC.map.makeNode('factory', 450, 100, { active: true, recipe: 'wire' });
+        SC.map.makeNode('factory', 600, 100, { active: true, recipe: 'steel' });
+        for (const mat of ['copper', 'rubber', 'chips', 'ore', 'coal']) {
+            SC.map.makeNode('supplier', 700 + Math.random() * 100, 300, { active: true, mat });
+        }
+        const o = SC.economy.spawnOrder();
+        const mult = 1 + SC.CONFIG.ORDER_DEPTH_VALUE * (SC.depthOf('robot') - 1);
+        assert('only robots are orderable in this world', o && o.product === 'robot');
+        assert('depth premium applied to the payout',
+            o.payout >= SC.GOODS.robot.value * mult); // 900 * 1.5 = 1350 minimum
+    })();
+
+    // ── Save round-trip: supplier stock/levels + highway edges ──
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        const edge = SC.roads.build(S1, F).edge;
+        SC.state.research.completed.pavedRoads = true;
+        SC.roads.upgrade(edge);
+        SC.economy.upgradeSupplier(S1);
+        S1.stock = 3.5;
+
+        SC.save.restore(SC.save.serialize());
+        const rS1 = SC.state.nodes.find(n => n.kind === 'supplier' && n.mat === 'wheat');
+        assert('supplier level survives a round-trip', rS1.level === 1);
+        assert('supplier stock survives a round-trip', approx(rS1.stock, 3.5, 0.001));
+        assert('highway level survives a round-trip', SC.state.edges[0].level === 1);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

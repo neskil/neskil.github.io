@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.10.1';
+SC.VERSION = '1.11.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -23,9 +23,32 @@ SC.CONFIG = {
     BRIDGE_MULT: 3,            // river crossings cost extra
     ROAD_REFUND: 0.5,          // fraction returned when demolishing
 
+    // Truck price ladders PER YARD: the nth truck stationed at a given
+    // yard costs base * growth^n, so building a new yard "resets" the
+    // ladder there. The counterweight is YARD_PRICE_GROWTH below — each
+    // extra yard costs 1.5× the last, so cheap trucks are bought with
+    // increasingly expensive yards.
     TRUCK_PRICE: 500,
     TRUCK_PRICE_GROWTH: 1.35,
     TRUCK_SPEED: 80,           // world units / second
+
+    // Road upgrades (research-gated by 'pavedRoads'): a highway edge
+    // moves trucks HIGHWAY_SPEED_MULT× faster; upgrade cost scales with
+    // length like building does (bridges cost extra again).
+    ROAD_UPGRADE_PER_UNIT: 0.9,
+    HIGHWAY_SPEED_MULT: 1.6,
+
+    // Suppliers hold a finite stock that regenerates over time; trucks
+    // wait at an empty supplier until enough stock accumulates. Each
+    // supplier can be upgraded individually (tap in Upgrade mode):
+    // +CAP_PER_LEVEL capacity and +REGEN_PER_LEVEL regen per level.
+    SUPPLIER_STOCK_CAP: 8,
+    SUPPLIER_CAP_PER_LEVEL: 4,
+    SUPPLIER_REGEN: 0.25,          // units per second at level 0
+    SUPPLIER_REGEN_PER_LEVEL: 0.5, // +50% of base regen per level
+    SUPPLIER_MAX_LEVEL: 4,
+    SUPPLIER_UPGRADE_BASE: 400,
+    SUPPLIER_UPGRADE_GROWTH: 1.6,
 
     FACTORY_SITE_PRICE: 700,
 
@@ -45,6 +68,7 @@ SC.CONFIG = {
     ORDER_MAX_ACTIVE: 6,
     ORDER_DIST_PAY: 0.35,      // $ per world-unit of factory->city distance
     ORDER_DEPTH_SLACK: 0.5,    // extra deadline fraction per chain tier past 1
+    ORDER_DEPTH_VALUE: 0.25,   // extra payout fraction per chain tier past 1
     SALVAGE_PAY: 15,           // cargo delivered after its order expired
 
     // A new locked supplier/factory site activates every N deliveries.
@@ -85,9 +109,29 @@ SC.RESEARCH = {
     creditLine3: {
         name: 'Credit Line III', emoji: '💳', cost: 1800, time: 100, requires: ['creditLine2'],
         desc: 'Raises your credit limit by another $2,000.', creditBonus: 2000
+    },
+    pavedRoads: {
+        name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 60, requires: [],
+        desc: 'Upgrade individual roads to highways — trucks drive 60% faster on them.'
+    },
+    overdrive: {
+        name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 90, requires: ['pavedRoads'],
+        desc: 'Raises the Truck Speed upgrade cap by 3 levels.',
+        upgradeMaxBonus: { truckSpeed: 3 }
+    },
+    fertilizer: {
+        name: 'Fertilizer Program', emoji: '🌱', cost: 1000, time: 70, requires: [],
+        desc: 'All suppliers regenerate stock 50% faster.',
+        supplierRegenBonus: 0.5
+    },
+    automation: {
+        name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 110, requires: ['fertilizer'],
+        desc: 'Raises the Factory Speed upgrade cap by 3 levels.',
+        upgradeMaxBonus: { factorySpeed: 3 }
     }
 };
-SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'creditLine3'];
+SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
+                     'creditLine3', 'overdrive', 'automation'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city

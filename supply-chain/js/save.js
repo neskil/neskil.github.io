@@ -9,7 +9,7 @@ window.SC = window.SC || {};
 
 SC.save = (function() {
     const KEY = 'scTycoonSave.v1';
-    const FORMAT = 3; // v3: truck yards (trucks[] now {nodeId, homeYardId} objects)
+    const FORMAT = 4; // v4: supplier stock/levels + road upgrade levels
 
     function serialize() {
         const st = SC.state;
@@ -55,9 +55,10 @@ SC.save = (function() {
             nodes: st.nodes.map(n => ({
                 id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
                 active: n.active, forSale: n.forSale, isHQ: n.isHQ,
+                level: n.level || 0, stock: n.stock,
                 inv: inv.get(n.id) || {}
             })),
-            edges: st.edges.map(e => ({ a: e.a.id, b: e.b.id, cost: e.cost })),
+            edges: st.edges.map(e => ({ a: e.a.id, b: e.b.id, cost: e.cost, level: e.level || 0 })),
             trucks: st.trucks.map(t => ({
                 nodeId: (t.node || st.nodes[0]).id,
                 homeYardId: (t.homeYard || t.node || st.nodes[0]).id
@@ -96,7 +97,8 @@ SC.save = (function() {
         for (const nd of data.nodes) {
             const n = SC.map.makeNode(nd.kind, nd.x, nd.y, {
                 id: nd.id, mat: nd.mat, recipe: nd.recipe, active: nd.active,
-                forSale: nd.forSale, isHQ: nd.isHQ
+                forSale: nd.forSale, isHQ: nd.isHQ,
+                level: nd.level || 0, stock: nd.stock
             });
             n.inv = Object.assign({}, nd.inv);
             byId.set(n.id, n);
@@ -106,7 +108,7 @@ SC.save = (function() {
             if (!a || !b) continue;
             const len = Math.hypot(a.x - b.x, a.y - b.y);
             const bridge = SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y);
-            st.edges.push({ a, b, len, bridge, cost: ed.cost });
+            st.edges.push({ a, b, len, bridge, cost: ed.cost, level: ed.level || 0 });
             a.edges.push(b);
             b.edges.push(a);
         }

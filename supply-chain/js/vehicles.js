@@ -35,7 +35,9 @@ SC.vehicles = (function() {
             if (jobs[i].order === order) jobs.splice(i, 1);
         }
         for (const t of SC.state.trucks) {
-            if (t.phase !== 'toPickup') continue; // loaded trucks finish their run; salvage handles the drop
+            // loaded trucks finish their run; salvage handles the drop.
+            // 'loading' trucks haven't consumed stock yet, so cancel freely.
+            if (t.phase !== 'toPickup' && t.phase !== 'loading') continue;
             const before = t.jobs.length;
             t.jobs = t.jobs.filter(j => j.order !== order);
             if (t.jobs.length === before) continue;
@@ -66,17 +68,7 @@ SC.vehicles = (function() {
         if (truck.phase === 'returning') { truck.phase = null; return; }
         if (!truck.jobs.length) return;
         if (truck.phase === 'toPickup') {
-            const first = truck.jobs[0];
-            const route = SC.roads.findPath(first.pickup, first.drop);
-            if (!route) { // network changed underneath us: give the jobs back
-                SC.state.jobs.push(...truck.jobs);
-                truck.jobs = [];
-                truck.phase = null;
-                return;
-            }
-            truck.cargo = truck.jobs.map(j => j.item);
-            truck.phase = 'toDrop';
-            setPath(truck, route.path);
+            loadAtPickup(truck);
         } else if (truck.phase === 'toDrop') {
             for (const job of truck.jobs) {
                 if (job.type === 'raw') {
@@ -89,6 +81,32 @@ SC.vehicles = (function() {
             truck.jobs = [];
             truck.phase = null;
         }
+    }
+
+    // Truck arrived at its pickup (or is waiting there). Suppliers hold
+    // finite regenerating stock: if there isn't enough for the whole
+    // bundle yet, the truck waits in the 'loading' phase and retries
+    // each tick until the stock catches up. Factory pickups (crafted
+    // intermediates/products) are made-to-order and never stock-gated.
+    function loadAtPickup(truck) {
+        const first = truck.jobs[0];
+        const route = SC.roads.findPath(first.pickup, first.drop);
+        if (!route) { // network changed underneath us: give the jobs back
+            SC.state.jobs.push(...truck.jobs);
+            truck.jobs = [];
+            truck.phase = null;
+            return;
+        }
+        if (first.pickup.kind === 'supplier') {
+            if ((first.pickup.stock || 0) < truck.jobs.length) {
+                truck.phase = 'loading';
+                return;
+            }
+            first.pickup.stock -= truck.jobs.length;
+        }
+        truck.cargo = truck.jobs.map(j => j.item);
+        truck.phase = 'toDrop';
+        setPath(truck, route.path);
     }
 
     // Assign pending jobs to idle trucks. Repeatedly matches the globally
@@ -147,11 +165,14 @@ SC.vehicles = (function() {
     function tick(dt) {
         const speed = SC.truckSpeed();
         for (const t of SC.state.trucks) {
+            if (t.phase === 'loading') { loadAtPickup(t); continue; } // waiting on supplier stock
             if (!t.path) continue;
             let remaining = speed * dt;
             while (remaining > 0 && t.path && t.pathIdx < t.path.length - 1) {
                 const a = t.path[t.pathIdx], b = t.path[t.pathIdx + 1];
-                const segLen = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+                // Highways carry trucks faster on that segment
+                const mult = SC.roads.speedMult(SC.roads.findEdge(a, b));
+                const segLen = (Math.hypot(b.x - a.x, b.y - a.y) || 1) / mult;
                 const distLeft = segLen * (1 - t.progress);
                 if (remaining < distLeft) {
                     t.progress += remaining / segLen;
@@ -175,12 +196,12 @@ SC.vehicles = (function() {
     }
 
     function buyTruck() {
-        const price = SC.truckPrice();
+        const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
+        const yard = SC.isYard(SC.state.activeYard) ? SC.state.activeYard : hq;
+        const price = SC.truckPrice(yard); // per-yard ladder
         if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
         SC.state.money -= price;
         SC.state.trucksBought++;
-        const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
-        const yard = SC.isYard(SC.state.activeYard) ? SC.state.activeYard : hq;
         const truck = addTruck(yard, yard);
         SC.emit('truckBought', { truck, price });
         return { ok: true, truck };
