@@ -90,12 +90,19 @@ SC.render = (function() {
 
     function drawRoads() {
         const pending = SC.input.getPendingDemolish && SC.input.getPendingDemolish();
+        const pendingUp = SC.input.getPendingUpgrade && SC.input.getPendingUpgrade();
         for (const e of SC.state.edges) {
             ctx.beginPath();
             ctx.moveTo(e.a.x, e.a.y);
             ctx.lineTo(e.b.x, e.b.y);
             if (e === pending) {
                 ctx.strokeStyle = 'rgba(248, 113, 113, 0.9)';
+                ctx.lineWidth = 6;
+            } else if (e === pendingUp) { // Upgrade mode: road armed for paving
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+                ctx.lineWidth = 6;
+            } else if (e.level > 0) {     // highway: wider, brighter, gold core
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
                 ctx.lineWidth = 6;
             } else {
                 ctx.strokeStyle = e.bridge ? 'rgba(125, 170, 210, 0.55)' : 'rgba(148, 163, 184, 0.45)';
@@ -104,6 +111,16 @@ SC.render = (function() {
             ctx.setLineDash(e.bridge ? [14, 8] : []);
             ctx.stroke();
             ctx.setLineDash([]);
+            if (e.level > 0 && e !== pending && e !== pendingUp) {
+                ctx.beginPath();
+                ctx.moveTo(e.a.x, e.a.y);
+                ctx.lineTo(e.b.x, e.b.y);
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([10, 10]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
         }
     }
 
@@ -241,6 +258,18 @@ SC.render = (function() {
                 ctx.strokeStyle = SC.colorOf(n.mat);
                 ctx.stroke();
                 emojiPlate(SC.emojiOf(n.mat), n.x, n.y, R - 2, 19);
+                // Stock bar: how full the regenerating stockpile is —
+                // red when nearly dry (trucks will queue up waiting).
+                const cap = SC.supplierCap(n);
+                const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
+                const bw = 30;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.fillRect(n.x - bw / 2, n.y + R + 9, bw, 4);
+                ctx.fillStyle = frac < 0.25 ? '#f87171' : SC.colorOf(n.mat);
+                ctx.fillRect(n.x - bw / 2, n.y + R + 9, bw * frac, 4);
+                if (n.level > 0) {
+                    label('▲'.repeat(n.level), n.x, n.y - R - 12, '#facc15', 10);
+                }
             } else if (n.kind === 'factory') {
                 ctx.beginPath();
                 ctx.rect(n.x - R - 2, n.y - R - 2, (R + 2) * 2, (R + 2) * 2);

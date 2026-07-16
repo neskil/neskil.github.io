@@ -38,7 +38,7 @@ SC.newState = function() {
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
-        mode: 'build',      // 'build' (default, current tap-to-build) | 'inspect'
+        mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
         gameStarted: false
     };
@@ -70,15 +70,51 @@ SC.truckCapacity = function() {
     return 1 + u.boost * SC.state.upgrades.truckCapacity;
 };
 
+// Upgrade level cap: config max plus any research upgradeMaxBonus
+// (e.g. Overdrive Engines raises truckSpeed's cap by 3).
+SC.upgradeMax = function(key) {
+    return SC.CONFIG.UPGRADES[key].max + SC.research.upgradeMaxBonus(key);
+};
+
 SC.upgradePrice = function(key) {
     const u = SC.CONFIG.UPGRADES[key];
     const lvl = SC.state.upgrades[key];
-    return lvl >= u.max ? null : Math.round(u.base * Math.pow(u.growth, lvl));
+    return lvl >= SC.upgradeMax(key) ? null : Math.round(u.base * Math.pow(u.growth, lvl));
 };
 
-SC.truckPrice = function() {
+// Trucks whose home is this yard — the per-yard price ladder's rung.
+SC.trucksAtYard = function(yard) {
+    return SC.state.trucks.filter(t => t.homeYard === yard).length;
+};
+
+// Truck price ladders per yard: a new yard resets the ladder (yards
+// themselves get pricier via yardPrice, which is the balance lever).
+// Pass the yard the truck would station at; defaults to the same
+// resolution buyTruck uses (active yard, falling back to HQ).
+SC.truckPrice = function(yard) {
+    if (!yard) {
+        yard = SC.isYard(SC.state.activeYard) ? SC.state.activeYard
+             : (SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0]);
+    }
     return Math.round(SC.CONFIG.TRUCK_PRICE *
-        Math.pow(SC.CONFIG.TRUCK_PRICE_GROWTH, SC.state.trucksBought));
+        Math.pow(SC.CONFIG.TRUCK_PRICE_GROWTH, SC.trucksAtYard(yard)));
+};
+
+// ── Suppliers: finite, regenerating, upgradable stock ─────
+SC.supplierCap = function(n) {
+    return SC.CONFIG.SUPPLIER_STOCK_CAP + SC.CONFIG.SUPPLIER_CAP_PER_LEVEL * (n.level || 0);
+};
+
+SC.supplierRegen = function(n) {
+    return SC.CONFIG.SUPPLIER_REGEN *
+        (1 + SC.CONFIG.SUPPLIER_REGEN_PER_LEVEL * (n.level || 0)) *
+        (1 + SC.research.supplierRegenBonus());
+};
+
+SC.supplierUpgradePrice = function(n) {
+    if ((n.level || 0) >= SC.CONFIG.SUPPLIER_MAX_LEVEL) return null;
+    return Math.round(SC.CONFIG.SUPPLIER_UPGRADE_BASE *
+        Math.pow(SC.CONFIG.SUPPLIER_UPGRADE_GROWTH, n.level || 0));
 };
 
 SC.yardPrice = function() {

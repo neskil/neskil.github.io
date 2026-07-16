@@ -102,6 +102,28 @@ SC.runProbe = function(seconds) {
             if (SC.RESEARCH[id]) SC.state.research.completed[id] = true;
         }
     }
+    // Complete pavedRoads and pave every built road, so highway styling
+    // can be screenshotted
+    if (p.has('highway')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        SC.state.research.completed.pavedRoads = true;
+        for (const e of SC.state.edges.slice()) SC.roads.upgrade(e);
+    }
+    // Level up every supplier N times (&suplevel=2) for the ▲ pips, and
+    // &drain=1 empties supplier stocks so the red low-stock bar shows
+    if (p.has('suplevel')) {
+        const lv = parseInt(p.get('suplevel'), 10) || 1;
+        SC.state.money = Math.max(SC.state.money, 100000);
+        for (const n of SC.state.nodes) {
+            if (n.kind !== 'supplier' || !n.active) continue;
+            for (let i = 0; i < lv; i++) SC.economy.upgradeSupplier(n);
+        }
+    }
+    if (p.has('drain')) {
+        for (const n of SC.state.nodes) {
+            if (n.kind === 'supplier') n.stock = Math.min(n.stock, 1);
+        }
+    }
     // Arm placement mode so the ghost preview can be screenshotted, e.g.
     // ?placemode=supplier:wheat
     if (p.has('placemode')) {
