@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.14.0">
+    <link rel="stylesheet" href="style.css?v=1.15.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -14,6 +14,11 @@
         <div id="hud">
             <div class="hud-item money" id="hud-money-item"><span class="hud-label" id="hud-money-label">Money</span><span id="hud-money">$0</span></div>
             <div class="hud-item"><span class="hud-label hud-label-full">Trucks idle</span><span class="hud-label hud-label-short">🚚</span><span id="hud-trucks">0/0</span></div>
+        </div>
+        <div id="speed-toggle">
+            <button class="speed-btn active" data-speed="1" title="Normal speed">1×</button>
+            <button class="speed-btn" data-speed="2" title="2x speed">2×</button>
+            <button class="speed-btn" data-speed="4" title="4x speed">4×</button>
         </div>
     </div>
 
@@ -148,6 +153,7 @@
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, bottom right): tap a supplier twice to raise its stock cap and refill rate.</li>
                 <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
+                <li><b>Fast-forward:</b> the 1×/2×/4× toggle under the HUD speeds up the whole sim — orders, crafting, trucks, interest, everything.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
                 <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
             </ul>
@@ -168,22 +174,23 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.14.0"></script>
-    <script src="js/state.js?v=1.14.0"></script>
-    <script src="js/save.js?v=1.14.0"></script>
-    <script src="js/sfx.js?v=1.14.0"></script>
-    <script src="js/map.js?v=1.14.0"></script>
-    <script src="js/camera.js?v=1.14.0"></script>
-    <script src="js/roads.js?v=1.14.0"></script>
-    <script src="js/factories.js?v=1.14.0"></script>
-    <script src="js/economy.js?v=1.14.0"></script>
-    <script src="js/vehicles.js?v=1.14.0"></script>
-    <script src="js/inspect.js?v=1.14.0"></script>
-    <script src="js/research.js?v=1.14.0"></script>
-    <script src="js/placement.js?v=1.14.0"></script>
-    <script src="js/render.js?v=1.14.0"></script>
-    <script src="js/input.js?v=1.14.0"></script>
-    <script src="js/ui.js?v=1.14.0"></script>
-    <script src="js/main.js?v=1.14.0"></script>
+    <script src="js/config.js?v=1.15.0"></script>
+    <script src="js/state.js?v=1.15.0"></script>
+    <script src="js/save.js?v=1.15.0"></script>
+    <script src="js/sfx.js?v=1.15.0"></script>
+    <script src="js/rng.js?v=1.15.0"></script>
+    <script src="js/map.js?v=1.15.0"></script>
+    <script src="js/camera.js?v=1.15.0"></script>
+    <script src="js/roads.js?v=1.15.0"></script>
+    <script src="js/factories.js?v=1.15.0"></script>
+    <script src="js/economy.js?v=1.15.0"></script>
+    <script src="js/vehicles.js?v=1.15.0"></script>
+    <script src="js/inspect.js?v=1.15.0"></script>
+    <script src="js/research.js?v=1.15.0"></script>
+    <script src="js/placement.js?v=1.15.0"></script>
+    <script src="js/render.js?v=1.15.0"></script>
+    <script src="js/input.js?v=1.15.0"></script>
+    <script src="js/ui.js?v=1.15.0"></script>
+    <script src="js/main.js?v=1.15.0"></script>
 </body>
 </html>

@@ -13,7 +13,10 @@ SC.init = function() {
         // localStorage by the picker so it survives the reload).
         SC.newState(localStorage.getItem('scTycoonDifficulty') || 'normal');
         SC.map._resetSeq();
-        SC.map.generateWorld();
+        // ?seed=xyz reproduces a shared map exactly (river shape, node
+        // layout); omit for a fresh random one. Menu shows the seed in
+        // play so it can be copied/shared after the fact too.
+        SC.map.generateWorld(params.get('seed'));
         const start = SC.state.nodes.find(n => n.isHQ);
         SC.state.activeYard = start;
         for (let i = 0; i < SC.CONFIG.START_TRUCKS; i++) SC.vehicles.addTruck(start, start);
@@ -41,11 +44,18 @@ SC.init = function() {
         last = now;
 
         if (SC.state.gameStarted && !SC.state.paused && !SC.state.gameOver) {
-            SC.state.time += dt;
-            SC.economy.tick(dt);
-            SC.factories.tick(dt);
-            SC.vehicles.tick(dt);
-            SC.research.tick(dt);
+            // Fast-forward: run `speed` fixed-size sub-steps of the same dt
+            // rather than scaling dt itself, so trucks/crafting/interest
+            // etc. see the same step size as at 1x (no physics drift) —
+            // more simulated time per frame, not bigger, riskier steps.
+            for (let i = 0; i < SC.state.speed; i++) {
+                SC.state.time += dt;
+                SC.economy.tick(dt);
+                SC.factories.tick(dt);
+                SC.vehicles.tick(dt);
+                SC.research.tick(dt);
+                if (SC.state.gameOver) break; // a sub-step can end the run
+            }
             saveTimer += dt;
             if (saveTimer >= SC.CONFIG.AUTOSAVE_INTERVAL && !wantFresh) {
                 saveTimer = 0;
@@ -80,6 +90,7 @@ SC.runProbe = function(seconds) {
     const p = new URLSearchParams(location.search);
     if (p.has('dc')) SC.state.nextCustomerIn = 3;
     if (p.has('capacity')) SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
+    if (p.has('speed')) SC.state.speed = parseInt(p.get('speed'), 10) || 1;
     const f = SC.factories.all()[0];
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))
