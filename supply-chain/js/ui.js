@@ -39,7 +39,7 @@ SC.ui = (function() {
             const btn = $('btn-' + key);
             const price = SC.upgradePrice(key);
             const lvl = st.upgrades[key];
-            btn.querySelector('.lvl').textContent = '●'.repeat(lvl) + '○'.repeat(SC.CONFIG.UPGRADES[key].max - lvl);
+            btn.querySelector('.lvl').textContent = '●'.repeat(lvl) + '○'.repeat(SC.upgradeMax(key) - lvl);
             if (price === null) {
                 btn.querySelector('.price').textContent = 'MAX';
                 btn.disabled = true;
@@ -248,7 +248,9 @@ SC.ui = (function() {
                     <span>${SC.emojiOf(c.factory.recipe)} ${SC.GOODS[c.factory.recipe].building}</span>
                     <span>${c.connected ? Math.round(c.dist) + 'u' : 'no route!'}</span>
                 </div>`).join('') : '<div class="itip-row itip-bad">No factory needs this yet</div>';
-            return `<div class="itip-title">${SC.emojiOf(info.mat)} ${SC.nameOf(info.mat)} supplier</div>
+            const n = info.node;
+            return `<div class="itip-title">${SC.emojiOf(info.mat)} ${SC.nameOf(info.mat)} supplier${n.level ? ` <span class="itip-forsale">Lv${n.level + 1}</span>` : ''}</div>
+                    <div class="itip-row"><span>Stock</span><span>${Math.floor(n.stock)}/${SC.supplierCap(n)}</span></div>
                     <div class="itip-sub">Used by</div>${rows}`;
         }
         const rows = info.orders.length ? info.orders.map(o => {
@@ -281,8 +283,10 @@ SC.ui = (function() {
         SC.state.placeMode = null; // don't leave manual placement armed while inspecting
         SC.input.reset();
         $('mode-build').classList.toggle('active', mode === 'build');
+        $('mode-upgrade').classList.toggle('active', mode === 'upgrade');
         $('mode-inspect').classList.toggle('active', mode === 'inspect');
         SC.sfx.play('click');
+        if (mode === 'upgrade') toast('Upgrade mode: tap a supplier or a road', 'info');
     }
 
     let ordersTimer = 0, lastOrderCount = -1;
@@ -387,6 +391,7 @@ SC.ui = (function() {
         });
 
         $('mode-build').addEventListener('click', () => setMode('build'));
+        $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
 
         $('btn-menu').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });

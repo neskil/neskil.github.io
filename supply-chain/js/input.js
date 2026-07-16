@@ -12,6 +12,7 @@ SC.input = (function() {
     let hover = null;           // world pos of the mouse, for the ghost road
     let pendingDemolish = null; // edge tapped once, awaiting confirm tap
     let pendingBuy = null;      // for-sale factory tapped once
+    let pendingUpgrade = null;  // Upgrade mode: node/edge tapped once, awaiting confirm
     let inspectNode = null;     // Inspect mode: node currently hovered/held
     let holdTimer = null;       // Inspect mode (touch): pending long-press
 
@@ -64,9 +65,58 @@ SC.input = (function() {
         }
     }
 
+    // Upgrade mode (⬆): tap a supplier to level up its stock/regen, or a
+    // road to pave it into a highway (needs 'pavedRoads' research). Same
+    // two-tap confirm pattern as demolish/site-buy.
+    function handleUpgradeTap(sx, sy) {
+        const node = nodeAtScreen(sx, sy);
+        const target = (node && node.kind === 'supplier') ? node : (node ? null : edgeAtScreen(sx, sy));
+        if (!target) {
+            if (node) SC.emit('toast', { text: 'Only suppliers and roads can be upgraded', kind: 'info' });
+            pendingUpgrade = null;
+            return;
+        }
+        const isNode = !!target.kind;
+
+        if (pendingUpgrade !== target) { // first tap: quote it
+            let text;
+            if (isNode) {
+                const price = SC.supplierUpgradePrice(target);
+                text = price === null
+                    ? `${SC.emojiOf(target.mat)} supplier is already max level`
+                    : `Tap again to upgrade this ${SC.nameOf(target.mat).toLowerCase()} supplier to Lv${(target.level || 0) + 2} — $${price} (more stock, faster regen)`;
+                pendingUpgrade = price === null ? null : target;
+            } else {
+                const q = SC.roads.upgradeQuote(target);
+                text = target.level > 0 ? 'Already a highway'
+                     : !SC.research.isDone('pavedRoads') ? 'Requires Asphalt Paving research 🛣️'
+                     : `Tap again to pave this road into a highway — $${q.cost} (trucks +60% here)`;
+                pendingUpgrade = (target.level === 0 && SC.research.isDone('pavedRoads')) ? target : null;
+            }
+            SC.sfx.play('click');
+            SC.emit('toast', { text, kind: 'info' });
+            return;
+        }
+
+        pendingUpgrade = null; // second tap: do it
+        const res = isNode ? SC.economy.upgradeSupplier(target) : SC.roads.upgrade(target);
+        if (res.ok) {
+            SC.sfx.play('build');
+            SC.emit('toast', {
+                text: isNode ? `${SC.emojiOf(target.mat)} supplier upgraded to Lv${target.level + 1}!`
+                             : 'Road paved into a highway! 🛣️',
+                kind: 'good'
+            });
+        } else if (res.reason === 'money') {
+            SC.sfx.play('error');
+            SC.emit('toast', { text: `Credit limit reached — costs $${res.cost}`, kind: 'error' });
+        }
+    }
+
     function handleTap(sx, sy) {
         const st = SC.state;
         if (st.mode === 'inspect') return; // Inspect mode: hover/hold only, no building
+        if (st.mode === 'upgrade') { handleUpgradeTap(sx, sy); return; }
         if (st.placeMode) { handlePlacementTap(sx, sy); return; }
 
         const node = nodeAtScreen(sx, sy);
@@ -161,6 +211,7 @@ SC.input = (function() {
     function reset() {
         pendingDemolish = null;
         pendingBuy = null;
+        pendingUpgrade = null;
         inspectNode = null;
         clearHoldTimer();
     }
@@ -243,6 +294,7 @@ SC.input = (function() {
         getInspectNode: () => inspectNode,
         getHover: () => hover,
         getPendingDemolish: () => pendingDemolish,
+        getPendingUpgrade: () => pendingUpgrade,
         _handleTap: handleTap,
         // Headless verification hook: force a hover point without a real
         // pointermove, so placement/road ghost previews can be screenshotted.

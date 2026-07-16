@@ -58,5 +58,28 @@ SC.research = (function() {
         return b;
     }
 
-    return { isDone, isAvailable, activeId, canStart, start, progress, tick, creditBonus };
+    // Extra upgrade levels unlocked for `key` (e.g. Overdrive Engines
+    // adds { truckSpeed: 3 }) — read by SC.upgradeMax.
+    function upgradeMaxBonus(key) {
+        let b = 0;
+        for (const id in SC.state.research.completed) {
+            const t = SC.RESEARCH[id];
+            if (t && t.upgradeMaxBonus && t.upgradeMaxBonus[key]) b += t.upgradeMaxBonus[key];
+        }
+        return b;
+    }
+
+    // Global supplier regen multiplier bonus (Fertilizer Program) —
+    // read by SC.supplierRegen.
+    function supplierRegenBonus() {
+        let b = 0;
+        for (const id in SC.state.research.completed) {
+            const t = SC.RESEARCH[id];
+            if (t && t.supplierRegenBonus) b += t.supplierRegenBonus;
+        }
+        return b;
+    }
+
+    return { isDone, isAvailable, activeId, canStart, start, progress, tick,
+             creditBonus, upgradeMaxBonus, supplierRegenBonus };
 })();

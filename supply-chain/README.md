@@ -74,6 +74,24 @@ that ambient animation as its background — it now lives independently at
   the full tree in its own overlay, laid out left-to-right by
   prerequisite depth with connecting lines to its `requires` (not a flat
   list — see `updateResearchTree`/`researchTiers` in `ui.js`).
+- **Supplier stock**: suppliers hold a finite stockpile that regenerates
+  over time (`SUPPLIER_REGEN`) up to a cap; a truck arriving at a dry
+  supplier waits there (`'loading'` phase) until stock catches up. Each
+  supplier is individually upgradable in **Upgrade mode** (⬆️, top
+  right): tap twice to raise its cap and regen (per-supplier `level`,
+  price ladder `SUPPLIER_UPGRADE_BASE/GROWTH`). The Fertilizer Program
+  research boosts all suppliers' regen globally.
+- **Highways** (needs Asphalt Paving researched): Upgrade mode on a road
+  paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
+  faster, and pathfinding weighs edges by travel time so routes prefer
+  paved legs.
+- **Per-yard truck prices**: the truck price ladder tracks trucks homed
+  at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
+  ladder to base price — the ever-growing yard price is the balance
+  lever.
+- **Deeper chains pay more**: order payouts multiply the good's value by
+  `1 + ORDER_DEPTH_VALUE × (depth − 1)`, so cars/robots out-earn bread
+  beyond their base value gap.
 - **Manual placement** (needs Site Requisition researched): pick a good
   in the Shop panel's Build section, then tap the map to drop that
   supplier/factory anywhere on land — at a premium over the free
@@ -127,9 +145,10 @@ sync with it):
   Inspect-mode hold gesture above uses the same long-press primitive).
 - More research nodes (order-pay boosts, faster milestones); a
   "promotions" tech that temporarily boosts demand for a chosen good,
-  per the plan's next-steps discussion. The tree UI (own overlay,
-  branching by tier) is built — it just has few branches to show until
-  these land.
+  per the plan's next-steps discussion. (The tree UI and four new techs
+  — Asphalt Paving, Overdrive Engines, Fertilizer Program, Factory
+  Automation — landed in v1.10/1.11; promotions/repeatable research is
+  still open.)
 - Research cancel/refund (currently a started project can't be aborted).
 - Reassigning an existing truck to a different yard (today you choose a
   yard at purchase time only; there's no way to move a truck already
