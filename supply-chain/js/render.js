@@ -105,10 +105,12 @@ SC.render = (function() {
                 ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
                 ctx.lineWidth = 6;
             } else {
-                ctx.strokeStyle = e.bridge ? 'rgba(125, 170, 210, 0.55)' : 'rgba(148, 163, 184, 0.45)';
+                ctx.strokeStyle = e.ferry ? 'rgba(45, 212, 191, 0.6)'
+                                : e.bridge ? 'rgba(125, 170, 210, 0.55)'
+                                : 'rgba(148, 163, 184, 0.45)';
                 ctx.lineWidth = 4;
             }
-            ctx.setLineDash(e.bridge ? [14, 8] : []);
+            ctx.setLineDash(e.ferry ? [4, 10] : e.bridge ? [14, 8] : []);
             ctx.stroke();
             ctx.setLineDash([]);
             if (e.level > 0 && e !== pending && e !== pendingUp) {
@@ -120,6 +122,14 @@ SC.render = (function() {
                 ctx.setLineDash([10, 10]);
                 ctx.stroke();
                 ctx.setLineDash([]);
+            }
+            // Ferry: a little boat shuttles back and forth along the
+            // crossing — the "cheap but slow, queues to board" flavor.
+            if (e.ferry && e !== pending && e !== pendingUp) {
+                const t = (Math.sin(seaTime * 0.6) + 1) / 2;
+                const bx = e.a.x + (e.b.x - e.a.x) * t;
+                const by = e.a.y + (e.b.y - e.a.y) * t;
+                emoji('⛴', bx, by, 18);
             }
             // Congestion: an overloaded edge glows warmer, hottest at the
             // busiest roads — the visual cue for "build a parallel route".
@@ -147,10 +157,13 @@ SC.render = (function() {
             if (n.active && n !== sel && Math.hypot(n.x - hover.x, n.y - hover.y) < 40) target = n;
         }
         const end = target ? { x: target.x, y: target.y } : hover;
-        const q = target ? SC.roads.quote(sel, target) : (() => {
+        const ferryOpt = { ferry: SC.state.buildFerry };
+        const q = target ? SC.roads.quote(sel, target, ferryOpt) : (() => {
             const len = Math.hypot(sel.x - end.x, sel.y - end.y);
             const bridge = SC.map.segmentCrossesRiver(sel.x, sel.y, end.x, end.y);
-            return { len, bridge, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * (bridge ? SC.CONFIG.BRIDGE_MULT : 1)) };
+            const ferry = SC.state.buildFerry && bridge;
+            const mult = ferry ? SC.CONFIG.FERRY_COST_MULT : (bridge ? SC.CONFIG.BRIDGE_MULT : 1);
+            return { len, bridge, ferry, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) };
         })();
         if (!q) return;
 
@@ -165,7 +178,8 @@ SC.render = (function() {
         ctx.setLineDash([]);
 
         const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
-        label(`$${q.cost}${q.bridge ? ' (bridge)' : ''}`, mx, my - 14,
+        const crossingLabel = q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : '';
+        label(`$${q.cost}${crossingLabel}`, mx, my - 14,
               affordable ? '#34d399' : '#f87171');
     }
 

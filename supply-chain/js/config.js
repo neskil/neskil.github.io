@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.17.0';
+SC.VERSION = '1.18.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -33,6 +33,16 @@ SC.CONFIG = {
     ROAD_COST_PER_UNIT: 0.6,
     BRIDGE_MULT: 3,            // river crossings cost extra
     ROAD_REFUND: 0.5,          // fraction returned when demolishing
+
+    // Ferries: a cheaper-but-slower alternative to a bridge, chosen at
+    // build time (toggle in the Shop panel) for any road crossing the
+    // river. Half the speed of a normal road, but a much smaller premium
+    // than BRIDGE_MULT's 3x. Congestion (if enabled) still applies on
+    // top — trucks queueing for the boat is the same mechanic as trucks
+    // queueing on a jammed road, just re-used. Can't be paved into a
+    // highway (see roads.upgradeQuote).
+    FERRY_COST_MULT: 1.4,
+    FERRY_SPEED_MULT: 0.5,
 
     // Truck price ladders PER YARD: the nth truck stationed at a given
     // yard costs base * growth^n, so building a new yard "resets" the

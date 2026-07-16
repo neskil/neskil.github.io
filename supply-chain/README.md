@@ -132,6 +132,17 @@ that ambient animation as its background — it now lives independently at
   *and* Dijkstra's routing weight — dispatch naturally prefers a
   quieter parallel road over a jammed one. The road glows warmer the
   busier it gets (`render.drawRoads`).
+- **Ferries**: a cheaper-but-slower alternative to a bridge, chosen at
+  *build* time via the Shop panel's "Ferry crossings" toggle — any road
+  drawn across the river while it's on builds `edge.ferry = true`
+  instead of a bridge, at `FERRY_COST_MULT` (cheaper than
+  `BRIDGE_MULT`) but `FERRY_SPEED_MULT` (slower than a normal road,
+  folded into `speedMult` the same way the highway boost is). A ferry
+  can't be paved into a highway (`upgradeQuote` rejects it — it's a
+  boat, not a road surface); congestion (if enabled) still applies on
+  top, so trucks queueing for the boat reuses the exact same mechanic
+  as a jammed road queue. Renders as a distinct teal dashed line with a
+  small ⛴ shuttling back and forth along the crossing.
 - **Per-yard truck prices**: the truck price ladder tracks trucks homed
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
@@ -177,7 +188,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
 | `js/rng.js` | Seeded PRNG (xmur3 hash + mulberry32 stream) used only by map.js's world gen, so `?seed=` reproduces a map |
 | `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
-| `js/roads.js` | Road build/demolish/quote, highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
+| `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |

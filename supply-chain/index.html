@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.17.0">
+    <link rel="stylesheet" href="style.css?v=1.18.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -60,6 +60,10 @@
             <button class="shop-btn build-btn" id="btn-yard">
                 <span class="sname">🅿️ Build truck yard</span>
                 <span class="price">$1,200</span>
+            </button>
+            <button class="shop-btn build-btn" id="btn-ferry-mode" title="When on, roads drawn across the river build a cheaper, slower ferry instead of a bridge">
+                <span class="sname">⛴️ Ferry crossings</span>
+                <span class="price">Off</span>
             </button>
             <button class="shop-btn" id="btn-truckSpeed">
                 <span class="sname">⚡ Truck speed <span class="lvl"></span></span>
@@ -147,7 +151,7 @@
                🧵 and electronics 💾) plus the same steel your cars use. Your
                trucks do the hauling — but only where roads exist.</p>
             <ul>
-                <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money.</li>
+                <li><b>Build roads:</b> tap a node, then tap another. Crossing the river costs bridge money — or flip the Shop panel's "Ferry crossings" toggle first for a cheaper, slower boat crossing instead.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. New sites appear as you deliver.</li>
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>
@@ -177,23 +181,23 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.17.0"></script>
-    <script src="js/state.js?v=1.17.0"></script>
-    <script src="js/save.js?v=1.17.0"></script>
-    <script src="js/sfx.js?v=1.17.0"></script>
-    <script src="js/rng.js?v=1.17.0"></script>
-    <script src="js/map.js?v=1.17.0"></script>
-    <script src="js/camera.js?v=1.17.0"></script>
-    <script src="js/roads.js?v=1.17.0"></script>
-    <script src="js/factories.js?v=1.17.0"></script>
-    <script src="js/economy.js?v=1.17.0"></script>
-    <script src="js/vehicles.js?v=1.17.0"></script>
-    <script src="js/inspect.js?v=1.17.0"></script>
-    <script src="js/research.js?v=1.17.0"></script>
-    <script src="js/placement.js?v=1.17.0"></script>
-    <script src="js/render.js?v=1.17.0"></script>
-    <script src="js/input.js?v=1.17.0"></script>
-    <script src="js/ui.js?v=1.17.0"></script>
-    <script src="js/main.js?v=1.17.0"></script>
+    <script src="js/config.js?v=1.18.0"></script>
+    <script src="js/state.js?v=1.18.0"></script>
+    <script src="js/save.js?v=1.18.0"></script>
+    <script src="js/sfx.js?v=1.18.0"></script>
+    <script src="js/rng.js?v=1.18.0"></script>
+    <script src="js/map.js?v=1.18.0"></script>
+    <script src="js/camera.js?v=1.18.0"></script>
+    <script src="js/roads.js?v=1.18.0"></script>
+    <script src="js/factories.js?v=1.18.0"></script>
+    <script src="js/economy.js?v=1.18.0"></script>
+    <script src="js/vehicles.js?v=1.18.0"></script>
+    <script src="js/inspect.js?v=1.18.0"></script>
+    <script src="js/research.js?v=1.18.0"></script>
+    <script src="js/placement.js?v=1.18.0"></script>
+    <script src="js/render.js?v=1.18.0"></script>
+    <script src="js/input.js?v=1.18.0"></script>
+    <script src="js/ui.js?v=1.18.0"></script>
+    <script src="js/main.js?v=1.18.0"></script>
 </body>
 </html>
