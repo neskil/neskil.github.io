@@ -439,6 +439,35 @@ html, body {
 }
 .shop-btn.hidden { display: none; }
 
+/* ── River-crossing choice overlay ───────────────── */
+#crossing-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 310;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#crossing-overlay.hidden { display: none; }
+.crossing-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 0.9rem;
+}
+#crossing-bridge, #crossing-ferry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+}
+.crossing-cost { color: var(--good); font-weight: 700; }
+#crossing-bridge.primary .crossing-cost { color: #0f172a; }
+
 /* ── Research tree overlay ──────────────────────── */
 #research-overlay {
     position: fixed;
