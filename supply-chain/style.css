@@ -100,6 +100,40 @@ html, body {
 .hud-item.money span:last-child { color: var(--good); }
 .hud-item.money.debt span:last-child { color: var(--bad); }
 
+/* ── Fast-forward toggle: its own pill, stacked below the top-left
+   bar rather than sharing its row — the row is already tight against
+   the Orders panel on phones, so a 3rd control there would overlap it. */
+#speed-toggle {
+    position: fixed;
+    top: 4.2rem;
+    left: 1rem;
+    z-index: 100;
+    display: flex;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.speed-btn {
+    width: 32px;
+    height: 28px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.speed-btn:hover { color: var(--text-primary); }
+.speed-btn.active {
+    background: var(--accent-color);
+    color: #0f172a;
+}
+
 /* ── Bottom-right: build/upgrade/inspect selector ─── */
 #mode-toggle {
     position: fixed;
@@ -507,6 +541,8 @@ html, body {
 .menu-stats span { color: var(--text-secondary); }
 .menu-stats b.pos { color: var(--good); }
 .menu-stats b.neg { color: var(--bad); }
+.menu-stats b.menu-seed { color: var(--accent-color); cursor: pointer; font-family: monospace; }
+.menu-stats b.menu-seed:hover { text-decoration: underline; }
 .menu-save {
     color: var(--text-secondary);
     font-size: 0.72rem;
@@ -604,6 +640,8 @@ html, body {
 @media (max-width: 768px) {
     .icon-btn { width: 38px; height: 38px; }
     .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
+    #speed-toggle { top: 3.6rem; }
+    .speed-btn { width: 28px; height: 24px; font-size: 0.7rem; }
 
     .hud-item { padding: 0.32rem 0.55rem; min-width: 0; }
     .hud-label { font-size: 0.56rem; }
