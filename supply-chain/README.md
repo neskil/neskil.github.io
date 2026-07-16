@@ -206,8 +206,8 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
-| `js/camera.js` | World↔screen transform, pan/zoom/clamp (math only) |
-| `js/render.js` | Canvas drawing (world coords under camera transform) |
+| `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
+| `js/render.js` | Canvas drawing (isometric 2.5D): projected land/river/road ribbons on the ground, extruded diamond-prism buildings with shadows, depth-sorted back-to-front, upright billboarded trucks/labels/order-bubbles |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold |
 | `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
 | `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |

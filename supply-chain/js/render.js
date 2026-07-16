@@ -1,10 +1,20 @@
-// Canvas rendering. Reads state + camera, draws in world coordinates.
+// Canvas rendering — isometric ("2.5D") view.
+//
+// Game logic stays in flat world (x, y); this module projects that ground
+// plane to the screen through SC.camera and draws everything in screen
+// pixels: the land, river and roads are projected polygons/ribbons lying on
+// the iso plane, while buildings are extruded diamond prisms and trucks /
+// labels / order bubbles are upright billboards anchored to a projected
+// ground point. Buildings + trucks are depth-sorted (back-to-front by world
+// x+y) so nearer things correctly overlap farther ones.
 window.SC = window.SC || {};
 
 SC.render = (function() {
     let canvas = null, ctx = null, dpr = 1;
     let seaTime = 0;
     let floaters = []; // rising "+$x"/"−$x" texts, world-anchored
+
+    const ISO = SC.camera.ISO;
 
     function addFloater(x, y, text, color) {
         floaters.push({ x, y, text, color, t: 0 });
@@ -33,52 +43,44 @@ SC.render = (function() {
         SC.camera.setViewport(window.innerWidth, window.innerHeight);
     }
 
-    function riverPolygon() {
-        const r = SC.state.river;
-        const left = [], right = [];
-        for (let i = 0; i < r.spine.length; i++) {
-            left.push({ x: r.spine[i].x - r.halfWidths[i], y: r.spine[i].y });
-            right.push({ x: r.spine[i].x + r.halfWidths[i], y: r.spine[i].y });
-        }
-        return { left, right };
+    // --- color helpers ------------------------------------------------------
+    function hexToRgb(hex) {
+        const h = hex.replace('#', '');
+        return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+    }
+    // amt in [-1, 1]: negative darkens toward black, positive lightens toward white
+    function shade(hex, amt) {
+        const c = hexToRgb(hex);
+        const mix = amt < 0 ? 0 : 255;
+        const t = Math.abs(amt);
+        const r = Math.round(c.r + (mix - c.r) * t);
+        const g = Math.round(c.g + (mix - c.g) * t);
+        const b = Math.round(c.b + (mix - c.b) * t);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+    function rgba(hex, a) {
+        const c = hexToRgb(hex);
+        return `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`;
     }
 
-    function drawWorld(dt) {
-        const C = SC.CONFIG;
-        seaTime += dt;
+    function zoom() { return SC.camera.cam.zoom; }
+    function S(wx, wy) { return SC.camera.toScreen(wx, wy); }
 
-        // Land
-        ctx.fillStyle = 'rgba(30, 41, 59, 0.55)';
-        roundRect(-40, -40, C.WORLD_W + 80, C.WORLD_H + 80, 24);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
-        ctx.lineWidth = 2 / SC.camera.cam.zoom;
-        ctx.stroke();
-
-        // River
-        const { left, right } = riverPolygon();
-        ctx.fillStyle = '#0f172a';
+    // --- primitive paths (screen space) ------------------------------------
+    // Iso ground footprint: a world square of half-size `fw` projects to a
+    // 2:1 diamond. These are its screen half-extents at the current zoom.
+    function footRadii(fw) {
+        return { rx: 2 * ISO.kx * fw * zoom(), ry: 2 * ISO.ky * fw * zoom() };
+    }
+    function diamondPath(cx, cy, rx, ry) {
         ctx.beginPath();
-        left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-        for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
+        ctx.moveTo(cx, cy - ry);
+        ctx.lineTo(cx + rx, cy);
+        ctx.lineTo(cx, cy + ry);
+        ctx.lineTo(cx - rx, cy);
         ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
-        ctx.lineWidth = 1.5;
-        for (let w = 0; w < 4; w++) {
-            ctx.beginPath();
-            for (let i = 0; i < left.length; i++) {
-                const t = i / (left.length - 1);
-                const x = left[i].x + (right[i].x - left[i].x) * ((w + 1) / 5)
-                        + Math.sin(seaTime * 2 + t * 8 + w) * 6;
-                i ? ctx.lineTo(x, left[i].y) : ctx.moveTo(x, left[i].y);
-            }
-            ctx.stroke();
-        }
     }
-
-    function roundRect(x, y, w, h, r) {
+    function roundRectPath(x, y, w, h, r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
         ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -88,66 +90,511 @@ SC.render = (function() {
         ctx.closePath();
     }
 
+    // --- ground & water -----------------------------------------------------
+    function drawWorld(dt) {
+        const C = SC.CONFIG;
+        seaTime += dt;
+
+        // Land: the whole world projected to a big diamond, with a soft
+        // vertical gradient so the far edge reads as "further away".
+        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        const ys = corners.map(p => p.y);
+        const grad = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+        grad.addColorStop(0, '#25324a');
+        grad.addColorStop(1, '#18212f');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Iso grid: faint lines of constant world-x and world-y, clipped to
+        // the land, to give the ground a sense of scale and perspective.
+        ctx.save();
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
+        ctx.lineWidth = 1;
+        const step = 220;
+        for (let x = 0; x <= C.WORLD_W + 1; x += step) {
+            const a = S(x, 0), b = S(x, C.WORLD_H);
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+        for (let y = 0; y <= C.WORLD_H + 1; y += step) {
+            const a = S(0, y), b = S(C.WORLD_W, y);
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        }
+        ctx.restore();
+
+        // Coastline
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        drawRiver();
+    }
+
+    function drawRiver() {
+        const r = SC.state.river;
+        const left = [], right = [];
+        for (let i = 0; i < r.spine.length; i++) {
+            left.push(S(r.spine[i].x - r.halfWidths[i], r.spine[i].y));
+            right.push(S(r.spine[i].x + r.halfWidths[i], r.spine[i].y));
+        }
+        // Water body
+        ctx.beginPath();
+        left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
+        ctx.closePath();
+        const ys = [...left, ...right].map(p => p.y);
+        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+        g.addColorStop(0, '#123047');
+        g.addColorStop(1, '#0b1c2c');
+        ctx.fillStyle = g;
+        ctx.fill();
+        // subtle bank shadow
+        ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Animated ripples across the flow
+        ctx.strokeStyle = 'rgba(96, 200, 240, 0.10)';
+        ctx.lineWidth = 1.4;
+        for (let w = 0; w < 4; w++) {
+            ctx.beginPath();
+            for (let i = 0; i < r.spine.length; i++) {
+                const t = i / (r.spine.length - 1);
+                const frac = (w + 1) / 5;
+                const wx = r.spine[i].x - r.halfWidths[i] + 2 * r.halfWidths[i] * frac
+                         + Math.sin(seaTime * 2 + t * 8 + w) * 6;
+                const p = S(wx, r.spine[i].y);
+                i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // --- roads --------------------------------------------------------------
+    function strokeEdge(e, width, color, dash) {
+        const a = S(e.a.x, e.a.y), b = S(e.b.x, e.b.y);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        if (dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+    }
+
     function drawRoads() {
+        const z = zoom();
         const pending = SC.input.getPendingDemolish && SC.input.getPendingDemolish();
         const pendingUp = SC.input.getPendingUpgrade && SC.input.getPendingUpgrade();
         for (const e of SC.state.edges) {
-            ctx.beginPath();
-            ctx.moveTo(e.a.x, e.a.y);
-            ctx.lineTo(e.b.x, e.b.y);
-            if (e === pending) {
-                ctx.strokeStyle = 'rgba(248, 113, 113, 0.9)';
-                ctx.lineWidth = 6;
-            } else if (e === pendingUp) { // Upgrade mode: road armed for paving
-                ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
-                ctx.lineWidth = 6;
-            } else if (e.level > 0) {     // highway: wider, brighter, gold core
-                ctx.strokeStyle = 'rgba(226, 232, 240, 0.65)';
-                ctx.lineWidth = 6;
+            const armed = e === pending || e === pendingUp;
+            const casing = Math.max(5, (e.level > 0 ? 9 : 7) * z);
+            const surfaceW = Math.max(2.5, (e.level > 0 ? 6 : 4) * z);
+
+            if (e.ferry) {
+                strokeEdge(e, surfaceW, 'rgba(45, 212, 191, 0.6)', [4 * z + 2, 10 * z]);
             } else {
-                ctx.strokeStyle = e.ferry ? 'rgba(45, 212, 191, 0.6)'
-                                : e.bridge ? 'rgba(125, 170, 210, 0.55)'
-                                : 'rgba(148, 163, 184, 0.45)';
-                ctx.lineWidth = 4;
+                // Dark casing under a lighter driving surface — reads as a
+                // raised road bed sitting on the ground.
+                strokeEdge(e, casing, 'rgba(8, 12, 20, 0.55)', e.bridge ? [16 * z, 9 * z] : null);
+                const surf = e.bridge ? 'rgba(150, 180, 214, 0.8)'
+                                      : e.level > 0 ? 'rgba(226, 232, 240, 0.85)'
+                                      : 'rgba(140, 152, 170, 0.75)';
+                strokeEdge(e, surfaceW, surf, e.bridge ? [16 * z, 9 * z] : null);
+                if (e.level > 0) strokeEdge(e, Math.max(1, 1.6 * z), 'rgba(250, 204, 21, 0.6)', [11 * z, 11 * z]);
             }
-            ctx.setLineDash(e.ferry ? [4, 10] : e.bridge ? [14, 8] : []);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            if (e.level > 0 && e !== pending && e !== pendingUp) {
-                ctx.beginPath();
-                ctx.moveTo(e.a.x, e.a.y);
-                ctx.lineTo(e.b.x, e.b.y);
-                ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([10, 10]);
-                ctx.stroke();
-                ctx.setLineDash([]);
+
+            if (armed) {
+                strokeEdge(e, casing + 2, e === pending ? 'rgba(248, 113, 113, 0.9)' : 'rgba(250, 204, 21, 0.9)');
             }
-            // Ferry: a little boat shuttles back and forth along the
-            // crossing — the "cheap but slow, queues to board" flavor.
-            if (e.ferry && e !== pending && e !== pendingUp) {
+
+            // Ferry boat shuttling across
+            if (e.ferry && !armed) {
                 const t = (Math.sin(seaTime * 0.6) + 1) / 2;
-                const bx = e.a.x + (e.b.x - e.a.x) * t;
-                const by = e.a.y + (e.b.y - e.a.y) * t;
-                emoji('⛴', bx, by, 18);
+                const p = S(e.a.x + (e.b.x - e.a.x) * t, e.a.y + (e.b.y - e.a.y) * t);
+                emoji('⛴', p.x, p.y, 18 * clampZoom());
             }
-            // Congestion: an overloaded edge glows warmer, hottest at the
-            // busiest roads — the visual cue for "build a parallel route".
-            if (SC.state.congestionEnabled && e !== pending && e !== pendingUp) {
+
+            // Congestion heat
+            if (SC.state.congestionEnabled && !armed) {
                 const excess = SC.vehicles.truckCountOnEdge(e) - SC.CONFIG.CONGESTION_THRESHOLD;
                 if (excess > 0) {
                     const heat = Math.min(1, excess / 3);
-                    ctx.beginPath();
-                    ctx.moveTo(e.a.x, e.a.y);
-                    ctx.lineTo(e.b.x, e.b.y);
-                    ctx.strokeStyle = `rgba(248, 113, 113, ${0.25 + heat * 0.5})`;
-                    ctx.lineWidth = 5 + heat * 3;
-                    ctx.stroke();
+                    strokeEdge(e, casing + heat * 4, `rgba(248, 113, 113, ${0.25 + heat * 0.5})`);
                 }
             }
         }
     }
 
+    // --- text / emoji billboards -------------------------------------------
+    function clampZoom() { return Math.min(1.6, Math.max(0.8, zoom())); }
+
+    // Screen-space text on a rounded plate at a screen position.
+    function labelAt(text, sx, sy, color, size) {
+        const fs = size || 12;
+        ctx.font = `600 ${fs}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const w = ctx.measureText(text).width;
+        ctx.fillStyle = 'rgba(12, 18, 30, 0.82)';
+        roundRectPath(sx - w / 2 - 6, sy - fs / 2 - 3, w + 12, fs + 6, 6);
+        ctx.fill();
+        ctx.fillStyle = color || '#f8fafc';
+        ctx.fillText(text, sx, sy);
+    }
+    // world-anchored variant
+    function label(text, wx, wy, color, size) {
+        const p = S(wx, wy);
+        labelAt(text, p.x, p.y, color, size);
+    }
+
+    function emoji(ch, sx, sy, size) {
+        ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ch, sx, sy + size * 0.06);
+    }
+
+    // --- building prisms ----------------------------------------------------
+    // spec: how each node kind is extruded and colored.
+    function nodeSpec(n) {
+        if (n.kind === 'supplier') {
+            const base = SC.colorOf(n.mat);
+            return { base, fw: 24, h: 26 + (n.level || 0) * 4, icon: SC.emojiOf(n.mat) };
+        }
+        if (n.kind === 'factory') {
+            return { base: '#6b7a90', fw: 27, h: 40, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe) };
+        }
+        if (n.kind === 'yard') {
+            return { base: '#8b5cf6', fw: 24, h: 14, icon: '🅿️', flat: true };
+        }
+        // city
+        if (n.isHQ) return { base: '#0ea5e9', fw: 26, h: 54, icon: '⭐' };
+        return { base: '#10b981', fw: 24, h: 40, icon: '🏢' };
+    }
+
+    // Extruded diamond prism rising `hpx` px from ground point (gx, gy).
+    function prism(gx, gy, fw, hpx, base, opts) {
+        opts = opts || {};
+        const { rx, ry } = footRadii(fw);
+        const alpha = opts.alpha == null ? 1 : opts.alpha;
+        ctx.globalAlpha = alpha;
+
+        // ground corners
+        const bTop = { x: gx, y: gy - ry }, bRight = { x: gx + rx, y: gy };
+        const bBot = { x: gx, y: gy + ry }, bLeft = { x: gx - rx, y: gy };
+        // top-face corners (raised)
+        const tTop = { x: bTop.x, y: bTop.y - hpx }, tRight = { x: bRight.x, y: bRight.y - hpx };
+        const tBot = { x: bBot.x, y: bBot.y - hpx }, tLeft = { x: bLeft.x, y: bLeft.y - hpx };
+
+        const topC = shade(base, 0.2), rightC = shade(base, -0.08), leftC = shade(base, -0.3);
+
+        // right (front-right) face
+        ctx.beginPath();
+        ctx.moveTo(bRight.x, bRight.y); ctx.lineTo(bBot.x, bBot.y);
+        ctx.lineTo(tBot.x, tBot.y); ctx.lineTo(tRight.x, tRight.y); ctx.closePath();
+        ctx.fillStyle = opts.ghost ? rgba(base, 0.1) : rightC;
+        ctx.fill();
+        // left (front-left) face
+        ctx.beginPath();
+        ctx.moveTo(bBot.x, bBot.y); ctx.lineTo(bLeft.x, bLeft.y);
+        ctx.lineTo(tLeft.x, tLeft.y); ctx.lineTo(tBot.x, tBot.y); ctx.closePath();
+        ctx.fillStyle = opts.ghost ? rgba(base, 0.16) : leftC;
+        ctx.fill();
+        // top face
+        ctx.beginPath();
+        ctx.moveTo(tTop.x, tTop.y); ctx.lineTo(tRight.x, tRight.y);
+        ctx.lineTo(tBot.x, tBot.y); ctx.lineTo(tLeft.x, tLeft.y); ctx.closePath();
+        ctx.fillStyle = opts.roof ? shade(opts.roof, 0.05) : (opts.ghost ? rgba(base, 0.28) : topC);
+        ctx.fill();
+
+        // crisp edges
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = opts.outline || rgba(shade(base, 0.4), opts.ghost ? 0.7 : 0.5);
+        if (opts.dashed) ctx.setLineDash([5, 4]); else ctx.setLineDash([]);
+        // outline the silhouette + the top ridge
+        ctx.beginPath();
+        ctx.moveTo(bLeft.x, bLeft.y); ctx.lineTo(bBot.x, bBot.y); ctx.lineTo(bRight.x, bRight.y);
+        ctx.lineTo(tRight.x, tRight.y); ctx.lineTo(tTop.x, tTop.y); ctx.lineTo(tLeft.x, tLeft.y); ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tBot.x, tBot.y); ctx.lineTo(tRight.x, tRight.y);
+        ctx.moveTo(tBot.x, tBot.y); ctx.lineTo(tLeft.x, tLeft.y);
+        ctx.moveTo(tBot.x, tBot.y); ctx.lineTo(tTop.x, tTop.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.globalAlpha = 1;
+        return { rx, ry, topCenter: { x: gx, y: gy - hpx } };
+    }
+
+    function drawShadow(gx, gy, fw) {
+        const { rx, ry } = footRadii(fw);
+        ctx.save();
+        ctx.globalAlpha = 0.32;
+        diamondPath(gx + rx * 0.28, gy + ry * 0.5, rx * 1.05, ry * 1.05);
+        ctx.fillStyle = '#05070c';
+        ctx.filter = 'blur(3px)';
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Iso ring/pad on the ground (selection, unlock pulse, inspect focus).
+    function groundRing(gx, gy, fw, color, width, scale) {
+        const { rx, ry } = footRadii(fw);
+        diamondPath(gx, gy, rx * (scale || 1), ry * (scale || 1));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.stroke();
+    }
+
+    function drawNodeBody(n, now) {
+        const sp = nodeSpec(n);
+        const g = S(n.x, n.y);
+        const iconSize = 18 * clampZoom();
+        const forSale = n.kind === 'factory' && n.forSale;
+
+        // selection / focus pads on the ground (drawn under the building)
+        if (n === SC.state.selectedNode) {
+            groundRing(g.x, g.y, sp.fw + 6, 'rgba(56, 189, 248, 0.9)', 2.5);
+        }
+        if (n.unlockAt && now - n.unlockAt < 3) {
+            const t = (now - n.unlockAt) / 3;
+            groundRing(g.x, g.y, sp.fw, `rgba(56, 189, 248, ${0.7 * (1 - t)})`, 3, 1 + t * 2.2);
+        }
+
+        const info = prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
+            ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
+            alpha: forSale ? 0.9 : 1
+        });
+        const tc = info.topCenter;
+
+        // Crafting progress ring floating over a working factory's roof
+        if (n.kind === 'factory' && !forSale && n.crafting) {
+            const frac = Math.min(1, n.crafting.t / SC.craftTime());
+            ctx.beginPath();
+            ctx.arc(tc.x, tc.y, info.rx * 0.9, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+            ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            ctx.lineCap = 'butt';
+        }
+
+        // Icon on the roof
+        ctx.globalAlpha = forSale ? 0.6 : 1;
+        emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
+        ctx.globalAlpha = 1;
+
+        // --- per-kind badges/bars -------------------------------------------
+        if (n.kind === 'supplier') {
+            const cap = SC.supplierCap(n);
+            const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
+            const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 8;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+            roundRectPath(bx, by, bw, 4, 2); ctx.fill();
+            ctx.fillStyle = frac < 0.25 ? '#f87171' : sp.base;
+            roundRectPath(bx, by, bw * frac, 4, 2); ctx.fill();
+            if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 9, '#facc15', 10);
+        } else if (n.kind === 'factory' && forSale) {
+            labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
+        } else if (n.kind === 'factory' && n.queue.length > 0) {
+            labelAt(String(n.queue.length + (n.crafting ? 1 : 0)), tc.x + info.rx + 8, tc.y - iconSize * 0.5, '#cbd5e1', 11);
+        } else if (n.kind === 'yard') {
+            const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
+            labelAt(`${parked} 🚚`, g.x, g.y + footRadii(sp.fw).ry + 12, '#c4b5fd', 11);
+        } else if (n.kind === 'city') {
+            labelAt(n.isHQ ? 'HQ' : 'DC', g.x, g.y + footRadii(sp.fw).ry + 12, n.isHQ ? '#38bdf8' : '#34d399', 11);
+            if (n.isHQ) {
+                const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
+                labelAt(`${parked} 🚚`, g.x, g.y + footRadii(sp.fw).ry + 28, '#7dd3fc', 10);
+            }
+        }
+    }
+
+    // --- trucks -------------------------------------------------------------
+    function truckScreenAngle(t) {
+        // world heading -> screen heading through the iso projection
+        const dx = Math.cos(t.angle || 0), dy = Math.sin(t.angle || 0);
+        return Math.atan2((dx + dy) * ISO.ky, (dx - dy) * ISO.kx);
+    }
+
+    // Draw a squashed, heading-aligned rounded slab at height `dy` above the
+    // truck's ground point — stacking several of these extrudes a little van.
+    function truckSlab(g, ang, z, dy, w, h, fill) {
+        ctx.save();
+        ctx.translate(g.x, g.y - dy);
+        ctx.rotate(ang);
+        ctx.scale(1, 0.6); // lie down into the iso ground plane
+        roundRectPath(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.35);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawTruckBody(t) {
+        const g = S(t.x, t.y);
+        const z = clampZoom();
+        const item = t.cargo[0];
+        const body = item ? SC.colorOf(item) : '#9aa7b8';
+        const ang = truckScreenAngle(t);
+        const w = 22 * z, hh = 12 * z, height = 8 * z;
+
+        // ground shadow
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        diamondPath(g.x, g.y + 2 * z, 13 * z, 7 * z);
+        ctx.fillStyle = '#05070c';
+        ctx.fill();
+        ctx.restore();
+
+        // cheap vertical extrusion: dark at the base, lightest on the roof
+        const steps = 5;
+        for (let s = 0; s <= steps; s++) {
+            const dy = height * s / steps;
+            truckSlab(g, ang, z, dy, w, hh, shade(body, -0.32 + 0.52 * (s / steps)));
+        }
+        // outline the roof
+        ctx.save();
+        ctx.translate(g.x, g.y - height);
+        ctx.rotate(ang);
+        ctx.scale(1, 0.6);
+        roundRectPath(-w / 2, -hh / 2, w, hh, Math.min(w, hh) * 0.35);
+        ctx.strokeStyle = rgba(shade(body, 0.4), 0.6);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+
+        if (item) {
+            emojiPlateAt(SC.emojiOf(item), g.x, g.y - height - 8 * z, 9 * z, 13 * z);
+            if (t.cargo.length > 1) labelAt('×' + t.cargo.length, g.x + 13 * z, g.y - height - 15 * z, '#f8fafc', 9);
+        }
+    }
+
+    function emojiPlateAt(ch, sx, sy, r, size) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e293b';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.stroke();
+        emoji(ch, sx, sy, size);
+    }
+
+    // --- order bubbles (billboards, always on top) --------------------------
+    function drawOrderBubbles() {
+        const byCity = new Map();
+        for (const o of SC.state.orders) {
+            if (!byCity.has(o.city)) byCity.set(o.city, []);
+            byCity.get(o.city).push(o);
+        }
+        const z = clampZoom();
+        for (const [city, orders] of byCity) {
+            const sp = nodeSpec(city);
+            const anchor = { x: S(city.x, city.y).x, y: S(city.x, city.y).y - sp.h * zoom() };
+            orders.forEach((o, i) => {
+                const bx = anchor.x + (i - (orders.length - 1) / 2) * 40 * z;
+                const by = anchor.y - 34 * z;
+                const r = 15 * z;
+                const frac = Math.max(0, o.deadline / o.deadlineTotal);
+                const urgent = frac < 0.25;
+
+                // pointer down to the roof
+                ctx.beginPath();
+                ctx.moveTo(bx, by + r);
+                ctx.lineTo(bx - 4 * z, by + r - 2 * z);
+                ctx.lineTo(bx + 4 * z, by + r - 2 * z);
+                ctx.closePath();
+                ctx.fillStyle = '#1e293b';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(bx, by, r, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e293b';
+                ctx.fill();
+                ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+                ctx.strokeStyle = urgent ? '#f87171' : SC.colorOf(o.product);
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.lineCap = 'butt';
+
+                emoji(SC.emojiOf(o.product), bx, by, 17 * z);
+                const left = o.qty - o.deliveredUnits;
+                if (left > 1) labelAt(String(left), bx + r + 2, by - r + 2, '#f8fafc', 10);
+                if (o.noRoute) labelAt('no route!', bx, by - r - 10, '#f87171', 10);
+            });
+        }
+    }
+
+    // --- glow overlays on roads (order / inspect highlight) -----------------
+    function drawGlowPaths(paths, color, alpha) {
+        ctx.lineCap = 'round';
+        for (const path of paths) {
+            ctx.beginPath();
+            path.forEach((n, i) => {
+                const p = S(n.x, n.y);
+                i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+            });
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = Math.max(5, 8 * zoom());
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = color;
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+        ctx.lineCap = 'butt';
+    }
+
+    function drawHighlight(now) {
+        const h = SC.state.highlight;
+        if (!h || now > h.until) return;
+        const fade = Math.min(1, (h.until - now) / 0.5);
+        drawGlowPaths(h.paths, h.color, 0.55 * fade);
+        const c = S(h.city.x, h.city.y);
+        const pulse = (22 + Math.sin(now * 6) * 4) * clampZoom();
+        ctx.beginPath();
+        ctx.ellipse(c.x, c.y, pulse, pulse * 0.55, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = h.color;
+        ctx.globalAlpha = 0.8 * fade;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    function drawInspectHighlight(now) {
+        if (SC.state.mode !== 'inspect') return;
+        const node = SC.input.getInspectNode && SC.input.getInspectNode();
+        const info = SC.inspect.infoFor(node);
+        if (!info) return;
+        const paths = SC.inspect.highlightPathsFor(info);
+        const color = info.kind === 'supplier' ? SC.colorOf(info.mat) : '#38bdf8';
+        const pulse = 1 + Math.sin(now * 6) * 0.15;
+        drawGlowPaths(paths, color, 0.6 * pulse);
+        const sp = nodeSpec(node);
+        const g = S(node.x, node.y);
+        groundRing(g.x, g.y, sp.fw + 8, color, 2.5);
+    }
+
+    // --- ghosts (road drag, manual placement) -------------------------------
     function drawGhostRoad() {
         const sel = SC.state.selectedNode;
         const hover = SC.input.getHover && SC.input.getHover();
@@ -168,365 +615,77 @@ SC.render = (function() {
         if (!q) return;
 
         const affordable = SC.canAfford(q.cost);
+        const a = S(sel.x, sel.y), b = S(end.x, end.y);
         ctx.beginPath();
-        ctx.moveTo(sel.x, sel.y);
-        ctx.lineTo(end.x, end.y);
-        ctx.strokeStyle = affordable ? 'rgba(52, 211, 153, 0.6)' : 'rgba(248, 113, 113, 0.6)';
-        ctx.lineWidth = 3;
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = affordable ? 'rgba(52, 211, 153, 0.7)' : 'rgba(248, 113, 113, 0.7)';
+        ctx.lineWidth = Math.max(3, 4 * zoom());
+        ctx.lineCap = 'round';
         ctx.setLineDash([10, 8]);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
 
         const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
         const crossingLabel = q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : '';
-        label(`$${q.cost}${crossingLabel}`, mx, my - 14,
-              affordable ? '#34d399' : '#f87171');
+        const mp = S(mx, my);
+        labelAt(`$${q.cost}${crossingLabel}`, mp.x, mp.y - 14, affordable ? '#34d399' : '#f87171');
     }
 
-    // Preview for manual site placement (research-unlocked): a dashed
-    // hex/square at the pointer, green when the spot is buildable.
     function drawPlacementGhost() {
         const pm = SC.state.placeMode;
         const hover = SC.input.getHover && SC.input.getHover();
         if (!pm || !hover) return;
         const valid = SC.canAfford(SC.placement.price(pm.kind)) && SC.placement.canPlaceAt(hover.x, hover.y);
         const cost = SC.placement.price(pm.kind);
-        const color = valid ? 'rgba(52, 211, 153, 0.85)' : 'rgba(248, 113, 113, 0.85)';
-
-        ctx.strokeStyle = color;
+        const base = valid ? '#34d399' : '#f87171';
+        const g = S(hover.x, hover.y);
+        const fw = 24;
+        // footprint ghost pad
+        const { rx, ry } = footRadii(fw);
+        diamondPath(g.x, g.y, rx, ry);
+        ctx.strokeStyle = rgba(base, 0.9);
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 5]);
-        if (pm.kind === 'supplier') hexPath(hover.x, hover.y, 20);
-        else if (pm.kind === 'yard') { ctx.beginPath(); ctx.arc(hover.x, hover.y, 20, 0, Math.PI * 2); }
-        else { ctx.beginPath(); ctx.rect(hover.x - 18, hover.y - 18, 36, 36); }
         ctx.stroke();
         ctx.setLineDash([]);
-
+        prism(g.x, g.y, fw, (pm.kind === 'yard' ? 14 : 30) * zoom(), base,
+              { ghost: true, dashed: true, outline: rgba(base, 0.9) });
+        const tc = { x: g.x, y: g.y - (pm.kind === 'yard' ? 14 : 30) * zoom() };
         ctx.globalAlpha = 0.85;
-        emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), hover.x, hover.y, 19);
+        emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), tc.x, tc.y, 18 * clampZoom());
         ctx.globalAlpha = 1;
-        label(`$${cost}${valid ? '' : ' — blocked'}`, hover.x, hover.y - 32,
-              valid ? '#34d399' : '#f87171', 11);
+        labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);
     }
 
-    // Screen-constant-size text at a world position
-    function label(text, wx, wy, color, size) {
-        const z = SC.camera.cam.zoom;
-        ctx.font = `600 ${(size || 13) / z}px Inter, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const w = ctx.measureText(text).width;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        roundRect(wx - w / 2 - 6 / z, wy - 10 / z, w + 12 / z, 20 / z, 6 / z);
-        ctx.fill();
-        ctx.fillStyle = color || '#f8fafc';
-        ctx.fillText(text, wx, wy);
-    }
-
-    // Emoji drawn in world units so it zooms with the map
-    function emoji(ch, wx, wy, size) {
-        ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(ch, wx, wy + size * 0.06);
-    }
-
-    // Emoji on a solid backing plate so the glyph reads clearly instead of
-    // fighting the translucent node shape / progress rings behind it.
-    function emojiPlate(ch, wx, wy, r, size) {
-        ctx.beginPath();
-        ctx.arc(wx, wy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#1e293b';
-        ctx.fill();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-        ctx.stroke();
-        emoji(ch, wx, wy, size);
-    }
-
-    function hexPath(x, y, r) {
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-            const a = i * Math.PI / 3 - Math.PI / 6;
-            i ? ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a))
-              : ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a));
-        }
-        ctx.closePath();
-    }
-
-    function drawNodes(now) {
-        const z = SC.camera.cam.zoom;
-        for (const n of SC.state.nodes) {
-            if (!n.active) continue;
-            const R = 16;
-
-            // Unlock pulse
-            if (n.unlockAt && now - n.unlockAt < 3) {
-                const t = (now - n.unlockAt) / 3;
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, R + 8 + t * 40, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(56, 189, 248, ${0.6 * (1 - t)})`;
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            }
-
-            if (n === SC.state.selectedNode) {
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, R + 9, 0, Math.PI * 2);
-                ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
-            }
-
-            ctx.lineWidth = 2;
-            if (n.kind === 'supplier') {
-                hexPath(n.x, n.y, R + 4);
-                ctx.fillStyle = SC.colorOf(n.mat) + '33';
-                ctx.fill();
-                ctx.strokeStyle = SC.colorOf(n.mat);
-                ctx.stroke();
-                emojiPlate(SC.emojiOf(n.mat), n.x, n.y, R - 2, 19);
-                // Stock bar: how full the regenerating stockpile is —
-                // red when nearly dry (trucks will queue up waiting).
-                const cap = SC.supplierCap(n);
-                const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
-                const bw = 30;
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-                ctx.fillRect(n.x - bw / 2, n.y + R + 9, bw, 4);
-                ctx.fillStyle = frac < 0.25 ? '#f87171' : SC.colorOf(n.mat);
-                ctx.fillRect(n.x - bw / 2, n.y + R + 9, bw * frac, 4);
-                if (n.level > 0) {
-                    label('▲'.repeat(n.level), n.x, n.y - R - 12, '#facc15', 10);
-                }
-            } else if (n.kind === 'factory') {
-                ctx.beginPath();
-                ctx.rect(n.x - R - 2, n.y - R - 2, (R + 2) * 2, (R + 2) * 2);
-                if (n.forSale) {
-                    ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
-                    ctx.fill();
-                    ctx.setLineDash([6, 5]);
-                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.8)';
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    ctx.globalAlpha = 0.55;
-                    emojiPlate(SC.emojiOf(n.recipe), n.x, n.y, R - 2, 19);
-                    ctx.globalAlpha = 1;
-                    label(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, n.x, n.y - R - 16, '#94a3b8', 11);
-                } else {
-                    ctx.fillStyle = 'rgba(148, 163, 184, 0.22)';
-                    ctx.fill();
-                    ctx.strokeStyle = 'rgba(226, 232, 240, 0.9)';
-                    ctx.stroke();
-                    // Crafting progress ring (drawn first so the plate sits on top, unbroken)
-                    if (n.crafting) {
-                        const frac = Math.min(1, n.crafting.t / SC.craftTime());
-                        ctx.beginPath();
-                        ctx.arc(n.x, n.y, R + 7, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-                        ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
-                        ctx.lineWidth = 3;
-                        ctx.stroke();
-                    }
-                    emojiPlate(SC.emojiOf(n.recipe), n.x, n.y, R - 2, 19);
-                    if (n.queue.length > 0) {
-                        label(String(n.queue.length + (n.crafting ? 1 : 0)), n.x + R + 12 / z, n.y - R - 2, '#94a3b8', 11);
-                    }
-                }
-            } else if (n.kind === 'yard') {
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, R + 2, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(167, 139, 250, 0.2)';
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(167, 139, 250, 0.85)';
-                ctx.stroke();
-                if (n === SC.state.activeYard) {
-                    ctx.beginPath();
-                    ctx.arc(n.x, n.y, R + 7, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'rgba(167, 139, 250, 0.45)';
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-                }
-                emojiPlate('🅿️', n.x, n.y, R - 2, 19);
-                const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
-                label(`${parked} 🚚`, n.x, n.y + R + 16, '#a78bfa', 11);
-            } else { // city — HQ is the only order-taker at first; customer
-                      // DCs (🏢) unlock over time and start placing orders
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, R + 2, 0, Math.PI * 2);
-                ctx.fillStyle = n.isHQ ? 'rgba(56, 189, 248, 0.25)' : 'rgba(52, 211, 153, 0.18)';
-                ctx.fill();
-                ctx.strokeStyle = n.isHQ ? 'rgba(56, 189, 248, 0.9)' : 'rgba(52, 211, 153, 0.75)';
-                ctx.stroke();
-                if (n.isHQ && n === SC.state.activeYard) {
-                    ctx.beginPath();
-                    ctx.arc(n.x, n.y, R + 7, 0, Math.PI * 2);
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-                }
-                emojiPlate(n.isHQ ? '⭐' : '🏢', n.x, n.y, R - 2, 19);
-                label(n.isHQ ? 'HQ' : 'DC', n.x, n.y + R + 16, n.isHQ ? '#38bdf8' : '#34d399', 11);
-                if (n.isHQ) {
-                    const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
-                    label(`${parked} 🚚`, n.x, n.y + R + 32, '#38bdf8', 10);
-                }
-            }
-        }
-    }
-
-    function drawOrderBubbles() {
-        const byCity = new Map();
-        for (const o of SC.state.orders) {
-            if (!byCity.has(o.city)) byCity.set(o.city, []);
-            byCity.get(o.city).push(o);
-        }
-        const z = SC.camera.cam.zoom;
-        for (const [city, orders] of byCity) {
-            orders.forEach((o, i) => {
-                const bx = city.x + (i - (orders.length - 1) / 2) * (40 / Math.max(z, 0.6));
-                const by = city.y - 40;
-                const r = 16;
-                const frac = Math.max(0, o.deadline / o.deadlineTotal);
-                const urgent = frac < 0.25;
-
-                ctx.beginPath();
-                ctx.arc(bx, by, r, 0, Math.PI * 2);
-                ctx.fillStyle = '#1e293b';
-                ctx.fill();
-                ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.5)';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                // Deadline arc
-                ctx.beginPath();
-                ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-                ctx.strokeStyle = urgent ? '#f87171' : SC.colorOf(o.product);
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                // Ordered product + remaining qty
-                emoji(SC.emojiOf(o.product), bx, by, 18);
-                const left = o.qty - o.deliveredUnits;
-                if (left > 1) label(String(left), bx + r + 3, by - r + 3, '#f8fafc', 10);
-                if (o.noRoute) label('no route!', bx, by - r - 13, '#f87171', 10);
-            });
-        }
-    }
-
-    // Shared glow-line renderer for both the order-route and Inspect-mode
-    // highlight overlays.
-    function drawGlowPaths(paths, color, alpha) {
-        ctx.lineCap = 'round';
-        for (const path of paths) {
-            ctx.beginPath();
-            path.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y));
-            ctx.strokeStyle = color;
-            ctx.globalAlpha = alpha;
-            ctx.lineWidth = 8;
-            ctx.shadowBlur = 12;
-            ctx.shadowColor = color;
-            ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
-        ctx.lineCap = 'butt';
-    }
-
-    // Glowing overlay on the roads serving a tapped order (see ui.js)
-    function drawHighlight(now) {
-        const h = SC.state.highlight;
-        if (!h || now > h.until) return;
-        const fade = Math.min(1, (h.until - now) / 0.5);
-        drawGlowPaths(h.paths, h.color, 0.55 * fade);
-        // Pulse the ordering city
-        const pulse = 22 + Math.sin(now * 6) * 4;
-        ctx.beginPath();
-        ctx.arc(h.city.x, h.city.y, pulse, 0, Math.PI * 2);
-        ctx.strokeStyle = h.color;
-        ctx.globalAlpha = 0.8 * fade;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-    }
-
-    // Inspect mode: glow the roads relevant to the hovered/held node, for
-    // as long as it stays hovered/held (no fade timer, unlike drawHighlight).
-    function drawInspectHighlight(now) {
-        if (SC.state.mode !== 'inspect') return;
-        const node = SC.input.getInspectNode && SC.input.getInspectNode();
-        const info = SC.inspect.infoFor(node);
-        if (!info) return;
-        const paths = SC.inspect.highlightPathsFor(info);
-        const color = info.kind === 'supplier' ? SC.colorOf(info.mat) : '#38bdf8';
-        const pulse = 1 + Math.sin(now * 6) * 0.15;
-        drawGlowPaths(paths, color, 0.6 * pulse);
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, 24, 0, Math.PI * 2);
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.8;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-    }
-
+    // --- floaters (rising $ texts) -----------------------------------------
     function drawFloaters(dt) {
-        const z = SC.camera.cam.zoom;
         for (let i = floaters.length - 1; i >= 0; i--) {
             const f = floaters[i];
             f.t += dt;
             if (f.t >= 1.6) { floaters.splice(i, 1); continue; }
-            const rise = f.t * 28 / Math.max(z, 0.5);
-            ctx.font = `700 ${15 / z}px Inter, sans-serif`;
+            const p = S(f.x, f.y);
+            const rise = f.t * 30;
+            ctx.font = `700 14px Inter, system-ui, sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.globalAlpha = Math.min(1, 2 * (1.6 - f.t));
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
-            ctx.fillText(f.text, f.x + 1 / z, f.y - rise + 1 / z);
+            ctx.fillStyle = 'rgba(8, 12, 20, 0.7)';
+            ctx.fillText(f.text, p.x + 1, p.y - rise + 1);
             ctx.fillStyle = f.color;
-            ctx.fillText(f.text, f.x, f.y - rise);
+            ctx.fillText(f.text, p.x, p.y - rise);
             ctx.globalAlpha = 1;
         }
     }
 
-    function drawTrucks() {
-        for (const t of SC.state.trucks) {
-            // A bundle always shares one pickup+drop (see vehicles.dispatch),
-            // so every item in t.cargo is the same good — just show the
-            // count when it's more than one.
-            const item = t.cargo[0];
-            ctx.save();
-            ctx.translate(t.x, t.y);
-            ctx.rotate(t.path ? (t.angle || 0) : 0);
-            const body = item ? SC.colorOf(item) : '#94a3b8';
-            ctx.fillStyle = body;
-            ctx.shadowBlur = item ? 6 : 0;
-            ctx.shadowColor = body;
-            // cab + two trailer segments, echoing the original ambient sim
-            ctx.fillRect(6, -3.5, 6, 7);
-            ctx.fillRect(-3, -4, 7, 8);
-            ctx.fillRect(-12, -4, 7, 8);
-            ctx.restore();
-            if (item) {
-                ctx.shadowBlur = 0;
-                emojiPlate(SC.emojiOf(item), t.x, t.y - 16, 9, 13);
-                if (t.cargo.length > 1) label('×' + t.cargo.length, t.x + 10, t.y - 22, '#f8fafc', 9);
-            }
-        }
-    }
-
+    // --- off-screen arrows (screen space) ----------------------------------
     function nodeIndicatorColor(n) {
         if (n.kind === 'supplier') return SC.colorOf(n.mat);
         if (n.kind === 'factory') return SC.colorOf(n.recipe);
         return n.isHQ ? '#38bdf8' : '#34d399';
     }
 
-    // Screen-edge arrows pointing at active, unconnected nodes that have
-    // scrolled off the viewport — otherwise a freshly-unlocked site (or the
-    // starter suppliers, before the first roads exist) can go unnoticed
-    // until the player happens to pan past it. Drawn in screen space so
-    // arrows stay a constant size and hug the viewport edge at any zoom.
-    // Also used for a tapped order's city (see ui.js focusOrder): instead
-    // of yanking/zooming the camera to it, we leave the view alone and
-    // just point at it if it isn't currently visible.
     function drawOffscreenArrow(wx, wy, color, icon, alpha) {
         const w = window.innerWidth, h = window.innerHeight;
         const cx = w / 2, cy = h / 2;
@@ -566,7 +725,6 @@ SC.render = (function() {
     }
 
     function drawOffscreenArrows(now) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         const pulse = 0.55 + 0.45 * Math.sin(seaTime * 4);
         for (const n of SC.state.nodes) {
             if (!n.active || n.edges.length > 0) continue;
@@ -575,7 +733,6 @@ SC.render = (function() {
                        : (n.isHQ ? '⭐' : '🏢');
             drawOffscreenArrow(n.x, n.y, nodeIndicatorColor(n), icon, pulse);
         }
-
         const h = SC.state.highlight;
         if (h && now <= h.until) {
             const fade = Math.min(1, (h.until - now) / 0.5);
@@ -584,21 +741,34 @@ SC.render = (function() {
         }
     }
 
+    // --- frame --------------------------------------------------------------
     function frame(dt, now) {
-        const cam = SC.camera.cam;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-        ctx.setTransform(dpr * cam.zoom, 0, 0, dpr * cam.zoom,
-                         -cam.x * cam.zoom * dpr, -cam.y * cam.zoom * dpr);
+
         drawWorld(dt);
         drawRoads();
         drawHighlight(now);
         drawInspectHighlight(now);
         drawGhostRoad();
         drawPlacementGhost();
+
+        // Depth-sorted buildings + trucks (back-to-front by world x+y).
+        const ents = [];
+        for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
+        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y });
+        ents.sort((a, b) => a.depth - b.depth);
+
+        // shadows first so no building casts onto another's face
+        for (const e of ents) {
+            if (e.kind === 'node') drawShadow(S(e.ref.x, e.ref.y).x, S(e.ref.x, e.ref.y).y, nodeSpec(e.ref).fw);
+        }
+        for (const e of ents) {
+            if (e.kind === 'node') drawNodeBody(e.ref, now);
+            else drawTruckBody(e.ref);
+        }
+
         drawOrderBubbles();
-        drawNodes(now);
-        drawTrucks();
         drawFloaters(dt);
         drawOffscreenArrows(now);
     }
