@@ -121,9 +121,10 @@ that ambient animation as its background — it now lives independently at
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer
   paved legs.
-- **Congestion** (feature-flagged via `SC.state.congestionEnabled`,
-  toggle anytime from the ☰ menu; defaults per difficulty — on for
-  Normal/Hard, off for Easy/Sandbox): once more than
+- **Congestion** (`SC.state.congestionEnabled`, a difficulty trait fixed
+  for the run — on for Normal/Hard, off for Easy/Sandbox; not a normal
+  player-facing toggle, see the `?dev=1` dev panel below for A/B
+  comparison): once more than
   `CONGESTION_THRESHOLD` trucks share an edge at once, each additional
   truck slows it multiplicatively (`CONGESTION_STEP`, floored at
   `CONGESTION_FLOOR` — never a full stop). `SC.roads.speedMult` folds

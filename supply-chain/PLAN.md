@@ -35,6 +35,9 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.23.0: **congestion is difficulty-only**; the ☰-menu toggle is gone,
+  replaced by a `?dev=1` dev-only A/B panel. Per item 8 below — details
+  there.
 - v1.20.0: **river-crossing choice modal** replaces the ferry build-mode
   toggle. Per item 9 below — details there.
 - v1.19.0: **contracts**. Per item 10 below — details there.
@@ -207,8 +210,13 @@ actually shipped.)*
    weighting, so dispatch actually prefers a quieter parallel road. A
    busy road glows warmer (`render.drawRoads`). Shipped as a **feature
    flag** (`SC.state.congestionEnabled`) per the owner's request: on by
-   default for Normal/Hard, off for Easy/Sandbox, toggle anytime from
-   the ☰ menu regardless of difficulty.
+   default for Normal/Hard, off for Easy/Sandbox. v1.17.0-v1.22.0 also
+   exposed a live ☰-menu toggle so any run could override the default;
+   v1.23.0 removed that player-facing toggle — congestion is now purely
+   a difficulty trait, fixed for the run like interest rate or deadlines
+   — and replaced it with a `?dev=1` dev-only panel (pill under the
+   top-left HUD bar) that flips `congestionEnabled` live for the owner's
+   own A/B comparison during development, not for normal play.
 9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
    "dock pair + fixed-cadence shuttle" proposal to an edge-level
    alternative: a road across the river builds as `edge.ferry` instead
