@@ -58,7 +58,16 @@ SC.ui = (function() {
         updateResearchShortcut();
         updateResearchTree();
         updatePromo();
+        updateFerryMode();
         updateBuild();
+    }
+
+    // ── Ferry-crossing toggle: Build mode's river crossings build a
+    // cheaper, slower ferry instead of a bridge while this is on ──
+    function updateFerryMode() {
+        const btn = $('btn-ferry-mode');
+        btn.classList.toggle('active', SC.state.buildFerry);
+        btn.querySelector('.price').textContent = SC.state.buildFerry ? 'On' : 'Off';
     }
 
     // ── Promotions (Marketing Blitz): repeatable paid demand burst ──
@@ -511,6 +520,14 @@ SC.ui = (function() {
                 SC.emit('toast', { text: `Tap the map to place a truck yard — ${fmt(SC.yardPrice())}`, kind: 'info' });
             }
             SC.sfx.play('click');
+            updateShop();
+        });
+        $('btn-ferry-mode').addEventListener('click', () => {
+            SC.state.buildFerry = !SC.state.buildFerry;
+            SC.sfx.play('click');
+            toast(SC.state.buildFerry
+                ? 'Ferry crossings on — river roads will build cheaper and slower'
+                : 'Ferry crossings off — river roads build as bridges again', 'info');
             updateShop();
         });
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {

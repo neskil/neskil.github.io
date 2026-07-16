@@ -35,6 +35,7 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.18.0: **river ferries**. Per item 9 below — details there.
 - v1.17.0: **road congestion**, feature-flagged. Per item 8 below —
   details there.
 - v1.15.0-v1.16.0 (parallel branches, master): top-left corner UI
@@ -205,9 +206,17 @@ actually shipped.)*
    flag** (`SC.state.congestionEnabled`) per the owner's request: on by
    default for Normal/Hard, off for Easy/Sandbox, toggle anytime from
    the ☰ menu regardless of difficulty.
-9. **River ferries** — a cheaper-but-slower alternative to bridges: build
-   a dock pair, ferry shuttles on a fixed cadence (reuses the old sim's
-   boat visual). Bridges = fast + expensive, ferries = cheap + queueing.
+9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
+   "dock pair + fixed-cadence shuttle" proposal to an edge-level
+   alternative chosen at build time (Shop panel toggle): a road across
+   the river builds as `edge.ferry` instead of a bridge — `FERRY_COST_MULT`
+   cheaper than `BRIDGE_MULT`, but `FERRY_SPEED_MULT` slower, can't be
+   paved into a highway. No new node kind or scheduling clock — the
+   "queueing" half of the ask is congestion (if enabled) applying to a
+   ferry edge same as any other, which reads as trucks queueing for the
+   boat without a separate queue simulation. A boat emoji shuttles back
+   and forth along the crossing for the promised visual, short of a full
+   dock/sprite treatment (that's Decision C's dedicated visual pass).
 10. **Contracts** — occasional long-running deals: "3× green every 60s for
     5 minutes at a locked-in rate". Creates steady demand you can build
     dedicated infrastructure for.

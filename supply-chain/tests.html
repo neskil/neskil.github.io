@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.17.0"></script>
-    <script src="js/state.js?v=1.17.0"></script>
-    <script src="js/save.js?v=1.17.0"></script>
-    <script src="js/sfx.js?v=1.17.0"></script>
-    <script src="js/rng.js?v=1.17.0"></script>
-    <script src="js/map.js?v=1.17.0"></script>
-    <script src="js/camera.js?v=1.17.0"></script>
-    <script src="js/roads.js?v=1.17.0"></script>
-    <script src="js/factories.js?v=1.17.0"></script>
-    <script src="js/economy.js?v=1.17.0"></script>
-    <script src="js/vehicles.js?v=1.17.0"></script>
-    <script src="js/inspect.js?v=1.17.0"></script>
-    <script src="js/research.js?v=1.17.0"></script>
-    <script src="js/placement.js?v=1.17.0"></script>
+    <script src="js/config.js?v=1.18.0"></script>
+    <script src="js/state.js?v=1.18.0"></script>
+    <script src="js/save.js?v=1.18.0"></script>
+    <script src="js/sfx.js?v=1.18.0"></script>
+    <script src="js/rng.js?v=1.18.0"></script>
+    <script src="js/map.js?v=1.18.0"></script>
+    <script src="js/camera.js?v=1.18.0"></script>
+    <script src="js/roads.js?v=1.18.0"></script>
+    <script src="js/factories.js?v=1.18.0"></script>
+    <script src="js/economy.js?v=1.18.0"></script>
+    <script src="js/vehicles.js?v=1.18.0"></script>
+    <script src="js/inspect.js?v=1.18.0"></script>
+    <script src="js/research.js?v=1.18.0"></script>
+    <script src="js/placement.js?v=1.18.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1421,6 +1421,90 @@
         SC.save.restore(SC.save.serialize());
         assert('an explicitly enabled congestion flag survives a round-trip',
             SC.state.congestionEnabled === true);
+    })();
+
+    // ── Ferries: cheaper than a bridge, only meaningful on a river crossing ──
+    (function() {
+        const { S1, F } = fixture(); // S1->F does not cross the river
+        SC.state.money = 100000;
+
+        const qDry = SC.roads.quote(S1, F, { ferry: true });
+        assert('ferry option is a no-op on a crossing that is not a bridge',
+            qDry.ferry === false && qDry.cost === Math.round(qDry.len * SC.CONFIG.ROAD_COST_PER_UNIT));
+
+        // Cross-river pair, same shape as the existing bridge-multiplier test
+        const A = SC.map.makeNode('city', 900, 500, { active: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        const qBridge = SC.roads.quote(A, B);
+        const qFerry = SC.roads.quote(A, B, { ferry: true });
+        assert('a river crossing defaults to a bridge without the ferry option',
+            qBridge.bridge && !qBridge.ferry &&
+            qBridge.cost === Math.round(qBridge.len * SC.CONFIG.ROAD_COST_PER_UNIT * SC.CONFIG.BRIDGE_MULT));
+        assert('the ferry option marks the same crossing as a (cheaper) ferry',
+            qFerry.bridge && qFerry.ferry &&
+            qFerry.cost === Math.round(qFerry.len * SC.CONFIG.ROAD_COST_PER_UNIT * SC.CONFIG.FERRY_COST_MULT));
+        assert('a ferry crossing costs less than the equivalent bridge', qFerry.cost < qBridge.cost);
+
+        const res = SC.roads.build(A, B, { ferry: true });
+        assert('building with the ferry option marks the edge as a ferry',
+            res.ok && res.edge.ferry === true && res.edge.bridge === true);
+    })();
+
+    // ── Ferries: slower than a normal road, can't be paved, stacks with congestion ──
+    (function() {
+        const { S1 } = fixture();
+        SC.state.money = 100000;
+        const A = SC.map.makeNode('city', 900, 500, { active: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        const edge = SC.roads.build(A, B, { ferry: true }).edge;
+
+        assert('a ferry crossing moves trucks slower than a normal road',
+            SC.roads.speedMult(edge) === SC.CONFIG.FERRY_SPEED_MULT);
+        assert('a ferry cannot be paved into a highway', (function() {
+            SC.state.research.completed.pavedRoads = true;
+            return SC.roads.upgradeQuote(edge) === null && !SC.roads.upgrade(edge).ok;
+        })());
+        assert('a ferry stays a ferry (upgrade attempt does not flip the flag)',
+            edge.ferry === true && edge.level === 0);
+
+        // Congestion (queueing for the boat) stacks multiplicatively on top
+        SC.state.congestionEnabled = true;
+        for (let i = 0; i < SC.CONFIG.CONGESTION_THRESHOLD + 2; i++) {
+            const t = SC.vehicles.addTruck(A);
+            t.path = [A, B]; t.pathIdx = 0;
+        }
+        const expected = SC.CONFIG.FERRY_SPEED_MULT * (1 - SC.CONFIG.CONGESTION_STEP * 2);
+        assert('congestion queueing stacks with the ferry base slowdown',
+            approx(SC.roads.speedMult(edge), expected, 0.001));
+    })();
+
+    // ── Ferries: Dijkstra treats them as slower, but usable when needed ──
+    (function() {
+        SC.newState('sandbox'); // congestion off by default, keeps this test simple
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }], halfWidths: [40, 40] };
+        const A = SC.map.makeNode('city', 900, 500, { active: true, isHQ: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        SC.state.money = 100000;
+        const ferryEdge = SC.roads.build(A, B, { ferry: true }).edge;
+        assert('with only a ferry available, pathfinding still finds it',
+            SC.roads.findPath(A, B) && SC.roads.findPath(A, B).path.length === 2);
+        assert('a ferry crossing is weighted slower than its raw distance',
+            approx(SC.roads.pathDist(A, B), ferryEdge.len / SC.CONFIG.FERRY_SPEED_MULT, 0.01));
+    })();
+
+    // ── Save round-trip: ferry flag persists (bridge/len are recomputed) ──
+    (function() {
+        const { S1 } = fixture();
+        SC.state.money = 100000;
+        const A = SC.map.makeNode('city', 900, 500, { active: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        SC.roads.build(A, B, { ferry: true });
+
+        SC.save.restore(SC.save.serialize());
+        const restored = SC.state.edges.find(e =>
+            (e.a.x === 900 && e.b.x === 1300) || (e.a.x === 1300 && e.b.x === 900));
+        assert('ferry flag survives a save round-trip', restored && restored.ferry === true);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
