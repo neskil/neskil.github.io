@@ -7,10 +7,14 @@ SC.listeners = {};
 SC.on = function(ev, fn) { (SC.listeners[ev] = SC.listeners[ev] || []).push(fn); };
 SC.emit = function(ev, data) { (SC.listeners[ev] || []).forEach(fn => fn(data)); };
 
-SC.newState = function() {
+// `difficulty` is fixed for the run: it sets starting money here and
+// interest/deadline/grace modifiers via SC.diff() everywhere else.
+SC.newState = function(difficulty) {
+    if (!SC.DIFFICULTIES[difficulty]) difficulty = 'normal';
     SC.state = {
+        difficulty,
         time: 0,
-        money: SC.CONFIG.START_MONEY,
+        money: SC.DIFFICULTIES[difficulty].startMoney,
         earnedTotal: 0,
         interestPaid: 0,
         delivered: 0,
@@ -35,6 +39,9 @@ SC.newState = function() {
 
         upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
         research: { completed: {}, active: null }, // active: { id, t } elapsed seconds
+        promoUntil: 0,      // sim time the running promotion ends (0 = none)
+        defaultIn: null,    // default countdown while below -creditLimit (null = safe)
+        gameOver: false,    // defaulted — sim frozen, overlay shown
 
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
@@ -43,6 +50,11 @@ SC.newState = function() {
         gameStarted: false
     };
     return SC.state;
+};
+
+// The active difficulty preset (interest, deadlines, grace, fail state).
+SC.diff = function() {
+    return SC.DIFFICULTIES[SC.state.difficulty] || SC.DIFFICULTIES.normal;
 };
 
 // Purchases may dip into the credit line: affordable as long as the

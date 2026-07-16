@@ -66,11 +66,28 @@ that ambient animation as its background — it now lives independently at
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock.
+- **Difficulty** (picked on the new-game screen, fixed per run, saved):
+  `SC.DIFFICULTIES` presets set starting money, debt interest rate,
+  order-deadline multiplier, and the default grace period. Normal is
+  the balance baseline (15%/min interest, 20% tighter deadlines);
+  Easy keeps the original pace; Hard tightens both further; Sandbox
+  starts rich with no interest and no fail state (`noFail`).
+- **Default fail state**: purchases are blocked past −creditLimit, so
+  only compounding interest can drag the balance below it — that's an
+  unrecoverable-by-buying spiral, so it starts a grace-period countdown
+  (HUD shows `⚠ DEFAULT IN Ns`). Recover above the limit to clear it;
+  hit zero and the bank forecloses: game-over overlay, save wiped.
+  The countdown is persisted so reloading doesn't reset it.
+- **Promotions** (needs Marketing Blitz researched): a repeatable paid
+  action in the Shop — `PROMO_COST` buys `PROMO_DURATION` seconds of
+  ~3× faster order arrivals plus a higher concurrent-order cap. One at
+  a time; the timer survives saves (`promoUntil`).
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Eleven techs
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Twelve techs
   across four branches: Site Requisition (manual placement); Credit
   Line II/III → Premium Contracts (+15% payouts) → Regional Marketing
-  (customer DCs arrive 40% sooner); Asphalt Paving (highways) →
+  (customer DCs arrive 40% sooner) and Marketing Blitz (unlocks
+  promotions, above); Asphalt Paving (highways) →
   Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
   cap); Fertilizer Program (+50% supplier regen) → Factory Automation
   (+3 factory-speed cap) and Preservatives (+25% order deadlines).
@@ -155,12 +172,12 @@ sync with it):
 - Difficulty ramp: order deadlines shrink at higher levels; game-over state.
 - Touch: long-press as an alternative to double-tap for demolish/buy (the
   Inspect-mode hold gesture above uses the same long-press primitive).
-- A "promotions" tech that temporarily boosts demand for a chosen good,
-  per the plan's next-steps discussion — the one backlog research idea
-  still open, since it needs repeatable/timed research (the current
-  tree assumes each id completes once). Order-pay boosts, faster
-  customer growth, and cap-raising techs all landed in v1.10–1.12.
+- Promotions landed in v1.13 as a research-unlocked *repeatable shop
+  action* (the tree stays one-shot-per-id); a per-good targeted promo
+  is the remaining refinement if wanted.
 - Research cancel/refund (currently a started project can't be aborted).
+- Difficulty ramp *within* a run (deadlines shrinking over time) —
+  difficulty presets landed in v1.13, but each run is flat.
 - Faster-milestone research (unlock a site every 2 deliveries instead
   of 3) — considered for v1.12 but deferred: milestone pace is the main
   faucet controlling map growth, and cheapening it risks flooding the

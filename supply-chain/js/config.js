@@ -9,13 +9,24 @@ SC.CONFIG = {
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
 
-    START_MONEY: 1200,
     START_TRUCKS: 2,
 
     // Credit line: purchases may push the balance negative down to
-    // -CREDIT_LIMIT, but debt accrues interest continuously.
+    // -CREDIT_LIMIT, but debt accrues interest continuously. Interest can
+    // compound the balance BELOW the limit (purchases are blocked there,
+    // so it's a death spiral): that starts the default countdown — climb
+    // back above -limit within the grace period or the run ends. Interest
+    // rate, grace period, deadlines and starting money all come from the
+    // difficulty preset (SC.DIFFICULTIES below).
     CREDIT_LIMIT: 1500,
-    DEBT_INTEREST_PER_MIN: 0.10, // 10% of the outstanding debt per minute
+
+    // Promotions (unlocked by the 'promotions' research): a paid, timed
+    // demand burst — orders arrive much faster and the concurrent-order
+    // cap rises while it runs. Repeatable, one at a time.
+    PROMO_COST: 600,
+    PROMO_DURATION: 45,          // seconds per promotion
+    PROMO_ORDER_MULT: 0.35,      // order-spawn interval multiplier while active
+    PROMO_ORDER_CAP_BONUS: 2,    // extra concurrent orders while active
 
     AUTOSAVE_INTERVAL: 5,        // seconds between autosaves
 
@@ -94,6 +105,35 @@ SC.CONFIG = {
     YARD_PRICE_GROWTH: 1.5
 };
 
+// Difficulty presets, chosen on the new-game screen and fixed for the
+// run (persisted in the save). Normal is the balance baseline: 15%/min
+// interest and 20% shorter order deadlines than the original tuning.
+// Easy keeps the pre-1.13 pace; Sandbox never forecloses (noFail) and
+// starts rich, for players who just want to build networks.
+SC.DIFFICULTIES = {
+    easy: {
+        label: 'Easy', emoji: '🌱', startMoney: 1500,
+        interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90,
+        desc: 'Relaxed deadlines, gentle interest.'
+    },
+    normal: {
+        label: 'Normal', emoji: '🚚', startMoney: 1200,
+        interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60,
+        desc: 'Tight deadlines, 15%/min debt interest.'
+    },
+    hard: {
+        label: 'Hard', emoji: '🔥', startMoney: 1000,
+        interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45,
+        desc: 'Brutal deadlines, punishing interest.'
+    },
+    sandbox: {
+        label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
+        interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true,
+        desc: 'Deep pockets, no interest, no bankruptcy.'
+    }
+};
+SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
+
 // Research tree: one active project at a time, paid upfront, takes `time`
 // seconds, then unlocks its effect. `requires` lists prerequisite ids.
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
@@ -149,11 +189,15 @@ SC.RESEARCH = {
         name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 120, requires: ['overdrive'],
         desc: 'Raises the Truck Capacity upgrade cap by 2 levels.',
         upgradeMaxBonus: { truckCapacity: 2 }
+    },
+    promotions: {
+        name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 100, requires: ['premiumContracts'],
+        desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     }
 };
 SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
-                     'rapidExpansion', 'bulkLogistics'];
+                     'rapidExpansion', 'promotions', 'bulkLogistics'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city
