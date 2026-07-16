@@ -157,6 +157,16 @@ SC.runProbe = function(seconds) {
             if (n.kind === 'supplier') n.stock = Math.min(n.stock, 1);
         }
     }
+    // Build a ferry crossing from HQ to a node mirrored across the river
+    // (guaranteed to cross it, regardless of map seed/orientation), so
+    // the teal dashed line + shuttling boat can be screenshotted.
+    if (p.has('ferry')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        const rv = SC.map.riverAt(hq.y);
+        const other = SC.map.makeNode('yard', rv.x + (rv.x - hq.x), hq.y, { active: true });
+        SC.roads.build(hq, other, { ferry: true });
+    }
     // Force-jam the factory->HQ edge with several trucks parked mid-span,
     // so the congestion glow overlay can be screenshotted without waiting
     // on real dispatch timing (&jam=1; also flips congestion on regardless

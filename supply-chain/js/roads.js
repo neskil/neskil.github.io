@@ -8,24 +8,28 @@ SC.roads = (function() {
             (e.a === a && e.b === b) || (e.a === b && e.b === a)) || null;
     }
 
-    // Quote for a prospective road; null when not buildable.
-    function quote(a, b) {
+    // Quote for a prospective road; null when not buildable. `opts.ferry`
+    // requests a ferry instead of a bridge for a river crossing — cheaper
+    // than BRIDGE_MULT, at the cost of FERRY_SPEED_MULT (see speedMult).
+    // Meaningless (and ignored) for a segment that doesn't cross the river.
+    function quote(a, b, opts) {
         if (!a || !b || a === b) return null;
         if (!a.active || !b.active) return null;
         if (findEdge(a, b)) return null;
         const len = Math.hypot(a.x - b.x, a.y - b.y);
         const bridge = SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y);
-        const cost = Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT *
-            (bridge ? SC.CONFIG.BRIDGE_MULT : 1));
-        return { len, bridge, cost };
+        const ferry = !!(opts && opts.ferry) && bridge;
+        const mult = ferry ? SC.CONFIG.FERRY_COST_MULT : (bridge ? SC.CONFIG.BRIDGE_MULT : 1);
+        const cost = Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult);
+        return { len, bridge, ferry, cost };
     }
 
-    function build(a, b) {
-        const q = quote(a, b);
+    function build(a, b, opts) {
+        const q = quote(a, b, opts);
         if (!q) return { ok: false, reason: 'invalid' };
         if (!SC.canAfford(q.cost)) return { ok: false, reason: 'money', cost: q.cost };
         SC.state.money -= q.cost;
-        const edge = { a, b, len: q.len, bridge: q.bridge, cost: q.cost, level: 0 };
+        const edge = { a, b, len: q.len, bridge: q.bridge, ferry: q.ferry, cost: q.cost, level: 0 };
         SC.state.edges.push(edge);
         a.edges.push(b);
         b.edges.push(a);
@@ -69,16 +73,21 @@ SC.roads = (function() {
     }
 
     // Highways (edge.level 1, unlocked by 'pavedRoads' research) move
-    // trucks HIGHWAY_SPEED_MULT× faster on that edge; congestion (when
-    // enabled) then slows an overloaded edge back down on top of that.
+    // trucks HIGHWAY_SPEED_MULT× faster on that edge; a ferry crossing
+    // moves them FERRY_SPEED_MULT slower instead (mutually exclusive —
+    // see upgradeQuote). Congestion (when enabled) then applies on top
+    // of whichever base multiplier applies.
     function speedMult(edge) {
         if (!edge) return 1;
-        return (edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : 1) * congestionMult(edge);
+        const base = edge.level ? SC.CONFIG.HIGHWAY_SPEED_MULT : (edge.ferry ? SC.CONFIG.FERRY_SPEED_MULT : 1);
+        return base * congestionMult(edge);
     }
 
     // Quote for upgrading a road to a highway; null when not possible.
+    // A ferry crossing can't be paved into a highway — it's a boat, not
+    // a road surface.
     function upgradeQuote(edge) {
-        if (!edge || edge.level > 0) return null;
+        if (!edge || edge.level > 0 || edge.ferry) return null;
         if (!SC.research.isDone('pavedRoads')) return null;
         const cost = Math.round(edge.len * SC.CONFIG.ROAD_UPGRADE_PER_UNIT *
             (edge.bridge ? SC.CONFIG.BRIDGE_MULT : 1));

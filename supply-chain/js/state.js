@@ -50,6 +50,7 @@ SC.newState = function(difficulty) {
         highlight: null,    // { paths, color, city, until } — order route overlay
         mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
+        buildFerry: false,  // Build-mode toggle: river crossings build as a ferry, not a bridge
         gameStarted: false
     };
     return SC.state;

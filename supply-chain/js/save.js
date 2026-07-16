@@ -62,7 +62,9 @@ SC.save = (function() {
                 level: n.level || 0, stock: n.stock,
                 inv: inv.get(n.id) || {}
             })),
-            edges: st.edges.map(e => ({ a: e.a.id, b: e.b.id, cost: e.cost, level: e.level || 0 })),
+            edges: st.edges.map(e => ({
+                a: e.a.id, b: e.b.id, cost: e.cost, level: e.level || 0, ferry: !!e.ferry
+            })),
             trucks: st.trucks.map(t => ({
                 nodeId: (t.node || st.nodes[0]).id,
                 homeYardId: (t.homeYard || t.node || st.nodes[0]).id
@@ -117,7 +119,7 @@ SC.save = (function() {
             if (!a || !b) continue;
             const len = Math.hypot(a.x - b.x, a.y - b.y);
             const bridge = SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y);
-            st.edges.push({ a, b, len, bridge, cost: ed.cost, level: ed.level || 0 });
+            st.edges.push({ a, b, len, bridge, cost: ed.cost, level: ed.level || 0, ferry: !!ed.ferry });
             a.edges.push(b);
             b.edges.push(a);
         }
