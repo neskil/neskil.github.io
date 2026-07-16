@@ -71,7 +71,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   hauls (the ×N badge over a truck) show up without a long probe.
   `&yard=1` builds a second truck yard near HQ, stations a truck there,
   and sets it as the active yard, for screenshotting the yard marker/
-  per-yard truck counts. `&techtree=1` opens the 🔬 Research overlay
+  per-yard truck counts. `&highway=1` completes pavedRoads and paves all
+  built roads (highway styling); `&suplevel=2` levels every supplier up
+  twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
+  bars). `&techtree=1` opens the 🔬 Research overlay
   (its own menu, separate from the Shop panel's Build/Buy list) on load,
   for screenshotting the tree layout.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat

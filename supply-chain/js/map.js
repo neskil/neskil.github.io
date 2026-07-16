@@ -21,8 +21,13 @@ SC.map = (function() {
             isHQ: !!opts.isHQ,
             edges: [],                  // neighbour node refs (kept by roads.js)
             // factory-only production state
-            inv: {}, reserved: {}, queue: [], crafting: null
+            inv: {}, reserved: {}, queue: [], crafting: null,
+            // supplier-only: upgrade level and regenerating stock
+            level: opts.level || 0
         };
+        if (kind === 'supplier') {
+            n.stock = opts.stock !== undefined ? opts.stock : SC.supplierCap(n);
+        }
         SC.state.nodes.push(n);
         return n;
     }

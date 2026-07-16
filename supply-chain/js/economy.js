@@ -46,7 +46,10 @@ SC.economy = (function() {
             }
         }
         if (nearest === Infinity) nearest = 400;
-        const payout = Math.round((qty * (SC.GOODS[product].value + C().ORDER_DIST_PAY * nearest)) / 5) * 5;
+        // Deeper chains pay a premium on top of the good's base value —
+        // multi-tier logistics (car, robot) should out-earn bread runs.
+        const depthMult = 1 + C().ORDER_DEPTH_VALUE * (SC.depthOf(product) - 1);
+        const payout = Math.round((qty * (SC.GOODS[product].value * depthMult + C().ORDER_DIST_PAY * nearest)) / 5) * 5;
 
         // Deeper chains (steel -> car) get extra deadline slack
         const slack = 1 + C().ORDER_DEPTH_SLACK * (SC.depthOf(product) - 1);
@@ -172,8 +175,31 @@ SC.economy = (function() {
         }
     }
 
+    // Suppliers regenerate stock toward their (level-scaled) cap; trucks
+    // arriving at a dry supplier wait in the 'loading' phase (vehicles.js).
+    function tickSuppliers(dt) {
+        for (const n of SC.state.nodes) {
+            if (n.kind !== 'supplier' || !n.active) continue;
+            const cap = SC.supplierCap(n);
+            if (n.stock < cap) n.stock = Math.min(cap, n.stock + SC.supplierRegen(n) * dt);
+        }
+    }
+
+    // Per-supplier upgrade: each level raises stock cap and regen rate.
+    function upgradeSupplier(node) {
+        if (!node || node.kind !== 'supplier' || !node.active) return { ok: false, reason: 'invalid' };
+        const price = SC.supplierUpgradePrice(node);
+        if (price === null) return { ok: false, reason: 'maxed' };
+        if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
+        SC.state.money -= price;
+        node.level = (node.level || 0) + 1;
+        SC.emit('supplierUpgraded', { node, price });
+        return { ok: true, level: node.level };
+    }
+
     let planTimer = 0;
     function tick(dt) {
+        tickSuppliers(dt);
         // Debt interest: a negative balance bleeds continuously. Interest
         // can push the debt past the credit limit (purchases stay blocked
         // until deliveries pay it back down).
@@ -227,5 +253,6 @@ SC.economy = (function() {
     }
 
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
-             onNetworkChanged, tick, buyUpgrade, craftableProducts, bestSourceFor };
+             onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
+             craftableProducts, bestSourceFor };
 })();
