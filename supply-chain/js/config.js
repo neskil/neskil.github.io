@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.22.0';
+SC.VERSION = '1.23.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -146,8 +146,9 @@ SC.CONFIG = {
 // interest and 20% shorter order deadlines than the original tuning.
 // Easy keeps the pre-1.13 pace; Sandbox never forecloses (noFail) and
 // starts rich, for players who just want to build networks. `congestion`
-// is only the DEFAULT for SC.state.congestionEnabled — a live toggle in
-// the pause menu overrides it for the rest of the run either way.
+// sets SC.state.congestionEnabled for the whole run — it's purely a
+// difficulty trait, not a player-facing toggle (the ?dev=1 dev panel can
+// still override it live, for A/B comparison during development).
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
