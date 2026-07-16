@@ -54,10 +54,11 @@ SC.economy = (function() {
             (1 + SC.research.payoutBonus())) / 5) * 5;
 
         // Deeper chains (steel -> car) get extra deadline slack;
-        // Preservatives research stretches every deadline further.
+        // Preservatives research stretches every deadline further, and
+        // the difficulty preset scales the whole thing (Normal = 0.8×).
         const slack = 1 + C().ORDER_DEPTH_SLACK * (SC.depthOf(product) - 1);
         const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]) * slack *
-            (1 + SC.research.deadlineBonus());
+            (1 + SC.research.deadlineBonus()) * SC.diff().deadlineMult;
         const order = {
             id: ++SC.state.orderSeq,
             city, product, qty,
@@ -181,9 +182,29 @@ SC.economy = (function() {
 
     // Demand scales with the customer network: each active DC beyond HQ
     // raises the concurrent-order cap, so a grown map generates enough
-    // work to pay for its grown costs.
+    // work to pay for its grown costs. A running promotion adds more.
     function maxActiveOrders() {
-        return C().ORDER_MAX_ACTIVE + C().ORDER_PER_CITY * Math.max(0, activeCities().length - 1);
+        return C().ORDER_MAX_ACTIVE + C().ORDER_PER_CITY * Math.max(0, activeCities().length - 1) +
+               (isPromoActive() ? C().PROMO_ORDER_CAP_BONUS : 0);
+    }
+
+    // ── Promotions: paid, timed demand bursts (Marketing Blitz) ──
+    function isPromoActive() {
+        return SC.state.time < SC.state.promoUntil;
+    }
+
+    function promoTimeLeft() {
+        return Math.max(0, SC.state.promoUntil - SC.state.time);
+    }
+
+    function startPromotion() {
+        if (!SC.research.isDone('promotions')) return { ok: false, reason: 'locked' };
+        if (isPromoActive()) return { ok: false, reason: 'active' };
+        if (!SC.canAfford(C().PROMO_COST)) return { ok: false, reason: 'money', cost: C().PROMO_COST };
+        SC.state.money -= C().PROMO_COST;
+        SC.state.promoUntil = SC.state.time + C().PROMO_DURATION;
+        SC.emit('promoStarted', { until: SC.state.promoUntil });
+        return { ok: true };
     }
 
     // Suppliers regenerate stock toward their (level-scaled) cap; trucks
@@ -211,13 +232,33 @@ SC.economy = (function() {
     let planTimer = 0;
     function tick(dt) {
         tickSuppliers(dt);
-        // Debt interest: a negative balance bleeds continuously. Interest
-        // can push the debt past the credit limit (purchases stay blocked
-        // until deliveries pay it back down).
-        if (SC.state.money < 0) {
-            const interest = -SC.state.money * (C().DEBT_INTEREST_PER_MIN / 60) * dt;
+        // Debt interest: a negative balance bleeds continuously, at the
+        // difficulty's rate. Interest can push the debt past the credit
+        // limit (purchases stay blocked until deliveries pay it down).
+        if (SC.state.money < 0 && SC.diff().interestPerMin > 0) {
+            const interest = -SC.state.money * (SC.diff().interestPerMin / 60) * dt;
             SC.state.money -= interest;
             SC.state.interestPaid += interest;
+        }
+
+        // Default countdown: below the credit limit nothing can be bought,
+        // so only deliveries already in flight can save you — recover above
+        // -creditLimit within the grace period or the bank forecloses.
+        // Sandbox (noFail) skips foreclosure entirely.
+        if (SC.state.money < -SC.creditLimit() && !SC.diff().noFail) {
+            if (SC.state.defaultIn === null) {
+                SC.state.defaultIn = SC.diff().defaultGrace;
+                SC.emit('debtWarning', { grace: SC.diff().defaultGrace });
+            } else {
+                SC.state.defaultIn -= dt;
+                if (SC.state.defaultIn <= 0 && !SC.state.gameOver) {
+                    SC.state.gameOver = true;
+                    SC.emit('gameOver', { debt: -SC.state.money });
+                }
+            }
+        } else if (SC.state.defaultIn !== null) {
+            SC.state.defaultIn = null;
+            SC.emit('debtRecovered');
         }
 
         // New customer DCs (cities) unlock on their own clock, independent
@@ -233,8 +274,9 @@ SC.economy = (function() {
                 : Infinity; // pool exhausted — stop checking
         }
 
-        // New orders arrive a bit faster as you level up
-        SC.state.nextOrderIn -= dt;
+        // New orders arrive a bit faster as you level up; a running
+        // promotion makes the clock toward the next order tick ~3x faster.
+        SC.state.nextOrderIn -= dt * (isPromoActive() ? 1 / C().PROMO_ORDER_MULT : 1);
         if (SC.state.nextOrderIn <= 0 && SC.state.orders.length < maxActiveOrders()) {
             const o = spawnOrder();
             if (o) planOrder(o);
@@ -266,5 +308,6 @@ SC.economy = (function() {
 
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
-             craftableProducts, bestSourceFor, maxActiveOrders };
+             craftableProducts, bestSourceFor, maxActiveOrders,
+             isPromoActive, promoTimeLeft, startPromotion };
 })();

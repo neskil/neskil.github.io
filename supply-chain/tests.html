@@ -673,12 +673,15 @@
         assert('canAfford mirrors the limit',
             SC.canAfford(10) && !SC.canAfford(11));
 
-        // Interest bleeds while negative, and only while negative
+        // Interest bleeds while negative, and only while negative, at the
+        // difficulty's rate (Normal = 15%/min)
         SC.state.money = -1000;
         SC.state.interestPaid = 0;
         SC.economy.tick(60); // one minute in one tick
-        assert('debt accrues ~10% interest per minute',
-            approx(SC.state.money, -1100, 1) && approx(SC.state.interestPaid, 100, 1));
+        const rate = SC.diff().interestPerMin;
+        assert('debt accrues the difficulty interest rate per minute',
+            approx(SC.state.money, -1000 * (1 + rate), 1) && approx(SC.state.interestPaid, 1000 * rate, 1));
+        assert('normal difficulty charges 15%/min', rate === 0.15);
         SC.state.money = 500;
         const ip = SC.state.interestPaid;
         SC.economy.tick(60);
@@ -1068,13 +1071,15 @@
         const boosted = Math.round(((SC.GOODS.bread.value + SC.CONFIG.ORDER_DIST_PAY * 300) * 1.15) / 5) * 5;
         assert('premium contracts boost payouts by 15%', o2.payout === boosted && o2.payout > o1.payout);
 
-        assert('baseline deadline stays in its config range',
-            o1.deadline >= SC.CONFIG.ORDER_DEADLINE[0] && o1.deadline <= SC.CONFIG.ORDER_DEADLINE[1]);
+        const dm = SC.diff().deadlineMult; // Normal = 0.8 (20% tighter than base)
+        assert('baseline deadline is the config range scaled by difficulty',
+            o1.deadline >= SC.CONFIG.ORDER_DEADLINE[0] * dm && o1.deadline <= SC.CONFIG.ORDER_DEADLINE[1] * dm);
+        assert('normal difficulty tightens deadlines by 20%', dm === 0.8);
         SC.state.research.completed.coldStorage = true;
         const o3 = SC.economy.spawnOrder();
         assert('preservatives stretch deadlines by 25%',
-            o3.deadline >= SC.CONFIG.ORDER_DEADLINE[0] * 1.25 &&
-            o3.deadline <= SC.CONFIG.ORDER_DEADLINE[1] * 1.25);
+            o3.deadline >= SC.CONFIG.ORDER_DEADLINE[0] * dm * 1.25 &&
+            o3.deadline <= SC.CONFIG.ORDER_DEADLINE[1] * dm * 1.25);
     })();
 
     // ── Regional Marketing / Bulk Logistics research effects ──
@@ -1131,6 +1136,103 @@
             res2.ok === true ? res2.truck !== busy : true);
         const res3 = SC.vehicles.reassignTruck(SC.map.makeNode('city', 1900, 1200, { active: true }));
         assert('reassigning to a non-yard is rejected', !res3.ok && res3.reason === 'invalid');
+    })();
+
+    // ── Promotions: research gate, cost, faster orders, expiry ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        assert('promotion locked without the research',
+            !SC.economy.startPromotion().ok && SC.economy.startPromotion().reason === 'locked');
+
+        SC.state.research.completed.promotions = true;
+        const m0 = SC.state.money;
+        const res = SC.economy.startPromotion();
+        assert('promotion charges its cost and activates',
+            res.ok && SC.state.money === m0 - SC.CONFIG.PROMO_COST && SC.economy.isPromoActive());
+        assert('a second promotion cannot overlap',
+            !SC.economy.startPromotion().ok && SC.economy.startPromotion().reason === 'active');
+        assert('promo raises the concurrent-order cap',
+            SC.economy.maxActiveOrders() === SC.CONFIG.ORDER_MAX_ACTIVE + SC.CONFIG.PROMO_ORDER_CAP_BONUS);
+
+        // The clock toward the next order runs ~1/PROMO_ORDER_MULT faster
+        SC.state.orders.length = 0;
+        SC.state.nextOrderIn = 10;
+        SC.economy.tick(1);
+        assert('order clock ticks faster during a promotion',
+            approx(SC.state.nextOrderIn, 10 - 1 / SC.CONFIG.PROMO_ORDER_MULT, 0.01));
+
+        SC.state.time += SC.CONFIG.PROMO_DURATION + 1;
+        assert('promotion expires after its duration',
+            !SC.economy.isPromoActive() && SC.economy.promoTimeLeft() === 0);
+        assert('a new promotion can start after expiry', SC.economy.startPromotion().ok);
+    })();
+
+    // ── Default fail state: countdown, recovery, foreclosure ──
+    (function() {
+        fixture();
+        let over = null, warned = false, recovered = false;
+        SC.on('gameOver', d => { over = d; });
+        SC.on('debtWarning', () => { warned = true; });
+        SC.on('debtRecovered', () => { recovered = true; });
+
+        SC.state.money = -(SC.creditLimit() + 200); // beyond the limit
+        SC.economy.tick(0.1);
+        assert('crossing the limit starts the default countdown',
+            warned && SC.state.defaultIn !== null && SC.state.defaultIn <= SC.diff().defaultGrace);
+
+        // Paying the debt back down clears the countdown
+        SC.state.money = -100;
+        SC.economy.tick(0.1);
+        assert('recovering above the limit clears the countdown',
+            recovered && SC.state.defaultIn === null && !SC.state.gameOver);
+
+        // Sink again and let the clock run out
+        SC.state.money = -(SC.creditLimit() + 200);
+        for (let i = 0; i < 2000 && !SC.state.gameOver; i++) SC.economy.tick(0.1);
+        assert('running out the grace period forecloses the run',
+            SC.state.gameOver && over && over.debt > SC.creditLimit());
+    })();
+
+    // ── Difficulty presets: interest, deadlines, sandbox no-fail ──
+    (function() {
+        SC.newState('easy');
+        assert('easy keeps the classic 10%/min rate and full deadlines',
+            SC.diff().interestPerMin === 0.10 && SC.diff().deadlineMult === 1.0 &&
+            SC.state.money === SC.DIFFICULTIES.easy.startMoney);
+
+        SC.newState('hard');
+        assert('hard raises interest and tightens deadlines further',
+            SC.diff().interestPerMin > 0.15 && SC.diff().deadlineMult < 0.8);
+
+        SC.newState('bogus');
+        assert('unknown difficulty falls back to normal', SC.state.difficulty === 'normal');
+
+        // Sandbox: no interest, never forecloses
+        fixture();
+        SC.state.difficulty = 'sandbox';
+        SC.state.money = -(SC.creditLimit() + 500);
+        SC.state.interestPaid = 0;
+        for (let i = 0; i < 1500; i++) SC.economy.tick(0.1); // 150s, past any grace
+        assert('sandbox charges no interest', SC.state.interestPaid === 0);
+        assert('sandbox never defaults',
+            !SC.state.gameOver && SC.state.defaultIn === null);
+    })();
+
+    // ── Save round-trip: difficulty, promo timer, default countdown ──
+    (function() {
+        SC.newState('hard');
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }], halfWidths: [40, 40] };
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true });
+        SC.state.promoUntil = 123;
+        SC.state.defaultIn = 17.5;
+
+        SC.save.restore(SC.save.serialize());
+        assert('difficulty survives a round-trip', SC.state.difficulty === 'hard');
+        assert('promo timer survives a round-trip', SC.state.promoUntil === 123);
+        assert('default countdown survives a round-trip (no reload cheese)',
+            approx(SC.state.defaultIn, 17.5));
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
