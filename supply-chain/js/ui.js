@@ -498,7 +498,9 @@ SC.ui = (function() {
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
 
-        $('btn-menu').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });
+        // Whole bar opens the menu, not just the ☰ icon — money/trucks are
+        // read-only display, so there's no reason tapping them should miss.
+        $('top-left').addEventListener('click', () => { SC.sfx.play('click'); openMenu(); });
         $('menu-resume').addEventListener('click', () => { SC.sfx.play('click'); closeMenu(); });
         $('menu-overlay').addEventListener('click', e => {
             if (e.target === $('menu-overlay')) closeMenu(); // tap outside the card
