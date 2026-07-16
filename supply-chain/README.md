@@ -121,6 +121,17 @@ that ambient animation as its background — it now lives independently at
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer
   paved legs.
+- **Congestion** (feature-flagged via `SC.state.congestionEnabled`,
+  toggle anytime from the ☰ menu; defaults per difficulty — on for
+  Normal/Hard, off for Easy/Sandbox): once more than
+  `CONGESTION_THRESHOLD` trucks share an edge at once, each additional
+  truck slows it multiplicatively (`CONGESTION_STEP`, floored at
+  `CONGESTION_FLOOR` — never a full stop). `SC.roads.speedMult` folds
+  this in on top of the highway boost, live off
+  `SC.vehicles.truckCountOnEdge`, so it affects both truck movement
+  *and* Dijkstra's routing weight — dispatch naturally prefers a
+  quieter parallel road over a jammed one. The road glows warmer the
+  busier it gets (`render.drawRoads`).
 - **Per-yard truck prices**: the truck price ladder tracks trucks homed
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
@@ -166,10 +177,10 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
 | `js/rng.js` | Seeded PRNG (xmur3 hash + mulberry32 stream) used only by map.js's world gen, so `?seed=` reproduces a map |
 | `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
-| `js/roads.js` | Road build/demolish/quote, highway upgrades, Dijkstra pathfinding weighted by travel time |
+| `js/roads.js` | Road build/demolish/quote, highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer |
-| `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement |
+| `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |

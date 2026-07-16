@@ -162,6 +162,19 @@ SC.vehicles = (function() {
         }
     }
 
+    // How many trucks are currently travelling this edge's segment right
+    // now, in either direction — read by SC.roads.speedMult for
+    // congestion (when SC.state.congestionEnabled).
+    function truckCountOnEdge(edge) {
+        let n = 0;
+        for (const t of SC.state.trucks) {
+            if (!t.path || t.pathIdx >= t.path.length - 1) continue;
+            const a = t.path[t.pathIdx], b = t.path[t.pathIdx + 1];
+            if ((a === edge.a && b === edge.b) || (a === edge.b && b === edge.a)) n++;
+        }
+        return n;
+    }
+
     function tick(dt) {
         const speed = SC.truckSpeed();
         for (const t of SC.state.trucks) {
@@ -222,5 +235,6 @@ SC.vehicles = (function() {
         return { ok: true, truck };
     }
 
-    return { addTruck, addJob, cancelJobsForOrder, dispatch, tick, buyTruck, reassignTruck };
+    return { addTruck, addJob, cancelJobsForOrder, dispatch, tick, buyTruck, reassignTruck,
+             truckCountOnEdge };
 })();
