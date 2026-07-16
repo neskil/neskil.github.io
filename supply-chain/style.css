@@ -33,44 +33,27 @@ html, body {
 }
 #gameCanvas:active { cursor: grabbing; }
 
-/* ── Top-left: menu + HUD stack ─────────────────── */
+/* ── Top-left: menu + HUD, one merged bar ─────────── */
+/* Filled/missed counts moved into the ☰ menu's stats panel (they're
+   already duplicated there) so this bar only carries what's worth
+   checking at a glance: money/debt and idle trucks. overflow:hidden +
+   the pill radius auto-clips the first/last child to rounded end-caps,
+   so the menu button and each stat read as segments of one bar instead
+   of separate floating cards. */
 #top-left {
     position: fixed;
     top: 1rem;
     left: 1rem;
     z-index: 100;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.6rem;
-}
-
-/* ── HUD ─────────────────────────────────────────── */
-#hud {
-    display: flex;
-    gap: 0.5rem;
-}
-.hud-item {
+    align-items: stretch;
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 0.4rem 0.9rem;
-    text-align: center;
+    border-radius: 999px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    min-width: 72px;
+    overflow: hidden;
 }
-.hud-label {
-    display: block;
-    font-size: 0.62rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-secondary);
-}
-.hud-item span:last-child { font-weight: 700; font-size: 0.95rem; }
-.hud-item.money span:last-child { color: var(--good); }
-.hud-item.money.debt span:last-child { color: var(--bad); }
-.hud-item.money.debt { border-color: rgba(248, 113, 113, 0.5); }
 
 .icon-btn {
     width: 42px;
@@ -85,6 +68,37 @@ html, body {
     -webkit-backdrop-filter: blur(12px);
 }
 .icon-btn:hover { background: rgba(40, 50, 70, 0.9); }
+#top-left .icon-btn {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+#top-left .icon-btn:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* ── HUD ─────────────────────────────────────────── */
+#hud {
+    display: flex;
+    align-items: center;
+}
+.hud-item {
+    padding: 0.4rem 0.9rem;
+    text-align: center;
+    border-left: 1px solid var(--card-border);
+    min-width: 72px;
+}
+.hud-label {
+    display: block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+.hud-label-short { display: none; } /* swaps in for a tight icon-only label on mobile */
+.hud-item span:last-child { font-weight: 700; font-size: 0.95rem; }
+.hud-item.money span:last-child { color: var(--good); }
+.hud-item.money.debt span:last-child { color: var(--bad); }
 
 /* ── Top-left: fast-forward toggle (under the HUD) ── */
 #speed-toggle {
@@ -614,27 +628,21 @@ html, body {
 #help-start:hover { filter: brightness(1.1); }
 
 /* ── Mobile ──────────────────────────────────────── */
-/* HUD stacks under the hamburger in the top-left corner (its own column,
-   independent of the Shop/mode-toggle corners below and the Orders panel
-   on the right) — shrunk into a money-on-top, 3-stats-below block so the
-   whole #top-left column stays narrower than the gap to Orders on the
-   right. Orders itself is narrowed a bit on phones so the two don't touch. */
+/* The top-left bar (menu + money + trucks) stays a single narrow row on
+   phones — the trucks label swaps for a 🚚 icon and paddings shrink so
+   the whole bar stays clear of the Orders panel on the right. Orders
+   itself is narrowed a bit too on phones so the two don't touch. */
 @media (max-width: 768px) {
     .icon-btn { width: 38px; height: 38px; }
     .mode-btn { width: 32px; height: 32px; font-size: 0.85rem; }
-    #top-left { gap: 0.5rem; }
 
-    #hud {
-        flex-wrap: wrap;
-        width: 132px;
-        gap: 0.3rem;
-    }
-    .hud-item { padding: 0.26rem 0.35rem; min-width: 0; flex: 1 1 calc(33.333% - 0.2rem); }
-    .hud-item.money { flex: 1 1 100%; }
+    .hud-item { padding: 0.32rem 0.55rem; min-width: 0; }
     .hud-label { font-size: 0.56rem; }
-    .hud-item span:last-child { font-size: 0.74rem; }
+    .hud-item span:last-child { font-size: 0.78rem; }
+    .hud-label-full { display: none; }
+    .hud-label-short { display: block; }
 
-    #orders-panel { top: 0.5rem; right: 0.5rem; width: 180px; }
+    #orders-panel { top: 0.5rem; right: 0.5rem; width: 170px; }
     #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 190px; }
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
@@ -642,11 +650,11 @@ html, body {
 }
 
 /* Narrow phones (older/smaller devices): shrink further so the top-left
-   HUD column and the Orders panel keep clear of each other. */
+   bar and the Orders panel keep clear of each other. */
 @media (max-width: 380px) {
-    #orders-panel, #shop-panel { width: 150px; }
-    #hud { width: 108px; }
+    #orders-panel, #shop-panel { width: 148px; }
+    .hud-item { padding: 0.3rem 0.4rem; }
     .hud-label { font-size: 0.5rem; }
-    .hud-item span:last-child { font-size: 0.66rem; }
+    .hud-item span:last-child { font-size: 0.7rem; }
     .shop-btn, .order { font-size: 0.72rem; }
 }
