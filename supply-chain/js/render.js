@@ -66,6 +66,24 @@ SC.render = (function() {
     function zoom() { return SC.camera.cam.zoom; }
     function S(wx, wy) { return SC.camera.toScreen(wx, wy); }
 
+    // lerp between two hex colors, t in [0,1]
+    function mix(a, b, t) {
+        const ca = hexToRgb(a), cb = hexToRgb(b);
+        return `rgb(${Math.round(ca.r + (cb.r - ca.r) * t)}, ${Math.round(ca.g + (cb.g - ca.g) * t)}, ${Math.round(ca.b + (cb.b - ca.b) * t)})`;
+    }
+
+    // Tiny deterministic PRNG (mulberry32) so scenery (mountains, trees,
+    // terrain patches) is stable frame-to-frame instead of flickering.
+    function makeRng(seed) {
+        let a = seed >>> 0;
+        return function() {
+            a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     // --- primitive paths (screen space) ------------------------------------
     // Iso ground footprint: a world square of half-size `fw` projects to a
     // 2:1 diamond. These are its screen half-extents at the current zoom.
@@ -90,21 +108,216 @@ SC.render = (function() {
         ctx.closePath();
     }
 
+    // --- backdrop: sky + mountains -----------------------------------------
+    function drawSky() {
+        const g = ctx.createLinearGradient(0, 0, 0, canvas.height / dpr);
+        g.addColorStop(0, '#141d30');
+        g.addColorStop(0.55, '#0f1626');
+        g.addColorStop(1, '#0a0f1a');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    }
+
+    let mountains = null;
+    function ensureMountains() {
+        if (mountains) return mountains;
+        const C = SC.CONFIG, rng = makeRng(0x5c1);
+        const arr = [];
+        const M = 130; // how far the range sits outside the play area
+        // Ranges hug the two "far" edges of the diamond (low world x+y): the
+        // top edge (y just above the map) and the left edge (x just left).
+        const nN = 30;
+        for (let i = 0; i <= nN; i++) {
+            const x = -M + (C.WORLD_W + 2 * M) * (i / nN) + (rng() - 0.5) * 90;
+            const y = -M - rng() * 140;
+            arr.push({ x, y, size: 150 + rng() * 170, snow: rng() > 0.45 });
+        }
+        const nW = 20;
+        for (let i = 0; i <= nW; i++) {
+            const y = -M + (C.WORLD_H * 0.78 + M) * (i / nW) + (rng() - 0.5) * 90;
+            const x = -M - rng() * 140;
+            arr.push({ x, y, size: 150 + rng() * 170, snow: rng() > 0.45 });
+        }
+        arr.sort((a, b) => (a.x + a.y) - (b.x + b.y)); // back-to-front
+        mountains = arr;
+        return arr;
+    }
+
+    function drawMountains() {
+        const list = ensureMountains();
+        const z = zoom();
+        const minD = list[0].x + list[0].y, maxD = list[list.length - 1].x + list[list.length - 1].y;
+        for (const m of list) {
+            const s = S(m.x, m.y);
+            const h = m.size * z, hw = m.size * 0.95 * z;
+            if (s.x + hw < -40 || s.x - hw > canvas.width / dpr + 40) continue; // cull off-screen
+            if (s.y - h > canvas.height / dpr + 40 || s.y < -40) continue;
+            // atmospheric haze: farther peaks fade bluer/lighter
+            const t = Math.min(1, Math.max(0, ((m.x + m.y) - minD) / (maxD - minD + 1)));
+            const rightC = mix('#6d84a6', '#3a4d70', t);
+            const leftC = mix('#495d80', '#26324c', t);
+            const apex = { x: s.x, y: s.y - h };
+            // right (sunlit) face
+            ctx.beginPath();
+            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x + hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
+            ctx.fillStyle = rightC; ctx.fill();
+            // left (shaded) face
+            ctx.beginPath();
+            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x - hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
+            ctx.fillStyle = leftC; ctx.fill();
+            // snow cap
+            if (m.snow) {
+                const cap = h * 0.32;
+                ctx.beginPath();
+                ctx.moveTo(apex.x, apex.y);
+                ctx.lineTo(apex.x + hw * 0.32, apex.y + cap);
+                ctx.lineTo(apex.x + hw * 0.14, apex.y + cap * 0.62);
+                ctx.lineTo(apex.x, apex.y + cap * 0.9);
+                ctx.lineTo(apex.x - hw * 0.13, apex.y + cap * 0.6);
+                ctx.lineTo(apex.x - hw * 0.30, apex.y + cap * 0.92);
+                ctx.closePath();
+                ctx.fillStyle = mix('#f2f6fb', '#c2d0e2', t);
+                ctx.fill();
+            }
+        }
+    }
+
+    // --- ground: terrain patches + scenery ---------------------------------
+    let decor = null, decorKey = null;
+    function inRiver(x, y, margin) {
+        const r = SC.state.river;
+        if (!r) return false;
+        let best = 0, bd = Infinity;
+        for (let i = 0; i < r.spine.length; i++) {
+            const d = Math.abs(r.spine[i].y - y);
+            if (d < bd) { bd = d; best = i; }
+        }
+        return Math.abs(x - r.spine[best].x) < r.halfWidths[best] + margin;
+    }
+    function ensureDecor() {
+        const r = SC.state.river;
+        const key = r ? r.spine.length + ':' + Math.round(r.spine[0].x) + ':' + Math.round(r.halfWidths[0]) : 'none';
+        if (decor && decorKey === key) return decor;
+        const C = SC.CONFIG, rng = makeRng(0x2357);
+        const patches = [];
+        const tints = ['#233650', '#2b3a3a', '#1d2b40', '#2a3446', '#243d3a'];
+        for (let i = 0; i < 18; i++) {
+            patches.push({
+                x: rng() * C.WORLD_W, y: rng() * C.WORLD_H,
+                rx: 220 + rng() * 320, ry: 140 + rng() * 200,
+                tint: tints[(rng() * tints.length) | 0], a: 0.18 + rng() * 0.16
+            });
+        }
+        const trees = [];
+        let tries = 0;
+        while (trees.length < 54 && tries < 600) {
+            tries++;
+            const x = 70 + rng() * (C.WORLD_W - 140), y = 70 + rng() * (C.WORLD_H - 140);
+            if (inRiver(x, y, 55)) continue;
+            trees.push({ x, y, s: 0.75 + rng() * 0.7, rock: rng() > 0.78, tone: rng() });
+        }
+        decor = { patches, trees };
+        decorKey = key;
+        return decor;
+    }
+
+    function drawDecor() {
+        const d = ensureDecor();
+        const C = SC.CONFIG, z = zoom();
+        // soft terrain patches, clipped to the land
+        ctx.save();
+        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.clip();
+        for (const p of d.patches) {
+            const s = S(p.x, p.y);
+            ctx.globalAlpha = p.a;
+            ctx.fillStyle = p.tint;
+            ctx.beginPath();
+            ctx.ellipse(s.x, s.y, p.rx * z, p.ry * z * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // trees & rocks — skip any that would sit under a building
+        for (const t of d.trees) {
+            let nearNode = false;
+            for (const n of SC.state.nodes) {
+                if (n.active && Math.abs(n.x - t.x) < 95 && Math.abs(n.y - t.y) < 95) { nearNode = true; break; }
+            }
+            if (nearNode) continue;
+            const s = S(t.x, t.y), sc = t.s * z;
+            // little ground shadow
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = '#05070c';
+            ctx.beginPath();
+            ctx.ellipse(s.x, s.y, 9 * sc, 4.5 * sc, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            if (t.rock) {
+                ctx.fillStyle = mix('#4b5563', '#334155', t.tone);
+                ctx.beginPath();
+                ctx.ellipse(s.x, s.y - 3 * sc, 7 * sc, 5 * sc, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // trunk
+                ctx.fillStyle = '#3a2a1e';
+                ctx.fillRect(s.x - 1.4 * sc, s.y - 8 * sc, 2.8 * sc, 8 * sc);
+                // two-tier pine
+                const green = mix('#2f6b3f', '#245a37', t.tone);
+                ctx.fillStyle = green;
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y - 30 * sc);
+                ctx.lineTo(s.x + 9 * sc, s.y - 12 * sc);
+                ctx.lineTo(s.x - 9 * sc, s.y - 12 * sc);
+                ctx.closePath(); ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y - 22 * sc);
+                ctx.lineTo(s.x + 11 * sc, s.y - 6 * sc);
+                ctx.lineTo(s.x - 11 * sc, s.y - 6 * sc);
+                ctx.closePath(); ctx.fill();
+                // sun highlight
+                ctx.fillStyle = mix(green, '#6ee7a0', 0.35);
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y - 22 * sc);
+                ctx.lineTo(s.x + 4 * sc, s.y - 8 * sc);
+                ctx.lineTo(s.x - 1 * sc, s.y - 8 * sc);
+                ctx.closePath(); ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
     // --- ground & water -----------------------------------------------------
     function drawWorld(dt) {
         const C = SC.CONFIG;
         seaTime += dt;
 
         // Land: the whole world projected to a big diamond, with a soft
-        // vertical gradient so the far edge reads as "further away".
+        // gradient and a lit edge so it reads as a raised plateau.
         const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        // drop the land a touch onto the backdrop with a soft dark rim
+        ctx.save();
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.shadowBlur = 40;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillStyle = '#1c2b3f';
+        ctx.fill();
+        ctx.restore();
+
         ctx.beginPath();
         corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         ctx.closePath();
         const ys = corners.map(p => p.y);
         const grad = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
-        grad.addColorStop(0, '#25324a');
-        grad.addColorStop(1, '#18212f');
+        grad.addColorStop(0, '#2b3c52');
+        grad.addColorStop(0.5, '#223247');
+        grad.addColorStop(1, '#182437');
         ctx.fillStyle = grad;
         ctx.fill();
 
@@ -112,7 +325,7 @@ SC.render = (function() {
         // the land, to give the ground a sense of scale and perspective.
         ctx.save();
         ctx.clip();
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.07)';
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         ctx.lineWidth = 1;
         const step = 220;
         for (let x = 0; x <= C.WORLD_W + 1; x += step) {
@@ -125,11 +338,13 @@ SC.render = (function() {
         }
         ctx.restore();
 
-        // Coastline
+        drawDecor();
+
+        // Coastline: a lit top-left rim, darker on the lower-right
         ctx.beginPath();
         corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         ctx.closePath();
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+        ctx.strokeStyle = 'rgba(180, 200, 224, 0.16)';
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -269,17 +484,17 @@ SC.render = (function() {
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
-            return { base, fw: 24, h: 26 + (n.level || 0) * 4, icon: SC.emojiOf(n.mat) };
+            return { base, fw: 20, h: 20 + (n.level || 0) * 3, icon: SC.emojiOf(n.mat), stories: 2 };
         }
         if (n.kind === 'factory') {
-            return { base: '#6b7a90', fw: 27, h: 40, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe) };
+            return { base: '#6b7a90', fw: 22, h: 32, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories: 3, stack: true, door: true };
         }
         if (n.kind === 'yard') {
-            return { base: '#8b5cf6', fw: 24, h: 14, icon: '🅿️', flat: true };
+            return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
         }
         // city
-        if (n.isHQ) return { base: '#0ea5e9', fw: 26, h: 54, icon: '⭐' };
-        return { base: '#10b981', fw: 24, h: 40, icon: '🏢' };
+        if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, icon: '⭐', stories: 6, door: true };
+        return { base: '#10b981', fw: 18, h: 32, icon: '🏢', stories: 4, door: true };
     }
 
     // Screen point a tap/hover should hit-test against for a node — the
@@ -347,8 +562,38 @@ SC.render = (function() {
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // Story lines across the two front faces — cheap "this is a building
+        // with floors" nuance. Each is a V at constant height following the
+        // front silhouette (bRight→bBot→bLeft, raised by f·hpx).
+        if (!opts.ghost && opts.stories > 1 && hpx > 10) {
+            ctx.strokeStyle = rgba(shade(base, -0.45), 0.5);
+            ctx.lineWidth = 1;
+            for (let k = 1; k < opts.stories; k++) {
+                const dy = hpx * k / opts.stories;
+                ctx.beginPath();
+                ctx.moveTo(bRight.x, bRight.y - dy);
+                ctx.lineTo(bBot.x, bBot.y - dy);
+                ctx.lineTo(bLeft.x, bLeft.y - dy);
+                ctx.stroke();
+            }
+        }
+        // Doorway centered on the front (bottom) corner
+        if (!opts.ghost && opts.door) {
+            const dh = Math.min(hpx * 0.4, ry * 1.1);
+            const dwx = rx * 0.16, dwy = ry * 0.16;
+            ctx.beginPath();
+            ctx.moveTo(bBot.x - dwx, bBot.y - dwy);
+            ctx.lineTo(bBot.x + dwx, bBot.y - dwy);
+            ctx.lineTo(bBot.x + dwx, bBot.y - dwy - dh);
+            ctx.lineTo(bBot.x, bBot.y - dwy - dh - dwy * 0.6);
+            ctx.lineTo(bBot.x - dwx, bBot.y - dwy - dh);
+            ctx.closePath();
+            ctx.fillStyle = rgba(shade(base, -0.6), 0.85);
+            ctx.fill();
+        }
+
         ctx.globalAlpha = 1;
-        return { rx, ry, topCenter: { x: gx, y: gy - hpx } };
+        return { rx, ry, topCenter: { x: gx, y: gy - hpx }, bBot };
     }
 
     function drawShadow(gx, gy, fw) {
@@ -374,7 +619,7 @@ SC.render = (function() {
     function drawNodeBody(n, now) {
         const sp = nodeSpec(n);
         const g = S(n.x, n.y);
-        const iconSize = 18 * clampZoom();
+        const iconSize = 16 * clampZoom();
         const forSale = n.kind === 'factory' && n.forSale;
 
         // selection / focus pads on the ground (drawn under the building)
@@ -388,9 +633,36 @@ SC.render = (function() {
 
         const info = prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
             ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
-            alpha: forSale ? 0.9 : 1
+            alpha: forSale ? 0.9 : 1,
+            stories: forSale ? 0 : sp.stories, door: !forSale && sp.door
         });
         const tc = info.topCenter;
+
+        // Factory smokestack (back corner of the roof) + a puff of smoke while
+        // it's actually crafting — a live "the plant is working" cue.
+        if (n.kind === 'factory' && !forSale && sp.stack) {
+            const z = zoom();
+            const stx = tc.x - info.rx * 0.5, sty = tc.y - info.ry * 0.5;
+            const sw = Math.max(2, 3 * z), sh = Math.max(6, 11 * z);
+            ctx.fillStyle = shade(sp.base, -0.35);
+            ctx.fillRect(stx - sw, sty - sh, sw * 2, sh);
+            ctx.fillStyle = shade(sp.base, 0.05);
+            ctx.fillRect(stx - sw, sty - sh, sw, sh);
+            ctx.fillStyle = '#3a2f2a';
+            ctx.fillRect(stx - sw, sty - sh - 2, sw * 2, 2);
+            if (n.crafting) {
+                for (let i = 0; i < 3; i++) {
+                    const ph = (seaTime * 0.6 + i / 3) % 1;
+                    const py = sty - sh - ph * 26 * z;
+                    ctx.globalAlpha = 0.25 * (1 - ph);
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.beginPath();
+                    ctx.arc(stx + Math.sin(ph * 6 + i) * 3 * z, py, (2 + ph * 5) * z, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
 
         // Crafting progress ring floating over a working factory's roof
         if (n.kind === 'factory' && !forSale && n.crafting) {
@@ -442,14 +714,14 @@ SC.render = (function() {
         return Math.atan2((dx + dy) * ISO.ky, (dx - dy) * ISO.kx);
     }
 
-    // Draw a squashed, heading-aligned rounded slab at height `dy` above the
-    // truck's ground point — stacking several of these extrudes a little van.
-    function truckSlab(g, ang, z, dy, w, h, fill) {
+    // Extrude a heading-aligned rounded box: a rect of size w×h centered at
+    // local offset cx (along the heading), raised `dy` into the iso plane.
+    function isoBoxSlab(g, ang, cx, dy, w, h, r, fill) {
         ctx.save();
         ctx.translate(g.x, g.y - dy);
         ctx.rotate(ang);
         ctx.scale(1, 0.6); // lie down into the iso ground plane
-        roundRectPath(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.35);
+        roundRectPath(cx - w / 2, -h / 2, w, h, r);
         ctx.fillStyle = fill;
         ctx.fill();
         ctx.restore();
@@ -459,38 +731,58 @@ SC.render = (function() {
         const g = S(t.x, t.y);
         const z = clampZoom();
         const item = t.cargo[0];
-        const body = item ? SC.colorOf(item) : '#9aa7b8';
+        const body = item ? SC.colorOf(item) : '#8b98ab';
         const ang = truckScreenAngle(t);
-        const w = 22 * z, hh = 12 * z, height = 8 * z;
+        const L = 26 * z, W = 11 * z;         // footprint length / width
+        const Ht = 9 * z, Hc = 6.5 * z;        // trailer / cab heights
+        const trailerCx = -L * 0.16, trailerW = L * 0.68;
+        const cabCx = L * 0.34, cabW = L * 0.32;
+        const steps = 5;
 
         // ground shadow
         ctx.save();
         ctx.globalAlpha = 0.3;
-        diamondPath(g.x, g.y + 2 * z, 13 * z, 7 * z);
+        diamondPath(g.x, g.y + 2 * z, 15 * z, 8 * z);
         ctx.fillStyle = '#05070c';
         ctx.fill();
         ctx.restore();
 
-        // cheap vertical extrusion: dark at the base, lightest on the roof
-        const steps = 5;
-        for (let s = 0; s <= steps; s++) {
-            const dy = height * s / steps;
-            truckSlab(g, ang, z, dy, w, hh, shade(body, -0.32 + 0.52 * (s / steps)));
-        }
-        // outline the roof
+        // wheels peeking out at the base
         ctx.save();
-        ctx.translate(g.x, g.y - height);
-        ctx.rotate(ang);
-        ctx.scale(1, 0.6);
-        roundRectPath(-w / 2, -hh / 2, w, hh, Math.min(w, hh) * 0.35);
-        ctx.strokeStyle = rgba(shade(body, 0.4), 0.6);
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.translate(g.x, g.y); ctx.rotate(ang); ctx.scale(1, 0.6);
+        ctx.fillStyle = '#12161d';
+        for (const wx of [-L * 0.28, L * 0.2]) {
+            for (const wy of [-W * 0.52, W * 0.52]) {
+                ctx.beginPath(); ctx.ellipse(wx, wy, 3.2 * z, 2.4 * z, 0, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        ctx.restore();
+
+        // trailer (colored by cargo) and cab, each extruded dark→light
+        for (let s = 0; s <= steps; s++) {
+            isoBoxSlab(g, ang, trailerCx, Ht * s / steps, trailerW, W, 3 * z, shade(body, -0.34 + 0.5 * (s / steps)));
+        }
+        const cabBody = shade(body, -0.06);
+        for (let s = 0; s <= steps; s++) {
+            isoBoxSlab(g, ang, cabCx, Hc * s / steps, cabW, W * 0.9, 2.5 * z, shade(cabBody, -0.34 + 0.5 * (s / steps)));
+        }
+        // trailer roof outline
+        ctx.save();
+        ctx.translate(g.x, g.y - Ht); ctx.rotate(ang); ctx.scale(1, 0.6);
+        roundRectPath(trailerCx - trailerW / 2, -W / 2, trailerW, W, 3 * z);
+        ctx.strokeStyle = rgba(shade(body, 0.45), 0.55); ctx.lineWidth = 1; ctx.stroke();
+        ctx.restore();
+        // windshield glint on the cab front
+        ctx.save();
+        ctx.translate(g.x, g.y - Hc); ctx.rotate(ang); ctx.scale(1, 0.6);
+        ctx.fillStyle = 'rgba(186, 214, 236, 0.55)';
+        roundRectPath(cabCx + cabW * 0.06, -W * 0.32, cabW * 0.3, W * 0.64, 1.5 * z);
+        ctx.fill();
         ctx.restore();
 
         if (item) {
-            emojiPlateAt(SC.emojiOf(item), g.x, g.y - height - 8 * z, 9 * z, 13 * z);
-            if (t.cargo.length > 1) labelAt('×' + t.cargo.length, g.x + 13 * z, g.y - height - 15 * z, '#f8fafc', 9);
+            emojiPlateAt(SC.emojiOf(item), g.x, g.y - Ht - 8 * z, 9 * z, 13 * z);
+            if (t.cargo.length > 1) labelAt('×' + t.cargo.length, g.x + 13 * z, g.y - Ht - 15 * z, '#f8fafc', 9);
         }
     }
 
@@ -759,6 +1051,8 @@ SC.render = (function() {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
 
+        drawSky();
+        drawMountains();
         drawWorld(dt);
         drawRoads();
         drawHighlight(now);
