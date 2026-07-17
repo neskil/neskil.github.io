@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.31.0"></script>
-    <script src="js/state.js?v=1.31.0"></script>
-    <script src="js/save.js?v=1.31.0"></script>
-    <script src="js/sfx.js?v=1.31.0"></script>
-    <script src="js/rng.js?v=1.31.0"></script>
-    <script src="js/map.js?v=1.31.0"></script>
-    <script src="js/camera.js?v=1.31.0"></script>
-    <script src="js/roads.js?v=1.31.0"></script>
-    <script src="js/factories.js?v=1.31.0"></script>
-    <script src="js/economy.js?v=1.31.0"></script>
-    <script src="js/vehicles.js?v=1.31.0"></script>
-    <script src="js/inspect.js?v=1.31.0"></script>
-    <script src="js/research.js?v=1.31.0"></script>
-    <script src="js/placement.js?v=1.31.0"></script>
+    <script src="js/config.js?v=1.32.0"></script>
+    <script src="js/state.js?v=1.32.0"></script>
+    <script src="js/save.js?v=1.32.0"></script>
+    <script src="js/sfx.js?v=1.32.0"></script>
+    <script src="js/rng.js?v=1.32.0"></script>
+    <script src="js/map.js?v=1.32.0"></script>
+    <script src="js/camera.js?v=1.32.0"></script>
+    <script src="js/roads.js?v=1.32.0"></script>
+    <script src="js/factories.js?v=1.32.0"></script>
+    <script src="js/economy.js?v=1.32.0"></script>
+    <script src="js/vehicles.js?v=1.32.0"></script>
+    <script src="js/inspect.js?v=1.32.0"></script>
+    <script src="js/research.js?v=1.32.0"></script>
+    <script src="js/placement.js?v=1.32.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -61,6 +61,17 @@
         assert('point on land not in river', !SC.map.isInRiver(300, 500));
         assert('segment across river detected', SC.map.segmentCrossesRiver(900, 500, 1300, 500));
         assert('segment on one bank does not cross', !SC.map.segmentCrossesRiver(100, 100, 700, 300));
+
+        // River is x in [1060,1140] at y=500; a 900->1300 segment enters the
+        // water at t=(1060-900)/400=0.4 and exits at t=(1140-900)/400=0.6 —
+        // riverCrossing should isolate roughly that middle stretch (plus a
+        // small pad), not the whole [0,1] segment, so a bridge/ferry renders
+        // only over the water.
+        const c = SC.map.riverCrossing(900, 500, 1300, 500);
+        assert('riverCrossing finds the water stretch of a crossing segment',
+            c && c.t0 > 0.25 && c.t0 < 0.45 && c.t1 > 0.55 && c.t1 < 0.75);
+        assert('riverCrossing returns null for a segment that stays on one bank',
+            SC.map.riverCrossing(100, 100, 700, 300) === null);
     })();
 
     // ── Roads: quote, build, demolish ───────────────
