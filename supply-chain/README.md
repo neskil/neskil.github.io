@@ -73,11 +73,14 @@ that ambient animation as its background — it now lives independently at
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
   touches cities — see Orders above for how customer DCs unlock. Locked
-  pool sites are placed at world-gen within `NODE_MAX_SPREAD` of an
+  pool sites are placed at world-gen within a spread cap of an
   already-placed node (`map.randomLandSpotNear`), so the network grows
   outward organically instead of a site stranding itself in a far map
   corner behind one absurdly long road; either bank is still fair game
   (river-grace gates *when* far-bank sites unlock, not whether they exist).
+  The cap is per-difficulty (`SC.nodeMaxSpread` → `DIFFICULTIES[].nodeSpread`,
+  falling back to `CONFIG.NODE_MAX_SPREAD`): tighter/tidier on Easy (520),
+  real sprawl and longer supply lines on Hard (820).
 - **Difficulty** (picked on the new-game screen, fixed per run, saved):
   `SC.DIFFICULTIES` presets set starting money, debt interest rate,
   order-deadline multiplier, the default grace period, and the

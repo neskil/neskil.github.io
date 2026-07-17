@@ -63,6 +63,14 @@ SC.diff = function() {
     return SC.DIFFICULTIES[SC.state.difficulty] || SC.DIFFICULTIES.normal;
 };
 
+// How far a new pool site may spawn from the existing network (map
+// .randomLandSpotNear). Per-difficulty — tighter on Easy, more sprawl on
+// Hard — falling back to the CONFIG base if a preset omits it.
+SC.nodeMaxSpread = function() {
+    const s = SC.diff().nodeSpread;
+    return s !== undefined ? s : SC.CONFIG.NODE_MAX_SPREAD;
+};
+
 // Purchases may dip into the credit line: affordable as long as the
 // resulting balance stays above -CREDIT_LIMIT (raised by completed
 // creditBonus research). Debt accrues interest (see economy.tick).

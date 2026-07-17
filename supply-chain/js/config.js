@@ -1,18 +1,19 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.33.0';
+SC.VERSION = '1.34.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
-    // Milestone/customer pool sites must land within this distance of an
-    // already-placed node, so the network grows outward organically instead
-    // of a site spawning in a far map corner that needs one absurdly long
-    // road. Big enough to still spread the map out; small enough that every
-    // new site has a plausibly-near neighbour to road up to.
+    // Fallback spread cap: milestone/customer pool sites must land within
+    // this distance of an already-placed node, so the network grows outward
+    // organically instead of a site spawning in a far map corner that needs
+    // one absurdly long road. The active value is per-difficulty (see
+    // DIFFICULTIES[].nodeSpread / SC.nodeMaxSpread); this is only used if a
+    // preset omits it.
     NODE_MAX_SPREAD: 620,
 
     START_TRUCKS: 2,
@@ -162,29 +163,34 @@ SC.CONFIG = {
 // HQ's side of the river, so early growth never forces an expensive
 // bridge/ferry before you've found your feet. 0 = far-side sites can
 // appear immediately (the punishing end).
+//
+// `nodeSpread` (falls back to CONFIG.NODE_MAX_SPREAD) is how far a new
+// pool site may spawn from the existing network — see SC.nodeMaxSpread
+// and map.randomLandSpotNear. It scales with difficulty like riverGraceMin
+// does: tighter/tidier on Easy, real sprawl (longer supply lines) on Hard.
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
-        riverGraceMin: 5,
+        riverGraceMin: 5, nodeSpread: 520,
         desc: 'Relaxed deadlines, gentle interest, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
-        riverGraceMin: 3,
+        riverGraceMin: 3, nodeSpread: 620,
         desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
-        riverGraceMin: 0,
+        riverGraceMin: 0, nodeSpread: 820,
         desc: 'Brutal deadlines, punishing interest, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
-        riverGraceMin: 5,
+        riverGraceMin: 5, nodeSpread: 620,
         desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
     }
 };

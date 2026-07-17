@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.33.0"></script>
-    <script src="js/state.js?v=1.33.0"></script>
-    <script src="js/save.js?v=1.33.0"></script>
-    <script src="js/sfx.js?v=1.33.0"></script>
-    <script src="js/rng.js?v=1.33.0"></script>
-    <script src="js/map.js?v=1.33.0"></script>
-    <script src="js/camera.js?v=1.33.0"></script>
-    <script src="js/roads.js?v=1.33.0"></script>
-    <script src="js/factories.js?v=1.33.0"></script>
-    <script src="js/economy.js?v=1.33.0"></script>
-    <script src="js/vehicles.js?v=1.33.0"></script>
-    <script src="js/inspect.js?v=1.33.0"></script>
-    <script src="js/research.js?v=1.33.0"></script>
-    <script src="js/placement.js?v=1.33.0"></script>
+    <script src="js/config.js?v=1.34.0"></script>
+    <script src="js/state.js?v=1.34.0"></script>
+    <script src="js/save.js?v=1.34.0"></script>
+    <script src="js/sfx.js?v=1.34.0"></script>
+    <script src="js/rng.js?v=1.34.0"></script>
+    <script src="js/map.js?v=1.34.0"></script>
+    <script src="js/camera.js?v=1.34.0"></script>
+    <script src="js/roads.js?v=1.34.0"></script>
+    <script src="js/factories.js?v=1.34.0"></script>
+    <script src="js/economy.js?v=1.34.0"></script>
+    <script src="js/vehicles.js?v=1.34.0"></script>
+    <script src="js/inspect.js?v=1.34.0"></script>
+    <script src="js/research.js?v=1.34.0"></script>
+    <script src="js/placement.js?v=1.34.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1705,24 +1705,48 @@
 
     // ── Pool sites tether to the network — no far-corner strandings ──
     (function() {
-        const cap = SC.CONFIG.NODE_MAX_SPREAD * 2; // leash ceiling after full relaxation
-        let worstEver = 0;
-        for (const seed of ['spread-1', 'spread-2', 'spread-3', 'spread-4', 'spread-5', 'spread-6']) {
-            SC.newState(); SC.map._resetSeq();
-            SC.map.generateWorld(seed);
-            const nodes = SC.state.nodes;
-            for (const n of nodes) {
-                let nearest = Infinity;
-                for (const m of nodes) if (m !== n) nearest = Math.min(nearest, Math.hypot(m.x - n.x, m.y - n.y));
-                worstEver = Math.max(worstEver, nearest);
-                assert('every generated site has a neighbour within the spread cap',
-                    nearest <= cap, `seed ${seed}: nearest ${Math.round(nearest)} > cap ${cap}`);
+        // Worst nearest-neighbour distance across several seeds on a given
+        // difficulty (a proxy for how spread-out the generated map is).
+        function worstIsolation(difficulty) {
+            let worst = 0;
+            for (const seed of ['spread-1', 'spread-2', 'spread-3', 'spread-4', 'spread-5', 'spread-6']) {
+                SC.newState(difficulty); SC.map._resetSeq();
+                SC.map.generateWorld(seed);
+                const nodes = SC.state.nodes;
+                const cap = SC.nodeMaxSpread() * 2; // leash ceiling after full relaxation
+                for (const n of nodes) {
+                    let nearest = Infinity;
+                    for (const m of nodes) if (m !== n) nearest = Math.min(nearest, Math.hypot(m.x - n.x, m.y - n.y));
+                    worst = Math.max(worst, nearest);
+                    assert(`[${difficulty}] every site has a neighbour within the spread cap`,
+                        nearest <= cap, `seed ${seed}: nearest ${Math.round(nearest)} > cap ${cap}`);
+                }
             }
+            return worst;
         }
-        // The leash should actually bite: uniform-random placement routinely
-        // stranded a site 1200-1800 units from anything — well past this.
-        assert('worst-case site isolation stays well bounded', worstEver <= cap,
-            `worst ${Math.round(worstEver)} > cap ${cap}`);
+        const easyWorst = worstIsolation('easy');
+        const normalWorst = worstIsolation('normal');
+        const hardWorst = worstIsolation('hard');
+
+        // Per-difficulty spread cap is wired up and ordered as intended.
+        SC.newState('easy');   assert('easy spread cap is the tightest', SC.nodeMaxSpread() === 520);
+        SC.newState('normal'); assert('normal spread cap is the baseline', SC.nodeMaxSpread() === 620);
+        SC.newState('hard');   assert('hard spread cap is the loosest', SC.nodeMaxSpread() === 820);
+        assert('spread cap falls back to CONFIG when a preset omits nodeSpread', (function() {
+            SC.newState('normal');
+            const saved = SC.DIFFICULTIES.normal.nodeSpread;
+            delete SC.DIFFICULTIES.normal.nodeSpread;
+            const fell = SC.nodeMaxSpread() === SC.CONFIG.NODE_MAX_SPREAD;
+            SC.DIFFICULTIES.normal.nodeSpread = saved;
+            return fell;
+        })());
+
+        // The scaling actually bites: Hard maps sprawl more than Easy ones.
+        assert('harder difficulty spreads sites out more than easier',
+            hardWorst > easyWorst, `hard ${Math.round(hardWorst)} vs easy ${Math.round(easyWorst)}`);
+        assert('normal spread sits between easy and hard',
+            normalWorst >= easyWorst - 1 && normalWorst <= hardWorst + 1,
+            `easy ${Math.round(easyWorst)}, normal ${Math.round(normalWorst)}, hard ${Math.round(hardWorst)}`);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
