@@ -1,13 +1,19 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.32.0';
+SC.VERSION = '1.33.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
+    // Milestone/customer pool sites must land within this distance of an
+    // already-placed node, so the network grows outward organically instead
+    // of a site spawning in a far map corner that needs one absurdly long
+    // road. Big enough to still spread the map out; small enough that every
+    // new site has a plausibly-near neighbour to road up to.
+    NODE_MAX_SPREAD: 620,
 
     START_TRUCKS: 2,
 
