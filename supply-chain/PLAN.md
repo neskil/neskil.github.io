@@ -35,6 +35,10 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.24.0: **Dev tools panel** (`?dev=1`) grows from a single congestion
+  pill into a small collapsible panel: FPS readout, Add money, Roll
+  contract, Finish research, Spawn next customer. Per item 8 below —
+  details there.
 - v1.23.0: **congestion is difficulty-only**; the ☰-menu toggle is gone,
   replaced by a `?dev=1` dev-only A/B panel. Per item 8 below — details
   there.
@@ -214,9 +218,13 @@ actually shipped.)*
    exposed a live ☰-menu toggle so any run could override the default;
    v1.23.0 removed that player-facing toggle — congestion is now purely
    a difficulty trait, fixed for the run like interest rate or deadlines
-   — and replaced it with a `?dev=1` dev-only panel (pill under the
+   — and replaced it with a `?dev=1` dev-only panel (a pill under the
    top-left HUD bar) that flips `congestionEnabled` live for the owner's
-   own A/B comparison during development, not for normal play.
+   own A/B comparison during development, not for normal play. v1.24.0
+   grew that pill into a full collapsible **Dev tools** panel (FPS
+   readout + Add money / Roll contract / Finish research / Spawn next
+   customer, alongside the congestion toggle) per the owner's request
+   for "a dev menu with some settings for game tuning and other stuff."
 9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
    "dock pair + fixed-cadence shuttle" proposal to an edge-level
    alternative: a road across the river builds as `edge.ferry` instead
