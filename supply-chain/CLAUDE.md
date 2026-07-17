@@ -104,7 +104,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   screenshot delay. `&sitegallery=1` drops one active supplier of every
   raw material in a grid next to HQ (bypassing placement rules), so all
   themed site models (farm/lake/mine/pasture/grove/fab) can be
-  screenshotted in one shot. `&crossing=1` fires the Bridge-vs-Ferry
+  screenshotted in one shot. `&focus=x,y,zoom` (zoom optional) points
+  the camera at a world position — screenshots otherwise always frame
+  the HQ cluster, so this is how far corners, specific sites, or a
+  whole-map view (low zoom) get verified. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
   `&ferry=1`) for screenshotting the choice UI without tapping a real
   river-crossing road. The **Dev tools** panel is a lasting ☰-menu
