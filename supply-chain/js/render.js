@@ -123,6 +123,23 @@ SC.render = (function() {
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);
 
+        // Faint aurora band low across the sky — two slow, offset ribbons of
+        // green/teal light, very low alpha so it reads as ambiance not UI.
+        for (let b = 0; b < 2; b++) {
+            const baseY = h * (0.14 + b * 0.06);
+            ctx.beginPath();
+            ctx.moveTo(0, baseY);
+            for (let x = 0; x <= w; x += w / 12) {
+                ctx.lineTo(x, baseY + Math.sin(x / w * 6 + seaTime * 0.25 + b * 2) * 18 * (1 - b * 0.3));
+            }
+            ctx.lineTo(w, 0); ctx.lineTo(0, 0); ctx.closePath();
+            const ag = ctx.createLinearGradient(0, 0, 0, baseY + 30);
+            ag.addColorStop(0, 'rgba(52, 211, 153, 0)');
+            ag.addColorStop(1, `rgba(${b ? '96, 165, 250' : '52, 211, 153'}, ${0.05 - b * 0.015})`);
+            ctx.fillStyle = ag;
+            ctx.fill();
+        }
+
         // Star field: screen-space (a fixed skybox behind the panning world),
         // seeded so it's stable, denser toward the top, gentle twinkle.
         if (!stars) {
@@ -140,6 +157,23 @@ SC.render = (function() {
             ctx.fill();
         }
         ctx.globalAlpha = 1;
+
+        // Moon: a soft glow halo + a disc with a couple of maria. Sits high
+        // and left-of-centre so the world's mountains can rise in front of
+        // it (drawn after the sky) for a "moon behind the peaks" look, clear
+        // of the top-right Orders panel.
+        const mx = w * 0.6, my = h * 0.12, mr = Math.max(20, Math.min(w, h) * 0.045);
+        const halo = ctx.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4);
+        halo.addColorStop(0, 'rgba(210, 224, 245, 0.28)');
+        halo.addColorStop(1, 'rgba(210, 224, 245, 0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8eef7';
+        ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(190, 202, 222, 0.55)';
+        for (const [ox, oy, or] of [[-0.3, -0.2, 0.22], [0.25, 0.1, 0.16], [0.05, 0.38, 0.13]]) {
+            ctx.beginPath(); ctx.arc(mx + mr * ox, my + mr * oy, mr * or, 0, Math.PI * 2); ctx.fill();
+        }
     }
 
     let mountains = null;
@@ -528,6 +562,28 @@ SC.render = (function() {
             }
             ctx.stroke();
         }
+
+        // Moonlight: a pale reflection running down the river centre with
+        // little specular glints that shift, so the water reads as lit.
+        ctx.strokeStyle = 'rgba(210, 226, 246, 0.09)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < r.spine.length; i++) {
+            const p = S(r.spine[i].x + Math.sin(seaTime * 0.8 + i * 0.6) * 4, r.spine[i].y);
+            i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+        }
+        ctx.stroke();
+        for (let i = 1; i < r.spine.length - 1; i++) {
+            const tw = 0.5 + 0.5 * Math.sin(seaTime * 2.5 + i * 1.7);
+            if (tw < 0.6) continue;
+            const p = S(r.spine[i].x + Math.sin(seaTime + i) * r.halfWidths[i] * 0.4, r.spine[i].y);
+            ctx.globalAlpha = (tw - 0.6) * 1.4;
+            ctx.fillStyle = '#eaf1fb';
+            ctx.beginPath();
+            ctx.ellipse(p.x, p.y, 5, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     }
 
     // --- roads --------------------------------------------------------------
@@ -760,6 +816,42 @@ SC.render = (function() {
     }
 
     // Extruded diamond prism rising `hpx` px from ground point (gx, gy).
+    // Cheap deterministic hash → [0,1); no per-call allocation (unlike a
+    // makeRng closure), so it's fine to call per window per frame.
+    function hash01(seed, i) {
+        const x = Math.sin(seed * 127.1 + i * 311.7) * 43758.5453;
+        return x - Math.floor(x);
+    }
+
+    // Warm windows on one front face of a building prism. `origin` is the
+    // shared front-bottom corner (bBot), `corner` the face's far ground
+    // corner (bRight or bLeft); the face rises by `hpx`.
+    function faceWindows(origin, corner, hpx, rows, seed) {
+        const ex = corner.x - origin.x, ey = corner.y - origin.y;
+        const cols = 2, du = 0.15, dv = 0.055;
+        const P = (u, v) => ({ x: origin.x + ex * u, y: origin.y + ey * u - hpx * v });
+        for (let r = 0; r < rows; r++) {
+            const v = (r + 0.62) / (rows + 0.2);
+            for (let c = 0; c < cols; c++) {
+                const u = (c + 0.5) / cols;
+                const lit = hash01(seed, r * 7 + c * 13);
+                if (lit > 0.66) continue; // dark window: leave the wall as-is
+                let a = 0.9;
+                const fl = hash01(seed, r * 5 + c * 3 + 1);
+                if (fl > 0.82) a *= 0.5 + 0.5 * (0.5 + 0.5 * Math.sin(seaTime * 3 + fl * 25));
+                const p1 = P(u - du, v - dv), p2 = P(u + du, v - dv),
+                      p3 = P(u + du, v + dv), p4 = P(u - du, v + dv);
+                ctx.globalAlpha = a;
+                ctx.fillStyle = hash01(seed, r + c) > 0.5 ? '#ffd98a' : '#ffe6ad';
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.closePath();
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
     function prism(gx, gy, fw, hpx, base, opts) {
         opts = opts || {};
         const { rx, ry } = footRadii(fw);
@@ -826,6 +918,17 @@ SC.render = (function() {
                 ctx.stroke();
             }
         }
+        // Warm lit windows on the two front faces. Each face is spanned by
+        // an origin (bBot) + a ground edge vector to the far corner + an
+        // up vector (0,-hpx); a window at fraction (u,v) with half-size
+        // (du,dv) maps to a parallelogram, so it sits correctly in iso.
+        // Seeded per building so the lit/dark pattern is stable, with a few
+        // flickering. Drawn every frame (buildings aren't in the bg cache).
+        if (!opts.ghost && opts.windows && hpx > 16) {
+            const rows = Math.max(2, opts.stories || 3);
+            faceWindows(bBot, bRight, hpx, rows, opts.winSeed || 0);
+            faceWindows(bBot, bLeft, hpx, rows, (opts.winSeed || 0) + 97);
+        }
         // Doorway centered on the front (bottom) corner
         if (!opts.ghost && opts.door) {
             const dh = Math.min(hpx * 0.4, ry * 1.1);
@@ -866,6 +969,24 @@ SC.render = (function() {
         ctx.drawImage(shadowSprite,
                       gx + rx * 0.28 - rx * 1.25, gy + ry * 0.5 - ry * 1.25,
                       rx * 2.5, ry * 2.5);
+    }
+
+    // Warm radial glow sprite (window light spilling onto the ground),
+    // built once and tinted by drawImage's globalAlpha at the call site.
+    let glowSprite = null;
+    function warmGlowSprite() {
+        if (!glowSprite) {
+            glowSprite = document.createElement('canvas');
+            glowSprite.width = glowSprite.height = 128;
+            const c = glowSprite.getContext('2d');
+            const g = c.createRadialGradient(64, 64, 4, 64, 64, 62);
+            g.addColorStop(0, 'rgba(255, 214, 140, 0.5)');
+            g.addColorStop(0.5, 'rgba(255, 190, 110, 0.16)');
+            g.addColorStop(1, 'rgba(255, 190, 110, 0)');
+            c.fillStyle = g;
+            c.fillRect(0, 0, 128, 128);
+        }
+        return glowSprite;
     }
 
     // --- themed supplier sites ------------------------------------------------
@@ -1005,7 +1126,7 @@ SC.render = (function() {
                 ctx.fill();
             }
         } else { // 'fab' — electronics: compact plant with a blinking antenna
-            const info = prism(g.x, g.y, sp.fw, h, base, { stories: 2, door: true });
+            const info = prism(g.x, g.y, sp.fw, h, base, { stories: 2, door: true, windows: true, winSeed: n.id * 13 + 1 });
             const tc = info.topCenter;
             ctx.strokeStyle = '#9fb4c8';
             ctx.lineWidth = Math.max(1, 1.4 * z);
@@ -1049,6 +1170,17 @@ SC.render = (function() {
         ctx.lineWidth = 1;
         ctx.stroke();
 
+        // Warm light-spill: lit buildings cast a soft pool of window-glow on
+        // the ground around them (cached sprite, cheap additive-ish blit).
+        const litKind = (n.kind === 'city') || (n.kind === 'factory' && !forSale) ||
+                        (n.kind === 'supplier' && sp.site === 'fab');
+        if (litKind) {
+            const gr = footRadii(sp.fw + 20);
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(warmGlowSprite(), g.x - gr.rx, g.y - gr.ry, gr.rx * 2, gr.ry * 2);
+            ctx.globalAlpha = 1;
+        }
+
         // selection / focus pads on the ground (drawn under the building)
         if (n === SC.state.selectedNode) {
             groundRing(g.x, g.y, sp.fw + 6, 'rgba(56, 189, 248, 0.9)', 2.5);
@@ -1066,7 +1198,8 @@ SC.render = (function() {
             : prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
                   ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
                   alpha: forSale ? 0.9 : 1,
-                  stories: forSale ? 0 : sp.stories, door: !forSale && sp.door
+                  stories: forSale ? 0 : sp.stories, door: !forSale && sp.door,
+                  windows: !forSale, winSeed: n.id * 13 + 1
               });
         const tc = info.topCenter;
 
@@ -1124,6 +1257,27 @@ SC.render = (function() {
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
         }
         ctx.globalAlpha = 1;
+
+        // HQ landmark beacon: a short mast with a slow-blinking red light and
+        // halo on top, so HQ reads as the tallest, most important structure.
+        if (n.isHQ) {
+            const z = clampZoom();
+            const bx = tc.x, by = tc.y - iconSize - 6 * z;
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+            ctx.lineWidth = Math.max(1, 1.4 * z);
+            ctx.beginPath();
+            ctx.moveTo(bx, tc.y - iconSize * 0.2);
+            ctx.lineTo(bx, by);
+            ctx.stroke();
+            const blink = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(seaTime * 3.2), 3);
+            ctx.globalAlpha = blink * 0.5;
+            ctx.fillStyle = '#f87171';
+            ctx.beginPath(); ctx.arc(bx, by, 6 * z, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = blink;
+            ctx.fillStyle = '#fca5a5';
+            ctx.beginPath(); ctx.arc(bx, by, 2.2 * z, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+        }
 
         // --- per-kind badges/bars -------------------------------------------
         if (n.kind === 'supplier') {
@@ -1521,6 +1675,57 @@ SC.render = (function() {
     }
 
     // --- frame --------------------------------------------------------------
+    // Drifting fireflies: a few warm motes anchored in the world (so they
+    // pan with the map) that wander in small circles and blink. Pure
+    // ambiance — kept sparse so they never read as gameplay markers.
+    let flies = null;
+    function ensureFlies() {
+        if (flies) return flies;
+        const C = SC.CONFIG, rng = makeRng(0xf1e);
+        flies = [];
+        for (let i = 0; i < 16; i++) {
+            flies.push({
+                x: 120 + rng() * (C.WORLD_W - 240),
+                y: 120 + rng() * (C.WORLD_H - 240),
+                rad: 14 + rng() * 26, sp: 0.4 + rng() * 0.6,
+                ph: rng() * Math.PI * 2, blink: rng() * Math.PI * 2
+            });
+        }
+        return flies;
+    }
+    function drawFireflies() {
+        for (const f of ensureFlies()) {
+            const a = seaTime * f.sp + f.ph;
+            const p = S(f.x + Math.cos(a) * f.rad, f.y + Math.sin(a * 1.3) * f.rad * 0.6);
+            const glow = 0.5 + 0.5 * Math.sin(seaTime * 2.2 + f.blink);
+            if (glow < 0.15) continue;
+            const z = clampZoom();
+            ctx.globalAlpha = 0.25 * glow;
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 4 * z, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 0.9 * glow;
+            ctx.beginPath(); ctx.arc(p.x, p.y, 1.3 * z, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Screen-edge vignette: darkens the corners to frame the scene and add
+    // depth. Cached radial gradient, rebuilt only when the viewport resizes.
+    let vignette = null, vignetteWH = '';
+    function drawVignette() {
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const key = w + 'x' + h;
+        if (vignetteWH !== key) {
+            vignette = ctx.createRadialGradient(w / 2, h * 0.52, Math.min(w, h) * 0.42,
+                                                w / 2, h * 0.52, Math.max(w, h) * 0.72);
+            vignette.addColorStop(0, 'rgba(4, 7, 13, 0)');
+            vignette.addColorStop(1, 'rgba(4, 7, 13, 0.42)');
+            vignetteWH = key;
+        }
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, w, h);
+    }
+
     function frame(dt, now) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
@@ -1551,9 +1756,11 @@ SC.render = (function() {
             else drawTruckBody(e.ref);
         }
 
+        drawFireflies();
         drawOrderBubbles();
         drawFloaters(dt);
-        drawOffscreenArrows(now);
+        drawVignette();          // frame the scene…
+        drawOffscreenArrows(now); // …but keep edge arrows crisp on top
     }
 
     return { attach, frame, resize, nodeIconAnchor };
