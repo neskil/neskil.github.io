@@ -27,7 +27,10 @@ SC.render = (function() {
         resize();
         window.addEventListener('resize', resize);
 
-        SC.on('orderComplete', o => addFloater(o.city.x, o.city.y - 24, `+$${o.payout}`, '#34d399'));
+        SC.on('orderComplete', o => {
+            addFloater(o.city.x, o.city.y - 24, `+$${o.payout}`, '#34d399');
+            addBurst(o.city.x, o.city.y - 18);
+        });
         SC.on('roadBuilt', e => addFloater((e.a.x + e.b.x) / 2, (e.a.y + e.b.y) / 2, `−$${e.cost}`, '#f87171'));
         SC.on('roadDemolished', d => addFloater((d.edge.a.x + d.edge.b.x) / 2, (d.edge.a.y + d.edge.b.y) / 2, `+$${d.refund}`, '#34d399'));
         SC.on('sitePurchased', d => addFloater(d.node.x, d.node.y - 24, `−$${d.price}`, '#f87171'));
@@ -128,9 +131,12 @@ SC.render = (function() {
     const DAY_LENGTH = 210;                 // seconds for a full day↔night cycle
     let dayClock = DAY_LENGTH * 0.80;       // open in the evening so it starts moody
     let todPhase = 0, dayness = 0, nightLevel = 1, twilight = 0, sunEl = -1;
+    // Global directional light for cast shadows (screen-space unit vector the
+    // shadow extends along, + a length multiplier), refreshed each frame.
+    let shadowDX = 0.4, shadowDY = 0.9, shadowLen = 1.2;
     const WEATHER_ROTATION = ['clear', 'clouds', 'rain', 'clouds', 'clear', 'snow', 'clouds'];
     let weather = { i: 0, type: 'clear', t: 0, dur: 40, intensity: 0, cloud: 0,
-                    windAng: 0.6, windMag: 0.5 };
+                    snow: 0, windAng: 0.6, windMag: 0.5 };
     let forcedWeather = null;               // &weather= for screenshots
     let precip = [];                        // rain/snow particle pool (screen-space)
     let clouds = null;                      // drifting overcast blobs (screen-space)
@@ -169,8 +175,24 @@ SC.render = (function() {
         const overcast = (weather.type === 'clouds' || weather.type === 'rain' || weather.type === 'snow')
             ? weather.intensity : 0;
         weather.cloud += (overcast - weather.cloud) * Math.min(1, dt * 0.6);
+        // Snow accumulates on the ground while it falls and melts slowly after
+        const snowing = weather.type === 'snow' ? weather.intensity : 0;
+        weather.snow += (snowing - weather.snow) * Math.min(1, dt * (snowing > weather.snow ? 0.4 : 0.06));
         weather.windAng += dt * 0.06;        // the system slowly rotates
         weather.windMag = 0.35 + 0.25 * Math.sin(dayClock * 0.05);
+
+        // Cast-shadow direction from the dominant luminary: it sweeps east→
+        // west over the day, so shadows point the opposite way and always a
+        // bit toward the viewer. Longer near the horizon (dawn/dusk), short
+        // at noon. The moon casts the same way, more faintly (see drawShadow).
+        const sf = (todPhase - 0.25) / 0.5;                  // sun fraction
+        const mf = (((todPhase + 0.25) % 1) - 0.25) / 0.5;   // moon fraction
+        const lumFrac = Math.max(0, Math.min(1, dayness >= 0.5 ? sf : mf));
+        const horiz = (lumFrac - 0.5) * 2;                   // −1 left … +1 right
+        const elevAbs = Math.max(0.14, Math.abs(sunEl));
+        shadowLen = Math.min(3.2, 0.72 / elevAbs);
+        const sx = -horiz, sy = 0.66, m = Math.hypot(sx, sy) || 1;
+        shadowDX = sx / m; shadowDY = sy / m;
     }
 
     // sky keyframe palettes [top, mid, bottom]
@@ -405,20 +427,24 @@ SC.render = (function() {
         if (mountains) return mountains;
         const C = SC.CONFIG, rng = makeRng(0x5c1);
         const arr = [];
-        const M = 130; // how far the range sits outside the play area
+        const M = 230; // gap between the play area and the range (was 130 —
+                        // pushed further out so the backdrop breathes)
+        const EXTRA = 520; // spread the ridge wider than the map on each side
         // Ranges hug the two "far" edges of the diamond (low world x+y): the
         // top edge (y just above the map) and the left edge (x just left).
-        const nN = 30;
+        // Fewer peaks over a wider span, with more size/depth scatter, so it
+        // reads as an open range rather than a dense wall along the edge.
+        const nN = 22;
         for (let i = 0; i <= nN; i++) {
-            const x = -M + (C.WORLD_W + 2 * M) * (i / nN) + (rng() - 0.5) * 90;
-            const y = -M - rng() * 140;
-            arr.push({ x, y, size: 150 + rng() * 170, snow: rng() > 0.45 });
+            const x = -M - EXTRA + (C.WORLD_W + 2 * M + 2 * EXTRA) * (i / nN) + (rng() - 0.5) * 160;
+            const y = -M - rng() * 280;
+            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
         }
-        const nW = 20;
+        const nW = 15;
         for (let i = 0; i <= nW; i++) {
-            const y = -M + (C.WORLD_H * 0.78 + M) * (i / nW) + (rng() - 0.5) * 90;
-            const x = -M - rng() * 140;
-            arr.push({ x, y, size: 150 + rng() * 170, snow: rng() > 0.45 });
+            const y = -M - EXTRA + (C.WORLD_H * 0.82 + M + 2 * EXTRA) * (i / nW) + (rng() - 0.5) * 160;
+            const x = -M - rng() * 280;
+            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
         }
         arr.sort((a, b) => (a.x + a.y) - (b.x + b.y)); // back-to-front
         mountains = arr;
@@ -787,27 +813,24 @@ SC.render = (function() {
             ctx.stroke();
         }
 
-        // Moonlight: a pale reflection running down the river centre with
-        // little specular glints that shift, so the water reads as lit.
-        ctx.strokeStyle = 'rgba(210, 226, 246, 0.09)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        for (let i = 0; i < r.spine.length; i++) {
-            const p = S(r.spine[i].x + Math.sin(seaTime * 0.8 + i * 0.6) * 4, r.spine[i].y);
-            i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+        // Moonlight: a soft pale reflection wavering down the river centre,
+        // night-only. Two overlaid strokes (a crisp core + a broad, fainter
+        // glow) — no hard specular blobs, which read as "circles on the water".
+        const moonA = nightLevel;
+        if (moonA > 0.05) {
+            ctx.lineCap = 'round';
+            for (const [wdt, al] of [[7, 0.05], [3, 0.11]]) {
+                ctx.strokeStyle = `rgba(210, 226, 246, ${al * moonA})`;
+                ctx.lineWidth = wdt;
+                ctx.beginPath();
+                for (let i = 0; i < r.spine.length; i++) {
+                    const p = S(r.spine[i].x + Math.sin(seaTime * 0.8 + i * 0.6) * 5, r.spine[i].y);
+                    i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+                }
+                ctx.stroke();
+            }
+            ctx.lineCap = 'butt';
         }
-        ctx.stroke();
-        for (let i = 1; i < r.spine.length - 1; i++) {
-            const tw = 0.5 + 0.5 * Math.sin(seaTime * 2.5 + i * 1.7);
-            if (tw < 0.6) continue;
-            const p = S(r.spine[i].x + Math.sin(seaTime + i) * r.halfWidths[i] * 0.4, r.spine[i].y);
-            ctx.globalAlpha = (tw - 0.6) * 1.4;
-            ctx.fillStyle = '#eaf1fb';
-            ctx.beginPath();
-            ctx.ellipse(p.x, p.y, 5, 2, 0, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1;
     }
 
     // --- roads --------------------------------------------------------------
@@ -907,9 +930,11 @@ SC.render = (function() {
         ctx.stroke();
     }
 
-    // Ferry lane + shuttling boat, confined to just the water stretch —
-    // the road on either bank reads as ordinary road up to the water's edge.
-    function drawFerryCrossing(e, surfaceW, crossing, z, armed) {
+    // Ferry lane, confined to just the water stretch — the road on either
+    // bank reads as ordinary road up to the water's edge. (No boat glyph:
+    // ⛴ renders as an unstyled black fallback glyph on some Android emoji
+    // fonts, and the teal dashed lane already reads as "ferry" on its own.)
+    function drawFerryCrossing(e, surfaceW, crossing, z) {
         const wx0 = e.a.x + (e.b.x - e.a.x) * crossing.t0, wy0 = e.a.y + (e.b.y - e.a.y) * crossing.t0;
         const wx1 = e.a.x + (e.b.x - e.a.x) * crossing.t1, wy1 = e.a.y + (e.b.y - e.a.y) * crossing.t1;
         const p0 = S(wx0, wy0), p1 = S(wx1, wy1);
@@ -923,12 +948,6 @@ SC.render = (function() {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.lineCap = 'butt';
-
-        if (!armed) {
-            const t = (Math.sin(seaTime * 0.6) + 1) / 2;
-            const p = S(wx0 + (wx1 - wx0) * t, wy0 + (wy1 - wy0) * t);
-            emoji('⛴', p.x, p.y, 18 * clampZoom());
-        }
     }
 
     function drawRoads() {
@@ -945,7 +964,7 @@ SC.render = (function() {
             if (crossing) {
                 drawRoadSegment(e, casing, surfaceW, 0, crossing.t0, z);
                 drawRoadSegment(e, casing, surfaceW, crossing.t1, 1, z);
-                if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z, armed);
+                if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z);
                 else drawBridgeCrossing(e, casing, surfaceW, crossing, z);
             } else {
                 drawRoadSegment(e, casing, surfaceW, 0, 1, z);
@@ -963,6 +982,47 @@ SC.render = (function() {
                     strokeEdge(e, casing + heat * 4, `rgba(248, 113, 113, ${0.25 + heat * 0.5})`);
                 }
             }
+        }
+    }
+
+    // Flowing "pulse" dashes along roads that currently carry a truck, in the
+    // cargo's colour and the direction of travel — makes the network read as
+    // a live supply chain at a glance. Cheap: one pass over trucks + a dashed
+    // stroke per active edge.
+    function drawRouteFlow() {
+        const active = new Map(); // edge -> { dir: ±1 along a→b, item }
+        for (const t of SC.state.trucks) {
+            if (!t.path || t.pathIdx >= t.path.length - 1) continue;
+            const a = t.path[t.pathIdx], b = t.path[t.pathIdx + 1];
+            const e = SC.roads.findEdge(a, b);
+            if (e && !active.has(e)) active.set(e, { dir: e.a === a ? 1 : -1, item: t.cargo[0] || null });
+        }
+        if (!active.size) return;
+        const z = zoom();
+        ctx.lineCap = 'round';
+        for (const [e, info] of active) {
+            const A = S(e.a.x, e.a.y), B = S(e.b.x, e.b.y);
+            const col = info.item ? SC.colorOf(info.item) : '#8fd0ff';
+            ctx.strokeStyle = rgba(col, 0.55);
+            ctx.lineWidth = Math.max(1.6, 2.4 * z);
+            ctx.setLineDash([2.2 * z, 13 * z]);
+            ctx.lineDashOffset = -info.dir * ((seaTime * 46 * z) % 100000);
+            ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+    }
+
+    // Rain makes roads glisten: a thin cool specular re-stroke over the
+    // driving surface while a rain spell is active.
+    function drawWetRoads() {
+        if (weather.type !== 'rain' || weather.intensity < 0.05) return;
+        const z = zoom();
+        ctx.strokeStyle = `rgba(150, 190, 232, ${0.14 * weather.intensity})`;
+        ctx.lineWidth = Math.max(1, 2 * z);
+        for (const e of SC.state.edges) {
+            const A = S(e.a.x, e.a.y), B = S(e.b.x, e.b.y);
+            ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
         }
     }
 
@@ -1019,7 +1079,7 @@ SC.render = (function() {
             return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
         }
         if (n.kind === 'junction') {
-            return { base: '#64748b', fw: 13, h: 5, icon: '🔀', flat: true };
+            return { base: '#7d8898', fw: 15, h: 0 };
         }
         // city
         if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, icon: '⭐', stories: 6, door: true };
@@ -1173,27 +1233,55 @@ SC.render = (function() {
         return { rx, ry, topCenter: { x: gx, y: gy - hpx }, bBot };
     }
 
-    // Soft drop shadow via a pre-rendered radial sprite: ctx.filter blur
-    // (the old approach) forces a slow path on mobile GPUs and was a big
-    // part of panning jank — a scaled drawImage costs next to nothing.
+    // Directional cast shadow via a pre-rendered radial sprite (ctx.filter
+    // blur is too slow on mobile). The sprite is stretched from the building
+    // base along the global light direction and its length grows with the
+    // building's height and how low the sun/moon sits — long, raking shadows
+    // at dawn/dusk, short pools at noon.
     let shadowSprite = null;
-    function drawShadow(gx, gy, fw) {
-        if (!shadowSprite) {
-            shadowSprite = document.createElement('canvas');
-            shadowSprite.width = shadowSprite.height = 128;
-            const c = shadowSprite.getContext('2d');
-            const g = c.createRadialGradient(64, 64, 6, 64, 64, 62);
-            g.addColorStop(0, 'rgba(5, 7, 12, 0.42)');
-            g.addColorStop(0.65, 'rgba(5, 7, 12, 0.22)');
-            g.addColorStop(1, 'rgba(5, 7, 12, 0)');
-            c.fillStyle = g;
-            c.fillRect(0, 0, 128, 128);
-        }
+    function ensureShadowSprite() {
+        if (shadowSprite) return;
+        shadowSprite = document.createElement('canvas');
+        shadowSprite.width = shadowSprite.height = 128;
+        const c = shadowSprite.getContext('2d');
+        const g = c.createRadialGradient(64, 64, 6, 64, 64, 62);
+        g.addColorStop(0, 'rgba(5, 7, 12, 0.5)');
+        g.addColorStop(0.6, 'rgba(5, 7, 12, 0.24)');
+        g.addColorStop(1, 'rgba(5, 7, 12, 0)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, 128, 128);
+    }
+    function drawShadow(gx, gy, fw, hpx) {
+        ensureShadowSprite();
         const { rx, ry } = footRadii(fw);
-        // destination rect is wider than tall, giving the iso squash
-        ctx.drawImage(shadowSprite,
-                      gx + rx * 0.28 - rx * 1.25, gy + ry * 0.5 - ry * 1.25,
-                      rx * 2.5, ry * 2.5);
+        const len = rx * 1.05 + (hpx || 0) * shadowLen * 0.8; // reach along the light
+        const wid = ry * 1.15;
+        const ang = Math.atan2(shadowDY, shadowDX);
+        ctx.save();
+        ctx.globalAlpha = 0.32 + 0.22 * dayness; // firmer in daylight, soft at night
+        ctx.translate(gx, gy + ry * 0.35);
+        ctx.rotate(ang);
+        // +x is now the shadow direction: span from just behind the base out to `len`
+        ctx.drawImage(shadowSprite, -rx * 1.1, -wid, rx * 1.1 + len, wid * 2);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+    }
+
+    // Emissive bloom: an additive ('lighter') soft glow around a light
+    // source, so lit windows / beacons / headlights actually radiate at
+    // night. Gated by the caller on nightLevel, so it costs nothing by day.
+    function bloom(sx, sy, r, col, a) {
+        if (a <= 0.01 || r <= 0) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = a;
+        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+        g.addColorStop(0, col);
+        g.addColorStop(0.4, rgba(col, 0.5));
+        g.addColorStop(1, rgba(col, 0));
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
     }
 
     // Warm radial glow sprite (window light spilling onto the ground),
@@ -1359,15 +1447,62 @@ SC.render = (function() {
             ctx.moveTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2);
             ctx.lineTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 9 * z);
             ctx.stroke();
-            ctx.globalAlpha = 0.4 + 0.6 * Math.max(0, Math.sin(seaTime * 5));
+            const bl = 0.4 + 0.6 * Math.max(0, Math.sin(seaTime * 5));
+            const ax = tc.x + info.rx * 0.45, ay = tc.y - info.ry * 0.2 - 10 * z;
+            bloom(ax, ay, 9 * z, '#7de3ff', bl * (0.4 + 0.5 * nightLevel));
+            ctx.globalAlpha = bl;
             ctx.fillStyle = '#7de3ff';
             ctx.beginPath();
-            ctx.arc(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 10 * z, 1.6 * z, 0, Math.PI * 2);
+            ctx.arc(ax, ay, 1.6 * z, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
             return info;
         }
         return { rx, ry, topCenter: { x: g.x, y: g.y - h } };
+    }
+
+    // Junction: a small roundabout — asphalt ring, a dashed lane guide, and
+    // a planted center island — instead of a building, since it has no
+    // supply/demand of its own to put a badge on.
+    function drawJunction(n, sp, g) {
+        const z = zoom();
+        const { rx, ry } = footRadii(sp.fw);
+
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = sp.base;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(8, 12, 20, 0.55)';
+        ctx.lineWidth = Math.max(1.5, 2 * z);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
+        ctx.lineWidth = Math.max(1, 1.2 * z);
+        ctx.setLineDash([3 * z, 3 * z]);
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx * 0.42, ry * 0.42, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#3a5a3f';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(6, 14, 10, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // a little shrub planted in the island
+        ctx.fillStyle = '#2f6b3f';
+        ctx.beginPath();
+        ctx.arc(g.x, g.y - 2.5 * z, 3 * z, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = mix('#2f6b3f', '#a9e7b8', 0.35);
+        ctx.beginPath();
+        ctx.arc(g.x - z, g.y - 3.5 * z, 1.4 * z, 0, Math.PI * 2);
+        ctx.fill();
+
+        return { rx, ry, topCenter: { x: g.x, y: g.y - 6 * z } };
     }
 
     // Iso ring/pad on the ground (selection, unlock pulse, inspect focus).
@@ -1387,12 +1522,23 @@ SC.render = (function() {
 
         // Plot pad: a subtle paved apron the building sits on, so sites
         // read as intentional lots rather than blocks dropped on grass.
+        // Feathered (radial fade to transparent) rather than a flat fill,
+        // so its own edge doesn't add a second hard boundary on top of
+        // whatever depth-sort seam a nearby truck might already be riding.
         const pad = footRadii(sp.fw + 9);
+        ctx.save();
         diamondPath(g.x, g.y, pad.rx, pad.ry);
-        ctx.fillStyle = 'rgba(10, 16, 26, 0.35)';
-        ctx.fill();
-        ctx.strokeStyle = rgba(sp.base, 0.28);
+        ctx.clip();
+        const padFade = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, Math.max(pad.rx, pad.ry));
+        padFade.addColorStop(0, 'rgba(10, 16, 26, 0.32)');
+        padFade.addColorStop(0.75, 'rgba(10, 16, 26, 0.18)');
+        padFade.addColorStop(1, 'rgba(10, 16, 26, 0)');
+        ctx.fillStyle = padFade;
+        ctx.fillRect(g.x - pad.rx, g.y - pad.ry, pad.rx * 2, pad.ry * 2);
+        ctx.restore();
+        ctx.strokeStyle = rgba(sp.base, 0.2);
         ctx.lineWidth = 1;
+        diamondPath(g.x, g.y, pad.rx, pad.ry);
         ctx.stroke();
 
         // Warm light-spill: lit buildings cast a soft pool of window-glow on
@@ -1418,8 +1564,8 @@ SC.render = (function() {
             groundRing(g.x, g.y, sp.fw, `rgba(56, 189, 248, ${0.7 * (1 - t)})`, 3, 1 + t * 2.2);
         }
 
-        const info = n.kind === 'supplier'
-            ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
+        const info = n.kind === 'supplier' ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
+            : n.kind === 'junction' ? drawJunction(n, sp, g) // roundabout, not a building
             : prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
                   ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
                   alpha: forSale ? 0.9 : 1,
@@ -1474,9 +1620,13 @@ SC.render = (function() {
 
         // Icon on the roof — suppliers get a compact plate badge floating
         // over the scene (the themed site is the body, the badge is the
-        // at-a-glance material identity); buildings keep the bare glyph.
+        // at-a-glance material identity); buildings keep the bare glyph. A
+        // junction's roundabout shape already reads as what it is, so it
+        // skips this entirely rather than floating an icon over nothing.
         ctx.globalAlpha = forSale ? 0.6 : 1;
-        if (n.kind === 'supplier') {
+        if (n.kind === 'junction') {
+            // no icon
+        } else if (n.kind === 'supplier') {
             emojiPlateAt(sp.icon, tc.x, tc.y - 4 * clampZoom(), 9 * clampZoom(), 13 * clampZoom());
         } else {
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
@@ -1495,6 +1645,7 @@ SC.render = (function() {
             ctx.lineTo(bx, by);
             ctx.stroke();
             const blink = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(seaTime * 3.2), 3);
+            bloom(bx, by, 16 * z, '#f87171', blink * (0.35 + 0.4 * nightLevel));
             ctx.globalAlpha = blink * 0.5;
             ctx.fillStyle = '#f87171';
             ctx.beginPath(); ctx.arc(bx, by, 6 * z, 0, Math.PI * 2); ctx.fill();
@@ -1502,6 +1653,12 @@ SC.render = (function() {
             ctx.fillStyle = '#fca5a5';
             ctx.beginPath(); ctx.arc(bx, by, 2.2 * z, 0, Math.PI * 2); ctx.fill();
             ctx.globalAlpha = 1;
+        }
+
+        // Emissive bloom: lit buildings radiate a soft warm halo at night.
+        if (litKind && nightLevel > 0.12) {
+            const fr = footRadii(sp.fw);
+            bloom(tc.x, tc.y + fr.ry * 0.5, fr.rx * 1.5, '#ffcf8a', 0.2 * nightLevel);
         }
 
         // --- per-kind badges/bars -------------------------------------------
@@ -1807,14 +1964,27 @@ SC.render = (function() {
         ctx.setLineDash([6, 5]);
         ctx.stroke();
         ctx.setLineDash([]);
-        const ghostH = pm.kind === 'yard' ? 14 : pm.kind === 'junction' ? 6 : 30;
-        prism(g.x, g.y, fw, ghostH * zoom(), base,
-              { ghost: true, dashed: true, outline: rgba(base, 0.9) });
-        const tc = { x: g.x, y: g.y - ghostH * zoom() };
-        ctx.globalAlpha = 0.85;
-        const ghostIcon = pm.kind === 'yard' ? '🅿️' : pm.kind === 'junction' ? '🔀' : SC.emojiOf(pm.good);
-        emoji(ghostIcon, tc.x, tc.y, 18 * clampZoom());
-        ctx.globalAlpha = 1;
+        let tc;
+        if (pm.kind === 'junction') {
+            // Roundabout footprint, not a building — an outlined ring
+            // instead of the usual prism-ghost.
+            ctx.beginPath();
+            ctx.ellipse(g.x, g.y, rx * 0.65, ry * 0.65, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(base, 0.9);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            tc = { x: g.x, y: g.y - 10 * zoom() };
+        } else {
+            const ghostH = pm.kind === 'yard' ? 14 : 30;
+            prism(g.x, g.y, fw, ghostH * zoom(), base,
+                  { ghost: true, dashed: true, outline: rgba(base, 0.9) });
+            tc = { x: g.x, y: g.y - ghostH * zoom() };
+            ctx.globalAlpha = 0.85;
+            emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), tc.x, tc.y, 18 * clampZoom());
+            ctx.globalAlpha = 1;
+        }
         labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);
     }
 
@@ -1836,6 +2006,62 @@ SC.render = (function() {
             ctx.fillText(f.text, p.x, p.y - rise);
             ctx.globalAlpha = 1;
         }
+    }
+
+    // Celebratory coin/spark burst + a delivery ring, fired on orderComplete.
+    let bursts = [];
+    function addBurst(wx, wy) {
+        for (let i = 0; i < 12; i++) {
+            const a = Math.random() * Math.PI * 2, sp = 24 + Math.random() * 70;
+            bursts.push({ t: 'p', x: wx, y: wy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 55,
+                          life: 0, dur: 0.75 + Math.random() * 0.4,
+                          c: Math.random() > 0.35 ? '#fde68a' : '#34d399' });
+        }
+        bursts.push({ t: 'ring', x: wx, y: wy, life: 0, dur: 0.6 });
+    }
+    function drawBursts(dt) {
+        const z = clampZoom();
+        for (let i = bursts.length - 1; i >= 0; i--) {
+            const b = bursts[i];
+            b.life += dt;
+            if (b.life >= b.dur) { bursts.splice(i, 1); continue; }
+            const f = b.life / b.dur;
+            if (b.t === 'ring') {
+                const p = S(b.x, b.y);
+                ctx.strokeStyle = `rgba(253, 230, 138, ${0.6 * (1 - f)})`;
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.ellipse(p.x, p.y, (8 + f * 40) * z, (8 + f * 40) * z * 0.5, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                b.vy += 150 * dt; // gravity (falls back toward the ground)
+                b.x += b.vx * dt; b.y += b.vy * dt;
+                const p = S(b.x, b.y);
+                ctx.globalAlpha = 1 - f;
+                ctx.fillStyle = b.c;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2.6 * z, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Snow settling on the ground: a pale wash over the land, clipped to the
+    // plateau, its strength following the (slowly-melting) accumulation.
+    function drawSnowBlanket() {
+        if (weather.snow < 0.03) return;
+        const C = SC.CONFIG;
+        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        ctx.save();
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.clip();
+        ctx.globalAlpha = 0.17 * weather.snow;
+        ctx.fillStyle = '#e9f1fb';
+        const xs = corners.map(p => p.x), ys = corners.map(p => p.y);
+        ctx.fillRect(Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+        ctx.restore();
+        ctx.globalAlpha = 1;
     }
 
     // --- off-screen arrows (screen space) ----------------------------------
@@ -1965,21 +2191,35 @@ SC.render = (function() {
         drawSkyClouds(dt);   // overcast blobs, behind the world (peaks occlude)
         drawWorld(dt);       // mountains ride inside the cached bg layer
         drawCloudShadows(dt); // soft shadows sliding over the ground
+        drawSnowBlanket();    // pale snow settling on the land
         drawRoads();
+        drawWetRoads();       // rain sheen on the road surface
+        drawRouteFlow();      // colored pulses along roads with live trucks
         drawHighlight(now);
         drawInspectHighlight(now);
         drawGhostRoad();
         drawPlacementGhost();
 
-        // Depth-sorted buildings + trucks (back-to-front by world x+y).
+        // Depth-sorted buildings + trucks (back-to-front by world x+y). A
+        // single-point painter's sort has no notion of footprint size, so a
+        // truck on its final approach to a node (still slightly "behind" in
+        // depth even once it visually overlaps the building's wide pad/
+        // silhouette) can get hard-clipped by the node drawn on top of it —
+        // most visible arriving at a factory or sitting at a lake supplier.
+        // TRUCK_DEPTH_BIAS nudges trucks forward so they win that near-tie
+        // and read as driving up TO the site rather than sinking under it.
+        const TRUCK_DEPTH_BIAS = 30;
         const ents = [];
         for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
-        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y });
+        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
         ents.sort((a, b) => a.depth - b.depth);
 
         // shadows first so no building casts onto another's face
         for (const e of ents) {
-            if (e.kind === 'node') drawShadow(S(e.ref.x, e.ref.y).x, S(e.ref.x, e.ref.y).y, nodeSpec(e.ref).fw);
+            if (e.kind === 'node') {
+                const sp = nodeSpec(e.ref), p = S(e.ref.x, e.ref.y);
+                drawShadow(p.x, p.y, sp.fw, (sp.h || 0) * zoom());
+            }
         }
         for (const e of ents) {
             if (e.kind === 'node') drawNodeBody(e.ref, now);
@@ -1987,6 +2227,7 @@ SC.render = (function() {
         }
 
         drawFireflies();
+        drawBursts(dt);          // delivery coin/spark bursts
         drawOrderBubbles();
         drawFloaters(dt);
         drawGrade();             // time-of-day colour grade over world + sky
