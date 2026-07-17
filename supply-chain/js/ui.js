@@ -66,6 +66,7 @@ SC.ui = (function() {
         tb.querySelector('.price').textContent = fmt(SC.truckPrice());
         tb.disabled = !SC.canAfford(SC.truckPrice());
         updateYards();
+        updateJunctionBtn();
 
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             const btn = $('btn-' + key);
@@ -127,6 +128,19 @@ SC.ui = (function() {
         // Move-truck: needs an idle truck homed somewhere else
         $('btn-moveTruck').disabled = !st.trucks.some(t =>
             !t.jobs.length && t.homeYard !== st.activeYard && (!t.path || t.phase === 'returning'));
+    }
+
+    // ── Junctions: a plain routing waypoint, not research-gated (same
+    // base-mechanic reasoning as yards) — lets roads fork/merge/reroute
+    // through a point that isn't tied to any supplier/factory/city. ──
+    function updateJunctionBtn() {
+        const st = SC.state;
+        const btn = $('btn-junction');
+        const price = SC.CONFIG.PLACEMENT_JUNCTION_PRICE;
+        const active = st.placeMode && st.placeMode.kind === 'junction';
+        btn.classList.toggle('active', !!active);
+        btn.querySelector('.price').textContent = active ? 'Tap map…' : fmt(price);
+        btn.disabled = !active && !SC.canAfford(price);
     }
 
     // ── Research & Build (Shop panel sections) ──────
@@ -352,6 +366,10 @@ SC.ui = (function() {
             return `<div class="itip-title">${SC.emojiOf(info.mat)} ${SC.nameOf(info.mat)} supplier${n.level ? ` <span class="itip-forsale">Lv${n.level + 1}</span>` : ''}</div>
                     <div class="itip-row"><span>Stock</span><span>${Math.floor(n.stock)}/${SC.supplierCap(n)}</span></div>
                     <div class="itip-sub">Used by</div>${rows}`;
+        }
+        if (info.kind === 'junction') {
+            return `<div class="itip-title">🔀 Junction</div>
+                    <div class="itip-row">Routing only — no supply or demand</div>`;
         }
         const rows = info.orders.length ? info.orders.map(o => {
             const left = o.qty - o.deliveredUnits;
@@ -639,6 +657,18 @@ SC.ui = (function() {
                 st.selectedNode = null; // don't fight the road-building ghost
                 st.placeMode = { kind: 'yard', good: null };
                 SC.emit('toast', { text: `Tap the map to place a truck yard — ${fmt(SC.yardPrice())}`, kind: 'info' });
+            }
+            SC.sfx.play('click');
+            updateShop();
+        });
+        $('btn-junction').addEventListener('click', () => {
+            const st = SC.state;
+            if (st.placeMode && st.placeMode.kind === 'junction') {
+                st.placeMode = null; // tapping again cancels
+            } else {
+                st.selectedNode = null; // don't fight the road-building ghost
+                st.placeMode = { kind: 'junction', good: null };
+                SC.emit('toast', { text: `Tap the map to place a junction — ${fmt(SC.CONFIG.PLACEMENT_JUNCTION_PRICE)}`, kind: 'info' });
             }
             SC.sfx.play('click');
             updateShop();

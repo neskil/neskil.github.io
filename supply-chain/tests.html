@@ -335,6 +335,59 @@
             tRes2.ok && tRes2.truck.homeYard.isHQ);
     })();
 
+    // ── Junctions: a plain routing waypoint, not research-gated ──────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        const price = SC.CONFIG.PLACEMENT_JUNCTION_PRICE;
+        assert('junction price matches config', SC.placement.price('junction') === price);
+
+        assert('junction placement works without any research done',
+            !SC.research.isDone('manualPlacement'));
+        const before = SC.state.money;
+        const res = SC.placement.place('junction', null, 900, 900);
+        assert('junction placed on open land and charged the flat price',
+            res.ok && res.node.kind === 'junction' && SC.state.money === before - price);
+        assert('a junction is not a yard', !SC.isYard(res.node));
+
+        // Route every road THROUGH the junction — the only way from either
+        // supplier to the factory (and on to HQ) is via this waypoint, so a
+        // full order plan proves Dijkstra/the planner treat it as an
+        // ordinary passthrough node, not a dead end or a phantom supplier.
+        SC.roads.build(S1, res.node);
+        SC.roads.build(S2, res.node);
+        SC.roads.build(res.node, F);
+        SC.roads.build(F, C);
+        assert('pathfinding routes straight through the junction',
+            SC.roads.findPath(S1, F) && SC.roads.findPath(S1, F).path.includes(res.node));
+        const order = SC.economy.spawnOrder();
+        assert('an order plans end-to-end through a junction waypoint',
+            SC.economy.planOrder(order) && order.factory === F);
+    })();
+
+    // ── Save keeps a placed junction ──────────────────────────
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        const junction = SC.placement.place('junction', null, 900, 900).node;
+        SC.roads.build(S1, junction);
+        SC.roads.build(junction, F);
+
+        SC.save.restore(SC.save.serialize());
+        // Restore rebuilds state.nodes from scratch, so S1/F/junction above
+        // are now stale objects — re-find everything by kind/mat instead of
+        // reusing them, the same way the yard round-trip test above does.
+        const st = SC.state;
+        const restored = st.nodes.find(n => n.kind === 'junction');
+        assert('junction node restored', !!restored);
+        assert('the restored junction kept both its roads', restored.edges.length === 2);
+        const restoredS1 = st.nodes.find(n => n.kind === 'supplier' && n.mat === 'wheat');
+        const restoredF = st.nodes.find(n => n.kind === 'factory');
+        const path = SC.roads.findPath(restoredS1, restoredF);
+        assert('roads through the restored junction still connect',
+            path && path.path.includes(restored));
+    })();
+
     // ── Truck yards: idle trucks return home, dispatch favors home region ──
     (function() {
         SC.newState();
