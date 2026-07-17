@@ -161,7 +161,7 @@ SC.DIFFICULTIES = {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
         riverGraceMin: 5,
-        desc: 'Relaxed deadlines, gentle interest, no congestion. Sites stay your side of the river for 5 min.'
+        desc: 'Relaxed deadlines, gentle interest, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
@@ -173,7 +173,7 @@ SC.DIFFICULTIES = {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
         riverGraceMin: 0,
-        desc: 'Brutal deadlines, punishing interest, congestion — and sites can land across the river from turn one.'
+        desc: 'Brutal deadlines, punishing interest, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,

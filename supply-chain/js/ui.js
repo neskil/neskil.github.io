@@ -699,8 +699,14 @@ SC.ui = (function() {
         $('help-start').addEventListener('click', () => {
             $('help-overlay').classList.add('hidden');
             localStorage.setItem('scTycoonHelpSeen', 'true');
+            const fresh = !SC.state.gameStarted; // help opened mid-game shouldn't re-hint
             SC.state.gameStarted = true;
             SC.state.paused = false; // in case help was opened via the menu
+            // One-time riverside-grace hint at the very start of a run.
+            const graceLeft = SC.map.riverGraceRemaining();
+            if (fresh && graceLeft > 0) {
+                toast(`🌊 New sites stay on your side of the river for the first ${Math.round(graceLeft / 60)} min`, 'info');
+            }
         });
 
         // Game event feedback
@@ -720,7 +726,9 @@ SC.ui = (function() {
             const what = n.kind === 'city' ? 'A new customer DC 🏢 is now placing orders'
                        : n.kind === 'supplier' ? `A ${SC.nameOf(n.mat).toLowerCase()} ${SC.emojiOf(n.mat)} supplier appeared`
                        : `A ${SC.GOODS[n.recipe].building.toLowerCase()} ${SC.emojiOf(n.recipe)} site is up for sale`;
-            toast(`📍 ${what}!`, 'good');
+            // Flag crossings so the player knows a bridge/ferry is coming.
+            const across = SC.map.sideOf(n.x, n.y) !== SC.map.startSide();
+            toast(`📍 ${what}${across ? ' — across the river 🌉' : ''}!`, 'good');
         });
         SC.on('researchComplete', id => {
             SC.sfx.play('unlock');
@@ -750,9 +758,14 @@ SC.ui = (function() {
         const d = SC.state.difficulty;
         $('difficulty-picker').innerHTML = SC.DIFFICULTY_ORDER.map(k => {
             const p = SC.DIFFICULTIES[k];
+            const g = p.riverGraceMin || 0;
+            const grace = g > 0
+                ? `🌊 Riverside grace: <b>${g} min</b> — new sites stay your side of the river`
+                : `🌊 <b>No riverside grace</b> — sites can land across the river from the start`;
             return `<button class="diff-btn ${k === d ? 'active' : ''}" data-diff="${k}">
                 <span class="diff-name">${p.emoji} ${p.label}</span>
                 <span class="diff-desc">${p.desc}</span>
+                <span class="diff-grace">${grace}</span>
             </button>`;
         }).join('');
     }
