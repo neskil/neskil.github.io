@@ -1018,6 +1018,9 @@ SC.render = (function() {
         if (n.kind === 'yard') {
             return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
         }
+        if (n.kind === 'junction') {
+            return { base: '#64748b', fw: 13, h: 5, icon: '🔀', flat: true };
+        }
         // city
         if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, icon: '⭐', stories: 6, door: true };
         return { base: '#10b981', fw: 18, h: 32, icon: '🏢', stories: 4, door: true };
@@ -1804,11 +1807,13 @@ SC.render = (function() {
         ctx.setLineDash([6, 5]);
         ctx.stroke();
         ctx.setLineDash([]);
-        prism(g.x, g.y, fw, (pm.kind === 'yard' ? 14 : 30) * zoom(), base,
+        const ghostH = pm.kind === 'yard' ? 14 : pm.kind === 'junction' ? 6 : 30;
+        prism(g.x, g.y, fw, ghostH * zoom(), base,
               { ghost: true, dashed: true, outline: rgba(base, 0.9) });
-        const tc = { x: g.x, y: g.y - (pm.kind === 'yard' ? 14 : 30) * zoom() };
+        const tc = { x: g.x, y: g.y - ghostH * zoom() };
         ctx.globalAlpha = 0.85;
-        emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), tc.x, tc.y, 18 * clampZoom());
+        const ghostIcon = pm.kind === 'yard' ? '🅿️' : pm.kind === 'junction' ? '🔀' : SC.emojiOf(pm.good);
+        emoji(ghostIcon, tc.x, tc.y, 18 * clampZoom());
         ctx.globalAlpha = 1;
         labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);
     }
