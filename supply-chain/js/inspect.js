@@ -30,12 +30,17 @@ SC.inspect = (function() {
         return { kind: 'city', node, orders };
     }
 
+    function junctionInfo(node) {
+        return { kind: 'junction', node };
+    }
+
     // What to show for a hovered/held node, or null if it has nothing to say.
     function infoFor(node) {
         if (!node || !node.active) return null;
         if (node.kind === 'factory') return factoryInfo(node);
         if (node.kind === 'supplier') return supplierInfo(node);
         if (node.kind === 'city') return cityInfo(node);
+        if (node.kind === 'junction') return junctionInfo(node);
         return null;
     }
 
@@ -83,5 +88,5 @@ SC.inspect = (function() {
         return paths;
     }
 
-    return { infoFor, factoryInfo, supplierInfo, cityInfo, collectRoutePaths, highlightPathsFor };
+    return { infoFor, factoryInfo, supplierInfo, cityInfo, junctionInfo, collectRoutePaths, highlightPathsFor };
 })();
