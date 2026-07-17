@@ -1267,6 +1267,23 @@ SC.render = (function() {
         ctx.globalAlpha = 1;
     }
 
+    // Emissive bloom: an additive ('lighter') soft glow around a light
+    // source, so lit windows / beacons / headlights actually radiate at
+    // night. Gated by the caller on nightLevel, so it costs nothing by day.
+    function bloom(sx, sy, r, col, a) {
+        if (a <= 0.01 || r <= 0) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = a;
+        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+        g.addColorStop(0, col);
+        g.addColorStop(0.4, rgba(col, 0.5));
+        g.addColorStop(1, rgba(col, 0));
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
     // Warm radial glow sprite (window light spilling onto the ground),
     // built once and tinted by drawImage's globalAlpha at the call site.
     let glowSprite = null;
@@ -1430,10 +1447,13 @@ SC.render = (function() {
             ctx.moveTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2);
             ctx.lineTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 9 * z);
             ctx.stroke();
-            ctx.globalAlpha = 0.4 + 0.6 * Math.max(0, Math.sin(seaTime * 5));
+            const bl = 0.4 + 0.6 * Math.max(0, Math.sin(seaTime * 5));
+            const ax = tc.x + info.rx * 0.45, ay = tc.y - info.ry * 0.2 - 10 * z;
+            bloom(ax, ay, 9 * z, '#7de3ff', bl * (0.4 + 0.5 * nightLevel));
+            ctx.globalAlpha = bl;
             ctx.fillStyle = '#7de3ff';
             ctx.beginPath();
-            ctx.arc(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 10 * z, 1.6 * z, 0, Math.PI * 2);
+            ctx.arc(ax, ay, 1.6 * z, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
             return info;
@@ -1625,6 +1645,7 @@ SC.render = (function() {
             ctx.lineTo(bx, by);
             ctx.stroke();
             const blink = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(seaTime * 3.2), 3);
+            bloom(bx, by, 16 * z, '#f87171', blink * (0.35 + 0.4 * nightLevel));
             ctx.globalAlpha = blink * 0.5;
             ctx.fillStyle = '#f87171';
             ctx.beginPath(); ctx.arc(bx, by, 6 * z, 0, Math.PI * 2); ctx.fill();
@@ -1632,6 +1653,12 @@ SC.render = (function() {
             ctx.fillStyle = '#fca5a5';
             ctx.beginPath(); ctx.arc(bx, by, 2.2 * z, 0, Math.PI * 2); ctx.fill();
             ctx.globalAlpha = 1;
+        }
+
+        // Emissive bloom: lit buildings radiate a soft warm halo at night.
+        if (litKind && nightLevel > 0.12) {
+            const fr = footRadii(sp.fw);
+            bloom(tc.x, tc.y + fr.ry * 0.5, fr.rx * 1.5, '#ffcf8a', 0.2 * nightLevel);
         }
 
         // --- per-kind badges/bars -------------------------------------------
