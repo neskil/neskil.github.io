@@ -183,8 +183,13 @@ SC.vehicles = (function() {
             let remaining = speed * dt;
             while (remaining > 0 && t.path && t.pathIdx < t.path.length - 1) {
                 const a = t.path[t.pathIdx], b = t.path[t.pathIdx + 1];
+                const edge = SC.roads.findEdge(a, b);
+                // progress === 0 means this segment was just entered (not
+                // resumed mid-segment on a later tick) — counts each road
+                // use exactly once regardless of fast-forward step size.
+                if (t.progress === 0) SC.stats.recordRoadUse(edge);
                 // Highways carry trucks faster on that segment
-                const mult = SC.roads.speedMult(SC.roads.findEdge(a, b));
+                const mult = SC.roads.speedMult(edge);
                 const segLen = (Math.hypot(b.x - a.x, b.y - a.y) || 1) / mult;
                 const distLeft = segLen * (1 - t.progress);
                 if (remaining < distLeft) {

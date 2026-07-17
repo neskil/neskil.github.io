@@ -53,7 +53,12 @@ SC.newState = function(difficulty) {
         highlight: null,    // { paths, color, city, until } — order route overlay
         mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
-        gameStarted: false
+        gameStarted: false,
+
+        deliveredByProduct: {},  // see stats.js — { goodKey: count }
+        moneyHistory: [],        // recent SC.state.money samples, see stats.js tick
+        nextStatSampleIn: SC.CONFIG.STATS_SAMPLE_INTERVAL,
+        achievements: {}         // { id: true } — see stats.js / SC.ACHIEVEMENTS
     };
     return SC.state;
 };

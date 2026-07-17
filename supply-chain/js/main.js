@@ -54,6 +54,7 @@ SC.init = function() {
                 SC.factories.tick(dt);
                 SC.vehicles.tick(dt);
                 SC.research.tick(dt);
+                SC.stats.tick(dt);
                 if (SC.state.gameOver) break; // a sub-step can end the run
             }
             saveTimer += dt;
@@ -290,6 +291,20 @@ SC.runProbe = function(seconds) {
             if (SC.placement.canPlaceAt(x, y)) res = SC.placement.place('junction', null, x, y);
         }
         if (res.ok) SC.roads.build(hq, res.node);
+    }
+    // Force some interesting Stats-screen data (&stats=1): a few
+    // achievements, a delivery breakdown, and a money-history sparkline,
+    // so the ☰ menu's Stats & Achievements overlay is screenshotable
+    // without a long real playthrough. Opens the overlay too.
+    if (p.has('stats')) {
+        SC.state.deliveredByProduct = { bread: 42, shoes: 17, car: 3 };
+        SC.state.delivered = 62;
+        SC.state.achievements.firstBridge = true;
+        SC.state.achievements.firstJunction = true;
+        SC.state.achievements.tenTruckFleet = true;
+        SC.state.moneyHistory = [1200, 1500, 1100, 1800, 2400, 2100, 3000, 3500, 3200, 4000];
+        if (SC.state.edges[0]) SC.state.edges[0].trips = 27;
+        SC.ui.openStatsOverlay();
     }
 };
 
