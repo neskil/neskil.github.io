@@ -75,8 +75,8 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small `🔀` routing-waypoint marker. `&highway=1` completes pavedRoads
-  and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
+  small roundabout marker (`drawJunction`). `&highway=1` completes
+  pavedRoads and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
   twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
   bars). `&doom=42` forces a balance beyond the credit limit with 42s
   on the default countdown (⚠ HUD state); `&gameover=1` triggers the
@@ -96,8 +96,8 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   dispatch timing) so the red congestion glow can be screenshotted
   deterministically. `&ferry=1` builds a ferry crossing from HQ to a
   node mirrored across the river (guaranteed to cross it regardless of
-  map seed) for screenshotting the teal dashed line/shuttling boat,
-  confined to just the water stretch (`SC.map.riverCrossing`) — the
+  map seed) for screenshotting the teal dashed ferry lane, confined to
+  just the water stretch (`SC.map.riverCrossing`) — the
   road on both banks renders as ordinary road right up to the water's
   edge. `&bridge=1` is the same trick without the ferry option, for
   screenshotting the piered, lifted-deck bridge that now spans only the
