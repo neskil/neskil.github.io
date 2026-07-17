@@ -123,7 +123,7 @@ that ambient animation as its background — it now lives independently at
   paved legs.
 - **Congestion** (`SC.state.congestionEnabled`, a difficulty trait fixed
   for the run — on for Normal/Hard, off for Easy/Sandbox; not a normal
-  player-facing toggle, see the `?dev=1` dev panel below for A/B
+  player-facing toggle, see the Dev tools panel further down for A/B
   comparison): once more than
   `CONGESTION_THRESHOLD` trucks share an edge at once, each additional
   truck slows it multiplicatively (`CONGESTION_STEP`, floored at
@@ -157,6 +157,13 @@ that ambient animation as its background — it now lives independently at
   an accepted contract's deadline (`expireOrder`) charges a penalty
   proportional to however many units are still undelivered
   (`CONTRACT_PENALTY_MULT × missingUnits × perUnitRate`).
+- **Dev tools panel** (`?dev=1`, not reachable by normal players): a
+  collapsible panel under the top-left HUD bar with an FPS readout and
+  one-off testing aids — Congestion (A/B override, see above), Add
+  money, Roll contract, Finish research, Spawn next customer. Lives
+  entirely in `ui.js`; each button reuses the same public logic
+  functions a normal action would call (`rollContractOffer`,
+  `research.tick`, etc.) rather than duplicating them.
 - **Per-yard truck prices**: the truck price ladder tracks trucks homed
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
