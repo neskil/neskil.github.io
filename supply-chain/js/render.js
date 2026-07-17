@@ -930,9 +930,11 @@ SC.render = (function() {
         ctx.stroke();
     }
 
-    // Ferry lane + shuttling boat, confined to just the water stretch —
-    // the road on either bank reads as ordinary road up to the water's edge.
-    function drawFerryCrossing(e, surfaceW, crossing, z, armed) {
+    // Ferry lane, confined to just the water stretch — the road on either
+    // bank reads as ordinary road up to the water's edge. (No boat glyph:
+    // ⛴ renders as an unstyled black fallback glyph on some Android emoji
+    // fonts, and the teal dashed lane already reads as "ferry" on its own.)
+    function drawFerryCrossing(e, surfaceW, crossing, z) {
         const wx0 = e.a.x + (e.b.x - e.a.x) * crossing.t0, wy0 = e.a.y + (e.b.y - e.a.y) * crossing.t0;
         const wx1 = e.a.x + (e.b.x - e.a.x) * crossing.t1, wy1 = e.a.y + (e.b.y - e.a.y) * crossing.t1;
         const p0 = S(wx0, wy0), p1 = S(wx1, wy1);
@@ -946,12 +948,6 @@ SC.render = (function() {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.lineCap = 'butt';
-
-        if (!armed) {
-            const t = (Math.sin(seaTime * 0.6) + 1) / 2;
-            const p = S(wx0 + (wx1 - wx0) * t, wy0 + (wy1 - wy0) * t);
-            emoji('⛴', p.x, p.y, 18 * clampZoom());
-        }
     }
 
     function drawRoads() {
@@ -968,7 +964,7 @@ SC.render = (function() {
             if (crossing) {
                 drawRoadSegment(e, casing, surfaceW, 0, crossing.t0, z);
                 drawRoadSegment(e, casing, surfaceW, crossing.t1, 1, z);
-                if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z, armed);
+                if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z);
                 else drawBridgeCrossing(e, casing, surfaceW, crossing, z);
             } else {
                 drawRoadSegment(e, casing, surfaceW, 0, 1, z);
@@ -1083,7 +1079,7 @@ SC.render = (function() {
             return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
         }
         if (n.kind === 'junction') {
-            return { base: '#64748b', fw: 13, h: 5, icon: '🔀', flat: true };
+            return { base: '#7d8898', fw: 15, h: 0 };
         }
         // city
         if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, icon: '⭐', stories: 6, door: true };
@@ -1445,6 +1441,50 @@ SC.render = (function() {
         return { rx, ry, topCenter: { x: g.x, y: g.y - h } };
     }
 
+    // Junction: a small roundabout — asphalt ring, a dashed lane guide, and
+    // a planted center island — instead of a building, since it has no
+    // supply/demand of its own to put a badge on.
+    function drawJunction(n, sp, g) {
+        const z = zoom();
+        const { rx, ry } = footRadii(sp.fw);
+
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = sp.base;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(8, 12, 20, 0.55)';
+        ctx.lineWidth = Math.max(1.5, 2 * z);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
+        ctx.lineWidth = Math.max(1, 1.2 * z);
+        ctx.setLineDash([3 * z, 3 * z]);
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx * 0.72, ry * 0.72, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.ellipse(g.x, g.y, rx * 0.42, ry * 0.42, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#3a5a3f';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(6, 14, 10, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // a little shrub planted in the island
+        ctx.fillStyle = '#2f6b3f';
+        ctx.beginPath();
+        ctx.arc(g.x, g.y - 2.5 * z, 3 * z, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = mix('#2f6b3f', '#a9e7b8', 0.35);
+        ctx.beginPath();
+        ctx.arc(g.x - z, g.y - 3.5 * z, 1.4 * z, 0, Math.PI * 2);
+        ctx.fill();
+
+        return { rx, ry, topCenter: { x: g.x, y: g.y - 6 * z } };
+    }
+
     // Iso ring/pad on the ground (selection, unlock pulse, inspect focus).
     function groundRing(gx, gy, fw, color, width, scale) {
         const { rx, ry } = footRadii(fw);
@@ -1462,12 +1502,23 @@ SC.render = (function() {
 
         // Plot pad: a subtle paved apron the building sits on, so sites
         // read as intentional lots rather than blocks dropped on grass.
+        // Feathered (radial fade to transparent) rather than a flat fill,
+        // so its own edge doesn't add a second hard boundary on top of
+        // whatever depth-sort seam a nearby truck might already be riding.
         const pad = footRadii(sp.fw + 9);
+        ctx.save();
         diamondPath(g.x, g.y, pad.rx, pad.ry);
-        ctx.fillStyle = 'rgba(10, 16, 26, 0.35)';
-        ctx.fill();
-        ctx.strokeStyle = rgba(sp.base, 0.28);
+        ctx.clip();
+        const padFade = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, Math.max(pad.rx, pad.ry));
+        padFade.addColorStop(0, 'rgba(10, 16, 26, 0.32)');
+        padFade.addColorStop(0.75, 'rgba(10, 16, 26, 0.18)');
+        padFade.addColorStop(1, 'rgba(10, 16, 26, 0)');
+        ctx.fillStyle = padFade;
+        ctx.fillRect(g.x - pad.rx, g.y - pad.ry, pad.rx * 2, pad.ry * 2);
+        ctx.restore();
+        ctx.strokeStyle = rgba(sp.base, 0.2);
         ctx.lineWidth = 1;
+        diamondPath(g.x, g.y, pad.rx, pad.ry);
         ctx.stroke();
 
         // Warm light-spill: lit buildings cast a soft pool of window-glow on
@@ -1493,8 +1544,8 @@ SC.render = (function() {
             groundRing(g.x, g.y, sp.fw, `rgba(56, 189, 248, ${0.7 * (1 - t)})`, 3, 1 + t * 2.2);
         }
 
-        const info = n.kind === 'supplier'
-            ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
+        const info = n.kind === 'supplier' ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
+            : n.kind === 'junction' ? drawJunction(n, sp, g) // roundabout, not a building
             : prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
                   ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
                   alpha: forSale ? 0.9 : 1,
@@ -1549,9 +1600,13 @@ SC.render = (function() {
 
         // Icon on the roof — suppliers get a compact plate badge floating
         // over the scene (the themed site is the body, the badge is the
-        // at-a-glance material identity); buildings keep the bare glyph.
+        // at-a-glance material identity); buildings keep the bare glyph. A
+        // junction's roundabout shape already reads as what it is, so it
+        // skips this entirely rather than floating an icon over nothing.
         ctx.globalAlpha = forSale ? 0.6 : 1;
-        if (n.kind === 'supplier') {
+        if (n.kind === 'junction') {
+            // no icon
+        } else if (n.kind === 'supplier') {
             emojiPlateAt(sp.icon, tc.x, tc.y - 4 * clampZoom(), 9 * clampZoom(), 13 * clampZoom());
         } else {
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
@@ -1882,14 +1937,27 @@ SC.render = (function() {
         ctx.setLineDash([6, 5]);
         ctx.stroke();
         ctx.setLineDash([]);
-        const ghostH = pm.kind === 'yard' ? 14 : pm.kind === 'junction' ? 6 : 30;
-        prism(g.x, g.y, fw, ghostH * zoom(), base,
-              { ghost: true, dashed: true, outline: rgba(base, 0.9) });
-        const tc = { x: g.x, y: g.y - ghostH * zoom() };
-        ctx.globalAlpha = 0.85;
-        const ghostIcon = pm.kind === 'yard' ? '🅿️' : pm.kind === 'junction' ? '🔀' : SC.emojiOf(pm.good);
-        emoji(ghostIcon, tc.x, tc.y, 18 * clampZoom());
-        ctx.globalAlpha = 1;
+        let tc;
+        if (pm.kind === 'junction') {
+            // Roundabout footprint, not a building — an outlined ring
+            // instead of the usual prism-ghost.
+            ctx.beginPath();
+            ctx.ellipse(g.x, g.y, rx * 0.65, ry * 0.65, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(base, 0.9);
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            tc = { x: g.x, y: g.y - 10 * zoom() };
+        } else {
+            const ghostH = pm.kind === 'yard' ? 14 : 30;
+            prism(g.x, g.y, fw, ghostH * zoom(), base,
+                  { ghost: true, dashed: true, outline: rgba(base, 0.9) });
+            tc = { x: g.x, y: g.y - ghostH * zoom() };
+            ctx.globalAlpha = 0.85;
+            emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), tc.x, tc.y, 18 * clampZoom());
+            ctx.globalAlpha = 1;
+        }
         labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);
     }
 
@@ -2105,10 +2173,18 @@ SC.render = (function() {
         drawGhostRoad();
         drawPlacementGhost();
 
-        // Depth-sorted buildings + trucks (back-to-front by world x+y).
+        // Depth-sorted buildings + trucks (back-to-front by world x+y). A
+        // single-point painter's sort has no notion of footprint size, so a
+        // truck on its final approach to a node (still slightly "behind" in
+        // depth even once it visually overlaps the building's wide pad/
+        // silhouette) can get hard-clipped by the node drawn on top of it —
+        // most visible arriving at a factory or sitting at a lake supplier.
+        // TRUCK_DEPTH_BIAS nudges trucks forward so they win that near-tie
+        // and read as driving up TO the site rather than sinking under it.
+        const TRUCK_DEPTH_BIAS = 30;
         const ents = [];
         for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
-        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y });
+        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
         ents.sort((a, b) => a.depth - b.depth);
 
         // shadows first so no building casts onto another's face
