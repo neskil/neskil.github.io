@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.25.0';
+SC.VERSION = '1.26.0';
 
 SC.CONFIG = {
     WORLD_W: 2200,
@@ -59,10 +59,11 @@ SC.CONFIG = {
     ROAD_UPGRADE_PER_UNIT: 0.9,
     HIGHWAY_SPEED_MULT: 1.6,
 
-    // Congestion (toggle: SC.state.congestionEnabled, defaulted per
-    // difficulty below, flippable anytime from the pause menu): once
-    // more than CONGESTION_THRESHOLD trucks share an edge at the same
-    // moment, each additional truck slows that edge by CONGESTION_STEP
+    // Congestion (SC.state.congestionEnabled, fixed per difficulty
+    // below — see DIFFICULTIES; the ?dev=1 panel can override it live
+    // for comparison): once more than CONGESTION_THRESHOLD trucks share
+    // an edge at the same moment, each additional truck slows that edge
+    // by CONGESTION_STEP
     // (multiplicative), down to a CONGESTION_FLOOR minimum — never a
     // full stop. Applies to both truck movement and Dijkstra's routing
     // weight, so dispatch naturally prefers a parallel, less-jammed road.
