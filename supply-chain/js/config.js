@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.28.0';
+SC.VERSION = '1.29.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
@@ -60,8 +60,8 @@ SC.CONFIG = {
     HIGHWAY_SPEED_MULT: 1.6,
 
     // Congestion (SC.state.congestionEnabled, fixed per difficulty
-    // below — see DIFFICULTIES; the ?dev=1 panel can override it live
-    // for comparison): once more than CONGESTION_THRESHOLD trucks share
+    // below — see DIFFICULTIES; the ☰-menu Dev tools panel can override
+    // it live for comparison): once more than CONGESTION_THRESHOLD trucks share
     // an edge at the same moment, each additional truck slows that edge
     // by CONGESTION_STEP
     // (multiplicative), down to a CONGESTION_FLOOR minimum — never a
@@ -148,8 +148,8 @@ SC.CONFIG = {
 // Easy keeps the pre-1.13 pace; Sandbox never forecloses (noFail) and
 // starts rich, for players who just want to build networks. `congestion`
 // sets SC.state.congestionEnabled for the whole run — it's purely a
-// difficulty trait, not a player-facing toggle (the ?dev=1 dev panel can
-// still override it live, for A/B comparison during development).
+// difficulty trait, not a player-facing toggle (the ☰-menu Dev tools
+// panel can still override it live, for A/B comparison during dev).
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
