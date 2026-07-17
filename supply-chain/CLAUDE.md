@@ -75,8 +75,8 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small `🔀` routing-waypoint marker. `&highway=1` completes pavedRoads
-  and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
+  small roundabout marker (`drawJunction`). `&highway=1` completes
+  pavedRoads and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
   twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
   bars). `&doom=42` forces a balance beyond the credit limit with 42s
   on the default countdown (⚠ HUD state); `&gameover=1` triggers the
