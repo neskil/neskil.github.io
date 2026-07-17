@@ -514,8 +514,15 @@ SC.render = (function() {
     }
 
     // --- roads --------------------------------------------------------------
-    function strokeEdge(e, width, color, dash) {
-        const a = S(e.a.x, e.a.y), b = S(e.b.x, e.b.y);
+    function strokeEdge(e, width, color, dash) { strokeEdgeRange(e, 0, 1, width, color, dash); }
+
+    // Like strokeEdge but only over a [t0,t1] fraction of the edge — used to
+    // draw a bridge/ferry's approach roads without the water crossing itself.
+    function strokeEdgeRange(e, t0, t1, width, color, dash) {
+        if (t1 - t0 < 0.002) return;
+        const ax = e.a.x + (e.b.x - e.a.x) * t0, ay = e.a.y + (e.b.y - e.a.y) * t0;
+        const bx = e.a.x + (e.b.x - e.a.x) * t1, by = e.a.y + (e.b.y - e.a.y) * t1;
+        const a = S(ax, ay), b = S(bx, by);
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(b.x, b.y);
@@ -528,6 +535,105 @@ SC.render = (function() {
         ctx.lineCap = 'butt';
     }
 
+    // Casing + surface (+ highway centerline) for a plain road, over just
+    // [t0,t1] of the edge — used both for a whole ordinary road and for the
+    // land approaches on either side of a bridge/ferry's water crossing.
+    function drawRoadSegment(e, casing, surfaceW, t0, t1, z) {
+        strokeEdgeRange(e, t0, t1, casing, 'rgba(8, 12, 20, 0.55)');
+        const surf = e.level > 0 ? 'rgba(226, 232, 240, 0.85)' : 'rgba(140, 152, 170, 0.75)';
+        strokeEdgeRange(e, t0, t1, surfaceW, surf);
+        if (e.level > 0) strokeEdgeRange(e, t0, t1, Math.max(1, 1.6 * z), 'rgba(250, 204, 21, 0.6)', [11 * z, 11 * z]);
+    }
+
+    // An actual bridge — deck lifted above the water on piers — spanning
+    // just the [t0,t1] water stretch of the edge, so the road on either
+    // bank still reads as ordinary road right up to the water's edge.
+    function drawBridgeCrossing(e, casing, surfaceW, crossing, z) {
+        const wx0 = e.a.x + (e.b.x - e.a.x) * crossing.t0, wy0 = e.a.y + (e.b.y - e.a.y) * crossing.t0;
+        const wx1 = e.a.x + (e.b.x - e.a.x) * crossing.t1, wy1 = e.a.y + (e.b.y - e.a.y) * crossing.t1;
+        const p0 = S(wx0, wy0), p1 = S(wx1, wy1);
+        const lift = 10 * z; // how far the deck floats above the water, in screen px
+
+        // Piers: evenly spaced footings so the deck reads as supported,
+        // each with a little ripple where it meets the water.
+        const waterLen = Math.hypot(wx1 - wx0, wy1 - wy0);
+        const pierCount = Math.max(1, Math.round(waterLen / 90));
+        for (let i = 0; i <= pierCount; i++) {
+            const t = i / pierCount;
+            const base = S(wx0 + (wx1 - wx0) * t, wy0 + (wy1 - wy0) * t);
+            ctx.strokeStyle = 'rgba(60, 68, 82, 0.85)';
+            ctx.lineWidth = Math.max(2, 3 * z);
+            ctx.beginPath();
+            ctx.moveTo(base.x, base.y - lift);
+            ctx.lineTo(base.x, base.y + 2 * z);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.beginPath();
+            ctx.ellipse(base.x, base.y + 2 * z, 5 * z, 2 * z, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Shadow the deck casts on the water below it
+        ctx.strokeStyle = 'rgba(2, 6, 12, 0.35)';
+        ctx.lineWidth = casing;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y + 3 * z);
+        ctx.lineTo(p1.x, p1.y + 3 * z);
+        ctx.stroke();
+
+        // Deck: dark casing under a lighter concrete surface, both lifted
+        strokeSpan(p0, p1, 0, -lift, casing, 'rgba(8, 12, 20, 0.6)');
+        strokeSpan(p0, p1, 0, -lift, surfaceW, 'rgba(176, 190, 210, 0.92)');
+
+        // Guard rails along both edges of the deck
+        const dx = p1.x - p0.x, dy = p1.y - p0.y, len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len, ny = dx / len, railOff = surfaceW / 2 + 1.5 * z;
+        ctx.strokeStyle = 'rgba(226, 232, 240, 0.55)';
+        ctx.lineWidth = Math.max(1, 1.2 * z);
+        for (const sign of [-1, 1]) {
+            ctx.beginPath();
+            ctx.moveTo(p0.x + nx * railOff * sign, p0.y - lift + ny * railOff * sign);
+            ctx.lineTo(p1.x + nx * railOff * sign, p1.y - lift + ny * railOff * sign);
+            ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+    }
+
+    function strokeSpan(p0, p1, dx, dy, width, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p0.x + dx, p0.y + dy);
+        ctx.lineTo(p1.x + dx, p1.y + dy);
+        ctx.stroke();
+    }
+
+    // Ferry lane + shuttling boat, confined to just the water stretch —
+    // the road on either bank reads as ordinary road up to the water's edge.
+    function drawFerryCrossing(e, surfaceW, crossing, z, armed) {
+        const wx0 = e.a.x + (e.b.x - e.a.x) * crossing.t0, wy0 = e.a.y + (e.b.y - e.a.y) * crossing.t0;
+        const wx1 = e.a.x + (e.b.x - e.a.x) * crossing.t1, wy1 = e.a.y + (e.b.y - e.a.y) * crossing.t1;
+        const p0 = S(wx0, wy0), p1 = S(wx1, wy1);
+        ctx.strokeStyle = 'rgba(45, 212, 191, 0.6)';
+        ctx.lineWidth = surfaceW;
+        ctx.lineCap = 'round';
+        ctx.setLineDash([4 * z + 2, 10 * z]);
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
+
+        if (!armed) {
+            const t = (Math.sin(seaTime * 0.6) + 1) / 2;
+            const p = S(wx0 + (wx1 - wx0) * t, wy0 + (wy1 - wy0) * t);
+            emoji('⛴', p.x, p.y, 18 * clampZoom());
+        }
+    }
+
     function drawRoads() {
         const z = zoom();
         const pending = SC.input.getPendingDemolish && SC.input.getPendingDemolish();
@@ -536,29 +642,20 @@ SC.render = (function() {
             const armed = e === pending || e === pendingUp;
             const casing = Math.max(5, (e.level > 0 ? 9 : 7) * z);
             const surfaceW = Math.max(2.5, (e.level > 0 ? 6 : 4) * z);
+            const crossing = (e.bridge || e.ferry)
+                ? SC.map.riverCrossing(e.a.x, e.a.y, e.b.x, e.b.y) : null;
 
-            if (e.ferry) {
-                strokeEdge(e, surfaceW, 'rgba(45, 212, 191, 0.6)', [4 * z + 2, 10 * z]);
+            if (crossing) {
+                drawRoadSegment(e, casing, surfaceW, 0, crossing.t0, z);
+                drawRoadSegment(e, casing, surfaceW, crossing.t1, 1, z);
+                if (e.ferry) drawFerryCrossing(e, surfaceW, crossing, z, armed);
+                else drawBridgeCrossing(e, casing, surfaceW, crossing, z);
             } else {
-                // Dark casing under a lighter driving surface — reads as a
-                // raised road bed sitting on the ground.
-                strokeEdge(e, casing, 'rgba(8, 12, 20, 0.55)', e.bridge ? [16 * z, 9 * z] : null);
-                const surf = e.bridge ? 'rgba(150, 180, 214, 0.8)'
-                                      : e.level > 0 ? 'rgba(226, 232, 240, 0.85)'
-                                      : 'rgba(140, 152, 170, 0.75)';
-                strokeEdge(e, surfaceW, surf, e.bridge ? [16 * z, 9 * z] : null);
-                if (e.level > 0) strokeEdge(e, Math.max(1, 1.6 * z), 'rgba(250, 204, 21, 0.6)', [11 * z, 11 * z]);
+                drawRoadSegment(e, casing, surfaceW, 0, 1, z);
             }
 
             if (armed) {
                 strokeEdge(e, casing + 2, e === pending ? 'rgba(248, 113, 113, 0.9)' : 'rgba(250, 204, 21, 0.9)');
-            }
-
-            // Ferry boat shuttling across
-            if (e.ferry && !armed) {
-                const t = (Math.sin(seaTime * 0.6) + 1) / 2;
-                const p = S(e.a.x + (e.b.x - e.a.x) * t, e.a.y + (e.b.y - e.a.y) * t);
-                emoji('⛴', p.x, p.y, 18 * clampZoom());
             }
 
             // Congestion heat

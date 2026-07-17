@@ -195,6 +195,15 @@ SC.runProbe = function(seconds) {
         const other = SC.map.makeNode('yard', rv.x + (rv.x - hq.x), hq.y, { active: true });
         SC.roads.build(hq, other, { ferry: true });
     }
+    // Same trick as &ferry=1, but a plain bridge — for screenshotting the
+    // piered deck that now spans only the water, not the whole road.
+    if (p.has('bridge')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        const rv = SC.map.riverAt(hq.y);
+        const other = SC.map.makeNode('yard', rv.x + (rv.x - hq.x), hq.y, { active: true });
+        SC.roads.build(hq, other);
+    }
     // Force-jam the factory->HQ edge with several trucks parked mid-span,
     // so the congestion glow overlay can be screenshotted without waiting
     // on real dispatch timing (&jam=1; also flips congestion on regardless
