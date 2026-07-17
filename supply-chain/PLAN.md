@@ -35,6 +35,11 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.27.0: **Dev tools panel is now a lasting ☰-menu toggle**
+  ("🛠 Dev tools: on/off", persisted in localStorage like Sound), not
+  just a `?dev=1` URL flag to retype every visit — the flag still works
+  too, adopting itself as the persisted choice. Per item 8 below —
+  details there.
 - v1.24.0: **Dev tools panel** (`?dev=1`) grows from a single congestion
   pill into a small collapsible panel: FPS readout, Add money, Roll
   contract, Finish research, Spawn next customer. Per item 8 below —
@@ -225,6 +230,10 @@ actually shipped.)*
    readout + Add money / Roll contract / Finish research / Spawn next
    customer, alongside the congestion toggle) per the owner's request
    for "a dev menu with some settings for game tuning and other stuff."
+   v1.27.0 made it a lasting ☰-menu toggle (persisted in localStorage
+   like Sound) instead of only a `?dev=1` flag to retype each visit, per
+   the owner's follow-up: "I want the dev menu each time in the main
+   menu."
 9. ~~River ferries~~ — shipped v1.18.0, scoped down from the original
    "dock pair + fixed-cadence shuttle" proposal to an edge-level
    alternative: a road across the river builds as `edge.ferry` instead

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.26.0">
+    <link rel="stylesheet" href="style.css?v=1.27.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -17,8 +17,9 @@
         </div>
     </div>
 
-    <!-- Dev-only tools: hidden unless ?dev=1 is on the URL. Not part of
-         normal gameplay — quick tuning/testing aids for development. -->
+    <!-- Dev-only tools: hidden until turned on from the ☰ menu (or
+         ?dev=1 for a one-off load). Not part of normal gameplay — quick
+         tuning/testing aids for development. -->
     <div id="dev-panel" class="panel hidden">
         <div class="panel-header" id="dev-header">
             <h2>🛠 Dev tools</h2>
@@ -188,6 +189,7 @@
             <button class="menu-btn" id="menu-save">💾 Save now</button>
             <button class="menu-btn" id="menu-sound">🔊 Sound</button>
             <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
+            <button class="menu-btn" id="menu-dev">🛠 Dev tools</button>
             <button class="menu-btn" id="menu-help">❓ How to play</button>
             <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
             <a class="menu-btn" id="menu-exit" href="../index.html">🚪 Exit to home</a>
@@ -237,23 +239,23 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.26.0"></script>
-    <script src="js/state.js?v=1.26.0"></script>
-    <script src="js/save.js?v=1.26.0"></script>
-    <script src="js/sfx.js?v=1.26.0"></script>
-    <script src="js/rng.js?v=1.26.0"></script>
-    <script src="js/map.js?v=1.26.0"></script>
-    <script src="js/camera.js?v=1.26.0"></script>
-    <script src="js/roads.js?v=1.26.0"></script>
-    <script src="js/factories.js?v=1.26.0"></script>
-    <script src="js/economy.js?v=1.26.0"></script>
-    <script src="js/vehicles.js?v=1.26.0"></script>
-    <script src="js/inspect.js?v=1.26.0"></script>
-    <script src="js/research.js?v=1.26.0"></script>
-    <script src="js/placement.js?v=1.26.0"></script>
-    <script src="js/render.js?v=1.26.0"></script>
-    <script src="js/input.js?v=1.26.0"></script>
-    <script src="js/ui.js?v=1.26.0"></script>
-    <script src="js/main.js?v=1.26.0"></script>
+    <script src="js/config.js?v=1.27.0"></script>
+    <script src="js/state.js?v=1.27.0"></script>
+    <script src="js/save.js?v=1.27.0"></script>
+    <script src="js/sfx.js?v=1.27.0"></script>
+    <script src="js/rng.js?v=1.27.0"></script>
+    <script src="js/map.js?v=1.27.0"></script>
+    <script src="js/camera.js?v=1.27.0"></script>
+    <script src="js/roads.js?v=1.27.0"></script>
+    <script src="js/factories.js?v=1.27.0"></script>
+    <script src="js/economy.js?v=1.27.0"></script>
+    <script src="js/vehicles.js?v=1.27.0"></script>
+    <script src="js/inspect.js?v=1.27.0"></script>
+    <script src="js/research.js?v=1.27.0"></script>
+    <script src="js/placement.js?v=1.27.0"></script>
+    <script src="js/render.js?v=1.27.0"></script>
+    <script src="js/input.js?v=1.27.0"></script>
+    <script src="js/ui.js?v=1.27.0"></script>
+    <script src="js/main.js?v=1.27.0"></script>
 </body>
 </html>

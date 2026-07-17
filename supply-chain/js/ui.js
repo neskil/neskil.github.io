@@ -5,6 +5,10 @@ SC.ui = (function() {
     const $ = id => document.getElementById(id);
     let toastTimer = null;
     let fpsSmoothed = 60; // dev-panel FPS readout, see update(dt)
+    // Dev tools panel: persisted like Sound (SC.sfx's scTycoonMuted flag)
+    // so it's a lasting ☰-menu choice, not something to retype ?dev=1 for
+    // every visit. The query param still works too (e.g. a fresh browser).
+    let devMode = localStorage.getItem('scTycoonDevMode') === 'true';
 
     function fmt(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
@@ -32,10 +36,17 @@ SC.ui = (function() {
         updateDevPanel();
     }
 
-    // ── Dev-only tools (?dev=1): quick tuning/testing aids, not part of
-    // normal gameplay. Congestion is otherwise fixed by difficulty for the
-    // whole run — this lets the developer flip it live to compare; the
-    // rest are one-off actions for testing without grinding. ──
+    // ── Dev-only tools (☰ menu or ?dev=1): quick tuning/testing aids, not
+    // part of normal gameplay. Congestion is otherwise fixed by difficulty
+    // for the whole run — this lets the developer flip it live to compare;
+    // the rest are one-off actions for testing without grinding. ──
+    function setDevMode(on) {
+        devMode = on;
+        localStorage.setItem('scTycoonDevMode', String(devMode));
+        $('dev-panel').classList.toggle('hidden', !devMode);
+        if (devMode) updateDevPanel();
+    }
+
     function updateDevPanel() {
         $('dev-fps').textContent = Math.round(fpsSmoothed);
         const btn = $('dev-congestion');
@@ -445,6 +456,7 @@ SC.ui = (function() {
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
+        $('menu-dev').textContent = devMode ? '🛠 Dev tools: on' : '🛠 Dev tools: off';
     }
 
     function toggleFullscreen() {
@@ -572,6 +584,11 @@ SC.ui = (function() {
         $('menu-fullscreen').addEventListener('click', () => {
             SC.sfx.play('click');
             toggleFullscreen();
+        });
+        $('menu-dev').addEventListener('click', () => {
+            setDevMode(!devMode);
+            SC.sfx.play('click');
+            updateMenuInfo();
         });
         document.addEventListener('fullscreenchange', () => {
             if (menuOpen()) updateMenuInfo();
@@ -787,12 +804,11 @@ SC.ui = (function() {
         if (new URLSearchParams(location.search).has('menu')) openMenu();
         // ...and/or the research tree overlay
         if (new URLSearchParams(location.search).has('techtree')) openResearchTree();
-        // Dev-only tools panel (?dev=1): tuning/testing aids for
-        // development, not shown to normal players.
-        if (params.has('dev')) {
-            $('dev-panel').classList.remove('hidden');
-            updateDevPanel();
-        }
+        // Dev-only tools panel: a lasting ☰-menu toggle (see setDevMode),
+        // or ?dev=1 to force it on for this load too (and adopt it as the
+        // persisted choice, so it keeps showing via the menu from now on).
+        if (params.has('dev') || devMode) setDevMode(true);
+        updateMenuInfo();
     }
 
     return { init, update, toast };
