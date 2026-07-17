@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.29.0';
+SC.VERSION = '1.30.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
@@ -150,25 +150,35 @@ SC.CONFIG = {
 // sets SC.state.congestionEnabled for the whole run — it's purely a
 // difficulty trait, not a player-facing toggle (the ☰-menu Dev tools
 // panel can still override it live, for A/B comparison during dev).
+//
+// `riverGraceMin` is a difficulty-scaled ease-in: for that many minutes
+// from the start, milestone/customer unlocks (SC.map.unlockNext) stay on
+// HQ's side of the river, so early growth never forces an expensive
+// bridge/ferry before you've found your feet. 0 = far-side sites can
+// appear immediately (the punishing end).
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
-        desc: 'Relaxed deadlines, gentle interest, no congestion.'
+        riverGraceMin: 5,
+        desc: 'Relaxed deadlines, gentle interest, no congestion. Sites stay your side of the river for 5 min.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
+        riverGraceMin: 3,
         desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
-        desc: 'Brutal deadlines, punishing interest, road congestion.'
+        riverGraceMin: 0,
+        desc: 'Brutal deadlines, punishing interest, congestion — and sites can land across the river from turn one.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
+        riverGraceMin: 5,
         desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
     }
 };
