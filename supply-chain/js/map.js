@@ -242,7 +242,7 @@ SC.map = (function() {
             ['factory', { forSale: true, recipe: 'robot' }]
         ];
         for (const [kind, opts] of pool) {
-            const spot = randomLandSpotNear(md, C().NODE_MAX_SPREAD);
+            const spot = randomLandSpotNear(md, SC.nodeMaxSpread());
             if (spot) makeNode(kind, spot.x, spot.y, opts);
         }
         return SC.state.nodes;
