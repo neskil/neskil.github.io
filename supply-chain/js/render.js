@@ -1427,12 +1427,23 @@ SC.render = (function() {
 
         // Plot pad: a subtle paved apron the building sits on, so sites
         // read as intentional lots rather than blocks dropped on grass.
+        // Feathered (radial fade to transparent) rather than a flat fill,
+        // so its own edge doesn't add a second hard boundary on top of
+        // whatever depth-sort seam a nearby truck might already be riding.
         const pad = footRadii(sp.fw + 9);
+        ctx.save();
         diamondPath(g.x, g.y, pad.rx, pad.ry);
-        ctx.fillStyle = 'rgba(10, 16, 26, 0.35)';
-        ctx.fill();
-        ctx.strokeStyle = rgba(sp.base, 0.28);
+        ctx.clip();
+        const padFade = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, Math.max(pad.rx, pad.ry));
+        padFade.addColorStop(0, 'rgba(10, 16, 26, 0.32)');
+        padFade.addColorStop(0.75, 'rgba(10, 16, 26, 0.18)');
+        padFade.addColorStop(1, 'rgba(10, 16, 26, 0)');
+        ctx.fillStyle = padFade;
+        ctx.fillRect(g.x - pad.rx, g.y - pad.ry, pad.rx * 2, pad.ry * 2);
+        ctx.restore();
+        ctx.strokeStyle = rgba(sp.base, 0.2);
         ctx.lineWidth = 1;
+        diamondPath(g.x, g.y, pad.rx, pad.ry);
         ctx.stroke();
 
         // Warm light-spill: lit buildings cast a soft pool of window-glow on
@@ -2028,10 +2039,18 @@ SC.render = (function() {
         drawGhostRoad();
         drawPlacementGhost();
 
-        // Depth-sorted buildings + trucks (back-to-front by world x+y).
+        // Depth-sorted buildings + trucks (back-to-front by world x+y). A
+        // single-point painter's sort has no notion of footprint size, so a
+        // truck on its final approach to a node (still slightly "behind" in
+        // depth even once it visually overlaps the building's wide pad/
+        // silhouette) can get hard-clipped by the node drawn on top of it —
+        // most visible arriving at a factory or sitting at a lake supplier.
+        // TRUCK_DEPTH_BIAS nudges trucks forward so they win that near-tie
+        // and read as driving up TO the site rather than sinking under it.
+        const TRUCK_DEPTH_BIAS = 30;
         const ents = [];
         for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
-        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y });
+        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
         ents.sort((a, b) => a.depth - b.depth);
 
         // shadows first so no building casts onto another's face
