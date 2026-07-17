@@ -49,7 +49,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (343 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (345 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
@@ -94,7 +94,12 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   dispatch timing) so the red congestion glow can be screenshotted
   deterministically. `&ferry=1` builds a ferry crossing from HQ to a
   node mirrored across the river (guaranteed to cross it regardless of
-  map seed) for screenshotting the teal dashed line/shuttling boat.
+  map seed) for screenshotting the teal dashed line/shuttling boat,
+  confined to just the water stretch (`SC.map.riverCrossing`) — the
+  road on both banks renders as ordinary road right up to the water's
+  edge. `&bridge=1` is the same trick without the ferry option, for
+  screenshotting the piered, lifted-deck bridge that now spans only the
+  water instead of a dashed line down the whole road.
   `&contract=1` force-rolls a contract offer (skips the random
   `CONTRACT_INTERVAL` wait) for screenshotting the Accept/Decline card;
   `&contract=accept` also auto-accepts it into a real (gold-outlined,
