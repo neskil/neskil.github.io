@@ -15,20 +15,21 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.38.0"></script>
-    <script src="js/state.js?v=1.38.0"></script>
-    <script src="js/save.js?v=1.38.0"></script>
-    <script src="js/sfx.js?v=1.38.0"></script>
-    <script src="js/rng.js?v=1.38.0"></script>
-    <script src="js/map.js?v=1.38.0"></script>
-    <script src="js/camera.js?v=1.38.0"></script>
-    <script src="js/roads.js?v=1.38.0"></script>
-    <script src="js/factories.js?v=1.38.0"></script>
-    <script src="js/economy.js?v=1.38.0"></script>
-    <script src="js/vehicles.js?v=1.38.0"></script>
-    <script src="js/inspect.js?v=1.38.0"></script>
-    <script src="js/research.js?v=1.38.0"></script>
-    <script src="js/placement.js?v=1.38.0"></script>
+    <script src="js/config.js?v=1.39.0"></script>
+    <script src="js/state.js?v=1.39.0"></script>
+    <script src="js/save.js?v=1.39.0"></script>
+    <script src="js/sfx.js?v=1.39.0"></script>
+    <script src="js/rng.js?v=1.39.0"></script>
+    <script src="js/map.js?v=1.39.0"></script>
+    <script src="js/camera.js?v=1.39.0"></script>
+    <script src="js/roads.js?v=1.39.0"></script>
+    <script src="js/factories.js?v=1.39.0"></script>
+    <script src="js/economy.js?v=1.39.0"></script>
+    <script src="js/vehicles.js?v=1.39.0"></script>
+    <script src="js/stats.js?v=1.39.0"></script>
+    <script src="js/inspect.js?v=1.39.0"></script>
+    <script src="js/research.js?v=1.39.0"></script>
+    <script src="js/placement.js?v=1.39.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1702,6 +1703,210 @@
         SC.save.restore(data2);
         assert('an accepted contract order keeps its contract flag across a round-trip',
             SC.state.orders.some(o => o.contract === true));
+    })();
+
+    // ── Stats: road-use tracking + busiest road ─────────────────
+    (function() {
+        const { S1, S2, F } = fixture();
+        SC.state.money = 100000;
+        const e1 = SC.roads.build(S1, F).edge;
+        const e2 = SC.roads.build(S2, F).edge;
+        assert('a fresh edge has no trips', !e1.trips);
+        SC.stats.recordRoadUse(e1);
+        SC.stats.recordRoadUse(e1);
+        SC.stats.recordRoadUse(e2);
+        assert('recordRoadUse increments trips on the given edge', e1.trips === 2 && e2.trips === 1);
+        assert('busiestRoad returns the edge with the most trips', SC.stats.busiestRoad() === e1);
+        SC.stats.recordRoadUse(null); // must not throw
+        assert('recordRoadUse on a null edge is a safe no-op', e1.trips === 2 && e2.trips === 1);
+    })();
+
+    // ── Stats: a truck actually driving a road records the trip ──
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        const edge = SC.roads.build(S1, F).edge;
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.vehicles.addTruck(S1, S1);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        for (let i = 0; i < 200 && !edge.trips; i++) SC.vehicles.tick(0.2);
+        assert('a truck driving an edge records exactly one trip on it', edge.trips === 1);
+    })();
+
+    // ── Stats: money-history sampling (SC.stats.tick) ────────────
+    (function() {
+        fixture();
+        SC.state.money = 5000;
+        assert('moneyHistory starts empty', SC.state.moneyHistory.length === 0);
+        SC.stats.tick(SC.CONFIG.STATS_SAMPLE_INTERVAL - 1);
+        assert('no sample yet before the interval elapses', SC.state.moneyHistory.length === 0);
+        SC.stats.tick(2);
+        assert('a sample is recorded once the interval elapses',
+            SC.state.moneyHistory.length === 1 && SC.state.moneyHistory[0] === 5000);
+    })();
+    (function() {
+        fixture();
+        for (let i = 0; i < SC.CONFIG.STATS_HISTORY_MAX + 5; i++) {
+            SC.state.money = i;
+            SC.stats.tick(SC.CONFIG.STATS_SAMPLE_INTERVAL);
+        }
+        assert('moneyHistory is capped at STATS_HISTORY_MAX',
+            SC.state.moneyHistory.length === SC.CONFIG.STATS_HISTORY_MAX);
+    })();
+
+    // ── Stats: deliveries tracked per product ────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        for (let i = 0; i < order.qty; i++) SC.economy.deliverProduct(order, order.product);
+        assert("deliveredByProduct tracks the completed order's product",
+            SC.state.deliveredByProduct[order.product] === 1);
+    })();
+
+    // ── Achievements: unlock() de-dupes ──────────────────────────
+    (function() {
+        fixture();
+        let fireCount = 0;
+        SC.on('achievementUnlocked', () => fireCount++);
+        SC.stats.unlock('firstBridge');
+        SC.stats.unlock('firstBridge');
+        assert('unlocking the same achievement twice only emits once', fireCount === 1);
+    })();
+
+    // ── Achievements: firstBridge / firstFerry from roadBuilt ────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const A = SC.map.makeNode('city', 900, 500, { active: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        assert('no bridge achievement before crossing the river', !SC.state.achievements.firstBridge);
+        SC.roads.build(A, B);
+        assert('building a bridge unlocks firstBridge', SC.state.achievements.firstBridge === true);
+        assert('a bridge does not also unlock firstFerry', !SC.state.achievements.firstFerry);
+    })();
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const A = SC.map.makeNode('city', 900, 500, { active: true });
+        const B = SC.map.makeNode('city', 1300, 500, { active: true });
+        SC.roads.build(A, B, { ferry: true });
+        assert('building a ferry unlocks firstFerry', SC.state.achievements.firstFerry === true);
+        assert('a ferry does not also unlock firstBridge', !SC.state.achievements.firstBridge);
+    })();
+
+    // ── Achievements: firstHighway from roadUpgraded ─────────────
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        SC.state.research.completed.pavedRoads = true;
+        const edge = SC.roads.build(S1, F).edge;
+        assert('no highway achievement before paving', !SC.state.achievements.firstHighway);
+        SC.roads.upgrade(edge);
+        assert('paving a road unlocks firstHighway', SC.state.achievements.firstHighway === true);
+    })();
+
+    // ── Achievements: firstJunction from sitePlaced ───────────────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.placement.place('junction', null, 900, 900);
+        assert('placing a junction unlocks firstJunction', SC.state.achievements.firstJunction === true);
+    })();
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.state.research.completed.manualPlacement = true;
+        SC.placement.place('supplier', 'wheat', 900, 900);
+        assert('placing a non-junction site does not unlock firstJunction', !SC.state.achievements.firstJunction);
+    })();
+
+    // ── Achievements: tenTruckFleet from truckBought ─────────────
+    (function() {
+        fixture();
+        SC.state.money = 1000000;
+        for (let i = 0; i < 9; i++) SC.vehicles.buyTruck();
+        assert('9 trucks is not yet a fleet', !SC.state.achievements.tenTruckFleet);
+        SC.vehicles.buyTruck();
+        assert('the 10th truck unlocks tenTruckFleet', SC.state.achievements.tenTruckFleet === true);
+    })();
+
+    // ── Achievements: debtRecovered ──────────────────────────────
+    (function() {
+        fixture();
+        SC.state.money = -(SC.creditLimit() + 200);
+        SC.economy.tick(0.1);
+        SC.state.money = -100;
+        SC.economy.tick(0.1);
+        assert('recovering from debt unlocks debtRecovered', SC.state.achievements.debtRecovered === true);
+    })();
+
+    // ── Achievements: firstContract from a fulfilled contract ───
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.economy.rollContractOffer();
+        const { order } = SC.economy.acceptContract();
+        for (let i = 0; i < order.qty; i++) SC.economy.deliverProduct(order, order.product);
+        assert('fulfilling a contract unlocks firstContract', SC.state.achievements.firstContract === true);
+    })();
+
+    // ── Achievements: hundredDeliveries ───────────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        SC.state.delivered = 99;
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        for (let i = 0; i < order.qty; i++) SC.economy.deliverProduct(order, order.product);
+        assert('the 100th delivery unlocks hundredDeliveries', SC.state.achievements.hundredDeliveries === true);
+    })();
+
+    // ── Achievements: allResearch ──────────────────────────────────
+    (function() {
+        fixture();
+        SC.state.money = 1000000;
+        for (const id of SC.RESEARCH_ORDER) SC.state.research.completed[id] = true;
+        delete SC.state.research.completed[SC.RESEARCH_ORDER[0]];
+        assert('not all research complete yet', !SC.state.achievements.allResearch);
+        SC.state.research.active = { id: SC.RESEARCH_ORDER[0], t: 0 };
+        SC.research.tick(SC.RESEARCH[SC.RESEARCH_ORDER[0]].time + 0.01);
+        assert('completing the last technology unlocks allResearch', SC.state.achievements.allResearch === true);
+    })();
+
+    // ── Stats: save round-trip for achievements/history/road trips ─
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.money = 100000;
+        const edge = SC.roads.build(S1, F).edge;
+        SC.stats.recordRoadUse(edge);
+        SC.stats.recordRoadUse(edge);
+        SC.state.achievements.firstBridge = true;
+        SC.state.deliveredByProduct.bread = 3;
+        SC.state.moneyHistory = [100, 200, 300];
+        SC.state.nextStatSampleIn = 4.2;
+
+        SC.save.restore(SC.save.serialize());
+        const st = SC.state;
+        assert('achievements survive a save round-trip', st.achievements.firstBridge === true);
+        assert('deliveredByProduct survives a save round-trip', st.deliveredByProduct.bread === 3);
+        assert('moneyHistory survives a save round-trip',
+            st.moneyHistory.length === 3 && st.moneyHistory[1] === 200);
+        assert('nextStatSampleIn survives a save round-trip', approx(st.nextStatSampleIn, 4.2));
+        const restoredEdge = st.edges.find(e => e.a.mat === 'wheat');
+        assert('edge trip count survives a save round-trip', restoredEdge && restoredEdge.trips === 2);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
