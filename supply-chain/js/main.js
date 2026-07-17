@@ -107,6 +107,21 @@ SC.runProbe = function(seconds) {
         SC.factories.tick(0.05);
         SC.vehicles.tick(0.05);
     }
+    // Pin the first planned order's route glow (&routeglow=1) so the
+    // per-leg step colors (each leg tinted by its cargo) can be
+    // screenshotted — same overlay as tapping the order row, but with a
+    // far-off expiry so it survives the screenshot delay.
+    if (p.has('routeglow')) {
+        const o = SC.state.orders.find(o => o.route);
+        if (o) {
+            const paths = [];
+            SC.inspect.collectRoutePaths(o.route, o.city, paths, o.product);
+            SC.state.highlight = {
+                paths, color: SC.GOODS[o.product].color,
+                city: o.city, until: SC.state.time + 600
+            };
+        }
+    }
     // Force a debt balance so the red HUD/credit UI can be screenshotted
     if (p.has('debt')) SC.state.money = -Math.abs(parseFloat(p.get('debt')) || 800);
     // Default-countdown / game-over screenshots: &doom=N puts the balance

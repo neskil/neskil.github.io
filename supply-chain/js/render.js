@@ -13,6 +13,7 @@ SC.render = (function() {
     let canvas = null, ctx = null, dpr = 1;
     let seaTime = 0;
     let floaters = []; // rising "+$x"/"−$x" texts, world-anchored
+    let frameHoverNode = null; // node under the pointer, refreshed once per frame
 
     const ISO = SC.camera.ISO;
 
@@ -109,13 +110,33 @@ SC.render = (function() {
     }
 
     // --- backdrop: sky + mountains -----------------------------------------
+    let stars = null;
     function drawSky() {
-        const g = ctx.createLinearGradient(0, 0, 0, canvas.height / dpr);
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const g = ctx.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0, '#141d30');
         g.addColorStop(0.55, '#0f1626');
         g.addColorStop(1, '#0a0f1a');
         ctx.fillStyle = g;
-        ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.fillRect(0, 0, w, h);
+
+        // Star field: screen-space (a fixed skybox behind the panning world),
+        // seeded so it's stable, denser toward the top, gentle twinkle.
+        if (!stars) {
+            const rng = makeRng(0xa11);
+            stars = [];
+            for (let i = 0; i < 90; i++) {
+                stars.push({ u: rng(), v: rng() * rng() * 0.6, r: 0.5 + rng() * 1.1, ph: rng() * Math.PI * 2 });
+            }
+        }
+        ctx.fillStyle = '#dbe6f4';
+        for (const s of stars) {
+            ctx.globalAlpha = 0.25 + 0.45 * (0.5 + 0.5 * Math.sin(seaTime * 0.8 + s.ph));
+            ctx.beginPath();
+            ctx.arc(s.u * w, s.v * h, s.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     }
 
     let mountains = null;
@@ -349,6 +370,28 @@ SC.render = (function() {
         ctx.stroke();
 
         drawRiver();
+
+        // Distance fog: the far edge of the land dissolves into the sky.
+        // Iso depth (world x+y) maps linearly to screen y, so a vertical
+        // gradient between two constant-depth lines is a true depth fade —
+        // from the far corner (depth 0) to ~35% of max depth.
+        const farY = S(0, 0).y;
+        const midD = 0.175 * (C.WORLD_W + C.WORLD_H); // x=y point at 35% depth
+        const nearY = S(midD, midD).y;
+        if (nearY > farY) {
+            ctx.save();
+            ctx.beginPath();
+            corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+            ctx.closePath();
+            ctx.clip();
+            const fog = ctx.createLinearGradient(0, farY, 0, nearY);
+            fog.addColorStop(0, 'rgba(20, 29, 48, 0.85)');
+            fog.addColorStop(0.5, 'rgba(20, 29, 48, 0.35)');
+            fog.addColorStop(1, 'rgba(20, 29, 48, 0)');
+            ctx.fillStyle = fog;
+            ctx.fillRect(0, farY, canvas.width / dpr, nearY - farY);
+            ctx.restore();
+        }
     }
 
     function drawRiver() {
@@ -622,9 +665,22 @@ SC.render = (function() {
         const iconSize = 16 * clampZoom();
         const forSale = n.kind === 'factory' && n.forSale;
 
+        // Plot pad: a subtle paved apron the building sits on, so sites
+        // read as intentional lots rather than blocks dropped on grass.
+        const pad = footRadii(sp.fw + 9);
+        diamondPath(g.x, g.y, pad.rx, pad.ry);
+        ctx.fillStyle = 'rgba(10, 16, 26, 0.35)';
+        ctx.fill();
+        ctx.strokeStyle = rgba(sp.base, 0.28);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
         // selection / focus pads on the ground (drawn under the building)
         if (n === SC.state.selectedNode) {
             groundRing(g.x, g.y, sp.fw + 6, 'rgba(56, 189, 248, 0.9)', 2.5);
+        } else if (n === frameHoverNode) {
+            // PC affordance: the building a click would hit right now
+            groundRing(g.x, g.y, sp.fw + 6, 'rgba(226, 232, 240, 0.5)', 1.5);
         }
         if (n.unlockAt && now - n.unlockAt < 3) {
             const t = (now - n.unlockAt) / 3;
@@ -664,13 +720,19 @@ SC.render = (function() {
             }
         }
 
-        // Crafting progress ring floating over a working factory's roof
+        // Crafting progress: a slim ring hugging the roof icon (with a faint
+        // full-circle track), small enough not to clip the smokestack.
         if (n.kind === 'factory' && !forSale && n.crafting) {
             const frac = Math.min(1, n.crafting.t / SC.craftTime());
+            const rr = iconSize * 0.85;
             ctx.beginPath();
-            ctx.arc(tc.x, tc.y, info.rx * 0.9, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+            ctx.arc(tc.x, tc.y, rr, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(tc.x, tc.y, rr, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
             ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
-            ctx.lineWidth = 3;
             ctx.lineCap = 'round';
             ctx.stroke();
             ctx.lineCap = 'butt';
@@ -685,12 +747,15 @@ SC.render = (function() {
         if (n.kind === 'supplier') {
             const cap = SC.supplierCap(n);
             const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
-            const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 8;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+            const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 9;
+            // dark backing plate so the bar doesn't float as a bare dash
+            ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+            roundRectPath(bx - 3, by - 3, bw + 6, 10, 5); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
             roundRectPath(bx, by, bw, 4, 2); ctx.fill();
             ctx.fillStyle = frac < 0.25 ? '#f87171' : sp.base;
             roundRectPath(bx, by, bw * frac, 4, 2); ctx.fill();
-            if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 9, '#facc15', 10);
+            if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
         } else if (n.kind === 'factory' && forSale) {
             labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
         } else if (n.kind === 'factory' && n.queue.length > 0) {
@@ -780,6 +845,24 @@ SC.render = (function() {
         ctx.fill();
         ctx.restore();
 
+        // headlights while driving: two warm dots + a faint beam cone on the
+        // ground ahead — sells the night-time palette and motion at a glance
+        if (t.path) {
+            ctx.save();
+            ctx.translate(g.x, g.y - 2 * z); ctx.rotate(ang); ctx.scale(1, 0.6);
+            const nose = cabCx + cabW / 2;
+            ctx.fillStyle = 'rgba(255, 224, 150, 0.28)';
+            ctx.beginPath();
+            ctx.moveTo(nose, -W * 0.3); ctx.lineTo(nose + 16 * z, -W * 0.75);
+            ctx.lineTo(nose + 16 * z, W * 0.75); ctx.lineTo(nose, W * 0.3);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = 'rgba(255, 236, 180, 0.95)';
+            for (const wy of [-W * 0.3, W * 0.3]) {
+                ctx.beginPath(); ctx.arc(nose, wy, 1.3 * z, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        }
+
         if (item) {
             emojiPlateAt(SC.emojiOf(item), g.x, g.y - Ht - 8 * z, 9 * z, 13 * z);
             if (t.cargo.length > 1) labelAt('×' + t.cargo.length, g.x + 13 * z, g.y - Ht - 15 * z, '#f8fafc', 9);
@@ -849,19 +932,25 @@ SC.render = (function() {
     }
 
     // --- glow overlays on roads (order / inspect highlight) -----------------
+    // Each path may carry a `.good` property (see inspect.collectRoutePaths):
+    // that leg is tinted by the cargo hauled on it — e.g. a bread order
+    // glows gold on the wheat leg, blue on the water leg and orange on the
+    // final bread leg — so a route reads as its chain steps. `color` is the
+    // fallback for legs without a good.
     function drawGlowPaths(paths, color, alpha) {
         ctx.lineCap = 'round';
         for (const path of paths) {
+            const legColor = path.good ? SC.colorOf(path.good) : color;
             ctx.beginPath();
             path.forEach((n, i) => {
                 const p = S(n.x, n.y);
                 i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
             });
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = legColor;
             ctx.globalAlpha = alpha;
             ctx.lineWidth = Math.max(5, 8 * zoom());
             ctx.shadowBlur = 12;
-            ctx.shadowColor = color;
+            ctx.shadowColor = legColor;
             ctx.stroke();
         }
         ctx.globalAlpha = 1;
@@ -904,10 +993,11 @@ SC.render = (function() {
         const sel = SC.state.selectedNode;
         const hover = SC.input.getHover && SC.input.getHover();
         if (!sel || !hover) return;
-        let target = null;
-        for (const n of SC.state.nodes) {
-            if (n.active && n !== sel && Math.hypot(n.x - hover.x, n.y - hover.y) < 40) target = n;
-        }
+        // Snap to whatever node a tap right now would actually hit (same
+        // capsule hit-test as input.handleTap), so the preview never
+        // disagrees with the click.
+        let target = SC.input.getHoverNode && SC.input.getHoverNode();
+        if (target === sel) target = null;
         const end = target ? { x: target.x, y: target.y } : hover;
         // Shows the bridge cost when crossing the river — the actual
         // bridge-vs-ferry choice happens in a modal once the road is tapped.
@@ -1050,6 +1140,9 @@ SC.render = (function() {
     function frame(dt, now) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
+        frameHoverNode = (SC.state.mode === 'build' && !SC.state.placeMode &&
+                          SC.input.getHoverNode) ? SC.input.getHoverNode() : null;
 
         drawSky();
         drawMountains();
