@@ -101,7 +101,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   📜) order in the Orders panel. `&routeglow=1` pins the first planned
   order's route-glow overlay (per-leg step colors: each leg tinted by
   the cargo hauled on it) with a far-off expiry so it survives the
-  screenshot delay. `&crossing=1` fires the Bridge-vs-Ferry
+  screenshot delay. `&sitegallery=1` drops one active supplier of every
+  raw material in a grid next to HQ (bypassing placement rules), so all
+  themed site models (farm/lake/mine/pasture/grove/fab) can be
+  screenshotted in one shot. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
   `&ferry=1`) for screenshotting the choice UI without tapping a real
   river-crossing road. `?dev=1` (a standing dev flag, not a one-shot

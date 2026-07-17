@@ -107,6 +107,19 @@ SC.runProbe = function(seconds) {
         SC.factories.tick(0.05);
         SC.vehicles.tick(0.05);
     }
+    // Visual gallery (&sitegallery=1): drop one active supplier of every
+    // raw material in a grid next to HQ, so all themed site models
+    // (farm/lake/mine/pasture/grove/fab) can be screenshotted in one shot.
+    // Bypasses placement rules on purpose — screenshot aid only.
+    if (p.has('sitegallery')) {
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        const mats = Object.keys(SC.GOODS).filter(g => SC.GOODS[g].raw);
+        mats.forEach((mat, i) => {
+            const col = i % 4, row = (i / 4) | 0;
+            SC.map.makeNode('supplier', hq.x - 260 + col * 175, hq.y + 140 + row * 170,
+                            { active: true, mat });
+        });
+    }
     // Pin the first planned order's route glow (&routeglow=1) so the
     // per-leg step colors (each leg tinted by its cargo) can be
     // screenshotted — same overlay as tapping the order row, but with a
