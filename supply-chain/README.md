@@ -75,10 +75,20 @@ that ambient animation as its background — it now lives independently at
   touches cities — see Orders above for how customer DCs unlock.
 - **Difficulty** (picked on the new-game screen, fixed per run, saved):
   `SC.DIFFICULTIES` presets set starting money, debt interest rate,
-  order-deadline multiplier, and the default grace period. Normal is
-  the balance baseline (15%/min interest, 20% tighter deadlines);
-  Easy keeps the original pace; Hard tightens both further; Sandbox
-  starts rich with no interest and no fail state (`noFail`).
+  order-deadline multiplier, the default grace period, and the
+  `riverGraceMin` ease-in. Normal is the balance baseline (15%/min
+  interest, 20% tighter deadlines); Easy keeps the original pace; Hard
+  tightens both further; Sandbox starts rich with no interest and no
+  fail state (`noFail`).
+- **River-grace ease-in** (`riverGraceMin`, per difficulty): for the
+  first N minutes of a run, milestone/customer unlocks (`map.unlockNext`)
+  stay on HQ's bank, so early growth never forces an expensive
+  bridge/ferry before you're established. Derived from HQ's position
+  (`map.startSide`/`sideOf`), so it needs nothing persisted. A far-bank
+  city held during grace is retried the moment the window closes rather
+  than mistaken for a drained pool (`map.anyHeldByRiverGrace` +
+  `riverGraceRemaining`, used by `economy.tick`). Easy/Sandbox 5 min,
+  Normal 3 min, Hard 0 (far-bank sites from turn one).
 - **Default fail state**: purchases are blocked past −creditLimit, so
   only compounding interest can drag the balance below it — that's an
   unrecoverable-by-buying spiral, so it starts a grace-period countdown

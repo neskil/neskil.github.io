@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.29.0"></script>
-    <script src="js/state.js?v=1.29.0"></script>
-    <script src="js/save.js?v=1.29.0"></script>
-    <script src="js/sfx.js?v=1.29.0"></script>
-    <script src="js/rng.js?v=1.29.0"></script>
-    <script src="js/map.js?v=1.29.0"></script>
-    <script src="js/camera.js?v=1.29.0"></script>
-    <script src="js/roads.js?v=1.29.0"></script>
-    <script src="js/factories.js?v=1.29.0"></script>
-    <script src="js/economy.js?v=1.29.0"></script>
-    <script src="js/vehicles.js?v=1.29.0"></script>
-    <script src="js/inspect.js?v=1.29.0"></script>
-    <script src="js/research.js?v=1.29.0"></script>
-    <script src="js/placement.js?v=1.29.0"></script>
+    <script src="js/config.js?v=1.30.0"></script>
+    <script src="js/state.js?v=1.30.0"></script>
+    <script src="js/save.js?v=1.30.0"></script>
+    <script src="js/sfx.js?v=1.30.0"></script>
+    <script src="js/rng.js?v=1.30.0"></script>
+    <script src="js/map.js?v=1.30.0"></script>
+    <script src="js/camera.js?v=1.30.0"></script>
+    <script src="js/roads.js?v=1.30.0"></script>
+    <script src="js/factories.js?v=1.30.0"></script>
+    <script src="js/economy.js?v=1.30.0"></script>
+    <script src="js/vehicles.js?v=1.30.0"></script>
+    <script src="js/inspect.js?v=1.30.0"></script>
+    <script src="js/research.js?v=1.30.0"></script>
+    <script src="js/placement.js?v=1.30.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -494,6 +494,7 @@
         SC.newState();
         SC.map._resetSeq();
         SC.map.generateWorld();
+        SC.state.time = 1e6; // past any river-grace window: test the raw pool mechanic
 
         for (let i = 0; i < 20; i++) {
             const n = SC.map.unlockNext(x => x.kind !== 'city');
@@ -514,6 +515,7 @@
         SC.newState();
         SC.map._resetSeq();
         SC.map.generateWorld();
+        SC.state.time = 1e6; // past any river-grace window: test the raw spawn timer
         SC.state.nextCustomerIn = 5;
 
         for (let i = 0; i < 40 && SC.state.nodes.filter(n => n.kind === 'city' && n.active).length < 2; i++) {
@@ -1638,6 +1640,56 @@
         SC.save.restore(data2);
         assert('an accepted contract order keeps its contract flag across a round-trip',
             SC.state.orders.some(o => o.contract === true));
+    })();
+
+    // ── River grace: early unlocks stay on HQ's bank, far bank held then released ──
+    (function() {
+        fixture(); // straight river at x=1100; HQ (C) on the left bank at x=700
+        // Inactive pool sites: one on the near (left) bank, two on the far (right) bank.
+        const nearSup = SC.map.makeNode('supplier', 200,  500, { mat: 'ore' });
+        const farSup  = SC.map.makeNode('supplier', 1800, 500, { mat: 'coal' });
+        const farCity = SC.map.makeNode('city',     1800, 800, {});
+
+        assert('HQ start bank detected (left = -1)', SC.map.startSide() === -1);
+        assert('far-bank point classified as +1', SC.map.sideOf(1800, 500) === 1);
+
+        SC.state.time = 0; // inside Normal's 3-min grace window
+        assert('river grace is active at t=0', SC.map.riverGraceRemaining() > 0);
+
+        // A milestone-style unlock skips the far supplier for the near one.
+        const u1 = SC.map.unlockNext(n => n.kind !== 'city');
+        assert('grace unlocks the near-bank site first', u1 === nearSup && nearSup.active);
+        assert('grace holds back the far-bank supplier', !farSup.active);
+        assert('far-bank supplier reported as grace-held',
+            SC.map.anyHeldByRiverGrace(n => n.kind !== 'city'));
+
+        // A customer-DC unlock is held too when only the far-bank city remains.
+        assert('no city unlocks while the far-bank city is grace-held',
+            SC.map.unlockNext(n => n.kind === 'city') === null && !farCity.active);
+        assert('far-bank city reported as grace-held',
+            SC.map.anyHeldByRiverGrace(n => n.kind === 'city'));
+
+        // Once the window closes, the far-bank sites unlock normally.
+        SC.state.time = SC.diff().riverGraceMin * 60 + 1;
+        assert('river grace has expired after the window', SC.map.riverGraceRemaining() === 0);
+        assert('no site is grace-held once the window closes',
+            !SC.map.anyHeldByRiverGrace(n => n.kind !== 'city'));
+        assert('far-bank supplier unlocks after grace', SC.map.unlockNext(n => n.kind !== 'city') === farSup && farSup.active);
+        assert('far-bank city unlocks after grace', SC.map.unlockNext(n => n.kind === 'city') === farCity && farCity.active);
+    })();
+
+    // ── River grace: a difficulty with no grace (Hard) never holds far-bank sites ──
+    (function() {
+        SC.newState('hard');
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [40, 40] };
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true }); // HQ on the left bank
+        const farSup = SC.map.makeNode('supplier', 1800, 500, { mat: 'coal' }); // far bank, inactive
+        SC.state.time = 0;
+        assert('Hard has no river-grace window', SC.map.riverGraceRemaining() === 0);
+        assert('Hard unlocks a far-bank site immediately',
+            SC.map.unlockNext(n => n.kind !== 'city') === farSup && farSup.active);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

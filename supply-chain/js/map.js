@@ -71,6 +71,30 @@ SC.map = (function() {
         return rv ? Math.abs(x - rv.x) < rv.halfW : false;
     }
 
+    // Which bank a point sits on: -1 = left/west of the river, +1 =
+    // right/east. Used for the river-grace ease-in (unlockNext keeps early
+    // sites on HQ's bank). Falls back to +1 if there's no river yet.
+    function sideOf(x, y) {
+        const rv = riverAt(y);
+        return rv ? (x < rv.x ? -1 : 1) : 1;
+    }
+
+    // The bank HQ started on (derived, so it survives save/restore without
+    // being persisted). Defaults to +1 before HQ exists.
+    function startSide() {
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        return hq ? sideOf(hq.x, hq.y) : 1;
+    }
+
+    // Seconds left in the difficulty's river-grace window (0 once elapsed
+    // or on a difficulty with no grace). During this window unlockNext
+    // holds back sites on the far bank; economy.js uses the remaining time
+    // to know when to retry a customer-DC spawn it had to skip.
+    function riverGraceRemaining() {
+        const mins = SC.diff().riverGraceMin || 0;
+        return Math.max(0, mins * 60 - SC.state.time);
+    }
+
     function segmentCrossesRiver(x1, y1, x2, y2) {
         const samples = 24;
         for (let i = 0; i <= samples; i++) {
@@ -183,14 +207,36 @@ SC.map = (function() {
     // skipped). No filter = next locked site of any kind. Used to keep
     // supplier/factory milestones and customer-DC spawns on separate,
     // independently-ordered tracks through the same pool.
+    //
+    // River-grace ease-in: while riverGraceRemaining() > 0, sites on the
+    // far bank are skipped so early growth stays on HQ's side. The pool
+    // order is still honoured — a held far-side node just waits for a later
+    // unlock once the grace window closes. Returns null if nothing is
+    // eligible right now (the caller can tell a true pool-exhaustion from a
+    // grace hold via anyHeldByRiverGrace/held-node checks).
     function unlockNext(filterFn) {
-        const next = SC.state.nodes.find(n => !n.active && (!filterFn || filterFn(n)));
+        const holdFar = riverGraceRemaining() > 0;
+        const hqSide = holdFar ? startSide() : 0;
+        const next = SC.state.nodes.find(n => !n.active && (!filterFn || filterFn(n)) &&
+            !(holdFar && sideOf(n.x, n.y) !== hqSide));
         if (!next) return null;
         next.active = true;
         return next;
     }
 
+    // Are there inactive nodes matching `filterFn` that unlockNext is only
+    // skipping because of the river-grace hold (i.e. they'd unlock now if
+    // grace were over)? Lets economy.js retry a skipped customer spawn when
+    // grace ends instead of mistaking it for a drained pool.
+    function anyHeldByRiverGrace(filterFn) {
+        if (riverGraceRemaining() <= 0) return false;
+        const hqSide = startSide();
+        return SC.state.nodes.some(n => !n.active && (!filterFn || filterFn(n)) &&
+            sideOf(n.x, n.y) !== hqSide);
+    }
+
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
-             segmentCrossesRiver, unlockNext,
+             segmentCrossesRiver, unlockNext, anyHeldByRiverGrace,
+             sideOf, startSide, riverGraceRemaining,
              _resetSeq: () => { nodeSeq = 0; } };
 })();
