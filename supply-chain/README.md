@@ -175,6 +175,18 @@ that ambient animation as its background — it now lives independently at
   reuses the same public logic functions a normal action would call
   (`rollContractOffer`, `research.tick`, etc.) rather than duplicating
   them.
+- **Stats & Achievements** (☰ menu): a read-only summary — deliveries
+  broken down by product, a money-over-time sparkline (`moneyHistory`,
+  sampled every `STATS_SAMPLE_INTERVAL` seconds, capped at
+  `STATS_HISTORY_MAX` samples), the busiest road by total truck trips
+  (`edge.trips`, incremented once per segment a truck enters — see
+  `stats.recordRoadUse`), and nine milestone badges (`SC.ACHIEVEMENTS`)
+  like first bridge/ferry/highway/junction, a 10-truck fleet, recovering
+  from debt, a fulfilled contract, 100 deliveries, and finishing every
+  tech. `stats.js` only listens for events other modules already emit
+  (`roadBuilt`, `orderComplete`, `truckBought`, …) — nothing calls it
+  directly, so achievements can't drift out of sync with the mechanics
+  they're tracking.
 - **Per-yard truck prices**: the truck price ladder tracks trucks homed
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
@@ -236,6 +248,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
+| `js/stats.js` | Stats & achievements bookkeeping: deliveries per product, a periodic money-history sample for the sparkline, per-edge trip counts (`recordRoadUse`/`busiestRoad`), and milestone unlocks — all purely observational, listens to events other modules already emit (`roadBuilt`, `orderComplete`, etc.) rather than being called directly |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight. Collected route paths carry a `.good` property per leg so the glow overlay tints each leg by its cargo (chain-step colors) |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |

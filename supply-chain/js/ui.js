@@ -251,6 +251,61 @@ SC.ui = (function() {
         $('research-overlay').classList.add('hidden');
     }
 
+    // ── Stats & Achievements: a read-only summary opened from the ☰
+    // menu — deliveries by product, a money-over-time sparkline, the
+    // busiest road by trip count, and milestone badges. ──
+    function updateStatsOverlay() {
+        const st = SC.state;
+
+        const entries = Object.keys(st.deliveredByProduct)
+            .filter(k => st.deliveredByProduct[k] > 0)
+            .sort((a, b) => st.deliveredByProduct[b] - st.deliveredByProduct[a]);
+        $('stats-deliveries').innerHTML = entries.length
+            ? entries.map(k => `<div class="stats-row"><span>${SC.emojiOf(k)} ${SC.nameOf(k)}</span><b>${st.deliveredByProduct[k]}</b></div>`).join('')
+            : '<div class="stats-empty">No deliveries yet</div>';
+
+        const hist = st.moneyHistory;
+        const svg = $('stats-sparkline');
+        if (hist.length < 2) {
+            svg.innerHTML = '<text x="100" y="28" text-anchor="middle" fill="rgba(148,163,184,0.7)" font-size="8">Still gathering data…</text>';
+        } else {
+            const min = Math.min(...hist, 0), max = Math.max(...hist, 1);
+            const range = max - min || 1;
+            const pts = hist.map((v, i) => {
+                const x = (i / (hist.length - 1)) * 198 + 1;
+                const y = 48 - ((v - min) / range) * 46;
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+            const lineColor = hist[hist.length - 1] >= hist[0] ? '#34d399' : '#f87171';
+            svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" />`;
+        }
+
+        const busiest = SC.stats.busiestRoad();
+        $('stats-busiest').innerHTML = busiest
+            ? `<div class="stats-row"><span>🚚 ${Math.round(busiest.len)}u road</span><b>${busiest.trips} trip${busiest.trips === 1 ? '' : 's'}</b></div>`
+            : '<div class="stats-empty">No traffic recorded yet</div>';
+
+        $('stats-ach-count').textContent =
+            `${SC.ACHIEVEMENT_ORDER.filter(id => st.achievements[id]).length}/${SC.ACHIEVEMENT_ORDER.length}`;
+        $('stats-achievements').innerHTML = SC.ACHIEVEMENT_ORDER.map(id => {
+            const a = SC.ACHIEVEMENTS[id];
+            const done = !!st.achievements[id];
+            return `<div class="stats-ach ${done ? 'unlocked' : 'locked'}" title="${a.desc}">
+                <span class="ach-emoji">${a.emoji}</span>${a.name}
+            </div>`;
+        }).join('');
+    }
+
+    function openStatsOverlay() {
+        $('stats-overlay').classList.remove('hidden');
+        updateStatsOverlay();
+    }
+
+    function closeStatsOverlay() {
+        $('stats-overlay').classList.add('hidden');
+        SC.state.paused = false; // in case it was opened via the menu
+    }
+
     // ── River-crossing choice: input.js emits this instead of building
     // immediately whenever a tapped road would cross the river, so the
     // bridge-vs-ferry pick happens in context rather than a pre-set toggle ──
@@ -617,6 +672,15 @@ SC.ui = (function() {
             $('difficulty-section').classList.add('hidden'); // mid-run: mode is locked in
             $('help-overlay').classList.remove('hidden');
         });
+        $('menu-stats').addEventListener('click', () => {
+            $('menu-overlay').classList.add('hidden'); // stay paused while reading
+            SC.sfx.play('click');
+            openStatsOverlay();
+        });
+        $('stats-close').addEventListener('click', () => { SC.sfx.play('click'); closeStatsOverlay(); });
+        $('stats-overlay').addEventListener('click', e => {
+            if (e.target === $('stats-overlay')) closeStatsOverlay(); // tap outside the card
+        });
         $('menu-newgame').addEventListener('click', () => {
             if (newGameArmed) {
                 // Reloading fires pagehide/beforeunload, whose autosave flush
@@ -756,6 +820,11 @@ SC.ui = (function() {
             SC.sfx.play('unlock');
             toast(`🔬 Research complete: ${SC.RESEARCH[id].name}!`, 'good');
         });
+        SC.on('achievementUnlocked', id => {
+            const a = SC.ACHIEVEMENTS[id];
+            SC.sfx.play('unlock');
+            toast(`${a.emoji} Achievement unlocked: ${a.name}!`, 'good');
+        });
         SC.on('debtWarning', d => {
             SC.sfx.play('error');
             toast(`🏦 Debt past your credit limit — recover within ${Math.round(d.grace)}s or the bank forecloses!`, 'error');
@@ -841,5 +910,5 @@ SC.ui = (function() {
         updateMenuInfo();
     }
 
-    return { init, update, toast };
+    return { init, update, toast, openStatsOverlay };
 })();
