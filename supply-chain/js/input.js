@@ -21,7 +21,11 @@ SC.input = (function() {
         let best = null, bestD = 30; // px hit radius
         for (const n of SC.state.nodes) {
             if (!n.active) continue;
-            const p = SC.camera.toScreen(n.x, n.y);
+            // Hit-test against the roof icon's screen position, not the
+            // flat ground point — the iso view raises buildings (up to
+            // 54px at zoom 1 for HQ) above their ground anchor, so tapping
+            // the visible icon would otherwise miss the node entirely.
+            const p = SC.render.nodeIconAnchor(n);
             const d = Math.hypot(p.x - sx, p.y - sy);
             if (d < bestD) { bestD = d; best = n; }
         }
