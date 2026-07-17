@@ -36,7 +36,10 @@ SC.render = (function() {
     }
 
     function resize() {
-        dpr = window.devicePixelRatio || 1;
+        // Cap at 2: 3x-dpr phones quadruple the fill cost for no visible
+        // gain on a moving map, and that fill cost is what makes panning
+        // stutter on mobile.
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
         canvas.width = window.innerWidth * dpr;
         canvas.height = window.innerHeight * dpr;
         canvas.style.width = window.innerWidth + 'px';
@@ -167,12 +170,16 @@ SC.render = (function() {
     function drawMountains() {
         const list = ensureMountains();
         const z = zoom();
+        // Culling window: the viewport normally, or the oversized offscreen
+        // layer bounds while pre-rendering the background (see renderBg).
+        const vb = viewBounds || { x0: -40, x1: canvas.width / dpr + 40,
+                                   y0: -40, y1: canvas.height / dpr + 40 };
         const minD = list[0].x + list[0].y, maxD = list[list.length - 1].x + list[list.length - 1].y;
         for (const m of list) {
             const s = S(m.x, m.y);
             const h = m.size * z, hw = m.size * 0.95 * z;
-            if (s.x + hw < -40 || s.x - hw > canvas.width / dpr + 40) continue; // cull off-screen
-            if (s.y - h > canvas.height / dpr + 40 || s.y < -40) continue;
+            if (s.x + hw < vb.x0 || s.x - hw > vb.x1) continue; // cull off-layer
+            if (s.y - h > vb.y1 || s.y < vb.y0) continue;
             // atmospheric haze: farther peaks fade bluer/lighter
             const t = Math.min(1, Math.max(0, ((m.x + m.y) - minD) / (maxD - minD + 1)));
             const rightC = mix('#6d84a6', '#3a4d70', t);
@@ -313,12 +320,11 @@ SC.render = (function() {
     }
 
     // --- ground & water -----------------------------------------------------
-    function drawWorld(dt) {
+    // Everything static in world space: land plateau, iso grid, terrain
+    // patches, trees/rocks and the coastline. Drawn only when the cached
+    // background layer re-renders (see renderBg), never per frame.
+    function drawLandStatic() {
         const C = SC.CONFIG;
-        seaTime += dt;
-
-        // Land: the whole world projected to a big diamond, with a soft
-        // gradient and a lit edge so it reads as a raised plateau.
         const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
         // drop the land a touch onto the backdrop with a soft dark rim
         ctx.save();
@@ -368,14 +374,87 @@ SC.render = (function() {
         ctx.strokeStyle = 'rgba(180, 200, 224, 0.16)';
         ctx.lineWidth = 2;
         ctx.stroke();
+    }
 
-        drawRiver();
+    // --- cached background layer ---------------------------------------------
+    // Mountains + land + grid + patches + trees are all static in world
+    // space but were re-path'd every frame — enough work to stutter panning
+    // on phones. They render once into an oversized offscreen canvas and
+    // each frame is just one drawImage: panning translates the blit, small
+    // zoom deltas scale it, and a full re-render only happens when the
+    // camera leaves the painted margin, zoom drifts >25% from the render
+    // zoom, the viewport resizes, or the scenery itself changes (new game,
+    // or a site activating reclaims the trees under it).
+    const BG_MARGIN = 320; // css px painted beyond each viewport edge
+    let bg = null;         // { cv, camX, camY, zoom, w, h, key }
+    let viewBounds = null; // widened mountain-culling window during renderBg
+
+    function bgKey() {
+        const r = SC.state.river;
+        const active = SC.state.nodes ? SC.state.nodes.filter(n => n.active).length : 0;
+        return (r ? Math.round(r.spine[0].x) : 0) + ':' + active + ':' +
+               canvas.width + 'x' + canvas.height;
+    }
+
+    function renderBg() {
+        const cam = SC.camera.cam;
+        const wCss = canvas.width / dpr + BG_MARGIN * 2;
+        const hCss = canvas.height / dpr + BG_MARGIN * 2;
+        if (!bg || bg.cv.width !== Math.round(wCss * dpr) || bg.cv.height !== Math.round(hCss * dpr)) {
+            bg = { cv: document.createElement('canvas') };
+            bg.cv.width = Math.round(wCss * dpr);
+            bg.cv.height = Math.round(hCss * dpr);
+        }
+        const bctx = bg.cv.getContext('2d');
+        bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bctx.clearRect(0, 0, wCss, hCss);
+        bctx.translate(BG_MARGIN, BG_MARGIN);
+        // The drawing helpers all render through the module-level `ctx` at
+        // the live camera; swapping it in + the translate above paints the
+        // same scene shifted into the margin.
+        const old = ctx;
+        ctx = bctx;
+        viewBounds = { x0: -BG_MARGIN - 40, x1: canvas.width / dpr + BG_MARGIN + 40,
+                       y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
+        drawMountains();
+        drawLandStatic();
+        ctx = old;
+        viewBounds = null;
+        bg.camX = cam.x; bg.camY = cam.y; bg.zoom = cam.zoom;
+        bg.w = wCss; bg.h = hCss; bg.key = bgKey();
+    }
+
+    function drawBg() {
+        const cam = SC.camera.cam;
+        let scale = 1, x0 = 0, y0 = 0;
+        const place = () => {
+            scale = cam.zoom / bg.zoom;
+            x0 = (bg.camX - cam.x) * cam.zoom - BG_MARGIN * scale;
+            y0 = (bg.camY - cam.y) * cam.zoom - BG_MARGIN * scale;
+        };
+        let need = !bg || bg.key !== bgKey() || Math.abs(cam.zoom / bg.zoom - 1) > 0.25;
+        if (!need) {
+            place(); // still covering the viewport after the pan/zoom?
+            need = x0 > 0 || y0 > 0 ||
+                   x0 + bg.w * scale < canvas.width / dpr ||
+                   y0 + bg.h * scale < canvas.height / dpr;
+        }
+        if (need) { renderBg(); place(); }
+        ctx.drawImage(bg.cv, x0, y0, bg.w * scale, bg.h * scale);
+    }
+
+    function drawWorld(dt) {
+        const C = SC.CONFIG;
+        seaTime += dt;
+        drawBg();     // mountains + land + grid + decor (cached)
+        drawRiver();  // live: animated ripples
 
         // Distance fog: the far edge of the land dissolves into the sky.
         // Iso depth (world x+y) maps linearly to screen y, so a vertical
         // gradient between two constant-depth lines is a true depth fade —
         // from the far corner (depth 0) to ~35% of max depth.
-        const farY = S(0, 0).y;
+        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        const farY = corners[0].y;
         const midD = 0.175 * (C.WORLD_W + C.WORLD_H); // x=y point at 35% depth
         const nearY = S(midD, midD).y;
         if (nearY > farY) {
@@ -524,10 +603,20 @@ SC.render = (function() {
 
     // --- building prisms ----------------------------------------------------
     // spec: how each node kind is extruded and colored.
+    // Which themed site model a raw material gets (see drawSupplierSite):
+    // the resource dictates the look — a farm for wheat, a lake + pump for
+    // water, a mine mouth for ores, a fenced pasture for wool, a rubber
+    // grove, a little fab for electronics.
+    const SITE_OF = { wheat: 'farm', water: 'lake', ore: 'mine', coal: 'mine',
+                      copper: 'mine', wool: 'pasture', rubber: 'grove', chips: 'fab' };
+    const SITE_H = { farm: 12, lake: 9, mine: 20, pasture: 12, grove: 18, fab: 22 };
+
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
-            return { base, fw: 20, h: 20 + (n.level || 0) * 3, icon: SC.emojiOf(n.mat), stories: 2 };
+            const site = SITE_OF[n.mat] || 'fab';
+            return { base, fw: site === 'fab' ? 20 : 24, site,
+                     h: SITE_H[site] + (n.level || 0) * 3, icon: SC.emojiOf(n.mat) };
         }
         if (n.kind === 'factory') {
             return { base: '#6b7a90', fw: 22, h: 32, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories: 3, stack: true, door: true };
@@ -639,15 +728,183 @@ SC.render = (function() {
         return { rx, ry, topCenter: { x: gx, y: gy - hpx }, bBot };
     }
 
+    // Soft drop shadow via a pre-rendered radial sprite: ctx.filter blur
+    // (the old approach) forces a slow path on mobile GPUs and was a big
+    // part of panning jank — a scaled drawImage costs next to nothing.
+    let shadowSprite = null;
     function drawShadow(gx, gy, fw) {
+        if (!shadowSprite) {
+            shadowSprite = document.createElement('canvas');
+            shadowSprite.width = shadowSprite.height = 128;
+            const c = shadowSprite.getContext('2d');
+            const g = c.createRadialGradient(64, 64, 6, 64, 64, 62);
+            g.addColorStop(0, 'rgba(5, 7, 12, 0.42)');
+            g.addColorStop(0.65, 'rgba(5, 7, 12, 0.22)');
+            g.addColorStop(1, 'rgba(5, 7, 12, 0)');
+            c.fillStyle = g;
+            c.fillRect(0, 0, 128, 128);
+        }
         const { rx, ry } = footRadii(fw);
-        ctx.save();
-        ctx.globalAlpha = 0.32;
-        diamondPath(gx + rx * 0.28, gy + ry * 0.5, rx * 1.05, ry * 1.05);
-        ctx.fillStyle = '#05070c';
-        ctx.filter = 'blur(3px)';
-        ctx.fill();
-        ctx.restore();
+        // destination rect is wider than tall, giving the iso squash
+        ctx.drawImage(shadowSprite,
+                      gx + rx * 0.28 - rx * 1.25, gy + ry * 0.5 - ry * 1.25,
+                      rx * 2.5, ry * 2.5);
+    }
+
+    // --- themed supplier sites ------------------------------------------------
+    // Each raw material renders as a little scene instead of a generic box.
+    // Same footprint/anchor contract as prism(): returns { rx, ry, topCenter }
+    // where topCenter (ground point raised by spec height) is what the icon
+    // badge, stock bar and input.js's hit capsule all key off.
+    function drawSupplierSite(n, sp, g) {
+        const z = zoom();
+        const { rx, ry } = footRadii(sp.fw);
+        const h = sp.h * z;
+        const base = sp.base;
+
+        if (sp.site === 'farm') {
+            // Tilled field: soil in the plot, furrow rows along the iso axis,
+            // a tiny barn on the back corner.
+            ctx.save();
+            diamondPath(g.x, g.y, rx * 0.92, ry * 0.92);
+            ctx.clip();
+            ctx.fillStyle = '#3a2e20';
+            ctx.fillRect(g.x - rx, g.y - ry, rx * 2, ry * 2);
+            ctx.strokeStyle = rgba(base, 0.6);
+            ctx.lineWidth = Math.max(1.5, 2.2 * z);
+            for (let k = -2; k <= 2; k++) {
+                const ox = -0.5 * k * rx * 0.36, oy = 0.25 * k * rx * 0.36;
+                ctx.beginPath();
+                ctx.moveTo(g.x + ox - rx, g.y + oy - rx * 0.5);
+                ctx.lineTo(g.x + ox + rx, g.y + oy + rx * 0.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+            prism(g.x, g.y - ry * 0.62, 6, 9 * z, '#8a5a33');
+        } else if (sp.site === 'lake') {
+            // Pond with ripple rings + a pump hut piping out of it.
+            const pg = ctx.createLinearGradient(0, g.y - ry, 0, g.y + ry);
+            pg.addColorStop(0, '#1c4a6e');
+            pg.addColorStop(1, '#0d2a44');
+            ctx.beginPath();
+            ctx.ellipse(g.x, g.y, rx * 0.8, ry * 0.8, 0, 0, Math.PI * 2);
+            ctx.fillStyle = pg;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(6, 14, 24, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(150, 220, 255, 0.28)';
+            ctx.lineWidth = 1.2;
+            for (const rr of [0.35, 0.58]) {
+                const ph = (seaTime * 0.5 + rr) % 1;
+                ctx.globalAlpha = 0.6 * (1 - ph);
+                ctx.beginPath();
+                ctx.ellipse(g.x, g.y, rx * (0.2 + ph * rr), ry * (0.2 + ph * rr), 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#5a7d96';
+            ctx.lineWidth = Math.max(2, 2.5 * z);
+            ctx.beginPath();
+            ctx.moveTo(g.x + rx * 0.55, g.y - 6 * z);
+            ctx.lineTo(g.x + rx * 0.2, g.y);
+            ctx.stroke();
+            prism(g.x + rx * 0.62, g.y, 5.5, 8 * z, '#5a7d96');
+        } else if (sp.site === 'mine') {
+            // Rocky mound (tinted by the ore) with a dark adit + timber frame.
+            const rockR = mix('#8a94a2', base, 0.4), rockL = shade(mix('#8a94a2', base, 0.4), -0.35);
+            const apex = { x: g.x - rx * 0.1, y: g.y - h };
+            ctx.beginPath();
+            ctx.moveTo(apex.x, apex.y);
+            ctx.lineTo(g.x + rx * 0.9, g.y);
+            ctx.lineTo(g.x - rx * 0.15, g.y + ry * 0.28);
+            ctx.closePath();
+            ctx.fillStyle = rockR; ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(apex.x, apex.y);
+            ctx.lineTo(g.x - rx * 0.9, g.y);
+            ctx.lineTo(g.x - rx * 0.15, g.y + ry * 0.28);
+            ctx.closePath();
+            ctx.fillStyle = rockL; ctx.fill();
+            // adit (entrance) with a timber lintel
+            ctx.beginPath();
+            ctx.ellipse(g.x - rx * 0.12, g.y + ry * 0.1, rx * 0.24, ry * 0.5, 0, Math.PI, 0);
+            ctx.closePath();
+            ctx.fillStyle = '#0a0d13'; ctx.fill();
+            ctx.strokeStyle = '#6a4a2c';
+            ctx.lineWidth = Math.max(1.5, 2 * z);
+            ctx.beginPath();
+            ctx.moveTo(g.x - rx * 0.38, g.y + ry * 0.12);
+            ctx.lineTo(g.x - rx * 0.38, g.y - ry * 0.42);
+            ctx.lineTo(g.x + rx * 0.14, g.y - ry * 0.42);
+            ctx.lineTo(g.x + rx * 0.14, g.y + ry * 0.12);
+            ctx.stroke();
+            // spoil pebbles by the entrance
+            ctx.fillStyle = rgba(base, 0.8);
+            for (const [px, py] of [[0.35, 0.55], [0.52, 0.38], [0.42, 0.72]]) {
+                ctx.beginPath();
+                ctx.ellipse(g.x + rx * px - rx * 0.5, g.y + ry * py, 2.2 * z, 1.5 * z, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (sp.site === 'pasture') {
+            // Fenced grass plot with a couple of sheep.
+            diamondPath(g.x, g.y, rx * 0.9, ry * 0.9);
+            ctx.fillStyle = 'rgba(58, 96, 64, 0.4)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(201, 176, 138, 0.85)';
+            ctx.lineWidth = Math.max(1.2, 1.5 * z);
+            ctx.setLineDash([4 * z, 3 * z]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            for (const [sx, sy, flip] of [[-0.32, -0.02, 1], [0.18, 0.28, -1]]) {
+                const cx = g.x + rx * sx, cy = g.y + ry * sy;
+                ctx.fillStyle = '#e8e4da';
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 5 * z, 3.2 * z, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#3b3630';
+                ctx.beginPath();
+                ctx.arc(cx + flip * 4.5 * z, cy - 1.2 * z, 1.6 * z, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (sp.site === 'grove') {
+            // Rubber-tree grove: round canopies (unlike the wild pines).
+            for (const [tx, ty, s] of [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]]) {
+                const cx = g.x + rx * tx, cy = g.y + ry * ty;
+                ctx.strokeStyle = '#4a3323';
+                ctx.lineWidth = Math.max(1.5, 2 * z);
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx, cy - 9 * z * s);
+                ctx.stroke();
+                const cnp = mix('#3f7a4a', base, 0.25);
+                ctx.fillStyle = cnp;
+                ctx.beginPath();
+                ctx.arc(cx, cy - 12 * z * s, 5.5 * z * s, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = mix(cnp, '#a9e7b8', 0.4);
+                ctx.beginPath();
+                ctx.arc(cx - 1.5 * z * s, cy - 13.5 * z * s, 2.4 * z * s, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else { // 'fab' — electronics: compact plant with a blinking antenna
+            const info = prism(g.x, g.y, sp.fw, h, base, { stories: 2, door: true });
+            const tc = info.topCenter;
+            ctx.strokeStyle = '#9fb4c8';
+            ctx.lineWidth = Math.max(1, 1.4 * z);
+            ctx.beginPath();
+            ctx.moveTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2);
+            ctx.lineTo(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 9 * z);
+            ctx.stroke();
+            ctx.globalAlpha = 0.4 + 0.6 * Math.max(0, Math.sin(seaTime * 5));
+            ctx.fillStyle = '#7de3ff';
+            ctx.beginPath();
+            ctx.arc(tc.x + info.rx * 0.45, tc.y - info.ry * 0.2 - 10 * z, 1.6 * z, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            return info;
+        }
+        return { rx, ry, topCenter: { x: g.x, y: g.y - h } };
     }
 
     // Iso ring/pad on the ground (selection, unlock pulse, inspect focus).
@@ -687,11 +944,13 @@ SC.render = (function() {
             groundRing(g.x, g.y, sp.fw, `rgba(56, 189, 248, ${0.7 * (1 - t)})`, 3, 1 + t * 2.2);
         }
 
-        const info = prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
-            ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
-            alpha: forSale ? 0.9 : 1,
-            stories: forSale ? 0 : sp.stories, door: !forSale && sp.door
-        });
+        const info = n.kind === 'supplier'
+            ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
+            : prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
+                  ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
+                  alpha: forSale ? 0.9 : 1,
+                  stories: forSale ? 0 : sp.stories, door: !forSale && sp.door
+              });
         const tc = info.topCenter;
 
         // Factory smokestack (back corner of the roof) + a puff of smoke while
@@ -738,9 +997,15 @@ SC.render = (function() {
             ctx.lineCap = 'butt';
         }
 
-        // Icon on the roof
+        // Icon on the roof — suppliers get a compact plate badge floating
+        // over the scene (the themed site is the body, the badge is the
+        // at-a-glance material identity); buildings keep the bare glyph.
         ctx.globalAlpha = forSale ? 0.6 : 1;
-        emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
+        if (n.kind === 'supplier') {
+            emojiPlateAt(sp.icon, tc.x, tc.y - 4 * clampZoom(), 9 * clampZoom(), 13 * clampZoom());
+        } else {
+            emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
+        }
         ctx.globalAlpha = 1;
 
         // --- per-kind badges/bars -------------------------------------------
@@ -1145,8 +1410,7 @@ SC.render = (function() {
                           SC.input.getHoverNode) ? SC.input.getHoverNode() : null;
 
         drawSky();
-        drawMountains();
-        drawWorld(dt);
+        drawWorld(dt); // mountains ride inside the cached bg layer
         drawRoads();
         drawHighlight(now);
         drawInspectHighlight(now);
