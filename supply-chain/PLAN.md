@@ -35,6 +35,11 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.34.0: **junction visual is now a roundabout**, not a `🔀`-badged
+  box. Per item 16 below — details there. Also dropped the ferry's
+  shuttling ⛴ boat glyph — it rendered as an unstyled black fallback
+  glyph on some Android emoji fonts, and the teal dashed lane already
+  reads as "ferry" without it.
 - v1.32.0: **junctions** — a placeable routing waypoint (Shop panel,
   flat price, not research-gated) with no supply/demand of its own, so
   roads can fork/merge/reroute through it. Per item 16 below — details
@@ -326,7 +331,11 @@ actually shipped.)*
     explicit kind, never a junction. No growth ladder like yards get:
     since any path through a junction is never shorter than a direct
     road, there's no cost-reduction exploit to price against, so a flat
-    price is enough. Renders as a small flat `🔀` marker.
+    price is enough. Originally rendered as a small flat `🔀`-badged
+    marker; v1.34.0 replaced it with an actual roundabout (asphalt ring,
+    dashed lane guide, planted center island — `drawJunction`) per the
+    owner's "the junction marker is ugly, can't it be a roundabout
+    instead" — no icon needed since the shape itself reads as what it is.
 
 ## Tech housekeeping (ongoing, fold into the above)
 
