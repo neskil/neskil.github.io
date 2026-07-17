@@ -41,13 +41,20 @@ SC.inspect = (function() {
 
     // Walk a sourcing pick tree (from economy.bestSourceFor/order.route),
     // collecting every road leg from raw suppliers up to `dest` as a flat
-    // list of node-polylines for the render-side glow overlay.
-    function collectRoutePaths(pick, dest, paths) {
+    // list of node-polylines for the render-side glow overlay. `good` is
+    // what's hauled on the pick.node→dest leg; it's attached to the path
+    // array as a `.good` property (still a plain node array otherwise) so
+    // the renderer can tint each leg by its cargo — recursive legs are
+    // colored by the input material they feed the parent with.
+    function collectRoutePaths(pick, dest, paths, good) {
         if (!pick) return;
         const leg = SC.roads.findPath(pick.node, dest);
-        if (leg) paths.push(leg.path);
+        if (leg) {
+            if (good) leg.path.good = good;
+            paths.push(leg.path);
+        }
         if (pick.srcs) {
-            for (const m of Object.keys(pick.srcs)) collectRoutePaths(pick.srcs[m], pick.node, paths);
+            for (const m of Object.keys(pick.srcs)) collectRoutePaths(pick.srcs[m], pick.node, paths, m);
         }
     }
 
@@ -57,17 +64,20 @@ SC.inspect = (function() {
         if (!info) return paths;
         if (info.kind === 'factory') {
             for (const inp of info.inputs) {
-                if (inp.connected) collectRoutePaths(inp.pick, info.node, paths);
+                if (inp.connected) collectRoutePaths(inp.pick, info.node, paths, inp.good);
             }
         } else if (info.kind === 'supplier') {
             for (const c of info.consumers) {
                 if (!c.connected) continue;
                 const leg = SC.roads.findPath(info.node, c.factory);
-                if (leg) paths.push(leg.path);
+                if (leg) {
+                    leg.path.good = info.mat;
+                    paths.push(leg.path);
+                }
             }
         } else if (info.kind === 'city') {
             for (const o of info.orders) {
-                if (o.route) collectRoutePaths(o.route, info.node, paths);
+                if (o.route) collectRoutePaths(o.route, info.node, paths, o.product);
             }
         }
         return paths;
