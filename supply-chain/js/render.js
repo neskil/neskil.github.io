@@ -49,6 +49,12 @@ SC.render = (function() {
 
     // --- color helpers ------------------------------------------------------
     function hexToRgb(hex) {
+        // Accept both '#rrggbb' and 'rgb(r, g, b)' so mix()/shade() output can
+        // be fed back in (the day/night sky blends colours in several steps).
+        if (hex[0] !== '#') {
+            const m = hex.match(/-?\d+/g);
+            return { r: +m[0], g: +m[1], b: +m[2] };
+        }
         const h = hex.replace('#', '');
         return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
     }
@@ -113,35 +119,101 @@ SC.render = (function() {
     }
 
     // --- backdrop: sky + mountains -----------------------------------------
+    // === day/night + weather (purely cosmetic, render-only) ================
+    // A slow clock sweeps the sky, a sun/moon across it, a global colour
+    // grade, and the strength of the night dressing (windows, fireflies).
+    // Weather rotates through clear→clouds→rain→snow with a wind vector that
+    // slowly turns, so precipitation and cloud shadows drift and "rotate
+    // around" over time. None of this touches gameplay or the save.
+    const DAY_LENGTH = 210;                 // seconds for a full day↔night cycle
+    let dayClock = DAY_LENGTH * 0.80;       // open in the evening so it starts moody
+    let todPhase = 0, dayness = 0, nightLevel = 1, twilight = 0, sunEl = -1;
+    const WEATHER_ROTATION = ['clear', 'clouds', 'rain', 'clouds', 'clear', 'snow', 'clouds'];
+    let weather = { i: 0, type: 'clear', t: 0, dur: 40, intensity: 0, cloud: 0,
+                    windAng: 0.6, windMag: 0.5 };
+    let forcedWeather = null;               // &weather= for screenshots
+    let precip = [];                        // rain/snow particle pool (screen-space)
+    let clouds = null;                      // drifting overcast blobs (screen-space)
+
+    function lerpHex(a, b, t) { return mix(a, b, t); } // alias for readability
+
+    function updateDayWeather(dt) {
+        const p = new URLSearchParams(location.search);
+        if (p.has('tod')) dayClock = (parseFloat(p.get('tod')) || 0) * DAY_LENGTH;
+        else dayClock += dt;
+        if (p.has('weather')) forcedWeather = p.get('weather');
+
+        todPhase = (dayClock / DAY_LENGTH) % 1;
+        sunEl = Math.sin((todPhase - 0.25) * Math.PI * 2); // -1 midnight … +1 noon
+        dayness = Math.max(0, Math.min(1, (sunEl + 0.15) / 0.5));
+        nightLevel = 1 - dayness;
+        twilight = Math.max(0, 1 - Math.abs(sunEl) / 0.26); // strong near horizon
+
+        // Weather scheduler: each spell fades its intensity 0→1→0 so particles
+        // clear out before the type switches. `cloud` (overcast amount) is a
+        // separate slow ease so clouds linger through rain/snow.
+        weather.t += dt;
+        const u = weather.t / weather.dur;
+        const env = Math.max(0, Math.min(1, Math.min(u / 0.18, (1 - u) / 0.18)));
+        weather.intensity = forcedWeather ? (forcedWeather === weather.type ? 1 : 0) : env;
+        if (weather.t >= weather.dur && !forcedWeather) {
+            weather.i = (weather.i + 1) % WEATHER_ROTATION.length;
+            weather.type = WEATHER_ROTATION[weather.i];
+            weather.t = 0;
+            weather.dur = 34 + Math.random() * 30;
+            precip.length = 0; // drop stale particles across a type change
+        }
+        if (forcedWeather && forcedWeather !== weather.type) {
+            weather.type = forcedWeather; weather.intensity = 1; precip.length = 0;
+        }
+        const overcast = (weather.type === 'clouds' || weather.type === 'rain' || weather.type === 'snow')
+            ? weather.intensity : 0;
+        weather.cloud += (overcast - weather.cloud) * Math.min(1, dt * 0.6);
+        weather.windAng += dt * 0.06;        // the system slowly rotates
+        weather.windMag = 0.35 + 0.25 * Math.sin(dayClock * 0.05);
+    }
+
+    // sky keyframe palettes [top, mid, bottom]
+    const SKY_NIGHT = ['#141d30', '#0f1626', '#0a0f1a'];
+    const SKY_DAY = ['#3a6ea3', '#6a9fca', '#a7c8e0'];
+    const SKY_DUSK = ['#28203e', '#6b3f56', '#c9724a'];
+    function skyColor(idx) {
+        let c = lerpHex(SKY_NIGHT[idx], SKY_DAY[idx], dayness);
+        c = lerpHex(c, SKY_DUSK[idx], twilight * 0.7); // warm the horizon at dawn/dusk
+        // clouds mute + darken the sky a touch
+        return lerpHex(c, '#535f70', weather.cloud * 0.35);
+    }
+
     let stars = null;
     function drawSky() {
         const w = canvas.width / dpr, h = canvas.height / dpr;
         const g = ctx.createLinearGradient(0, 0, 0, h);
-        g.addColorStop(0, '#141d30');
-        g.addColorStop(0.55, '#0f1626');
-        g.addColorStop(1, '#0a0f1a');
+        g.addColorStop(0, skyColor(0));
+        g.addColorStop(0.55, skyColor(1));
+        g.addColorStop(1, skyColor(2));
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);
 
-        // Faint aurora band low across the sky — two slow, offset ribbons of
-        // green/teal light, very low alpha so it reads as ambiance not UI.
-        for (let b = 0; b < 2; b++) {
-            const baseY = h * (0.14 + b * 0.06);
-            ctx.beginPath();
-            ctx.moveTo(0, baseY);
-            for (let x = 0; x <= w; x += w / 12) {
-                ctx.lineTo(x, baseY + Math.sin(x / w * 6 + seaTime * 0.25 + b * 2) * 18 * (1 - b * 0.3));
+        // Aurora — night-only, fades out toward day and under cloud.
+        const auroraA = nightLevel * (1 - weather.cloud * 0.8);
+        if (auroraA > 0.02) {
+            for (let b = 0; b < 2; b++) {
+                const baseY = h * (0.14 + b * 0.06);
+                ctx.beginPath();
+                ctx.moveTo(0, baseY);
+                for (let x = 0; x <= w; x += w / 12) {
+                    ctx.lineTo(x, baseY + Math.sin(x / w * 6 + seaTime * 0.25 + b * 2) * 18 * (1 - b * 0.3));
+                }
+                ctx.lineTo(w, 0); ctx.lineTo(0, 0); ctx.closePath();
+                const ag = ctx.createLinearGradient(0, 0, 0, baseY + 30);
+                ag.addColorStop(0, 'rgba(52, 211, 153, 0)');
+                ag.addColorStop(1, `rgba(${b ? '96, 165, 250' : '52, 211, 153'}, ${(0.05 - b * 0.015) * auroraA})`);
+                ctx.fillStyle = ag;
+                ctx.fill();
             }
-            ctx.lineTo(w, 0); ctx.lineTo(0, 0); ctx.closePath();
-            const ag = ctx.createLinearGradient(0, 0, 0, baseY + 30);
-            ag.addColorStop(0, 'rgba(52, 211, 153, 0)');
-            ag.addColorStop(1, `rgba(${b ? '96, 165, 250' : '52, 211, 153'}, ${0.05 - b * 0.015})`);
-            ctx.fillStyle = ag;
-            ctx.fill();
         }
 
-        // Star field: screen-space (a fixed skybox behind the panning world),
-        // seeded so it's stable, denser toward the top, gentle twinkle.
+        // Stars — fade with daylight and cloud cover.
         if (!stars) {
             const rng = makeRng(0xa11);
             stars = [];
@@ -149,30 +221,182 @@ SC.render = (function() {
                 stars.push({ u: rng(), v: rng() * rng() * 0.6, r: 0.5 + rng() * 1.1, ph: rng() * Math.PI * 2 });
             }
         }
-        ctx.fillStyle = '#dbe6f4';
-        for (const s of stars) {
-            ctx.globalAlpha = 0.25 + 0.45 * (0.5 + 0.5 * Math.sin(seaTime * 0.8 + s.ph));
+        const starA = nightLevel * (1 - weather.cloud * 0.85);
+        if (starA > 0.02) {
+            ctx.fillStyle = '#dbe6f4';
+            for (const s of stars) {
+                ctx.globalAlpha = starA * (0.25 + 0.45 * (0.5 + 0.5 * Math.sin(seaTime * 0.8 + s.ph)));
+                ctx.beginPath();
+                ctx.arc(s.u * w, s.v * h, s.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Luminary: sun and moon share an east→west arc, crossfaded by day/
+        // night, dimmed under cloud. Drawn before the world so peaks occlude.
+        const arcY = (frac) => h * (0.62 - Math.sin(Math.max(0, Math.min(1, frac)) * Math.PI) * 0.5);
+        const arcX = (frac) => w * (0.12 + 0.76 * frac);
+        const clouded = 1 - weather.cloud * 0.75;
+        // sun: up during the day half (phase .25→.75)
+        const sf = (todPhase - 0.25) / 0.5;
+        if (dayness > 0.02 && sf >= -0.05 && sf <= 1.05) {
+            drawLuminary(arcX(sf), arcY(sf), Math.max(22, Math.min(w, h) * 0.05),
+                         '#ffe9b0', '#ffd070', dayness * clouded, false);
+        }
+        // moon: up during the night half (phase .75→1.25)
+        const mf = (((todPhase + 0.25) % 1) - 0.25) / 0.5;
+        if (nightLevel > 0.02 && mf >= -0.05 && mf <= 1.05) {
+            drawLuminary(arcX(mf), arcY(mf), Math.max(20, Math.min(w, h) * 0.045),
+                         '#e8eef7', '#d2e0f5', nightLevel * clouded, true);
+        }
+    }
+
+    function drawLuminary(x, y, r, disc, glow, alpha, moon) {
+        ctx.globalAlpha = alpha;
+        const halo = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * (moon ? 4 : 5));
+        halo.addColorStop(0, rgba(glow, 0.32));
+        halo.addColorStop(1, rgba(glow, 0));
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(x, y, r * (moon ? 4 : 5), 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = disc;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        if (moon) {
+            ctx.fillStyle = 'rgba(190, 202, 222, 0.55)';
+            for (const [ox, oy, or] of [[-0.3, -0.2, 0.22], [0.25, 0.1, 0.16], [0.05, 0.38, 0.13]]) {
+                ctx.beginPath(); ctx.arc(x + r * ox, y + r * oy, r * or, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Soft overcast blobs drifting across the sky with the wind — the visible
+    // "clouds" state. Screen-space, so they read as a sky layer, not ground.
+    function drawSkyClouds(dt) {
+        if (weather.cloud < 0.02) return;
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        if (!clouds) {
+            const rng = makeRng(0xc10d);
+            clouds = [];
+            for (let i = 0; i < 7; i++) {
+                clouds.push({ x: rng(), y: rng() * 0.32, r: 60 + rng() * 90, s: 0.4 + rng() * 0.7 });
+            }
+        }
+        const drift = Math.cos(weather.windAng) * weather.windMag;
+        ctx.fillStyle = '#8391a5';
+        for (const c of clouds) {
+            c.x += drift * c.s * dt * 0.02;
+            if (c.x > 1.2) c.x -= 1.4; else if (c.x < -0.2) c.x += 1.4;
+            const cx = c.x * w, cy = c.y * h, r = c.r;
+            const gr = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
+            gr.addColorStop(0, `rgba(150, 165, 186, ${0.22 * weather.cloud})`);
+            gr.addColorStop(1, 'rgba(150, 165, 186, 0)');
+            ctx.fillStyle = gr;
+            ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    // Big soft cloud shadows sliding over the ground (drawn after the land,
+    // under the buildings). Screen-space and driven by the same wind.
+    let cloudShadows = null;
+    function drawCloudShadows(dt) {
+        if (weather.cloud < 0.05) return;
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        if (!cloudShadows) {
+            const rng = makeRng(0x5ad0);
+            cloudShadows = [];
+            for (let i = 0; i < 5; i++) {
+                cloudShadows.push({ x: rng() * 1.4 - 0.2, y: 0.2 + rng() * 0.7, r: 130 + rng() * 120, s: 0.6 + rng() * 0.6 });
+            }
+        }
+        const dvx = Math.cos(weather.windAng) * weather.windMag;
+        const dvy = Math.sin(weather.windAng) * weather.windMag * 0.4;
+        ctx.globalAlpha = 0.12 * weather.cloud;
+        ctx.fillStyle = '#05070c';
+        for (const c of cloudShadows) {
+            c.x += dvx * c.s * dt * 0.03; c.y += dvy * c.s * dt * 0.02;
+            if (c.x > 1.4) c.x -= 1.7; else if (c.x < -0.3) c.x += 1.7;
+            if (c.y > 1.1) c.y -= 1.2; else if (c.y < 0.05) c.y += 1.0;
             ctx.beginPath();
-            ctx.arc(s.u * w, s.v * h, s.r, 0, Math.PI * 2);
+            ctx.ellipse(c.x * w, c.y * h, c.r, c.r * 0.5, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
+    }
 
-        // Moon: a soft glow halo + a disc with a couple of maria. Sits high
-        // and left-of-centre so the world's mountains can rise in front of
-        // it (drawn after the sky) for a "moon behind the peaks" look, clear
-        // of the top-right Orders panel.
-        const mx = w * 0.6, my = h * 0.12, mr = Math.max(20, Math.min(w, h) * 0.045);
-        const halo = ctx.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4);
-        halo.addColorStop(0, 'rgba(210, 224, 245, 0.28)');
-        halo.addColorStop(1, 'rgba(210, 224, 245, 0)');
-        ctx.fillStyle = halo;
-        ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#e8eef7';
-        ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(190, 202, 222, 0.55)';
-        for (const [ox, oy, or] of [[-0.3, -0.2, 0.22], [0.25, 0.1, 0.16], [0.05, 0.38, 0.13]]) {
-            ctx.beginPath(); ctx.arc(mx + mr * ox, my + mr * oy, mr * or, 0, Math.PI * 2); ctx.fill();
+    // Rain/snow, screen-space, blown along the wind vector. Pool capped so
+    // it stays cheap on mobile; count scales with the spell's intensity.
+    function drawPrecip(dt) {
+        const type = weather.type;
+        if ((type !== 'rain' && type !== 'snow') || weather.intensity < 0.02) {
+            if (precip.length) precip.length = 0;
+            return;
+        }
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const cap = type === 'rain' ? 150 : 110;
+        const target = Math.floor(cap * weather.intensity);
+        const wvx = Math.cos(weather.windAng) * weather.windMag;
+        while (precip.length < target) {
+            precip.push({
+                x: Math.random() * (w + 200) - 100, y: Math.random() * -h,
+                z: 0.5 + Math.random() * 0.9, sway: Math.random() * Math.PI * 2
+            });
+        }
+        if (precip.length > target) precip.length = target;
+
+        if (type === 'rain') {
+            ctx.strokeStyle = 'rgba(174, 200, 230, 0.5)';
+            ctx.lineCap = 'round';
+            for (const p of precip) {
+                const vx = (wvx * 3 + 0.4) * p.z, vy = (13 + 6 * p.z);
+                p.x += vx * dt * 60; p.y += vy * dt * 60;
+                if (p.y > h + 10) { p.y = -10; p.x = Math.random() * (w + 200) - 100; }
+                ctx.lineWidth = p.z * 1.4;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - vx * 1.1, p.y - vy * 1.1);
+                ctx.stroke();
+            }
+            ctx.lineCap = 'butt';
+        } else { // snow
+            ctx.fillStyle = 'rgba(233, 240, 250, 0.85)';
+            for (const p of precip) {
+                p.sway += dt * 1.5;
+                p.x += (wvx * 2 + Math.sin(p.sway) * 0.6) * p.z * dt * 60;
+                p.y += (1.6 + 1.4 * p.z) * dt * 60;
+                if (p.y > h + 8) { p.y = -8; p.x = Math.random() * (w + 200) - 100; }
+                ctx.globalAlpha = 0.5 + 0.4 * p.z;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.z * 1.7, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // Full-screen colour grade for time of day: brighten + warm toward day,
+    // warm-orange wash at dawn/dusk, near-transparent (leaves the night
+    // dressing intact) deep at night. 'screen' lifts the baked-night ground
+    // toward daylight without re-rendering the cached scenery.
+    function drawGrade() {
+        const w = canvas.width / dpr, h = canvas.height / dpr;
+        // overcast steals some daylight and warmth
+        const dim = 1 - weather.cloud * 0.45;
+        const dayA = dayness * 0.26 * dim, duskA = twilight * 0.22 * dim;
+        if (dayA > 0.01 || duskA > 0.01) {
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            if (dayA > 0.01) { ctx.globalAlpha = dayA; ctx.fillStyle = '#9cc2e8'; ctx.fillRect(0, 0, w, h); }
+            if (duskA > 0.01) { ctx.globalAlpha = duskA; ctx.fillStyle = '#ff9d5c'; ctx.fillRect(0, 0, w, h); }
+            ctx.restore();
+        }
+        // A cool grey wash under heavy cloud, so overcast/rain/snow reads as
+        // a moodier, flatter light rather than the same clear palette.
+        if (weather.cloud > 0.05) {
+            ctx.globalAlpha = weather.cloud * 0.16;
+            ctx.fillStyle = '#3a4658';
+            ctx.fillRect(0, 0, w, h);
+            ctx.globalAlpha = 1;
         }
     }
 
@@ -833,7 +1057,8 @@ SC.render = (function() {
                 const u = (c + 0.5) / cols;
                 const lit = hash01(seed, r * 7 + c * 13);
                 if (lit > 0.66) continue; // dark window: leave the wall as-is
-                let a = 0.9;
+                // Windows glow at night, all but dark by day.
+                let a = 0.9 * (0.14 + 0.86 * nightLevel);
                 const fl = hash01(seed, r * 5 + c * 3 + 1);
                 if (fl > 0.82) a *= 0.5 + 0.5 * (0.5 + 0.5 * Math.sin(seaTime * 3 + fl * 25));
                 const p1 = P(u - du, v - dv), p2 = P(u + du, v - dv),
@@ -1171,9 +1396,9 @@ SC.render = (function() {
         // the ground around them (cached sprite, cheap additive-ish blit).
         const litKind = (n.kind === 'city') || (n.kind === 'factory' && !forSale) ||
                         (n.kind === 'supplier' && sp.site === 'fab');
-        if (litKind) {
+        if (litKind && nightLevel > 0.08) {
             const gr = footRadii(sp.fw + 20);
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.5 * nightLevel;
             ctx.drawImage(warmGlowSprite(), g.x - gr.rx, g.y - gr.ry, gr.rx * 2, gr.ry * 2);
             ctx.globalAlpha = 1;
         }
@@ -1378,20 +1603,21 @@ SC.render = (function() {
         ctx.fill();
         ctx.restore();
 
-        // headlights while driving: two warm dots + a faint beam cone on the
-        // ground ahead — sells the night-time palette and motion at a glance
-        if (t.path) {
+        // Headlights: only at dusk/night and only while moving. Just two soft
+        // warm points with a small glow — no hard beam cone (that read as a
+        // stray triangle in daylight); they fade in as the light drops.
+        if (t.path && nightLevel > 0.3) {
             ctx.save();
             ctx.translate(g.x, g.y - 2 * z); ctx.rotate(ang); ctx.scale(1, 0.6);
             const nose = cabCx + cabW / 2;
-            ctx.fillStyle = 'rgba(255, 224, 150, 0.28)';
-            ctx.beginPath();
-            ctx.moveTo(nose, -W * 0.3); ctx.lineTo(nose + 16 * z, -W * 0.75);
-            ctx.lineTo(nose + 16 * z, W * 0.75); ctx.lineTo(nose, W * 0.3);
-            ctx.closePath(); ctx.fill();
-            ctx.fillStyle = 'rgba(255, 236, 180, 0.95)';
-            for (const wy of [-W * 0.3, W * 0.3]) {
-                ctx.beginPath(); ctx.arc(nose, wy, 1.3 * z, 0, Math.PI * 2); ctx.fill();
+            for (const wy of [-W * 0.28, W * 0.28]) {
+                const gr = ctx.createRadialGradient(nose, wy, 0, nose, wy, 7 * z);
+                gr.addColorStop(0, `rgba(255, 240, 190, ${0.85 * nightLevel})`);
+                gr.addColorStop(1, 'rgba(255, 236, 180, 0)');
+                ctx.fillStyle = gr;
+                ctx.beginPath(); ctx.arc(nose, wy, 7 * z, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = `rgba(255, 245, 210, ${nightLevel})`;
+                ctx.beginPath(); ctx.arc(nose, wy, 1.2 * z, 0, Math.PI * 2); ctx.fill();
             }
             ctx.restore();
         }
@@ -1689,10 +1915,11 @@ SC.render = (function() {
         return flies;
     }
     function drawFireflies() {
+        if (nightLevel < 0.25) return; // they only come out at night
         for (const f of ensureFlies()) {
             const a = seaTime * f.sp + f.ph;
             const p = S(f.x + Math.cos(a) * f.rad, f.y + Math.sin(a * 1.3) * f.rad * 0.6);
-            const glow = 0.5 + 0.5 * Math.sin(seaTime * 2.2 + f.blink);
+            const glow = (0.5 + 0.5 * Math.sin(seaTime * 2.2 + f.blink)) * nightLevel;
             if (glow < 0.15) continue;
             const z = clampZoom();
             ctx.globalAlpha = 0.25 * glow;
@@ -1728,8 +1955,11 @@ SC.render = (function() {
         frameHoverNode = (SC.state.mode === 'build' && !SC.state.placeMode &&
                           SC.input.getHoverNode) ? SC.input.getHoverNode() : null;
 
+        updateDayWeather(dt);
         drawSky();
-        drawWorld(dt); // mountains ride inside the cached bg layer
+        drawSkyClouds(dt);   // overcast blobs, behind the world (peaks occlude)
+        drawWorld(dt);       // mountains ride inside the cached bg layer
+        drawCloudShadows(dt); // soft shadows sliding over the ground
         drawRoads();
         drawHighlight(now);
         drawInspectHighlight(now);
@@ -1754,6 +1984,8 @@ SC.render = (function() {
         drawFireflies();
         drawOrderBubbles();
         drawFloaters(dt);
+        drawGrade();             // time-of-day colour grade over world + sky
+        drawPrecip(dt);          // rain/snow on top, left ungraded so it stays crisp
         drawVignette();          // frame the scene…
         drawOffscreenArrows(now); // …but keep edge arrows crisp on top
     }
