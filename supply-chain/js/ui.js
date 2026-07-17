@@ -4,6 +4,7 @@ window.SC = window.SC || {};
 SC.ui = (function() {
     const $ = id => document.getElementById(id);
     let toastTimer = null;
+    let fpsSmoothed = 60; // dev-panel FPS readout, see update(dt)
 
     function fmt(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
@@ -31,13 +32,16 @@ SC.ui = (function() {
         updateDevPanel();
     }
 
-    // ── Dev-only A/B panel (?dev=1): congestion is otherwise fixed by
-    // difficulty for the whole run — this lets the developer flip it live
-    // to compare with/without it. Not shown to normal players. ──
+    // ── Dev-only tools (?dev=1): quick tuning/testing aids, not part of
+    // normal gameplay. Congestion is otherwise fixed by difficulty for the
+    // whole run — this lets the developer flip it live to compare; the
+    // rest are one-off actions for testing without grinding. ──
     function updateDevPanel() {
+        $('dev-fps').textContent = Math.round(fpsSmoothed);
         const btn = $('dev-congestion');
         btn.classList.toggle('active', SC.state.congestionEnabled);
-        btn.textContent = SC.state.congestionEnabled ? '🚦 Congestion: on' : '🚦 Congestion: off';
+        $('dev-congestion-state').textContent = SC.state.congestionEnabled ? 'On' : 'Off';
+        $('dev-research').disabled = !SC.state.research.active;
     }
 
     function setSpeed(n) {
@@ -376,6 +380,7 @@ SC.ui = (function() {
 
     let ordersTimer = 0, lastOrderCount = -1;
     function update(dt) {
+        if (dt > 0) fpsSmoothed += (1 / dt - fpsSmoothed) * 0.1;
         updateHUD();
         updateInspectTooltip();
         ordersTimer += dt;
@@ -503,10 +508,37 @@ SC.ui = (function() {
         $('crossing-ferry').addEventListener('click', () => chooseCrossing(true));
         $('crossing-cancel').addEventListener('click', () => { SC.sfx.play('click'); closeCrossingChoice(); });
 
+        $('dev-header').addEventListener('click', () =>
+            $('dev-panel').classList.toggle('collapsed'));
         $('dev-congestion').addEventListener('click', () => {
             SC.state.congestionEnabled = !SC.state.congestionEnabled;
             SC.sfx.play('click');
             updateDevPanel();
+        });
+        $('dev-money').addEventListener('click', () => {
+            SC.state.money += 10000;
+            SC.sfx.play('cash');
+            toast('💰 +$10,000 (dev)', 'good');
+            updateShop();
+        });
+        $('dev-contract').addEventListener('click', () => {
+            const offer = SC.economy.rollContractOffer();
+            SC.sfx.play('click');
+            if (!offer) toast('Contract already offered/active (dev)', 'info');
+        });
+        $('dev-research').addEventListener('click', () => {
+            const a = SC.state.research.active;
+            if (!a) { toast('No active research (dev)', 'info'); return; }
+            a.t = SC.RESEARCH[a.id].time;
+            SC.research.tick(0);
+            SC.sfx.play('unlock');
+            updateShop();
+            updateDevPanel();
+        });
+        $('dev-customer').addEventListener('click', () => {
+            SC.state.nextCustomerIn = 0;
+            SC.economy.tick(0);
+            SC.sfx.play('click');
         });
 
         $('mode-build').addEventListener('click', () => setMode('build'));
@@ -749,14 +781,14 @@ SC.ui = (function() {
         if (window.innerWidth <= 768) {
             $('orders-panel').classList.add('collapsed');
             $('shop-panel').classList.add('collapsed');
+            $('dev-panel').classList.add('collapsed');
         }
         // Headless verification hook (see CLAUDE.md): open the menu on load
         if (new URLSearchParams(location.search).has('menu')) openMenu();
         // ...and/or the research tree overlay
         if (new URLSearchParams(location.search).has('techtree')) openResearchTree();
-        // Dev-only A/B panel (?dev=1): lets the developer flip congestion
-        // live to compare with/without it, outside the normal difficulty-
-        // locked flow.
+        // Dev-only tools panel (?dev=1): tuning/testing aids for
+        // development, not shown to normal players.
         if (params.has('dev')) {
             $('dev-panel').classList.remove('hidden');
             updateDevPanel();

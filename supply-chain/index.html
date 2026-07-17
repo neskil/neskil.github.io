@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.26.0">
+    <link rel="stylesheet" href="style.css?v=1.27.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -17,12 +17,36 @@
         </div>
     </div>
 
-    <!-- Dev-only A/B comparison panel: hidden unless ?dev=1 is on the URL.
-         Not a normal gameplay option — congestion is otherwise fixed by
-         difficulty for the whole run, this just lets the developer flip
-         it live to compare. -->
-    <div id="dev-panel" class="hidden">
-        <button id="dev-congestion" class="dev-btn" title="Dev-only: override congestion live to compare with/without it">🚦 Congestion</button>
+    <!-- Dev-only tools: hidden unless ?dev=1 is on the URL. Not part of
+         normal gameplay — quick tuning/testing aids for development. -->
+    <div id="dev-panel" class="panel hidden">
+        <div class="panel-header" id="dev-header">
+            <h2>🛠 Dev tools</h2>
+            <span class="panel-toggle">▾</span>
+        </div>
+        <div class="panel-body">
+            <div class="dev-stat"><span>FPS</span><span id="dev-fps">60</span></div>
+            <button class="shop-btn build-btn" id="dev-congestion" title="Congestion is otherwise fixed by difficulty for the run — this overrides it live to compare">
+                <span class="sname">🚦 Congestion</span>
+                <span class="price" id="dev-congestion-state">On</span>
+            </button>
+            <button class="shop-btn" id="dev-money">
+                <span class="sname">💰 Add money</span>
+                <span class="price">+$10,000</span>
+            </button>
+            <button class="shop-btn" id="dev-contract">
+                <span class="sname">📜 Roll contract</span>
+                <span class="price">now</span>
+            </button>
+            <button class="shop-btn" id="dev-research">
+                <span class="sname">🔬 Finish research</span>
+                <span class="price">instant</span>
+            </button>
+            <button class="shop-btn" id="dev-customer">
+                <span class="sname">🏢 Spawn next customer</span>
+                <span class="price">now</span>
+            </button>
+        </div>
     </div>
 
     <div id="speed-toggle">
@@ -213,23 +237,23 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.26.0"></script>
-    <script src="js/state.js?v=1.26.0"></script>
-    <script src="js/save.js?v=1.26.0"></script>
-    <script src="js/sfx.js?v=1.26.0"></script>
-    <script src="js/rng.js?v=1.26.0"></script>
-    <script src="js/map.js?v=1.26.0"></script>
-    <script src="js/camera.js?v=1.26.0"></script>
-    <script src="js/roads.js?v=1.26.0"></script>
-    <script src="js/factories.js?v=1.26.0"></script>
-    <script src="js/economy.js?v=1.26.0"></script>
-    <script src="js/vehicles.js?v=1.26.0"></script>
-    <script src="js/inspect.js?v=1.26.0"></script>
-    <script src="js/research.js?v=1.26.0"></script>
-    <script src="js/placement.js?v=1.26.0"></script>
-    <script src="js/render.js?v=1.26.0"></script>
-    <script src="js/input.js?v=1.26.0"></script>
-    <script src="js/ui.js?v=1.26.0"></script>
-    <script src="js/main.js?v=1.26.0"></script>
+    <script src="js/config.js?v=1.27.0"></script>
+    <script src="js/state.js?v=1.27.0"></script>
+    <script src="js/save.js?v=1.27.0"></script>
+    <script src="js/sfx.js?v=1.27.0"></script>
+    <script src="js/rng.js?v=1.27.0"></script>
+    <script src="js/map.js?v=1.27.0"></script>
+    <script src="js/camera.js?v=1.27.0"></script>
+    <script src="js/roads.js?v=1.27.0"></script>
+    <script src="js/factories.js?v=1.27.0"></script>
+    <script src="js/economy.js?v=1.27.0"></script>
+    <script src="js/vehicles.js?v=1.27.0"></script>
+    <script src="js/inspect.js?v=1.27.0"></script>
+    <script src="js/research.js?v=1.27.0"></script>
+    <script src="js/placement.js?v=1.27.0"></script>
+    <script src="js/render.js?v=1.27.0"></script>
+    <script src="js/input.js?v=1.27.0"></script>
+    <script src="js/ui.js?v=1.27.0"></script>
+    <script src="js/main.js?v=1.27.0"></script>
 </body>
 </html>

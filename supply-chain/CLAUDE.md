@@ -106,10 +106,15 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   `&ferry=1`) for screenshotting the choice UI without tapping a real
   river-crossing road. `?dev=1` (a standing dev flag, not a one-shot
   probe modifier — usable on a normal run too, not just `?probe=`) shows
-  a small pill under the top-left HUD bar that live-toggles
-  `SC.state.congestionEnabled`; congestion is otherwise fixed by
-  difficulty for the whole run and isn't a player-facing option, so this
-  is the way to A/B a map with/without it during development.
+  a collapsible **Dev tools** panel under the top-left HUD bar: an FPS
+  readout, a Congestion toggle (`SC.state.congestionEnabled` is
+  otherwise fixed by difficulty for the whole run, not player-facing —
+  this is the way to A/B a map with/without it), Add money (+$10,000),
+  Roll contract (force `rollContractOffer` now instead of waiting out
+  `CONTRACT_INTERVAL`), Finish research (completes the active project
+  instantly, disabled with none active), and Spawn next customer
+  (zeroes `nextCustomerIn` and re-ticks so the next customer DC unlocks
+  immediately). None of this is reachable by normal players.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —
