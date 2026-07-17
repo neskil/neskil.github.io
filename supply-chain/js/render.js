@@ -326,16 +326,19 @@ SC.render = (function() {
     function drawLandStatic() {
         const C = SC.CONFIG;
         const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
-        // drop the land a touch onto the backdrop with a soft dark rim
-        ctx.save();
-        ctx.beginPath();
-        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-        ctx.closePath();
-        ctx.shadowBlur = 40;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-        ctx.fillStyle = '#1c2b3f';
-        ctx.fill();
-        ctx.restore();
+        // Drop the land onto the backdrop with a soft dark rim. Layered
+        // strokes instead of shadowBlur: this repaints during pinch-zoom
+        // (see drawBg), and canvas blur is far too slow for that on mobile.
+        ctx.lineJoin = 'round';
+        for (let i = 3; i >= 1; i--) {
+            ctx.beginPath();
+            corners.forEach((p, j) => j ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+            ctx.closePath();
+            ctx.strokeStyle = `rgba(0, 0, 0, ${0.16 - i * 0.04})`;
+            ctx.lineWidth = i * 14;
+            ctx.stroke();
+        }
+        ctx.lineJoin = 'miter';
 
         ctx.beginPath();
         corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
@@ -411,17 +414,24 @@ SC.render = (function() {
         bctx.translate(BG_MARGIN, BG_MARGIN);
         // The drawing helpers all render through the module-level `ctx` at
         // the live camera; swapping it in + the translate above paints the
-        // same scene shifted into the margin.
+        // same scene shifted into the margin. try/finally so a mid-render
+        // throw can never leave `ctx` pointing at the layer — that failure
+        // mode silently redirects ALL subsequent drawing into the cache and
+        // corrupts every following frame.
         const old = ctx;
         ctx = bctx;
         viewBounds = { x0: -BG_MARGIN - 40, x1: canvas.width / dpr + BG_MARGIN + 40,
                        y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
-        drawMountains();
-        drawLandStatic();
-        ctx = old;
-        viewBounds = null;
+        try {
+            drawMountains();
+            drawLandStatic();
+        } finally {
+            ctx = old;
+            viewBounds = null;
+        }
         bg.camX = cam.x; bg.camY = cam.y; bg.zoom = cam.zoom;
         bg.w = wCss; bg.h = hCss; bg.key = bgKey();
+        bg.builtAt = performance.now();
     }
 
     function drawBg() {
@@ -432,12 +442,19 @@ SC.render = (function() {
             x0 = (bg.camX - cam.x) * cam.zoom - BG_MARGIN * scale;
             y0 = (bg.camY - cam.y) * cam.zoom - BG_MARGIN * scale;
         };
-        let need = !bg || bg.key !== bgKey() || Math.abs(cam.zoom / bg.zoom - 1) > 0.25;
+        let need = !bg || bg.key !== bgKey();
         if (!need) {
-            place(); // still covering the viewport after the pan/zoom?
+            place(); // still covering the viewport after the pan?
             need = x0 > 0 || y0 > 0 ||
                    x0 + bg.w * scale < canvas.width / dpr ||
                    y0 + bg.h * scale < canvas.height / dpr;
+            // Zoom drift: a scaled blit visibly detaches the cached scenery
+            // from the live world (mountains swelling/tearing against the
+            // map — the mobile pinch glitch), so it's only allowed as a
+            // ≤120ms stopgap mid-gesture to keep pinch fluid; after that
+            // the layer re-renders at the exact zoom (scale returns to 1).
+            if (!need && cam.zoom !== bg.zoom &&
+                performance.now() - bg.builtAt > 120) need = true;
         }
         if (need) { renderBg(); place(); }
         ctx.drawImage(bg.cv, x0, y0, bg.w * scale, bg.h * scale);
