@@ -114,7 +114,13 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   screenshotted in one shot. `&focus=x,y,zoom` (zoom optional) points
   the camera at a world position — screenshots otherwise always frame
   the HQ cluster, so this is how far corners, specific sites, or a
-  whole-map view (low zoom) get verified. `&crossing=1` fires the Bridge-vs-Ferry
+  whole-map view (low zoom) get verified. `&tod=0..1` pins the
+  (cosmetic) day/night phase — 0/1 midnight, 0.25 sunrise, 0.5 noon,
+  0.75 sunset — so daylight, dusk and night can be screenshotted
+  deterministically (it otherwise advances on its own `DAY_LENGTH`
+  clock). `&weather=clear|clouds|rain|snow` forces a weather spell (it
+  otherwise rotates on its own) for screenshotting precipitation/
+  overcast. Both are render-only, non-persisted. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
   `&ferry=1`) for screenshotting the choice UI without tapping a real
   river-crossing road. The **Dev tools** panel is a lasting ☰-menu
