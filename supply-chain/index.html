@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.36.0">
+    <link rel="stylesheet" href="style.css?v=1.37.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -169,6 +169,28 @@
         </div>
     </div>
 
+    <div id="stats-overlay" class="hidden">
+        <div class="stats-card">
+            <div class="stats-header">
+                <h1>📊 Stats &amp; Achievements</h1>
+                <button class="icon-btn" id="stats-close" title="Close">✕</button>
+            </div>
+            <div class="stats-body">
+                <div class="shop-section-title" style="margin-top:0">Deliveries by product</div>
+                <div id="stats-deliveries"></div>
+
+                <div class="shop-section-title">Money over time</div>
+                <svg id="stats-sparkline" viewBox="0 0 200 50" preserveAspectRatio="none"></svg>
+
+                <div class="shop-section-title">Busiest road</div>
+                <div id="stats-busiest"></div>
+
+                <div class="shop-section-title">Achievements <span id="stats-ach-count" class="badge"></span></div>
+                <div id="stats-achievements" class="stats-ach-grid"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="gameover-overlay" class="hidden">
         <div class="menu-card">
             <div class="menu-title">
@@ -193,6 +215,7 @@
             <button class="menu-btn" id="menu-save">💾 Save now</button>
             <button class="menu-btn" id="menu-sound">🔊 Sound</button>
             <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
+            <button class="menu-btn" id="menu-stats">📊 Stats &amp; Achievements</button>
             <button class="menu-btn" id="menu-dev">🛠 Dev tools</button>
             <button class="menu-btn" id="menu-help">❓ How to play</button>
             <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
@@ -226,6 +249,7 @@
                 <li><b>Contracts:</b> occasionally a bulk-order card offers a locked-in premium rate — Accept or Decline before the timer runs out. An accepted contract is a big order with its own deadline; miss it and you pay a penalty on top of the failure, not just a missed order.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
                 <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
+                <li><b>Stats &amp; Achievements (☰ menu):</b> deliveries by product, a money-over-time chart, your busiest road, and milestone badges for things like your first bridge or a 10-truck fleet.</li>
             </ul>
             <div class="recipes">
                 <span>🌾+💧→🍞</span>
@@ -244,23 +268,24 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.36.0"></script>
-    <script src="js/state.js?v=1.36.0"></script>
-    <script src="js/save.js?v=1.36.0"></script>
-    <script src="js/sfx.js?v=1.36.0"></script>
-    <script src="js/rng.js?v=1.36.0"></script>
-    <script src="js/map.js?v=1.36.0"></script>
-    <script src="js/camera.js?v=1.36.0"></script>
-    <script src="js/roads.js?v=1.36.0"></script>
-    <script src="js/factories.js?v=1.36.0"></script>
-    <script src="js/economy.js?v=1.36.0"></script>
-    <script src="js/vehicles.js?v=1.36.0"></script>
-    <script src="js/inspect.js?v=1.36.0"></script>
-    <script src="js/research.js?v=1.36.0"></script>
-    <script src="js/placement.js?v=1.36.0"></script>
-    <script src="js/render.js?v=1.36.0"></script>
-    <script src="js/input.js?v=1.36.0"></script>
-    <script src="js/ui.js?v=1.36.0"></script>
-    <script src="js/main.js?v=1.36.0"></script>
+    <script src="js/config.js?v=1.37.0"></script>
+    <script src="js/state.js?v=1.37.0"></script>
+    <script src="js/save.js?v=1.37.0"></script>
+    <script src="js/sfx.js?v=1.37.0"></script>
+    <script src="js/rng.js?v=1.37.0"></script>
+    <script src="js/map.js?v=1.37.0"></script>
+    <script src="js/camera.js?v=1.37.0"></script>
+    <script src="js/roads.js?v=1.37.0"></script>
+    <script src="js/factories.js?v=1.37.0"></script>
+    <script src="js/economy.js?v=1.37.0"></script>
+    <script src="js/vehicles.js?v=1.37.0"></script>
+    <script src="js/stats.js?v=1.37.0"></script>
+    <script src="js/inspect.js?v=1.37.0"></script>
+    <script src="js/research.js?v=1.37.0"></script>
+    <script src="js/placement.js?v=1.37.0"></script>
+    <script src="js/render.js?v=1.37.0"></script>
+    <script src="js/input.js?v=1.37.0"></script>
+    <script src="js/ui.js?v=1.37.0"></script>
+    <script src="js/main.js?v=1.37.0"></script>
 </body>
 </html>
