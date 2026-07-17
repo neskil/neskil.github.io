@@ -177,6 +177,17 @@ that ambient animation as its background — it now lives independently at
   at the *active yard* (`SC.trucksAtYard`), so a new yard resets the
   ladder to base price — the ever-growing yard price is the balance
   lever.
+- **Junctions**: a `'junction'` node kind that's purely a routing
+  waypoint — no `mat`/`recipe`, never a planner source or destination
+  (`bestSourceFor`/`activeCities`/`factories.all` all filter by an
+  explicit kind, so a junction is invisible to the economy), just
+  another node with `edges` that `SC.roads.findPath`'s Dijkstra walks
+  like any other. Place one (Shop panel, not research-gated like yards)
+  anywhere placement rules allow, at a flat `PLACEMENT_JUNCTION_PRICE` —
+  no growth ladder, since routing through one is never shorter than a
+  direct road, so there's no cost-reduction exploit to price against.
+  Renders as a small flat marker (`🔀`), distinct from every other
+  building.
 - **Deeper chains pay more**: order payouts multiply the good's value by
   `1 + ORDER_DEPTH_VALUE × (depth − 1)`, so cars/robots out-earn bread
   beyond their base value gap.
@@ -224,7 +235,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight. Collected route paths carry a `.good` property per leg so the glow overlay tints each leg by its cargo (chain-step colors) |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
-| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards are not |
+| `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |
 | `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
 | `js/render.js` | Canvas drawing (isometric 2.5D): sky + world-anchored snow-capped mountain ranges (haze by depth), projected land with terrain patches and scattered pines/rocks, river, road ribbons, extruded diamond-prism buildings (story lines, doors, factory smokestacks) with sprite-based soft shadows, themed supplier sites (farm/lake+pump/mine/pasture/rubber grove/fab per raw material, `drawSupplierSite`), depth-sorted back-to-front, cab+trailer trucks and billboarded labels/order-bubbles. Static scenery (mountains/land/grid/patches/trees) renders into a cached offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr is capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn mountains" glitch), and the ctx swap in `renderBg` is try/finally-guarded. Distance fog fades the far edge of the land into the sky; screen-space star field behind the world; trucks get headlights while driving. Scenery uses a seeded PRNG (`makeRng`) cached so it doesn't flicker. **Night atmosphere** (all per-frame, kept out of the cached bg): a moon with a soft glow + a faint aurora band in the sky, warm lit windows on buildings/factories/HQ/DC/fab (seeded per node in `prism`'s window grid, a few flicker) over a cached warm ground light-spill, a blinking aircraft-style beacon on the HQ landmark, a moonlight shimmer streak on the river, a few drifting world-anchored fireflies, and a cached screen-edge vignette drawn last for framing. **Day/night cycle** (`DAY_LENGTH`, cosmetic/non-persisted): a slow clock sweeps the sky palette (night↔day↔dusk keyframes), arcs a crossfading sun/moon, applies a full-screen `'screen'` colour grade to lift the baked-night ground toward daylight without rebuilding the bg cache, and drives a `nightLevel` that fades windows/fireflies/light-spill/headlights out by day. **Rotating weather** (`WEATHER_ROTATION`): clear→clouds→rain→snow spells fade in/out, a slowly-turning wind vector drifts drifting sky clouds + soft ground cloud-shadows and angles pooled/capped rain & snow particles. Truck headlights are night-only soft glows (no daytime beam cone). Probe flags `&tod=`/`&weather=` force a time/weather for screenshots |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold. Node picking hit-tests the whole extruded building (ground→roof capsule, `nodeAtScreen`); `getHoverNode` feeds the ghost-road snap + hover ring so previews match what a click hits |

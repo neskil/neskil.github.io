@@ -49,7 +49,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (345 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (354 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
@@ -73,8 +73,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   hauls (the ×N badge over a truck) show up without a long probe.
   `&yard=1` builds a second truck yard near HQ, stations a truck there,
   and sets it as the active yard, for screenshotting the yard marker/
-  per-yard truck counts. `&highway=1` completes pavedRoads and paves all
-  built roads (highway styling); `&suplevel=2` levels every supplier up
+  per-yard truck counts. `&junction=1` places a junction near HQ (same
+  ring-search as `&yard=1`) and roads it in, for screenshotting the
+  small `🔀` routing-waypoint marker. `&highway=1` completes pavedRoads
+  and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
   twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
   bars). `&doom=42` forces a balance beyond the credit limit with 42s
   on the default countdown (⚠ HUD state); `&gameover=1` triggers the
