@@ -101,9 +101,11 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   📜) order in the Orders panel. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
   `&ferry=1`) for screenshotting the choice UI without tapping a real
-  river-crossing road. `?dev=1` (a standing dev flag, not a one-shot
-  probe modifier — usable on a normal run too, not just `?probe=`) shows
-  a collapsible **Dev tools** panel under the top-left HUD bar: an FPS
+  river-crossing road. The **Dev tools** panel is a lasting ☰-menu
+  toggle ("🛠 Dev tools: on/off", persisted in localStorage like Sound) —
+  `?dev=1` also forces it on for a given load and adopts it as the
+  persisted choice. Shows a collapsible panel under the top-left HUD bar
+  once on: an FPS
   readout, a Congestion toggle (`SC.state.congestionEnabled` is
   otherwise fixed by difficulty for the whole run, not player-facing —
   this is the way to A/B a map with/without it), Add money (+$10,000),
