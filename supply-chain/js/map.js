@@ -138,6 +138,32 @@ SC.map = (function() {
         return null;
     }
 
+    function nearestNodeDist(x, y) {
+        let best = Infinity;
+        for (const n of SC.state.nodes) best = Math.min(best, Math.hypot(n.x - x, n.y - y));
+        return best;
+    }
+
+    // Like randomLandSpot, but the spot must sit within `maxToNearest` of an
+    // already-placed node — so pool sites tether to the existing network and
+    // never strand themselves in a far map corner behind one absurdly long
+    // road. Either bank is still fair game (river-grace gates *when* far-bank
+    // sites unlock, not whether they exist). Widens the leash a little each
+    // time it fails, and finally falls back to an unconstrained spot so
+    // generation can never stall on a crowded map.
+    function randomLandSpotNear(minDist, maxToNearest) {
+        for (let a = 0; a < 300; a++) {
+            const x = C().NODE_MARGIN + rng.next() * (C().WORLD_W - 2 * C().NODE_MARGIN);
+            const y = C().NODE_MARGIN + rng.next() * (C().WORLD_H - 2 * C().NODE_MARGIN);
+            if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) <= riverAt(y).halfW + 50) continue;
+            if (!farFromOthers(x, y, minDist)) continue;
+            const leash = maxToNearest * (1 + a / 300); // relax gradually if it's tight
+            if (nearestNodeDist(x, y) > leash) continue;
+            return { x, y };
+        }
+        return randomLandSpot(minDist);
+    }
+
     // Spot near (px,py) at roughly the given distance, on land, clear of others.
     function spotNear(px, py, dist, minDist) {
         for (let a = 0; a < 200; a++) {
@@ -216,7 +242,7 @@ SC.map = (function() {
             ['factory', { forSale: true, recipe: 'robot' }]
         ];
         for (const [kind, opts] of pool) {
-            const spot = randomLandSpot(md);
+            const spot = randomLandSpotNear(md, C().NODE_MAX_SPREAD);
             if (spot) makeNode(kind, spot.x, spot.y, opts);
         }
         return SC.state.nodes;

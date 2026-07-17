@@ -15,20 +15,20 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.32.0"></script>
-    <script src="js/state.js?v=1.32.0"></script>
-    <script src="js/save.js?v=1.32.0"></script>
-    <script src="js/sfx.js?v=1.32.0"></script>
-    <script src="js/rng.js?v=1.32.0"></script>
-    <script src="js/map.js?v=1.32.0"></script>
-    <script src="js/camera.js?v=1.32.0"></script>
-    <script src="js/roads.js?v=1.32.0"></script>
-    <script src="js/factories.js?v=1.32.0"></script>
-    <script src="js/economy.js?v=1.32.0"></script>
-    <script src="js/vehicles.js?v=1.32.0"></script>
-    <script src="js/inspect.js?v=1.32.0"></script>
-    <script src="js/research.js?v=1.32.0"></script>
-    <script src="js/placement.js?v=1.32.0"></script>
+    <script src="js/config.js?v=1.33.0"></script>
+    <script src="js/state.js?v=1.33.0"></script>
+    <script src="js/save.js?v=1.33.0"></script>
+    <script src="js/sfx.js?v=1.33.0"></script>
+    <script src="js/rng.js?v=1.33.0"></script>
+    <script src="js/map.js?v=1.33.0"></script>
+    <script src="js/camera.js?v=1.33.0"></script>
+    <script src="js/roads.js?v=1.33.0"></script>
+    <script src="js/factories.js?v=1.33.0"></script>
+    <script src="js/economy.js?v=1.33.0"></script>
+    <script src="js/vehicles.js?v=1.33.0"></script>
+    <script src="js/inspect.js?v=1.33.0"></script>
+    <script src="js/research.js?v=1.33.0"></script>
+    <script src="js/placement.js?v=1.33.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1701,6 +1701,28 @@
         assert('Hard has no river-grace window', SC.map.riverGraceRemaining() === 0);
         assert('Hard unlocks a far-bank site immediately',
             SC.map.unlockNext(n => n.kind !== 'city') === farSup && farSup.active);
+    })();
+
+    // ── Pool sites tether to the network — no far-corner strandings ──
+    (function() {
+        const cap = SC.CONFIG.NODE_MAX_SPREAD * 2; // leash ceiling after full relaxation
+        let worstEver = 0;
+        for (const seed of ['spread-1', 'spread-2', 'spread-3', 'spread-4', 'spread-5', 'spread-6']) {
+            SC.newState(); SC.map._resetSeq();
+            SC.map.generateWorld(seed);
+            const nodes = SC.state.nodes;
+            for (const n of nodes) {
+                let nearest = Infinity;
+                for (const m of nodes) if (m !== n) nearest = Math.min(nearest, Math.hypot(m.x - n.x, m.y - n.y));
+                worstEver = Math.max(worstEver, nearest);
+                assert('every generated site has a neighbour within the spread cap',
+                    nearest <= cap, `seed ${seed}: nearest ${Math.round(nearest)} > cap ${cap}`);
+            }
+        }
+        // The leash should actually bite: uniform-random placement routinely
+        // stranded a site 1200-1800 units from anything — well past this.
+        assert('worst-case site isolation stays well bounded', worstEver <= cap,
+            `worst ${Math.round(worstEver)} > cap ${cap}`);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
