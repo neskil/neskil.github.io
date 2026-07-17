@@ -12,21 +12,26 @@ SC.input = (function() {
     const pointers = new Map(); // pointerId -> {x, y, startX, startY, moved, pointerType}
     let pinch = null;           // {dist, cx, cy}
     let hover = null;           // world pos of the mouse, for the ghost road
+    let hoverScreen = null;     // same position in screen px, for node picking
     let pendingDemolish = null; // edge tapped once, awaiting confirm tap
     let pendingBuy = null;      // for-sale factory tapped once
     let pendingUpgrade = null;  // Upgrade mode: node/edge tapped once, awaiting confirm
     let inspectNode = null;     // Inspect mode: node currently hovered (mouse) or tapped (touch)
 
     function nodeAtScreen(sx, sy) {
-        let best = null, bestD = 30; // px hit radius
+        let best = null, bestD = 32; // px hit radius around the building body
         for (const n of SC.state.nodes) {
             if (!n.active) continue;
-            // Hit-test against the roof icon's screen position, not the
-            // flat ground point — the iso view raises buildings (up to
-            // 54px at zoom 1 for HQ) above their ground anchor, so tapping
-            // the visible icon would otherwise miss the node entirely.
-            const p = SC.render.nodeIconAnchor(n);
-            const d = Math.hypot(p.x - sx, p.y - sy);
+            // Hit-test the whole extruded building, not a single point: the
+            // iso view draws each node as a prism from its ground anchor up
+            // to the roof (where the icon sits), so measure distance to that
+            // vertical segment. Testing only the roof (or only the ground)
+            // made clicks on the other end of a tall building miss — the
+            // capsule accepts anywhere on the body, plus bestD px of slack.
+            const g = SC.camera.toScreen(n.x, n.y);
+            const r = SC.render.nodeIconAnchor(n); // roof: same x, smaller y
+            const t = Math.max(0, Math.min(1, (sy - g.y) / ((r.y - g.y) || -1e-6)));
+            const d = Math.hypot(g.x - sx, (g.y + (r.y - g.y) * t) - sy);
             if (d < bestD) { bestD = d; best = n; }
         }
         return best;
@@ -245,7 +250,11 @@ SC.input = (function() {
             const p = pointers.get(e.pointerId);
             if (!p) {
                 hover = SC.camera.toWorld(e.clientX, e.clientY);
-                if (SC.state.mode === 'inspect') inspectNode = nodeAtScreen(e.clientX, e.clientY);
+                hoverScreen = { x: e.clientX, y: e.clientY };
+                const over = nodeAtScreen(e.clientX, e.clientY);
+                if (SC.state.mode === 'inspect') inspectNode = over;
+                // PC affordance: show which building a click would hit
+                canvas.style.cursor = over ? 'pointer' : '';
                 return;
             }
             const dx = e.clientX - p.x, dy = e.clientY - p.y;
@@ -265,6 +274,7 @@ SC.input = (function() {
                 SC.camera.pan(dx, dy);
             }
             hover = SC.camera.toWorld(e.clientX, e.clientY);
+            hoverScreen = { x: e.clientX, y: e.clientY };
         });
 
         const release = e => {
@@ -283,7 +293,19 @@ SC.input = (function() {
             SC.camera.zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015));
         }, { passive: false });
 
-        canvas.addEventListener('pointerleave', () => { hover = null; inspectNode = null; });
+        canvas.addEventListener('pointerleave', () => { hover = null; hoverScreen = null; inspectNode = null; });
+    }
+
+    // The node a tap at the current pointer position would hit — the ghost
+    // road's snap target and the render-side hover ring both use this, so
+    // what's previewed is exactly what a click selects.
+    function getHoverNode() {
+        if (hoverScreen) return nodeAtScreen(hoverScreen.x, hoverScreen.y);
+        if (hover) { // debug hover is world-coords only; project it
+            const p = SC.camera.toScreen(hover.x, hover.y);
+            return nodeAtScreen(p.x, p.y);
+        }
+        return null;
     }
 
     return {
@@ -291,6 +313,7 @@ SC.input = (function() {
         reset,
         getInspectNode: () => inspectNode,
         getHover: () => hover,
+        getHoverNode,
         getPendingDemolish: () => pendingDemolish,
         getPendingUpgrade: () => pendingUpgrade,
         _handleTap: handleTap,
