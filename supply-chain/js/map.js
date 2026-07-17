@@ -104,6 +104,26 @@ SC.map = (function() {
         return false;
     }
 
+    // Where along a segment (as fractions t0<=t1 in [0,1]) it's actually
+    // over the water, so a bridge/ferry can render just that stretch and
+    // look like a normal road right up to the bank on either side. A finer
+    // sampling than segmentCrossesRiver's boolean check, since this feeds
+    // pixel placement rather than a yes/no.
+    function riverCrossing(x1, y1, x2, y2) {
+        const samples = 48;
+        let t0 = null, t1 = null;
+        for (let i = 0; i <= samples; i++) {
+            const t = i / samples;
+            if (isInRiver(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t)) {
+                if (t0 === null) t0 = t;
+                t1 = t;
+            }
+        }
+        if (t0 === null) return null;
+        const pad = 1 / samples;
+        return { t0: Math.max(0, t0 - pad), t1: Math.min(1, t1 + pad) };
+    }
+
     function farFromOthers(x, y, minDist) {
         return SC.state.nodes.every(n => Math.hypot(n.x - x, n.y - y) >= minDist);
     }
@@ -236,7 +256,7 @@ SC.map = (function() {
     }
 
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
-             segmentCrossesRiver, unlockNext, anyHeldByRiverGrace,
+             segmentCrossesRiver, riverCrossing, unlockNext, anyHeldByRiverGrace,
              sideOf, startSide, riverGraceRemaining,
              _resetSeq: () => { nodeSeq = 0; } };
 })();
