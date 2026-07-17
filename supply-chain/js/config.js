@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.31.0';
+SC.VERSION = '1.32.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
@@ -139,7 +139,17 @@ SC.CONFIG = {
     // bailout). HQ always counts as the first yard. Price grows per yard
     // bought, same shape as TRUCK_PRICE/TRUCK_PRICE_GROWTH.
     YARD_PRICE: 1200,
-    YARD_PRICE_GROWTH: 1.5
+    YARD_PRICE_GROWTH: 1.5,
+
+    // Junctions: a plain routing waypoint, not research-gated (same
+    // reasoning as yards — a base traffic-shaping tool, not a premium
+    // unlock). No economic function (no stock, no recipe, never a
+    // planner source/destination — SC.map.makeNode just leaves those
+    // fields null) — it exists purely so roads can fork/merge/reroute
+    // through it. Flat price, no growth ladder: unlike yards there's
+    // nothing to "reset" by adding more, and since any path through one
+    // is never shorter than a direct road, spamming them only adds cost.
+    PLACEMENT_JUNCTION_PRICE: 400
 };
 
 // Difficulty presets, chosen on the new-game screen and fixed for the

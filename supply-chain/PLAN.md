@@ -35,6 +35,10 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.32.0: **junctions** — a placeable routing waypoint (Shop panel,
+  flat price, not research-gated) with no supply/demand of its own, so
+  roads can fork/merge/reroute through it. Per item 16 below — details
+  there.
 - v1.30.0: **bridges and ferries render over just the water**, not the
   whole road — a real piered/lifted deck for a bridge, a confined
   teal lane + boat for a ferry. Per item 9 below — details there.
@@ -310,6 +314,19 @@ actually shipped.)*
     curve, busiest road; milestones ("First bridge", "10-truck fleet").
 15. **Bigger maps / regions** — after the map fills, unlock an adjacent
     region connected by a highway (new camera bounds, same state).
+16. ~~Junctions~~ — shipped v1.32.0, per the owner's request for "a
+    connection node, at a cost, so you can route traffic": a `'junction'`
+    node kind that's a plain routing waypoint, placeable anywhere
+    placement rules allow (Shop panel, not research-gated — same
+    base-mechanic reasoning as yards) at a flat `PLACEMENT_JUNCTION_PRICE`
+    ($400). No new pathfinding — `SC.roads.findPath`'s Dijkstra already
+    walks `node.edges` generically, so a junction just sits in the graph
+    as a fork/merge/reroute point; it's invisible to the economy since
+    `bestSourceFor`/`activeCities`/`factories.all` all filter by an
+    explicit kind, never a junction. No growth ladder like yards get:
+    since any path through a junction is never shorter than a direct
+    road, there's no cost-reduction exploit to price against, so a flat
+    price is enough. Renders as a small flat `🔀` marker.
 
 ## Tech housekeeping (ongoing, fold into the above)
 
