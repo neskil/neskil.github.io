@@ -278,6 +278,19 @@ SC.runProbe = function(seconds) {
             SC.vehicles.buyTruck();
         }
     }
+    // Place a junction near HQ and road it in (same ring-search as &yard=1),
+    // so the small routing-marker node can be screenshotted.
+    if (p.has('junction')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        let res = { ok: false };
+        for (let a = 0; a < 16 && !res.ok; a++) {
+            const angle = (a / 16) * Math.PI * 2;
+            const x = hq.x + Math.cos(angle) * 250, y = hq.y + Math.sin(angle) * 250;
+            if (SC.placement.canPlaceAt(x, y)) res = SC.placement.place('junction', null, x, y);
+        }
+        if (res.ok) SC.roads.build(hq, res.node);
+    }
 };
 
 document.addEventListener('DOMContentLoaded', SC.init);
