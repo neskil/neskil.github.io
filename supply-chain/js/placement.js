@@ -1,12 +1,19 @@
 // Manual site placement. Suppliers/factories are locked behind the
 // 'manualPlacement' research and cost a premium over the free milestone/
-// customer-DC unlocks; truck yards and junctions are base mechanics (not
-// research-gated). Pure logic — shares the same tap-to-place UI flow
-// (input.js/render.js).
+// customer-DC unlocks; junctions are locked behind the (cheap, early)
+// 'junctions' research; truck yards are a base mechanic (never gated).
+// Pure logic — shares the same tap-to-place UI flow (input.js/render.js).
 window.SC = window.SC || {};
 
 SC.placement = (function() {
-    const UNGATED_KINDS = ['yard', 'junction'];
+    // Which research (if any) a kind needs before it can be placed. Truck
+    // yards aren't listed — they're a base mechanic, always available.
+    const RESEARCH_GATE = { junction: 'junctions', supplier: 'manualPlacement', factory: 'manualPlacement' };
+
+    function isUnlocked(kind) {
+        const gate = RESEARCH_GATE[kind];
+        return !gate || SC.research.isDone(gate);
+    }
 
     function price(kind) {
         if (kind === 'supplier') return SC.CONFIG.PLACEMENT_SUPPLIER_PRICE;
@@ -26,7 +33,7 @@ SC.placement = (function() {
     // kind: 'supplier' (good = raw material key), 'factory' (good = recipe
     // key), 'yard' or 'junction' (good unused).
     function place(kind, good, x, y) {
-        if (!UNGATED_KINDS.includes(kind) && !SC.research.isDone('manualPlacement')) return { ok: false, reason: 'locked' };
+        if (!isUnlocked(kind)) return { ok: false, reason: 'locked' };
         if (!canPlaceAt(x, y)) return { ok: false, reason: 'invalid' };
         const cost = price(kind);
         if (!SC.canAfford(cost)) return { ok: false, reason: 'money', cost };
@@ -47,5 +54,5 @@ SC.placement = (function() {
         return { ok: true, node };
     }
 
-    return { price, canPlaceAt, place };
+    return { price, canPlaceAt, place, isUnlocked };
 })();

@@ -108,11 +108,12 @@ that ambient animation as its background — it now lives independently at
   ~3× faster order arrivals plus a higher concurrent-order cap. One at
   a time; the timer survives saves (`promoUntil`).
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Twelve techs
-  across four branches: Site Requisition (manual placement); Credit
-  Line II/III → Premium Contracts (+15% payouts) → Regional Marketing
-  (customer DCs arrive 40% sooner) and Marketing Blitz (unlocks
-  promotions, above); Asphalt Paving (highways) →
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Thirteen techs:
+  standalone Road Junctions (cheap, early — unlocks placeable junctions,
+  see Growth above); Site Requisition (manual placement); then four
+  branches — Credit Line II/III → Premium Contracts (+15% payouts) →
+  Regional Marketing (customer DCs arrive 40% sooner) and Marketing Blitz
+  (unlocks promotions, above); Asphalt Paving (highways) →
   Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
   cap); Fertilizer Program (+50% supplier regen) → Factory Automation
   (+3 factory-speed cap) and Preservatives (+25% order deadlines).

@@ -136,6 +136,10 @@ SC.ui = (function() {
     function updateJunctionBtn() {
         const st = SC.state;
         const btn = $('btn-junction');
+        // Gated behind the (cheap, early) 'junctions' research — hidden until
+        // unlocked, same as the promo button waits on Marketing Blitz.
+        btn.classList.toggle('hidden', !SC.placement.isUnlocked('junction'));
+        if (btn.classList.contains('hidden')) return;
         const price = SC.CONFIG.PLACEMENT_JUNCTION_PRICE;
         const active = st.placeMode && st.placeMode.kind === 'junction';
         btn.classList.toggle('active', !!active);
