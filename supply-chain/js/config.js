@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.35.0';
+SC.VERSION = '1.36.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
@@ -148,14 +148,14 @@ SC.CONFIG = {
     YARD_PRICE: 1200,
     YARD_PRICE_GROWTH: 1.5,
 
-    // Junctions: a plain routing waypoint, not research-gated (same
-    // reasoning as yards — a base traffic-shaping tool, not a premium
-    // unlock). No economic function (no stock, no recipe, never a
-    // planner source/destination — SC.map.makeNode just leaves those
-    // fields null) — it exists purely so roads can fork/merge/reroute
-    // through it. Flat price, no growth ladder: unlike yards there's
-    // nothing to "reset" by adding more, and since any path through one
-    // is never shorter than a direct road, spamming them only adds cost.
+    // Junctions: a plain routing waypoint, unlocked by the cheap, early
+    // 'junctions' research (see SC.RESEARCH) — an unlock, not a premium
+    // gate like manual placement. No economic function (no stock, no
+    // recipe, never a planner source/destination — SC.map.makeNode just
+    // leaves those fields null) — it exists purely so roads can fork/merge/
+    // reroute through it. Flat price, no growth ladder: unlike yards
+    // there's nothing to "reset" by adding more, and since any path through
+    // one is never shorter than a direct road, spamming them only adds cost.
     PLACEMENT_JUNCTION_PRICE: 400
 };
 
@@ -211,6 +211,10 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
 // contract to rely on across engines).
 SC.RESEARCH = {
+    junctions: {
+        name: 'Road Junctions', emoji: '🔀', cost: 300, time: 40, requires: [],
+        desc: 'Unlocks placeable junctions — routing waypoints that let roads fork, merge or reroute through a point with no supply or demand of its own.'
+    },
     manualPlacement: {
         name: 'Site Requisition', emoji: '📍', cost: 900, time: 70, requires: [],
         desc: 'Place a supplier or factory anywhere on the map yourself, for a premium.'
@@ -267,7 +271,7 @@ SC.RESEARCH = {
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     }
 };
-SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
+SC.RESEARCH_ORDER = ['junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
                      'rapidExpansion', 'promotions', 'bulkLogistics'];
 
