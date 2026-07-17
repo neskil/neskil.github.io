@@ -144,8 +144,15 @@ that ambient animation as its background — it now lives independently at
   can't be paved into a highway (`upgradeQuote` rejects it — it's a
   boat, not a road surface); congestion (if enabled) still applies on
   top, so trucks queueing for the boat reuses the exact same mechanic
-  as a jammed road queue. Renders as a distinct teal dashed line with a
-  small ⛴ shuttling back and forth along the crossing.
+  as a jammed road queue. `SC.map.riverCrossing` finds just the water
+  stretch of the edge (fraction range along it, sampled like
+  `segmentCrossesRiver` but returning where, not just whether) so both
+  crossing types render only over the water — plain road on the banks
+  right up to the water's edge. A ferry shows a teal dashed lane with a
+  small ⛴ shuttling back and forth, confined to that stretch; a bridge
+  gets an actual lifted deck on piers with a shadow on the water below
+  and guard rails, also confined to the water (`render.drawBridgeCrossing`/
+  `drawFerryCrossing`).
 - **Contracts**: `rollContractOffer` occasionally proposes a bulk order
   at a locked-in `CONTRACT_RATE_BONUS` premium rate. A non-blocking card
   lets you Accept or Decline within `CONTRACT_OFFER_EXPIRE` before it's

@@ -35,6 +35,9 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.30.0: **bridges and ferries render over just the water**, not the
+  whole road — a real piered/lifted deck for a bridge, a confined
+  teal lane + boat for a ferry. Per item 9 below — details there.
 - v1.27.0: **Dev tools panel is now a lasting ☰-menu toggle**
   ("🛠 Dev tools: on/off", persisted in localStorage like Sound), not
   just a `?dev=1` URL flag to retype every visit — the flag still works
@@ -249,7 +252,17 @@ actually shipped.)*
    that with a `crossingChoice` modal that pops up in context the moment
    a tapped road actually crosses the river (Bridge vs. Ferry, costs
    shown live) — the toggle needed remembering to flip on/off around
-   each crossing, which the owner found convoluted.
+   each crossing, which the owner found convoluted. v1.30.0 reworked the
+   *visual* per the owner's request ("should be an actual bridge over
+   the water or the ferry should be a object and only during the water
+   part, road up until the water edge"): the old style dashed the
+   *entire* edge to suggest a crossing; now `SC.map.riverCrossing` finds
+   just the water fraction of the edge (sampled like
+   `segmentCrossesRiver` but returning where, not just whether), so
+   `render.js` draws ordinary road on both banks right up to the
+   water's edge, then only over the water: a ferry's teal dashed lane +
+   boat (`drawFerryCrossing`), or an actual lifted deck on piers with a
+   water shadow and guard rails for a bridge (`drawBridgeCrossing`).
 10. ~~Contracts~~ — shipped v1.19.0, scoped to reuse the existing order
     machinery instead of a parallel demand system: `rollContractOffer`
     proposes a bulk deal (bigger `qty`, `CONTRACT_RATE_BONUS` premium
