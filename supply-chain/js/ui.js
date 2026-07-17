@@ -402,7 +402,7 @@ SC.ui = (function() {
     // hover highlight.
     function focusOrder(order) {
         const paths = [];
-        if (order.route) SC.inspect.collectRoutePaths(order.route, order.city, paths);
+        if (order.route) SC.inspect.collectRoutePaths(order.route, order.city, paths, order.product);
         SC.state.highlight = {
             paths,
             color: SC.GOODS[order.product].color,

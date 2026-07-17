@@ -98,7 +98,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   `&contract=1` force-rolls a contract offer (skips the random
   `CONTRACT_INTERVAL` wait) for screenshotting the Accept/Decline card;
   `&contract=accept` also auto-accepts it into a real (gold-outlined,
-  📜) order in the Orders panel. `&crossing=1` fires the Bridge-vs-Ferry
+  📜) order in the Orders panel. `&routeglow=1` pins the first planned
+  order's route-glow overlay (per-leg step colors: each leg tinted by
+  the cargo hauled on it) with a far-off expiry so it survives the
+  screenshot delay. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
   `&ferry=1`) for screenshotting the choice UI without tapping a real
   river-crossing road. `?dev=1` (a standing dev flag, not a one-shot
