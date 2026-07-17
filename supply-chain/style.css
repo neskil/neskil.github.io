@@ -102,40 +102,19 @@ html, body {
 .hud-item.money span:last-child { color: var(--good); }
 .hud-item.money.debt span:last-child { color: var(--bad); }
 
-/* ── Dev-only A/B panel: same segmented-pill language as #speed-toggle/
-   #mode-toggle, stacked under the top-left HUD bar. Only shown for
-   ?dev=1 — congestion is otherwise fixed by difficulty for a run; this
-   lets the developer flip it live to compare, it's not a player option. */
-#dev-panel {
-    position: fixed;
-    top: 4.2rem;
-    left: 1rem;
-    z-index: 100;
-    display: flex;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 999px;
-    padding: 3px;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-}
+/* ── Dev-only tools panel: reuses the .panel/.shop-btn language from
+   Orders/Shop, stacked under the top-left HUD bar. Only shown for
+   ?dev=1 — quick tuning/testing aids, not part of normal gameplay. */
+#dev-panel { top: 4.2rem; left: 1rem; width: 230px; }
 #dev-panel.hidden { display: none; }
-.dev-btn {
-    padding: 0.4rem 0.9rem;
-    border-radius: 999px;
-    border: none;
-    background: transparent;
+.dev-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
 }
-.dev-btn:hover { color: var(--text-primary); }
-.dev-btn.active {
-    background: var(--accent-color);
-    color: #0f172a;
-}
+.dev-stat span:last-child { color: var(--text-primary); font-weight: 700; }
 
 /* ── Fast-forward toggle: stacked above the build/upgrade/inspect
    selector in the bottom-right corner — same segmented-pill language
