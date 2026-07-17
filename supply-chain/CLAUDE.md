@@ -96,8 +96,8 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   dispatch timing) so the red congestion glow can be screenshotted
   deterministically. `&ferry=1` builds a ferry crossing from HQ to a
   node mirrored across the river (guaranteed to cross it regardless of
-  map seed) for screenshotting the teal dashed line/shuttling boat,
-  confined to just the water stretch (`SC.map.riverCrossing`) — the
+  map seed) for screenshotting the teal dashed ferry lane, confined to
+  just the water stretch (`SC.map.riverCrossing`) — the
   road on both banks renders as ordinary road right up to the water's
   edge. `&bridge=1` is the same trick without the ferry option, for
   screenshotting the piered, lifted-deck bridge that now spans only the

@@ -148,8 +148,10 @@ that ambient animation as its background — it now lives independently at
   stretch of the edge (fraction range along it, sampled like
   `segmentCrossesRiver` but returning where, not just whether) so both
   crossing types render only over the water — plain road on the banks
-  right up to the water's edge. A ferry shows a teal dashed lane with a
-  small ⛴ shuttling back and forth, confined to that stretch; a bridge
+  right up to the water's edge. A ferry shows a teal dashed lane
+  confined to that stretch (no boat glyph — ⛴ rendered as an unstyled
+  black fallback glyph on some Android emoji fonts, and the lane already
+  reads as "ferry" on its own); a bridge
   gets an actual lifted deck on piers with a shadow on the water below
   and guard rails, also confined to the water (`render.drawBridgeCrossing`/
   `drawFerryCrossing`).
@@ -186,8 +188,9 @@ that ambient animation as its background — it now lives independently at
   anywhere placement rules allow, at a flat `PLACEMENT_JUNCTION_PRICE` —
   no growth ladder, since routing through one is never shorter than a
   direct road, so there's no cost-reduction exploit to price against.
-  Renders as a small flat marker (`🔀`), distinct from every other
-  building.
+  Renders as a small roundabout (`drawJunction` — asphalt ring, dashed
+  lane guide, planted center island) rather than a building, since
+  there's no supply/demand identity to badge with an icon.
 - **Deeper chains pay more**: order payouts multiply the good's value by
   `1 + ORDER_DEPTH_VALUE × (depth − 1)`, so cars/robots out-earn bread
   beyond their base value gap.
