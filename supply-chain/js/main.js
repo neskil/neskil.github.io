@@ -252,6 +252,14 @@ SC.runProbe = function(seconds) {
         const [hx, hy] = p.get('hoverAt').split(',').map(Number);
         SC.input._setDebugHover(hx, hy);
     }
+    // Point the camera somewhere specific (&focus=x,y,zoom — zoom optional):
+    // screenshots default to the HQ cluster, so this is how a far corner,
+    // the whole-map view (&focus with a low zoom), or a specific site gets
+    // framed for verification.
+    if (p.has('focus')) {
+        const [fx, fy, fz] = p.get('focus').split(',').map(Number);
+        SC.camera.focus(fx, fy, fz || SC.camera.cam.zoom);
+    }
     // Build a second truck yard near HQ and station a truck there, so the
     // yard marker + per-yard truck count can be screenshotted. Try a ring
     // of offsets since the starter cluster's exact layout is randomized.
