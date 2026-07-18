@@ -517,7 +517,21 @@ SC.render = (function() {
             let e = Math.min(1, dFar / TERRAIN.rise);
             e = e * e * (3 - 2 * e);                          // smooth ramp off the field
             const n = ridged(x * TERRAIN.freq, y * TERRAIN.freq);
-            h += e * TERRAIN.amp * (0.16 + 1.05 * n);         // deep valleys, tall peaks
+            let mountH = e * TERRAIN.amp * (0.16 + 1.05 * n); // deep valleys, tall peaks
+            
+            if (SC.map && SC.map.riverAt) {
+                const rv = SC.map.riverAt(y);
+                if (rv) {
+                    const dist = Math.abs(x - rv.x);
+                    const valley = rv.halfW + 180;
+                    if (dist < valley) {
+                        let f = Math.max(0, dist - rv.halfW * 1.2) / (valley - rv.halfW * 1.2);
+                        f = f * f * (3 - 2 * f);
+                        mountH *= f;
+                    }
+                }
+            }
+            h += mountH;
         }
         const dNear = Math.max(Math.max(0, y - H), Math.max(0, x - W));
         if (dNear > 0) {

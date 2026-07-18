@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.48.0';
+SC.VERSION = '1.48.1';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -345,8 +345,15 @@ SC.ACHIEVEMENTS = {
     debtRecovered:{ emoji: '💪', name: 'Back in the Black', desc: 'Recover from a default countdown.' },
     firstContract:{ emoji: '📜', name: 'Contractor',        desc: 'Fulfil your first contract.' },
     hundredDeliveries: { emoji: '📦', name: 'Century Club', desc: 'Deliver 100 orders.' },
-    allResearch:  { emoji: '🔬', name: 'Fully Researched',  desc: 'Complete every technology.' }
+    allResearch:  { emoji: '🔬', name: 'Fully Researched',  desc: 'Complete every technology.' },
+    speedRun20:   { emoji: '⏱️', name: 'Fast Tycoon',       desc: 'Reach $50,000 in under 20 minutes.' },
+    speedRun15:   { emoji: '⚡', name: 'Turbo Tycoon',      desc: 'Reach $50,000 in under 15 minutes.' },
+    speedRun5:    { emoji: '🚀', name: 'Hypersonic Tycoon', desc: 'Reach $50,000 in under 5 minutes.' },
+    fiftyTrucks:  { emoji: '🚛', name: 'Mega Fleet',        desc: 'Own 50 trucks at once.' },
+    megaEarner:   { emoji: '💎', name: 'Mega Earner',       desc: 'Accumulate $100,000 in cash.' },
+    roadBuilder:  { emoji: '👷', name: 'Road Builder',      desc: 'Build 50 road segments.' }
 };
 SC.ACHIEVEMENT_ORDER = ['firstBridge', 'firstFerry', 'firstHighway', 'firstJunction',
-                        'tenTruckFleet', 'debtRecovered', 'firstContract',
-                        'hundredDeliveries', 'allResearch'];
+                        'tenTruckFleet', 'fiftyTrucks', 'debtRecovered', 'firstContract',
+                        'hundredDeliveries', 'allResearch', 'megaEarner', 'roadBuilder',
+                        'speedRun20', 'speedRun15', 'speedRun5'];

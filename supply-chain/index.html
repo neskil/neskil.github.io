@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.48.0">
+    <link rel="stylesheet" href="style.css?v=1.48.1">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -176,7 +176,13 @@
                 <button class="icon-btn" id="stats-close" title="Close">✕</button>
             </div>
             <div class="stats-body">
-                <div class="shop-section-title" style="margin-top:0">Deliveries by product</div>
+                <div class="shop-section-title" style="margin-top:0">Career Stats</div>
+                <div id="stats-career"></div>
+
+                <div class="shop-section-title">High Scores</div>
+                <div id="stats-highscores"></div>
+
+                <div class="shop-section-title">Deliveries by product</div>
                 <div id="stats-deliveries"></div>
 
                 <div class="shop-section-title">Money over time</div>
@@ -187,6 +193,10 @@
 
                 <div class="shop-section-title">Achievements <span id="stats-ach-count" class="badge"></span></div>
                 <div id="stats-achievements" class="stats-ach-grid"></div>
+
+                <div style="margin-top: 1.5rem; display: flex; justify-content: center;">
+                    <button class="menu-btn danger small" id="stats-reset-career" style="margin: 0; padding: 0.5rem 1rem; font-size: 0.85rem; width: auto;">🗑 Reset Career</button>
+                </div>
             </div>
         </div>
     </div>
@@ -273,24 +283,24 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.48.0"></script>
-    <script src="js/state.js?v=1.48.0"></script>
-    <script src="js/save.js?v=1.48.0"></script>
-    <script src="js/sfx.js?v=1.48.0"></script>
-    <script src="js/rng.js?v=1.48.0"></script>
-    <script src="js/map.js?v=1.48.0"></script>
-    <script src="js/camera.js?v=1.48.0"></script>
-    <script src="js/roads.js?v=1.48.0"></script>
-    <script src="js/factories.js?v=1.48.0"></script>
-    <script src="js/economy.js?v=1.48.0"></script>
-    <script src="js/vehicles.js?v=1.48.0"></script>
-    <script src="js/stats.js?v=1.48.0"></script>
-    <script src="js/inspect.js?v=1.48.0"></script>
-    <script src="js/research.js?v=1.48.0"></script>
-    <script src="js/placement.js?v=1.48.0"></script>
-    <script src="js/render.js?v=1.48.0"></script>
-    <script src="js/input.js?v=1.48.0"></script>
-    <script src="js/ui.js?v=1.48.0"></script>
-    <script src="js/main.js?v=1.48.0"></script>
+    <script src="js/config.js?v=1.48.1"></script>
+    <script src="js/state.js?v=1.48.1"></script>
+    <script src="js/save.js?v=1.48.1"></script>
+    <script src="js/sfx.js?v=1.48.1"></script>
+    <script src="js/rng.js?v=1.48.1"></script>
+    <script src="js/map.js?v=1.48.1"></script>
+    <script src="js/camera.js?v=1.48.1"></script>
+    <script src="js/roads.js?v=1.48.1"></script>
+    <script src="js/factories.js?v=1.48.1"></script>
+    <script src="js/economy.js?v=1.48.1"></script>
+    <script src="js/vehicles.js?v=1.48.1"></script>
+    <script src="js/stats.js?v=1.48.1"></script>
+    <script src="js/inspect.js?v=1.48.1"></script>
+    <script src="js/research.js?v=1.48.1"></script>
+    <script src="js/placement.js?v=1.48.1"></script>
+    <script src="js/render.js?v=1.48.1"></script>
+    <script src="js/input.js?v=1.48.1"></script>
+    <script src="js/ui.js?v=1.48.1"></script>
+    <script src="js/main.js?v=1.48.1"></script>
 </body>
 </html>
