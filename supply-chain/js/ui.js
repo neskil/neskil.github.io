@@ -207,31 +207,79 @@ SC.ui = (function() {
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
+    function fitResearchTree() {
+        const wrap = $('research-tree-wrap');
+        if (!wrap) return;
+        const nodesEl = $('research-tree-nodes');
+        const svg = $('research-tree-edges');
+
+        // Reset scaling first to read unscaled sizes
+        nodesEl.style.transform = '';
+        nodesEl.style.transformOrigin = '';
+        svg.style.transform = '';
+        svg.style.transformOrigin = '';
+        wrap.style.height = '';
+
+        const containerWidth = wrap.clientWidth;
+        const treeWidth = parseFloat(nodesEl.style.width) || 0;
+        const treeHeight = parseFloat(nodesEl.style.height) || 0;
+
+        if (containerWidth < treeWidth && containerWidth > 0) {
+            const scale = containerWidth / treeWidth;
+            nodesEl.style.transform = `scale(${scale})`;
+            nodesEl.style.transformOrigin = 'top left';
+            svg.style.transform = `scale(${scale})`;
+            svg.style.transformOrigin = 'top left';
+            wrap.style.height = (treeHeight * scale) + 'px';
+        }
+    }
+
     function updateResearchTree() {
         if (!researchTreeOpen()) return;
-        const byTier = researchTiers();
-        const tierKeys = Object.keys(byTier).map(Number).sort((a, b) => a - b);
         const positions = {};
-        let maxCols = 1;
-        tierKeys.forEach(tier => {
-            maxCols = Math.max(maxCols, byTier[tier].length);
-        });
 
-        const width = RT_PAD * 2 + maxCols * RT_COL_W;
-        const height = RT_PAD * 2 + tierKeys.length * RT_ROW_H;
+        // Custom grid layout mapping: col and row coordinates for each research node
+        const layout = {
+            // Tier 0
+            junctions: { col: 0, row: 0 },
+            manualPlacement: { col: 1, row: 0 },
+            creditLine2: { col: 2.5, row: 0 },
+            pavedRoads: { col: 4.5, row: 0 },
+            fertilizer: { col: 6, row: 0 },
 
-        tierKeys.forEach(tier => {
-            const nodes = byTier[tier];
-            const tierWidth = nodes.length * RT_COL_W;
-            const startX = RT_PAD + (maxCols * RT_COL_W - tierWidth) / 2;
-            nodes.forEach((id, col) => {
-                positions[id] = { 
-                    x: startX + col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2, 
-                    y: RT_PAD + tier * RT_ROW_H, 
-                    w: RT_NODE_W 
+            // Tier 1
+            creditLine3: { col: 2, row: 1 },
+            premiumContracts: { col: 3, row: 1 },
+            overdrive: { col: 4.5, row: 1 },
+            automation: { col: 5.5, row: 1 },
+            coldStorage: { col: 6.5, row: 1 },
+
+            // Tier 2
+            rapidExpansion: { col: 2.5, row: 2 },
+            promotions: { col: 3.5, row: 2 },
+            bulkLogistics: { col: 4.5, row: 2 }
+        };
+
+        let maxCol = 0;
+        let maxRow = 0;
+        for (const id in layout) {
+            maxCol = Math.max(maxCol, layout[id].col);
+            maxRow = Math.max(maxRow, layout[id].row);
+        }
+
+        const width = RT_PAD * 2 + (maxCol + 1) * RT_COL_W;
+        const height = RT_PAD * 2 + (maxRow + 1) * RT_ROW_H;
+
+        for (const id of SC.RESEARCH_ORDER) {
+            const l = layout[id];
+            if (l) {
+                positions[id] = {
+                    x: RT_PAD + l.col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2,
+                    y: RT_PAD + l.row * RT_ROW_H,
+                    w: RT_NODE_W
                 };
-            });
-        });
+            }
+        }
 
         const nodesEl = $('research-tree-nodes');
         nodesEl.style.width = width + 'px';
@@ -255,6 +303,7 @@ SC.ui = (function() {
             }
         }
         svg.innerHTML = edges;
+        fitResearchTree();
     }
 
     function openResearchTree() {
@@ -1009,6 +1058,7 @@ SC.ui = (function() {
         // persisted choice, so it keeps showing via the menu from now on).
         if (params.has('dev') || devMode) setDevMode(true);
         updateMenuInfo();
+        window.addEventListener('resize', () => { if (researchTreeOpen()) fitResearchTree(); });
     }
 
     return { init, update, toast, openStatsOverlay };

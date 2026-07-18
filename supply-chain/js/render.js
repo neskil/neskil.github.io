@@ -759,9 +759,47 @@ SC.render = (function() {
         // the land, to give the ground a sense of scale and perspective.
         ctx.save();
         ctx.clip();
+        
+        const step = 220;
+        
+        // --- Dynamic Biome Fields ---
+        // Tint individual grid cells based on a seeded noise function
+        // to create regions of forests, greenlands, and deserts.
+        let sOff = 0;
+        const seedStr = SC.state.seed || '';
+        for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+        
+        for (let y = 0; y < Wh; y += step) {
+            for (let x = 0; x < W; x += step) {
+                const nx = (x + step / 2) / 1200, ny = (y + step / 2) / 1200;
+                const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
+                const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
+                const noise = v1 + v2 * 0.6;
+                
+                if (noise > 1.2) {
+                    ctx.fillStyle = 'rgba(30, 65, 45, 0.35)'; // Deep forest
+                } else if (noise > 0.4) {
+                    ctx.fillStyle = 'rgba(40, 75, 55, 0.2)'; // Greenland
+                } else if (noise < -1.2) {
+                    ctx.fillStyle = 'rgba(80, 65, 40, 0.3)'; // Deep desert
+                } else if (noise < -0.4) {
+                    ctx.fillStyle = 'rgba(70, 60, 45, 0.15)'; // Arid scrub
+                } else {
+                    continue; // Base slate gradient
+                }
+                
+                ctx.beginPath();
+                const p1 = S(x, y), p2 = S(x + step, y), p3 = S(x + step, y + step), p4 = S(x, y + step);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.lineTo(p4.x, p4.y);
+                ctx.fill();
+            }
+        }
+
         ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         ctx.lineWidth = 1;
-        const step = 220;
         for (let x = 0; x <= W + 1; x += step) {
             const a = S(x, 0), b = S(x, Wh);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
@@ -895,10 +933,53 @@ SC.render = (function() {
 
     function drawRiver() {
         const r = SC.state.river;
+        if (!r || !r.spine.length) return;
+
+        const extSpine = [...r.spine];
+        const extHalfWidths = [...r.halfWidths];
+
+        // Extrapolate past the edge of the playing field (skirt size is TERRAIN.ring)
+        const margin = TERRAIN.ring;
+        if (r.spine.length >= 2) {
+            // Top (y <= 0)
+            const first = r.spine[0];
+            const second = r.spine[1];
+            const dx = first.x - second.x;
+            const dy = first.y - second.y;
+            if (dy !== 0) {
+                const topSteps = 5;
+                for (let k = topSteps; k >= 1; k--) {
+                    const factor = (k / topSteps) * (margin / -dy);
+                    extSpine.unshift({
+                        x: first.x + dx * factor,
+                        y: first.y + dy * factor
+                    });
+                    extHalfWidths.unshift(r.halfWidths[0]);
+                }
+            }
+
+            // Bottom (y >= H)
+            const last = r.spine[r.spine.length - 1];
+            const prev = r.spine[r.spine.length - 2];
+            const dx2 = last.x - prev.x;
+            const dy2 = last.y - prev.y;
+            if (dy2 !== 0) {
+                const bottomSteps = 5;
+                for (let k = 1; k <= bottomSteps; k++) {
+                    const factor = (k / bottomSteps) * (margin / dy2);
+                    extSpine.push({
+                        x: last.x + dx2 * factor,
+                        y: last.y + dy2 * factor
+                    });
+                    extHalfWidths.push(r.halfWidths[r.halfWidths.length - 1]);
+                }
+            }
+        }
+
         const left = [], right = [];
-        for (let i = 0; i < r.spine.length; i++) {
-            left.push(S(r.spine[i].x - r.halfWidths[i], r.spine[i].y));
-            right.push(S(r.spine[i].x + r.halfWidths[i], r.spine[i].y));
+        for (let i = 0; i < extSpine.length; i++) {
+            left.push(S(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
+            right.push(S(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
         }
         // Water body
         ctx.beginPath();
@@ -921,34 +1002,15 @@ SC.render = (function() {
         ctx.lineWidth = 1.4;
         for (let w = 0; w < 4; w++) {
             ctx.beginPath();
-            for (let i = 0; i < r.spine.length; i++) {
-                const t = i / (r.spine.length - 1);
+            for (let i = 0; i < extSpine.length; i++) {
+                const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
-                const wx = r.spine[i].x - r.halfWidths[i] + 2 * r.halfWidths[i] * frac
+                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
                          + Math.sin(seaTime * 2 + t * 8 + w) * 6;
-                const p = S(wx, r.spine[i].y);
+                const p = S(wx, extSpine[i].y);
                 i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
             }
             ctx.stroke();
-        }
-
-        // Moonlight: a soft pale reflection wavering down the river centre,
-        // night-only. Two overlaid strokes (a crisp core + a broad, fainter
-        // glow) — no hard specular blobs, which read as "circles on the water".
-        const moonA = nightLevel;
-        if (moonA > 0.05) {
-            ctx.lineCap = 'round';
-            for (const [wdt, al] of [[7, 0.05], [3, 0.11]]) {
-                ctx.strokeStyle = `rgba(210, 226, 246, ${al * moonA})`;
-                ctx.lineWidth = wdt;
-                ctx.beginPath();
-                for (let i = 0; i < r.spine.length; i++) {
-                    const p = S(r.spine[i].x + Math.sin(seaTime * 0.8 + i * 0.6) * 5, r.spine[i].y);
-                    i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
-                }
-                ctx.stroke();
-            }
-            ctx.lineCap = 'butt';
         }
     }
 
