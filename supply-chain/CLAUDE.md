@@ -28,7 +28,8 @@ Don't couple the two again.)
   from there.
 - Bump `SC.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change, and update the `?v=X.Y.Z` cache-busting query on
-  every local `<script>`/`<link>` tag in `index.html` AND `tests.html`
+  every local `<script>`/`<link>` tag in `index.html` AND `tests.html`,
+  and on the main landing page link at the root `index.html` (e.g. `supply-chain/index.html?v=X.Y.Z`)
   (GitHub Pages caches aggressively; stale query strings keep mobile
   browsers on old JS after a deploy).
 - Layering rule: `config/state/map/roads/factories/economy/vehicles/camera`
