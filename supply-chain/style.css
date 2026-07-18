@@ -851,7 +851,18 @@ html, body {
 
     #contract-offer { width: 360px; }
     .menu-card { width: 400px; }
-    .help-card { max-width: 560px; }
+    .help-card {
+        max-width: 1024px;
+        width: 90vw;
+    }
+    .help-card ul {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        gap: 0.5rem 2.2rem;
+    }
+    #difficulty-picker {
+        grid-template-columns: repeat(4, 1fr);
+    }
     .stats-card { width: 480px; }
 
     /* Research tree: the main ask — more of the tree fits without
