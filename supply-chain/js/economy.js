@@ -23,9 +23,29 @@ SC.economy = (function() {
                g.inputs.every(canSource);
     }
 
+    // Does the map have all raw materials needed for this good?
+    // This defines having "the means" to produce it, even if factories aren't built.
+    function hasMeansToProduce(good) {
+        const g = SC.GOODS[good];
+        if (g.raw) return activeSuppliers(good).length > 0;
+        return g.inputs.every(hasMeansToProduce);
+    }
+
     function craftableProducts() {
-        return Object.keys(SC.GOODS).filter(p =>
-            SC.GOODS[p].orderable && canSource(p));
+        return Object.keys(SC.GOODS).filter(p => {
+            if (!SC.GOODS[p].orderable) return false;
+            if (canSource(p)) return true; // currently producing it
+            
+            // Or we have the means, and the difficulty's grace period has passed
+            const unlockedAt = SC.state.unlockedProducts[p];
+            if (unlockedAt !== undefined) {
+                const graceMin = SC.diff().orderGraceMin;
+                if (graceMin !== undefined) {
+                    if (SC.state.time >= unlockedAt + graceMin * 60) return true;
+                }
+            }
+            return false;
+        });
     }
 
     function rand(a, b) { return a + Math.random() * (b - a); }
@@ -303,6 +323,17 @@ SC.economy = (function() {
     let planTimer = 0;
     function tick(dt) {
         tickSuppliers(dt);
+        
+        // Track when we first get the means to produce each orderable good
+        // so that the difficulty grace period can start ticking.
+        for (const p of Object.keys(SC.GOODS)) {
+            if (!SC.GOODS[p].orderable) continue;
+            if (SC.state.unlockedProducts[p] !== undefined) continue;
+            if (hasMeansToProduce(p)) {
+                SC.state.unlockedProducts[p] = SC.state.time;
+            }
+        }
+
         // Debt interest: a negative balance bleeds continuously, at the
         // difficulty's rate. Interest can push the debt past the credit
         // limit (purchases stay blocked until deliveries pay it down).

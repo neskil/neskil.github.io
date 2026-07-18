@@ -1748,12 +1748,12 @@ SC.render = (function() {
                 const qW = ctx.measureText(qText).width;
                 
                 let segments = [];
-                let totalW = 6 * z + qW + 12 * z + 6 * z;
+                let totalW = 5 * z + qW + 13 * z;
                 for (const m of needsKeys) {
                     const have = Math.min(queueHave[m], queueNeeds[m]);
                     const need = queueNeeds[m];
                     const text = `${have}/${need}`;
-                    const w = 12 * z + ctx.measureText(text).width + 6 * z;
+                    const w = 14 * z + ctx.measureText(text).width;
                     segments.push({ m, text, w, have, need });
                     totalW += w;
                 }
@@ -1764,25 +1764,27 @@ SC.render = (function() {
                 roundRectPath(cx, sy - 8 * z, totalW, 16 * z, 6 * z);
                 ctx.fill();
                 
-                cx += 6 * z;
+                cx += 5 * z;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#cbd5e1';
                 ctx.fillText(qText, cx, sy);
-                cx += qW + 6 * z;
-                emoji(SC.emojiOf(n.recipe), cx, sy, 10 * z);
-                cx += 6 * z + 3 * z;
+                cx += qW + 5 * z;
+                emoji(SC.emojiOf(n.recipe), cx, sy, 9 * z);
+                cx += 4 * z;
                 
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.fillRect(cx, sy - 5 * z, 1, 10 * z);
                 cx += 4 * z;
                 
                 for (const seg of segments) {
-                    emoji(SC.emojiOf(seg.m), cx + 5 * z, sy, 10 * z);
-                    cx += 11 * z;
+                    cx += 4 * z;
+                    emoji(SC.emojiOf(seg.m), cx, sy, 9 * z);
+                    cx += 5 * z;
+                    ctx.textAlign = 'left';
                     ctx.fillStyle = seg.have >= seg.need ? '#34d399' : '#f87171';
                     ctx.fillText(seg.text, cx, sy);
-                    cx += ctx.measureText(seg.text).width + 6 * z;
+                    cx += ctx.measureText(seg.text).width + 5 * z;
                 }
             }
         }

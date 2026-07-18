@@ -203,7 +203,7 @@ SC.ui = (function() {
         return byTier;
     }
 
-    const RT_COL_W = 200, RT_ROW_H = 150, RT_NODE_W = 180, RT_NODE_H = 110, RT_PAD = 20;
+    const RT_COL_W = 200, RT_ROW_H = 180, RT_NODE_W = 180, RT_NODE_H = 130, RT_PAD = 20;
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 

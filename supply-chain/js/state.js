@@ -64,7 +64,8 @@ SC.newState = function(difficulty) {
         deliveredByProduct: {},  // see stats.js — { goodKey: count }
         moneyHistory: [],        // recent SC.state.money samples, see stats.js tick
         nextStatSampleIn: SC.CONFIG.STATS_SAMPLE_INTERVAL,
-        achievements: {}         // { id: true } — see stats.js / SC.ACHIEVEMENTS
+        achievements: {},        // { id: true } — see stats.js / SC.ACHIEVEMENTS
+        unlockedProducts: {}     // { productKey: time_unlocked_in_seconds }
     };
     return SC.state;
 };
