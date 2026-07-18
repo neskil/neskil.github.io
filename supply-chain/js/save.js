@@ -56,6 +56,10 @@ SC.save = (function() {
                 qty: st.contractOffer.qty, payout: st.contractOffer.payout,
                 deadline: st.contractOffer.deadline, timeLeft: st.contractOffer.timeLeft
             } : null,
+            deliveredByProduct: Object.assign({}, st.deliveredByProduct),
+            moneyHistory: st.moneyHistory.slice(),
+            nextStatSampleIn: st.nextStatSampleIn,
+            achievements: Object.assign({}, st.achievements),
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
@@ -69,7 +73,8 @@ SC.save = (function() {
                 inv: inv.get(n.id) || {}
             })),
             edges: st.edges.map(e => ({
-                a: e.a.id, b: e.b.id, cost: e.cost, level: e.level || 0, ferry: !!e.ferry
+                a: e.a.id, b: e.b.id, cost: e.cost, level: e.level || 0, ferry: !!e.ferry,
+                trips: e.trips || 0
             })),
             trucks: st.trucks.map(t => ({
                 nodeId: (t.node || st.nodes[0]).id,
@@ -102,6 +107,10 @@ SC.save = (function() {
         st.promoUntil = data.promoUntil || 0;
         st.defaultIn = data.defaultIn !== undefined ? data.defaultIn : null;
         st.nextContractIn = data.nextContractIn !== undefined ? data.nextContractIn : st.nextContractIn;
+        st.deliveredByProduct = data.deliveredByProduct ? Object.assign({}, data.deliveredByProduct) : {};
+        st.moneyHistory = data.moneyHistory ? data.moneyHistory.slice() : [];
+        st.nextStatSampleIn = data.nextStatSampleIn !== undefined ? data.nextStatSampleIn : st.nextStatSampleIn;
+        st.achievements = data.achievements ? Object.assign({}, data.achievements) : {};
         st.seed = data.seed || null;
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
@@ -127,7 +136,7 @@ SC.save = (function() {
             if (!a || !b) continue;
             const len = Math.hypot(a.x - b.x, a.y - b.y);
             const bridge = SC.map.segmentCrossesRiver(a.x, a.y, b.x, b.y);
-            st.edges.push({ a, b, len, bridge, cost: ed.cost, level: ed.level || 0, ferry: !!ed.ferry });
+            st.edges.push({ a, b, len, bridge, cost: ed.cost, level: ed.level || 0, ferry: !!ed.ferry, trips: ed.trips || 0 });
             a.edges.push(b);
             b.edges.push(a);
         }

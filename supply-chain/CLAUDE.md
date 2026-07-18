@@ -37,7 +37,7 @@ Don't couple the two again.)
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
 - New script files must be added to `index.html`; logic modules also to
   `tests.html`. Load order matters: config → state → save → sfx → rng →
-  map → camera → roads → factories → economy → vehicles → inspect →
+  map → camera → roads → factories → economy → vehicles → stats → inspect →
   research → placement → (render → input → ui → main). (`rng.js` must
   precede `map.js`: `SC.map`'s IIFE calls `SC.rng.create(...)` at
   load time to seed its default RNG.)
@@ -49,7 +49,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (354 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (386 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
@@ -75,7 +75,10 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small roundabout marker (`drawJunction`). `&highway=1` completes
+  small roundabout marker (`drawJunction`). `&stats=1` forces sample
+  deliveries/money-history/road-trips and a few unlocked achievements,
+  then opens the ☰ menu's Stats & Achievements overlay directly, for
+  screenshotting it without a long real playthrough. `&highway=1` completes
   pavedRoads and paves all built roads (highway styling); `&suplevel=2` levels every supplier up
   twice (▲ pips); `&drain=1` empties supplier stocks (red low-stock
   bars). `&doom=42` forces a balance beyond the credit limit with 42s
@@ -118,7 +121,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   (cosmetic) day/night phase — 0/1 midnight, 0.25 sunrise, 0.5 noon,
   0.75 sunset — so daylight, dusk and night can be screenshotted
   deterministically (it otherwise advances on its own `DAY_LENGTH`
-  clock). `&weather=clear|clouds|rain|snow` forces a weather spell (it
+  clock). `&xfer=1` spawns a persistent loading + unloading crate near HQ so the pickup/delivery crate animation can be screenshotted without catching a real 0.55s transfer. `&weather=clear|clouds|rain|snow` forces a weather spell (it
   otherwise rotates on its own) for screenshotting precipitation/
   overcast. Both are render-only, non-persisted. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as

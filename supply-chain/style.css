@@ -527,6 +527,73 @@ html, body {
 #research-tree-nodes { position: relative; }
 .rt-node { position: absolute; box-sizing: border-box; margin-bottom: 0; }
 #research-tree-edges { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+/* ── Stats & Achievements overlay ─────────────────── */
+#stats-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#stats-overlay.hidden { display: none; }
+.stats-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 1.2rem;
+    width: 420px;
+    max-width: 92vw;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+}
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+}
+.stats-header h1 { font-size: 1.1rem; }
+.stats-body { overflow-y: auto; }
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0.1rem;
+    font-size: 0.85rem;
+}
+.stats-row b { color: var(--good); }
+.stats-empty { color: var(--text-secondary); font-size: 0.8rem; padding: 0.3rem 0.1rem; }
+#stats-sparkline {
+    width: 100%;
+    height: 50px;
+    display: block;
+    background: rgba(15, 23, 42, 0.35);
+    border-radius: 8px;
+}
+.stats-ach-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+.stats-ach {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+    font-size: 0.68rem;
+    line-height: 1.3;
+}
+.stats-ach .ach-emoji { font-size: 1.3rem; display: block; margin-bottom: 0.2rem; }
+.stats-ach.locked { opacity: 0.35; filter: grayscale(1); }
+.stats-ach.unlocked { border-color: rgba(250, 204, 21, 0.5); background: rgba(120, 90, 15, 0.2); }
 .rt-edge { fill: none; stroke: rgba(148, 163, 184, 0.35); stroke-width: 2; }
 .rt-edge.rt-edge-done { stroke: var(--good); stroke-width: 2.5; }
 
@@ -748,6 +815,8 @@ html, body {
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
     .research-tree-card { padding: 0.8rem; }
+    .stats-card { padding: 0.8rem; }
+    .stats-ach-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* Narrow phones (older/smaller devices): shrink further so the top-left
