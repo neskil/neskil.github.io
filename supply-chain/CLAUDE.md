@@ -159,3 +159,12 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   Don't chase that as a CSS bug; verify centered/capped-width overlays at
   `--window-size=500,844` or wider instead, or note the discrepancy and
   reason about the real (unclamped) viewport port math by hand.
+
+## Quick TODOs
+
+- **Late-delivery penalty** (scales with difficulty): when a regular order
+  expires undelivered, charge a monetary penalty instead of just tallying a
+  "Missed" — amount proportional to the order value and difficulty
+  (`SC.diff()` multiplier). Sandbox / Easy: no penalty or very small; Normal:
+  moderate fine; Hard: steep. Contracts already do this (`CONTRACT_PENALTY_MULT`
+  in `economy.js`) — extend the same mechanic to regular orders.
