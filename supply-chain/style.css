@@ -758,20 +758,60 @@ html, body {
 .help-card ul { padding-left: 1.1rem; margin-bottom: 1rem; }
 .help-card li { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.4rem; }
 .help-card li b { color: var(--text-primary); }
-.recipes {
-    display: flex;
-    gap: 1.2rem;
-    justify-content: center;
-    margin-bottom: 1.2rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
+.recipe-graph-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    margin: 1.2rem 0;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
-.recipes span { display: flex; align-items: center; gap: 0.3rem; }
-.recipes i {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 4px;
+.recipe-graph-container {
+    position: relative;
+    width: 715px;
+    height: 415px;
+    margin: 0 auto;
+}
+#recipe-graph-nodes {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+#recipe-graph-edges {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+.rg-node {
+    position: absolute;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    box-shadow: 0 0 8px var(--glow-color, rgba(255,255,255,0.02));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+.rg-node-content {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.rg-edge {
+    fill: none;
+    stroke-width: 2.2;
+    opacity: 0.65;
 }
 #help-start {
     display: block;

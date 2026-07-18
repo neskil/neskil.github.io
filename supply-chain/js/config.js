@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.47.0';
+SC.VERSION = '1.48.0';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -303,7 +303,7 @@ SC.GOODS = {
     wheat:  { emoji: '🌾', name: 'Wheat',       color: '#d4b45a', raw: true },
     water:  { emoji: '💧', name: 'Water',       color: '#38bdf8', raw: true },
     wool:   { emoji: '🧶', name: 'Wool',        color: '#c4a0a0', raw: true },
-    rubber: { emoji: '🛞', name: 'Rubber',      color: '#a78bfa', raw: true },
+    rubber: { emoji: '🧪', name: 'Rubber',      color: '#a78bfa', raw: true },
     ore:    { emoji: '🪨', name: 'Iron ore',    color: '#9aa3ad', raw: true },
     coal:   { emoji: '⚫', name: 'Coal',        color: '#64748b', raw: true },
     chips:  { emoji: '💾', name: 'Electronics', color: '#8fa8bf', raw: true },
