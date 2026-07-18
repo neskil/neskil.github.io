@@ -1010,7 +1010,8 @@ SC.render = (function() {
             ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
         }
         ctx.setLineDash([]);
-        ctx.lineCap = 'butt';
+        ctx.lineDashOffset = 0; // reset — else later dashed strokes (e.g. the
+        ctx.lineCap = 'butt';   // pasture fence) inherit this animated offset
     }
 
     // Rain makes roads glisten: a thin cool specular re-stroke over the
@@ -2045,6 +2046,55 @@ SC.render = (function() {
         ctx.globalAlpha = 1;
     }
 
+    // Loading / unloading: a little crate hops up into a truck when it picks
+    // cargo up and drops down into the node when it delivers. Detected purely
+    // render-side by watching each truck's cargo length change (no gameplay/
+    // logic hooks), so it stays cosmetic.
+    let transfers = [];
+    const cargoLen = new Map();   // truck id -> last cargo length
+    const cargoLast = new Map();  // truck id -> last non-empty item (for unload colour)
+    function updateTransfers(dt) {
+        for (const t of SC.state.trucks) {
+            const prev = cargoLen.get(t.id) || 0, now = t.cargo.length;
+            if (now > prev && t.cargo[0]) {
+                transfers.push({ x: t.x, y: t.y, item: t.cargo[0], dir: 1, life: 0, dur: 0.55 });
+            } else if (now < prev) {
+                const item = cargoLast.get(t.id);
+                if (item) transfers.push({ x: t.x, y: t.y, item, dir: -1, life: 0, dur: 0.55 });
+            }
+            cargoLen.set(t.id, now);
+            if (t.cargo[0]) cargoLast.set(t.id, t.cargo[0]);
+        }
+        for (let i = transfers.length - 1; i >= 0; i--) {
+            transfers[i].life += dt;
+            if (transfers[i].life >= transfers[i].dur) transfers.splice(i, 1);
+        }
+    }
+    // A small wooden crate tinted by its cargo, with the good's emoji on top.
+    function drawCrate(sx, sy, s, item, alpha) {
+        const col = SC.colorOf(item);
+        ctx.globalAlpha = alpha;
+        roundRectPath(sx - s, sy - s * 0.85, s * 2, s * 1.7, s * 0.3);
+        ctx.fillStyle = shade(col, -0.12); ctx.fill();
+        ctx.strokeStyle = rgba(shade(col, 0.45), 0.7); ctx.lineWidth = 1; ctx.stroke();
+        ctx.strokeStyle = rgba(shade(col, -0.45), 0.6);
+        ctx.beginPath(); ctx.moveTo(sx - s, sy); ctx.lineTo(sx + s, sy); ctx.stroke();
+        emoji(SC.emojiOf(item), sx, sy, s * 1.55);
+        ctx.globalAlpha = 1;
+    }
+    // One crate, drawn interleaved with the buildings/trucks by depth so a
+    // site in front correctly clips it.
+    function drawTransfer(tr) {
+        const z = clampZoom();
+        const f = tr.life / tr.dur;
+        const p = S(tr.x, tr.y);
+        // load: crate rises from the ground into the truck bed then fades;
+        // unload: crate lowers from the bed to the ground.
+        const lift = tr.dir > 0 ? -(6 + f * 16) * z : -(6 + (1 - f) * 16) * z;
+        const alpha = tr.dir > 0 ? Math.min(1, (1 - f) * 1.6) : Math.min(1, (1 - f) * 1.4);
+        drawCrate(p.x, p.y + lift, 6 * z, tr.item, alpha);
+    }
+
     // Snow settling on the ground: a pale wash over the land, clipped to the
     // plateau, its strength following the (slowly-melting) accumulation.
     function drawSnowBlanket() {
@@ -2209,9 +2259,12 @@ SC.render = (function() {
         // TRUCK_DEPTH_BIAS nudges trucks forward so they win that near-tie
         // and read as driving up TO the site rather than sinking under it.
         const TRUCK_DEPTH_BIAS = 30;
+        updateTransfers(dt); // spawn/age loading-unloading crates
         const ents = [];
         for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
         for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
+        // crates ride just in front of the truck depth so a nearer site clips them
+        for (const tr of transfers) ents.push({ kind: 'transfer', ref: tr, depth: tr.x + tr.y + TRUCK_DEPTH_BIAS + 1 });
         ents.sort((a, b) => a.depth - b.depth);
 
         // shadows first so no building casts onto another's face
@@ -2223,6 +2276,7 @@ SC.render = (function() {
         }
         for (const e of ents) {
             if (e.kind === 'node') drawNodeBody(e.ref, now);
+            else if (e.kind === 'transfer') drawTransfer(e.ref);
             else drawTruckBody(e.ref);
         }
 
@@ -2236,5 +2290,10 @@ SC.render = (function() {
         drawOffscreenArrows(now); // …but keep edge arrows crisp on top
     }
 
-    return { attach, frame, resize, nodeIconAnchor };
+    return {
+        attach, frame, resize, nodeIconAnchor,
+        // Headless hook: force a long-lived loading/unloading crate at a world
+        // point so the animation can be screenshotted (see &xfer=1 in main.js).
+        _forceTransfer: (x, y, item, dir, dur) => transfers.push({ x, y, item, dir, life: 0, dur: dur || 1 })
+    };
 })();
