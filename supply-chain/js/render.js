@@ -543,7 +543,12 @@ SC.render = (function() {
         return h;
     }
 
-    function terrainKey() { return Math.round(SC.worldW()) + 'x' + Math.round(SC.worldH()); }
+    function terrainKey() {
+        const r = SC.state && SC.state.river && SC.state.river.spine.length
+            ? Math.round(SC.state.river.spine[0].x) + ':' + Math.round(SC.state.river.spine[0].y)
+            : 'noriv';
+        return Math.round(SC.worldW()) + 'x' + Math.round(SC.worldH()) + ':' + r;
+    }
 
     function ensureTerrain() {
         const key = terrainKey();
@@ -880,6 +885,7 @@ SC.render = (function() {
                        y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
         try {
             drawTerrain();
+            drawRiverBg();
             drawLandStatic();
         } finally {
             ctx = old;
@@ -945,6 +951,92 @@ SC.render = (function() {
         }
     }
 
+    // Mountain-side river body: painted into the bg cache alongside the
+    // terrain polygons so it composites correctly (no z-order artefacts).
+    // Only the static body + bank shadow — animated ripples stay in drawRiver.
+    function drawRiverBg() {
+        const r = SC.state.river;
+        if (!r || !r.spine.length || r.spine.length < 2) return;
+
+        const margin = TERRAIN.ring;
+        const extSpine = [];
+        const extHalfWidths = [];
+
+        // Extrapolate upstream into the mountains
+        const first = r.spine[0];
+        const second = r.spine[1];
+        const dx = first.x - second.x;
+        const dy = first.y - second.y;
+        if (dy === 0) return;
+
+        const topSteps = 40;
+        for (let k = topSteps; k >= 1; k--) {
+            const factor = (k / topSteps) * (margin / -dy);
+            extSpine.push({
+                x: first.x + dx * factor,
+                y: first.y + dy * factor
+            });
+            extHalfWidths.push(r.halfWidths[0]);
+        }
+        // Include the playing-field portion with a small overlap past y=0
+        // so there's no gap between the bg and live river
+        for (let i = 0; i < r.spine.length; i++) {
+            if (r.spine[i].y > 80) break; // small overlap into the field
+            extSpine.push(r.spine[i]);
+            extHalfWidths.push(r.halfWidths[i]);
+        }
+
+        if (extSpine.length < 2) return;
+
+        const z = zoom();
+        const getPt = (x, y) => {
+            const p = S(x, y);
+            const h = terrainHeight(x, y);
+            return { x: p.x, y: p.y - h * z };
+        };
+
+        const left = [], right = [];
+        for (let i = 0; i < extSpine.length; i++) {
+            left.push(getPt(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
+            right.push(getPt(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
+        }
+
+        // Water body
+        ctx.beginPath();
+        left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
+        ctx.closePath();
+        const ys = [...left, ...right].map(p => p.y);
+        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+        g.addColorStop(0, '#123047');
+        g.addColorStop(1, '#0b1c2c');
+        ctx.fillStyle = g;
+        ctx.fill();
+        // bank shadow
+        ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Static ripple hints (no animation — this is the cached bg layer)
+        ctx.strokeStyle = 'rgba(96, 200, 240, 0.07)';
+        ctx.lineWidth = 1.2;
+        for (let w = 0; w < 3; w++) {
+            ctx.beginPath();
+            for (let i = 0; i < extSpine.length; i++) {
+                const t = i / (extSpine.length - 1);
+                const frac = (w + 1) / 4;
+                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
+                         + Math.sin(t * 8 + w) * 6;
+                const p = getPt(wx, extSpine[i].y);
+                (i === 0) ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // Live river: the playing-field portion + downstream extension.
+    // Animated ripples render here every frame; the mountain-side body
+    // is handled by drawRiverBg (in the cached bg layer).
     function drawRiver() {
         const r = SC.state.river;
         if (!r || !r.spine.length) return;
@@ -952,27 +1044,9 @@ SC.render = (function() {
         const extSpine = [...r.spine];
         const extHalfWidths = [...r.halfWidths];
 
-        // Extrapolate past the edge of the playing field (skirt size is TERRAIN.ring)
+        // Extend downstream (front/lowland side) only
         const margin = TERRAIN.ring;
         if (r.spine.length >= 2) {
-            // Top (y <= 0)
-            const first = r.spine[0];
-            const second = r.spine[1];
-            const dx = first.x - second.x;
-            const dy = first.y - second.y;
-            if (dy !== 0) {
-                const topSteps = 40;
-                for (let k = 1; k <= topSteps; k++) {
-                    const factor = (k / topSteps) * (margin / -dy);
-                    extSpine.unshift({
-                        x: first.x + dx * factor,
-                        y: first.y + dy * factor
-                    });
-                    extHalfWidths.unshift(r.halfWidths[0]);
-                }
-            }
-
-            // Bottom (y >= H)
             const last = r.spine[r.spine.length - 1];
             const prev = r.spine[r.spine.length - 2];
             const dx2 = last.x - prev.x;
@@ -1010,50 +1084,34 @@ SC.render = (function() {
         ctx.closePath();
         
         const ys = [...left, ...right].map(p => p.y);
-        const topY = Math.min(...ys);
-        const botY = Math.max(...ys);
-        const fieldBackY = S(SC.worldW()/2, 0).y;
-        let fadeStop = (fieldBackY - topY) / (botY - topY);
-        fadeStop = Math.max(0.01, Math.min(0.99, fadeStop));
-
-        const g = ctx.createLinearGradient(0, topY, 0, botY);
-        g.addColorStop(0, 'rgba(18, 48, 71, 0)');
-        g.addColorStop(fadeStop * 0.7, 'rgba(18, 48, 71, 0)');
-        g.addColorStop(fadeStop, '#123047');
+        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+        g.addColorStop(0, '#123047');
         g.addColorStop(1, '#0b1c2c');
         ctx.fillStyle = g;
         ctx.fill();
         
         // subtle bank shadow
-        const gBank = ctx.createLinearGradient(0, topY, 0, botY);
-        gBank.addColorStop(0, 'rgba(2, 6, 12, 0)');
-        gBank.addColorStop(fadeStop * 0.7, 'rgba(2, 6, 12, 0)');
-        gBank.addColorStop(fadeStop, 'rgba(2, 6, 12, 0.5)');
-        gBank.addColorStop(1, 'rgba(2, 6, 12, 0.5)');
-        ctx.strokeStyle = gBank;
+        ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Animated ripples across the flow
-        const gRip = ctx.createLinearGradient(0, topY, 0, botY);
-        gRip.addColorStop(0, 'rgba(96, 200, 240, 0)');
-        gRip.addColorStop(fadeStop * 0.7, 'rgba(96, 200, 240, 0)');
-        gRip.addColorStop(fadeStop, 'rgba(96, 200, 240, 0.10)');
-        gRip.addColorStop(1, 'rgba(96, 200, 240, 0.10)');
-        ctx.strokeStyle = gRip;
+        ctx.strokeStyle = 'rgba(96, 200, 240, 0.10)';
         ctx.lineWidth = 1.4;
         
         for (let w = 0; w < 4; w++) {
-            // Normal ripples (mountains + playing field)
+            // Normal ripples — follow terrain height via getPt
             ctx.beginPath();
+            let ripStarted = false;
             for (let i = 0; i < extSpine.length; i++) {
                 if (extSpine[i].y > H + 10) continue;
                 const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
                 const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
-                         + Math.sin(seaTime * 2 + t * 8 + w) * 6;
+                         + Math.sin(seaTime * 0.8 + t * 8 + w) * 6;
                 const p = getPt(wx, extSpine[i].y);
-                (i === 0) ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+                if (!ripStarted) { ctx.moveTo(p.x, p.y); ripStarted = true; }
+                else { ctx.lineTo(p.x, p.y); }
             }
             ctx.stroke();
         }
@@ -1069,7 +1127,7 @@ SC.render = (function() {
         const dY = last.y - prev.y;
         
         for (let i = 0; i < numWaves; i++) {
-            let phase = (i / numWaves + seaTime * 0.4) % 1; 
+            let phase = (i / numWaves + seaTime * 0.12) % 1; 
             let pos = Math.pow(phase, 1.8); // Start slow, accelerate
             
             // Draw a dashed transverse line (4-5 segments across the width)
