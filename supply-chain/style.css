@@ -431,6 +431,8 @@ html, body {
 }
 .diff-name { font-weight: 700; font-size: 0.85rem; }
 .diff-desc { color: var(--text-secondary); font-size: 0.7rem; line-height: 1.3; }
+.diff-grace { color: var(--text-secondary); font-size: 0.66rem; opacity: 0.8; }
+.diff-grace b { color: var(--text-primary); font-weight: 600; }
 
 /* ── Game-over (foreclosure) overlay ────────────── */
 #gameover-overlay {
