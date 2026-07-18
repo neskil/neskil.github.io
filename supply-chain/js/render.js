@@ -293,23 +293,37 @@ SC.render = (function() {
     }
 
     // Soft overcast blobs drifting across the sky with the wind — the visible
-    // "clouds" state. Screen-space, so they read as a sky layer, not ground.
+    // "clouds" state. Anchored to world space so they pan and zoom correctly.
     function drawSkyClouds(dt) {
         if (weather.cloud < 0.02) return;
-        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const W = SC.worldW(), H = SC.worldH();
         if (!clouds) {
             const rng = makeRng(0xc10d);
             clouds = [];
             for (let i = 0; i < 7; i++) {
-                clouds.push({ x: rng(), y: rng() * 0.32, r: 60 + rng() * 90, s: 0.4 + rng() * 0.7 });
+                clouds.push({
+                    x: rng() * (W + 1200) - 600,
+                    y: rng() * (H + 1200) - 600,
+                    r: 120 + rng() * 180,
+                    s: 0.4 + rng() * 0.7
+                });
             }
         }
-        const drift = Math.cos(weather.windAng) * weather.windMag;
+        const driftX = Math.cos(weather.windAng) * weather.windMag * 4;
+        const driftY = Math.sin(weather.windAng) * weather.windMag * 4;
         ctx.fillStyle = '#8391a5';
+        const z = zoom();
         for (const c of clouds) {
-            c.x += drift * c.s * dt * 0.02;
-            if (c.x > 1.2) c.x -= 1.4; else if (c.x < -0.2) c.x += 1.4;
-            const cx = c.x * w, cy = c.y * h, r = c.r;
+            c.x += driftX * c.s * dt * 0.02;
+            c.y += driftY * c.s * dt * 0.02;
+            const margin = 800;
+            if (c.x > W + margin) c.x -= (W + 2 * margin);
+            else if (c.x < -margin) c.x += (W + 2 * margin);
+            if (c.y > H + margin) c.y -= (H + 2 * margin);
+            else if (c.y < -margin) c.y += (H + 2 * margin);
+
+            const p = S(c.x, c.y);
+            const cx = p.x, cy = p.y - 450 * z, r = c.r * z;
             const gr = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
             gr.addColorStop(0, `rgba(150, 165, 186, ${0.22 * weather.cloud})`);
             gr.addColorStop(1, 'rgba(150, 165, 186, 0)');
@@ -319,28 +333,39 @@ SC.render = (function() {
     }
 
     // Big soft cloud shadows sliding over the ground (drawn after the land,
-    // under the buildings). Screen-space and driven by the same wind.
+    // under the buildings). Anchored to world space so they pan and zoom correctly.
     let cloudShadows = null;
     function drawCloudShadows(dt) {
         if (weather.cloud < 0.05) return;
-        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const W = SC.worldW(), H = SC.worldH();
         if (!cloudShadows) {
             const rng = makeRng(0x5ad0);
             cloudShadows = [];
             for (let i = 0; i < 5; i++) {
-                cloudShadows.push({ x: rng() * 1.4 - 0.2, y: 0.2 + rng() * 0.7, r: 130 + rng() * 120, s: 0.6 + rng() * 0.6 });
+                cloudShadows.push({
+                    x: rng() * (W + 1000) - 500,
+                    y: rng() * (H + 1000) - 500,
+                    r: 250 + rng() * 250,
+                    s: 0.6 + rng() * 0.6
+                });
             }
         }
-        const dvx = Math.cos(weather.windAng) * weather.windMag;
-        const dvy = Math.sin(weather.windAng) * weather.windMag * 0.4;
+        const dvx = Math.cos(weather.windAng) * weather.windMag * 4;
+        const dvy = Math.sin(weather.windAng) * weather.windMag * 4;
         ctx.globalAlpha = 0.12 * weather.cloud;
         ctx.fillStyle = '#05070c';
+        const z = zoom();
         for (const c of cloudShadows) {
-            c.x += dvx * c.s * dt * 0.03; c.y += dvy * c.s * dt * 0.02;
-            if (c.x > 1.4) c.x -= 1.7; else if (c.x < -0.3) c.x += 1.7;
-            if (c.y > 1.1) c.y -= 1.2; else if (c.y < 0.05) c.y += 1.0;
+            c.x += dvx * c.s * dt * 0.03; c.y += dvy * c.s * dt * 0.03;
+            const margin = 600;
+            if (c.x > W + margin) c.x -= (W + 2 * margin);
+            else if (c.x < -margin) c.x += (W + 2 * margin);
+            if (c.y > H + margin) c.y -= (H + 2 * margin);
+            else if (c.y < -margin) c.y += (H + 2 * margin);
+
+            const p = S(c.x, c.y);
             ctx.beginPath();
-            ctx.ellipse(c.x * w, c.y * h, c.r, c.r * 0.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(p.x, p.y, c.r * z, c.r * 0.5 * z, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
