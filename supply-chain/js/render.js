@@ -990,10 +990,18 @@ SC.render = (function() {
             }
         }
 
+        const H = SC.worldH();
+        const z = zoom();
+        const getPt = (x, y) => {
+            const p = S(x, y);
+            const h = terrainHeight(x, y);
+            return { x: p.x, y: p.y - h * z };
+        };
+
         const left = [], right = [];
         for (let i = 0; i < extSpine.length; i++) {
-            left.push(S(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
-            right.push(S(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
+            left.push(getPt(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
+            right.push(getPt(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
         }
         // Water body
         ctx.beginPath();
@@ -1015,16 +1023,37 @@ SC.render = (function() {
         ctx.strokeStyle = 'rgba(96, 200, 240, 0.10)';
         ctx.lineWidth = 1.4;
         for (let w = 0; w < 4; w++) {
+            // Normal ripples (mountains + playing field)
             ctx.beginPath();
+            ctx.setLineDash([]);
             for (let i = 0; i < extSpine.length; i++) {
+                if (extSpine[i].y > H + 50) continue;
                 const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
                 const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
                          + Math.sin(seaTime * 2 + t * 8 + w) * 6;
-                const p = S(wx, extSpine[i].y);
-                i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
+                const p = getPt(wx, extSpine[i].y);
+                (i === 0) ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
             }
             ctx.stroke();
+
+            // Flood rush for the front (foothills dip)
+            ctx.beginPath();
+            ctx.setLineDash([15, 15]);
+            ctx.lineDashOffset = -seaTime * 150 - w * 10;
+            let started = false;
+            for (let i = 0; i < extSpine.length; i++) {
+                if (extSpine[i].y < H) continue;
+                const t = i / (extSpine.length - 1);
+                const frac = (w + 1) / 5;
+                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
+                         + Math.sin(seaTime * 5 + t * 15 + w) * 8;
+                const p = getPt(wx, extSpine[i].y);
+                if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+                else { ctx.lineTo(p.x, p.y); }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
         }
     }
 

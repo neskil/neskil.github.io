@@ -330,3 +330,6 @@ sync with it):
   of 3) — considered for v1.12 but deferred: milestone pace is the main
   faucet controlling map growth, and cheapening it risks flooding the
   midgame with sites; revisit alongside a difficulty ramp.
+- Biome-specific supplier bonuses: e.g., greenland tiles give a bonus to
+  wool and wheat suppliers. Consider pivoting from "auto spawning" 
+  suppliers to having the player build/place them on advantageous biomes.
