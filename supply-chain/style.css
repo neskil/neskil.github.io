@@ -786,6 +786,12 @@ html, body {
     cursor: pointer;
 }
 #help-start:hover { filter: brightness(1.1); }
+.help-divider {
+    border: none;
+    border-top: 1px solid var(--card-border);
+    margin: 1.4rem 0;
+}
+
 
 /* ── Mobile ──────────────────────────────────────── */
 /* The top-left bar (menu + money + trucks) stays a single narrow row on
