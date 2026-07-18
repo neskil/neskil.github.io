@@ -15,21 +15,21 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.45.0"></script>
-    <script src="js/state.js?v=1.45.0"></script>
-    <script src="js/save.js?v=1.45.0"></script>
-    <script src="js/sfx.js?v=1.45.0"></script>
-    <script src="js/rng.js?v=1.45.0"></script>
-    <script src="js/map.js?v=1.45.0"></script>
-    <script src="js/camera.js?v=1.45.0"></script>
-    <script src="js/roads.js?v=1.45.0"></script>
-    <script src="js/factories.js?v=1.45.0"></script>
-    <script src="js/economy.js?v=1.45.0"></script>
-    <script src="js/vehicles.js?v=1.45.0"></script>
-    <script src="js/stats.js?v=1.45.0"></script>
-    <script src="js/inspect.js?v=1.45.0"></script>
-    <script src="js/research.js?v=1.45.0"></script>
-    <script src="js/placement.js?v=1.45.0"></script>
+    <script src="js/config.js?v=1.46.0"></script>
+    <script src="js/state.js?v=1.46.0"></script>
+    <script src="js/save.js?v=1.46.0"></script>
+    <script src="js/sfx.js?v=1.46.0"></script>
+    <script src="js/rng.js?v=1.46.0"></script>
+    <script src="js/map.js?v=1.46.0"></script>
+    <script src="js/camera.js?v=1.46.0"></script>
+    <script src="js/roads.js?v=1.46.0"></script>
+    <script src="js/factories.js?v=1.46.0"></script>
+    <script src="js/economy.js?v=1.46.0"></script>
+    <script src="js/vehicles.js?v=1.46.0"></script>
+    <script src="js/stats.js?v=1.46.0"></script>
+    <script src="js/inspect.js?v=1.46.0"></script>
+    <script src="js/research.js?v=1.46.0"></script>
+    <script src="js/placement.js?v=1.46.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -336,15 +336,22 @@
             tRes2.ok && tRes2.truck.homeYard.isHQ);
     })();
 
-    // ── Junctions: a plain routing waypoint, not research-gated ──────
+    // ── Junctions: a routing waypoint, gated behind the (cheap) research ──
     (function() {
         const { S1, S2, F, C } = fixture();
         SC.state.money = 100000;
         const price = SC.CONFIG.PLACEMENT_JUNCTION_PRICE;
         assert('junction price matches config', SC.placement.price('junction') === price);
 
-        assert('junction placement works without any research done',
-            !SC.research.isDone('manualPlacement'));
+        // Locked until the 'junctions' research is done (yards stay ungated).
+        assert('junction is locked before the junctions research',
+            !SC.placement.isUnlocked('junction') && SC.placement.isUnlocked('yard'));
+        const locked = SC.placement.place('junction', null, 900, 900);
+        assert('placing a junction is refused while locked',
+            !locked.ok && locked.reason === 'locked');
+
+        SC.state.research.completed.junctions = true;
+        assert('junction unlocks once the research is complete', SC.placement.isUnlocked('junction'));
         const before = SC.state.money;
         const res = SC.placement.place('junction', null, 900, 900);
         assert('junction placed on open land and charged the flat price',
@@ -370,6 +377,7 @@
     (function() {
         const { S1, F } = fixture();
         SC.state.money = 100000;
+        SC.state.research.completed.junctions = true; // unlock placement
         const junction = SC.placement.place('junction', null, 900, 900).node;
         SC.roads.build(S1, junction);
         SC.roads.build(junction, F);
@@ -626,6 +634,7 @@
         SC.newState();
         SC.map._resetSeq();
         SC.map.generateWorld();
+        SC.state.time = 1e6; // past any river-grace window: test the raw pool mechanic
 
         for (let i = 0; i < 20; i++) {
             const n = SC.map.unlockNext(x => x.kind !== 'city');
@@ -646,6 +655,7 @@
         SC.newState();
         SC.map._resetSeq();
         SC.map.generateWorld();
+        SC.state.time = 1e6; // past any river-grace window: test the raw spawn timer
         SC.state.nextCustomerIn = 5;
 
         for (let i = 0; i < 40 && SC.state.nodes.filter(n => n.kind === 'city' && n.active).length < 2; i++) {
@@ -1772,6 +1782,102 @@
             SC.state.orders.some(o => o.contract === true));
     })();
 
+    // ── River grace: early unlocks stay on HQ's bank, far bank held then released ──
+    (function() {
+        fixture(); // straight river at x=1100; HQ (C) on the left bank at x=700
+        // Inactive pool sites: one on the near (left) bank, two on the far (right) bank.
+        const nearSup = SC.map.makeNode('supplier', 200,  500, { mat: 'ore' });
+        const farSup  = SC.map.makeNode('supplier', 1800, 500, { mat: 'coal' });
+        const farCity = SC.map.makeNode('city',     1800, 800, {});
+
+        assert('HQ start bank detected (left = -1)', SC.map.startSide() === -1);
+        assert('far-bank point classified as +1', SC.map.sideOf(1800, 500) === 1);
+
+        SC.state.time = 0; // inside Normal's 3-min grace window
+        assert('river grace is active at t=0', SC.map.riverGraceRemaining() > 0);
+
+        // A milestone-style unlock skips the far supplier for the near one.
+        const u1 = SC.map.unlockNext(n => n.kind !== 'city');
+        assert('grace unlocks the near-bank site first', u1 === nearSup && nearSup.active);
+        assert('grace holds back the far-bank supplier', !farSup.active);
+        assert('far-bank supplier reported as grace-held',
+            SC.map.anyHeldByRiverGrace(n => n.kind !== 'city'));
+
+        // A customer-DC unlock is held too when only the far-bank city remains.
+        assert('no city unlocks while the far-bank city is grace-held',
+            SC.map.unlockNext(n => n.kind === 'city') === null && !farCity.active);
+        assert('far-bank city reported as grace-held',
+            SC.map.anyHeldByRiverGrace(n => n.kind === 'city'));
+
+        // Once the window closes, the far-bank sites unlock normally.
+        SC.state.time = SC.diff().riverGraceMin * 60 + 1;
+        assert('river grace has expired after the window', SC.map.riverGraceRemaining() === 0);
+        assert('no site is grace-held once the window closes',
+            !SC.map.anyHeldByRiverGrace(n => n.kind !== 'city'));
+        assert('far-bank supplier unlocks after grace', SC.map.unlockNext(n => n.kind !== 'city') === farSup && farSup.active);
+        assert('far-bank city unlocks after grace', SC.map.unlockNext(n => n.kind === 'city') === farCity && farCity.active);
+    })();
+
+    // ── River grace: a difficulty with no grace (Hard) never holds far-bank sites ──
+    (function() {
+        SC.newState('hard');
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [40, 40] };
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true }); // HQ on the left bank
+        const farSup = SC.map.makeNode('supplier', 1800, 500, { mat: 'coal' }); // far bank, inactive
+        SC.state.time = 0;
+        assert('Hard has no river-grace window', SC.map.riverGraceRemaining() === 0);
+        assert('Hard unlocks a far-bank site immediately',
+            SC.map.unlockNext(n => n.kind !== 'city') === farSup && farSup.active);
+    })();
+
+    // ── Pool sites tether to the network — no far-corner strandings ──
+    (function() {
+        // Worst nearest-neighbour distance across several seeds on a given
+        // difficulty (a proxy for how spread-out the generated map is).
+        function worstIsolation(difficulty) {
+            let worst = 0;
+            for (const seed of ['spread-1', 'spread-2', 'spread-3', 'spread-4', 'spread-5', 'spread-6']) {
+                SC.newState(difficulty); SC.map._resetSeq();
+                SC.map.generateWorld(seed);
+                const nodes = SC.state.nodes;
+                const cap = SC.nodeMaxSpread() * 2; // leash ceiling after full relaxation
+                for (const n of nodes) {
+                    let nearest = Infinity;
+                    for (const m of nodes) if (m !== n) nearest = Math.min(nearest, Math.hypot(m.x - n.x, m.y - n.y));
+                    worst = Math.max(worst, nearest);
+                    assert(`[${difficulty}] every site has a neighbour within the spread cap`,
+                        nearest <= cap, `seed ${seed}: nearest ${Math.round(nearest)} > cap ${cap}`);
+                }
+            }
+            return worst;
+        }
+        const easyWorst = worstIsolation('easy');
+        const normalWorst = worstIsolation('normal');
+        const hardWorst = worstIsolation('hard');
+
+        // Per-difficulty spread cap is wired up and ordered as intended.
+        SC.newState('easy');   assert('easy spread cap is the tightest', SC.nodeMaxSpread() === 520);
+        SC.newState('normal'); assert('normal spread cap is the baseline', SC.nodeMaxSpread() === 620);
+        SC.newState('hard');   assert('hard spread cap is the loosest', SC.nodeMaxSpread() === 820);
+        assert('spread cap falls back to CONFIG when a preset omits nodeSpread', (function() {
+            SC.newState('normal');
+            const saved = SC.DIFFICULTIES.normal.nodeSpread;
+            delete SC.DIFFICULTIES.normal.nodeSpread;
+            const fell = SC.nodeMaxSpread() === SC.CONFIG.NODE_MAX_SPREAD;
+            SC.DIFFICULTIES.normal.nodeSpread = saved;
+            return fell;
+        })());
+
+        // The scaling actually bites: Hard maps sprawl more than Easy ones.
+        assert('harder difficulty spreads sites out more than easier',
+            hardWorst > easyWorst, `hard ${Math.round(hardWorst)} vs easy ${Math.round(easyWorst)}`);
+        assert('normal spread sits between easy and hard',
+            normalWorst >= easyWorst - 1 && normalWorst <= hardWorst + 1,
+            `easy ${Math.round(easyWorst)}, normal ${Math.round(normalWorst)}, hard ${Math.round(hardWorst)}`);
+    })();
+
     // ── Stats: road-use tracking + busiest road ─────────────────
     (function() {
         const { S1, S2, F } = fixture();
@@ -1883,6 +1989,7 @@
     (function() {
         fixture();
         SC.state.money = 100000;
+        SC.state.research.completed.junctions = true; // junctions are now research-gated
         SC.placement.place('junction', null, 900, 900);
         assert('placing a junction unlocks firstJunction', SC.state.achievements.firstJunction === true);
     })();

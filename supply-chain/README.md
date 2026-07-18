@@ -72,7 +72,15 @@ that ambient animation as its background — it now lives independently at
   so closing the tab is safe.
 - **Growth**: every 3 filled orders a locked supplier/factory site
   activates (buy factory sites with a tap-twice); this track never
-  touches cities — see Orders above for how customer DCs unlock.
+  touches cities — see Orders above for how customer DCs unlock. Locked
+  pool sites are placed at world-gen within a spread cap of an
+  already-placed node (`map.randomLandSpotNear`), so the network grows
+  outward organically instead of a site stranding itself in a far map
+  corner behind one absurdly long road; either bank is still fair game
+  (river-grace gates *when* far-bank sites unlock, not whether they exist).
+  The cap is per-difficulty (`SC.nodeMaxSpread` → `DIFFICULTIES[].nodeSpread`,
+  falling back to `CONFIG.NODE_MAX_SPREAD`): tighter/tidier on Easy (520),
+  real sprawl and longer supply lines on Hard (820).
 - **Field expansion**: at scheduled delivery counts (`WORLD_EXPAND.at` in
   `config.js`, currently 18/42/78) the playing field itself grows — each
   expansion adds `stepW`/`stepH` toward the near edge, opening new frontier
@@ -88,10 +96,20 @@ that ambient animation as its background — it now lives independently at
   so there's something out there worth roading toward. Dev: `&expand=N`.
 - **Difficulty** (picked on the new-game screen, fixed per run, saved):
   `SC.DIFFICULTIES` presets set starting money, debt interest rate,
-  order-deadline multiplier, and the default grace period. Normal is
-  the balance baseline (15%/min interest, 20% tighter deadlines);
-  Easy keeps the original pace; Hard tightens both further; Sandbox
-  starts rich with no interest and no fail state (`noFail`).
+  order-deadline multiplier, the default grace period, and the
+  `riverGraceMin` ease-in. Normal is the balance baseline (15%/min
+  interest, 20% tighter deadlines); Easy keeps the original pace; Hard
+  tightens both further; Sandbox starts rich with no interest and no
+  fail state (`noFail`).
+- **River-grace ease-in** (`riverGraceMin`, per difficulty): for the
+  first N minutes of a run, milestone/customer unlocks (`map.unlockNext`)
+  stay on HQ's bank, so early growth never forces an expensive
+  bridge/ferry before you're established. Derived from HQ's position
+  (`map.startSide`/`sideOf`), so it needs nothing persisted. A far-bank
+  city held during grace is retried the moment the window closes rather
+  than mistaken for a drained pool (`map.anyHeldByRiverGrace` +
+  `riverGraceRemaining`, used by `economy.tick`). Easy/Sandbox 5 min,
+  Normal 3 min, Hard 0 (far-bank sites from turn one).
 - **Default fail state**: purchases are blocked past −creditLimit, so
   only compounding interest can drag the balance below it — that's an
   unrecoverable-by-buying spiral, so it starts a grace-period countdown
@@ -103,11 +121,12 @@ that ambient animation as its background — it now lives independently at
   ~3× faster order arrivals plus a higher concurrent-order cap. One at
   a time; the timer survives saves (`promoUntil`).
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Twelve techs
-  across four branches: Site Requisition (manual placement); Credit
-  Line II/III → Premium Contracts (+15% payouts) → Regional Marketing
-  (customer DCs arrive 40% sooner) and Marketing Blitz (unlocks
-  promotions, above); Asphalt Paving (highways) →
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Thirteen techs:
+  standalone Road Junctions (cheap, early — unlocks placeable junctions,
+  see Growth above); Site Requisition (manual placement); then four
+  branches — Credit Line II/III → Premium Contracts (+15% payouts) →
+  Regional Marketing (customer DCs arrive 40% sooner) and Marketing Blitz
+  (unlocks promotions, above); Asphalt Paving (highways) →
   Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
   cap); Fertilizer Program (+50% supplier regen) → Factory Automation
   (+3 factory-speed cap) and Preservatives (+25% order deadlines).

@@ -348,12 +348,21 @@ SC.economy = (function() {
         // until one appears.
         SC.state.nextCustomerIn -= dt;
         if (SC.state.nextCustomerIn <= 0) {
-            const node = SC.map.unlockNext(n => n.kind === 'city');
-            if (node) SC.emit('unlock', node);
-            SC.state.nextCustomerIn = node
-                ? rand(C().CUSTOMER_SPAWN_INTERVAL[0], C().CUSTOMER_SPAWN_INTERVAL[1]) *
-                  SC.research.customerSpawnMult() // Regional Marketing shortens the wait
-                : Infinity; // pool exhausted — stop checking
+            const isCity = n => n.kind === 'city';
+            const node = SC.map.unlockNext(isCity);
+            if (node) {
+                SC.emit('unlock', node);
+                SC.state.nextCustomerIn =
+                    rand(C().CUSTOMER_SPAWN_INTERVAL[0], C().CUSTOMER_SPAWN_INTERVAL[1]) *
+                    SC.research.customerSpawnMult(); // Regional Marketing shortens the wait
+            } else if (SC.map.anyHeldByRiverGrace(isCity)) {
+                // Only the far-bank city is left and we're still inside the
+                // river-grace window — retry the moment grace lifts (never
+                // let it read as a drained pool).
+                SC.state.nextCustomerIn = Math.max(1, SC.map.riverGraceRemaining());
+            } else {
+                SC.state.nextCustomerIn = Infinity; // pool exhausted — stop checking
+            }
         }
 
         // New orders arrive a bit faster as you level up; a running

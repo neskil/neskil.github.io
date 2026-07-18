@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.45.0';
+SC.VERSION = '1.46.0';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -14,6 +14,13 @@ SC.CONFIG = {
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
+    // Fallback spread cap: milestone/customer pool sites must land within
+    // this distance of an already-placed node, so the network grows outward
+    // organically instead of a site spawning in a far map corner that needs
+    // one absurdly long road. The active value is per-difficulty (see
+    // DIFFICULTIES[].nodeSpread / SC.nodeMaxSpread); this is only used if a
+    // preset omits it.
+    NODE_MAX_SPREAD: 620,
 
     // Field expansion: as the network matures the frontier opens up. Each
     // expansion adds stepW/stepH world units toward the near (high x+y)
@@ -155,14 +162,14 @@ SC.CONFIG = {
     YARD_PRICE: 1200,
     YARD_PRICE_GROWTH: 1.5,
 
-    // Junctions: a plain routing waypoint, not research-gated (same
-    // reasoning as yards — a base traffic-shaping tool, not a premium
-    // unlock). No economic function (no stock, no recipe, never a
-    // planner source/destination — SC.map.makeNode just leaves those
-    // fields null) — it exists purely so roads can fork/merge/reroute
-    // through it. Flat price, no growth ladder: unlike yards there's
-    // nothing to "reset" by adding more, and since any path through one
-    // is never shorter than a direct road, spamming them only adds cost.
+    // Junctions: a plain routing waypoint, unlocked by the cheap, early
+    // 'junctions' research (see SC.RESEARCH) — an unlock, not a premium
+    // gate like manual placement. No economic function (no stock, no
+    // recipe, never a planner source/destination — SC.map.makeNode just
+    // leaves those fields null) — it exists purely so roads can fork/merge/
+    // reroute through it. Flat price, no growth ladder: unlike yards
+    // there's nothing to "reset" by adding more, and since any path through
+    // one is never shorter than a direct road, spamming them only adds cost.
     PLACEMENT_JUNCTION_PRICE: 400,
 
     // Stats screen: SC.state.moneyHistory is a capped ring of periodic
@@ -179,25 +186,40 @@ SC.CONFIG = {
 // sets SC.state.congestionEnabled for the whole run — it's purely a
 // difficulty trait, not a player-facing toggle (the ☰-menu Dev tools
 // panel can still override it live, for A/B comparison during dev).
+//
+// `riverGraceMin` is a difficulty-scaled ease-in: for that many minutes
+// from the start, milestone/customer unlocks (SC.map.unlockNext) stay on
+// HQ's side of the river, so early growth never forces an expensive
+// bridge/ferry before you've found your feet. 0 = far-side sites can
+// appear immediately (the punishing end).
+//
+// `nodeSpread` (falls back to CONFIG.NODE_MAX_SPREAD) is how far a new
+// pool site may spawn from the existing network — see SC.nodeMaxSpread
+// and map.randomLandSpotNear. It scales with difficulty like riverGraceMin
+// does: tighter/tidier on Easy, real sprawl (longer supply lines) on Hard.
 SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
+        riverGraceMin: 5, nodeSpread: 520,
         desc: 'Relaxed deadlines, gentle interest, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
+        riverGraceMin: 3, nodeSpread: 620,
         desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
+        riverGraceMin: 0, nodeSpread: 820,
         desc: 'Brutal deadlines, punishing interest, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
+        riverGraceMin: 5, nodeSpread: 620,
         desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
     }
 };
@@ -208,6 +230,10 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
 // contract to rely on across engines).
 SC.RESEARCH = {
+    junctions: {
+        name: 'Road Junctions', emoji: '🔀', cost: 300, time: 40, requires: [],
+        desc: 'Unlocks placeable junctions — routing waypoints that let roads fork, merge or reroute through a point with no supply or demand of its own.'
+    },
     manualPlacement: {
         name: 'Site Requisition', emoji: '📍', cost: 900, time: 70, requires: [],
         desc: 'Place a supplier or factory anywhere on the map yourself, for a premium.'
@@ -264,7 +290,7 @@ SC.RESEARCH = {
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     }
 };
-SC.RESEARCH_ORDER = ['manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
+SC.RESEARCH_ORDER = ['junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
                      'rapidExpansion', 'promotions', 'bulkLogistics'];
 
