@@ -15,7 +15,8 @@ plans — check it before re-diagnosing an old-sounding bug.
   every commit that ships a user-visible change: patch for fixes/tweaks, minor
   for new features. Skip only for docs/comment-only or pure-refactor commits.
   Whenever you bump it, also update the `?v=X.Y.Z` cache-busting query string
-  on every local `<script src="...">` tag in `index.html` and `tests.html`
+  on every local `<script src="...">` tag in `index.html` and `tests.html`,
+  and on the main landing page link at the root `index.html` (e.g. `cargo-lander/index.html?v=X.Y.Z`)
   (GitHub Pages caches aggressively; a stale query string means mobile
   browsers keep serving old JS after a deploy — bumping it is what forces a
   fresh fetch without the user needing a manual hard-refresh).
