@@ -424,11 +424,14 @@ SC.render = (function() {
 
     // --- backdrop terrain: a low-poly heightfield ---------------------------
     // Instead of free-standing triangle peaks placed "behind" the map, the
-    // ground plane itself continues outward past the two far (low world
-    // x+y) edges and rises into mountains — one polygon mesh that flows out
-    // of the flat playing field. Flat (height 0) inside the field and along
-    // the near apron; it only climbs beyond the top (y<0) and left (x<0)
-    // edges, so it never occludes the play area. Faceted flat-shaded quads
+    // ground plane itself continues outward past every edge and shapes into
+    // terrain — one polygon mesh that flows out of the flat playing field.
+    // Beyond the two far (low world x+y) edges it climbs into mountains;
+    // beyond the two near edges it *descends* into rolling lowland
+    // foothills, so the field reads as a plateau in one continuous
+    // landscape rather than an island floating over the sky. Flat (height
+    // 0) inside the field, and everything outside it is drawn before the
+    // land, so it never occludes the play area. Faceted flat-shaded quads
     // with a faint wireframe read as "3D terrain"; colour blends toward the
     // live sky for aerial haze (so it tracks day/night + weather for free).
     //
@@ -437,10 +440,11 @@ SC.render = (function() {
     // a field expansion just pushes the mountains further out. Baked into
     // the cached bg layer (see renderBg), so it costs nothing per frame.
     const TERRAIN = {
-        ring: 1500,     // world units of terrain skirt beyond each far edge
+        ring: 1500,     // world units of terrain skirt beyond each edge
         cell: 145,      // grid cell size in world units
         amp: 640,       // full peak height, screen px at zoom 1
         rise: 900,      // world distance over which it climbs to full height
+        dip: 180,       // how far the near-side lowlands sink, px at zoom 1
         snowline: 0.60, // height fraction above which snow appears
         freq: 0.0019    // noise sampling frequency (world units)
     };
@@ -474,15 +478,30 @@ SC.render = (function() {
         return f / norm;
     }
 
-    // World-space height at (x,y): 0 inside the field / near apron, rising
-    // beyond the far top/left edges, shaped into ridges by the noise.
+    // World-space height at (x,y): 0 inside the field. Beyond the far
+    // top/left edges it rises into ridged mountains; beyond the near
+    // bottom/right edges it sinks into gently rolling lowlands (negative
+    // height = below the field plateau). At the two side corners both
+    // terms can apply and simply sum, which blends the range down into
+    // the foothills instead of leaving a cliff between them.
     function terrainHeight(x, y) {
-        const d = Math.max(Math.max(0, -y), Math.max(0, -x)); // dist past a far edge
-        if (d <= 0) return 0;
-        let e = Math.min(1, d / TERRAIN.rise);
-        e = e * e * (3 - 2 * e);                              // smooth ramp off the field
-        const n = ridged(x * TERRAIN.freq, y * TERRAIN.freq);
-        return e * TERRAIN.amp * (0.16 + 1.05 * n);           // deep valleys, tall peaks
+        const W = SC.worldW(), H = SC.worldH();
+        let h = 0;
+        const dFar = Math.max(Math.max(0, -y), Math.max(0, -x));
+        if (dFar > 0) {
+            let e = Math.min(1, dFar / TERRAIN.rise);
+            e = e * e * (3 - 2 * e);                          // smooth ramp off the field
+            const n = ridged(x * TERRAIN.freq, y * TERRAIN.freq);
+            h += e * TERRAIN.amp * (0.16 + 1.05 * n);         // deep valleys, tall peaks
+        }
+        const dNear = Math.max(Math.max(0, y - H), Math.max(0, x - W));
+        if (dNear > 0) {
+            let e = Math.min(1, dNear / (TERRAIN.rise * 0.8));
+            e = e * e * (3 - 2 * e);
+            const n = vnoise(x * TERRAIN.freq * 1.7, y * TERRAIN.freq * 1.7);
+            h -= e * TERRAIN.dip * (0.5 + 0.5 * n);           // soft rolling descent
+        }
+        return h;
     }
 
     function terrainKey() { return Math.round(SC.worldW()) + 'x' + Math.round(SC.worldH()); }
@@ -528,16 +547,29 @@ SC.render = (function() {
                 if (maxy < vb.y0 || miny > vb.y1) continue;
 
                 const hAvg = (h00 + h10 + h11 + h01) * 0.25;
-                const hf = Math.min(1, hAvg / TERRAIN.amp);
-                // base colour: land tone low, rocky blue-grey high, snow above the line
-                let col = mix('#2c3d54', '#5b6a86', Math.min(1, hf / TERRAIN.snowline));
-                if (hf > TERRAIN.snowline) col = mix(col, '#eef3fa', (hf - TERRAIN.snowline) / (1 - TERRAIN.snowline));
+                let col;
+                if (hAvg >= 0) {
+                    const hf = Math.min(1, hAvg / TERRAIN.amp);
+                    // land tone low, rocky blue-grey high, snow above the line
+                    col = mix('#2c3d54', '#5b6a86', Math.min(1, hf / TERRAIN.snowline));
+                    if (hf > TERRAIN.snowline) col = mix(col, '#eef3fa', (hf - TERRAIN.snowline) / (1 - TERRAIN.snowline));
+                } else {
+                    // near-side lowlands: darken as they fall away, with a
+                    // hint of green so the foothills read as vegetated land
+                    const df = Math.min(1, -hAvg / TERRAIN.dip);
+                    col = mix('#22334a', '#131e2e', df);
+                    col = mix(col, '#1e3a30', 0.25);
+                }
                 // flat-facet lighting from the slope (light from upper-left):
                 // faces tilting toward high x/y (away from the light) darken.
                 const slope = ((h10 + h11) - (h00 + h01)) + ((h01 + h11) - (h00 + h10));
                 col = shade(col, Math.max(-0.34, Math.min(0.26, -slope / (TERRAIN.amp * 1.4))));
-                // aerial haze: fade toward the sky with distance past the field
-                const dEdge = Math.max(Math.max(0, -(y + cell * 0.5)), Math.max(0, -(x + cell * 0.5)));
+                // aerial haze: fade toward the sky with distance past the
+                // field on either side (mountains far, lowlands near)
+                const cxm = x + cell * 0.5, cym = y + cell * 0.5;
+                const dEdge = Math.max(
+                    Math.max(Math.max(0, -cym), Math.max(0, -cxm)),
+                    Math.max(Math.max(0, cym - SC.worldH()), Math.max(0, cxm - SC.worldW())));
                 const haze = Math.min(1, dEdge / (TERRAIN.rise * 2.6));
                 col = mix(col, sky, 0.08 + 0.5 * haze);
 
