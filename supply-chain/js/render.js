@@ -961,8 +961,8 @@ SC.render = (function() {
             const dx = first.x - second.x;
             const dy = first.y - second.y;
             if (dy !== 0) {
-                const topSteps = 5;
-                for (let k = topSteps; k >= 1; k--) {
+                const topSteps = 40;
+                for (let k = 1; k <= topSteps; k++) {
                     const factor = (k / topSteps) * (margin / -dy);
                     extSpine.unshift({
                         x: first.x + dx * factor,
@@ -978,7 +978,7 @@ SC.render = (function() {
             const dx2 = last.x - prev.x;
             const dy2 = last.y - prev.y;
             if (dy2 !== 0) {
-                const bottomSteps = 5;
+                const bottomSteps = 40;
                 for (let k = 1; k <= bottomSteps; k++) {
                     const factor = (k / bottomSteps) * (margin / dy2);
                     extSpine.push({
@@ -1008,26 +1008,46 @@ SC.render = (function() {
         left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
         ctx.closePath();
+        
         const ys = [...left, ...right].map(p => p.y);
-        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
-        g.addColorStop(0, '#123047');
+        const topY = Math.min(...ys);
+        const botY = Math.max(...ys);
+        const fieldBackY = S(SC.worldW()/2, 0).y;
+        let fadeStop = (fieldBackY - topY) / (botY - topY);
+        fadeStop = Math.max(0.01, Math.min(0.99, fadeStop));
+
+        const g = ctx.createLinearGradient(0, topY, 0, botY);
+        g.addColorStop(0, 'rgba(18, 48, 71, 0)');
+        g.addColorStop(fadeStop * 0.7, 'rgba(18, 48, 71, 0)');
+        g.addColorStop(fadeStop, '#123047');
         g.addColorStop(1, '#0b1c2c');
         ctx.fillStyle = g;
         ctx.fill();
+        
         // subtle bank shadow
-        ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
+        const gBank = ctx.createLinearGradient(0, topY, 0, botY);
+        gBank.addColorStop(0, 'rgba(2, 6, 12, 0)');
+        gBank.addColorStop(fadeStop * 0.7, 'rgba(2, 6, 12, 0)');
+        gBank.addColorStop(fadeStop, 'rgba(2, 6, 12, 0.5)');
+        gBank.addColorStop(1, 'rgba(2, 6, 12, 0.5)');
+        ctx.strokeStyle = gBank;
         ctx.lineWidth = 2;
         ctx.stroke();
 
         // Animated ripples across the flow
-        ctx.strokeStyle = 'rgba(96, 200, 240, 0.10)';
+        const gRip = ctx.createLinearGradient(0, topY, 0, botY);
+        gRip.addColorStop(0, 'rgba(96, 200, 240, 0)');
+        gRip.addColorStop(fadeStop * 0.7, 'rgba(96, 200, 240, 0)');
+        gRip.addColorStop(fadeStop, 'rgba(96, 200, 240, 0.10)');
+        gRip.addColorStop(1, 'rgba(96, 200, 240, 0.10)');
+        ctx.strokeStyle = gRip;
         ctx.lineWidth = 1.4;
+        
         for (let w = 0; w < 4; w++) {
             // Normal ripples (mountains + playing field)
             ctx.beginPath();
-            ctx.setLineDash([]);
             for (let i = 0; i < extSpine.length; i++) {
-                if (extSpine[i].y > H + 50) continue;
+                if (extSpine[i].y > H + 10) continue;
                 const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
                 const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
@@ -1036,25 +1056,41 @@ SC.render = (function() {
                 (i === 0) ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
             }
             ctx.stroke();
-
-            // Flood rush for the front (foothills dip)
-            ctx.beginPath();
-            ctx.setLineDash([15, 15]);
-            ctx.lineDashOffset = -seaTime * 150 - w * 10;
-            let started = false;
-            for (let i = 0; i < extSpine.length; i++) {
-                if (extSpine[i].y < H) continue;
-                const t = i / (extSpine.length - 1);
-                const frac = (w + 1) / 5;
-                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
-                         + Math.sin(seaTime * 5 + t * 15 + w) * 8;
-                const p = getPt(wx, extSpine[i].y);
-                if (!started) { ctx.moveTo(p.x, p.y); started = true; }
-                else { ctx.lineTo(p.x, p.y); }
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
         }
+
+        // Flood rush for the front (foothills dip)
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(150, 220, 255, 0.15)'; // slightly brighter
+        ctx.lineWidth = 1.5;
+        const numWaves = 16;
+        const last = r.spine[r.spine.length - 1];
+        const prev = r.spine[r.spine.length - 2];
+        const dX = last.x - prev.x;
+        const dY = last.y - prev.y;
+        
+        for (let i = 0; i < numWaves; i++) {
+            let phase = (i / numWaves + seaTime * 0.4) % 1; 
+            let pos = Math.pow(phase, 1.8); // Start slow, accelerate
+            
+            // Draw a dashed transverse line (4-5 segments across the width)
+            for (let j = 0; j < 5; j++) {
+                // Slight wobble to the dashes so they aren't perfectly rigid
+                let wobble = Math.sin(i * 13 + j * 7 + seaTime * 3) * 0.02;
+                let segPos = Math.pow(Math.max(0, phase + wobble), 1.8);
+                let sy = last.y + margin * segPos;
+                let sx = last.x + dX * (margin * segPos / dY);
+                let halfW = r.halfWidths[r.halfWidths.length - 1];
+                
+                let wx1 = sx - halfW + (j / 5) * (2 * halfW);
+                let wx2 = sx - halfW + ((j + 0.8) / 5) * (2 * halfW);
+                
+                const p1 = getPt(wx1, sy);
+                const p2 = getPt(wx2, sy);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+        }
+        ctx.stroke();
     }
 
     // --- roads --------------------------------------------------------------
