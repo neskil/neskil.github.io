@@ -34,6 +34,14 @@ SC.init = function() {
 
     SC.on('unlock', n => { n.unlockAt = SC.state.time; });
 
+    // The field just grew: recompute camera bounds/min-zoom for the new
+    // extent (setViewport is otherwise only called on resize) and let the
+    // player know the frontier opened up.
+    SC.on('fieldExpanded', () => {
+        SC.camera.setViewport(window.innerWidth, window.innerHeight);
+        SC.emit('toast', { text: '🗺️ The frontier expands — new land unlocked!', kind: 'info' });
+    });
+
     SC.ui.init();
     if (restored) SC.emit('toast', { text: 'Game restored from autosave', kind: 'info' });
 
@@ -92,6 +100,14 @@ SC.runProbe = function(seconds) {
     if (p.has('dc')) SC.state.nextCustomerIn = 3;
     if (p.has('capacity')) SC.state.upgrades.truckCapacity = SC.CONFIG.UPGRADES.truckCapacity.max;
     if (p.has('speed')) SC.state.speed = parseInt(p.get('speed'), 10) || 1;
+    // &expand=N applies N field expansions up front (bigger playing field +
+    // mountains pushed further out), for screenshotting the enlarged canvas
+    // without playing to the delivery milestones that trigger it.
+    if (p.has('expand')) {
+        const n = parseInt(p.get('expand'), 10) || 1;
+        for (let i = 0; i < n; i++) SC.map.expandField();
+        SC.camera.setViewport(window.innerWidth, window.innerHeight);
+    }
     const f = SC.factories.all()[0];
     const nearest = (kind, mat) => SC.state.nodes
         .filter(n => n.active && n.kind === kind && (!mat || n.mat === mat))

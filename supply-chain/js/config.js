@@ -1,13 +1,27 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.43.0';
+SC.VERSION = '1.45.0';
 
 SC.CONFIG = {
+    // Base playing-field size. The *current* size lives in
+    // SC.state.worldW/worldH (seeded from these), because the field grows
+    // on a schedule of delivery milestones — see WORLD_EXPAND below and
+    // SC.worldW()/SC.worldH(). Everything that needs the live field extent
+    // (camera bounds, node placement, terrain backdrop) reads those
+    // helpers, not these constants, so a bigger field Just Works.
     WORLD_W: 2600,
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
+
+    // Field expansion: as the network matures the frontier opens up. Each
+    // expansion adds stepW/stepH world units toward the near (high x+y)
+    // edge, revealing new buildable land and pushing the mountain backdrop
+    // (see render.js terrain) further out. `at` lists the delivery counts
+    // that trigger the 1st, 2nd, … expansion; growth stops once they run
+    // out. Persisted via SC.state.worldW/worldH + expansions.
+    WORLD_EXPAND: { stepW: 900, stepH: 620, at: [18, 42, 78] },
 
     START_TRUCKS: 2,
 

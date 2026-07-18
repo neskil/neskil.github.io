@@ -33,7 +33,7 @@ SC.camera = (function() {
 
     // Bounding box of the whole world once projected onto the iso plane.
     function isoBounds() {
-        const W = SC.CONFIG.WORLD_W, H = SC.CONFIG.WORLD_H;
+        const W = SC.worldW(), H = SC.worldH();
         const pts = [project(0, 0), project(W, 0), project(0, H), project(W, H)];
         const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
         return {
