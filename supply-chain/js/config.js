@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.48.1';
+SC.VERSION = '1.49.0';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -171,6 +171,7 @@ SC.CONFIG = {
     // there's nothing to "reset" by adding more, and since any path through
     // one is never shorter than a direct road, spamming them only adds cost.
     PLACEMENT_JUNCTION_PRICE: 400,
+    PLACEMENT_INTERSECTION_PRICE: 150,
 
     // Stats screen: SC.state.moneyHistory is a capped ring of periodic
     // balance samples for the sparkline (see stats.js tick).
@@ -230,8 +231,12 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
 // contract to rely on across engines).
 SC.RESEARCH = {
+    intersections: {
+        name: 'Road Crossings', emoji: '➕', cost: 150, time: 20, requires: [],
+        desc: 'Unlocks intersections — place a junction exactly where two roads cross to connect them.'
+    },
     junctions: {
-        name: 'Road Junctions', emoji: '🔀', cost: 300, time: 40, requires: [],
+        name: 'Road Junctions', emoji: '🔀', cost: 350, time: 50, requires: ['intersections'],
         desc: 'Unlocks placeable junctions — waypoints to fork, merge or reroute roads.'
     },
     manualPlacement: {
@@ -290,7 +295,7 @@ SC.RESEARCH = {
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     }
 };
-SC.RESEARCH_ORDER = ['junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
+SC.RESEARCH_ORDER = ['intersections', 'junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
                      'rapidExpansion', 'promotions', 'bulkLogistics'];
 
