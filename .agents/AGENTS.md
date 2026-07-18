@@ -28,3 +28,9 @@ This repository uses a simple folder-based routing structure. Each major page or
 - **Conventional Commits**: Use descriptive prefixes for commits (e.g., `feat:`, `fix:`, `perf:`, `chore:`).
 - **Local Settings**: Never commit the `.claude/` directory; verify it remains excluded via `.gitignore`.
 - **Worktree & Branch Cleanup**: Once a feature branch has been fully merged into `master` and pushed to origin, ask the user if they would like to clean up the branch. If approved, delete the local/remote feature branch and remove the local git worktree.
+
+## 🧪 Testing & Verification
+- **No Local Server Needed**: You do not need to run a local server (like python http.server or node) to test the game or run unit tests. You can open and test the application directly using the `file://` protocol.
+- **Headless Testing command**:
+  `chrome --headless=new --disable-gpu --virtual-time-budget=15000 --dump-dom "file:///c:/AntiGravity/neskil.github.io/supply-chain/tests.html"`
+
