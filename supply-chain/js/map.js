@@ -215,20 +215,53 @@ SC.map = (function() {
         return next;
     }
 
+    // A land spot inside the newly-opened frontier band (past the old
+    // bounds on either axis), clear of the river and other nodes. Same
+    // rejection-sampling shape as randomLandSpot, restricted to the band.
+    function frontierSpot(oldW, oldH, minDist) {
+        for (let a = 0; a < 200; a++) {
+            const x = C().NODE_MARGIN + rng.next() * (SC.worldW() - 2 * C().NODE_MARGIN);
+            const y = C().NODE_MARGIN + rng.next() * (SC.worldH() - 2 * C().NODE_MARGIN);
+            if (x <= oldW - C().NODE_MARGIN && y <= oldH - C().NODE_MARGIN) continue; // not frontier
+            if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) < riverAt(y).halfW + 50) continue;
+            if (!farFromOthers(x, y, minDist)) continue;
+            return { x, y };
+        }
+        return null;
+    }
+
     // Grow the playing field by one expansion step (WORLD_EXPAND). Additive
     // to the near (high x+y) edge, so existing nodes/river keep their
     // coordinates and only new frontier land appears. Camera bounds, node
     // placement and the terrain backdrop all read SC.worldW()/worldH(), so
     // they follow automatically; render's bg cache re-bakes on the size
-    // change. Emits 'fieldExpanded' for the UI (toast + camera re-fit).
+    // change. The frontier isn't empty: each expansion seeds it with a new
+    // active supplier (a random raw) and a for-sale factory (a random
+    // recipe), so there's something out there worth roading toward.
+    // Emits 'fieldExpanded' for the UI (toast + camera re-fit).
     function expandField() {
         const ex = C().WORLD_EXPAND;
+        const oldW = SC.state.worldW, oldH = SC.state.worldH;
         SC.state.worldW += ex.stepW;
         SC.state.worldH += ex.stepH;
         SC.state.expansions = (SC.state.expansions || 0) + 1;
+        const seeded = [];
+        const raws = Object.keys(SC.GOODS).filter(g => SC.GOODS[g].raw);
+        const recipes = Object.keys(SC.GOODS).filter(g => !SC.GOODS[g].raw);
+        // Both spawn active (visible) so they don't sit in — or reorder —
+        // the milestone unlock queue; the factory is still forSale, i.e.
+        // buyable with the usual tap-twice, like a milestone-unlocked site.
+        const wants = [
+            ['supplier', { active: true, mat: raws[(rng.next() * raws.length) | 0] }],
+            ['factory', { active: true, forSale: true, recipe: recipes[(rng.next() * recipes.length) | 0] }]
+        ];
+        for (const [kind, opts] of wants) {
+            const spot = frontierSpot(oldW, oldH, C().NODE_MIN_DIST);
+            if (spot) seeded.push(makeNode(kind, spot.x, spot.y, opts));
+        }
         SC.emit('fieldExpanded', {
             expansions: SC.state.expansions,
-            worldW: SC.state.worldW, worldH: SC.state.worldH
+            worldW: SC.state.worldW, worldH: SC.state.worldH, seeded
         });
         return SC.state.expansions;
     }
