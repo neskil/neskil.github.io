@@ -143,6 +143,63 @@ SC.roads = (function() {
         return r ? r.dist : Infinity;
     }
 
+    function getLineIntersection(a, b, c, d) {
+        const rx = b.x - a.x;
+        const ry = b.y - a.y;
+        const sx = d.x - c.x;
+        const sy = d.y - c.y;
+        const r_cross_s = rx * sy - ry * sx;
+        if (Math.abs(r_cross_s) < 1e-6) return null;
+
+        const q_minus_p_x = c.x - a.x;
+        const q_minus_p_y = c.y - a.y;
+        const t = (q_minus_p_x * sy - q_minus_p_y * sx) / r_cross_s;
+        const u = (q_minus_p_x * ry - q_minus_p_y * rx) / r_cross_s;
+
+        // Ensure intersection lies strictly within the interior of both segments
+        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+            return {
+                x: a.x + t * rx,
+                y: a.y + t * ry,
+                t,
+                u
+            };
+        }
+        return null;
+    }
+
+    function findClosestCrossing(x, y, maxDist = 40) {
+        let best = null;
+        let bestDist = maxDist;
+        const edges = SC.state.edges;
+        for (let i = 0; i < edges.length; i++) {
+            for (let j = i + 1; j < edges.length; j++) {
+                const e1 = edges[i];
+                const e2 = edges[j];
+                // Skip if they share an endpoint (not crossing, just connected)
+                if (e1.a === e2.a || e1.a === e2.b || e1.b === e2.a || e1.b === e2.b) continue;
+
+                const pt = getLineIntersection(e1.a, e1.b, e2.a, e2.b);
+                if (pt) {
+                    const distToA1 = Math.hypot(pt.x - e1.a.x, pt.y - e1.a.y);
+                    const distToB1 = Math.hypot(pt.x - e1.b.x, pt.y - e1.b.y);
+                    const distToA2 = Math.hypot(pt.x - e2.a.x, pt.y - e2.a.y);
+                    const distToB2 = Math.hypot(pt.x - e2.b.x, pt.y - e2.b.y);
+                    
+                    // Must be reasonably far from all endpoints to avoid visual clutter and pathing quirks
+                    if (distToA1 >= 20 && distToB1 >= 20 && distToA2 >= 20 && distToB2 >= 20) {
+                        const dist = Math.hypot(pt.x - x, pt.y - y);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            best = { x: pt.x, y: pt.y, e1, e2, t: pt.t, u: pt.u };
+                        }
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
     return { findEdge, quote, build, demolish, findPath, pathDist,
-             speedMult, congestionMult, upgradeQuote, upgrade };
+             speedMult, congestionMult, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing };
 })();

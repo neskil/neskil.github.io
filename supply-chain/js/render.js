@@ -2105,10 +2105,24 @@ SC.render = (function() {
         const pm = SC.state.placeMode;
         const hover = SC.input.getHover && SC.input.getHover();
         if (!pm || !hover) return;
-        const valid = SC.canAfford(SC.placement.price(pm.kind)) && SC.placement.canPlaceAt(hover.x, hover.y);
+
+        let valid = SC.canAfford(SC.placement.price(pm.kind));
+        let x = hover.x, y = hover.y;
+        if (pm.kind === 'intersection') {
+            const crossing = SC.placement.canPlaceIntersectionAt(x, y);
+            if (crossing) {
+                x = crossing.x;
+                y = crossing.y;
+            } else {
+                valid = false;
+            }
+        } else {
+            valid = valid && SC.placement.canPlaceAt(x, y);
+        }
+
         const cost = SC.placement.price(pm.kind);
         const base = valid ? '#34d399' : '#f87171';
-        const g = S(hover.x, hover.y);
+        const g = S(x, y);
         const fw = 24;
         // footprint ghost pad
         const { rx, ry } = footRadii(fw);
@@ -2119,7 +2133,7 @@ SC.render = (function() {
         ctx.stroke();
         ctx.setLineDash([]);
         let tc;
-        if (pm.kind === 'junction') {
+        if (pm.kind === 'junction' || pm.kind === 'intersection') {
             // Roundabout footprint, not a building — an outlined ring
             // instead of the usual prism-ghost.
             ctx.beginPath();
@@ -2130,6 +2144,11 @@ SC.render = (function() {
             ctx.stroke();
             ctx.setLineDash([]);
             tc = { x: g.x, y: g.y - 10 * zoom() };
+            if (pm.kind === 'intersection') {
+                ctx.globalAlpha = 0.85;
+                emoji('➕', g.x, g.y - 4 * zoom(), 14 * clampZoom());
+                ctx.globalAlpha = 1;
+            }
         } else {
             const ghostH = pm.kind === 'yard' ? 14 : 30;
             prism(g.x, g.y, fw, ghostH * zoom(), base,

@@ -66,6 +66,7 @@ SC.ui = (function() {
         tb.querySelector('.price').textContent = fmt(SC.truckPrice());
         tb.disabled = !SC.canAfford(SC.truckPrice());
         updateYards();
+        updateIntersectionBtn();
         updateJunctionBtn();
 
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
@@ -128,6 +129,19 @@ SC.ui = (function() {
         // Move-truck: needs an idle truck homed somewhere else
         $('btn-moveTruck').disabled = !st.trucks.some(t =>
             !t.jobs.length && t.homeYard !== st.activeYard && (!t.path || t.phase === 'returning'));
+    }
+
+    function updateIntersectionBtn() {
+        const st = SC.state;
+        const btn = $('btn-intersection');
+        if (!btn) return;
+        btn.classList.toggle('hidden', !SC.placement.isUnlocked('intersection'));
+        if (btn.classList.contains('hidden')) return;
+        const price = SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+        const active = st.placeMode && st.placeMode.kind === 'intersection';
+        btn.classList.toggle('active', !!active);
+        btn.querySelector('.price').textContent = active ? 'Tap map…' : fmt(price);
+        btn.disabled = !active && !SC.canAfford(price);
     }
 
     // ── Junctions: a plain routing waypoint (roads fork/merge/reroute
@@ -808,6 +822,18 @@ SC.ui = (function() {
                 st.selectedNode = null; // don't fight the road-building ghost
                 st.placeMode = { kind: 'yard', good: null };
                 SC.emit('toast', { text: `Tap the map to place a truck yard — ${fmt(SC.yardPrice())}`, kind: 'info' });
+            }
+            SC.sfx.play('click');
+            updateShop();
+        });
+        $('btn-intersection').addEventListener('click', () => {
+            const st = SC.state;
+            if (st.placeMode && st.placeMode.kind === 'intersection') {
+                st.placeMode = null; // tapping again cancels
+            } else {
+                st.selectedNode = null; // don't fight the road-building ghost
+                st.placeMode = { kind: 'intersection', good: null };
+                SC.emit('toast', { text: `Tap crossing roads to place an intersection — ${fmt(SC.CONFIG.PLACEMENT_INTERSECTION_PRICE)}`, kind: 'info' });
             }
             SC.sfx.play('click');
             updateShop();
