@@ -15,21 +15,21 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.43.0"></script>
-    <script src="js/state.js?v=1.43.0"></script>
-    <script src="js/save.js?v=1.43.0"></script>
-    <script src="js/sfx.js?v=1.43.0"></script>
-    <script src="js/rng.js?v=1.43.0"></script>
-    <script src="js/map.js?v=1.43.0"></script>
-    <script src="js/camera.js?v=1.43.0"></script>
-    <script src="js/roads.js?v=1.43.0"></script>
-    <script src="js/factories.js?v=1.43.0"></script>
-    <script src="js/economy.js?v=1.43.0"></script>
-    <script src="js/vehicles.js?v=1.43.0"></script>
-    <script src="js/stats.js?v=1.43.0"></script>
-    <script src="js/inspect.js?v=1.43.0"></script>
-    <script src="js/research.js?v=1.43.0"></script>
-    <script src="js/placement.js?v=1.43.0"></script>
+    <script src="js/config.js?v=1.45.0"></script>
+    <script src="js/state.js?v=1.45.0"></script>
+    <script src="js/save.js?v=1.45.0"></script>
+    <script src="js/sfx.js?v=1.45.0"></script>
+    <script src="js/rng.js?v=1.45.0"></script>
+    <script src="js/map.js?v=1.45.0"></script>
+    <script src="js/camera.js?v=1.45.0"></script>
+    <script src="js/roads.js?v=1.45.0"></script>
+    <script src="js/factories.js?v=1.45.0"></script>
+    <script src="js/economy.js?v=1.45.0"></script>
+    <script src="js/vehicles.js?v=1.45.0"></script>
+    <script src="js/stats.js?v=1.45.0"></script>
+    <script src="js/inspect.js?v=1.45.0"></script>
+    <script src="js/research.js?v=1.45.0"></script>
+    <script src="js/placement.js?v=1.45.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -552,6 +552,73 @@
         SC.map.generateWorld('save-me-42');
         SC.save.restore(SC.save.serialize());
         assert('seed survives a save round-trip', SC.state.seed === 'save-me-42');
+    })();
+
+    // ── Field expansion: growth, frontier seeding, schedule, save ──
+    (function() {
+        SC.newState(); SC.map._resetSeq();
+        SC.map.generateWorld('expand-test');
+        const C = SC.CONFIG, ex = C.WORLD_EXPAND;
+        const w0 = SC.state.worldW, h0 = SC.state.worldH;
+        assert('fresh state starts at the base field size',
+            w0 === C.WORLD_W && h0 === C.WORLD_H && SC.state.expansions === 0);
+        assert('SC.worldW/worldH track the live state', SC.worldW() === w0 && SC.worldH() === h0);
+
+        const n0 = SC.state.nodes.length;
+        const lockedBefore = SC.state.nodes.filter(n => !n.active).map(n => n.id);
+        let evt = null;
+        SC.on('fieldExpanded', d => { evt = d; });
+        SC.map.expandField();
+        assert('expandField grows the field by one step',
+            SC.state.worldW === w0 + ex.stepW && SC.state.worldH === h0 + ex.stepH);
+        assert('expandField increments the expansion count', SC.state.expansions === 1);
+        assert('expandField emits fieldExpanded with the new size',
+            evt && evt.worldW === SC.state.worldW && evt.expansions === 1);
+
+        const seeded = SC.state.nodes.slice(n0);
+        assert('expansion seeds new frontier sites', seeded.length >= 1);
+        assert('seeded sites are active (never join the milestone queue)',
+            seeded.every(n => n.active));
+        assert('seeded sites sit in the frontier band',
+            seeded.every(n => n.x > w0 - C.NODE_MARGIN || n.y > h0 - C.NODE_MARGIN));
+        assert('seeded sites stay inside the new bounds',
+            seeded.every(n => n.x <= SC.state.worldW - C.NODE_MARGIN + 1 &&
+                              n.y <= SC.state.worldH - C.NODE_MARGIN + 1));
+        assert('seeded sites avoid the river',
+            seeded.every(n => !SC.map.isInRiver(n.x, n.y)));
+        assert('milestone queue order is untouched by expansion',
+            JSON.stringify(SC.state.nodes.filter(n => !n.active).map(n => n.id)) ===
+            JSON.stringify(lockedBefore));
+
+        // Scheduled firing off the delivery count
+        SC.state.delivered = ex.at[1] - 1;
+        assert('maybeExpandField waits below the threshold', SC.map.maybeExpandField() === false);
+        SC.state.delivered = ex.at[1];
+        assert('maybeExpandField fires at the threshold', SC.map.maybeExpandField() === true);
+        assert('scheduled expansion advanced the count', SC.state.expansions === 2);
+        SC.state.delivered = 99999;
+        SC.state.expansions = ex.at.length;
+        assert('maybeExpandField stops when the schedule runs out',
+            SC.map.maybeExpandField() === false);
+
+        // riverAt keeps its original spine mapping after the field grew
+        const rv = SC.map.riverAt(h0 * 0.5);
+        assert('riverAt still maps y onto the original spine after expansion',
+            rv && rv.x > 0 && rv.halfW > 0);
+
+        // Save round-trip keeps the grown size
+        SC.state.expansions = 2;
+        const grownW = SC.state.worldW, grownH = SC.state.worldH;
+        SC.save.restore(SC.save.serialize());
+        assert('field size survives a save round-trip',
+            SC.state.worldW === grownW && SC.state.worldH === grownH && SC.state.expansions === 2);
+
+        // Back-compat: a save without field data falls back to the base size
+        const legacy = SC.save.serialize();
+        delete legacy.worldW; delete legacy.worldH; delete legacy.expansions;
+        SC.save.restore(legacy);
+        assert('legacy saves without field data restore at the base size',
+            SC.state.worldW === C.WORLD_W && SC.state.worldH === C.WORLD_H && SC.state.expansions === 0);
     })();
 
     // ── Milestone unlocks skip cities; the customer timer only unlocks cities ──

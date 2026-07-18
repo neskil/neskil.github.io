@@ -422,74 +422,167 @@ SC.render = (function() {
         }
     }
 
-    let mountains = null;
-    function ensureMountains() {
-        if (mountains) return mountains;
-        const C = SC.CONFIG, rng = makeRng(0x5c1);
-        const arr = [];
-        const M = 230; // gap between the play area and the range (was 130 —
-                        // pushed further out so the backdrop breathes)
-        const EXTRA = 520; // spread the ridge wider than the map on each side
-        // Ranges hug the two "far" edges of the diamond (low world x+y): the
-        // top edge (y just above the map) and the left edge (x just left).
-        // Fewer peaks over a wider span, with more size/depth scatter, so it
-        // reads as an open range rather than a dense wall along the edge.
-        const nN = 22;
-        for (let i = 0; i <= nN; i++) {
-            const x = -M - EXTRA + (C.WORLD_W + 2 * M + 2 * EXTRA) * (i / nN) + (rng() - 0.5) * 160;
-            const y = -M - rng() * 280;
-            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
+    // --- backdrop terrain: a low-poly heightfield ---------------------------
+    // Instead of free-standing triangle peaks placed "behind" the map, the
+    // ground plane itself continues outward past every edge and shapes into
+    // terrain — one polygon mesh that flows out of the flat playing field.
+    // Beyond the two far (low world x+y) edges it climbs into mountains;
+    // beyond the two near edges it *descends* into rolling lowland
+    // foothills, so the field reads as a plateau in one continuous
+    // landscape rather than an island floating over the sky. Flat (height
+    // 0) inside the field, and everything outside it is drawn before the
+    // land, so it never occludes the play area. Faceted flat-shaded quads
+    // with a faint wireframe read as "3D terrain"; colour blends toward the
+    // live sky for aerial haze (so it tracks day/night + weather for free).
+    //
+    // Size-aware: the grid spans the *current* field (SC.worldW/worldH) plus
+    // a skirt, and is rebuilt only when that size changes (terrainKey) — so
+    // a field expansion just pushes the mountains further out. Baked into
+    // the cached bg layer (see renderBg), so it costs nothing per frame.
+    const TERRAIN = {
+        ring: 1500,     // world units of terrain skirt beyond each edge
+        cell: 145,      // grid cell size in world units
+        amp: 640,       // full peak height, screen px at zoom 1
+        rise: 900,      // world distance over which it climbs to full height
+        dip: 180,       // how far the near-side lowlands sink, px at zoom 1
+        snowline: 0.60, // height fraction above which snow appears
+        freq: 0.0019    // noise sampling frequency (world units)
+    };
+    let terrain = null; // { key, cell, cols, rows, x0, y0, hgt: Float32Array }
+
+    // 2D value noise + a little fbm, both in ~[0,1]. Deterministic hash so
+    // the range is stable frame-to-frame (and across a rebuild at the same
+    // size).
+    function thash(xi, yi) {
+        const s = Math.sin(xi * 127.1 + yi * 311.7) * 43758.5453;
+        return s - Math.floor(s);
+    }
+    function vnoise(x, y) {
+        const xi = Math.floor(x), yi = Math.floor(y);
+        const xf = x - xi, yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+        const a = thash(xi, yi), b = thash(xi + 1, yi);
+        const c = thash(xi, yi + 1), d = thash(xi + 1, yi + 1);
+        return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+    }
+    // Ridged multifractal: each octave folded to a sharp crest (1-|2n-1|)
+    // then powered, so the field reads as mountain ridges + valleys rather
+    // than smooth rolling blobs. Returns ~[0,1].
+    function ridged(x, y) {
+        let f = 0, amp = 0.5, freq = 1, norm = 0;
+        for (let o = 0; o < 4; o++) {
+            let n = 1 - Math.abs(2 * vnoise(x * freq, y * freq) - 1);
+            n *= n; // sharpen the crest
+            f += amp * n; norm += amp; freq *= 2.02; amp *= 0.5;
         }
-        const nW = 15;
-        for (let i = 0; i <= nW; i++) {
-            const y = -M - EXTRA + (C.WORLD_H * 0.82 + M + 2 * EXTRA) * (i / nW) + (rng() - 0.5) * 160;
-            const x = -M - rng() * 280;
-            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
-        }
-        arr.sort((a, b) => (a.x + a.y) - (b.x + b.y)); // back-to-front
-        mountains = arr;
-        return arr;
+        return f / norm;
     }
 
-    function drawMountains() {
-        const list = ensureMountains();
-        const z = zoom();
-        // Culling window: the viewport normally, or the oversized offscreen
-        // layer bounds while pre-rendering the background (see renderBg).
+    // World-space height at (x,y): 0 inside the field. Beyond the far
+    // top/left edges it rises into ridged mountains; beyond the near
+    // bottom/right edges it sinks into gently rolling lowlands (negative
+    // height = below the field plateau). At the two side corners both
+    // terms can apply and simply sum, which blends the range down into
+    // the foothills instead of leaving a cliff between them.
+    function terrainHeight(x, y) {
+        const W = SC.worldW(), H = SC.worldH();
+        let h = 0;
+        const dFar = Math.max(Math.max(0, -y), Math.max(0, -x));
+        if (dFar > 0) {
+            let e = Math.min(1, dFar / TERRAIN.rise);
+            e = e * e * (3 - 2 * e);                          // smooth ramp off the field
+            const n = ridged(x * TERRAIN.freq, y * TERRAIN.freq);
+            h += e * TERRAIN.amp * (0.16 + 1.05 * n);         // deep valleys, tall peaks
+        }
+        const dNear = Math.max(Math.max(0, y - H), Math.max(0, x - W));
+        if (dNear > 0) {
+            let e = Math.min(1, dNear / (TERRAIN.rise * 0.8));
+            e = e * e * (3 - 2 * e);
+            const n = vnoise(x * TERRAIN.freq * 1.7, y * TERRAIN.freq * 1.7);
+            h -= e * TERRAIN.dip * (0.5 + 0.5 * n);           // soft rolling descent
+        }
+        return h;
+    }
+
+    function terrainKey() { return Math.round(SC.worldW()) + 'x' + Math.round(SC.worldH()); }
+
+    function ensureTerrain() {
+        const key = terrainKey();
+        if (terrain && terrain.key === key) return terrain;
+        const W = SC.worldW(), H = SC.worldH(), cell = TERRAIN.cell, ring = TERRAIN.ring;
+        const x0 = -ring, y0 = -ring;
+        const cols = Math.ceil((W + ring - x0) / cell); // include near apron; flat quads are skipped
+        const rows = Math.ceil((H + ring - y0) / cell);
+        const hgt = new Float32Array((cols + 1) * (rows + 1));
+        for (let j = 0; j <= rows; j++) {
+            for (let i = 0; i <= cols; i++) {
+                hgt[j * (cols + 1) + i] = terrainHeight(x0 + i * cell, y0 + j * cell);
+            }
+        }
+        terrain = { key, cell, cols, rows, x0, y0, hgt };
+        return terrain;
+    }
+
+    function drawTerrain() {
+        const t = ensureTerrain(), z = zoom(), cell = t.cell, cw = t.cols + 1;
+        const H = (i, j) => t.hgt[j * cw + i];
         const vb = viewBounds || { x0: -40, x1: canvas.width / dpr + 40,
                                    y0: -40, y1: canvas.height / dpr + 40 };
-        const minD = list[0].x + list[0].y, maxD = list[list.length - 1].x + list[list.length - 1].y;
-        for (const m of list) {
-            const s = S(m.x, m.y);
-            const h = m.size * z, hw = m.size * 0.95 * z;
-            if (s.x + hw < vb.x0 || s.x - hw > vb.x1) continue; // cull off-layer
-            if (s.y - h > vb.y1 || s.y < vb.y0) continue;
-            // atmospheric haze: farther peaks fade bluer/lighter
-            const t = Math.min(1, Math.max(0, ((m.x + m.y) - minD) / (maxD - minD + 1)));
-            const rightC = mix('#6d84a6', '#3a4d70', t);
-            const leftC = mix('#495d80', '#26324c', t);
-            const apex = { x: s.x, y: s.y - h };
-            // right (sunlit) face
-            ctx.beginPath();
-            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x + hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
-            ctx.fillStyle = rightC; ctx.fill();
-            // left (shaded) face
-            ctx.beginPath();
-            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x - hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
-            ctx.fillStyle = leftC; ctx.fill();
-            // snow cap
-            if (m.snow) {
-                const cap = h * 0.32;
+        const sky = skyColor(1); // haze target — day/night/weather aware
+        // Anti-diagonal sweep (increasing i+j) ≈ back-to-front in world x+y,
+        // so nearer facets correctly paint over farther ones.
+        for (let s = 0; s <= (t.cols - 1) + (t.rows - 1); s++) {
+            const iLo = Math.max(0, s - (t.rows - 1)), iHi = Math.min(t.cols - 1, s);
+            for (let i = iLo; i <= iHi; i++) {
+                const j = s - i;
+                const h00 = H(i, j), h10 = H(i + 1, j), h11 = H(i + 1, j + 1), h01 = H(i, j + 1);
+                if (h00 === 0 && h10 === 0 && h11 === 0 && h01 === 0) continue; // flat field/apron
+                const x = t.x0 + i * cell, y = t.y0 + j * cell;
+                const a = S(x, y), b = S(x + cell, y), c = S(x + cell, y + cell), e = S(x, y + cell);
+                const P00 = { x: a.x, y: a.y - h00 * z }, P10 = { x: b.x, y: b.y - h10 * z };
+                const P11 = { x: c.x, y: c.y - h11 * z }, P01 = { x: e.x, y: e.y - h01 * z };
+                const minx = Math.min(P00.x, P10.x, P11.x, P01.x), maxx = Math.max(P00.x, P10.x, P11.x, P01.x);
+                if (maxx < vb.x0 || minx > vb.x1) continue;
+                const miny = Math.min(P00.y, P10.y, P11.y, P01.y), maxy = Math.max(P00.y, P10.y, P11.y, P01.y);
+                if (maxy < vb.y0 || miny > vb.y1) continue;
+
+                const hAvg = (h00 + h10 + h11 + h01) * 0.25;
+                let col;
+                if (hAvg >= 0) {
+                    const hf = Math.min(1, hAvg / TERRAIN.amp);
+                    // land tone low, rocky blue-grey high, snow above the line
+                    col = mix('#2c3d54', '#5b6a86', Math.min(1, hf / TERRAIN.snowline));
+                    if (hf > TERRAIN.snowline) col = mix(col, '#eef3fa', (hf - TERRAIN.snowline) / (1 - TERRAIN.snowline));
+                } else {
+                    // near-side lowlands: darken as they fall away, with a
+                    // hint of green so the foothills read as vegetated land
+                    const df = Math.min(1, -hAvg / TERRAIN.dip);
+                    col = mix('#22334a', '#131e2e', df);
+                    col = mix(col, '#1e3a30', 0.25);
+                }
+                // flat-facet lighting from the slope (light from upper-left):
+                // faces tilting toward high x/y (away from the light) darken.
+                const slope = ((h10 + h11) - (h00 + h01)) + ((h01 + h11) - (h00 + h10));
+                col = shade(col, Math.max(-0.34, Math.min(0.26, -slope / (TERRAIN.amp * 1.4))));
+                // aerial haze: fade toward the sky with distance past the
+                // field on either side (mountains far, lowlands near)
+                const cxm = x + cell * 0.5, cym = y + cell * 0.5;
+                const dEdge = Math.max(
+                    Math.max(Math.max(0, -cym), Math.max(0, -cxm)),
+                    Math.max(Math.max(0, cym - SC.worldH()), Math.max(0, cxm - SC.worldW())));
+                const haze = Math.min(1, dEdge / (TERRAIN.rise * 2.6));
+                col = mix(col, sky, 0.08 + 0.5 * haze);
+
                 ctx.beginPath();
-                ctx.moveTo(apex.x, apex.y);
-                ctx.lineTo(apex.x + hw * 0.32, apex.y + cap);
-                ctx.lineTo(apex.x + hw * 0.14, apex.y + cap * 0.62);
-                ctx.lineTo(apex.x, apex.y + cap * 0.9);
-                ctx.lineTo(apex.x - hw * 0.13, apex.y + cap * 0.6);
-                ctx.lineTo(apex.x - hw * 0.30, apex.y + cap * 0.92);
-                ctx.closePath();
-                ctx.fillStyle = mix('#f2f6fb', '#c2d0e2', t);
+                ctx.moveTo(P00.x, P00.y); ctx.lineTo(P10.x, P10.y);
+                ctx.lineTo(P11.x, P11.y); ctx.lineTo(P01.x, P01.y); ctx.closePath();
+                ctx.fillStyle = col;
                 ctx.fill();
+                // faint wireframe so the mesh reads as facets (the "polygon
+                // terrain" look), fading out with haze
+                ctx.strokeStyle = rgba('#b8cbe6', 0.13 * (1 - haze * 0.7));
+                ctx.lineWidth = 1;
+                ctx.stroke();
             }
         }
     }
@@ -508,14 +601,16 @@ SC.render = (function() {
     }
     function ensureDecor() {
         const r = SC.state.river;
-        const key = r ? r.spine.length + ':' + Math.round(r.spine[0].x) + ':' + Math.round(r.halfWidths[0]) : 'none';
+        const W = SC.worldW(), Wh = SC.worldH();
+        const key = (r ? r.spine.length + ':' + Math.round(r.spine[0].x) + ':' + Math.round(r.halfWidths[0]) : 'none')
+                    + ':' + terrainKey();
         if (decor && decorKey === key) return decor;
-        const C = SC.CONFIG, rng = makeRng(0x2357);
+        const rng = makeRng(0x2357);
         const patches = [];
         const tints = ['#233650', '#2b3a3a', '#1d2b40', '#2a3446', '#243d3a'];
         for (let i = 0; i < 18; i++) {
             patches.push({
-                x: rng() * C.WORLD_W, y: rng() * C.WORLD_H,
+                x: rng() * W, y: rng() * Wh,
                 rx: 220 + rng() * 320, ry: 140 + rng() * 200,
                 tint: tints[(rng() * tints.length) | 0], a: 0.18 + rng() * 0.16
             });
@@ -524,7 +619,7 @@ SC.render = (function() {
         let tries = 0;
         while (trees.length < 54 && tries < 600) {
             tries++;
-            const x = 70 + rng() * (C.WORLD_W - 140), y = 70 + rng() * (C.WORLD_H - 140);
+            const x = 70 + rng() * (W - 140), y = 70 + rng() * (Wh - 140);
             if (inRiver(x, y, 55)) continue;
             trees.push({ x, y, s: 0.75 + rng() * 0.7, rock: rng() > 0.78, tone: rng() });
         }
@@ -535,10 +630,10 @@ SC.render = (function() {
 
     function drawDecor() {
         const d = ensureDecor();
-        const C = SC.CONFIG, z = zoom();
+        const z = zoom();
         // soft terrain patches, clipped to the land
         ctx.save();
-        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        const corners = [S(0, 0), S(SC.worldW(), 0), S(SC.worldW(), SC.worldH()), S(0, SC.worldH())];
         ctx.beginPath();
         corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         ctx.closePath();
@@ -608,8 +703,8 @@ SC.render = (function() {
     // patches, trees/rocks and the coastline. Drawn only when the cached
     // background layer re-renders (see renderBg), never per frame.
     function drawLandStatic() {
-        const C = SC.CONFIG;
-        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        const W = SC.worldW(), Wh = SC.worldH();
+        const corners = [S(0, 0), S(W, 0), S(W, Wh), S(0, Wh)];
         // Drop the land onto the backdrop with a soft dark rim. Layered
         // strokes instead of shadowBlur: this repaints during pinch-zoom
         // (see drawBg), and canvas blur is far too slow for that on mobile.
@@ -642,12 +737,12 @@ SC.render = (function() {
         ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         ctx.lineWidth = 1;
         const step = 220;
-        for (let x = 0; x <= C.WORLD_W + 1; x += step) {
-            const a = S(x, 0), b = S(x, C.WORLD_H);
+        for (let x = 0; x <= W + 1; x += step) {
+            const a = S(x, 0), b = S(x, Wh);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         }
-        for (let y = 0; y <= C.WORLD_H + 1; y += step) {
-            const a = S(0, y), b = S(C.WORLD_W, y);
+        for (let y = 0; y <= Wh + 1; y += step) {
+            const a = S(0, y), b = S(W, y);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
         }
         ctx.restore();
@@ -680,7 +775,7 @@ SC.render = (function() {
         const r = SC.state.river;
         const active = SC.state.nodes ? SC.state.nodes.filter(n => n.active).length : 0;
         return (r ? Math.round(r.spine[0].x) : 0) + ':' + active + ':' +
-               canvas.width + 'x' + canvas.height;
+               canvas.width + 'x' + canvas.height + ':' + terrainKey();
     }
 
     function renderBg() {
@@ -707,7 +802,7 @@ SC.render = (function() {
         viewBounds = { x0: -BG_MARGIN - 40, x1: canvas.width / dpr + BG_MARGIN + 40,
                        y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
         try {
-            drawMountains();
+            drawTerrain();
             drawLandStatic();
         } finally {
             ctx = old;
@@ -745,7 +840,6 @@ SC.render = (function() {
     }
 
     function drawWorld(dt) {
-        const C = SC.CONFIG;
         seaTime += dt;
         drawBg();     // mountains + land + grid + decor (cached)
         drawRiver();  // live: animated ripples
@@ -754,9 +848,9 @@ SC.render = (function() {
         // Iso depth (world x+y) maps linearly to screen y, so a vertical
         // gradient between two constant-depth lines is a true depth fade —
         // from the far corner (depth 0) to ~35% of max depth.
-        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        const corners = [S(0, 0), S(SC.worldW(), 0), S(SC.worldW(), SC.worldH()), S(0, SC.worldH())];
         const farY = corners[0].y;
-        const midD = 0.175 * (C.WORLD_W + C.WORLD_H); // x=y point at 35% depth
+        const midD = 0.175 * (SC.worldW() + SC.worldH()); // x=y point at 35% depth
         const nearY = S(midD, midD).y;
         if (nearY > farY) {
             ctx.save();
@@ -2099,8 +2193,7 @@ SC.render = (function() {
     // plateau, its strength following the (slowly-melting) accumulation.
     function drawSnowBlanket() {
         if (weather.snow < 0.03) return;
-        const C = SC.CONFIG;
-        const corners = [S(0, 0), S(C.WORLD_W, 0), S(C.WORLD_W, C.WORLD_H), S(0, C.WORLD_H)];
+        const corners = [S(0, 0), S(SC.worldW(), 0), S(SC.worldW(), SC.worldH()), S(0, SC.worldH())];
         ctx.save();
         ctx.beginPath();
         corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));

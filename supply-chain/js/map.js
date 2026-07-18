@@ -43,13 +43,14 @@ SC.map = (function() {
     function generateRiver() {
         const spine = [], halfWidths = [];
         const steps = 16;
-        let cx = C().WORLD_W * (0.42 + rng.next() * 0.16);
+        const W = SC.worldW(), H = SC.worldH();
+        let cx = W * (0.42 + rng.next() * 0.16);
         for (let i = 0; i <= steps; i++) {
-            const y = (i / steps) * C().WORLD_H;
-            cx += (rng.next() - 0.5) * C().WORLD_W * 0.07;
-            cx = Math.max(C().WORLD_W * 0.28, Math.min(C().WORLD_W * 0.72, cx));
+            const y = (i / steps) * H;
+            cx += (rng.next() - 0.5) * W * 0.07;
+            cx = Math.max(W * 0.28, Math.min(W * 0.72, cx));
             spine.push({ x: cx, y });
-            halfWidths.push(C().WORLD_W * (0.02 + rng.next() * 0.012));
+            halfWidths.push(W * (0.02 + rng.next() * 0.012));
         }
         SC.state.river = { spine, halfWidths };
     }
@@ -57,7 +58,11 @@ SC.map = (function() {
     function riverAt(y) {
         const r = SC.state.river;
         if (!r) return null;
-        const step = C().WORLD_H / (r.spine.length - 1);
+        // Step from the spine's own span (its last y), not the live world
+        // height: the river is laid out once at the base size, so a later
+        // field expansion must not re-scale the y→segment mapping. Queries
+        // past the spine's end clamp to the last segment (extrapolated).
+        const step = r.spine[r.spine.length - 1].y / (r.spine.length - 1);
         const i = Math.max(0, Math.min(r.spine.length - 2, Math.floor(y / step)));
         const t = (y - i * step) / step;
         return {
@@ -106,8 +111,8 @@ SC.map = (function() {
 
     function randomLandSpot(minDist) {
         for (let a = 0; a < 200; a++) {
-            const x = C().NODE_MARGIN + rng.next() * (C().WORLD_W - 2 * C().NODE_MARGIN);
-            const y = C().NODE_MARGIN + rng.next() * (C().WORLD_H - 2 * C().NODE_MARGIN);
+            const x = C().NODE_MARGIN + rng.next() * (SC.worldW() - 2 * C().NODE_MARGIN);
+            const y = C().NODE_MARGIN + rng.next() * (SC.worldH() - 2 * C().NODE_MARGIN);
             if (!isInRiver(x, y) && Math.abs(x - riverAt(y).x) > riverAt(y).halfW + 50 &&
                 farFromOthers(x, y, minDist)) return { x, y };
         }
@@ -120,8 +125,8 @@ SC.map = (function() {
             const ang = rng.next() * Math.PI * 2;
             const d = dist * (0.7 + rng.next() * 0.6);
             const x = px + Math.cos(ang) * d, y = py + Math.sin(ang) * d;
-            if (x < C().NODE_MARGIN || x > C().WORLD_W - C().NODE_MARGIN ||
-                y < C().NODE_MARGIN || y > C().WORLD_H - C().NODE_MARGIN) continue;
+            if (x < C().NODE_MARGIN || x > SC.worldW() - C().NODE_MARGIN ||
+                y < C().NODE_MARGIN || y > SC.worldH() - C().NODE_MARGIN) continue;
             if (isInRiver(x, y)) continue;
             if (segmentCrossesRiver(px, py, x, y)) continue; // keep starter cluster on one side
             if (!farFromOthers(x, y, minDist)) continue;
@@ -146,10 +151,10 @@ SC.map = (function() {
         const side = rng.next() < 0.5 ? -1 : 1;
         let hx, hy;
         for (let a = 0; ; a++) {
-            hy = C().WORLD_H * (0.35 + rng.next() * 0.3);
+            hy = SC.worldH() * (0.35 + rng.next() * 0.3);
             const rv = riverAt(hy);
             const room = side < 0 ? rv.x - rv.halfW - C().NODE_MARGIN
-                                  : C().WORLD_W - C().NODE_MARGIN - (rv.x + rv.halfW);
+                                  : SC.worldW() - C().NODE_MARGIN - (rv.x + rv.halfW);
             hx = side < 0 ? C().NODE_MARGIN + room * (0.3 + rng.next() * 0.4)
                           : rv.x + rv.halfW + room * (0.3 + rng.next() * 0.4);
             if (!isInRiver(hx, hy) || a > 50) break;
@@ -210,7 +215,70 @@ SC.map = (function() {
         return next;
     }
 
+    // A land spot inside the newly-opened frontier band (past the old
+    // bounds on either axis), clear of the river and other nodes. Same
+    // rejection-sampling shape as randomLandSpot, restricted to the band.
+    function frontierSpot(oldW, oldH, minDist) {
+        for (let a = 0; a < 200; a++) {
+            const x = C().NODE_MARGIN + rng.next() * (SC.worldW() - 2 * C().NODE_MARGIN);
+            const y = C().NODE_MARGIN + rng.next() * (SC.worldH() - 2 * C().NODE_MARGIN);
+            if (x <= oldW - C().NODE_MARGIN && y <= oldH - C().NODE_MARGIN) continue; // not frontier
+            if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) < riverAt(y).halfW + 50) continue;
+            if (!farFromOthers(x, y, minDist)) continue;
+            return { x, y };
+        }
+        return null;
+    }
+
+    // Grow the playing field by one expansion step (WORLD_EXPAND). Additive
+    // to the near (high x+y) edge, so existing nodes/river keep their
+    // coordinates and only new frontier land appears. Camera bounds, node
+    // placement and the terrain backdrop all read SC.worldW()/worldH(), so
+    // they follow automatically; render's bg cache re-bakes on the size
+    // change. The frontier isn't empty: each expansion seeds it with a new
+    // active supplier (a random raw) and a for-sale factory (a random
+    // recipe), so there's something out there worth roading toward.
+    // Emits 'fieldExpanded' for the UI (toast + camera re-fit).
+    function expandField() {
+        const ex = C().WORLD_EXPAND;
+        const oldW = SC.state.worldW, oldH = SC.state.worldH;
+        SC.state.worldW += ex.stepW;
+        SC.state.worldH += ex.stepH;
+        SC.state.expansions = (SC.state.expansions || 0) + 1;
+        const seeded = [];
+        const raws = Object.keys(SC.GOODS).filter(g => SC.GOODS[g].raw);
+        const recipes = Object.keys(SC.GOODS).filter(g => !SC.GOODS[g].raw);
+        // Both spawn active (visible) so they don't sit in — or reorder —
+        // the milestone unlock queue; the factory is still forSale, i.e.
+        // buyable with the usual tap-twice, like a milestone-unlocked site.
+        const wants = [
+            ['supplier', { active: true, mat: raws[(rng.next() * raws.length) | 0] }],
+            ['factory', { active: true, forSale: true, recipe: recipes[(rng.next() * recipes.length) | 0] }]
+        ];
+        for (const [kind, opts] of wants) {
+            const spot = frontierSpot(oldW, oldH, C().NODE_MIN_DIST);
+            if (spot) seeded.push(makeNode(kind, spot.x, spot.y, opts));
+        }
+        SC.emit('fieldExpanded', {
+            expansions: SC.state.expansions,
+            worldW: SC.state.worldW, worldH: SC.state.worldH, seeded
+        });
+        return SC.state.expansions;
+    }
+
+    // Fire the next scheduled expansion if this delivery count has reached
+    // its threshold (WORLD_EXPAND.at). Called from the milestone hook in
+    // economy.js. Returns true if it expanded.
+    function maybeExpandField() {
+        const at = C().WORLD_EXPAND.at;
+        const done = SC.state.expansions || 0;
+        if (done >= at.length || SC.state.delivered < at[done]) return false;
+        expandField();
+        return true;
+    }
+
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
              segmentCrossesRiver, riverCrossing, unlockNext,
+             expandField, maybeExpandField,
              _resetSeq: () => { nodeSeq = 0; } };
 })();
