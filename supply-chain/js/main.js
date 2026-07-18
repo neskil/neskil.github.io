@@ -23,6 +23,10 @@ SC.init = function() {
     } else {
         SC.state.gameStarted = true;
     }
+    
+    if (SC.stats && SC.stats.initRun) {
+        SC.stats.initRun();
+    }
 
     const hq = SC.state.nodes.find(n => n.isHQ) || SC.state.nodes[0];
     const canvas = document.getElementById('gameCanvas');

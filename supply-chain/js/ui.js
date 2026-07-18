@@ -430,6 +430,32 @@ SC.ui = (function() {
                 <span class="ach-emoji">${a.emoji}</span>${a.name}
             </div>`;
         }).join('');
+
+        const c = SC.stats.career;
+        if ($('stats-career')) {
+            $('stats-career').innerHTML = `
+                <div class="stats-row"><span>📦 Total Deliveries</span><b>${c.totalDeliveries}</b></div>
+                <div class="stats-row"><span>💵 Total Money Earned</span><b>$${Math.round(c.totalMoneyEarned)}</b></div>
+                <div class="stats-row"><span>🚚 Trucks Bought</span><b>${c.totalTrucksBought}</b></div>
+                <div class="stats-row"><span>🛣️ Roads Built</span><b>${c.totalRoadsBuilt}</b></div>
+                <div class="stats-row"><span>🌉 Bridges Built</span><b>${c.totalBridgesBuilt}</b></div>
+                <div class="stats-row"><span>⛴️ Ferries Built</span><b>${c.totalFerriesBuilt}</b></div>
+            `;
+        }
+
+        if ($('stats-highscores')) {
+            const formatTime = s => {
+                if (!s) return 'None';
+                const m = Math.floor(s / 60);
+                const sec = Math.floor(s % 60);
+                return `${m}m ${sec}s`;
+            };
+            $('stats-highscores').innerHTML = `
+                <div class="stats-row"><span>💰 Highest Cash</span><b>$${c.highScoreCash}</b></div>
+                <div class="stats-row"><span>📦 Most Deliveries</span><b>${c.highScoreDeliveries}</b></div>
+                <div class="stats-row"><span>🚀 Fastest $50,000</span><b>${formatTime(c.fastestTime50k)}</b></div>
+            `;
+        }
     }
 
     function openStatsOverlay() {
@@ -817,6 +843,14 @@ SC.ui = (function() {
         $('stats-overlay').addEventListener('click', e => {
             if (e.target === $('stats-overlay')) closeStatsOverlay(); // tap outside the card
         });
+        if ($('stats-reset-career')) {
+            $('stats-reset-career').addEventListener('click', () => {
+                if (confirm('Reset all career stats and high scores? This cannot be undone.')) {
+                    SC.stats.resetCareer();
+                    updateStatsOverlay();
+                }
+            });
+        }
         $('menu-newgame').addEventListener('click', () => {
             if (newGameArmed) {
                 // Reloading fires pagehide/beforeunload, whose autosave flush
