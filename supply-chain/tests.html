@@ -15,21 +15,21 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.48.0"></script>
-    <script src="js/state.js?v=1.48.0"></script>
-    <script src="js/save.js?v=1.48.0"></script>
-    <script src="js/sfx.js?v=1.48.0"></script>
-    <script src="js/rng.js?v=1.48.0"></script>
-    <script src="js/map.js?v=1.48.0"></script>
-    <script src="js/camera.js?v=1.48.0"></script>
-    <script src="js/roads.js?v=1.48.0"></script>
-    <script src="js/factories.js?v=1.48.0"></script>
-    <script src="js/economy.js?v=1.48.0"></script>
-    <script src="js/vehicles.js?v=1.48.0"></script>
-    <script src="js/stats.js?v=1.48.0"></script>
-    <script src="js/inspect.js?v=1.48.0"></script>
-    <script src="js/research.js?v=1.48.0"></script>
-    <script src="js/placement.js?v=1.48.0"></script>
+    <script src="js/config.js?v=1.49.0"></script>
+    <script src="js/state.js?v=1.49.0"></script>
+    <script src="js/save.js?v=1.49.0"></script>
+    <script src="js/sfx.js?v=1.49.0"></script>
+    <script src="js/rng.js?v=1.49.0"></script>
+    <script src="js/map.js?v=1.49.0"></script>
+    <script src="js/camera.js?v=1.49.0"></script>
+    <script src="js/roads.js?v=1.49.0"></script>
+    <script src="js/factories.js?v=1.49.0"></script>
+    <script src="js/economy.js?v=1.49.0"></script>
+    <script src="js/vehicles.js?v=1.49.0"></script>
+    <script src="js/stats.js?v=1.49.0"></script>
+    <script src="js/inspect.js?v=1.49.0"></script>
+    <script src="js/research.js?v=1.49.0"></script>
+    <script src="js/placement.js?v=1.49.0"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -2081,6 +2081,70 @@
         assert('nextStatSampleIn survives a save round-trip', approx(st.nextStatSampleIn, 4.2));
         const restoredEdge = st.edges.find(e => e.a.mat === 'wheat');
         assert('edge trip count survives a save round-trip', restoredEdge && restoredEdge.trips === 2);
+    })();
+
+    // ── Intersections: math, placement, and road splitting ───────────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+
+        // 1. Math check
+        const a = { x: 100, y: 100 };
+        const b = { x: 300, y: 300 };
+        const c = { x: 100, y: 300 };
+        const d = { x: 300, y: 100 };
+
+        const pt = SC.roads.getLineIntersection(a, b, c, d);
+        assert('getLineIntersection detects true crossing', pt && approx(pt.x, 200) && approx(pt.y, 200));
+
+        const ptNo = SC.roads.getLineIntersection(a, { x: 150, y: 150 }, c, d);
+        assert('getLineIntersection rejects non-overlapping segments', ptNo === null);
+
+        // 2. Research lock
+        assert('intersection is locked before intersections research', !SC.placement.isUnlocked('intersection'));
+
+        SC.state.research.completed.intersections = true;
+        assert('intersection is unlocked after research', SC.placement.isUnlocked('intersection'));
+
+        // 3. Placement & road splitting test
+        const nA = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const nB = SC.map.makeNode('factory', 300, 300, { active: true, recipe: 'bread' });
+        const nC = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const nD = SC.map.makeNode('city', 300, 100, { active: true });
+
+        const edge1 = SC.roads.build(nA, nB).edge;
+        const edge2 = SC.roads.build(nC, nD).edge;
+
+        assert('two roads exist', SC.state.edges.length === 2);
+
+        const crossing = SC.roads.findClosestCrossing(200, 200, 40);
+        assert('closest crossing detected', crossing !== null && approx(crossing.x, 200) && approx(crossing.y, 200));
+
+        edge1.level = 1;
+
+        const truck = SC.vehicles.addTruck(nA, nA);
+        truck.path = [nA, nB];
+        truck.pathIdx = 0;
+        truck.progress = 0.4;
+        truck.phase = 'toDrop';
+
+        const price = SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+        const beforeMoney = SC.state.money;
+        const res = SC.placement.place('intersection', null, 201, 199);
+
+        assert('intersection successfully placed', res.ok && res.node.kind === 'junction');
+        assert('money charged for intersection', SC.state.money === beforeMoney - price);
+        assert('edges split into 4 segments', SC.state.edges.length === 4);
+
+        assert('junction connects to all 4 endpoints', res.node.edges.length === 4);
+
+        const split1 = SC.state.edges.find(e => (e.a === nA && e.b === res.node) || (e.a === res.node && e.b === nA));
+        const split2 = SC.state.edges.find(e => (e.a === nB && e.b === res.node) || (e.a === res.node && e.b === nB));
+        assert('split segments keep highway level', split1 && split1.level === 1 && split2 && split2.level === 1);
+
+        assert('truck path has 3 nodes now', truck.path.length === 3 && truck.path[1] === res.node);
+        assert('truck progress mapped correctly', approx(truck.progress, 0.8));
+        assert('truck pathIdx is still 0', truck.pathIdx === 0);
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
