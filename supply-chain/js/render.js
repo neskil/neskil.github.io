@@ -422,112 +422,73 @@ SC.render = (function() {
         }
     }
 
-    // A jagged 0..1 ridge profile along t∈[0,1]: smooth rolling shape + a
-    // per-segment random kick so adjacent sample points differ, giving sharp
-    // alpine peaks rather than smooth hills.
-    function ridgeProfile(t, seed) {
-        let v = 0.5;
-        v += Math.sin(t * 6.3 + seed) * 0.20;
-        v += Math.sin(t * 14.1 + seed * 2.3) * 0.13;
-        v += (hash01(seed * 91 + 3, Math.floor(t * 64)) - 0.5) * 0.62;
-        return Math.max(0.05, Math.min(1, v));
-    }
-
-    // Mountains are now continuous ridgelines in several depth layers that
-    // recede into haze, instead of separate triangles — reads as a real
-    // range. Each layer: a strip of world base points (along the top or left
-    // "far" edges of the diamond) with a jagged per-point height. Baked into
-    // the cached bg layer, world-anchored, so it still pans with the map and
-    // the land (drawn afterward) hides the ridge feet.
     let mountains = null;
     function ensureMountains() {
         if (mountains) return mountains;
-        const C = SC.CONFIG;
-        const EXTRA = 640;
-        // far → near so the draw order layers correctly (near overlaps far).
-        const defs = [
-            { out: 900, amp: 115, base: 90,  top: '#69798f', bot: '#5b6b83', snow: 0.90, seed: 5.1 },
-            { out: 580, amp: 165, base: 110, top: '#54658a', bot: '#45567a', snow: 0.74, seed: 2.7 },
-            { out: 280, amp: 255, base: 150, top: '#41517a', bot: '#2f3e60', snow: 0.56, seed: 9.4 }
-        ];
-        const layers = [];
-        for (const d of defs) {
-            for (const strip of ['N', 'W']) {
-                const n = 52, pts = [];
-                const seed = d.seed + (strip === 'N' ? 1.3 : 7.9);
-                for (let i = 0; i <= n; i++) {
-                    const t = i / n;
-                    let wx, wy;
-                    if (strip === 'N') {
-                        wx = -d.out - EXTRA + (C.WORLD_W + 2 * (d.out + EXTRA)) * t;
-                        wy = -d.out;
-                    } else {
-                        wy = -d.out - EXTRA + (C.WORLD_H * 0.86 + d.out + EXTRA) * t;
-                        wx = -d.out;
-                    }
-                    const hv = ridgeProfile(t, seed);
-                    pts.push({ wx, wy, h: d.base + hv * d.amp, hv });
-                }
-                layers.push({ pts, def: d });
-            }
+        const C = SC.CONFIG, rng = makeRng(0x5c1);
+        const arr = [];
+        const M = 230; // gap between the play area and the range (was 130 —
+                        // pushed further out so the backdrop breathes)
+        const EXTRA = 520; // spread the ridge wider than the map on each side
+        // Ranges hug the two "far" edges of the diamond (low world x+y): the
+        // top edge (y just above the map) and the left edge (x just left).
+        // Fewer peaks over a wider span, with more size/depth scatter, so it
+        // reads as an open range rather than a dense wall along the edge.
+        const nN = 22;
+        for (let i = 0; i <= nN; i++) {
+            const x = -M - EXTRA + (C.WORLD_W + 2 * M + 2 * EXTRA) * (i / nN) + (rng() - 0.5) * 160;
+            const y = -M - rng() * 280;
+            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
         }
-        mountains = layers;
-        return layers;
+        const nW = 15;
+        for (let i = 0; i <= nW; i++) {
+            const y = -M - EXTRA + (C.WORLD_H * 0.82 + M + 2 * EXTRA) * (i / nW) + (rng() - 0.5) * 160;
+            const x = -M - rng() * 280;
+            arr.push({ x, y, size: 165 + rng() * 230, snow: rng() > 0.42 });
+        }
+        arr.sort((a, b) => (a.x + a.y) - (b.x + b.y)); // back-to-front
+        mountains = arr;
+        return arr;
     }
 
     function drawMountains() {
         const list = ensureMountains();
         const z = zoom();
-        const W = canvas.width / dpr, Hs = canvas.height / dpr;
-        for (const layer of list) {
-            const d = layer.def;
-            const scr = layer.pts.map(p => {
-                const s = S(p.wx, p.wy);
-                return { x: s.x, baseY: s.y, topY: s.y - p.h * z, hv: p.hv };
-            });
-            // cull the whole layer if its ridge is entirely off to a side
-            const minX = Math.min(...scr.map(s => s.x)), maxX = Math.max(...scr.map(s => s.x));
-            if (maxX < -60 || minX > W + 60) continue;
-            const topY = Math.min(...scr.map(s => s.topY));
-            if (topY > Hs + 60) continue;
-            const baseMax = Math.max(...scr.map(s => s.baseY));
-
-            // solid mountain mass (ridge tops down to a low baseline the land hides)
+        // Culling window: the viewport normally, or the oversized offscreen
+        // layer bounds while pre-rendering the background (see renderBg).
+        const vb = viewBounds || { x0: -40, x1: canvas.width / dpr + 40,
+                                   y0: -40, y1: canvas.height / dpr + 40 };
+        const minD = list[0].x + list[0].y, maxD = list[list.length - 1].x + list[list.length - 1].y;
+        for (const m of list) {
+            const s = S(m.x, m.y);
+            const h = m.size * z, hw = m.size * 0.95 * z;
+            if (s.x + hw < vb.x0 || s.x - hw > vb.x1) continue; // cull off-layer
+            if (s.y - h > vb.y1 || s.y < vb.y0) continue;
+            // atmospheric haze: farther peaks fade bluer/lighter
+            const t = Math.min(1, Math.max(0, ((m.x + m.y) - minD) / (maxD - minD + 1)));
+            const rightC = mix('#6d84a6', '#3a4d70', t);
+            const leftC = mix('#495d80', '#26324c', t);
+            const apex = { x: s.x, y: s.y - h };
+            // right (sunlit) face
             ctx.beginPath();
-            ctx.moveTo(scr[0].x, scr[0].topY);
-            for (let i = 1; i < scr.length; i++) ctx.lineTo(scr[i].x, scr[i].topY);
-            ctx.lineTo(scr[scr.length - 1].x, baseMax + 700 * z);
-            ctx.lineTo(scr[0].x, baseMax + 700 * z);
-            ctx.closePath();
-            const g = ctx.createLinearGradient(0, topY, 0, baseMax);
-            g.addColorStop(0, d.top);
-            g.addColorStop(1, d.bot);
-            ctx.fillStyle = g;
-            ctx.fill();
-
-            // sunlit ridge highlight
-            ctx.strokeStyle = rgba(shade(d.top, 0.22), 0.45);
-            ctx.lineWidth = 1;
+            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x + hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
+            ctx.fillStyle = rightC; ctx.fill();
+            // left (shaded) face
             ctx.beginPath();
-            ctx.moveTo(scr[0].x, scr[0].topY);
-            for (let i = 1; i < scr.length; i++) ctx.lineTo(scr[i].x, scr[i].topY);
-            ctx.stroke();
-
-            // snow caps on local-max peaks above this layer's snow line
-            ctx.fillStyle = mix('#f4f8fd', d.top, 0.06);
-            for (let i = 1; i < scr.length - 1; i++) {
-                const s = scr[i];
-                if (s.hv < d.snow) continue;
-                if (s.topY > scr[i - 1].topY || s.topY > scr[i + 1].topY) continue; // must be a peak
-                const lx = s.x + (scr[i - 1].x - s.x) * 0.5, ly = s.topY + (scr[i - 1].topY - s.topY) * 0.5;
-                const rx2 = s.x + (scr[i + 1].x - s.x) * 0.5, ry2 = s.topY + (scr[i + 1].topY - s.topY) * 0.5;
+            ctx.moveTo(apex.x, apex.y); ctx.lineTo(s.x - hw, s.y); ctx.lineTo(s.x, s.y); ctx.closePath();
+            ctx.fillStyle = leftC; ctx.fill();
+            // snow cap
+            if (m.snow) {
+                const cap = h * 0.32;
                 ctx.beginPath();
-                ctx.moveTo(s.x, s.topY);
-                ctx.lineTo(rx2, ry2);
-                ctx.lineTo(s.x + (rx2 - s.x) * 0.3, (ry2 + ly) / 2 + 5 * z); // jagged lower edge
-                ctx.lineTo((lx + s.x) / 2, (ly + s.topY) / 2 + 3 * z);
-                ctx.lineTo(lx, ly);
+                ctx.moveTo(apex.x, apex.y);
+                ctx.lineTo(apex.x + hw * 0.32, apex.y + cap);
+                ctx.lineTo(apex.x + hw * 0.14, apex.y + cap * 0.62);
+                ctx.lineTo(apex.x, apex.y + cap * 0.9);
+                ctx.lineTo(apex.x - hw * 0.13, apex.y + cap * 0.6);
+                ctx.lineTo(apex.x - hw * 0.30, apex.y + cap * 0.92);
                 ctx.closePath();
+                ctx.fillStyle = mix('#f2f6fb', '#c2d0e2', t);
                 ctx.fill();
             }
         }
