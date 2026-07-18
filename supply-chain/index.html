@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.49.0">
+    <link rel="stylesheet" href="style.css?v=1.50.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -87,58 +87,69 @@
     <div id="shop-panel" class="panel">
         <div class="panel-header" id="shop-header">
             <h2>Shop</h2>
+            <div class="shop-tabs">
+                <button class="shop-tab active" id="shop-tab-shop">🛒 Shop</button>
+                <button class="shop-tab" id="shop-tab-build">🏗️ Build</button>
+            </div>
             <span class="panel-toggle">▾</span>
         </div>
         <div class="panel-body">
-            <button class="shop-btn" id="btn-truck">
-                <span class="sname">🚚 Buy truck</span>
-                <span class="price">$500</span>
-            </button>
-            <div class="yard-picker">
-                <label for="yard-select">Station new trucks at</label>
-                <select id="yard-select"></select>
+            <!-- ── SHOP TAB ── -->
+            <div id="shop-tab-shop-content">
+                <button class="shop-btn" id="btn-truck">
+                    <span class="sname">🚚 Buy truck</span>
+                    <span class="price">$500</span>
+                </button>
+                <div class="yard-picker">
+                    <label for="yard-select">Station new trucks at</label>
+                    <select id="yard-select"></select>
+                </div>
+                <button class="shop-btn" id="btn-moveTruck">
+                    <span class="sname">⇄ Move an idle truck here</span>
+                    <span class="price">free</span>
+                </button>
+                <button class="shop-btn" id="btn-truckSpeed">
+                    <span class="sname">⚡ Truck speed <span class="lvl"></span></span>
+                    <span class="price">$300</span>
+                </button>
+                <button class="shop-btn" id="btn-factorySpeed">
+                    <span class="sname">🏭 Factory speed <span class="lvl"></span></span>
+                    <span class="price">$280</span>
+                </button>
+                <button class="shop-btn" id="btn-truckCapacity">
+                    <span class="sname">📦 Truck capacity <span class="lvl"></span></span>
+                    <span class="price">$450</span>
+                </button>
+
+                <button class="shop-btn" id="btn-research-tree">
+                    <span class="sname">🔬 Research</span>
+                    <span class="price" id="research-shortcut-status">Open tree</span>
+                </button>
+
+                <button class="shop-btn hidden" id="btn-promo">
+                    <span class="sname">📣 Run promotion</span>
+                    <span class="price">$600</span>
+                </button>
             </div>
-            <button class="shop-btn" id="btn-moveTruck">
-                <span class="sname">⇄ Move an idle truck here</span>
-                <span class="price">free</span>
-            </button>
-            <button class="shop-btn build-btn" id="btn-yard">
-                <span class="sname">🅿️ Build truck yard</span>
-                <span class="price">$1,200</span>
-            </button>
-            <button class="shop-btn build-btn" id="btn-intersection" title="Connect crossing roads — place a junction exactly where two roads cross">
-                <span class="sname">➕ Place intersection</span>
-                <span class="price">$150</span>
-            </button>
-            <button class="shop-btn build-btn" id="btn-junction" title="A routing waypoint — no supply or demand, just lets roads fork/merge/reroute through it">
-                <span class="sname">🔀 Place junction</span>
-                <span class="price">$400</span>
-            </button>
-            <button class="shop-btn" id="btn-truckSpeed">
-                <span class="sname">⚡ Truck speed <span class="lvl"></span></span>
-                <span class="price">$300</span>
-            </button>
-            <button class="shop-btn" id="btn-factorySpeed">
-                <span class="sname">🏭 Factory speed <span class="lvl"></span></span>
-                <span class="price">$280</span>
-            </button>
-            <button class="shop-btn" id="btn-truckCapacity">
-                <span class="sname">📦 Truck capacity <span class="lvl"></span></span>
-                <span class="price">$450</span>
-            </button>
 
-            <button class="shop-btn" id="btn-research-tree">
-                <span class="sname">🔬 Research</span>
-                <span class="price" id="research-shortcut-status">Open tree</span>
-            </button>
+            <!-- ── BUILD TAB ── -->
+            <div id="shop-tab-build-content" class="hidden">
+                <button class="shop-btn build-btn" id="btn-yard">
+                    <span class="sname">🅿️ Build truck yard</span>
+                    <span class="price">$1,200</span>
+                </button>
+                <button class="shop-btn build-btn" id="btn-intersection" title="Connect crossing roads — place a junction exactly where two roads cross">
+                    <span class="sname">➕ Place intersection</span>
+                    <span class="price">$150</span>
+                </button>
+                <button class="shop-btn build-btn" id="btn-junction" title="A routing waypoint — no supply or demand, just lets roads fork/merge/reroute through it">
+                    <span class="sname">🔀 Place junction</span>
+                    <span class="price">$400</span>
+                </button>
 
-            <button class="shop-btn hidden" id="btn-promo">
-                <span class="sname">📣 Run promotion</span>
-                <span class="price">$600</span>
-            </button>
-
-            <div class="shop-section-title hidden" id="build-title">📍 Build (premium placement)</div>
-            <div id="build-list"></div>
+                <div class="shop-section-title hidden" id="build-title">📍 Place supplier / factory</div>
+                <div id="build-list"></div>
+            </div>
         </div>
     </div>
 
@@ -287,24 +298,24 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.49.0"></script>
-    <script src="js/state.js?v=1.49.0"></script>
-    <script src="js/save.js?v=1.49.0"></script>
-    <script src="js/sfx.js?v=1.49.0"></script>
-    <script src="js/rng.js?v=1.49.0"></script>
-    <script src="js/map.js?v=1.49.0"></script>
-    <script src="js/camera.js?v=1.49.0"></script>
-    <script src="js/roads.js?v=1.49.0"></script>
-    <script src="js/factories.js?v=1.49.0"></script>
-    <script src="js/economy.js?v=1.49.0"></script>
-    <script src="js/vehicles.js?v=1.49.0"></script>
-    <script src="js/stats.js?v=1.49.0"></script>
-    <script src="js/inspect.js?v=1.49.0"></script>
-    <script src="js/research.js?v=1.49.0"></script>
-    <script src="js/placement.js?v=1.49.0"></script>
-    <script src="js/render.js?v=1.49.0"></script>
-    <script src="js/input.js?v=1.49.0"></script>
-    <script src="js/ui.js?v=1.49.0"></script>
-    <script src="js/main.js?v=1.49.0"></script>
+    <script src="js/config.js?v=1.50.0"></script>
+    <script src="js/state.js?v=1.50.0"></script>
+    <script src="js/save.js?v=1.50.0"></script>
+    <script src="js/sfx.js?v=1.50.0"></script>
+    <script src="js/rng.js?v=1.50.0"></script>
+    <script src="js/map.js?v=1.50.0"></script>
+    <script src="js/camera.js?v=1.50.0"></script>
+    <script src="js/roads.js?v=1.50.0"></script>
+    <script src="js/factories.js?v=1.50.0"></script>
+    <script src="js/economy.js?v=1.50.0"></script>
+    <script src="js/vehicles.js?v=1.50.0"></script>
+    <script src="js/stats.js?v=1.50.0"></script>
+    <script src="js/inspect.js?v=1.50.0"></script>
+    <script src="js/research.js?v=1.50.0"></script>
+    <script src="js/placement.js?v=1.50.0"></script>
+    <script src="js/render.js?v=1.50.0"></script>
+    <script src="js/input.js?v=1.50.0"></script>
+    <script src="js/ui.js?v=1.50.0"></script>
+    <script src="js/main.js?v=1.50.0"></script>
 </body>
 </html>

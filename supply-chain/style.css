@@ -363,6 +363,33 @@ html, body {
 }
 .shop-section-title.hidden { display: none; }
 
+/* ── Shop tab pills ─────────────────────────────── */
+.shop-tabs {
+    display: flex;
+    gap: 0.3rem;
+    flex: 1;
+    justify-content: flex-end;
+    margin-right: 0.5rem;
+}
+.shop-tab {
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid var(--card-border);
+    background: rgba(15, 23, 42, 0.4);
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.shop-tab:hover { border-color: var(--accent-color); color: var(--text-primary); }
+.shop-tab.active {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 /* ── Research ────────────────────────────────────── */
 .research-row {
     padding: 0.55rem 0.7rem;

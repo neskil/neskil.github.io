@@ -884,8 +884,11 @@ SC.render = (function() {
         viewBounds = { x0: -BG_MARGIN - 40, x1: canvas.width / dpr + BG_MARGIN + 40,
                        y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
         try {
+            drawRiverBg();  // river body first — terrain back-to-front sweep
+                            // paints mountain ridges over it; flat valley
+                            // quads (h=0) are skipped, so the river shows
+                            // through the carved valley floor.
             drawTerrain();
-            drawRiverBg();
             drawLandStatic();
         } finally {
             ctx = old;
@@ -1100,55 +1103,26 @@ SC.render = (function() {
         ctx.lineWidth = 1.4;
         
         for (let w = 0; w < 4; w++) {
-            // Normal ripples — follow terrain height via getPt
+            // Ripple lines along the full river including downstream extension
             ctx.beginPath();
             let ripStarted = false;
             for (let i = 0; i < extSpine.length; i++) {
-                if (extSpine[i].y > H + 10) continue;
                 const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
+                // Past the playing field, the wobble frequency increases
+                // and lines drift downward (seaTime offset grows with distance)
+                const inField = extSpine[i].y <= H;
+                const overshoot = inField ? 0 : (extSpine[i].y - H) / margin;
+                const freq = inField ? 0.8 : 0.8 + overshoot * 1.5;
+                const amp = 6 + overshoot * 4;
                 const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
-                         + Math.sin(seaTime * 0.8 + t * 8 + w) * 6;
+                         + Math.sin(seaTime * freq + t * 8 + w) * amp;
                 const p = getPt(wx, extSpine[i].y);
                 if (!ripStarted) { ctx.moveTo(p.x, p.y); ripStarted = true; }
                 else { ctx.lineTo(p.x, p.y); }
             }
             ctx.stroke();
         }
-
-        // Flood rush for the front (foothills dip)
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(150, 220, 255, 0.15)'; // slightly brighter
-        ctx.lineWidth = 1.5;
-        const numWaves = 16;
-        const last = r.spine[r.spine.length - 1];
-        const prev = r.spine[r.spine.length - 2];
-        const dX = last.x - prev.x;
-        const dY = last.y - prev.y;
-        
-        for (let i = 0; i < numWaves; i++) {
-            let phase = (i / numWaves + seaTime * 0.12) % 1; 
-            let pos = Math.pow(phase, 1.8); // Start slow, accelerate
-            
-            // Draw a dashed transverse line (4-5 segments across the width)
-            for (let j = 0; j < 5; j++) {
-                // Slight wobble to the dashes so they aren't perfectly rigid
-                let wobble = Math.sin(i * 13 + j * 7 + seaTime * 3) * 0.02;
-                let segPos = Math.pow(Math.max(0, phase + wobble), 1.8);
-                let sy = last.y + margin * segPos;
-                let sx = last.x + dX * (margin * segPos / dY);
-                let halfW = r.halfWidths[r.halfWidths.length - 1];
-                
-                let wx1 = sx - halfW + (j / 5) * (2 * halfW);
-                let wx2 = sx - halfW + ((j + 0.8) / 5) * (2 * halfW);
-                
-                const p1 = getPt(wx1, sy);
-                const p2 = getPt(wx2, sy);
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-            }
-        }
-        ctx.stroke();
     }
 
     // --- roads --------------------------------------------------------------
