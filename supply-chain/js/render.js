@@ -1010,7 +1010,8 @@ SC.render = (function() {
             ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
         }
         ctx.setLineDash([]);
-        ctx.lineCap = 'butt';
+        ctx.lineDashOffset = 0; // reset — else later dashed strokes (e.g. the
+        ctx.lineCap = 'butt';   // pasture fence) inherit this animated offset
     }
 
     // Rain makes roads glisten: a thin cool specular re-stroke over the
