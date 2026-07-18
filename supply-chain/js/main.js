@@ -261,6 +261,13 @@ SC.runProbe = function(seconds) {
         const [fx, fy, fz] = p.get('focus').split(',').map(Number);
         SC.camera.focus(fx, fy, fz || SC.camera.cam.zoom);
     }
+    // Force a persistent loading + unloading crate near HQ so the transfer
+    // animation can be screenshotted without catching a real 0.55s pickup.
+    if (p.has('xfer') && SC.render._forceTransfer) {
+        const hq = SC.state.nodes.find(n => n.isHQ);
+        SC.render._forceTransfer(hq.x - 60, hq.y, 'wheat', 1, 999);
+        SC.render._forceTransfer(hq.x + 60, hq.y, 'bread', -1, 999);
+    }
     // Build a second truck yard near HQ and station a truck there, so the
     // yard marker + per-yard truck count can be screenshotted. Try a ring
     // of offsets since the starter cluster's exact layout is randomized.

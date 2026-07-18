@@ -121,7 +121,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   (cosmetic) day/night phase — 0/1 midnight, 0.25 sunrise, 0.5 noon,
   0.75 sunset — so daylight, dusk and night can be screenshotted
   deterministically (it otherwise advances on its own `DAY_LENGTH`
-  clock). `&weather=clear|clouds|rain|snow` forces a weather spell (it
+  clock). `&xfer=1` spawns a persistent loading + unloading crate near HQ so the pickup/delivery crate animation can be screenshotted without catching a real 0.55s transfer. `&weather=clear|clouds|rain|snow` forces a weather spell (it
   otherwise rotates on its own) for screenshotting precipitation/
   overcast. Both are render-only, non-persisted. `&crossing=1` fires the Bridge-vs-Ferry
   `crossingChoice` modal directly (same mirrored-node trick as
