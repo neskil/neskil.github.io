@@ -162,6 +162,9 @@ SC.economy = (function() {
                 const node = SC.map.unlockNext(n => n.kind !== 'city');
                 if (node) SC.emit('unlock', node);
             }
+            // The frontier opens up at scheduled delivery counts — grows the
+            // field and pushes the mountain backdrop out (see WORLD_EXPAND).
+            SC.map.maybeExpandField();
         }
     }
 

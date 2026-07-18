@@ -14,6 +14,12 @@ SC.newState = function(difficulty) {
     SC.state = {
         difficulty,
         seed: null,         // world seed, set by map.generateWorld(); shareable via ?seed=
+        // Live playing-field size — seeded from the CONFIG base, then grown
+        // by field expansions (see SC.map.maybeExpandField / WORLD_EXPAND).
+        // Read everywhere through SC.worldW()/SC.worldH().
+        worldW: SC.CONFIG.WORLD_W,
+        worldH: SC.CONFIG.WORLD_H,
+        expansions: 0,      // how many field expansions have fired
         time: 0,
         money: SC.DIFFICULTIES[difficulty].startMoney,
         earnedTotal: 0,
@@ -67,6 +73,12 @@ SC.newState = function(difficulty) {
 SC.diff = function() {
     return SC.DIFFICULTIES[SC.state.difficulty] || SC.DIFFICULTIES.normal;
 };
+
+// Live playing-field size. Defaults to the CONFIG base until a state
+// exists (defensive — some headless tests poke camera/map before
+// newState), then tracks SC.state.worldW/worldH as the field expands.
+SC.worldW = function() { return (SC.state && SC.state.worldW) || SC.CONFIG.WORLD_W; };
+SC.worldH = function() { return (SC.state && SC.state.worldH) || SC.CONFIG.WORLD_H; };
 
 // Purchases may dip into the credit line: affordable as long as the
 // resulting balance stays above -CREDIT_LIMIT (raised by completed

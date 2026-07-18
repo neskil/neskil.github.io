@@ -40,6 +40,7 @@ SC.save = (function() {
             v: FORMAT,
             difficulty: st.difficulty,
             seed: st.seed,
+            worldW: st.worldW, worldH: st.worldH, expansions: st.expansions,
             congestionEnabled: st.congestionEnabled,
             money: st.money, earnedTotal: st.earnedTotal,
             interestPaid: st.interestPaid,
@@ -112,6 +113,11 @@ SC.save = (function() {
         st.nextStatSampleIn = data.nextStatSampleIn !== undefined ? data.nextStatSampleIn : st.nextStatSampleIn;
         st.achievements = data.achievements ? Object.assign({}, data.achievements) : {};
         st.seed = data.seed || null;
+        // Field size is additive/back-compat: pre-expansion saves (and any
+        // written by an older client) simply lack these and keep the base.
+        st.worldW = data.worldW || SC.CONFIG.WORLD_W;
+        st.worldH = data.worldH || SC.CONFIG.WORLD_H;
+        st.expansions = data.expansions || 0;
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);

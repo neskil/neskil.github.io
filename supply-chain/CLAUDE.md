@@ -117,7 +117,11 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   screenshotted in one shot. `&focus=x,y,zoom` (zoom optional) points
   the camera at a world position — screenshots otherwise always frame
   the HQ cluster, so this is how far corners, specific sites, or a
-  whole-map view (low zoom) get verified. `&tod=0..1` pins the
+  whole-map view (low zoom) get verified. `&expand=N` applies N field
+  expansions up front (bigger playing field + the low-poly terrain
+  backdrop pushed further out) for screenshotting the enlarged canvas
+  without playing to the delivery milestones (`WORLD_EXPAND.at`) that
+  trigger it in a real run. `&tod=0..1` pins the
   (cosmetic) day/night phase — 0/1 midnight, 0.25 sunrise, 0.5 noon,
   0.75 sunset — so daylight, dusk and night can be screenshotted
   deterministically (it otherwise advances on its own `DAY_LENGTH`
