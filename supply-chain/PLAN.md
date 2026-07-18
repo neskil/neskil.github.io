@@ -35,6 +35,9 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.37.0: **Stats & Achievements screen** (☰ menu) — deliveries per
+  product, a money-over-time sparkline, busiest road by trip count, and
+  nine milestone badges. Per item 14 below — details there.
 - v1.34.0: **junction visual is now a roundabout**, not a `🔀`-badged
   box. Per item 16 below — details there. Also dropped the ferry's
   shuttling ⛴ boat glyph — it rendered as an unstyled black fallback
@@ -315,8 +318,17 @@ actually shipped.)*
     — only the map layout is reproducible, not a full deterministic
     replay. "Daily challenge" (share today's date as the seed) and
     generated-world test determinism are still open follow-ups.
-14. **Stats & achievements screen** — deliveries per product, money
-    curve, busiest road; milestones ("First bridge", "10-truck fleet").
+14. ~~Stats & achievements screen~~ — shipped v1.37.0, exactly as scoped:
+    deliveries per product, a money curve (sparkline), busiest road (by
+    total truck trips), and nine milestone badges including "First
+    Bridge" and "10-Truck Fleet". New `js/stats.js` is purely
+    observational — it listens to events other modules already emit
+    (`roadBuilt`, `roadUpgraded`, `sitePlaced`, `truckBought`,
+    `researchComplete`, `orderComplete`, `debtRecovered`) rather than
+    being called directly, so nothing else needed to change to wire it
+    up. Road-trip counts ride on `edge.trips` the same way `level`/
+    `ferry` already do, so they persist via `save.js` for free. Opened
+    from a new "📊 Stats & Achievements" row in the ☰ menu.
 15. **Bigger maps / regions** — after the map fills, unlock an adjacent
     region connected by a highway (new camera bounds, same state).
 16. ~~Junctions~~ — shipped v1.32.0, per the owner's request for "a

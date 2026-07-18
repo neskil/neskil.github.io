@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.39.0';
+SC.VERSION = '1.42.0';
 
 SC.CONFIG = {
     WORLD_W: 2600,
@@ -156,7 +156,12 @@ SC.CONFIG = {
     // reroute through it. Flat price, no growth ladder: unlike yards
     // there's nothing to "reset" by adding more, and since any path through
     // one is never shorter than a direct road, spamming them only adds cost.
-    PLACEMENT_JUNCTION_PRICE: 400
+    PLACEMENT_JUNCTION_PRICE: 400,
+
+    // Stats screen: SC.state.moneyHistory is a capped ring of periodic
+    // balance samples for the sparkline (see stats.js tick).
+    STATS_SAMPLE_INTERVAL: 10,  // seconds between samples
+    STATS_HISTORY_MAX: 60       // ~10 minutes of samples at the default interval
 };
 
 // Difficulty presets, chosen on the new-game screen and fixed for the
@@ -312,3 +317,22 @@ SC.depthOf = function(item) {
     const g = SC.GOODS[item];
     return g.raw ? 0 : 1 + Math.max(...g.inputs.map(SC.depthOf));
 };
+
+// One-off milestones (SC.state.achievements[id] = true once unlocked, see
+// stats.js). Each is purely cosmetic — no gameplay effect, just a badge
+// on the Stats screen — so unlike SC.RESEARCH there's no cost/time/effect
+// to define, just what it takes and how it's announced.
+SC.ACHIEVEMENTS = {
+    firstBridge:  { emoji: '🌉', name: 'First Bridge',      desc: 'Build a bridge across the river.' },
+    firstFerry:   { emoji: '⛴️', name: 'Ferry Captain',     desc: 'Build a ferry crossing.' },
+    firstHighway: { emoji: '🛣️', name: 'Paved Paradise',    desc: 'Pave a road into a highway.' },
+    firstJunction:{ emoji: '🔀', name: 'Traffic Engineer',  desc: 'Place a junction.' },
+    tenTruckFleet:{ emoji: '🚚', name: '10-Truck Fleet',    desc: 'Own 10 trucks at once.' },
+    debtRecovered:{ emoji: '💪', name: 'Back in the Black', desc: 'Recover from a default countdown.' },
+    firstContract:{ emoji: '📜', name: 'Contractor',        desc: 'Fulfil your first contract.' },
+    hundredDeliveries: { emoji: '📦', name: 'Century Club', desc: 'Deliver 100 orders.' },
+    allResearch:  { emoji: '🔬', name: 'Fully Researched',  desc: 'Complete every technology.' }
+};
+SC.ACHIEVEMENT_ORDER = ['firstBridge', 'firstFerry', 'firstHighway', 'firstJunction',
+                        'tenTruckFleet', 'debtRecovered', 'firstContract',
+                        'hundredDeliveries', 'allResearch'];
