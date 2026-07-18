@@ -61,6 +61,7 @@ SC.save = (function() {
             moneyHistory: st.moneyHistory.slice(),
             nextStatSampleIn: st.nextStatSampleIn,
             achievements: Object.assign({}, st.achievements),
+            unlockedProducts: Object.assign({}, st.unlockedProducts),
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
@@ -112,6 +113,7 @@ SC.save = (function() {
         st.moneyHistory = data.moneyHistory ? data.moneyHistory.slice() : [];
         st.nextStatSampleIn = data.nextStatSampleIn !== undefined ? data.nextStatSampleIn : st.nextStatSampleIn;
         st.achievements = data.achievements ? Object.assign({}, data.achievements) : {};
+        st.unlockedProducts = data.unlockedProducts ? Object.assign({}, data.unlockedProducts) : {};
         st.seed = data.seed || null;
         // Field size is additive/back-compat: pre-expansion saves (and any
         // written by an older client) simply lack these and keep the base.
