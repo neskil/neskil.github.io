@@ -202,25 +202,25 @@ SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
-        riverGraceMin: 5, nodeSpread: 520,
+        riverGraceMin: 5, orderGraceMin: 3, nodeSpread: 520,
         desc: 'Relaxed deadlines, gentle interest, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
-        riverGraceMin: 3, nodeSpread: 620,
+        riverGraceMin: 3, orderGraceMin: 1.5, nodeSpread: 620,
         desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
-        riverGraceMin: 0, nodeSpread: 820,
+        riverGraceMin: 0, orderGraceMin: 0.5, nodeSpread: 820,
         desc: 'Brutal deadlines, punishing interest, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
-        riverGraceMin: 5, nodeSpread: 620,
+        riverGraceMin: 5, orderGraceMin: 5, nodeSpread: 620,
         desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
     }
 };
@@ -237,7 +237,7 @@ SC.RESEARCH = {
     },
     junctions: {
         name: 'Road Junctions', emoji: '🔀', cost: 350, time: 50, requires: ['intersections'],
-        desc: 'Unlocks placeable junctions — routing waypoints that let roads fork, merge or reroute through a point with no supply or demand of its own.'
+        desc: 'Unlocks placeable junctions — waypoints to fork, merge or reroute roads.'
     },
     manualPlacement: {
         name: 'Site Requisition', emoji: '📍', cost: 900, time: 70, requires: [],
@@ -350,8 +350,15 @@ SC.ACHIEVEMENTS = {
     debtRecovered:{ emoji: '💪', name: 'Back in the Black', desc: 'Recover from a default countdown.' },
     firstContract:{ emoji: '📜', name: 'Contractor',        desc: 'Fulfil your first contract.' },
     hundredDeliveries: { emoji: '📦', name: 'Century Club', desc: 'Deliver 100 orders.' },
-    allResearch:  { emoji: '🔬', name: 'Fully Researched',  desc: 'Complete every technology.' }
+    allResearch:  { emoji: '🔬', name: 'Fully Researched',  desc: 'Complete every technology.' },
+    speedRun20:   { emoji: '⏱️', name: 'Fast Tycoon',       desc: 'Reach $50,000 in under 20 minutes.' },
+    speedRun15:   { emoji: '⚡', name: 'Turbo Tycoon',      desc: 'Reach $50,000 in under 15 minutes.' },
+    speedRun5:    { emoji: '🚀', name: 'Hypersonic Tycoon', desc: 'Reach $50,000 in under 5 minutes.' },
+    fiftyTrucks:  { emoji: '🚛', name: 'Mega Fleet',        desc: 'Own 50 trucks at once.' },
+    megaEarner:   { emoji: '💎', name: 'Mega Earner',       desc: 'Accumulate $100,000 in cash.' },
+    roadBuilder:  { emoji: '👷', name: 'Road Builder',      desc: 'Build 50 road segments.' }
 };
 SC.ACHIEVEMENT_ORDER = ['firstBridge', 'firstFerry', 'firstHighway', 'firstJunction',
-                        'tenTruckFleet', 'debtRecovered', 'firstContract',
-                        'hundredDeliveries', 'allResearch'];
+                        'tenTruckFleet', 'fiftyTrucks', 'debtRecovered', 'firstContract',
+                        'hundredDeliveries', 'allResearch', 'megaEarner', 'roadBuilder',
+                        'speedRun20', 'speedRun15', 'speedRun5'];

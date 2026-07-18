@@ -293,23 +293,37 @@ SC.render = (function() {
     }
 
     // Soft overcast blobs drifting across the sky with the wind — the visible
-    // "clouds" state. Screen-space, so they read as a sky layer, not ground.
+    // "clouds" state. Anchored to world space so they pan and zoom correctly.
     function drawSkyClouds(dt) {
         if (weather.cloud < 0.02) return;
-        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const W = SC.worldW(), H = SC.worldH();
         if (!clouds) {
             const rng = makeRng(0xc10d);
             clouds = [];
             for (let i = 0; i < 7; i++) {
-                clouds.push({ x: rng(), y: rng() * 0.32, r: 60 + rng() * 90, s: 0.4 + rng() * 0.7 });
+                clouds.push({
+                    x: rng() * (W + 1200) - 600,
+                    y: rng() * (H + 1200) - 600,
+                    r: 120 + rng() * 180,
+                    s: 0.4 + rng() * 0.7
+                });
             }
         }
-        const drift = Math.cos(weather.windAng) * weather.windMag;
+        const driftX = Math.cos(weather.windAng) * weather.windMag * 4;
+        const driftY = Math.sin(weather.windAng) * weather.windMag * 4;
         ctx.fillStyle = '#8391a5';
+        const z = zoom();
         for (const c of clouds) {
-            c.x += drift * c.s * dt * 0.02;
-            if (c.x > 1.2) c.x -= 1.4; else if (c.x < -0.2) c.x += 1.4;
-            const cx = c.x * w, cy = c.y * h, r = c.r;
+            c.x += driftX * c.s * dt * 0.02;
+            c.y += driftY * c.s * dt * 0.02;
+            const margin = 800;
+            if (c.x > W + margin) c.x -= (W + 2 * margin);
+            else if (c.x < -margin) c.x += (W + 2 * margin);
+            if (c.y > H + margin) c.y -= (H + 2 * margin);
+            else if (c.y < -margin) c.y += (H + 2 * margin);
+
+            const p = S(c.x, c.y);
+            const cx = p.x, cy = p.y - 450 * z, r = c.r * z;
             const gr = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
             gr.addColorStop(0, `rgba(150, 165, 186, ${0.22 * weather.cloud})`);
             gr.addColorStop(1, 'rgba(150, 165, 186, 0)');
@@ -319,28 +333,39 @@ SC.render = (function() {
     }
 
     // Big soft cloud shadows sliding over the ground (drawn after the land,
-    // under the buildings). Screen-space and driven by the same wind.
+    // under the buildings). Anchored to world space so they pan and zoom correctly.
     let cloudShadows = null;
     function drawCloudShadows(dt) {
         if (weather.cloud < 0.05) return;
-        const w = canvas.width / dpr, h = canvas.height / dpr;
+        const W = SC.worldW(), H = SC.worldH();
         if (!cloudShadows) {
             const rng = makeRng(0x5ad0);
             cloudShadows = [];
             for (let i = 0; i < 5; i++) {
-                cloudShadows.push({ x: rng() * 1.4 - 0.2, y: 0.2 + rng() * 0.7, r: 130 + rng() * 120, s: 0.6 + rng() * 0.6 });
+                cloudShadows.push({
+                    x: rng() * (W + 1000) - 500,
+                    y: rng() * (H + 1000) - 500,
+                    r: 250 + rng() * 250,
+                    s: 0.6 + rng() * 0.6
+                });
             }
         }
-        const dvx = Math.cos(weather.windAng) * weather.windMag;
-        const dvy = Math.sin(weather.windAng) * weather.windMag * 0.4;
+        const dvx = Math.cos(weather.windAng) * weather.windMag * 4;
+        const dvy = Math.sin(weather.windAng) * weather.windMag * 4;
         ctx.globalAlpha = 0.12 * weather.cloud;
         ctx.fillStyle = '#05070c';
+        const z = zoom();
         for (const c of cloudShadows) {
-            c.x += dvx * c.s * dt * 0.03; c.y += dvy * c.s * dt * 0.02;
-            if (c.x > 1.4) c.x -= 1.7; else if (c.x < -0.3) c.x += 1.7;
-            if (c.y > 1.1) c.y -= 1.2; else if (c.y < 0.05) c.y += 1.0;
+            c.x += dvx * c.s * dt * 0.03; c.y += dvy * c.s * dt * 0.03;
+            const margin = 600;
+            if (c.x > W + margin) c.x -= (W + 2 * margin);
+            else if (c.x < -margin) c.x += (W + 2 * margin);
+            if (c.y > H + margin) c.y -= (H + 2 * margin);
+            else if (c.y < -margin) c.y += (H + 2 * margin);
+
+            const p = S(c.x, c.y);
             ctx.beginPath();
-            ctx.ellipse(c.x * w, c.y * h, c.r, c.r * 0.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(p.x, p.y, c.r * z, c.r * 0.5 * z, 0, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -492,7 +517,21 @@ SC.render = (function() {
             let e = Math.min(1, dFar / TERRAIN.rise);
             e = e * e * (3 - 2 * e);                          // smooth ramp off the field
             const n = ridged(x * TERRAIN.freq, y * TERRAIN.freq);
-            h += e * TERRAIN.amp * (0.16 + 1.05 * n);         // deep valleys, tall peaks
+            let mountH = e * TERRAIN.amp * (0.16 + 1.05 * n); // deep valleys, tall peaks
+            
+            if (SC.map && SC.map.riverAt) {
+                const rv = SC.map.riverAt(y);
+                if (rv) {
+                    const dist = Math.abs(x - rv.x);
+                    const valley = rv.halfW + 180;
+                    if (dist < valley) {
+                        let f = Math.max(0, dist - rv.halfW * 1.2) / (valley - rv.halfW * 1.2);
+                        f = f * f * (3 - 2 * f);
+                        mountH *= f;
+                    }
+                }
+            }
+            h += mountH;
         }
         const dNear = Math.max(Math.max(0, y - H), Math.max(0, x - W));
         if (dNear > 0) {
@@ -734,9 +773,47 @@ SC.render = (function() {
         // the land, to give the ground a sense of scale and perspective.
         ctx.save();
         ctx.clip();
+        
+        const step = 220;
+        
+        // --- Dynamic Biome Fields ---
+        // Tint individual grid cells based on a seeded noise function
+        // to create regions of forests, greenlands, and deserts.
+        let sOff = 0;
+        const seedStr = SC.state.seed || '';
+        for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+        
+        for (let y = 0; y < Wh; y += step) {
+            for (let x = 0; x < W; x += step) {
+                const nx = (x + step / 2) / 1200, ny = (y + step / 2) / 1200;
+                const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
+                const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
+                const noise = v1 + v2 * 0.6;
+                
+                if (noise > 1.2) {
+                    ctx.fillStyle = 'rgba(30, 65, 45, 0.35)'; // Deep forest
+                } else if (noise > 0.4) {
+                    ctx.fillStyle = 'rgba(40, 75, 55, 0.2)'; // Greenland
+                } else if (noise < -1.2) {
+                    ctx.fillStyle = 'rgba(80, 65, 40, 0.3)'; // Deep desert
+                } else if (noise < -0.4) {
+                    ctx.fillStyle = 'rgba(70, 60, 45, 0.15)'; // Arid scrub
+                } else {
+                    continue; // Base slate gradient
+                }
+                
+                ctx.beginPath();
+                const p1 = S(x, y), p2 = S(x + step, y), p3 = S(x + step, y + step), p4 = S(x, y + step);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(p3.x, p3.y);
+                ctx.lineTo(p4.x, p4.y);
+                ctx.fill();
+            }
+        }
+
         ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         ctx.lineWidth = 1;
-        const step = 220;
         for (let x = 0; x <= W + 1; x += step) {
             const a = S(x, 0), b = S(x, Wh);
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
@@ -870,10 +947,53 @@ SC.render = (function() {
 
     function drawRiver() {
         const r = SC.state.river;
+        if (!r || !r.spine.length) return;
+
+        const extSpine = [...r.spine];
+        const extHalfWidths = [...r.halfWidths];
+
+        // Extrapolate past the edge of the playing field (skirt size is TERRAIN.ring)
+        const margin = TERRAIN.ring;
+        if (r.spine.length >= 2) {
+            // Top (y <= 0)
+            const first = r.spine[0];
+            const second = r.spine[1];
+            const dx = first.x - second.x;
+            const dy = first.y - second.y;
+            if (dy !== 0) {
+                const topSteps = 5;
+                for (let k = topSteps; k >= 1; k--) {
+                    const factor = (k / topSteps) * (margin / -dy);
+                    extSpine.unshift({
+                        x: first.x + dx * factor,
+                        y: first.y + dy * factor
+                    });
+                    extHalfWidths.unshift(r.halfWidths[0]);
+                }
+            }
+
+            // Bottom (y >= H)
+            const last = r.spine[r.spine.length - 1];
+            const prev = r.spine[r.spine.length - 2];
+            const dx2 = last.x - prev.x;
+            const dy2 = last.y - prev.y;
+            if (dy2 !== 0) {
+                const bottomSteps = 5;
+                for (let k = 1; k <= bottomSteps; k++) {
+                    const factor = (k / bottomSteps) * (margin / dy2);
+                    extSpine.push({
+                        x: last.x + dx2 * factor,
+                        y: last.y + dy2 * factor
+                    });
+                    extHalfWidths.push(r.halfWidths[r.halfWidths.length - 1]);
+                }
+            }
+        }
+
         const left = [], right = [];
-        for (let i = 0; i < r.spine.length; i++) {
-            left.push(S(r.spine[i].x - r.halfWidths[i], r.spine[i].y));
-            right.push(S(r.spine[i].x + r.halfWidths[i], r.spine[i].y));
+        for (let i = 0; i < extSpine.length; i++) {
+            left.push(S(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
+            right.push(S(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
         }
         // Water body
         ctx.beginPath();
@@ -896,34 +1016,15 @@ SC.render = (function() {
         ctx.lineWidth = 1.4;
         for (let w = 0; w < 4; w++) {
             ctx.beginPath();
-            for (let i = 0; i < r.spine.length; i++) {
-                const t = i / (r.spine.length - 1);
+            for (let i = 0; i < extSpine.length; i++) {
+                const t = i / (extSpine.length - 1);
                 const frac = (w + 1) / 5;
-                const wx = r.spine[i].x - r.halfWidths[i] + 2 * r.halfWidths[i] * frac
+                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
                          + Math.sin(seaTime * 2 + t * 8 + w) * 6;
-                const p = S(wx, r.spine[i].y);
+                const p = S(wx, extSpine[i].y);
                 i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
             }
             ctx.stroke();
-        }
-
-        // Moonlight: a soft pale reflection wavering down the river centre,
-        // night-only. Two overlaid strokes (a crisp core + a broad, fainter
-        // glow) — no hard specular blobs, which read as "circles on the water".
-        const moonA = nightLevel;
-        if (moonA > 0.05) {
-            ctx.lineCap = 'round';
-            for (const [wdt, al] of [[7, 0.05], [3, 0.11]]) {
-                ctx.strokeStyle = `rgba(210, 226, 246, ${al * moonA})`;
-                ctx.lineWidth = wdt;
-                ctx.beginPath();
-                for (let i = 0; i < r.spine.length; i++) {
-                    const p = S(r.spine[i].x + Math.sin(seaTime * 0.8 + i * 0.6) * 5, r.spine[i].y);
-                    i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y);
-                }
-                ctx.stroke();
-            }
-            ctx.lineCap = 'butt';
         }
     }
 
@@ -1748,12 +1849,12 @@ SC.render = (function() {
                 const qW = ctx.measureText(qText).width;
                 
                 let segments = [];
-                let totalW = 6 * z + qW + 12 * z + 6 * z;
+                let totalW = 5 * z + qW + 13 * z;
                 for (const m of needsKeys) {
                     const have = Math.min(queueHave[m], queueNeeds[m]);
                     const need = queueNeeds[m];
                     const text = `${have}/${need}`;
-                    const w = 12 * z + ctx.measureText(text).width + 6 * z;
+                    const w = 14 * z + ctx.measureText(text).width;
                     segments.push({ m, text, w, have, need });
                     totalW += w;
                 }
@@ -1764,25 +1865,27 @@ SC.render = (function() {
                 roundRectPath(cx, sy - 8 * z, totalW, 16 * z, 6 * z);
                 ctx.fill();
                 
-                cx += 6 * z;
+                cx += 5 * z;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#cbd5e1';
                 ctx.fillText(qText, cx, sy);
-                cx += qW + 6 * z;
-                emoji(SC.emojiOf(n.recipe), cx, sy, 10 * z);
-                cx += 6 * z + 3 * z;
+                cx += qW + 5 * z;
+                emoji(SC.emojiOf(n.recipe), cx, sy, 9 * z);
+                cx += 4 * z;
                 
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.fillRect(cx, sy - 5 * z, 1, 10 * z);
                 cx += 4 * z;
                 
                 for (const seg of segments) {
-                    emoji(SC.emojiOf(seg.m), cx + 5 * z, sy, 10 * z);
-                    cx += 11 * z;
+                    cx += 4 * z;
+                    emoji(SC.emojiOf(seg.m), cx, sy, 9 * z);
+                    cx += 5 * z;
+                    ctx.textAlign = 'left';
                     ctx.fillStyle = seg.have >= seg.need ? '#34d399' : '#f87171';
                     ctx.fillText(seg.text, cx, sy);
-                    cx += ctx.measureText(seg.text).width + 6 * z;
+                    cx += ctx.measureText(seg.text).width + 5 * z;
                 }
             }
         }

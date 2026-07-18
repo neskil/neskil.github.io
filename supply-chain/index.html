@@ -180,7 +180,13 @@
                 <button class="icon-btn" id="stats-close" title="Close">✕</button>
             </div>
             <div class="stats-body">
-                <div class="shop-section-title" style="margin-top:0">Deliveries by product</div>
+                <div class="shop-section-title" style="margin-top:0">Career Stats</div>
+                <div id="stats-career"></div>
+
+                <div class="shop-section-title">High Scores</div>
+                <div id="stats-highscores"></div>
+
+                <div class="shop-section-title">Deliveries by product</div>
                 <div id="stats-deliveries"></div>
 
                 <div class="shop-section-title">Money over time</div>
@@ -191,6 +197,10 @@
 
                 <div class="shop-section-title">Achievements <span id="stats-ach-count" class="badge"></span></div>
                 <div id="stats-achievements" class="stats-ach-grid"></div>
+
+                <div style="margin-top: 1.5rem; display: flex; justify-content: center;">
+                    <button class="menu-btn danger small" id="stats-reset-career" style="margin: 0; padding: 0.5rem 1rem; font-size: 0.85rem; width: auto;">🗑 Reset Career</button>
+                </div>
             </div>
         </div>
     </div>
@@ -238,6 +248,16 @@
 
             <hr class="help-divider">
 
+            <div class="shop-section-title" style="margin-top: 0;">Production Recipes</div>
+            <div class="recipe-graph-scroll">
+                <div id="recipe-graph" class="recipe-graph-container">
+                    <svg id="recipe-graph-edges"></svg>
+                    <div id="recipe-graph-nodes"></div>
+                </div>
+            </div>
+
+            <hr class="help-divider">
+
             <div class="shop-section-title">How to play</div>
             <p>Your ⭐ HQ places <b>orders</b> for goods, and new 🏢 customer
                DCs will start ordering too as you play. Each factory turns two
@@ -264,13 +284,6 @@
                 <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
                 <li><b>Stats &amp; Achievements (☰ menu):</b> deliveries by product, a money-over-time chart, your busiest road, and milestone badges for things like your first bridge or a 10-truck fleet.</li>
             </ul>
-            <div class="shop-section-title" style="margin-top: 1.5rem;">Production Recipes</div>
-            <div class="recipe-graph-scroll">
-                <div id="recipe-graph" class="recipe-graph-container">
-                    <svg id="recipe-graph-edges"></svg>
-                    <div id="recipe-graph-nodes"></div>
-                </div>
-            </div>
         </div>
     </div>
 
