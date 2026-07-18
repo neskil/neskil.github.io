@@ -17,8 +17,8 @@ SC.placement = (function() {
 
     function canPlaceAt(x, y) {
         const C = SC.CONFIG;
-        if (x < C.NODE_MARGIN || x > C.WORLD_W - C.NODE_MARGIN) return false;
-        if (y < C.NODE_MARGIN || y > C.WORLD_H - C.NODE_MARGIN) return false;
+        if (x < C.NODE_MARGIN || x > SC.worldW() - C.NODE_MARGIN) return false;
+        if (y < C.NODE_MARGIN || y > SC.worldH() - C.NODE_MARGIN) return false;
         if (SC.map.isInRiver(x, y)) return false;
         return SC.state.nodes.every(n => Math.hypot(n.x - x, n.y - y) >= C.PLACEMENT_MIN_DIST);
     }
