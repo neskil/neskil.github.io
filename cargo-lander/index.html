@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -1802,23 +1802,75 @@
                 }
             }
 
-            // Multi-touch mobile controls via pointer capture — each finger stays bound
-            // to the button it started on, so simultaneous presses work independently.
+            // Multi-touch mobile controls via pointer capture — each finger stays
+            // bound to a button, so simultaneous presses on different buttons work
+            // independently. A finger can also slide from one button straight onto
+            // another without lifting: pointer capture keeps redirecting move/up
+            // events to whichever button grabbed the pointer, so we track what's
+            // actually under the finger via elementFromPoint and hand capture off
+            // to the new button (releasing the old one) when the finger crosses in.
+            const mobileBtnConfigs = new Map(); // element -> {key, onDown, onUp}
+            // pointerId -> currently-pressed button, or null if the pointer is still
+            // down but not over any button (e.g. passing through the gap between two
+            // buttons). The entry stays present (rather than being deleted) for the
+            // whole press so a later pointermove that re-enters a button still finds
+            // it tracked and re-presses it, instead of being ignored as a stray move.
+            const pointerButtonState = new Map();
+
+            function pressMobileBtn(btn) {
+                const cfg = mobileBtnConfigs.get(btn);
+                if (!cfg) return;
+                if (cfg.key) game.keys[cfg.key] = true;
+                if (cfg.onDown) cfg.onDown();
+            }
+
+            function releaseMobileBtn(btn) {
+                const cfg = mobileBtnConfigs.get(btn);
+                if (!cfg) return;
+                if (cfg.key) game.keys[cfg.key] = false;
+                if (cfg.onUp) cfg.onUp();
+            }
             function bindMobileBtn(id, key, onDown, onUp) {
                 const btn = document.getElementById(id);
                 if (!btn) return;
+                mobileBtnConfigs.set(btn, { key, onDown, onUp });
+
                 btn.addEventListener('pointerdown', e => {
                     e.preventDefault();
                     // Register the press first — setPointerCapture can throw on some
                     // mobile browsers/OS versions, which must not silently skip the
                     // actual input (it was previously called before the key write).
-                    if (key) game.keys[key] = true;
-                    if (onDown) onDown();
+                    pointerButtonState.set(e.pointerId, btn);
+                    pressMobileBtn(btn);
                     try { btn.setPointerCapture(e.pointerId); } catch (err) { /* best-effort */ }
                 });
-                const release = () => {
-                    if (key) game.keys[key] = false;
-                    if (onUp) onUp();
+
+                // Pointer capture redirects move/up events to whichever button last
+                // captured this pointerId, but clientX/clientY still reflect the
+                // finger's real position -- so elementFromPoint here finds the
+                // button actually under the finger even though `btn` is the target.
+                btn.addEventListener('pointermove', e => {
+                    if (!pointerButtonState.has(e.pointerId)) return;
+                    const hit = document.elementFromPoint(e.clientX, e.clientY);
+                    const nextBtn = hit && hit.closest ? hit.closest('.mobile-btn') : null;
+                    const current = pointerButtonState.get(e.pointerId);
+                    if (nextBtn === current) return;
+                    if (current) releaseMobileBtn(current);
+                    if (nextBtn && mobileBtnConfigs.has(nextBtn)) {
+                        pointerButtonState.set(e.pointerId, nextBtn);
+                        pressMobileBtn(nextBtn);
+                        try { nextBtn.setPointerCapture(e.pointerId); } catch (err) { /* best-effort */ }
+                    } else {
+                        // Off every button for now -- keep the pointerId tracked (see
+                        // comment above) so re-entering a button still gets picked up.
+                        pointerButtonState.set(e.pointerId, null);
+                    }
+                });
+
+                const release = e => {
+                    const current = pointerButtonState.get(e.pointerId);
+                    if (current) releaseMobileBtn(current);
+                    pointerButtonState.delete(e.pointerId);
                 };
                 btn.addEventListener('pointerup', release);
                 btn.addEventListener('pointercancel', release);
@@ -2870,48 +2922,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.19.3"></script>
-    <script src="levels/levels.js?v=0.19.3"></script>
-    <script src="levels/levelGenerator.js?v=0.19.3"></script>
+    <script src="game/upgrades.js?v=0.19.4"></script>
+    <script src="levels/levels.js?v=0.19.4"></script>
+    <script src="levels/levelGenerator.js?v=0.19.4"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.19.3"></script>
-    <script src="levels/level2.js?v=0.19.3"></script>
-    <script src="levels/level3.js?v=0.19.3"></script>
-    <script src="levels/level4.js?v=0.19.3"></script>
-    <script src="levels/level5.js?v=0.19.3"></script>
-    <script src="levels/level6.js?v=0.19.3"></script>
-    <script src="levels/level7.js?v=0.19.3"></script>
-    <script src="levels/level8.js?v=0.19.3"></script>
-    <script src="levels/level9.js?v=0.19.3"></script>
-    <script src="levels/level10.js?v=0.19.3"></script>
-    <script src="levels/levelTest.js?v=0.19.3"></script>
-    <script src="levels/collectibleTypes.js?v=0.19.3"></script>
+    <script src="levels/level1.js?v=0.19.4"></script>
+    <script src="levels/level2.js?v=0.19.4"></script>
+    <script src="levels/level3.js?v=0.19.4"></script>
+    <script src="levels/level4.js?v=0.19.4"></script>
+    <script src="levels/level5.js?v=0.19.4"></script>
+    <script src="levels/level6.js?v=0.19.4"></script>
+    <script src="levels/level7.js?v=0.19.4"></script>
+    <script src="levels/level8.js?v=0.19.4"></script>
+    <script src="levels/level9.js?v=0.19.4"></script>
+    <script src="levels/level10.js?v=0.19.4"></script>
+    <script src="levels/levelTest.js?v=0.19.4"></script>
+    <script src="levels/collectibleTypes.js?v=0.19.4"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.19.3"></script>
-    <script src="render/shaders.js?v=0.19.3"></script>
-    <script src="physics/physics.js?v=0.19.3"></script>
-    <script src="physics/collision.js?v=0.19.3"></script>
-    <script src="physics/mechanics.js?v=0.19.3"></script>
-    <script src="physics/entities.js?v=0.19.3"></script>
-    <script src="physics/atmosphere.js?v=0.19.3"></script>
-    <script src="game/game.js?v=0.19.3"></script>
-    <script src="game/input.js?v=0.19.3"></script>
-    <script src="game/menu.js?v=0.19.3"></script>
-    <script src="game/hud.js?v=0.19.3"></script>
-    <script src="game/cargo.js?v=0.19.3"></script>
-    <script src="render/render.js?v=0.19.3"></script>
-    <script src="render/background.js?v=0.19.3"></script>
-    <script src="render/terrain.js?v=0.19.3"></script>
-    <script src="render/entities.js?v=0.19.3"></script>
-    <script src="render/pads.js?v=0.19.3"></script>
-    <script src="render/lander.js?v=0.19.3"></script>
-    <script src="render/creatures.js?v=0.19.3"></script>
-    <script src="render/effects.js?v=0.19.3"></script>
-    <script src="render/night.js?v=0.19.3"></script>
-    <script src="render/ui.js?v=0.19.3"></script>
+    <script src="audio.js?v=0.19.4"></script>
+    <script src="render/shaders.js?v=0.19.4"></script>
+    <script src="physics/physics.js?v=0.19.4"></script>
+    <script src="physics/collision.js?v=0.19.4"></script>
+    <script src="physics/mechanics.js?v=0.19.4"></script>
+    <script src="physics/entities.js?v=0.19.4"></script>
+    <script src="physics/atmosphere.js?v=0.19.4"></script>
+    <script src="game/game.js?v=0.19.4"></script>
+    <script src="game/input.js?v=0.19.4"></script>
+    <script src="game/menu.js?v=0.19.4"></script>
+    <script src="game/hud.js?v=0.19.4"></script>
+    <script src="game/cargo.js?v=0.19.4"></script>
+    <script src="render/render.js?v=0.19.4"></script>
+    <script src="render/background.js?v=0.19.4"></script>
+    <script src="render/terrain.js?v=0.19.4"></script>
+    <script src="render/entities.js?v=0.19.4"></script>
+    <script src="render/pads.js?v=0.19.4"></script>
+    <script src="render/lander.js?v=0.19.4"></script>
+    <script src="render/creatures.js?v=0.19.4"></script>
+    <script src="render/effects.js?v=0.19.4"></script>
+    <script src="render/night.js?v=0.19.4"></script>
+    <script src="render/ui.js?v=0.19.4"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.19.3"></script>
+    <script src="game/tutorial.js?v=0.19.4"></script>
 
     <script>
         // Start the game!
