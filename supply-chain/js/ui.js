@@ -203,7 +203,7 @@ SC.ui = (function() {
         return byTier;
     }
 
-    const RT_COL_W = 210, RT_ROW_H = 132, RT_NODE_W = 176, RT_NODE_H_HALF = 46, RT_PAD = 20;
+    const RT_COL_W = 200, RT_ROW_H = 150, RT_NODE_W = 180, RT_NODE_H = 110, RT_PAD = 20;
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
@@ -212,15 +212,26 @@ SC.ui = (function() {
         const byTier = researchTiers();
         const tierKeys = Object.keys(byTier).map(Number).sort((a, b) => a - b);
         const positions = {};
-        let maxRows = 1;
+        let maxCols = 1;
         tierKeys.forEach(tier => {
-            byTier[tier].forEach((id, row) => {
-                positions[id] = { x: RT_PAD + tier * RT_COL_W, y: RT_PAD + row * RT_ROW_H, w: RT_NODE_W };
-            });
-            maxRows = Math.max(maxRows, byTier[tier].length);
+            maxCols = Math.max(maxCols, byTier[tier].length);
         });
-        const width = RT_PAD * 2 + tierKeys.length * RT_COL_W;
-        const height = RT_PAD * 2 + maxRows * RT_ROW_H;
+
+        const width = RT_PAD * 2 + maxCols * RT_COL_W;
+        const height = RT_PAD * 2 + tierKeys.length * RT_ROW_H;
+
+        tierKeys.forEach(tier => {
+            const nodes = byTier[tier];
+            const tierWidth = nodes.length * RT_COL_W;
+            const startX = RT_PAD + (maxCols * RT_COL_W - tierWidth) / 2;
+            nodes.forEach((id, col) => {
+                positions[id] = { 
+                    x: startX + col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2, 
+                    y: RT_PAD + tier * RT_ROW_H, 
+                    w: RT_NODE_W 
+                };
+            });
+        });
 
         const nodesEl = $('research-tree-nodes');
         nodesEl.style.width = width + 'px';
@@ -236,10 +247,10 @@ SC.ui = (function() {
             for (const req of SC.RESEARCH[id].requires) {
                 const from = positions[req];
                 if (!from) continue;
-                const x1 = from.x + from.w, y1 = from.y + RT_NODE_H_HALF;
-                const x2 = to.x, y2 = to.y + RT_NODE_H_HALF;
-                const midX = (x1 + x2) / 2;
-                edges += `<path d="M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}"
+                const x1 = from.x + from.w / 2, y1 = from.y + RT_NODE_H;
+                const x2 = to.x + to.w / 2, y2 = to.y;
+                const midY = (y1 + y2) / 2;
+                edges += `<path d="M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}"
                     class="rt-edge ${SC.research.isDone(req) ? 'rt-edge-done' : ''}" />`;
             }
         }
@@ -253,6 +264,78 @@ SC.ui = (function() {
 
     function closeResearchTree() {
         $('research-overlay').classList.add('hidden');
+    }
+
+    function drawRecipeGraph() {
+        const container = $('recipe-graph');
+        if (!container) return;
+
+        const nodePositions = {
+            // Column 0: Raw Materials
+            wheat:   { x: 15,  y: 15,  w: 130 },
+            water:   { x: 15,  y: 65,  w: 130 },
+            wool:    { x: 15,  y: 115, w: 130 },
+            rubber:  { x: 15,  y: 165, w: 130 },
+            copper:  { x: 15,  y: 215, w: 130 },
+            ore:     { x: 15,  y: 265, w: 130 },
+            coal:    { x: 15,  y: 315, w: 130 },
+            chips:   { x: 15,  y: 365, w: 130 },
+
+            // Column 1: Tier 1 Crafting
+            bread:   { x: 200, y: 40,  w: 130 },
+            shoes:   { x: 200, y: 140, w: 130 },
+            wire:    { x: 200, y: 190, w: 130 },
+            steel:   { x: 200, y: 290, w: 130 },
+
+            // Column 2: Tier 2 Crafting
+            circuit: { x: 385, y: 215, w: 130 },
+            car:     { x: 385, y: 340, w: 130 },
+
+            // Column 3: Tier 3 Crafting
+            robot:   { x: 570, y: 275, w: 130 }
+        };
+
+        const NODE_H = 32;
+        const nodesEl = $('recipe-graph-nodes');
+        const svg = $('recipe-graph-edges');
+        if (!nodesEl || !svg) return;
+
+        let nodesHTML = '';
+        for (const [id, pos] of Object.entries(nodePositions)) {
+            const g = SC.GOODS[id];
+            if (!g) continue;
+            const color = g.color || '#94a3b8';
+            nodesHTML += `<div class="rg-node" style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px;height:${NODE_H}px;border-color:${color};--glow-color:${color}44">
+                <span class="rg-node-content">${g.emoji} ${g.name}</span>
+            </div>`;
+        }
+        nodesEl.innerHTML = nodesHTML;
+
+        svg.setAttribute('width', 715);
+        svg.setAttribute('height', 415);
+        let edges = '';
+        for (const [id, pos] of Object.entries(nodePositions)) {
+            const g = SC.GOODS[id];
+            if (!g || g.raw || !g.inputs) continue;
+
+            const to = pos;
+            const x2 = to.x;
+            const y2 = to.y + NODE_H / 2;
+
+            for (const input of g.inputs) {
+                const from = nodePositions[input];
+                if (!from) continue;
+
+                const x1 = from.x + from.w;
+                const y1 = from.y + NODE_H / 2;
+                const midX = (x1 + x2) / 2;
+                const color = SC.GOODS[input].color || '#94a3b8';
+
+                edges += `<path d="M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}"
+                    class="rg-edge" style="stroke:${color}" />`;
+            }
+        }
+        svg.innerHTML = edges;
     }
 
     // ── Stats & Achievements: a read-only summary opened from the ☰
@@ -892,6 +975,7 @@ SC.ui = (function() {
     function init() {
         bind();
         bindDifficultyPicker();
+        drawRecipeGraph();
         $('menu-version').textContent = 'v' + SC.VERSION;
         updateOrders();
         updateShop();

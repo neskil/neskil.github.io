@@ -1168,7 +1168,15 @@ SC.render = (function() {
                      h: SITE_H[site] + (n.level || 0) * 3, icon: SC.emojiOf(n.mat) };
         }
         if (n.kind === 'factory') {
-            return { base: '#6b7a90', fw: 22, h: 32, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories: 3, stack: true, door: true };
+            let base = '#6b7a90', h = 32, stories = 3, stack = true;
+            if (['bread', 'shoes', 'steel', 'wire'].includes(n.recipe)) {
+                base = '#7c8b9f'; h = 24; stories = 2; stack = true;
+            } else if (['circuit', 'car'].includes(n.recipe)) {
+                base = '#5c6b7e'; h = 42; stories = 4; stack = false;
+            } else if (n.recipe === 'robot') {
+                base = '#4b5563'; h = 52; stories = 5; stack = false;
+            }
+            return { base, fw: 22, h, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories, stack, door: true };
         }
         if (n.kind === 'yard') {
             return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
@@ -1177,8 +1185,8 @@ SC.render = (function() {
             return { base: '#7d8898', fw: 15, h: 0 };
         }
         // city
-        if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, icon: '⭐', stories: 6, door: true };
-        return { base: '#10b981', fw: 18, h: 32, icon: '🏢', stories: 4, door: true };
+        if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, stories: 6, door: true };
+        return { base: '#10b981', fw: 18, h: 32, stories: 4, door: true };
     }
 
     // Screen point a tap/hover should hit-test against for a node — the
@@ -1493,7 +1501,7 @@ SC.render = (function() {
                 ctx.fill();
             }
         } else if (sp.site === 'pasture') {
-            // Fenced grass plot with a couple of sheep.
+            // Fenced grass plot with a small red barn. Sheep removed.
             diamondPath(g.x, g.y, rx * 0.9, ry * 0.9);
             ctx.fillStyle = 'rgba(58, 96, 64, 0.4)';
             ctx.fill();
@@ -1502,17 +1510,7 @@ SC.render = (function() {
             ctx.setLineDash([4 * z, 3 * z]);
             ctx.stroke();
             ctx.setLineDash([]);
-            for (const [sx, sy, flip] of [[-0.32, -0.02, 1], [0.18, 0.28, -1]]) {
-                const cx = g.x + rx * sx, cy = g.y + ry * sy;
-                ctx.fillStyle = '#e8e4da';
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, 5 * z, 3.2 * z, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = '#3b3630';
-                ctx.beginPath();
-                ctx.arc(cx + flip * 4.5 * z, cy - 1.2 * z, 1.6 * z, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            prism(g.x, g.y - ry * 0.55, 6.5, 9 * z, '#b91c1c');
         } else if (sp.site === 'grove') {
             // Rubber-tree grove: round canopies (unlike the wild pines).
             for (const [tx, ty, s] of [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]]) {
@@ -1700,33 +1698,94 @@ SC.render = (function() {
         if (n.kind === 'factory' && !forSale && n.crafting) {
             const frac = Math.min(1, n.crafting.t / SC.craftTime());
             const rr = iconSize * 0.85;
+            const cy = tc.y - 4 * clampZoom(); // Center it with the emoji plate
             ctx.beginPath();
-            ctx.arc(tc.x, tc.y, rr, 0, Math.PI * 2);
+            ctx.arc(tc.x, cy, rr, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
             ctx.lineWidth = 2.5;
             ctx.stroke();
             ctx.beginPath();
-            ctx.arc(tc.x, tc.y, rr, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+            ctx.arc(tc.x, cy, rr, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
             ctx.strokeStyle = SC.colorOf(n.crafting.task.product);
             ctx.lineCap = 'round';
             ctx.stroke();
             ctx.lineCap = 'butt';
         }
 
-        // Icon on the roof — suppliers get a compact plate badge floating
-        // over the scene (the themed site is the body, the badge is the
-        // at-a-glance material identity); buildings keep the bare glyph. A
-        // junction's roundabout shape already reads as what it is, so it
-        // skips this entirely rather than floating an icon over nothing.
+        // Icon on the roof — suppliers and factories get a compact plate badge 
+        // floating over the scene. HQ and DC have no icon. A junction skips this entirely.
         ctx.globalAlpha = forSale ? 0.6 : 1;
-        if (n.kind === 'junction') {
+        if (n.kind === 'junction' || !sp.icon) {
             // no icon
-        } else if (n.kind === 'supplier') {
+        } else if (n.kind === 'supplier' || n.kind === 'factory') {
             emojiPlateAt(sp.icon, tc.x, tc.y - 4 * clampZoom(), 9 * clampZoom(), 13 * clampZoom());
         } else {
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
         }
         ctx.globalAlpha = 1;
+
+        // Queue status: if producing, show how many tasks and ingredients needed vs have
+        if (n.kind === 'factory' && !forSale && n.queue && n.queue.length > 0) {
+            let queueNeeds = {};
+            let queueHave = {};
+            for (const t of n.queue) {
+                for (const m in t.needs) {
+                    queueNeeds[m] = (queueNeeds[m] || 0) + t.needs[m];
+                    queueHave[m] = (queueHave[m] || 0) + (t.have[m] || 0);
+                }
+            }
+            for (const m in n.inv) {
+                if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + n.inv[m];
+            }
+            
+            const needsKeys = Object.keys(queueNeeds);
+            if (needsKeys.length > 0) {
+                const z = clampZoom();
+                const sy = tc.y - 28 * z;
+                ctx.font = `600 ${9 * z}px Inter, system-ui, sans-serif`;
+                
+                const qText = `${n.queue.length}`;
+                const qW = ctx.measureText(qText).width;
+                
+                let segments = [];
+                let totalW = 6 * z + qW + 12 * z + 6 * z;
+                for (const m of needsKeys) {
+                    const have = Math.min(queueHave[m], queueNeeds[m]);
+                    const need = queueNeeds[m];
+                    const text = `${have}/${need}`;
+                    const w = 12 * z + ctx.measureText(text).width + 6 * z;
+                    segments.push({ m, text, w, have, need });
+                    totalW += w;
+                }
+                
+                let cx = tc.x - totalW / 2;
+                
+                ctx.fillStyle = 'rgba(12, 18, 30, 0.85)';
+                roundRectPath(cx, sy - 8 * z, totalW, 16 * z, 6 * z);
+                ctx.fill();
+                
+                cx += 6 * z;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillText(qText, cx, sy);
+                cx += qW + 6 * z;
+                emoji(SC.emojiOf(n.recipe), cx, sy, 10 * z);
+                cx += 6 * z + 3 * z;
+                
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.fillRect(cx, sy - 5 * z, 1, 10 * z);
+                cx += 4 * z;
+                
+                for (const seg of segments) {
+                    emoji(SC.emojiOf(seg.m), cx + 5 * z, sy, 10 * z);
+                    cx += 11 * z;
+                    ctx.fillStyle = seg.have >= seg.need ? '#34d399' : '#f87171';
+                    ctx.fillText(seg.text, cx, sy);
+                    cx += ctx.measureText(seg.text).width + 6 * z;
+                }
+            }
+        }
 
         // HQ landmark beacon: a short mast with a slow-blinking red light and
         // halo on top, so HQ reads as the tallest, most important structure.
