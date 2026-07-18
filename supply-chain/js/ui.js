@@ -981,6 +981,25 @@ SC.ui = (function() {
         });
         $('orders-header').addEventListener('click', () =>
             $('orders-panel').classList.toggle('collapsed'));
+        // Shop tab pills — switch between Shop and Build content sections.
+        // Clicking the panel header (h2/toggle arrow) still collapses the whole panel.
+        function switchShopTab(tab) {
+            const isShop = tab === 'shop';
+            $('shop-tab-shop').classList.toggle('active', isShop);
+            $('shop-tab-build').classList.toggle('active', !isShop);
+            $('shop-tab-shop-content').classList.toggle('hidden', !isShop);
+            $('shop-tab-build-content').classList.toggle('hidden', isShop);
+        }
+        $('shop-tab-shop').addEventListener('click', e => {
+            e.stopPropagation(); // don't collapse the panel
+            switchShopTab('shop');
+            SC.sfx.play('click');
+        });
+        $('shop-tab-build').addEventListener('click', e => {
+            e.stopPropagation();
+            switchShopTab('build');
+            SC.sfx.play('click');
+        });
         $('shop-header').addEventListener('click', () =>
             $('shop-panel').classList.toggle('collapsed'));
 
