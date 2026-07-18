@@ -254,24 +254,27 @@ SC.ui = (function() {
 
         // Custom grid layout mapping: col and row coordinates for each research node
         const layout = {
-            // Tier 0
-            junctions: { col: 0, row: 0 },
-            manualPlacement: { col: 1, row: 0 },
-            creditLine2: { col: 2.5, row: 0 },
-            pavedRoads: { col: 4.5, row: 0 },
-            fertilizer: { col: 6, row: 0 },
+            // Stacked single research column on the left (Col 0)
+            intersections: { col: 0, row: 0 },
+            junctions: { col: 0, row: 1 },
+            manualPlacement: { col: 0, row: 2 },
 
-            // Tier 1
-            creditLine3: { col: 2, row: 1 },
-            premiumContracts: { col: 3, row: 1 },
-            overdrive: { col: 4.5, row: 1 },
-            automation: { col: 5.5, row: 1 },
-            coldStorage: { col: 6.5, row: 1 },
+            // Credit Line & Contracts subtree (shifted by 1.5 columns to the left)
+            creditLine2: { col: 1.5, row: 0 },
+            creditLine3: { col: 1, row: 1 },
+            premiumContracts: { col: 2, row: 1 },
+            rapidExpansion: { col: 1.5, row: 2 },
+            promotions: { col: 2.5, row: 2 },
 
-            // Tier 2
-            rapidExpansion: { col: 2.5, row: 2 },
-            promotions: { col: 3.5, row: 2 },
-            bulkLogistics: { col: 4.5, row: 2 }
+            // Asphalt Paving subtree (shifted by 1 column to the left)
+            pavedRoads: { col: 3.5, row: 0 },
+            overdrive: { col: 3.5, row: 1 },
+            bulkLogistics: { col: 3.5, row: 2 },
+
+            // Fertilizer subtree (shifted by 1 column to the left)
+            fertilizer: { col: 5, row: 0 },
+            automation: { col: 4.5, row: 1 },
+            coldStorage: { col: 5.5, row: 1 }
         };
 
         let maxCol = 0;
