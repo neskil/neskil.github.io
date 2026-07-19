@@ -992,11 +992,13 @@ SC.ui = (function() {
         }
         $('shop-tab-shop').addEventListener('click', e => {
             e.stopPropagation(); // don't collapse the panel
+            $('shop-panel').classList.remove('collapsed');
             switchShopTab('shop');
             SC.sfx.play('click');
         });
         $('shop-tab-build').addEventListener('click', e => {
             e.stopPropagation();
+            $('shop-panel').classList.remove('collapsed');
             switchShopTab('build');
             SC.sfx.play('click');
         });
