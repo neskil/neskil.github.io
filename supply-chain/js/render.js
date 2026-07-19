@@ -535,8 +535,8 @@ SC.render = (function() {
                     if (dist < valley) {
                         let f = Math.max(0, dist - rv.halfW * 1.2) / (valley - rv.halfW * 1.2);
                         f = f * f * (3 - 2 * f);
-                        if (y < -100) {
-                            const blend = Math.min(1, (-y - 100) / 400); // 0 at -100, 1 at -500
+                        if (y < 0) {
+                            const blend = Math.min(1, -y / 200); // 0 at 0, 1 at -200
                             f = f + (1 - f) * blend;
                         }
                         mountH *= f;
@@ -645,6 +645,16 @@ SC.render = (function() {
 
     // --- ground: terrain patches + scenery ---------------------------------
     let decor = null, decorKey = null;
+    function getBiomeNoise(x, y) {
+        let sOff = 0;
+        const seedStr = SC.state.seed || '';
+        for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+        const nx = x / 1200, ny = y / 1200;
+        const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
+        const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
+        return v1 + v2 * 0.6;
+    }
+
     function inRiver(x, y, margin) {
         const r = SC.state.river;
         if (!r) return false;
@@ -665,19 +675,36 @@ SC.render = (function() {
         const patches = [];
         const tints = ['#233650', '#2b3a3a', '#1d2b40', '#2a3446', '#243d3a'];
         for (let i = 0; i < 18; i++) {
+            const cx = rng() * W, cy = rng() * Wh;
+            const rx = 220 + rng() * 320, ry = 140 + rng() * 200;
+            const pts = [];
+            const numPts = 7 + (rng() * 5 | 0);
+            for(let j=0; j<numPts; j++) {
+                const ang = (j / numPts) * Math.PI * 2;
+                const rVar = 0.6 + rng() * 0.5; // jagged polygon
+                pts.push({ x: cx + Math.cos(ang) * rx * rVar, y: cy + Math.sin(ang) * ry * rVar });
+            }
             patches.push({
-                x: rng() * W, y: rng() * Wh,
-                rx: 220 + rng() * 320, ry: 140 + rng() * 200,
+                pts,
                 tint: tints[(rng() * tints.length) | 0], a: 0.18 + rng() * 0.16
             });
         }
         const trees = [];
         let tries = 0;
-        while (trees.length < 54 && tries < 600) {
+        while (trees.length < 90 && tries < 1000) {
             tries++;
             const x = 70 + rng() * (W - 140), y = 70 + rng() * (Wh - 140);
             if (inRiver(x, y, 55)) continue;
-            trees.push({ x, y, s: 0.75 + rng() * 0.7, rock: rng() > 0.78, tone: rng() });
+            
+            const noise = getBiomeNoise(x, y);
+            let type = 'pine';
+            if (noise > 1.2) { type = 'broadleaf'; if (rng() > 0.8) continue; }
+            else if (noise > 0.4) { type = 'pine'; if (rng() > 0.8) continue; } // greenland
+            else if (noise < -1.2) { type = 'cactus'; if (rng() > 0.4) continue; } // desert
+            else if (noise < -0.4) { type = 'deadbush'; if (rng() > 0.5) continue; } // arid
+            else { if (rng() > 0.7) continue; } // base slate - fewer trees
+
+            trees.push({ x, y, s: 0.75 + rng() * 0.7, rock: rng() > 0.78, tone: rng(), type });
         }
         decor = { patches, trees };
         decorKey = key;
@@ -695,11 +722,15 @@ SC.render = (function() {
         ctx.closePath();
         ctx.clip();
         for (const p of d.patches) {
-            const s = S(p.x, p.y);
             ctx.globalAlpha = p.a;
             ctx.fillStyle = p.tint;
             ctx.beginPath();
-            ctx.ellipse(s.x, s.y, p.rx * z, p.ry * z * 0.5, 0, 0, Math.PI * 2);
+            p.pts.forEach((pt, i) => {
+                const s = S(pt.x, pt.y);
+                if (i === 0) ctx.moveTo(s.x, s.y);
+                else ctx.lineTo(s.x, s.y);
+            });
+            ctx.closePath();
             ctx.fill();
         }
         ctx.globalAlpha = 1;
@@ -725,7 +756,7 @@ SC.render = (function() {
                 ctx.beginPath();
                 ctx.ellipse(s.x, s.y - 3 * sc, 7 * sc, 5 * sc, 0, 0, Math.PI * 2);
                 ctx.fill();
-            } else {
+            } else if (t.type === 'pine' || !t.type) {
                 // trunk
                 ctx.fillStyle = '#3a2a1e';
                 ctx.fillRect(s.x - 1.4 * sc, s.y - 8 * sc, 2.8 * sc, 8 * sc);
@@ -749,6 +780,41 @@ SC.render = (function() {
                 ctx.lineTo(s.x + 4 * sc, s.y - 8 * sc);
                 ctx.lineTo(s.x - 1 * sc, s.y - 8 * sc);
                 ctx.closePath(); ctx.fill();
+            } else if (t.type === 'broadleaf') {
+                ctx.fillStyle = '#4a3320';
+                ctx.fillRect(s.x - 2 * sc, s.y - 10 * sc, 4 * sc, 10 * sc);
+                const green = mix('#1e5c2d', '#184d23', t.tone);
+                ctx.fillStyle = green;
+                ctx.beginPath();
+                ctx.ellipse(s.x, s.y - 18 * sc, 14 * sc, 12 * sc, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = mix(green, '#5add74', 0.25);
+                ctx.beginPath();
+                ctx.ellipse(s.x - 2 * sc, s.y - 22 * sc, 8 * sc, 6 * sc, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (t.type === 'cactus') {
+                const green = mix('#4d7a42', '#3e6335', t.tone);
+                ctx.fillStyle = green;
+                ctx.beginPath(); // main trunk
+                ctx.roundRect(s.x - 2 * sc, s.y - 24 * sc, 4 * sc, 24 * sc, 2 * sc);
+                ctx.fill();
+                ctx.beginPath(); // left arm
+                ctx.roundRect(s.x - 8 * sc, s.y - 16 * sc, 8 * sc, 3 * sc, 1.5 * sc);
+                ctx.roundRect(s.x - 8 * sc, s.y - 20 * sc, 3 * sc, 7 * sc, 1.5 * sc);
+                ctx.fill();
+                ctx.beginPath(); // right arm
+                ctx.roundRect(s.x + 2 * sc, s.y - 12 * sc, 7 * sc, 3 * sc, 1.5 * sc);
+                ctx.roundRect(s.x + 6 * sc, s.y - 18 * sc, 3 * sc, 9 * sc, 1.5 * sc);
+                ctx.fill();
+            } else if (t.type === 'deadbush') {
+                ctx.strokeStyle = mix('#786b53', '#5c5240', t.tone);
+                ctx.lineWidth = 1.5 * sc;
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - 6 * sc, s.y - 8 * sc);
+                ctx.moveTo(s.x, s.y); ctx.lineTo(s.x + 7 * sc, s.y - 7 * sc);
+                ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - 2 * sc, s.y - 10 * sc);
+                ctx.moveTo(s.x - 6 * sc, s.y - 8 * sc); ctx.lineTo(s.x - 9 * sc, s.y - 12 * sc);
+                ctx.stroke();
             }
         }
         ctx.globalAlpha = 1;
@@ -796,16 +862,12 @@ SC.render = (function() {
         // --- Dynamic Biome Fields ---
         // Tint individual grid cells based on a seeded noise function
         // to create regions of forests, greenlands, and deserts.
-        let sOff = 0;
-        const seedStr = SC.state.seed || '';
-        for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+        ctx.save();
+        ctx.filter = 'blur(60px)'; // Smoothly blend the biome boundaries
         
         for (let y = 0; y < Wh; y += step) {
             for (let x = 0; x < W; x += step) {
-                const nx = (x + step / 2) / 1200, ny = (y + step / 2) / 1200;
-                const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
-                const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
-                const noise = v1 + v2 * 0.6;
+                const noise = getBiomeNoise(x + step / 2, y + step / 2);
                 
                 if (noise > 1.2) {
                     ctx.fillStyle = 'rgba(20, 110, 60, 0.45)'; // Deep forest (richer green)
@@ -828,6 +890,7 @@ SC.render = (function() {
                 ctx.fill();
             }
         }
+        ctx.restore();
 
         ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         ctx.lineWidth = 1;
@@ -896,12 +959,10 @@ SC.render = (function() {
         viewBounds = { x0: -BG_MARGIN - 40, x1: canvas.width / dpr + BG_MARGIN + 40,
                        y0: -BG_MARGIN - 40, y1: canvas.height / dpr + BG_MARGIN + 40 };
         try {
-            drawRiverBg();  // river body first — terrain back-to-front sweep
-                            // paints mountain ridges over it; flat valley
-                            // quads (h=0) are skipped, so the river shows
-                            // through the carved valley floor.
             drawTerrain();
             drawLandStatic();
+            drawRiverFieldBg();
+            drawCaveBg();
         } finally {
             ctx = old;
             viewBounds = null;
@@ -966,47 +1027,133 @@ SC.render = (function() {
         }
     }
 
-    // Mountain-side river body: painted into the bg cache alongside the
-    // terrain polygons so it composites correctly (no z-order artefacts).
-    // Only the static body + bank shadow — animated ripples stay in drawRiver.
-    function drawRiverBg() {
+    // Cave mouth at the edge of the playing field: a dark arch and rocky rim
+    // that masks the origin of the river so it flows out of the mountain.
+    function drawCaveBg() {
+        const r = SC.state.river;
+        if (!r || !r.spine.length || r.spine.length < 2) return;
+
+        const rv = SC.map.riverAt(0);
+        if (!rv) return;
+        const cx = rv.x;
+        const hw = rv.halfW;
+
+        const z = zoom();
+        
+        // Cave arch dimensions
+        const archH = Math.max(70, hw * 1.25);
+        const cy = -10; // situated slightly in the mountains
+
+        const getCavePt = (wx, wy, wz) => {
+            const p = S(wx, wy);
+            return { x: p.x, y: p.y - wz * z };
+        };
+
+        const steps = 12;
+
+        // 1. Cave interior (pure dark opening)
+        ctx.beginPath();
+        const baseL = getCavePt(cx - hw * 1.15, cy, 0);
+        ctx.moveTo(baseL.x, baseL.y);
+
+        for (let i = 0; i <= steps; i++) {
+            const pct = i / steps;
+            const angle = pct * Math.PI; // 0 to PI dome
+            const wx = cx - hw * 1.15 * Math.cos(angle);
+            const wz = archH * Math.sin(angle);
+            const p = getCavePt(wx, cy, wz);
+            ctx.lineTo(p.x, p.y);
+        }
+        const baseR = getCavePt(cx + hw * 1.15, cy, 0);
+        ctx.lineTo(baseR.x, baseR.y);
+        ctx.closePath();
+        ctx.fillStyle = '#090d16'; // deep cave darkness
+        ctx.fill();
+
+        // 2. Stone arch border (rocky frame overlay)
+        ctx.beginPath();
+        const borderL = getCavePt(cx - hw * 1.32, cy, 0);
+        ctx.moveTo(borderL.x, borderL.y);
+        
+        for (let i = 0; i <= steps; i++) {
+            const pct = i / steps;
+            const angle = pct * Math.PI;
+            // Rock texture bumpiness
+            const rockNoise = 1 + Math.sin(i * 1.7) * 0.08;
+            const wx = cx - hw * 1.32 * rockNoise * Math.cos(angle);
+            const wz = archH * 1.18 * rockNoise * Math.sin(angle);
+            const p = getCavePt(wx, cy, wz);
+            ctx.lineTo(p.x, p.y);
+        }
+        const borderR = getCavePt(cx + hw * 1.32, cy, 0);
+        ctx.lineTo(borderR.x, borderR.y);
+        
+        // Inner rim of the frame
+        for (let i = steps; i >= 0; i--) {
+            const pct = i / steps;
+            const angle = pct * Math.PI;
+            const wx = cx - hw * 1.15 * Math.cos(angle);
+            const wz = archH * Math.sin(angle);
+            const p = getCavePt(wx, cy, wz);
+            ctx.lineTo(p.x, p.y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#2d3748'; // rock grey
+        ctx.fill();
+        ctx.strokeStyle = '#1a202c'; // dark shadow line
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+    }
+
+    // Playing-field and downstream river body: painted into the bg cache
+    // on top of drawLandStatic so it covers coastline/shadows at the entrance.
+    function drawRiverFieldBg() {
         const r = SC.state.river;
         if (!r || !r.spine.length || r.spine.length < 2) return;
 
         const margin = TERRAIN.ring;
-        const extSpine = [];
-        const extHalfWidths = [];
+        const extSpine = [...r.spine];
+        const extHalfWidths = [...r.halfWidths];
 
-        // Extrapolate upstream into the mountains
+        // Extrapolate slightly upstream into the cave
         const first = r.spine[0];
         const second = r.spine[1];
         const dx = first.x - second.x;
         const dy = first.y - second.y;
-        if (dy === 0) return;
-
-        const topSteps = 40;
-        for (let k = topSteps; k >= 1; k--) {
-            const factor = (k / topSteps) * (margin / -dy);
-            extSpine.push({
-                x: first.x + dx * factor,
-                y: first.y + dy * factor
-            });
-            extHalfWidths.push(r.halfWidths[0]);
-        }
-        // Include the playing-field portion with a small overlap past y=0
-        // so there's no gap between the bg and live river
-        for (let i = 0; i < r.spine.length; i++) {
-            if (r.spine[i].y > 80) break; // small overlap into the field
-            extSpine.push(r.spine[i]);
-            extHalfWidths.push(r.halfWidths[i]);
+        if (dy !== 0) {
+            const topSteps = 5;
+            const topMargin = 30; // Extend just inside the cave entrance
+            for (let k = 1; k <= topSteps; k++) {
+                const factor = (k / topSteps) * (topMargin / -dy);
+                extSpine.unshift({
+                    x: first.x + dx * factor,
+                    y: first.y + dy * factor
+                });
+                extHalfWidths.unshift(r.halfWidths[0]);
+            }
         }
 
-        if (extSpine.length < 2) return;
+        // Extend downstream (front/lowland side)
+        const last = r.spine[r.spine.length - 1];
+        const prev = r.spine[r.spine.length - 2];
+        const dx2 = last.x - prev.x;
+        const dy2 = last.y - prev.y;
+        if (dy2 !== 0) {
+            const bottomSteps = 40;
+            for (let k = 1; k <= bottomSteps; k++) {
+                const factor = (k / bottomSteps) * (margin / dy2);
+                extSpine.push({
+                    x: last.x + dx2 * factor,
+                    y: last.y + dy2 * factor
+                });
+                extHalfWidths.push(r.halfWidths[r.halfWidths.length - 1]);
+            }
+        }
 
         const z = zoom();
         const getPt = (x, y) => {
             const p = S(x, y);
-            const h = y < 0 ? 0 : terrainHeight(x, y); // keep background river flat
+            const h = y < 0 ? 0 : terrainHeight(x, y); // flat inside the cave
             return { x: p.x, y: p.y - h * z };
         };
 
@@ -1022,12 +1169,27 @@ SC.render = (function() {
         for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
         ctx.closePath();
 
-        // Unified absolute screen gradient
+        // Unified absolute screen gradient with weather/time-of-day haze
         const topY = S(SC.worldW() * 0.5, -TERRAIN.ring).y;
         const botY = S(SC.worldW() * 0.5, SC.worldH() + TERRAIN.ring).y;
         const g = ctx.createLinearGradient(0, topY, 0, botY);
-        g.addColorStop(0, '#123047');
-        g.addColorStop(1, '#0b1c2c');
+        
+        const sky = skyColor(1);
+        const getRiverColor = (wy) => {
+            const H_total = SC.worldH() + 2 * TERRAIN.ring;
+            const t = (wy - (-TERRAIN.ring)) / H_total;
+            const baseCol = mix('#123047', '#0b1c2c', Math.max(0, Math.min(1, t)));
+            const dEdge = Math.max(0, -wy);
+            const haze = Math.min(1, dEdge / (TERRAIN.rise * 2.6));
+            return mix(baseCol, sky, 0.08 + 0.5 * haze);
+        };
+
+        for (let i = 0; i <= 5; i++) {
+            const pct = i / 5;
+            const wy = -TERRAIN.ring + pct * (SC.worldH() + 2 * TERRAIN.ring);
+            g.addColorStop(pct, getRiverColor(wy));
+        }
+
         ctx.fillStyle = g;
         ctx.fill();
 
@@ -1037,9 +1199,8 @@ SC.render = (function() {
         ctx.stroke();
     }
 
-    // Live river: the playing-field portion + downstream extension.
-    // Animated ripples render here every frame; the mountain-side body
-    // is handled by drawRiverBg (in the cached bg layer).
+    // Live river: draws ONLY the animated ripples.
+    // The river bodies themselves are cached in the background layer.
     function drawRiver() {
         const r = SC.state.river;
         if (!r || !r.spine.length) return;
@@ -1047,14 +1208,14 @@ SC.render = (function() {
         const extSpine = [...r.spine];
         const extHalfWidths = [...r.halfWidths];
 
-        // Extrapolate upstream slightly (into the mountains) for animated ripples
+        // Extrapolate upstream slightly into the cave for animated ripples
         const first = r.spine[0];
         const second = r.spine[1];
         const dx = first.x - second.x;
         const dy = first.y - second.y;
         if (dy !== 0) {
-            const topSteps = 15;
-            const topMargin = 400;
+            const topSteps = 5;
+            const topMargin = 20; // disappear into cave darkness
             for (let k = 1; k <= topSteps; k++) {
                 const factor = (k / topSteps) * (topMargin / -dy);
                 extSpine.unshift({
@@ -1089,47 +1250,14 @@ SC.render = (function() {
         const z = zoom();
         const getPt = (x, y) => {
             const p = S(x, y);
-            const h = y < 0 ? 0 : terrainHeight(x, y); // keep background river flat
+            const h = y < 0 ? 0 : terrainHeight(x, y); // flat inside the cave
             return { x: p.x, y: p.y - h * z };
         };
 
-        // Slice the spine so the live river body only starts at y >= 0
-        let startIndex = 0;
-        while (startIndex < extSpine.length && extSpine[startIndex].y < 0) {
-            startIndex++;
-        }
-        const bodySpine = extSpine.slice(startIndex);
-        const bodyHalfWidths = extHalfWidths.slice(startIndex);
-
-        const left = [], right = [];
-        for (let i = 0; i < bodySpine.length; i++) {
-            left.push(getPt(bodySpine[i].x - bodyHalfWidths[i], bodySpine[i].y));
-            right.push(getPt(bodySpine[i].x + bodyHalfWidths[i], bodySpine[i].y));
-        }
-
-        // Water body
-        ctx.beginPath();
-        left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-        for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
-        ctx.closePath();
-        
-        // Unified absolute screen gradient to match the bg river color perfectly
-        const topY_full = S(SC.worldW() * 0.5, -TERRAIN.ring).y;
-        const botY_full = S(SC.worldW() * 0.5, SC.worldH() + margin).y;
-        const g = ctx.createLinearGradient(0, topY_full, 0, botY_full);
-        g.addColorStop(0, '#123047');
-        g.addColorStop(1, '#0b1c2c');
-        ctx.fillStyle = g;
-        ctx.fill();
-        
-        // subtle bank shadow
-        ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
         // Animated ripples across the flow (gradually fading as they go upstream)
-        const topY_fade = S(SC.worldW() * 0.5, -300).y;
+        const topY_fade = S(SC.worldW() * 0.5, -20).y; // Fade exactly at the cave entrance
         const fadeY = S(SC.worldW() * 0.5, 0).y;
+        const botY_full = S(SC.worldW() * 0.5, SC.worldH() + margin).y;
         
         const gRip = ctx.createLinearGradient(0, topY_fade, 0, botY_full);
         let stopFade = (fadeY - topY_fade) / (botY_full - topY_fade);
