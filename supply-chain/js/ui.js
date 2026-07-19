@@ -506,11 +506,11 @@ SC.ui = (function() {
 
     function chooseCrossing(ferry) {
         if (!pendingCrossing) return;
-        const { a, b } = pendingCrossing;
+        const { a, b, shiftKey } = pendingCrossing;
         const res = SC.roads.build(a, b, { ferry });
         if (res.ok) {
             SC.sfx.play('build');
-            SC.state.selectedNode = b; // chain roads mini-metro style
+            SC.state.selectedNode = shiftKey ? b : null; // chain roads only when holding Shift
         } else if (res.reason === 'money') {
             SC.sfx.play('error');
             toast(`Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, 'error');

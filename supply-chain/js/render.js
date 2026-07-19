@@ -1027,8 +1027,8 @@ SC.render = (function() {
         }
     }
 
-    // Cave mouth at the edge of the playing field: a dark arch and rocky rim
-    // that masks the origin of the river so it flows out of the mountain.
+    // Cave mouth at the edge of the playing field: a jagged, low-poly rock arch
+    // that naturally melts into the polygonal mountain background.
     function drawCaveBg() {
         const r = SC.state.river;
         if (!r || !r.spine.length || r.spine.length < 2) return;
@@ -1036,73 +1036,143 @@ SC.render = (function() {
         const rv = SC.map.riverAt(0);
         if (!rv) return;
         const cx = rv.x;
+        const cy = -5; // slightly pushed into the mountain
         const hw = rv.halfW;
-
-        const z = zoom();
         
-        // Cave arch dimensions
-        const archH = Math.max(70, hw * 1.25);
-        const cy = -10; // situated slightly in the mountains
-
-        const getCavePt = (wx, wy, wz) => {
+        const z = zoom();
+        const getPt = (wx, wy, wz) => {
             const p = S(wx, wy);
             return { x: p.x, y: p.y - wz * z };
         };
 
-        const steps = 12;
+        const w = hw * 1.5;
+        const h = hw * 2.0;
+        const depth = 35; // 3D depth into the mountain so the river can safely recede
 
-        // 1. Cave interior (pure dark opening)
+        // Calculate fog mix based on screen Y to match mountain haze perfectly
+        const sky = skyColor(1);
+        const farY = S(0, 0).y;
+        const fogColor = (hex, wy) => {
+            let fade = 0;
+            if (wy < farY) fade = Math.min(1, (farY - wy) / (TERRAIN.rise * 2.0));
+            return mix(hex, sky, fade);
+        };
+
+        // Front hole points (the cave entrance)
+        const F0 = getPt(cx - w * 0.9, cy, 0);
+        const F1 = getPt(cx - w * 1.1, cy, h * 0.4);
+        const F2 = getPt(cx - w * 0.3, cy, h * 0.9);
+        const F3 = getPt(cx + w * 0.4, cy, h * 1.0);
+        const F4 = getPt(cx + w * 1.0, cy, h * 0.5);
+        const F5 = getPt(cx + w * 0.8, cy, 0);
+
+        // Back hole points (deep inside the tunnel)
+        // Narrows slightly to give perspective
+        const bw = w * 0.7;
+        const bh = h * 0.8;
+        const bcy = cy - depth;
+        const B0 = getPt(cx - bw * 0.9, bcy, 0);
+        const B1 = getPt(cx - bw * 1.1, bcy, bh * 0.4);
+        const B2 = getPt(cx - bw * 0.3, bcy, bh * 0.9);
+        const B3 = getPt(cx + bw * 0.4, bcy, bh * 1.0);
+        const B4 = getPt(cx + bw * 1.0, bcy, bh * 0.5);
+        const B5 = getPt(cx + bw * 0.8, bcy, 0);
+
+        // 1. Draw back wall (pitch black void)
         ctx.beginPath();
-        const baseL = getCavePt(cx - hw * 1.15, cy, 0);
-        ctx.moveTo(baseL.x, baseL.y);
-
-        for (let i = 0; i <= steps; i++) {
-            const pct = i / steps;
-            const angle = pct * Math.PI; // 0 to PI dome
-            const wx = cx - hw * 1.15 * Math.cos(angle);
-            const wz = archH * Math.sin(angle);
-            const p = getCavePt(wx, cy, wz);
-            ctx.lineTo(p.x, p.y);
-        }
-        const baseR = getCavePt(cx + hw * 1.15, cy, 0);
-        ctx.lineTo(baseR.x, baseR.y);
+        [B0, B1, B2, B3, B4, B5].forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         ctx.closePath();
-        ctx.fillStyle = '#090d16'; // deep cave darkness
+        ctx.fillStyle = fogColor('#05080c', bcy); 
         ctx.fill();
 
-        // 2. Stone arch border (rocky frame overlay)
+        // 1.5 Draw the river flowing into the darkness on the cave floor
         ctx.beginPath();
-        const borderL = getCavePt(cx - hw * 1.32, cy, 0);
-        ctx.moveTo(borderL.x, borderL.y);
-        
-        for (let i = 0; i <= steps; i++) {
-            const pct = i / steps;
-            const angle = pct * Math.PI;
-            // Rock texture bumpiness
-            const rockNoise = 1 + Math.sin(i * 1.7) * 0.08;
-            const wx = cx - hw * 1.32 * rockNoise * Math.cos(angle);
-            const wz = archH * 1.18 * rockNoise * Math.sin(angle);
-            const p = getCavePt(wx, cy, wz);
-            ctx.lineTo(p.x, p.y);
-        }
-        const borderR = getCavePt(cx + hw * 1.32, cy, 0);
-        ctx.lineTo(borderR.x, borderR.y);
-        
-        // Inner rim of the frame
-        for (let i = steps; i >= 0; i--) {
-            const pct = i / steps;
-            const angle = pct * Math.PI;
-            const wx = cx - hw * 1.15 * Math.cos(angle);
-            const wz = archH * Math.sin(angle);
-            const p = getCavePt(wx, cy, wz);
-            ctx.lineTo(p.x, p.y);
-        }
+        ctx.moveTo(F0.x, F0.y);
+        ctx.lineTo(B0.x, B0.y);
+        ctx.lineTo(B5.x, B5.y);
+        ctx.lineTo(F5.x, F5.y);
         ctx.closePath();
-        ctx.fillStyle = '#2d3748'; // rock grey
+        
+        const floorGrad = ctx.createLinearGradient(F0.x, F0.y, B0.x, B0.y);
+        floorGrad.addColorStop(0, '#123047'); // river color at entrance
+        floorGrad.addColorStop(1, '#05080c'); // fades into pitch black at the back
+        ctx.fillStyle = floorGrad;
         ctx.fill();
-        ctx.strokeStyle = '#1a202c'; // dark shadow line
-        ctx.lineWidth = 1.8;
-        ctx.stroke();
+
+        // Bank lines extending into the cave
+        ctx.strokeStyle = '#0b1c2c';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(F0.x, F0.y); ctx.lineTo(B0.x, B0.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(F5.x, F5.y); ctx.lineTo(B5.x, B5.y); ctx.stroke();
+
+        // 2. Draw inner tunnel walls connecting Front to Back
+        const drawWall = (p1, p2, p3, p4, hex) => {
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fillStyle = fogColor(hex, (cy + bcy) / 2);
+            ctx.fill();
+        };
+
+        // Left inner wall
+        drawWall(F0, F1, B1, B0, '#0a1018');
+        // Top-Left inner wall
+        drawWall(F1, F2, B2, B1, '#0e1622');
+        // Top-Right inner wall
+        drawWall(F2, F3, B3, B2, '#0a1018');
+        // Right inner wall
+        drawWall(F3, F4, B4, B3, '#070b12');
+        // Bottom-Right inner wall
+        drawWall(F4, F5, B5, B4, '#05080c');
+
+        // 3. Draw outer rock facets (melting into the mountain grid exactly)
+        const cell = TERRAIN.cell;
+        const x0 = -TERRAIN.ring;
+        const y0 = -TERRAIN.ring;
+        
+        // Find the background terrain grid cells that surround the river
+        const gi = Math.floor((cx - x0) / cell);
+        const gj = Math.floor((0 - y0) / cell);
+
+        const X_L  = x0 + gi * cell;
+        const X_R  = x0 + (gi + 1) * cell;
+        const X_LL = x0 + (gi - 1) * cell;
+        const X_RR = x0 + (gi + 2) * cell;
+        
+        const Y_0 = 0; // Coastline edge
+        const Y_U = y0 + gj * cell;         // First grid line upstream (e.g. -50)
+        const Y_UU = y0 + (gj - 1) * cell;  // Second grid line upstream (e.g. -195)
+
+        // Snap outer vertices exactly to the terrain mesh!
+        const O0 = getPt(X_LL, Y_0, terrainHeight(X_LL, Y_0));
+        const O1 = getPt(X_LL, Y_U, terrainHeight(X_LL, Y_U));
+        const O2 = getPt(X_L, Y_UU, terrainHeight(X_L, Y_UU));
+        const O3 = getPt(X_R, Y_UU, terrainHeight(X_R, Y_UU));
+        const O4 = getPt(X_RR, Y_U, terrainHeight(X_RR, Y_U));
+        const O5 = getPt(X_RR, Y_0, terrainHeight(X_RR, Y_0));
+
+        const drawFacet = (p1, p2, p3, p4, colorHex, facetY) => {
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fillStyle = fogColor(colorHex, facetY);
+            ctx.fill();
+            // Subtle edge line to match low-poly style
+            ctx.strokeStyle = 'rgba(200, 215, 235, 0.04)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        };
+
+        // Left side (catches light)
+        drawFacet(O0, O1, F1, F0, '#283a50', (Y_0 + Y_U) / 2);
+        // Top-Left (catches most light)
+        drawFacet(O1, O2, F2, F1, '#354862', (Y_U + Y_UU) / 2);
+        // Top (medium light)
+        drawFacet(O2, O3, F3, F2, '#2a3c52', Y_UU);
+        // Top-Right (shadow)
+        drawFacet(O3, O4, F4, F3, '#202f43', (Y_U + Y_UU) / 2);
+        // Right side (deep shadow)
+        drawFacet(O4, O5, F5, F4, '#182536', (Y_0 + Y_U) / 2);
     }
 
     // Playing-field and downstream river body: painted into the bg cache
@@ -1122,7 +1192,7 @@ SC.render = (function() {
         const dy = first.y - second.y;
         if (dy !== 0) {
             const topSteps = 5;
-            const topMargin = 30; // Extend just inside the cave entrance
+            const topMargin = 35; // Extend deep into the 3D cave tunnel
             for (let k = 1; k <= topSteps; k++) {
                 const factor = (k / topSteps) * (topMargin / -dy);
                 extSpine.unshift({
@@ -1215,7 +1285,7 @@ SC.render = (function() {
         const dy = first.y - second.y;
         if (dy !== 0) {
             const topSteps = 5;
-            const topMargin = 20; // disappear into cave darkness
+            const topMargin = 30; // disappear into cave darkness
             for (let k = 1; k <= topSteps; k++) {
                 const factor = (k / topSteps) * (topMargin / -dy);
                 extSpine.unshift({
@@ -2103,13 +2173,39 @@ SC.render = (function() {
                 if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + n.inv[m];
             }
             
+            // Count incoming items en route (both unassigned in jobs list and currently on trucks)
+            let incoming = {};
+            if (SC.state.jobs) {
+                for (const job of SC.state.jobs) {
+                    if (job.type === 'raw' && job.drop === n) {
+                        incoming[job.item] = (incoming[job.item] || 0) + 1;
+                    }
+                }
+            }
+            if (SC.state.trucks) {
+                for (const truck of SC.state.trucks) {
+                    if (truck.jobs) {
+                        for (const job of truck.jobs) {
+                            if (job.type === 'raw' && job.drop === n) {
+                                incoming[job.item] = (incoming[job.item] || 0) + 1;
+                            }
+                        }
+                    }
+                }
+            }
+            for (const m in incoming) {
+                if (queueNeeds[m]) {
+                    queueHave[m] = (queueHave[m] || 0) + incoming[m];
+                }
+            }
+            
             const needsKeys = Object.keys(queueNeeds);
             if (needsKeys.length > 0) {
                 const z = clampZoom();
                 const sy = tc.y - 28 * z;
                 ctx.font = `600 ${9 * z}px Inter, system-ui, sans-serif`;
                 
-                const qText = `${n.queue.length}`;
+                const qText = `${n.queue.length + (n.crafting ? 1 : 0)}`;
                 const qW = ctx.measureText(qText).width;
                 
                 let segments = [];

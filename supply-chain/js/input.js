@@ -126,7 +126,7 @@ SC.input = (function() {
         }
     }
 
-    function handleTap(sx, sy) {
+    function handleTap(sx, sy, shiftKey) {
         const st = SC.state;
         if (st.mode === 'inspect') { // tap a node to show/hide its info (mouse also gets live hover)
             const node = nodeAtScreen(sx, sy);
@@ -144,19 +144,19 @@ SC.input = (function() {
             if (st.selectedNode && st.selectedNode !== node) {
                 if (!SC.roads.findEdge(st.selectedNode, node) &&
                     SC.map.segmentCrossesRiver(st.selectedNode.x, st.selectedNode.y, node.x, node.y)) {
-                    SC.emit('crossingChoice', { a: st.selectedNode, b: node });
+                    SC.emit('crossingChoice', { a: st.selectedNode, b: node, shiftKey });
                     pendingBuy = null;
                     return;
                 }
                 const res = SC.roads.build(st.selectedNode, node);
                 if (res.ok) {
                     SC.sfx.play('build');
-                    st.selectedNode = node; // chain roads mini-metro style
+                    st.selectedNode = shiftKey ? node : null; // chain roads only when holding Shift
                 } else if (res.reason === 'money') {
                     SC.sfx.play('error');
                     SC.emit('toast', { text: `Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, kind: 'error' });
                 } else if (SC.roads.findEdge(st.selectedNode, node)) {
-                    st.selectedNode = node; // road already there: just move selection
+                    st.selectedNode = shiftKey ? node : null; // road already there: move selection or deselect
                     SC.sfx.play('click');
                 }
                 pendingBuy = null;
@@ -285,7 +285,7 @@ SC.input = (function() {
             pointers.delete(e.pointerId);
             if (pointers.size < 2) pinch = null;
             if (p && !p.moved && e.type === 'pointerup' && pointers.size === 0) {
-                handleTap(e.clientX, e.clientY);
+                handleTap(e.clientX, e.clientY, e.shiftKey);
             }
         };
         canvas.addEventListener('pointerup', release);
