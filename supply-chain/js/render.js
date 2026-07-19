@@ -527,6 +527,10 @@ SC.render = (function() {
                     if (dist < valley) {
                         let f = Math.max(0, dist - rv.halfW * 1.2) / (valley - rv.halfW * 1.2);
                         f = f * f * (3 - 2 * f);
+                        if (y < -100) {
+                            const blend = Math.min(1, (-y - 100) / 400); // 0 at -100, 1 at -500
+                            f = f + (1 - f) * blend;
+                        }
                         mountH *= f;
                     }
                 }
@@ -994,7 +998,7 @@ SC.render = (function() {
         const z = zoom();
         const getPt = (x, y) => {
             const p = S(x, y);
-            const h = terrainHeight(x, y);
+            const h = y < 0 ? 0 : terrainHeight(x, y); // keep background river flat
             return { x: p.x, y: p.y - h * z };
         };
 
@@ -1009,32 +1013,20 @@ SC.render = (function() {
         left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
         ctx.closePath();
-        const ys = [...left, ...right].map(p => p.y);
-        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+
+        // Unified absolute screen gradient
+        const topY = S(SC.worldW() * 0.5, -TERRAIN.ring).y;
+        const botY = S(SC.worldW() * 0.5, SC.worldH() + TERRAIN.ring).y;
+        const g = ctx.createLinearGradient(0, topY, 0, botY);
         g.addColorStop(0, '#123047');
         g.addColorStop(1, '#0b1c2c');
         ctx.fillStyle = g;
         ctx.fill();
+
         // bank shadow
         ctx.strokeStyle = 'rgba(2, 6, 12, 0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
-
-        // Static ripple hints (no animation — this is the cached bg layer)
-        ctx.strokeStyle = 'rgba(96, 200, 240, 0.07)';
-        ctx.lineWidth = 1.2;
-        for (let w = 0; w < 3; w++) {
-            ctx.beginPath();
-            for (let i = 0; i < extSpine.length; i++) {
-                const t = i / (extSpine.length - 1);
-                const frac = (w + 1) / 4;
-                const wx = extSpine[i].x - extHalfWidths[i] + 2 * extHalfWidths[i] * frac
-                         + Math.sin(t * 8 + w) * 6;
-                const p = getPt(wx, extSpine[i].y);
-                (i === 0) ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
-            }
-            ctx.stroke();
-        }
     }
 
     // Live river: the playing-field portion + downstream extension.
@@ -1047,7 +1039,25 @@ SC.render = (function() {
         const extSpine = [...r.spine];
         const extHalfWidths = [...r.halfWidths];
 
-        // Extend downstream (front/lowland side) only
+        // Extrapolate upstream slightly (into the mountains) for animated ripples
+        const first = r.spine[0];
+        const second = r.spine[1];
+        const dx = first.x - second.x;
+        const dy = first.y - second.y;
+        if (dy !== 0) {
+            const topSteps = 15;
+            const topMargin = 400;
+            for (let k = 1; k <= topSteps; k++) {
+                const factor = (k / topSteps) * (topMargin / -dy);
+                extSpine.unshift({
+                    x: first.x + dx * factor,
+                    y: first.y + dy * factor
+                });
+                extHalfWidths.unshift(r.halfWidths[0]);
+            }
+        }
+
+        // Extend downstream (front/lowland side)
         const margin = TERRAIN.ring;
         if (r.spine.length >= 2) {
             const last = r.spine[r.spine.length - 1];
@@ -1071,23 +1081,34 @@ SC.render = (function() {
         const z = zoom();
         const getPt = (x, y) => {
             const p = S(x, y);
-            const h = terrainHeight(x, y);
+            const h = y < 0 ? 0 : terrainHeight(x, y); // keep background river flat
             return { x: p.x, y: p.y - h * z };
         };
 
-        const left = [], right = [];
-        for (let i = 0; i < extSpine.length; i++) {
-            left.push(getPt(extSpine[i].x - extHalfWidths[i], extSpine[i].y));
-            right.push(getPt(extSpine[i].x + extHalfWidths[i], extSpine[i].y));
+        // Slice the spine so the live river body only starts at y >= 0
+        let startIndex = 0;
+        while (startIndex < extSpine.length && extSpine[startIndex].y < 0) {
+            startIndex++;
         }
+        const bodySpine = extSpine.slice(startIndex);
+        const bodyHalfWidths = extHalfWidths.slice(startIndex);
+
+        const left = [], right = [];
+        for (let i = 0; i < bodySpine.length; i++) {
+            left.push(getPt(bodySpine[i].x - bodyHalfWidths[i], bodySpine[i].y));
+            right.push(getPt(bodySpine[i].x + bodyHalfWidths[i], bodySpine[i].y));
+        }
+
         // Water body
         ctx.beginPath();
         left.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
         ctx.closePath();
         
-        const ys = [...left, ...right].map(p => p.y);
-        const g = ctx.createLinearGradient(0, Math.min(...ys), 0, Math.max(...ys));
+        // Unified absolute screen gradient to match the bg river color perfectly
+        const topY_full = S(SC.worldW() * 0.5, -TERRAIN.ring).y;
+        const botY_full = S(SC.worldW() * 0.5, SC.worldH() + margin).y;
+        const g = ctx.createLinearGradient(0, topY_full, 0, botY_full);
         g.addColorStop(0, '#123047');
         g.addColorStop(1, '#0b1c2c');
         ctx.fillStyle = g;
@@ -1098,12 +1119,22 @@ SC.render = (function() {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Animated ripples across the flow
-        ctx.strokeStyle = 'rgba(96, 200, 240, 0.10)';
+        // Animated ripples across the flow (gradually fading as they go upstream)
+        const topY_fade = S(SC.worldW() * 0.5, -300).y;
+        const fadeY = S(SC.worldW() * 0.5, 0).y;
+        
+        const gRip = ctx.createLinearGradient(0, topY_fade, 0, botY_full);
+        let stopFade = (fadeY - topY_fade) / (botY_full - topY_fade);
+        stopFade = Math.max(0.01, Math.min(0.99, stopFade));
+        gRip.addColorStop(0, 'rgba(96, 200, 240, 0)');
+        gRip.addColorStop(stopFade, 'rgba(96, 200, 240, 0.10)');
+        gRip.addColorStop(1, 'rgba(96, 200, 240, 0.10)');
+        
+        ctx.strokeStyle = gRip;
         ctx.lineWidth = 1.4;
         
         for (let w = 0; w < 4; w++) {
-            // Ripple lines along the full river including downstream extension
+            // Ripple lines along the full river including downstream/upstream extensions
             ctx.beginPath();
             let ripStarted = false;
             for (let i = 0; i < extSpine.length; i++) {
