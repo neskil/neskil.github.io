@@ -1085,26 +1085,6 @@ SC.render = (function() {
         ctx.fillStyle = fogColor('#05080c', bcy); 
         ctx.fill();
 
-        // 1.5 Draw the river flowing into the darkness on the cave floor
-        ctx.beginPath();
-        ctx.moveTo(F0.x, F0.y);
-        ctx.lineTo(B0.x, B0.y);
-        ctx.lineTo(B5.x, B5.y);
-        ctx.lineTo(F5.x, F5.y);
-        ctx.closePath();
-        
-        const floorGrad = ctx.createLinearGradient(F0.x, F0.y, B0.x, B0.y);
-        floorGrad.addColorStop(0, '#123047'); // river color at entrance
-        floorGrad.addColorStop(1, '#05080c'); // fades into pitch black at the back
-        ctx.fillStyle = floorGrad;
-        ctx.fill();
-
-        // Bank lines extending into the cave
-        ctx.strokeStyle = '#0b1c2c';
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(F0.x, F0.y); ctx.lineTo(B0.x, B0.y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(F5.x, F5.y); ctx.lineTo(B5.x, B5.y); ctx.stroke();
-
         // 2. Draw inner tunnel walls connecting Front to Back
         const drawWall = (p1, p2, p3, p4, hex) => {
             ctx.beginPath();
