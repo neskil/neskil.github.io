@@ -352,6 +352,14 @@ SC.render = (function() {
         }
         const dvx = Math.cos(weather.windAng) * weather.windMag * 4;
         const dvy = Math.sin(weather.windAng) * weather.windMag * 4;
+        
+        ctx.save();
+        const corners = [S(0, 0), S(W, 0), S(W, H), S(0, H)];
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.clip();
+        
         ctx.globalAlpha = 0.12 * weather.cloud;
         ctx.fillStyle = '#05070c';
         const z = zoom();
@@ -368,7 +376,7 @@ SC.render = (function() {
             ctx.ellipse(p.x, p.y, c.r * z, c.r * 0.5 * z, 0, 0, Math.PI * 2);
             ctx.fill();
         }
-        ctx.globalAlpha = 1;
+        ctx.restore();
     }
 
     // Rain/snow, screen-space, blown along the wind vector. Pool capped so
@@ -800,13 +808,13 @@ SC.render = (function() {
                 const noise = v1 + v2 * 0.6;
                 
                 if (noise > 1.2) {
-                    ctx.fillStyle = 'rgba(30, 65, 45, 0.35)'; // Deep forest
+                    ctx.fillStyle = 'rgba(20, 110, 60, 0.45)'; // Deep forest (richer green)
                 } else if (noise > 0.4) {
-                    ctx.fillStyle = 'rgba(40, 75, 55, 0.2)'; // Greenland
+                    ctx.fillStyle = 'rgba(34, 139, 34, 0.25)'; // Greenland
                 } else if (noise < -1.2) {
-                    ctx.fillStyle = 'rgba(80, 65, 40, 0.3)'; // Deep desert
+                    ctx.fillStyle = 'rgba(210, 160, 70, 0.35)'; // Deep desert (clear sand/gold)
                 } else if (noise < -0.4) {
-                    ctx.fillStyle = 'rgba(70, 60, 45, 0.15)'; // Arid scrub
+                    ctx.fillStyle = 'rgba(160, 130, 80, 0.22)'; // Arid scrub (dusty beige/brown)
                 } else {
                     continue; // Base slate gradient
                 }
