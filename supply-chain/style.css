@@ -547,7 +547,11 @@ html, body {
 .research-tree-header h1 { font-size: 1.1rem; }
 .research-tree-wrap {
     position: relative;
-    overflow: hidden;
+    /* Scrollable: on narrow screens the scale-to-fit can't shrink the tree
+       enough to be legible, so let the player pan/scroll the full-size tree
+       instead of it being clipped by the card (was overflow:hidden). */
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
     border-radius: 10px;
     background: rgba(15, 23, 42, 0.35);
 }
