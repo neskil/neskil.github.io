@@ -42,6 +42,44 @@ Don't couple the two again.)
   precede `map.js`: `SC.map`'s IIFE calls `SC.rng.create(...)` at
   load time to seed its default RNG.)
 
+## Field size & terrain backdrop — invariants (learned v1.44–1.45)
+- The playing field is **expandable**: the live size is
+  `SC.state.worldW/worldH` (persisted in the save), read via
+  `SC.worldW()`/`SC.worldH()`. `CONFIG.WORLD_W/H` is only the base a
+  fresh state seeds from — **never read it for the live extent**; any
+  new placement rule, scenery, or camera math that does will silently
+  break after the first expansion. Growth schedule: `WORLD_EXPAND`
+  (`stepW`/`stepH` added toward the near/high-x+y edge at the delivery
+  counts in `at`), fired by `SC.map.maybeExpandField()` from economy.js's
+  delivery hook.
+- Each expansion **seeds the frontier band** (`map.frontierSpot`): one
+  active supplier (random raw) + one for-sale factory (random recipe).
+  Seeded nodes MUST spawn `active: true` — inactive nodes are invisible
+  AND get consumed by `unlockNext`, which would reorder the milestone
+  pool. (`active + forSale` is the "visible, buyable ghost" state.)
+- `map.riverAt()` derives its y→segment step from the spine's **own last
+  y**, not the live world height: the river is laid out once at base
+  size, so using the grown height would re-scale the y→segment mapping
+  and shift the river under existing bridges/ferries.
+- After an expansion, camera bounds must be refreshed:
+  `SC.camera.setViewport(...)` (main.js does this on the `fieldExpanded`
+  event, which also carries the seeded nodes).
+- The mountain backdrop is a **low-poly heightfield**, not sprites:
+  `render.js drawTerrain/ensureTerrain/terrainHeight` continues the
+  ground plane past all four edges — ridged-noise mountains beyond the
+  two far (low x+y) edges, descending lowland foothills (negative
+  heights, `TERRAIN.dip`) beyond the near ones, height exactly 0 inside
+  the field so it can never occlude play. It's baked into the cached bg
+  layer; `bgKey()` includes `terrainKey()` (= the field size) so an
+  expansion re-bakes it. Facets are painted in an anti-diagonal (i+j)
+  sweep = back-to-front in iso depth; colours blend toward the live
+  `skyColor()` for haze, so day/night/weather tracking is free.
+- Test-risk split: `tests.html` never loads `render.js`, so terrain
+  *drawing* changes carry no test risk — but field-size logic lives in
+  `state/map/save/economy/placement` and IS covered (the "Field
+  expansion" test section; keep it green). Screenshot the backdrop with
+  `&expand=N` + `&focus=` (see probe flags below).
+
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,
 then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
@@ -49,7 +87,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (386 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (404 tests at last count; N grows,
   0 failed is the bar).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
