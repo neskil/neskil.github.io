@@ -382,6 +382,12 @@ html, body {
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
 }
+/* Treat every in-game control as a discrete tap target: skip the browser's
+   ~300ms double-tap-zoom detection so a single tap fires immediately on
+   touch devices (some Android/iOS browsers otherwise swallow quick taps on
+   small buttons — the "buttons do nothing on mobile" symptom). */
+.shop-tab, .shop-btn, .icon-btn, .panel-header, .panel-toggle,
+.mode-btn, button, select { touch-action: manipulation; }
 .shop-tab:hover { border-color: var(--accent-color); color: var(--text-primary); }
 .shop-tab.active {
     background: rgba(56, 189, 248, 0.15);
