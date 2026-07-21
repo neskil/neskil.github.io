@@ -2139,57 +2139,77 @@ SC.render = (function() {
         }
         ctx.globalAlpha = 1;
 
-        // Queue status: if producing, show how many tasks and ingredients needed vs have
-        if (n.kind === 'factory' && !forSale && n.queue && n.queue.length > 0) {
-            let queueNeeds = {};
-            let queueHave = {};
-            for (const t of n.queue) {
-                for (const m in t.needs) {
-                    queueNeeds[m] = (queueNeeds[m] || 0) + t.needs[m];
-                    queueHave[m] = (queueHave[m] || 0) + (t.have[m] || 0);
-                }
-            }
-            for (const m in n.inv) {
-                if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + n.inv[m];
-            }
-            
-            // Count incoming items en route (both unassigned in jobs list and currently on trucks)
-            let incoming = {};
+        // Production status pill. First group is the finished good:
+        // "in stock / ordered" — how many units are crafted and sitting at
+        // the factory waiting for a truck, over how many are still outstanding
+        // (waiting + queued + currently crafting). If actively producing, a
+        // second group shows each ingredient's stock (have / need).
+        if (n.kind === 'factory' && !forSale) {
+            // Finished goods waiting at the factory: crafted output becomes a
+            // pickup job here and stays on site until a truck actually loads
+            // it — a truck merely en route to collect still has an empty cargo,
+            // so its unit is physically still at the factory.
+            let inStock = 0;
             if (SC.state.jobs) {
-                for (const job of SC.state.jobs) {
-                    if (job.type === 'raw' && job.drop === n) {
-                        incoming[job.item] = (incoming[job.item] || 0) + 1;
+                for (const job of SC.state.jobs) if (job.pickup === n) inStock++;
+            }
+            if (SC.state.trucks) {
+                for (const t of SC.state.trucks) {
+                    if (t.jobs && (!t.cargo || t.cargo.length === 0)) {
+                        for (const job of t.jobs) if (job.pickup === n) inStock++;
                     }
                 }
             }
-            if (SC.state.trucks) {
-                for (const truck of SC.state.trucks) {
-                    if (truck.jobs) {
-                        for (const job of truck.jobs) {
-                            if (job.type === 'raw' && job.drop === n) {
-                                incoming[job.item] = (incoming[job.item] || 0) + 1;
+            const producing = (n.queue ? n.queue.length : 0) + (n.crafting ? 1 : 0);
+            const ordered = inStock + producing;
+
+            // Ingredient stock (have / need), only while there's a live queue.
+            let queueNeeds = {}, queueHave = {};
+            if (n.queue && n.queue.length > 0) {
+                for (const t of n.queue) {
+                    for (const m in t.needs) {
+                        queueNeeds[m] = (queueNeeds[m] || 0) + t.needs[m];
+                        queueHave[m] = (queueHave[m] || 0) + (t.have[m] || 0);
+                    }
+                }
+                for (const m in n.inv) {
+                    if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + n.inv[m];
+                }
+                // Raw materials en route (unassigned jobs + on trucks).
+                let incoming = {};
+                if (SC.state.jobs) {
+                    for (const job of SC.state.jobs) {
+                        if (job.type === 'raw' && job.drop === n) incoming[job.item] = (incoming[job.item] || 0) + 1;
+                    }
+                }
+                if (SC.state.trucks) {
+                    for (const truck of SC.state.trucks) {
+                        if (truck.jobs) {
+                            for (const job of truck.jobs) {
+                                if (job.type === 'raw' && job.drop === n) incoming[job.item] = (incoming[job.item] || 0) + 1;
                             }
                         }
                     }
                 }
-            }
-            for (const m in incoming) {
-                if (queueNeeds[m]) {
-                    queueHave[m] = (queueHave[m] || 0) + incoming[m];
+                for (const m in incoming) {
+                    if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + incoming[m];
                 }
             }
-            
             const needsKeys = Object.keys(queueNeeds);
-            if (needsKeys.length > 0) {
+
+            if (ordered > 0 || inStock > 0) {
                 const z = clampZoom();
                 const sy = tc.y - 28 * z;
-                ctx.font = `600 ${9 * z}px Inter, system-ui, sans-serif`;
-                
-                const qText = `${n.queue.length + (n.crafting ? 1 : 0)}`;
-                const qW = ctx.measureText(qText).width;
-                
+                const interFont = `600 ${9 * z}px Inter, system-ui, sans-serif`;
+                ctx.font = interFont;
+
+                const fgText = `${inStock} / ${ordered}`;
+                const fgW = ctx.measureText(fgText).width;
+
                 let segments = [];
-                let totalW = 5 * z + qW + 13 * z;
+                // first group: pad + FG emoji + gap + "in stock / ordered" + pad
+                let totalW = 5 * z + 11 * z + 3 * z + fgW + 5 * z;
+                if (needsKeys.length > 0) totalW += 8 * z; // divider
                 for (const m of needsKeys) {
                     const have = Math.min(queueHave[m], queueNeeds[m]);
                     const need = queueNeeds[m];
@@ -2198,34 +2218,37 @@ SC.render = (function() {
                     segments.push({ m, text, w, have, need });
                     totalW += w;
                 }
-                
+
                 let cx = tc.x - totalW / 2;
-                
                 ctx.fillStyle = 'rgba(12, 18, 30, 0.85)';
                 roundRectPath(cx, sy - 8 * z, totalW, 16 * z, 6 * z);
                 ctx.fill();
-                
+
                 cx += 5 * z;
+                emoji(SC.emojiOf(n.recipe), cx + 5.5 * z, sy, 11 * z);
+                cx += 11 * z + 3 * z;
+                ctx.font = interFont;
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#cbd5e1';
-                ctx.fillText(qText, cx, sy);
-                cx += qW + 5 * z;
-                emoji(SC.emojiOf(n.recipe), cx, sy, 9 * z);
-                cx += 4 * z;
-                
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                ctx.fillRect(cx, sy - 5 * z, 1, 10 * z);
-                cx += 4 * z;
-                
-                for (const seg of segments) {
+                // Amber when goods are ready & waiting; muted when just queued.
+                ctx.fillStyle = inStock > 0 ? '#fbbf24' : '#cbd5e1';
+                ctx.fillText(fgText, cx, sy);
+                cx += fgW + 5 * z;
+
+                if (needsKeys.length > 0) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fillRect(cx, sy - 5 * z, 1, 10 * z);
                     cx += 4 * z;
-                    emoji(SC.emojiOf(seg.m), cx, sy, 9 * z);
-                    cx += 5 * z;
-                    ctx.textAlign = 'left';
-                    ctx.fillStyle = seg.have >= seg.need ? '#34d399' : '#f87171';
-                    ctx.fillText(seg.text, cx, sy);
-                    cx += ctx.measureText(seg.text).width + 5 * z;
+                    for (const seg of segments) {
+                        cx += 4 * z;
+                        emoji(SC.emojiOf(seg.m), cx, sy, 9 * z);
+                        cx += 5 * z;
+                        ctx.font = interFont;
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = seg.have >= seg.need ? '#34d399' : '#f87171';
+                        ctx.fillText(seg.text, cx, sy);
+                        cx += ctx.measureText(seg.text).width + 5 * z;
+                    }
                 }
             }
         }
@@ -2273,8 +2296,6 @@ SC.render = (function() {
             if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
         } else if (n.kind === 'factory' && forSale) {
             labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
-        } else if (n.kind === 'factory' && n.queue.length > 0) {
-            labelAt(String(n.queue.length + (n.crafting ? 1 : 0)), tc.x + info.rx + 8, tc.y - iconSize * 0.5, '#cbd5e1', 11);
         } else if (n.kind === 'yard') {
             const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
             labelAt(`${parked} 🚚`, g.x, g.y + footRadii(sp.fw).ry + 12, '#c4b5fd', 11);
