@@ -888,9 +888,19 @@ html, body {
     .hud-label-short { display: block; }
 
     #orders-panel { top: 0.5rem; right: 0.5rem; width: 170px; }
-    #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 190px; }
+    #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 212px; }
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
+    /* The Shop/Build tabs already label the panel, so drop the redundant
+       "Shop" heading on phones — it was pushing the two tabs past the fixed
+       panel width, clipping "Build" (overflow:hidden) so it couldn't be
+       tapped. Tighten the tabs a touch too. */
+    #shop-header h2 { display: none; }
+    #shop-panel .shop-tabs { margin-right: 0.3rem; }
+    #shop-panel .shop-tab { padding: 0.22rem 0.45rem; font-size: 0.68rem; }
+    /* Float toasts above the bottom control cluster (shop / speed / mode)
+       instead of on top of it. */
+    #toast { bottom: 6rem; }
     .research-tree-card { padding: 0.8rem; }
     .stats-card { padding: 0.8rem; }
     .stats-ach-grid { grid-template-columns: repeat(2, 1fr); }
@@ -899,7 +909,10 @@ html, body {
 /* Narrow phones (older/smaller devices): shrink further so the top-left
    bar and the Orders panel keep clear of each other. */
 @media (max-width: 380px) {
-    #orders-panel, #shop-panel { width: 148px; }
+    #orders-panel { width: 148px; }
+    /* Shop stays wide enough for both tabs (it's bottom-left, clear of the
+       top-left/orders squeeze that forces #orders-panel narrow). */
+    #shop-panel { width: 200px; }
     .hud-item { padding: 0.3rem 0.4rem; }
     .hud-label { font-size: 0.5rem; }
     .hud-item span:last-child { font-size: 0.7rem; }
