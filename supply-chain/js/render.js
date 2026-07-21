@@ -2232,7 +2232,7 @@ SC.render = (function() {
 
         // HQ landmark beacon: a short mast with a slow-blinking red light and
         // halo on top, so HQ reads as the tallest, most important structure.
-        if (n.isHQ) {
+        if (n.isHQ && !SC.state.orders.some(o => o.city === n)) {
             const z = clampZoom();
             const bx = tc.x, by = tc.y - iconSize - 6 * z;
             ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
@@ -2406,22 +2406,32 @@ SC.render = (function() {
         const z = clampZoom();
         for (const [city, orders] of byCity) {
             const sp = nodeSpec(city);
-            const anchor = { x: S(city.x, city.y).x, y: S(city.x, city.y).y - sp.h * zoom() };
+            // Roof apex of the building: prism() is drawn at height sp.h*zoom(),
+            // so the roof sits exactly that many screen pixels above the ground
+            // point. Hug the bubble just above it (bounded by clampZoom) so it
+            // reads as attached rather than floating on a long stalk — the old
+            // code let a high zoom fling the bubble far above the (zoom-capped)
+            // HQ beacon, and the beacon mast filled the gap as an ugly stem.
+            const roof = { x: S(city.x, city.y).x, y: S(city.x, city.y).y - sp.h * zoom() };
+            const r = 14 * z;
             orders.forEach((o, i) => {
-                const bx = anchor.x + (i - (orders.length - 1) / 2) * 40 * z;
-                const by = anchor.y - 34 * z;
-                const r = 15 * z;
+                const bx = roof.x + (i - (orders.length - 1) / 2) * 34 * z;
+                const by = roof.y - 26 * z;
                 const frac = Math.max(0, o.deadline / o.deadlineTotal);
                 const urgent = frac < 0.25;
 
-                // pointer down to the roof
+                // speech-bubble tail: a short triangle from the bubble bottom
+                // down to the roof apex, so the marker points at its building.
                 ctx.beginPath();
-                ctx.moveTo(bx, by + r);
-                ctx.lineTo(bx - 4 * z, by + r - 2 * z);
-                ctx.lineTo(bx + 4 * z, by + r - 2 * z);
+                ctx.moveTo(bx - 5 * z, by + r - 2 * z);
+                ctx.lineTo(bx + 5 * z, by + r - 2 * z);
+                ctx.lineTo(bx, by + r + 9 * z);
                 ctx.closePath();
                 ctx.fillStyle = '#1e293b';
                 ctx.fill();
+                ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
 
                 ctx.beginPath();
                 ctx.arc(bx, by, r, 0, Math.PI * 2);
