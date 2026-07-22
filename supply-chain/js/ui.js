@@ -990,20 +990,23 @@ SC.ui = (function() {
             $('shop-tab-shop-content').classList.toggle('hidden', !isShop);
             $('shop-tab-build-content').classList.toggle('hidden', isShop);
         }
-        $('shop-tab-shop').addEventListener('click', e => {
-            e.stopPropagation(); // don't collapse the panel
+        function openShopTab(tab) {
             $('shop-panel').classList.remove('collapsed');
-            switchShopTab('shop');
+            switchShopTab(tab);
             SC.sfx.play('click');
+        }
+        $('shop-tab-shop').addEventListener('click', e => { e.stopPropagation(); openShopTab('shop'); });
+        $('shop-tab-build').addEventListener('click', e => { e.stopPropagation(); openShopTab('build'); });
+        // Collapse/expand when the header itself is tapped — but never when the
+        // tap lands on a tab pill. Relying on the tab's stopPropagation alone
+        // was fragile on some mobile browsers: the header's handler still ran,
+        // toggling the panel shut again right after the tab opened it, so the
+        // Shop/Build buttons appeared to "do nothing". This target check is
+        // deterministic regardless of event-propagation quirks.
+        $('shop-header').addEventListener('click', e => {
+            if (e.target.closest('.shop-tab')) return;
+            $('shop-panel').classList.toggle('collapsed');
         });
-        $('shop-tab-build').addEventListener('click', e => {
-            e.stopPropagation();
-            $('shop-panel').classList.remove('collapsed');
-            switchShopTab('build');
-            SC.sfx.play('click');
-        });
-        $('shop-header').addEventListener('click', () =>
-            $('shop-panel').classList.toggle('collapsed'));
 
         $('gameover-restart').addEventListener('click', () => {
             SC.save.clear();
