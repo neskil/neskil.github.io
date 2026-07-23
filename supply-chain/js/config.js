@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.50.7';
+SC.VERSION = '1.50.8';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -14,6 +14,13 @@ SC.CONFIG = {
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
+    // Keep node bodies off the roads. A site whose centre lands within this
+    // many world units of any built road reads as sitting "on" the road
+    // (node footprints are ~15-24 units half-width). Manual placement rejects
+    // such spots, and a pool/frontier site that would reveal on a road is
+    // nudged clear (see SC.map.relocateOffRoad) — the pictured case where a
+    // milestone site unlocked right on top of an already-built road.
+    NODE_ROAD_CLEARANCE: 48,
     // Fallback spread cap: milestone/customer pool sites must land within
     // this distance of an already-placed node, so the network grows outward
     // organically instead of a site spawning in a far map corner that needs

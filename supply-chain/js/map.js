@@ -129,8 +129,48 @@ SC.map = (function() {
         return { t0: Math.max(0, t0 - pad), t1: Math.min(1, t1 + pad) };
     }
 
-    function farFromOthers(x, y, minDist) {
-        return SC.state.nodes.every(n => Math.hypot(n.x - x, n.y - y) >= minDist);
+    function farFromOthers(x, y, minDist, except) {
+        return SC.state.nodes.every(n => n === except || Math.hypot(n.x - x, n.y - y) >= minDist);
+    }
+
+    // True if (x,y) sits far enough from every built road to not read as
+    // being "on" one. No roads yet (world-gen) => trivially clear.
+    function clearOfRoads(x, y) {
+        return SC.roads.pointRoadDist(x, y) >= C().NODE_ROAD_CLEARANCE;
+    }
+
+    // A pool/frontier site is positioned at world-gen, long before the player
+    // lays any roads — so a milestone/customer site can reveal right on top of
+    // a road the player has since built (the reported case). When that happens
+    // this nudges the node to the closest nearby spot that clears the roads,
+    // the river and other nodes, searching outward in rings so the move is as
+    // small as possible. A no-op in the common case (no roads, or already
+    // clear) and a no-op if nothing suitable is found within reach (better an
+    // on-road node than one teleported across the map).
+    function relocateOffRoad(node) {
+        if (!SC.state.edges.length || clearOfRoads(node.x, node.y)) return false;
+        const clear = C().NODE_ROAD_CLEARANCE;
+        const rings = [clear + 12, clear * 1.8, clear * 2.8, clear * 4, clear * 5.4];
+        const steps = 12;
+        for (let r = 0; r < rings.length; r++) {
+            const rad = rings[r];
+            const minDist = r < 3 ? 120 : 80; // relax crowding on the outer rings
+            const a0 = r * 0.55; // stagger start angle per ring to sweep more directions
+            for (let k = 0; k < steps; k++) {
+                const ang = a0 + (k / steps) * Math.PI * 2;
+                const x = node.x + Math.cos(ang) * rad;
+                const y = node.y + Math.sin(ang) * rad;
+                if (x < C().NODE_MARGIN || x > SC.worldW() - C().NODE_MARGIN) continue;
+                if (y < C().NODE_MARGIN || y > SC.worldH() - C().NODE_MARGIN) continue;
+                if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) <= riverAt(y).halfW + 50) continue;
+                if (!farFromOthers(x, y, minDist, node)) continue;
+                if (!clearOfRoads(x, y)) continue;
+                node.x = x;
+                node.y = y;
+                return true;
+            }
+        }
+        return false;
     }
 
     function randomLandSpot(minDist) {
@@ -272,6 +312,8 @@ SC.map = (function() {
             !(holdFar && sideOf(n.x, n.y) !== hqSide));
         if (!next) return null;
         next.active = true;
+        // Its spot was fixed at world-gen; a road may now run through it.
+        relocateOffRoad(next);
         return next;
     }
 
@@ -285,6 +327,7 @@ SC.map = (function() {
             if (x <= oldW - C().NODE_MARGIN && y <= oldH - C().NODE_MARGIN) continue; // not frontier
             if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) < riverAt(y).halfW + 50) continue;
             if (!farFromOthers(x, y, minDist)) continue;
+            if (!clearOfRoads(x, y)) continue;
             return { x, y };
         }
         return null;
@@ -350,7 +393,7 @@ SC.map = (function() {
 
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
              segmentCrossesRiver, riverCrossing, unlockNext, anyHeldByRiverGrace,
-             expandField, maybeExpandField,
+             expandField, maybeExpandField, relocateOffRoad, clearOfRoads,
              sideOf, startSide, riverGraceRemaining,
              _resetSeq: () => { nodeSeq = 0; } };
 })();

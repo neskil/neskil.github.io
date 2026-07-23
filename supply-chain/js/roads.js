@@ -168,6 +168,29 @@ SC.roads = (function() {
         return null;
     }
 
+    // Shortest distance from a point to a segment (clamped to its endpoints).
+    function pointSegDist(px, py, ax, ay, bx, by) {
+        const dx = bx - ax, dy = by - ay;
+        const l2 = dx * dx + dy * dy;
+        let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    // Distance from (x,y) to the nearest built road, or Infinity if there
+    // are none yet. Used to keep newly-spawned/placed sites from landing on
+    // top of a road (see NODE_ROAD_CLEARANCE, SC.map.relocateOffRoad).
+    function pointRoadDist(x, y) {
+        let best = Infinity;
+        const edges = SC.state.edges;
+        for (let i = 0; i < edges.length; i++) {
+            const e = edges[i];
+            const d = pointSegDist(x, y, e.a.x, e.a.y, e.b.x, e.b.y);
+            if (d < best) best = d;
+        }
+        return best;
+    }
+
     function findClosestCrossing(x, y, maxDist = 40) {
         let best = null;
         let bestDist = maxDist;
@@ -201,5 +224,6 @@ SC.roads = (function() {
     }
 
     return { findEdge, quote, build, demolish, findPath, pathDist,
-             speedMult, congestionMult, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing };
+             speedMult, congestionMult, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
+             pointSegDist, pointRoadDist };
 })();
