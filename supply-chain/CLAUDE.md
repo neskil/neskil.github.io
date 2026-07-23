@@ -21,27 +21,63 @@ Don't couple the two again.)
   then **commit**, **merge in the latest `origin/master`** (fetch + merge,
   resolving any conflicts — this project runs several agent sessions in
   parallel, hence the "Merge master: reconcile…" commits throughout
-  history), and **push**, all without waiting to be asked. Only skip the
-  merge/push step if the repo's git workflow for this session pins you to
-  a review branch instead (e.g. a PR-based harness) — in that case commit
-  and push to that branch and let the normal review/merge flow take it
-  from there.
-- Bump `SC.VERSION` (top of `js/config.js`) on every commit that ships a
-  user-visible change, and update the `?v=X.Y.Z` cache-busting query on
-  every local `<script>`/`<link>` tag in `index.html` AND `tests.html`,
-  and on the main landing page link at the root `index.html` (e.g. `supply-chain/index.html?v=X.Y.Z`)
-  (GitHub Pages caches aggressively; stale query strings keep mobile
-  browsers on old JS after a deploy).
+  history), and **push**, all without waiting to be asked.
+- **The maintainer always wants every change to end up merged to
+  `master`** — that's the branch GitHub Pages deploys, so work stranded on
+  a feature branch is not "done." So:
+  - If this session is **not** pinned to a review branch, push straight to
+    `master` (after merging the latest `origin/master` in, as above).
+  - If the session **is** pinned to a review branch (e.g. a PR-based
+    harness set a designated branch you must develop on and forbade pushing
+    elsewhere), push to that branch — but the goal is still `master`.
+    Follow it through: ensure the PR is opened and merged (enable
+    auto-merge if the harness supports it) rather than leaving the branch
+    unmerged. Note "merge in the latest `origin/master`" means pulling
+    master's commits *into* your branch; it is **not** the same as landing
+    your branch *onto* master — the change isn't shipped until master
+    contains it.
+- **Versioning / cache-busting (single-token model).** The version lives in
+  ONE line — `window.SC_VERSION = 'X.Y.Z'` at the top of `index.html` (and an
+  identical line in `tests.html`). A small inline loader in each file
+  `document.write`s every `<script>`/`<link>` with `?v=SC_VERSION` appended, in
+  the required load order, so the ~40 per-tag query strings no longer exist in
+  the committed HTML. `js/config.js` copies the token into `SC.VERSION` (shown
+  in the ☰ menu). To ship a user-visible change, bump the token in **three
+  isolated spots**: `supply-chain/index.html`, `supply-chain/tests.html`, and
+  the root `index.html` landing link (`supply-chain/index.html?v=X.Y.Z`). Do
+  NOT reintroduce hand-written `?v=` tags on individual scripts, and do NOT
+  hardcode a version in `config.js` — it must read `window.SC_VERSION`.
+  (GitHub Pages caches aggressively / serves the branch directly with no build
+  step, which is why the token is stamped at load time rather than at deploy.)
+- **Merging master under parallel agents (read before resolving conflicts).**
+  With the single-token model the churn is tiny, but conflicts can still hit
+  those token lines (and, genuinely, real code). The hazard is resolving them
+  carelessly and deleting a sibling agent's work. Rules:
+    - **Never `git checkout --ours/--theirs <file>` on a whole file to clear a
+      merge.** It discards the *entire* other side of the file, including hunks
+      git already auto-merged (a real feature from another agent). Resolve
+      hunk-by-hunk instead.
+    - For a version-token conflict: keep either side, then set the token (all
+      three spots + they stay in sync) to the higher of the two bumped by one
+      patch level so it exceeds both branches (e.g. master `1.52.0` + your work
+      → `1.52.1`).
+    - **Before committing the merge, prove nothing was dropped:** diff master
+      against the merge base for each conflicted file
+      (`git diff $(git merge-base HEAD origin/master) origin/master -- <file>`),
+      confirm any non-version changes survived, then run the test suite AND a
+      visual smoke (the shop/menu HTML is a frequent parallel-edit hot spot —
+      e.g. a renamed button id will pass tests but break the UI).
 - Layering rule: `config/state/map/roads/factories/economy/vehicles/camera`
   are **pure logic** — no DOM, no canvas (that's what makes tests.html
   runnable headless). Only `render/input/ui/main` touch the DOM. Logic
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
-- New script files must be added to `index.html`; logic modules also to
-  `tests.html`. Load order matters: config → state → save → sfx → rng →
-  map → camera → roads → factories → economy → vehicles → stats → inspect →
-  research → placement → (render → input → ui → main). (`rng.js` must
-  precede `map.js`: `SC.map`'s IIFE calls `SC.rng.create(...)` at
-  load time to seed its default RNG.)
+- New script files are added by **module name** to the `mods` array in the
+  inline loader (in `index.html`; logic modules also in `tests.html`'s loader)
+  — not as a hand-written `<script>` tag. Load order matters and is the array
+  order: config → state → save → sfx → rng → map → camera → roads → factories
+  → economy → vehicles → stats → inspect → research → placement →
+  (render → input → ui → main). (`rng.js` must precede `map.js`: `SC.map`'s
+  IIFE calls `SC.rng.create(...)` at load time to seed its default RNG.)
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,

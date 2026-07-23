@@ -1,7 +1,12 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.52.0';
+// The version/cache-bust token lives in ONE place: the `window.SC_VERSION`
+// line at the top of index.html / tests.html, which the page's script loader
+// also stamps onto every ?v= query string. A version bump therefore touches
+// a single line instead of ~40 (see supply-chain/CLAUDE.md — this is what
+// keeps parallel-agent master merges from conflicting on every script tag).
+SC.VERSION = window.SC_VERSION || '0.0.0-dev';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in
@@ -14,6 +19,13 @@ SC.CONFIG = {
     WORLD_H: 1800,
     NODE_MIN_DIST: 170,
     NODE_MARGIN: 80,
+    // Keep node bodies off the roads. A site whose centre lands within this
+    // many world units of any built road reads as sitting "on" the road
+    // (node footprints are ~15-24 units half-width). Manual placement rejects
+    // such spots, and a pool/frontier site that would reveal on a road is
+    // nudged clear (see SC.map.relocateOffRoad) — the pictured case where a
+    // milestone site unlocked right on top of an already-built road.
+    NODE_ROAD_CLEARANCE: 48,
     // Fallback spread cap: milestone/customer pool sites must land within
     // this distance of an already-placed node, so the network grows outward
     // organically instead of a site spawning in a far map corner that needs

@@ -28,6 +28,10 @@ SC.placement = (function() {
         if (x < C.NODE_MARGIN || x > SC.worldW() - C.NODE_MARGIN) return false;
         if (y < C.NODE_MARGIN || y > SC.worldH() - C.NODE_MARGIN) return false;
         if (SC.map.isInRiver(x, y)) return false;
+        // Don't let a site drop on top of a road — junctions (a distinct
+        // road-crossing tool, see canPlaceIntersectionAt) are how you tie a
+        // node into an existing road.
+        if (SC.roads.pointRoadDist(x, y) < C.NODE_ROAD_CLEARANCE) return false;
         return SC.state.nodes.every(n => Math.hypot(n.x - x, n.y - y) >= C.PLACEMENT_MIN_DIST);
     }
 
