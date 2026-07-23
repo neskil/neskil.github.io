@@ -851,7 +851,7 @@ SC.ui = (function() {
             $('difficulty-section').classList.add('hidden'); // mid-run: mode is locked in
             $('help-overlay').classList.remove('hidden');
         });
-        $('menu-stats').addEventListener('click', () => {
+        $('menu-achievements').addEventListener('click', () => {
             $('menu-overlay').classList.add('hidden'); // stay paused while reading
             SC.sfx.play('click');
             openStatsOverlay();
