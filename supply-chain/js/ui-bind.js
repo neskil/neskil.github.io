@@ -269,6 +269,7 @@
         }
         function toggleSection(sec) {
             SC.sfx.play('click');
+            if (sec === 'research') { openResearchTree(); return; } // skip the shop-panel middle step
             const open = !$('shop-panel').classList.contains('hidden');
             const btn = document.querySelector('.launcher-btn[data-sec="' + sec + '"]');
             if (open && btn && btn.classList.contains('active')) closeShopPanel();
