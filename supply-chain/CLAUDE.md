@@ -21,11 +21,21 @@ Don't couple the two again.)
   then **commit**, **merge in the latest `origin/master`** (fetch + merge,
   resolving any conflicts — this project runs several agent sessions in
   parallel, hence the "Merge master: reconcile…" commits throughout
-  history), and **push**, all without waiting to be asked. Only skip the
-  merge/push step if the repo's git workflow for this session pins you to
-  a review branch instead (e.g. a PR-based harness) — in that case commit
-  and push to that branch and let the normal review/merge flow take it
-  from there.
+  history), and **push**, all without waiting to be asked.
+- **The maintainer always wants every change to end up merged to
+  `master`** — that's the branch GitHub Pages deploys, so work stranded on
+  a feature branch is not "done." So:
+  - If this session is **not** pinned to a review branch, push straight to
+    `master` (after merging the latest `origin/master` in, as above).
+  - If the session **is** pinned to a review branch (e.g. a PR-based
+    harness set a designated branch you must develop on and forbade pushing
+    elsewhere), push to that branch — but the goal is still `master`.
+    Follow it through: ensure the PR is opened and merged (enable
+    auto-merge if the harness supports it) rather than leaving the branch
+    unmerged. Note "merge in the latest `origin/master`" means pulling
+    master's commits *into* your branch; it is **not** the same as landing
+    your branch *onto* master — the change isn't shipped until master
+    contains it.
 - **Versioning / cache-busting (single-token model).** The version lives in
   ONE line — `window.SC_VERSION = 'X.Y.Z'` at the top of `index.html` (and an
   identical line in `tests.html`). A small inline loader in each file
