@@ -1180,11 +1180,11 @@ SC.render = (function() {
             // Stays a dim, legible blue right into the back of the tunnel so the
             // river is clearly seen receding deep into the cave — only the last
             // sliver melts into the back wall.
-            gWater.addColorStop(0, 'rgba(13, 28, 42, 0.55)');
-            gWater.addColorStop(0.22, 'rgba(17, 42, 61, 0.82)');
-            gWater.addColorStop(0.55, 'rgba(23, 64, 88, 0.94)');
-            gWater.addColorStop(0.82, 'rgba(30, 84, 112, 0.98)');
-            gWater.addColorStop(1, 'rgba(40, 100, 130, 1)');   // lit at the mouth
+            gWater.addColorStop(0, 'rgba(20, 50, 71, 0.85)');   // still clearly water at the very back
+            gWater.addColorStop(0.15, 'rgba(23, 60, 84, 0.94)');
+            gWater.addColorStop(0.5, 'rgba(28, 78, 105, 0.98)');
+            gWater.addColorStop(0.82, 'rgba(34, 92, 121, 1)');
+            gWater.addColorStop(1, 'rgba(42, 104, 134, 1)');   // lit at the mouth
             ctx.fillStyle = gWater;
             ctx.fill();
 
