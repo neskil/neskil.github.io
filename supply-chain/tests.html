@@ -15,21 +15,21 @@
     <div id="results"></div>
 
     <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.50.7"></script>
-    <script src="js/state.js?v=1.50.7"></script>
-    <script src="js/save.js?v=1.50.7"></script>
-    <script src="js/sfx.js?v=1.50.7"></script>
-    <script src="js/rng.js?v=1.50.7"></script>
-    <script src="js/map.js?v=1.50.7"></script>
-    <script src="js/camera.js?v=1.50.7"></script>
-    <script src="js/roads.js?v=1.50.7"></script>
-    <script src="js/factories.js?v=1.50.7"></script>
-    <script src="js/economy.js?v=1.50.7"></script>
-    <script src="js/vehicles.js?v=1.50.7"></script>
-    <script src="js/stats.js?v=1.50.7"></script>
-    <script src="js/inspect.js?v=1.50.7"></script>
-    <script src="js/research.js?v=1.50.7"></script>
-    <script src="js/placement.js?v=1.50.7"></script>
+    <script src="js/config.js?v=1.50.8"></script>
+    <script src="js/state.js?v=1.50.8"></script>
+    <script src="js/save.js?v=1.50.8"></script>
+    <script src="js/sfx.js?v=1.50.8"></script>
+    <script src="js/rng.js?v=1.50.8"></script>
+    <script src="js/map.js?v=1.50.8"></script>
+    <script src="js/camera.js?v=1.50.8"></script>
+    <script src="js/roads.js?v=1.50.8"></script>
+    <script src="js/factories.js?v=1.50.8"></script>
+    <script src="js/economy.js?v=1.50.8"></script>
+    <script src="js/vehicles.js?v=1.50.8"></script>
+    <script src="js/stats.js?v=1.50.8"></script>
+    <script src="js/inspect.js?v=1.50.8"></script>
+    <script src="js/research.js?v=1.50.8"></script>
+    <script src="js/placement.js?v=1.50.8"></script>
 
     <script>
     let passed = 0, failed = 0;
@@ -1003,6 +1003,68 @@
         SC.state.money = 0;
         const res3 = SC.placement.place('factory', 'shoes', 1600, 900);
         assert('unaffordable placement rejected', !res3.ok && res3.reason === 'money');
+    })();
+
+    // ── Sites keep clear of roads ────────────────────
+    (function() {
+        const f = fixture();
+        SC.state.money = 100000;
+        // A road straight across open land at y=700 (well clear of everything).
+        const a = SC.map.makeNode('city', 300, 700, { active: true });
+        const b = SC.map.makeNode('city', 900, 700, { active: true });
+        SC.roads.build(a, b);
+
+        assert('pointRoadDist is ~0 on the road line',
+            SC.roads.pointRoadDist(600, 700) < 1);
+        assert('pointRoadDist grows off the road',
+            Math.abs(SC.roads.pointRoadDist(600, 760) - 60) < 1);
+        assert('pointRoadDist clamps to segment endpoints',
+            Math.abs(SC.roads.pointRoadDist(300, 600) - 100) < 1);
+
+        SC.state.research.completed.manualPlacement = true;
+        assert('placement on top of a road is rejected',
+            !SC.placement.canPlaceAt(600, 700));
+        assert('placement just beside a road is rejected',
+            !SC.placement.canPlaceAt(600, 700 + SC.CONFIG.NODE_ROAD_CLEARANCE - 5));
+        assert('placement clear of the road is fine',
+            SC.placement.canPlaceAt(600, 700 + SC.CONFIG.NODE_ROAD_CLEARANCE + 20));
+    })();
+
+    // ── A site revealed on a road is nudged clear ────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const a = SC.map.makeNode('city', 300, 700, { active: true });
+        const b = SC.map.makeNode('city', 900, 700, { active: true });
+        SC.roads.build(a, b);
+        // An inactive pool site sitting right on the road (as if fixed at
+        // world-gen, before the road existed).
+        const onRoad = SC.map.makeNode('supplier', 600, 700, { active: false, mat: 'ore' });
+        const moved = SC.map.relocateOffRoad(onRoad);
+        assert('relocateOffRoad reports it moved the node', moved === true);
+        assert('the nudged node now clears the road', SC.map.clearOfRoads(onRoad.x, onRoad.y));
+        assert('the nudge stays local (not a teleport)',
+            Math.hypot(onRoad.x - 600, onRoad.y - 700) < 300);
+
+        // A site already clear of any road is left untouched.
+        const clear = SC.map.makeNode('supplier', 600, 300, { active: false, mat: 'coal' });
+        assert('relocateOffRoad leaves an already-clear site put',
+            SC.map.relocateOffRoad(clear) === false && clear.x === 600 && clear.y === 300);
+    })();
+
+    // ── unlockNext reveals a pool site clear of roads ─
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        const a = SC.map.makeNode('city', 300, 700, { active: true });
+        const b = SC.map.makeNode('city', 900, 700, { active: true });
+        SC.roads.build(a, b);
+        // A locked pool supplier pre-positioned right under the road.
+        SC.map.makeNode('supplier', 600, 700, { active: false, mat: 'ore' });
+        const revealed = SC.map.unlockNext(n => n.kind === 'supplier' && n.mat === 'ore');
+        assert('unlockNext reveals the pool supplier', revealed && revealed.active);
+        assert('the revealed supplier does not sit on the road',
+            SC.map.clearOfRoads(revealed.x, revealed.y));
     })();
 
     // ── Manual placement unblocks an otherwise-stuck order ──
