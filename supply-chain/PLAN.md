@@ -118,8 +118,9 @@ this one and another doing v1.5.0/v1.6.0 Build vs Inspect + the robot
 chain, then a v1.7.0 for screen-edge arrows and a fullscreen toggle;
 renumbered on merge to land after all of them in one consistent
 sequence. No functional overlap, just repeated numbering collisions from
-parallel work — see `js/config.js` `SC.VERSION` for the number that
-actually shipped.)*
+parallel work — see the `window.SC_VERSION` token at the top of
+`index.html` (mirrored into `SC.VERSION`) for the number that actually
+shipped.)*
 
 - v1.9.2: truck yards (decision B). HQ (⭐) is always a yard; more can be
   built via the Shop panel (not research-gated, price grows per yard like

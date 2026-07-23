@@ -1,7 +1,12 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.51.1';
+// The version/cache-bust token lives in ONE place: the `window.SC_VERSION`
+// line at the top of index.html / tests.html, which the page's script loader
+// also stamps onto every ?v= query string. A version bump therefore touches
+// a single line instead of ~40 (see supply-chain/CLAUDE.md — this is what
+// keeps parallel-agent master merges from conflicting on every script tag).
+SC.VERSION = window.SC_VERSION || '0.0.0-dev';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in

@@ -14,22 +14,19 @@
     <div id="summary">running…</div>
     <div id="results"></div>
 
-    <!-- Pure logic only: no render/input/ui/main, no canvas needed -->
-    <script src="js/config.js?v=1.51.1"></script>
-    <script src="js/state.js?v=1.51.1"></script>
-    <script src="js/save.js?v=1.51.1"></script>
-    <script src="js/sfx.js?v=1.51.1"></script>
-    <script src="js/rng.js?v=1.51.1"></script>
-    <script src="js/map.js?v=1.51.1"></script>
-    <script src="js/camera.js?v=1.51.1"></script>
-    <script src="js/roads.js?v=1.51.1"></script>
-    <script src="js/factories.js?v=1.51.1"></script>
-    <script src="js/economy.js?v=1.51.1"></script>
-    <script src="js/vehicles.js?v=1.51.1"></script>
-    <script src="js/stats.js?v=1.51.1"></script>
-    <script src="js/inspect.js?v=1.51.1"></script>
-    <script src="js/research.js?v=1.51.1"></script>
-    <script src="js/placement.js?v=1.51.1"></script>
+    <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
+         single-token loader as index.html (see supply-chain/CLAUDE.md); the
+         version here only feeds SC.VERSION and is irrelevant to the tests. -->
+    <script>window.SC_VERSION = '1.51.2';</script>
+    <script>
+    (function () {
+        var mods = ['config', 'state', 'save', 'sfx', 'rng', 'map', 'camera',
+                    'roads', 'factories', 'economy', 'vehicles', 'stats',
+                    'inspect', 'research', 'placement'];
+        for (var i = 0; i < mods.length; i++)
+            document.write('<script src="js/' + mods[i] + '.js?v=' + SC_VERSION + '"><\/script>');
+    })();
+    </script>
 
     <script>
     let passed = 0, failed = 0;
