@@ -26,6 +26,34 @@ Don't couple the two again.)
   a review branch instead (e.g. a PR-based harness) — in that case commit
   and push to that branch and let the normal review/merge flow take it
   from there.
+- **Merging master under parallel agents (read before resolving conflicts).**
+  Because every agent bumps the version + `?v=` query strings (below), *almost
+  every* master merge conflicts on exactly those lines. That class of conflict
+  is mechanical — the two sides differ only in a version number — but resolving
+  it carelessly is how sibling agents' work gets silently deleted. Rules:
+    - **Never `git checkout --ours/--theirs <file>` on a whole file to clear a
+      merge.** It discards the *entire* other side of the file, including hunks
+      git already auto-merged (a real feature from another agent). The
+      conflict markers only wrap the version lines; everything else in the file
+      was auto-merged and must be kept.
+    - Resolve by stripping just the markers (keep either side of each hunk —
+      they're the same but for the number), then set **one** version across all
+      files: the higher of the two, bumped by one patch level so it exceeds
+      both branches (e.g. master `1.51.0` + your work → `1.51.1`). Re-run the
+      `?v=` sed over `index.html`, `supply-chain/index.html`,
+      `supply-chain/tests.html` and root `index.html` so they all match
+      `SC.VERSION`.
+    - **Before committing the merge, prove nothing was dropped:** diff master
+      against the merge base for the conflicted files
+      (`git diff $(git merge-base HEAD origin/master) origin/master -- <file>`),
+      confirm any non-version changes survived, then run the test suite AND a
+      visual smoke (the shop/menu HTML is a frequent parallel-edit hot spot —
+      e.g. a renamed button id will pass tests but break the UI).
+  (If this keeps costing merges, the durable fix is to stop hand-editing the
+  ~40 `?v=` tags: make `SC.VERSION` the single source of truth and stamp the
+  query strings from it via a script/CI step, so a merge conflicts on one line
+  at most. Flag it to the maintainer rather than implementing unprompted — it
+  changes the deploy flow every agent relies on.)
 - Bump `SC.VERSION` (top of `js/config.js`) on every commit that ships a
   user-visible change, and update the `?v=X.Y.Z` cache-busting query on
   every local `<script>`/`<link>` tag in `index.html` AND `tests.html`,
