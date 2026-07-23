@@ -395,6 +395,12 @@ html, body {
     color: var(--text-primary);
     font-weight: 600;
 }
+/* Swap between the Shop and Build tab bodies. This project has no global
+   `.hidden` utility — every `.hidden` target carries its own display:none
+   rule — so these two content panels need one too, or switchShopTab() toggles
+   the class with no visible effect and both tabs render identical content. */
+#shop-tab-shop-content.hidden,
+#shop-tab-build-content.hidden { display: none; }
 
 /* ── Research ────────────────────────────────────── */
 .research-row {
