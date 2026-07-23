@@ -1,7 +1,7 @@
 // Supply Chain Tycoon — constants, materials, recipes, prices
 window.SC = window.SC || {};
 
-SC.VERSION = '1.50.9';
+SC.VERSION = '1.51.0';
 
 SC.CONFIG = {
     // Base playing-field size. The *current* size lives in

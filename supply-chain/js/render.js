@@ -1143,29 +1143,28 @@ SC.render = (function() {
         ctx.fill();
         ctx.restore();
 
-        // 4. Water flowing out of the cave mouth. The playing-field river
-        //    (drawRiverFieldBg) stops at the coastline; here we draw the sheet
-        //    that emerges from inside the tunnel — bright and catching light at
-        //    the mouth, dissolving into the darkness as it recedes upstream so
-        //    it looks like the river's source rather than a wall of water. We
+        // 4. Water flowing into the cave. The playing-field river
+        //    (drawRiverFieldBg) stops at the coastline; here we continue it
+        //    into the tunnel so it looks like the river simply flowing on into
+        //    the dark rather than a bright patch pasted at the entrance. We
         //    follow the real river centerline (riverAt extrapolates upstream
-        //    for y < 0) so the sheet lines up exactly with the field river's
-        //    angle instead of jutting out as a wedge.
-        const wFrontY = 12;          // just outside the mouth (lit)
+        //    for y < 0) so the sheet lines up exactly with the field river,
+        //    use the *same* water colour at the mouth so the seam is invisible,
+        //    then just darken into the tunnel shadow as it recedes.
+        const wFrontY = 12;          // just outside the mouth (matches the field river)
         const wBackY = bcy + 2;      // right up against the back wall, deep in
         const wSteps = 10;
-        const wLeft = [], wRight = [], wMid = [];
+        const wLeft = [], wRight = [];
         for (let i = 0; i <= wSteps; i++) {
             const f = i / wSteps;
             const wy = wBackY + (wFrontY - wBackY) * f;
             const rv2 = SC.map.riverAt(wy);
             if (!rv2) continue;
-            // Narrow the sheet toward the back so it tucks into the tunnel
-            // shadow rather than meeting the walls with a hard bright edge.
-            const narrow = 0.68 + 0.32 * f;
+            // A touch narrower toward the back so the channel tucks under the
+            // tunnel walls instead of meeting them with a hard edge.
+            const narrow = 0.82 + 0.18 * f;
             wLeft.push(getPt(rv2.x - rv2.halfW * narrow, wy, 0));
             wRight.push(getPt(rv2.x + rv2.halfW * narrow, wy, 0));
-            wMid.push(getPt(rv2.x, wy, 0));
         }
         if (wLeft.length > 1) {
             ctx.save();
@@ -1176,43 +1175,17 @@ SC.render = (function() {
 
             const backY = (wLeft[0].y + wRight[0].y) / 2;
             const frontY = (wLeft[wLeft.length - 1].y + wRight[wRight.length - 1].y) / 2;
+            // Mouth colour matches the field river exactly (same formula as
+            // drawRiverFieldBg's getRiverColor at the edge), so the water
+            // reads as one continuous river flowing into the dark.
+            const mouthCol = mix('#123047', sky, 0.08);
             const gWater = ctx.createLinearGradient(0, backY, 0, frontY);
-            // Stays a dim, legible blue right into the back of the tunnel so the
-            // river is clearly seen receding deep into the cave — only the last
-            // sliver melts into the back wall.
-            gWater.addColorStop(0, 'rgba(20, 50, 71, 0.85)');   // still clearly water at the very back
-            gWater.addColorStop(0.15, 'rgba(23, 60, 84, 0.94)');
-            gWater.addColorStop(0.5, 'rgba(28, 78, 105, 0.98)');
-            gWater.addColorStop(0.82, 'rgba(34, 92, 121, 1)');
-            gWater.addColorStop(1, 'rgba(42, 104, 134, 1)');   // lit at the mouth
+            gWater.addColorStop(0, 'rgba(8, 14, 22, 0.85)');   // dissolves into the tunnel shadow
+            gWater.addColorStop(0.4, 'rgba(13, 30, 45, 0.96)');
+            gWater.addColorStop(0.75, 'rgba(17, 44, 66, 1)');
+            gWater.addColorStop(1, mouthCol);                  // seamless with the field river
             ctx.fillStyle = gWater;
             ctx.fill();
-
-            // Reflection streak down the centre of the river, catching light at
-            // the mouth and trailing back into the darkness — reads strongly as
-            // a flowing surface receding deep into the tunnel.
-            ctx.beginPath();
-            wMid.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-            const gStreak = ctx.createLinearGradient(0, backY, 0, frontY);
-            gStreak.addColorStop(0, 'rgba(120, 180, 215, 0)');
-            gStreak.addColorStop(0.6, 'rgba(130, 190, 222, 0.12)');
-            gStreak.addColorStop(1, 'rgba(160, 210, 238, 0.32)');
-            ctx.strokeStyle = gStreak;
-            ctx.lineWidth = Math.max(2, (wRight[0].x - wLeft[0].x) * 0.28);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            // Specular sheen skimming the surface where the emerging water
-            // catches the sky at the mouth.
-            const fL = wLeft[wLeft.length - 1], fR = wRight[wRight.length - 1];
-            ctx.beginPath();
-            ctx.moveTo(fL.x + (fR.x - fL.x) * 0.12, fL.y + (fR.y - fL.y) * 0.12 - 4);
-            ctx.lineTo(fL.x + (fR.x - fL.x) * 0.88, fL.y + (fR.y - fL.y) * 0.88 - 4);
-            ctx.strokeStyle = 'rgba(150, 205, 235, 0.28)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.lineCap = 'butt';
             ctx.restore();
         }
 
