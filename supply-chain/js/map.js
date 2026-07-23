@@ -139,22 +139,48 @@ SC.map = (function() {
         return SC.roads.pointRoadDist(x, y) >= C().NODE_ROAD_CLEARANCE;
     }
 
-    // A pool/frontier site is positioned at world-gen, long before the player
-    // lays any roads — so a milestone/customer site can reveal right on top of
-    // a road the player has since built (the reported case). When that happens
-    // this nudges the node to the closest nearby spot that clears the roads,
-    // the river and other nodes, searching outward in rings so the move is as
-    // small as possible. A no-op in the common case (no roads, or already
-    // clear) and a no-op if nothing suitable is found within reach (better an
-    // on-road node than one teleported across the map).
-    function relocateOffRoad(node) {
-        if (!SC.state.edges.length || clearOfRoads(node.x, node.y)) return false;
-        const clear = C().NODE_ROAD_CLEARANCE;
+    function segMinDist(x, y, segs) {
+        let best = Infinity;
+        for (let i = 0; i < segs.length; i++) {
+            const s = segs[i];
+            const d = SC.roads.pointSegDist(x, y, s.a.x, s.a.y, s.b.x, s.b.y);
+            if (d < best) best = d;
+        }
+        return best;
+    }
+
+    // The "unbuilt roads" the player asked about: straight lines between
+    // pairs of nearby active sites that don't have a road *yet* but plausibly
+    // will (short enough to be a realistic span, and running close to `node`
+    // so they'd pass through it). We treat these like roads when nudging a
+    // freshly-revealed site, so it doesn't land where a road is about to go —
+    // the P→factory line in the report was exactly this. Restricted to lines
+    // near the node so the list stays small and the check stays cheap.
+    function candidateConnections(node) {
+        const near = 350;   // only lines running close to the spot matter
+        const maxLen = 900; // a realistic road span between two sites
+        const segs = [];
+        const act = SC.state.nodes.filter(n => n.active && n !== node);
+        for (let i = 0; i < act.length; i++) {
+            for (let j = i + 1; j < act.length; j++) {
+                const A = act[i], B = act[j];
+                if (Math.hypot(A.x - B.x, A.y - B.y) > maxLen) continue;
+                if (SC.roads.findEdge(A, B)) continue; // already a built road
+                if (SC.roads.pointSegDist(node.x, node.y, A.x, A.y, B.x, B.y) < near)
+                    segs.push({ a: A, b: B });
+            }
+        }
+        return segs;
+    }
+
+    // Ring-search outward from the node for the closest spot that clears
+    // built roads (always), the river and other nodes — and, when `virt` is
+    // given, those candidate connection lines too. Returns the spot or null.
+    function searchClearSpot(node, clear, minDist, virt) {
         const rings = [clear + 12, clear * 1.8, clear * 2.8, clear * 4, clear * 5.4];
         const steps = 12;
         for (let r = 0; r < rings.length; r++) {
             const rad = rings[r];
-            const minDist = r < 3 ? 120 : 80; // relax crowding on the outer rings
             const a0 = r * 0.55; // stagger start angle per ring to sweep more directions
             for (let k = 0; k < steps; k++) {
                 const ang = a0 + (k / steps) * Math.PI * 2;
@@ -164,11 +190,42 @@ SC.map = (function() {
                 if (y < C().NODE_MARGIN || y > SC.worldH() - C().NODE_MARGIN) continue;
                 if (isInRiver(x, y) || Math.abs(x - riverAt(y).x) <= riverAt(y).halfW + 50) continue;
                 if (!farFromOthers(x, y, minDist, node)) continue;
-                if (!clearOfRoads(x, y)) continue;
-                node.x = x;
-                node.y = y;
-                return true;
+                if (SC.roads.pointRoadDist(x, y) < clear) continue;
+                if (virt && segMinDist(x, y, virt) < clear) continue;
+                return { x, y };
             }
+        }
+        return null;
+    }
+
+    // A pool/frontier site is positioned at world-gen, long before the player
+    // lays any roads — so a milestone/customer site can reveal right on top of
+    // a road (the reported case), or on the line where one is about to go. When
+    // that happens this nudges it to the closest nearby spot that's clear,
+    // trying hardest first and loosening in tiers (per the player's suggestion:
+    // nudge a few ways, then give up and keep the original spot):
+    //   1-2. avoid built roads AND likely connection lines (full, then reduced
+    //        clearance / less crowding room);
+    //   3-4. only reached when the node is literally on a built road and *must*
+    //        move — drop the connection-line constraint rather than stay on a
+    //        road. A node merely sitting on an unbuilt line is left put if the
+    //        strict tiers fail (better there than shoved onto another line).
+    // No-op when already clear of both, or when nothing suitable is in reach.
+    function relocateOffRoad(node) {
+        const clear = C().NODE_ROAD_CLEARANCE;
+        const onBuilt = SC.state.edges.length > 0 && !clearOfRoads(node.x, node.y);
+        const virt = candidateConnections(node);
+        const onVirt = segMinDist(node.x, node.y, virt) < clear;
+        if (!onBuilt && !onVirt) return false;
+
+        const tiers = [{ clear: clear, minDist: 120, virt: true },
+                       { clear: clear * 0.7, minDist: 90, virt: true }];
+        if (onBuilt) tiers.push({ clear: clear, minDist: 100, virt: false },
+                                { clear: clear * 0.7, minDist: 80, virt: false });
+
+        for (const t of tiers) {
+            const spot = searchClearSpot(node, t.clear, t.minDist, t.virt ? virt : null);
+            if (spot) { node.x = spot.x; node.y = spot.y; return true; }
         }
         return false;
     }
@@ -360,7 +417,11 @@ SC.map = (function() {
         ];
         for (const [kind, opts] of wants) {
             const spot = frontierSpot(oldW, oldH, C().NODE_MIN_DIST);
-            if (spot) seeded.push(makeNode(kind, spot.x, spot.y, opts));
+            if (spot) {
+                const n = makeNode(kind, spot.x, spot.y, opts);
+                relocateOffRoad(n); // keep it off any road/likely-connection line too
+                seeded.push(n);
+            }
         }
         SC.emit('fieldExpanded', {
             expansions: SC.state.expansions,
