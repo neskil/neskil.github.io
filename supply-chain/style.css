@@ -233,7 +233,11 @@ html, body {
     overflow: hidden;
 }
 #orders-panel { top: 1rem; right: 1rem; }
-#shop-panel { bottom: 1rem; left: 1rem; }
+/* Popover for the bottom-left launcher: sits just above the launcher row,
+   grows upward as its section fills in, and hides entirely when no section
+   is open. */
+#shop-panel { bottom: 4.7rem; left: 1rem; }
+#shop-panel.hidden { display: none; }
 
 .panel-header {
     display: flex;
@@ -362,39 +366,58 @@ html, body {
     margin: 0.7rem 0 0.4rem;
 }
 .shop-section-title.hidden { display: none; }
+/* Only the launcher's selected section shows; the others are display:none.
+   (`.hidden` isn't a global utility in this stylesheet — every use is scoped
+   to its element, so the section divs need their own rule.) */
+.shop-section.hidden { display: none; }
 
-/* ── Shop tab pills ─────────────────────────────── */
-.shop-tabs {
+/* ── Bottom-left launcher (Upgrade / Build / Research) ──
+   A row of three big pill buttons that open the #shop-panel popover above
+   them. Desktop shows icon + text; mobile (below) collapses each to an
+   icon-only circle. Same glassy card language as the other floating controls. */
+#shop-launcher {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    z-index: 101;
     display: flex;
-    gap: 0.3rem;
-    flex: 1;
-    justify-content: flex-end;
-    margin-right: 0.5rem;
+    gap: 0.5rem;
 }
-.shop-tab {
-    padding: 0.2rem 0.55rem;
-    border-radius: 6px;
+.launcher-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 1.05rem;
+    border-radius: 999px;
     border: 1px solid var(--card-border);
-    background: rgba(15, 23, 42, 0.4);
+    background: var(--card-bg);
     color: var(--text-secondary);
-    font-size: 0.7rem;
+    font-size: 0.92rem;
+    font-weight: 600;
     cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     transition: background 0.15s, color 0.15s, border-color 0.15s;
-    white-space: nowrap;
+}
+.launcher-btn .lb-icon { font-size: 1.2rem; line-height: 1; }
+.launcher-btn:hover { border-color: var(--accent-color); color: var(--text-primary); }
+.launcher-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #0f172a;
+}
+.shop-hint {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.4;
+    margin: 0.3rem 0.1rem 0.1rem;
 }
 /* Treat every in-game control as a discrete tap target: skip the browser's
    ~300ms double-tap-zoom detection so a single tap fires immediately on
    touch devices (some Android/iOS browsers otherwise swallow quick taps on
    small buttons — the "buttons do nothing on mobile" symptom). */
-.shop-tab, .shop-btn, .icon-btn, .panel-header, .panel-toggle,
+.launcher-btn, .shop-btn, .icon-btn, .panel-header, .panel-toggle,
 .mode-btn, button, select { touch-action: manipulation; }
-.shop-tab:hover { border-color: var(--accent-color); color: var(--text-primary); }
-.shop-tab.active {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: var(--accent-color);
-    color: var(--text-primary);
-    font-weight: 600;
-}
 
 /* ── Research ────────────────────────────────────── */
 .research-row {
@@ -894,16 +917,18 @@ html, body {
     .hud-label-short { display: block; }
 
     #orders-panel { top: 0.5rem; right: 0.5rem; width: 170px; }
-    #shop-panel { bottom: 0.5rem; left: 0.5rem; width: 212px; }
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
-    /* The Shop/Build tabs already label the panel, so drop the redundant
-       "Shop" heading on phones — it was pushing the two tabs past the fixed
-       panel width, clipping "Build" (overflow:hidden) so it couldn't be
-       tapped. Tighten the tabs a touch too. */
-    #shop-header h2 { display: none; }
-    #shop-panel .shop-tabs { margin-right: 0.3rem; }
-    #shop-panel .shop-tab { padding: 0.22rem 0.45rem; font-size: 0.68rem; }
+    /* Launcher: icon-only circles on phones (text hidden), matching the
+       bottom-right mode/speed pills. The popover sits just above the row. */
+    #shop-launcher { bottom: 0.5rem; left: 0.5rem; gap: 0.4rem; }
+    .launcher-btn {
+        width: 44px; height: 44px; padding: 0;
+        justify-content: center; border-radius: 50%;
+    }
+    .launcher-btn .lb-text { display: none; }
+    .launcher-btn .lb-icon { font-size: 1.25rem; }
+    #shop-panel { bottom: 3.7rem; left: 0.5rem; width: 212px; }
     /* Float toasts above the bottom control cluster (shop / speed / mode)
        instead of on top of it. */
     #toast { bottom: 6rem; }
@@ -916,8 +941,8 @@ html, body {
    bar and the Orders panel keep clear of each other. */
 @media (max-width: 380px) {
     #orders-panel { width: 148px; }
-    /* Shop stays wide enough for both tabs (it's bottom-left, clear of the
-       top-left/orders squeeze that forces #orders-panel narrow). */
+    /* Shop popover stays roomy (it's bottom-left, clear of the top-left/
+       orders squeeze that forces #orders-panel narrow). */
     #shop-panel { width: 200px; }
     .hud-item { padding: 0.3rem 0.4rem; }
     .hud-label { font-size: 0.5rem; }

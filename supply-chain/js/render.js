@@ -1078,14 +1078,23 @@ SC.render = (function() {
         const B4 = getPt(cx + bw * 1.0, bcy, bh * 0.5);
         const B5 = getPt(cx + bw * 0.8, bcy, 0);
 
-        // 1. Draw back wall (pitch black void)
+        // The interior is lit as a tunnel that recedes into darkness rather
+        // than a flat black cut-out: the faceted walls near the mouth catch a
+        // little ambient blue (same hue family as the mountains, so it
+        // "rhymes"), and a radial gradient sinks everything deeper in toward a
+        // near-black vanishing point. Colours stay in the mountain's blue-grey
+        // palette but a couple of stops darker, so the hole reads as depth.
+
+        // 1. Back wall — the deepest, darkest point of the tunnel.
         ctx.beginPath();
         [B0, B1, B2, B3, B4, B5].forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
         ctx.closePath();
-        ctx.fillStyle = fogColor('#05080c', bcy); 
+        ctx.fillStyle = '#070c14';
         ctx.fill();
 
-        // 2. Draw inner tunnel walls connecting Front to Back
+        // 2. Draw inner tunnel walls connecting Front to Back. These carry a
+        //    faint blue so the low-poly facet edges are still legible at the
+        //    rim; the radial fade in step 3 darkens them toward the back.
         const drawWall = (p1, p2, p3, p4, hex) => {
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
@@ -1094,16 +1103,91 @@ SC.render = (function() {
             ctx.fill();
         };
 
-        // Left inner wall
-        drawWall(F0, F1, B1, B0, '#0a1018');
+        // Left inner wall (rim catches a touch of light)
+        drawWall(F0, F1, B1, B0, '#1a2a3d');
         // Top-Left inner wall
-        drawWall(F1, F2, B2, B1, '#0e1622');
+        drawWall(F1, F2, B2, B1, '#20324a');
         // Top-Right inner wall
-        drawWall(F2, F3, B3, B2, '#0a1018');
+        drawWall(F2, F3, B3, B2, '#182838');
         // Right inner wall
-        drawWall(F3, F4, B4, B3, '#070b12');
+        drawWall(F3, F4, B4, B3, '#111d2c');
         // Bottom-Right inner wall
-        drawWall(F4, F5, B5, B4, '#05080c');
+        drawWall(F4, F5, B5, B4, '#0d1622');
+
+        // 3. Depth fade — a radial gradient clipped to the cave opening that is
+        //    transparent at the rim and sinks to near-black toward a vanishing
+        //    point deep inside, so the eye reads a tunnel receding into dark
+        //    instead of a flat silhouette.
+        const cavePts = [F0, F1, F2, F3, F4, F5];
+        const vanish = {
+            x: (B0.x + B1.x + B2.x + B3.x + B4.x + B5.x) / 6,
+            y: (B0.y + B1.y + B2.y + B3.y + B4.y + B5.y) / 6,
+        };
+        // Rim radius: farthest front vertex from the vanishing point.
+        let rimR = 0;
+        for (const p of cavePts) {
+            rimR = Math.max(rimR, Math.hypot(p.x - vanish.x, p.y - vanish.y));
+        }
+        ctx.save();
+        ctx.beginPath();
+        cavePts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.clip();
+        const gDepth = ctx.createRadialGradient(
+            vanish.x, vanish.y, 0, vanish.x, vanish.y, rimR * 1.05);
+        gDepth.addColorStop(0, 'rgba(4, 7, 12, 0.96)');
+        gDepth.addColorStop(0.45, 'rgba(6, 10, 17, 0.72)');
+        gDepth.addColorStop(0.8, 'rgba(8, 14, 22, 0.28)');
+        gDepth.addColorStop(1, 'rgba(8, 14, 22, 0)');
+        ctx.fillStyle = gDepth;
+        ctx.fill();
+        ctx.restore();
+
+        // 4. Water flowing into the cave. The playing-field river
+        //    (drawRiverFieldBg) stops at the coastline; here we continue it
+        //    into the tunnel so it looks like the river simply flowing on into
+        //    the dark rather than a bright patch pasted at the entrance. We
+        //    follow the real river centerline (riverAt extrapolates upstream
+        //    for y < 0) so the sheet lines up exactly with the field river,
+        //    use the *same* water colour at the mouth so the seam is invisible,
+        //    then just darken into the tunnel shadow as it recedes.
+        const wFrontY = 12;          // just outside the mouth (matches the field river)
+        const wBackY = bcy + 2;      // right up against the back wall, deep in
+        const wSteps = 10;
+        const wLeft = [], wRight = [];
+        for (let i = 0; i <= wSteps; i++) {
+            const f = i / wSteps;
+            const wy = wBackY + (wFrontY - wBackY) * f;
+            const rv2 = SC.map.riverAt(wy);
+            if (!rv2) continue;
+            // A touch narrower toward the back so the channel tucks under the
+            // tunnel walls instead of meeting them with a hard edge.
+            const narrow = 0.82 + 0.18 * f;
+            wLeft.push(getPt(rv2.x - rv2.halfW * narrow, wy, 0));
+            wRight.push(getPt(rv2.x + rv2.halfW * narrow, wy, 0));
+        }
+        if (wLeft.length > 1) {
+            ctx.save();
+            ctx.beginPath();
+            wLeft.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+            for (let i = wRight.length - 1; i >= 0; i--) ctx.lineTo(wRight[i].x, wRight[i].y);
+            ctx.closePath();
+
+            const backY = (wLeft[0].y + wRight[0].y) / 2;
+            const frontY = (wLeft[wLeft.length - 1].y + wRight[wRight.length - 1].y) / 2;
+            // Mouth colour matches the field river exactly (same formula as
+            // drawRiverFieldBg's getRiverColor at the edge), so the water
+            // reads as one continuous river flowing into the dark.
+            const mouthCol = mix('#123047', sky, 0.08);
+            const gWater = ctx.createLinearGradient(0, backY, 0, frontY);
+            gWater.addColorStop(0, 'rgba(8, 14, 22, 0.85)');   // dissolves into the tunnel shadow
+            gWater.addColorStop(0.4, 'rgba(13, 30, 45, 0.96)');
+            gWater.addColorStop(0.75, 'rgba(17, 44, 66, 1)');
+            gWater.addColorStop(1, mouthCol);                  // seamless with the field river
+            ctx.fillStyle = gWater;
+            ctx.fill();
+            ctx.restore();
+        }
 
         // 3. Draw outer rock facets (melting into the mountain grid exactly)
         const cell = TERRAIN.cell;
