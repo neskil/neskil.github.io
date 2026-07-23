@@ -2257,7 +2257,8 @@ SC.render = (function() {
         // "in stock / ordered" — how many units are crafted and sitting at
         // the factory waiting for a truck, over how many are still outstanding
         // (waiting + queued + currently crafting). If actively producing, a
-        // second group shows each ingredient's stock (have / need).
+        // second group shows each ingredient's stock (have / need) — "have"
+        // being what's physically on-site, not counting units still in transit.
         if (n.kind === 'factory' && !forSale) {
             // Finished goods waiting at the factory: crafted output becomes a
             // pickup job here and stays on site until a truck actually loads
@@ -2289,25 +2290,12 @@ SC.render = (function() {
                 for (const m in n.inv) {
                     if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + n.inv[m];
                 }
-                // Raw materials en route (unassigned jobs + on trucks).
-                let incoming = {};
-                if (SC.state.jobs) {
-                    for (const job of SC.state.jobs) {
-                        if (job.type === 'raw' && job.drop === n) incoming[job.item] = (incoming[job.item] || 0) + 1;
-                    }
-                }
-                if (SC.state.trucks) {
-                    for (const truck of SC.state.trucks) {
-                        if (truck.jobs) {
-                            for (const job of truck.jobs) {
-                                if (job.type === 'raw' && job.drop === n) incoming[job.item] = (incoming[job.item] || 0) + 1;
-                            }
-                        }
-                    }
-                }
-                for (const m in incoming) {
-                    if (queueNeeds[m]) queueHave[m] = (queueHave[m] || 0) + incoming[m];
-                }
+                // NOTE: material still en route (unassigned jobs or riding a
+                // truck) is deliberately NOT counted here. "have / need" means
+                // stock physically on-site — a unit only counts once a truck
+                // has actually dropped it (task.have via receiveRaw, or loose
+                // n.inv). Counting in-transit units made the pill read 1/1
+                // (full, green) before anything had been delivered.
             }
             const needsKeys = Object.keys(queueNeeds);
 
