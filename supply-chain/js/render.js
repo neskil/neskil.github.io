@@ -1705,7 +1705,9 @@ SC.render = (function() {
             return { base, fw: 22, h, icon: SC.emojiOf(n.recipe), roof: SC.colorOf(n.recipe), stories, stack, door: true };
         }
         if (n.kind === 'yard') {
-            return { base: '#8b5cf6', fw: 21, h: 10, icon: '🅿️', flat: true };
+            // A yard is a flat asphalt lot (drawYardSite), not an extruded
+            // block — no roof icon, the parked trucks are the visual.
+            return { base: '#3a3f4a', fw: 24, h: 0, flat: true };
         }
         if (n.kind === 'junction') {
             return { base: '#7d8898', fw: 15, h: 0 };
@@ -2185,6 +2187,7 @@ SC.render = (function() {
 
         const info = n.kind === 'supplier' ? drawSupplierSite(n, sp, g) // themed scene: farm/lake/mine/…
             : n.kind === 'junction' ? drawJunction(n, sp, g) // roundabout, not a building
+            : n.kind === 'yard' ? drawYardSite(n, sp, g) // asphalt lot with parked trucks
             : prism(g.x, g.y, sp.fw, sp.h * zoom(), sp.base, {
                   ghost: forSale, dashed: forSale, roof: forSale ? null : sp.roof,
                   alpha: forSale ? 0.9 : 1,
@@ -2408,14 +2411,12 @@ SC.render = (function() {
         } else if (n.kind === 'factory' && forSale) {
             labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
         } else if (n.kind === 'yard') {
-            const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
-            labelAt(`${parked} 🚚`, g.x, g.y + footRadii(sp.fw).ry + 12, '#c4b5fd', 11);
+            labelAt('Yard', g.x, g.y + footRadii(sp.fw).ry + 12, '#c4b5fd', 11);
         } else if (n.kind === 'city') {
+            // Idle trucks homed here park physically on an apron in front of
+            // the building (drawn on top so they sit before the doors).
+            drawYardParking(n, g, clampZoom(), false);
             labelAt(n.isHQ ? 'HQ' : 'DC', g.x, g.y + footRadii(sp.fw).ry + 12, n.isHQ ? '#38bdf8' : '#34d399', 11);
-            if (n.isHQ) {
-                const parked = SC.state.trucks.filter(t => t.homeYard === n).length;
-                labelAt(`${parked} 🚚`, g.x, g.y + footRadii(sp.fw).ry + 28, '#7dd3fc', 10);
-            }
         }
     }
 
@@ -2439,12 +2440,11 @@ SC.render = (function() {
         ctx.restore();
     }
 
-    function drawTruckBody(t) {
-        const g = S(t.x, t.y);
-        const z = clampZoom();
-        const item = t.cargo[0];
-        const body = item ? SC.colorOf(item) : '#8b98ab';
-        const ang = truckScreenAngle(t);
+    // Draw a truck's iso body at screen point g, heading `ang` (screen angle),
+    // colored `body`. `moving` gates the night headlights. Returns the trailer
+    // height so callers can hang a cargo badge above it. Shared by moving
+    // trucks (drawTruckBody) and parked trucks in a yard (drawYardParking).
+    function drawTruckAt(g, ang, body, z, moving) {
         const L = 26 * z, W = 11 * z;         // footprint length / width
         const Ht = 9 * z, Hc = 6.5 * z;        // trailer / cab heights
         const trailerCx = -L * 0.16, trailerW = L * 0.68;
@@ -2495,7 +2495,7 @@ SC.render = (function() {
         // Headlights: only at dusk/night and only while moving. Just two soft
         // warm points with a small glow — no hard beam cone (that read as a
         // stray triangle in daylight); they fade in as the light drops.
-        if (t.path && nightLevel > 0.3) {
+        if (moving && nightLevel > 0.3) {
             ctx.save();
             ctx.translate(g.x, g.y - 2 * z); ctx.rotate(ang); ctx.scale(1, 0.6);
             const nose = cabCx + cabW / 2;
@@ -2510,12 +2510,105 @@ SC.render = (function() {
             }
             ctx.restore();
         }
+        return { Ht };
+    }
 
+    function drawTruckBody(t) {
+        const g = S(t.x, t.y);
+        const z = clampZoom();
+        const item = t.cargo[0];
+        const body = item ? SC.colorOf(item) : '#8b98ab';
+        const ang = truckScreenAngle(t);
+        const { Ht } = drawTruckAt(g, ang, body, z, !!t.path);
         if (item) {
             emojiPlateAt(SC.emojiOf(item), g.x, g.y - Ht - 8 * z, 9 * z, 13 * z);
             if (t.cargo.length > 1) labelAt('×' + t.cargo.length, g.x + 13 * z, g.y - Ht - 15 * z, '#f8fafc', 9);
         }
     }
+
+    // Idle trucks homed at `node` are physically parked on an asphalt apron in
+    // neat rows instead of stacking into one sprite under a "N 🚚" label.
+    // Rendered in world-grounded iso: rows/columns run along the two ground
+    // axes, spaced by truck size so they never overlap. `full` draws the whole
+    // footprint as a lot (yard nodes); otherwise it's a small apron in front of
+    // a building (HQ/DC). Screen-space, so it must be called while drawing the
+    // owning node (depth-sorted with it).
+    function drawYardParking(node, g, z, full) {
+        const parked = SC.state.trucks.filter(
+            t => t.homeYard === node && !t.path && t.jobs.length === 0);
+        if (!full && parked.length === 0) return; // no apron under an empty building
+        // iso ground basis in screen space (already includes zoom)
+        const o = S(node.x, node.y);
+        const ux = S(node.x + 1, node.y).x - o.x, uy = S(node.x + 1, node.y).y - o.y;
+        const vx = S(node.x, node.y + 1).x - o.x, vy = S(node.x, node.y + 1).y - o.y;
+        const ul = Math.hypot(ux, uy) || 1, vl = Math.hypot(vx, vy) || 1;
+        const uhx = ux / ul, uhy = uy / ul, vhx = vx / vl, vhy = vy / vl;
+
+        const cols = 2;
+        const colGap = 15 * z, rowGap = 25 * z; // screen spacing between stalls
+        const shown = Math.min(parked.length, 8); // cap the sprite count
+        const rows = Math.max(full ? 2 : 1, Math.ceil(shown / cols));
+
+        // Apron centered on the grid. For a building we push the lot forward
+        // (toward the camera, +v) so it sits in front of the doors, not under
+        // the walls.
+        const cx = g.x + (full ? 0 : (vhx * rowGap * 1.4));
+        const cy = g.y + (full ? 0 : (vhy * rowGap * 1.4));
+        // grid extents (in stall units, centered)
+        const halfC = (cols - 1) / 2, halfR = (rows - 1) / 2;
+        const stall = (c, r) => ({
+            x: cx + uhx * (c - halfC) * colGap + vhx * (r - halfR) * rowGap,
+            y: cy + uhy * (c - halfC) * colGap + vhy * (r - halfR) * rowGap
+        });
+
+        // asphalt pad: a filled iso quad covering the grid + margin
+        const mC = colGap * 0.9, mR = rowGap * 0.75;
+        const corners = [
+            [-halfC * colGap - mC, -halfR * rowGap - mR],
+            [ halfC * colGap + mC, -halfR * rowGap - mR],
+            [ halfC * colGap + mC,  halfR * rowGap + mR],
+            [-halfC * colGap - mC,  halfR * rowGap + mR]
+        ].map(([a, b]) => ({ x: cx + uhx * a + vhx * b, y: cy + uhy * a + vhy * b }));
+        ctx.beginPath();
+        corners.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(38, 42, 52, 0.92)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(15, 18, 24, 0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // painted stall dividers (between columns, running along rows)
+        ctx.strokeStyle = 'rgba(233, 213, 120, 0.55)';
+        ctx.lineWidth = Math.max(1, 1.4 * z);
+        for (let c = 0; c <= cols; c++) {
+            const a = (c - halfC - 0.5) * colGap;
+            const p1 = { x: cx + uhx * a + vhx * (-halfR * rowGap - mR * 0.5), y: cy + uhy * a + vhy * (-halfR * rowGap - mR * 0.5) };
+            const p2 = { x: cx + uhx * a + vhx * ( halfR * rowGap + mR * 0.5), y: cy + uhy * a + vhy * ( halfR * rowGap + mR * 0.5) };
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        }
+
+        // Park nose-in along the bay depth (+v) so each truck's length runs
+        // down its stall between the painted dividers. Fill the front row
+        // (nearest the camera) first.
+        const parkAng = Math.atan2(vhy, vhx);
+        for (let i = 0; i < shown; i++) {
+            const c = i % cols, r = rows - 1 - ((i / cols) | 0);
+            const s = stall(c, r);
+            drawTruckAt(s, parkAng, '#8b98ab', z * 0.82, false);
+        }
+    }
+
+    // A truck yard is a flat parking lot: the apron + stalls + parked trucks
+    // stand in for a building. Mirrors the drawSupplierSite/prism contract by
+    // returning a topCenter (for any hover/selection anchoring) and footprint.
+    function drawYardSite(n, sp, g) {
+        const z = clampZoom();
+        drawYardParking(n, g, z, true);
+        const fr = footRadii(sp.fw);
+        return { topCenter: { x: g.x, y: g.y - 6 * z }, rx: fr.rx, ry: fr.ry };
+    }
+
 
     function emojiPlateAt(ch, sx, sy, r, size) {
         ctx.beginPath();
@@ -3018,7 +3111,11 @@ SC.render = (function() {
         updateTransfers(dt); // spawn/age loading-unloading crates
         const ents = [];
         for (const n of SC.state.nodes) if (n.active) ents.push({ kind: 'node', ref: n, depth: n.x + n.y });
-        for (const t of SC.state.trucks) if (t.cargo !== undefined) ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
+        // Idle trucks (no route, no jobs) are parked in their home yard/HQ
+        // apron by drawNodeBody, so skip them here to avoid a second sprite
+        // stacked at the node centre.
+        for (const t of SC.state.trucks) if (t.cargo !== undefined && (t.path || t.jobs.length > 0))
+            ents.push({ kind: 'truck', ref: t, depth: t.x + t.y + TRUCK_DEPTH_BIAS });
         // crates ride just in front of the truck depth so a nearer site clips them
         for (const tr of transfers) ents.push({ kind: 'transfer', ref: tr, depth: tr.x + tr.y + TRUCK_DEPTH_BIAS + 1 });
         ents.sort((a, b) => a.depth - b.depth);
