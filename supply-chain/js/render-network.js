@@ -860,9 +860,12 @@
     }
 
     function drawYardParking(node, g, z, full) {
-        const parked = SC.state.trucks.filter(
-            t => t.homeYard === node && !t.path && t.jobs.length === 0);
-        if (!full && parked.length === 0) return; // no apron under an empty building
+        // Size the lot off the whole fleet homed here, not just who's currently
+        // parked, so it doesn't blink away every time a truck heads out on a
+        // job and keeps growing as the roster does.
+        const homed = SC.state.trucks.filter(t => t.homeYard === node);
+        if (!full && homed.length === 0) return; // no apron until this building has ever hosted a truck
+        const parked = homed.filter(t => !t.path && t.jobs.length === 0);
         // iso ground basis in screen space (already includes zoom)
         const o = S(node.x, node.y);
         const ux = S(node.x + 1, node.y).x - o.x, uy = S(node.x + 1, node.y).y - o.y;
@@ -872,8 +875,8 @@
 
         const cols = 2;
         const colGap = 15 * z, rowGap = 25 * z; // screen spacing between stalls
-        const shown = Math.min(parked.length, 8); // cap the sprite count
-        const rows = Math.max(full ? 2 : 1, Math.ceil(shown / cols));
+        const fleet = Math.min(homed.length, 8); // cap the lot size (stalls), not just the sprite count
+        const rows = Math.max(full ? 2 : 1, Math.ceil(fleet / cols));
 
         // Apron centered on the grid. For a building we push the lot forward
         // (toward the camera, +v) so it sits in front of the doors, not under
@@ -918,6 +921,7 @@
         // down its stall between the painted dividers. Fill the front row
         // (nearest the camera) first.
         const parkAng = Math.atan2(vhy, vhx);
+        const shown = Math.min(parked.length, fleet); // trucks out on a job just leave their stall empty
         for (let i = 0; i < shown; i++) {
             const c = i % cols, r = rows - 1 - ((i / cols) | 0);
             const s = stall(c, r);
