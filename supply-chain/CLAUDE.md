@@ -26,50 +26,48 @@ Don't couple the two again.)
   a review branch instead (e.g. a PR-based harness) — in that case commit
   and push to that branch and let the normal review/merge flow take it
   from there.
+- **Versioning / cache-busting (single-token model).** The version lives in
+  ONE line — `window.SC_VERSION = 'X.Y.Z'` at the top of `index.html` (and an
+  identical line in `tests.html`). A small inline loader in each file
+  `document.write`s every `<script>`/`<link>` with `?v=SC_VERSION` appended, in
+  the required load order, so the ~40 per-tag query strings no longer exist in
+  the committed HTML. `js/config.js` copies the token into `SC.VERSION` (shown
+  in the ☰ menu). To ship a user-visible change, bump the token in **three
+  isolated spots**: `supply-chain/index.html`, `supply-chain/tests.html`, and
+  the root `index.html` landing link (`supply-chain/index.html?v=X.Y.Z`). Do
+  NOT reintroduce hand-written `?v=` tags on individual scripts, and do NOT
+  hardcode a version in `config.js` — it must read `window.SC_VERSION`.
+  (GitHub Pages caches aggressively / serves the branch directly with no build
+  step, which is why the token is stamped at load time rather than at deploy.)
 - **Merging master under parallel agents (read before resolving conflicts).**
-  Because every agent bumps the version + `?v=` query strings (below), *almost
-  every* master merge conflicts on exactly those lines. That class of conflict
-  is mechanical — the two sides differ only in a version number — but resolving
-  it carelessly is how sibling agents' work gets silently deleted. Rules:
+  With the single-token model the churn is tiny, but conflicts can still hit
+  those token lines (and, genuinely, real code). The hazard is resolving them
+  carelessly and deleting a sibling agent's work. Rules:
     - **Never `git checkout --ours/--theirs <file>` on a whole file to clear a
       merge.** It discards the *entire* other side of the file, including hunks
-      git already auto-merged (a real feature from another agent). The
-      conflict markers only wrap the version lines; everything else in the file
-      was auto-merged and must be kept.
-    - Resolve by stripping just the markers (keep either side of each hunk —
-      they're the same but for the number), then set **one** version across all
-      files: the higher of the two, bumped by one patch level so it exceeds
-      both branches (e.g. master `1.51.0` + your work → `1.51.1`). Re-run the
-      `?v=` sed over `index.html`, `supply-chain/index.html`,
-      `supply-chain/tests.html` and root `index.html` so they all match
-      `SC.VERSION`.
+      git already auto-merged (a real feature from another agent). Resolve
+      hunk-by-hunk instead.
+    - For a version-token conflict: keep either side, then set the token (all
+      three spots + they stay in sync) to the higher of the two bumped by one
+      patch level so it exceeds both branches (e.g. master `1.52.0` + your work
+      → `1.52.1`).
     - **Before committing the merge, prove nothing was dropped:** diff master
-      against the merge base for the conflicted files
+      against the merge base for each conflicted file
       (`git diff $(git merge-base HEAD origin/master) origin/master -- <file>`),
       confirm any non-version changes survived, then run the test suite AND a
       visual smoke (the shop/menu HTML is a frequent parallel-edit hot spot —
       e.g. a renamed button id will pass tests but break the UI).
-  (If this keeps costing merges, the durable fix is to stop hand-editing the
-  ~40 `?v=` tags: make `SC.VERSION` the single source of truth and stamp the
-  query strings from it via a script/CI step, so a merge conflicts on one line
-  at most. Flag it to the maintainer rather than implementing unprompted — it
-  changes the deploy flow every agent relies on.)
-- Bump `SC.VERSION` (top of `js/config.js`) on every commit that ships a
-  user-visible change, and update the `?v=X.Y.Z` cache-busting query on
-  every local `<script>`/`<link>` tag in `index.html` AND `tests.html`,
-  and on the main landing page link at the root `index.html` (e.g. `supply-chain/index.html?v=X.Y.Z`)
-  (GitHub Pages caches aggressively; stale query strings keep mobile
-  browsers on old JS after a deploy).
 - Layering rule: `config/state/map/roads/factories/economy/vehicles/camera`
   are **pure logic** — no DOM, no canvas (that's what makes tests.html
   runnable headless). Only `render/input/ui/main` touch the DOM. Logic
   notifies the UI via `SC.emit(...)`/`SC.on(...)`, never directly.
-- New script files must be added to `index.html`; logic modules also to
-  `tests.html`. Load order matters: config → state → save → sfx → rng →
-  map → camera → roads → factories → economy → vehicles → stats → inspect →
-  research → placement → (render → input → ui → main). (`rng.js` must
-  precede `map.js`: `SC.map`'s IIFE calls `SC.rng.create(...)` at
-  load time to seed its default RNG.)
+- New script files are added by **module name** to the `mods` array in the
+  inline loader (in `index.html`; logic modules also in `tests.html`'s loader)
+  — not as a hand-written `<script>` tag. Load order matters and is the array
+  order: config → state → save → sfx → rng → map → camera → roads → factories
+  → economy → vehicles → stats → inspect → research → placement →
+  (render → input → ui → main). (`rng.js` must precede `map.js`: `SC.map`'s
+  IIFE calls `SC.rng.create(...)` at load time to seed its default RNG.)
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,

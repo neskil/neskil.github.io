@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.51.1">
+    <!-- ⬇ THE version/cache-bust token. This ONE line is all a release bumps;
+         the loaders below stamp ?v=SC_VERSION onto the stylesheet and every
+         module, so a bump no longer rewrites ~40 query-string lines (which,
+         under parallel agent sessions, conflict on every master merge).
+         config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
+    <script>window.SC_VERSION = '1.51.2';</script>
+    <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -311,24 +317,21 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.51.1"></script>
-    <script src="js/state.js?v=1.51.1"></script>
-    <script src="js/save.js?v=1.51.1"></script>
-    <script src="js/sfx.js?v=1.51.1"></script>
-    <script src="js/rng.js?v=1.51.1"></script>
-    <script src="js/map.js?v=1.51.1"></script>
-    <script src="js/camera.js?v=1.51.1"></script>
-    <script src="js/roads.js?v=1.51.1"></script>
-    <script src="js/factories.js?v=1.51.1"></script>
-    <script src="js/economy.js?v=1.51.1"></script>
-    <script src="js/vehicles.js?v=1.51.1"></script>
-    <script src="js/stats.js?v=1.51.1"></script>
-    <script src="js/inspect.js?v=1.51.1"></script>
-    <script src="js/research.js?v=1.51.1"></script>
-    <script src="js/placement.js?v=1.51.1"></script>
-    <script src="js/render.js?v=1.51.1"></script>
-    <script src="js/input.js?v=1.51.1"></script>
-    <script src="js/ui.js?v=1.51.1"></script>
-    <script src="js/main.js?v=1.51.1"></script>
+    <!-- Module load order matters (config → state → … → main; see
+         supply-chain/CLAUDE.md). document.write keeps these parser-inserted, so
+         they execute synchronously in this exact order — identical to hand-
+         written <script> tags, but the version lives only in SC_VERSION above.
+         Add a new module by name to this array (and to tests.html's loader if
+         it's a logic module). -->
+    <script>
+    (function () {
+        var mods = ['config', 'state', 'save', 'sfx', 'rng', 'map', 'camera',
+                    'roads', 'factories', 'economy', 'vehicles', 'stats',
+                    'inspect', 'research', 'placement', 'render', 'input',
+                    'ui', 'main'];
+        for (var i = 0; i < mods.length; i++)
+            document.write('<script src="js/' + mods[i] + '.js?v=' + SC_VERSION + '"><\/script>');
+    })();
+    </script>
 </body>
 </html>
