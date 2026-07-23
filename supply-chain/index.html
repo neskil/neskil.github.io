@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
-    <link rel="stylesheet" href="style.css?v=1.50.7">
+    <link rel="stylesheet" href="style.css?v=1.51.0">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
@@ -84,18 +84,14 @@
         <div class="panel-body" id="orders-list"></div>
     </div>
 
-    <div id="shop-panel" class="panel">
-        <div class="panel-header" id="shop-header">
-            <h2>Shop</h2>
-            <div class="shop-tabs">
-                <button class="shop-tab active" id="shop-tab-shop">🛒 Shop</button>
-                <button class="shop-tab" id="shop-tab-build">🏗️ Build</button>
-            </div>
-            <span class="panel-toggle">▾</span>
-        </div>
+    <!-- Bottom-left: three launcher buttons (Upgrade / Build / Research) open
+         a shared popover panel above them. On desktop each button shows an icon
+         + text label; on mobile they collapse to icon-only circles. Replaces the
+         old collapsible Shop panel with its Shop/Build header tabs. -->
+    <div id="shop-panel" class="panel hidden">
         <div class="panel-body">
-            <!-- ── SHOP TAB ── -->
-            <div id="shop-tab-shop-content">
+            <!-- ── UPGRADE SECTION ── -->
+            <div id="shop-sec-upgrade" class="shop-section">
                 <button class="shop-btn" id="btn-truck">
                     <span class="sname">🚚 Buy truck</span>
                     <span class="price">$500</span>
@@ -121,19 +117,14 @@
                     <span class="price">$450</span>
                 </button>
 
-                <button class="shop-btn" id="btn-research-tree">
-                    <span class="sname">🔬 Research</span>
-                    <span class="price" id="research-shortcut-status">Open tree</span>
-                </button>
-
                 <button class="shop-btn hidden" id="btn-promo">
                     <span class="sname">📣 Run promotion</span>
                     <span class="price">$600</span>
                 </button>
             </div>
 
-            <!-- ── BUILD TAB ── -->
-            <div id="shop-tab-build-content" class="hidden">
+            <!-- ── BUILD SECTION ── -->
+            <div id="shop-sec-build" class="shop-section hidden">
                 <button class="shop-btn build-btn" id="btn-yard">
                     <span class="sname">🅿️ Build truck yard</span>
                     <span class="price">$1,200</span>
@@ -150,7 +141,29 @@
                 <div class="shop-section-title hidden" id="build-title">📍 Place supplier / factory</div>
                 <div id="build-list"></div>
             </div>
+
+            <!-- ── RESEARCH SECTION ── -->
+            <div id="shop-sec-research" class="shop-section hidden">
+                <button class="shop-btn" id="btn-research-tree">
+                    <span class="sname">🔬 Open research tree</span>
+                    <span class="price" id="research-shortcut-status">Open tree</span>
+                </button>
+                <p class="shop-hint">Invest upfront and wait it out to unlock manual site
+                   placement, a bigger credit line, highways, junctions and more.</p>
+            </div>
         </div>
+    </div>
+
+    <div id="shop-launcher">
+        <button class="launcher-btn" data-sec="upgrade" title="Upgrade — buy trucks &amp; upgrades">
+            <span class="lb-icon">⚡</span><span class="lb-text">Upgrade</span>
+        </button>
+        <button class="launcher-btn" data-sec="build" title="Build — yards, junctions, factories">
+            <span class="lb-icon">🏗️</span><span class="lb-text">Build</span>
+        </button>
+        <button class="launcher-btn" data-sec="research" title="Research — unlock new tech">
+            <span class="lb-icon">🔬</span><span class="lb-text">Research</span>
+        </button>
     </div>
 
     <div id="toast"></div>
@@ -298,24 +311,24 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=1.50.7"></script>
-    <script src="js/state.js?v=1.50.7"></script>
-    <script src="js/save.js?v=1.50.7"></script>
-    <script src="js/sfx.js?v=1.50.7"></script>
-    <script src="js/rng.js?v=1.50.7"></script>
-    <script src="js/map.js?v=1.50.7"></script>
-    <script src="js/camera.js?v=1.50.7"></script>
-    <script src="js/roads.js?v=1.50.7"></script>
-    <script src="js/factories.js?v=1.50.7"></script>
-    <script src="js/economy.js?v=1.50.7"></script>
-    <script src="js/vehicles.js?v=1.50.7"></script>
-    <script src="js/stats.js?v=1.50.7"></script>
-    <script src="js/inspect.js?v=1.50.7"></script>
-    <script src="js/research.js?v=1.50.7"></script>
-    <script src="js/placement.js?v=1.50.7"></script>
-    <script src="js/render.js?v=1.50.7"></script>
-    <script src="js/input.js?v=1.50.7"></script>
-    <script src="js/ui.js?v=1.50.7"></script>
-    <script src="js/main.js?v=1.50.7"></script>
+    <script src="js/config.js?v=1.51.0"></script>
+    <script src="js/state.js?v=1.51.0"></script>
+    <script src="js/save.js?v=1.51.0"></script>
+    <script src="js/sfx.js?v=1.51.0"></script>
+    <script src="js/rng.js?v=1.51.0"></script>
+    <script src="js/map.js?v=1.51.0"></script>
+    <script src="js/camera.js?v=1.51.0"></script>
+    <script src="js/roads.js?v=1.51.0"></script>
+    <script src="js/factories.js?v=1.51.0"></script>
+    <script src="js/economy.js?v=1.51.0"></script>
+    <script src="js/vehicles.js?v=1.51.0"></script>
+    <script src="js/stats.js?v=1.51.0"></script>
+    <script src="js/inspect.js?v=1.51.0"></script>
+    <script src="js/research.js?v=1.51.0"></script>
+    <script src="js/placement.js?v=1.51.0"></script>
+    <script src="js/render.js?v=1.51.0"></script>
+    <script src="js/input.js?v=1.51.0"></script>
+    <script src="js/ui.js?v=1.51.0"></script>
+    <script src="js/main.js?v=1.51.0"></script>
 </body>
 </html>
