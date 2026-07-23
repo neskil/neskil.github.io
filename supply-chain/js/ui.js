@@ -981,32 +981,33 @@ SC.ui = (function() {
         });
         $('orders-header').addEventListener('click', () =>
             $('orders-panel').classList.toggle('collapsed'));
-        // Shop tab pills — switch between Shop and Build content sections.
-        // Clicking the panel header (h2/toggle arrow) still collapses the whole panel.
-        function switchShopTab(tab) {
-            const isShop = tab === 'shop';
-            $('shop-tab-shop').classList.toggle('active', isShop);
-            $('shop-tab-build').classList.toggle('active', !isShop);
-            $('shop-tab-shop-content').classList.toggle('hidden', !isShop);
-            $('shop-tab-build-content').classList.toggle('hidden', isShop);
+        // ── Bottom-left launcher buttons (Upgrade / Build / Research) ──
+        // Each button opens the shared popover panel to its own section. Tapping
+        // the button of the already-open section closes the panel again, so the
+        // launcher row doubles as the show/hide toggle. Every button carries its
+        // own click handler (no header/tab propagation dance), which is what made
+        // the old Shop/Build tabs "do nothing" on some mobile browsers.
+        const SHOP_SECTIONS = ['upgrade', 'build', 'research'];
+        function showSection(sec) {
+            SHOP_SECTIONS.forEach(s =>
+                $('shop-sec-' + s).classList.toggle('hidden', s !== sec));
+            document.querySelectorAll('.launcher-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.sec === sec));
+            $('shop-panel').classList.remove('hidden');
         }
-        function openShopTab(tab) {
-            $('shop-panel').classList.remove('collapsed');
-            switchShopTab(tab);
+        function closeShopPanel() {
+            $('shop-panel').classList.add('hidden');
+            document.querySelectorAll('.launcher-btn').forEach(b => b.classList.remove('active'));
+        }
+        function toggleSection(sec) {
             SC.sfx.play('click');
+            const open = !$('shop-panel').classList.contains('hidden');
+            const btn = document.querySelector('.launcher-btn[data-sec="' + sec + '"]');
+            if (open && btn && btn.classList.contains('active')) closeShopPanel();
+            else showSection(sec);
         }
-        $('shop-tab-shop').addEventListener('click', e => { e.stopPropagation(); openShopTab('shop'); });
-        $('shop-tab-build').addEventListener('click', e => { e.stopPropagation(); openShopTab('build'); });
-        // Collapse/expand when the header itself is tapped — but never when the
-        // tap lands on a tab pill. Relying on the tab's stopPropagation alone
-        // was fragile on some mobile browsers: the header's handler still ran,
-        // toggling the panel shut again right after the tab opened it, so the
-        // Shop/Build buttons appeared to "do nothing". This target check is
-        // deterministic regardless of event-propagation quirks.
-        $('shop-header').addEventListener('click', e => {
-            if (e.target.closest('.shop-tab')) return;
-            $('shop-panel').classList.toggle('collapsed');
-        });
+        document.querySelectorAll('.launcher-btn').forEach(b =>
+            b.addEventListener('click', e => { e.stopPropagation(); toggleSection(b.dataset.sec); }));
 
         $('gameover-restart').addEventListener('click', () => {
             SC.save.clear();
@@ -1133,9 +1134,10 @@ SC.ui = (function() {
         updateDifficultyPicker();
         if (window.innerWidth <= 768) {
             $('orders-panel').classList.add('collapsed');
-            $('shop-panel').classList.add('collapsed');
             $('dev-panel').classList.add('collapsed');
         }
+        // The bottom-left Shop popover (#shop-panel) starts hidden on every
+        // viewport now — it opens only when a launcher button is tapped.
         // Headless verification hook (see CLAUDE.md): open the menu on load
         if (new URLSearchParams(location.search).has('menu')) openMenu();
         // ...and/or the research tree overlay
