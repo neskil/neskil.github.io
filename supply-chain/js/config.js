@@ -242,73 +242,75 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 // seconds, then unlocks its effect. `requires` lists prerequisite ids.
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
 // contract to rely on across engines).
+// Research times are all ×0.7 of their original values (30% quicker
+// across the board) — e.g. intersections was 20s, junctions 50s, etc.
 SC.RESEARCH = {
     intersections: {
-        name: 'Road Crossings', emoji: '➕', cost: 150, time: 20, requires: [],
+        name: 'Road Crossings', emoji: '➕', cost: 150, time: 14, requires: [],
         desc: 'Unlocks intersections — place a junction exactly where two roads cross to connect them.'
     },
     junctions: {
-        name: 'Road Junctions', emoji: '🔀', cost: 350, time: 50, requires: ['intersections'],
+        name: 'Road Junctions', emoji: '🔀', cost: 350, time: 35, requires: ['intersections'],
         desc: 'Unlocks placeable junctions — waypoints to fork, merge or reroute roads.'
     },
     manualPlacement: {
-        name: 'Site Requisition', emoji: '📍', cost: 900, time: 70, requires: [],
+        name: 'Site Requisition', emoji: '📍', cost: 900, time: 49, requires: [],
         desc: 'Place a supplier or factory anywhere on the map yourself, for a premium.'
     },
     creditLine2: {
-        name: 'Credit Line II', emoji: '💳', cost: 700, time: 50, requires: [],
+        name: 'Credit Line II', emoji: '💳', cost: 700, time: 35, requires: [],
         desc: 'Raises your credit limit by $1,000.', creditBonus: 1000
     },
     creditLine3: {
-        name: 'Credit Line III', emoji: '💳', cost: 1800, time: 100, requires: ['creditLine2'],
+        name: 'Credit Line III', emoji: '💳', cost: 1800, time: 70, requires: ['creditLine2'],
         desc: 'Raises your credit limit by another $2,000.', creditBonus: 2000
     },
     pavedRoads: {
-        name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 60, requires: [],
+        name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 42, requires: [],
         desc: 'Upgrade individual roads to highways — trucks drive 60% faster on them.'
     },
     overdrive: {
-        name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 90, requires: ['pavedRoads'],
+        name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 63, requires: ['pavedRoads'],
         desc: 'Raises the Truck Speed upgrade cap by 3 levels.',
         upgradeMaxBonus: { truckSpeed: 3 }
     },
     fertilizer: {
-        name: 'Fertilizer Program', emoji: '🌱', cost: 1000, time: 70, requires: [],
+        name: 'Fertilizer Program', emoji: '🌱', cost: 1000, time: 49, requires: [],
         desc: 'All suppliers regenerate stock 50% faster.',
         supplierRegenBonus: 0.5
     },
     automation: {
-        name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 110, requires: ['fertilizer'],
+        name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 77, requires: ['fertilizer'],
         desc: 'Raises the Factory Speed upgrade cap by 3 levels.',
         upgradeMaxBonus: { factorySpeed: 3 }
     },
     premiumContracts: {
-        name: 'Premium Contracts', emoji: '💰', cost: 1400, time: 80, requires: ['creditLine2'],
+        name: 'Premium Contracts', emoji: '💰', cost: 1400, time: 56, requires: ['creditLine2'],
         desc: 'Negotiate better rates — all order payouts +15%.',
         payoutBonus: 0.15
     },
     rapidExpansion: {
-        name: 'Regional Marketing', emoji: '🏙️', cost: 2200, time: 120, requires: ['premiumContracts'],
+        name: 'Regional Marketing', emoji: '🏙️', cost: 2200, time: 84, requires: ['premiumContracts'],
         desc: 'Word gets around — new customer DCs appear 40% sooner.',
         customerSpawnMult: 0.6
     },
     coldStorage: {
-        name: 'Preservatives', emoji: '🧊', cost: 1200, time: 80, requires: ['fertilizer'],
+        name: 'Preservatives', emoji: '🧊', cost: 1200, time: 56, requires: ['fertilizer'],
         desc: 'Goods keep longer — order deadlines +25%.',
         deadlineBonus: 0.25
     },
     bulkLogistics: {
-        name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 120, requires: ['overdrive'],
+        name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 84, requires: ['overdrive'],
         desc: 'Raises the Truck Capacity upgrade cap by 2 levels.',
         upgradeMaxBonus: { truckCapacity: 2 }
     },
     promotions: {
-        name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 100, requires: ['premiumContracts'],
+        name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 70, requires: ['premiumContracts'],
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     },
     autoAcceptContracts: {
-        // Baseline for a single-effect tech at this tier is ~80s (see
-        // premiumContracts/coldStorage); 30% shorter puts this at 56s.
+        // Same-tier single-effect techs (premiumContracts/coldStorage)
+        // land at 56s post-reduction, so this one matches.
         name: 'Standing Orders', emoji: '🤝', cost: 1000, time: 56, requires: ['premiumContracts'],
         desc: 'Unlocks a Shop toggle to auto-accept every contract offer instantly.'
     }

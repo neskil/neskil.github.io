@@ -121,19 +121,19 @@ that ambient animation as its background — it now lives independently at
   ~3× faster order arrivals plus a higher concurrent-order cap. One at
   a time; the timer survives saves (`promoUntil`).
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Fourteen techs:
-  standalone Road Junctions (cheap, early — unlocks placeable junctions,
-  see Growth above); Site Requisition (manual placement); then four
-  branches — Credit Line II/III → Premium Contracts (+15% payouts) →
-  Regional Marketing (customer DCs arrive 40% sooner), Marketing Blitz
-  (unlocks promotions, above), and Standing Orders (unlocks a Shop toggle
-  that auto-accepts every contract offer instantly instead of showing the
-  Accept/Decline card — 56s research, 30% shorter than a same-tier
-  single-effect tech); Asphalt Paving (highways) →
-  Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
-  cap); Fertilizer Program (+50% supplier regen) → Factory Automation
-  (+3 factory-speed cap) and Preservatives (+25% order deadlines).
-  Effect fields are generic — additive bonuses (`creditBonus`,
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Every tech's
+  time is ×0.7 of its original value (research trains 30% faster across
+  the board). Fourteen techs: standalone Road Junctions (cheap, early —
+  unlocks placeable junctions, see Growth above); Site Requisition
+  (manual placement); then four branches — Credit Line II/III → Premium
+  Contracts (+15% payouts) → Regional Marketing (customer DCs arrive 40%
+  sooner), Marketing Blitz (unlocks promotions, above), and Standing
+  Orders (unlocks a Shop toggle that auto-accepts every contract offer
+  instantly instead of showing the Accept/Decline card); Asphalt Paving
+  (highways) → Overdrive Engines (+3 truck-speed cap) → Bulk Logistics
+  (+2 capacity cap); Fertilizer Program (+50% supplier regen) → Factory
+  Automation (+3 factory-speed cap) and Preservatives (+25% order
+  deadlines). Effect fields are generic — additive bonuses (`creditBonus`,
   `payoutBonus`, `deadlineBonus`, `supplierRegenBonus`) sum via
   `research.bonusSum`, `customerSpawnMult` multiplies, and
   `upgradeMaxBonus` raises upgrade caps. The Shop panel keeps a
