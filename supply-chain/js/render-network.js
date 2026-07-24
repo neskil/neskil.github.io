@@ -12,6 +12,23 @@
     let shadowSprite = null;
     let glowSprite = null;
 
+    // Factory production pills (the floating "3/5" stock badges) get dense
+    // once several factories are on screen at once while zoomed out — most
+    // noticeable on a small mobile viewport. Auto-hide is opt-out via the
+    // ☰ menu's "Factory labels" toggle (SC._ui.getHidePills). The threshold
+    // is a fraction of the camera's current zoom range (0 = as far out as
+    // this map/viewport currently allows, 1 = closest in) rather than a raw
+    // zoom number, since minZoom/maxZoom themselves shift as the playing
+    // field expands (see camera.js setViewport).
+    function pillsVisible() {
+        if (!SC._ui || !SC._ui.getHidePills()) return true;
+        const cam = SC.camera.cam;
+        const range = cam.maxZoom - cam.minZoom;
+        const frac = range > 0 ? (zoom() - cam.minZoom) / range : 1;
+        const isMobile = window.innerWidth <= 768;
+        return frac >= (isMobile ? 0.35 : 0.12);
+    }
+
     function strokeEdge(e, width, color, dash) { strokeEdgeRange(e, 0, 1, width, color, dash); }
 
     function strokeEdgeRange(e, t0, t1, width, color, dash) {
@@ -750,7 +767,7 @@
             }
             const needsKeys = Object.keys(queueNeeds);
 
-            if (ordered > 0 || inStock > 0) {
+            if ((ordered > 0 || inStock > 0) && pillsVisible()) {
                 const z = clampZoom();
                 const sy = tc.y - 28 * z;
                 const interFont = `600 ${9 * z}px Inter, system-ui, sans-serif`;
