@@ -176,6 +176,10 @@
         R.ctx.lineCap = 'butt';   // pasture fence) inherit this animated offset
     }
 
+    // Hoisted out of nodeSpec (called ~2×/node/frame) so these lookup sets
+    // aren't reallocated on every call.
+    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire']);
+    const FACTORY_TALL = new Set(['circuit', 'car']);
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
@@ -185,9 +189,9 @@
         }
         if (n.kind === 'factory') {
             let base = '#6b7a90', h = 32, stories = 3, stack = true;
-            if (['bread', 'shoes', 'steel', 'wire'].includes(n.recipe)) {
+            if (FACTORY_LOW.has(n.recipe)) {
                 base = '#7c8b9f'; h = 24; stories = 2; stack = true;
-            } else if (['circuit', 'car'].includes(n.recipe)) {
+            } else if (FACTORY_TALL.has(n.recipe)) {
                 base = '#5c6b7e'; h = 42; stories = 4; stack = false;
             } else if (n.recipe === 'robot') {
                 base = '#4b5563'; h = 52; stories = 5; stack = false;
