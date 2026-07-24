@@ -121,12 +121,15 @@ that ambient animation as its background — it now lives independently at
   ~3× faster order arrivals plus a higher concurrent-order cap. One at
   a time; the timer survives saves (`promoUntil`).
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Thirteen techs:
+  then unlocks its effect — `SC.RESEARCH` in `config.js`. Fourteen techs:
   standalone Road Junctions (cheap, early — unlocks placeable junctions,
   see Growth above); Site Requisition (manual placement); then four
   branches — Credit Line II/III → Premium Contracts (+15% payouts) →
-  Regional Marketing (customer DCs arrive 40% sooner) and Marketing Blitz
-  (unlocks promotions, above); Asphalt Paving (highways) →
+  Regional Marketing (customer DCs arrive 40% sooner), Marketing Blitz
+  (unlocks promotions, above), and Standing Orders (unlocks a Shop toggle
+  that auto-accepts every contract offer instantly instead of showing the
+  Accept/Decline card — 56s research, 30% shorter than a same-tier
+  single-effect tech); Asphalt Paving (highways) →
   Overdrive Engines (+3 truck-speed cap) → Bulk Logistics (+2 capacity
   cap); Fertilizer Program (+50% supplier regen) → Factory Automation
   (+3 factory-speed cap) and Preservatives (+25% order deadlines).
@@ -197,7 +200,11 @@ that ambient animation as its background — it now lives independently at
   panel. Unlike a normal missed order (just a tally, no cost), missing
   an accepted contract's deadline (`expireOrder`) charges a penalty
   proportional to however many units are still undelivered
-  (`CONTRACT_PENALTY_MULT × missingUnits × perUnitRate`).
+  (`CONTRACT_PENALTY_MULT × missingUnits × perUnitRate`). Standing
+  Orders research unlocks a Shop toggle (`SC.state.autoAcceptContracts`,
+  persisted in saves) that skips the Accept/Decline card entirely —
+  `economy.tick` calls `acceptContract` right after `rollContractOffer`
+  whenever the tech is done and the toggle is on.
 - **Dev tools panel**: a lasting ☰-menu toggle ("🛠 Dev tools", persisted
   in localStorage like Sound — `?dev=1` also forces it on for one load).
   Not a normal gameplay feature. Shows a collapsible panel under the
