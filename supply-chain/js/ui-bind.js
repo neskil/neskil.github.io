@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel } = U;
     const getDevMode = U.getDevMode;
 
     SC._ui.bind = function () {
@@ -127,6 +127,16 @@
         $('stats-close').addEventListener('click', () => { SC.sfx.play('click'); closeStatsOverlay(); });
         $('stats-overlay').addEventListener('click', e => {
             if (e.target === $('stats-overlay')) closeStatsOverlay(); // tap outside the card
+        });
+        $('stats-achievements').addEventListener('click', e => {
+            const badge = e.target.closest('[data-ach]');
+            if (!badge) return;
+            SC.sfx.play('click');
+            openAchievementDetail(badge.dataset.ach);
+        });
+        $('ach-detail-close').addEventListener('click', () => { SC.sfx.play('click'); closeAchievementDetail(); });
+        $('ach-detail-overlay').addEventListener('click', e => {
+            if (e.target === $('ach-detail-overlay')) closeAchievementDetail(); // tap outside the card
         });
         if ($('stats-reset-career')) {
             $('stats-reset-career').addEventListener('click', () => {
@@ -324,7 +334,10 @@
         SC.on('achievementUnlocked', id => {
             const a = SC.ACHIEVEMENTS[id];
             SC.sfx.play('unlock');
-            toast(`${a.emoji} Achievement unlocked: ${a.name}!`, 'good');
+            toast(`${a.emoji} Achievement unlocked: ${a.name}! (tap to view)`, 'good', () => {
+                $('menu-overlay').classList.add('hidden'); // in case it was open underneath
+                openStatsOverlay();
+            });
         });
         SC.on('debtWarning', d => {
             SC.sfx.play('error');
