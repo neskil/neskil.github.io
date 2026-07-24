@@ -113,11 +113,9 @@ SC.ui = (function() {
         const yards = st.nodes.filter(SC.isYard);
         if (!st.activeYard || !yards.includes(st.activeYard)) st.activeYard = yards[0];
 
-        const sel = $('yard-select');
-        sel.innerHTML = yards.map(n =>
-            `<option value="${n.id}">${yardLabel(n)} — ${st.trucks.filter(t => t.homeYard === n).length} 🚚</option>`
-        ).join('');
-        sel.value = String(st.activeYard.id);
+        const trucksAt = n => st.trucks.filter(t => t.homeYard === n).length;
+        $('yard-picker-btn').textContent = `${yardLabel(st.activeYard)} — ${trucksAt(st.activeYard)} 🚚 ▾`;
+        if (yardOverlayOpen()) updateYardOverlayList(); // keep truck counts live while open
 
         const btn = $('btn-yard');
         const price = SC.yardPrice();
@@ -129,6 +127,29 @@ SC.ui = (function() {
         // Move-truck: needs an idle truck homed somewhere else
         $('btn-moveTruck').disabled = !st.trucks.some(t =>
             !t.jobs.length && t.homeYard !== st.activeYard && (!t.path || t.phase === 'returning'));
+    }
+
+    // Custom modal replacing the old native <select> — that picker's options
+    // got rebuilt every ~0.4s while the shop panel was open (see updateYards
+    // above), which made the native dropdown flicker/misbehave on mobile.
+    function yardOverlayOpen() { return !$('yard-overlay').classList.contains('hidden'); }
+
+    function updateYardOverlayList() {
+        const st = SC.state;
+        const yards = st.nodes.filter(SC.isYard);
+        $('yard-overlay-list').innerHTML = yards.map(n => `
+            <button class="menu-btn yard-overlay-btn${n === st.activeYard ? ' active' : ''}" data-yard="${n.id}">
+                <span>${yardLabel(n)}</span><span>${st.trucks.filter(t => t.homeYard === n).length} 🚚</span>
+            </button>`).join('');
+    }
+
+    function openYardOverlay() {
+        updateYardOverlayList();
+        $('yard-overlay').classList.remove('hidden');
+    }
+
+    function closeYardOverlay() {
+        $('yard-overlay').classList.add('hidden');
     }
 
     function updateIntersectionBtn() {
@@ -489,6 +510,15 @@ SC.ui = (function() {
     // immediately whenever a tapped road would cross the river, so the
     // bridge-vs-ferry pick happens in context rather than a pre-set toggle ──
     let pendingCrossing = null;
+    // The Bridge/Ferry/Cancel buttons appear right where the finishing tap
+    // landed. On touch devices the browser fires a synthetic 'click' shortly
+    // after the pointerup that opened this overlay, hit-testing the DOM as it
+    // looks *now* — which can land it on whichever button is now sitting at
+    // that same spot, "ghost-clicking" a choice the player never tapped.
+    // Swallowing clicks for a brief window after opening means only a
+    // deliberate second tap can pick bridge/ferry/cancel.
+    const CROSSING_GHOST_CLICK_MS = 350;
+    let crossingOpenedAt = 0;
     function openCrossingChoice(d) {
         pendingCrossing = d;
         const bridgeQuote = SC.roads.quote(d.a, d.b);
@@ -496,16 +526,18 @@ SC.ui = (function() {
         if (!bridgeQuote || !ferryQuote) { pendingCrossing = null; return; }
         $('crossing-bridge-cost').textContent = fmt(bridgeQuote.cost);
         $('crossing-ferry-cost').textContent = fmt(ferryQuote.cost);
+        crossingOpenedAt = performance.now();
         $('crossing-overlay').classList.remove('hidden');
     }
 
     function closeCrossingChoice() {
+        if (performance.now() - crossingOpenedAt < CROSSING_GHOST_CLICK_MS) return;
         pendingCrossing = null;
         $('crossing-overlay').classList.add('hidden');
     }
 
     function chooseCrossing(ferry) {
-        if (!pendingCrossing) return;
+        if (!pendingCrossing || performance.now() - crossingOpenedAt < CROSSING_GHOST_CLICK_MS) return;
         const { a, b, shiftKey } = pendingCrossing;
         const res = SC.roads.build(a, b, { ferry });
         if (res.ok) {
@@ -515,7 +547,8 @@ SC.ui = (function() {
             SC.sfx.play('error');
             toast(`Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, 'error');
         }
-        closeCrossingChoice();
+        pendingCrossing = null;
+        $('crossing-overlay').classList.add('hidden');
     }
 
     function buildRow(kind, good) {
@@ -819,7 +852,7 @@ SC.ui = (function() {
     // smaller). getDevMode gives ui-bind live access to the devMode toggle.
     SC._ui = {
         $, getDevMode: () => devMode,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel,
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay,
     };
 
     return { init, update, toast, openStatsOverlay };

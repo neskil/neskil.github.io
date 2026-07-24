@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay } = U;
     const getDevMode = U.getDevMode;
 
     SC._ui.bind = function () {
@@ -158,9 +158,17 @@
             else { SC.sfx.play('error'); toast(`Credit limit reached — truck costs ${fmt(res.cost)}`, 'error'); }
             updateShop();
         });
-        $('yard-select').addEventListener('change', e => {
-            const node = SC.state.nodes.find(n => n.id === +e.target.value);
+        $('yard-picker-btn').addEventListener('click', () => { SC.sfx.play('click'); openYardOverlay(); });
+        $('yard-overlay-cancel').addEventListener('click', () => { SC.sfx.play('click'); closeYardOverlay(); });
+        $('yard-overlay').addEventListener('click', e => {
+            if (e.target === $('yard-overlay')) { closeYardOverlay(); return; } // tap outside the card
+            const btn = e.target.closest('[data-yard]');
+            if (!btn) return;
+            const node = SC.state.nodes.find(n => n.id === +btn.dataset.yard);
             if (node) SC.state.activeYard = node;
+            SC.sfx.play('click');
+            updateShop();
+            closeYardOverlay();
         });
         $('btn-moveTruck').addEventListener('click', () => {
             const res = SC.vehicles.reassignTruck(SC.state.activeYard);
