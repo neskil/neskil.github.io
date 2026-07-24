@@ -237,11 +237,19 @@ SC.render = (function() {
                    y0 + bg.h * scale < R.canvas.height / R.dpr;
             // Zoom drift: a scaled blit visibly detaches the cached scenery
             // from the live world (mountains swelling/tearing against the
-            // map — the mobile pinch glitch), so it's only allowed as a
-            // ≤120ms stopgap mid-gesture to keep pinch fluid; after that
-            // the layer re-renders at the exact zoom (scale returns to 1).
-            if (!need && cam.zoom !== bg.zoom &&
-                performance.now() - bg.builtAt > 120) need = true;
+            // map — the mobile pinch glitch) once it strays far enough, so
+            // it's only allowed up to a 15% scale drift, and only after a
+            // ≤120ms stopgap mid-gesture to keep pinch fluid; after that the
+            // layer re-renders at the exact zoom (scale returns to 1). Gating
+            // on actual drift (not just "zoom changed at all") matters: a
+            // slow, continuous wheel-zoom changes `cam.zoom` every frame, and
+            // rebaking the whole terrain every 120ms regardless of how far it
+            // had actually drifted made that gesture visibly stutter.
+            if (!need && cam.zoom !== bg.zoom) {
+                const drift = cam.zoom / bg.zoom;
+                if ((drift < 0.85 || drift > 1.15) &&
+                    performance.now() - bg.builtAt > 120) need = true;
+            }
         }
         if (need) { renderBg(); place(); }
         R.ctx.drawImage(bg.cv, x0, y0, bg.w * scale, bg.h * scale);
