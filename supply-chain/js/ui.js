@@ -9,6 +9,11 @@ SC.ui = (function() {
     // so it's a lasting ☰-menu choice, not something to retype ?dev=1 for
     // every visit. The query param still works too (e.g. a fresh browser).
     let devMode = localStorage.getItem('scTycoonDevMode') === 'true';
+    // Factory production pills (the "3/5" stock badges floating over
+    // factories) get dense and cluttered once several are visible while
+    // zoomed out — worst on a small mobile screen. Default on; a ☰-menu
+    // toggle lets anyone who prefers always-on pills opt back in.
+    let hidePills = localStorage.getItem('scTycoonHidePills') !== 'false';
 
     function fmt(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
@@ -58,6 +63,11 @@ SC.ui = (function() {
         localStorage.setItem('scTycoonDevMode', String(devMode));
         $('dev-panel').classList.toggle('hidden', !devMode);
         if (devMode) updateDevPanel();
+    }
+
+    function setHidePills(on) {
+        hidePills = on;
+        localStorage.setItem('scTycoonHidePills', String(hidePills));
     }
 
     function updateDevPanel() {
@@ -786,6 +796,7 @@ SC.ui = (function() {
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
         $('menu-dev').textContent = devMode ? '🛠 Dev tools: on' : '🛠 Dev tools: off';
+        $('menu-pills').textContent = hidePills ? '🏷 Factory labels: auto-hide' : '🏷 Factory labels: always on';
     }
 
     function toggleFullscreen() {
@@ -895,9 +906,13 @@ SC.ui = (function() {
 
     // Published for ui-bind.js (event wiring lives there to keep this file
     // smaller). getDevMode gives ui-bind live access to the devMode toggle.
+    // getHidePills is also read directly by render-network.js each frame to
+    // decide whether the factory production pills should auto-hide at low
+    // zoom — the only cross-module read of a ☰-menu toggle from the render
+    // layer, since drawing (not just event wiring) needs to react to it live.
     SC._ui = {
-        $, getDevMode: () => devMode,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay,
+        $, getDevMode: () => devMode, getHidePills: () => hidePills,
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay,
     };
 
     return { init, update, toast, openStatsOverlay };
