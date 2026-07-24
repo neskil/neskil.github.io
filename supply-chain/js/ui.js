@@ -12,12 +12,25 @@ SC.ui = (function() {
 
     function fmt(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
-    function toast(text, kind) {
+    let toastClickHandler = null;
+    function toast(text, kind, onClick) {
         const el = $('toast');
         el.textContent = text;
-        el.className = 'show ' + (kind || 'info');
+        el.className = 'show ' + (kind || 'info') + (onClick ? ' clickable' : '');
+        toastClickHandler = onClick || null;
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => { el.className = ''; }, 3200);
+        toastTimer = setTimeout(() => { el.className = ''; toastClickHandler = null; }, 3200);
+    }
+    // Wired once here (rather than ui-bind.js) since toastClickHandler is
+    // private to this closure — bind() only sees the exported toast().
+    function bindToastClick() {
+        $('toast').addEventListener('click', () => {
+            if (!toastClickHandler) return;
+            const fn = toastClickHandler;
+            toastClickHandler = null;
+            $('toast').className = '';
+            fn();
+        });
     }
 
     function updateHUD() {
@@ -443,7 +456,7 @@ SC.ui = (function() {
         $('stats-achievements').innerHTML = SC.ACHIEVEMENT_ORDER.map(id => {
             const a = SC.ACHIEVEMENTS[id];
             const done = !!st.achievements[id];
-            return `<div class="stats-ach ${done ? 'unlocked' : 'locked'}" title="${a.desc}">
+            return `<div class="stats-ach ${done ? 'unlocked' : 'locked'}" data-ach="${id}" title="${a.desc}">
                 <span class="ach-emoji">${a.emoji}</span>${a.name}
             </div>`;
         }).join('');
@@ -476,6 +489,7 @@ SC.ui = (function() {
     }
 
     function openStatsOverlay() {
+        SC.state.paused = true; // also reachable straight from the unlock toast, not just the paused ☰ menu
         $('stats-overlay').classList.remove('hidden');
         updateStatsOverlay();
     }
@@ -483,6 +497,24 @@ SC.ui = (function() {
     function closeStatsOverlay() {
         $('stats-overlay').classList.add('hidden');
         SC.state.paused = false; // in case it was opened via the menu
+    }
+
+    // ── Achievement detail: tapping a badge in the Stats overlay explains it —
+    // the grid is too cramped for description text, and hover-only `title`
+    // tooltips don't work on touch. ──
+    function openAchievementDetail(id) {
+        const a = SC.ACHIEVEMENTS[id];
+        const done = !!SC.state.achievements[id];
+        $('ach-detail-emoji').textContent = a.emoji;
+        $('ach-detail-name').textContent = a.name;
+        $('ach-detail-desc').textContent = a.desc;
+        $('ach-detail-status').textContent = done ? '✅ Unlocked' : '🔒 Locked';
+        $('ach-detail-status').className = 'ach-detail-status ' + (done ? 'unlocked' : 'locked');
+        $('ach-detail-overlay').classList.remove('hidden');
+    }
+
+    function closeAchievementDetail() {
+        $('ach-detail-overlay').classList.add('hidden');
     }
 
     // ── River-crossing choice: input.js emits this instead of building
@@ -775,6 +807,7 @@ SC.ui = (function() {
     }
 
     function init() {
+        bindToastClick();
         SC._ui.bind();
         bindDifficultyPicker();
         drawRecipeGraph();
@@ -819,7 +852,7 @@ SC.ui = (function() {
     // smaller). getDevMode gives ui-bind live access to the devMode toggle.
     SC._ui = {
         $, getDevMode: () => devMode,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel,
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel,
     };
 
     return { init, update, toast, openStatsOverlay };
