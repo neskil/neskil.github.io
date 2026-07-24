@@ -99,7 +99,12 @@
 
     function drawTruckBody(t) {
         const g = S(t.x, t.y);
-        const z = clampZoom();
+        // A truck is a physical object like a building or road, not a UI
+        // overlay, so it scales with the real camera zoom (uncapped) rather
+        // than clampZoom() — using the clamped value made trucks freeze at
+        // a fixed size past 0.8-1.6x zoom while buildings kept scaling,
+        // so the fleet visibly mismatched the world around it.
+        const z = zoom();
         const item = t.cargo[0];
         const body = item ? SC.colorOf(item) : '#8b98ab';
         const ang = truckScreenAngle(t);
