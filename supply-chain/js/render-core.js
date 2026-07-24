@@ -34,6 +34,14 @@ SC.render = (function() {
     const ISO = SC.camera.ISO;
     let floaters = [];                      // (unused placeholder; floaters live in render-actors)
 
+    // Parsed-colour cache. mix()/shade()/rgba()/hexToRgb() are called dozens of
+    // times per entity per frame, almost always with a constant '#rrggbb'
+    // palette colour, and each call otherwise re-parses the same string. We
+    // memoise ONLY the '#hex' inputs — that set is small and fixed (goods
+    // colours, node bases, sky keyframes) so the cache is bounded — and leave
+    // the dynamic 'rgb(...)' blend strings (which vary every frame) uncached so
+    // the map can't grow without limit.
+    const _rgbCache = new Map();
     function hexToRgb(hex) {
         // Accept both '#rrggbb' and 'rgb(r, g, b)' so mix()/shade() output can
         // be fed back in (the day/night sky blends colours in several steps).
@@ -41,8 +49,11 @@ SC.render = (function() {
             const m = hex.match(/-?\d+/g);
             return { r: +m[0], g: +m[1], b: +m[2] };
         }
-        const h = hex.replace('#', '');
-        return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16) };
+        let c = _rgbCache.get(hex);
+        if (c) return c;
+        c = { r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) };
+        _rgbCache.set(hex, c);
+        return c;
     }
 
     function shade(hex, amt) {
@@ -226,11 +237,19 @@ SC.render = (function() {
                    y0 + bg.h * scale < R.canvas.height / R.dpr;
             // Zoom drift: a scaled blit visibly detaches the cached scenery
             // from the live world (mountains swelling/tearing against the
-            // map — the mobile pinch glitch), so it's only allowed as a
-            // ≤120ms stopgap mid-gesture to keep pinch fluid; after that
-            // the layer re-renders at the exact zoom (scale returns to 1).
-            if (!need && cam.zoom !== bg.zoom &&
-                performance.now() - bg.builtAt > 120) need = true;
+            // map — the mobile pinch glitch) once it strays far enough, so
+            // it's only allowed up to a 15% scale drift, and only after a
+            // ≤120ms stopgap mid-gesture to keep pinch fluid; after that the
+            // layer re-renders at the exact zoom (scale returns to 1). Gating
+            // on actual drift (not just "zoom changed at all") matters: a
+            // slow, continuous wheel-zoom changes `cam.zoom` every frame, and
+            // rebaking the whole terrain every 120ms regardless of how far it
+            // had actually drifted made that gesture visibly stutter.
+            if (!need && cam.zoom !== bg.zoom) {
+                const drift = cam.zoom / bg.zoom;
+                if ((drift < 0.85 || drift > 1.15) &&
+                    performance.now() - bg.builtAt > 120) need = true;
+            }
         }
         if (need) { renderBg(); place(); }
         R.ctx.drawImage(bg.cv, x0, y0, bg.w * scale, bg.h * scale);
