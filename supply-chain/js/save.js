@@ -42,6 +42,7 @@ SC.save = (function() {
             seed: st.seed,
             worldW: st.worldW, worldH: st.worldH, expansions: st.expansions,
             congestionEnabled: st.congestionEnabled,
+            autoAcceptContracts: st.autoAcceptContracts,
             money: st.money, earnedTotal: st.earnedTotal,
             interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
@@ -122,6 +123,7 @@ SC.save = (function() {
         st.expansions = data.expansions || 0;
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
+        st.autoAcceptContracts = !!data.autoAcceptContracts;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         if (data.research) {
             st.research.completed = Object.assign({}, data.research.completed);

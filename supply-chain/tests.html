@@ -1839,6 +1839,34 @@
             SC.state.contractOffer === null);
     })();
 
+    // ── Contracts: Standing Orders research auto-accepts new offers ─
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.state.nextContractIn = 0.05;
+        SC.economy.tick(0.1);
+        assert('with the toggle off, a rolled offer still waits for Accept/Decline',
+            SC.state.contractOffer !== null);
+
+        SC.economy.declineContract();
+        SC.state.research.completed.autoAcceptContracts = true;
+        SC.state.autoAcceptContracts = false;
+        SC.state.nextContractIn = 0.05;
+        SC.economy.tick(0.1);
+        assert('researched but toggled off still waits for Accept/Decline',
+            SC.state.contractOffer !== null);
+
+        SC.economy.declineContract();
+        SC.state.autoAcceptContracts = true;
+        SC.state.nextContractIn = 0.05;
+        SC.economy.tick(0.1);
+        assert('researched and toggled on auto-accepts the offer into a real order',
+            SC.state.contractOffer === null && SC.state.orders.some(o => o.contract));
+
+        SC.save.restore(SC.save.serialize());
+        assert('the auto-accept toggle survives a save round-trip', SC.state.autoAcceptContracts === true);
+    })();
+
     // ── Contracts: save round-trip for offer, order flag and timer ─
     (function() {
         const { S1, S2, F, C } = fixture();

@@ -98,6 +98,7 @@ SC.ui = (function() {
         updateResearchShortcut();
         updateResearchTree();
         updatePromo();
+        updateAutoAccept();
         updateBuild();
     }
 
@@ -113,6 +114,16 @@ SC.ui = (function() {
             btn.disabled = !SC.canAfford(SC.CONFIG.PROMO_COST);
             btn.querySelector('.price').textContent = fmt(SC.CONFIG.PROMO_COST);
         }
+    }
+
+    // ── Standing Orders (auto-accept contracts): a Shop toggle, only
+    // shown once researched — mirrors the dev-panel Congestion toggle. ──
+    function updateAutoAccept() {
+        const btn = $('btn-auto-accept');
+        btn.classList.toggle('hidden', !SC.research.isDone('autoAcceptContracts'));
+        if (btn.classList.contains('hidden')) return;
+        btn.classList.toggle('active', SC.state.autoAcceptContracts);
+        btn.querySelector('.price').textContent = SC.state.autoAcceptContracts ? 'On' : 'Off';
     }
 
     // ── Truck yards: HQ is always one; more can be built (not research-
@@ -278,6 +289,7 @@ SC.ui = (function() {
             premiumContracts: { col: 2, row: 1 },
             rapidExpansion: { col: 1.5, row: 2 },
             promotions: { col: 2.5, row: 2 },
+            autoAcceptContracts: { col: 2, row: 3 },
 
             // Asphalt Paving subtree (shifted by 1 column to the left)
             pavedRoads: { col: 3.5, row: 0 },

@@ -41,6 +41,7 @@ SC.newState = function(difficulty) {
         contractOffer: null, // { product, city, qty, payout, deadline, timeLeft } awaiting Accept/Decline
         nextContractIn: SC.CONFIG.CONTRACT_INTERVAL[0] +
             Math.random() * (SC.CONFIG.CONTRACT_INTERVAL[1] - SC.CONFIG.CONTRACT_INTERVAL[0]),
+        autoAcceptContracts: false, // player toggle, only effective once 'autoAcceptContracts' is researched
 
         trucks: [],         // see vehicles.js
         jobs: [],           // pending haul jobs
