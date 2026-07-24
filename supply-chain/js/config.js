@@ -305,11 +305,17 @@ SC.RESEARCH = {
     promotions: {
         name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 100, requires: ['premiumContracts'],
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
+    },
+    autoAcceptContracts: {
+        // Baseline for a single-effect tech at this tier is ~80s (see
+        // premiumContracts/coldStorage); 30% shorter puts this at 56s.
+        name: 'Standing Orders', emoji: '🤝', cost: 1000, time: 56, requires: ['premiumContracts'],
+        desc: 'Unlocks a Shop toggle to auto-accept every contract offer instantly.'
     }
 };
 SC.RESEARCH_ORDER = ['intersections', 'junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
-                     'rapidExpansion', 'promotions', 'bulkLogistics'];
+                     'rapidExpansion', 'promotions', 'autoAcceptContracts', 'bulkLogistics'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city

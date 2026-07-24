@@ -371,7 +371,15 @@ SC.economy = (function() {
             if (SC.state.contractOffer.timeLeft <= 0) declineContract();
         } else if (!SC.state.orders.some(o => o.contract)) {
             SC.state.nextContractIn -= dt;
-            if (SC.state.nextContractIn <= 0) rollContractOffer();
+            if (SC.state.nextContractIn <= 0) {
+                rollContractOffer();
+                // Standing Orders research + the player's toggle: skip the
+                // Accept/Decline card and take every offer immediately.
+                if (SC.state.contractOffer && SC.state.autoAcceptContracts &&
+                    SC.research.isDone('autoAcceptContracts')) {
+                    acceptContract();
+                }
+            }
         }
 
         // New customer DCs (cities) unlock on their own clock, independent

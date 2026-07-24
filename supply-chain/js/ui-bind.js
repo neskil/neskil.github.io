@@ -219,6 +219,12 @@
             else if (res.reason === 'money') { SC.sfx.play('error'); toast(`Credit limit reached — promotion costs ${fmt(res.cost)}`, 'error'); }
             updateShop();
         });
+        $('btn-auto-accept').addEventListener('click', () => {
+            SC.state.autoAcceptContracts = !SC.state.autoAcceptContracts;
+            SC.sfx.play('click');
+            toast(SC.state.autoAcceptContracts ? '🤝 Contracts will auto-accept' : 'Auto-accept off', 'info');
+            updateShop();
+        });
         $('btn-research-tree').addEventListener('click', () => { SC.sfx.play('click'); openResearchTree(); });
         $('research-tree-close').addEventListener('click', () => { SC.sfx.play('click'); closeResearchTree(); });
         $('research-overlay').addEventListener('click', e => {
