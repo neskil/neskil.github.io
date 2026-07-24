@@ -858,7 +858,7 @@
         } else if (n.kind === 'city') {
             // Idle trucks homed here park physically on an apron in front of
             // the building (drawn on top so they sit before the doors).
-            drawYardParking(n, g, clampZoom(), false);
+            drawYardParking(n, g, zoom(), false);
             labelAt(n.isHQ ? 'HQ' : 'DC', g.x, g.y + footRadii(sp.fw).ry + 12, n.isHQ ? '#38bdf8' : '#34d399', 11);
         }
     }
@@ -934,7 +934,7 @@
     }
 
     function drawYardSite(n, sp, g) {
-        const z = clampZoom();
+        const z = zoom();
         drawYardParking(n, g, z, true);
         const fr = footRadii(sp.fw);
         return { topCenter: { x: g.x, y: g.y - 6 * z }, rx: fr.rx, ry: fr.ry };
