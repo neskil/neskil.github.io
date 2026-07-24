@@ -650,10 +650,45 @@ html, body {
     text-align: center;
     font-size: 0.68rem;
     line-height: 1.3;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
 }
+.stats-ach:hover, .stats-ach:active { border-color: var(--accent-color); transform: translateY(-1px); }
 .stats-ach .ach-emoji { font-size: 1.3rem; display: block; margin-bottom: 0.2rem; }
 .stats-ach.locked { opacity: 0.35; filter: grayscale(1); }
 .stats-ach.unlocked { border-color: rgba(250, 204, 21, 0.5); background: rgba(120, 90, 15, 0.2); }
+
+/* ── Achievement detail popup: tapping a badge above opens this — the
+   grid cells are too small for description text, and touch has no hover
+   for the `title` tooltip that desktop still gets. ── */
+#ach-detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 320;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#ach-detail-overlay.hidden { display: none; }
+.ach-detail-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    padding: 1.6rem;
+    width: 320px;
+    max-width: 90vw;
+    text-align: center;
+}
+.ach-detail-emoji { font-size: 2.6rem; display: block; margin-bottom: 0.6rem; }
+.ach-detail-card h1 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+.ach-detail-card p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.9rem; line-height: 1.4; }
+.ach-detail-status { font-size: 0.8rem; font-weight: 600; margin-bottom: 1rem; }
+.ach-detail-status.unlocked { color: var(--good); }
+.ach-detail-status.locked { color: var(--text-secondary); }
 .rt-edge { fill: none; stroke: rgba(148, 163, 184, 0.35); stroke-width: 2; }
 .rt-edge.rt-edge-done { stroke: var(--good); stroke-width: 2.5; }
 
@@ -708,6 +743,7 @@ html, body {
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.good { border-color: rgba(52, 211, 153, 0.5); }
 #toast.error { border-color: rgba(248, 113, 113, 0.5); }
+#toast.clickable { pointer-events: auto; cursor: pointer; }
 
 /* ── Menu overlay ────────────────────────────────── */
 #menu-overlay {
