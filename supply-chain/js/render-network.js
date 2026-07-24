@@ -193,6 +193,10 @@
         R.ctx.lineCap = 'butt';   // pasture fence) inherit this animated offset
     }
 
+    // Hoisted out of nodeSpec (called ~2×/node/frame) so these lookup sets
+    // aren't reallocated on every call.
+    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire']);
+    const FACTORY_TALL = new Set(['circuit', 'car']);
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
@@ -202,9 +206,9 @@
         }
         if (n.kind === 'factory') {
             let base = '#6b7a90', h = 32, stories = 3, stack = true;
-            if (['bread', 'shoes', 'steel', 'wire'].includes(n.recipe)) {
+            if (FACTORY_LOW.has(n.recipe)) {
                 base = '#7c8b9f'; h = 24; stories = 2; stack = true;
-            } else if (['circuit', 'car'].includes(n.recipe)) {
+            } else if (FACTORY_TALL.has(n.recipe)) {
                 base = '#5c6b7e'; h = 42; stories = 4; stack = false;
             } else if (n.recipe === 'robot') {
                 base = '#4b5563'; h = 52; stories = 5; stack = false;
@@ -871,7 +875,7 @@
         } else if (n.kind === 'city') {
             // Idle trucks homed here park physically on an apron in front of
             // the building (drawn on top so they sit before the doors).
-            drawYardParking(n, g, clampZoom(), false);
+            drawYardParking(n, g, zoom(), false);
             labelAt(n.isHQ ? 'HQ' : 'DC', g.x, g.y + footRadii(sp.fw).ry + 12, n.isHQ ? '#38bdf8' : '#34d399', 11);
         }
     }
@@ -947,7 +951,7 @@
     }
 
     function drawYardSite(n, sp, g) {
-        const z = clampZoom();
+        const z = zoom();
         drawYardParking(n, g, z, true);
         const fr = footRadii(sp.fw);
         return { topCenter: { x: g.x, y: g.y - 6 * z }, rx: fr.rx, ry: fr.ry };
