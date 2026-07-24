@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.52.1';</script>
+    <script>window.SC_VERSION = '1.52.2';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -103,8 +103,8 @@
                     <span class="price">$500</span>
                 </button>
                 <div class="yard-picker">
-                    <label for="yard-select">Station new trucks at</label>
-                    <select id="yard-select"></select>
+                    <label>Station new trucks at</label>
+                    <button class="yard-picker-btn" id="yard-picker-btn"></button>
                 </div>
                 <button class="shop-btn" id="btn-moveTruck">
                     <span class="sname">⇄ Move an idle truck here</span>
@@ -187,6 +187,19 @@
                 ⛴️ Ferry (cheaper, slower) <span class="crossing-cost" id="crossing-ferry-cost"></span>
             </button>
             <button class="menu-btn" id="crossing-cancel">✕ Cancel</button>
+        </div>
+    </div>
+
+    <!-- Truck-yard picker: a custom modal instead of a native <select>, which
+         flickered on mobile (its options get rebuilt every ~0.4s while the
+         shop panel is open, and the native dropdown UI doesn't like that). -->
+    <div id="yard-overlay" class="hidden">
+        <div class="menu-card">
+            <div class="menu-title">
+                <h1>🅿️ Station new trucks</h1>
+            </div>
+            <div id="yard-overlay-list"></div>
+            <button class="menu-btn" id="yard-overlay-cancel">✕ Cancel</button>
         </div>
     </div>
 

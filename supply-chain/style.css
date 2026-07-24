@@ -674,7 +674,7 @@ html, body {
     font-size: 0.75rem;
     color: var(--text-secondary);
 }
-.yard-picker select {
+.yard-picker-btn {
     flex: 1;
     max-width: 60%;
     background: rgba(15, 23, 42, 0.6);
@@ -683,6 +683,39 @@ html, body {
     color: var(--text-primary);
     font-size: 0.75rem;
     padding: 0.3rem 0.4rem;
+    text-align: right;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.yard-picker-btn:hover { border-color: var(--accent-color); }
+
+/* ── Truck-yard picker overlay (mirrors #crossing-overlay) ── */
+#yard-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 310;
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+#yard-overlay.hidden { display: none; }
+/* Compound selector so this beats .menu-btn's `display: block` regardless
+   of source order (both are single-class rules otherwise — a tie goes to
+   whichever is declared later, which is fragile to reorder by accident). */
+#yard-overlay-list .yard-overlay-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#yard-overlay-list .yard-overlay-btn.active {
+    border-color: var(--accent-color);
+    background: rgba(56, 189, 248, 0.18);
 }
 
 /* ── Toast ───────────────────────────────────────── */
