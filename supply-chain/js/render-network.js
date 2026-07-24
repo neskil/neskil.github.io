@@ -895,8 +895,8 @@
         const uhx = ux / ul, uhy = uy / ul, vhx = vx / vl, vhy = vy / vl;
 
         const cols = 2;
-        const colGap = 15 * z, rowGap = 25 * z; // screen spacing between stalls
-        const fleet = Math.min(homed.length, 8); // cap the lot size (stalls), not just the sprite count
+        const colGap = 11 * z, rowGap = 25 * z; // screen spacing between stalls
+        const fleet = Math.min(homed.length, 6); // cap the lot size (stalls), not just the sprite count
         const rows = Math.max(full ? 2 : 1, Math.ceil(fleet / cols));
 
         // Apron centered on the grid. For a building we push the lot forward
