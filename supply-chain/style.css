@@ -919,15 +919,7 @@ html, body {
     #orders-panel { top: 0.5rem; right: 0.5rem; width: 170px; }
     .panel-header { padding: 0.6rem 0.8rem; }
     .panel-header h2 { font-size: 0.85rem; }
-    /* Launcher: icon-only circles on phones (text hidden), matching the
-       bottom-right mode/speed pills. The popover sits just above the row. */
     #shop-launcher { bottom: 0.5rem; left: 0.5rem; gap: 0.4rem; }
-    .launcher-btn {
-        width: 44px; height: 44px; padding: 0;
-        justify-content: center; border-radius: 50%;
-    }
-    .launcher-btn .lb-text { display: none; }
-    .launcher-btn .lb-icon { font-size: 1.25rem; }
     #shop-panel { bottom: 3.7rem; left: 0.5rem; width: 212px; }
     /* Float toasts above the bottom control cluster (shop / speed / mode)
        instead of on top of it. */
@@ -935,6 +927,24 @@ html, body {
     .research-tree-card { padding: 0.8rem; }
     .stats-card { padding: 0.8rem; }
     .stats-ach-grid { grid-template-columns: repeat(2, 1fr); }
+}
+/* Launcher: icon-only circles in portrait — bigger than the mode/speed
+   pills since these are the primary action buttons, easier to thumb-tap
+   one-handed. Landscape has the vertical room to keep the text label
+   (like desktop), so it stays a pill instead of shrinking to an icon. */
+@media (max-width: 768px) and (orientation: portrait) {
+    #shop-launcher { gap: 0.55rem; }
+    .launcher-btn {
+        width: 54px; height: 54px; padding: 0;
+        justify-content: center; border-radius: 50%;
+    }
+    .launcher-btn .lb-text { display: none; }
+    .launcher-btn .lb-icon { font-size: 1.4rem; }
+}
+@media (max-width: 768px) and (orientation: landscape) {
+    #shop-launcher { bottom: 0.4rem; left: 0.4rem; gap: 0.35rem; }
+    .launcher-btn { padding: 0.5rem 0.85rem; font-size: 0.82rem; }
+    .launcher-btn .lb-icon { font-size: 1.05rem; }
 }
 
 /* Narrow phones (older/smaller devices): shrink further so the top-left
