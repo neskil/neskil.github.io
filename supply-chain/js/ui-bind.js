@@ -5,8 +5,9 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel } = U;
     const getDevMode = U.getDevMode;
+    const getHidePills = U.getHidePills;
 
     SC._ui.bind = function () {
         $('speed-toggle').addEventListener('click', e => {
@@ -99,6 +100,11 @@
         });
         $('menu-sound').addEventListener('click', () => {
             SC.sfx.toggleMute();
+            updateMenuInfo();
+        });
+        $('menu-pills').addEventListener('click', () => {
+            setHidePills(!getHidePills());
+            SC.sfx.play('click');
             updateMenuInfo();
         });
         $('menu-fullscreen').addEventListener('click', () => {
