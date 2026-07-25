@@ -35,6 +35,15 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.56.0: **road overlap rules** — a road may no longer be laid over the
+  top of the network: it can't brush past a site it doesn't connect to
+  (`NODE_ROAD_CLEARANCE`), and it can't cross another road until the
+  early **Road Crossings** research, after which each crossing builds a
+  paid **interchange** (a junction node splitting both roads). Late-game
+  maps had degenerated into a cat's cradle of map-long diagonals drawn
+  straight over everything; now the geometry has to be planned, junctions
+  earn their keep, and the crossings research does what its name says.
+  See README "Overlap rules".
 - v1.37.0: **Stats & Achievements screen** (☰ menu) — deliveries per
   product, a money-over-time sparkline, busiest road by trip count, and
   nine milestone badges. Per item 14 below — details there.

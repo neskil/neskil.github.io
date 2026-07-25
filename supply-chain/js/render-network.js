@@ -1153,6 +1153,15 @@
         }
     }
 
+    // Short-form of SC.roads.blockMessage, for the floating ghost label
+    // (input.js toasts the full sentence when the tap is actually refused).
+    const GHOST_BLOCK_LABEL = {
+        node: 'runs over a site',
+        crossing: 'roads can’t cross — research ➕',
+        tight: 'no room for a junction',
+        water: 'crossing over the river'
+    };
+
     function drawGhostRoad() {
         const sel = SC.state.selectedNode;
         const hover = SC.input.getHover && SC.input.getHover();
@@ -1165,20 +1174,29 @@
         const end = target ? { x: target.x, y: target.y } : hover;
         // Shows the bridge cost when crossing the river — the actual
         // bridge-vs-ferry choice happens in a modal once the road is tapped.
+        // Also previews the overlap rules (SC.roads.checkSegment): the ghost
+        // goes red with the reason when a road would run over a site or cross
+        // one illegally, and rings the interchange junctions a legal crossing
+        // would build (their fee is already in `cost`).
         const q = target ? SC.roads.quote(sel, target) : (() => {
             const len = Math.hypot(sel.x - end.x, sel.y - end.y);
             const bridge = SC.map.segmentCrossesRiver(sel.x, sel.y, end.x, end.y);
             const mult = bridge ? SC.CONFIG.BRIDGE_MULT : 1;
-            return { len, bridge, ferry: false, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) };
+            const chk = SC.roads.checkSegment(sel.x, sel.y, end.x, end.y, [sel]);
+            const fee = chk.crossings.length * SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+            return { len, bridge, ferry: false, crossings: chk.crossings, fee,
+                     cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) + fee,
+                     blocked: chk.blocked, node: chk.node, at: chk.at };
         })();
         if (!q) return;
 
-        const affordable = SC.canAfford(q.cost);
+        const ok = SC.canAfford(q.cost) && !q.blocked;
+        const color = ok ? '#34d399' : '#f87171';
         const a = S(sel.x, sel.y), b = S(end.x, end.y);
         R.ctx.beginPath();
         R.ctx.moveTo(a.x, a.y);
         R.ctx.lineTo(b.x, b.y);
-        R.ctx.strokeStyle = affordable ? 'rgba(52, 211, 153, 0.7)' : 'rgba(248, 113, 113, 0.7)';
+        R.ctx.strokeStyle = rgba(color, 0.7);
         R.ctx.lineWidth = Math.max(3, 4 * zoom());
         R.ctx.lineCap = 'round';
         R.ctx.setLineDash([10, 8]);
@@ -1186,10 +1204,41 @@
         R.ctx.setLineDash([]);
         R.ctx.lineCap = 'butt';
 
+        if (q.blocked) {
+            // Mark what's in the way: the site the road would run over, or
+            // the crossing it can't make.
+            const spot = q.blocked === 'node' ? q.node : q.at;
+            if (spot) {
+                const p = S(spot.x, spot.y);
+                const r = 9 * clampZoom();
+                R.ctx.strokeStyle = rgba('#f87171', 0.95);
+                R.ctx.lineWidth = 2.5;
+                R.ctx.beginPath();
+                R.ctx.moveTo(p.x - r, p.y - r * 0.6);
+                R.ctx.lineTo(p.x + r, p.y + r * 0.6);
+                R.ctx.moveTo(p.x + r, p.y - r * 0.6);
+                R.ctx.lineTo(p.x - r, p.y + r * 0.6);
+                R.ctx.stroke();
+            }
+        } else {
+            for (const c of q.crossings || []) {
+                const p = S(c.x, c.y);
+                R.ctx.beginPath();
+                R.ctx.ellipse(p.x, p.y, 9 * clampZoom(), 5 * clampZoom(), 0, 0, Math.PI * 2);
+                R.ctx.strokeStyle = rgba('#34d399', 0.95);
+                R.ctx.lineWidth = 2;
+                R.ctx.setLineDash([4, 3]);
+                R.ctx.stroke();
+                R.ctx.setLineDash([]);
+            }
+        }
+
         const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
-        const crossingLabel = q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : '';
         const mp = S(mx, my);
-        labelAt(`$${q.cost}${crossingLabel}`, mp.x, mp.y - 14, affordable ? '#34d399' : '#f87171');
+        const n = (q.crossings || []).length;
+        const label = q.blocked ? GHOST_BLOCK_LABEL[q.blocked]
+            : `$${q.cost}${q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : ''}${n ? ` — ${n} 🔀` : ''}`;
+        labelAt(label, mp.x, mp.y - 14, color);
     }
 
     function drawPlacementGhost() {

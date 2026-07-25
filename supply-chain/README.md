@@ -37,7 +37,9 @@ that ambient animation as its background — it now lives independently at
   the order shows "no route!" until you build one.
 - **Roads**: tap node → tap node. Cost scales with length; crossing the
   river costs 3× (bridge). Tap a road twice to demolish for a 50% refund
-  (refused while a truck is on it).
+  (refused while a truck is on it). Roads can't be laid over the top of
+  each other — see **Overlap rules** below, the thing that makes the
+  network a plan rather than a cat's cradle.
 - **Modes** (bottom-right toggle): **Build** (🔨, default) is the road
   tap-tap flow above. **Upgrade** (⬆️) turns taps into upgrades: tap a
   supplier twice to level its stock cap/regen, or a road twice to pave
@@ -156,6 +158,29 @@ that ambient animation as its background — it now lives independently at
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer
   paved legs.
+- **Overlap rules** (`SC.roads.checkSegment`, quoted by every
+  `SC.roads.quote`): a road may not be laid over the top of the network.
+  Two rules:
+  1. It may not brush past a site that isn't one of its own endpoints
+     (`NODE_ROAD_CLEARANCE`, the same gap manual placement keeps the
+     other way round) — route *through* that site instead.
+  2. It may not cross another road at all until the cheap, early
+     **Road Crossings** (`intersections`) research. After that a crossing
+     is legal but builds a real **interchange**: `SC.roads.build` drops a
+     junction node on each crossing point, splits both crossed roads
+     through it (`splitEdge`, re-seating any truck mid-edge) and charges
+     `PLACEMENT_INTERSECTION_PRICE` per interchange on top of the
+     length-priced spans. So the two roads genuinely meet, and a long
+     diagonal over a busy area costs real money.
+
+  A blocked prospect comes back from `quote` with `.blocked`
+  (`'node'`/`'crossing'`/`'tight'`/`'water'`) instead of `null`, plus
+  `SC.roads.blockMessage` — `input.js` toasts it and the build ghost goes
+  red with a ✕ on what's in the way (a legal crossing instead rings each
+  interchange the road would build, with the fee folded into the label).
+  The manual **Place intersection** tool is now only a retrofit for saves
+  made before this rule, so its Shop button hides itself unless the map
+  actually still has a crossing (`SC.roads.hasCrossings`).
 - **Congestion** (`SC.state.congestionEnabled`, a difficulty trait fixed
   for the run — on for Normal/Hard, off for Easy/Sandbox; not a normal
   player-facing toggle, see the Dev tools panel further down for A/B
@@ -317,7 +342,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/save.js` | Autosave/restore to localStorage (serialize/restore round-trip) |
 | `js/rng.js` | Seeded PRNG (xmur3 hash + mulberry32 stream) used only by map.js's world gen, so `?seed=` reproduces a map |
 | `js/map.js` | World gen: river, node sites, starter cluster (seeded via `js/rng.js`, `generateWorld(seed)`); `unlockNext(filterFn)` for milestone (supplier/factory) and customer-DC (city) unlock tracks |
-| `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
+| `js/roads.js` | Road build/demolish/quote (incl. ferry-vs-bridge), the overlap rules + interchange building (`checkSegment`/`blockMessage`/`splitEdge`), highway upgrades, congestion (`speedMult`/`congestionMult`), Dijkstra pathfinding weighted by travel time |
 | `js/factories.js` | Craft tasks (incl. intermediates), raw intake, production ticks, site purchase |
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
