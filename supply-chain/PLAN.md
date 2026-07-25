@@ -35,6 +35,12 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.57.0: **the overlap rules explain themselves on the map** — the build
+  ghost marks the site it would run over (clearance ring + ✕) or lights the
+  road it can't cross red, and draws the legal alternative in green beside
+  it (the two hops through that site, or the ends of the road in the way);
+  a legal crossing rings and prices each interchange it would build. Help
+  overlay gained a "Roads can't overlap" entry. Per v1.56.0 below.
 - v1.56.0: **road overlap rules** — a road may no longer be laid over the
   top of the network: it can't brush past a site it doesn't connect to
   (`NODE_ROAD_CLEARANCE`), and it can't cross another road until the
