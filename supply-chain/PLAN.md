@@ -188,9 +188,18 @@ shipped.)*
 3. ~~Order → map linking~~ — shipped v1.1.0 (tap an order row → route
    highlight). Generalized by item 6 below.
 4. ~~Truck capacity upgrade track~~ — shipped v1.6.0.
-5. **Tutorialize the first order** — instead of only the text overlay:
-   dim the map, arrow at HQ + nearest supplier, "build a road here". The
-   overlay stays as reference.
+5. ~~Tutorialize the first order~~ — shipped v1.55.0, as scoped: the help
+   overlay stays as reference, and a fresh run now also gets a four-step
+   guided walkthrough (`js/tutorial.js`) that dims the map, rings + arrows
+   the nodes each step names, and captions the exact next tap in a banner.
+   Steps are written as **goals rather than actions** and re-checked on the
+   events that can satisfy them (`roadBuilt`/`roadDemolished`/
+   `orderComplete`) instead of being advanced by the taps that caused them —
+   so a single road can retire two steps at once, and the sequence can't
+   desync from the world. `SC.state.tutorialStep` persists so a reload
+   resumes mid-sequence; −1 means finished or skipped, which is also what a
+   pre-tutorial save restores as, so an existing run is never dropped into
+   step 1. Skippable from the banner. Dev: `&tutorial=N`.
 6. ~~Interaction modes: Build vs Inspect~~ — shipped v1.8.0. Detail kept
    below for reference:
    - **Build** (current behaviour, default): tap-tap builds/demolishes

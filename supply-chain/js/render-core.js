@@ -351,6 +351,9 @@ SC.render = (function() {
         R.drawFloaters(dt);
         R.drawGrade();             // time-of-day colour grade over world + sky
         R.drawPrecip(dt);          // rain/snow on top, left ungraded so it stays crisp
+        // After the grade/precip so the dim isn't lifted back out by them, but
+        // under the vignette/arrows so those still frame the shot.
+        R.drawTutorialFocus(now);
         R.drawVignette();          // frame the scene…
         R.drawOffscreenArrows(now); // …but keep edge arrows crisp on top
     }

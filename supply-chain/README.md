@@ -275,6 +275,19 @@ that ambient animation as its background — it now lives independently at
     fast-forward sub-step loop — 4× speed simulates faster without pitching
     the music up. Nothing is created until the first user gesture (autoplay
     policy), which is why headless probes are silent.
+- **Guided tutorial**: a fresh run opens with a four-step walkthrough of the
+  first order — road the bakery to wheat, then to water, then to HQ, then
+  watch a truck fill it. A banner names the exact next tap while the map
+  dims and pulses a ring + arrow on the nodes that step means, so "tap the
+  bakery, then the wheat farm" points at two specific buildings instead of
+  leaving a new player to find them. Skippable from the banner, and it never
+  appears for a restored save that already finished it. Steps are stated as
+  **goals, not actions** (`js/tutorial.js`), re-checked on `roadBuilt`/
+  `roadDemolished`/`orderComplete` — so one road can retire two steps at
+  once, and a step can't desync from the world. `SC.state.tutorialStep`
+  persists (−1 = finished/skipped, which is also what pre-tutorial saves
+  restore as, so an existing run is never dropped into step 1). Dev:
+  `&tutorial=N`.
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - **Fast-forward**: the 1×/2×/4× toggle under the HUD (`SC.state.speed`)
   runs that many fixed-size sub-steps of `economy`/`factories`/
@@ -309,6 +322,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/economy.js` | Orders (spawn/plan/deliver/expire) with recursive multi-tier sourcing, money, interest + default countdown, upgrades, supplier stock regen/upgrades, promotions, customer-DC spawn timer, contract offers (roll/accept/decline) and miss penalties |
 | `js/vehicles.js` | Trucks (each with a home yard), haul jobs, dispatcher (globally nearest idle truck per job, bundles same-route jobs up to capacity, sends idle trucks home), supplier-stock loading waits, reassignment, movement, `truckCountOnEdge` (feeds congestion) |
 | `js/stats.js` | Stats & achievements bookkeeping: deliveries per product, a periodic money-history sample for the sparkline, per-edge trip counts (`recordRoadUse`/`busiestRoad`), and milestone unlocks — all purely observational, listens to events other modules already emit (`roadBuilt`, `orderComplete`, etc.) rather than being called directly |
+| `js/tutorial.js` | Guided first-order tutorial: the step list, which nodes each step points at, and when a step is satisfied. Pure logic — ui.js renders the banner and render-network.js draws the focus dim/rings, both by reading `current()`/`focus()` |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight. Collected route paths carry a `.good` property per leg so the glow overlay tints each leg by its cargo (chain-step colors) |
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |

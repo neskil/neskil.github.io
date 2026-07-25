@@ -1079,6 +1079,80 @@
         groundRing(g.x, g.y, sp.fw + 8, color, 2.5);
     }
 
+    // Scratch layer for the tutorial dim — see drawTutorialFocus.
+    let dimLayer = null;
+
+    // ── Guided tutorial focus (js/tutorial.js decides the targets) ──────
+    // Dims the whole field, then punches a soft hole around each node the
+    // current step names and rings it — so "tap the bakery, then the wheat
+    // farm" points at two specific buildings instead of leaving the player to
+    // find them. Drawn per frame in the main pass (never into the cached bg
+    // layer, which would bake the dim in permanently).
+    function drawTutorialFocus(now) {
+        const targets = SC.tutorial.focus();
+        if (!targets.length) return;
+        const ctx = R.ctx;
+        const w = R.canvas.width / R.dpr, h = R.canvas.height / R.dpr;
+        const spots = targets.map(n => {
+            const sp = nodeSpec(n);
+            const g = S(n.x, n.y);
+            // Cover the building's full extruded height, not just its footprint
+            // — the hole has to reveal the whole silhouette, not its base.
+            const top = (sp.h || 0) * zoom();
+            return { n, sp, g, top, r: (sp.fw + 46) * clampZoom() + top * 0.5 };
+        });
+
+        // Dim pass. The holes are punched with 'destination-out', which erases
+        // whatever is already in the target canvas — so this MUST happen on a
+        // scratch layer and be blitted over, never straight onto the frame
+        // (doing that erases the buildings the holes are meant to reveal, and
+        // save/restore does NOT isolate compositing).
+        if (!dimLayer) dimLayer = document.createElement('canvas');
+        if (dimLayer.width !== R.canvas.width || dimLayer.height !== R.canvas.height) {
+            dimLayer.width = R.canvas.width;
+            dimLayer.height = R.canvas.height;
+        }
+        const dctx = dimLayer.getContext('2d');
+        dctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);
+        dctx.clearRect(0, 0, w, h);
+        dctx.fillStyle = 'rgba(6, 12, 24, 0.5)';
+        dctx.fillRect(0, 0, w, h);
+        dctx.globalCompositeOperation = 'destination-out';
+        for (const s of spots) {
+            const grd = dctx.createRadialGradient(s.g.x, s.g.y, s.r * 0.3, s.g.x, s.g.y, s.r);
+            grd.addColorStop(0, 'rgba(0,0,0,1)');
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            dctx.fillStyle = grd;
+            dctx.beginPath();
+            dctx.arc(s.g.x, s.g.y, s.r, 0, Math.PI * 2);
+            dctx.fill();
+        }
+        dctx.globalCompositeOperation = 'source-over';
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);   // blit in device pixels
+        ctx.drawImage(dimLayer, 0, 0);
+        ctx.restore();
+
+        // Pulsing ground ring + a bobbing arrow, so the target still reads on a
+        // busy map where the dim alone is subtle.
+        const pulse = 1 + Math.sin(now * 4) * 0.09;
+        for (const s of spots) {
+            groundRing(s.g.x, s.g.y, s.sp.fw + 10, '#38bdf8', 2.5, pulse);
+            const bob = Math.sin(now * 4) * 4 * clampZoom();
+            const tipY = s.g.y - s.top - 26 * clampZoom() + bob;
+            const a = 9 * clampZoom();
+            ctx.beginPath();
+            ctx.moveTo(s.g.x, tipY + a);              // point down at the node
+            ctx.lineTo(s.g.x - a * 0.8, tipY - a * 0.5);
+            ctx.lineTo(s.g.x + a * 0.8, tipY - a * 0.5);
+            ctx.closePath();
+            ctx.fillStyle = '#38bdf8';
+            ctx.globalAlpha = 0.9;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
     function drawGhostRoad() {
         const sel = SC.state.selectedNode;
         const hover = SC.input.getHover && SC.input.getHover();
@@ -1241,5 +1315,5 @@
 
     Object.assign(R, { drawRoads, drawRouteFlow, nodeSpec, drawShadow, drawSupplierSite, drawJunction,
         drawNodeBody, drawYardParking, drawYardSite, emojiPlateAt, drawOrderBubbles,
-        drawHighlight, drawInspectHighlight, drawGhostRoad, drawPlacementGhost, drawOffscreenArrows });
+        drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawPlacementGhost, drawOffscreenArrows });
 })();
