@@ -288,6 +288,16 @@ SC.runProbe = function(seconds) {
         const [hx, hy] = p.get('hoverAt').split(',').map(Number);
         SC.input._setDebugHover(hx, hy);
     }
+    // &select=hq|factory|<node id> picks the node a road would start from
+    // (what tapping it does), so the build ghost can be screenshotted
+    // together with &hoverAt: its cost label, the rings where a legal
+    // crossing would build interchanges, or the red ✕ preview of a road the
+    // overlap rules refuse.
+    if (p.has('select')) {
+        const key = p.get('select');
+        SC.state.selectedNode = SC.state.nodes.find(n => String(n.id) === key) ||
+            (key === 'factory' ? SC.factories.all()[0] : SC.state.nodes.find(n => n.isHQ));
+    }
     // Point the camera somewhere specific (&focus=x,y,zoom — zoom optional):
     // screenshots default to the HQ cluster, so this is how a far corner,
     // the whole-map view (&focus with a low zoom), or a specific site gets
@@ -313,7 +323,11 @@ SC.runProbe = function(seconds) {
         for (let a = 0; a < 16 && !res.ok; a++) {
             const angle = (a / 16) * Math.PI * 2;
             const x = hq.x + Math.cos(angle) * 350, y = hq.y + Math.sin(angle) * 350;
-            if (SC.placement.canPlaceAt(x, y)) res = SC.placement.place('yard', null, x, y);
+            // Needs a spot HQ can also reach with a legal road (overlap
+            // rules), since the shot is of the yard *plus* its road.
+            if (SC.placement.canPlaceAt(x, y) &&
+                !SC.roads.checkSegment(hq.x, hq.y, x, y, [hq]).blocked)
+                res = SC.placement.place('yard', null, x, y);
         }
         if (res.ok) {
             SC.roads.build(hq, res.node);
@@ -330,9 +344,41 @@ SC.runProbe = function(seconds) {
         for (let a = 0; a < 16 && !res.ok; a++) {
             const angle = (a / 16) * Math.PI * 2;
             const x = hq.x + Math.cos(angle) * 250, y = hq.y + Math.sin(angle) * 250;
-            if (SC.placement.canPlaceAt(x, y)) res = SC.placement.place('junction', null, x, y);
+            if (SC.placement.canPlaceAt(x, y) &&
+                !SC.roads.checkSegment(hq.x, hq.y, x, y, [hq]).blocked)
+                res = SC.placement.place('junction', null, x, y);
         }
         if (res.ok) SC.roads.build(hq, res.node);
+    }
+    // Force an interchange (&interchange=1): with 'intersections' researched
+    // a road laid across another one builds a junction at the crossing and
+    // splits both roads (see SC.roads.build). Drops two waypoints either
+    // side of an existing road and connects them, so the result can be
+    // screenshotted without hunting for a legal crossing by hand.
+    if (p.has('interchange')) {
+        SC.state.money = Math.max(SC.state.money, 50000);
+        SC.state.research.completed.intersections = true;
+        SC.state.research.completed.junctions = true;
+        // Waypoints either side of the first starter road, at whatever pair
+        // of offsets clears the rest of the cluster (the starter layout is
+        // seed-dependent, so both sides get their own search).
+        const edge = SC.state.edges[0];
+        const dists = [160, 200, 240, 300, 380];
+        let done = false;
+        for (let i = 0; edge && !done && i < dists.length; i++) {
+            for (let j = 0; !done && j < dists.length; j++) {
+                const ux = (edge.b.x - edge.a.x) / edge.len, uy = (edge.b.y - edge.a.y) / edge.len;
+                const mx = (edge.a.x + edge.b.x) / 2, my = (edge.a.y + edge.b.y) / 2;
+                const p1 = { x: mx - uy * dists[i], y: my + ux * dists[i] };
+                const p2 = { x: mx + uy * dists[j], y: my - ux * dists[j] };
+                if (!SC.placement.canPlaceAt(p1.x, p1.y) || !SC.placement.canPlaceAt(p2.x, p2.y)) continue;
+                const chk = SC.roads.checkSegment(p1.x, p1.y, p2.x, p2.y, []);
+                if (chk.blocked || !chk.crossings.length) continue;
+                const n1 = SC.placement.place('junction', null, p1.x, p1.y);
+                const n2 = SC.placement.place('junction', null, p2.x, p2.y);
+                done = n1.ok && n2.ok && SC.roads.build(n1.node, n2.node).ok;
+            }
+        }
     }
     // Force some interesting Stats-screen data (&stats=1): a few
     // achievements, a delivery breakdown, and a money-history sparkline,
