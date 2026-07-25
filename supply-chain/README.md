@@ -175,9 +175,25 @@ that ambient animation as its background — it now lives independently at
 
   A blocked prospect comes back from `quote` with `.blocked`
   (`'node'`/`'crossing'`/`'tight'`/`'water'`) instead of `null`, plus
-  `SC.roads.blockMessage` — `input.js` toasts it and the build ghost goes
-  red with a ✕ on what's in the way (a legal crossing instead rings each
-  interchange the road would build, with the fee folded into the label).
+  `SC.roads.blockMessage`, which `input.js` toasts on the refused tap.
+
+  **Seeing the rules** (`drawGhostRoad`/`drawGhostMarks`, `blockedHint`):
+  the dashed build preview answers *why* and *how* before you tap, not
+  just "no". Red ghost + the reason, and on the map itself: the site the
+  road would run over gets its clearance ring and a ✕, or the road it
+  can't cross is lit red down its whole length with a ✕ on the crossing.
+  Beside that, in green, the legal way to do the same thing — the two
+  hops through that site ("road it in two hops" / "continue from here"),
+  or rings on the ends of the road in the way, which are always fair game
+  to connect to. Suggestions are only drawn once re-quoted as buildable,
+  so the ghost never proposes another blocked road. A legal crossing
+  instead rings each interchange it would build and prices it there
+  (`+$150 junction`), with the total in the ghost label. The pointing
+  marks are a **second pass** drawn after the depth-sorted entity pass
+  (`R.drawGhostMarks()` in `render-core.frame`) — down with the roads
+  they'd be painted over by the very site they point at; the dashed road
+  itself stays at road level.
+
   The manual **Place intersection** tool is now only a retrofit for saves
   made before this rule, so its Shop button hides itself unless the map
   actually still has a crossing (`SC.roads.hasCrossings`).

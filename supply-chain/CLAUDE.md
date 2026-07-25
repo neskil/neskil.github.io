@@ -133,9 +133,13 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   README "Overlap rules") can be screenshotted; pair with `&focus=` to
   frame it. `&select=hq|factory|<node id>` picks the node a road would
   start from, so `&hoverAt=` renders the build ghost: with the research it
-  rings each interchange the road would build and folds the fee into the
-  label, without it the ghost goes red with the block reason and a ✕ on
-  whatever is in the way. `&tutorial=N` drops a fresh
+  rings each interchange the road would build and prices it there, without
+  it the ghost goes red with the block reason, a ✕ + clearance ring (or a
+  red-lit road) on whatever is in the way, and the green legal alternative
+  beside it. Those pointing marks are a second render pass
+  (`R.drawGhostMarks()`, after the entity pass) — verify them at a decent
+  `&focus=` zoom, since at low zoom they hide under the site art they
+  point at. `&tutorial=N` drops a fresh
   world straight onto guided-tutorial step N (1-based, default 1) for
   screenshotting the banner and the focus dim/rings; pair it with
   `nohelp=1`. Deliberately NOT part of `?probe=`, which builds the starter
