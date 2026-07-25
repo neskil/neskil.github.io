@@ -47,6 +47,18 @@ SC.init = function() {
     });
 
     SC.ui.init();
+    // Headless verification hook (see CLAUDE.md): &tutorial=N drops a fresh
+    // world straight onto tutorial step N (1-based, default 1) so the banner
+    // and the focus dim/rings can be screenshotted. Deliberately NOT part of
+    // ?probe=, which builds the starter roads and would satisfy the first
+    // three steps before the shot is taken.
+    if (params.has('tutorial')) {
+        SC.state.gameStarted = true;
+        SC.tutorial.start();
+        const n = parseInt(params.get('tutorial'), 10);
+        if (n > 1) SC.state.tutorialStep = Math.min(n - 1, SC.tutorial.stepCount - 1);
+        SC._ui.updateTutorial();
+    }
     if (restored) SC.emit('toast', { text: 'Game restored from autosave', kind: 'info' });
 
     let last = performance.now();
@@ -76,6 +88,9 @@ SC.init = function() {
             }
         }
         SC.render.frame(dt, SC.state.time);
+        // Ambience/score run on the wall clock, so this stays outside the
+        // fast-forward sub-step loop — 4× speed must not pitch the music up.
+        SC.audio.update();
         SC.ui.update(dt);
         requestAnimationFrame(loop);
     }

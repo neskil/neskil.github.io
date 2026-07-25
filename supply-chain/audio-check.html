@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supply Chain Tycoon — audio check</title>
+<style>
+  body { background:#111827; color:#e5e7eb; font:14px/1.6 ui-monospace,Menlo,monospace; padding:24px; }
+  h1 { font-size:16px; color:#93c5fd; }
+  .pass { color:#6ee7b7; } .fail { color:#fca5a5; } .info { color:#94a3b8; }
+  #summary { margin-top:14px; font-weight:700; }
+  #summary.pass { color:#6ee7b7; } #summary.fail { color:#fca5a5; }
+</style>
+</head>
+<body>
+<h1>Audio check</h1>
+<p class="info">
+  The WebAudio layer can't be covered by <code>tests.html</code>: it needs a real
+  user gesture to open an AudioContext, and headless Chromium only allows that
+  with <code>--autoplay-policy=no-user-gesture-required</code>. This page fakes
+  the gesture and asserts the graph is actually wired and scheduling. See
+  CLAUDE.md → Verification.
+</p>
+<pre id="out">running…</pre>
+<div id="summary"></div>
+
+<script>window.SC_VERSION = 'audiocheck';</script>
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sfx.js"></script>
+<script>
+(function () {
+    const lines = [];
+    const ok = (name, cond, extra) =>
+        lines.push({ pass: !!cond, text: (cond ? 'PASS ' : 'FAIL ') + name + (extra ? ' — ' + extra : '') });
+    const info = t => lines.push({ info: true, text: 'INFO ' + t });
+
+    // --- before any gesture: nothing may exist, nothing may throw ---
+    ok('no context before gesture', SC.audio.sfxBus() === null);
+    let threw = null;
+    try { SC.audio.update(); } catch (e) { threw = e; }
+    ok('update() is a safe no-op before init', threw === null, threw && threw.message);
+
+    // --- fake the first user gesture (what opens the context in a real game) ---
+    document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+    const ctx = SC.audio.ctx();
+    ok('context created on gesture', !!ctx, ctx && ctx.state);
+    ok('sfx bus wired', !!SC.audio.sfxBus());
+    ok('music on by default', SC.audio.musicEnabled() === true);
+
+    if (ctx) {
+        // Tally every voice the score builds, whichever path creates it.
+        let oscCount = 0;
+        const realOsc = ctx.createOscillator.bind(ctx);
+        ctx.createOscillator = function () { oscCount++; return realOsc(); };
+
+        // A real state object with an empty fleet — exercises the traffic-hum
+        // path at zero trucks, and the no-render-layer branch of env().
+        SC.newState('normal');
+        SC.state.trucks = [];
+
+        // Drive the scheduler. This is the call that runs every frame in
+        // main.js — a throw here freezes the whole game loop, which is exactly
+        // the regression this page exists to catch.
+        let updThrew = null;
+        try { for (let i = 0; i < 40; i++) SC.audio.update(); } catch (e) { updThrew = e; }
+        ok('update() drives ambience + score without throwing', updThrew === null,
+           updThrew && updThrew.message);
+
+        info('ctx.state=' + ctx.state + ' currentTime=' + ctx.currentTime.toFixed(4));
+        ok('context running', ctx.state === 'running', ctx.state);
+        // One chord = 4 pad notes x 2 detuned oscillators + 1 bass root.
+        ok('score scheduled voices', oscCount >= 9, 'oscillators=' + oscCount);
+
+        let sfxThrew = null;
+        try {
+            ['click', 'build', 'demolish', 'cash', 'error', 'craft', 'unlock',
+             'expire', 'depart', 'science', 'warn'].forEach(n => SC.sfx.play(n));
+        } catch (e) { sfxThrew = e; }
+        ok('every sfx one-shot plays', sfxThrew === null, sfxThrew && sfxThrew.message);
+
+        // Throttled sounds must swallow a repeat inside their window.
+        const before = oscCount;
+        SC.sfx.play('depart');
+        ok('depart is throttled', oscCount === before, 'delta=' + (oscCount - before));
+
+        SC.audio.toggleMusic();
+        ok('music toggles off', SC.audio.musicEnabled() === false);
+        SC.audio.toggleMusic();
+        ok('music toggles back on', SC.audio.musicEnabled() === true);
+
+        // The Sound toggle also ducks the world ambience (see sfx.toggleMute).
+        let ambThrew = null;
+        try { SC.sfx.toggleMute(); SC.sfx.toggleMute(); } catch (e) { ambThrew = e; }
+        ok('sound toggle drives ambience', ambThrew === null, ambThrew && ambThrew.message);
+        ok('sound restored to unmuted', SC.sfx.isMuted() === false);
+    }
+
+    document.getElementById('out').innerHTML = lines
+        .map(l => '<span class="' + (l.info ? 'info' : l.pass ? 'pass' : 'fail') + '">' +
+                  l.text.replace(/</g, '&lt;') + '</span>')
+        .join('\n');
+    const checks = lines.filter(l => !l.info);
+    const failed = checks.filter(l => !l.pass).length;
+    const s = document.getElementById('summary');
+    s.className = failed ? 'fail' : 'pass';
+    s.textContent = (checks.length - failed) + ' passed / ' + failed + ' failed';
+})();
+</script>
+</body>
+</html>

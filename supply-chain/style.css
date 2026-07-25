@@ -1067,3 +1067,65 @@ html, body {
 
     .research-tree-card { width: 1380px; max-width: 96vw; max-height: 90vh; }
 }
+
+/* ── Guided first-order tutorial (js/tutorial.js) ──────────────────────
+   A banner centred at the top, clear of the HUD (top-left) and the Orders
+   panel (top-right). The map dims and pulses rings on the nodes the current
+   step names — that drawing lives in render-network.js, not here. */
+#tutorial-banner {
+    position: fixed;
+    top: 0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 160;
+    width: min(30rem, calc(100vw - 2rem));
+    background: var(--card-bg);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem 0.55rem;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    animation: tut-in 0.25s ease-out;
+}
+#tutorial-banner.hidden { display: none; }
+
+@keyframes tut-in {
+    from { opacity: 0; transform: translate(-50%, -0.5rem); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.tut-step {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--accent-color);
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+.tut-text { font-size: 0.85rem; line-height: 1.45; }
+.tut-text b { color: var(--accent-color); }
+.tut-skip {
+    margin-top: 0.45rem;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0.15rem 0.3rem;
+}
+.tut-skip:hover { color: var(--text-primary); }
+
+/* The HUD and Orders panel bracket the top edge; on a phone the banner would
+   collide with both, so drop it below them and let it span the width. */
+@media (max-width: 768px) {
+    #tutorial-banner {
+        top: auto;
+        bottom: 5.2rem;
+        width: calc(100vw - 1.2rem);
+        padding: 0.5rem 0.7rem 0.45rem;
+    }
+    .tut-text { font-size: 0.8rem; }
+}
