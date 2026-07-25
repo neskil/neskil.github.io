@@ -8,6 +8,7 @@
     const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
+    const getNewGameArmed = U.getNewGameArmed;   // see ui.js — cross-IIFE, not a bare var
 
     SC._ui.bind = function () {
         $('speed-toggle').addEventListener('click', e => {
@@ -158,7 +159,7 @@
             });
         }
         $('menu-newgame').addEventListener('click', () => {
-            if (newGameArmed) {
+            if (getNewGameArmed()) {
                 // Reloading fires pagehide/beforeunload, whose autosave flush
                 // (main.js) would otherwise re-persist this still-in-memory
                 // state right after clear() and undo the reset. ?new=1
@@ -168,8 +169,7 @@
                 location.href = location.pathname + '?new=1';
                 return;
             }
-            newGameArmed = true;
-            $('menu-newgame').textContent = '⚠ Tap again — current game will be lost';
+            U.armNewGame();
             setTimeout(resetNewGameArm, 4000);
         });
 

@@ -67,6 +67,19 @@ Don't couple the two again.)
       confirm any non-version changes survived, then run the test suite AND a
       visual smoke (the shop/menu HTML is a frequent parallel-edit hot spot —
       e.g. a renamed button id will pass tests but break the UI).
+- **`ui.js` / `ui-bind.js` are two separate IIFEs.** ui-bind.js can only see
+  what ui.js publishes on `SC._ui` — it CANNOT see ui.js's closure variables.
+  Referencing one as a bare identifier from ui-bind.js throws
+  `ReferenceError` at click time, which aborts the rest of that handler (and,
+  if it happens during `bind()`, every listener registered after it). This is
+  silent: no test covers it and the game looks fine until the button is
+  pressed. `newGameArmed` was broken this way from the ui.js→ui-bind.js
+  extraction until v1.55.1 — the "New game" button did nothing at all. Plain
+  values need an accessor pair on `SC._ui` (see `getDevMode`/`getHidePills`/
+  `getNewGameArmed`+`armNewGame`); functions just need adding to the export
+  object. After touching either file, click through the menu buttons in a real
+  browser, or drive them from a throwaway page that calls `.click()` and reads
+  back the result — the `?probe=` smoke never presses anything.
 - Layering rule: `config/state/map/roads/factories/economy/vehicles/camera`
   are **pure logic** — no DOM, no canvas (that's what makes tests.html
   runnable headless). Only `render/input/ui/main` touch the DOM. Logic

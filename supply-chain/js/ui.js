@@ -823,7 +823,16 @@ SC.ui = (function() {
         SC.state.paused = false;
     }
 
+    // The two-tap "New game" confirm. The flag lives here but the button's
+    // handler lives in ui-bind.js's separate IIFE, which cannot see this
+    // closure — so it goes through the accessors below (same pattern as
+    // devMode/hidePills). Reading it as a bare identifier from there throws
+    // ReferenceError and silently kills the whole handler.
     let newGameArmed = false;
+    function armNewGame() {
+        newGameArmed = true;
+        $('menu-newgame').textContent = '⚠ Tap again — current game will be lost';
+    }
     function resetNewGameArm() {
         newGameArmed = false;
         $('menu-newgame').textContent = '🗑 New game';
@@ -933,6 +942,7 @@ SC.ui = (function() {
 
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills,
+        getNewGameArmed: () => newGameArmed, armNewGame,
         fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial,
     };
 
