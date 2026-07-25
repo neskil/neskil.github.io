@@ -794,6 +794,7 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
+        $('menu-music').textContent = SC.audio.musicEnabled() ? '🎵 Music: on' : '🎵 Music: off';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
         $('menu-dev').textContent = devMode ? '🛠 Dev tools: on' : '🛠 Dev tools: off';
         $('menu-pills').textContent = hidePills ? '🏷 Factory labels: auto-hide' : '🏷 Factory labels: always on';
@@ -871,6 +872,10 @@ SC.ui = (function() {
         updateOrders();
         updateShop();
         updateHUD();
+        // A save restored mid-tutorial resumes on its persisted step, so the
+        // banner has to be reinstated at boot, not only on the Start button.
+        SC.tutorial.refresh();
+        updateTutorial();
         const params = new URLSearchParams(location.search);
         // ?new=1 (menu "New game" / post-foreclosure restart) always routes
         // through the new-game screen so the difficulty can be picked.
@@ -910,9 +915,25 @@ SC.ui = (function() {
     // decide whether the factory production pills should auto-hide at low
     // zoom — the only cross-module read of a ☰-menu toggle from the render
     // layer, since drawing (not just event wiring) needs to react to it live.
+    // ── Guided tutorial banner (js/tutorial.js decides the steps) ─────
+    function updateTutorial() {
+        const step = SC.tutorial.current();
+        const el = $('tutorial-banner');
+        el.classList.toggle('hidden', !step);
+        if (!step) return;
+        // Only touch the DOM when the step actually changes — this runs on
+        // every event refresh, and rewriting innerHTML would restart the
+        // banner's entrance animation each time.
+        if (el.dataset.step === step.id) return;
+        el.dataset.step = step.id;
+        $('tutorial-progress').textContent =
+            `Step ${SC.tutorial.stepIndex() + 1} of ${SC.tutorial.stepCount}`;
+        $('tutorial-text').innerHTML = step.text;
+    }
+
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay,
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial,
     };
 
     return { init, update, toast, openStatsOverlay };

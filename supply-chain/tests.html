@@ -17,12 +17,12 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.53.2';</script>
+    <script>window.SC_VERSION = '1.55.0';</script>
     <script>
     (function () {
-        var mods = ['config', 'state', 'save', 'sfx', 'rng', 'map', 'camera',
+        var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
                     'roads', 'factories', 'economy', 'vehicles', 'stats',
-                    'inspect', 'research', 'placement'];
+                    'inspect', 'research', 'placement', 'tutorial'];
         for (var i = 0; i < mods.length; i++)
             document.write('<script src="js/' + mods[i] + '.js?v=' + SC_VERSION + '"><\/script>');
     })();
@@ -2252,6 +2252,107 @@
         assert('truck path has 3 nodes now', truck.path.length === 3 && truck.path[1] === res.node);
         assert('truck progress mapped correctly', approx(truck.progress, 0.8));
         assert('truck pathIdx is still 0', truck.pathIdx === 0);
+    })();
+
+    // ── Tutorial: step progression, skipping, persistence ────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();   // wheat + water + bakery + HQ
+        SC.state.gameStarted = true;
+        SC.tutorial.start();
+
+        assert('tutorial starts on the wheat step', SC.tutorial.current().id === 'wheat');
+        assert('tutorial points at the bakery and the wheat farm',
+            SC.tutorial.focus().length === 2 &&
+            SC.tutorial.focus().includes(F) && SC.tutorial.focus().includes(S1));
+
+        // Roading an unrelated pair must not advance the step.
+        SC.state.money = 99999;
+        SC.roads.build(S2, C);
+        SC.tutorial.refresh();
+        assert('an unrelated road does not advance the tutorial',
+            SC.tutorial.current().id === 'wheat');
+
+        SC.roads.build(F, S1);
+        SC.tutorial.refresh();
+        assert('roading bakery→wheat advances to the water step',
+            SC.tutorial.current().id === 'water');
+        assert('water step points at the bakery and the water pump',
+            SC.tutorial.focus().includes(F) && SC.tutorial.focus().includes(S2));
+
+        // Bakery→water also routes the bakery to HQ (via the S2→C road built
+        // above), so this must clear BOTH remaining build steps at once.
+        SC.roads.build(F, S2);
+        SC.tutorial.refresh();
+        assert('one road can satisfy two steps at once',
+            SC.tutorial.current().id === 'deliver');
+
+        // The final step waits on an actual delivery.
+        assert('deliver step highlights nothing', SC.tutorial.focus().length === 0);
+        SC.state.delivered = 1;
+        SC.tutorial.refresh();
+        assert('a delivery finishes the tutorial', SC.tutorial.current() === null);
+        assert('finished tutorial is inactive', !SC.tutorial.active());
+        assert('finished tutorial stores step -1', SC.state.tutorialStep === -1);
+    })();
+
+    // ── Tutorial: demolishing back a road re-opens the step it satisfied ──
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.gameStarted = true;
+        SC.state.money = 99999;
+        SC.tutorial.start();
+        const res = SC.roads.build(F, S1);
+        SC.tutorial.refresh();
+        assert('wheat step cleared by the road', SC.tutorial.current().id === 'water');
+        // Steps are goals, not a one-way ratchet — but they only ever advance,
+        // so demolishing does NOT send the player backwards.
+        SC.roads.demolish(res.edge);
+        SC.tutorial.refresh();
+        assert('demolishing does not rewind the tutorial',
+            SC.tutorial.current().id === 'water');
+    })();
+
+    // ── Tutorial: skip is permanent, and never auto-starts mid-run ────
+    (function() {
+        fixture();
+        SC.state.gameStarted = true;
+        SC.tutorial.start();
+        assert('tutorial active after start', SC.tutorial.active());
+        SC.tutorial.skip();
+        assert('skip retires the tutorial', !SC.tutorial.active() && SC.tutorial.current() === null);
+        SC.tutorial.refresh();
+        assert('refresh does not revive a skipped tutorial', !SC.tutorial.active());
+
+        // A world that has not started must never show a step.
+        fixture();
+        SC.state.gameStarted = false;
+        assert('tutorial inactive before the game starts', !SC.tutorial.active());
+    })();
+
+    // ── Tutorial: save round-trip resumes mid-sequence ───────────────
+    (function() {
+        const { S1, F } = fixture();
+        SC.state.gameStarted = true;
+        SC.state.money = 99999;
+        SC.tutorial.start();
+        SC.roads.build(F, S1);
+        SC.tutorial.refresh();
+        const step = SC.state.tutorialStep;
+        SC.save.store();
+        SC.newState();
+        assert('save round-trip loads', SC.save.load());
+        assert('tutorial step survives a save round-trip', SC.state.tutorialStep === step);
+
+        // A save written before the tutorial existed must not drop the player
+        // into step 1 mid-run.
+        const raw = JSON.parse(localStorage.getItem(SC.save.KEY) || '{}');
+        delete raw.tutorialStep;
+        localStorage.setItem(SC.save.KEY, JSON.stringify(raw));
+        SC.newState();
+        SC.save.load();
+        assert('a pre-tutorial save restores as finished, not step 1',
+            SC.state.tutorialStep === -1);
+        SC.save.clear();
     })();
 
     document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;

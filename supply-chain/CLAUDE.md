@@ -74,10 +74,12 @@ Don't couple the two again.)
 - New script files are added by **module name** to the `mods` array in the
   inline loader (in `index.html`; logic modules also in `tests.html`'s loader)
   — not as a hand-written `<script>` tag. Load order matters and is the array
-  order: config → state → save → sfx → rng → map → camera → roads → factories
+  order: config → state → save → audio → sfx → rng → map → camera → roads → factories
   → economy → vehicles → stats → inspect → research → placement →
   (render → input → ui → main). (`rng.js` must precede `map.js`: `SC.map`'s
-  IIFE calls `SC.rng.create(...)` at load time to seed its default RNG.)
+  IIFE calls `SC.rng.create(...)` at load time to seed its default RNG.
+  `audio.js` must precede `sfx.js`: audio owns the AudioContext and the
+  music/sfx buses, and sfx.js asks it for its bus on every blip.)
 
 ## Verification (headless — works in any environment)
 Serve the repo root, e.g. `python3 -m http.server 8199` from the repo root,
@@ -86,8 +88,20 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (386 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (857 tests at last count; N grows,
   0 failed is the bar).
+- **Audio check**: the WebAudio layer can't live in `tests.html` — it needs a
+  real user gesture to open an AudioContext, which headless only permits with
+  `--autoplay-policy=no-user-gesture-required`. `audio-check.html` fakes the
+  gesture and asserts the graph is wired and scheduling:
+  `<chromium> --headless=new --disable-gpu --autoplay-policy=no-user-gesture-required
+  --virtual-time-budget=8000 --dump-dom
+  http://localhost:8199/supply-chain/audio-check.html`, grep for `id="summary"`
+  — "N passed / **0 failed**". Worth running after ANY change to `audio.js`/
+  `sfx.js`: `SC.audio.update()` runs inside main.js's rAF loop, so a throw in
+  it freezes the entire game, and the plain `?probe=` smoke can't catch that
+  (no gesture ever fires there, so the context stays suspended and update()
+  returns early).
 - **Visual/gameplay smoke**: `index.html?probe=40` auto-builds the starter
   roads, spawns an order, and fast-forwards 40 simulated seconds
   synchronously (rAF does NOT tick reliably under `--virtual-time-budget`,
@@ -112,7 +126,13 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small roundabout marker (`drawJunction`). `&stats=1` forces sample
+  small roundabout marker (`drawJunction`). `&tutorial=N` drops a fresh
+  world straight onto guided-tutorial step N (1-based, default 1) for
+  screenshotting the banner and the focus dim/rings; pair it with
+  `nohelp=1`. Deliberately NOT part of `?probe=`, which builds the starter
+  roads and would satisfy the first three steps before the shot is taken —
+  though `?tutorial=1&probe=40` is useful the other way round, verifying the
+  sequence auto-completes and the banner retires. `&stats=1` forces sample
   deliveries/money-history/road-trips and a few unlocked achievements,
   then opens the ☰ menu's Stats & Achievements overlay directly, for
   screenshotting it without a long real playthrough. `&highway=1` completes

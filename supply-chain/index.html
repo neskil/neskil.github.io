@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.53.2';</script>
+    <script>window.SC_VERSION = '1.55.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -69,6 +69,15 @@
     </div>
 
     <div id="inspect-tooltip"></div>
+
+    <!-- Guided first-order tutorial (js/tutorial.js). Hidden unless a fresh
+         run is mid-sequence; the map dims and points at the nodes each step
+         names. -->
+    <div id="tutorial-banner" class="hidden">
+        <div class="tut-step" id="tutorial-progress"></div>
+        <div class="tut-text" id="tutorial-text"></div>
+        <button class="tut-skip" id="tutorial-skip">Skip tutorial</button>
+    </div>
 
     <div id="contract-offer" class="hidden">
         <div class="contract-card">
@@ -286,6 +295,7 @@
             <button class="menu-btn primary" id="menu-resume">▶ Resume</button>
             <button class="menu-btn" id="menu-save">💾 Save now</button>
             <button class="menu-btn" id="menu-sound">🔊 Sound</button>
+            <button class="menu-btn" id="menu-music">🎵 Music</button>
             <button class="menu-btn" id="menu-pills">🏷 Factory labels</button>
             <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
             <button class="menu-btn" id="menu-achievements">📊 Stats &amp; Achievements</button>
@@ -354,9 +364,9 @@
          it's a logic module). -->
     <script>
     (function () {
-        var mods = ['config', 'state', 'save', 'sfx', 'rng', 'map', 'camera',
+        var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
                     'roads', 'factories', 'economy', 'vehicles', 'stats',
-                    'inspect', 'research', 'placement',
+                    'inspect', 'research', 'placement', 'tutorial',
                     'render-core', 'render-env', 'render-network', 'render-actors',
                     'input', 'ui', 'ui-bind', 'main'];
         for (var i = 0; i < mods.length; i++)
