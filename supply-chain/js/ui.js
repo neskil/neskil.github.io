@@ -794,6 +794,7 @@ SC.ui = (function() {
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
             : `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · not saved yet this session`;
         $('menu-sound').textContent = SC.sfx.isMuted() ? '🔇 Sound: off' : '🔊 Sound: on';
+        $('menu-music').textContent = SC.audio.musicEnabled() ? '🎵 Music: on' : '🎵 Music: off';
         $('menu-fullscreen').textContent = document.fullscreenElement ? '⛶ Exit full screen' : '⛶ Full screen';
         $('menu-dev').textContent = devMode ? '🛠 Dev tools: on' : '🛠 Dev tools: off';
         $('menu-pills').textContent = hidePills ? '🏷 Factory labels: auto-hide' : '🏷 Factory labels: always on';
