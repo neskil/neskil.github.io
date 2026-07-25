@@ -126,7 +126,13 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small roundabout marker (`drawJunction`). `&stats=1` forces sample
+  small roundabout marker (`drawJunction`). `&tutorial=N` drops a fresh
+  world straight onto guided-tutorial step N (1-based, default 1) for
+  screenshotting the banner and the focus dim/rings; pair it with
+  `nohelp=1`. Deliberately NOT part of `?probe=`, which builds the starter
+  roads and would satisfy the first three steps before the shot is taken —
+  though `?tutorial=1&probe=40` is useful the other way round, verifying the
+  sequence auto-completes and the banner retires. `&stats=1` forces sample
   deliveries/money-history/road-trips and a few unlocked achievements,
   then opens the ☰ menu's Stats & Achievements overlay directly, for
   screenshotting it without a long real playthrough. `&highway=1` completes

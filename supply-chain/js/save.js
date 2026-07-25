@@ -43,6 +43,7 @@ SC.save = (function() {
             worldW: st.worldW, worldH: st.worldH, expansions: st.expansions,
             congestionEnabled: st.congestionEnabled,
             autoAcceptContracts: st.autoAcceptContracts,
+            tutorialStep: st.tutorialStep,
             money: st.money, earnedTotal: st.earnedTotal,
             interestPaid: st.interestPaid,
             delivered: st.delivered, missed: st.missed,
@@ -124,6 +125,9 @@ SC.save = (function() {
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
         st.autoAcceptContracts = !!data.autoAcceptContracts;
+        // Saves from before the tutorial shipped have no step — those players
+        // are mid-run and shouldn't be dropped into step 1, so default to -1.
+        st.tutorialStep = (typeof data.tutorialStep === 'number') ? data.tutorialStep : -1;
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         if (data.research) {
             st.research.completed = Object.assign({}, data.research.completed);

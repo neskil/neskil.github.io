@@ -61,6 +61,9 @@ SC.newState = function(difficulty) {
         mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
         gameStarted: false,
+        // Guided first-order tutorial (tutorial.js): 0..N-1 = on that step,
+        // -1 = finished or skipped. Persisted so a reload resumes mid-sequence.
+        tutorialStep: -1,
 
         deliveredByProduct: {},  // see stats.js — { goodKey: count }
         moneyHistory: [],        // recent SC.state.money samples, see stats.js tick

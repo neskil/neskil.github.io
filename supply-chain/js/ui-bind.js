@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
 
@@ -324,6 +324,10 @@
             const fresh = !SC.state.gameStarted; // help opened mid-game shouldn't re-hint
             SC.state.gameStarted = true;
             SC.state.paused = false; // in case help was opened via the menu
+            // Fresh runs get the guided first-order walkthrough; a restored
+            // save resumes whatever step it persisted, so don't restart it.
+            if (fresh) SC.tutorial.start();
+            updateTutorial();
             // One-time riverside-grace hint at the very start of a run.
             const graceLeft = SC.map.riverGraceRemaining();
             if (fresh && graceLeft > 0) {
@@ -331,8 +335,24 @@
             }
         });
 
+        $('tutorial-skip').addEventListener('click', () => {
+            SC.sfx.play('click');
+            SC.tutorial.skip();
+            updateTutorial();
+        });
+
         // Game event feedback
         SC.on('toast', d => toast(d.text, d.kind));
+        // The tutorial's steps are goals, not actions — re-check them whenever
+        // something could have satisfied one. Cheaper and more robust than
+        // polling: a step can also be completed by a road built for other
+        // reasons, or by demolishing one (which can un-route the HQ step).
+        ['roadBuilt', 'roadDemolished', 'orderComplete'].forEach(ev =>
+            SC.on(ev, () => { SC.tutorial.refresh(); updateTutorial(); }));
+        SC.on('tutorialDone', () => {
+            updateTutorial();
+            toast('🎓 Tutorial complete — the map grows as you deliver. Good luck!', 'good');
+        });
         SC.on('orderComplete', o => {
             SC.sfx.play('cash');
             toast(o.contract ? `📜 Contract fulfilled! +${fmt(o.payout)}` : `Order filled: +${fmt(o.payout)}`, 'good');
