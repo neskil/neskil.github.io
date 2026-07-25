@@ -254,6 +254,27 @@ that ambient animation as its background — it now lives independently at
   Truck yards use the same tap-to-place flow and ghost preview but are
   **not** research-gated (`SC.placement.place('yard', ...)`) — a base
   mechanic, not a premium bailout.
+- **Sound & music**: two independent ☰-menu toggles, both persisted.
+  **🔊 Sound** covers one-shot blips (build/cash/error/…) *and* the world
+  ambience; **🎵 Music** covers the score. Everything is synthesised at
+  runtime in `js/audio.js` — there are no audio files in the repo, which
+  keeps the folder self-contained and lets the sound react to game state:
+  - *Ambience* is three looping filtered-noise beds whose gains are ramped
+    (never rebuilt) each frame — wind rising with cloud cover/wind strength,
+    rain with the rain spell, and a traffic hum that saturates with the
+    number of trucks actually rolling (`1 - e^(-n/6)`), so a busy network is
+    audibly busy. It ducks to silence while paused or after game over.
+  - *Music* is a generative four-chord loop (Am7–Fmaj7–Cmaj7–G7, 8s per
+    chord) with a pad, a bass root and a sparse melody drawn from a fixed
+    A-minor-pentatonic scale — consonant over all four chords, so notes can
+    be picked at random without ever clashing. The day/night cycle drives it:
+    the pad's filter opens and the melody gets busier by day, darker and
+    sparser at night. Notes are scheduled on a 0.5s grid with a 0.4s
+    lookahead from `SC.audio.update()`.
+  - Audio runs on the **wall clock**, so `update()` sits outside main.js's
+    fast-forward sub-step loop — 4× speed simulates faster without pitching
+    the music up. Nothing is created until the first user gesture (autoplay
+    policy), which is why headless probes are silent.
 - **Camera**: drag to pan, wheel/pinch to zoom.
 - **Fast-forward**: the 1×/2×/4× toggle under the HUD (`SC.state.speed`)
   runs that many fixed-size sub-steps of `economy`/`factories`/
@@ -295,7 +316,8 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/render.js` | Canvas drawing (isometric 2.5D): sky + a **low-poly heightfield terrain backdrop** (`drawTerrain`/`ensureTerrain`) — the ground plane continues past every edge of the field: beyond the two far (low world x+y) edges it rises into faceted, faintly-wireframed mountains via ridged value-noise (`terrainHeight`/`ridged`), and beyond the two near edges it *descends* into rolling lowland foothills (negative heights, `TERRAIN.dip`), so the field reads as a plateau in one continuous landscape instead of an island floating over the sky. Flat inside the field so it never occludes play, flat-shaded per facet with the slope, and blended toward the live sky for aerial haze on both sides (so it tracks day/night + weather). Sized from `SC.worldW()`/`worldH()` + a skirt and rebuilt only when the field grows (`terrainKey`), so a field expansion just pushes the range further out. Projected land with terrain patches and scattered pines/rocks, river, road ribbons, extruded diamond-prism buildings (story lines, doors, factory smokestacks) with sprite-based soft shadows, themed supplier sites (farm/lake+pump/mine/pasture/rubber grove/fab per raw material, `drawSupplierSite`), truck yards drawn as a flat asphalt parking lot with painted stall lines and the idle trucks homed there physically parked nose-in across its bays (`drawYardSite`/`drawYardParking`, world-grounded iso grid) instead of a 🅿️ icon + count — idle trucks (no route/jobs) are skipped in the entity sort and drawn by their home node, and HQ/DC get the same apron of parked trucks in front instead of a `N 🚚` label, depth-sorted back-to-front (a small `TRUCK_DEPTH_BIAS` nudges trucks forward in the sort so one arriving at or sitting beside a node doesn't get hard-clipped by that node's own body — a single-point painter's sort has no notion of footprint size, so a truck's final approach used to sometimes lose that near-tie; the plot pad under each building is also a feathered radial fade rather than a flat fill, so it doesn't add a second hard edge on top of whatever seam remains), cab+trailer trucks and billboarded labels/order-bubbles. Static scenery (terrain/land/grid/patches/trees) renders into a cached offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr is capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn scenery" glitch), and the ctx swap in `renderBg` is try/finally-guarded. `bgKey` includes `terrainKey()` so the cache re-bakes when the field expands. Distance fog fades the far edge of the land into the sky; screen-space star field behind the world; trucks get headlights while driving. Scenery uses a seeded PRNG (`makeRng`) cached so it doesn't flicker. **Night atmosphere** (all per-frame, kept out of the cached bg): a moon with a soft glow + a faint aurora band in the sky, warm lit windows on buildings/factories/HQ/DC/fab (seeded per node in `prism`'s window grid, a few flicker) over a cached warm ground light-spill, a blinking aircraft-style beacon on the HQ landmark, a moonlight shimmer streak on the river, a few drifting world-anchored fireflies, and a cached screen-edge vignette drawn last for framing. **Day/night cycle** (`DAY_LENGTH`, cosmetic/non-persisted): a slow clock sweeps the sky palette (night↔day↔dusk keyframes), arcs a crossfading sun/moon, applies a full-screen `'screen'` colour grade to lift the baked-night ground toward daylight without rebuilding the bg cache, and drives a `nightLevel` that fades windows/fireflies/light-spill/headlights out by day. **Rotating weather** (`WEATHER_ROTATION`): clear→clouds→rain→snow spells fade in/out, a slowly-turning wind vector drifts drifting sky clouds + soft ground cloud-shadows and angles pooled/capped rain & snow particles. Truck headlights are night-only soft glows. Directional cast shadows (`drawShadow`) swing opposite the sun/moon and lengthen near the horizon; animated route-flow dashes (`drawRouteFlow`) pulse along roads carrying trucks in the cargo colour; `orderComplete` fires a coin/spark burst; rain adds a road sheen (`drawWetRoads`) and snow lays a slowly-melting blanket (`drawSnowBlanket`); lit buildings, the HQ beacon and the fab antenna emit an additive `bloom()` glow at night; a crate hops into a truck on pickup and down into a node on delivery (`drawTransfer`, driven render-side by cargo-length change, depth-sorted so a nearer site clips it). Probe flags `&tod=`/`&weather=` force a time/weather for screenshots |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold. Node picking hit-tests the whole extruded building (ground→roof capsule, `nodeAtScreen`); `getHoverNode` feeds the ghost-road snap + hover ring so previews match what a click hits |
 | `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
-| `js/sfx.js` | WebAudio blips (autoplay-unlock + mute pattern from cargo-lander) |
+| `js/audio.js` | Shared AudioContext + music/sfx/ambience buses; the weather- and traffic-reactive ambient bed and the generative score (all synthesised, no audio assets). `update()` is called once per frame from main.js, outside the fast-forward sub-step loop |
+| `js/sfx.js` | WebAudio one-shot blips, routed into `audio.js`'s sfx bus. Owns the **Sound** toggle (one-shots + ambience); music toggles separately |
 | `js/main.js` | Bootstrap, game loop (fast-forward runs N sub-steps/frame), `?probe=N`/`?seed=`/`?speed=` headless verification hooks |
 
 `tests.html` runs the logic modules against hand-built deterministic maps
@@ -324,7 +346,9 @@ sync with it):
   - Face textures (subtle noise/brick/metal) instead of flat-colour building faces.
   - Seasonal palettes; richer water reflections beyond the moonlight streak.
   - Weather that actually affects play (rain slowing trucks, etc.) — gameplay, not just cosmetic.
-- Sound of moving trucks / ambient loop; music toggle separate from sfx.
+- ~~Sound of moving trucks / ambient loop; music toggle separate from sfx.~~
+  Shipped: `js/audio.js` (see Sound & music above). Remaining refinement
+  if wanted: per-channel volume sliders instead of on/off toggles.
 - Touch: long-press as an alternative to double-tap for demolish/buy (the
   Inspect-mode hold gesture above uses the same long-press primitive).
 - Promotions landed in v1.13 as a research-unlocked *repeatable shop

@@ -13,6 +13,10 @@
     const WEATHER_ROTATION = ['clear', 'clouds', 'rain', 'clouds', 'clear', 'snow', 'clouds'];
     let weather = { i: 0, type: 'clear', t: 0, dur: 40, intensity: 0, cloud: 0,
                     snow: 0, windAng: 0.6, windMag: 0.5 };
+    // Shared so the audio layer can score the ambience to the visible weather
+    // (see js/audio.js `env()`). Mutated in place, never reassigned — the
+    // reference stays valid for the life of the page.
+    R.weather = weather;
     let forcedWeather = null;               // &weather= for screenshots
     let precip = [];                        // rain/snow particle pool (screen-space)
     let clouds = null;                      // drifting overcast blobs (screen-space)

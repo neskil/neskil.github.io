@@ -147,6 +147,7 @@ SC.vehicles = (function() {
             bestTruck.jobs = bundle;
             bestTruck.phase = 'toPickup';
             setPath(bestTruck, bestRoute.path);
+            SC.emit('truckDispatched', bestTruck);
             idle = idle.filter(t => t !== bestTruck);
         }
 

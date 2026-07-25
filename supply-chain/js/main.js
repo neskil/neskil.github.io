@@ -76,6 +76,9 @@ SC.init = function() {
             }
         }
         SC.render.frame(dt, SC.state.time);
+        // Ambience/score run on the wall clock, so this stays outside the
+        // fast-forward sub-step loop — 4× speed must not pitch the music up.
+        SC.audio.update();
         SC.ui.update(dt);
         requestAnimationFrame(loop);
     }

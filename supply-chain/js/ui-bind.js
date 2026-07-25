@@ -102,6 +102,11 @@
             SC.sfx.toggleMute();
             updateMenuInfo();
         });
+        $('menu-music').addEventListener('click', () => {
+            SC.audio.toggleMusic();
+            SC.sfx.play('click');
+            updateMenuInfo();
+        });
         $('menu-pills').addEventListener('click', () => {
             setHidePills(!getHidePills());
             SC.sfx.play('click');
@@ -337,6 +342,9 @@
         SC.on('crossingChoice', openCrossingChoice);
         SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });
         SC.on('crafted', () => SC.sfx.play('craft'));
+        // Dispatch can assign a whole batch in one tick; sfx.js throttles this
+        // one so a busy map gets a single puff, not a machine-gun of them.
+        SC.on('truckDispatched', () => SC.sfx.play('depart'));
         SC.on('salvage', () => toast(`Late delivery salvaged for ${fmt(SC.CONFIG.SALVAGE_PAY)}`, 'info'));
         SC.on('unlock', n => {
             SC.sfx.play('unlock');
@@ -348,7 +356,7 @@
             toast(`📍 ${what}${across ? ' — across the river 🌉' : ''}!`, 'good');
         });
         SC.on('researchComplete', id => {
-            SC.sfx.play('unlock');
+            SC.sfx.play('science');
             toast(`🔬 Research complete: ${SC.RESEARCH[id].name}!`, 'good');
         });
         SC.on('achievementUnlocked', id => {
@@ -360,7 +368,7 @@
             });
         });
         SC.on('debtWarning', d => {
-            SC.sfx.play('error');
+            SC.sfx.play('warn');
             toast(`🏦 Debt past your credit limit — recover within ${Math.round(d.grace)}s or the bank forecloses!`, 'error');
         });
         SC.on('debtRecovered', () => toast('Debt back within the credit limit — default averted', 'good'));
