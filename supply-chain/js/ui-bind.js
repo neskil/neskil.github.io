@@ -67,9 +67,13 @@
             if (!offer) toast('Contract already offered/active (dev)', 'info');
         });
         $('dev-research').addEventListener('click', () => {
-            const a = SC.state.research.active;
-            if (!a) { toast('No active research (dev)', 'info'); return; }
-            a.t = SC.RESEARCH[a.id].time;
+            // Finish every in-flight project, not just "the" one — research
+            // has been a list since concurrent slots shipped.
+            const active = SC.research.activeList();
+            if (!active.length) { toast('No active research (dev)', 'info'); return; }
+            for (const a of active) {
+                if (SC.RESEARCH[a.id]) a.t = SC.RESEARCH[a.id].time;
+            }
             SC.research.tick(0);
             SC.sfx.play('unlock');
             updateShop();
