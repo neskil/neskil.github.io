@@ -23,6 +23,7 @@ SC.map = (function() {
             x, y,
             mat: opts.mat || null,      // supplier raw-good key
             recipe: opts.recipe || null,// factory output good key
+            specializedRecipe: opts.specializedRecipe || null, // factory specialized single recipe or null (Item 11)
             active: !!opts.active,      // visible & usable
             forSale: !!opts.forSale,    // inactive factory site, buyable
             isHQ: !!opts.isHQ,
