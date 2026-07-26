@@ -803,16 +803,25 @@ SC.ui = (function() {
             ? `${SC.RESEARCH[st.research.active.id].name} (${Math.round(SC.research.progress(st.research.active.id) * 100)}%)`
             : 'None';
         $('menu-stats').innerHTML = `
-            <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
-            <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'}</b></div>
-            <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
-            <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
-            <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
-            <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
-            <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
-            <div><span>Trucks / yards</span><b>${st.trucks.length} / ${st.nodes.filter(SC.isYard).length}</b></div>
-            <div><span>Researching</span><b>${research}</b></div>
-            <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>`;
+            <div class="stats-group">
+                <div class="stats-group-label">OVERVIEW</div>
+                <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
+                <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'} 📋</b></div>
+                <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>
+            </div>
+            <div class="stats-group">
+                <div class="stats-group-label">FINANCES</div>
+                <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
+                <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
+                <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
+            </div>
+            <div class="stats-group">
+                <div class="stats-group-label">LOGISTICS & TECH</div>
+                <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+                <div><span>Trucks / yards</span><b>${st.trucks.length} / ${st.nodes.filter(SC.isYard).length}</b></div>
+                <div><span>Researching</span><b>${research}</b></div>
+            </div>`;
         const at = SC.save.getLastSavedAt();
         $('menu-save-status').textContent = at
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`

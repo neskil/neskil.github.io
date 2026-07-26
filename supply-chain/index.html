@@ -132,7 +132,7 @@
                     <span class="price">$450</span>
                 </button>
 
-                <select id="promo-good-select" class="hidden" style="width: 100%; margin: 4px 0; padding: 4px 8px; border-radius: 6px; background: #1e293b; color: #f8fafc; border: 1px solid #334155; font-size: 13px;">
+                <select id="promo-good-select" class="shop-select hidden">
                     <option value="all">🌐 All Products</option>
                 </select>
                 <button class="shop-btn hidden" id="btn-promo">
@@ -289,23 +289,45 @@
 
     <div id="menu-overlay" class="hidden">
         <div class="menu-card">
-            <div class="menu-title">
-                <h1>Supply Chain Tycoon</h1>
-                <span class="version" id="menu-version"></span>
+            <div class="menu-header">
+                <div class="menu-title">
+                    <h1>Supply Chain Tycoon</h1>
+                    <span class="version" id="menu-version"></span>
+                </div>
+                <div class="menu-save" id="menu-save-status"></div>
             </div>
-            <div class="menu-stats" id="menu-stats"></div>
-            <div class="menu-save" id="menu-save-status"></div>
-            <button class="menu-btn primary" id="menu-resume">▶ Resume</button>
-            <button class="menu-btn" id="menu-save">💾 Save now</button>
-            <button class="menu-btn" id="menu-sound">🔊 Sound</button>
-            <button class="menu-btn" id="menu-music">🎵 Music</button>
-            <button class="menu-btn" id="menu-pills">🏷 Factory labels</button>
-            <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
-            <button class="menu-btn" id="menu-achievements">📊 Stats &amp; Achievements</button>
-            <button class="menu-btn" id="menu-dev">🛠 Dev tools</button>
-            <button class="menu-btn" id="menu-help">❓ How to play</button>
-            <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
-            <a class="menu-btn" id="menu-exit" href="../index.html">🚪 Exit to home</a>
+
+            <div class="menu-body">
+                <div class="menu-section menu-stats-panel">
+                    <div class="menu-section-title">📊 Current Run Status</div>
+                    <div class="menu-stats" id="menu-stats"></div>
+                </div>
+
+                <div class="menu-section menu-actions-panel">
+                    <button class="menu-btn primary menu-resume-btn" id="menu-resume">▶ Resume Game</button>
+
+                    <div class="menu-section-title">⚙️ Audio &amp; Settings</div>
+                    <div class="menu-grid">
+                        <button class="menu-btn" id="menu-sound">🔊 Sound</button>
+                        <button class="menu-btn" id="menu-music">🎵 Music</button>
+                        <button class="menu-btn" id="menu-pills">🏷 Factory labels</button>
+                        <button class="menu-btn" id="menu-fullscreen">⛶ Full screen</button>
+                    </div>
+
+                    <div class="menu-section-title">🛠 Tools &amp; Info</div>
+                    <div class="menu-grid">
+                        <button class="menu-btn" id="menu-save">💾 Save now</button>
+                        <button class="menu-btn" id="menu-achievements">📊 Stats &amp; Badges</button>
+                        <button class="menu-btn" id="menu-help">❓ How to play</button>
+                        <button class="menu-btn" id="menu-dev">🛠 Dev tools</button>
+                    </div>
+
+                    <div class="menu-footer-actions">
+                        <button class="menu-btn danger" id="menu-newgame">🗑 New game</button>
+                        <a class="menu-btn secondary" id="menu-exit" href="../index.html">🚪 Exit to home</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
