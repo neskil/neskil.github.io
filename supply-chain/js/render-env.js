@@ -754,214 +754,253 @@
         R.ctx.stroke();
     }
 
+    // Colour a cave-massif facet the way drawTerrain colours a terrain quad
+    // (height ramp -> slope shading -> aerial haze), so the rock around the
+    // opening melts into the mountain mesh instead of reading as a lump pasted
+    // on with a palette of its own. `bias` lifts a low outcrop up the ramp so
+    // it reads as rock rather than as lowland turf standing on end.
+    function rockFacet(hAvg, slope, wy, sky) {
+        const hf = Math.min(1, Math.max(0, hAvg + TERRAIN.amp * 0.18) / TERRAIN.amp);
+        let col = mix('#2c3d54', '#5b6a86', Math.min(1, hf / TERRAIN.snowline));
+        if (hf > TERRAIN.snowline) col = mix(col, '#eef3fa', (hf - TERRAIN.snowline) / (1 - TERRAIN.snowline));
+        col = shade(col, Math.max(-0.34, Math.min(0.26, slope)));
+        const haze = Math.min(1, Math.max(0, -wy) / (TERRAIN.rise * 2.6));
+        return mix(col, sky, 0.08 + 0.5 * haze);
+    }
+
+    // The river has to come from somewhere: at the top edge of the field it
+    // runs out of a cave mouth in the mountains. The terrain along the river is
+    // a carved valley — far too low to contain an opening on its own, which is
+    // what made the old entrance read as a pyramid glued to flat ground — so
+    // the rock the arch is cut into is authored here: a small headland, then
+    // the steep face across it, then the arch through the face.
     function drawCaveBg() {
         const r = SC.state.river;
         if (!r || !r.spine.length || r.spine.length < 2) return;
 
-        const rv = SC.map.riverAt(0);
-        if (!rv) return;
-        const cx = rv.x;
-        const cy = -5; // slightly pushed into the mountain
-        const hw = rv.halfW;
-        
+        const faceY = -26;                       // world y of the rock face the arch is cut into
+        const rvF = SC.map.riverAt(faceY) || SC.map.riverAt(0);
+        if (!rvF) return;
+
         const z = zoom();
-        const getPt = (wx, wy, wz) => {
-            const p = S(wx, wy);
-            return { x: p.x, y: p.y - wz * z };
-        };
-
-        const w = hw * 1.5;
-        const h = hw * 2.0;
-        const depth = 35; // 3D depth into the mountain so the river can safely recede
-
-        // Calculate fog mix based on screen Y to match mountain haze perfectly
         const sky = skyColor(1);
-        const farY = S(0, 0).y;
-        const fogColor = (hex, wy) => {
-            let fade = 0;
-            if (wy < farY) fade = Math.min(1, (farY - wy) / (TERRAIN.rise * 2.0));
-            return mix(hex, sky, fade);
+        const cx = rvF.x;                        // where the river leaves the mountains
+        const hw = rvF.halfW;
+        const aw = hw * 1.32;                    // arch half-width, world units (wider than the water)
+        const ah = hw * 1.4;                     // arch height at the crown, px at zoom 1 (like terrain)
+        const baseY = faceY + 58;                // the face meets the shore over a short, steep run
+        // How far back the rear of the tunnel can sit is bounded by the
+        // opening's own screen width: the recession direction (world -y) runs
+        // up-and-RIGHT on screen in this projection, so much past 0.6 * aw the
+        // far end slides clean out of the hole and the "deep tunnel" reads as a
+        // slab pasted beside the mouth rather than as depth behind it.
+        const depth = aw * 0.5;
+
+        const P = (wx, wy, wz) => {
+            const p = S(wx, wy);
+            return { x: p.x, y: p.y - (wz || 0) * z };
         };
-
-        // Front hole points (the cave entrance)
-        const F0 = getPt(cx - w * 0.9, cy, 0);
-        const F1 = getPt(cx - w * 1.1, cy, h * 0.4);
-        const F2 = getPt(cx - w * 0.3, cy, h * 0.9);
-        const F3 = getPt(cx + w * 0.4, cy, h * 1.0);
-        const F4 = getPt(cx + w * 1.0, cy, h * 0.5);
-        const F5 = getPt(cx + w * 0.8, cy, 0);
-
-        // Back hole points (deep inside the tunnel)
-        // Narrows slightly to give perspective
-        const bw = w * 0.7;
-        const bh = h * 0.8;
-        const bcy = cy - depth;
-        const B0 = getPt(cx - bw * 0.9, bcy, 0);
-        const B1 = getPt(cx - bw * 1.1, bcy, bh * 0.4);
-        const B2 = getPt(cx - bw * 0.3, bcy, bh * 0.9);
-        const B3 = getPt(cx + bw * 0.4, bcy, bh * 1.0);
-        const B4 = getPt(cx + bw * 1.0, bcy, bh * 0.5);
-        const B5 = getPt(cx + bw * 0.8, bcy, 0);
-
-        // The interior is lit as a tunnel that recedes into darkness rather
-        // than a flat black cut-out: the faceted walls near the mouth catch a
-        // little ambient blue (same hue family as the mountains, so it
-        // "rhymes"), and a radial gradient sinks everything deeper in toward a
-        // near-black vanishing point. Colours stay in the mountain's blue-grey
-        // palette but a couple of stops darker, so the hole reads as depth.
-
-        // 1. Back wall — the deepest, darkest point of the tunnel.
-        R.ctx.beginPath();
-        [B0, B1, B2, B3, B4, B5].forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
-        R.ctx.closePath();
-        R.ctx.fillStyle = '#070c14';
-        R.ctx.fill();
-
-        // 2. Draw inner tunnel walls connecting Front to Back. These carry a
-        //    faint blue so the low-poly facet edges are still legible at the
-        //    rim; the radial fade in step 3 darkens them toward the back.
-        const drawWall = (p1, p2, p3, p4, hex) => {
+        const path = pts => {
             R.ctx.beginPath();
-            R.ctx.moveTo(p1.x, p1.y); R.ctx.lineTo(p2.x, p2.y); R.ctx.lineTo(p3.x, p3.y); R.ctx.lineTo(p4.x, p4.y);
+            pts.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
             R.ctx.closePath();
-            R.ctx.fillStyle = fogColor(hex, (cy + bcy) / 2);
-            R.ctx.fill();
+        };
+        const fill = (pts, style) => { path(pts); R.ctx.fillStyle = style; R.ctx.fill(); };
+        const edge = a => { R.ctx.strokeStyle = `rgba(184, 203, 230, ${a})`; R.ctx.lineWidth = 1; R.ctx.stroke(); };
+        // Stable per-map jitter: varies with the river's exit point so no two
+        // maps get the same rock, but never crawls between background rebuilds.
+        const hash = k => {
+            const s = Math.sin(k * 127.1 + cx * 0.317) * 43758.5453;
+            return s - Math.floor(s);
         };
 
-        // Left inner wall (rim catches a touch of light)
-        drawWall(F0, F1, B1, B0, '#1a2a3d');
-        // Top-Left inner wall
-        drawWall(F1, F2, B2, B1, '#20324a');
-        // Top-Right inner wall
-        drawWall(F2, F3, B3, B2, '#182838');
-        // Right inner wall
-        drawWall(F3, F4, B4, B3, '#111d2c');
-        // Bottom-Right inner wall
-        drawWall(F4, F5, B5, B4, '#0d1622');
-
-        // 3. Depth fade — a radial gradient clipped to the cave opening that is
-        //    transparent at the rim and sinks to near-black toward a vanishing
-        //    point deep inside, so the eye reads a tunnel receding into dark
-        //    instead of a flat silhouette.
-        const cavePts = [F0, F1, F2, F3, F4, F5];
-        const vanish = {
-            x: (B0.x + B1.x + B2.x + B3.x + B4.x + B5.x) / 6,
-            y: (B0.y + B1.y + B2.y + B3.y + B4.y + B5.y) / 6,
+        // --- 1. The headland -------------------------------------------------
+        // A dome laid over the terrain, decaying to zero at the edge of its
+        // patch — so every boundary vertex still sits at the real terrain height
+        // and the join into the mountain mesh is seamless.
+        const Rx = aw * 1.75, Ry = 135, crest = ah * 1.42;
+        const domeH = (x, y) => {
+            const dx = (x - cx) / Rx, dy = (y - (faceY - Ry * 0.2)) / Ry;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= 1) return 0;
+            const f = 1 - d2;
+            return crest * f * f;
         };
-        // Rim radius: farthest front vertex from the vanishing point.
-        let rimR = 0;
-        for (const p of cavePts) {
-            rimR = Math.max(rimR, Math.hypot(p.x - vanish.x, p.y - vanish.y));
+        const rockH = (x, y) => Math.max(terrainHeight(x, y), domeH(x, y));
+
+        const COLS = 7, ROWS = 3;
+        const colX = i => cx - Rx * 1.1 + (2.2 * Rx * i) / COLS;
+        const rowY = j => faceY - (Ry * 1.1 * j) / ROWS;
+        // Back to front (increasing world y) so nearer facets paint over farther.
+        for (let j = ROWS - 1; j >= 0; j--) {
+            for (let i = 0; i < COLS; i++) {
+                const x0 = colX(i), x1 = colX(i + 1);
+                const yFar = rowY(j + 1), yNear = rowY(j);
+                // Only quads the dome actually lifts get redrawn; elsewhere the
+                // real terrain mesh (drawn earlier, on its own coarser grid)
+                // stands, and re-tessellating it here would shatter it.
+                if (domeH(x0, yFar) <= terrainHeight(x0, yFar) &&
+                    domeH(x1, yFar) <= terrainHeight(x1, yFar) &&
+                    domeH(x1, yNear) <= terrainHeight(x1, yNear) &&
+                    domeH(x0, yNear) <= terrainHeight(x0, yNear)) continue;
+                const h00 = rockH(x0, yFar), h10 = rockH(x1, yFar);
+                const h11 = rockH(x1, yNear), h01 = rockH(x0, yNear);
+                // Same lighting as drawTerrain, damped: these facets are far
+                // smaller than a terrain cell, so the raw slope term saturates
+                // and would chequer the headland black and white.
+                const slope = ((h10 + h11) - (h00 + h01)) + ((h01 + h11) - (h00 + h10));
+                fill([P(x0, yFar, h00), P(x1, yFar, h10), P(x1, yNear, h11), P(x0, yNear, h01)],
+                     rockFacet((h00 + h10 + h11 + h01) * 0.25,
+                               -slope / (TERRAIN.amp * 3.2), (yFar + yNear) / 2, sky));
+                edge(0.09);
+            }
         }
+
+        // --- 2. The face the arch is cut into --------------------------------
+        // A tall drop over a short run in y, so it reads as a wall rather than a
+        // slope, with a jittered foot so it doesn't meet the shore along a
+        // suspiciously straight line.
+        const FACE = 11;
+        const faceX = i => cx - Rx * 1.04 + (2.08 * Rx * i) / FACE;
+        const faceTop = [], faceBot = [], faceH = [];
+        for (let i = 0; i <= FACE; i++) {
+            const x = faceX(i);
+            const h = rockH(x, faceY) * (0.9 + 0.2 * hash(i + 3));
+            faceH.push(h);
+            faceTop.push(P(x, faceY, h));
+            faceBot.push(P(x, baseY + (hash(i + 31) - 0.5) * 22, terrainHeight(x, baseY)));
+        }
+        for (let i = 0; i < FACE; i++) {
+            // A wall dropping toward the viewer catches the light in this
+            // scheme; vary it per facet so the face isn't one flat sheet.
+            const lit = 0.16 * hash(i + 7) - 0.06 - (i / FACE) * 0.16;
+            fill([faceTop[i], faceTop[i + 1], faceBot[i + 1], faceBot[i]],
+                 rockFacet((faceH[i] + faceH[i + 1]) * 0.5, lit, faceY, sky));
+            edge(0.07);
+        }
+
+        // --- 3. The arch ------------------------------------------------------
+        // Rim outline as fractions of (aw, ah), lower-left -> crown -> lower-right.
+        const ARCH = [
+            [-1.00, 0.00], [-1.05, 0.34], [-0.90, 0.70], [-0.54, 0.93],
+            [-0.05, 1.00], [0.48, 0.93], [0.85, 0.67], [0.99, 0.30], [0.92, 0.00],
+        ];
+        const F = ARCH.map(a => P(cx + a[0] * aw, faceY, a[1] * ah));
+        const B = ARCH.map(a => P(cx + a[0] * aw * 0.5, faceY - depth, a[1] * ah * 0.5));
+
+        // Flat black first: whatever the walls miss must never show the face.
+        fill(F, '#03060b');
+        // Inner tunnel walls, front rim -> back rim: kept in the mountain's
+        // blue-grey family but several stops darker, so the facet edges stay
+        // just legible at the rim and vanish toward the back.
+        const WALL = ['#16283a', '#1c3049', '#203552', '#1b2c42', '#152436', '#101d2c', '#0c1723', '#0a1420'];
+        for (let k = 0; k < ARCH.length - 1; k++) fill([F[k], F[k + 1], B[k + 1], B[k]], WALL[k]);
+        fill(B, '#04070d');
+
+        // Depth fade: transparent at the rim, near-black toward the vanishing
+        // point, so the eye reads a tunnel receding instead of a flat cut-out.
+        const vanish = B.reduce((a, p) => ({ x: a.x + p.x / B.length, y: a.y + p.y / B.length }), { x: 0, y: 0 });
+        let rimR = 0;
+        for (const p of F) rimR = Math.max(rimR, Math.hypot(p.x - vanish.x, p.y - vanish.y));
         R.ctx.save();
-        R.ctx.beginPath();
-        cavePts.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
-        R.ctx.closePath();
+        path(F);
         R.ctx.clip();
-        const gDepth = R.ctx.createRadialGradient(
-            vanish.x, vanish.y, 0, vanish.x, vanish.y, rimR * 1.05);
-        gDepth.addColorStop(0, 'rgba(4, 7, 12, 0.96)');
-        gDepth.addColorStop(0.45, 'rgba(6, 10, 17, 0.72)');
-        gDepth.addColorStop(0.8, 'rgba(8, 14, 22, 0.28)');
+        const gDepth = R.ctx.createRadialGradient(vanish.x, vanish.y, 0, vanish.x, vanish.y, rimR * 1.1);
+        gDepth.addColorStop(0, 'rgba(3, 6, 11, 0.97)');
+        gDepth.addColorStop(0.4, 'rgba(4, 8, 14, 0.82)');
+        gDepth.addColorStop(0.75, 'rgba(7, 13, 21, 0.34)');
         gDepth.addColorStop(1, 'rgba(8, 14, 22, 0)');
         R.ctx.fillStyle = gDepth;
         R.ctx.fill();
+        // Ambient occlusion hugging the rim — a wide dark stroke of the arch
+        // path clipped to its own interior — so the opening sits *in* the rock
+        // instead of being painted onto it.
+        R.ctx.strokeStyle = 'rgba(3, 6, 11, 0.5)';
+        R.ctx.lineWidth = Math.max(5, aw * 0.3 * z);
+        path(F);
+        R.ctx.stroke();
         R.ctx.restore();
 
-        // 4. Water flowing into the cave. The playing-field river
-        //    (drawRiverFieldBg) stops at the coastline; here we continue it
-        //    into the tunnel so it looks like the river simply flowing on into
-        //    the dark rather than a bright patch pasted at the entrance. We
-        //    follow the real river centerline (riverAt extrapolates upstream
-        //    for y < 0) so the sheet lines up exactly with the field river,
-        //    use the *same* water colour at the mouth so the seam is invisible,
-        //    then just darken into the tunnel shadow as it recedes.
-        const wFrontY = 12;          // just outside the mouth (matches the field river)
-        const wBackY = bcy + 2;      // right up against the back wall, deep in
-        const wSteps = 10;
-        const wLeft = [], wRight = [];
+        // --- 4. Water, from deep inside out onto the field --------------------
+        // The field river (drawRiverFieldBg) is painted before the face and so
+        // is buried by it; this carries the water back out through the arch and
+        // hands off to the field river below the shore.
+        const wSteps = 18;
+        const wBack = faceY - depth * 0.95, wFront = baseY + 34;
+        const wl = [], wr = [];
         for (let i = 0; i <= wSteps; i++) {
-            const f = i / wSteps;
-            const wy = wBackY + (wFrontY - wBackY) * f;
-            const rv2 = SC.map.riverAt(wy);
-            if (!rv2) continue;
-            // A touch narrower toward the back so the channel tucks under the
-            // tunnel walls instead of meeting them with a hard edge.
-            const narrow = 0.82 + 0.18 * f;
-            wLeft.push(getPt(rv2.x - rv2.halfW * narrow, wy, 0));
-            wRight.push(getPt(rv2.x + rv2.halfW * narrow, wy, 0));
+            const wy = wBack + (wFront - wBack) * (i / wSteps);
+            const rv2 = SC.map.riverAt(wy) || rvF;
+            // Narrows toward the back to sit inside the tunnel geometry
+            const narrow = wy < faceY ? 0.58 + 0.42 * ((wy - wBack) / (faceY - wBack)) : 1;
+            wl.push(P(rv2.x - rv2.halfW * narrow, wy, 0));
+            wr.push(P(rv2.x + rv2.halfW * narrow, wy, 0));
         }
-        if (wLeft.length > 1) {
-            R.ctx.save();
-            R.ctx.beginPath();
-            wLeft.forEach((p, i) => i ? R.ctx.lineTo(p.x, p.y) : R.ctx.moveTo(p.x, p.y));
-            for (let i = wRight.length - 1; i >= 0; i--) R.ctx.lineTo(wRight[i].x, wRight[i].y);
-            R.ctx.closePath();
+        R.ctx.save();
+        path(wl.concat(wr.slice().reverse()));
+        const gWater = R.ctx.createLinearGradient(0, wl[0].y, 0, wl[wl.length - 1].y);
+        gWater.addColorStop(0, 'rgb(4, 7, 12)');             // cavern darkness
+        gWater.addColorStop(0.34, 'rgb(10, 23, 36)');
+        gWater.addColorStop(0.66, 'rgb(20, 50, 72)');        // catching the daylight at the mouth
+        gWater.addColorStop(1, mix('#123047', sky, 0.08));   // seamless with the field river
+        R.ctx.fillStyle = gWater;
+        R.ctx.fill();
+        // The face shades the water it overhangs
+        R.ctx.clip();
+        const mouth = P(cx, faceY, 0);
+        const gShade = R.ctx.createLinearGradient(0, mouth.y - ah * 0.15 * z, 0, mouth.y + 42 * z);
+        gShade.addColorStop(0, 'rgba(2, 5, 10, 0.5)');
+        gShade.addColorStop(1, 'rgba(2, 5, 10, 0)');
+        R.ctx.fillStyle = gShade;
+        R.ctx.fill();
+        R.ctx.restore();
 
-            const backY = (wLeft[0].y + wRight[0].y) / 2;
-            const frontY = (wLeft[wLeft.length - 1].y + wRight[wRight.length - 1].y) / 2;
-            // Mouth colour matches the field river exactly (same formula as
-            // drawRiverFieldBg's getRiverColor at the edge), so the water
-            // reads as one continuous river flowing into the dark.
-            const mouthCol = mix('#123047', sky, 0.08);
-            const gWater = R.ctx.createLinearGradient(0, backY, 0, frontY);
-            gWater.addColorStop(0, 'rgba(8, 14, 22, 0.85)');   // dissolves into the tunnel shadow
-            gWater.addColorStop(0.4, 'rgba(13, 30, 45, 0.96)');
-            gWater.addColorStop(0.75, 'rgba(17, 44, 66, 1)');
-            gWater.addColorStop(1, mouthCol);                  // seamless with the field river
-            R.ctx.fillStyle = gWater;
-            R.ctx.fill();
-            R.ctx.restore();
+        // --- 5. Silhouettes inside the mouth ----------------------------------
+        // Stalactites off the crown and a boulder in the water: a couple of hard
+        // silhouettes are what sell the opening as a cave rather than a doorway.
+        R.ctx.save();
+        path(F);
+        R.ctx.clip();
+        for (let k = 0; k < 7; k++) {
+            const seg = (0.18 + 0.62 * (k / 6) + (hash(k + 50) - 0.5) * 0.05) * (ARCH.length - 1);
+            const i0 = Math.min(ARCH.length - 2, Math.floor(seg)), fr = seg - i0;
+            const bx = F[i0].x + (F[i0 + 1].x - F[i0].x) * fr;
+            const by = F[i0].y + (F[i0 + 1].y - F[i0].y) * fr;
+            const wdt = (2.5 + hash(k + 60) * 3.5) * z;
+            const len = (9 + hash(k + 70) * 24) * z;
+            fill([{ x: bx - wdt, y: by - 1 }, { x: bx + wdt, y: by - 1 },
+                  { x: bx + wdt * 0.15, y: by + len }], '#04080f');
         }
+        const bo = P(cx - aw * 0.4, faceY - depth * 0.3, 0);
+        fill([{ x: bo.x - 12 * z, y: bo.y }, { x: bo.x - 4 * z, y: bo.y - 10 * z },
+              { x: bo.x + 7 * z, y: bo.y - 7 * z }, { x: bo.x + 13 * z, y: bo.y + 2 * z }], '#0a1420');
+        R.ctx.restore();
 
-        // 3. Draw outer rock facets (melting into the mountain grid exactly)
-        const cell = TERRAIN.cell;
-        const x0 = -TERRAIN.ring;
-        const y0 = -TERRAIN.ring;
-        
-        // Find the background terrain grid cells that surround the river
-        const gi = Math.floor((cx - x0) / cell);
-        const gj = Math.floor((0 - y0) / cell);
+        // --- 6. Rim light and cave breath -------------------------------------
+        // Sun grazes the upper-left lip; the lower-right lip stays in shadow.
+        R.ctx.beginPath();
+        for (let k = 0; k <= 4; k++) (k ? R.ctx.lineTo(F[k].x, F[k].y) : R.ctx.moveTo(F[k].x, F[k].y));
+        R.ctx.strokeStyle = rgba('#d6e6f7', 0.18 + 0.16 * R.dayness);
+        R.ctx.lineWidth = 1.6;
+        R.ctx.stroke();
+        R.ctx.beginPath();
+        for (let k = 4; k < ARCH.length; k++) (k > 4 ? R.ctx.lineTo(F[k].x, F[k].y) : R.ctx.moveTo(F[k].x, F[k].y));
+        R.ctx.strokeStyle = 'rgba(6, 11, 18, 0.5)';
+        R.ctx.lineWidth = 1.6;
+        R.ctx.stroke();
 
-        const X_L  = x0 + gi * cell;
-        const X_R  = x0 + (gi + 1) * cell;
-        const X_LL = x0 + (gi - 1) * cell;
-        const X_RR = x0 + (gi + 2) * cell;
-        
-        const Y_0 = 0; // Coastline edge
-        const Y_U = y0 + gj * cell;         // First grid line upstream (e.g. -50)
-        const Y_UU = y0 + (gj - 1) * cell;  // Second grid line upstream (e.g. -195)
-
-        // Snap outer vertices exactly to the terrain mesh!
-        const O0 = getPt(X_LL, Y_0, terrainHeight(X_LL, Y_0));
-        const O1 = getPt(X_LL, Y_U, terrainHeight(X_LL, Y_U));
-        const O2 = getPt(X_L, Y_UU, terrainHeight(X_L, Y_UU));
-        const O3 = getPt(X_R, Y_UU, terrainHeight(X_R, Y_UU));
-        const O4 = getPt(X_RR, Y_U, terrainHeight(X_RR, Y_U));
-        const O5 = getPt(X_RR, Y_0, terrainHeight(X_RR, Y_0));
-
-        const drawFacet = (p1, p2, p3, p4, colorHex, facetY) => {
-            R.ctx.beginPath();
-            R.ctx.moveTo(p1.x, p1.y); R.ctx.lineTo(p2.x, p2.y); R.ctx.lineTo(p3.x, p3.y); R.ctx.lineTo(p4.x, p4.y);
-            R.ctx.closePath();
-            R.ctx.fillStyle = fogColor(colorHex, facetY);
-            R.ctx.fill();
-            // Subtle edge line to match low-poly style
-            R.ctx.strokeStyle = 'rgba(200, 215, 235, 0.04)';
-            R.ctx.lineWidth = 1;
-            R.ctx.stroke();
-        };
-
-        // Left side (catches light)
-        drawFacet(O0, O1, F1, F0, '#283a50', (Y_0 + Y_U) / 2);
-        // Top-Left (catches most light)
-        drawFacet(O1, O2, F2, F1, '#354862', (Y_U + Y_UU) / 2);
-        // Top (medium light)
-        drawFacet(O2, O3, F3, F2, '#2a3c52', Y_UU);
-        // Top-Right (shadow)
-        drawFacet(O3, O4, F4, F3, '#202f43', (Y_U + Y_UU) / 2);
-        // Right side (deep shadow)
-        drawFacet(O4, O5, F5, F4, '#182536', (Y_0 + Y_U) / 2);
+        // Cold air off the water pooling at the mouth
+        const mist = P(cx, faceY + 4, ah * 0.14);
+        const mr = aw * 1.45 * z;
+        const gMist = R.ctx.createRadialGradient(mist.x, mist.y, 0, mist.x, mist.y, mr);
+        gMist.addColorStop(0, `rgba(176, 206, 232, ${0.11 + 0.05 * R.dayness})`);
+        gMist.addColorStop(1, 'rgba(176, 206, 232, 0)');
+        R.ctx.save();
+        R.ctx.beginPath();
+        R.ctx.ellipse(mist.x, mist.y, mr, mr * 0.4, 0, 0, Math.PI * 2);
+        R.ctx.fillStyle = gMist;
+        R.ctx.fill();
+        R.ctx.restore();
     }
 
     function drawRiverFieldBg() {
