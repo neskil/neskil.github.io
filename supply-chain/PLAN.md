@@ -1,9 +1,13 @@
 # Supply Chain Tycoon — development plan (v1 → v2)
 
-Status: **agreed 2026-07-15** (decisions below); last synced with
-shipped reality **2026-07-16 (v1.13.0)**. Baseline is v1.0.0 (playable
-core loop: roads, trucks, orders, upgrades, milestone map growth,
-pan/pinch camera).
+Status: **agreed 2026-07-15** (decisions below); last synced with shipped
+reality **2026-07-25 (v1.57.0)**. Baseline is v1.0.0 (playable core loop:
+roads, trucks, orders, upgrades, milestone map growth, pan/pinch camera).
+
+This file owns the roadmap: the Shipped log, the phased items (all of
+1-16 have now landed), and **Phase 4**, the unbuilt backlog. New ideas go
+in Phase 4 — not in README.md, which now just points here. See
+[CLAUDE.md](CLAUDE.md) for which doc owns what.
 
 ## Decisions (owner review, 2026-07-15)
 
@@ -266,9 +270,10 @@ shipped.)*
    kind or scheduling clock — the "queueing" half of the ask is
    congestion (if enabled) applying to a ferry edge same as any other,
    which reads as trucks queueing for the boat without a separate queue
-   simulation. A boat emoji shuttles back and forth along the crossing
-   for the promised visual, short of a full dock/sprite treatment
-   (that's Decision C's dedicated visual pass). v1.18.0 chose the ferry
+   simulation. v1.18.0 shipped a boat emoji shuttling along the crossing
+   for the promised visual; v1.34.0 dropped it (it rendered as an
+   unstyled black fallback glyph on some Android emoji fonts, and the
+   teal dashed lane reads as "ferry" on its own). v1.18.0 chose the ferry
    at build time via a persistent Shop panel toggle; v1.20.0 replaced
    that with a `crossingChoice` modal that pops up in context the moment
    a tapped road actually crosses the river (Bridge vs. Ferry, costs
@@ -350,6 +355,49 @@ shipped.)*
     dashed lane guide, planted center island — `drawJunction`) per the
     owner's "the junction marker is ugly, can't it be a roundabout
     instead" — no icon needed since the shape itself reads as what it is.
+
+## Phase 4 — Unbuilt backlog
+
+Items 1-16 above are all shipped, so this is where the live backlog
+lives. (Moved here from README.md's old "TODO backlog", which had drifted
+into claiming shipped features were unbuilt.)
+
+**Gameplay**
+
+- Curved / waypoint roads instead of straight node-to-node polylines.
+- Touch: long-press as an alternative to double-tap for demolish/buy —
+  the Inspect-mode hold gesture already uses the same long-press
+  primitive.
+- Research cancel/refund — a started project currently can't be aborted.
+- Faster-milestone research (unlock a site every 2 deliveries instead of
+  3). Considered for v1.12 and deferred: milestone pace is the main
+  faucet controlling map growth, and cheapening it risks flooding the
+  midgame with sites. Now that the within-run ramp (item 7) has shipped,
+  it's worth revisiting against it.
+- Biome-specific supplier bonuses — e.g. greenland tiles boosting wool
+  and wheat suppliers. Consider pivoting from auto-spawning suppliers to
+  the player placing them on advantageous biomes.
+- Weather that affects play (rain slowing trucks, etc.) rather than
+  being purely cosmetic.
+- Daily challenge: share today's date as the map seed (left open by item
+  13, along with generated-world test determinism).
+
+**Audio**
+
+- Per-channel volume sliders instead of the current on/off toggles.
+
+**Graphics** — the iso 2.5D view has had many depth passes (scenery,
+themed supplier sites, night atmosphere, day↔night, rotating weather,
+directional shadows, route-flow pulses, coin bursts, heightfield
+terrain). Next ideas, unbuilt:
+
+- Curved/rounded roads at corners and junctions.
+- Parallax on the terrain/sky layers when panning.
+- Lightning + thunder in heavy rain; shooting stars; god rays at dawn.
+- Face textures (subtle noise/brick/metal) instead of flat-colour
+  building faces.
+- Seasonal palettes; richer water reflections beyond the moonlight
+  streak.
 
 ## Tech housekeeping (ongoing, fold into the above)
 
