@@ -35,6 +35,23 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.57.1: **the overlap rules explain themselves on the map** — the build
+  ghost marks the site it would run over (clearance ring + ✕) or lights the
+  road it can't cross red, and draws the legal alternative in green beside
+  it (the two hops through that site, or the ends of the road in the way);
+  a legal crossing rings and prices each interchange it would build. Help
+  overlay gained a "Roads can't overlap" entry. Per v1.56.0 below.
+- v1.56.0: **road overlap rules** — a road may no longer be laid over the
+  top of the network: it can't brush past a site it doesn't connect to
+  (`NODE_ROAD_CLEARANCE`), and it can't cross another road until the
+  early **Road Crossings** research, after which each crossing builds a
+  paid **interchange** (a junction node splitting both roads). Late-game
+  maps had degenerated into a cat's cradle of map-long diagonals drawn
+  straight over everything; now the geometry has to be planned, junctions
+  earn their keep, and the crossings research does what its name says.
+  See README "Overlap rules". A region's free connector highway (Item 15
+  below) obeys the same rules — it routes clear of other sites and gets
+  free interchanges where it crosses a road.
 - v1.57.0: **Remaining Gameplay & Strategic Depth**:
   - Within-Run Difficulty Ramp (Item 7): Order deadlines and spawn intervals tighten progressively as total delivered orders increase.
   - Targeted Promotions (Item 10b): Marketing Blitz allows selecting a specific product target (or all products) for focused demand bursts.
