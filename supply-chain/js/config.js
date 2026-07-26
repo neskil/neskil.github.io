@@ -42,6 +42,22 @@ SC.CONFIG = {
     // out. Persisted via SC.state.worldW/worldH + expansions.
     WORLD_EXPAND: { stepW: 900, stepH: 620, at: [18, 42, 78] },
 
+    // Bigger Maps & Regions (Item 15): delivery counts that unlock adjacent
+    // regions connected by highways.
+    REGION_UNLOCK_DELIVERIES: [120, 200],
+    REGION_STEP_W: 1200,
+    REGION_STEP_H: 800,
+
+    // Within-Run Difficulty Ramp (Item 7): deadline & spawn rate tightening
+    // as total delivered orders increases.
+    RAMP_DEADLINE_FLOOR: 0.5,
+    RAMP_DEADLINE_DECAY: 0.005,
+    RAMP_SPAWN_FLOOR: 0.35,
+    RAMP_SPAWN_DECAY: 0.015,
+
+    // Factory Specialization (Item 11): 1.5x crafting speed when specialized
+    SPECIALIZATION_SPEED_MULT: 1.5,
+
     START_TRUCKS: 2,
 
     // Credit line: purchases may push the balance negative down to
