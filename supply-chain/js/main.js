@@ -74,6 +74,7 @@ SC.init = function() {
             // more simulated time per frame, not bigger, riskier steps.
             for (let i = 0; i < SC.state.speed; i++) {
                 SC.state.time += dt;
+                SC.map.tick(dt);
                 SC.economy.tick(dt);
                 SC.factories.tick(dt);
                 SC.vehicles.tick(dt);

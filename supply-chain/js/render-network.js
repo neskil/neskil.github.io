@@ -223,6 +223,9 @@
         if (n.kind === 'junction') {
             return { base: '#7d8898', fw: 15, h: 0 };
         }
+        if (n.kind === 'researchLab') {
+            return { base: '#8b5cf6', fw: 22, h: 38, icon: '🔬', roof: '#a78bfa', stories: 4, door: true };
+        }
         // city
         if (n.isHQ) return { base: '#0ea5e9', fw: 20, h: 46, stories: 6, door: true };
         return { base: '#10b981', fw: 18, h: 32, stories: 4, door: true };
@@ -758,6 +761,37 @@
             R.ctx.fillText('⚡', bx, by);
         }
 
+        // Under construction progress bar & countdown timer
+        if (n.underConstruction) {
+            const z = clampZoom();
+            const total = n.constructionTime || SC.CONFIG.CONSTRUCTION_TIME || 7.5;
+            const frac = Math.min(1, Math.max(0, (n.constructTimer || 0) / total));
+            const barW = 42 * z, barH = 6 * z;
+            const bx = tc.x - barW / 2, by = tc.y - 24 * z;
+
+            // Background
+            R.ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            roundRectPath(bx - 2, by - 2, barW + 4, barH + 4, 3 * z);
+            R.ctx.fill();
+
+            // Progress Fill
+            R.ctx.fillStyle = '#f59e0b';
+            if (barW * frac > 0) {
+                roundRectPath(bx, by, Math.max(2, barW * frac), barH, 2 * z);
+                R.ctx.fill();
+            }
+
+            // Border
+            R.ctx.strokeStyle = '#fbbf24';
+            R.ctx.lineWidth = 1;
+            roundRectPath(bx - 2, by - 2, barW + 4, barH + 4, 3 * z);
+            R.ctx.stroke();
+
+            // Countdown Label
+            const secsLeft = Math.ceil(total - (n.constructTimer || 0));
+            labelAt(`🏗️ Building ${secsLeft}s`, tc.x, by - 8 * z, { color: '#fbbf24', font: `bold ${Math.max(9, Math.round(11 * z))}px monospace` });
+        }
+
         // Production status pill. First group is the finished good:
         // "in stock / ordered" — how many units are crafted and sitting at
         // the factory waiting for a truck, over how many are still outstanding
@@ -1024,24 +1058,27 @@
             byCity.get(o.city).push(o);
         }
         const z = clampZoom();
-        for (const [city, orders] of byCity) {
-            const sp = nodeSpec(city);
-            // Roof apex of the building: prism() is drawn at height sp.h*zoom(),
-            // so the roof sits exactly that many screen pixels above the ground
-            // point. Hug the bubble just above it (bounded by clampZoom) so it
-            // reads as attached rather than floating on a long stalk — the old
-            // code let a high zoom fling the bubble far above the (zoom-capped)
-            // HQ beacon, and the beacon mast filled the gap as an ugly stem.
-            const roof = { x: S(city.x, city.y).x, y: S(city.x, city.y).y - sp.h * zoom() };
-            const r = 14 * z;
-            orders.forEach((o, i) => {
-                const bx = roof.x + (i - (orders.length - 1) / 2) * 34 * z;
-                const by = roof.y - 26 * z;
-                const frac = Math.max(0, o.deadline / o.deadlineTotal);
-                const urgent = frac < 0.25;
+        const curZoom = zoom();
 
-                // speech-bubble tail: a short triangle from the bubble bottom
-                // down to the roof apex, so the marker points at its building.
+        for (const [city, orders] of byCity) {
+            if (!orders.length) continue;
+            const sp = nodeSpec(city);
+            // Roof apex of the building
+            const roof = { x: S(city.x, city.y).x, y: S(city.x, city.y).y - sp.h * curZoom };
+
+            // Consolidate when zoomed out (curZoom < 1.0) or when there are 4+ orders;
+            // when zoomed in close, expand into individual order bubbles.
+            const consolidate = curZoom < 1.0 || orders.length >= 4;
+
+            if (consolidate) {
+                const bx = roof.x;
+                const r = (orders.length > 1 ? 16 : 14) * z;
+                const by = roof.y - (r + 12 * z);
+
+                const anyUrgentOrNoRoute = orders.some(o => o.noRoute || (o.deadline / o.deadlineTotal) < 0.25);
+                const strokeColor = anyUrgentOrNoRoute ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+
+                // speech-bubble tail
                 R.ctx.beginPath();
                 R.ctx.moveTo(bx - 5 * z, by + r - 2 * z);
                 R.ctx.lineTo(bx + 5 * z, by + r - 2 * z);
@@ -1049,31 +1086,146 @@
                 R.ctx.closePath();
                 R.ctx.fillStyle = '#1e293b';
                 R.ctx.fill();
-                R.ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                R.ctx.strokeStyle = strokeColor;
                 R.ctx.lineWidth = 1;
                 R.ctx.stroke();
 
+                // Main Circle
                 R.ctx.beginPath();
                 R.ctx.arc(bx, by, r, 0, Math.PI * 2);
                 R.ctx.fillStyle = '#1e293b';
                 R.ctx.fill();
-                R.ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                R.ctx.strokeStyle = strokeColor;
                 R.ctx.lineWidth = 1.5;
                 R.ctx.stroke();
 
-                R.ctx.beginPath();
-                R.ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
-                R.ctx.strokeStyle = urgent ? '#f87171' : SC.colorOf(o.product);
-                R.ctx.lineWidth = 3;
-                R.ctx.lineCap = 'round';
-                R.ctx.stroke();
-                R.ctx.lineCap = 'butt';
+                // Multi-colored Arc Ring
+                const N = orders.length;
+                if (N === 1) {
+                    const o = orders[0];
+                    const frac = Math.max(0, o.deadline / o.deadlineTotal);
+                    const urgent = frac < 0.25;
+                    R.ctx.beginPath();
+                    R.ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+                    R.ctx.strokeStyle = o.noRoute ? '#f87171' : (urgent ? '#f87171' : SC.colorOf(o.product));
+                    R.ctx.lineWidth = 3 * z;
+                    R.ctx.lineCap = 'round';
+                    R.ctx.stroke();
+                    R.ctx.lineCap = 'butt';
+                } else {
+                    const gap = N > 4 ? 0.05 : 0.09;
+                    const sliceAngle = (Math.PI * 2) / N;
 
-                emoji(SC.emojiOf(o.product), bx, by, 17 * z);
-                const left = o.qty - o.deliveredUnits;
-                if (left > 1) labelAt(String(left), bx + r + 2, by - r + 2, '#f8fafc', 10);
-                if (o.noRoute) labelAt('no route!', bx, by - r - 10, '#f87171', 10);
-            });
+                    orders.forEach((o, i) => {
+                        const startAngle = -Math.PI / 2 + i * sliceAngle + gap / 2;
+                        const endSliceAngle = -Math.PI / 2 + (i + 1) * sliceAngle - gap / 2;
+                        const usableSpan = endSliceAngle - startAngle;
+                        const frac = Math.max(0, o.deadline / o.deadlineTotal);
+                        const urgent = frac < 0.25;
+                        const goodColor = o.noRoute ? '#f87171' : (urgent ? '#f87171' : SC.colorOf(o.product));
+
+                        // Track background
+                        R.ctx.beginPath();
+                        R.ctx.arc(bx, by, r, startAngle, endSliceAngle);
+                        R.ctx.strokeStyle = 'rgba(51, 65, 85, 0.6)';
+                        R.ctx.lineWidth = 2.5 * z;
+                        R.ctx.stroke();
+
+                        // Progress arc
+                        if (frac > 0) {
+                            R.ctx.beginPath();
+                            R.ctx.arc(bx, by, r, startAngle, startAngle + usableSpan * frac);
+                            R.ctx.strokeStyle = goodColor;
+                            R.ctx.lineWidth = 3.5 * z;
+                            R.ctx.lineCap = 'round';
+                            R.ctx.stroke();
+                            R.ctx.lineCap = 'butt';
+                        }
+                    });
+                }
+
+                // Center Content
+                if (N === 1) {
+                    emoji(SC.emojiOf(orders[0].product), bx, by, 17 * z);
+                    const left = orders[0].qty - orders[0].deliveredUnits;
+                    if (left > 1) labelAt(String(left), bx + r + 2, by - r + 2, '#f8fafc', Math.round(10 * z));
+                } else {
+                    // Consolidated center: show order count
+                    R.ctx.font = `700 ${Math.round(13 * z)}px Inter, system-ui, sans-serif`;
+                    R.ctx.textAlign = 'center';
+                    R.ctx.textBaseline = 'middle';
+                    R.ctx.fillStyle = '#f8fafc';
+                    R.ctx.fillText(`${N}`, bx, by);
+
+                    // Mini product emojis below the bubble
+                    const iconSize = Math.max(9, Math.min(13 * z, 14));
+                    const spacing = Math.min(iconSize + 3 * z, (36 * z) / Math.max(1, N - 1));
+                    const startX = bx - ((N - 1) / 2) * spacing;
+                    const iconY = by + r + 11 * z;
+                    orders.forEach((o, i) => {
+                        emoji(SC.emojiOf(o.product), startX + i * spacing, iconY, iconSize);
+                    });
+                }
+
+                // Single consolidated warning pill if any order has noRoute
+                const noRouteCount = orders.filter(o => o.noRoute).length;
+                if (noRouteCount > 0) {
+                    const text = noRouteCount === N
+                        ? (N === 1 ? 'no route!' : 'no routes!')
+                        : `${noRouteCount} no route!`;
+                    labelAt(text, bx, by - r - 10 * z, '#f87171', Math.round(10 * z));
+                }
+
+            } else {
+                // Individual bubbles (when N === 1 and curZoom >= 0.95)
+                const r = 14 * z;
+                const noRouteCount = orders.filter(o => o.noRoute).length;
+
+                orders.forEach((o, i) => {
+                    const bx = roof.x + (i - (orders.length - 1) / 2) * 34 * z;
+                    const by = roof.y - 26 * z;
+                    const frac = Math.max(0, o.deadline / o.deadlineTotal);
+                    const urgent = frac < 0.25;
+
+                    R.ctx.beginPath();
+                    R.ctx.moveTo(bx - 5 * z, by + r - 2 * z);
+                    R.ctx.lineTo(bx + 5 * z, by + r - 2 * z);
+                    R.ctx.lineTo(bx, by + r + 9 * z);
+                    R.ctx.closePath();
+                    R.ctx.fillStyle = '#1e293b';
+                    R.ctx.fill();
+                    R.ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                    R.ctx.lineWidth = 1;
+                    R.ctx.stroke();
+
+                    R.ctx.beginPath();
+                    R.ctx.arc(bx, by, r, 0, Math.PI * 2);
+                    R.ctx.fillStyle = '#1e293b';
+                    R.ctx.fill();
+                    R.ctx.strokeStyle = urgent ? '#f87171' : 'rgba(148, 163, 184, 0.55)';
+                    R.ctx.lineWidth = 1.5;
+                    R.ctx.stroke();
+
+                    R.ctx.beginPath();
+                    R.ctx.arc(bx, by, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+                    R.ctx.strokeStyle = urgent ? '#f87171' : SC.colorOf(o.product);
+                    R.ctx.lineWidth = 3 * z;
+                    R.ctx.lineCap = 'round';
+                    R.ctx.stroke();
+                    R.ctx.lineCap = 'butt';
+
+                    emoji(SC.emojiOf(o.product), bx, by, 17 * z);
+                    const left = o.qty - o.deliveredUnits;
+                    if (left > 1) labelAt(String(left), bx + r + 2, by - r + 2, '#f8fafc', Math.round(10 * z));
+                });
+
+                if (noRouteCount > 0) {
+                    const text = noRouteCount === orders.length
+                        ? (orders.length === 1 ? 'no route!' : 'no routes!')
+                        : `${noRouteCount} no route!`;
+                    labelAt(text, roof.x, roof.y - 26 * z - r - 10 * z, '#f87171', Math.round(10 * z));
+                }
+            }
         }
     }
 

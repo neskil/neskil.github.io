@@ -252,6 +252,20 @@
             else { SC.sfx.play('error'); toast('No idle truck available at another yard', 'error'); }
             updateShop();
         });
+        if ($('btn-researchLab')) {
+            $('btn-researchLab').addEventListener('click', () => {
+                const st = SC.state;
+                if (st.placeMode && st.placeMode.kind === 'researchLab') {
+                    st.placeMode = null; // tapping again cancels
+                } else {
+                    st.selectedNode = null; // don't fight the road-building ghost
+                    st.placeMode = { kind: 'researchLab', good: null };
+                    SC.emit('toast', { text: `Tap the map to place a Research Lab — ${fmt(SC.CONFIG.PLACEMENT_RESEARCH_LAB_PRICE || 800)}`, kind: 'info' });
+                }
+                SC.sfx.play('click');
+                updateShop();
+            });
+        }
         $('btn-yard').addEventListener('click', () => {
             const st = SC.state;
             if (st.placeMode && st.placeMode.kind === 'yard') {

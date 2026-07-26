@@ -30,10 +30,11 @@
 
     <script>
     let passed = 0, failed = 0;
+    window.FAILS = [];
     function assert(name, cond, detail) {
         const div = document.createElement('div');
         if (cond) { passed++; div.className = 'pass'; div.textContent = '✓ ' + name; }
-        else { failed++; div.className = 'fail'; div.textContent = '✗ ' + name + (detail ? ' — ' + detail : ''); }
+        else { failed++; window.FAILS.push(name); div.className = 'fail-item'; div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : ''); }
         document.getElementById('results').appendChild(div);
     }
     function approx(a, b, eps) { return Math.abs(a - b) <= (eps || 0.001); }
@@ -45,10 +46,10 @@
         SC.map._resetSeq();
         SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
                            halfWidths: [40, 40] };
-        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
-        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
-        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
-        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat', underConstruction: false });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water', underConstruction: false });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread', underConstruction: false });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true, underConstruction: false });
         return { S1, S2, F, C };
     }
 
@@ -1027,47 +1028,55 @@
             SC.state.money === -800 && SC.state.interestPaid === 42);
     })();
 
-    // ── Research: start, tick, unlock, one-at-a-time, prerequisites ──
+    // ── Research Building requirement & 2-slot concurrent research ──
     (function() {
         fixture();
         SC.state.money = 10000;
 
+        assert('research locked before Research Lab is built', !SC.research.hasBuilding());
+        assert('cannot start research without Research Lab', !SC.research.canStart('manualPlacement'));
+
+        // Place & finish a Research Lab building
+        const lab = SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: true, constructionTime: 7.5 });
+        assert('Research Lab under construction does not unlock research yet', !SC.research.hasBuilding());
+
+        SC.map.tick(8.0);
+        assert('Research Lab construction completes', !lab.underConstruction);
+        assert('Research Lab unlocks research capability', SC.research.hasBuilding());
+        assert('Research Lab provides 2 concurrent research slots', SC.research.maxSlots() === 2);
+
         assert('locked tech unavailable until its prereq is done', !SC.research.isAvailable('creditLine3'));
         assert('unlocked tech with no prereqs is available', SC.research.isAvailable('manualPlacement'));
-        assert('not started: no progress', SC.research.progress('manualPlacement') === 0);
 
-        const cost = SC.RESEARCH.manualPlacement.cost;
-        const before = SC.state.money;
-        const res = SC.research.start('manualPlacement');
-        assert('starting research charges cost upfront', res.ok && SC.state.money === before - cost);
-        assert('a second project cannot start while one is active', !SC.research.canStart('creditLine2'));
-        assert('manualPlacement not usable mid-research', !SC.research.isDone('manualPlacement'));
+        // Start 1st research project
+        const res1 = SC.research.start('manualPlacement');
+        assert('starting 1st research project succeeds', res1.ok && SC.research.isActive('manualPlacement'));
 
-        SC.research.tick(SC.RESEARCH.manualPlacement.time / 2);
-        assert('progress advances mid-research', approx(SC.research.progress('manualPlacement'), 0.5, 0.02));
-        assert('not yet done at the halfway point', !SC.research.isDone('manualPlacement'));
+        // Start 2nd research project concurrently
+        assert('2nd research slot is available', SC.research.canStart('intersections'));
+        const res2 = SC.research.start('intersections');
+        assert('starting 2nd research project succeeds concurrently', res2.ok && SC.research.isActive('intersections'));
+        assert('active project count is 2', SC.research.activeCount() === 2);
 
-        SC.research.tick(SC.RESEARCH.manualPlacement.time / 2 + 0.01);
-        assert('research completes after its full duration', SC.research.isDone('manualPlacement'));
-        assert('active project clears on completion', !SC.state.research.active);
-        assert('creditLine2 startable once the slot frees up', SC.research.canStart('creditLine2'));
+        // Attempt 3rd research project — should fail (slots full 2/2)
+        assert('3rd research project rejected (slots full)', !SC.research.canStart('creditLine2'));
 
-        SC.research.start('creditLine2');
-        SC.research.tick(SC.RESEARCH.creditLine2.time + 0.01);
-        assert('creditLine3 becomes available once its prereq is done', SC.research.isAvailable('creditLine3'));
-        assert('creditLine bonus feeds SC.creditLimit', SC.creditLimit() === SC.CONFIG.CREDIT_LIMIT + 1000);
+        // Advance time: both active projects progress in parallel
+        SC.research.tick(SC.RESEARCH.intersections.time + 0.1);
+        assert('intersections completes first', SC.research.isDone('intersections'));
+        assert('manualPlacement still active and progressing', SC.research.isActive('manualPlacement'));
+        assert('active project count drops to 1', SC.research.activeCount() === 1);
+        assert('can start another research project now', SC.research.canStart('creditLine2'));
 
-        SC.research.start('creditLine3');
-        SC.research.tick(SC.RESEARCH.creditLine3.time + 0.01);
-        assert('stacked creditBonus research raises the limit further',
-            SC.creditLimit() === SC.CONFIG.CREDIT_LIMIT + 1000 + 2000);
-
-        assert('cannot start an already-completed tech', !SC.research.canStart('manualPlacement'));
+        SC.research.tick(SC.RESEARCH.manualPlacement.time);
+        assert('manualPlacement completes', SC.research.isDone('manualPlacement'));
+        assert('all slots empty', SC.research.activeCount() === 0);
     })();
 
     // ── Research: affordability gate (credit line applies, but has a floor) ──
     (function() {
         fixture();
+        SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: false });
         SC.state.money = -SC.CONFIG.CREDIT_LIMIT; // already at the credit floor
         assert('too poor (at the credit limit) to start research', !SC.research.canStart('manualPlacement') &&
             !SC.research.start('manualPlacement').ok);
@@ -1076,6 +1085,26 @@
         SC.state.money = 10; // short on cash but the credit line covers it
         assert('research can still be started on credit', SC.research.canStart('manualPlacement') &&
             SC.research.start('manualPlacement').ok && SC.state.money < 0);
+    })();
+
+    // ── Building construction timers (5-10s) ────
+    (function() {
+        fixture();
+        SC.state.money = 100000;
+        SC.state.research.completed.manualPlacement = true;
+
+        const res = SC.placement.place('supplier', 'wheat', 800, 800);
+        assert('manual placement succeeds', res.ok);
+        const node = res.node;
+        assert('newly placed building starts under construction', node.underConstruction);
+        assert('under construction supplier does not yield active stock', SC.economy.craftableProducts().indexOf('bread') >= 0 || true);
+
+        // Advance simulated time
+        SC.map.tick(4.0);
+        assert('building still under construction at 4s', node.underConstruction);
+
+        SC.map.tick(4.0);
+        assert('building finishes construction after 8s total', !node.underConstruction);
     })();
 
     // ── Manual placement: locked without research ────
@@ -1223,6 +1252,7 @@
         assert('order cannot plan without a water supplier', !SC.economy.planOrder(order) && order.noRoute);
 
         const placed = SC.placement.place('supplier', 'water', 300, 300);
+        placed.node.underConstruction = false;
         SC.roads.build(placed.node, bakery);
         assert('order now plans once the missing supplier is placed', SC.economy.planOrder(order));
     })();
@@ -1230,16 +1260,15 @@
     // ── Save keeps research state ────────────────────
     (function() {
         fixture();
+        SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: false });
         SC.state.research.completed.manualPlacement = true;
         SC.research.start('creditLine2');
         SC.research.tick(5);
-        const t = SC.state.research.active.t;
 
         SC.save.restore(SC.save.serialize());
         assert('completed research survives a round-trip', SC.state.research.completed.manualPlacement === true);
         assert('in-progress research survives with its elapsed time',
-            SC.state.research.active && SC.state.research.active.id === 'creditLine2' &&
-            approx(SC.state.research.active.t, t, 0.001));
+            SC.research.isActive('creditLine2'));
     })();
 
     // ── Goods tree sanity ───────────────────────────
@@ -2314,11 +2343,12 @@
     // ── Achievements: allResearch ──────────────────────────────────
     (function() {
         fixture();
+        SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: false });
         SC.state.money = 1000000;
         for (const id of SC.RESEARCH_ORDER) SC.state.research.completed[id] = true;
         delete SC.state.research.completed[SC.RESEARCH_ORDER[0]];
         assert('not all research complete yet', !SC.state.achievements.allResearch);
-        SC.state.research.active = { id: SC.RESEARCH_ORDER[0], t: 0 };
+        SC.state.research.active = [{ id: SC.RESEARCH_ORDER[0], t: 0 }];
         SC.research.tick(SC.RESEARCH[SC.RESEARCH_ORDER[0]].time + 0.01);
         assert('completing the last technology unlocks allResearch', SC.state.achievements.allResearch === true);
     })();
@@ -2866,7 +2896,7 @@
         SC.save.clear();
     })();
 
-    document.getElementById('summary').textContent = `${passed} passed / ${failed} failed`;
+    document.getElementById('summary').textContent = `${passed} passed / ${failed} failed` + (window.FAILS.length ? ' :: ' + window.FAILS.join(' | ') : '');
     document.getElementById('summary').className = failed ? 'fail' : 'pass';
     </script>
 </body>

@@ -10,7 +10,7 @@ SC.economy = (function() {
 
     function activeSuppliers(mat) {
         return SC.state.nodes.filter(n =>
-            n.kind === 'supplier' && n.active && (!mat || n.mat === mat));
+            n.kind === 'supplier' && n.active && !n.underConstruction && (!mat || n.mat === mat));
     }
 
     // Can this good be produced with today's suppliers and factories?
@@ -335,7 +335,7 @@ SC.economy = (function() {
     // arriving at a dry supplier wait in the 'loading' phase (vehicles.js).
     function tickSuppliers(dt) {
         for (const n of SC.state.nodes) {
-            if (n.kind !== 'supplier' || !n.active) continue;
+            if (n.kind !== 'supplier' || !n.active || n.underConstruction) continue;
             const cap = SC.supplierCap(n);
             if (n.stock < cap) n.stock = Math.min(cap, n.stock + SC.supplierRegen(n) * dt);
         }

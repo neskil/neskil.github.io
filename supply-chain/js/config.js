@@ -236,6 +236,10 @@ SC.CONFIG = {
     // one is never shorter than a direct road, spamming them only adds cost.
     PLACEMENT_JUNCTION_PRICE: 400,
     PLACEMENT_INTERSECTION_PRICE: 150,
+    PLACEMENT_RESEARCH_LAB_PRICE: 800,
+
+    // Construction time: how long a newly built/unlocked site takes to build (seconds)
+    CONSTRUCTION_TIME: 7.5,
 
     // Stats screen: SC.state.moneyHistory is a capped ring of periodic
     // balance samples for the sparkline (see stats.js tick).
@@ -298,103 +302,98 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 // seconds, then unlocks its effect. `requires` lists prerequisite ids.
 // RESEARCH_ORDER fixes menu display order (object key order isn't a
 // contract to rely on across engines).
-// Research times are all ×0.7 of their original values (30% quicker
-// across the board) — e.g. intersections was 20s, junctions 50s, etc.
+// Times are rebalanced: basic techs stay quick, while advanced/late techs
+// take longer to complete.
 SC.RESEARCH = {
     intersections: {
-        name: 'Road Crossings', emoji: '➕', cost: 150, time: 14, requires: [],
+        name: 'Road Crossings', emoji: '➕', cost: 150, time: 15, requires: [],
         desc: 'Lets a road cross another one at all — each crossing builds an interchange junction for a fee.'
     },
     junctions: {
-        name: 'Road Junctions', emoji: '🔀', cost: 350, time: 35, requires: ['intersections'],
+        name: 'Road Junctions', emoji: '🔀', cost: 350, time: 40, requires: ['intersections'],
         desc: 'Unlocks placeable junctions — waypoints to fork, merge or reroute roads.'
     },
     manualPlacement: {
-        name: 'Site Requisition', emoji: '📍', cost: 900, time: 49, requires: [],
+        name: 'Site Requisition', emoji: '📍', cost: 900, time: 55, requires: [],
         desc: 'Place a supplier or factory anywhere on the map yourself, for a premium.'
     },
     creditLine2: {
-        name: 'Credit Line II', emoji: '💳', cost: 700, time: 35, requires: [],
+        name: 'Credit Line II', emoji: '💳', cost: 700, time: 40, requires: [],
         desc: 'Raises your credit limit by $1,000.', creditBonus: 1000
     },
     creditLine3: {
-        name: 'Credit Line III', emoji: '💳', cost: 1800, time: 70, requires: ['creditLine2'],
+        name: 'Credit Line III', emoji: '💳', cost: 1800, time: 85, requires: ['creditLine2'],
         desc: 'Raises your credit limit by another $2,000.', creditBonus: 2000
     },
     pavedRoads: {
-        name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 42, requires: [],
+        name: 'Asphalt Paving', emoji: '🛣️', cost: 800, time: 50, requires: [],
         desc: 'Upgrade individual roads to highways — trucks drive 60% faster on them.'
     },
     overdrive: {
-        name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 63, requires: ['pavedRoads'],
+        name: 'Overdrive Engines', emoji: '⚡', cost: 1600, time: 80, requires: ['pavedRoads'],
         desc: 'Raises the Truck Speed upgrade cap by 3 levels.',
         upgradeMaxBonus: { truckSpeed: 3 }
     },
     fertilizer: {
-        name: 'Fertilizer Program', emoji: '🌱', cost: 1000, time: 49, requires: [],
+        name: 'Fertilizer Program', emoji: '🌱', cost: 1000, time: 55, requires: [],
         desc: 'All suppliers regenerate stock 50% faster.',
         supplierRegenBonus: 0.5
     },
     automation: {
-        name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 77, requires: ['fertilizer'],
+        name: 'Factory Automation', emoji: '🦾', cost: 2000, time: 110, requires: ['fertilizer'],
         desc: 'Raises the Factory Speed upgrade cap by 3 levels.',
         upgradeMaxBonus: { factorySpeed: 3 }
     },
     premiumContracts: {
-        name: 'Premium Contracts', emoji: '💰', cost: 1400, time: 56, requires: ['creditLine2'],
+        name: 'Premium Contracts', emoji: '💰', cost: 1400, time: 70, requires: ['creditLine2'],
         desc: 'Negotiate better rates — all order payouts +15%.',
         payoutBonus: 0.15
     },
     rapidExpansion: {
-        name: 'Regional Marketing', emoji: '🏙️', cost: 2200, time: 84, requires: ['premiumContracts'],
+        name: 'Regional Marketing', emoji: '🏙️', cost: 2200, time: 120, requires: ['premiumContracts'],
         desc: 'Word gets around — new customer DCs appear 40% sooner.',
         customerSpawnMult: 0.6
     },
     coldStorage: {
-        name: 'Preservatives', emoji: '🧊', cost: 1200, time: 56, requires: ['fertilizer'],
+        name: 'Preservatives', emoji: '🧊', cost: 1200, time: 75, requires: ['fertilizer'],
         desc: 'Goods keep longer — order deadlines +25%.',
         deadlineBonus: 0.25
     },
     bulkLogistics: {
-        name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 84, requires: ['overdrive'],
+        name: 'Bulk Logistics', emoji: '🏗️', cost: 2400, time: 130, requires: ['overdrive'],
         desc: 'Raises the Truck Capacity upgrade cap by 2 levels.',
         upgradeMaxBonus: { truckCapacity: 2 }
     },
     promotions: {
-        name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 70, requires: ['premiumContracts'],
+        name: 'Marketing Blitz', emoji: '📣', cost: 1800, time: 95, requires: ['premiumContracts'],
         desc: 'Unlocks paid promotions: a 45s burst of extra orders, repeatable from the Shop.'
     },
     autoAcceptContracts: {
-        // Same-tier single-effect techs (premiumContracts/coldStorage)
-        // land at 56s post-reduction, so this one matches.
-        name: 'Standing Orders', emoji: '🤝', cost: 1000, time: 56, requires: ['premiumContracts'],
+        name: 'Standing Orders', emoji: '🤝', cost: 1000, time: 75, requires: ['premiumContracts'],
         desc: 'Unlocks a Shop toggle to auto-accept every contract offer instantly.'
     },
     // ── Late-tier techs ───────────────────────────────────────────
-    // Each one hangs off an existing branch and answers a specific
-    // late-run problem: land runs out, upkeep bites, debt spirals, and
-    // the order cap throttles a big fleet.
     landSurvey: {
-        name: 'Land Surveying', emoji: '🗺️', cost: 2000, time: 70, requires: ['manualPlacement'],
+        name: 'Land Surveying', emoji: '🗺️', cost: 2000, time: 100, requires: ['manualPlacement'],
         desc: 'Unlocks Buy Land in the Build panel — push the frontier out on demand instead of waiting for a delivery milestone.'
     },
     predictiveMaint: {
-        name: 'Predictive Maintenance', emoji: '🔧', cost: 1500, time: 63, requires: ['overdrive'],
+        name: 'Predictive Maintenance', emoji: '🔧', cost: 1500, time: 90, requires: ['overdrive'],
         desc: 'Sensors catch failures early — operating upkeep is cut by 40%.',
         upkeepMult: 0.6
     },
     debtRestructure: {
-        name: 'Debt Restructuring', emoji: '🏦', cost: 2200, time: 77, requires: ['creditLine3'],
+        name: 'Debt Restructuring', emoji: '🏦', cost: 2200, time: 120, requires: ['creditLine3'],
         desc: 'Renegotiate with the bank — debt interest halved and the foreclosure grace period +30s.',
         interestMult: 0.5, graceBonus: 30
     },
     aerospaceTech: {
-        name: 'Aerospace Program', emoji: '🛰️', cost: 2600, time: 90, requires: ['automation'],
+        name: 'Aerospace Program', emoji: '🛰️', cost: 2600, time: 150, requires: ['automation'],
         desc: 'Clean-room logistics for high-value freight — order deadlines +15% and Factory Speed cap +2 levels.',
         deadlineBonus: 0.15, upgradeMaxBonus: { factorySpeed: 2 }
     },
     logisticsAI: {
-        name: 'Logistics AI', emoji: '🧠', cost: 3000, time: 98, requires: ['bulkLogistics'],
+        name: 'Logistics AI', emoji: '🧠', cost: 3000, time: 180, requires: ['bulkLogistics'],
         desc: 'A dispatch model that juggles more work at once — +3 concurrent orders and payouts +10%.',
         orderCapBonus: 3, payoutBonus: 0.10
     }

@@ -5,7 +5,7 @@ window.SC = window.SC || {};
 SC.factories = (function() {
 
     function operational(n) {
-        return n.kind === 'factory' && n.active && !n.forSale;
+        return n.kind === 'factory' && n.active && !n.forSale && !n.underConstruction;
     }
 
     function all() {
@@ -124,6 +124,9 @@ SC.factories = (function() {
         if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
         SC.state.money -= price;
         node.forSale = false;
+        node.underConstruction = true;
+        node.constructionTime = SC.CONFIG.CONSTRUCTION_TIME || 7.5;
+        node.constructTimer = 0;
         SC.economy && SC.economy.onNetworkChanged();
         SC.emit('sitePurchased', { node, price });
         return { ok: true };

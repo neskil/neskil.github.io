@@ -19,12 +19,15 @@ SC.map = (function() {
         nodeSeq = Math.max(nodeSeq, id + 1);
         const n = {
             id,
-            kind,                       // 'supplier' | 'factory' | 'city'
+            kind,                       // 'supplier' | 'factory' | 'city' | 'yard' | 'junction' | 'researchLab'
             x, y,
             mat: opts.mat || null,      // supplier raw-good key
             recipe: opts.recipe || null,// factory output good key
             specializedRecipe: opts.specializedRecipe || null, // factory specialized single recipe or null (Item 11)
             active: !!opts.active,      // visible & usable
+            underConstruction: opts.underConstruction !== undefined ? !!opts.underConstruction : false,
+            constructionTime: opts.constructionTime || SC.CONFIG.CONSTRUCTION_TIME || 7.5,
+            constructTimer: opts.constructTimer || 0,
             forSale: !!opts.forSale,    // inactive factory site, buyable
             isHQ: !!opts.isHQ,
             edges: [],                  // neighbour node refs (kept by roads.js)
@@ -370,6 +373,11 @@ SC.map = (function() {
             !(holdFar && sideOf(n.x, n.y) !== hqSide));
         if (!next) return null;
         next.active = true;
+        if (next.kind !== 'city') {
+            next.underConstruction = true;
+            next.constructionTime = SC.CONFIG.CONSTRUCTION_TIME || 7.5;
+            next.constructTimer = 0;
+        }
         // Its spot was fixed at world-gen; a road may now run through it.
         relocateOffRoad(next);
         return next;
@@ -568,11 +576,37 @@ SC.map = (function() {
             sideOf(n.x, n.y) !== hqSide);
     }
 
+    function nodeName(n) {
+        if (!n) return 'Building';
+        if (n.isHQ) return 'HQ';
+        if (n.kind === 'city') return 'Customer DC';
+        if (n.kind === 'yard') return `Yard #${n.id}`;
+        if (n.kind === 'junction') return 'Junction';
+        if (n.kind === 'researchLab') return 'Research Lab 🔬';
+        if (n.kind === 'supplier') return `${SC.nameOf ? SC.nameOf(n.mat) : n.mat} Supplier`;
+        if (n.kind === 'factory') return SC.GOODS && SC.GOODS[n.recipe] ? SC.GOODS[n.recipe].building : 'Factory';
+        return 'Building';
+    }
+
+    function tick(dt) {
+        if (!SC.state || !SC.state.nodes) return;
+        for (const n of SC.state.nodes) {
+            if (!n.active || !n.underConstruction) continue;
+            n.constructTimer = (n.constructTimer || 0) + dt;
+            const total = n.constructionTime || SC.CONFIG.CONSTRUCTION_TIME || 7.5;
+            if (n.constructTimer >= total) {
+                n.underConstruction = false;
+                SC.emit('buildingConstructed', n);
+                SC.emit('toast', { text: `🏗️ ${nodeName(n)} construction complete!`, kind: 'good' });
+            }
+        }
+    }
+
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
              segmentCrossesRiver, riverCrossing, unlockNext, anyHeldByRiverGrace,
              expandField, maybeExpandField, expandThreshold, buyLand,
              unlockRegion, maybeUnlockRegion,
              relocateOffRoad, clearOfRoads,
-             sideOf, startSide, riverGraceRemaining,
+             sideOf, startSide, riverGraceRemaining, nodeName, tick,
              _resetSeq: () => { nodeSeq = 0; } };
 })();
