@@ -20,6 +20,7 @@ SC.placement = (function() {
         if (kind === 'yard') return SC.yardPrice();
         if (kind === 'junction') return SC.CONFIG.PLACEMENT_JUNCTION_PRICE;
         if (kind === 'intersection') return SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+        if (kind === 'researchLab') return SC.CONFIG.PLACEMENT_RESEARCH_LAB_PRICE || 800;
         return Math.round(SC.CONFIG.FACTORY_SITE_PRICE * SC.CONFIG.PLACEMENT_FACTORY_MULT);
     }
 
@@ -46,7 +47,7 @@ SC.placement = (function() {
     }
 
     // kind: 'supplier' (good = raw material key), 'factory' (good = recipe
-    // key), 'yard', 'junction', or 'intersection' (good unused).
+    // key), 'yard', 'junction', 'researchLab', or 'intersection' (good unused).
     function place(kind, good, x, y) {
         if (!isUnlocked(kind)) return { ok: false, reason: 'locked' };
         
@@ -59,7 +60,10 @@ SC.placement = (function() {
             if (!SC.canAfford(cost)) return { ok: false, reason: 'money', cost };
 
             SC.state.money -= cost;
-            node = SC.map.makeNode('junction', crossing.x, crossing.y, { active: true });
+            node = SC.map.makeNode('junction', crossing.x, crossing.y, {
+                active: true, underConstruction: true,
+                constructionTime: SC.CONFIG.CONSTRUCTION_TIME || 7.5, constructTimer: 0
+            });
 
             SC.roads.splitEdge(crossing.e1, node, crossing.t);
             SC.roads.splitEdge(crossing.e2, node, crossing.u);
@@ -68,13 +72,20 @@ SC.placement = (function() {
             if (!SC.canAfford(cost)) return { ok: false, reason: 'money', cost };
             SC.state.money -= cost;
 
+            const constOpts = {
+                active: true, underConstruction: true,
+                constructionTime: SC.CONFIG.CONSTRUCTION_TIME || 7.5, constructTimer: 0
+            };
+
             if (kind === 'yard') {
-                node = SC.map.makeNode('yard', x, y, { active: true });
+                node = SC.map.makeNode('yard', x, y, constOpts);
                 SC.state.yardsBought++;
             } else if (kind === 'junction') {
-                node = SC.map.makeNode('junction', x, y, { active: true });
+                node = SC.map.makeNode('junction', x, y, constOpts);
+            } else if (kind === 'researchLab') {
+                node = SC.map.makeNode('researchLab', x, y, constOpts);
             } else {
-                const opts = kind === 'supplier' ? { active: true, mat: good } : { active: true, recipe: good };
+                const opts = Object.assign(constOpts, kind === 'supplier' ? { mat: good } : { recipe: good });
                 node = SC.map.makeNode(kind, x, y, opts);
             }
         }

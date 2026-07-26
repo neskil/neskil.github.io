@@ -70,13 +70,18 @@ SC.save = (function() {
             upgrades: Object.assign({}, st.upgrades),
             research: {
                 completed: Object.assign({}, st.research.completed),
-                active: st.research.active ? Object.assign({}, st.research.active) : null
+                active: Array.isArray(st.research.active)
+                    ? st.research.active.map(a => Object.assign({}, a))
+                    : (st.research.active ? [Object.assign({}, st.research.active)] : [])
             },
             river: st.river,
             nodes: st.nodes.map(n => ({
                 id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
                 specializedRecipe: n.specializedRecipe || null,
                 active: n.active, forSale: n.forSale, isHQ: n.isHQ,
+                underConstruction: !!n.underConstruction,
+                constructionTime: n.constructionTime || SC.CONFIG.CONSTRUCTION_TIME || 7.5,
+                constructTimer: n.constructTimer || 0,
                 level: n.level || 0, stock: n.stock,
                 inv: inv.get(n.id) || {}
             })),
@@ -139,7 +144,13 @@ SC.save = (function() {
         st.upgrades = Object.assign(st.upgrades, data.upgrades);
         if (data.research) {
             st.research.completed = Object.assign({}, data.research.completed);
-            st.research.active = data.research.active ? Object.assign({}, data.research.active) : null;
+            if (Array.isArray(data.research.active)) {
+                st.research.active = data.research.active.map(a => Object.assign({}, a));
+            } else if (typeof data.research.active === 'object' && data.research.active !== null) {
+                st.research.active = [Object.assign({}, data.research.active)];
+            } else {
+                st.research.active = [];
+            }
         }
         st.river = data.river;
 
@@ -148,6 +159,9 @@ SC.save = (function() {
             const n = SC.map.makeNode(nd.kind, nd.x, nd.y, {
                 id: nd.id, mat: nd.mat, recipe: nd.recipe, active: nd.active,
                 forSale: nd.forSale, isHQ: nd.isHQ,
+                underConstruction: !!nd.underConstruction,
+                constructionTime: nd.constructionTime || SC.CONFIG.CONSTRUCTION_TIME || 7.5,
+                constructTimer: nd.constructTimer || 0,
                 level: nd.level || 0, stock: nd.stock,
                 specializedRecipe: nd.specializedRecipe || null
             });

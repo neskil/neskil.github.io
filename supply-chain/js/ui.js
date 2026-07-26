@@ -263,9 +263,11 @@ SC.ui = (function() {
     function updateResearchShortcut() {
         const st = SC.state;
         const status = $('research-shortcut-status');
-        if (st.research.active) {
-            const id = st.research.active.id;
-            status.textContent = `${SC.RESEARCH[id].emoji} ${Math.round(SC.research.progress(id) * 100)}%`;
+        if (!status) return;
+        if (!SC.research.hasBuilding()) {
+            status.textContent = '🔒 Build Lab';
+        } else if (SC.research.activeCount() > 0) {
+            status.textContent = `${SC.research.activeCount()}/2 Active`;
         } else {
             const available = SC.RESEARCH_ORDER.filter(SC.research.isAvailable).length;
             status.textContent = available ? `${available} available` : 'Open tree';
@@ -275,7 +277,8 @@ SC.ui = (function() {
     function researchNodeHTML(id, pos) {
         const t = SC.RESEARCH[id];
         const done = SC.research.isDone(id);
-        const active = SC.state.research.active && SC.state.research.active.id === id;
+        const active = SC.research.isActive(id);
+        const hasLab = SC.research.hasBuilding();
         const locked = !done && !active && !SC.research.isAvailable(id);
         let btn;
         if (done) {
@@ -284,13 +287,18 @@ SC.ui = (function() {
             const pct = Math.round(SC.research.progress(id) * 100);
             const left = Math.max(0, Math.round(t.time * (1 - SC.research.progress(id))));
             btn = `<div class="research-bar"><div style="width:${pct}%"></div></div>
-                   <div class="research-desc" style="margin:0.3rem 0 0;text-align:center">${left}s left</div>`;
+                   <div class="research-desc" style="margin:0.3rem 0 0;text-align:center">${left}s left (${pct}%)</div>`;
+        } else if (!hasLab) {
+            btn = '<div class="research-btn" disabled style="cursor:default">🔒 Requires Research Lab</div>';
         } else if (locked) {
             btn = '<div class="research-btn" disabled style="cursor:default">🔒 Locked</div>';
         } else {
-            btn = `<button class="research-btn" data-research="${id}" ${SC.state.research.active || !SC.canAfford(t.cost) ? 'disabled' : ''}>Research — ${fmt(t.cost)} · ${t.time}s</button>`;
+            const canStart = SC.research.canStart(id);
+            const fullSlots = SC.research.activeCount() >= SC.research.maxSlots();
+            const labelText = fullSlots ? 'Slots Full (2/2)' : `Research — ${fmt(t.cost)} · ${t.time}s`;
+            btn = `<button class="research-btn" data-research="${id}" ${!canStart ? 'disabled' : ''}>${labelText}</button>`;
         }
-        return `<div class="rt-node research-row ${done ? 'done' : ''} ${locked ? 'locked' : ''}"
+        return `<div class="rt-node research-row ${done ? 'done' : ''} ${locked || !hasLab ? 'locked' : ''}"
                      style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px">
             <div class="research-top"><span class="research-name">${t.emoji} ${t.name}</span></div>
             <div class="research-desc">${t.desc}</div>

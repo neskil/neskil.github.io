@@ -1,10 +1,45 @@
-// Research tree: one project active at a time, paid upfront, takes time,
-// then unlocks its effect (see SC.RESEARCH in config.js). Pure logic.
+// Research tree: research building required, up to 2 concurrent projects active at a time,
+// paid upfront, takes time, then unlocks its effect (see SC.RESEARCH in config.js). Pure logic.
 window.SC = window.SC || {};
 
 SC.research = (function() {
+    function hasBuilding() {
+        if (!SC.state || !SC.state.nodes) return false;
+        return SC.state.nodes.some(n => n.kind === 'researchLab' && n.active && !n.underConstruction);
+    }
+
+    function maxSlots() {
+        return hasBuilding() ? 2 : 0;
+    }
+
+    function activeList() {
+        if (!SC.state || !SC.state.research) return [];
+        const a = SC.state.research.active;
+        if (!a) return [];
+        if (Array.isArray(a)) return a;
+        // Legacy single-object fallback
+        return [a];
+    }
+
+    function activeCount() {
+        return activeList().length;
+    }
+
+    function activeIds() {
+        return activeList().map(a => a.id);
+    }
+
+    function activeId() {
+        const list = activeList();
+        return list.length ? list[0].id : null;
+    }
+
+    function isActive(id) {
+        return activeList().some(a => a.id === id);
+    }
+
     function isDone(id) {
-        return !!SC.state.research.completed[id];
+        return !!(SC.state && SC.state.research && SC.state.research.completed[id]);
     }
 
     function isAvailable(id) {
@@ -13,38 +48,43 @@ SC.research = (function() {
         return t.requires.every(isDone);
     }
 
-    function activeId() {
-        const a = SC.state.research.active;
-        return a ? a.id : null;
-    }
-
     function canStart(id) {
-        return isAvailable(id) && !SC.state.research.active && SC.canAfford(SC.RESEARCH[id].cost);
+        return hasBuilding() && activeCount() < maxSlots() && isAvailable(id) && !isActive(id) && SC.canAfford(SC.RESEARCH[id].cost);
     }
 
     function start(id) {
         if (!canStart(id)) return { ok: false };
         SC.state.money -= SC.RESEARCH[id].cost;
-        SC.state.research.active = { id, t: 0 };
+        if (!Array.isArray(SC.state.research.active)) {
+            SC.state.research.active = activeList();
+        }
+        SC.state.research.active.push({ id, t: 0 });
         SC.emit('researchStarted', id);
         return { ok: true };
     }
 
     function progress(id) {
-        const a = SC.state.research.active;
-        if (!a || a.id !== id) return 0;
+        const a = activeList().find(item => item.id === id);
+        if (!a || !SC.RESEARCH[id]) return 0;
         return Math.min(1, a.t / SC.RESEARCH[id].time);
     }
 
     function tick(dt) {
-        const a = SC.state.research.active;
-        if (!a) return;
-        a.t += dt;
-        const t = SC.RESEARCH[a.id];
-        if (a.t >= t.time) {
-            SC.state.research.completed[a.id] = true;
-            SC.state.research.active = null;
-            SC.emit('researchComplete', a.id);
+        const active = activeList();
+        if (!active.length) return;
+        // Ensure state holds an array
+        if (!Array.isArray(SC.state.research.active)) {
+            SC.state.research.active = active;
+        }
+        for (let i = active.length - 1; i >= 0; i--) {
+            const a = active[i];
+            a.t += dt;
+            const t = SC.RESEARCH[a.id];
+            if (t && a.t >= t.time) {
+                SC.state.research.completed[a.id] = true;
+                active.splice(i, 1);
+                SC.emit('researchComplete', a.id);
+            }
         }
     }
 
@@ -97,7 +137,8 @@ SC.research = (function() {
         return b;
     }
 
-    return { isDone, isAvailable, activeId, canStart, start, progress, tick,
+    return { hasBuilding, maxSlots, activeList, activeCount, activeIds, activeId, isActive,
+             isDone, isAvailable, canStart, start, progress, tick,
              creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,
              graceBonus, orderCapBonus,
              customerSpawnMult, upkeepMult, interestMult, upgradeMaxBonus };
