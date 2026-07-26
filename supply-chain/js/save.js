@@ -72,7 +72,8 @@ SC.save = (function() {
                 completed: Object.assign({}, st.research.completed),
                 active: Array.isArray(st.research.active)
                     ? st.research.active.map(a => Object.assign({}, a))
-                    : (st.research.active ? [Object.assign({}, st.research.active)] : [])
+                    : (st.research.active ? [Object.assign({}, st.research.active)] : []),
+                queue: Array.isArray(st.research.queue) ? st.research.queue.slice() : []
             },
             river: st.river,
             nodes: st.nodes.map(n => ({
@@ -148,8 +149,10 @@ SC.save = (function() {
                 st.research.active = data.research.active.map(a => Object.assign({}, a));
             } else if (typeof data.research.active === 'object' && data.research.active !== null) {
                 st.research.active = [Object.assign({}, data.research.active)];
+            if (Array.isArray(data.research.queue)) {
+                st.research.queue = data.research.queue.slice();
             } else {
-                st.research.active = [];
+                st.research.queue = [];
             }
         }
         st.river = data.river;

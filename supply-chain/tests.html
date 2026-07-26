@@ -1087,6 +1087,65 @@
             SC.research.start('manualPlacement').ok && SC.state.money < 0);
     })();
 
+    // ── Research Queuing system ────────────────────────────────────────
+    (function() {
+        fixture();
+        SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: false });
+        SC.state.money = 100000;
+
+        // Fill active slots (2/2)
+        SC.research.start('manualPlacement');
+        SC.research.start('intersections');
+        assert('2 active research slots full', SC.research.activeCount() === 2);
+
+        // 3rd research project cannot start immediately, but can be queued
+        assert('cannot start 3rd research project immediately', !SC.research.canStart('junctions'));
+        assert('can queue 3rd research project (junctions)', SC.research.canQueue('junctions'));
+
+        const moneyBeforeQueue = SC.state.money;
+        const queueRes = SC.research.start('junctions'); // start() delegates to enqueue when slots are full
+        assert('queuing junctions succeeds', queueRes.ok);
+        assert('junctions is in queue', SC.research.isQueued('junctions'));
+        assert('queue count is 1', SC.research.queueCount() === 1);
+        assert('upfront cost deducted on queuing', SC.state.money === moneyBeforeQueue - SC.RESEARCH.junctions.cost);
+
+        // Chaining: landSurvey requires junctions (which is queued). It should be queueable!
+        assert('tech depending on queued tech is queueable', SC.research.isQueueable('landSurvey'));
+        const queueRes2 = SC.research.enqueue('landSurvey');
+        assert('queuing landSurvey succeeds', queueRes2.ok && SC.research.isQueued('landSurvey'));
+        assert('queue count is 2', SC.research.queueCount() === 2);
+
+        // Unaffordable check
+        SC.state.money = -SC.CONFIG.CREDIT_LIMIT;
+        assert('cannot queue when unaffordable', !SC.research.canQueue('creditLine2') && !SC.research.enqueue('creditLine2').ok);
+        SC.state.money = 100000;
+
+        // Save round-trip preserves queue
+        const saveData = SC.save.serialize();
+        SC.save.restore(saveData);
+        assert('queued research preserved across save round-trip', SC.research.queueCount() === 2 && SC.research.isQueued('junctions') && SC.research.isQueued('landSurvey'));
+
+        // Cancellation with dependent refund
+        const moneyBeforeCancel = SC.state.money;
+        const cancelRes = SC.research.cancelQueue('junctions');
+        assert('cancelling junctions succeeds', cancelRes.ok);
+        assert('junctions no longer queued', !SC.research.isQueued('junctions'));
+        assert('dependent landSurvey also cancelled', !SC.research.isQueued('landSurvey'));
+        assert('full refund issued for both cancelled projects', SC.state.money === moneyBeforeCancel + SC.RESEARCH.junctions.cost + SC.RESEARCH.landSurvey.cost);
+        assert('queue is empty', SC.research.queueCount() === 0);
+
+        // Re-queue junctions
+        SC.research.enqueue('junctions');
+        assert('junctions re-queued', SC.research.queueCount() === 1);
+
+        // Advance time until one active research completes
+        SC.research.tick(SC.RESEARCH.intersections.time + 0.1);
+        assert('intersections completed', SC.research.isDone('intersections'));
+        assert('queued junctions promoted to active', SC.research.isActive('junctions'));
+        assert('queue is empty after promotion', SC.research.queueCount() === 0);
+        assert('active project count is back at 2', SC.research.activeCount() === 2);
+    })();
+
     // ── Building construction timers (5-10s) ────
     (function() {
         fixture();

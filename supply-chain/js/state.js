@@ -49,7 +49,7 @@ SC.newState = function(difficulty) {
         activeYard: null,   // yard/HQ node new truck purchases station at (main.js sets to HQ)
 
         upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
-        research: { completed: {}, active: [] }, // active: [{ id, t }, ...] array of active research projects
+        research: { completed: {}, active: [], queue: [] }, // active: [{ id, t }, ...] array of active research projects; queue: [id, ...] array of queued research project IDs
         promoUntil: 0,      // sim time the running promotion ends (0 = none)
         promoGood: null,    // target product key for active promotion ('all' or specific good, e.g. 'bread')
         regionsUnlocked: 0, // count of additional regions unlocked (Item 15)
