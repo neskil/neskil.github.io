@@ -75,7 +75,7 @@ SC.ui = (function() {
         const btn = $('dev-congestion');
         btn.classList.toggle('active', SC.state.congestionEnabled);
         $('dev-congestion-state').textContent = SC.state.congestionEnabled ? 'On' : 'Off';
-        $('dev-research').disabled = !SC.state.research.active;
+        $('dev-research').disabled = SC.research.activeCount() === 0;
     }
 
     function setSpeed(n) {
@@ -889,8 +889,15 @@ SC.ui = (function() {
 
     function updateMenuInfo() {
         const st = SC.state;
-        const research = st.research.active
-            ? `${SC.RESEARCH[st.research.active.id].name} (${Math.round(SC.research.progress(st.research.active.id) * 100)}%)`
+        // research.active is a LIST since concurrent research shipped — an
+        // empty array is still truthy, so testing it directly read every idle
+        // lab as "researching" and then threw on `.id` of undefined.
+        const activeResearch = SC.research.activeList();
+        const queuedCount = SC.research.queueCount();
+        const research = activeResearch.length
+            ? activeResearch
+                  .map(a => `${SC.RESEARCH[a.id] ? SC.RESEARCH[a.id].name : a.id} (${Math.round(SC.research.progress(a.id) * 100)}%)`)
+                  .join(', ') + (queuedCount ? ` +${queuedCount} queued` : '')
             : 'None';
         $('menu-stats').innerHTML = `
             <div class="stats-group">
