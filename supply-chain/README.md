@@ -133,19 +133,17 @@ that ambient animation as its background — it now lives independently at
   spawn rates speed up as your total delivery count increases (`getDeadlineRamp()`,
   `getSpawnRamp()`), adding a dynamic challenge that scales with your empire.
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect — `SC.RESEARCH` in `config.js`. Every tech's
-  time is ×0.7 of its original value (research trains 30% faster across
-  the board). Fourteen techs: standalone Road Junctions (cheap, early —
-  unlocks placeable junctions, see Growth above); Site Requisition
-  (manual placement); then four branches — Credit Line II/III → Premium
-  Contracts (+15% payouts) → Regional Marketing (customer DCs arrive 40%
-  sooner), Marketing Blitz (unlocks promotions, above), and Standing
-  Orders (unlocks a Shop toggle that auto-accepts every contract offer
-  instantly instead of showing the Accept/Decline card); Asphalt Paving
-  (highways) → Overdrive Engines (+3 truck-speed cap) → Bulk Logistics
-  (+2 capacity cap); Fertilizer Program (+50% supplier regen) → Factory
-  Automation (+3 factory-speed cap) and Preservatives (+25% order
-  deadlines). Effect fields are generic — additive bonuses (`creditBonus`,
+  then unlocks its effect. **`SC.RESEARCH` in `config.js` is the source
+  of truth** for the tech list — name, cost, time, `requires` and effect
+  fields all live there, and `SC.RESEARCH_ORDER` fixes display order, so
+  don't restate the roster here (it goes stale the moment a tech is
+  added). Every tech's time is ×0.7 of its original value (research
+  trains 30% faster across the board). Shape of the tree: a couple of
+  cheap standalone unlocks (road crossings/junctions, Site Requisition
+  for manual placement) plus four branches rooted at Credit Line,
+  Asphalt Paving, Fertilizer Program and Premium Contracts, each mixing
+  cap-raising upgrades with unlocks (promotions, standing orders,
+  highways). Effect fields are generic — additive bonuses (`creditBonus`,
   `payoutBonus`, `deadlineBonus`, `supplierRegenBonus`) sum via
   `research.bonusSum`, `customerSpawnMult` multiplies, and
   `upgradeMaxBonus` raises upgrade caps. The Shop panel keeps a
@@ -218,14 +216,8 @@ that ambient animation as its background — it now lives independently at
   `economy.tick` calls `acceptContract` right after `rollContractOffer`
   whenever the tech is done and the toggle is on.
 - **Dev tools panel**: a lasting ☰-menu toggle ("🛠 Dev tools", persisted
-  in localStorage like Sound — `?dev=1` also forces it on for one load).
-  Not a normal gameplay feature. Shows a collapsible panel under the
-  top-left HUD bar with an FPS readout and one-off testing aids —
-  Congestion (A/B override, see above), Add money, Roll contract, Finish
-  research, Spawn next customer. Lives entirely in `ui.js`; each button
-  reuses the same public logic functions a normal action would call
-  (`rollContractOffer`, `research.tick`, etc.) rather than duplicating
-  them.
+  in localStorage like Sound). Not a gameplay feature and not reachable
+  by a normal player — see [DEBUG.md](DEBUG.md) for what it exposes.
 - **Stats & Achievements** (☰ menu): a read-only summary — deliveries
   broken down by product, a money-over-time sparkline (`moneyHistory`,
   sampled every `STATS_SAMPLE_INTERVAL` seconds, capped at
@@ -339,9 +331,13 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |
 | `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
-| `js/render.js` | Canvas drawing (isometric 2.5D): sky + a **low-poly heightfield terrain backdrop** (`drawTerrain`/`ensureTerrain`) — the ground plane continues past every edge of the field: beyond the two far (low world x+y) edges it rises into faceted, faintly-wireframed mountains via ridged value-noise (`terrainHeight`/`ridged`), and beyond the two near edges it *descends* into rolling lowland foothills (negative heights, `TERRAIN.dip`), so the field reads as a plateau in one continuous landscape instead of an island floating over the sky. Flat inside the field so it never occludes play, flat-shaded per facet with the slope, and blended toward the live sky for aerial haze on both sides (so it tracks day/night + weather). Sized from `SC.worldW()`/`worldH()` + a skirt and rebuilt only when the field grows (`terrainKey`), so a field expansion just pushes the range further out. Projected land with terrain patches and scattered pines/rocks, river, road ribbons, extruded diamond-prism buildings (story lines, doors, factory smokestacks) with sprite-based soft shadows, themed supplier sites (farm/lake+pump/mine/pasture/rubber grove/fab per raw material, `drawSupplierSite`), truck yards drawn as a flat asphalt parking lot with painted stall lines and the idle trucks homed there physically parked nose-in across its bays (`drawYardSite`/`drawYardParking`, world-grounded iso grid) instead of a 🅿️ icon + count — idle trucks (no route/jobs) are skipped in the entity sort and drawn by their home node, and HQ/DC get the same apron of parked trucks in front instead of a `N 🚚` label, depth-sorted back-to-front (a small `TRUCK_DEPTH_BIAS` nudges trucks forward in the sort so one arriving at or sitting beside a node doesn't get hard-clipped by that node's own body — a single-point painter's sort has no notion of footprint size, so a truck's final approach used to sometimes lose that near-tie; the plot pad under each building is also a feathered radial fade rather than a flat fill, so it doesn't add a second hard edge on top of whatever seam remains), cab+trailer trucks and billboarded labels/order-bubbles. Static scenery (terrain/land/grid/patches/trees) renders into a cached offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr is capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn scenery" glitch), and the ctx swap in `renderBg` is try/finally-guarded. `bgKey` includes `terrainKey()` so the cache re-bakes when the field expands. Distance fog fades the far edge of the land into the sky; screen-space star field behind the world; trucks get headlights while driving. Scenery uses a seeded PRNG (`makeRng`) cached so it doesn't flicker. **Night atmosphere** (all per-frame, kept out of the cached bg): a moon with a soft glow + a faint aurora band in the sky, warm lit windows on buildings/factories/HQ/DC/fab (seeded per node in `prism`'s window grid, a few flicker) over a cached warm ground light-spill, a blinking aircraft-style beacon on the HQ landmark, a moonlight shimmer streak on the river, a few drifting world-anchored fireflies, and a cached screen-edge vignette drawn last for framing. **Day/night cycle** (`DAY_LENGTH`, cosmetic/non-persisted): a slow clock sweeps the sky palette (night↔day↔dusk keyframes), arcs a crossfading sun/moon, applies a full-screen `'screen'` colour grade to lift the baked-night ground toward daylight without rebuilding the bg cache, and drives a `nightLevel` that fades windows/fireflies/light-spill/headlights out by day. **Rotating weather** (`WEATHER_ROTATION`): clear→clouds→rain→snow spells fade in/out, a slowly-turning wind vector drifts drifting sky clouds + soft ground cloud-shadows and angles pooled/capped rain & snow particles. Truck headlights are night-only soft glows. Directional cast shadows (`drawShadow`) swing opposite the sun/moon and lengthen near the horizon; animated route-flow dashes (`drawRouteFlow`) pulse along roads carrying trucks in the cargo colour; `orderComplete` fires a coin/spark burst; rain adds a road sheen (`drawWetRoads`) and snow lays a slowly-melting blanket (`drawSnowBlanket`); lit buildings, the HQ beacon and the fab antenna emit an additive `bloom()` glow at night; a crate hops into a truck on pickup and down into a node on delivery (`drawTransfer`, driven render-side by cargo-length change, depth-sorted so a nearer site clips it). Probe flags `&tod=`/`&weather=` force a time/weather for screenshots |
+| `js/render-core.js` | Rendering entry point. Owns the internal context object `R` (`SC._render`) that the other three render files destructure — shared canvas ctx, camera helpers (`S`/`zoom`), colour utilities, the seeded scenery PRNG (`makeRng`), and the per-frame orchestrator (`frame`/`drawWorld`). Also owns the **background cache**: static scenery (terrain/land/grid/patches/trees) renders into an offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn scenery" glitch) — and the ctx swap in `renderBg` is try/finally-guarded. `bgKey` includes `terrainKey()` so the cache re-bakes when the field expands |
+| `js/render-env.js` | Environment layer: sky, **day/night cycle**, weather, terrain, land, river, ambient scenery. The **low-poly heightfield terrain backdrop** (`drawTerrain`/`ensureTerrain`) continues the ground plane past every edge of the field — beyond the two far (low world x+y) edges it rises into faceted, faintly-wireframed mountains via ridged value-noise (`terrainHeight`/`ridged`), and beyond the two near edges it *descends* into rolling lowland foothills (negative heights, `TERRAIN.dip`), so the field reads as a plateau in one continuous landscape rather than an island floating over the sky. Flat inside the field so it never occludes play, flat-shaded per facet with the slope, blended toward the live sky for aerial haze so it tracks day/night + weather, sized from `SC.worldW()`/`worldH()` + a skirt and rebuilt only when the field grows (`terrainKey`). The day/night clock (`DAY_LENGTH`, cosmetic/non-persisted) sweeps the sky palette across night↔day↔dusk keyframes, arcs a crossfading sun/moon, applies a full-screen `'screen'` colour grade to lift the baked-night ground toward daylight without rebuilding the bg cache, and drives the `nightLevel` that other layers fade their lights by. **Rotating weather** (`WEATHER_ROTATION`): clear→clouds→rain→snow spells fade in/out, a slowly-turning wind vector drifts sky clouds + soft ground cloud-shadows and angles pooled/capped rain & snow particles; rain adds a road sheen (`drawWetRoads`) and snow lays a slowly-melting blanket (`drawSnowBlanket`). **Night atmosphere** (per-frame, kept out of the cached bg): moon glow + a faint aurora band, a moonlight shimmer streak on the river, drifting world-anchored fireflies, and a cached screen-edge vignette drawn last for framing. Distance fog fades the far edge of the land into the sky; a screen-space star field sits behind the world |
+| `js/render-network.js` | Network layer: road ribbons, bridge/ferry crossings drawn over just the water (`drawBridgeCrossing`/`drawFerryCrossing`), animated route-flow dashes pulsing in the cargo colour along roads carrying trucks (`drawRouteFlow`), extruded diamond-prism buildings (`prism` — story lines, doors, factory smokestacks, plus a seeded window grid whose warm lit windows and additive `bloom()` come up at night), sprite-based soft shadows that swing opposite the sun/moon and lengthen near the horizon (`drawShadow`), themed supplier sites per raw material (farm/lake+pump/mine/pasture/rubber grove/fab — `drawSupplierSite`), junction roundabouts (`drawJunction`), truck yards as a flat asphalt parking lot with painted stall lines and the idle trucks homed there parked nose-in across its bays (`drawYardSite`/`drawYardParking`) instead of a 🅿️ icon + count — HQ/DC get the same apron. The plot pad under each building is a feathered radial fade rather than a flat fill, so it doesn't add a hard edge. Also order bubbles, inspect/tutorial highlights, ghost road + placement previews, and offscreen edge arrows |
+| `js/render-actors.js` | Actor layer: cab+trailer trucks (`drawTruckAt`, night-only headlight glows), the "+$"/"−$" floaters, `orderComplete` coin/spark bursts, and the loading/unloading crate that hops into a truck on pickup and down into a node on delivery (`drawTransfer`, driven render-side by cargo-length change, depth-sorted so a nearer site clips it). Entities depth-sort back-to-front; idle trucks (no route/jobs) are skipped here and drawn by their home node instead. A small `TRUCK_DEPTH_BIAS` nudges trucks forward in the sort so one arriving beside a node isn't hard-clipped by that node's body — a single-point painter's sort has no notion of footprint size, so a truck's final approach used to lose that near-tie |
 | `js/input.js` | Pointer events: pan, pinch, wheel, tap-to-build, Upgrade-mode taps, Inspect hover/hold. Node picking hit-tests the whole extruded building (ground→roof capsule, `nodeAtScreen`); `getHoverNode` feeds the ghost-road snap + hover ring so previews match what a click hits |
-| `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay |
+| `js/ui.js` | HUD, orders/shop panels, research-tree overlay, difficulty picker, game-over overlay, toasts, help overlay, dev-tools panel. Publishes its internals on `SC._ui` for `ui-bind.js` |
+| `js/ui-bind.js` | Event wiring extracted from `ui.js` purely to keep that file editable — loads after it and is invoked by `ui.js`'s `init()` via `SC._ui.bind()`. Handler bodies are unchanged from when they lived inside the `ui.js` closure |
 | `js/audio.js` | Shared AudioContext + music/sfx/ambience buses; the weather- and traffic-reactive ambient bed and the generative score (all synthesised, no audio assets). `update()` is called once per frame from main.js, outside the fast-forward sub-step loop |
 | `js/sfx.js` | WebAudio one-shot blips, routed into `audio.js`'s sfx bus. Owns the **Sound** toggle (one-shots + ambience); music toggles separately |
 | `js/main.js` | Bootstrap, game loop (fast-forward runs N sub-steps/frame), `?probe=N`/`?seed=`/`?speed=` headless verification hooks |
@@ -349,44 +345,10 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 `tests.html` runs the logic modules against hand-built deterministic maps
 (straight river, fixed nodes) — see CLAUDE.md for the headless recipes.
 
-## TODO backlog
+## What's next
 
-See `PLAN.md` for the full phased roadmap; short version below (kept in
-sync with it):
-
-- Curved/waypoint roads; road congestion (per-road speed *upgrades*
-  landed as highways in v1.11; congestion slowdowns did not).
-- Visuals: the isometric 2.5D view keeps getting depth passes. Landed:
-  scenery, themed supplier sites, night atmosphere, cosmetic day↔night
-  cycle + rotating weather (clouds/rain/snow with wind), directional
-  cast shadows that swing/lengthen with the sun, animated route-flow
-  pulses on active roads, delivery coin bursts, and weather-reactive
-  ground (rain sheen on roads, a slowly-melting snow blanket). The old
-  free-standing triangle mountain range is now a **low-poly heightfield
-  terrain** that flows out of the playing field and rises into mountains
-  (`drawTerrain`), size-aware so it grows with the field.
-  **Graphics roadmap (next ideas, unbuilt):**
-  - Curved/rounded roads at corners + junctions instead of straight polylines.
-  - Parallax on the terrain/sky layers when panning.
-  - Lightning + thunder during heavy rain; shooting stars; god rays at dawn.
-  - Face textures (subtle noise/brick/metal) instead of flat-colour building faces.
-  - Seasonal palettes; richer water reflections beyond the moonlight streak.
-  - Weather that actually affects play (rain slowing trucks, etc.) — gameplay, not just cosmetic.
-- ~~Sound of moving trucks / ambient loop; music toggle separate from sfx.~~
-  Shipped: `js/audio.js` (see Sound & music above). Remaining refinement
-  if wanted: per-channel volume sliders instead of on/off toggles.
-- Touch: long-press as an alternative to double-tap for demolish/buy (the
-  Inspect-mode hold gesture above uses the same long-press primitive).
-- Promotions landed in v1.13 as a research-unlocked *repeatable shop
-  action* (the tree stays one-shot-per-id); a per-good targeted promo
-  is the remaining refinement if wanted.
-- Research cancel/refund (currently a started project can't be aborted).
-- Difficulty ramp *within* a run (deadlines shrinking over time) —
-  difficulty presets landed in v1.13, but each run is flat.
-- Faster-milestone research (unlock a site every 2 deliveries instead
-  of 3) — considered for v1.12 but deferred: milestone pace is the main
-  faucet controlling map growth, and cheapening it risks flooding the
-  midgame with sites; revisit alongside a difficulty ramp.
-- Biome-specific supplier bonuses: e.g., greenland tiles give a bonus to
-  wool and wheat suppliers. Consider pivoting from "auto spawning" 
-  suppliers to having the player build/place them on advantageous biomes.
+**[PLAN.md](PLAN.md)** owns the roadmap — shipped log, phased items, and
+the unbuilt backlog. It used to be duplicated here in a second list that
+drifted out of sync with it (claiming congestion and the within-run
+difficulty ramp were unbuilt long after both shipped), so this section is
+deliberately just a pointer. Add ideas to PLAN.md, not here.
