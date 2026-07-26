@@ -337,19 +337,37 @@
             faceWindows(bBot, bRight, hpx, rows, opts.winSeed || 0);
             faceWindows(bBot, bLeft, hpx, rows, (opts.winSeed || 0) + 97);
         }
-        // Doorway centered on the front (bottom) corner
-        if (!opts.ghost && opts.door) {
-            const dh = Math.min(hpx * 0.4, ry * 1.1);
-            const dwx = rx * 0.16, dwy = ry * 0.16;
+        // Doorway centered on the front-right building face (aligned to isometric wall plane)
+        if (!opts.ghost && opts.door && hpx > 12) {
+            const dh = Math.min(hpx * 0.35, ry * 0.85);
+            const u1 = 0.32, u2 = 0.68;
+            const p1 = { x: bBot.x + rx * u1, y: bBot.y - ry * u1 };
+            const p2 = { x: bBot.x + rx * u2, y: bBot.y - ry * u2 };
+            const p3 = { x: p2.x, y: p2.y - dh };
+            const p4 = { x: p1.x, y: p1.y - dh };
+
+            // Door recess
             R.ctx.beginPath();
-            R.ctx.moveTo(bBot.x - dwx, bBot.y - dwy);
-            R.ctx.lineTo(bBot.x + dwx, bBot.y - dwy);
-            R.ctx.lineTo(bBot.x + dwx, bBot.y - dwy - dh);
-            R.ctx.lineTo(bBot.x, bBot.y - dwy - dh - dwy * 0.6);
-            R.ctx.lineTo(bBot.x - dwx, bBot.y - dwy - dh);
+            R.ctx.moveTo(p1.x, p1.y);
+            R.ctx.lineTo(p2.x, p2.y);
+            R.ctx.lineTo(p3.x, p3.y);
+            R.ctx.lineTo(p4.x, p4.y);
             R.ctx.closePath();
-            R.ctx.fillStyle = rgba(shade(base, -0.6), 0.85);
+            R.ctx.fillStyle = rgba(shade(base, -0.6), 0.9);
             R.ctx.fill();
+
+            // Frame trim
+            R.ctx.strokeStyle = rgba(shade(base, -0.2), 0.7);
+            R.ctx.lineWidth = 1;
+            R.ctx.stroke();
+
+            // Center glass/double-door line
+            const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+            R.ctx.beginPath();
+            R.ctx.moveTo(midX, midY);
+            R.ctx.lineTo(midX, midY - dh);
+            R.ctx.strokeStyle = rgba(shade(base, -0.35), 0.6);
+            R.ctx.stroke();
         }
 
         R.ctx.globalAlpha = 1;
@@ -697,7 +715,7 @@
         // Crafting progress: a slim ring hugging the roof icon (with a faint
         // full-circle track), small enough not to clip the smokestack.
         if (n.kind === 'factory' && !forSale && n.crafting) {
-            const frac = Math.min(1, n.crafting.t / SC.craftTime());
+            const frac = Math.min(1, n.crafting.t / SC.craftTime(n));
             const rr = iconSize * 0.85;
             const cy = tc.y - 4 * clampZoom(); // Center it with the emoji plate
             R.ctx.beginPath();
@@ -724,6 +742,21 @@
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
         }
         R.ctx.globalAlpha = 1;
+
+        // Factory specialization badge (Item 11)
+        if (n.kind === 'factory' && !forSale && n.specializedRecipe) {
+            const z = clampZoom();
+            const bx = tc.x + 12 * z, by = tc.y - 14 * z;
+            R.ctx.fillStyle = '#f59e0b';
+            R.ctx.beginPath();
+            R.ctx.arc(bx, by, 7 * z, 0, Math.PI * 2);
+            R.ctx.fill();
+            R.ctx.fillStyle = '#ffffff';
+            R.ctx.font = `${Math.round(9 * z)}px sans-serif`;
+            R.ctx.textAlign = 'center';
+            R.ctx.textBaseline = 'middle';
+            R.ctx.fillText('⚡', bx, by);
+        }
 
         // Production status pill. First group is the finished good:
         // "in stock / ordered" — how many units are crafted and sitting at
@@ -859,15 +892,31 @@
         if (n.kind === 'supplier') {
             const cap = SC.supplierCap(n);
             const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
-            const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 9;
-            // dark backing plate so the bar doesn't float as a bare dash
-            R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
-            roundRectPath(bx - 3, by - 3, bw + 6, 10, 5); R.ctx.fill();
-            R.ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
-            roundRectPath(bx, by, bw, 4, 2); R.ctx.fill();
-            R.ctx.fillStyle = frac < 0.25 ? '#f87171' : sp.base;
-            roundRectPath(bx, by, bw * frac, 4, 2); R.ctx.fill();
-            if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
+            // Low-stock warning colour: red when critically low (<15%),
+            // amber when getting low (<50%), otherwise not "low" at all.
+            const warn = frac < 0.15 ? '#f87171' : frac < 0.5 ? '#facc15' : null;
+            if (pillsVisible()) {
+                const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 9;
+                // dark backing plate so the bar doesn't float as a bare dash
+                R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+                roundRectPath(bx - 3, by - 3, bw + 6, 10, 5); R.ctx.fill();
+                R.ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+                roundRectPath(bx, by, bw, 4, 2); R.ctx.fill();
+                R.ctx.fillStyle = warn || sp.base;
+                roundRectPath(bx, by, bw * frac, 4, 2); R.ctx.fill();
+                if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
+            } else if (warn) {
+                // Zoomed out the full stock bars turn to visual noise, so they
+                // auto-hide with the factory pills. A supplier running low is
+                // still worth flagging, so drop the bar to a small warning dot
+                // (red <15%, amber <50%) — enough to catch the eye without the
+                // clutter of a bar over every supplier.
+                const by = tc.y - iconSize - 6;
+                R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+                R.ctx.beginPath(); R.ctx.arc(tc.x, by, 4.5, 0, Math.PI * 2); R.ctx.fill();
+                R.ctx.fillStyle = warn;
+                R.ctx.beginPath(); R.ctx.arc(tc.x, by, 2.8, 0, Math.PI * 2); R.ctx.fill();
+            }
         } else if (n.kind === 'factory' && forSale) {
             labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
         } else if (n.kind === 'yard') {

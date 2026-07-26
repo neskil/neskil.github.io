@@ -82,7 +82,7 @@ SC.factories = (function() {
             }
             if (f.crafting) {
                 f.crafting.t += dt;
-                if (f.crafting.t >= SC.craftTime()) {
+                if (f.crafting.t >= SC.craftTime(f)) {
                     const task = f.crafting.task;
                     f.crafting = null;
                     SC.emit('crafted', { factory: f, product: task.product });
@@ -111,6 +111,13 @@ SC.factories = (function() {
         }
     }
 
+    function setSpecialization(factory, recipe) {
+        if (!factory || factory.kind !== 'factory') return false;
+        factory.specializedRecipe = recipe || null;
+        SC.emit('factorySpecialized', { factory, recipe: factory.specializedRecipe });
+        return true;
+    }
+
     function buySite(node) {
         if (node.kind !== 'factory' || !node.active || !node.forSale) return { ok: false, reason: 'invalid' };
         const price = SC.CONFIG.FACTORY_SITE_PRICE;
@@ -123,5 +130,5 @@ SC.factories = (function() {
     }
 
     return { operational, all, makeTask, missingInputs, inputsComplete,
-             receiveRaw, cancelTasksForOrder, tick, buySite };
+             receiveRaw, cancelTasksForOrder, tick, buySite, setSpecialization };
 })();

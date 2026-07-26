@@ -53,6 +53,8 @@ SC.save = (function() {
             time: st.time, nextOrderIn: st.nextOrderIn, orderSeq: st.orderSeq,
             nextCustomerIn: st.nextCustomerIn,
             promoUntil: st.promoUntil, defaultIn: st.defaultIn,
+            promoGood: st.promoGood || null,
+            regionsUnlocked: st.regionsUnlocked || 0,
             nextContractIn: st.nextContractIn,
             contractOffer: st.contractOffer ? {
                 cityId: st.contractOffer.city.id, product: st.contractOffer.product,
@@ -72,6 +74,7 @@ SC.save = (function() {
             river: st.river,
             nodes: st.nodes.map(n => ({
                 id: n.id, kind: n.kind, x: n.x, y: n.y, mat: n.mat, recipe: n.recipe,
+                specializedRecipe: n.specializedRecipe || null,
                 active: n.active, forSale: n.forSale, isHQ: n.isHQ,
                 level: n.level || 0, stock: n.stock,
                 inv: inv.get(n.id) || {}
@@ -109,6 +112,8 @@ SC.save = (function() {
         st.orderSeq = data.orderSeq;
         st.nextCustomerIn = data.nextCustomerIn !== undefined ? data.nextCustomerIn : st.nextCustomerIn;
         st.promoUntil = data.promoUntil || 0;
+        st.promoGood = data.promoGood || null;
+        st.regionsUnlocked = data.regionsUnlocked || 0;
         st.defaultIn = data.defaultIn !== undefined ? data.defaultIn : null;
         st.nextContractIn = data.nextContractIn !== undefined ? data.nextContractIn : st.nextContractIn;
         st.deliveredByProduct = data.deliveredByProduct ? Object.assign({}, data.deliveredByProduct) : {};
@@ -140,7 +145,8 @@ SC.save = (function() {
             const n = SC.map.makeNode(nd.kind, nd.x, nd.y, {
                 id: nd.id, mat: nd.mat, recipe: nd.recipe, active: nd.active,
                 forSale: nd.forSale, isHQ: nd.isHQ,
-                level: nd.level || 0, stock: nd.stock
+                level: nd.level || 0, stock: nd.stock,
+                specializedRecipe: nd.specializedRecipe || null
             });
             n.inv = Object.assign({}, nd.inv);
             byId.set(n.id, n);

@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.57.0';</script>
+    <script>window.SC_VERSION = '1.57.1';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -1901,8 +1901,9 @@
             SC.state.missed === 1);
     })();
 
-    // ── Contracts: a normal (non-contract) order still misses for free ─
+    // ── Regular order late-delivery penalties ─────────────────────
     (function() {
+        // Normal difficulty
         const { S1, S2, F, C } = fixture();
         SC.state.money = 100000;
         SC.roads.build(S1, F);
@@ -1911,8 +1912,46 @@
         const order = SC.economy.spawnOrder();
         SC.economy.planOrder(order);
         const moneyBefore = SC.state.money;
+        const expectedPenalty = Math.round(order.qty * (order.payout / order.qty) * SC.DIFFICULTIES.normal.orderPenaltyMult);
         SC.economy.expireOrder(order);
-        assert('a plain missed order carries no monetary penalty', SC.state.money === moneyBefore);
+        assert('on Normal difficulty a plain missed order charges a proportional penalty',
+            SC.state.money === moneyBefore - expectedPenalty && expectedPenalty > 0);
+    })();
+
+    (function() {
+        // Sandbox difficulty: no penalty
+        SC.newState('sandbox');
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+        SC.economy.expireOrder(order);
+        assert('on Sandbox difficulty a plain missed order carries no monetary penalty', SC.state.money === moneyBefore);
+    })();
+
+    (function() {
+        // Hard difficulty: steeper penalty
+        SC.newState('hard');
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+        const expectedPenalty = Math.round(order.qty * (order.payout / order.qty) * SC.DIFFICULTIES.hard.orderPenaltyMult);
+        SC.economy.expireOrder(order);
+        assert('on Hard difficulty a plain missed order charges a steep penalty',
+            SC.state.money === moneyBefore - expectedPenalty && expectedPenalty > 0);
     })();
 
     // ── Contracts: partial delivery reduces the penalty ─────────
@@ -2468,6 +2507,104 @@
         SC.save.load();
         assert('a pre-tutorial save restores as finished, not step 1',
             SC.state.tutorialStep === -1);
+        SC.save.clear();
+    })();
+
+    // ── Within-Run Difficulty Ramp ──────────────────────────────────────
+    (function() {
+        fixture();
+        SC.state.delivered = 0;
+        const ramp0 = SC.economy.getDeadlineRamp();
+        const spawn0 = SC.economy.getSpawnRamp();
+        assert('difficulty ramp starts at 1.0 for 0 deliveries', ramp0 === 1 && spawn0 === 1);
+
+        SC.state.delivered = 50;
+        const ramp50 = SC.economy.getDeadlineRamp();
+        const spawn50 = SC.economy.getSpawnRamp();
+        assert('difficulty ramp tightens deadline at 50 deliveries', ramp50 < 1 && ramp50 >= SC.CONFIG.RAMP_DEADLINE_FLOOR);
+        assert('difficulty ramp speeds spawn rate at 50 deliveries', spawn50 < 1 && spawn50 >= SC.CONFIG.RAMP_SPAWN_FLOOR);
+
+        SC.state.delivered = 200;
+        const ramp200 = SC.economy.getDeadlineRamp();
+        const spawn200 = SC.economy.getSpawnRamp();
+        assert('difficulty ramp respects deadline floor', ramp200 === SC.CONFIG.RAMP_DEADLINE_FLOOR);
+        assert('difficulty ramp respects spawn floor', spawn200 === SC.CONFIG.RAMP_SPAWN_FLOOR);
+    })();
+
+    // ── Targeted Promotions Refinement ──────────────────────────────────
+    (function() {
+        fixture();
+        SC.state.money = 10000;
+        SC.state.research.completed.promotions = true;
+        const res = SC.economy.startPromotion('bread');
+        assert('startPromotion accepts target good', res.ok && SC.state.promoGood === 'bread');
+        assert('promotion active state retains promoGood', SC.economy.isPromoActive() && SC.state.promoGood === 'bread');
+        SC.save.store();
+        SC.newState();
+        SC.save.load();
+        assert('promoGood survives save round-trip', SC.state.promoGood === 'bread');
+        SC.save.clear();
+    })();
+
+    // ── Factory Specialization ──────────────────────────────────────────
+    (function() {
+        const { S1, S2, F, C } = fixture();
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+
+        assert('factory defaults to generalist', F.specializedRecipe === null);
+        const baseTime = SC.craftTime(F);
+
+        SC.factories.setSpecialization(F, F.recipe);
+        assert('specializedRecipe updated on factory', F.specializedRecipe === F.recipe);
+        const specTime = SC.craftTime(F);
+        assert('specialized factory crafts faster', specTime < baseTime && Math.abs(baseTime / specTime - 1.5) < 0.01);
+
+        // Routing / Sourcing restriction
+        const bestBread = SC.economy.bestSourceFor('bread', C);
+        assert('specialized factory sources matching recipe', bestBread && bestBread.node === F);
+
+        SC.factories.setSpecialization(F, 'shoes');
+        const wrongBread = SC.economy.bestSourceFor('bread', C);
+        assert('specialized factory ignores non-matching recipe', wrongBread === null || wrongBread.node !== F);
+
+        SC.factories.setSpecialization(F, null);
+        assert('reset to generalist works', F.specializedRecipe === null);
+    })();
+
+    // ── Bigger Maps & Regions ───────────────────────────────────────────
+    (function() {
+        const { S1, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);   // a network for the connector to respect
+        SC.roads.build(F, C);
+        const initW = SC.state.worldW;
+        const initH = SC.state.worldH;
+        const initRegions = SC.state.regionsUnlocked || 0;
+
+        const reg = SC.map.unlockRegion();
+        assert('unlockRegion increments regionsUnlocked counter', reg === initRegions + 1);
+        assert('unlockRegion expands world dimensions', SC.state.worldW > initW && SC.state.worldH > initH);
+
+        const newCity = SC.state.nodes.find(n => n.kind === 'city' && !n.isHQ && n.x > initW);
+        assert('unlocked region seeds a new city', !!newCity);
+
+        const hwEdge = SC.state.edges.find(e => e.level === 1 && (e.a === newCity || e.b === newCity));
+        assert('unlocked region connects via paved highway edge', !!hwEdge);
+
+        // The connector is free, not exempt: it may not be laid over the
+        // network it's joining (see the overlap-rule tests above).
+        assert('the region connector leaves no road crossing another',
+            !SC.roads.hasCrossings());
+        assert('and no road running over a site it doesn\'t stop at',
+            SC.state.edges.every(e =>
+                SC.roads.checkSegment(e.a.x, e.a.y, e.b.x, e.b.y, [e.a, e.b]).blocked !== 'node'));
+
+        SC.save.store();
+        SC.newState();
+        SC.save.load();
+        assert('regionsUnlocked survives save round-trip', SC.state.regionsUnlocked === reg);
         SC.save.clear();
     })();
 

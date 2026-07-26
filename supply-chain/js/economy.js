@@ -48,6 +48,18 @@ SC.economy = (function() {
         });
     }
 
+    function getDeadlineRamp() {
+        const floor = C().RAMP_DEADLINE_FLOOR !== undefined ? C().RAMP_DEADLINE_FLOOR : 0.5;
+        const decay = C().RAMP_DEADLINE_DECAY !== undefined ? C().RAMP_DEADLINE_DECAY : 0.005;
+        return Math.max(floor, 1 - (SC.state.delivered || 0) * decay);
+    }
+
+    function getSpawnRamp() {
+        const floor = C().RAMP_SPAWN_FLOOR !== undefined ? C().RAMP_SPAWN_FLOOR : 0.35;
+        const decay = C().RAMP_SPAWN_DECAY !== undefined ? C().RAMP_SPAWN_DECAY : 0.015;
+        return Math.max(floor, 1 - (SC.state.delivered || 0) * decay);
+    }
+
     function rand(a, b) { return a + Math.random() * (b - a); }
 
     function spawnOrder() {
@@ -55,13 +67,23 @@ SC.economy = (function() {
         const products = craftableProducts();
         if (!cities.length || !products.length) return null;
         const city = cities[Math.floor(Math.random() * cities.length)];
-        const product = products[Math.floor(Math.random() * products.length)];
+        let product;
+        if (isPromoActive() && SC.state.promoGood && SC.state.promoGood !== 'all' && products.includes(SC.state.promoGood)) {
+            const pool = [];
+            for (const p of products) {
+                const weight = (p === SC.state.promoGood) ? 3 : 1;
+                for (let w = 0; w < weight; w++) pool.push(p);
+            }
+            product = pool[Math.floor(Math.random() * pool.length)];
+        } else {
+            product = products[Math.floor(Math.random() * products.length)];
+        }
         const qty = 1 + Math.floor(Math.random() * Math.min(3, 1 + SC.state.delivered / 5));
 
         // Distance bonus estimated from the nearest factory with the recipe
         let nearest = Infinity;
         for (const f of SC.factories.all()) {
-            if (f.recipe === product) {
+            if (f.recipe === product && (!f.specializedRecipe || f.specializedRecipe === product)) {
                 nearest = Math.min(nearest, Math.hypot(f.x - city.x, f.y - city.y));
             }
         }
@@ -75,10 +97,11 @@ SC.economy = (function() {
 
         // Deeper chains (steel -> car) get extra deadline slack;
         // Preservatives research stretches every deadline further, and
-        // the difficulty preset scales the whole thing (Normal = 0.8×).
+        // within-run difficulty ramp tightens deadline as total deliveries grow.
         const slack = 1 + C().ORDER_DEPTH_SLACK * (SC.depthOf(product) - 1);
+        const deadlineRamp = getDeadlineRamp();
         const deadline = rand(C().ORDER_DEADLINE[0], C().ORDER_DEADLINE[1]) * slack *
-            (1 + SC.research.deadlineBonus()) * SC.diff().deadlineMult;
+            (1 + SC.research.deadlineBonus()) * SC.diff().deadlineMult * deadlineRamp;
         const order = {
             id: ++SC.state.orderSeq,
             city, product, qty,
@@ -110,6 +133,7 @@ SC.economy = (function() {
         let best = null, bestCost = Infinity;
         for (const f of SC.factories.all()) {
             if (f.recipe !== good) continue;
+            if (f.specializedRecipe && f.specializedRecipe !== good) continue;
             const toDest = SC.roads.pathDist(f, dest);
             if (toDest === Infinity) continue;
             let cost = toDest, srcs = {};
@@ -185,6 +209,7 @@ SC.economy = (function() {
             // The frontier opens up at scheduled delivery counts — grows the
             // field and pushes the mountain backdrop out (see WORLD_EXPAND).
             SC.map.maybeExpandField();
+            SC.map.maybeUnlockRegion();
         }
     }
 
@@ -193,15 +218,21 @@ SC.economy = (function() {
         SC.state.missed++;
         SC.factories.cancelTasksForOrder(order);
         SC.vehicles.cancelJobsForOrder(order);
+        const missingUnits = order.qty - order.deliveredUnits;
+        const unitValue = order.payout / order.qty;
         if (order.contract) {
             // Penalty scales with however many units are still missing, so
             // a near-complete contract stings less than an untouched one.
-            const missingUnits = order.qty - order.deliveredUnits;
-            const penalty = Math.round(missingUnits * (order.payout / order.qty) * C().CONTRACT_PENALTY_MULT);
+            const penalty = Math.round(missingUnits * unitValue * C().CONTRACT_PENALTY_MULT);
             SC.state.money -= penalty;
             SC.emit('contractFailed', { order, penalty });
         } else {
-            SC.emit('orderExpired', order);
+            const mult = SC.diff().orderPenaltyMult !== undefined ? SC.diff().orderPenaltyMult : C().ORDER_PENALTY_MULT;
+            const penalty = Math.round(missingUnits * unitValue * mult);
+            if (penalty > 0) {
+                SC.state.money -= penalty;
+            }
+            SC.emit('orderExpired', { order, penalty });
         }
     }
 
@@ -229,13 +260,14 @@ SC.economy = (function() {
         return Math.max(0, SC.state.promoUntil - SC.state.time);
     }
 
-    function startPromotion() {
+    function startPromotion(goodKey) {
         if (!SC.research.isDone('promotions')) return { ok: false, reason: 'locked' };
         if (isPromoActive()) return { ok: false, reason: 'active' };
         if (!SC.canAfford(C().PROMO_COST)) return { ok: false, reason: 'money', cost: C().PROMO_COST };
         SC.state.money -= C().PROMO_COST;
         SC.state.promoUntil = SC.state.time + C().PROMO_DURATION;
-        SC.emit('promoStarted', { until: SC.state.promoUntil });
+        SC.state.promoGood = goodKey || 'all';
+        SC.emit('promoStarted', { until: SC.state.promoUntil, good: SC.state.promoGood });
         return { ok: true };
     }
 
@@ -410,7 +442,7 @@ SC.economy = (function() {
         if (SC.state.nextOrderIn <= 0 && SC.state.orders.length < maxActiveOrders()) {
             const o = spawnOrder();
             if (o) planOrder(o);
-            const pace = Math.max(0.5, 1 - SC.state.delivered * 0.02);
+            const pace = getSpawnRamp();
             SC.state.nextOrderIn = rand(C().ORDER_INTERVAL[0], C().ORDER_INTERVAL[1]) * pace;
         }
 
@@ -440,5 +472,6 @@ SC.economy = (function() {
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
              craftableProducts, bestSourceFor, maxActiveOrders,
              isPromoActive, promoTimeLeft, startPromotion,
-             rollContractOffer, acceptContract, declineContract };
+             rollContractOffer, acceptContract, declineContract,
+             getDeadlineRamp, getSpawnRamp };
 })();
