@@ -337,19 +337,37 @@
             faceWindows(bBot, bRight, hpx, rows, opts.winSeed || 0);
             faceWindows(bBot, bLeft, hpx, rows, (opts.winSeed || 0) + 97);
         }
-        // Doorway centered on the front (bottom) corner
-        if (!opts.ghost && opts.door) {
-            const dh = Math.min(hpx * 0.4, ry * 1.1);
-            const dwx = rx * 0.16, dwy = ry * 0.16;
+        // Doorway centered on the front-right building face (aligned to isometric wall plane)
+        if (!opts.ghost && opts.door && hpx > 12) {
+            const dh = Math.min(hpx * 0.35, ry * 0.85);
+            const u1 = 0.32, u2 = 0.68;
+            const p1 = { x: bBot.x + rx * u1, y: bBot.y - ry * u1 };
+            const p2 = { x: bBot.x + rx * u2, y: bBot.y - ry * u2 };
+            const p3 = { x: p2.x, y: p2.y - dh };
+            const p4 = { x: p1.x, y: p1.y - dh };
+
+            // Door recess
             R.ctx.beginPath();
-            R.ctx.moveTo(bBot.x - dwx, bBot.y - dwy);
-            R.ctx.lineTo(bBot.x + dwx, bBot.y - dwy);
-            R.ctx.lineTo(bBot.x + dwx, bBot.y - dwy - dh);
-            R.ctx.lineTo(bBot.x, bBot.y - dwy - dh - dwy * 0.6);
-            R.ctx.lineTo(bBot.x - dwx, bBot.y - dwy - dh);
+            R.ctx.moveTo(p1.x, p1.y);
+            R.ctx.lineTo(p2.x, p2.y);
+            R.ctx.lineTo(p3.x, p3.y);
+            R.ctx.lineTo(p4.x, p4.y);
             R.ctx.closePath();
-            R.ctx.fillStyle = rgba(shade(base, -0.6), 0.85);
+            R.ctx.fillStyle = rgba(shade(base, -0.6), 0.9);
             R.ctx.fill();
+
+            // Frame trim
+            R.ctx.strokeStyle = rgba(shade(base, -0.2), 0.7);
+            R.ctx.lineWidth = 1;
+            R.ctx.stroke();
+
+            // Center glass/double-door line
+            const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+            R.ctx.beginPath();
+            R.ctx.moveTo(midX, midY);
+            R.ctx.lineTo(midX, midY - dh);
+            R.ctx.strokeStyle = rgba(shade(base, -0.35), 0.6);
+            R.ctx.stroke();
         }
 
         R.ctx.globalAlpha = 1;

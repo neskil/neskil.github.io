@@ -268,6 +268,7 @@ html, body {
    is open. */
 #shop-panel { bottom: 4.7rem; left: 1rem; }
 #shop-panel.hidden { display: none; }
+#shop-panel .panel-body { padding: 0.75rem; }
 
 .panel-header {
     display: flex;
@@ -400,6 +401,29 @@ html, body {
    (`.hidden` isn't a global utility in this stylesheet — every use is scoped
    to its element, so the section divs need their own rule.) */
 .shop-section.hidden { display: none; }
+.shop-section > :last-child { margin-bottom: 0 !important; }
+
+.shop-select {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.35rem;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: rgba(15, 23, 42, 0.6);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    padding-right: 2rem;
+}
+.shop-select:hover:not(:disabled) { border-color: var(--accent-color); }
+.shop-select.hidden { display: none; }
 
 /* ── Bottom-left launcher (Upgrade / Build / Research) ──
    A row of three big pill buttons that open the #shop-panel popover above
@@ -734,7 +758,7 @@ html, body {
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.4rem 0.1rem;
+    padding: 0.2rem 0;
     margin-bottom: 0.35rem;
     font-size: 0.75rem;
     color: var(--text-secondary);
@@ -836,9 +860,9 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 1rem;
+    margin-bottom: 0.8rem;
 }
-.menu-title h1 { font-size: 1.15rem; }
+.menu-title h1 { font-size: 1.15rem; font-family: 'Outfit', sans-serif; font-weight: 700; }
 .menu-title .version { color: var(--text-secondary); font-size: 0.75rem; }
 .menu-stats {
     background: rgba(15, 23, 42, 0.5);
@@ -860,13 +884,13 @@ html, body {
 .menu-save {
     color: var(--text-secondary);
     font-size: 0.72rem;
-    text-align: center;
-    margin-bottom: 0.9rem;
+    text-align: left;
+    margin-bottom: 0.4rem;
 }
 .menu-btn {
     display: block;
     width: 100%;
-    padding: 0.7rem;
+    padding: 0.65rem 0.75rem;
     margin-bottom: 0.45rem;
     border-radius: 10px;
     border: 1px solid var(--card-border);
@@ -877,8 +901,13 @@ html, body {
     text-decoration: none;
     box-sizing: border-box;
     cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.menu-btn:hover { border-color: var(--accent-color); }
+.menu-btn:hover {
+    border-color: var(--accent-color);
+    background: rgba(30, 41, 59, 0.7);
+    transform: translateY(-1px);
+}
 .menu-btn.primary {
     background: var(--accent-color);
     color: #0f172a;
@@ -886,8 +915,147 @@ html, body {
     text-align: center;
 }
 .menu-btn.primary:hover { filter: brightness(1.1); }
-.menu-btn.danger { border-color: rgba(248, 113, 113, 0.4); }
-.menu-btn.danger:hover { border-color: var(--bad); }
+.menu-btn.secondary { background: rgba(30, 41, 59, 0.4); text-align: center; }
+.menu-btn.danger { border-color: rgba(248, 113, 113, 0.4); text-align: center; }
+.menu-btn.danger:hover { border-color: var(--bad); background: rgba(239, 68, 68, 0.15); }
+
+/* Widescreen & Mobile Responsive Pause Menu Overhaul */
+#menu-overlay .menu-card {
+    width: min(720px, 92vw);
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 1.5rem 1.6rem;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+#menu-overlay .menu-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.8rem;
+    margin-bottom: 1.1rem;
+}
+
+#menu-overlay .menu-title h1 {
+    font-size: 1.35rem;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#menu-overlay .menu-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
+}
+
+#menu-overlay .menu-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+}
+
+#menu-overlay .menu-stats-panel {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 0.9rem;
+}
+
+#menu-overlay .menu-stats {
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+#menu-overlay .stats-group {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#menu-overlay .stats-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+#menu-overlay .stats-group-label {
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+
+#menu-overlay .menu-stats div:not(.stats-group-label):not(.stats-group) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.18rem 0;
+    font-size: 0.82rem;
+}
+
+#menu-overlay .menu-actions-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+#menu-overlay .menu-resume-btn {
+    padding: 0.8rem 1rem;
+    font-size: 0.98rem;
+    font-weight: 700;
+    text-align: center;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.25);
+    margin-bottom: 0.2rem;
+}
+
+#menu-overlay .menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+}
+
+#menu-overlay .menu-grid .menu-btn {
+    margin-bottom: 0;
+    text-align: left;
+    font-size: 0.82rem;
+    padding: 0.6rem 0.7rem;
+}
+
+#menu-overlay .menu-footer-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+    margin-top: 0.4rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#menu-overlay .menu-footer-actions .menu-btn {
+    margin-bottom: 0;
+    text-align: center;
+}
+
+@media (max-width: 767px) {
+    #menu-overlay .menu-card {
+        width: min(440px, 94vw);
+        padding: 1.2rem 1rem;
+    }
+    #menu-overlay .menu-body {
+        grid-template-columns: 1fr;
+        gap: 0.9rem;
+    }
+}
 
 /* ── Help overlay ────────────────────────────────── */
 #help-overlay {
@@ -1080,7 +1248,7 @@ html, body {
     #inspect-tooltip { min-width: 190px; }
 
     #contract-offer { width: 360px; }
-    .menu-card { width: 400px; }
+    #gameover-overlay .menu-card { width: 400px; }
     .help-card {
         max-width: 1024px;
         width: 90vw;
