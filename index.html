@@ -289,6 +289,7 @@
             position: absolute;
             top: 20px;
             right: 20px;
+            max-width: calc(100% - 100px);
             display: inline-flex;
             align-items: center;
             gap: 0.3rem;
@@ -916,7 +917,7 @@
                 <p class="card-desc">A logistics mini-game: build roads, run trucks, combine raw materials in
                     factories and fill city orders before the clock runs out.</p>
                 <div class="card-stat-chip" id="stat-supply-chain">
-                    <span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>
+                    <span class="stat-icon">🏆</span> <span class="stat-val">—</span>
                 </div>
             </div>
             <span class="card-link">Play <svg viewBox="0 0 24 24">
@@ -1342,12 +1343,12 @@
                         const earned = data.earnedTotal || data.money || 0;
                         const delivered = data.delivered || 0;
                         if (earned > 0 || delivered > 0) {
-                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">$${earned.toLocaleString()}</span> <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${delivered} orders)</span>`;
+                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> <span class="stat-val">$${earned.toLocaleString()}</span> <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${delivered} orders)</span>`;
                         } else {
-                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>`;
+                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> <span class="stat-val">—</span>`;
                         }
                     } else {
-                        scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>`;
+                        scBadge.innerHTML = `<span class="stat-icon">🏆</span> <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}
