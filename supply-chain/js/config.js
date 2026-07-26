@@ -34,21 +34,19 @@ SC.CONFIG = {
     // preset omits it.
     NODE_MAX_SPREAD: 620,
 
-    // Field expansion: as the network matures the frontier opens up. Each
-    // expansion adds stepW/stepH world units toward the near (high x+y)
-    // edge, revealing new buildable land and pushing the mountain backdrop
-    // (see render.js terrain) further out. `at` lists the delivery counts
-    // that trigger the 1st, 2nd, … expansion; growth stops once they run
-    // out. Persisted via SC.state.worldW/worldH + expansions.
-    // Once that scripted list runs out the field keeps growing every
-    // `every` further deliveries, so a long run never hits a hard wall
-    // where the map stops opening up — that endless tail is what gives
-    // late play somewhere to go.
-    WORLD_EXPAND: { stepW: 900, stepH: 620, at: [18, 42, 78], every: 40 },
+    // Field expansion: each expansion adds stepW/stepH world units toward
+    // the near (high x+y) edge, revealing new buildable land and pushing the
+    // mountain backdrop (see render.js terrain) further out. Persisted via
+    // SC.state.worldW/worldH + expansions.
+    //
+    // The map NEVER grows on its own. Growth used to fire off delivery-count
+    // milestones, which re-laid the world out from under the player mid-run;
+    // it is now entirely player-driven through the Land Surveying research
+    // and SC.map.buyLand(), so the frontier only ever moves when it's bought.
+    WORLD_EXPAND: { stepW: 900, stepH: 620 },
 
-    // Land Surveying ('landSurvey' research) lets the player buy the next
-    // field expansion outright instead of waiting out the delivery
-    // milestone. Price climbs per purchase so it can't be spammed.
+    // Land Surveying ('landSurvey' research) unlocks buying land. Price
+    // climbs per purchase so it can't be spammed.
     LAND_PRICE: 3500,
     LAND_PRICE_GROWTH: 1.6,
 
@@ -64,9 +62,14 @@ SC.CONFIG = {
     UPKEEP_PER_FACTORY: 15,    // $/minute per owned (not for-sale) factory
     UPKEEP_PER_YARD: 12,       // $/minute per built yard (HQ is free)
 
-    // Bigger Maps & Regions (Item 15): delivery counts that unlock adjacent
-    // regions connected by highways.
-    REGION_UNLOCK_DELIVERIES: [120, 200],
+    // Bigger Maps & Regions (Item 15): whole new regions connected by
+    // highways. These are the top tier of the land ladder rather than a
+    // delivery milestone — every LAND_REGION_EVERY'th purchase opens a
+    // region instead of just stretching the field, at REGION_PRICE_MULT the
+    // going land price, up to MAX_REGIONS of them.
+    LAND_REGION_EVERY: 3,
+    REGION_PRICE_MULT: 3,
+    MAX_REGIONS: 2,
     REGION_STEP_W: 1200,
     REGION_STEP_H: 800,
 
@@ -375,7 +378,7 @@ SC.RESEARCH = {
     // ── Late-tier techs ───────────────────────────────────────────
     landSurvey: {
         name: 'Land Surveying', emoji: '🗺️', cost: 2000, time: 100, requires: ['manualPlacement'],
-        desc: 'Unlocks Buy Land in the Build panel — push the frontier out on demand instead of waiting for a delivery milestone.'
+        desc: 'Unlocks Buy Land in the Build panel — the only way to push the frontier out: new land, and every third parcel a whole new region.'
     },
     predictiveMaint: {
         name: 'Predictive Maintenance', emoji: '🔧', cost: 1500, time: 90, requires: ['overdrive'],

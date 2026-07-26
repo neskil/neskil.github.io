@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.58.3';</script>
+    <script>window.SC_VERSION = '1.59.0';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -699,22 +699,14 @@
             JSON.stringify(SC.state.nodes.filter(n => !n.active).map(n => n.id)) ===
             JSON.stringify(lockedBefore));
 
-        // Scheduled firing off the delivery count
-        SC.state.delivered = ex.at[1] - 1;
-        assert('maybeExpandField waits below the threshold', SC.map.maybeExpandField() === false);
-        SC.state.delivered = ex.at[1];
-        assert('maybeExpandField fires at the threshold', SC.map.maybeExpandField() === true);
-        assert('scheduled expansion advanced the count', SC.state.expansions === 2);
-        // Past the scripted schedule the field keeps growing on the
-        // `every` cadence instead of stopping (endless tail — see
-        // WORLD_EXPAND / map.expandThreshold).
-        SC.state.expansions = ex.at.length;
-        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every - 1;
-        assert('the endless tail still waits for its threshold',
-            SC.map.maybeExpandField() === false);
-        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every;
-        assert('the endless tail fires past the scripted schedule',
-            SC.map.maybeExpandField() === true);
+        // Deliveries must NEVER grow the map on their own — growth is bought.
+        const wBefore = SC.state.worldW, exBefore = SC.state.expansions;
+        SC.state.delivered = 500;
+        SC.economy.tick(0);
+        assert('piling up deliveries never expands the field',
+            SC.state.worldW === wBefore && SC.state.expansions === exBefore);
+        assert('piling up deliveries never unlocks a region',
+            (SC.state.regionsUnlocked || 0) === 0);
 
         // riverAt keeps its original spine mapping after the field grew
         const rv = SC.map.riverAt(h0 * 0.5);
@@ -1109,34 +1101,36 @@
         assert('queue count is 1', SC.research.queueCount() === 1);
         assert('upfront cost deducted on queuing', SC.state.money === moneyBeforeQueue - SC.RESEARCH.junctions.cost);
 
-        // Chaining: landSurvey requires junctions (which is queued). It should be queueable!
-        assert('tech depending on queued tech is queueable', SC.research.isQueueable('landSurvey'));
-        const queueRes2 = SC.research.enqueue('landSurvey');
-        assert('queuing landSurvey succeeds', queueRes2.ok && SC.research.isQueued('landSurvey'));
-        assert('queue count is 2', SC.research.queueCount() === 2);
+        // Chaining: creditLine3 requires creditLine2, so queuing the pair in
+        // order is legal even though neither is done — a queued prerequisite
+        // counts, as long as it sits EARLIER in the queue.
+        assert('a tech whose prereq is queued earlier is queueable',
+            SC.research.enqueue('creditLine2').ok && SC.research.isQueueable('creditLine3'));
+        const queueRes2 = SC.research.enqueue('creditLine3');
+        assert('queuing creditLine3 succeeds', queueRes2.ok && SC.research.isQueued('creditLine3'));
+        assert('queue count is 3', SC.research.queueCount() === 3);
 
         // Unaffordable check
         SC.state.money = -SC.CONFIG.CREDIT_LIMIT;
-        assert('cannot queue when unaffordable', !SC.research.canQueue('creditLine2') && !SC.research.enqueue('creditLine2').ok);
+        assert('cannot queue when unaffordable', !SC.research.canQueue('pavedRoads') && !SC.research.enqueue('pavedRoads').ok);
         SC.state.money = 100000;
 
         // Save round-trip preserves queue
         const saveData = SC.save.serialize();
         SC.save.restore(saveData);
-        assert('queued research preserved across save round-trip', SC.research.queueCount() === 2 && SC.research.isQueued('junctions') && SC.research.isQueued('landSurvey'));
+        assert('queued research preserved across save round-trip', SC.research.queueCount() === 3 &&
+            SC.research.isQueued('junctions') && SC.research.isQueued('creditLine3'));
 
-        // Cancellation with dependent refund
+        // Cancelling a queued prerequisite cascades to whatever depended on it
         const moneyBeforeCancel = SC.state.money;
-        const cancelRes = SC.research.cancelQueue('junctions');
-        assert('cancelling junctions succeeds', cancelRes.ok);
-        assert('junctions no longer queued', !SC.research.isQueued('junctions'));
-        assert('dependent landSurvey also cancelled', !SC.research.isQueued('landSurvey'));
-        assert('full refund issued for both cancelled projects', SC.state.money === moneyBeforeCancel + SC.RESEARCH.junctions.cost + SC.RESEARCH.landSurvey.cost);
-        assert('queue is empty', SC.research.queueCount() === 0);
-
-        // Re-queue junctions
-        SC.research.enqueue('junctions');
-        assert('junctions re-queued', SC.research.queueCount() === 1);
+        const cancelRes = SC.research.cancelQueue('creditLine2');
+        assert('cancelling creditLine2 succeeds', cancelRes.ok);
+        assert('creditLine2 no longer queued', !SC.research.isQueued('creditLine2'));
+        assert('dependent creditLine3 also cancelled', !SC.research.isQueued('creditLine3'));
+        assert('full refund issued for both cancelled projects',
+            SC.state.money === moneyBeforeCancel + SC.RESEARCH.creditLine2.cost + SC.RESEARCH.creditLine3.cost);
+        assert('cancelling a prereq leaves unrelated queue entries alone',
+            SC.research.queueCount() === 1 && SC.research.isQueued('junctions'));
 
         // Advance time until one active research completes
         SC.research.tick(SC.RESEARCH.intersections.time + 0.1);
@@ -2886,36 +2880,59 @@
         assert('sandbox never forecloses', SC.state.gameOver === false);
     })();
 
-    // ── Endless field expansion & Buy Land ─────────────────────────
+    // ── The land ladder: fields, then regions, all bought ──────────
     (function() {
         SC.newState();
-        const ex = SC.CONFIG.WORLD_EXPAND;
-        assert('the scripted expansion schedule is honoured',
-            ex.at.every((v, i) => SC.map.expandThreshold(i) === v));
-        assert('expansion keeps going past the scripted schedule', (function() {
-            const last = ex.at[ex.at.length - 1];
-            return SC.map.expandThreshold(ex.at.length) === last + ex.every &&
-                   SC.map.expandThreshold(ex.at.length + 3) === last + ex.every * 4;
-        })());
-        assert('the endless tail has no upper bound',
-            isFinite(SC.map.expandThreshold(50)));
+        const every = SC.CONFIG.LAND_REGION_EVERY, maxR = SC.CONFIG.MAX_REGIONS;
+        // nextLandKind walks field… field… region on the configured cadence
+        const kinds = [];
+        for (let bought = 0; bought < every * (maxR + 1); bought++) {
+            SC.state.landBought = bought;
+            SC.state.regionsUnlocked = Math.min(maxR, Math.floor((bought + 1) / every));
+            kinds.push(SC.map.nextLandKind());
+        }
+        SC.state.landBought = every - 1; SC.state.regionsUnlocked = 0;
+        assert('every Nth parcel is a region', SC.map.nextLandKind() === 'region');
+        SC.state.landBought = 0;
+        assert('the first parcel is a plain field', SC.map.nextLandKind() === 'field');
+        SC.state.landBought = every - 1; SC.state.regionsUnlocked = maxR;
+        assert('regions stop being offered once MAX_REGIONS is reached',
+            SC.map.nextLandKind() === 'field');
+        // A region-tier parcel costs the multiplier more than a field one
+        SC.newState();
+        SC.state.landBought = 0; SC.state.regionsUnlocked = 0;
+        const fieldPrice = SC.landPrice();
+        SC.state.landBought = every - 1;
+        const regionPrice = SC.landPrice();
+        const fieldAtSameStep = Math.round(SC.CONFIG.LAND_PRICE *
+            Math.pow(SC.CONFIG.LAND_PRICE_GROWTH, every - 1));
+        assert('a region parcel is priced at the region multiplier',
+            regionPrice === Math.round(fieldAtSameStep * SC.CONFIG.REGION_PRICE_MULT));
+        assert('parcels get pricier as they are bought', regionPrice > fieldPrice);
     })();
 
     (function() {
         SC.newState();
         SC.map.generateWorld(4242);
+        SC.state.money = 500000;
+        // Locked until the research is done — no amount of money helps
+        assert('buying land is refused before Land Surveying',
+            SC.map.buyLand().reason === 'locked');
+        SC.state.research.completed.landSurvey = true;
         const w0 = SC.state.worldW;
-        SC.state.delivered = SC.CONFIG.WORLD_EXPAND.at[0];
-        assert('the first milestone expands the field', SC.map.maybeExpandField());
-        assert('the field actually grew', SC.state.worldW > w0);
-        assert('a second expansion needs a further milestone', !SC.map.maybeExpandField());
-        // Walk the whole scripted schedule plus a few endless steps
-        const ex = SC.CONFIG.WORLD_EXPAND;
-        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every * 3;
-        let fired = 0;
-        while (SC.map.maybeExpandField()) fired++;
-        assert('the endless tail keeps firing as deliveries pile up', fired >= 5);
-        assert('late expansions also seed a customer DC',
+        const first = SC.map.buyLand();
+        assert('the first purchase buys a field', first.ok && first.kind === 'field');
+        assert('the bought field actually grew the map', SC.state.worldW > w0);
+        // Walk up to the first region tier
+        let regions = 0, fields = 1;
+        for (let i = 0; i < SC.CONFIG.LAND_REGION_EVERY * 2; i++) {
+            const res = SC.map.buyLand();
+            if (!res.ok) break;
+            if (res.kind === 'region') regions++; else fields++;
+        }
+        assert('the ladder reaches the region tier once enough parcels are bought',
+            regions >= 1 && SC.state.regionsUnlocked >= 1);
+        assert('later parcels also seed a customer DC',
             SC.state.nodes.some(n => n.kind === 'city' && n.active && !n.isHQ));
     })();
 

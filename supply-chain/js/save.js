@@ -149,6 +149,7 @@ SC.save = (function() {
                 st.research.active = data.research.active.map(a => Object.assign({}, a));
             } else if (typeof data.research.active === 'object' && data.research.active !== null) {
                 st.research.active = [Object.assign({}, data.research.active)];
+            }
             if (Array.isArray(data.research.queue)) {
                 st.research.queue = data.research.queue.slice();
             } else {

@@ -15,7 +15,7 @@ SC.newState = function(difficulty) {
         difficulty,
         seed: null,         // world seed, set by map.generateWorld(); shareable via ?seed=
         // Live playing-field size — seeded from the CONFIG base, then grown
-        // by field expansions (see SC.map.maybeExpandField / WORLD_EXPAND).
+        // by bought field expansions (see SC.map.buyLand / WORLD_EXPAND).
         // Read everywhere through SC.worldW()/SC.worldH().
         worldW: SC.CONFIG.WORLD_W,
         worldH: SC.CONFIG.WORLD_H,
@@ -136,11 +136,16 @@ SC.upkeepPerMin = function() {
     return base * mult * SC.research.upkeepMult();
 };
 
-// Buying the next field expansion outright (Land Surveying). Each purchase
-// makes the next one pricier; milestone expansions are still free.
+// Buying the next parcel (Land Surveying). Each purchase makes the next one
+// pricier, and a region-tier purchase costs REGION_PRICE_MULT times a field
+// one — see SC.map.nextLandKind for which tier is up next. This is the only
+// way the map grows; nothing expands for free any more.
 SC.landPrice = function() {
-    return Math.round(SC.CONFIG.LAND_PRICE *
-        Math.pow(SC.CONFIG.LAND_PRICE_GROWTH, SC.state.landBought || 0));
+    const base = SC.CONFIG.LAND_PRICE *
+        Math.pow(SC.CONFIG.LAND_PRICE_GROWTH, SC.state.landBought || 0);
+    const mult = (SC.map && SC.map.nextLandKind && SC.map.nextLandKind() === 'region')
+        ? (SC.CONFIG.REGION_PRICE_MULT || 1) : 1;
+    return Math.round(base * mult);
 };
 
 SC.truckSpeed = function() {

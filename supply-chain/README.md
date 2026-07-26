@@ -83,15 +83,19 @@ that ambient animation as its background — it now lives independently at
   The cap is per-difficulty (`SC.nodeMaxSpread` → `DIFFICULTIES[].nodeSpread`,
   falling back to `CONFIG.NODE_MAX_SPREAD`): tighter/tidier on Easy (520),
   real sprawl and longer supply lines on Hard (820).
-- **Field expansion**: at scheduled delivery counts (`WORLD_EXPAND.at` in
-  `config.js`, currently 18/42/78) the playing field itself grows — each
-  expansion adds `stepW`/`stepH` toward the near edge, opening new frontier
-  land and pushing the mountain backdrop out. The live size lives in
+- **Field expansion**: the playing field only ever grows when the player buys
+  it — the map never re-lays itself out mid-run. The `landSurvey` research
+  unlocks the Buy land button; each purchase adds `stepW`/`stepH`
+  (`WORLD_EXPAND` in `config.js`) toward the near edge, opening new frontier
+  land and pushing the mountain backdrop out. Every `LAND_REGION_EVERY`'th
+  purchase instead opens a whole new region (`REGION_PRICE_MULT` the price,
+  up to `MAX_REGIONS`) — see `SC.map.nextLandKind()` for which tier is up and
+  `SC.landPrice()` for the escalating cost. The live size lives in
   `SC.state.worldW`/`worldH` (seeded from the `WORLD_W`/`WORLD_H` base,
   persisted); camera bounds, node placement and the terrain all read
   `SC.worldW()`/`SC.worldH()`, so it's fully size-agnostic.
-  `SC.map.expandField()` grows it once; `maybeExpandField()` (called from
-  the milestone hook) fires the next scheduled step. Each expansion also
+  `SC.map.expandField()` grows it once and `SC.map.buyLand()` is the only
+  caller that charges for it. Each expansion also
   **seeds the frontier** (`frontierSpot`): a new active supplier (random
   raw) and a for-sale factory (random recipe) spawn in the new band —
   both active so they never join or reorder the milestone unlock queue —
@@ -127,10 +131,11 @@ that ambient animation as its background — it now lives independently at
   Generalist (flexible) and Specialized (dedicates the factory to its recipe
   for a **1.5× crafting speed boost**). Specialized factories only source
   and deliver for their chosen recipe.
-- **Regions & Map Expansion**: beyond field expansions (`WORLD_EXPAND`), reaching
-  milestones allows unlocking new adjacent regions (`unlockRegion()`), expanding
-  world dimensions, seeding new customer cities and suppliers, and linking them
-  via paved highway edges.
+- **Regions & Map Expansion**: the top tier of the bought land ladder — every
+  `LAND_REGION_EVERY`'th parcel opens a new adjacent region (`unlockRegion()`)
+  instead of a plain field, expanding world dimensions, seeding new customer
+  cities and suppliers, and linking them via paved highway edges. Like every
+  other kind of growth it is bought, never awarded for hitting a milestone.
 - **Within-Run Difficulty Ramp**: order deadlines gradually tighten and new order
   spawn rates speed up as your total delivery count increases (`getDeadlineRamp()`,
   `getSpawnRamp()`), adding a dynamic challenge that scales with your empire.
