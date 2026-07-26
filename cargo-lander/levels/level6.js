@@ -20,7 +20,7 @@ registerLevel({
     terrainType: 'worm-lair',
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.18,
+    gravity: 0.14,
     wind: 0.02,       // Light, constant desert breeze — texture, not a real obstacle
     heatHaze: true,
 

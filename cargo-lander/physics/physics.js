@@ -1,7 +1,7 @@
 // CargoLander - Custom 2D Physics Engine
 class CargoPhysics {
     constructor() {
-        this.gravity = 0.035;
+        this.gravity = 0.028;
         this.wind = 0;
         this.terrainPoints = [];
         this.deliveryHubs = [];
@@ -13,7 +13,7 @@ class CargoPhysics {
 
         // Engine / Global Defaults
         this.LANDER_THRUST = 0.08;
-        this.LANDER_DRAG = 0.985;
+        this.LANDER_DRAG = 0.990;
         this.BOX_SIZE = 22;
         this.BOX_RESTITUTION = 0.2;
         this.BOX_FRICTION = 0.4;
@@ -51,7 +51,7 @@ class CargoPhysics {
         
         this.levelWidth = levelConfig.levelWidth || maxX;
         this.levelHeight = levelConfig.levelHeight || maxY;
-        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.035;
+        this.gravity = levelConfig.gravity !== undefined ? levelConfig.gravity : 0.028;
         this.wind = levelConfig.wind !== undefined ? levelConfig.wind : 0;
         this.currentWind = this.wind;
         // Gust cycle: alternates calm → warning (meter flash, no extra force yet) →
@@ -76,8 +76,14 @@ class CargoPhysics {
         this.sandWorm = null;
         this.sandWormSpawned = false;
 
-        // Apply aerodynamic coating upgrade
-        this.LANDER_DRAG = 0.985 + (upgrades.aerodynamics || 0) * 0.003;
+        // Apply aerodynamic coating upgrade & air resistance setting
+        let baseDrag = 0.990;
+        if (levelConfig.landerDrag !== undefined) {
+            baseDrag = levelConfig.landerDrag;
+        } else if (levelConfig.airResistance !== undefined) {
+            baseDrag = 1.0 - levelConfig.airResistance;
+        }
+        this.LANDER_DRAG = baseDrag + (upgrades.aerodynamics || 0) * 0.003;
         if (portrait && portrait.includes('driver4.jpg')) {
             // Bo: +5% Top Speed (achieved by reducing air resistance drag force by 5%)
             const dragForce = 1.0 - this.LANDER_DRAG;

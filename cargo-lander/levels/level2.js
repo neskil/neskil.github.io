@@ -8,7 +8,7 @@ registerLevel({
   missionTitle: "Amber Wastes — Cross-Dock Run",
   description: "The Amber Wastes distribution node splits all inbound freight by hazard class. Standard packages go to Main Processing on the western shelf; red-tagged fragile goods belong in Fragile Handling on the eastern plateau. A deep chasm cuts the two sides apart — read the label before you commit to a landing.",
   hint: "Check the cargo type before flying — blue label = Main Processing (west), red label = Fragile Handling (east). Wrong hub = no payment. Return to HQ once both are delivered.",
-  gravity: 0.2,
+  gravity: 0.16,
   windVarianceEnabled: false,
   weather: "heatwave",
   fee: 100,

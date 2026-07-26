@@ -17,7 +17,7 @@ registerLevel({
     weather: 'snow',
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.10,          // Lighter gravity — easier hovering while managing the rope
+    gravity: 0.08,          // Lighter gravity — easier hovering while managing the rope
     wind: 0.008,            // Whisper-light draft — kept minimal, the winch drop is a precision test
 
     // ── Terrain ───────────────────────────────────────────────────────────────

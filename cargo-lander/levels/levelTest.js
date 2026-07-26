@@ -9,7 +9,7 @@ registerLevel({
     description: "All systems active — segments, gravity well, wind, mixed cargo types.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.15,
+    gravity: 0.12,
     wind: 0.04,
     windGust: { calm: 5, warn: 2, gust: 4, gustMult: 3 },
     windVarianceAmount: 0.4,  // wider wander than the 0.25 default, for testing

@@ -10,7 +10,7 @@ registerLevel({
   hint: "Land slowly (< 2.0 m/s) or you'll bounce the cargo off the deck. When both crates are delivered, fly back to HQ to extract.",
 
   // ── Physics ──────────────────────────────────────────────────────────────
-  gravity: 0.15,
+  gravity: 0.12,
   wind: 0.01,       // Barely-there breeze — first level, don't fight the player on tilt yet
   weather: 'rain',
 
