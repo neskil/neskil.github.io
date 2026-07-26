@@ -118,6 +118,36 @@
             openToastHistoryModal();
         });
 
+        // The ☰ menu's own settings buttons. updateMenuInfo() already rewrites
+        // their labels from the live state, but nothing was toggling that state:
+        // the click handlers only ever existed for the (never-landed) Options
+        // modal's opt-* twins above, so Sound / Music / Factory labels / Full
+        // screen / Dev tools were all inert.
+        on('menu-sound', 'click', () => {
+            SC.sfx.toggleMute();
+            SC.sfx.play('click'); // silent when the toggle just muted
+            updateMenuInfo();
+        });
+        on('menu-music', 'click', () => {
+            SC.audio.toggleMusic();
+            SC.sfx.play('click');
+            updateMenuInfo();
+        });
+        on('menu-pills', 'click', () => {
+            setHidePills(!getHidePills());
+            SC.sfx.play('click');
+            updateMenuInfo();
+        });
+        on('menu-fullscreen', 'click', () => {
+            SC.sfx.play('click');
+            toggleFullscreen();
+        });
+        on('menu-dev', 'click', () => {
+            setDevMode(!getDevMode());
+            SC.sfx.play('click');
+            updateMenuInfo();
+        });
+
         // Options modal handlers
         on('options-close', 'click', () => { SC.sfx.play('click'); closeOptionsModal(); });
         on('options-overlay', 'click', e => {
@@ -367,7 +397,10 @@
             startScrollLeft = wrap.scrollLeft;
             startScrollTop = wrap.scrollTop;
             activePointerId = e.pointerId;
-            wrap.setPointerCapture(e.pointerId);
+            // NB: no setPointerCapture here. Capturing on pointerdown retargets
+            // the follow-up click to `wrap`, so a plain tap on a tech node never
+            // reaches the delegated [data-research] handler below. Capture is
+            // taken only once the drag threshold is actually crossed.
         });
 
         wrap.addEventListener('pointermove', e => {
@@ -377,6 +410,7 @@
             if (!isDragging && Math.hypot(dx, dy) > 5) {
                 isDragging = true;
                 wrap.classList.add('is-dragging');
+                try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
             }
             if (isDragging) {
                 wrap.scrollLeft = startScrollLeft - dx;
@@ -399,6 +433,9 @@
 
         wrap.addEventListener('pointerup', endDrag);
         wrap.addEventListener('pointercancel', endDrag);
+        // Mouse only: with no capture until the threshold, a press that leaves
+        // the panel before moving would otherwise stay "armed".
+        wrap.addEventListener('pointerleave', e => { if (!isDragging) endDrag(e); });
 
         $('research-tree-nodes').addEventListener('click', e => {
             if (isDragging) return;

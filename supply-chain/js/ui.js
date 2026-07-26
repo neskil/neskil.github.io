@@ -396,6 +396,12 @@ SC.ui = (function() {
     const RT_COL_W = 178, RT_ROW_H = 205, RT_NODE_W = 164, RT_NODE_H = 150, RT_PAD = 20;
     const RT_ROOT_GAP = 0.35;   // extra columns between adjacent root subtrees
     const RT_MIN_SCALE = 0.62;  // below this the tree scrolls instead of shrinking further
+    // The tree is laid out at a fixed px size tuned for a phone-ish width, so on
+    // a desktop card (up to 1380px) it used to sit small in a sea of empty card.
+    // Above RT_GROW_MIN_W it now also scales *up* to fill the space — capped so
+    // the nodes stay a sane reading size, and never past the visible height.
+    const RT_MAX_SCALE = 1.45;
+    const RT_GROW_MIN_W = 900;  // viewport width where growing kicks in (desktop)
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
@@ -416,16 +422,32 @@ SC.ui = (function() {
         const treeWidth = parseFloat(nodesEl.style.width) || 0;
         const treeHeight = parseFloat(nodesEl.style.height) || 0;
 
-        if (containerWidth < treeWidth && containerWidth > 0) {
+        if (!treeWidth || !treeHeight || containerWidth <= 0) return;
+
+        let scale = 1;
+        // On desktop the tree is never shrunk: at 1280px wide it used to hit the
+        // 0.62 floor and render tiny even though the card had to scroll anyway.
+        // Full size + drag-to-pan reads far better there. Phones keep the floor.
+        const minScale = window.innerWidth >= RT_GROW_MIN_W ? 1 : RT_MIN_SCALE;
+
+        if (containerWidth < treeWidth) {
             // Shrink to fit, but not past the point where the node text is
             // unreadable — the wrap scrolls (overflow:auto) from there on.
-            const scale = Math.max(RT_MIN_SCALE, containerWidth / treeWidth);
-            nodesEl.style.transform = `scale(${scale})`;
-            nodesEl.style.transformOrigin = 'top left';
-            svg.style.transform = `scale(${scale})`;
-            svg.style.transformOrigin = 'top left';
-            wrap.style.height = (treeHeight * scale) + 'px';
+            scale = Math.max(minScale, containerWidth / treeWidth);
+        } else if (window.innerWidth >= RT_GROW_MIN_W) {
+            // Room to spare on desktop: grow into it, bounded by the width, by
+            // what's still visible below the card header, and by RT_MAX_SCALE.
+            const availH = Math.max(240, window.innerHeight * 0.9 - wrap.getBoundingClientRect().top);
+            scale = Math.min(containerWidth / treeWidth, availH / treeHeight, RT_MAX_SCALE);
+            scale = Math.max(1, scale);
         }
+
+        if (scale === 1) return;
+        nodesEl.style.transform = `scale(${scale})`;
+        nodesEl.style.transformOrigin = 'top left';
+        svg.style.transform = `scale(${scale})`;
+        svg.style.transformOrigin = 'top left';
+        wrap.style.height = (treeHeight * scale) + 'px';
     }
 
     function updateResearchTree() {
