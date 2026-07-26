@@ -873,7 +873,7 @@ html, body {
     margin-bottom: 0.7rem;
     font-size: 0.82rem;
 }
-.menu-stats div {
+.menu-stats div:not(.stats-group) {
     display: flex;
     justify-content: space-between;
     padding: 0.15rem 0;
@@ -949,9 +949,13 @@ html, body {
 
 #menu-overlay .menu-body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 1.25rem;
     align-items: start;
+}
+
+#menu-overlay .menu-section {
+    min-width: 0;
 }
 
 #menu-overlay .menu-section-title {
@@ -978,6 +982,8 @@ html, body {
 }
 
 #menu-overlay .stats-group {
+    display: flex;
+    flex-direction: column;
     margin-bottom: 0.75rem;
     padding-bottom: 0.55rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -1023,7 +1029,7 @@ html, body {
 
 #menu-overlay .menu-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.45rem;
 }
 
@@ -1032,6 +1038,9 @@ html, body {
     text-align: left;
     font-size: 0.82rem;
     padding: 0.6rem 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #menu-overlay .menu-footer-actions {
