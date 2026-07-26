@@ -88,7 +88,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (897 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (918 tests at last count; N grows,
   0 failed is the bar).
 - **Audio check**: the WebAudio layer can't live in `tests.html` — it needs a
   real user gesture to open an AudioContext, which headless only permits with
@@ -126,7 +126,20 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
   and sets it as the active yard, for screenshotting the yard marker/
   per-yard truck counts. `&junction=1` places a junction near HQ (same
   ring-search as `&yard=1`) and roads it in, for screenshotting the
-  small roundabout marker (`drawJunction`). `&tutorial=N` drops a fresh
+  small roundabout marker (`drawJunction`). `&interchange=1` completes the
+  crossings research, drops a waypoint either side of the first starter
+  road and connects them, so the **interchange** a legal crossing builds
+  (junction on the crossing point, both roads split through it — see
+  README "Overlap rules") can be screenshotted; pair with `&focus=` to
+  frame it. `&select=hq|factory|<node id>` picks the node a road would
+  start from, so `&hoverAt=` renders the build ghost: with the research it
+  rings each interchange the road would build and prices it there, without
+  it the ghost goes red with the block reason, a ✕ + clearance ring (or a
+  red-lit road) on whatever is in the way, and the green legal alternative
+  beside it. Those pointing marks are a second render pass
+  (`R.drawGhostMarks()`, after the entity pass) — verify them at a decent
+  `&focus=` zoom, since at low zoom they hide under the site art they
+  point at. `&tutorial=N` drops a fresh
   world straight onto guided-tutorial step N (1-based, default 1) for
   screenshotting the banner and the focus dim/rings; pair it with
   `nohelp=1`. Deliberately NOT part of `?probe=`, which builds the starter

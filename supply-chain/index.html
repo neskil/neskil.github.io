@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.57.0';</script>
+    <script>window.SC_VERSION = '1.57.1';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -364,6 +364,7 @@
             <ul>
                 <li><b>Guided walkthrough:</b> new runs start with a 4-step guided walkthrough to help link your first bakery, suppliers, and HQ.</li>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river pops up a choice: a pricier bridge (fast) or a cheaper ferry (slower boat crossing).</li>
+                <li><b>Roads can't overlap:</b> a road can't run over a site it doesn't stop at, and it can't cross another road — plan the network instead of drawing one long diagonal over everything. The dashed preview tells you before you tap: <span style="color:#34d399">green</span> with the price when it's fine, <span style="color:#f87171">red</span> with an ✕ on whatever is in the way when it isn't, and a green suggestion showing the legal way round (hop through that site, or connect to the end of the road you're crossing). After the <b>Road Crossings ➕</b> research you may cross a road after all — each crossing builds an <b>interchange</b> (a junction where the two roads meet, both split through it) for a fee, ringed and priced in the preview.</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
                 <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. Completing deliveries expands the map into new regions linked by paved highways.</li>
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>

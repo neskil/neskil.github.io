@@ -347,6 +347,11 @@ SC.render = (function() {
 
         R.drawFireflies();
         R.drawBursts(dt);          // delivery coin/spark bursts
+        // The build ghost's pointing marks (✕, clearance/interchange rings,
+        // labels) ride above the buildings — drawn down with the roads they'd
+        // be painted over by the very site they point at. The dashed road
+        // itself stays down there, where a road belongs.
+        R.drawGhostMarks();
         R.drawOrderBubbles();
         R.drawFloaters(dt);
         R.drawGrade();             // time-of-day colour grade over world + sky
