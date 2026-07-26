@@ -90,7 +90,7 @@ SC.sfx = (function() {
                 const ctx = SC.audio.ctx();
                 if (!ctx) return;
                 const now = ctx.currentTime;
-                if (lastAt[name] && now - lastAt[name] < gap) return;
+                if (lastAt[name] !== undefined && now - lastAt[name] < gap) return;
                 lastAt[name] = now;
             }
             fn();

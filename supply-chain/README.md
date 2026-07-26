@@ -118,8 +118,20 @@ that ambient animation as its background — it now lives independently at
   The countdown is persisted so reloading doesn't reset it.
 - **Promotions** (needs Marketing Blitz researched): a repeatable paid
   action in the Shop — `PROMO_COST` buys `PROMO_DURATION` seconds of
-  ~3× faster order arrivals plus a higher concurrent-order cap. One at
-  a time; the timer survives saves (`promoUntil`).
+  ~3× faster order arrivals plus a higher concurrent-order cap. Can target
+  a specific good (`startPromotion(good)`) or all products; the timer survives
+  saves (`promoUntil`).
+- **Factory Specialization**: inspecting a factory lets you toggle it between
+  Generalist (flexible) and Specialized (dedicates the factory to its recipe
+  for a **1.5× crafting speed boost**). Specialized factories only source
+  and deliver for their chosen recipe.
+- **Regions & Map Expansion**: beyond field expansions (`WORLD_EXPAND`), reaching
+  milestones allows unlocking new adjacent regions (`unlockRegion()`), expanding
+  world dimensions, seeding new customer cities and suppliers, and linking them
+  via paved highway edges.
+- **Within-Run Difficulty Ramp**: order deadlines gradually tighten and new order
+  spawn rates speed up as your total delivery count increases (`getDeadlineRamp()`,
+  `getSpawnRamp()`), adding a dynamic challenge that scales with your empire.
 - **Research**: one project at a time, paid upfront, takes real time,
   then unlocks its effect — `SC.RESEARCH` in `config.js`. Every tech's
   time is ×0.7 of its original value (research trains 30% faster across

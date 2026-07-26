@@ -697,7 +697,7 @@
         // Crafting progress: a slim ring hugging the roof icon (with a faint
         // full-circle track), small enough not to clip the smokestack.
         if (n.kind === 'factory' && !forSale && n.crafting) {
-            const frac = Math.min(1, n.crafting.t / SC.craftTime());
+            const frac = Math.min(1, n.crafting.t / SC.craftTime(n));
             const rr = iconSize * 0.85;
             const cy = tc.y - 4 * clampZoom(); // Center it with the emoji plate
             R.ctx.beginPath();
@@ -724,6 +724,21 @@
             emoji(sp.icon, tc.x, tc.y - iconSize * 0.15, iconSize);
         }
         R.ctx.globalAlpha = 1;
+
+        // Factory specialization badge (Item 11)
+        if (n.kind === 'factory' && !forSale && n.specializedRecipe) {
+            const z = clampZoom();
+            const bx = tc.x + 12 * z, by = tc.y - 14 * z;
+            R.ctx.fillStyle = '#f59e0b';
+            R.ctx.beginPath();
+            R.ctx.arc(bx, by, 7 * z, 0, Math.PI * 2);
+            R.ctx.fill();
+            R.ctx.fillStyle = '#ffffff';
+            R.ctx.font = `${Math.round(9 * z)}px sans-serif`;
+            R.ctx.textAlign = 'center';
+            R.ctx.textBaseline = 'middle';
+            R.ctx.fillText('⚡', bx, by);
+        }
 
         // Production status pill. First group is the finished good:
         // "in stock / ordered" — how many units are crafted and sitting at

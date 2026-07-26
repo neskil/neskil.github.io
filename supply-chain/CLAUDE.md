@@ -88,7 +88,7 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 - **Logic tests**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom
   http://localhost:8199/supply-chain/tests.html`, grep for `id="summary"`
-  — must say "N passed / **0 failed**" (857 tests at last count; N grows,
+  — must say "N passed / **0 failed**" (897 tests at last count; N grows,
   0 failed is the bar).
 - **Audio check**: the WebAudio layer can't live in `tests.html` — it needs a
   real user gesture to open an AudioContext, which headless only permits with
