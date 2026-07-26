@@ -35,7 +35,7 @@ pan/pinch camera).
 
 ## Shipped
 
-- v1.57.0: **the overlap rules explain themselves on the map** — the build
+- v1.57.1: **the overlap rules explain themselves on the map** — the build
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside
   it (the two hops through that site, or the ends of the road in the way);
@@ -49,7 +49,15 @@ pan/pinch camera).
   maps had degenerated into a cat's cradle of map-long diagonals drawn
   straight over everything; now the geometry has to be planned, junctions
   earn their keep, and the crossings research does what its name says.
-  See README "Overlap rules".
+  See README "Overlap rules". A region's free connector highway (Item 15
+  below) obeys the same rules — it routes clear of other sites and gets
+  free interchanges where it crosses a road.
+- v1.57.0: **Remaining Gameplay & Strategic Depth**:
+  - Within-Run Difficulty Ramp (Item 7): Order deadlines and spawn intervals tighten progressively as total delivered orders increase.
+  - Targeted Promotions (Item 10b): Marketing Blitz allows selecting a specific product target (or all products) for focused demand bursts.
+  - Factory Specialization (Item 11): Players can specialize a factory into a single recipe for a 1.5× crafting speed bonus, while generalists stay flexible.
+  - Bigger Maps & Regions (Item 15): Delivery milestones unlock adjacent regions connected by paved highways with expanded camera bounds and unified economy.
+- v1.56.0: **Late-delivery penalty** — regular orders expiring undelivered now charge a monetary fine scaling with difficulty (`orderPenaltyMult`: Sandbox 0x, Easy 0.1x, Normal 0.3x, Hard 0.5x) and proportional to missing units / payout value.
 - v1.37.0: **Stats & Achievements screen** (☰ menu) — deliveries per
   product, a money-over-time sparkline, busiest road by trip count, and
   nine milestone badges. Per item 14 below — details there.
@@ -243,14 +251,7 @@ shipped.)*
 
 ## Phase 2 — Strategic depth
 
-7. ~~Fail state~~ — shipped v1.13.0 as loan default + difficulty
-   presets (see Decision A above for how the design changed from the
-   reputation-hearts proposal). Still open from this item: the
-   **within-run difficulty ramp** (deadlines/order pace tightening as
-   the delivered count grows — each run is currently flat), and
-   whether missed orders should carry any penalty beyond the lost
-   payout. Revisit together with the deferred faster-milestone
-   research (README backlog).
+7. ~~Fail state & difficulty ramp~~ — shipped v1.13.0 as loan default + difficulty presets. Within-run difficulty ramp shipped v1.57.0 (tightens order deadlines and spawn intervals as total delivered count increases).
 8. ~~Road congestion~~ — shipped v1.17.0, reusing exactly the highway
    plumbing this item predicted: `edge.level`'s `speedMult` gained a
    `congestionMult` factor (`SC.vehicles.truckCountOnEdge` beyond
@@ -313,14 +314,8 @@ shipped.)*
     near-complete contract stings less than an untouched one; a normal
     order still misses for free. One contract (offer or active) at a
     time.
-10b. ~~Promotions research~~ — shipped v1.13.0 as Marketing Blitz: a
-    one-shot tech unlocking a *repeatable paid Shop action* (global
-    demand burst), which settled the repeatable-research question
-    without touching the one-shot tree. Remaining refinement if wanted:
-    targeting a **chosen good** ("+50% bread orders") instead of all
-    demand — the original per-good idea from this item.
-11. **Factory specialization** — optional: assign a factory a single
-    recipe for a crafting-speed bonus; generalists stay flexible.
+10b. ~~Promotions research~~ — shipped v1.13.0 as Marketing Blitz. Refined in v1.57.0 to allow targeting a chosen good (e.g., "+50% bread orders") or all products.
+11. ~~Factory specialization~~ — shipped v1.57.0: players can assign a factory a single recipe for a 1.5× crafting speed bonus while generalists stay flexible.
 12. ~~Deeper, shared supply chains~~ — shipped v1.9.0 (the 🟠🧵🔌🤖 chain,
     see Shipped above). Detail kept below for reference:
     - `SC.depthOf`, the recursive planner (`economy.bestSourceFor`/
@@ -354,8 +349,7 @@ shipped.)*
     up. Road-trip counts ride on `edge.trips` the same way `level`/
     `ferry` already do, so they persist via `save.js` for free. Opened
     from a new "📊 Stats & Achievements" row in the ☰ menu.
-15. **Bigger maps / regions** — after the map fills, unlock an adjacent
-    region connected by a highway (new camera bounds, same state).
+15. ~~Bigger maps / regions~~ — shipped v1.57.0: delivery milestones unlock adjacent regions connected by paved highways with expanded camera bounds and unified economy.
 16. ~~Junctions~~ — shipped v1.32.0, per the owner's request for "a
     connection node, at a cost, so you can route traffic": a `'junction'`
     node kind that's a plain routing waypoint, placeable anywhere

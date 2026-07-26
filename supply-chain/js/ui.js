@@ -115,11 +115,30 @@ SC.ui = (function() {
     // ── Promotions (Marketing Blitz): repeatable paid demand burst ──
     function updatePromo() {
         const btn = $('btn-promo');
-        btn.classList.toggle('hidden', !SC.research.isDone('promotions'));
+        const select = $('promo-good-select');
+        const isDone = SC.research.isDone('promotions');
+        btn.classList.toggle('hidden', !isDone);
+        if (select) select.classList.toggle('hidden', !isDone);
         if (btn.classList.contains('hidden')) return;
+
+        if (select) {
+            const products = SC.economy.craftableProducts();
+            const currVal = select.value || 'all';
+            let html = '<option value="all">🌐 All Products</option>';
+            products.forEach(p => {
+                html += `<option value="${p}">${SC.emojiOf(p)} ${SC.nameOf(p)}</option>`;
+            });
+            select.innerHTML = html;
+            if (products.includes(currVal) || currVal === 'all') {
+                select.value = currVal;
+            }
+            select.disabled = SC.economy.isPromoActive();
+        }
+
         if (SC.economy.isPromoActive()) {
             btn.disabled = true;
-            btn.querySelector('.price').textContent = `${Math.ceil(SC.economy.promoTimeLeft())}s left`;
+            const target = SC.state.promoGood && SC.state.promoGood !== 'all' ? ` (${SC.emojiOf(SC.state.promoGood)})` : '';
+            btn.querySelector('.price').textContent = `${Math.ceil(SC.economy.promoTimeLeft())}s left${target}`;
         } else {
             btn.disabled = !SC.canAfford(SC.CONFIG.PROMO_COST);
             btn.querySelector('.price').textContent = fmt(SC.CONFIG.PROMO_COST);
@@ -691,7 +710,12 @@ SC.ui = (function() {
                 </div>`).join('');
             const forSale = info.node.forSale
                 ? ` <span class="itip-forsale">(for sale $${SC.CONFIG.FACTORY_SITE_PRICE})</span>` : '';
+            const specText = info.node.specializedRecipe
+                ? `⚡ Specialized (${SC.emojiOf(info.node.specializedRecipe)} 1.5× speed)`
+                : `Generalist (Flexible)`;
+            const specAction = info.node.forSale ? '' : `<div class="itip-row" style="color:#f59e0b; cursor:pointer;" id="itip-spec-toggle" data-node-id="${info.node.id}"><span>${specText}</span><span style="text-decoration:underline; font-size:11px;">[Toggle]</span></div>`;
             return `<div class="itip-title">${SC.emojiOf(info.recipe)} ${info.building}${forSale}</div>
+                    ${specAction}
                     <div class="itip-sub">Needs</div>${rows}`;
         }
         if (info.kind === 'supplier') {
@@ -796,16 +820,25 @@ SC.ui = (function() {
             ? `${SC.RESEARCH[st.research.active.id].name} (${Math.round(SC.research.progress(st.research.active.id) * 100)}%)`
             : 'None';
         $('menu-stats').innerHTML = `
-            <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
-            <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'}</b></div>
-            <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
-            <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
-            <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
-            <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
-            <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
-            <div><span>Trucks / yards</span><b>${st.trucks.length} / ${st.nodes.filter(SC.isYard).length}</b></div>
-            <div><span>Researching</span><b>${research}</b></div>
-            <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>`;
+            <div class="stats-group">
+                <div class="stats-group-label">OVERVIEW</div>
+                <div><span>Difficulty</span><b>${SC.diff().emoji} ${SC.diff().label}</b></div>
+                <div><span>Map seed</span><b class="menu-seed" id="menu-seed-value" title="Tap to copy">${st.seed || '—'} 📋</b></div>
+                <div><span>Time played</span><b>${fmtDuration(st.time)}</b></div>
+            </div>
+            <div class="stats-group">
+                <div class="stats-group-label">FINANCES</div>
+                <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
+                <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
+                <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
+            </div>
+            <div class="stats-group">
+                <div class="stats-group-label">LOGISTICS & TECH</div>
+                <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
+                <div><span>Trucks / yards</span><b>${st.trucks.length} / ${st.nodes.filter(SC.isYard).length}</b></div>
+                <div><span>Researching</span><b>${research}</b></div>
+            </div>`;
         const at = SC.save.getLastSavedAt();
         $('menu-save-status').textContent = at
             ? `Autosaves every ${SC.CONFIG.AUTOSAVE_INTERVAL}s · last saved ${fmtDuration((Date.now() - at) / 1000)} ago`
@@ -948,9 +981,15 @@ SC.ui = (function() {
         $('tutorial-text').innerHTML = step.text;
     }
 
+    SC.on('regionUnlocked', ev => {
+        if (SC.sfx && SC.sfx.play) SC.sfx.play('unlock');
+        toast(`🗺️ Region ${ev.region} unlocked! Paved highway connected.`, 'good');
+        if (SC.camera && SC.camera.fitWorld) SC.camera.fitWorld();
+    });
+
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial,
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
     };
 
     return { init, update, toast, openStatsOverlay };

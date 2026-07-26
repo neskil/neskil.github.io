@@ -192,6 +192,13 @@ SC.runProbe = function(seconds) {
         SC.state.research.completed.promotions = true;
         SC.economy.startPromotion();
     }
+    if (p.has('region')) {
+        SC.map.unlockRegion();
+    }
+    if (p.has('spec')) {
+        const f = SC.factories.all()[0];
+        if (f) SC.factories.setSpecialization(f, f.recipe);
+    }
     // Instantly complete research so the placement UI can be screenshotted
     if (p.has('research')) {
         SC.state.money = Math.max(SC.state.money, 50000);

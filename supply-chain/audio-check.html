@@ -81,6 +81,7 @@
         ok('every sfx one-shot plays', sfxThrew === null, sfxThrew && sfxThrew.message);
 
         // Throttled sounds must swallow a repeat inside their window.
+        SC.sfx.play('depart');
         const before = oscCount;
         SC.sfx.play('depart');
         ok('depart is throttled', oscCount === before, 'delta=' + (oscCount - before));

@@ -23,6 +23,7 @@ SC.map = (function() {
             x, y,
             mat: opts.mat || null,      // supplier raw-good key
             recipe: opts.recipe || null,// factory output good key
+            specializedRecipe: opts.specializedRecipe || null, // factory specialized single recipe or null (Item 11)
             active: !!opts.active,      // visible & usable
             forSale: !!opts.forSale,    // inactive factory site, buyable
             isHQ: !!opts.isHQ,
@@ -441,6 +442,89 @@ SC.map = (function() {
         return true;
     }
 
+    // Bigger Maps & Regions (Item 15): unlock an adjacent region connected by
+    // a paved highway, expanding camera bounds and state seamlessly.
+    function unlockRegion() {
+        const stepW = C().REGION_STEP_W || 1200;
+        const stepH = C().REGION_STEP_H || 800;
+        const oldW = SC.state.worldW, oldH = SC.state.worldH;
+        SC.state.worldW += stepW;
+        SC.state.worldH += stepH;
+        SC.state.regionsUnlocked = (SC.state.regionsUnlocked || 0) + 1;
+
+        const seeded = [];
+        const raws = Object.keys(SC.GOODS).filter(g => SC.GOODS[g].raw);
+        const recipes = Object.keys(SC.GOODS).filter(g => !SC.GOODS[g].raw);
+
+        // Seed a new regional cluster in the unlocked space
+        const cityNode = makeNode('city', oldW + 350, oldH + 250, { active: true, isHQ: false });
+        seeded.push(cityNode);
+
+        const supNode = makeNode('supplier', oldW + 550, oldH + 150, { active: true, mat: raws[(rng.next() * raws.length) | 0] });
+        seeded.push(supNode);
+
+        const facNode = makeNode('factory', oldW + 250, oldH + 450, { active: true, forSale: true, recipe: recipes[(rng.next() * recipes.length) | 0] });
+        seeded.push(facNode);
+
+        // Connect the new region to the existing map with a free paved
+        // highway. It's a gift, but it still obeys the road overlap rules
+        // (SC.roads.checkSegment) — a connector drawn straight over half the
+        // network is exactly what those rules exist to stop. So: prefer the
+        // nearest node whose link doesn't run over some *other* site, and
+        // where it does cross a road, split that road with a free
+        // interchange junction rather than overlapping it.
+        const reachable = SC.state.nodes
+            .filter(n => n.active && n !== cityNode && n !== supNode && n !== facNode)
+            .sort((m, n) => Math.hypot(m.x - cityNode.x, m.y - cityNode.y) -
+                            Math.hypot(n.x - cityNode.x, n.y - cityNode.y));
+        const clean = n => {
+            const chk = SC.roads.checkSegment(n.x, n.y, cityNode.x, cityNode.y, [n, cityNode]);
+            return !chk.blocked || chk.blocked === 'crossing'; // crossings become interchanges
+        };
+        const bestNode = reachable.find(clean) || reachable[0] || null;
+        let highwayEdge = null;
+        if (bestNode) {
+            const chk = SC.roads.checkSegment(bestNode.x, bestNode.y, cityNode.x, cityNode.y,
+                                              [bestNode, cityNode]);
+            const chain = [bestNode];
+            for (const c of chk.crossings) {
+                const j = makeNode('junction', c.x, c.y, { active: true });
+                SC.roads.splitEdge(c.edge, j, c.u);
+                chain.push(j);
+            }
+            chain.push(cityNode);
+            for (let i = 0; i < chain.length - 1; i++) {
+                const p = chain[i], q = chain[i + 1];
+                const edge = {
+                    a: p, b: q,
+                    len: Math.hypot(q.x - p.x, q.y - p.y),
+                    bridge: segmentCrossesRiver(p.x, p.y, q.x, q.y), ferry: false,
+                    cost: 0, level: 1, trips: 0
+                };
+                SC.state.edges.push(edge);
+                p.edges.push(q);
+                q.edges.push(p);
+                highwayEdge = highwayEdge || edge; // the first span stands for the connector
+            }
+        }
+
+        SC.emit('regionUnlocked', {
+            region: SC.state.regionsUnlocked,
+            worldW: SC.state.worldW, worldH: SC.state.worldH,
+            cityNode, seeded, highwayEdge
+        });
+        if (SC.economy && SC.economy.onNetworkChanged) SC.economy.onNetworkChanged();
+        return SC.state.regionsUnlocked;
+    }
+
+    function maybeUnlockRegion() {
+        const at = C().REGION_UNLOCK_DELIVERIES || [120, 200];
+        const done = SC.state.regionsUnlocked || 0;
+        if (done >= at.length || SC.state.delivered < at[done]) return false;
+        unlockRegion();
+        return true;
+    }
+
     // Are there inactive nodes matching `filterFn` that unlockNext is only
     // skipping because of the river-grace hold (i.e. they'd unlock now if
     // grace were over)? Lets economy.js retry a skipped customer spawn when
@@ -454,7 +538,8 @@ SC.map = (function() {
 
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
              segmentCrossesRiver, riverCrossing, unlockNext, anyHeldByRiverGrace,
-             expandField, maybeExpandField, relocateOffRoad, clearOfRoads,
+             expandField, maybeExpandField, unlockRegion, maybeUnlockRegion,
+             relocateOffRoad, clearOfRoads,
              sideOf, startSide, riverGraceRemaining,
              _resetSeq: () => { nodeSeq = 0; } };
 })();
