@@ -36,7 +36,7 @@ const CargoPhysicsEntitiesMixin = {
         // Winch Extender upgrade was purchasable but never applied anywhere — wire it in.
         const ropeMax = (config.ropeLength || 120);
         let maxIntegrity = 100 + (upgrades.hullPlating || 0) * 10;
-        let maxFuel = 120;
+        let maxFuel = config.maxFuel || 120;
         let thrustMult = 1.0 + (upgrades.boostMode || 0) * 0.2;
         let fuelEff = 1.0 - (upgrades.thrusterEfficiency || 0) * 0.15;
 
