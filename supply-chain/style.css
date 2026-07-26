@@ -652,13 +652,23 @@ html, body {
 .research-tree-header h1 { font-size: 1.1rem; }
 .research-tree-wrap {
     position: relative;
-    /* Scrollable: on narrow screens the scale-to-fit can't shrink the tree
-       enough to be legible, so let the player pan/scroll the full-size tree
-       instead of it being clipped by the card (was overflow:hidden). */
+    /* Scrollable & Draggable: players can pan/drag the full-size tree */
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 10px;
     background: rgba(15, 23, 42, 0.35);
+    cursor: grab;
+    touch-action: none;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+.research-tree-wrap::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Blink */
+}
+.research-tree-wrap.is-dragging {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
 }
 #research-tree-nodes { position: relative; }
 .rt-node { position: absolute; box-sizing: border-box; margin-bottom: 0; }
