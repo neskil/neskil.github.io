@@ -28,7 +28,7 @@ registerLevel({
     description: "A scuttled orbital station still runs on backup power — its automated defense grid is very much online. Seven platform sections drift in the void, connected by nothing but vacuum. Four clients have cargo waiting across the wreck. The turret lasers fire on a fixed cycle: watch the flash, time the gap, and don't linger between platforms — there's nothing below you but the dark.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.10,           // Low — station void, but the reactor well fights this
+    gravity: 0.08,           // Low — station void, but the reactor well fights this
     wind: 0.01,              // Faint atmosphere venting from hull breaches — not real "wind" in vacuum, kept tiny
     heavyCargo: true,
 

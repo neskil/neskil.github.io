@@ -19,7 +19,7 @@ registerLevel({
     description: "Welcome to The Cauldron. A massive sandworm has carved out a massive pit below the main thoroughfare. Acid lakes line the cavern, a gravity well is causing chaos, and ambient traffic is completely out of control. Your mission: recover 3 heavy cargo crates and drop them at the suspended delivery hub above the pit. Good luck.",
 
     // ── Physics ───────────────────────────────────────────────────────────────
-    gravity: 0.18,           // Slightly heavier gravity
+    gravity: 0.14,           // Slightly heavier gravity
     wind: -0.06,              // Crosswind blowing left; scales up hard during gusts (see windGust)
     windGust: { calm: 4, warn: 1.5, gust: 8, gustMult: 4.5 }, // storm surges — short lulls, long violent gusts
     weather: 'snow',
