@@ -295,7 +295,9 @@
             if (res.ok) {
                 SC.sfx.play('cash');
                 // expandField's own 'fieldExpanded' toast covers the rest
-                toast(`🗺️ Land surveyed and bought for ${fmt(res.price)}`, 'good');
+                toast(res.kind === 'region'
+                    ? `🌐 New region opened for ${fmt(res.price)}`
+                    : `🗺️ Land surveyed and bought for ${fmt(res.price)}`, 'good');
             } else if (res.reason === 'money') {
                 SC.sfx.play('error');
                 toast(`Not enough money — land costs ${fmt(res.cost)}`, 'error');

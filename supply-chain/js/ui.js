@@ -206,14 +206,20 @@ SC.ui = (function() {
         $('yard-overlay').classList.add('hidden');
     }
 
-    // ── Buy land: the Land Surveying research turns the scheduled field
-    // expansion into something you can also buy on demand. Hidden until
-    // researched, like the junction/promo buttons. ──
+    // ── Buy land: the only way the map grows. Hidden until the Land
+    // Surveying research is done, like the junction/promo buttons. The label
+    // switches to the region tier when that's what the next purchase opens,
+    // so the jump in price is explained before it's paid. ──
     function updateLandBtn() {
         const btn = $('btn-land');
         if (!btn) return;
         btn.classList.toggle('hidden', !SC.research.isDone('landSurvey'));
         if (btn.classList.contains('hidden')) return;
+        const region = SC.map.nextLandKind() === 'region';
+        btn.querySelector('.sname').textContent = region ? '🌐 Buy region' : '🗺️ Buy land';
+        btn.title = region
+            ? 'Opens a whole new region, linked by paved highway — the top tier of the land ladder'
+            : 'Push the frontier out: new buildable land, plus a fresh supplier and a factory for sale';
         const price = SC.landPrice();
         btn.querySelector('.price').textContent = fmt(price);
         btn.disabled = !SC.canAfford(price);

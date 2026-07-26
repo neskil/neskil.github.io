@@ -37,7 +37,7 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | Flag | Effect |
 |---|---|
 | `&dc=1` | Force `nextCustomerIn` to 3s so a second (customer DC) city appears inside a short probe. Without it the 50-70s first-spawn delay means most probes only ever show HQ. |
-| `&expand=N` | Apply N field expansions up front — bigger playing field, terrain backdrop pushed out, and per expansion a seeded frontier supplier + for-sale factory. Avoids playing to the `WORLD_EXPAND.at` delivery milestones. |
+| `&expand=N` | Apply N field expansions up front — bigger playing field, terrain backdrop pushed out, and per expansion a seeded frontier supplier + for-sale factory. Saves researching `landSurvey` and buying each parcel by hand. |
 | `&region=1` | Unlock the next adjacent region (`SC.map.unlockRegion`). |
 | `&focus=x,y[,zoom]` | Point the camera at a world position. Screenshots otherwise always frame the HQ cluster — this is how far corners, specific sites, or a whole-map view (low zoom) get verified. |
 | `&sitegallery=1` | Drop one active supplier of every raw material in a grid beside HQ (bypassing placement rules) so all themed site models — farm/lake/mine/pasture/grove/fab — fit in one shot. |

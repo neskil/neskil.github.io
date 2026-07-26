@@ -206,10 +206,9 @@ SC.economy = (function() {
                 const node = SC.map.unlockNext(n => n.kind !== 'city');
                 if (node) SC.emit('unlock', node);
             }
-            // The frontier opens up at scheduled delivery counts — grows the
-            // field and pushes the mountain backdrop out (see WORLD_EXPAND).
-            SC.map.maybeExpandField();
-            SC.map.maybeUnlockRegion();
+            // The frontier deliberately does NOT open up here. Map growth is
+            // bought, never awarded — see SC.map.buyLand() and the
+            // 'landSurvey' research.
         }
     }
 

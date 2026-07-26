@@ -36,6 +36,7 @@
     };
     let terrain = null; // { key, cell, cols, rows, x0, y0, hgt: Float32Array }
     let decor = null, decorKey = null;
+    let biome = null, biomeKey = null;
     let flies = null;
     let vignette = null, vignetteWH = '';
 
@@ -487,10 +488,22 @@
         }
     }
 
-    function getBiomeNoise(x, y) {
-        let sOff = 0;
+    // The seed only changes between runs, but this is sampled once per biome
+    // cell across the whole world — re-walking the seed string every call was
+    // pure waste on the hot bake path, so the offset is memoized per seed.
+    let biomeSeedOff = 0, biomeSeedFor = null;
+    function biomeSeedOffset() {
         const seedStr = SC.state.seed || '';
+        if (biomeSeedFor === seedStr) return biomeSeedOff;
+        let sOff = 0;
         for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+        biomeSeedFor = seedStr;
+        biomeSeedOff = sOff;
+        return sOff;
+    }
+
+    function getBiomeNoise(x, y) {
+        const sOff = biomeSeedOffset();
         const nx = x / 1200, ny = y / 1200;
         const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
         const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
@@ -663,6 +676,76 @@
         R.ctx.globalAlpha = 1;
     }
 
+    // ── Dynamic biome fields: regions of forest, greenland and desert ──
+    // Tinted from the same seeded noise as before, but baked ONCE into a
+    // world-space bitmap (one pixel per biome cell) instead of stroked as
+    // ~1000 individually blurred quads on every repaint.
+    //
+    // Why it had to change: drawLandStatic runs inside render-core's cached
+    // background layer, which re-bakes whenever the zoom drifts >15% — i.e.
+    // several times a second throughout a pinch. Paying `filter:blur(60px)`
+    // per cell there cost ~7x the un-blurred fills and scaled with world
+    // area, which is what made pinch-zoom stutter on mobile once the map had
+    // grown. Blurring one small bitmap once gets the same soft boundaries
+    // for a single drawImage per frame.
+    const BIOME_BANDS = [
+        { min: 1.2,   max: Infinity, css: 'rgba(20, 110, 60, 0.45)' },  // deep forest
+        { min: 0.4,   max: 1.2,      css: 'rgba(34, 139, 34, 0.25)' },  // greenland
+        { min: -1.2,  max: -0.4,     css: 'rgba(160, 130, 80, 0.22)' }, // arid scrub
+        { min: -Infinity, max: -1.2, css: 'rgba(210, 160, 70, 0.35)' }  // deep desert
+    ];
+
+    function biomeBand(noise) {
+        for (const b of BIOME_BANDS) if (noise >= b.min && noise < b.max) return b;
+        return null; // base slate gradient shows through
+    }
+
+    function ensureBiome(W, Wh, step) {
+        const key = Math.round(W) + 'x' + Math.round(Wh) + ':' + step + ':' + biomeSeedOffset();
+        if (biome && biomeKey === key) return biome;
+        const cols = Math.max(1, Math.ceil(W / step)), rows = Math.max(1, Math.ceil(Wh / step));
+        // A 1px-per-cell bitmap upscaled by PAD, so one modest blur radius
+        // softens the boundaries as much as the old per-quad blur(60px) did
+        // without the cost growing with world size.
+        const PAD = 4;
+        const cv = document.createElement('canvas');
+        cv.width = cols * PAD; cv.height = rows * PAD;
+        const bctx = cv.getContext('2d');
+        for (let j = 0; j < rows; j++) {
+            for (let i = 0; i < cols; i++) {
+                const band = biomeBand(getBiomeNoise(i * step + step / 2, j * step + step / 2));
+                if (!band) continue;
+                bctx.fillStyle = band.css;
+                bctx.fillRect(i * PAD, j * PAD, PAD, PAD);
+            }
+        }
+        // One blur over the whole sheet, not one per cell.
+        const blurred = document.createElement('canvas');
+        blurred.width = cv.width; blurred.height = cv.height;
+        const octx = blurred.getContext('2d');
+        octx.filter = 'blur(' + (PAD * 0.9).toFixed(2) + 'px)';
+        octx.drawImage(cv, 0, 0);
+        octx.filter = 'none';
+        biome = { cv: blurred, cols, rows, step, pad: PAD, w: cols * step, h: rows * step };
+        biomeKey = key;
+        return biome;
+    }
+
+    function drawBiomeTint(W, Wh, step) {
+        const b = ensureBiome(W, Wh, step);
+        // The iso projection is affine (screen = M·world + t, see camera.js
+        // project()), so the world-space sheet maps onto the ground plane
+        // exactly via a canvas transform — no per-cell path work.
+        const z = zoom(), kx = ISO.kx, ky = ISO.ky;
+        const sx = b.w / b.cv.width, sy = b.h / b.cv.height; // world units per bitmap px
+        const o = S(0, 0);
+        R.ctx.save();
+        R.ctx.transform(z * kx * sx, z * ky * sx, -z * kx * sy, z * ky * sy, o.x, o.y);
+        R.ctx.imageSmoothingEnabled = true;
+        R.ctx.drawImage(b.cv, 0, 0);
+        R.ctx.restore();
+    }
+
     function drawLandStatic() {
         const W = SC.worldW(), Wh = SC.worldH();
         const corners = [S(0, 0), S(W, 0), S(W, Wh), S(0, Wh)];
@@ -697,39 +780,8 @@
         R.ctx.clip();
         
         const step = 220;
-        
-        // --- Dynamic Biome Fields ---
-        // Tint individual grid cells based on a seeded noise function
-        // to create regions of forests, greenlands, and deserts.
-        R.ctx.save();
-        R.ctx.filter = 'blur(60px)'; // Smoothly blend the biome boundaries
-        
-        for (let y = 0; y < Wh; y += step) {
-            for (let x = 0; x < W; x += step) {
-                const noise = getBiomeNoise(x + step / 2, y + step / 2);
-                
-                if (noise > 1.2) {
-                    R.ctx.fillStyle = 'rgba(20, 110, 60, 0.45)'; // Deep forest (richer green)
-                } else if (noise > 0.4) {
-                    R.ctx.fillStyle = 'rgba(34, 139, 34, 0.25)'; // Greenland
-                } else if (noise < -1.2) {
-                    R.ctx.fillStyle = 'rgba(210, 160, 70, 0.35)'; // Deep desert (clear sand/gold)
-                } else if (noise < -0.4) {
-                    R.ctx.fillStyle = 'rgba(160, 130, 80, 0.22)'; // Arid scrub (dusty beige/brown)
-                } else {
-                    continue; // Base slate gradient
-                }
-                
-                R.ctx.beginPath();
-                const p1 = S(x, y), p2 = S(x + step, y), p3 = S(x + step, y + step), p4 = S(x, y + step);
-                R.ctx.moveTo(p1.x, p1.y);
-                R.ctx.lineTo(p2.x, p2.y);
-                R.ctx.lineTo(p3.x, p3.y);
-                R.ctx.lineTo(p4.x, p4.y);
-                R.ctx.fill();
-            }
-        }
-        R.ctx.restore();
+
+        drawBiomeTint(W, Wh, step);
 
         R.ctx.strokeStyle = 'rgba(148, 163, 184, 0.055)';
         R.ctx.lineWidth = 1;
