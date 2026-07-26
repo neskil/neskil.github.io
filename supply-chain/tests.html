@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.58.0';</script>
+    <script>window.SC_VERSION = '1.58.1';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -95,6 +95,109 @@
         assert('demolish refunds half', SC.roads.demolish(res.edge) &&
             SC.state.money === money1 + Math.round(res.edge.cost * SC.CONFIG.ROAD_REFUND));
         assert('adjacency removed after demolish', !S1.edges.includes(F));
+    })();
+
+    // ── Road overlap rules: no laying a road over the network ───────
+    // Clean state each time (the shared fixture's cluster would get in the
+    // way of the geometry): A─B runs east-west at y=300, C─D north-south at
+    // x=500, crossing it at (500, 300). River far away at x=1100.
+    function crossFixture() {
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [40, 40] };
+        SC.state.money = 100000;
+        return {
+            A: SC.map.makeNode('supplier', 200, 300, { active: true, mat: 'wheat' }),
+            B: SC.map.makeNode('supplier', 800, 300, { active: true, mat: 'water' }),
+            C: SC.map.makeNode('factory',  500, 100, { active: true, recipe: 'bread' }),
+            D: SC.map.makeNode('city',     500, 600, { active: true, isHQ: true })
+        };
+    }
+
+    (function() {
+        const { A, B, C, D } = crossFixture();
+        SC.roads.build(A, B);
+
+        const q = SC.roads.quote(C, D);
+        assert('a road across another is blocked before the research',
+            q && q.blocked === 'crossing' && q.crossings.length === 1);
+        assert('the block comes with a reason to show the player',
+            SC.roads.blockMessage(q).length > 0);
+        const before = SC.state.money;
+        const res = SC.roads.build(C, D);
+        assert('building it is refused, free of charge',
+            !res.ok && res.reason === 'crossing' && SC.state.money === before &&
+            SC.state.edges.length === 1);
+
+        // A road may not brush past a site it doesn't connect to either —
+        // E sits on the far side of D, so C→E would run straight over D.
+        const E = SC.map.makeNode('city', 500, 900, { active: true });
+        const qNode = SC.roads.quote(C, E);
+        assert('a road running over a site is blocked, naming it',
+            qNode && qNode.blocked === 'node' && qNode.node === D);
+        assert('the same road is fine once it stops at that site',
+            SC.roads.quote(C, D).blocked === 'crossing' && !SC.roads.quote(D, E).blocked);
+
+        // Clearance is the same gap manual placement keeps the other way
+        // round: threading past D at exactly NODE_ROAD_CLEARANCE is legal,
+        // a unit closer is not.
+        const gap = SC.CONFIG.NODE_ROAD_CLEARANCE;
+        assert('a road clearing a site by NODE_ROAD_CLEARANCE is allowed',
+            !SC.roads.checkSegment(200, 600 + gap, 800, 600 + gap, []).blocked);
+        assert('a unit closer than that is not',
+            SC.roads.checkSegment(200, 600 + gap - 1, 800, 600 + gap - 1, []).blocked === 'node');
+    })();
+
+    // ── Interchanges: a legal crossing builds (and pays for) a junction ──
+    (function() {
+        const { A, B, C, D } = crossFixture();
+        SC.state.research.completed.intersections = true;
+        SC.roads.build(A, B);
+
+        const q = SC.roads.quote(C, D);
+        const fee = SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+        const rate = SC.CONFIG.ROAD_COST_PER_UNIT;
+        assert('a crossing is quoted once the research is done', q && !q.blocked);
+        assert('the quote prices both spans plus the interchange fee',
+            q.cost === Math.round(200 * rate) + Math.round(300 * rate) + fee && q.fee === fee);
+
+        const before = SC.state.money;
+        const res = SC.roads.build(C, D);
+        assert('the crossing road builds and charges the quote',
+            res.ok && SC.state.money === before - q.cost);
+        assert('an interchange junction lands on the crossing',
+            res.junctions.length === 1 && res.junctions[0].kind === 'junction' &&
+            approx(res.junctions[0].x, 500) && approx(res.junctions[0].y, 300));
+        assert('both roads are split at it — 4 spans, 4 arms',
+            SC.state.edges.length === 4 && res.junctions[0].edges.length === 4);
+        assert('the two roads now genuinely connect',
+            SC.roads.findPath(A, C) && SC.roads.findPath(A, C).path.includes(res.junctions[0]));
+        assert('no road is left crossing another', !SC.roads.hasCrossings());
+    })();
+
+    // ── Interchange geometry: needs room, and not in midstream ───────
+    (function() {
+        const { A, B } = crossFixture();
+        SC.state.research.completed.intersections = true;
+        SC.roads.build(A, B);
+        // The build ghost checks bare pointer positions, which (unlike real
+        // sites) can sit right on top of a road: crossing one a few units
+        // from where the road would start leaves no room for a junction.
+        assert('a crossing too close to the road\'s own end is refused',
+            SC.roads.checkSegment(650, 280, 650, 700, []).blocked === 'tight');
+        assert('the same crossing further along is fine',
+            !SC.roads.checkSegment(650, 100, 650, 700, []).blocked);
+
+        // An interchange can't float on the river: E─F spans it, G─H would
+        // cross E─F midstream.
+        const E = SC.map.makeNode('supplier', 900, 800, { active: true, mat: 'ore' });
+        const F = SC.map.makeNode('supplier', 1300, 800, { active: true, mat: 'coal' });
+        const G = SC.map.makeNode('city', 1100, 600, { active: true });
+        const H = SC.map.makeNode('city', 1100, 1000, { active: true });
+        SC.roads.build(E, F);
+        assert('an interchange in the river is refused',
+            SC.roads.quote(G, H).blocked === 'water');
     })();
 
     // ── Pathfinding ─────────────────────────────────
@@ -816,7 +919,10 @@
         const copper = SC.map.makeNode('supplier', 100, 500, { active: true, mat: 'copper' });
         const rubber = SC.map.makeNode('supplier', 100, 700, { active: true, mat: 'rubber' });
         const wireF  = SC.map.makeNode('factory',  300, 600, { active: true, recipe: 'wire' });
-        const chips  = SC.map.makeNode('supplier', 500, 500, { active: true, mat: 'chips' });
+        // Chips sits off to the side rather than between the circuit and
+        // robot factories: a road may not run over a site it doesn't stop
+        // at (SC.roads.checkSegment), and circF→robotF passes right there.
+        const chips  = SC.map.makeNode('supplier', 620, 500, { active: true, mat: 'chips' });
         const circF  = SC.map.makeNode('factory',  500, 600, { active: true, recipe: 'circuit' });
         const robotF = SC.map.makeNode('factory',  500, 350, { active: true, recipe: 'robot' });
         const city   = SC.map.makeNode('city',     700, 400, { active: true, isHQ: true });
@@ -1610,15 +1716,16 @@
 
     // ── Congestion: Dijkstra routes around a jammed edge (flag-gated) ──
     (function() {
-        // Two parallel routes of equal length from A to B: a direct edge,
-        // and a two-hop detour through M — same total distance, so
-        // findPath is indifferent until one gets jammed.
+        // Two routes from A to B: a direct edge, and a two-hop detour
+        // through M that's only ~3% longer (M has to clear the direct road
+        // by NODE_ROAD_CLEARANCE — a road may not brush past a site it
+        // doesn't stop at), so the direct edge wins until it's jammed.
         SC.newState('normal'); // congestion on by default
         SC.map._resetSeq();
         SC.state.river = { spine: [{ x: 5000, y: 0 }, { x: 5000, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
         const A = SC.map.makeNode('city', 0, 0, { active: true, isHQ: true });
         const B = SC.map.makeNode('city', 400, 0, { active: true });
-        const M = SC.map.makeNode('supplier', 200, -1, { active: true, mat: 'wheat' }); // ~= 400 total, matches direct
+        const M = SC.map.makeNode('supplier', 200, 49, { active: true, mat: 'wheat' }); // ~412 total vs the direct 400
         SC.state.money = 100000;
         const direct = SC.roads.build(A, B).edge;
         SC.roads.build(A, M);
@@ -2239,9 +2346,15 @@
         assert('edge trip count survives a save round-trip', restoredEdge && restoredEdge.trips === 2);
     })();
 
-    // ── Intersections: math, placement, and road splitting ───────────
+    // ── Intersections: math, and the retrofit tool for legacy crossings ──
+    // New roads build their own interchanges now (see the overlap-rule tests
+    // above), so the manual tool only ever meets a crossing from a save made
+    // before that rule — which `_addRawEdge` reproduces here.
     (function() {
-        fixture();
+        SC.newState();
+        SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 1100, y: 0 }, { x: 1100, y: SC.CONFIG.WORLD_H }],
+                           halfWidths: [40, 40] };
         SC.state.money = 100000;
 
         // 1. Math check
@@ -2268,10 +2381,12 @@
         const nC = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
         const nD = SC.map.makeNode('city', 300, 100, { active: true });
 
-        const edge1 = SC.roads.build(nA, nB).edge;
-        const edge2 = SC.roads.build(nC, nD).edge;
+        const edge1 = SC.roads._addRawEdge(nA, nB);
+        const edge2 = SC.roads._addRawEdge(nC, nD);
 
         assert('two roads exist', SC.state.edges.length === 2);
+        assert('and they cross without meeting — the legacy case',
+            SC.roads.hasCrossings());
 
         const crossing = SC.roads.findClosestCrossing(200, 200, 40);
         assert('closest crossing detected', crossing !== null && approx(crossing.x, 200) && approx(crossing.y, 200));
@@ -2301,6 +2416,7 @@
         assert('truck path has 3 nodes now', truck.path.length === 3 && truck.path[1] === res.node);
         assert('truck progress mapped correctly', approx(truck.progress, 0.8));
         assert('truck pathIdx is still 0', truck.pathIdx === 0);
+        assert('the retrofit leaves no crossing behind', !SC.roads.hasCrossings());
     })();
 
     // ── Tutorial: step progression, skipping, persistence ────────────
@@ -2469,7 +2585,10 @@
 
     // ── Bigger Maps & Regions ───────────────────────────────────────────
     (function() {
-        fixture();
+        const { S1, F, C } = fixture();
+        SC.state.money = 100000;
+        SC.roads.build(S1, F);   // a network for the connector to respect
+        SC.roads.build(F, C);
         const initW = SC.state.worldW;
         const initH = SC.state.worldH;
         const initRegions = SC.state.regionsUnlocked || 0;
@@ -2483,6 +2602,14 @@
 
         const hwEdge = SC.state.edges.find(e => e.level === 1 && (e.a === newCity || e.b === newCity));
         assert('unlocked region connects via paved highway edge', !!hwEdge);
+
+        // The connector is free, not exempt: it may not be laid over the
+        // network it's joining (see the overlap-rule tests above).
+        assert('the region connector leaves no road crossing another',
+            !SC.roads.hasCrossings());
+        assert('and no road running over a site it doesn\'t stop at',
+            SC.state.edges.every(e =>
+                SC.roads.checkSegment(e.a.x, e.a.y, e.b.x, e.b.y, [e.a, e.b]).blocked !== 'node'));
 
         SC.save.store();
         SC.newState();

@@ -498,24 +498,46 @@ SC.map = (function() {
         const facNode = makeNode('factory', oldW + 250, oldH + 450, { active: true, forSale: true, recipe: recipes[(rng.next() * recipes.length) | 0] });
         seeded.push(facNode);
 
-        // Connect the new region to the nearest active node on the existing map via a paved highway edge
-        let bestDist = Infinity, bestNode = null;
-        for (const n of SC.state.nodes) {
-            if (!n.active || n === cityNode || n === supNode || n === facNode) continue;
-            const d = Math.hypot(n.x - cityNode.x, n.y - cityNode.y);
-            if (d < bestDist) { bestDist = d; bestNode = n; }
-        }
+        // Connect the new region to the existing map with a free paved
+        // highway. It's a gift, but it still obeys the road overlap rules
+        // (SC.roads.checkSegment) — a connector drawn straight over half the
+        // network is exactly what those rules exist to stop. So: prefer the
+        // nearest node whose link doesn't run over some *other* site, and
+        // where it does cross a road, split that road with a free
+        // interchange junction rather than overlapping it.
+        const reachable = SC.state.nodes
+            .filter(n => n.active && n !== cityNode && n !== supNode && n !== facNode)
+            .sort((m, n) => Math.hypot(m.x - cityNode.x, m.y - cityNode.y) -
+                            Math.hypot(n.x - cityNode.x, n.y - cityNode.y));
+        const clean = n => {
+            const chk = SC.roads.checkSegment(n.x, n.y, cityNode.x, cityNode.y, [n, cityNode]);
+            return !chk.blocked || chk.blocked === 'crossing'; // crossings become interchanges
+        };
+        const bestNode = reachable.find(clean) || reachable[0] || null;
         let highwayEdge = null;
         if (bestNode) {
-            const bridge = segmentCrossesRiver(bestNode.x, bestNode.y, cityNode.x, cityNode.y);
-            highwayEdge = {
-                a: bestNode, b: cityNode,
-                len: bestDist, bridge, ferry: false,
-                cost: 0, level: 1, trips: 0
-            };
-            SC.state.edges.push(highwayEdge);
-            bestNode.edges.push(cityNode);
-            cityNode.edges.push(bestNode);
+            const chk = SC.roads.checkSegment(bestNode.x, bestNode.y, cityNode.x, cityNode.y,
+                                              [bestNode, cityNode]);
+            const chain = [bestNode];
+            for (const c of chk.crossings) {
+                const j = makeNode('junction', c.x, c.y, { active: true });
+                SC.roads.splitEdge(c.edge, j, c.u);
+                chain.push(j);
+            }
+            chain.push(cityNode);
+            for (let i = 0; i < chain.length - 1; i++) {
+                const p = chain[i], q = chain[i + 1];
+                const edge = {
+                    a: p, b: q,
+                    len: Math.hypot(q.x - p.x, q.y - p.y),
+                    bridge: segmentCrossesRiver(p.x, p.y, q.x, q.y), ferry: false,
+                    cost: 0, level: 1, trips: 0
+                };
+                SC.state.edges.push(edge);
+                p.edges.push(q);
+                q.edges.push(p);
+                highwayEdge = highwayEdge || edge; // the first span stands for the connector
+            }
         }
 
         SC.emit('regionUnlocked', {

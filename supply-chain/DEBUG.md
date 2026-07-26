@@ -70,6 +70,8 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `&hoverAt=x,y` | Fake a pointer position (world coords) via `SC.input._setDebugHover`, so the placement/road ghost preview renders without a real pointermove. |
 | `&highway=1` | Complete Asphalt Paving and pave every built road (highway styling). |
 | `&capacity=1` | Max the truck-capacity upgrade, so bundled multi-item hauls (the ×N badge) show up without a long probe. |
+| `&interchange=1` | Complete the Road Crossings research, drop a waypoint either side of the first starter road and connect them, so the **interchange** a legal crossing builds (junction on the crossing point, both roads split through it — see README "Overlap rules") can be screenshotted. Pair with `&focus=` to frame it. |
+| `&select=hq\|factory\|<node id>` | Pick the node a road would start from, so `&hoverAt=` renders the build ghost. With the crossings research it rings each interchange the road would build and prices it there; without it the ghost goes red with the block reason, a ✕ + clearance ring (or a red-lit road) on whatever is in the way, and the green legal alternative beside it. Those pointing marks are a second render pass (`R.drawGhostMarks()`, after the entity pass) — verify them at a decent `&focus=` zoom, since at low zoom they hide under the site art they point at. |
 
 ## Probe flags — visuals & UI
 
