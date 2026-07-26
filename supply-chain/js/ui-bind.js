@@ -343,7 +343,59 @@
         $('research-overlay').addEventListener('click', e => {
             if (e.target === $('research-overlay')) closeResearchTree(); // tap outside the card
         });
+
+        // Drag to pan for Research Tree view
+        const wrap = $('research-tree-wrap');
+        let isPointerDown = false;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let startScrollLeft = 0, startScrollTop = 0;
+        let activePointerId = null;
+
+        wrap.addEventListener('pointerdown', e => {
+            if (e.button !== 0 && e.pointerType === 'mouse') return;
+            isPointerDown = true;
+            isDragging = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            startScrollLeft = wrap.scrollLeft;
+            startScrollTop = wrap.scrollTop;
+            activePointerId = e.pointerId;
+            wrap.setPointerCapture(e.pointerId);
+        });
+
+        wrap.addEventListener('pointermove', e => {
+            if (!isPointerDown || e.pointerId !== activePointerId) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (!isDragging && Math.hypot(dx, dy) > 5) {
+                isDragging = true;
+                wrap.classList.add('is-dragging');
+            }
+            if (isDragging) {
+                wrap.scrollLeft = startScrollLeft - dx;
+                wrap.scrollTop = startScrollTop - dy;
+            }
+        });
+
+        function endDrag(e) {
+            if (!isPointerDown || (e && e.pointerId !== activePointerId)) return;
+            isPointerDown = false;
+            if (activePointerId !== null) {
+                try { wrap.releasePointerCapture(activePointerId); } catch (_) {}
+                activePointerId = null;
+            }
+            if (isDragging) {
+                wrap.classList.remove('is-dragging');
+                setTimeout(() => { isDragging = false; }, 50);
+            }
+        }
+
+        wrap.addEventListener('pointerup', endDrag);
+        wrap.addEventListener('pointercancel', endDrag);
+
         $('research-tree-nodes').addEventListener('click', e => {
+            if (isDragging) return;
             const btn = e.target.closest('[data-research]');
             if (!btn || btn.disabled) return;
             const res = SC.research.start(btn.dataset.research);
