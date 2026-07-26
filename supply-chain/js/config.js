@@ -40,7 +40,29 @@ SC.CONFIG = {
     // (see render.js terrain) further out. `at` lists the delivery counts
     // that trigger the 1st, 2nd, … expansion; growth stops once they run
     // out. Persisted via SC.state.worldW/worldH + expansions.
-    WORLD_EXPAND: { stepW: 900, stepH: 620, at: [18, 42, 78] },
+    // Once that scripted list runs out the field keeps growing every
+    // `every` further deliveries, so a long run never hits a hard wall
+    // where the map stops opening up — that endless tail is what gives
+    // late play somewhere to go.
+    WORLD_EXPAND: { stepW: 900, stepH: 620, at: [18, 42, 78], every: 40 },
+
+    // Land Surveying ('landSurvey' research) lets the player buy the next
+    // field expansion outright instead of waiting out the delivery
+    // milestone. Price climbs per purchase so it can't be spammed.
+    LAND_PRICE: 3500,
+    LAND_PRICE_GROWTH: 1.6,
+
+    // ── Operating upkeep ──────────────────────────────────────────
+    // A standing, per-minute drain proportional to what you own: fleet,
+    // owned factories and extra truck yards. This is what gives the
+    // foreclosure fail state teeth — an over-built network with no
+    // revenue bleeds down through the credit limit on its own instead of
+    // sitting at a safe balance forever. Scaled per difficulty
+    // (DIFFICULTIES[].upkeepMult; Sandbox is 0) and cut by the
+    // 'predictiveMaint' research.
+    UPKEEP_PER_TRUCK: 10,      // $/minute per truck in the fleet
+    UPKEEP_PER_FACTORY: 15,    // $/minute per owned (not for-sale) factory
+    UPKEEP_PER_YARD: 12,       // $/minute per built yard (HQ is free)
 
     // Bigger Maps & Regions (Item 15): delivery counts that unlock adjacent
     // regions connected by highways.
@@ -232,25 +254,29 @@ SC.DIFFICULTIES = {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
         riverGraceMin: 5, orderGraceMin: 3, nodeSpread: 520, orderPenaltyMult: 0.1,
-        desc: 'Relaxed deadlines, gentle interest, low order miss fine, no congestion.'
+        upkeepMult: 0.6,
+        desc: 'Relaxed deadlines, gentle interest, low order miss fine, light upkeep, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
         riverGraceMin: 3, orderGraceMin: 1.5, nodeSpread: 620, orderPenaltyMult: 0.3,
-        desc: 'Tight deadlines, 15%/min debt interest, moderate order miss fine, road congestion.'
+        upkeepMult: 1,
+        desc: 'Tight deadlines, 15%/min debt interest, moderate order miss fine, fleet upkeep, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
         riverGraceMin: 0, orderGraceMin: 0.5, nodeSpread: 820, orderPenaltyMult: 0.5,
-        desc: 'Brutal deadlines, punishing interest, steep order miss fine, road congestion.'
+        upkeepMult: 1.4,
+        desc: 'Brutal deadlines, punishing interest, steep order miss fine, heavy upkeep, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
         riverGraceMin: 5, orderGraceMin: 5, nodeSpread: 620, orderPenaltyMult: 0,
-        desc: 'Deep pockets, no interest, no bankruptcy, no miss fines, no congestion.'
+        upkeepMult: 0,
+        desc: 'Deep pockets, no interest, no upkeep, no bankruptcy, no miss fines, no congestion.'
     }
 };
 SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
@@ -330,11 +356,40 @@ SC.RESEARCH = {
         // land at 56s post-reduction, so this one matches.
         name: 'Standing Orders', emoji: '🤝', cost: 1000, time: 56, requires: ['premiumContracts'],
         desc: 'Unlocks a Shop toggle to auto-accept every contract offer instantly.'
+    },
+    // ── Late-tier techs ───────────────────────────────────────────
+    // Each one hangs off an existing branch and answers a specific
+    // late-run problem: land runs out, upkeep bites, debt spirals, and
+    // the order cap throttles a big fleet.
+    landSurvey: {
+        name: 'Land Surveying', emoji: '🗺️', cost: 2000, time: 70, requires: ['manualPlacement'],
+        desc: 'Unlocks Buy Land in the Build panel — push the frontier out on demand instead of waiting for a delivery milestone.'
+    },
+    predictiveMaint: {
+        name: 'Predictive Maintenance', emoji: '🔧', cost: 1500, time: 63, requires: ['overdrive'],
+        desc: 'Sensors catch failures early — operating upkeep is cut by 40%.',
+        upkeepMult: 0.6
+    },
+    debtRestructure: {
+        name: 'Debt Restructuring', emoji: '🏦', cost: 2200, time: 77, requires: ['creditLine3'],
+        desc: 'Renegotiate with the bank — debt interest halved and the foreclosure grace period +30s.',
+        interestMult: 0.5, graceBonus: 30
+    },
+    aerospaceTech: {
+        name: 'Aerospace Program', emoji: '🛰️', cost: 2600, time: 90, requires: ['automation'],
+        desc: 'Clean-room logistics for high-value freight — order deadlines +15% and Factory Speed cap +2 levels.',
+        deadlineBonus: 0.15, upgradeMaxBonus: { factorySpeed: 2 }
+    },
+    logisticsAI: {
+        name: 'Logistics AI', emoji: '🧠', cost: 3000, time: 98, requires: ['bulkLogistics'],
+        desc: 'A dispatch model that juggles more work at once — +3 concurrent orders and payouts +10%.',
+        orderCapBonus: 3, payoutBonus: 0.10
     }
 };
 SC.RESEARCH_ORDER = ['intersections', 'junctions', 'manualPlacement', 'creditLine2', 'pavedRoads', 'fertilizer',
                      'creditLine3', 'premiumContracts', 'overdrive', 'automation', 'coldStorage',
-                     'rapidExpansion', 'promotions', 'autoAcceptContracts', 'bulkLogistics'];
+                     'rapidExpansion', 'promotions', 'autoAcceptContracts', 'bulkLogistics',
+                     'landSurvey', 'predictiveMaint', 'debtRestructure', 'aerospaceTech', 'logisticsAI'];
 
 // Goods tree. Raw goods come from suppliers; crafted goods are made in a
 // factory dedicated to that recipe. Only `orderable` goods appear in city

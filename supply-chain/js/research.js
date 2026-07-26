@@ -64,17 +64,27 @@ SC.research = (function() {
     function payoutBonus() { return bonusSum('payoutBonus'); }
     function deadlineBonus() { return bonusSum('deadlineBonus'); }
     function supplierRegenBonus() { return bonusSum('supplierRegenBonus'); }
+    // Extra seconds on the foreclosure grace clock (Debt Restructuring).
+    function graceBonus() { return bonusSum('graceBonus'); }
+    // Extra concurrent orders (Logistics AI) — economy.maxActiveOrders.
+    function orderCapBonus() { return bonusSum('orderCapBonus'); }
 
-    // Multiplicative: product of every completed tech's customerSpawnMult
-    // (Regional Marketing's 0.6 shortens the wait for new customer DCs).
-    function customerSpawnMult() {
+    // Multiplicative effects: the product of that field across every
+    // completed tech (1 when none apply). customerSpawnMult shortens the
+    // wait for new customer DCs, upkeepMult cuts the per-minute operating
+    // drain, interestMult cuts what debt costs per minute.
+    function multOf(field) {
         let m = 1;
         for (const id in SC.state.research.completed) {
             const t = SC.RESEARCH[id];
-            if (t && t.customerSpawnMult) m *= t.customerSpawnMult;
+            if (t && t[field]) m *= t[field];
         }
         return m;
     }
+
+    function customerSpawnMult() { return multOf('customerSpawnMult'); }
+    function upkeepMult() { return multOf('upkeepMult'); }
+    function interestMult() { return multOf('interestMult'); }
 
     // Extra upgrade levels unlocked for `key` (e.g. Overdrive Engines
     // adds { truckSpeed: 3 }) — read by SC.upgradeMax.
@@ -89,5 +99,6 @@ SC.research = (function() {
 
     return { isDone, isAvailable, activeId, canStart, start, progress, tick,
              creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,
-             customerSpawnMult, upgradeMaxBonus };
+             graceBonus, orderCapBonus,
+             customerSpawnMult, upkeepMult, interestMult, upgradeMaxBonus };
 })();

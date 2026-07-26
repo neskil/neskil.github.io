@@ -91,6 +91,7 @@ SC.ui = (function() {
         updateYards();
         updateIntersectionBtn();
         updateJunctionBtn();
+        updateLandBtn();
 
         for (const key of Object.keys(SC.CONFIG.UPGRADES)) {
             const btn = $('btn-' + key);
@@ -205,6 +206,19 @@ SC.ui = (function() {
         $('yard-overlay').classList.add('hidden');
     }
 
+    // ── Buy land: the Land Surveying research turns the scheduled field
+    // expansion into something you can also buy on demand. Hidden until
+    // researched, like the junction/promo buttons. ──
+    function updateLandBtn() {
+        const btn = $('btn-land');
+        if (!btn) return;
+        btn.classList.toggle('hidden', !SC.research.isDone('landSurvey'));
+        if (btn.classList.contains('hidden')) return;
+        const price = SC.landPrice();
+        btn.querySelector('.price').textContent = fmt(price);
+        btn.disabled = !SC.canAfford(price);
+    }
+
     function updateIntersectionBtn() {
         const st = SC.state;
         const btn = $('btn-intersection');
@@ -277,21 +291,80 @@ SC.ui = (function() {
         </div>`;
     }
 
-    // Tier = longest prerequisite chain to a root (0 = no requires), so the
-    // tree reads left-to-right in dependency order regardless of RESEARCH_ORDER.
-    function researchTiers() {
-        const cache = {};
+    // ── Research tree layout ──────────────────────────────────────
+    // Derived from SC.RESEARCH itself rather than a hand-written table:
+    // a tech added to RESEARCH_ORDER lays out on its own. (The old
+    // hardcoded col/row map silently dropped any tech missing from it,
+    // which threw on `pos.x` and blanked the whole overlay.)
+    //
+    // Rows come from tier (longest prerequisite chain to a root), so a
+    // tech never renders above one of its prerequisites. Columns come from
+    // a tidy-forest pass: leaves take the next free slot and parents centre
+    // over their children, so each branch owns a disjoint horizontal band.
+    function researchLayout() {
+        const ids = SC.RESEARCH_ORDER.filter(id => SC.RESEARCH[id]);
+
+        const tier = {};
         function tierOf(id) {
-            if (cache[id] !== undefined) return cache[id];
-            const reqs = SC.RESEARCH[id].requires;
-            return cache[id] = reqs.length ? 1 + Math.max(...reqs.map(tierOf)) : 0;
+            if (tier[id] !== undefined) return tier[id];
+            tier[id] = 0; // cycle guard: a self/mutual dependency resolves to a root
+            const reqs = (SC.RESEARCH[id].requires || []).filter(r => SC.RESEARCH[r]);
+            return tier[id] = reqs.length ? 1 + Math.max(...reqs.map(tierOf)) : 0;
         }
-        const byTier = {};
-        for (const id of SC.RESEARCH_ORDER) (byTier[tierOf(id)] = byTier[tierOf(id)] || []).push(id);
-        return byTier;
+        ids.forEach(tierOf);
+
+        // Primary parent = the deepest prerequisite, so a tech hangs under
+        // the branch it actually extends. Extra prerequisites still get an
+        // edge drawn, they just don't drive placement.
+        const parent = {}, children = {};
+        ids.forEach(id => { children[id] = []; });
+        for (const id of ids) {
+            const reqs = (SC.RESEARCH[id].requires || []).filter(r => children[r]);
+            if (!reqs.length) continue;
+            let best = reqs[0];
+            for (const r of reqs) if (tier[r] > tier[best]) best = r;
+            parent[id] = best;
+            children[best].push(id);
+        }
+
+        const col = {};
+        let next = 0;
+        function place(id) {
+            const kids = children[id];
+            if (!kids.length) { col[id] = next++; return; }
+            kids.forEach(place);
+            col[id] = (col[kids[0]] + col[kids[kids.length - 1]]) / 2;
+        }
+        // Root subtrees in RESEARCH_ORDER order, with a small gap between them.
+        for (const id of ids) {
+            if (parent[id] === undefined) { place(id); next += RT_ROOT_GAP; }
+        }
+
+        // Centring a parent over its children can collide with a neighbouring
+        // branch's node on the same row — push right until every row has at
+        // least one full column between nodes.
+        const rows = {};
+        for (const id of ids) (rows[tier[id]] = rows[tier[id]] || []).push(id);
+        for (const r in rows) {
+            rows[r].sort((a, b) => col[a] - col[b]);
+            for (let i = 1; i < rows[r].length; i++) {
+                const prev = col[rows[r][i - 1]];
+                if (col[rows[r][i]] - prev < 1) col[rows[r][i]] = prev + 1;
+            }
+        }
+
+        const minCol = Math.min(...ids.map(id => col[id]));
+        const out = {};
+        for (const id of ids) out[id] = { col: col[id] - minCol, row: tier[id] };
+        return out;
     }
 
-    const RT_COL_W = 200, RT_ROW_H = 180, RT_NODE_W = 180, RT_NODE_H = 130, RT_PAD = 20;
+    // Row pitch has to clear the tallest card, and card height is driven by
+    // the description text — 205 keeps the wordiest techs from overlapping
+    // the row below at the default font size.
+    const RT_COL_W = 178, RT_ROW_H = 205, RT_NODE_W = 164, RT_NODE_H = 150, RT_PAD = 20;
+    const RT_ROOT_GAP = 0.35;   // extra columns between adjacent root subtrees
+    const RT_MIN_SCALE = 0.62;  // below this the tree scrolls instead of shrinking further
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
@@ -313,7 +386,9 @@ SC.ui = (function() {
         const treeHeight = parseFloat(nodesEl.style.height) || 0;
 
         if (containerWidth < treeWidth && containerWidth > 0) {
-            const scale = containerWidth / treeWidth;
+            // Shrink to fit, but not past the point where the node text is
+            // unreadable — the wrap scrolls (overflow:auto) from there on.
+            const scale = Math.max(RT_MIN_SCALE, containerWidth / treeWidth);
             nodesEl.style.transform = `scale(${scale})`;
             nodesEl.style.transformOrigin = 'top left';
             svg.style.transform = `scale(${scale})`;
@@ -325,35 +400,9 @@ SC.ui = (function() {
     function updateResearchTree() {
         if (!researchTreeOpen()) return;
         const positions = {};
+        const layout = researchLayout();
 
-        // Custom grid layout mapping: col and row coordinates for each research node
-        const layout = {
-            // Stacked single research column on the left (Col 0)
-            intersections: { col: 0, row: 0 },
-            junctions: { col: 0, row: 1 },
-            manualPlacement: { col: 0, row: 2 },
-
-            // Credit Line & Contracts subtree (shifted by 1.5 columns to the left)
-            creditLine2: { col: 1.5, row: 0 },
-            creditLine3: { col: 1, row: 1 },
-            premiumContracts: { col: 2, row: 1 },
-            rapidExpansion: { col: 1.5, row: 2 },
-            promotions: { col: 2.5, row: 2 },
-            autoAcceptContracts: { col: 2, row: 3 },
-
-            // Asphalt Paving subtree (shifted by 1 column to the left)
-            pavedRoads: { col: 3.5, row: 0 },
-            overdrive: { col: 3.5, row: 1 },
-            bulkLogistics: { col: 3.5, row: 2 },
-
-            // Fertilizer subtree (shifted by 1 column to the left)
-            fertilizer: { col: 5, row: 0 },
-            automation: { col: 4.5, row: 1 },
-            coldStorage: { col: 5.5, row: 1 }
-        };
-
-        let maxCol = 0;
-        let maxRow = 0;
+        let maxCol = 0, maxRow = 0;
         for (const id in layout) {
             maxCol = Math.max(maxCol, layout[id].col);
             maxRow = Math.max(maxRow, layout[id].row);
@@ -362,27 +411,25 @@ SC.ui = (function() {
         const width = RT_PAD * 2 + (maxCol + 1) * RT_COL_W;
         const height = RT_PAD * 2 + (maxRow + 1) * RT_ROW_H;
 
-        for (const id of SC.RESEARCH_ORDER) {
-            const l = layout[id];
-            if (l) {
-                positions[id] = {
-                    x: RT_PAD + l.col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2,
-                    y: RT_PAD + l.row * RT_ROW_H,
-                    w: RT_NODE_W
-                };
-            }
+        for (const id in layout) {
+            positions[id] = {
+                x: RT_PAD + layout[id].col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2,
+                y: RT_PAD + layout[id].row * RT_ROW_H,
+                w: RT_NODE_W
+            };
         }
 
+        const ids = SC.RESEARCH_ORDER.filter(id => positions[id]);
         const nodesEl = $('research-tree-nodes');
         nodesEl.style.width = width + 'px';
         nodesEl.style.height = height + 'px';
-        nodesEl.innerHTML = SC.RESEARCH_ORDER.map(id => researchNodeHTML(id, positions[id])).join('');
+        nodesEl.innerHTML = ids.map(id => researchNodeHTML(id, positions[id])).join('');
 
         const svg = $('research-tree-edges');
         svg.setAttribute('width', width);
         svg.setAttribute('height', height);
         let edges = '';
-        for (const id of SC.RESEARCH_ORDER) {
+        for (const id of ids) {
             const to = positions[id];
             for (const req of SC.RESEARCH[id].requires) {
                 const from = positions[req];
@@ -814,6 +861,8 @@ SC.ui = (function() {
                 <div><span>Balance</span><b class="${st.money < 0 ? 'neg' : 'pos'}">${st.money < 0 ? '−' : ''}${fmt(Math.abs(st.money))}</b></div>
                 <div><span>Credit limit</span><b>${fmt(SC.creditLimit())}</b></div>
                 <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Upkeep</span><b class="${SC.upkeepPerMin() > 0 ? 'neg' : ''}">${fmt(Math.round(SC.upkeepPerMin()))}/min</b></div>
+                <div><span>Upkeep paid</span><b>${fmt(Math.round(st.upkeepPaid || 0))}</b></div>
                 <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
             </div>
             <div class="stats-group">
@@ -896,7 +945,111 @@ SC.ui = (function() {
         });
     }
 
+    // ── UI Scale & Options / Toast History ──────────
+    let uiScale = Math.max(0.75, Math.min(1.4,
+        parseFloat(localStorage.getItem('scTycoonUiScale')) || 1));
+
+    function setUiScale(scale) {
+        uiScale = Math.max(0.75, Math.min(1.4, scale));
+        localStorage.setItem('scTycoonUiScale', String(uiScale));
+        document.documentElement.style.setProperty('--ui-scale', String(uiScale));
+        updateOptionsModal();
+    }
+    function getUiScale() { return uiScale; }
+
+    function openOptionsModal() {
+        updateOptionsModal();
+        $('options-overlay').classList.remove('hidden');
+    }
+    function closeOptionsModal() {
+        $('options-overlay').classList.add('hidden');
+    }
+
+    function updateOptionsModal() {
+        // Sound controls
+        const sfxMuted = SC.sfx ? SC.sfx.isMuted() : false;
+        const soundVol = SC.sfx ? Math.round(SC.sfx.getVolume() * 100) : 100;
+        const soundBtn = $('opt-sound-toggle');
+        if (soundBtn) {
+            soundBtn.textContent = sfxMuted ? 'Off' : 'On';
+            soundBtn.className = 'menu-btn toggle-btn ' + (sfxMuted ? 'off' : 'on');
+        }
+        if ($('opt-sound-vol')) $('opt-sound-vol').value = soundVol;
+        if ($('opt-sound-vol-val')) $('opt-sound-vol-val').textContent = soundVol + '%';
+
+        // Music controls
+        const musicOn = SC.audio ? SC.audio.musicEnabled() : true;
+        const musicVol = SC.audio ? Math.round(SC.audio.getMusicVolume() * 100) : 80;
+        const musicBtn = $('opt-music-toggle');
+        if (musicBtn) {
+            musicBtn.textContent = musicOn ? 'On' : 'Off';
+            musicBtn.className = 'menu-btn toggle-btn ' + (musicOn ? 'on' : 'off');
+        }
+        if ($('opt-music-vol')) $('opt-music-vol').value = musicVol;
+        if ($('opt-music-vol-val')) $('opt-music-vol-val').textContent = musicVol + '%';
+
+        // UI Scale
+        if ($('opt-ui-scale-val')) $('opt-ui-scale-val').textContent = Math.round(uiScale * 100) + '%';
+        const scaleBtns = $('opt-ui-scale-picker') ? $('opt-ui-scale-picker').children : [];
+        for (const btn of scaleBtns) {
+            const btnScale = parseFloat(btn.dataset.scale);
+            btn.classList.toggle('active', Math.abs(btnScale - uiScale) < 0.04);
+        }
+
+        // Factory Pills toggle
+        const pillsBtn = $('opt-pills-toggle');
+        if (pillsBtn) {
+            pillsBtn.textContent = hidePills ? 'Off' : 'On';
+            pillsBtn.className = 'menu-btn toggle-btn ' + (hidePills ? 'off' : 'on');
+        }
+
+        // Auto accept contract toggle
+        const autoAccept = SC.state ? SC.state.autoAcceptContracts : false;
+        const autoBtn = $('opt-autoaccept-toggle');
+        if (autoBtn) {
+            autoBtn.textContent = autoAccept ? 'On' : 'Off';
+            autoBtn.className = 'menu-btn toggle-btn ' + (autoAccept ? 'on' : 'off');
+        }
+
+        // Dev tools toggle
+        const devBtn = $('opt-dev-toggle');
+        if (devBtn) {
+            devBtn.textContent = devMode ? 'On' : 'Off';
+            devBtn.className = 'menu-btn toggle-btn ' + (devMode ? 'on' : 'off');
+        }
+    }
+
+    function openToastHistoryModal() {
+        renderToastHistory();
+        $('toast-history-overlay').classList.remove('hidden');
+    }
+    function closeToastHistoryModal() {
+        $('toast-history-overlay').classList.add('hidden');
+    }
+    function clearToastHistory() {
+        toastHistory.length = 0;
+        renderToastHistory();
+    }
+    function renderToastHistory() {
+        const list = $('toast-history-list');
+        if (!list) return;
+        if (!toastHistory.length) {
+            list.innerHTML = '<div class="toast-history-empty">No notifications recorded yet</div>';
+            return;
+        }
+        list.innerHTML = toastHistory.map(item => {
+            return `<div class="toast-history-item ${item.kind}">
+                <div class="toast-item-header">
+                    <span class="toast-item-badge ${item.kind}">${item.kind}</span>
+                    <span class="toast-item-time">${item.timeStr}</span>
+                </div>
+                <div class="toast-item-text">${item.text}</div>
+            </div>`;
+        }).join('');
+    }
+
     function init() {
+        document.documentElement.style.setProperty('--ui-scale', String(uiScale));
         bindToastClick();
         SC._ui.bind();
         bindDifficultyPicker();
@@ -971,9 +1124,10 @@ SC.ui = (function() {
     });
 
     SC._ui = {
-        $, getDevMode: () => devMode, getHidePills: () => hidePills,
+        $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
+        openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
         fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
     };
 
-    return { init, update, toast, openStatsOverlay };
+    return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };
 })();

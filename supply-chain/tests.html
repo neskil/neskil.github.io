@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.57.0';</script>
+    <script>window.SC_VERSION = '1.58.0';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -601,10 +601,16 @@
         SC.state.delivered = ex.at[1];
         assert('maybeExpandField fires at the threshold', SC.map.maybeExpandField() === true);
         assert('scheduled expansion advanced the count', SC.state.expansions === 2);
-        SC.state.delivered = 99999;
+        // Past the scripted schedule the field keeps growing on the
+        // `every` cadence instead of stopping (endless tail — see
+        // WORLD_EXPAND / map.expandThreshold).
         SC.state.expansions = ex.at.length;
-        assert('maybeExpandField stops when the schedule runs out',
+        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every - 1;
+        assert('the endless tail still waits for its threshold',
             SC.map.maybeExpandField() === false);
+        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every;
+        assert('the endless tail fires past the scripted schedule',
+            SC.map.maybeExpandField() === true);
 
         // riverAt keeps its original spine mapping after the field grew
         const rv = SC.map.riverAt(h0 * 0.5);
@@ -884,10 +890,14 @@
         // difficulty's rate (Normal = 15%/min)
         SC.state.money = -1000;
         SC.state.interestPaid = 0;
+        // economy.tick charges upkeep first, then interest on the resulting
+        // balance — so the debt interest applies to (1000 + one minute of
+        // upkeep), not to 1000 flat.
+        const owed = 1000 + SC.upkeepPerMin();
         SC.economy.tick(60); // one minute in one tick
         const rate = SC.diff().interestPerMin;
         assert('debt accrues the difficulty interest rate per minute',
-            approx(SC.state.money, -1000 * (1 + rate), 1) && approx(SC.state.interestPaid, 1000 * rate, 1));
+            approx(SC.state.money, -owed * (1 + rate), 1) && approx(SC.state.interestPaid, owed * rate, 1));
         assert('normal difficulty charges 15%/min', rate === 0.15);
         SC.state.money = 500;
         const ip = SC.state.interestPaid;
@@ -2478,6 +2488,254 @@
         SC.newState();
         SC.save.load();
         assert('regionsUnlocked survives save round-trip', SC.state.regionsUnlocked === reg);
+        SC.save.clear();
+    })();
+
+    // ── Audio & SFX Volume Controls ────────────────────────────────────
+    (function() {
+        assert('audio module exposes getMusicVolume and setMusicVolume', typeof SC.audio.getMusicVolume === 'function' && typeof SC.audio.setMusicVolume === 'function');
+        assert('sfx module exposes getVolume and setVolume', typeof SC.sfx.getVolume === 'function' && typeof SC.sfx.setVolume === 'function');
+
+        const prevMusicVol = SC.audio.getMusicVolume();
+        const prevSfxVol = SC.sfx.getVolume();
+
+        SC.audio.setMusicVolume(0.45);
+        assert('setMusicVolume updates music volume', Math.abs(SC.audio.getMusicVolume() - 0.45) < 0.01);
+        assert('music volume persists to localStorage', localStorage.getItem('scTycoonMusicVol') === '0.45');
+
+        SC.sfx.setVolume(0.65);
+        assert('setVolume updates sfx volume', Math.abs(SC.sfx.getVolume() - 0.65) < 0.01);
+        assert('sfx volume persists to localStorage', localStorage.getItem('scTycoonSoundVol') === '0.65');
+
+        // Restore previous settings
+        SC.audio.setMusicVolume(prevMusicVol);
+        SC.sfx.setVolume(prevSfxVol);
+    })();
+
+    // ── Research tree: every tech is layoutable ────────────────────
+    // The overlay used to lay out from a hand-written col/row table; a tech
+    // missing from it got an undefined position and threw, blanking the
+    // whole tree. Layout is derived from SC.RESEARCH now — these guard the
+    // invariants that derivation relies on.
+    (function() {
+        fixture();
+        assert('every RESEARCH_ORDER id exists in SC.RESEARCH',
+            SC.RESEARCH_ORDER.every(id => !!SC.RESEARCH[id]));
+        assert('every RESEARCH id appears in RESEARCH_ORDER',
+            Object.keys(SC.RESEARCH).every(id => SC.RESEARCH_ORDER.includes(id)));
+        assert('every research prerequisite exists',
+            SC.RESEARCH_ORDER.every(id => (SC.RESEARCH[id].requires || []).every(r => !!SC.RESEARCH[r])));
+        assert('research prerequisites are acyclic (tier terminates)', (function() {
+            const seen = {};
+            function tierOf(id, stack) {
+                if (stack.includes(id)) return null; // cycle
+                if (seen[id] !== undefined) return seen[id];
+                const reqs = SC.RESEARCH[id].requires || [];
+                let max = -1;
+                for (const r of reqs) {
+                    const t = tierOf(r, stack.concat(id));
+                    if (t === null) return null;
+                    max = Math.max(max, t);
+                }
+                return seen[id] = max + 1;
+            }
+            return SC.RESEARCH_ORDER.every(id => tierOf(id, []) !== null);
+        })());
+        assert('every research node has a name, emoji, cost, time and desc',
+            SC.RESEARCH_ORDER.every(id => {
+                const t = SC.RESEARCH[id];
+                return t.name && t.emoji && t.cost > 0 && t.time > 0 && t.desc;
+            }));
+    })();
+
+    // ── New late-tier research effects ─────────────────────────────
+    (function() {
+        fixture();
+        const st = SC.state;
+
+        assert('logisticsAI raises the concurrent-order cap by 3', (function() {
+            const before = SC.economy.maxActiveOrders();
+            st.research.completed.logisticsAI = true;
+            const after = SC.economy.maxActiveOrders();
+            delete st.research.completed.logisticsAI;
+            return after === before + 3;
+        })());
+
+        assert('logisticsAI also adds +10% payout', (function() {
+            st.research.completed.logisticsAI = true;
+            const b = SC.research.payoutBonus();
+            delete st.research.completed.logisticsAI;
+            return Math.abs(b - 0.10) < 1e-9;
+        })());
+
+        assert('debtRestructure halves the interest rate', (function() {
+            const before = SC.interestPerMin();
+            st.research.completed.debtRestructure = true;
+            const after = SC.interestPerMin();
+            delete st.research.completed.debtRestructure;
+            return Math.abs(after - before / 2) < 1e-9;
+        })());
+
+        assert('debtRestructure extends the foreclosure grace by 30s', (function() {
+            const before = SC.defaultGrace();
+            st.research.completed.debtRestructure = true;
+            const after = SC.defaultGrace();
+            delete st.research.completed.debtRestructure;
+            return after === before + 30;
+        })());
+
+        assert('predictiveMaint cuts upkeep by 40%', (function() {
+            SC.state.trucks.push({}, {});
+            const before = SC.upkeepPerMin();
+            st.research.completed.predictiveMaint = true;
+            const after = SC.upkeepPerMin();
+            delete st.research.completed.predictiveMaint;
+            SC.state.trucks.length = 0;
+            return before > 0 && Math.abs(after - before * 0.6) < 1e-9;
+        })());
+
+        assert('aerospaceTech raises the factorySpeed cap by 2', (function() {
+            const before = SC.upgradeMax('factorySpeed');
+            st.research.completed.aerospaceTech = true;
+            const after = SC.upgradeMax('factorySpeed');
+            delete st.research.completed.aerospaceTech;
+            return after === before + 2;
+        })());
+    })();
+
+    // ── Operating upkeep & the bankruptcy fail state ───────────────
+    (function() {
+        // A clean world: HQ only, no fixture factory, so each term can be
+        // checked in isolation.
+        SC.newState('normal');
+        SC.map._resetSeq();
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true });
+        const st = SC.state;
+        const C = SC.CONFIG;
+
+        assert('a bare HQ-only company has no upkeep', SC.upkeepPerMin() === 0);
+
+        st.trucks.push({}, {});
+        assert('each truck adds its per-minute upkeep',
+            Math.abs(SC.upkeepPerMin() - 2 * C.UPKEEP_PER_TRUCK) < 1e-9);
+
+        SC.map.makeNode('factory', 900, 900, { active: true, recipe: 'shoes' });
+        assert('an owned factory adds upkeep',
+            Math.abs(SC.upkeepPerMin() - (2 * C.UPKEEP_PER_TRUCK + C.UPKEEP_PER_FACTORY)) < 1e-9);
+
+        SC.map.makeNode('factory', 1300, 900, { active: true, forSale: true, recipe: 'car' });
+        assert('a for-sale factory is not charged upkeep',
+            Math.abs(SC.upkeepPerMin() - (2 * C.UPKEEP_PER_TRUCK + C.UPKEEP_PER_FACTORY)) < 1e-9);
+
+        SC.map.makeNode('yard', 800, 400, { active: true });
+        assert('a built yard adds upkeep (HQ is free)',
+            Math.abs(SC.upkeepPerMin() -
+                (2 * C.UPKEEP_PER_TRUCK + C.UPKEEP_PER_FACTORY + C.UPKEEP_PER_YARD)) < 1e-9);
+
+        // The drain actually reaches the balance
+        const before = st.money;
+        SC.economy.tick(60);
+        assert('upkeep is charged against the balance', st.money < before);
+        assert('upkeep charged is tracked for the stats screen', st.upkeepPaid > 0);
+    })();
+
+    (function() {
+        // Upkeep alone, with no revenue, must be able to drive a company past
+        // the credit limit and into foreclosure — that's the fail state.
+        SC.newState('normal');
+        SC.map._resetSeq();
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true });
+        for (let i = 0; i < 12; i++) SC.state.trucks.push({});
+        let warned = false, gameOver = false;
+        SC.on('debtWarning', () => { warned = true; });
+        SC.on('gameOver', () => { gameOver = true; });
+        for (let t = 0; t < 3000 && !gameOver; t += 1) SC.economy.tick(1);
+        assert('upkeep with no revenue trips the default countdown', warned);
+        assert('the countdown running out forecloses the company', gameOver);
+        assert('gameOver freezes the run flag', SC.state.gameOver === true);
+        SC.listeners.debtWarning = [];
+        SC.listeners.gameOver = [];
+    })();
+
+    (function() {
+        // Sandbox opts out of both upkeep and foreclosure.
+        SC.newState('sandbox');
+        SC.map._resetSeq();
+        SC.map.makeNode('city', 700, 200, { active: true, isHQ: true });
+        for (let i = 0; i < 12; i++) SC.state.trucks.push({});
+        assert('sandbox charges no upkeep', SC.upkeepPerMin() === 0);
+        SC.state.money = -(SC.creditLimit() + 5000);
+        SC.economy.tick(1);
+        assert('sandbox never starts the default countdown', SC.state.defaultIn === null);
+        assert('sandbox never forecloses', SC.state.gameOver === false);
+    })();
+
+    // ── Endless field expansion & Buy Land ─────────────────────────
+    (function() {
+        SC.newState();
+        const ex = SC.CONFIG.WORLD_EXPAND;
+        assert('the scripted expansion schedule is honoured',
+            ex.at.every((v, i) => SC.map.expandThreshold(i) === v));
+        assert('expansion keeps going past the scripted schedule', (function() {
+            const last = ex.at[ex.at.length - 1];
+            return SC.map.expandThreshold(ex.at.length) === last + ex.every &&
+                   SC.map.expandThreshold(ex.at.length + 3) === last + ex.every * 4;
+        })());
+        assert('the endless tail has no upper bound',
+            isFinite(SC.map.expandThreshold(50)));
+    })();
+
+    (function() {
+        SC.newState();
+        SC.map.generateWorld(4242);
+        const w0 = SC.state.worldW;
+        SC.state.delivered = SC.CONFIG.WORLD_EXPAND.at[0];
+        assert('the first milestone expands the field', SC.map.maybeExpandField());
+        assert('the field actually grew', SC.state.worldW > w0);
+        assert('a second expansion needs a further milestone', !SC.map.maybeExpandField());
+        // Walk the whole scripted schedule plus a few endless steps
+        const ex = SC.CONFIG.WORLD_EXPAND;
+        SC.state.delivered = ex.at[ex.at.length - 1] + ex.every * 3;
+        let fired = 0;
+        while (SC.map.maybeExpandField()) fired++;
+        assert('the endless tail keeps firing as deliveries pile up', fired >= 5);
+        assert('late expansions also seed a customer DC',
+            SC.state.nodes.some(n => n.kind === 'city' && n.active && !n.isHQ));
+    })();
+
+    (function() {
+        SC.newState();
+        SC.map.generateWorld(777);
+        SC.state.money = 50000;
+        assert('buying land is locked without the landSurvey research',
+            SC.map.buyLand().reason === 'locked');
+        SC.state.research.completed.landSurvey = true;
+        const w0 = SC.state.worldW, price = SC.landPrice(), money = SC.state.money;
+        const res = SC.map.buyLand();
+        assert('buying land succeeds once researched', res.ok && res.price === price);
+        assert('buying land charges the price', SC.state.money === money - price);
+        assert('buying land grows the field', SC.state.worldW > w0);
+        assert('the next parcel costs more', SC.landPrice() > price);
+        assert('buying land counts as an expansion', SC.state.expansions === 1);
+        SC.state.money = 10;
+        assert('buying land is refused when it would breach the credit limit',
+            SC.map.buyLand().reason === 'money');
+    })();
+
+    (function() {
+        // landBought/upkeepPaid ride along in the save
+        SC.newState();
+        SC.map.generateWorld(31337);
+        SC.state.money = 50000;
+        SC.state.research.completed.landSurvey = true;
+        SC.map.buyLand();
+        SC.state.upkeepPaid = 123.5;
+        const land = SC.state.landBought;
+        SC.save.store();
+        SC.newState();
+        SC.save.load();
+        assert('landBought survives a save round-trip', SC.state.landBought === land);
+        assert('upkeepPaid survives a save round-trip', Math.abs(SC.state.upkeepPaid - 123.5) < 1e-9);
         SC.save.clear();
     })();
 

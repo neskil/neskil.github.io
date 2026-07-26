@@ -45,7 +45,8 @@ SC.save = (function() {
             autoAcceptContracts: st.autoAcceptContracts,
             tutorialStep: st.tutorialStep,
             money: st.money, earnedTotal: st.earnedTotal,
-            interestPaid: st.interestPaid,
+            interestPaid: st.interestPaid, upkeepPaid: st.upkeepPaid || 0,
+            landBought: st.landBought || 0,
             delivered: st.delivered, missed: st.missed,
             trucksBought: st.trucksBought,
             yardsBought: st.yardsBought,
@@ -127,6 +128,8 @@ SC.save = (function() {
         st.worldW = data.worldW || SC.CONFIG.WORLD_W;
         st.worldH = data.worldH || SC.CONFIG.WORLD_H;
         st.expansions = data.expansions || 0;
+        st.landBought = data.landBought || 0;
+        st.upkeepPaid = data.upkeepPaid || 0;
         st.congestionEnabled = data.congestionEnabled !== undefined
             ? data.congestionEnabled : SC.DIFFICULTIES[st.difficulty].congestion;
         st.autoAcceptContracts = !!data.autoAcceptContracts;

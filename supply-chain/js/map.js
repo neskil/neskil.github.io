@@ -416,6 +416,14 @@ SC.map = (function() {
             ['supplier', { active: true, mat: raws[(rng.next() * raws.length) | 0] }],
             ['factory', { active: true, forSale: true, recipe: recipes[(rng.next() * recipes.length) | 0] }]
         ];
+        // Past the scripted schedule (the endless tail — see
+        // WORLD_EXPAND.every) each new frontier also gets a customer DC, so
+        // demand keeps pace with the land: more cities means a higher
+        // concurrent-order cap (economy.maxActiveOrders) and somewhere new
+        // worth hauling to, instead of an ever-emptier map.
+        if (SC.state.expansions > C().WORLD_EXPAND.at.length) {
+            wants.push(['city', { active: true }]);
+        }
         for (const [kind, opts] of wants) {
             const spot = frontierSpot(oldW, oldH, C().NODE_MIN_DIST);
             if (spot) {
@@ -434,12 +442,36 @@ SC.map = (function() {
     // Fire the next scheduled expansion if this delivery count has reached
     // its threshold (WORLD_EXPAND.at). Called from the milestone hook in
     // economy.js. Returns true if it expanded.
+    // The delivery count that triggers expansion number `n` (0-based):
+    // the scripted `at` schedule while it lasts, then one every
+    // `WORLD_EXPAND.every` deliveries forever after, so a long run keeps
+    // opening new land instead of stopping at the last scripted step.
+    function expandThreshold(n) {
+        const ex = C().WORLD_EXPAND;
+        if (n < ex.at.length) return ex.at[n];
+        const every = ex.every || 0;
+        if (!every) return Infinity; // no endless tail configured
+        return ex.at[ex.at.length - 1] + every * (n - ex.at.length + 1);
+    }
+
     function maybeExpandField() {
-        const at = C().WORLD_EXPAND.at;
         const done = SC.state.expansions || 0;
-        if (done >= at.length || SC.state.delivered < at[done]) return false;
+        if (SC.state.delivered < expandThreshold(done)) return false;
         expandField();
         return true;
+    }
+
+    // Buy the next expansion outright (Land Surveying research). Unlike the
+    // milestone version this costs money and bumps `landBought`, which is
+    // what makes the next purchase pricier (SC.landPrice).
+    function buyLand() {
+        if (!SC.research.isDone('landSurvey')) return { ok: false, reason: 'locked' };
+        const price = SC.landPrice();
+        if (!SC.canAfford(price)) return { ok: false, reason: 'money', cost: price };
+        SC.state.money -= price;
+        SC.state.landBought = (SC.state.landBought || 0) + 1;
+        expandField();
+        return { ok: true, price };
     }
 
     // Bigger Maps & Regions (Item 15): unlock an adjacent region connected by
@@ -516,7 +548,8 @@ SC.map = (function() {
 
     return { makeNode, generateWorld, generateRiver, riverAt, isInRiver,
              segmentCrossesRiver, riverCrossing, unlockNext, anyHeldByRiverGrace,
-             expandField, maybeExpandField, unlockRegion, maybeUnlockRegion,
+             expandField, maybeExpandField, expandThreshold, buyLand,
+             unlockRegion, maybeUnlockRegion,
              relocateOffRoad, clearOfRoads,
              sideOf, startSide, riverGraceRemaining,
              _resetSeq: () => { nodeSeq = 0; } };

@@ -615,8 +615,10 @@ html, body {
     border: 1px solid var(--card-border);
     border-radius: 18px;
     padding: 1.2rem;
-    width: 760px;
-    max-width: 92vw;
+    /* Wide enough for the auto-laid-out tree's branches at a legible
+       scale; it scrolls horizontally inside the wrap past that. */
+    width: 1120px;
+    max-width: 94vw;
     max-height: 88vh;
     display: flex;
     flex-direction: column;
