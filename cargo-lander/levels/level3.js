@@ -12,7 +12,7 @@ registerLevel({
   missionTitle: "Glacial Peaks — Summit Delivery",
   description: "Katabatic winds howl down from the Glacial Peaks at a constant rate. Your delivery target — Peak Station — is wedged into the ridge summit, blocked from above by an ice overhang. You'll need to fight the crosswind the whole way in, then hold a steady hover long enough to drop cleanly.",
   hint: "The wind blows constantly from the right — lean left with the side thruster to hold position the whole way in. A frozen lake fills the saddle between the peaks; fly through low and steady. Approach the summit from below and to the west. Return to HQ to extract.",
-  gravity: 0.15,
+  gravity: 0.12,
   wind: 0.08,
   // Was "rain" — a mismatch for an ice biome (Glacial Peaks), and the exact
   // one the "Biome Weather Effects" backlog item called for. Notably,
