@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
 
@@ -397,6 +397,10 @@
             startScrollLeft = wrap.scrollLeft;
             startScrollTop = wrap.scrollTop;
             activePointerId = e.pointerId;
+            // Freeze the tree's markup for as long as the press lasts, so the
+            // 0.4s shop refresh can't delete the node being pressed before the
+            // click lands (see setResearchTreeHold in ui.js).
+            setResearchTreeHold(true);
             // NB: no setPointerCapture here. Capturing on pointerdown retargets
             // the follow-up click to `wrap`, so a plain tap on a tech node never
             // reaches the delegated [data-research] handler below. Capture is
@@ -429,10 +433,18 @@
                 wrap.classList.remove('is-dragging');
                 setTimeout(() => { isDragging = false; }, 50);
             }
+            // Unfreeze only once the click that follows this pointerup has been
+            // dispatched and handled — releasing synchronously would let the
+            // pending refresh rebuild the node mid-press again.
+            setTimeout(() => setResearchTreeHold(false), 60);
         }
 
         wrap.addEventListener('pointerup', endDrag);
         wrap.addEventListener('pointercancel', endDrag);
+        // A release outside the panel never reaches `wrap`, so the hold would
+        // stay stuck on and the tree would stop refreshing entirely.
+        document.addEventListener('pointerup', endDrag);
+        document.addEventListener('pointercancel', endDrag);
         // Mouse only: with no capture until the threshold, a press that leaves
         // the panel before moving would otherwise stay "armed".
         wrap.addEventListener('pointerleave', e => { if (!isDragging) endDrag(e); });

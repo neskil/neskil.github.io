@@ -450,8 +450,23 @@ SC.ui = (function() {
         wrap.style.height = (treeHeight * scale) + 'px';
     }
 
+    // The tree is rebuilt from updateShop(), which the game loop calls every
+    // 0.4s — and rebuilding means replacing #research-tree-nodes' innerHTML.
+    // A press that straddles one of those ticks had its element deleted out
+    // from under it, so the browser never generated a click at all: that is
+    // why tapping a tech "sometimes" (in practice, often) did nothing. Two
+    // guards: never rebuild while a pointer is held down inside the tree
+    // (flush on release instead), and skip the write entirely when the markup
+    // is byte-identical to what is already on screen.
+    let rtHold = false, rtDirty = false, rtLastNodes = '', rtLastEdges = '';
+    function setResearchTreeHold(v) {
+        rtHold = !!v;
+        if (!rtHold && rtDirty) { rtDirty = false; updateResearchTree(); }
+    }
+
     function updateResearchTree() {
         if (!researchTreeOpen()) return;
+        if (rtHold) { rtDirty = true; return; }
         const positions = {};
         const layout = researchLayout();
 
@@ -476,7 +491,12 @@ SC.ui = (function() {
         const nodesEl = $('research-tree-nodes');
         nodesEl.style.width = width + 'px';
         nodesEl.style.height = height + 'px';
-        nodesEl.innerHTML = ids.map(id => researchNodeHTML(id, positions[id])).join('');
+        const nodesHTML = ids.map(id => researchNodeHTML(id, positions[id])).join('');
+        const changed = nodesHTML !== rtLastNodes;
+        if (changed) {
+            rtLastNodes = nodesHTML;
+            nodesEl.innerHTML = nodesHTML;
+        }
 
         const svg = $('research-tree-edges');
         svg.setAttribute('width', width);
@@ -494,13 +514,21 @@ SC.ui = (function() {
                     class="rt-edge ${SC.research.isDone(req) ? 'rt-edge-done' : ''}" />`;
             }
         }
-        svg.innerHTML = edges;
-        fitResearchTree();
+        if (edges !== rtLastEdges) {
+            rtLastEdges = edges;
+            svg.innerHTML = edges;
+        }
+        // Re-fitting resets the transform and the wrap height, so only do it
+        // when something actually redrew — otherwise every idle tick fights
+        // whatever the player has scrolled or panned to.
+        if (changed) fitResearchTree();
     }
 
     function openResearchTree() {
         $('research-overlay').classList.remove('hidden');
+        setResearchTreeHold(false);
         updateResearchTree();
+        fitResearchTree(); // the wrap only has real dimensions once shown
     }
 
     function closeResearchTree() {
@@ -1206,7 +1234,7 @@ SC.ui = (function() {
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
         openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
     };
 
     return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };
