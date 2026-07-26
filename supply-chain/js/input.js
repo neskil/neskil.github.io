@@ -142,6 +142,16 @@ SC.input = (function() {
         if (node) {
             pendingDemolish = null;
             if (st.selectedNode && st.selectedNode !== node) {
+                // Overlap rules first: a road that runs over a site or
+                // crosses another road illegally never gets as far as the
+                // bridge-vs-ferry question (see SC.roads.checkSegment).
+                const q = SC.roads.quote(st.selectedNode, node);
+                if (q && q.blocked) {
+                    SC.sfx.play('error');
+                    SC.emit('toast', { text: SC.roads.blockMessage(q), kind: 'error' });
+                    pendingBuy = null;
+                    return;
+                }
                 if (!SC.roads.findEdge(st.selectedNode, node) &&
                     SC.map.segmentCrossesRiver(st.selectedNode.x, st.selectedNode.y, node.x, node.y)) {
                     SC.emit('crossingChoice', { a: st.selectedNode, b: node, shiftKey });

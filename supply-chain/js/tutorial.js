@@ -32,7 +32,6 @@ SC.tutorial = (function () {
             .sort((a, b) => Math.hypot(a.x - f.x, a.y - f.y) - Math.hypot(b.x - f.x, b.y - f.y))[0] || null;
     };
 
-    const linked = (a, b) => !!(a && b && a.edges.indexOf(b) !== -1);
     const routed = (a, b) => !!(a && b && SC.roads.findPath(a, b));
 
     // Each step names the tap it wants, the nodes to point at, and the
@@ -45,13 +44,17 @@ SC.tutorial = (function () {
             id: 'wheat',
             text: '🌾 Your bakery needs wheat. Tap the <b>bakery</b>, then the <b>wheat farm</b>, to build a road between them.',
             targets: () => [bakery(), supplier('wheat')],
-            done: () => linked(bakery(), supplier('wheat'))
+            // Goal, not action: on the rare starter layout where a third site
+            // sits on the straight line between them, the overlap rules
+            // (SC.roads.checkSegment) refuse the direct road and the player
+            // has to hop through that site — which still counts.
+            done: () => routed(bakery(), supplier('wheat'))
         },
         {
             id: 'water',
             text: '💧 Bread needs water too. Now road the <b>bakery</b> to the <b>water pump</b>.',
             targets: () => [bakery(), supplier('water')],
-            done: () => linked(bakery(), supplier('water'))
+            done: () => routed(bakery(), supplier('water'))
         },
         {
             id: 'hq',

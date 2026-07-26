@@ -105,6 +105,19 @@ SC.CONFIG = {
     BRIDGE_MULT: 3,            // river crossings cost extra
     ROAD_REFUND: 0.5,          // fraction returned when demolishing
 
+    // Overlap rules (see SC.roads.checkSegment): a road can't be laid over
+    // the top of the network — it may not brush past a site it doesn't
+    // connect (NODE_ROAD_CLEARANCE, the same gap manual placement keeps the
+    // other way round), and it may not cross another road until the
+    // 'intersections' research, after which each crossing builds a real
+    // interchange junction for PLACEMENT_INTERSECTION_PRICE apiece. This is
+    // the minimum room such an interchange needs: how far its junction must
+    // sit from the crossed road's endpoints, from the new road's own
+    // endpoints, and from the next interchange along the same road (a
+    // roundabout is ~14 units across, and a stub edge shorter than that
+    // reads as a blob rather than a junction).
+    ROAD_JUNCTION_MIN_GAP: 40,
+
     // Ferries: a cheaper-but-slower alternative to a bridge, chosen at
     // build time (toggle in the Shop panel) for any road crossing the
     // river. Half the speed of a normal road, but a much smaller premium
@@ -290,7 +303,7 @@ SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
 SC.RESEARCH = {
     intersections: {
         name: 'Road Crossings', emoji: '➕', cost: 150, time: 14, requires: [],
-        desc: 'Unlocks intersections — place a junction exactly where two roads cross to connect them.'
+        desc: 'Lets a road cross another one at all — each crossing builds an interchange junction for a fee.'
     },
     junctions: {
         name: 'Road Junctions', emoji: '🔀', cost: 350, time: 35, requires: ['intersections'],
