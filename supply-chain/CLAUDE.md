@@ -218,9 +218,4 @@ then (any headless Chromium works; on sandboxed Linux add `--no-sandbox`):
 
 ## Quick TODOs
 
-- **Late-delivery penalty** (scales with difficulty): when a regular order
-  expires undelivered, charge a monetary penalty instead of just tallying a
-  "Missed" — amount proportional to the order value and difficulty
-  (`SC.diff()` multiplier). Sandbox / Easy: no penalty or very small; Normal:
-  moderate fine; Hard: steep. Contracts already do this (`CONTRACT_PENALTY_MULT`
-  in `economy.js`) — extend the same mechanic to regular orders.
+- ~~**Late-delivery penalty**~~ — shipped in v1.56.0. Regular orders expiring undelivered now charge a monetary penalty proportional to missing units and order value, scaled by difficulty (`orderPenaltyMult`: Sandbox 0, Easy 0.1, Normal 0.3, Hard 0.5).
