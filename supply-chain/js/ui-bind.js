@@ -357,7 +357,15 @@
             SC.sfx.play('cash');
             toast(o.contract ? `📜 Contract fulfilled! +${fmt(o.payout)}` : `Order filled: +${fmt(o.payout)}`, 'good');
         });
-        SC.on('orderExpired', () => { SC.sfx.play('expire'); toast('An order expired — customer walked away', 'error'); });
+        SC.on('orderExpired', d => {
+            SC.sfx.play('expire');
+            const penalty = (typeof d === 'object' && d && d.penalty) ? d.penalty : 0;
+            if (penalty > 0) {
+                toast(`An order expired — fine ${fmt(penalty)}`, 'error');
+            } else {
+                toast('An order expired — customer walked away', 'error');
+            }
+        });
         SC.on('contractOffered', () => { SC.sfx.play('unlock'); toast('📜 New contract offer available!', 'info'); });
         SC.on('crossingChoice', openCrossingChoice);
         SC.on('contractFailed', d => { SC.sfx.play('expire'); toast(`📜 Contract failed — penalty ${fmt(d.penalty)}`, 'error'); });

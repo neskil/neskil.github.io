@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.55.0';</script>
+    <script>window.SC_VERSION = '1.56.0';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -1794,8 +1794,9 @@
             SC.state.missed === 1);
     })();
 
-    // ── Contracts: a normal (non-contract) order still misses for free ─
+    // ── Regular order late-delivery penalties ─────────────────────
     (function() {
+        // Normal difficulty
         const { S1, S2, F, C } = fixture();
         SC.state.money = 100000;
         SC.roads.build(S1, F);
@@ -1804,8 +1805,46 @@
         const order = SC.economy.spawnOrder();
         SC.economy.planOrder(order);
         const moneyBefore = SC.state.money;
+        const expectedPenalty = Math.round(order.qty * (order.payout / order.qty) * SC.DIFFICULTIES.normal.orderPenaltyMult);
         SC.economy.expireOrder(order);
-        assert('a plain missed order carries no monetary penalty', SC.state.money === moneyBefore);
+        assert('on Normal difficulty a plain missed order charges a proportional penalty',
+            SC.state.money === moneyBefore - expectedPenalty && expectedPenalty > 0);
+    })();
+
+    (function() {
+        // Sandbox difficulty: no penalty
+        SC.newState('sandbox');
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+        SC.economy.expireOrder(order);
+        assert('on Sandbox difficulty a plain missed order carries no monetary penalty', SC.state.money === moneyBefore);
+    })();
+
+    (function() {
+        // Hard difficulty: steeper penalty
+        SC.newState('hard');
+        const S1 = SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat' });
+        const S2 = SC.map.makeNode('supplier', 100, 300, { active: true, mat: 'water' });
+        const F  = SC.map.makeNode('factory',  400, 200, { active: true, recipe: 'bread' });
+        const C  = SC.map.makeNode('city',     700, 200, { active: true, isHQ: true });
+        SC.roads.build(S1, F);
+        SC.roads.build(S2, F);
+        SC.roads.build(F, C);
+        const order = SC.economy.spawnOrder();
+        SC.economy.planOrder(order);
+        const moneyBefore = SC.state.money;
+        const expectedPenalty = Math.round(order.qty * (order.payout / order.qty) * SC.DIFFICULTIES.hard.orderPenaltyMult);
+        SC.economy.expireOrder(order);
+        assert('on Hard difficulty a plain missed order charges a steep penalty',
+            SC.state.money === moneyBefore - expectedPenalty && expectedPenalty > 0);
     })();
 
     // ── Contracts: partial delivery reduces the penalty ─────────

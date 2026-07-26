@@ -193,15 +193,21 @@ SC.economy = (function() {
         SC.state.missed++;
         SC.factories.cancelTasksForOrder(order);
         SC.vehicles.cancelJobsForOrder(order);
+        const missingUnits = order.qty - order.deliveredUnits;
+        const unitValue = order.payout / order.qty;
         if (order.contract) {
             // Penalty scales with however many units are still missing, so
             // a near-complete contract stings less than an untouched one.
-            const missingUnits = order.qty - order.deliveredUnits;
-            const penalty = Math.round(missingUnits * (order.payout / order.qty) * C().CONTRACT_PENALTY_MULT);
+            const penalty = Math.round(missingUnits * unitValue * C().CONTRACT_PENALTY_MULT);
             SC.state.money -= penalty;
             SC.emit('contractFailed', { order, penalty });
         } else {
-            SC.emit('orderExpired', order);
+            const mult = SC.diff().orderPenaltyMult !== undefined ? SC.diff().orderPenaltyMult : C().ORDER_PENALTY_MULT;
+            const penalty = Math.round(missingUnits * unitValue * mult);
+            if (penalty > 0) {
+                SC.state.money -= penalty;
+            }
+            SC.emit('orderExpired', { order, penalty });
         }
     }
 

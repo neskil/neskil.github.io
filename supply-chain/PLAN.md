@@ -35,6 +35,7 @@ pan/pinch camera).
 
 ## Shipped
 
+- v1.56.0: **Late-delivery penalty** — regular orders expiring undelivered now charge a monetary fine scaling with difficulty (`orderPenaltyMult`: Sandbox 0x, Easy 0.1x, Normal 0.3x, Hard 0.5x) and proportional to missing units / payout value.
 - v1.37.0: **Stats & Achievements screen** (☰ menu) — deliveries per
   product, a money-over-time sparkline, busiest road by trip count, and
   nine milestone badges. Per item 14 below — details there.

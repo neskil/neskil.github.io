@@ -137,6 +137,7 @@ SC.CONFIG = {
     ORDER_DEPTH_SLACK: 0.5,    // extra deadline fraction per chain tier past 1
     ORDER_DEPTH_VALUE: 0.25,   // extra payout fraction per chain tier past 1
     SALVAGE_PAY: 15,           // cargo delivered after its order expired
+    ORDER_PENALTY_MULT: 0.3,   // × missing units' value, charged when regular order expires
 
     // Contracts: occasional bulk-order offers at a locked-in premium
     // rate. A card lets you Accept or Decline within CONTRACT_OFFER_EXPIRE
@@ -214,26 +215,26 @@ SC.DIFFICULTIES = {
     easy: {
         label: 'Easy', emoji: '🌱', startMoney: 1500,
         interestPerMin: 0.10, deadlineMult: 1.0, defaultGrace: 90, congestion: false,
-        riverGraceMin: 5, orderGraceMin: 3, nodeSpread: 520,
-        desc: 'Relaxed deadlines, gentle interest, no congestion.'
+        riverGraceMin: 5, orderGraceMin: 3, nodeSpread: 520, orderPenaltyMult: 0.1,
+        desc: 'Relaxed deadlines, gentle interest, low order miss fine, no congestion.'
     },
     normal: {
         label: 'Normal', emoji: '🚚', startMoney: 1200,
         interestPerMin: 0.15, deadlineMult: 0.8, defaultGrace: 60, congestion: true,
-        riverGraceMin: 3, orderGraceMin: 1.5, nodeSpread: 620,
-        desc: 'Tight deadlines, 15%/min debt interest, road congestion.'
+        riverGraceMin: 3, orderGraceMin: 1.5, nodeSpread: 620, orderPenaltyMult: 0.3,
+        desc: 'Tight deadlines, 15%/min debt interest, moderate order miss fine, road congestion.'
     },
     hard: {
         label: 'Hard', emoji: '🔥', startMoney: 1000,
         interestPerMin: 0.20, deadlineMult: 0.65, defaultGrace: 45, congestion: true,
-        riverGraceMin: 0, orderGraceMin: 0.5, nodeSpread: 820,
-        desc: 'Brutal deadlines, punishing interest, road congestion.'
+        riverGraceMin: 0, orderGraceMin: 0.5, nodeSpread: 820, orderPenaltyMult: 0.5,
+        desc: 'Brutal deadlines, punishing interest, steep order miss fine, road congestion.'
     },
     sandbox: {
         label: 'Sandbox', emoji: '🏖️', startMoney: 50000,
         interestPerMin: 0, deadlineMult: 1.5, defaultGrace: 60, noFail: true, congestion: false,
-        riverGraceMin: 5, orderGraceMin: 5, nodeSpread: 620,
-        desc: 'Deep pockets, no interest, no bankruptcy, no congestion.'
+        riverGraceMin: 5, orderGraceMin: 5, nodeSpread: 620, orderPenaltyMult: 0,
+        desc: 'Deep pockets, no interest, no bankruptcy, no miss fines, no congestion.'
     }
 };
 SC.DIFFICULTY_ORDER = ['easy', 'normal', 'hard', 'sandbox'];
