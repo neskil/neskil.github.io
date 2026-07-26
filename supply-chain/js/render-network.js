@@ -1202,7 +1202,28 @@
         }
     }
 
+    const RED = '#f87171', GREEN = '#34d399';
+
+    // Short-form of SC.roads.blockMessage, for the floating ghost label
+    // (input.js toasts the full sentence when the tap is actually refused).
+    const GHOST_BLOCK_LABEL = {
+        node: 'runs over a site',
+        crossing: 'roads can’t cross — research it',
+        tight: 'no room for a junction',
+        water: 'crossing over the river'
+    };
+
+    // The ghost draws in two passes. Its road-level marks (the dashed road
+    // itself, the red road in the way, the green alternative legs) go down
+    // with the roads, under the buildings, because that's where a road
+    // lives. Everything that *points* at something — ✕, clearance and
+    // interchange rings, labels — is stashed here and drawn by
+    // drawGhostMarks() after the depth-sorted entity pass, or the very site
+    // it's pointing at would paint over it.
+    let ghostFrame = null;
+
     function drawGhostRoad() {
+        ghostFrame = null;
         const sel = SC.state.selectedNode;
         const hover = SC.input.getHover && SC.input.getHover();
         if (!sel || !hover) return;
@@ -1214,20 +1235,29 @@
         const end = target ? { x: target.x, y: target.y } : hover;
         // Shows the bridge cost when crossing the river — the actual
         // bridge-vs-ferry choice happens in a modal once the road is tapped.
+        // Also previews the overlap rules (SC.roads.checkSegment): the ghost
+        // goes red with the reason when a road would run over a site or cross
+        // one illegally, and rings the interchange junctions a legal crossing
+        // would build (their fee is already in `cost`).
         const q = target ? SC.roads.quote(sel, target) : (() => {
             const len = Math.hypot(sel.x - end.x, sel.y - end.y);
             const bridge = SC.map.segmentCrossesRiver(sel.x, sel.y, end.x, end.y);
             const mult = bridge ? SC.CONFIG.BRIDGE_MULT : 1;
-            return { len, bridge, ferry: false, cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) };
+            const chk = SC.roads.checkSegment(sel.x, sel.y, end.x, end.y, [sel]);
+            const fee = chk.crossings.length * SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
+            return { len, bridge, ferry: false, crossings: chk.crossings, fee,
+                     cost: Math.round(len * SC.CONFIG.ROAD_COST_PER_UNIT * mult) + fee,
+                     blocked: chk.blocked, node: chk.node, at: chk.at };
         })();
         if (!q) return;
 
-        const affordable = SC.canAfford(q.cost);
+        const ok = SC.canAfford(q.cost) && !q.blocked;
+        const color = ok ? GREEN : RED;
         const a = S(sel.x, sel.y), b = S(end.x, end.y);
         R.ctx.beginPath();
         R.ctx.moveTo(a.x, a.y);
         R.ctx.lineTo(b.x, b.y);
-        R.ctx.strokeStyle = affordable ? 'rgba(52, 211, 153, 0.7)' : 'rgba(248, 113, 113, 0.7)';
+        R.ctx.strokeStyle = rgba(color, 0.7);
         R.ctx.lineWidth = Math.max(3, 4 * zoom());
         R.ctx.lineCap = 'round';
         R.ctx.setLineDash([10, 8]);
@@ -1235,10 +1265,127 @@
         R.ctx.setLineDash([]);
         R.ctx.lineCap = 'butt';
 
-        const mx = (sel.x + end.x) / 2, my = (sel.y + end.y) / 2;
-        const crossingLabel = q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : '';
-        const mp = S(mx, my);
-        labelAt(`$${q.cost}${crossingLabel}`, mp.x, mp.y - 14, affordable ? '#34d399' : '#f87171');
+        // Road-level half of the hint (the rest is drawn in drawGhostMarks).
+        const hint = q.blocked ? blockedHint(sel, target, end, q) : null;
+        if (hint && hint.edge) strokeEdge(hint.edge, Math.max(3, 5 * zoom()), rgba(RED, 0.85), [9, 7]);
+        if (hint && hint.legs) for (const leg of hint.legs) ghostLeg(leg, GREEN);
+
+        ghostFrame = { sel, end, q, color, hint };
+    }
+
+    // Second pass, above the buildings: everything that points at a thing.
+    function drawGhostMarks() {
+        if (!ghostFrame) return;
+        const { sel, end, q, color, hint } = ghostFrame;
+        if (hint) {
+            if (hint.ring) {
+                const g = S(hint.ring.x, hint.ring.y);
+                groundRing(g.x, g.y, SC.CONFIG.NODE_ROAD_CLEARANCE / 2, rgba(RED, 0.8), 2);
+            }
+            if (hint.cross) ghostCross(hint.cross.x, hint.cross.y, RED);
+            for (const alt of hint.alts || []) {
+                const g = S(alt.x, alt.y);
+                groundRing(g.x, g.y, 22, rgba(GREEN, 0.9), 2.5);
+            }
+            if (hint.tip) {
+                const g = S(hint.tip.x, hint.tip.y);
+                labelAt(hint.tip.text, g.x, g.y - 40 * clampZoom(), GREEN, 11);
+            }
+        } else {
+            drawInterchangeMarks(q);
+        }
+
+        // A crossing block reads best right above the ✕ it's about; anything
+        // else sits on the ghost itself (where the ✕ is on the site, and the
+        // site already carries its own "do it this way" tip).
+        const onCross = hint && hint.edge && hint.cross;
+        const lp = onCross ? S(hint.cross.x, hint.cross.y)
+                           : S((sel.x + end.x) / 2, (sel.y + end.y) / 2);
+        const n = (q.crossings || []).length;
+        const label = q.blocked ? GHOST_BLOCK_LABEL[q.blocked]
+            : `$${q.cost}${q.ferry ? ' (ferry)' : q.bridge ? ' (bridge)' : ''}${n ? ` — ${n} junction${n > 1 ? 's' : ''}` : ''}`;
+        labelAt(label, lp.x, lp.y - (onCross ? 30 : 14), color);
+    }
+
+    function ghostCross(wx, wy, color) {
+        const p = S(wx, wy);
+        const r = 9 * clampZoom();
+        R.ctx.strokeStyle = rgba(color, 0.95);
+        R.ctx.lineWidth = 2.5;
+        R.ctx.beginPath();
+        R.ctx.moveTo(p.x - r, p.y - r * 0.6);
+        R.ctx.lineTo(p.x + r, p.y + r * 0.6);
+        R.ctx.moveTo(p.x + r, p.y - r * 0.6);
+        R.ctx.lineTo(p.x - r, p.y + r * 0.6);
+        R.ctx.stroke();
+    }
+
+    function ghostLeg(leg, color) {
+        const a = S(leg.ax, leg.ay), b = S(leg.bx, leg.by);
+        R.ctx.beginPath();
+        R.ctx.moveTo(a.x, a.y);
+        R.ctx.lineTo(b.x, b.y);
+        R.ctx.strokeStyle = rgba(color, 0.75);
+        R.ctx.lineWidth = Math.max(2.5, 3.5 * zoom());
+        R.ctx.lineCap = 'round';
+        R.ctx.setLineDash([7, 6]);
+        R.ctx.stroke();
+        R.ctx.setLineDash([]);
+        R.ctx.lineCap = 'butt';
+    }
+
+    // Why the ghost is red, said on the map rather than only in words: the
+    // site the road would run over (inside its clearance ring) or the road it
+    // can't cross (lit red down its whole length) gets an ✕ — and next to it,
+    // in green, the legal way to do the same thing: hop *through* that site,
+    // or connect to an end of the road that's in the way. Nothing is offered
+    // as a suggestion unless that road would actually be buildable. Returns
+    // the marks; the caller draws them across the two passes.
+    function blockedHint(sel, target, end, q) {
+        if (q.blocked === 'node' && q.node) {
+            const n = q.node;
+            const hint = { ring: n, cross: n };
+            const have1 = !!SC.roads.findEdge(sel, n);
+            const leg1 = have1 ? null : SC.roads.checkSegment(sel.x, sel.y, n.x, n.y, [sel, n]);
+            const leg2 = SC.roads.checkSegment(n.x, n.y, end.x, end.y,
+                                               target ? [n, target] : [n]);
+            if ((have1 || !leg1.blocked) && !leg2.blocked) {
+                hint.legs = [{ ax: n.x, ay: n.y, bx: end.x, by: end.y }];
+                if (!have1) hint.legs.unshift({ ax: sel.x, ay: sel.y, bx: n.x, by: n.y });
+                hint.tip = { x: n.x, y: n.y,
+                             text: have1 ? 'continue from here' : 'road it in two hops' };
+            }
+            return hint;
+        }
+        if (!q.at) return null;
+        const hint = { edge: q.at.edge, cross: q.at, alts: [] };
+        // The ends of the road in the way are always legal to connect to —
+        // ring whichever of them this road could actually reach.
+        if (q.blocked === 'crossing') {
+            for (const node of [q.at.edge.a, q.at.edge.b]) {
+                if (node === sel || SC.roads.findEdge(sel, node)) continue;
+                const alt = SC.roads.quote(sel, node);
+                if (alt && !alt.blocked) hint.alts.push(node);
+            }
+        }
+        return hint;
+    }
+
+    // A legal crossing: ring each interchange the road would build, and price
+    // it there, so the fee in the cost label has a visible source.
+    function drawInterchangeMarks(q) {
+        for (const c of q.crossings || []) {
+            const p = S(c.x, c.y);
+            R.ctx.beginPath();
+            R.ctx.ellipse(p.x, p.y, 9 * clampZoom(), 5 * clampZoom(), 0, 0, Math.PI * 2);
+            R.ctx.strokeStyle = rgba(GREEN, 0.95);
+            R.ctx.lineWidth = 2;
+            R.ctx.setLineDash([4, 3]);
+            R.ctx.stroke();
+            R.ctx.setLineDash([]);
+            labelAt(`+$${SC.CONFIG.PLACEMENT_INTERSECTION_PRICE} junction`,
+                    p.x, p.y + 16 * clampZoom(), GREEN, 10);
+        }
     }
 
     function drawPlacementGhost() {
@@ -1364,5 +1511,5 @@
 
     Object.assign(R, { drawRoads, drawRouteFlow, nodeSpec, drawShadow, drawSupplierSite, drawJunction,
         drawNodeBody, drawYardParking, drawYardSite, emojiPlateAt, drawOrderBubbles,
-        drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawPlacementGhost, drawOffscreenArrows });
+        drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawGhostMarks, drawPlacementGhost, drawOffscreenArrows });
 })();
