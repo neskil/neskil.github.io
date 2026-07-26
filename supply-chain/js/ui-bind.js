@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
 
@@ -215,7 +215,7 @@
             });
         }
         $('menu-newgame').addEventListener('click', () => {
-            if (newGameArmed) {
+            if (isNewGameArmed()) {
                 // Reloading fires pagehide/beforeunload, whose autosave flush
                 // (main.js) would otherwise re-persist this still-in-memory
                 // state right after clear() and undo the reset. ?new=1
@@ -225,9 +225,7 @@
                 location.href = location.pathname + '?new=1';
                 return;
             }
-            newGameArmed = true;
-            $('menu-newgame').textContent = '⚠ Tap again — current game will be lost';
-            setTimeout(resetNewGameArm, 4000);
+            armNewGame();
         });
 
         $('btn-truck').addEventListener('click', () => {
