@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.60.0';</script>
+    <script>window.SC_VERSION = '1.60.1';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -234,7 +234,7 @@
                 <h1>🔬 Research Tree</h1>
                 <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
             </div>
-            <div class="research-tree-wrap">
+            <div id="research-tree-wrap" class="research-tree-wrap">
                 <svg id="research-tree-edges"></svg>
                 <div id="research-tree-nodes"></div>
             </div>
