@@ -859,15 +859,31 @@
         if (n.kind === 'supplier') {
             const cap = SC.supplierCap(n);
             const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
-            const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 9;
-            // dark backing plate so the bar doesn't float as a bare dash
-            R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
-            roundRectPath(bx - 3, by - 3, bw + 6, 10, 5); R.ctx.fill();
-            R.ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
-            roundRectPath(bx, by, bw, 4, 2); R.ctx.fill();
-            R.ctx.fillStyle = frac < 0.25 ? '#f87171' : sp.base;
-            roundRectPath(bx, by, bw * frac, 4, 2); R.ctx.fill();
-            if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
+            // Low-stock warning colour: red when critically low (<15%),
+            // amber when getting low (<50%), otherwise not "low" at all.
+            const warn = frac < 0.15 ? '#f87171' : frac < 0.5 ? '#facc15' : null;
+            if (pillsVisible()) {
+                const bw = 34, bx = tc.x - bw / 2, by = tc.y - iconSize - 9;
+                // dark backing plate so the bar doesn't float as a bare dash
+                R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+                roundRectPath(bx - 3, by - 3, bw + 6, 10, 5); R.ctx.fill();
+                R.ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+                roundRectPath(bx, by, bw, 4, 2); R.ctx.fill();
+                R.ctx.fillStyle = warn || sp.base;
+                roundRectPath(bx, by, bw * frac, 4, 2); R.ctx.fill();
+                if (n.level > 0) labelAt('▲'.repeat(n.level), tc.x, by - 13, '#facc15', 10);
+            } else if (warn) {
+                // Zoomed out the full stock bars turn to visual noise, so they
+                // auto-hide with the factory pills. A supplier running low is
+                // still worth flagging, so drop the bar to a small warning dot
+                // (red <15%, amber <50%) — enough to catch the eye without the
+                // clutter of a bar over every supplier.
+                const by = tc.y - iconSize - 6;
+                R.ctx.fillStyle = 'rgba(12, 18, 30, 0.75)';
+                R.ctx.beginPath(); R.ctx.arc(tc.x, by, 4.5, 0, Math.PI * 2); R.ctx.fill();
+                R.ctx.fillStyle = warn;
+                R.ctx.beginPath(); R.ctx.arc(tc.x, by, 2.8, 0, Math.PI * 2); R.ctx.fill();
+            }
         } else if (n.kind === 'factory' && forSale) {
             labelAt(`$${SC.CONFIG.FACTORY_SITE_PRICE}`, tc.x, tc.y - iconSize - 6, '#94a3b8', 11);
         } else if (n.kind === 'yard') {
