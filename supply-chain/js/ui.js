@@ -922,7 +922,17 @@ SC.ui = (function() {
         SC.state.paused = false;
     }
 
+    // Two-tap confirm on "New game". The armed flag and everything that reads
+    // it stay together in here: ui-bind.js is a separate IIFE and can only see
+    // what this file hands it through SC._ui, so a handler over there touching
+    // `newGameArmed` directly is a ReferenceError, not a closure read.
     let newGameArmed = false;
+    function isNewGameArmed() { return newGameArmed; }
+    function armNewGame() {
+        newGameArmed = true;
+        $('menu-newgame').textContent = '⚠ Tap again — current game will be lost';
+        setTimeout(resetNewGameArm, 4000);
+    }
     function resetNewGameArm() {
         newGameArmed = false;
         $('menu-newgame').textContent = '🗑 New game';
@@ -1143,7 +1153,7 @@ SC.ui = (function() {
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
         openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
     };
 
     return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };
