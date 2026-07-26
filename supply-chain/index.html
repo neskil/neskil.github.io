@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.56.0';</script>
+    <script>window.SC_VERSION = '1.57.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -132,6 +132,9 @@
                     <span class="price">$450</span>
                 </button>
 
+                <select id="promo-good-select" class="hidden" style="width: 100%; margin: 4px 0; padding: 4px 8px; border-radius: 6px; background: #1e293b; color: #f8fafc; border: 1px solid #334155; font-size: 13px;">
+                    <option value="all">🌐 All Products</option>
+                </select>
                 <button class="shop-btn hidden" id="btn-promo">
                     <span class="sname">📣 Run promotion</span>
                     <span class="price">$600</span>
@@ -337,20 +340,22 @@
                🧵 and electronics 💾) plus the same steel your cars use. Your
                trucks do the hauling — but only where roads exist.</p>
             <ul>
+                <li><b>Guided walkthrough:</b> new runs start with a 4-step guided walkthrough to help link your first bakery, suppliers, and HQ.</li>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river pops up a choice: a pricier bridge (fast) or a cheaper ferry (slower boat crossing).</li>
                 <li><b>Fill orders:</b> connect each ingredient's supplier to the factory, and the factory to the ordering HQ/DC. Dispatch is automatic.</li>
-                <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. New sites appear as you deliver.</li>
+                <li><b>Earn &amp; grow:</b> payouts fund more roads, trucks, factories and upgrades. Completing deliveries expands the map into new regions linked by paved highways.</li>
                 <li><b>Credit line:</b> you can spend into the red down to −$1,500, but debt bleeds interest every minute (rate set by difficulty — 15%/min on Normal). If interest drags you <i>below</i> the limit, a default countdown starts — recover in time or the bank forecloses and the run ends. Sandbox never forecloses.</li>
-                <li><b>Research:</b> in the Shop panel, invest upfront and wait it out to unlock upgrades like manual site placement and a bigger credit line.</li>
+                <li><b>Research &amp; Promotions:</b> in the Shop panel, invest upfront to unlock upgrades like manual site placement and Marketing Blitz (run targeted promotions on specific goods for massive demand bursts).</li>
                 <li><b>Truck yards:</b> HQ is your first yard. Build more (Shop panel) to station trucks closer to distant routes — idle trucks head home to their yard, so they stay ready near their own region.</li>
-                <li><b>Junctions:</b> after the Road Junctions research (cheap, no prerequisites), place one (Shop panel) anywhere on land to fork, merge or reroute roads through a point that isn't a supplier, factory or city — no supply or demand of its own, just a waypoint for shaping the network.</li>
+                <li><b>Junctions:</b> place one (Shop panel) anywhere on land to fork, merge or reroute roads through a point that isn't a supplier, factory or city — no supply or demand of its own, just a waypoint for shaping the network.</li>
                 <li><b>Supplier stock:</b> suppliers hold a finite stock that refills over time — trucks wait at a dry supplier. Upgrade mode (⬆️, bottom right): tap a supplier twice to raise its stock cap and refill rate.</li>
                 <li><b>Highways:</b> after the Asphalt Paving research, use Upgrade mode on a road to pave it — trucks drive 60% faster there.</li>
-                <li><b>Congestion:</b> a difficulty trait (on for Normal/Hard, off for Easy/Sandbox) — a busy road glows warmer and slows down past a few trucks, so build parallel routes instead of one mega-highway.</li>
+                <li><b>Congestion &amp; Difficulty Ramp:</b> a difficulty trait (on for Normal/Hard) — busy roads slow down past a few trucks. As your delivery count grows, order deadlines tighten and spawn rates speed up for a scaling challenge.</li>
                 <li><b>Fast-forward:</b> the 1×/2×/4× toggle under the HUD speeds up the whole sim — orders, crafting, trucks, interest, everything.</li>
                 <li><b>Contracts:</b> occasionally a bulk-order card offers a locked-in premium rate — Accept or Decline before the timer runs out. An accepted contract is a big order with its own deadline; miss it and you pay a penalty on top of the failure, not just a missed order.</li>
                 <li><b>Move around:</b> drag to pan, scroll or pinch to zoom. Tap a road twice to demolish it.</li>
-                <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections — a factory's needed ingredients, a supplier's factories, or a city's open orders — with the relevant roads lit up. Tap again to dismiss.</li>
+                <li><b>Inspect mode (🔍, bottom right):</b> hover (or tap on mobile) a node to see its connections, needed ingredients, or city orders. Tap <b>[Toggle]</b> on a factory to specialize it for a <b>1.5× crafting speed boost</b>!</li>
+                <li><b>Sound &amp; Music (☰ menu):</b> toggle synthesized sound effects, weather/traffic ambience, and procedural music independently.</li>
                 <li><b>Stats &amp; Achievements (☰ menu):</b> deliveries by product, a money-over-time chart, your busiest road, and milestone badges for things like your first bridge or a 10-truck fleet.</li>
             </ul>
         </div>

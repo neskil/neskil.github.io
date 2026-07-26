@@ -412,5 +412,23 @@
                 <div><span>Time survived</span><b>${fmtDuration(st.time)}</b></div>`;
             $('gameover-overlay').classList.remove('hidden');
         });
+
+        document.addEventListener('click', e => {
+            const specBtn = e.target.closest('#itip-spec-toggle');
+            if (specBtn) {
+                const nodeId = +specBtn.dataset.nodeId;
+                const node = SC.state.nodes.find(n => n.id === nodeId);
+                if (node && node.kind === 'factory') {
+                    const newSpec = node.specializedRecipe ? null : node.recipe;
+                    SC.factories.setSpecialization(node, newSpec);
+                    SC.sfx.play('upgrade');
+                    toast(newSpec ? `⚡ Specialized into ${SC.emojiOf(newSpec)} ${SC.nameOf(newSpec)} (1.5× speed)` : 'Reset to Generalist', 'info');
+                    const tooltipEl = $('inspect-tooltip');
+                    if (tooltipEl && !tooltipEl.classList.contains('hidden') && U.inspectTooltipHTML) {
+                        tooltipEl.innerHTML = U.inspectTooltipHTML(SC.inspect.infoFor(node));
+                    }
+                }
+            }
+        });
     }
 })();

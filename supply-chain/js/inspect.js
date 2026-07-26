@@ -11,7 +11,7 @@ SC.inspect = (function() {
             const pick = SC.economy.bestSourceFor(m, node);
             return { good: m, pick: pick || null, connected: !!pick, dist: pick ? pick.dist : null };
         });
-        return { kind: 'factory', node, building: g.building, recipe: node.recipe, inputs };
+        return { kind: 'factory', node, building: g.building, recipe: node.recipe, specializedRecipe: node.specializedRecipe || null, inputs };
     }
 
     function supplierInfo(node) {
