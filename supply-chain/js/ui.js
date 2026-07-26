@@ -205,11 +205,18 @@ SC.ui = (function() {
         $('yard-overlay').classList.add('hidden');
     }
 
+    // ── Intersections: the retrofit tool for roads that already cross
+    // without meeting. New roads build their own interchanges now (see
+    // SC.roads.build), so a crossing to retrofit only exists in a save from
+    // before that rule — the button hides itself when the map has none, and
+    // an active place-mode keeps it visible so it can be cancelled. ──
     function updateIntersectionBtn() {
         const st = SC.state;
         const btn = $('btn-intersection');
         if (!btn) return;
-        btn.classList.toggle('hidden', !SC.placement.isUnlocked('intersection'));
+        const useful = SC.roads.hasCrossings() ||
+            (st.placeMode && st.placeMode.kind === 'intersection');
+        btn.classList.toggle('hidden', !SC.placement.isUnlocked('intersection') || !useful);
         if (btn.classList.contains('hidden')) return;
         const price = SC.CONFIG.PLACEMENT_INTERSECTION_PRICE;
         const active = st.placeMode && st.placeMode.kind === 'intersection';
@@ -597,6 +604,13 @@ SC.ui = (function() {
         const bridgeQuote = SC.roads.quote(d.a, d.b);
         const ferryQuote = SC.roads.quote(d.a, d.b, { ferry: true });
         if (!bridgeQuote || !ferryQuote) { pendingCrossing = null; return; }
+        // Belt-and-braces: input.js already refuses a road the overlap rules
+        // block, so the choice never reaches here for one.
+        if (bridgeQuote.blocked) {
+            toast(SC.roads.blockMessage(bridgeQuote), 'error');
+            pendingCrossing = null;
+            return;
+        }
         $('crossing-bridge-cost').textContent = fmt(bridgeQuote.cost);
         $('crossing-ferry-cost').textContent = fmt(ferryQuote.cost);
         crossingOpenedAt = performance.now();
@@ -619,6 +633,9 @@ SC.ui = (function() {
         } else if (res.reason === 'money') {
             SC.sfx.play('error');
             toast(`Credit limit reached — road costs $${res.cost} (limit −$${SC.CONFIG.CREDIT_LIMIT})`, 'error');
+        } else if (res.message) {
+            SC.sfx.play('error');
+            toast(res.message, 'error');
         }
         pendingCrossing = null;
         $('crossing-overlay').classList.add('hidden');
