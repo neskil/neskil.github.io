@@ -1240,20 +1240,28 @@
         });
 
         class Particle {
-            constructor() {
-                this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * 1.5;
-                this.vy = (Math.random() - 0.5) * 1.5;
+            // Pass x/y to place a dot deliberately (a click); omit for the ambient field.
+            constructor(x, y) {
+                const placed = x != null;
+                this.placed = placed;
+                this.x = placed ? x : Math.random() * width;
+                this.y = placed ? y : Math.random() * height;
+                // Clicked dots drift outward a touch faster so the burst reads as a burst.
+                const speed = placed ? 2.4 : 1.5;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
                 this.baseRadius = Math.random() * 1.8 + 0.8;
                 this.radius = this.baseRadius;
                 this.hue = Math.random() * 80 + 200; // blue-purple-indigo band
                 this.glow = 0; // 0..1 proximity brightness
+                this.fade = placed ? 0 : 1; // clicked dots ease in instead of popping
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
+
+                if (this.fade < 1) this.fade = Math.min(1, this.fade + 0.06);
 
                 if (this.x < 0 || this.x > width) this.vx = -this.vx;
                 if (this.y < 0 || this.y > height) this.vy = -this.vy;
@@ -1282,13 +1290,38 @@
             draw() {
                 const lightness = 65 + this.glow * 25;
                 const saturation = 70 + this.glow * 30;
-                const alpha = 0.6 + this.glow * 0.4;
+                const alpha = (0.6 + this.glow * 0.4) * this.fade;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = `hsla(${this.hue}, ${saturation}%, ${lightness}%, ${alpha})`;
                 ctx.fill();
             }
         }
+
+        // Press the background to drop a few new dots into the constellation. The link
+        // loop is O(n²), so the field is capped — at the cap, the oldest clicked dot
+        // retires to make room, which keeps every click responsive at a fixed cost.
+        const CLICK_DOTS = 3;
+        let maxParticles = 150;
+
+        function spawnDotsAt(clientX, clientY) {
+            // Undo the parallax shift applied at draw time so dots land under the cursor.
+            const y = clientY + smoothScrollY * 0.15;
+            for (let i = 0; i < CLICK_DOTS; i++) {
+                if (particles.length >= maxParticles) {
+                    let idx = particles.findIndex(p => p.placed);
+                    particles.splice(idx === -1 ? 0 : idx, 1);
+                }
+                const jitter = () => (Math.random() - 0.5) * 18;
+                particles.push(new Particle(clientX + jitter(), y + jitter()));
+            }
+        }
+
+        window.addEventListener('click', (e) => {
+            // Leave real UI alone — cards are anchors, so this covers them too.
+            if (e.target.closest('a, button, #vault-panel, #vault-backdrop, #name-trigger')) return;
+            spawnDotsAt(e.clientX, e.clientY);
+        });
 
         function loadHighScores() {
             // 1. Supply Chain Tycoon
@@ -1355,6 +1388,9 @@
             themeEntities = [];
             // Responsive amount of particles based on screen size
             let numberOfParticles = Math.min((width * height) / 12000, 150);
+            // Headroom for clicked dots, scaled to the ambient density so a small
+            // window doesn't end up doing big-window work.
+            maxParticles = Math.round(numberOfParticles) + 36;
             for (let i = 0; i < numberOfParticles; i++) {
                 particles.push(new Particle());
             }
@@ -1394,8 +1430,11 @@
                     if (distance < 150) {
                         // Blend glow of both endpoints for line color
                         const combinedGlow = (particles[i].glow + particles[j].glow) * 0.5;
-                        const baseAlpha = 0.35 - distance / 430;
-                        const lineAlpha = baseAlpha + combinedGlow * 0.45;
+                        // A link is only as solid as its faintest end, so links ease in
+                        // with the dots they connect.
+                        const linkFade = Math.min(particles[i].fade, particles[j].fade);
+                        const baseAlpha = (0.35 - distance / 430) * linkFade;
+                        const lineAlpha = baseAlpha + combinedGlow * 0.45 * linkFade;
                         const hue = particles[i].hue;
                         const saturation = 30 + combinedGlow * 70;
                         const lightness = 60 + combinedGlow * 30;
