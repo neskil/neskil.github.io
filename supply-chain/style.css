@@ -484,6 +484,7 @@ html, body {
 }
 .research-row.done { opacity: 0.6; }
 .research-row.locked { opacity: 0.45; }
+.research-row.queued { border-color: rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.05); }
 .research-top {
     display: flex;
     justify-content: space-between;
@@ -504,6 +505,25 @@ html, body {
 }
 .research-btn:hover:not(:disabled) { border-color: var(--accent-color); }
 .research-btn:disabled { opacity: 0.5; cursor: default; }
+.research-btn.queue-btn {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.3);
+}
+.research-btn.queue-btn:hover:not(:disabled) {
+    background: rgba(251, 191, 36, 0.25);
+    border-color: #fbbf24;
+}
+.research-btn.cancel-btn {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.research-btn.cancel-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: #ef4444;
+    color: #ffffff;
+}
 .research-bar {
     height: 4px;
     border-radius: 2px;

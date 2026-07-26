@@ -42,25 +42,94 @@ SC.research = (function() {
         return !!(SC.state && SC.state.research && SC.state.research.completed[id]);
     }
 
+    function queueList() {
+        if (!SC.state || !SC.state.research) return [];
+        if (!Array.isArray(SC.state.research.queue)) {
+            SC.state.research.queue = [];
+        }
+        return SC.state.research.queue;
+    }
+
+    function queueCount() {
+        return queueList().length;
+    }
+
+    function isQueued(id) {
+        return queueList().includes(id);
+    }
+
     function isAvailable(id) {
         const t = SC.RESEARCH[id];
         if (!t || isDone(id)) return false;
         return t.requires.every(isDone);
     }
 
+    function isQueueable(id) {
+        const t = SC.RESEARCH[id];
+        if (!t || isDone(id) || isActive(id) || isQueued(id)) return false;
+        return t.requires.every(req => isDone(req) || isActive(req) || isQueued(req));
+    }
+
     function canStart(id) {
-        return hasBuilding() && activeCount() < maxSlots() && isAvailable(id) && !isActive(id) && SC.canAfford(SC.RESEARCH[id].cost);
+        return hasBuilding() && activeCount() < maxSlots() && isAvailable(id) && !isActive(id) && !isQueued(id) && SC.canAfford(SC.RESEARCH[id].cost);
+    }
+
+    function canQueue(id) {
+        return hasBuilding() && isQueueable(id) && SC.canAfford(SC.RESEARCH[id].cost);
+    }
+
+    function enqueue(id) {
+        if (!canQueue(id)) return { ok: false };
+        SC.state.money -= SC.RESEARCH[id].cost;
+        queueList().push(id);
+        SC.emit('researchQueued', id);
+        return { ok: true };
+    }
+
+    function cancelQueue(id) {
+        if (!isQueued(id)) return { ok: false };
+        const q = queueList();
+        const idx = q.indexOf(id);
+        if (idx === -1) return { ok: false };
+
+        q.splice(idx, 1);
+        if (SC.RESEARCH[id]) {
+            SC.state.money += SC.RESEARCH[id].cost;
+        }
+
+        let removed;
+        do {
+            removed = false;
+            for (let i = 0; i < q.length; i++) {
+                const qId = q[i];
+                const t = SC.RESEARCH[qId];
+                if (t && !t.requires.every(req => isDone(req) || isActive(req) || q.slice(0, i).includes(req))) {
+                    q.splice(i, 1);
+                    SC.state.money += t.cost;
+                    SC.emit('researchQueueCancelled', qId);
+                    removed = true;
+                    break;
+                }
+            }
+        } while (removed);
+
+        SC.emit('researchQueueCancelled', id);
+        return { ok: true };
     }
 
     function start(id) {
-        if (!canStart(id)) return { ok: false };
-        SC.state.money -= SC.RESEARCH[id].cost;
-        if (!Array.isArray(SC.state.research.active)) {
-            SC.state.research.active = activeList();
+        if (canStart(id)) {
+            SC.state.money -= SC.RESEARCH[id].cost;
+            if (!Array.isArray(SC.state.research.active)) {
+                SC.state.research.active = activeList();
+            }
+            SC.state.research.active.push({ id, t: 0 });
+            SC.emit('researchStarted', id);
+            return { ok: true };
+        } else if (activeCount() >= maxSlots() && canQueue(id)) {
+            return enqueue(id);
         }
-        SC.state.research.active.push({ id, t: 0 });
-        SC.emit('researchStarted', id);
-        return { ok: true };
+        return { ok: false };
     }
 
     function progress(id) {
@@ -71,20 +140,36 @@ SC.research = (function() {
 
     function tick(dt) {
         const active = activeList();
-        if (!active.length) return;
-        // Ensure state holds an array
-        if (!Array.isArray(SC.state.research.active)) {
-            SC.state.research.active = active;
-        }
-        for (let i = active.length - 1; i >= 0; i--) {
-            const a = active[i];
-            a.t += dt;
-            const t = SC.RESEARCH[a.id];
-            if (t && a.t >= t.time) {
-                SC.state.research.completed[a.id] = true;
-                active.splice(i, 1);
-                SC.emit('researchComplete', a.id);
+        if (active.length) {
+            // Ensure state holds an array
+            if (!Array.isArray(SC.state.research.active)) {
+                SC.state.research.active = active;
             }
+            for (let i = active.length - 1; i >= 0; i--) {
+                const a = active[i];
+                a.t += dt;
+                const t = SC.RESEARCH[a.id];
+                if (t && a.t >= t.time) {
+                    SC.state.research.completed[a.id] = true;
+                    active.splice(i, 1);
+                    SC.emit('researchComplete', a.id);
+                }
+            }
+        }
+
+        const q = queueList();
+        while (activeCount() < maxSlots() && q.length > 0) {
+            const idx = q.findIndex(qId => {
+                const t = SC.RESEARCH[qId];
+                return t && t.requires.every(isDone);
+            });
+            if (idx === -1) break;
+            const readyId = q.splice(idx, 1)[0];
+            if (!Array.isArray(SC.state.research.active)) {
+                SC.state.research.active = activeList();
+            }
+            SC.state.research.active.push({ id: readyId, t: 0 });
+            SC.emit('researchStarted', readyId);
         }
     }
 
@@ -138,6 +223,7 @@ SC.research = (function() {
     }
 
     return { hasBuilding, maxSlots, activeList, activeCount, activeIds, activeId, isActive,
+             queueList, queueCount, isQueued, isQueueable, canQueue, enqueue, cancelQueue,
              isDone, isAvailable, canStart, start, progress, tick,
              creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,
              graceBonus, orderCapBonus,

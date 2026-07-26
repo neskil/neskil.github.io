@@ -344,10 +344,32 @@
             if (e.target === $('research-overlay')) closeResearchTree(); // tap outside the card
         });
         $('research-tree-nodes').addEventListener('click', e => {
+            const cancelBtn = e.target.closest('[data-cancel-research]');
+            if (cancelBtn) {
+                const id = cancelBtn.dataset.cancelResearch;
+                const name = SC.RESEARCH[id] ? SC.RESEARCH[id].name : id;
+                const res = SC.research.cancelQueue(id);
+                if (res.ok) {
+                    SC.sfx.play('click');
+                    toast(`Cancelled queue for ${name}`, 'info');
+                }
+                updateShop();
+                return;
+            }
             const btn = e.target.closest('[data-research]');
             if (!btn || btn.disabled) return;
-            const res = SC.research.start(btn.dataset.research);
-            if (res.ok) { SC.sfx.play('click'); toast(`Researching ${SC.RESEARCH[btn.dataset.research].name}…`, 'info'); }
+            const id = btn.dataset.research;
+            const wasQueued = SC.research.isQueued(id);
+            const res = SC.research.start(id);
+            if (res.ok) {
+                SC.sfx.play('click');
+                const name = SC.RESEARCH[id] ? SC.RESEARCH[id].name : id;
+                if (SC.research.isQueued(id)) {
+                    toast(`Queued ${name}`, 'info');
+                } else {
+                    toast(`Researching ${name}…`, 'info');
+                }
+            }
             updateShop();
         });
 
