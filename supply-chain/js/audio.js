@@ -27,6 +27,12 @@ SC.audio = (function () {
     // Music defaults ON: the player already opted into sound by opening a game,
     // and autoplay policy means nothing is audible until they interact anyway.
     let musicOn = localStorage.getItem('scTycoonMusic') !== 'false';
+    // Music level as a 0..1 scalar on top of MUSIC_BUS_GAIN, persisted like
+    // the on/off flag. Read/written by get/setMusicVolume below (the Options
+    // panel's music slider) and applied in applyMusic().
+    let musicVolume = localStorage.getItem('scTycoonMusicVol') !== null
+        ? Math.max(0, Math.min(1, parseFloat(localStorage.getItem('scTycoonMusicVol'))))
+        : 1;
 
     // --- generative score -------------------------------------------------
     // A slow four-chord loop with a pad, a bass root and a sparse pentatonic
@@ -242,7 +248,7 @@ SC.audio = (function () {
 
     function applyMusic() {
         if (!musicBus) return;
-        musicBus.gain.setTargetAtTime(musicOn ? 0.32 : 0, ctx.currentTime, 0.25);
+        musicBus.gain.setTargetAtTime(musicOn ? 0.32 * musicVolume : 0, ctx.currentTime, 0.25);
     }
 
     return {
@@ -261,6 +267,20 @@ SC.audio = (function () {
             init();
             applyMusic();
             return musicOn;
+        },
+        setMusicMuted(m) {
+            musicOn = !m;
+            localStorage.setItem('scTycoonMusic', String(musicOn));
+            init();
+            applyMusic();
+            return musicOn;
+        },
+        getMusicVolume: () => musicVolume,
+        setMusicVolume(v) {
+            musicVolume = Math.max(0, Math.min(1, v));
+            localStorage.setItem('scTycoonMusicVol', String(musicVolume));
+            if (ctx) applyMusic();
+            return musicVolume;
         }
     };
 })();

@@ -248,6 +248,7 @@ SC.economy = (function() {
     // work to pay for its grown costs. A running promotion adds more.
     function maxActiveOrders() {
         return C().ORDER_MAX_ACTIVE + C().ORDER_PER_CITY * Math.max(0, activeCities().length - 1) +
+               SC.research.orderCapBonus() +
                (isPromoActive() ? C().PROMO_ORDER_CAP_BONUS : 0);
     }
 
@@ -366,11 +367,23 @@ SC.economy = (function() {
             }
         }
 
+        // Operating upkeep: a standing per-minute charge for the fleet,
+        // owned factories and extra yards (SC.upkeepPerMin). Charged
+        // before interest so an idle, over-built network drifts negative
+        // and then starts compounding, rather than parking at a safe
+        // balance forever.
+        const upkeep = SC.upkeepPerMin() / 60 * dt;
+        if (upkeep > 0) {
+            SC.state.money -= upkeep;
+            SC.state.upkeepPaid = (SC.state.upkeepPaid || 0) + upkeep;
+        }
+
         // Debt interest: a negative balance bleeds continuously, at the
-        // difficulty's rate. Interest can push the debt past the credit
-        // limit (purchases stay blocked until deliveries pay it down).
-        if (SC.state.money < 0 && SC.diff().interestPerMin > 0) {
-            const interest = -SC.state.money * (SC.diff().interestPerMin / 60) * dt;
+        // difficulty's rate (halved by Debt Restructuring). Interest can
+        // push the debt past the credit limit (purchases stay blocked
+        // until deliveries pay it down).
+        if (SC.state.money < 0 && SC.interestPerMin() > 0) {
+            const interest = -SC.state.money * (SC.interestPerMin() / 60) * dt;
             SC.state.money -= interest;
             SC.state.interestPaid += interest;
         }
@@ -381,8 +394,8 @@ SC.economy = (function() {
         // Sandbox (noFail) skips foreclosure entirely.
         if (SC.state.money < -SC.creditLimit() && !SC.diff().noFail) {
             if (SC.state.defaultIn === null) {
-                SC.state.defaultIn = SC.diff().defaultGrace;
-                SC.emit('debtWarning', { grace: SC.diff().defaultGrace });
+                SC.state.defaultIn = SC.defaultGrace();
+                SC.emit('debtWarning', { grace: SC.defaultGrace() });
             } else {
                 SC.state.defaultIn -= dt;
                 if (SC.state.defaultIn <= 0 && !SC.state.gameOver) {

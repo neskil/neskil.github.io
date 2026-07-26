@@ -81,10 +81,14 @@ SC.sfx = (function() {
     // (dispatch assigning a batch of jobs). Collapse those into one blip.
     const THROTTLE = { depart: 0.35, craft: 0.12 };
 
+    let volume = localStorage.getItem('scTycoonSoundVol') !== null
+        ? Math.max(0, Math.min(1, parseFloat(localStorage.getItem('scTycoonSoundVol'))))
+        : 1.0;
+
     return {
         play(name) {
             const fn = sounds[name];
-            if (!fn || muted) return;
+            if (!fn || muted || volume <= 0) return;
             const gap = THROTTLE[name];
             if (gap) {
                 const ctx = SC.audio.ctx();
@@ -101,6 +105,18 @@ SC.sfx = (function() {
             SC.audio.setAmbientMuted(muted); // Sound covers the world ambience too
             return muted;
         },
-        isMuted: () => muted
+        setMuted(m) {
+            muted = !!m;
+            localStorage.setItem('scTycoonMuted', String(muted));
+            SC.audio.setAmbientMuted(muted);
+            return muted;
+        },
+        isMuted: () => muted,
+        getVolume: () => volume,
+        setVolume(v) {
+            volume = Math.max(0, Math.min(1, v));
+            localStorage.setItem('scTycoonSoundVol', String(volume));
+            return volume;
+        }
     };
 })();

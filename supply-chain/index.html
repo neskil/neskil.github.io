@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.57.0';</script>
+    <script>window.SC_VERSION = '1.58.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -159,6 +159,10 @@
                 <button class="shop-btn build-btn" id="btn-junction" title="A routing waypoint — no supply or demand, just lets roads fork/merge/reroute through it">
                     <span class="sname">🔀 Place junction</span>
                     <span class="price">$400</span>
+                </button>
+                <button class="shop-btn build-btn hidden" id="btn-land" title="Push the frontier out now instead of waiting for the next delivery milestone — new land comes with a fresh supplier and a factory for sale">
+                    <span class="sname">🗺️ Buy land</span>
+                    <span class="price">$3,500</span>
                 </button>
 
                 <div class="shop-section-title hidden" id="build-title">📍 Place supplier / factory</div>

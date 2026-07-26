@@ -5,9 +5,16 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
+
+    // Same guarded idiom ui.js uses for the Options / Notifications markup:
+    // those panels are still landing, so their ids may not exist yet. A hard
+    // throw here aborts SC._ui.bind() and therefore the rest of init() — that
+    // is what blanked the difficulty picker and recipe graph on the start
+    // screen. Skip an absent element instead of taking the whole UI down.
+    const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
 
     SC._ui.bind = function () {
         $('speed-toggle').addEventListener('click', e => {
@@ -98,28 +105,78 @@
             updateMenuInfo();
             toast('Game saved', 'good');
         });
-        $('menu-sound').addEventListener('click', () => {
-            SC.sfx.toggleMute();
-            updateMenuInfo();
+        on('menu-options', 'click', () => {
+            SC.sfx.play('click');
+            openOptionsModal();
         });
-        $('menu-music').addEventListener('click', () => {
+        on('menu-notifications', 'click', () => {
+            SC.sfx.play('click');
+            openToastHistoryModal();
+        });
+
+        // Options modal handlers
+        on('options-close', 'click', () => { SC.sfx.play('click'); closeOptionsModal(); });
+        on('options-overlay', 'click', e => {
+            if (e.target === $('options-overlay')) closeOptionsModal();
+        });
+        on('opt-sound-toggle', 'click', () => {
+            SC.sfx.toggleMute();
+            updateOptionsModal();
+        });
+        on('opt-sound-vol', 'input', e => {
+            SC.sfx.setVolume(+e.target.value / 100);
+            updateOptionsModal();
+        });
+        on('opt-music-toggle', 'click', () => {
             SC.audio.toggleMusic();
             SC.sfx.play('click');
-            updateMenuInfo();
+            updateOptionsModal();
         });
-        $('menu-pills').addEventListener('click', () => {
+        on('opt-music-vol', 'input', e => {
+            SC.audio.setMusicVolume(+e.target.value / 100);
+            updateOptionsModal();
+        });
+        on('opt-ui-scale-picker', 'click', e => {
+            const btn = e.target.closest('[data-scale]');
+            if (btn) {
+                SC.sfx.play('click');
+                setUiScale(+btn.dataset.scale);
+            }
+        });
+        on('opt-pills-toggle', 'click', () => {
             setHidePills(!getHidePills());
             SC.sfx.play('click');
-            updateMenuInfo();
+            updateOptionsModal();
         });
-        $('menu-fullscreen').addEventListener('click', () => {
+        on('opt-autoaccept-toggle', 'click', () => {
+            SC.state.autoAcceptContracts = !SC.state.autoAcceptContracts;
+            SC.sfx.play('click');
+            updateOptionsModal();
+        });
+        on('opt-fullscreen-btn', 'click', () => {
             SC.sfx.play('click');
             toggleFullscreen();
         });
-        $('menu-dev').addEventListener('click', () => {
+        on('opt-dev-toggle', 'click', () => {
             setDevMode(!getDevMode());
             SC.sfx.play('click');
-            updateMenuInfo();
+            updateOptionsModal();
+        });
+        on('opt-view-history-btn', 'click', () => {
+            SC.sfx.play('click');
+            closeOptionsModal();
+            openToastHistoryModal();
+        });
+
+        // Toast History modal handlers
+        on('toast-history-close', 'click', () => { SC.sfx.play('click'); closeToastHistoryModal(); });
+        on('toast-history-done', 'click', () => { SC.sfx.play('click'); closeToastHistoryModal(); });
+        on('toast-history-overlay', 'click', e => {
+            if (e.target === $('toast-history-overlay')) closeToastHistoryModal();
+        });
+        on('toast-history-clear', 'click', () => {
+            SC.sfx.play('click');
+            clearToastHistory();
         });
         document.addEventListener('fullscreenchange', () => {
             if (menuOpen()) updateMenuInfo();
@@ -219,6 +276,21 @@
                 SC.emit('toast', { text: `Tap crossing roads to place an intersection — ${fmt(SC.CONFIG.PLACEMENT_INTERSECTION_PRICE)}`, kind: 'info' });
             }
             SC.sfx.play('click');
+            updateShop();
+        });
+        $('btn-land').addEventListener('click', () => {
+            const res = SC.map.buyLand();
+            if (res.ok) {
+                SC.sfx.play('cash');
+                // expandField's own 'fieldExpanded' toast covers the rest
+                toast(`🗺️ Land surveyed and bought for ${fmt(res.price)}`, 'good');
+            } else if (res.reason === 'money') {
+                SC.sfx.play('error');
+                toast(`Not enough money — land costs ${fmt(res.cost)}`, 'error');
+            } else {
+                SC.sfx.play('error');
+                toast('Land Surveying research required', 'error');
+            }
             updateShop();
         });
         $('btn-junction').addEventListener('click', () => {
@@ -407,6 +479,7 @@
             $('gameover-stats').innerHTML = `
                 <div><span>Final debt</span><b class="neg">−${fmt(Math.abs(d.debt))}</b></div>
                 <div><span>Total earned</span><b>${fmt(st.earnedTotal)}</b></div>
+                <div><span>Upkeep paid</span><b>${fmt(Math.round(st.upkeepPaid || 0))}</b></div>
                 <div><span>Interest paid</span><b>${fmt(st.interestPaid)}</b></div>
                 <div><span>Orders filled / missed</span><b>${st.delivered} / ${st.missed}</b></div>
                 <div><span>Time survived</span><b>${fmtDuration(st.time)}</b></div>`;

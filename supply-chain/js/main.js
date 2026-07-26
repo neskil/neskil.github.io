@@ -178,7 +178,7 @@ SC.runProbe = function(seconds) {
     // triggers the foreclosure overlay directly.
     if (p.has('doom')) {
         SC.state.money = -(SC.creditLimit() + 800);
-        SC.state.defaultIn = parseFloat(p.get('doom')) || SC.diff().defaultGrace;
+        SC.state.defaultIn = parseFloat(p.get('doom')) || SC.defaultGrace();
     }
     if (p.has('gameover')) {
         SC.state.money = -(SC.creditLimit() + 800);

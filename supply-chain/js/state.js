@@ -53,6 +53,8 @@ SC.newState = function(difficulty) {
         promoUntil: 0,      // sim time the running promotion ends (0 = none)
         promoGood: null,    // target product key for active promotion ('all' or specific good, e.g. 'bread')
         regionsUnlocked: 0, // count of additional regions unlocked (Item 15)
+        landBought: 0,      // field expansions bought outright (Land Surveying), for SC.landPrice
+        upkeepPaid: 0,      // running total of operating upkeep charged, for the stats/game-over screens
         defaultIn: null,    // default countdown while below -creditLimit (null = safe)
         gameOver: false,    // defaulted — sim frozen, overlay shown
         speed: 1,           // fast-forward multiplier: 1/2/4, see main.js's loop
@@ -103,6 +105,42 @@ SC.creditLimit = function() {
 };
 SC.canAfford = function(cost) {
     return SC.state.money - cost >= -SC.creditLimit();
+};
+
+// Seconds on the foreclosure clock once the balance drops past the credit
+// limit: the difficulty's grace plus any researched extension.
+SC.defaultGrace = function() {
+    return SC.diff().defaultGrace + SC.research.graceBonus();
+};
+
+// Debt interest rate per minute, after Debt Restructuring's discount.
+SC.interestPerMin = function() {
+    return (SC.diff().interestPerMin || 0) * SC.research.interestMult();
+};
+
+// ── Operating upkeep ($/minute) ───────────────────────────────────
+// Everything you own costs something to run: the fleet, each owned
+// factory, and each yard past HQ (which is free). Charged continuously in
+// economy.tick, so a network built out faster than its revenue slides
+// into debt on its own — the pressure the foreclosure fail state needs.
+// Zero on Sandbox (upkeepMult 0); cut 40% by Predictive Maintenance.
+SC.upkeepPerMin = function() {
+    const c = SC.CONFIG;
+    const st = SC.state;
+    const factories = st.nodes.filter(n => n.kind === 'factory' && n.active && !n.forSale).length;
+    const yards = st.nodes.filter(n => n.kind === 'yard').length; // HQ excluded on purpose
+    const base = st.trucks.length * c.UPKEEP_PER_TRUCK +
+                 factories * c.UPKEEP_PER_FACTORY +
+                 yards * c.UPKEEP_PER_YARD;
+    const mult = SC.diff().upkeepMult !== undefined ? SC.diff().upkeepMult : 1;
+    return base * mult * SC.research.upkeepMult();
+};
+
+// Buying the next field expansion outright (Land Surveying). Each purchase
+// makes the next one pricier; milestone expansions are still free.
+SC.landPrice = function() {
+    return Math.round(SC.CONFIG.LAND_PRICE *
+        Math.pow(SC.CONFIG.LAND_PRICE_GROWTH, SC.state.landBought || 0));
 };
 
 SC.truckSpeed = function() {
