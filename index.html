@@ -1064,9 +1064,22 @@
         let currentGlobalHue = 220, targetGlobalHue = 220;
         let activeThemeCardId = null;
 
+        // Theme entities only start drifting in after a deliberate hover, and never
+        // more than a couple at a time — it's a hint, not a parade.
+        const THEME_DWELL_MS = 900;
+        const MAX_THEME_ENTITIES = 2;
+        let themeSpawnArmed = false;
+        let themeDwellTimer = null;
+
         function activateCardTheme(cardId) {
             if (activeThemeCardId === cardId) return;
             activeThemeCardId = cardId;
+
+            clearTimeout(themeDwellTimer);
+            themeSpawnArmed = false;
+            if (cardId) {
+                themeDwellTimer = setTimeout(() => { themeSpawnArmed = true; }, THEME_DWELL_MS);
+            }
 
             if (!cardId) {
                 document.documentElement.removeAttribute('data-theme');
@@ -1109,7 +1122,7 @@
                     this.hue = 245;
                     this.symbol = fromLeft ? '🚀' : '🛸';
                     this.maxLife = Math.ceil((width + 100) / Math.abs(this.vx));
-                    this.maxAlpha = 0.85;
+                    this.maxAlpha = 0.4;
                 } else if (cardId === 'card-supply-chain') {
                     // Supply truck driving across the screen
                     this.type = 'truck';
@@ -1121,7 +1134,7 @@
                     this.hue = 175;
                     this.symbol = fromLeft ? '🚚' : '🚛';
                     this.maxLife = Math.ceil((width + 100) / Math.abs(this.vx));
-                    this.maxAlpha = 0.85;
+                    this.maxAlpha = 0.4;
                 } else if (cardId === 'card-math-game') {
                     // Fast time-attack streak
                     this.type = 'streak';
@@ -1134,7 +1147,7 @@
                     const items = ['⚡', '⏱️', '+10', 'STREAK!', '3x', 'FAST!'];
                     this.symbol = items[Math.floor(Math.random() * items.length)];
                     this.maxLife = Math.ceil((width + 120) / Math.abs(this.vx));
-                    this.maxAlpha = 0.9;
+                    this.maxAlpha = 0.4;
                 } else {
                     // General horizontal floaters for converter, cv, math
                     this.type = 'floater';
@@ -1144,7 +1157,7 @@
                     this.vy = (Math.random() - 0.5) * 0.5;
                     this.size = Math.random() * 8 + 14;
                     this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
-                    this.maxAlpha = 0.75;
+                    this.maxAlpha = 0.35;
 
                     const config = {
                         'card-converter': { hue: 40, items: ['⇄', 'kg ⇄ lb', 'km ⇄ mi', '°C ⇄ °F'] },
@@ -1182,68 +1195,23 @@
                 if (this.life >= this.maxLife || (this.vx > 0 && this.x > width + 80) || (this.vx < 0 && this.x < -80)) {
                     this.dead = true;
                 }
-
-                // Spawn thruster sparks for landers or cargo trail for trucks
-                if (!this.dead && Math.random() < 0.35) {
-                    if (this.type === 'lander') {
-                        const sparkX = this.vx > 0 ? this.x - 15 : this.x + 15;
-                        themeEntities.push(new TrailParticle(sparkX, this.y, -this.vx * 0.4, (Math.random() - 0.5) * 0.8, this.hue, '🔥'));
-                    } else if (this.type === 'truck') {
-                        const trailX = this.vx > 0 ? this.x - 12 : this.x + 12;
-                        themeEntities.push(new TrailParticle(trailX, this.y + 4, -this.vx * 0.2, (Math.random() - 0.5) * 0.3, this.hue, '•'));
-                    }
-                }
             }
 
             draw(ctx) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                if (this.vx < 0 && (this.type === 'lander' || this.type === 'truck')) {
+                // 🚚/🚛 have the cab on the left, so they face left as drawn — flip them
+                // when driving right. 🚀 points up-right, so it's the opposite.
+                if (this.type === 'truck' ? this.vx > 0 : (this.type === 'lander' && this.vx < 0)) {
                     ctx.scale(-1, 1);
                 }
                 ctx.fillStyle = `hsla(${this.hue}, 85%, 75%, ${this.alpha})`;
                 ctx.shadowColor = `hsla(${this.hue}, 90%, 65%, ${this.alpha * 0.8})`;
-                ctx.shadowBlur = 14;
+                ctx.shadowBlur = 10;
                 ctx.font = `${Math.round(this.size)}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(this.symbol, 0, 0);
-                ctx.restore();
-            }
-        }
-
-        class TrailParticle {
-            constructor(x, y, vx, vy, hue, symbol) {
-                this.x = x;
-                this.y = y;
-                this.vx = vx;
-                this.vy = vy;
-                this.hue = hue;
-                this.symbol = symbol;
-                this.life = 0;
-                this.maxLife = Math.random() * 25 + 15;
-                this.dead = false;
-                this.size = Math.random() * 6 + 8;
-                this.alpha = 0.7;
-            }
-
-            update() {
-                this.life++;
-                this.x += this.vx;
-                this.y += this.vy;
-                this.alpha = (1 - this.life / this.maxLife) * 0.7;
-                if (this.life >= this.maxLife) this.dead = true;
-            }
-
-            draw(ctx) {
-                ctx.save();
-                ctx.fillStyle = `hsla(${this.hue}, 90%, 70%, ${this.alpha})`;
-                ctx.shadowColor = `hsla(${this.hue}, 95%, 60%, ${this.alpha})`;
-                ctx.shadowBlur = 8;
-                ctx.font = `${Math.round(this.size)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.symbol, this.x, this.y);
                 ctx.restore();
             }
         }
@@ -1443,8 +1411,8 @@
                 }
             }
 
-            // Spawn background theme entities when hovering over a card
-            if (activeThemeCardId && Math.random() < 0.18) {
+            // Spawn background theme entities after a lingering hover over a card
+            if (themeSpawnArmed && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
 
