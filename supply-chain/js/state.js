@@ -51,6 +51,8 @@ SC.newState = function(difficulty) {
         upgrades: { truckSpeed: 0, factorySpeed: 0, truckCapacity: 0 },
         research: { completed: {}, active: null }, // active: { id, t } elapsed seconds
         promoUntil: 0,      // sim time the running promotion ends (0 = none)
+        promoGood: null,    // target product key for active promotion ('all' or specific good, e.g. 'bread')
+        regionsUnlocked: 0, // count of additional regions unlocked (Item 15)
         defaultIn: null,    // default countdown while below -creditLimit (null = safe)
         gameOver: false,    // defaulted — sim frozen, overlay shown
         speed: 1,           // fast-forward multiplier: 1/2/4, see main.js's loop
@@ -108,9 +110,13 @@ SC.truckSpeed = function() {
     return SC.CONFIG.TRUCK_SPEED * (1 + u.boost * SC.state.upgrades.truckSpeed);
 };
 
-SC.craftTime = function() {
+SC.craftTime = function(factory) {
     const u = SC.CONFIG.UPGRADES.factorySpeed;
-    return SC.CONFIG.CRAFT_TIME / (1 + u.boost * SC.state.upgrades.factorySpeed);
+    const base = SC.CONFIG.CRAFT_TIME / (1 + u.boost * SC.state.upgrades.factorySpeed);
+    if (factory && factory.specializedRecipe) {
+        return base / (SC.CONFIG.SPECIALIZATION_SPEED_MULT || 1.5);
+    }
+    return base;
 };
 
 SC.truckCapacity = function() {
