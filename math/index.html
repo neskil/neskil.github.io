@@ -757,6 +757,13 @@ function endGame() {
   document.getElementById('game-active').style.display = 'none';
   document.getElementById('game-over').style.display = 'block';
   document.getElementById('final-score-val').innerText = score;
+
+  try {
+    const prevHs = parseInt(localStorage.getItem('mentalMathHighScore') || '0', 10);
+    if (score > prevHs) {
+      localStorage.setItem('mentalMathHighScore', score.toString());
+    }
+  } catch (e) {}
 }
 
 const generators = {

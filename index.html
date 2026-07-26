@@ -280,6 +280,43 @@
             margin-bottom: 2rem;
         }
 
+        .card-stat-chip {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.725rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: var(--text-secondary);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        #card-supply-chain .card-stat-chip {
+            right: 84px;
+        }
+
+        .card:hover .card-stat-chip {
+            background: rgba(var(--accent-rgb), 0.22);
+            border-color: rgba(var(--accent-rgb), 0.45);
+            color: var(--text-primary);
+            box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
+        }
+
+        .card-stat-chip .stat-val {
+            color: rgb(var(--accent-rgb));
+            font-weight: 800;
+        }
+
         .card-link {
             font-size: 0.875rem;
             font-weight: 600;
@@ -863,18 +900,21 @@
             <div class="new-badge">NEW</div>
             <div>
                 <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M2 20h20" opacity="0.4"/>
-                        <path d="M4 20V10l4 2.5V10l4 2.5V8l6 3.5v8.5"/>
-                        <path d="M18 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" opacity="0.6"/>
-                        <circle cx="7" cy="16" r="1.5" fill="currentColor" opacity="0.7"/>
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor" opacity="0.7"/>
-                        <circle cx="17" cy="16" r="1.5" fill="currentColor" opacity="0.7"/>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 20h20"/>
+                        <path d="M4 20V11l4 3V11l4 3V8l6 3.5v8.5"/>
+                        <path d="M18 5c.6-.9 1.4-1.4 2-2" opacity="0.65"/>
+                        <circle cx="7" cy="16" r="1" fill="currentColor" opacity="0.8"/>
+                        <circle cx="12" cy="16" r="1" fill="currentColor" opacity="0.8"/>
+                        <circle cx="17" cy="16" r="1" fill="currentColor" opacity="0.8"/>
                     </svg>
                 </div>
                 <h2 class="card-title">Supply Chain Tycoon</h2>
                 <p class="card-desc">A logistics mini-game: build roads, run trucks, combine raw materials in
                     factories and fill city orders before the clock runs out.</p>
+                <div class="card-stat-chip" id="stat-supply-chain">
+                    <span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>
+                </div>
             </div>
             <span class="card-link">Play <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -900,6 +940,9 @@
                 <p class="card-desc">A physics-based lunar-lander game with a supply-chain twist. Fly cargo across
                     10 handcrafted levels (plus procedural runs), upgrade your ship, and design your own missions
                     in the built-in level editor.</p>
+                <div class="card-stat-chip" id="stat-cargo-lander">
+                    <span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>
+                </div>
             </div>
             <span class="card-link">Play Game <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -989,6 +1032,9 @@
                 <h2 class="card-title">Mental Math Game</h2>
                 <p class="card-desc">Test your conversion skills in a fast-paced 60-second time attack practice mode.
                 </p>
+                <div class="card-stat-chip" id="stat-math-game">
+                    <span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>
+                </div>
             </div>
             <span class="card-link">Start practice <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1281,6 +1327,66 @@
             }
         }
 
+        function loadHighScores() {
+            // 1. Supply Chain Tycoon
+            try {
+                const scRaw = localStorage.getItem('scTycoonSave.v1');
+                const scBadge = document.getElementById('stat-supply-chain');
+                if (scBadge) {
+                    if (scRaw) {
+                        const data = JSON.parse(scRaw);
+                        const earned = data.earnedTotal || data.money || 0;
+                        const delivered = data.delivered || 0;
+                        if (earned > 0 || delivered > 0) {
+                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">$${earned.toLocaleString()}</span> <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${delivered} orders)</span>`;
+                        } else {
+                            scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>`;
+                        }
+                    } else {
+                        scBadge.innerHTML = `<span class="stat-icon">🏆</span> Best Earned: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 2. CargoLander
+            try {
+                const clScoresRaw = localStorage.getItem('cargoLanderHighscores');
+                const clCash = parseInt(localStorage.getItem('cargoLanderCash') || '0', 10);
+                const clBadge = document.getElementById('stat-cargo-lander');
+                if (clBadge) {
+                    let topScore = 0;
+                    if (clScoresRaw) {
+                        const scores = JSON.parse(clScoresRaw);
+                        for (const k in scores) {
+                            const entry = scores[k];
+                            if (typeof entry === 'number' && entry > topScore) topScore = entry;
+                            else if (entry && typeof entry.score === 'number' && entry.score > topScore) topScore = entry.score;
+                        }
+                    }
+                    if (topScore > 0) {
+                        clBadge.innerHTML = `<span class="stat-icon">🚀</span> High Score: <span class="stat-val">${topScore.toLocaleString()} pts</span>`;
+                    } else if (clCash > 0) {
+                        clBadge.innerHTML = `<span class="stat-icon">🚀</span> Pilot Cash: <span class="stat-val">$${clCash.toLocaleString()}</span>`;
+                    } else {
+                        clBadge.innerHTML = `<span class="stat-icon">🚀</span> High Score: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 3. Mental Math Game
+            try {
+                const mathHs = parseInt(localStorage.getItem('mentalMathHighScore') || '0', 10);
+                const mathBadge = document.getElementById('stat-math-game');
+                if (mathBadge) {
+                    if (mathHs > 0) {
+                        mathBadge.innerHTML = `<span class="stat-icon">⚡</span> High Score: <span class="stat-val">${mathHs} pts</span>`;
+                    } else {
+                        mathBadge.innerHTML = `<span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+        }
+
         function init() {
             particles = [];
             themeEntities = [];
@@ -1289,6 +1395,7 @@
             for (let i = 0; i < numberOfParticles; i++) {
                 particles.push(new Particle());
             }
+            loadHighScores();
         }
 
         let scrollY = 0, lastScrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
