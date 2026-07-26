@@ -140,7 +140,10 @@ that ambient animation as its background — it now lives independently at
   spawn rates speed up as your total delivery count increases (`getDeadlineRamp()`,
   `getSpawnRamp()`), adding a dynamic challenge that scales with your empire.
 - **Research**: one project at a time, paid upfront, takes real time,
-  then unlocks its effect. **`SC.RESEARCH` in `config.js` is the source
+  then unlocks its effect. Building a **Research Lab** (Build panel) raises
+  that to two concurrent projects and is required for the late-tier techs —
+  the ones carrying `needsLab: true` in `SC.RESEARCH`. Everything else
+  researches lab-free from the start. **`SC.RESEARCH` in `config.js` is the source
   of truth** for the tech list — name, cost, time, `requires` and effect
   fields all live there, and `SC.RESEARCH_ORDER` fixes display order, so
   don't restate the roster here (it goes stale the moment a tech is
@@ -374,7 +377,7 @@ they signal the UI through the tiny `SC.on`/`SC.emit` pub/sub in state.js.
 | `js/stats.js` | Stats & achievements bookkeeping: deliveries per product, a periodic money-history sample for the sparkline, per-edge trip counts (`recordRoadUse`/`busiestRoad`), and milestone unlocks — all purely observational, listens to events other modules already emit (`roadBuilt`, `orderComplete`, etc.) rather than being called directly |
 | `js/tutorial.js` | Guided first-order tutorial: the step list, which nodes each step points at, and when a step is satisfied. Pure logic — ui.js renders the banner and render-network.js draws the focus dim/rings, both by reading `current()`/`focus()` |
 | `js/inspect.js` | Inspect-mode data: node → its connections/routes, for the hover/hold tooltip and highlight. Collected route paths carry a `.good` property per leg so the glow overlay tints each leg by its cargo (chain-step colors) |
-| `js/research.js` | Tech tree engine: one active project, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
+| `js/research.js` | Tech tree engine: one active project (two with a Research Lab), `needsLab` gate on late-tier techs, cost/time, generic effect accessors (`bonusSum`, `customerSpawnMult`, `upgradeMaxBonus`) |
 | `js/placement.js` | Manual site placement: cost, validity (land/river/min-distance); supplier/factory locked behind research, truck yards and junctions are not |
 | `js/camera.js` | World↔screen transform (isometric 2:1 projection), pan/zoom/clamp (math only). `project`/`unproject` map the flat world ground plane onto the iso view; all input hit-testing rides on `toScreen`/`toWorld`, so logic stays in flat coords |
 | `js/render-core.js` | Rendering entry point. Owns the internal context object `R` (`SC._render`) that the other three render files destructure — shared canvas ctx, camera helpers (`S`/`zoom`), colour utilities, the seeded scenery PRNG (`makeRng`), and the per-frame orchestrator (`frame`/`drawWorld`). Also owns the **background cache**: static scenery (terrain/land/grid/patches/trees) renders into an offscreen layer re-blitted while panning (`renderBg`/`drawBg`) so mobile panning stays smooth; dpr capped at 2. The layer is only ever blitted at its exact render zoom — a scaled blit is a ≤120ms stopgap mid-pinch, then it re-renders (a lingering scaled blit was the mobile "giant/torn scenery" glitch) — and the ctx swap in `renderBg` is try/finally-guarded. `bgKey` includes `terrainKey()` so the cache re-bakes when the field expands |
