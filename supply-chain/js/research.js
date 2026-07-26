@@ -1,5 +1,6 @@
-// Research tree: research building required, up to 2 concurrent projects active at a time,
-// paid upfront, takes time, then unlocks its effect (see SC.RESEARCH in config.js). Pure logic.
+// Research tree: one project at a time by default, two once a Research
+// Lab is built. Late-tier techs (`needsLab` in SC.RESEARCH) also require
+// the lab. Paid upfront, takes time, then unlocks its effect. Pure logic.
 window.SC = window.SC || {};
 
 SC.research = (function() {
@@ -8,8 +9,21 @@ SC.research = (function() {
         return SC.state.nodes.some(n => n.kind === 'researchLab' && n.active && !n.underConstruction);
     }
 
+    // Without a lab you can still run one project at a time; the lab
+    // buys a second concurrent slot (and is the only way into the
+    // `needsLab` late-tier techs, see needsLab below).
     function maxSlots() {
-        return hasBuilding() ? 2 : 0;
+        return hasBuilding() ? 2 : 1;
+    }
+
+    // Late-tier techs are gated on the building; early ones are not.
+    function needsLab(id) {
+        const t = SC.RESEARCH[id];
+        return !!(t && t.needsLab);
+    }
+
+    function labSatisfied(id) {
+        return !needsLab(id) || hasBuilding();
     }
 
     function activeList() {
@@ -67,15 +81,16 @@ SC.research = (function() {
     function isQueueable(id) {
         const t = SC.RESEARCH[id];
         if (!t || isDone(id) || isActive(id) || isQueued(id)) return false;
+        if (!labSatisfied(id)) return false;
         return t.requires.every(req => isDone(req) || isActive(req) || isQueued(req));
     }
 
     function canStart(id) {
-        return hasBuilding() && activeCount() < maxSlots() && isAvailable(id) && !isActive(id) && !isQueued(id) && SC.canAfford(SC.RESEARCH[id].cost);
+        return labSatisfied(id) && activeCount() < maxSlots() && isAvailable(id) && !isActive(id) && !isQueued(id) && SC.canAfford(SC.RESEARCH[id].cost);
     }
 
     function canQueue(id) {
-        return hasBuilding() && isQueueable(id) && SC.canAfford(SC.RESEARCH[id].cost);
+        return isQueueable(id) && SC.canAfford(SC.RESEARCH[id].cost);
     }
 
     function enqueue(id) {
@@ -222,7 +237,7 @@ SC.research = (function() {
         return b;
     }
 
-    return { hasBuilding, maxSlots, activeList, activeCount, activeIds, activeId, isActive,
+    return { hasBuilding, needsLab, labSatisfied, maxSlots, activeList, activeCount, activeIds, activeId, isActive,
              queueList, queueCount, isQueued, isQueueable, canQueue, enqueue, cancelQueue,
              isDone, isAvailable, canStart, start, progress, tick,
              creditBonus, payoutBonus, deadlineBonus, supplierRegenBonus,

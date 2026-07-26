@@ -376,26 +376,35 @@ SC.RESEARCH = {
         desc: 'Unlocks a Shop toggle to auto-accept every contract offer instantly.'
     },
     // ── Late-tier techs ───────────────────────────────────────────
+    // These carry `needsLab: true` — a built Research Lab is required
+    // before they can be started or queued (see research.js). Everything
+    // above researches lab-free, one project at a time; the lab is what
+    // buys the second concurrent slot.
     landSurvey: {
+        needsLab: true,
         name: 'Land Surveying', emoji: '🗺️', cost: 2000, time: 100, requires: ['manualPlacement'],
         desc: 'Unlocks Buy Land in the Build panel — the only way to push the frontier out: new land, and every third parcel a whole new region.'
     },
     predictiveMaint: {
+        needsLab: true,
         name: 'Predictive Maintenance', emoji: '🔧', cost: 1500, time: 90, requires: ['overdrive'],
         desc: 'Sensors catch failures early — operating upkeep is cut by 40%.',
         upkeepMult: 0.6
     },
     debtRestructure: {
+        needsLab: true,
         name: 'Debt Restructuring', emoji: '🏦', cost: 2200, time: 120, requires: ['creditLine3'],
         desc: 'Renegotiate with the bank — debt interest halved and the foreclosure grace period +30s.',
         interestMult: 0.5, graceBonus: 30
     },
     aerospaceTech: {
+        needsLab: true,
         name: 'Aerospace Program', emoji: '🛰️', cost: 2600, time: 150, requires: ['automation'],
         desc: 'Clean-room logistics for high-value freight — order deadlines +15% and Factory Speed cap +2 levels.',
         deadlineBonus: 0.15, upgradeMaxBonus: { factorySpeed: 2 }
     },
     logisticsAI: {
+        needsLab: true,
         name: 'Logistics AI', emoji: '🧠', cost: 3000, time: 180, requires: ['bulkLogistics'],
         desc: 'A dispatch model that juggles more work at once — +3 concurrent orders and payouts +10%.',
         orderCapBonus: 3, payoutBonus: 0.10

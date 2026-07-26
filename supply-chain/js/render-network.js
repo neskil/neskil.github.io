@@ -1590,11 +1590,15 @@
             }
         } else {
             const ghostH = pm.kind === 'yard' ? 14 : 30;
+            // Yards and the lab have no `good` — they carry a fixed icon.
+            const icon = pm.kind === 'yard' ? '🅿️'
+                       : pm.kind === 'researchLab' ? '🔬'
+                       : SC.emojiOf(pm.good);
             prism(g.x, g.y, fw, ghostH * zoom(), base,
                   { ghost: true, dashed: true, outline: rgba(base, 0.9) });
             tc = { x: g.x, y: g.y - ghostH * zoom() };
             R.ctx.globalAlpha = 0.85;
-            emoji(pm.kind === 'yard' ? '🅿️' : SC.emojiOf(pm.good), tc.x, tc.y, 18 * clampZoom());
+            emoji(icon, tc.x, tc.y, 18 * clampZoom());
             R.ctx.globalAlpha = 1;
         }
         labelAt(`$${cost}${valid ? '' : ' — blocked'}`, tc.x, tc.y - 20, valid ? '#34d399' : '#f87171', 11);

@@ -1020,13 +1020,37 @@
             SC.state.money === -800 && SC.state.interestPaid === 42);
     })();
 
+    // ── Lab-free early research vs lab-gated late-tier techs ──
+    (function() {
+        fixture();
+        SC.state.money = 10000;
+
+        assert('late-tier tech is flagged needsLab', SC.research.needsLab('landSurvey'));
+        assert('early tech is not flagged needsLab', !SC.research.needsLab('manualPlacement'));
+        assert('lab-free research runs one project at a time', SC.research.maxSlots() === 1);
+        assert('early tech starts without a lab', SC.research.canStart('manualPlacement'));
+
+        assert('starting an early tech lab-free succeeds', SC.research.start('manualPlacement').ok);
+        assert('second concurrent slot needs the lab', !SC.research.canStart('intersections'));
+        SC.research.tick(SC.RESEARCH.manualPlacement.time + 0.1);
+        assert('lab-free research completes', SC.research.isDone('manualPlacement'));
+
+        assert('late-tier prereq is met', SC.research.isAvailable('landSurvey'));
+        assert('late-tier tech still blocked without the lab',
+            !SC.research.canStart('landSurvey') && !SC.research.canQueue('landSurvey') &&
+            !SC.research.start('landSurvey').ok);
+        assert('a blocked late-tier start costs nothing', SC.state.money === 10000 - SC.RESEARCH.manualPlacement.cost);
+
+        SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: false });
+        assert('late-tier tech unlocks once the lab stands', SC.research.canStart('landSurvey'));
+    })();
+
     // ── Research Building requirement & 2-slot concurrent research ──
     (function() {
         fixture();
         SC.state.money = 10000;
 
-        assert('research locked before Research Lab is built', !SC.research.hasBuilding());
-        assert('cannot start research without Research Lab', !SC.research.canStart('manualPlacement'));
+        assert('no Research Lab at fixture time', !SC.research.hasBuilding());
 
         // Place & finish a Research Lab building
         const lab = SC.map.makeNode('researchLab', 500, 500, { active: true, underConstruction: true, constructionTime: 7.5 });

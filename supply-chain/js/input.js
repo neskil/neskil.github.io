@@ -64,6 +64,8 @@ SC.input = (function() {
             SC.sfx.play('build');
             const what = st.placeMode.kind === 'yard' ? 'Truck yard'
                        : st.placeMode.kind === 'junction' ? 'Junction'
+                       : st.placeMode.kind === 'intersection' ? 'Interchange'
+                       : st.placeMode.kind === 'researchLab' ? 'Research Lab'
                        : `${SC.nameOf(st.placeMode.good)} ${st.placeMode.kind}`;
             SC.emit('toast', { text: `${what} placed for $${SC.placement.price(st.placeMode.kind)}`, kind: 'good' });
             if (st.placeMode.kind === 'yard') st.activeYard = res.node; // new yard becomes the default for future truck buys
