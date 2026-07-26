@@ -772,35 +772,7 @@
             opacity: 1;
         }
 
-        /* ── Secret toast ── */
-        #secret-toast {
-            position: fixed;
-            top: 24px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
-            background: rgba(15, 23, 42, 0.92);
-            border: 1px solid rgba(99, 102, 241, 0.35);
-            color: #f8fafc;
-            padding: 0.7rem 1.4rem;
-            border-radius: 999px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-            z-index: 500;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            white-space: nowrap;
-        }
 
-        #secret-toast.show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        body.gravity-active .card {
-            transition: none;
-        }
 
         /* spark particles */
         .spark {
@@ -882,14 +854,7 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
-            <button type="button" class="vault-row" id="vault-danger-button">
-                <div class="vault-row-icon">🚨</div>
-                <div class="vault-row-body">
-                    <div class="vault-row-title">Do Not Press</div>
-                    <div class="vault-row-desc">Seriously. Don't.</div>
-                </div>
-                <span class="vault-row-arrow">→</span>
-            </button>
+
         </div>
     </div>
 
@@ -1544,107 +1509,7 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
 
-        document.getElementById('vault-danger-button').addEventListener('click', () => {
-            closeVault();
-            setTimeout(() => triggerGravityGlitch(), 350); // let the vault slide away first
-        });
 
-        /* ── Secret animation: Konami code gravity glitch ── */
-        const konamiSeq = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-        let konamiPos = 0;
-        document.addEventListener('keydown', (e) => {
-            const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-            const expected = konamiSeq[konamiPos];
-            if (key === expected) {
-                konamiPos++;
-                if (konamiPos === konamiSeq.length) {
-                    konamiPos = 0;
-                    triggerGravityGlitch();
-                }
-            } else {
-                konamiPos = (key === konamiSeq[0]) ? 1 : 0;
-            }
-        });
-
-        let toastTimer;
-        function showToast(msg) {
-            let toast = document.getElementById('secret-toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'secret-toast';
-                document.body.appendChild(toast);
-            }
-            toast.textContent = msg;
-            clearTimeout(toastTimer);
-            toast.classList.remove('show');
-            void toast.offsetWidth; // restart transition
-            toast.classList.add('show');
-            toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
-        }
-
-        function triggerGravityGlitch() {
-            if (document.body.classList.contains('gravity-active')) return;
-            document.body.classList.add('gravity-active');
-            showToast('🛰️ Gravity malfunction detected!');
-
-            const cards = Array.from(document.querySelectorAll('.card'));
-            const bodies = cards.map(card => {
-                const rect = card.getBoundingClientRect();
-                return {
-                    el: card,
-                    floor: Math.max(0, window.innerHeight - rect.bottom - 4),
-                    y: 0,
-                    vy: 0,
-                    rot: 0,
-                    vr: (Math.random() - 0.5) * 8,
-                    settled: false
-                };
-            });
-
-            const gravity = 0.9, damping = 0.5;
-            let frame = 0;
-
-            function step() {
-                frame++;
-                let allSettled = true;
-                bodies.forEach(b => {
-                    if (b.settled) return;
-                    allSettled = false;
-                    b.vy += gravity;
-                    b.y += b.vy;
-                    b.rot += b.vr;
-                    if (b.y >= b.floor) {
-                        b.y = b.floor;
-                        b.vy *= -damping;
-                        b.vr *= 0.55;
-                        if (Math.abs(b.vy) < 1.5) {
-                            b.vy = 0;
-                            b.rot = 0;
-                            b.settled = true;
-                        }
-                    }
-                    b.el.style.transform = `translateY(${b.y}px) rotate(${b.rot}deg)`;
-                });
-                if (!allSettled && frame < 600) {
-                    requestAnimationFrame(step);
-                } else {
-                    setTimeout(resetGravity, 1000);
-                }
-            }
-            requestAnimationFrame(step);
-
-            function resetGravity() {
-                cards.forEach(card => {
-                    card.style.transition = 'transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    card.style.transform = '';
-                });
-                showToast('✅ Gravity restored');
-                setTimeout(() => {
-                    cards.forEach(card => { card.style.transition = ''; });
-                    document.body.classList.remove('gravity-active');
-                }, 800);
-            }
-        }
 
         /* ── Card tilt + glare ──
            Every card gets a gentle 3D tilt + colored glare. Three sources feed it,
