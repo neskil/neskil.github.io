@@ -9,6 +9,24 @@
     const SITE_OF = { wheat: 'farm', water: 'lake', ore: 'mine', coal: 'mine',
                       copper: 'mine', wool: 'pasture', rubber: 'grove', chips: 'fab' };
     const SITE_H = { farm: 12, lake: 9, mine: 20, pasture: 12, grove: 18, fab: 22 };
+    // An upgraded supplier grows *outward* as well as up: each level widens
+    // the plot, the same way a yard's parking lot grows with the fleet homed
+    // there. At SUPPLIER_MAX_LEVEL (4) a field is ~40% wider, so a maxed farm
+    // reads as a big estate from across the map without opening the tooltip.
+    // Kept well under the ~80-unit minimum node spacing (map.js) so even two
+    // adjacent maxed sites don't overlap.
+    const SITE_FW_PER_LEVEL = 2.5;
+    // Grove canopies [x, y, scale] in plot-relative units, per supplier level:
+    // level 0 is the original trio, each level plants one more in the widened
+    // plot. Built once (drawn ~1×/node/frame) and pre-sorted back-to-front so
+    // nearer canopies overlap the ones behind them.
+    const GROVE_TREES = (function() {
+        const trio = [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]];
+        const extra = [[-0.1, 0.38, 0.95], [0.4, -0.12, 0.85],
+                       [-0.45, -0.28, 1], [0.18, 0.46, 0.9]];
+        return extra.map((_, i) => trio.concat(extra.slice(0, i)).sort((a, b) => a[1] - b[1]))
+            .concat([trio.concat(extra).sort((a, b) => a[1] - b[1])]);
+    })();
     let shadowSprite = null;
     let glowSprite = null;
 
@@ -201,8 +219,9 @@
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
             const site = SITE_OF[n.mat] || 'fab';
-            return { base, fw: site === 'fab' ? 20 : 24, site,
-                     h: SITE_H[site] + (n.level || 0) * 3, icon: SC.emojiOf(n.mat) };
+            const lvl = n.level || 0;
+            return { base, fw: (site === 'fab' ? 20 : 24) + lvl * SITE_FW_PER_LEVEL, site, lvl,
+                     h: SITE_H[site] + lvl * 3, icon: SC.emojiOf(n.mat) };
         }
         if (n.kind === 'factory') {
             let base = '#6b7a90', h = 32, stories = 3, stack = true;
@@ -451,15 +470,21 @@
             R.ctx.fillRect(g.x - rx, g.y - ry, rx * 2, ry * 2);
             R.ctx.strokeStyle = rgba(base, 0.6);
             R.ctx.lineWidth = Math.max(1.5, 2.2 * z);
-            for (let k = -2; k <= 2; k++) {
-                const ox = -0.5 * k * rx * 0.36, oy = 0.25 * k * rx * 0.36;
+            // Furrow count tracks the plot width so the rows keep roughly the
+            // same on-screen spacing instead of stretching apart with the
+            // field (or, if subdivided per level, packing into a solid hatch).
+            const half = Math.round(2 * sp.fw / 24), step = 0.72 / half;
+            for (let k = -half; k <= half; k++) {
+                const ox = -0.5 * k * rx * step, oy = 0.25 * k * rx * step;
                 R.ctx.beginPath();
                 R.ctx.moveTo(g.x + ox - rx, g.y + oy - rx * 0.5);
                 R.ctx.lineTo(g.x + ox + rx, g.y + oy + rx * 0.5);
                 R.ctx.stroke();
             }
             R.ctx.restore();
-            prism(g.x, g.y - ry * 0.62, 6, 9 * z, '#8a5a33');
+            prism(g.x, g.y - ry * 0.62, 6 + sp.lvl * 0.5, (9 + sp.lvl) * z, '#8a5a33');
+            // A second barn once the farm is properly built out.
+            if (sp.lvl >= 2) prism(g.x + rx * 0.42, g.y - ry * 0.18, 4.5, 6.5 * z, '#7a4e2c');
         } else if (sp.site === 'lake') {
             // Pond with ripple rings + a pump hut piping out of it.
             const pg = R.ctx.createLinearGradient(0, g.y - ry, 0, g.y + ry);
@@ -535,10 +560,12 @@
             R.ctx.setLineDash([4 * z, 3 * z]);
             R.ctx.stroke();
             R.ctx.setLineDash([]);
-            prism(g.x, g.y - ry * 0.55, 6.5, 9 * z, '#b91c1c');
+            prism(g.x, g.y - ry * 0.55, 6.5 + sp.lvl * 0.5, (9 + sp.lvl) * z, '#b91c1c');
+            if (sp.lvl >= 2) prism(g.x + rx * 0.4, g.y - ry * 0.14, 4.5, 6.5 * z, '#9a1c1c');
         } else if (sp.site === 'grove') {
-            // Rubber-tree grove: round canopies (unlike the wild pines).
-            for (const [tx, ty, s] of [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]]) {
+            // Rubber-tree grove: round canopies (unlike the wild pines). Each
+            // upgrade plants another tree in the widened plot (GROVE_TREES).
+            for (const [tx, ty, s] of GROVE_TREES[Math.min(sp.lvl, GROVE_TREES.length - 1)]) {
                 const cx = g.x + rx * tx, cy = g.y + ry * ty;
                 R.ctx.strokeStyle = '#4a3323';
                 R.ctx.lineWidth = Math.max(1.5, 2 * z);

@@ -39,6 +39,13 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.61.0: **upgraded suppliers grow on the ground, not just upward** — a
+  supplier level now widens its plot (`SITE_FW_PER_LEVEL`) as well as
+  raising the model, and each site's art fills the extra ground: furrow
+  count tracks the field width, a rubber grove plants another tree per
+  level, farm and pasture gain a second barn from level 2. Same idea as a
+  yard's parking lot growing with the fleet homed there — what you spent
+  on a site is legible from across the map, not only in the ▲ pips.
 - v1.57.1: **the overlap rules explain themselves on the map** — the build
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside
