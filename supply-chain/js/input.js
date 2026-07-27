@@ -130,9 +130,20 @@ SC.input = (function() {
 
     function handleTap(sx, sy, shiftKey) {
         const st = SC.state;
-        if (st.mode === 'inspect') { // tap a node to show/hide its info (mouse also gets live hover)
+        if (st.mode === 'inspect' || st.mode === 'heatmap') { // tap a node to show/hide its info (mouse also gets live hover)
             const node = nodeAtScreen(sx, sy);
             inspectNode = (node && node === inspectNode) ? null : node;
+            if (!node && st.mode === 'heatmap') {
+                const edge = edgeAtScreen(sx, sy);
+                if (edge) {
+                    const trips = edge.trips || 0;
+                    const activeTrucks = SC.vehicles ? SC.vehicles.truckCountOnEdge(edge) : 0;
+                    const speed = SC.roads.speedMult(edge).toFixed(2);
+                    SC.sfx.play('click');
+                    SC.emit('toast', { text: `🛣️ Road Traffic: ${trips} total trips · ${activeTrucks} active trucks · Speed: ${speed}×`, kind: 'info' });
+                    return;
+                }
+            }
             if (node) SC.sfx.play('click');
             return;
         }
