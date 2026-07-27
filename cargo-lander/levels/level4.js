@@ -8,7 +8,6 @@ registerLevel({
   description: "HQ sits on a western plateau; the cargo dock is atop a ridge pillar far to the east, past a gravitational vortex drifting in slow orbit over the open valley. Bring each crate back to the Hollow — a cave alcove carved into the ridge below the dock — but a lava vent guards its mouth, flaring on a duty cycle. Time the flare, duck inside to deliver, then take the low tunnel under the valley floor straight back to HQ instead of running the vortex a second time.",
   hint: "Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. Watch the vent flare before ducking into the Hollow to deliver. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
   gravity: 0.22,
-  maxFuel: 250,
   windVarianceEnabled: false,
   weather: "ash",
   fee: 200,
@@ -25,11 +24,6 @@ registerLevel({
   startY: 140,
   collectionX: 1120,
   collectionY: 159,
-  collectibles: [
-    { type: 'fuel', x: 250, y: -250, amount: 60 },
-    { type: 'fuel', x: 750, y: -200, amount: 60 },
-    { type: 'fuel', x: -100, y: 350, amount: 60 }
-  ],
   quests: [
     questPrimary("Deliver 2 cargo to The Hollow"),
     questNoCargoLost('No cargo lost', 400),
