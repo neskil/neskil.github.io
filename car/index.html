@@ -47,6 +47,17 @@
             --series-3: #199e70; /* taxes, fees & penalties */
             --series-4: #c98500; /* insurance */
             --series-5: #d55181; /* maintenance */
+
+            /* The four routes, as their own entity set for the break-even
+               lines and the option headers. Four hues cannot clear all-pairs
+               CVD separation on this surface — no set from the ramp can — so
+               these carry dash patterns and direct end labels as secondary
+               encoding, and this set is the one that passes the normal-vision
+               floor. Each chart legends its own meaning. */
+            --opt-cash: #3987e5;
+            --opt-loan: #c98500;
+            --opt-lease: #199e70;
+            --opt-rent: #d55181;
         }
 
         * {
@@ -620,6 +631,329 @@
             max-width: 720px;
         }
 
+        /* ── Line charts ── */
+        .linechart {
+            width: 100%;
+            display: block;
+            overflow: visible;
+            touch-action: pan-y;
+        }
+
+        .linechart .grid { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+        .linechart .axis { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; }
+        .linechart .tick {
+            fill: var(--text-mute);
+            font-size: 9px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .linechart .serie {
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .linechart .serie-label {
+            font-size: 9.5px;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+        }
+        .linechart .ctx {
+            fill: none;
+            stroke: rgba(148, 163, 184, 0.30);
+            stroke-width: 1.5;
+        }
+        .linechart .ctx-label { fill: var(--text-mute); font-size: 9px; font-weight: 600; }
+        .linechart .marker-line {
+            stroke: var(--accent);
+            stroke-width: 1.5;
+            stroke-dasharray: 3 3;
+            opacity: 0.7;
+        }
+        .linechart .crosshair {
+            stroke: rgba(255, 255, 255, 0.35);
+            stroke-width: 1;
+            stroke-dasharray: 2 3;
+        }
+        .linechart .cross-dot { stroke: var(--surface-1); stroke-width: 2; }
+        .linechart .band { fill: rgba(255, 106, 61, 0.10); }
+        .linechart .lead-dot { stroke: var(--surface-1); stroke-width: 1.5; }
+        .linechart .axis-title {
+            fill: var(--text-mute);
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .seg-toggle {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            padding: 3px;
+            margin-left: auto;
+        }
+
+        .seg-toggle button {
+            border: none;
+            background: none;
+            color: var(--text-mute);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 100px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .seg-toggle button.active {
+            background: rgba(99, 102, 241, 0.22);
+            color: #c7d2fe;
+        }
+
+        .legend-dash {
+            width: 18px;
+            height: 0;
+            border-top-width: 2px;
+            border-top-style: solid;
+            flex: 0 0 auto;
+        }
+
+        .crossings {
+            margin-top: 10px;
+            font-size: 0.82rem;
+            line-height: 1.55;
+            color: var(--text-secondary);
+        }
+
+        .crossings strong { color: var(--text-primary); }
+
+        /* ── Modal ── */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 7, 13, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+
+        .modal {
+            position: fixed;
+            z-index: 61;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -46%) scale(0.98);
+            width: min(760px, calc(100vw - 20px));
+            max-height: min(92vh, 900px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            background: linear-gradient(135deg, #0c1420 0%, #101a26 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px;
+            padding: 16px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .modal-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .modal-head h2 {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .modal-close {
+            margin-left: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.9rem;
+            flex: 0 0 auto;
+        }
+
+        .modal-close:hover { color: var(--text-primary); background: var(--card-hover-bg); }
+
+        .open-modal-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            width: 100%;
+            justify-content: center;
+            margin-top: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #c7d2fe;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .open-modal-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--violet);
+        }
+
+        .model-chips {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 3px;
+            margin-bottom: 10px;
+        }
+
+        .model-chips::-webkit-scrollbar { display: none; }
+
+        .model-chip {
+            flex: 0 0 auto;
+            padding: 7px 12px;
+            border-radius: 100px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.2s ease;
+        }
+
+        .model-chip:hover { color: var(--text-primary); background: var(--card-hover-bg); }
+
+        .model-chip.active {
+            background: rgba(16, 185, 129, 0.16);
+            border-color: var(--success);
+            color: #6ee7b7;
+        }
+
+        /* ── Range sliders ── */
+        .slider-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .slider-field .slider-head {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .slider-field .slider-val {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 22px;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 5px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 5px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            margin-top: -5.5px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid #0c1420;
+            box-shadow: 0 0 8px rgba(255, 106, 61, 0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #0c1420;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        /* ── Loss readout ── */
+        .loss-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .loss-tile {
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 9px 11px;
+            background: rgba(0, 0, 0, 0.22);
+        }
+
+        .loss-tile .tile-label {
+            font-size: 0.66rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-mute);
+            margin-bottom: 3px;
+        }
+
+        .loss-tile .tile-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .loss-tile .tile-sub {
+            font-size: 0.7rem;
+            color: var(--text-mute);
+            margin-top: 2px;
+        }
+
         /* ── Pros & cons grid ── */
         .pro-con-grid {
             display: grid;
@@ -879,6 +1213,9 @@
                     </div>
                 </div>
             </div>
+            <button type="button" class="open-modal-btn" id="openDepModal">
+                📉 Compare real models — RAV4, CR-V, CX-5, Escape, Equinox, X3
+            </button>
         </section>
 
         <!-- Cash position -->
@@ -912,7 +1249,7 @@
 
             <details class="option" id="optCash">
                 <summary>
-                    <span class="swatch" style="background:var(--series-1)"></span>
+                    <span class="swatch" style="background:var(--opt-cash)"></span>
                     Pay cash
                     <span class="summary-cost" data-cost="cash"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -926,7 +1263,7 @@
 
             <details class="option" id="optLoan">
                 <summary>
-                    <span class="swatch" style="background:var(--series-2)"></span>
+                    <span class="swatch" style="background:var(--opt-loan)"></span>
                     Finance it
                     <span class="summary-cost" data-cost="loan"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -962,7 +1299,7 @@
 
             <details class="option" id="optLease">
                 <summary>
-                    <span class="swatch" style="background:var(--series-3)"></span>
+                    <span class="swatch" style="background:var(--opt-lease)"></span>
                     Lease it
                     <span class="summary-cost" data-cost="lease"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -1021,7 +1358,7 @@
 
             <details class="option" id="optRent">
                 <summary>
-                    <span class="swatch" style="background:var(--series-4)"></span>
+                    <span class="swatch" style="background:var(--opt-rent)"></span>
                     Rent it monthly
                     <span class="summary-cost" data-cost="rent"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -1085,6 +1422,20 @@
             <p id="chartDesc" class="sr-only"></p>
             <div class="legend" id="legend"></div>
             <div class="table-wrap" id="tableWrap" hidden></div>
+        </section>
+
+        <!-- Break-even over time -->
+        <section class="panel">
+            <div class="panel-title">
+                Break-even: how long you keep it
+                <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
+                    <button type="button" data-mode="perMonth" class="active">Per month</button>
+                    <button type="button" data-mode="total">Total</button>
+                </div>
+            </div>
+            <div id="breakevenChart"></div>
+            <div class="legend" id="breakevenLegend"></div>
+            <div class="crossings" id="crossings"></div>
         </section>
 
         <!-- Reading the result -->
@@ -1316,6 +1667,70 @@
         <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
     </div>
 
+    <!-- Depreciation by model -->
+    <div class="modal-backdrop" id="depBackdrop"></div>
+    <div class="modal" id="depModal" role="dialog" aria-modal="true" aria-labelledby="depModalTitle" hidden>
+        <div class="modal-head">
+            <span>📉</span>
+            <h2 id="depModalTitle">Depreciation by model</h2>
+            <button type="button" class="modal-close" id="depClose" aria-label="Close">✕</button>
+        </div>
+
+        <div class="model-chips" id="modelChips" role="group" aria-label="Model"></div>
+
+        <div class="field-grid">
+            <div class="field">
+                <label for="modelYear">Model year</label>
+                <div class="input-shell">
+                    <select id="modelYear"></select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="modelMsrp">Price when new</label>
+                <div class="input-shell">
+                    <span class="prefix">$</span>
+                    <input type="number" id="modelMsrp" min="0" step="500" value="25050">
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:12px" id="depChart"></div>
+        <div class="legend" id="depLegend"></div>
+
+        <div class="field-grid" style="margin-top:12px">
+            <div class="slider-field">
+                <div class="slider-head">
+                    <label for="buyAge">Buy it at</label>
+                    <span class="slider-val" id="buyAgeVal">3.0 yr old</span>
+                </div>
+                <input type="range" id="buyAge" min="0" max="10" step="0.5" value="3">
+            </div>
+            <div class="slider-field">
+                <div class="slider-head">
+                    <label for="holdYears">Hold for</label>
+                    <span class="slider-val" id="holdYearsVal">5.0 yr</span>
+                </div>
+                <input type="range" id="holdYears" min="0.5" max="10" step="0.5" value="5">
+            </div>
+        </div>
+
+        <div class="loss-grid" id="lossGrid"></div>
+
+        <p class="notes" style="margin-top:12px" id="depSummary"></p>
+
+        <button type="button" class="open-modal-btn" id="applyModel" style="background:rgba(16,185,129,0.12);
+            border-color:rgba(16,185,129,0.35); color:#6ee7b7">
+            ↑ Use these numbers in the calculator
+        </button>
+
+        <p class="notes" style="margin-top:12px; color:var(--text-mute); font-size:0.75rem">
+            Curves are modelled from each nameplate's typical five-year retention — the well-documented ranking of how
+            these vehicles hold value — not live listings for a specific VIN. Real prices swing with trim, mileage,
+            colour, region and condition, easily ±15%. Use this to compare models against each other, then check
+            actual asking prices before you buy.
+        </p>
+    </div>
+
     <footer>
         Estimates only — fuel and charging are left out because they are near enough identical across the four
         options for the same car. Not financial advice.
@@ -1337,10 +1752,10 @@
         ];
 
         const OPTIONS = [
-            { key: 'cash',  label: 'Pay cash' },
-            { key: 'loan',  label: 'Finance it' },
-            { key: 'lease', label: 'Lease it' },
-            { key: 'rent',  label: 'Rent monthly' }
+            { key: 'cash',  label: 'Pay cash',     short: 'Cash',   color: 'var(--opt-cash)',  hex: '#3987e5', dash: '' },
+            { key: 'loan',  label: 'Finance it',   short: 'Loan',   color: 'var(--opt-loan)',  hex: '#c98500', dash: '7 3' },
+            { key: 'lease', label: 'Lease it',     short: 'Lease',  color: 'var(--opt-lease)', hex: '#199e70', dash: '2 3' },
+            { key: 'rent',  label: 'Rent monthly', short: 'Rent',   color: 'var(--opt-rent)',  hex: '#d55181', dash: '9 3 2 3' }
         ];
 
         /* First-year drop and the annual rate on the remainder afterwards. */
@@ -1644,6 +2059,258 @@
             return (lo + hi) / 2;
         }
 
+        /* ── Break-even curve ────────────────────────────────────────────
+           The whole comparison hinges on how long you keep the car, so this
+           re-runs all four scenarios across a range of horizons. Resale has to
+           move with the horizon or the curves would be meaningless; a manual
+           resale override is carried through as a scaling factor on the curve
+           so the chart still agrees with the bars at the selected month. */
+        function costCurve(v, maxMonths, step) {
+            const resaleFactor = v.autoResale > 0 ? v.resale / v.autoResale : 1;
+            const points = [];
+            for (let m = 6; m <= maxMonths; m += step) {
+                const variant = Object.assign({}, v, {
+                    months: m,
+                    resale: v.price * retainedValue(m / 12, v.curve) * resaleFactor
+                });
+                const r = computeAll(variant);
+                points.push({
+                    month: m,
+                    cash: r.cash, loan: r.loan, lease: r.lease, rent: r.rent
+                });
+            }
+            return points;
+        }
+
+        /* Where the cheapest option changes hands — the answer to "how long do
+           I have to keep it for buying to win". */
+        function findLeadChanges(points, measure) {
+            const changes = [];
+            let prevLead = null;
+            for (const p of points) {
+                let lead = null, best = Infinity;
+                for (const o of OPTIONS) {
+                    const val = p[o.key][measure];
+                    if (val < best) { best = val; lead = o.key; }
+                }
+                if (prevLead && lead !== prevLead) {
+                    changes.push({ month: p.month, from: prevLead, to: lead });
+                }
+                prevLead = lead;
+            }
+            return changes;
+        }
+
+        function niceStep(range, targetTicks) {
+            const raw = range / targetTicks;
+            const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+            for (const mult of [1, 2, 2.5, 5, 10]) {
+                if (mag * mult >= raw) return mag * mult;
+            }
+            return mag * 10;
+        }
+
+        /* Direct end labels are how these charts stay readable without relying
+           on colour, so they must never sit on top of each other: nudge them
+           apart in y, keeping their order, then pull the stack back inside the
+           plot if it has run off the bottom. */
+        function stackLabels(items, minGap, top, bottom) {
+            const sorted = items.slice().sort((a, b) => a.y - b.y);
+            for (let i = 1; i < sorted.length; i++) {
+                if (sorted[i].y - sorted[i - 1].y < minGap) sorted[i].y = sorted[i - 1].y + minGap;
+            }
+            const overflow = sorted.length ? sorted[sorted.length - 1].y - bottom : 0;
+            if (overflow > 0) {
+                for (const it of sorted) it.y = Math.max(top, it.y - overflow);
+            }
+            return sorted;
+        }
+
+        /* Minimal SVG line-chart plumbing shared by both charts: a linear
+           scale pair plus axis furniture. */
+        function chartFrame(opts) {
+            const { width, height, pad, xMin, xMax, yMin, yMax } = opts;
+            const px = (x) => pad.l + (x - xMin) / (xMax - xMin || 1) * (width - pad.l - pad.r);
+            const py = (y) => height - pad.b - (y - yMin) / (yMax - yMin || 1) * (height - pad.t - pad.b);
+            return { px, py, plotW: width - pad.l - pad.r, plotH: height - pad.t - pad.b };
+        }
+
+        let curveMeasure = 'perMonth';
+        let curveState = null;
+
+        function renderBreakeven(v) {
+            const host = $('breakevenChart');
+            const maxMonths = Math.max(72, Math.min(240, Math.ceil((v.months + 24) / 12) * 12));
+            const step = maxMonths > 132 ? 3 : 2;
+            const points = costCurve(v, maxMonths, step);
+            const measure = curveMeasure;
+
+            const values = [];
+            for (const p of points) for (const o of OPTIONS) values.push(p[o.key][measure]);
+            const yMax = Math.max(...values) * 1.06;
+            const yMin = Math.min(0, Math.min(...values));
+
+            const width = 700, height = 300;
+            const pad = { l: 48, r: 54, t: 12, b: 34 };
+            const f = chartFrame({ width, height, pad, xMin: 6, xMax: maxMonths, yMin, yMax });
+
+            const yStep = niceStep(yMax - yMin, 5);
+            let svg = '<svg class="linechart" viewBox="0 0 ' + width + ' ' + height +
+                '" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="beDesc">';
+
+            /* Gridlines and y labels */
+            for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
+                svg += '<line class="grid" x1="' + pad.l + '" y1="' + f.py(y).toFixed(1) +
+                    '" x2="' + (width - pad.r) + '" y2="' + f.py(y).toFixed(1) + '"/>';
+                svg += '<text class="tick" x="' + (pad.l - 6) + '" y="' + (f.py(y) + 3).toFixed(1) +
+                    '" text-anchor="end">' + (measure === 'total' ? usdShort(y) : usd0(y)) + '</text>';
+            }
+
+            /* x axis in years */
+            for (let m = 12; m <= maxMonths; m += 12) {
+                if (maxMonths > 120 && m % 24 !== 0) continue;
+                svg += '<line class="grid" x1="' + f.px(m).toFixed(1) + '" y1="' + pad.t +
+                    '" x2="' + f.px(m).toFixed(1) + '" y2="' + (height - pad.b) + '"/>';
+                svg += '<text class="tick" x="' + f.px(m).toFixed(1) + '" y="' + (height - pad.b + 14) +
+                    '" text-anchor="middle">' + (m / 12) + 'y</text>';
+            }
+            svg += '<line class="axis" x1="' + pad.l + '" y1="' + (height - pad.b) + '" x2="' +
+                (width - pad.r) + '" y2="' + (height - pad.b) + '"/>';
+            svg += '<text class="axis-title" x="' + (width - pad.r) + '" y="' + (height - 4) +
+                '" text-anchor="end">Years owned →</text>';
+
+            /* The horizon you picked */
+            if (v.months >= 6 && v.months <= maxMonths) {
+                svg += '<line class="marker-line" x1="' + f.px(v.months).toFixed(1) + '" y1="' + pad.t +
+                    '" x2="' + f.px(v.months).toFixed(1) + '" y2="' + (height - pad.b) + '"/>';
+                svg += '<text class="tick" x="' + f.px(v.months).toFixed(1) + '" y="' + (pad.t + 9) +
+                    '" text-anchor="middle" fill="' + 'var(--accent)' + '">your ' + v.months + ' mo</text>';
+            }
+
+            /* Series, each with its own dash so identity survives colour loss */
+            const last = points[points.length - 1];
+            const labels = [];
+            for (const o of OPTIONS) {
+                const d = points.map((p, i) => (i ? 'L' : 'M') + f.px(p.month).toFixed(1) + ' ' +
+                    f.py(p[o.key][measure]).toFixed(1)).join(' ');
+                svg += '<path class="serie" d="' + d + '" stroke="' + o.color + '"' +
+                    (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>';
+                labels.push({ y: f.py(last[o.key][measure]) + 3, text: o.short, color: o.color });
+            }
+            for (const l of stackLabels(labels, 11, pad.t + 8, height - pad.b)) {
+                svg += '<text class="serie-label" x="' + (width - pad.r + 5) + '" y="' + l.y.toFixed(1) +
+                    '" fill="' + l.color + '">' + l.text + '</text>';
+            }
+
+            /* Lead changes — the actual break-even points */
+            const changes = findLeadChanges(points, measure);
+            for (const c of changes) {
+                const p = points.find((q) => q.month === c.month);
+                svg += '<circle class="lead-dot" cx="' + f.px(c.month).toFixed(1) + '" cy="' +
+                    f.py(p[c.to][measure]).toFixed(1) + '" r="4" fill="var(--accent)"/>';
+            }
+
+            svg += '<g id="beCross" style="display:none"><line class="crosshair" y1="' + pad.t + '" y2="' +
+                (height - pad.b) + '"/></g>';
+            svg += '<rect id="beHit" x="' + pad.l + '" y="' + pad.t + '" width="' + f.plotW + '" height="' +
+                f.plotH + '" fill="transparent" style="cursor:crosshair"/>';
+            svg += '</svg>';
+
+            host.innerHTML = svg;
+            curveState = { points, measure, f, pad, width, height };
+            attachCurveHover();
+
+            $('breakevenLegend').innerHTML = OPTIONS.map((o) =>
+                '<span class="legend-item"><span class="legend-dash" style="border-top-color:' + o.color +
+                ';border-top-style:' + (o.dash ? 'dashed' : 'solid') + '"></span>' + o.label + '</span>').join('') +
+                '<span class="legend-item"><span class="swatch" style="background:var(--accent);border-radius:50%">' +
+                '</span>break-even point</span>';
+
+            renderCrossings(changes, points, measure, v);
+        }
+
+        function usdShort(n) {
+            if (Math.abs(n) >= 1000) return '$' + (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k';
+            return '$' + Math.round(n);
+        }
+
+        function attachCurveHover() {
+            const hit = document.getElementById('beHit');
+            if (!hit) return;
+            const cross = document.getElementById('beCross');
+            const svg = hit.ownerSVGElement;
+
+            const move = (evt) => {
+                const box = svg.getBoundingClientRect();
+                const scale = curveState.width / box.width;
+                const x = (evt.clientX - box.left) * scale;
+                const { points, measure, f } = curveState;
+                let nearest = points[0], bestDist = Infinity;
+                for (const p of points) {
+                    const d = Math.abs(f.px(p.month) - x);
+                    if (d < bestDist) { bestDist = d; nearest = p; }
+                }
+                const cx = f.px(nearest.month);
+                cross.style.display = '';
+                cross.querySelector('line').setAttribute('x1', cx);
+                cross.querySelector('line').setAttribute('x2', cx);
+                for (const dot of cross.querySelectorAll('circle')) dot.remove();
+                const ranked = OPTIONS.slice().sort((a, b) => nearest[a.key][measure] - nearest[b.key][measure]);
+                for (const o of OPTIONS) {
+                    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    c.setAttribute('class', 'cross-dot');
+                    c.setAttribute('cx', cx);
+                    c.setAttribute('cy', f.py(nearest[o.key][measure]));
+                    c.setAttribute('r', '3.5');
+                    c.setAttribute('fill', o.color);
+                    cross.appendChild(c);
+                }
+                const rows = ranked.map((o, i) =>
+                    '<div class="tt-label"><span class="swatch" style="background:' + o.color + '"></span>' +
+                    o.label + (i === 0 ? ' ✓' : '') + ' <span class="tt-val">' +
+                    (measure === 'total' ? usd0(nearest[o.key].total) : usd0(nearest[o.key].perMonth) + '/mo') +
+                    '</span></div>').join('');
+                showTooltip(evt, '<div class="tt-val" style="margin-bottom:3px">Keep ' + nearest.month +
+                    ' months (' + (nearest.month / 12).toFixed(1) + ' yr)</div>' + rows);
+            };
+
+            hit.addEventListener('mousemove', move);
+            hit.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { move(e); e.stopPropagation(); } });
+            hit.addEventListener('mouseleave', () => { cross.style.display = 'none'; hideTooltip(); });
+        }
+
+        function renderCrossings(changes, points, measure, v) {
+            const labelOf = (k) => OPTIONS.find((o) => o.key === k).label.toLowerCase();
+            const parts = [];
+
+            if (!changes.length) {
+                const lead = OPTIONS.slice().sort((a, b) =>
+                    points[0][a.key][measure] - points[0][b.key][measure])[0];
+                parts.push('<strong>' + lead.label + '</strong> is cheapest at every length of ownership on these ' +
+                    'numbers — there is no crossover to wait for.');
+            } else {
+                parts.push(changes.map((c) => 'At <strong>' + c.month + ' months (' +
+                    (c.month / 12).toFixed(1) + ' yr)</strong> ' + labelOf(c.to) +
+                    ' overtakes ' + labelOf(c.from)).join('; ') + '.');
+            }
+
+            /* The gradient at your chosen horizon says whether waiting helps. */
+            const here = points.reduce((a, b) =>
+                Math.abs(b.month - v.months) < Math.abs(a.month - v.months) ? b : a);
+            const later = points[Math.min(points.indexOf(here) + 6, points.length - 1)];
+            if (later !== here) {
+                const bestHere = OPTIONS.slice().sort((a, b) => here[a.key][measure] - here[b.key][measure])[0];
+                const delta = later[bestHere.key].perMonth - here[bestHere.key].perMonth;
+                parts.push('Keeping it a year longer than your ' + v.months + ' months moves ' +
+                    bestHere.label.toLowerCase() + ' by <strong>' + usd0(Math.abs(delta)) + '/mo ' +
+                    (delta < 0 ? 'cheaper' : 'dearer') + '</strong>.');
+            }
+
+            $('crossings').innerHTML = parts.join(' ');
+            $('breakevenChart').setAttribute('aria-label',
+                'Cost by length of ownership. ' + parts.join(' ').replace(/<[^>]+>/g, ''));
+        }
+
         /* ── Rendering ─────────────────────────────────────────────────── */
         const tooltip = $('tooltip');
 
@@ -1912,6 +2579,267 @@
                 '<div class="callout"><span class="ico">' + ico + '</span><span>' + text + '</span></div>').join('');
         }
 
+        /* ── Depreciation by model ───────────────────────────────────────
+           Each nameplate carries a first-year drop and an annual rate on the
+           remainder, calibrated so the five-year retention matches the
+           well-established ranking for these vehicles. Same shape as the main
+           calculator's curve, so the two agree. */
+        const MODELS = [
+            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.15, r: 0.076, msrp2019: 26000, hold5: 0.62 },
+            { key: 'crv',     name: 'Honda CR-V',        d1: 0.16, r: 0.085, msrp2019: 25050, hold5: 0.59 },
+            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.18, r: 0.091, msrp2019: 25000, hold5: 0.56 },
+            { key: 'escape',  name: 'Ford Escape',       d1: 0.21, r: 0.108, msrp2019: 24900, hold5: 0.50 },
+            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.23, r: 0.116, msrp2019: 24000, hold5: 0.47 },
+            { key: 'x3',      name: 'BMW X3',            d1: 0.27, r: 0.124, msrp2019: 41000, hold5: 0.43 }
+        ];
+
+        const MODEL_YEARS = [];
+        for (let y = 2026; y >= 2014; y--) MODEL_YEARS.push(y);
+
+        let selectedModel = 'crv';
+
+        /* Sticker prices drifted up over the decade; 2019 is the anchor. */
+        function modelMsrp(model, year) {
+            return Math.round(model.msrp2019 * Math.pow(1.032, year - 2019) / 50) * 50;
+        }
+
+        function modelRetained(model, years) {
+            if (years <= 0) return 1;
+            if (years <= 1) return 1 - model.d1 * years;
+            return (1 - model.d1) * Math.pow(1 - model.r, years - 1);
+        }
+
+        function currentModel() {
+            return MODELS.find((m) => m.key === selectedModel);
+        }
+
+        function renderDepChart() {
+            const model = currentModel();
+            const msrp = Math.max(0, num('modelMsrp'));
+            const buyAge = parseFloat($('buyAge').value);
+            const hold = parseFloat($('holdYears').value);
+            const sellAge = buyAge + hold;
+            const maxAge = 12;
+
+            const width = 700, height = 280;
+            const pad = { l: 52, r: 58, t: 12, b: 32 };
+            const yMax = msrp * 1.05 || 1;
+            const f = chartFrame({ width, height, pad, xMin: 0, xMax: maxAge, yMin: 0, yMax });
+            const yStep = niceStep(yMax, 5);
+
+            let svg = '<svg class="linechart" viewBox="0 0 ' + width + ' ' + height +
+                '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Value against age by model">';
+
+            for (let y = 0; y <= yMax; y += yStep) {
+                svg += '<line class="grid" x1="' + pad.l + '" y1="' + f.py(y).toFixed(1) + '" x2="' +
+                    (width - pad.r) + '" y2="' + f.py(y).toFixed(1) + '"/>';
+                svg += '<text class="tick" x="' + (pad.l - 6) + '" y="' + (f.py(y) + 3).toFixed(1) +
+                    '" text-anchor="end">' + usdShort(y) + '</text>';
+            }
+            for (let a = 0; a <= maxAge; a += 2) {
+                svg += '<text class="tick" x="' + f.px(a).toFixed(1) + '" y="' + (height - pad.b + 14) +
+                    '" text-anchor="middle">' + a + 'y</text>';
+            }
+            svg += '<line class="axis" x1="' + pad.l + '" y1="' + (height - pad.b) + '" x2="' +
+                (width - pad.r) + '" y2="' + (height - pad.b) + '"/>';
+            svg += '<text class="axis-title" x="' + (width - pad.r) + '" y="' + (height - 3) +
+                '" text-anchor="end">Age in years →</text>';
+
+            /* Hold window */
+            if (sellAge > buyAge) {
+                svg += '<rect class="band" x="' + f.px(Math.min(buyAge, maxAge)).toFixed(1) + '" y="' + pad.t +
+                    '" width="' + Math.max(0, f.px(Math.min(sellAge, maxAge)) - f.px(Math.min(buyAge, maxAge))).toFixed(1) +
+                    '" height="' + f.plotH + '"/>';
+            }
+
+            /* Context: every other model, recessive. One focus line plus quiet
+               context beats six competing hues. */
+            const path = (m) => {
+                const pts = [];
+                for (let a = 0; a <= maxAge; a += 0.25) {
+                    pts.push((a ? 'L' : 'M') + f.px(a).toFixed(1) + ' ' +
+                        f.py(msrp * modelRetained(m, a)).toFixed(1));
+                }
+                return pts.join(' ');
+            };
+
+            const modelLabels = [];
+            for (const m of MODELS) {
+                const endY = f.py(msrp * modelRetained(m, maxAge)) + 3;
+                const focus = m.key === selectedModel;
+                if (!focus) svg += '<path class="ctx" d="' + path(m) + '"/>';
+                modelLabels.push({
+                    y: endY,
+                    text: m.name.split(' ').slice(-1)[0],
+                    cls: focus ? 'serie-label' : 'ctx-label',
+                    color: focus ? 'var(--accent)' : ''
+                });
+            }
+            svg += '<path class="serie" d="' + path(model) + '" stroke="var(--accent)" stroke-width="2.5"/>';
+
+            for (const l of stackLabels(modelLabels, 11, pad.t + 8, height - pad.b)) {
+                svg += '<text class="' + l.cls + '" x="' + (width - pad.r + 5) + '" y="' + l.y.toFixed(1) + '"' +
+                    (l.color ? ' fill="' + l.color + '"' : '') + '>' + l.text + '</text>';
+            }
+
+            /* Where that model year actually sits today */
+            const ageNow = new Date().getFullYear() - Number($('modelYear').value);
+            if (ageNow > 0 && ageNow <= maxAge) {
+                svg += '<line class="marker-line" x1="' + f.px(ageNow).toFixed(1) + '" y1="' + pad.t +
+                    '" x2="' + f.px(ageNow).toFixed(1) + '" y2="' + (height - pad.b) +
+                    '" stroke="rgba(148,163,184,0.55)"/>';
+                svg += '<text class="tick" x="' + f.px(ageNow).toFixed(1) + '" y="' + (pad.t + 9) +
+                    '" text-anchor="middle">today · ' + ageNow + 'y</text>';
+            }
+
+            /* The two chosen points */
+            for (const [age, label] of [[buyAge, 'buy'], [sellAge, 'sell']]) {
+                if (age > maxAge) continue;
+                const value = msrp * modelRetained(model, age);
+                svg += '<circle cx="' + f.px(age).toFixed(1) + '" cy="' + f.py(value).toFixed(1) +
+                    '" r="5" fill="var(--accent)" stroke="var(--surface-1)" stroke-width="2"/>';
+                svg += '<text class="tick" x="' + f.px(age).toFixed(1) + '" y="' + (f.py(value) - 10).toFixed(1) +
+                    '" text-anchor="middle" fill="var(--text-primary)">' + label + ' ' + usdShort(value) + '</text>';
+            }
+            svg += '</svg>';
+
+            $('depChart').innerHTML = svg;
+            $('depLegend').innerHTML =
+                '<span class="legend-item"><span class="legend-dash" style="border-top-color:var(--accent)">' +
+                '</span>' + model.name + '</span>' +
+                '<span class="legend-item"><span class="legend-dash" ' +
+                'style="border-top-color:rgba(148,163,184,0.5)"></span>the others, same price when new</span>';
+        }
+
+        function renderDepReadout() {
+            const model = currentModel();
+            const msrp = Math.max(0, num('modelMsrp'));
+            const buyAge = parseFloat($('buyAge').value);
+            const hold = parseFloat($('holdYears').value);
+            const sellAge = buyAge + hold;
+
+            const buyValue = msrp * modelRetained(model, buyAge);
+            const sellValue = msrp * modelRetained(model, sellAge);
+            const loss = buyValue - sellValue;
+            const pctOfBuy = buyValue > 0 ? loss / buyValue * 100 : 0;
+            const pctOfNew = msrp > 0 ? loss / msrp * 100 : 0;
+
+            $('buyAgeVal').textContent = buyAge === 0 ? 'brand new' : buyAge.toFixed(1) + ' yr old';
+            $('holdYearsVal').textContent = hold.toFixed(1) + ' yr';
+
+            $('lossGrid').innerHTML = [
+                ['You pay', usd0(buyValue), buyAge === 0 ? 'new' : 'at ' + buyAge.toFixed(1) + ' yr old'],
+                ['Worth at sale', usd0(sellValue), 'at ' + sellAge.toFixed(1) + ' yr old'],
+                ['Value lost', usd0(loss), pctOfBuy.toFixed(0) + '% of what you paid'],
+                ['Per year', usd0(loss / hold), usd0(loss / (hold * 12)) + '/mo'],
+                ['Of new price', pctOfNew.toFixed(0) + '%', 'the maker\'s $' + Math.round(msrp / 1000) + 'k']
+            ].map(([label, val, sub]) =>
+                '<div class="loss-tile"><div class="tile-label">' + label + '</div><div class="tile-val">' + val +
+                '</div><div class="tile-sub">' + sub + '</div></div>').join('');
+
+            /* How the same money would have fared in the other five. */
+            const ranked = MODELS.map((m) => ({
+                m,
+                loss: msrp * (modelRetained(m, buyAge) - modelRetained(m, sellAge))
+            })).sort((a, b) => a.loss - b.loss);
+            const bestAlt = ranked[0];
+            const worst = ranked[ranked.length - 1];
+
+            const bits = ['Buying a ' + $('modelYear').value + ' ' + model.name + ' at ' +
+                (buyAge === 0 ? 'new' : buyAge.toFixed(1) + ' years old') + ' and keeping it ' + hold.toFixed(1) +
+                ' years costs you <strong>' + usd0(loss) + '</strong> in value — ' + pctOfBuy.toFixed(0) +
+                '% of the ' + usd0(buyValue) + ' you paid, or <strong>' + usd0(loss / (hold * 12)) +
+                '/mo</strong> before a single tank of fuel.'];
+
+            if (bestAlt.m.key !== model.key) {
+                bits.push('The same window in a <strong>' + bestAlt.m.name + '</strong> would have lost ' +
+                    usd0(bestAlt.loss) + ' — ' + usd0(loss - bestAlt.loss) + ' less. The ' + worst.m.name +
+                    ' is the other end at ' + usd0(worst.loss) + '.');
+            } else {
+                bits.push('That is the best of these six over this window; the ' + worst.m.name + ' would shed ' +
+                    usd0(worst.loss) + ', a difference of ' + usd0(worst.loss - loss) + '.');
+            }
+            bits.push('Note the curve flattens: the same car held from year 5 to year 10 loses far less than from ' +
+                'year 0 to year 5, which is the whole argument for buying used.');
+
+            $('depSummary').innerHTML = bits.join(' ');
+        }
+
+        function refreshModal() {
+            renderDepChart();
+            renderDepReadout();
+        }
+
+        function buildModal() {
+            $('modelChips').innerHTML = MODELS.map((m) =>
+                '<button type="button" class="model-chip' + (m.key === selectedModel ? ' active' : '') +
+                '" data-model="' + m.key + '">' + m.name + '</button>').join('');
+            for (const chip of $('modelChips').querySelectorAll('.model-chip')) {
+                chip.addEventListener('click', () => {
+                    selectedModel = chip.dataset.model;
+                    for (const c of $('modelChips').querySelectorAll('.model-chip')) {
+                        c.classList.toggle('active', c.dataset.model === selectedModel);
+                    }
+                    $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
+                    refreshModal();
+                });
+            }
+
+            $('modelYear').innerHTML = MODEL_YEARS.map((y) =>
+                '<option value="' + y + '"' + (y === 2019 ? ' selected' : '') + '>' + y + '</option>').join('');
+            $('modelMsrp').value = modelMsrp(currentModel(), 2019);
+
+            $('modelYear').addEventListener('change', () => {
+                $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
+                refreshModal();
+            });
+            for (const id of ['modelMsrp', 'buyAge', 'holdYears']) {
+                $(id).addEventListener('input', refreshModal);
+            }
+
+            $('applyModel').addEventListener('click', () => {
+                const model = currentModel();
+                const msrp = Math.max(0, num('modelMsrp'));
+                const buyAge = parseFloat($('buyAge').value);
+                const hold = parseFloat($('holdYears').value);
+                $('price').value = Math.round(msrp * modelRetained(model, buyAge));
+                priceAnchor = 'price';
+                $('horizon').value = Math.round(hold * 12);
+                /* Snap the generic curve to whichever preset holds value most
+                   like this model, so the break-even chart keeps the right
+                   shape either side of the horizon. */
+                const target = modelRetained(model, 5);
+                $('depreciation').value = Object.keys(DEPRECIATION_CURVES).reduce((best, key) =>
+                    Math.abs(retainedValue(5, key) - target) < Math.abs(retainedValue(5, best) - target)
+                        ? key : best, 'typical');
+                $('resale').value = Math.round(msrp * modelRetained(model, buyAge + hold));
+                $('resale').dataset.touched = '1';
+                closeModal();
+                update();
+                $('price').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
+        let lastFocused = null;
+
+        function openModal() {
+            lastFocused = document.activeElement;
+            $('depModal').hidden = false;
+            requestAnimationFrame(() => {
+                $('depBackdrop').classList.add('open');
+                $('depModal').classList.add('open');
+            });
+            refreshModal();
+            $('depClose').focus();
+        }
+
+        function closeModal() {
+            $('depBackdrop').classList.remove('open');
+            $('depModal').classList.remove('open');
+            setTimeout(() => { $('depModal').hidden = true; }, 250);
+            if (lastFocused) lastFocused.focus();
+        }
+
         /* ── Wiring ────────────────────────────────────────────────────── */
         const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'resale', 'miles',
             'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
@@ -1930,6 +2858,7 @@
 
             const results = computeAll(v);
             const best = renderChart(results, v);
+            renderBreakeven(v);
             renderTable(results, v);
             renderVerdict(results, best, v);
             renderCashNote(results, v);
@@ -2021,9 +2950,28 @@
             $('tableToggle').setAttribute('aria-expanded', String(!shown));
         });
 
+        for (const btn of $('curveMode').querySelectorAll('button')) {
+            btn.addEventListener('click', () => {
+                curveMeasure = btn.dataset.mode;
+                for (const b of $('curveMode').querySelectorAll('button')) {
+                    b.classList.toggle('active', b === btn);
+                }
+                update();
+            });
+        }
+
+        $('openDepModal').addEventListener('click', openModal);
+        $('depClose').addEventListener('click', closeModal);
+        $('depBackdrop').addEventListener('click', closeModal);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !$('depModal').hidden) closeModal();
+        });
+
         window.addEventListener('scroll', hideTooltip, { passive: true });
         document.addEventListener('pointerdown', hideTooltip);
+        window.addEventListener('resize', () => { if (!$('depModal').hidden) refreshModal(); });
 
+        buildModal();
         load();
         update();
     </script>
