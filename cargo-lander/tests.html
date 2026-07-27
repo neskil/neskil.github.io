@@ -295,24 +295,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.19.7"></script>
-<script src="game/upgrades.js?v=0.19.7"></script>
-<script src="levels/levels.js?v=0.19.7"></script>
-<script src="levels/levelGenerator.js?v=0.19.7"></script>
-<script src="levels/level1.js?v=0.19.7"></script>
-<script src="levels/level2.js?v=0.19.7"></script>
-<script src="levels/level3.js?v=0.19.7"></script>
-<script src="levels/level4.js?v=0.19.7"></script>
-<script src="levels/level5.js?v=0.19.7"></script>
-<script src="levels/level6.js?v=0.19.7"></script>
-<script src="levels/level7.js?v=0.19.7"></script>
-<script src="levels/level8.js?v=0.19.7"></script>
-<script src="levels/level9.js?v=0.19.7"></script>
-<script src="levels/level10.js?v=0.19.7"></script>
-<script src="levels/levelTest.js?v=0.19.7"></script>
-<script src="levels/collectibleTypes.js?v=0.19.7"></script>
-<script src="audio.js?v=0.19.7"></script>
-<script src="render/shaders.js?v=0.19.7"></script>
+<script src="levels/levelSchema.js?v=0.19.9"></script>
+<script src="game/upgrades.js?v=0.19.9"></script>
+<script src="levels/levels.js?v=0.19.9"></script>
+<script src="levels/levelGenerator.js?v=0.19.9"></script>
+<script src="levels/level1.js?v=0.19.9"></script>
+<script src="levels/level2.js?v=0.19.9"></script>
+<script src="levels/level3.js?v=0.19.9"></script>
+<script src="levels/level4.js?v=0.19.9"></script>
+<script src="levels/level5.js?v=0.19.9"></script>
+<script src="levels/level6.js?v=0.19.9"></script>
+<script src="levels/level7.js?v=0.19.9"></script>
+<script src="levels/level8.js?v=0.19.9"></script>
+<script src="levels/level9.js?v=0.19.9"></script>
+<script src="levels/level10.js?v=0.19.9"></script>
+<script src="levels/levelTest.js?v=0.19.9"></script>
+<script src="levels/collectibleTypes.js?v=0.19.9"></script>
+<script src="audio.js?v=0.19.9"></script>
+<script src="render/shaders.js?v=0.19.9"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -349,26 +349,26 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.19.7"></script>
-<script src="physics/collision.js?v=0.19.7"></script>
-<script src="physics/mechanics.js?v=0.19.7"></script>
-<script src="physics/entities.js?v=0.19.7"></script>
-<script src="physics/atmosphere.js?v=0.19.7"></script>
-<script src="game/game.js?v=0.19.7"></script>
-<script src="game/input.js?v=0.19.7"></script>
-<script src="game/menu.js?v=0.19.7"></script>
-<script src="game/hud.js?v=0.19.7"></script>
-<script src="game/cargo.js?v=0.19.7"></script>
-<script src="render/render.js?v=0.19.7"></script>
-<script src="render/background.js?v=0.19.7"></script>
-<script src="render/terrain.js?v=0.19.7"></script>
-<script src="render/entities.js?v=0.19.7"></script>
-<script src="render/pads.js?v=0.19.7"></script>
-<script src="render/lander.js?v=0.19.7"></script>
-<script src="render/creatures.js?v=0.19.7"></script>
-<script src="render/effects.js?v=0.19.7"></script>
-<script src="render/night.js?v=0.19.7"></script>
-<script src="render/ui.js?v=0.19.7"></script>
+<script src="physics/physics.js?v=0.19.9"></script>
+<script src="physics/collision.js?v=0.19.9"></script>
+<script src="physics/mechanics.js?v=0.19.9"></script>
+<script src="physics/entities.js?v=0.19.9"></script>
+<script src="physics/atmosphere.js?v=0.19.9"></script>
+<script src="game/game.js?v=0.19.9"></script>
+<script src="game/input.js?v=0.19.9"></script>
+<script src="game/menu.js?v=0.19.9"></script>
+<script src="game/hud.js?v=0.19.9"></script>
+<script src="game/cargo.js?v=0.19.9"></script>
+<script src="render/render.js?v=0.19.9"></script>
+<script src="render/background.js?v=0.19.9"></script>
+<script src="render/terrain.js?v=0.19.9"></script>
+<script src="render/entities.js?v=0.19.9"></script>
+<script src="render/pads.js?v=0.19.9"></script>
+<script src="render/lander.js?v=0.19.9"></script>
+<script src="render/creatures.js?v=0.19.9"></script>
+<script src="render/effects.js?v=0.19.9"></script>
+<script src="render/night.js?v=0.19.9"></script>
+<script src="render/ui.js?v=0.19.9"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -435,6 +435,44 @@ test('Reduced Gravity and Air Resistance Tuning', () => {
   phys.initLevel(levels[0], 1600, 1300);
   assert(phys.LANDER_DRAG >= 0.990, 'LANDER_DRAG should be at least 0.990 for reduced air resistance');
   assert(phys.gravity === 0.12, 'L1 gravity should be tuned down to 0.12');
+});
+
+// Auto-snapped pads (no explicit startY/collectionY/hub.y) must land on the
+// terrain's top surface, not on the flat closing edge that runs back along a
+// ground polygon's underside. Regression guard for v0.19.9: making
+// getPolygonSurfaceY() winding-agnostic put every L1 pad at y≈1340 — below the
+// level's own worldBounds.bottomY, i.e. buried under the map.
+test('Auto-Snapped Pads Sit On Terrain Surface, Not Polygon Underside', () => {
+  for (let i = 0; i < levels.length; i++) {
+    const cfg = levels[i];
+    const phys = new CargoPhysics();
+    phys.initLevel(cfg, 1600, 1300);
+    const bottomY = cfg.worldBounds && cfg.worldBounds.bottomY;
+    if (bottomY === undefined) continue;
+
+    const snapped = [];
+    if (cfg.startY === undefined) snapped.push(['HQ', phys.startDepot]);
+    if (cfg.collectionY === undefined) snapped.push(['cargo depot', phys.collectionPoint]);
+    (cfg.deliveryHubs || []).forEach((hub, h) => {
+      if (hub.y === undefined) snapped.push([hub.name || `hub ${h}`, phys.deliveryHubs[h]]);
+    });
+
+    for (const [label, pad] of snapped) {
+      assert(pad.y < bottomY,
+        `${cfg.name}: ${label} snapped to y=${Math.round(pad.y)}, below worldBounds.bottomY=${bottomY}`);
+    }
+  }
+});
+
+// L1 is the level the underside-snap bug actually shipped on — pin its three
+// pads to the terrain vertices they sit between so a future terrain edit that
+// re-buries them fails loudly here.
+test('Level 1 Pads Snap To Their Terrain Vertices', () => {
+  const phys = new CargoPhysics();
+  phys.initLevel(levels[0], 1600, 1300);
+  assert(Math.abs(phys.startDepot.y - 770) < 1, `L1 HQ should sit at y≈770, got ${phys.startDepot.y}`);
+  assert(Math.abs(phys.collectionPoint.y - 420) < 1, `L1 cargo depot should sit at y≈420, got ${phys.collectionPoint.y}`);
+  assert(Math.abs(phys.deliveryHubs[0].y - 700) < 1, `L1 Verdant Depot should sit at y≈700, got ${phys.deliveryHubs[0].y}`);
 });
 
 test('Level 4 Cargo Pickup', () => {
