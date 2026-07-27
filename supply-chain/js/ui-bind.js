@@ -88,6 +88,7 @@
         $('mode-build').addEventListener('click', () => setMode('build'));
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
+        on('mode-heatmap', 'click', () => setMode('heatmap'));
 
         // Whole bar opens the menu, not just the ☰ icon — money/trucks are
         // read-only display, so there's no reason tapping them should miss.

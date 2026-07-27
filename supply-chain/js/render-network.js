@@ -157,8 +157,44 @@
                 strokeEdge(e, casing + 2, e === pending ? 'rgba(248, 113, 113, 0.9)' : 'rgba(250, 204, 21, 0.9)');
             }
 
-            // Congestion heat
-            if (SC.state.congestionEnabled && !armed) {
+            // Heatmap mode overlay: highlight throughput & congestion
+            if (SC.state.mode === 'heatmap' && !armed) {
+                const activeTrucks = SC.vehicles ? SC.vehicles.truckCountOnEdge(e) : 0;
+                const trips = e.trips || 0;
+                const excess = SC.vehicles ? (activeTrucks - SC.CONFIG.CONGESTION_THRESHOLD) : 0;
+                let heat = 0.05;
+                if (excess > 0) {
+                    heat = Math.min(1, 0.7 + excess * 0.15);
+                } else {
+                    heat = Math.min(0.9, activeTrucks * 0.3 + Math.min(0.6, trips / 15));
+                }
+                heat = Math.max(0.08, heat);
+
+                let color = 'rgba(16, 185, 129, 0.85)'; // Green (clear)
+                if (heat > 0.7) {
+                    color = 'rgba(239, 68, 68, 0.95)'; // Red (heavy/bottleneck)
+                } else if (heat > 0.35) {
+                    color = 'rgba(245, 158, 11, 0.9)'; // Yellow (moderate)
+                }
+
+                // Outer heat aura
+                const auraW = casing + (heat > 0.7 ? 8 : 4) * z;
+                strokeEdge(e, auraW, color.replace(/[\d\.]+\)$/, (heat > 0.7 ? '0.5)' : '0.35)')));
+                // Inner bright heat line
+                strokeEdge(e, surfaceW + 1.5 * z, color);
+
+                // Jam warning indicator at midpoint if jammed
+                if (heat > 0.75 || excess > 0) {
+                    const mx = (e.a.x + e.b.x) / 2, my = (e.a.y + e.b.y) / 2;
+                    const p = S(mx, my);
+                    R.ctx.font = 'bold ' + Math.max(10, Math.round(12 * z)) + 'px sans-serif';
+                    R.ctx.textAlign = 'center';
+                    R.ctx.textBaseline = 'middle';
+                    R.ctx.fillStyle = '#ef4444';
+                    R.ctx.fillText('⚠️', p.x, p.y - 8 * z);
+                }
+            } else if (SC.state.congestionEnabled && !armed) {
+                // Standard congestion heat
                 const excess = SC.vehicles.truckCountOnEdge(e) - SC.CONFIG.CONGESTION_THRESHOLD;
                 if (excess > 0) {
                     const heat = Math.min(1, excess / 3);

@@ -867,7 +867,8 @@ SC.ui = (function() {
 
     function updateInspectTooltip() {
         const el = $('inspect-tooltip');
-        const node = SC.state.mode === 'inspect' && SC.input.getInspectNode && SC.input.getInspectNode();
+        if (!el) return;
+        const node = (SC.state.mode === 'inspect' || SC.state.mode === 'heatmap') && SC.input.getInspectNode && SC.input.getInspectNode();
         const info = node && SC.inspect.infoFor(node);
         if (!info) { el.classList.remove('show'); return; }
         el.innerHTML = inspectTooltipHTML(info);
@@ -886,8 +887,15 @@ SC.ui = (function() {
         $('mode-build').classList.toggle('active', mode === 'build');
         $('mode-upgrade').classList.toggle('active', mode === 'upgrade');
         $('mode-inspect').classList.toggle('active', mode === 'inspect');
+        const heatBtn = $('mode-heatmap');
+        if (heatBtn) heatBtn.classList.toggle('active', mode === 'heatmap');
+
+        const legend = $('heatmap-legend');
+        if (legend) legend.classList.toggle('hidden', mode !== 'heatmap');
+
         SC.sfx.play('click');
         if (mode === 'upgrade') toast('Upgrade mode: tap a supplier or a road', 'info');
+        if (mode === 'heatmap') toast('Heatmap mode: view road usage & bottleneck traffic', 'info');
     }
 
     let ordersTimer = 0, lastOrderCount = -1;
@@ -895,6 +903,20 @@ SC.ui = (function() {
         if (dt > 0) fpsSmoothed += (1 / dt - fpsSmoothed) * 0.1;
         updateHUD();
         updateInspectTooltip();
+        if (SC.state.mode === 'heatmap') {
+            const legend = $('heatmap-legend');
+            if (legend && !legend.classList.contains('hidden')) {
+                const totalTrips = SC.state.edges.reduce((sum, e) => sum + (e.trips || 0), 0);
+                const jammed = SC.state.edges.filter(e => {
+                    const activeTrucks = SC.vehicles ? SC.vehicles.truckCountOnEdge(e) : 0;
+                    return activeTrucks > SC.CONFIG.CONGESTION_THRESHOLD;
+                }).length;
+                const summaryEl = $('heatmap-summary');
+                if (summaryEl) {
+                    summaryEl.textContent = `Total Network Trips: ${totalTrips}` + (jammed > 0 ? ` · ⚠️ ${jammed} Jammed` : ' · Flow Smooth');
+                }
+            }
+        }
         ordersTimer += dt;
         if (SC.state.orders.length !== lastOrderCount) {
             lastOrderCount = SC.state.orders.length;

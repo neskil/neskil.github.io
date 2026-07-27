@@ -39,7 +39,12 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
-- v1.57.1: **the overlap rules explain themselves on the map** — the build
+- v1.61.0: **Traffic & Bottleneck Heatmap + Dijkstra Pathfinding Caching** —
+  added a dedicated Heatmap mode button (`🔥`) that visualizes road usage and
+  truck throughput with dynamic color gradients (Green → Yellow → Red glow),
+  midpoint bottleneck warning badges (`⚠️`), and interactive edge traffic stats;
+  implemented Dijkstra path memoization in `roads.js` keyed by `networkVersion` and
+  traffic distribution.
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside
   it (the two hops through that site, or the ends of the road in the way);
