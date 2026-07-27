@@ -39,6 +39,14 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.60.3: **research tree is readable on a phone**. It used to shrink the
+  whole tree toward a 0.62 floor to fit ~11 columns into a phone's width,
+  which made every card too small to read; it now zooms so two columns fill
+  the card (~60% bigger cards) and pans for the rest, opening centred on the
+  project running now — or the first tech the player can actually start —
+  instead of on column 0. The overlay also goes edge-to-edge on phones, and
+  rows are packed against the tallest card measured *in that row* rather
+  than a fixed pitch sized for the wordiest tech in the whole tree.
 - v1.57.1: **the overlap rules explain themselves on the map** — the build
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside

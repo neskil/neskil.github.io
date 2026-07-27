@@ -1232,7 +1232,22 @@ html, body {
     /* Float toasts above the bottom control cluster (shop / speed / mode)
        instead of on top of it. */
     #toast { bottom: 6rem; }
-    .research-tree-card { padding: 0.8rem; }
+    /* The tree is the whole point of this overlay, and on a phone every rem
+       of chrome around it is a rem the (already cramped) cards don't get —
+       so it goes edge-to-edge and keeps only enough padding to read as a
+       card. Height is capped at 100% of the overlay's content box rather
+       than a vh fraction; ui.js's fitResearchTree() sizes the scroll area
+       from exactly these numbers. */
+    #research-overlay { padding: 0.4rem; }
+    .research-tree-card {
+        padding: 0.6rem;
+        width: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 14px;
+    }
+    .research-tree-header { margin-bottom: 0.5rem; }
+    .research-tree-header h1 { font-size: 1rem; }
     .stats-card { padding: 0.8rem; }
     .stats-ach-grid { grid-template-columns: repeat(2, 1fr); }
 }
