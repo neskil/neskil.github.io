@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lease, Rent or Buy a Car (US) | Niklas Billgren</title>
+    <meta name="description" content="Compare leasing, financing, buying with cash and monthly car subscriptions in the US. Full cost of ownership over your own time horizon, including the opportunity cost of paying cash.">
+    <meta name="theme-color" content="#090d16">
+    <meta name="color-scheme" content="dark">
+    <meta property="og:title" content="Lease, Rent or Buy a Car (US)">
+    <meta property="og:description" content="What a car really costs per month: lease vs. finance vs. cash vs. subscription, including the return your cash gives up.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-9GP823TGLB');
+    </script>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #090d16 0%, #101a26 100%);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-hover-bg: rgba(255, 255, 255, 0.06);
+            --surface-1: #141c2e;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-mute: #64748b;
+            --accent: #ff6a3d;
+            --accent-soft: #ffb38a;
+            --violet: #6366f1;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+
+            /* Categorical series, dark steps — validated against --surface-1
+               (lightness band, chroma floor, CVD separation, contrast). */
+            --series-1: #3987e5; /* depreciation & payments */
+            --series-2: #d95926; /* interest & opportunity cost */
+            --series-3: #199e70; /* taxes, fees & penalties */
+            --series-4: #c98500; /* insurance */
+            --series-5: #d55181; /* maintenance */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+            border-radius: 6px;
+        }
+        button:focus:not(:focus-visible),
+        a:focus:not(:focus-visible) {
+            outline: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 12px 40px;
+            overflow-x: hidden;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 420px;
+            height: 420px;
+            background: radial-gradient(circle, rgba(57, 135, 229, 0.12) 0%, rgba(57, 135, 229, 0) 70%);
+            top: -120px;
+            left: -120px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .bg-glow-2 {
+            position: fixed;
+            width: 420px;
+            height: 420px;
+            background: radial-gradient(circle, rgba(255, 106, 61, 0.08) 0%, rgba(255, 106, 61, 0) 70%);
+            bottom: -120px;
+            right: -120px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* ── Header ── */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            padding: 2px;
+        }
+
+        .header-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .back-nav {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            padding: 6px 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            flex: 0 0 auto;
+        }
+
+        .back-nav:hover {
+            color: var(--text-primary);
+            background: var(--card-hover-bg);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(-3px);
+        }
+
+        /* ── Panels ── */
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 14px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-title .hint {
+            margin-left: auto;
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: var(--text-mute);
+        }
+
+        /* ── Verdict ── */
+        .verdict {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.10) 0%, rgba(57, 135, 229, 0.08) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.28);
+        }
+
+        .verdict-head {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .verdict-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            width: 100%;
+        }
+
+        .verdict-winner {
+            font-size: 1.7rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .verdict-cost {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .verdict-sub {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .verdict-sub strong {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        /* ── Inputs ── */
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .field label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .input-shell {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 6px 10px;
+            height: 42px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .input-shell:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 12px rgba(255, 106, 61, 0.22);
+        }
+
+        .input-shell .prefix,
+        .input-shell .suffix {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-mute);
+            pointer-events: none;
+            flex: 0 0 auto;
+        }
+
+        .input-shell .prefix { margin-right: 4px; }
+        .input-shell .suffix { margin-left: 4px; }
+
+        .input-shell input,
+        .input-shell select {
+            width: 100%;
+            min-width: 0;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .input-shell select {
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+        }
+
+        .input-shell select option {
+            background: #101a26;
+            color: var(--text-primary);
+        }
+
+        .input-shell input::-webkit-outer-spin-button,
+        .input-shell input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-shell input[type=number] { -moz-appearance: textfield; }
+
+        /* ── Horizon presets ── */
+        .preset-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            padding-bottom: 2px;
+            margin-bottom: 10px;
+        }
+        .preset-row::-webkit-scrollbar { display: none; }
+
+        .preset-btn {
+            flex: 0 0 auto;
+            padding: 8px 14px;
+            border-radius: 100px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-btn:hover {
+            background: var(--card-hover-bg);
+            color: var(--text-primary);
+        }
+
+        .preset-btn.active {
+            background: rgba(99, 102, 241, 0.16);
+            border-color: var(--violet);
+            color: #c7d2fe;
+        }
+
+        /* ── Option detail accordions ── */
+        details.option {
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.18);
+            overflow: hidden;
+        }
+
+        details.option + details.option { margin-top: 8px; }
+
+        details.option > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 11px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            transition: background 0.2s ease;
+        }
+
+        details.option > summary::-webkit-details-marker { display: none; }
+        details.option > summary:hover { background: var(--card-hover-bg); }
+
+        details.option > summary .chev {
+            margin-left: auto;
+            color: var(--text-mute);
+            transition: transform 0.2s ease;
+            flex: 0 0 auto;
+        }
+
+        details.option[open] > summary .chev { transform: rotate(90deg); }
+
+        details.option > summary .summary-cost {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .option-body {
+            padding: 4px 14px 14px;
+        }
+
+        .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex: 0 0 auto;
+        }
+
+        /* ── Chart ── */
+        .chart {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+
+        .bar-head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .bar-head .total {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        .bar-head .total small {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-mute);
+            font-weight: 600;
+        }
+
+        .bar-head .tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 2px 7px;
+            border-radius: 100px;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--success);
+        }
+
+        .bar-track {
+            display: flex;
+            gap: 2px;
+            height: 26px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            overflow: hidden;
+        }
+
+        .bar-seg {
+            height: 100%;
+            min-width: 0;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), filter 0.15s ease;
+            cursor: default;
+        }
+
+        .bar-seg:first-child { border-radius: 4px 0 0 4px; }
+        .bar-seg:last-child { border-radius: 0 4px 4px 0; }
+        .bar-seg:hover { filter: brightness(1.25); }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .tooltip {
+            position: fixed;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -120%);
+            transition: opacity 0.12s ease;
+            background: rgba(9, 13, 22, 0.96);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 7px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+        }
+
+        .tooltip .tt-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .tooltip .tt-label {
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Table view ── */
+        .table-toggle {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
+        .table-toggle:hover { color: var(--text-primary); }
+
+        .table-wrap {
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        th, td {
+            text-align: right;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        th:first-child, td:first-child { text-align: left; }
+
+        thead th {
+            color: var(--text-mute);
+            font-weight: 700;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tbody td {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+
+        tbody td:first-child {
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        tbody tr.total-row td {
+            color: var(--text-primary);
+            font-weight: 700;
+            border-bottom: none;
+        }
+
+        /* ── Callouts / notes ── */
+        .callout {
+            display: flex;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .callout + .callout { margin-top: 8px; }
+        .callout .ico { flex: 0 0 auto; font-size: 1rem; }
+        .callout strong { color: var(--text-primary); }
+        .callout.warn { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.07); }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .notes {
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .notes li { margin: 0 0 8px 18px; }
+        .notes li:last-child { margin-bottom: 0; }
+        .notes strong { color: var(--text-primary); }
+
+        footer {
+            margin-top: 18px;
+            font-size: 0.72rem;
+            color: var(--text-mute);
+            text-align: center;
+            line-height: 1.6;
+            max-width: 720px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        @media (max-width: 480px) {
+            .verdict-winner { font-size: 1.4rem; }
+            .field-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <div class="container">
+        <div class="header-bar">
+            <span class="header-title">Lease · Rent · Buy 🇺🇸</span>
+            <a href="../index.html" class="back-nav">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Home
+            </a>
+        </div>
+
+        <!-- Verdict -->
+        <section class="panel verdict" id="verdict">
+            <div class="verdict-head">
+                <span class="verdict-label">Cheapest over your horizon</span>
+                <span class="verdict-winner" id="verdictWinner">—</span>
+                <span class="verdict-cost" id="verdictCost"></span>
+            </div>
+            <p class="verdict-sub" id="verdictSub"></p>
+            <p class="verdict-sub" id="verdictWarning" style="color:var(--warning)"></p>
+        </section>
+
+        <!-- Shared inputs -->
+        <section class="panel">
+            <div class="panel-title">The car &amp; how long you keep it</div>
+            <div class="preset-row" id="horizonPresets">
+                <button class="preset-btn" data-months="24" type="button">2 yr</button>
+                <button class="preset-btn" data-months="36" type="button">3 yr</button>
+                <button class="preset-btn" data-months="48" type="button">4 yr</button>
+                <button class="preset-btn" data-months="60" type="button">5 yr</button>
+                <button class="preset-btn" data-months="96" type="button">8 yr</button>
+                <button class="preset-btn" data-months="120" type="button">10 yr</button>
+            </div>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="horizon">Keep it for</label>
+                    <div class="input-shell">
+                        <input type="number" id="horizon" min="6" max="240" step="1" value="60">
+                        <span class="suffix">mo</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="price">Out-the-door price</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="price" min="0" step="500" value="32000">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="taxRate">Sales tax</label>
+                    <div class="input-shell">
+                        <input type="number" id="taxRate" min="0" max="15" step="0.1" value="7">
+                        <span class="suffix">%</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="fees">Doc, title &amp; plates</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="fees" min="0" step="50" value="800">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="depreciation">Depreciation curve</label>
+                    <div class="input-shell">
+                        <select id="depreciation">
+                            <option value="slow">Slow — used, truck, Toyota</option>
+                            <option value="typical" selected>Typical — new mainstream</option>
+                            <option value="fast">Fast — luxury, EV</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="resale">Resale at the end</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="resale" min="0" step="250" value="0">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="miles">You drive</label>
+                    <div class="input-shell">
+                        <input type="number" id="miles" min="0" step="1000" value="12000">
+                        <span class="suffix">mi/yr</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="insurance">Insurance</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="insurance" min="0" step="10" value="160">
+                        <span class="suffix">/mo</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="maintenance">Maintenance &amp; repairs</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="maintenance" min="0" step="10" value="65">
+                        <span class="suffix">/mo</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="registration">Registration</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="registration" min="0" step="25" value="150">
+                        <span class="suffix">/yr</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cash position -->
+        <section class="panel">
+            <div class="panel-title">Your cash <span class="hint">this is what tips the answer</span></div>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="cash">Cash on hand</label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="cash" min="0" step="1000" value="40000">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="returnRate">If invested, it earns</label>
+                    <div class="input-shell">
+                        <input type="number" id="returnRate" min="0" max="30" step="0.1" value="4">
+                        <span class="suffix">% / yr</span>
+                    </div>
+                </div>
+            </div>
+            <div class="callout" style="margin-top:10px">
+                <span class="ico">💡</span>
+                <span id="cashNote"></span>
+            </div>
+        </section>
+
+        <!-- The four options -->
+        <section class="panel">
+            <div class="panel-title">The four ways to get the keys</div>
+
+            <details class="option" id="optCash">
+                <summary>
+                    <span class="swatch" style="background:var(--series-1)"></span>
+                    Pay cash
+                    <span class="summary-cost" data-cost="cash"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <p class="notes" style="margin-bottom:10px">Whole price up front. No payment, no interest — but the
+                        money stops earning, and that forgone return is a real cost, so it is priced in below.</p>
+                </div>
+            </details>
+
+            <details class="option" id="optLoan">
+                <summary>
+                    <span class="swatch" style="background:var(--series-2)"></span>
+                    Finance it
+                    <span class="summary-cost" data-cost="loan"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="down">Down payment</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="down" min="0" step="500" value="4000">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="apr">APR</label>
+                            <div class="input-shell">
+                                <input type="number" id="apr" min="0" max="30" step="0.1" value="6.5">
+                                <span class="suffix">%</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="loanTerm">Loan term</label>
+                            <div class="input-shell">
+                                <input type="number" id="loanTerm" min="12" max="96" step="6" value="60">
+                                <span class="suffix">mo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="notes" style="margin-top:10px" id="loanNote"></p>
+                </div>
+            </details>
+
+            <details class="option" id="optLease">
+                <summary>
+                    <span class="swatch" style="background:var(--series-3)"></span>
+                    Lease it
+                    <span class="summary-cost" data-cost="lease"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="leasePayment">Payment (incl. tax)</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leasePayment" min="0" step="10" value="420">
+                                <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseSigning">Due at signing</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leaseSigning" min="0" step="250" value="2500">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseTerm">Lease term</label>
+                            <div class="input-shell">
+                                <input type="number" id="leaseTerm" min="12" max="60" step="6" value="36">
+                                <span class="suffix">mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseAllowance">Mileage allowance</label>
+                            <div class="input-shell">
+                                <input type="number" id="leaseAllowance" min="0" step="1000" value="10000">
+                                <span class="suffix">mi/yr</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseOverage">Overage charge</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leaseOverage" min="0" step="0.05" value="0.25">
+                                <span class="suffix">/mi</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseDisposition">Disposition fee</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leaseDisposition" min="0" step="50" value="400">
+                            </div>
+                        </div>
+                    </div>
+                    <p class="notes" style="margin-top:10px" id="leaseNote"></p>
+                </div>
+            </details>
+
+            <details class="option" id="optRent">
+                <summary>
+                    <span class="swatch" style="background:var(--series-4)"></span>
+                    Rent it monthly
+                    <span class="summary-cost" data-cost="rent"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="rentRate">All-in rate</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="rentRate" min="0" step="25" value="850">
+                                <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="rentStartFee">Start / delivery fee</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="rentStartFee" min="0" step="50" value="500">
+                            </div>
+                        </div>
+                    </div>
+                    <p class="notes" style="margin-top:10px">Subscription services (Hertz My Car, Finn, a dealer's
+                        month-to-month program) bundle insurance, maintenance, registration and roadside into one rate,
+                        and you can walk away with 30 days' notice. That flexibility is what you are paying for.</p>
+                </div>
+            </details>
+        </section>
+
+        <!-- Chart -->
+        <section class="panel">
+            <div class="panel-title">
+                True cost per month
+                <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
+                    aria-controls="tableWrap">Show numbers</button>
+            </div>
+            <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
+            <p id="chartDesc" class="sr-only"></p>
+            <div class="legend" id="legend"></div>
+            <div class="table-wrap" id="tableWrap" hidden></div>
+        </section>
+
+        <!-- Reading the result -->
+        <section class="panel">
+            <div class="panel-title">How to read this</div>
+            <div id="insights"></div>
+        </section>
+
+        <!-- US specifics -->
+        <section class="panel">
+            <div class="panel-title">US fine print worth knowing</div>
+            <ul class="notes">
+                <li><strong>Sales tax.</strong> Buying is taxed on the full price at purchase. Most states tax a lease
+                    only on each monthly payment — but a handful (Texas, Illinois and a few others) tax the whole
+                    vehicle up front even on a lease. Enter your lease payment tax-inclusive and this is handled.</li>
+                <li><strong>Cash gets you no discount at the dealer.</strong> Dealers earn on financing, so paying cash
+                    can cost you the promotional APR and any finance rebate. Negotiate the out-the-door price first,
+                    reveal how you are paying last, then check whether a 0.9–2.9% promo loan beats your cash return.</li>
+                <li><strong>Leases are mileage-metered.</strong> Go over the allowance and you pay $0.15–$0.30 per mile
+                    at turn-in, plus wear-and-tear charges for anything past "normal". High-mileage drivers rarely win
+                    on a lease.</li>
+                <li><strong>You cannot walk out of a lease cheaply.</strong> Early termination bills the remaining
+                    payments; a transfer (Swapalease and friends) is the usual escape hatch, and some captives ban it.
+                    A month-to-month subscription is the option you can actually cancel.</li>
+                <li><strong>Gap coverage.</strong> With little or no money down, a loan can be underwater for the first
+                    year or two — gap insurance covers the difference if the car is totalled. Leases usually include it.</li>
+                <li><strong>Insurance is not equal.</strong> Leases and loans require comprehensive and collision with
+                    set deductibles; on an owned older car you can drop coverage and save. Subscriptions include it.</li>
+                <li><strong>Business use.</strong> If the car runs through a business, lease payments and depreciation
+                    deduct differently (Section 179 / bonus depreciation vs. the lease inclusion amount). That can flip
+                    the ranking, and it is a question for a CPA, not a calculator.</li>
+            </ul>
+        </section>
+
+        <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+    </div>
+
+    <footer>
+        Estimates only — fuel and charging are left out because they are near enough identical across the four
+        options for the same car. Not financial advice.
+    </footer>
+
+    <script>
+        'use strict';
+
+        /* ── Cost components ─────────────────────────────────────────────
+           Every dollar that leaves your pocket is tagged with one of these,
+           so the four options are broken down the same way and the stacked
+           bars are comparable segment by segment. */
+        const COMPONENTS = [
+            { key: 'depreciation', label: 'Depreciation & payments', color: 'var(--series-1)' },
+            { key: 'interest',     label: 'Interest & lost return',  color: 'var(--series-2)' },
+            { key: 'fees',         label: 'Taxes, fees & penalties', color: 'var(--series-3)' },
+            { key: 'insurance',    label: 'Insurance',               color: 'var(--series-4)' },
+            { key: 'maintenance',  label: 'Maintenance',             color: 'var(--series-5)' }
+        ];
+
+        const OPTIONS = [
+            { key: 'cash',  label: 'Pay cash' },
+            { key: 'loan',  label: 'Finance it' },
+            { key: 'lease', label: 'Lease it' },
+            { key: 'rent',  label: 'Rent monthly' }
+        ];
+
+        /* First-year drop and the annual rate on the remainder afterwards. */
+        const DEPRECIATION_CURVES = {
+            slow:    { firstYear: 0.12, annual: 0.10 },
+            typical: { firstYear: 0.20, annual: 0.14 },
+            fast:    { firstYear: 0.28, annual: 0.18 }
+        };
+
+        /* A lease keeps you inside the factory warranty, so you buy tires and
+           oil changes but not a transmission. */
+        const LEASE_MAINTENANCE_SHARE = 0.45;
+
+        const STORAGE_KEY = 'car-lease-rent-buy-v1';
+
+        const $ = (id) => document.getElementById(id);
+        const num = (id) => {
+            const v = parseFloat($(id).value);
+            return Number.isFinite(v) ? v : 0;
+        };
+
+        const usd = (n) => (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
+        const usd0 = (n) => '$' + Math.round(n).toLocaleString('en-US');
+
+        /* ── Cash flow ledger ────────────────────────────────────────────
+           Each entry is an amount, the month it happens, and its component.
+           Money spent in month k could otherwise have compounded until the
+           end of the horizon, so the "lost return" on it is
+           amount * ((1 + i)^(N - k) - 1). Tracking it this way keeps the
+           opportunity cost of paying cash on the same footing as a lease
+           payment made in month 40. */
+        function makeLedger(months, monthlyReturn) {
+            const flows = [];
+            return {
+                add(amount, month, component) {
+                    if (!amount) return;
+                    flows.push({ amount, month: Math.min(Math.max(month, 0), months), component });
+                },
+                totals() {
+                    const out = { depreciation: 0, interest: 0, fees: 0, insurance: 0, maintenance: 0 };
+                    let nominal = 0, lostReturn = 0;
+                    for (const f of flows) {
+                        out[f.component] += f.amount;
+                        nominal += f.amount;
+                        const grown = f.amount * Math.pow(1 + monthlyReturn, months - f.month);
+                        lostReturn += grown - f.amount;
+                    }
+                    out.interest += lostReturn;
+                    return { components: out, nominal, lostReturn };
+                }
+            };
+        }
+
+        function retainedValue(years, curve) {
+            const c = DEPRECIATION_CURVES[curve] || DEPRECIATION_CURVES.typical;
+            if (years <= 0) return 1;
+            if (years <= 1) return 1 - c.firstYear * years;
+            return (1 - c.firstYear) * Math.pow(1 - c.annual, years - 1);
+        }
+
+        function loanPayment(principal, monthlyRate, term) {
+            if (principal <= 0 || term <= 0) return 0;
+            if (monthlyRate === 0) return principal / term;
+            return principal * monthlyRate / (1 - Math.pow(1 + monthlyRate, -term));
+        }
+
+        function loanBalance(principal, monthlyRate, payment, k) {
+            if (monthlyRate === 0) return Math.max(0, principal - payment * k);
+            const grown = principal * Math.pow(1 + monthlyRate, k);
+            const paid = payment * (Math.pow(1 + monthlyRate, k) - 1) / monthlyRate;
+            return Math.max(0, grown - paid);
+        }
+
+        /* Reads every input once so the four scenarios share one snapshot. */
+        function readInputs() {
+            const months = Math.max(1, Math.round(num('horizon')));
+            const price = num('price');
+            const curve = $('depreciation').value;
+            const autoResale = price * retainedValue(months / 12, curve);
+            const resaleField = $('resale');
+            const resale = resaleField.dataset.touched === '1'
+                ? Math.max(0, num('resale'))
+                : autoResale;
+
+            return {
+                months,
+                price,
+                curve,
+                autoResale,
+                resale,
+                taxRate: num('taxRate') / 100,
+                fees: num('fees'),
+                miles: num('miles'),
+                insurance: num('insurance'),
+                maintenance: num('maintenance'),
+                registration: num('registration'),
+                cash: num('cash'),
+                monthlyReturn: Math.pow(1 + num('returnRate') / 100, 1 / 12) - 1,
+                returnRate: num('returnRate') / 100,
+                down: num('down'),
+                apr: num('apr') / 100,
+                loanTerm: Math.max(1, Math.round(num('loanTerm'))),
+                leasePayment: num('leasePayment'),
+                leaseSigning: num('leaseSigning'),
+                leaseTerm: Math.max(1, Math.round(num('leaseTerm'))),
+                leaseAllowance: num('leaseAllowance'),
+                leaseOverage: num('leaseOverage'),
+                leaseDisposition: num('leaseDisposition'),
+                rentRate: num('rentRate'),
+                rentStartFee: num('rentStartFee')
+            };
+        }
+
+        /* Costs an owner carries whichever way the car was bought. */
+        function addOwnerRunningCosts(led, v, maintenanceShare) {
+            for (let m = 1; m <= v.months; m++) {
+                led.add(v.insurance, m, 'insurance');
+                led.add(v.maintenance * maintenanceShare, m, 'maintenance');
+            }
+            const years = Math.ceil(v.months / 12);
+            for (let y = 0; y < years; y++) {
+                led.add(v.registration, Math.min(y * 12, v.months), 'fees');
+            }
+        }
+
+        function scenarioCash(v) {
+            const led = makeLedger(v.months, v.monthlyReturn);
+            led.add(v.price, 0, 'depreciation');
+            led.add(v.price * v.taxRate + v.fees, 0, 'fees');
+            addOwnerRunningCosts(led, v, 1);
+
+            const t = led.totals();
+            t.components.depreciation -= v.resale;
+            return finish(t, v, { resale: v.resale, monthlyOutlay: v.insurance + v.maintenance });
+        }
+
+        function scenarioLoan(v) {
+            const led = makeLedger(v.months, v.monthlyReturn);
+            const down = Math.min(v.down, v.price);
+            const principal = Math.max(0, v.price - down);
+            const j = v.apr / 12;
+            const payment = loanPayment(principal, j, v.loanTerm);
+            const paidMonths = Math.min(v.months, v.loanTerm);
+
+            led.add(down, 0, 'depreciation');
+            led.add(v.price * v.taxRate + v.fees, 0, 'fees');
+
+            /* Walk the amortisation so interest lands in its own component
+               and the principal repaid shows up as money sunk into the car. */
+            let balance = principal;
+            let interestPaid = 0;
+            for (let m = 1; m <= paidMonths; m++) {
+                const interest = balance * j;
+                const principalPart = Math.min(payment - interest, balance);
+                balance -= principalPart;
+                interestPaid += interest;
+                led.add(interest, m, 'interest');
+                led.add(principalPart, m, 'depreciation');
+            }
+            /* Sell before the loan is done and the payoff comes out of the sale. */
+            if (balance > 0.5) led.add(balance, v.months, 'depreciation');
+
+            addOwnerRunningCosts(led, v, 1);
+
+            const t = led.totals();
+            t.components.depreciation -= v.resale;
+            return finish(t, v, {
+                resale: v.resale,
+                payment,
+                interestPaid,
+                balanceAtEnd: balance,
+                monthlyOutlay: (v.months <= v.loanTerm ? payment : 0) + v.insurance + v.maintenance
+            });
+        }
+
+        function scenarioLease(v) {
+            const led = makeLedger(v.months, v.monthlyReturn);
+            const cycles = Math.ceil(v.months / v.leaseTerm);
+            let overageTotal = 0;
+            let unfinishedMonths = 0;
+
+            for (let c = 0; c < cycles; c++) {
+                const start = c * v.leaseTerm;
+                if (start >= v.months) break;
+                const end = Math.min(start + v.leaseTerm, v.months);
+                const monthsThisCycle = end - start;
+
+                led.add(v.leaseSigning, start, 'depreciation');
+                for (let m = start + 1; m <= end; m++) led.add(v.leasePayment, m, 'depreciation');
+
+                /* Turn-in charges only land if this cycle actually finishes
+                   inside the horizon. */
+                if (end === start + v.leaseTerm) {
+                    led.add(v.leaseDisposition, end, 'fees');
+                    const excess = Math.max(0, v.miles - v.leaseAllowance) * (monthsThisCycle / 12);
+                    const charge = excess * v.leaseOverage;
+                    overageTotal += charge;
+                    led.add(charge, end, 'fees');
+                } else {
+                    /* The horizon ends mid-contract — the remaining payments
+                       are outside the comparison, not forgiven. */
+                    unfinishedMonths = start + v.leaseTerm - v.months;
+                }
+            }
+
+            addOwnerRunningCosts(led, v, LEASE_MAINTENANCE_SHARE);
+
+            const t = led.totals();
+            return finish(t, v, {
+                resale: 0,
+                cycles,
+                overageTotal,
+                unfinishedMonths,
+                monthlyOutlay: v.leasePayment + v.insurance + v.maintenance * LEASE_MAINTENANCE_SHARE
+            });
+        }
+
+        function scenarioRent(v) {
+            const led = makeLedger(v.months, v.monthlyReturn);
+            led.add(v.rentStartFee, 0, 'fees');
+            for (let m = 1; m <= v.months; m++) led.add(v.rentRate, m, 'depreciation');
+
+            const t = led.totals();
+            return finish(t, v, { resale: 0, monthlyOutlay: v.rentRate });
+        }
+
+        /* Shared tail: total, per-month, and the raw cash figure without the
+           opportunity-cost layer, so both readings are available. */
+        function finish(t, v, extra) {
+            const total = Object.values(t.components).reduce((a, b) => a + b, 0);
+            return Object.assign({
+                components: t.components,
+                total,
+                perMonth: total / v.months,
+                cashOut: t.nominal,
+                lostReturn: t.lostReturn
+            }, extra);
+        }
+
+        function computeAll(v) {
+            return {
+                cash: scenarioCash(v),
+                loan: scenarioLoan(v),
+                lease: scenarioLease(v),
+                rent: scenarioRent(v)
+            };
+        }
+
+        /* The APR at which financing stops beating cash. Both scenarios move
+           with the APR only through the loan, so a bisection is exact enough
+           and far more readable than solving it in closed form. */
+        function breakEvenApr(v) {
+            const cashTotal = scenarioCash(v).total;
+            const at = (apr) => scenarioLoan(Object.assign({}, v, { apr })).total - cashTotal;
+            if (at(0) > 0) return 0;
+            let lo = 0, hi = 0.30;
+            if (at(hi) < 0) return null;
+            for (let i = 0; i < 60; i++) {
+                const mid = (lo + hi) / 2;
+                if (at(mid) < 0) lo = mid; else hi = mid;
+            }
+            return (lo + hi) / 2;
+        }
+
+        /* ── Rendering ─────────────────────────────────────────────────── */
+        const tooltip = $('tooltip');
+
+        function showTooltip(evt, html) {
+            tooltip.innerHTML = html;
+            tooltip.style.opacity = '1';
+            /* Keep the bubble inside the viewport on narrow screens. */
+            const half = tooltip.offsetWidth / 2;
+            const x = Math.min(Math.max(evt.clientX, half + 8), window.innerWidth - half - 8);
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = evt.clientY + 'px';
+        }
+        function hideTooltip() { tooltip.style.opacity = '0'; }
+
+        function renderChart(results, v) {
+            const chart = $('chart');
+            chart.innerHTML = '';
+
+            const perMonth = OPTIONS.map((o) => results[o.key].perMonth);
+            const max = Math.max(...perMonth, 1);
+            const best = OPTIONS[perMonth.indexOf(Math.min(...perMonth))].key;
+
+            for (const opt of OPTIONS) {
+                const r = results[opt.key];
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+
+                const head = document.createElement('div');
+                head.className = 'bar-head';
+                head.innerHTML =
+                    '<span>' + opt.label + '</span>' +
+                    (opt.key === best ? '<span class="tag">cheapest</span>' : '') +
+                    '<span class="total">' + usd0(r.perMonth) + '<small>/mo</small></span>';
+                row.appendChild(head);
+
+                const track = document.createElement('div');
+                track.className = 'bar-track';
+
+                /* Bars are drawn from positive magnitudes; a negative segment
+                   (a car worth more at the end than it cost) shows as zero
+                   width and stays visible in the numbers table. */
+                const scale = 100 / max;
+                for (const comp of COMPONENTS) {
+                    const value = r.components[comp.key] / v.months;
+                    if (value <= 0.5) continue;
+                    const seg = document.createElement('div');
+                    seg.className = 'bar-seg';
+                    seg.style.background = comp.color;
+                    seg.style.width = (value * scale) + '%';
+                    const tip =
+                        '<div class="tt-label"><span class="swatch" style="background:' + comp.color +
+                        '"></span>' + comp.label + '</div>' +
+                        '<div class="tt-val">' + usd0(value) + '/mo · ' + usd0(r.components[comp.key]) + ' total</div>';
+                    seg.addEventListener('mousemove', (e) => showTooltip(e, tip));
+                    seg.addEventListener('mouseleave', hideTooltip);
+                    /* Touch: tap a segment to read it, tap anywhere to dismiss. */
+                    seg.addEventListener('pointerdown', (e) => {
+                        if (e.pointerType === 'mouse') return;
+                        showTooltip(e, tip);
+                        e.stopPropagation();
+                    });
+                    track.appendChild(seg);
+                }
+                row.appendChild(track);
+                chart.appendChild(row);
+            }
+
+            $('chartDesc').textContent = OPTIONS
+                .map((o) => o.label + ': ' + usd0(results[o.key].perMonth) + ' per month')
+                .join('. ') + '.';
+
+            const legend = $('legend');
+            legend.innerHTML = COMPONENTS.map((c) =>
+                '<span class="legend-item"><span class="swatch" style="background:' + c.color + '"></span>' +
+                c.label + '</span>').join('');
+
+            return best;
+        }
+
+        function renderTable(results, v) {
+            const rows = COMPONENTS.map((c) =>
+                '<tr><td>' + c.label + '</td>' +
+                OPTIONS.map((o) => '<td>' + usd(results[o.key].components[c.key]) + '</td>').join('') +
+                '</tr>').join('');
+
+            $('tableWrap').innerHTML =
+                '<table><caption class="sr-only">Total cost by component over ' + v.months + ' months</caption>' +
+                '<thead><tr><th scope="col">Component</th>' +
+                OPTIONS.map((o) => '<th scope="col">' + o.label + '</th>').join('') +
+                '</tr></thead><tbody>' + rows +
+                '<tr class="total-row"><td>Total over ' + v.months + ' mo</td>' +
+                OPTIONS.map((o) => '<td>' + usd(results[o.key].total) + '</td>').join('') + '</tr>' +
+                '<tr class="total-row"><td>Per month</td>' +
+                OPTIONS.map((o) => '<td>' + usd(results[o.key].perMonth) + '</td>').join('') + '</tr>' +
+                '<tr class="total-row"><td>Cash out of pocket</td>' +
+                OPTIONS.map((o) => '<td>' + usd(results[o.key].cashOut - (results[o.key].resale || 0)) + '</td>').join('') +
+                '</tr></tbody></table>';
+        }
+
+        function renderVerdict(results, best, v) {
+            const ranked = OPTIONS.slice().sort((a, b) => results[a.key].total - results[b.key].total);
+            const win = ranked[0], second = ranked[1];
+            const gap = results[second.key].total - results[win.key].total;
+
+            $('verdictWinner').textContent = win.label;
+            $('verdictCost').textContent = usd0(results[win.key].perMonth) + '/mo · ' +
+                usd0(results[win.key].total) + ' over ' + v.months + ' mo';
+
+            /* Cheapest is only useful if you can actually put the money down. */
+            const upfront = {
+                cash: v.price + v.price * v.taxRate + v.fees,
+                loan: Math.min(v.down, v.price) + v.price * v.taxRate + v.fees,
+                lease: v.leaseSigning,
+                rent: v.rentStartFee
+            };
+            const short = upfront[win.key] - v.cash;
+            $('verdictWarning').innerHTML = short > 0
+                ? '⚠️ It also needs <strong>' + usd0(upfront[win.key]) + '</strong> up front, ' +
+                  usd0(short) + ' more cash than you have.'
+                : '';
+
+            $('verdictSub').innerHTML =
+                'Next best is <strong>' + second.label.toLowerCase() + '</strong>, ' +
+                (gap < 1
+                    ? 'which lands within a rounding error — treat them as a tie and pick on flexibility.'
+                    : 'costing <strong>' + usd0(gap) + '</strong> more over ' + v.months + ' months (' +
+                      usd0(gap / v.months) + '/mo). Most expensive: <strong>' +
+                      ranked[ranked.length - 1].label.toLowerCase() + '</strong> at ' +
+                      usd0(results[ranked[ranked.length - 1].key].total) + '.');
+        }
+
+        function renderCashNote(results, v) {
+            const upfrontCash = v.price + v.price * v.taxRate + v.fees;
+            const shortfall = upfrontCash - v.cash;
+            const be = breakEvenApr(v);
+            const parts = [];
+
+            if (shortfall > 0) {
+                parts.push('Buying outright needs <strong>' + usd0(upfrontCash) +
+                    '</strong> up front — <strong>' + usd0(shortfall) + '</strong> more than you have, so cash is ' +
+                    'shown for comparison only.');
+            } else {
+                parts.push('Buying outright takes <strong>' + usd0(upfrontCash) +
+                    '</strong> of your ' + usd0(v.cash) + ', leaving <strong>' + usd0(-shortfall) +
+                    '</strong> liquid.');
+                parts.push('Over ' + v.months + ' months that money would have earned <strong>' +
+                    usd0(results.cash.lostReturn) + '</strong> at ' + (v.returnRate * 100).toFixed(1) +
+                    '% — that is the real price of paying cash, and it is in the bars below.');
+            }
+
+            if (be === null) {
+                parts.push('No realistic APR makes financing beat cash here.');
+            } else if (be <= 0.0001) {
+                parts.push('Even a 0% loan does not beat cash at these numbers.');
+            } else {
+                const cmp = v.apr < be ? 'below' : 'above';
+                parts.push('<strong>Financing wins below an APR of ' + (be * 100).toFixed(2) + '%.</strong> ' +
+                    'Your ' + (v.apr * 100).toFixed(2) + '% is ' + cmp + ' that, so ' +
+                    (v.apr < be ? 'borrowing and keeping the cash invested is the cheaper play'
+                                : 'the loan costs more than your cash earns') + '.');
+            }
+
+            $('cashNote').innerHTML = parts.join(' ');
+        }
+
+        function renderOptionNotes(results, v) {
+            const loan = results.loan;
+            const loanBits = ['Payment: <strong>' + usd0(loan.payment) + '/mo</strong>.'];
+            if (v.months < v.loanTerm) {
+                loanBits.push('You sell in month ' + v.months + ' with <strong>' + usd0(loan.balanceAtEnd) +
+                    '</strong> still owed, settled out of the sale.');
+                if (loan.balanceAtEnd > v.resale) {
+                    loanBits.push('<span style="color:var(--warning)">That is more than the car will be worth — ' +
+                        'you would be underwater by ' + usd0(loan.balanceAtEnd - v.resale) + '.</span>');
+                }
+            } else if (v.months === v.loanTerm) {
+                loanBits.push('Paid off exactly at the end of the horizon.');
+            } else {
+                loanBits.push('Paid off in month ' + v.loanTerm + ', then <strong>' + (v.months - v.loanTerm) +
+                    ' payment-free months</strong> of ownership.');
+            }
+            loanBits.push('Interest over the horizon: <strong>' + usd0(loan.interestPaid) + '</strong>.');
+            $('loanNote').innerHTML = loanBits.join(' ');
+
+            const lease = results.lease;
+            const leaseBits = [];
+            if (lease.cycles > 1) {
+                leaseBits.push('A ' + v.leaseTerm + '-month lease does not cover ' + v.months +
+                    ' months, so this assumes <strong>' + lease.cycles +
+                    ' back-to-back leases</strong> on the same terms — signing costs repeat each time.');
+            }
+            if (lease.overageTotal > 0) {
+                leaseBits.push('At ' + v.miles.toLocaleString('en-US') + ' mi/yr against a ' +
+                    v.leaseAllowance.toLocaleString('en-US') + ' mi allowance you owe <strong>' +
+                    usd0(lease.overageTotal) + '</strong> in overage at turn-in.');
+            } else if (v.miles > v.leaseAllowance) {
+                leaseBits.push('You are ' + (v.miles - v.leaseAllowance).toLocaleString('en-US') +
+                    ' mi/yr over the allowance, but no contract reaches turn-in inside this horizon, so the ' +
+                    'overage bill falls outside it.');
+            } else {
+                leaseBits.push('Your mileage fits the allowance with ' +
+                    Math.max(0, v.leaseAllowance - v.miles).toLocaleString('en-US') + ' mi/yr to spare.');
+            }
+            if (lease.unfinishedMonths > 0) {
+                leaseBits.push('<span style="color:var(--warning)">Your horizon ends ' + lease.unfinishedMonths +
+                    ' months into a contract that is still running — walking away early is billed as the remaining ' +
+                    'payments, which is not counted here.</span>');
+            }
+            leaseBits.push('You own nothing at the end — every payment is rent on the depreciation.');
+            $('leaseNote').innerHTML = leaseBits.join(' ');
+
+            for (const el of document.querySelectorAll('.summary-cost')) {
+                el.textContent = usd0(results[el.dataset.cost].perMonth) + '/mo';
+            }
+        }
+
+        function renderInsights(results, v) {
+            const out = [];
+            const ranked = OPTIONS.slice().sort((a, b) => results[a.key].total - results[b.key].total);
+            const buyBest = results.cash.total <= results.loan.total ? 'cash' : 'loan';
+            const ownVsLease = results.lease.total - results[buyBest].total;
+
+            out.push(['🔁',
+                ownVsLease > 0
+                    ? 'Owning beats leasing by <strong>' + usd0(ownVsLease) + '</strong> here, and the gap grows every ' +
+                      'month you keep the car past the payoff. Leasing catches up only if you replace the car on a ' +
+                      'fixed cycle anyway.'
+                    : 'Leasing is ahead by <strong>' + usd0(-ownVsLease) + '</strong> over this horizon — usually a sign ' +
+                      'the horizon is short, the lease is subsidised, or the car depreciates hard early.']);
+
+            out.push(['📉',
+                'Depreciation is the big line item on any purchase: <strong>' +
+                usd0(v.price - v.resale) + '</strong> of the ' + usd0(v.price) +
+                ' price evaporates over ' + v.months + ' months, whether you paid cash or financed. ' +
+                'The financing choice only moves the smaller interest line.']);
+
+            const rentPremium = results.rent.total - results[ranked[0].key].total;
+            out.push(['🗓️',
+                rentPremium > 0
+                    ? 'Renting monthly costs <strong>' + usd0(rentPremium) + '</strong> more than the cheapest option — ' +
+                      'about ' + usd0(rentPremium / v.months) + '/mo for the right to hand the keys back any month. ' +
+                      'Worth it if you might move, deploy, or change jobs; expensive if you will not.'
+                    : 'Renting monthly is the cheapest line here, which normally only happens over a short horizon or ' +
+                      'when insurance and maintenance are unusually costly for you.']);
+
+            out.push(['⏳',
+                'Stretch the horizon and buying wins harder — a paid-off car costs only insurance, maintenance and ' +
+                'registration. Shorten it and leasing or renting takes over, because you never eat the first-year ' +
+                'depreciation cliff.']);
+
+            $('insights').innerHTML = out.map(([ico, text]) =>
+                '<div class="callout"><span class="ico">' + ico + '</span><span>' + text + '</span></div>').join('');
+        }
+
+        /* ── Wiring ────────────────────────────────────────────────────── */
+        const INPUT_IDS = ['horizon', 'price', 'taxRate', 'fees', 'depreciation', 'resale', 'miles', 'insurance',
+            'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm', 'leasePayment',
+            'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition', 'rentRate',
+            'rentStartFee'];
+
+        function update() {
+            const v = readInputs();
+
+            /* The resale field tracks the depreciation curve until the user
+               overrides it, then it is theirs to keep. */
+            if ($('resale').dataset.touched !== '1') {
+                $('resale').value = Math.round(v.autoResale);
+            }
+
+            const results = computeAll(v);
+            const best = renderChart(results, v);
+            renderTable(results, v);
+            renderVerdict(results, best, v);
+            renderCashNote(results, v);
+            renderOptionNotes(results, v);
+            renderInsights(results, v);
+            syncPresets(v.months);
+            save();
+        }
+
+        function syncPresets(months) {
+            for (const btn of document.querySelectorAll('#horizonPresets .preset-btn')) {
+                btn.classList.toggle('active', Number(btn.dataset.months) === months);
+            }
+        }
+
+        function save() {
+            try {
+                const data = { touchedResale: $('resale').dataset.touched === '1' };
+                for (const id of INPUT_IDS) data[id] = $(id).value;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) { /* private mode — inputs just will not persist */ }
+        }
+
+        function load() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                for (const id of INPUT_IDS) {
+                    if (typeof data[id] === 'string' && data[id] !== '') $(id).value = data[id];
+                }
+                if (data.touchedResale) $('resale').dataset.touched = '1';
+            } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
+        }
+
+        for (const id of INPUT_IDS) {
+            $(id).addEventListener('input', update);
+            $(id).addEventListener('change', update);
+        }
+
+        /* Editing resale by hand detaches it from the curve; clearing the
+           field hands control back. */
+        $('resale').addEventListener('input', () => {
+            $('resale').dataset.touched = $('resale').value.trim() === '' ? '0' : '1';
+        });
+        $('depreciation').addEventListener('change', () => {
+            $('resale').dataset.touched = '0';
+        });
+
+        for (const btn of document.querySelectorAll('#horizonPresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                $('horizon').value = btn.dataset.months;
+                update();
+            });
+        }
+
+        $('tableToggle').addEventListener('click', () => {
+            const wrap = $('tableWrap');
+            const shown = !wrap.hidden;
+            wrap.hidden = shown;
+            $('tableToggle').textContent = shown ? 'Show numbers' : 'Hide numbers';
+            $('tableToggle').setAttribute('aria-expanded', String(!shown));
+        });
+
+        window.addEventListener('scroll', hideTooltip, { passive: true });
+        document.addEventListener('pointerdown', hideTooltip);
+
+        load();
+        update();
+    </script>
+</body>
+</html>

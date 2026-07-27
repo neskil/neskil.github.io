@@ -12,6 +12,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). |
 | `math/` | US → Metric mental math trainer. |
 | `converter/` | Quick mental unit converter. |
+| `car/` | Lease vs. finance vs. cash vs. monthly rental — US car cost-of-ownership calculator. Reached from the vault, not the card grid. |
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna"). |
 | `favicon.ico` | Site-wide favicon. |
