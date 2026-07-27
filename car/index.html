@@ -620,6 +620,118 @@
             max-width: 720px;
         }
 
+        /* ── Pros & cons grid ── */
+        .pro-con-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+        }
+
+        .pc-card {
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.18);
+            border-left: 3px solid var(--pc-accent, var(--text-mute));
+        }
+
+        .pc-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .pc-list {
+            list-style: none;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .pc-list li {
+            display: flex;
+            gap: 7px;
+            margin-bottom: 5px;
+        }
+
+        .pc-list li::before {
+            content: attr(data-mark);
+            flex: 0 0 auto;
+            font-weight: 800;
+            width: 12px;
+        }
+
+        .pc-list li.pro::before { color: var(--success); }
+        .pc-list li.con::before { color: var(--danger); }
+
+        .pc-verdict {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .pc-verdict strong { color: var(--text-primary); }
+
+        /* ── Strategy rows ── */
+        .strategy {
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.18);
+        }
+
+        .strategy + .strategy { margin-top: 8px; }
+
+        .strategy-head {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .strategy-head h3 {
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        .strategy-head .band {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-mute);
+        }
+
+        .risk-meter {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-mute);
+        }
+
+        .risk-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .risk-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .risk-dot.on { background: var(--warning); }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -676,6 +788,12 @@
                 <button class="preset-btn" data-months="96" type="button">8 yr</button>
                 <button class="preset-btn" data-months="120" type="button">10 yr</button>
             </div>
+            <div class="preset-row" id="carPresets" aria-label="Typical cars to start from">
+                <button class="preset-btn" type="button" data-car="beater">🔧 Beater $6k</button>
+                <button class="preset-btn" type="button" data-car="used">👍 Used $18k</button>
+                <button class="preset-btn" type="button" data-car="new">✨ New $32k</button>
+                <button class="preset-btn" type="button" data-car="premium">💎 Premium $58k</button>
+            </div>
             <div class="field-grid">
                 <div class="field">
                     <label for="horizon">Keep it for</label>
@@ -685,10 +803,17 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="price">Out-the-door price</label>
+                    <label for="price">List price <span style="color:var(--text-mute)">· before tax</span></label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
                         <input type="number" id="price" min="0" step="500" value="32000">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="otd">Out the door <span style="color:var(--text-mute)">· after tax</span></label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="otd" min="0" step="500" value="35040">
                     </div>
                 </div>
                 <div class="field">
@@ -903,12 +1028,17 @@
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
                 <div class="option-body">
+                    <div class="preset-row" id="rentPresets" aria-label="Real subscription rates">
+                        <button class="preset-btn" type="button" data-rate="1000">Sixt+ BMW X1 · $1,000</button>
+                        <button class="preset-btn" type="button" data-rate="1200">Sixt+ midsize SUV · $1,200</button>
+                        <button class="preset-btn" type="button" data-rate="850">Generic sub · $850</button>
+                    </div>
                     <div class="field-grid">
                         <div class="field">
                             <label for="rentRate">All-in rate</label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="rentRate" min="0" step="25" value="850">
+                                <input type="number" id="rentRate" min="0" step="25" value="1000">
                                 <span class="suffix">/mo</span>
                             </div>
                         </div>
@@ -919,10 +1049,27 @@
                                 <input type="number" id="rentStartFee" min="0" step="50" value="500">
                             </div>
                         </div>
+                        <div class="field">
+                            <label for="rentAllowance">Mileage included</label>
+                            <div class="input-shell">
+                                <input type="number" id="rentAllowance" min="0" step="100" value="1250">
+                                <span class="suffix">mi/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="rentOverage">Extra miles</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="rentOverage" min="0" step="0.05" value="0.35">
+                                <span class="suffix">/mi</span>
+                            </div>
+                        </div>
                     </div>
-                    <p class="notes" style="margin-top:10px">Subscription services (Hertz My Car, Finn, a dealer's
-                        month-to-month program) bundle insurance, maintenance, registration and roadside into one rate,
-                        and you can walk away with 30 days' notice. That flexibility is what you are paying for.</p>
+                    <p class="notes" style="margin-top:10px" id="rentNote"></p>
+                    <p class="notes" style="margin-top:8px">The rate is genuinely all-in — insurance, maintenance,
+                        registration and roadside are inside it, which is why those lines read $0 in the chart. Sixt+
+                        also covers a second driver at no extra charge, worth $15–25/mo of a normal policy. What you
+                        are really buying is the 30-day exit.</p>
                 </div>
             </details>
         </section>
@@ -944,6 +1091,200 @@
         <section class="panel">
             <div class="panel-title">How to read this</div>
             <div id="insights"></div>
+        </section>
+
+        <!-- Pros and cons -->
+        <section class="panel">
+            <div class="panel-title">Pros &amp; cons, side by side</div>
+            <div class="pro-con-grid">
+                <div class="pc-card" style="--pc-accent: var(--series-1)">
+                    <div class="pc-head"><span>💵</span> Pay cash</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">No payment, no interest, no lender. The title is yours on day one.</li>
+                        <li class="pro" data-mark="+">Cheapest way to own once the car is a few years old and you keep it.</li>
+                        <li class="pro" data-mark="+">You can drop collision coverage on an older car and self-insure.</li>
+                        <li class="con" data-mark="−">The money stops earning. At 4% that is real, and it is the line most people forget.</li>
+                        <li class="con" data-mark="−">Liquidity gone. A $30k car should not empty a $32k emergency fund.</li>
+                        <li class="con" data-mark="−">You eat 100% of the depreciation and every repair after the warranty.</li>
+                        <li class="con" data-mark="−">Cash buys you no leverage at the dealer — it can cost you the promo APR.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best when</strong> you keep cars a long time, the APR on offer is
+                        above what your cash earns, and buying still leaves you a cash cushion.</p>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--series-2)">
+                    <div class="pc-head"><span>🏦</span> Finance it</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">Your cash keeps working. Below the break-even APR above, borrowing is strictly cheaper.</li>
+                        <li class="pro" data-mark="+">Promo APRs on new cars (0–2.9%) are often below any safe return — free money.</li>
+                        <li class="pro" data-mark="+">You own it at the end, and the payment eventually stops.</li>
+                        <li class="pro" data-mark="+">On-time payments build credit.</li>
+                        <li class="con" data-mark="−">Used-car APRs are far higher than new — 8–12% is common, which reverses the maths.</li>
+                        <li class="con" data-mark="−">Little down means underwater for a year or two; you need gap coverage.</li>
+                        <li class="con" data-mark="−">Full coverage is mandatory while there is a lien.</li>
+                        <li class="con" data-mark="−">Long terms (72–84 mo) hide a too-expensive car behind a small payment.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best when</strong> you qualify for a subsidised rate, or your cash
+                        earns more than the loan costs. Keep the term at 60 months or less.</p>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--series-3)">
+                    <div class="pc-head"><span>📄</span> Lease it</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">Lowest monthly payment for a given car, and little cash down.</li>
+                        <li class="pro" data-mark="+">Always under warranty — no surprise repair bills.</li>
+                        <li class="pro" data-mark="+">Residual risk is the bank's. If the car tanks in value, you hand back the keys.</li>
+                        <li class="pro" data-mark="+">Occasionally subsidised into being the cheapest option outright, especially on EVs.</li>
+                        <li class="con" data-mark="−">You own nothing at the end. Every payment is rent on the depreciation.</li>
+                        <li class="con" data-mark="−">Mileage is metered — $0.15–$0.30 for every mile past the cap.</li>
+                        <li class="con" data-mark="−">Wear-and-tear charges at turn-in are judged by the bank, not you.</li>
+                        <li class="con" data-mark="−">Getting out early is expensive; you are committed for the full term.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best when</strong> you replace cars every 2–3 years anyway, drive
+                        under the cap, and want a fixed, predictable cost with no repair risk.</p>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--series-4)">
+                    <div class="pc-head"><span>🗓️</span> Rent monthly (Sixt+ &amp; co.)</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">One number covers everything — insurance, maintenance, registration, roadside.</li>
+                        <li class="pro" data-mark="+">Cancel with 30 days' notice. No other option lets you leave.</li>
+                        <li class="pro" data-mark="+">No credit application drama, no down payment, no depreciation exposure.</li>
+                        <li class="pro" data-mark="+">Swap car classes as your needs change; second driver usually included.</li>
+                        <li class="con" data-mark="−">By far the most expensive per month — you are paying for the option to quit.</li>
+                        <li class="con" data-mark="−">Mileage caps are tighter than a lease, and overage runs higher.</li>
+                        <li class="con" data-mark="−">You build no equity and the rate can be re-priced at renewal.</li>
+                        <li class="con" data-mark="−">Fleet cars, limited choice of trim and colour.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best when</strong> your horizon is genuinely uncertain — new city,
+                        new job, visa, a house move — or you need a car for under a year.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cheap vs expensive -->
+        <section class="panel">
+            <div class="panel-title">Cheap car or expensive car? <span class="hint">tap a preset above to model
+                    one</span></div>
+            <p class="notes" style="margin-bottom:10px">Depreciation and repair risk trade against each other. The
+                cheaper the car, the less value it can lose — and the more of your cost arrives as unpredictable
+                repair bills. Pick the risk you can absorb.</p>
+
+            <div class="strategy">
+                <div class="strategy-head">
+                    <h3>🔧 The beater</h3>
+                    <span class="band">$3k–$8k · cash only</span>
+                    <span class="risk-meter">Risk
+                        <span class="risk-dots"><i class="risk-dot on"></i><i class="risk-dot on"></i><i
+                                class="risk-dot on"></i><i class="risk-dot on"></i><i class="risk-dot"></i></span>
+                    </span>
+                </div>
+                <p class="notes">A 12-year-old Camry or Civic has almost nothing left to lose — maybe $600/yr of
+                    depreciation. Drop collision and comprehensive and insurance falls to liability-only. The catch is
+                    variance: a transmission is $3–5k, and it does not wait for payday. Budget $150–250/mo into a repair
+                    fund and treat any month you do not spend it as a win. <strong>You need a mechanic you trust and a
+                    pre-purchase inspection ($150) — that inspection is the single highest-return $150 in this whole
+                    page.</strong> Worst case is a car you scrap for $800, which is a bounded loss most people can
+                    take.</p>
+            </div>
+
+            <div class="strategy">
+                <div class="strategy-head">
+                    <h3>👍 The sweet spot</h3>
+                    <span class="band">$15k–$25k · 3–5 years old</span>
+                    <span class="risk-meter">Risk
+                        <span class="risk-dots"><i class="risk-dot on"></i><i class="risk-dot on"></i><i
+                                class="risk-dot"></i><i class="risk-dot"></i><i class="risk-dot"></i></span>
+                    </span>
+                </div>
+                <p class="notes">Someone else paid for the first-year cliff — the steepest 20% — and you get a car with
+                    most of its life ahead. Certified pre-owned adds a manufacturer-backed warranty for roughly a $1–2k
+                    premium, which is fair value if it covers the powertrain. The trade-off is financing: used-car APRs
+                    run 3–5 points above new-car promos, so if you are borrowing, run the numbers before assuming used
+                    is cheaper. <strong>Check whether the model is on its second or third year of a generation</strong>
+                    — the early build years of a new platform carry the recalls.</p>
+            </div>
+
+            <div class="strategy">
+                <div class="strategy-head">
+                    <h3>✨ New, mainstream</h3>
+                    <span class="band">$28k–$40k</span>
+                    <span class="risk-meter">Risk
+                        <span class="risk-dots"><i class="risk-dot on"></i><i class="risk-dot"></i><i
+                                class="risk-dot"></i><i class="risk-dot"></i><i class="risk-dot"></i></span>
+                    </span>
+                </div>
+                <p class="notes">You pay about $6k for the first year and get near-zero repair risk, full warranty,
+                    current safety tech and the pick of financing. If a captive lender is offering 0.9–2.9%, the cheap
+                    money can genuinely offset the depreciation gap against a used car — that is the one case where new
+                    beats used on total cost. <strong>Keeping it ten years is what makes new cars rational</strong>;
+                    trading out at three is what makes them expensive.</p>
+            </div>
+
+            <div class="strategy">
+                <div class="strategy-head">
+                    <h3>💎 Premium &amp; EV</h3>
+                    <span class="band">$50k+</span>
+                    <span class="risk-meter">Risk
+                        <span class="risk-dots"><i class="risk-dot on"></i><i class="risk-dot on"></i><i
+                                class="risk-dot on"></i><i class="risk-dot"></i><i class="risk-dot"></i></span>
+                    </span>
+                </div>
+                <p class="notes">Depreciation is brutal and front-loaded — 50% in three years is normal for a German
+                    saloon, and EV values move with battery tech and the next price cut. Out of warranty, repairs are
+                    priced like the badge: $2k for an air-suspension strut is routine. This is the one segment where
+                    <strong>leasing is often the rational choice</strong>: you are renting the depreciation you cannot
+                    predict, and the manufacturer is frequently subsidising the residual. Buying makes sense mainly
+                    second-hand at the four-year mark, with an extended warranty and eyes open.</p>
+            </div>
+        </section>
+
+        <!-- Where you buy -->
+        <section class="panel">
+            <div class="panel-title">Where you buy it: CarMax vs. dealership vs. private</div>
+            <div class="pro-con-grid">
+                <div class="pc-card" style="--pc-accent: var(--series-1)">
+                    <div class="pc-head"><span>🏬</span> CarMax &amp; no-haggle</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">Fixed price. No four-hour negotiation, no F&amp;I office grinding you down.</li>
+                        <li class="pro" data-mark="+">Return window (a few days) and a short limited warranty — rare on used cars.</li>
+                        <li class="pro" data-mark="+">Huge searchable inventory, transferable between stores for a fee.</li>
+                        <li class="pro" data-mark="+">Their written appraisal is good for days and costs nothing — use it as the floor price for your trade even if you buy elsewhere.</li>
+                        <li class="con" data-mark="−">You pay for the convenience: typically $1–3k above a negotiated dealer or private price.</li>
+                        <li class="con" data-mark="−">Fixed price cuts both ways — no discount for cash, timing, or walking away.</li>
+                        <li class="con" data-mark="−">In-house financing is rarely the best rate. Bring your own.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Worth the premium if</strong> you hate negotiating or cannot judge a
+                        used car. Get an independent inspection anyway.</p>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--series-2)">
+                    <div class="pc-head"><span>🏁</span> Franchise dealership</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">The only place to get manufacturer promo APRs, rebates and factory CPO warranties.</li>
+                        <li class="pro" data-mark="+">Price is negotiable — end of month, end of quarter and slow-moving stock all move it.</li>
+                        <li class="pro" data-mark="+">Trade-in reduces the taxable price in most states, a real saving CarMax also offers but a private sale does not.</li>
+                        <li class="con" data-mark="−">Doc fees, dealer add-ons and back-end products are where the profit hides.</li>
+                        <li class="con" data-mark="−">Outcome depends on your willingness to walk out. Two buyers pay different prices for the same car.</li>
+                        <li class="con" data-mark="−">The monthly-payment conversation is a trap — negotiate the out-the-door number only.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best for</strong> new cars, subsidised financing and leases. Email
+                        several dealers for out-the-door quotes and let them compete in writing.</p>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--series-3)">
+                    <div class="pc-head"><span>🤝</span> Private party</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+">The cheapest way to buy the same car — no overhead, no reconditioning markup.</li>
+                        <li class="pro" data-mark="+">You meet the owner, see the service records and how it was kept.</li>
+                        <li class="con" data-mark="−">Sold as-is. No warranty, no return, no recourse.</li>
+                        <li class="con" data-mark="−">No trade-in tax credit, and you arrange your own financing and title work.</li>
+                        <li class="con" data-mark="−">Scam and title-washing risk; you handle payment safely and verify the lien yourself.</li>
+                    </ul>
+                    <p class="pc-verdict"><strong>Best for</strong> cheap cars where a dealer's markup is a large share
+                        of the price. Always a pre-purchase inspection and a title check.</p>
+                </div>
+            </div>
         </section>
 
         <!-- US specifics -->
@@ -1012,6 +1353,16 @@
         /* A lease keeps you inside the factory warranty, so you buy tires and
            oil changes but not a transmission. */
         const LEASE_MAINTENANCE_SHARE = 0.45;
+
+        /* Starting points for the four buying strategies. Insurance and upkeep
+           move with the car, not just the price — an older car costs less to
+           cover and more to fix. */
+        const CAR_PRESETS = {
+            beater:  { price: 6000,  depreciation: 'slow',    insurance: 95,  maintenance: 190, apr: 12, down: 0 },
+            used:    { price: 18000, depreciation: 'typical', insurance: 140, maintenance: 95,  apr: 8.5, down: 3000 },
+            new:     { price: 32000, depreciation: 'typical', insurance: 160, maintenance: 65,  apr: 6.5, down: 4000 },
+            premium: { price: 58000, depreciation: 'fast',    insurance: 230, maintenance: 130, apr: 6.9, down: 8000 }
+        };
 
         const STORAGE_KEY = 'car-lease-rent-buy-v1';
 
@@ -1109,8 +1460,26 @@
                 leaseOverage: num('leaseOverage'),
                 leaseDisposition: num('leaseDisposition'),
                 rentRate: num('rentRate'),
-                rentStartFee: num('rentStartFee')
+                rentStartFee: num('rentStartFee'),
+                rentAllowance: num('rentAllowance'),
+                rentOverage: num('rentOverage')
             };
+        }
+
+        /* List price and out-the-door are the same number seen from either
+           side of the tax line, so whichever one you type wins and the other
+           follows. */
+        let priceAnchor = 'price';
+
+        function syncPriceFields() {
+            const taxRate = num('taxRate') / 100;
+            const fees = num('fees');
+            if (priceAnchor === 'otd') {
+                const list = (num('otd') - fees) / (1 + taxRate);
+                $('price').value = Math.max(0, Math.round(list));
+            } else {
+                $('otd').value = Math.round(num('price') * (1 + taxRate) + fees);
+            }
         }
 
         /* Costs an owner carries whichever way the car was bought. */
@@ -1220,10 +1589,21 @@
         function scenarioRent(v) {
             const led = makeLedger(v.months, v.monthlyReturn);
             led.add(v.rentStartFee, 0, 'fees');
-            for (let m = 1; m <= v.months; m++) led.add(v.rentRate, m, 'depreciation');
+            /* Subscription mileage caps are monthly, and the overage is billed
+               on the same cycle rather than saved up for a turn-in. */
+            const excessPerMonth = Math.max(0, v.miles / 12 - v.rentAllowance);
+            const overagePerMonth = excessPerMonth * v.rentOverage;
+            for (let m = 1; m <= v.months; m++) {
+                led.add(v.rentRate, m, 'depreciation');
+                led.add(overagePerMonth, m, 'fees');
+            }
 
             const t = led.totals();
-            return finish(t, v, { resale: 0, monthlyOutlay: v.rentRate });
+            return finish(t, v, {
+                resale: 0,
+                overagePerMonth,
+                monthlyOutlay: v.rentRate + overagePerMonth
+            });
         }
 
         /* Shared tail: total, per-month, and the raw cash figure without the
@@ -1475,6 +1855,20 @@
             leaseBits.push('You own nothing at the end — every payment is rent on the depreciation.');
             $('leaseNote').innerHTML = leaseBits.join(' ');
 
+            const rent = results.rent;
+            const rentBits = [];
+            if (rent.overagePerMonth > 0) {
+                rentBits.push('At ' + Math.round(v.miles / 12).toLocaleString('en-US') + ' mi/mo against a ' +
+                    v.rentAllowance.toLocaleString('en-US') + ' mi cap you add <strong>' +
+                    usd0(rent.overagePerMonth) + '/mo</strong> in excess mileage — ' +
+                    usd0(rent.overagePerMonth * v.months) + ' over the horizon.');
+            } else {
+                rentBits.push('Your ' + Math.round(v.miles / 12).toLocaleString('en-US') +
+                    ' mi/mo fits inside the included mileage.');
+            }
+            rentBits.push('Effective all-in: <strong>' + usd0(rent.monthlyOutlay) + '/mo</strong>.');
+            $('rentNote').innerHTML = rentBits.join(' ');
+
             for (const el of document.querySelectorAll('.summary-cost')) {
                 el.textContent = usd0(results[el.dataset.cost].perMonth) + '/mo';
             }
@@ -1519,12 +1913,13 @@
         }
 
         /* ── Wiring ────────────────────────────────────────────────────── */
-        const INPUT_IDS = ['horizon', 'price', 'taxRate', 'fees', 'depreciation', 'resale', 'miles', 'insurance',
-            'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm', 'leasePayment',
-            'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition', 'rentRate',
-            'rentStartFee'];
+        const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'resale', 'miles',
+            'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
+            'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition',
+            'rentRate', 'rentStartFee', 'rentAllowance', 'rentOverage'];
 
         function update() {
+            syncPriceFields();
             const v = readInputs();
 
             /* The resale field tracks the depreciation curve until the user
@@ -1570,9 +1965,18 @@
             } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
         }
 
+        /* The price pair has to claim its anchor in the same handler that
+           recomputes, or the sync would run against a stale anchor and stomp
+           whichever field was just typed into. */
+        function onInput(e) {
+            if (e.target.id === 'price') priceAnchor = 'price';
+            else if (e.target.id === 'otd') priceAnchor = 'otd';
+            update();
+        }
+
         for (const id of INPUT_IDS) {
-            $(id).addEventListener('input', update);
-            $(id).addEventListener('change', update);
+            $(id).addEventListener('input', onInput);
+            $(id).addEventListener('change', onInput);
         }
 
         /* Editing resale by hand detaches it from the curve; clearing the
@@ -1587,6 +1991,24 @@
         for (const btn of document.querySelectorAll('#horizonPresets .preset-btn')) {
             btn.addEventListener('click', () => {
                 $('horizon').value = btn.dataset.months;
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#carPresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                const preset = CAR_PRESETS[btn.dataset.car];
+                if (!preset) return;
+                for (const [id, value] of Object.entries(preset)) $(id).value = value;
+                priceAnchor = 'price';
+                $('resale').dataset.touched = '0';
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                $('rentRate').value = btn.dataset.rate;
                 update();
             });
         }
