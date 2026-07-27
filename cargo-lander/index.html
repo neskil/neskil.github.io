@@ -2531,13 +2531,13 @@
             </div>
 
             <div style="display:flex; gap:10px; margin-bottom: 10px;">
+                <button id="rd-shop-btn-complete" class="btn-secondary" onclick="game.openUpgradeShop()"
+                    style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
                 <button class="btn-primary" onclick="game.nextLevel()" style="flex:1; margin:0;">Next Mission ➔</button>
-                <button class="btn-secondary" onclick="game.restartLevel()" style="flex:1; margin:0;">Replay</button>
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-secondary" onclick="game.goToMenu()" style="flex:1; margin:0;">Main Menu</button>
-                <button id="rd-shop-btn-complete" class="btn-secondary" onclick="game.openUpgradeShop()"
-                    style="flex:1; margin:0; border-color: #f59e0b; color: #f59e0b;">R&D Store</button>
+                <button class="btn-secondary" onclick="game.restartLevel()" style="flex:1; margin:0;">Replay</button>
             </div>
         </div>
     </div>
@@ -2819,7 +2819,7 @@
             <h3 class="tut-h">💰 Economy</h3>
             <div class="tut-econ-flow">
                 <div class="tut-econ-step"><span class="ico">🔧</span><span class="lbl">Pay <strong>Maintenance
-                            Cost</strong> (fuel, upkeep) from the <strong>Bank</strong><span class="amt pay">− $$</span></span>
+                            Cost</strong> (fuel, docking fee) from the <strong>Bank</strong><span class="amt pay">− $$</span></span>
                 </div>
                 <span class="tut-econ-arrow">➜</span>
                 <div class="tut-econ-step"><span class="ico">💼</span><span class="lbl">Take out a <strong>Mission
@@ -2922,48 +2922,48 @@
     <!-- Matter.js physics engine -->
     <script src="vendor/matter.min.js"></script>
     <!-- Level registry: defines registerLevel(), levels[], upgradeCatalog, quest helpers -->
-    <script src="game/upgrades.js?v=0.19.9"></script>
-    <script src="levels/levels.js?v=0.19.9"></script>
-    <script src="levels/levelGenerator.js?v=0.19.9"></script>
+    <script src="game/upgrades.js?v=0.19.10"></script>
+    <script src="levels/levels.js?v=0.19.10"></script>
+    <script src="levels/levelGenerator.js?v=0.19.10"></script>
     <!-- Individual level configs (each calls registerLevel) -->
 
-    <script src="levels/level1.js?v=0.19.9"></script>
-    <script src="levels/level2.js?v=0.19.9"></script>
-    <script src="levels/level3.js?v=0.19.9"></script>
-    <script src="levels/level4.js?v=0.19.9"></script>
-    <script src="levels/level5.js?v=0.19.9"></script>
-    <script src="levels/level6.js?v=0.19.9"></script>
-    <script src="levels/level7.js?v=0.19.9"></script>
-    <script src="levels/level8.js?v=0.19.9"></script>
-    <script src="levels/level9.js?v=0.19.9"></script>
-    <script src="levels/level10.js?v=0.19.9"></script>
-    <script src="levels/levelTest.js?v=0.19.9"></script>
-    <script src="levels/collectibleTypes.js?v=0.19.9"></script>
+    <script src="levels/level1.js?v=0.19.10"></script>
+    <script src="levels/level2.js?v=0.19.10"></script>
+    <script src="levels/level3.js?v=0.19.10"></script>
+    <script src="levels/level4.js?v=0.19.10"></script>
+    <script src="levels/level5.js?v=0.19.10"></script>
+    <script src="levels/level6.js?v=0.19.10"></script>
+    <script src="levels/level7.js?v=0.19.10"></script>
+    <script src="levels/level8.js?v=0.19.10"></script>
+    <script src="levels/level9.js?v=0.19.10"></script>
+    <script src="levels/level10.js?v=0.19.10"></script>
+    <script src="levels/levelTest.js?v=0.19.10"></script>
+    <script src="levels/collectibleTypes.js?v=0.19.10"></script>
     <!-- Engine -->
-    <script src="audio.js?v=0.19.9"></script>
-    <script src="render/shaders.js?v=0.19.9"></script>
-    <script src="physics/physics.js?v=0.19.9"></script>
-    <script src="physics/collision.js?v=0.19.9"></script>
-    <script src="physics/mechanics.js?v=0.19.9"></script>
-    <script src="physics/entities.js?v=0.19.9"></script>
-    <script src="physics/atmosphere.js?v=0.19.9"></script>
-    <script src="game/game.js?v=0.19.9"></script>
-    <script src="game/input.js?v=0.19.9"></script>
-    <script src="game/menu.js?v=0.19.9"></script>
-    <script src="game/hud.js?v=0.19.9"></script>
-    <script src="game/cargo.js?v=0.19.9"></script>
-    <script src="render/render.js?v=0.19.9"></script>
-    <script src="render/background.js?v=0.19.9"></script>
-    <script src="render/terrain.js?v=0.19.9"></script>
-    <script src="render/entities.js?v=0.19.9"></script>
-    <script src="render/pads.js?v=0.19.9"></script>
-    <script src="render/lander.js?v=0.19.9"></script>
-    <script src="render/creatures.js?v=0.19.9"></script>
-    <script src="render/effects.js?v=0.19.9"></script>
-    <script src="render/night.js?v=0.19.9"></script>
-    <script src="render/ui.js?v=0.19.9"></script>
+    <script src="audio.js?v=0.19.10"></script>
+    <script src="render/shaders.js?v=0.19.10"></script>
+    <script src="physics/physics.js?v=0.19.10"></script>
+    <script src="physics/collision.js?v=0.19.10"></script>
+    <script src="physics/mechanics.js?v=0.19.10"></script>
+    <script src="physics/entities.js?v=0.19.10"></script>
+    <script src="physics/atmosphere.js?v=0.19.10"></script>
+    <script src="game/game.js?v=0.19.10"></script>
+    <script src="game/input.js?v=0.19.10"></script>
+    <script src="game/menu.js?v=0.19.10"></script>
+    <script src="game/hud.js?v=0.19.10"></script>
+    <script src="game/cargo.js?v=0.19.10"></script>
+    <script src="render/render.js?v=0.19.10"></script>
+    <script src="render/background.js?v=0.19.10"></script>
+    <script src="render/terrain.js?v=0.19.10"></script>
+    <script src="render/entities.js?v=0.19.10"></script>
+    <script src="render/pads.js?v=0.19.10"></script>
+    <script src="render/lander.js?v=0.19.10"></script>
+    <script src="render/creatures.js?v=0.19.10"></script>
+    <script src="render/effects.js?v=0.19.10"></script>
+    <script src="render/night.js?v=0.19.10"></script>
+    <script src="render/ui.js?v=0.19.10"></script>
     <!-- How to Play modal's animated mission diagram (menu UI, not gameplay) -->
-    <script src="game/tutorial.js?v=0.19.9"></script>
+    <script src="game/tutorial.js?v=0.19.10"></script>
 
     <script>
         // Start the game!
