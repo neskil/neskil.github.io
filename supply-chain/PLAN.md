@@ -39,6 +39,16 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.63.2: **the map only speaks when it has something to say** — the
+  staked claims from v1.63.1 drew every locked supplier at once, which is
+  wallpaper, not information (and the six-chains release widened the pool
+  that draws from). `SC.economy.supplyGaps()` now splits the two ways a raw
+  material can be missing and the map says exactly one thing: a material a
+  factory of yours takes with **no supplier owned anywhere** stakes its
+  claims, while a supplier you **own but haven't roaded** keeps the claims
+  quiet and takes a pulsing ⚠ ring itself — the answer there is "build the
+  road", not "wait for another deposit". Materials nothing needs, and sites
+  that are connected, say nothing at all. Dev: `&gaps=1`.
 - v1.63.1: **the map stops reading as empty** — two causes, both fixed.
   Decor counts (ground patches, trees/rocks) were flat regardless of world
   size, so every land purchase diluted the scenery — by the third expansion
