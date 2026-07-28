@@ -1200,6 +1200,8 @@ html, body {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 .recipe-graph-container {
+    /* Sized in JS from SC.GOODS (drawRecipeGraph) — the graph grows a column
+       when a deeper chain is added, so these are only a pre-render fallback. */
     position: relative;
     width: 715px;
     height: 415px;

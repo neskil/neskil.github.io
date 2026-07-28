@@ -630,32 +630,29 @@ SC.ui = (function() {
         const container = $('recipe-graph');
         if (!container) return;
 
-        const nodePositions = {
-            // Column 0: Raw Materials
-            wheat:   { x: 15,  y: 15,  w: 130 },
-            water:   { x: 15,  y: 65,  w: 130 },
-            wool:    { x: 15,  y: 115, w: 130 },
-            rubber:  { x: 15,  y: 165, w: 130 },
-            copper:  { x: 15,  y: 215, w: 130 },
-            ore:     { x: 15,  y: 265, w: 130 },
-            coal:    { x: 15,  y: 315, w: 130 },
-            chips:   { x: 15,  y: 365, w: 130 },
-
-            // Column 1: Tier 1 Crafting
-            bread:   { x: 200, y: 40,  w: 130 },
-            shoes:   { x: 200, y: 140, w: 130 },
-            wire:    { x: 200, y: 190, w: 130 },
-            steel:   { x: 200, y: 290, w: 130 },
-
-            // Column 2: Tier 2 Crafting
-            circuit: { x: 385, y: 215, w: 130 },
-            car:     { x: 385, y: 340, w: 130 },
-
-            // Column 3: Tier 3 Crafting
-            robot:   { x: 570, y: 275, w: 130 }
-        };
-
-        const NODE_H = 32;
+        // Laid out from SC.GOODS rather than a hand-written table: column is
+        // the good's chain depth, row is its order within that column. The
+        // old fixed table silently dropped any good missing from it, so every
+        // recipe added to config.js had to be mirrored here or vanish from
+        // this graph. Rows are centred per column so the tree reads top-down.
+        const NODE_W = 130, NODE_H = 32, COL_W = 185, ROW_H = 42, PAD = 15;
+        const cols = [];
+        for (const id of Object.keys(SC.GOODS)) {
+            const d = SC.depthOf(id);
+            (cols[d] = cols[d] || []).push(id);
+        }
+        const tallest = Math.max(...cols.map(c => c.length));
+        const nodePositions = {};
+        cols.forEach((ids, d) => {
+            const top = PAD + (tallest - ids.length) * ROW_H / 2;
+            ids.forEach((id, i) => {
+                nodePositions[id] = { x: PAD + d * COL_W, y: top + i * ROW_H, w: NODE_W };
+            });
+        });
+        const graphW = PAD * 2 + (cols.length - 1) * COL_W + NODE_W;
+        const graphH = PAD * 2 + (tallest - 1) * ROW_H + NODE_H;
+        container.style.width = graphW + 'px';
+        container.style.height = graphH + 'px';
         const nodesEl = $('recipe-graph-nodes');
         const svg = $('recipe-graph-edges');
         if (!nodesEl || !svg) return;
@@ -671,8 +668,8 @@ SC.ui = (function() {
         }
         nodesEl.innerHTML = nodesHTML;
 
-        svg.setAttribute('width', 715);
-        svg.setAttribute('height', 415);
+        svg.setAttribute('width', graphW);
+        svg.setAttribute('height', graphH);
         let edges = '';
         for (const [id, pos] of Object.entries(nodePositions)) {
             const g = SC.GOODS[id];

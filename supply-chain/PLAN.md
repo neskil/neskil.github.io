@@ -39,6 +39,18 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.63.0: **six new goods, no new raw materials** — 🛞tyres (rubber+coal)
+  and 🧣textiles (wool+water) as intermediates, feeding 🚲bicycles
+  (tyre+steel), 🧥jackets (cloth+rubber), 🔋batteries (copper+coal) and
+  🛵e-scooters (tyre+battery, the first recipe whose input is itself an
+  orderable product). Orderable goods go 4 → 8. Deliberately built from the
+  existing eight raws, so coal is now wanted by the smelter, the tyre plant
+  and the battery plant at once, water by the bakery and the textile mill:
+  running several chains means planting *more of the same suppliers*, and
+  the milestone pool interleaves those extra sites with the new factories.
+  The start screen's Production Recipes graph is now laid out from
+  `SC.GOODS` instead of a hand-written position table that silently dropped
+  anything missing from it.
 - v1.62.1: **research tree readable on mobile** — the overlay used to shrink
   the whole tree to fit a phone's width, bottoming out at 0.62 and putting the
   description text at ~7px, with no way to zoom in (the page is

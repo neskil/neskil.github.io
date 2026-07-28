@@ -439,7 +439,19 @@ SC.GOODS = {
     bread:   { emoji: '🍞', name: 'Bread',    color: '#f59e0b', inputs: ['wheat', 'water'], orderable: true, value: 150, building: 'Bakery' },
     shoes:   { emoji: '👟', name: 'Sneakers', color: '#34d399', inputs: ['wool', 'rubber'], orderable: true, value: 230, building: 'Sneaker factory' },
     car:     { emoji: '🚗', name: 'Cars',     color: '#b07cd8', inputs: ['steel', 'chips'], orderable: true, value: 480, building: 'Car factory' },
-    robot:   { emoji: '🤖', name: 'Robots',   color: '#94a3b8', inputs: ['circuit', 'steel'], orderable: true, value: 900, building: 'Robot factory' }
+    robot:   { emoji: '🤖', name: 'Robots',   color: '#94a3b8', inputs: ['circuit', 'steel'], orderable: true, value: 900, building: 'Robot factory' },
+    // Second-wave chains. Deliberately no new raw material: every one of
+    // these draws on a supplier an earlier chain already wanted (coal was
+    // the smelter's alone, water the bakery's, wool the sneakers'), so the
+    // way to run two of them at once is a second coal pit and a second
+    // water well — more of the sites you already know, competing for the
+    // same roads. Batteries are both a product and the scooter's input.
+    tyre:    { emoji: '🛞', name: 'Tyres',      color: '#475569', inputs: ['rubber', 'coal'], building: 'Tyre plant' },
+    cloth:   { emoji: '🧣', name: 'Textiles',   color: '#f472b6', inputs: ['wool', 'water'], building: 'Textile mill' },
+    battery: { emoji: '🔋', name: 'Batteries',  color: '#4ade80', inputs: ['copper', 'coal'], orderable: true, value: 260, building: 'Battery plant' },
+    jacket:  { emoji: '🧥', name: 'Jackets',    color: '#fb923c', inputs: ['cloth', 'rubber'], orderable: true, value: 400, building: 'Outerwear factory' },
+    bicycle: { emoji: '🚲', name: 'Bicycles',   color: '#22d3ee', inputs: ['tyre', 'steel'], orderable: true, value: 450, building: 'Bicycle works' },
+    scooter: { emoji: '🛵', name: 'E-scooters', color: '#a3e635', inputs: ['tyre', 'battery'], orderable: true, value: 620, building: 'Scooter plant' }
 };
 
 SC.colorOf = function(item) { return SC.GOODS[item].color; };
