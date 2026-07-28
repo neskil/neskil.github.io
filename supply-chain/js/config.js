@@ -170,6 +170,35 @@ SC.CONFIG = {
     SUPPLIER_UPGRADE_BASE: 400,
     SUPPLIER_UPGRADE_GROWTH: 1.6,
 
+    // Biome bands, read off the seeded biome noise (`SC.biomeNoise`).
+    // Ordered high→low; a point belongs to the first band whose `min` it
+    // clears, so the ranges can't drift apart or leave a gap. BOTH the
+    // ground tint (render-env) and supplier yield (below) read this one
+    // table — what the ground looks like is what it pays.
+    BIOME_BANDS: [
+        { key: 'forest', min: 1.2,  label: 'Deep forest', emoji: '🌲', tint: 'rgba(20, 110, 60, 0.45)' },
+        { key: 'green',  min: 0.4,  label: 'Greenland',   emoji: '🌳', tint: 'rgba(34, 139, 34, 0.25)' },
+        { key: 'plains', min: -0.4, label: 'Plains',      emoji: '🏞', tint: null },
+        { key: 'scrub',  min: -1.2, label: 'Arid scrub',  emoji: '🌵', tint: 'rgba(160, 130, 80, 0.22)' },
+        { key: 'desert', min: -Infinity, label: 'Deep desert', emoji: '🏜', tint: 'rgba(210, 160, 70, 0.35)' }
+    ],
+    // Ground quality per raw material: multiplies a supplier's regen (not
+    // its stock cap) by biome. Things that grow want green ground and
+    // struggle in sand; ore/coal/copper run the other way, since rock
+    // shows through where nothing grows. A material with no row here —
+    // or a biome missing from its row — is simply 1×.
+    BIOME_YIELD: {
+        wheat:  { forest: 0.9,  green: 1.25, plains: 1.1,  scrub: 0.85, desert: 0.75 },
+        wool:   { forest: 0.9,  green: 1.25, plains: 1.1,  scrub: 0.85, desert: 0.75 },
+        rubber: { forest: 1.3,  green: 1.15, plains: 0.95, scrub: 0.8,  desert: 0.75 },
+        water:  { forest: 1.15, green: 1.15, plains: 1,    scrub: 0.85, desert: 0.8 },
+        ore:    { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 },
+        coal:   { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 },
+        copper: { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 }
+        // chips: a fab is built, not grown — ground doesn't touch it.
+    },
+    SITE_YIELD_VARIANCE: 0.1,  // ±10% per-site roll on top of the biome factor
+
     FACTORY_SITE_PRICE: 700,
 
     CRAFT_TIME: 4,             // seconds per product at level 0
