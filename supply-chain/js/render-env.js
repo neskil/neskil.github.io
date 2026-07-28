@@ -488,27 +488,12 @@
         }
     }
 
-    // The seed only changes between runs, but this is sampled once per biome
-    // cell across the whole world — re-walking the seed string every call was
-    // pure waste on the hot bake path, so the offset is memoized per seed.
-    let biomeSeedOff = 0, biomeSeedFor = null;
-    function biomeSeedOffset() {
-        const seedStr = SC.state.seed || '';
-        if (biomeSeedFor === seedStr) return biomeSeedOff;
-        let sOff = 0;
-        for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
-        biomeSeedFor = seedStr;
-        biomeSeedOff = sOff;
-        return sOff;
-    }
-
-    function getBiomeNoise(x, y) {
-        const sOff = biomeSeedOffset();
-        const nx = x / 1200, ny = y / 1200;
-        const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
-        const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
-        return v1 + v2 * 0.6;
-    }
+    // The biome field itself now lives in state.js (logic layer), because
+    // supplier yield reads the same bands — the ground a site sits on is
+    // what sets its output, so the tint below and that multiplier must come
+    // from one source. Sampling is still memoized per seed there, which
+    // matters on this hot bake path (once per biome cell, whole world).
+    const getBiomeNoise = (x, y) => SC.biomeNoise(x, y);
 
     function inRiver(x, y, margin) {
         const r = SC.state.river;
@@ -688,20 +673,15 @@
     // area, which is what made pinch-zoom stutter on mobile once the map had
     // grown. Blurring one small bitmap once gets the same soft boundaries
     // for a single drawImage per frame.
-    const BIOME_BANDS = [
-        { min: 1.2,   max: Infinity, css: 'rgba(20, 110, 60, 0.45)' },  // deep forest
-        { min: 0.4,   max: 1.2,      css: 'rgba(34, 139, 34, 0.25)' },  // greenland
-        { min: -1.2,  max: -0.4,     css: 'rgba(160, 130, 80, 0.22)' }, // arid scrub
-        { min: -Infinity, max: -1.2, css: 'rgba(210, 160, 70, 0.35)' }  // deep desert
-    ];
-
-    function biomeBand(noise) {
-        for (const b of BIOME_BANDS) if (noise >= b.min && noise < b.max) return b;
-        return null; // base slate gradient shows through
+    // Bands (and their tints) come from SC.CONFIG.BIOME_BANDS, shared with
+    // supplier yield. `tint: null` (the plains band) means no wash — the
+    // base slate gradient shows through, as before.
+    function biomeTint(x, y) {
+        return SC.biomeAt(x, y).tint;
     }
 
     function ensureBiome(W, Wh, step) {
-        const key = Math.round(W) + 'x' + Math.round(Wh) + ':' + step + ':' + biomeSeedOffset();
+        const key = Math.round(W) + 'x' + Math.round(Wh) + ':' + step + ':' + (SC.state.seed || '');
         if (biome && biomeKey === key) return biome;
         const cols = Math.max(1, Math.ceil(W / step)), rows = Math.max(1, Math.ceil(Wh / step));
         // A 1px-per-cell bitmap upscaled by PAD, so one modest blur radius
@@ -713,9 +693,9 @@
         const bctx = cv.getContext('2d');
         for (let j = 0; j < rows; j++) {
             for (let i = 0; i < cols; i++) {
-                const band = biomeBand(getBiomeNoise(i * step + step / 2, j * step + step / 2));
-                if (!band) continue;
-                bctx.fillStyle = band.css;
+                const tint = biomeTint(i * step + step / 2, j * step + step / 2);
+                if (!tint) continue;
+                bctx.fillStyle = tint;
                 bctx.fillRect(i * PAD, j * PAD, PAD, PAD);
             }
         }
