@@ -1096,6 +1096,38 @@
         }
     }
 
+    // Locked supplier sites — the ones the milestone track hasn't opened
+    // yet. They already exist at their final spot from world-gen (map.js's
+    // pool is created inactive, and unlockNext only flips the flag), so
+    // showing them as surveyed-but-unworked ground adds nothing to the
+    // economy and turns a lot of blank map into a plan: which material is
+    // coming, where, and — since yield follows the biome — how good that
+    // ground will be for it. Deliberately flat and dashed: a claim staked
+    // on open ground, not a building. Suppliers only; revealing every
+    // future factory and DC as well would give the whole map away.
+    function drawProspectSites() {
+        const z = clampZoom();
+        for (const n of SC.state.nodes) {
+            if (n.active || n.kind !== 'supplier') continue;
+            const g = S(n.x, n.y);
+            const { rx, ry } = footRadii(14);
+            R.ctx.save();
+            diamondPath(g.x, g.y, rx, ry);
+            R.ctx.fillStyle = 'rgba(10, 16, 26, 0.16)';
+            R.ctx.fill();
+            R.ctx.setLineDash([5 * z, 4 * z]);
+            R.ctx.strokeStyle = rgba(SC.colorOf(n.mat), 0.5);
+            R.ctx.lineWidth = Math.max(1.2, 1.6 * z);
+            R.ctx.stroke();
+            R.ctx.setLineDash([]);
+            // Enough to read what's coming at a glance, faint enough that a
+            // staked claim never competes with a site that's actually running.
+            R.ctx.globalAlpha = 0.62;
+            emoji(SC.emojiOf(n.mat), g.x, g.y - 3 * z, 16 * z);
+            R.ctx.restore();
+        }
+    }
+
     function drawYardSite(n, sp, g) {
         const z = zoom();
         drawYardParking(n, g, z, true);
@@ -1729,6 +1761,6 @@
     }
 
     Object.assign(R, { drawRoads, drawRouteFlow, nodeSpec, drawShadow, drawSupplierSite, drawJunction,
-        drawNodeBody, drawYardParking, drawYardSite, emojiPlateAt, drawOrderBubbles,
+        drawNodeBody, drawYardParking, drawYardSite, drawProspectSites, emojiPlateAt, drawOrderBubbles,
         drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawGhostMarks, drawPlacementGhost, drawOffscreenArrows });
 })();
