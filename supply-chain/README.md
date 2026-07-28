@@ -86,6 +86,21 @@ that ambient animation as its background — it now lives independently at
   The cap is per-difficulty (`SC.nodeMaxSpread` → `DIFFICULTIES[].nodeSpread`,
   falling back to `CONFIG.NODE_MAX_SPREAD`): tighter/tidier on Easy (520),
   real sprawl and longer supply lines on Hard (820).
+  Locked **suppliers** can surface as **staked claims** — a dashed plot
+  with the material's mark, flat on unworked ground
+  (`R.drawProspectSites`) — but only when they answer a question you
+  actually have. `SC.economy.supplyGaps()` splits the two ways a raw
+  material can be missing, and the map says exactly one thing at a time:
+  - **sourceless** (a factory you own takes it, you own no supplier of it
+    anywhere) → the claims for that material appear, so you can see where
+    it's coming and how good that ground is for it;
+  - **unroaded** (you own the supplier, nothing reaches it) → the claims
+    stay quiet and the site itself gets a pulsing ⚠ ring, because the
+    answer is "build the road", not "wait for another deposit".
+  Everything else is silent: no claims for materials nothing needs, no
+  warnings on a site that's connected. Locked factories and DCs are never
+  revealed — that would give the whole run away. Dev: `&gaps=1` puts the
+  map into both states at once.
 - **Field expansion**: the playing field only ever grows when the player buys
   it — the map never re-lays itself out mid-run. The `landSurvey` research
   unlocks the Buy land button; each purchase adds `stepW`/`stepH`
