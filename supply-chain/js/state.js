@@ -60,9 +60,10 @@ SC.newState = function(difficulty) {
         speed: 1,           // fast-forward multiplier: 1/2/4, see main.js's loop
         congestionEnabled: SC.DIFFICULTIES[difficulty].congestion, // fixed by difficulty, see roads.speedMult (dev panel can override for A/B comparison)
 
+        networkVersion: 0,  // incremented whenever road network topology or weights change
         selectedNode: null, // node picked as road start (input.js)
         highlight: null,    // { paths, color, city, until } — order route overlay
-        mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect'
+        mode: 'build',      // 'build' (default, tap-to-build) | 'upgrade' | 'inspect' | 'heatmap'
         placeMode: null,    // { kind: 'supplier'|'factory'|'yard', good } — manual placement (input.js)
         gameStarted: false,
         // Guided first-order tutorial (tutorial.js): 0..N-1 = on that step,
