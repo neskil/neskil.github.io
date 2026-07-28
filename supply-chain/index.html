@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.61.2';</script>
+    <script>window.SC_VERSION = '1.63.0';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -244,7 +244,15 @@
         <div class="research-tree-card">
             <div class="research-tree-header">
                 <h1>🔬 Research Tree</h1>
-                <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
+                <!-- Zoom controls: the page itself is user-scalable=no (the map
+                     canvas owns pinch), so the tree carries its own zoom —
+                     pinch inside it, or these buttons. -->
+                <div class="research-tree-tools">
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-fit" title="Fit whole tree" aria-label="Fit whole tree">⤢</button>
+                    <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
+                </div>
             </div>
             <div id="research-tree-wrap" class="research-tree-wrap">
                 <svg id="research-tree-edges"></svg>
@@ -379,8 +387,12 @@
                water, the smelter 🔩 turns ore and coal into steel for the car
                factory 🚗. Some chains run deeper and share ingredients: the
                robot factory 🤖 needs a circuit board 🔌 (itself made from wire
-               🧵 and electronics 💾) plus the same steel your cars use. Your
-               trucks do the hauling — but only where roads exist.</p>
+               🧵 and electronics 💾) plus the same steel your cars use. Every
+               raw material feeds more than one recipe — that coal pit is
+               wanted by the smelter, the tyre plant 🛞 and the battery plant
+               🔋 at once — so running several chains means planting more of
+               the suppliers you already have, not just new ones. Your trucks
+               do the hauling — but only where roads exist.</p>
             <ul>
                 <li><b>Guided walkthrough:</b> new runs start with a 4-step guided walkthrough to help link your first bakery, suppliers, and HQ.</li>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river pops up a choice: a pricier bridge (fast) or a cheaper ferry (slower boat crossing).</li>

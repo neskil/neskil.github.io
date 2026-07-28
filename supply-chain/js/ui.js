@@ -315,7 +315,7 @@ SC.ui = (function() {
             }
         }
         return `<div class="rt-node research-row ${done ? 'done' : ''} ${queued ? 'queued' : ''} ${locked || labMissing ? 'locked' : ''}"
-                     style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px">
+                     data-rt-id="${id}" style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px">
             <div class="research-top"><span class="research-name">${t.emoji} ${t.name}</span></div>
             <div class="research-desc">${t.desc}</div>
             ${btn}
@@ -390,65 +390,120 @@ SC.ui = (function() {
         return out;
     }
 
-    // Row pitch has to clear the tallest card, and card height is driven by
-    // the description text — 205 keeps the wordiest techs from overlapping
-    // the row below at the default font size.
-    const RT_COL_W = 178, RT_ROW_H = 205, RT_NODE_W = 164, RT_NODE_H = 150, RT_PAD = 20;
+    // Card geometry. Row pitch has to clear the tallest card, and card height
+    // is driven by the description text. Phones get their own, roomier set:
+    // the tree is never auto-shrunk below 100% there (see autoScale below),
+    // so the cards carry the bigger touch-legible type the `max-width: 768px`
+    // block in style.css puts on `.rt-node`, and the pitch has to match.
+    // rowH/nodeH here are only the opening estimate: updateResearchTree
+    // measures the rendered cards and re-pitches the rows off the tallest one.
+    const RT_PAD = 20;
+    const RT_ROW_GAP = 34;   // air between a row's tallest card and the next row
+    const RT_METRICS_DESKTOP = { colW: 178, rowH: 205, nodeW: 164, nodeH: 150 };
+    const RT_METRICS_PHONE = { colW: 260, rowH: 220, nodeW: 236, nodeH: 165 };
+    const RT_PHONE_MAX_W = 768;  // keep in sync with the mobile block in style.css
     const RT_ROOT_GAP = 0.35;   // extra columns between adjacent root subtrees
-    const RT_MIN_SCALE = 0.62;  // below this the tree scrolls instead of shrinking further
     // The tree is laid out at a fixed px size tuned for a phone-ish width, so on
     // a desktop card (up to 1380px) it used to sit small in a sea of empty card.
     // Above RT_GROW_MIN_W it now also scales *up* to fill the space — capped so
     // the nodes stay a sane reading size, and never past the visible height.
     const RT_MAX_SCALE = 1.45;
     const RT_GROW_MIN_W = 900;  // viewport width where growing kicks in (desktop)
+    // How far the player may zoom either side of that with pinch / the ± buttons.
+    const RT_ZOOM_MIN = 0.4, RT_ZOOM_MAX = 2.5;
+
+    function rtMetrics() {
+        return window.innerWidth <= RT_PHONE_MAX_W ? RT_METRICS_PHONE : RT_METRICS_DESKTOP;
+    }
+
+    // Unscaled size of the laid-out tree, the scale on screen, and the
+    // player's own zoom (0 = "no opinion", follow the auto fit).
+    let rtTreeW = 0, rtTreeH = 0, rtScale = 1, rtUserScale = 0;
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
-    function fitResearchTree() {
+    // What the tree picks for itself when the player hasn't zoomed.
+    function autoResearchTreeScale(containerWidth) {
+        // Never auto-shrink below 100%. Fitting the whole tree into a phone
+        // width used to land at 0.62, putting the description text at ~7px —
+        // that is what made the overlay unreadable on mobile. Narrower than
+        // the tree, the wrap scrolls and drag/pinch takes over instead.
+        if (containerWidth < rtTreeW || window.innerWidth < RT_GROW_MIN_W) return 1;
+        // Room to spare on desktop: grow into it, bounded by the width, by
+        // what's still visible below the card header, and by RT_MAX_SCALE.
         const wrap = $('research-tree-wrap');
-        if (!wrap) return;
+        const availH = Math.max(240, window.innerHeight * 0.9 - wrap.getBoundingClientRect().top);
+        return Math.max(1, Math.min(containerWidth / rtTreeW, availH / rtTreeH, RT_MAX_SCALE));
+    }
+
+    function applyResearchTreeScale(scale) {
+        const wrap = $('research-tree-wrap');
         const nodesEl = $('research-tree-nodes');
         const svg = $('research-tree-edges');
-
-        // Reset scaling first to read unscaled sizes
-        nodesEl.style.transform = '';
-        nodesEl.style.transformOrigin = '';
-        svg.style.transform = '';
-        svg.style.transformOrigin = '';
-        wrap.style.height = '';
-
-        const containerWidth = wrap.clientWidth;
-        const treeWidth = parseFloat(nodesEl.style.width) || 0;
-        const treeHeight = parseFloat(nodesEl.style.height) || 0;
-
-        if (!treeWidth || !treeHeight || containerWidth <= 0) return;
-
-        let scale = 1;
-        // On desktop the tree is never shrunk: at 1280px wide it used to hit the
-        // 0.62 floor and render tiny even though the card had to scroll anyway.
-        // Full size + drag-to-pan reads far better there. Phones keep the floor.
-        const minScale = window.innerWidth >= RT_GROW_MIN_W ? 1 : RT_MIN_SCALE;
-
-        if (containerWidth < treeWidth) {
-            // Shrink to fit, but not past the point where the node text is
-            // unreadable — the wrap scrolls (overflow:auto) from there on.
-            scale = Math.max(minScale, containerWidth / treeWidth);
-        } else if (window.innerWidth >= RT_GROW_MIN_W) {
-            // Room to spare on desktop: grow into it, bounded by the width, by
-            // what's still visible below the card header, and by RT_MAX_SCALE.
-            const availH = Math.max(240, window.innerHeight * 0.9 - wrap.getBoundingClientRect().top);
-            scale = Math.min(containerWidth / treeWidth, availH / treeHeight, RT_MAX_SCALE);
-            scale = Math.max(1, scale);
-        }
-
-        if (scale === 1) return;
-        nodesEl.style.transform = `scale(${scale})`;
+        rtScale = scale;
+        nodesEl.style.transform = scale === 1 ? '' : `scale(${scale})`;
         nodesEl.style.transformOrigin = 'top left';
-        svg.style.transform = `scale(${scale})`;
+        svg.style.transform = scale === 1 ? '' : `scale(${scale})`;
         svg.style.transformOrigin = 'top left';
-        wrap.style.height = (treeHeight * scale) + 'px';
+        // Every node is absolutely positioned, so this box only ever drives the
+        // wrap's scroll extent — sizing it to the *scaled* tree is what lets a
+        // zoomed-in tree pan all the way out to its right/bottom edge.
+        nodesEl.style.width = (rtTreeW * scale) + 'px';
+        nodesEl.style.height = (rtTreeH * scale) + 'px';
+        wrap.style.height = (rtTreeH * scale) + 'px';
     }
+
+    function fitResearchTree() {
+        const wrap = $('research-tree-wrap');
+        if (!wrap || !rtTreeW || !rtTreeH) return;
+        const containerWidth = wrap.clientWidth;
+        if (containerWidth <= 0) return;
+        applyResearchTreeScale(rtUserScale || autoResearchTreeScale(containerWidth));
+    }
+
+    // Zooming out has to reach the whole-tree overview however wide the tree
+    // grows — on a phone that is well under RT_ZOOM_MIN — but a tree that
+    // already fits shouldn't be shrinkable into nothing.
+    function rtMinZoom() {
+        const wrap = $('research-tree-wrap');
+        if (!wrap || !rtTreeW || !wrap.clientWidth) return RT_ZOOM_MIN;
+        return Math.min(RT_ZOOM_MIN, wrap.clientWidth / rtTreeW);
+    }
+
+    // Zoom about a point given in wrap-viewport coordinates (defaults to the
+    // middle of what's on screen), keeping whatever sits under it put.
+    function setResearchTreeZoom(scale, ax, ay) {
+        const wrap = $('research-tree-wrap');
+        if (!wrap || !rtTreeW) return;
+        const next = Math.max(rtMinZoom(), Math.min(RT_ZOOM_MAX, scale));
+        const prev = rtScale || 1;
+        if (Math.abs(next - prev) < 0.001) return;
+        if (ax === undefined) ax = wrap.clientWidth / 2;
+        if (ay === undefined) ay = wrap.clientHeight / 2;
+        const tx = (wrap.scrollLeft + ax) / prev;   // tree coords under the anchor
+        const ty = (wrap.scrollTop + ay) / prev;
+        rtUserScale = next;
+        applyResearchTreeScale(next);
+        wrap.scrollLeft = tx * next - ax;
+        wrap.scrollTop = ty * next - ay;
+    }
+
+    function zoomResearchTreeBy(factor, ax, ay) {
+        setResearchTreeZoom((rtScale || 1) * factor, ax, ay);
+    }
+
+    // The one place the tree is allowed under 100%: an overview the player
+    // asked for explicitly and can pinch straight back out of.
+    function fitResearchTreeToScreen() {
+        const wrap = $('research-tree-wrap');
+        if (!wrap || !rtTreeW || !rtTreeH) return;
+        const avail = Math.max(240, window.innerHeight * 0.9 - wrap.getBoundingClientRect().top);
+        setResearchTreeZoom(Math.min(wrap.clientWidth / rtTreeW, avail / rtTreeH), 0, 0);
+        wrap.scrollLeft = 0;
+        wrap.scrollTop = 0;
+    }
+
+    function researchTreeScale() { return rtScale; }
 
     // The tree is rebuilt from updateShop(), which the game loop calls every
     // 0.4s — and rebuilding means replacing #research-tree-nodes' innerHTML.
@@ -458,7 +513,7 @@ SC.ui = (function() {
     // guards: never rebuild while a pointer is held down inside the tree
     // (flush on release instead), and skip the write entirely when the markup
     // is byte-identical to what is already on screen.
-    let rtHold = false, rtDirty = false, rtLastNodes = '', rtLastEdges = '';
+    let rtHold = false, rtDirty = false, rtLastNodes = '', rtLastEdges = '', rtNodeH = {}, rtLastTops = '';
     function setResearchTreeHold(v) {
         rtHold = !!v;
         if (!rtHold && rtDirty) { rtDirty = false; updateResearchTree(); }
@@ -476,27 +531,60 @@ SC.ui = (function() {
             maxRow = Math.max(maxRow, layout[id].row);
         }
 
-        const width = RT_PAD * 2 + (maxCol + 1) * RT_COL_W;
-        const height = RT_PAD * 2 + (maxRow + 1) * RT_ROW_H;
+        const m = rtMetrics();
+        const width = RT_PAD * 2 + (maxCol + 1) * m.colW;
+        let height = RT_PAD * 2 + (maxRow + 1) * m.rowH;
 
         for (const id in layout) {
             positions[id] = {
-                x: RT_PAD + layout[id].col * RT_COL_W + (RT_COL_W - RT_NODE_W) / 2,
-                y: RT_PAD + layout[id].row * RT_ROW_H,
-                w: RT_NODE_W
+                x: RT_PAD + layout[id].col * m.colW + (m.colW - m.nodeW) / 2,
+                y: RT_PAD + layout[id].row * m.rowH,
+                w: m.nodeW
             };
         }
 
         const ids = SC.RESEARCH_ORDER.filter(id => positions[id]);
         const nodesEl = $('research-tree-nodes');
-        nodesEl.style.width = width + 'px';
-        nodesEl.style.height = height + 'px';
         const nodesHTML = ids.map(id => researchNodeHTML(id, positions[id])).join('');
         const changed = nodesHTML !== rtLastNodes;
         if (changed) {
             rtLastNodes = nodesHTML;
             nodesEl.innerHTML = nodesHTML;
+            // Cards grow with their description text, so m.nodeH is only an
+            // opening estimate — measure the real ones (one reflow, and only
+            // when the markup actually changed).
+            rtNodeH = {};
+            for (const el of nodesEl.children) {
+                if (el.dataset.rtId) rtNodeH[el.dataset.rtId] = el.offsetHeight;
+            }
         }
+
+        // Second pass: with real card heights in hand, stack each row directly
+        // under the tallest card of the row above it — a fixed pitch has to
+        // clear the wordiest tech in the whole tree, which left every other row
+        // swimming in dead space. Positions are pure JS; only `top` hits the DOM.
+        const rowH = [];
+        for (const id in positions) {
+            const r = layout[id].row;
+            rowH[r] = Math.max(rowH[r] || 0, rtNodeH[id] || m.nodeH);
+        }
+        const rowTop = [];
+        let y = RT_PAD;
+        for (let r = 0; r <= maxRow; r++) {
+            rowTop[r] = y;
+            y += (rowH[r] || m.nodeH) + RT_ROW_GAP;
+        }
+        height = y - RT_ROW_GAP + RT_PAD;
+        for (const id in positions) positions[id].y = rowTop[layout[id].row];
+        const tops = rowTop.join();
+        if (changed || tops !== rtLastTops) {
+            rtLastTops = tops;
+            for (const el of nodesEl.children) {
+                if (el.dataset.rtId) el.style.top = positions[el.dataset.rtId].y + 'px';
+            }
+        }
+        rtTreeW = width;
+        rtTreeH = height;
 
         const svg = $('research-tree-edges');
         svg.setAttribute('width', width);
@@ -507,7 +595,7 @@ SC.ui = (function() {
             for (const req of SC.RESEARCH[id].requires) {
                 const from = positions[req];
                 if (!from) continue;
-                const x1 = from.x + from.w / 2, y1 = from.y + RT_NODE_H;
+                const x1 = from.x + from.w / 2, y1 = from.y + (rtNodeH[req] || m.nodeH);
                 const x2 = to.x + to.w / 2, y2 = to.y;
                 const midY = (y1 + y2) / 2;
                 edges += `<path d="M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}"
@@ -527,6 +615,9 @@ SC.ui = (function() {
     function openResearchTree() {
         $('research-overlay').classList.remove('hidden');
         setResearchTreeHold(false);
+        rtUserScale = 0;   // each opening starts from the auto fit again
+        const wrap = $('research-tree-wrap');
+        if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
         updateResearchTree();
         fitResearchTree(); // the wrap only has real dimensions once shown
     }
@@ -539,32 +630,29 @@ SC.ui = (function() {
         const container = $('recipe-graph');
         if (!container) return;
 
-        const nodePositions = {
-            // Column 0: Raw Materials
-            wheat:   { x: 15,  y: 15,  w: 130 },
-            water:   { x: 15,  y: 65,  w: 130 },
-            wool:    { x: 15,  y: 115, w: 130 },
-            rubber:  { x: 15,  y: 165, w: 130 },
-            copper:  { x: 15,  y: 215, w: 130 },
-            ore:     { x: 15,  y: 265, w: 130 },
-            coal:    { x: 15,  y: 315, w: 130 },
-            chips:   { x: 15,  y: 365, w: 130 },
-
-            // Column 1: Tier 1 Crafting
-            bread:   { x: 200, y: 40,  w: 130 },
-            shoes:   { x: 200, y: 140, w: 130 },
-            wire:    { x: 200, y: 190, w: 130 },
-            steel:   { x: 200, y: 290, w: 130 },
-
-            // Column 2: Tier 2 Crafting
-            circuit: { x: 385, y: 215, w: 130 },
-            car:     { x: 385, y: 340, w: 130 },
-
-            // Column 3: Tier 3 Crafting
-            robot:   { x: 570, y: 275, w: 130 }
-        };
-
-        const NODE_H = 32;
+        // Laid out from SC.GOODS rather than a hand-written table: column is
+        // the good's chain depth, row is its order within that column. The
+        // old fixed table silently dropped any good missing from it, so every
+        // recipe added to config.js had to be mirrored here or vanish from
+        // this graph. Rows are centred per column so the tree reads top-down.
+        const NODE_W = 130, NODE_H = 32, COL_W = 185, ROW_H = 42, PAD = 15;
+        const cols = [];
+        for (const id of Object.keys(SC.GOODS)) {
+            const d = SC.depthOf(id);
+            (cols[d] = cols[d] || []).push(id);
+        }
+        const tallest = Math.max(...cols.map(c => c.length));
+        const nodePositions = {};
+        cols.forEach((ids, d) => {
+            const top = PAD + (tallest - ids.length) * ROW_H / 2;
+            ids.forEach((id, i) => {
+                nodePositions[id] = { x: PAD + d * COL_W, y: top + i * ROW_H, w: NODE_W };
+            });
+        });
+        const graphW = PAD * 2 + (cols.length - 1) * COL_W + NODE_W;
+        const graphH = PAD * 2 + (tallest - 1) * ROW_H + NODE_H;
+        container.style.width = graphW + 'px';
+        container.style.height = graphH + 'px';
         const nodesEl = $('recipe-graph-nodes');
         const svg = $('recipe-graph-edges');
         if (!nodesEl || !svg) return;
@@ -580,8 +668,8 @@ SC.ui = (function() {
         }
         nodesEl.innerHTML = nodesHTML;
 
-        svg.setAttribute('width', 715);
-        svg.setAttribute('height', 415);
+        svg.setAttribute('width', graphW);
+        svg.setAttribute('height', graphH);
         let edges = '';
         for (const [id, pos] of Object.entries(nodePositions)) {
             const g = SC.GOODS[id];
@@ -1264,7 +1352,7 @@ SC.ui = (function() {
     SC._ui = {
         $, getDevMode: () => devMode, getHidePills: () => hidePills, getUiScale, setUiScale,
         openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, getToastHistory: () => toastHistory,
-        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
+        fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, zoomResearchTreeBy, setResearchTreeZoom, fitResearchTreeToScreen, researchTreeScale, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial, inspectTooltipHTML
     };
 
     return { init, update, toast, openStatsOverlay, openOptionsModal, openToastHistoryModal };

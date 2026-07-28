@@ -14,19 +14,22 @@ that ambient animation as its background — it now lives independently at
 
 - **Goods & recipes** (emoji-first, colors are accents): suppliers
   (hexagons) provide raw goods; each factory (square) is dedicated to one
-  recipe. 🌾wheat+💧water→🍞bread (bakery), 🧶wool+🛞rubber→👟sneakers
-  (sneaker factory), the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
-  🔩steel+💾chips→🚗cars (car factory), and the three-tier chain
-  🟠copper+🛞rubber→🧵wire (wire mill), 🧵wire+💾chips→🔌circuit board
-  (circuit factory), 🔌circuit+🔩steel→🤖robots (robot factory). Steel,
-  chips and rubber are each shared by two recipes, so one supplier's
-  placement (and the roads to it) can matter for more than one product.
-  Steel/wire/circuit are intermediates — cities only order `orderable`
-  goods; the planner recursively schedules factory-to-factory runs for
-  chains of any depth (nothing in `economy.js`/`factories.js` is
-  hardcoded to 2 tiers). The goods tree lives in `js/config.js`
-  (`SC.GOODS`) — adding a good/recipe is one entry there, plus a pool
-  entry in `js/map.js` if it should be unlockable.
+  recipe, which always takes exactly two inputs. Chains run one to three
+  tiers deep — 🌾wheat+💧water→🍞bread is the shallow end,
+  🟠copper+🧪rubber→🧵wire→(+💾chips)→🔌circuit→(+🔩steel)→🤖robots the
+  deep one. **Every raw material feeds more than one recipe** (rubber and
+  coal feed three or more), so a supplier's placement and the roads to it
+  matter for several products at once, and running two chains side by side
+  means owning two coal pits rather than discovering a new kind of site.
+  Intermediates like steel/wire/circuit/tyres aren't ordered by cities —
+  only `orderable` goods are — and a good can be both, as batteries are
+  (a product in their own right and the e-scooter's input). The planner
+  recursively schedules factory-to-factory runs for chains of any depth
+  (nothing in `economy.js`/`factories.js` is hardcoded to 2 tiers). The
+  authoritative tree is `SC.GOODS` in `js/config.js` — the start screen's
+  Production Recipes graph is laid out from it, so it never drifts —
+  and adding a good/recipe is one entry there, plus a pool entry in
+  `js/map.js` if it should be unlockable.
 - **Orders**: HQ (⭐) is the only order-placing location at the start.
   New customer DCs (🏢) unlock on their own independent timer (~50-70s for
   the first, ~90-140s between further ones — `CUSTOMER_SPAWN_FIRST` /
