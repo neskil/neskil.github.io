@@ -11,17 +11,28 @@ const CargoPhysicsCollisionMixin = {
         let maxSurfaceY = 0; // The lowest physical surface (largest Y on screen) that we find
         let nearestAboveRef = null;
         for (const poly of this.terrainPolygons) {
+            // Walk every polygon in the same winding direction generateTerrain()
+            // normalises to, so the floor test below sees each polygon's outer
+            // surface traversed left-to-right. Levels are authored either way
+            // (level 4's ridge winds opposite to level 1's ground), and the test
+            // has to stay direction-sensitive: dropping it entirely makes a
+            // polygon's closing underside — level 1's ground runs one flat edge
+            // from x 1640 back to -960 at y≈1340 — read as the deepest "floor",
+            // which drags every auto-snapped pad on the level under the map.
+            const flip = this.polygonWindingSum(poly) > 0;
             for (let i = 0; i < poly.length; i++) {
-                const p1 = poly[i];
-                const p2 = poly[(i + 1) % poly.length];
+                const a = poly[i];
+                const b = poly[(i + 1) % poly.length];
 
-                if (p1.invisibleEdge) continue;
+                if (a.invisibleEdge) continue;
 
-                const minX = Math.min(p1.x, p2.x);
-                const maxX = Math.max(p1.x, p2.x);
+                // Swap the endpoints rather than reversing the vertex list, so
+                // each edge keeps the invisibleEdge flag of the point that owns it.
+                const p1 = flip ? b : a;
+                const p2 = flip ? a : b;
 
-                // Consider non-vertical floor/surface segments regardless of polygon winding order
-                if (minX <= targetX && maxX >= targetX && minX < maxX) {
+                // Only consider upward-facing floor segments (p1.x < p2.x) to avoid catching ceilings and vertical walls
+                if (p1.x < p2.x && p1.x <= targetX && p2.x >= targetX) {
                     const ratio = (targetX - p1.x) / (p2.x - p1.x);
                     const y = p1.y + ratio * (p2.y - p1.y);
                     if (maxSurfaceY === 0 || y > maxSurfaceY) {
@@ -35,6 +46,20 @@ const CargoPhysicsCollisionMixin = {
         }
         if (refY !== undefined && nearestAboveRef !== null) return nearestAboveRef;
         return maxSurfaceY || this.levelHeight * 0.7;
+    },
+
+    // Shoelace-style winding sum for a terrain polygon. Negative = the outer
+    // surface is traversed left-to-right (the authoring convention every level
+    // config and getPolygonSurfaceY() assume); positive = wound the other way.
+    // generateTerrain() reverses the positive ones so collision normals point
+    // inwards — this is the same test, shared so the two can't drift apart.
+    polygonWindingSum(pts) {
+        let sum = 0;
+        for (let i = 0; i < pts.length; i++) {
+            const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
+            sum += (p2.x - p1.x) * (p2.y + p1.y);
+        }
+        return sum;
     },
 
     pointInPolygon(px, py, pts) {

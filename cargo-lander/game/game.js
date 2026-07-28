@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.19.8';
+    static VERSION = '0.19.12';
 
     constructor() {
         this.canvas = null;
@@ -649,7 +649,7 @@ class CargoGame {
                 detailsEl.innerHTML = `
                     <div style="font-family: monospace; font-size: 0.85rem; line-height: 1.4;">
                         <div style="display:flex; justify-content:space-between;"><span>Starting Bank:</span> <span>$${(this.missionStartBank || 0).toLocaleString()}</span></div>
-                        <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Upkeep Fee:</span> <span>-$${(this.missionFee || 0).toLocaleString()}</span></div>
+                        <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Docking Fee:</span> <span>-$${(this.missionFee || 0).toLocaleString()}</span></div>
                         <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Deposit Deducted:</span> <span>-$${(this.missionInitialDeposit || 0).toLocaleString()}</span></div>
                         <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
                         <div style="display:flex; justify-content:space-between; color: #ef4444; font-weight: bold;"><span>Deposit Returned:</span> <span>$0 (Lost to the dunes)</span></div>
@@ -1737,7 +1737,7 @@ class CargoGame {
         document.getElementById('lvl-complete-details').innerHTML = `
             <div style="font-family: monospace; font-size: 0.85rem; line-height: 1.4; margin-bottom: 15px;">
                 <div style="display:flex; justify-content:space-between;"><span>Starting Bank:</span> <span>$${this.missionStartBank.toLocaleString()}</span></div>
-                <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Upkeep Fee:</span> <span>-$${this.missionFee.toLocaleString()}</span></div>
+                <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Docking Fee:</span> <span>-$${this.missionFee.toLocaleString()}</span></div>
                 <div style="display:flex; justify-content:space-between; color: #fca5a5;"><span>Deposit Deducted:</span> <span>-$${this.missionInitialDeposit.toLocaleString()}</span></div>
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.2); margin: 6px 0;">
                 <div style="display:flex; justify-content:space-between; font-weight: bold;"><span>Bank:</span> <span>$${(this.missionStartBank - this.missionFee - this.missionInitialDeposit).toLocaleString()}</span></div>
