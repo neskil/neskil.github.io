@@ -79,6 +79,11 @@
             --bg-color-2: #0f2634;
         }
 
+        html[data-theme="card-car"] {
+            --bg-color-1: #08190f;
+            --bg-color-2: #0d2a1b;
+        }
+
         html[data-theme="card-cv"] {
             --bg-color-1: #0f1724;
             --bg-color-2: #1a2332;
@@ -390,6 +395,18 @@
 
         #card-converter .card-link {
             color: rgb(34, 211, 238);
+        }
+
+        #card-car {
+            --accent-rgb: 16, 185, 129;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 34, 26, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 54, 40, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(16, 185, 129, 0.22);
+            --card-hover-border: rgba(52, 211, 153, 0.48);
+        }
+
+        #card-car .card-link {
+            color: rgb(52, 211, 153);
         }
 
         #card-cv {
@@ -873,14 +890,6 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
-            <a href="car/index.html" class="vault-row">
-                <div class="vault-row-icon">🚗</div>
-                <div class="vault-row-body">
-                    <div class="vault-row-title">Lease, Rent or Buy?</div>
-                    <div class="vault-row-desc">What a car really costs in the US, cash included.</div>
-                </div>
-                <span class="vault-row-arrow">→</span>
-            </a>
             <a href="surprise/index.html" class="vault-row">
                 <div class="vault-row-icon">✨</div>
                 <div class="vault-row-body">
@@ -993,6 +1002,29 @@
                     visual scales and integrated memory rules.</p>
             </div>
             <span class="card-link">Open Converter <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
+        <a href="car/index.html" class="card card-metal" id="card-car">
+            <div class="card-bg-hover"></div>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M4 16v2a1 1 0 0 1-1 1H2.5"/>
+                        <path d="M20 16v2a1 1 0 0 0 1 1h.5"/>
+                        <path d="M3 16v-3.2a2 2 0 0 1 .45-1.26L6 8.4A2 2 0 0 1 7.55 7.6h8.9a2 2 0 0 1 1.55.8l2.55 3.14A2 2 0 0 1 21 12.8V16z" fill="currentColor" fill-opacity="0.1"/>
+                        <path d="M3.6 12.2h16.8"/>
+                        <circle cx="7.5" cy="16" r="1.6"/>
+                        <circle cx="16.5" cy="16" r="1.6"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Lease, Rent or Buy?</h2>
+                <p class="card-desc">What a car really costs in the US over your own time horizon — lease vs. finance
+                    vs. cash vs. monthly subscription, including the return your cash gives up.</p>
+            </div>
+            <span class="card-link">Run the numbers <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" />
                 </svg></span>
@@ -1117,6 +1149,7 @@
                 'card-supply-chain': 45,
                 'card-cargo-lander': 245,
                 'card-converter': 190,
+                'card-car': 155,
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25
@@ -1173,7 +1206,7 @@
                     this.maxLife = Math.ceil((width + 120) / Math.abs(this.vx));
                     this.maxAlpha = 0.4;
                 } else {
-                    // General horizontal floaters for converter, cv, math
+                    // General horizontal floaters for converter, car, cv, math
                     this.type = 'floater';
                     this.x = fromLeft ? -40 : width + 40;
                     this.y = Math.random() * height;
@@ -1185,6 +1218,7 @@
 
                     const config = {
                         'card-converter': { hue: 40, items: ['⇄', 'kg ⇄ lb', 'km ⇄ mi', '°C ⇄ °F'] },
+                        'card-car': { hue: 155, items: ['🚗', '$/mo', 'LEASE', 'CASH', '%', '🔑'] },
                         'card-cv': { hue: 215, items: ['📄', '📜', '</>', '◆', '💼'] },
                         'card-math': { hue: 325, items: ['2.2 lb/kg', '1.6 mi/km', '3.8 gal/L', '+', '×', '÷'] }
                     };
