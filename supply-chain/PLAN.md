@@ -39,6 +39,17 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.61.3: **the map stops reading as empty** — two causes, both fixed.
+  Decor counts (ground patches, trees/rocks) were flat regardless of world
+  size, so every land purchase diluted the scenery — by the third expansion
+  the world is ~4× the starting area with the same 90 trees in it; they now
+  scale with world area, holding a new game's density at any size. And
+  locked **supplier** sites, which have existed at their final spots since
+  world-gen, are drawn as staked claims (dashed plot + material mark, flat
+  on unworked ground) instead of being invisible until their milestone —
+  no economy change, but the blank half of the map becomes a plan you can
+  read, right down to which ground will yield well. Locked factories/DCs
+  stay hidden.
 - v1.61.2: **ground quality — biome-driven supplier yield** — a supplier's
   regen is now multiplied by the biome band under it (`BIOME_BANDS` ×
   `BIOME_YIELD`, per material) plus a small per-site roll

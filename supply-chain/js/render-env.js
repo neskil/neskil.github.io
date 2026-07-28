@@ -513,9 +513,18 @@
                     + ':' + terrainKey();
         if (decor && decorKey === key) return decor;
         const rng = makeRng(0x2357);
+        // Decor counts scale with world AREA, not the map. They used to be
+        // flat (18 patches / 90 trees) no matter how far the world had been
+        // expanded, so every land purchase diluted the scenery — by the
+        // third expansion the world is ~4x the starting area with the same
+        // 90 trees in it, which is what made a grown map read as barren.
+        // Scaling off the base world size keeps the density a new game has.
+        const areaScale = (W * Wh) / (SC.CONFIG.WORLD_W * SC.CONFIG.WORLD_H);
+        const patchCount = Math.max(1, Math.round(18 * areaScale));
+        const treeCount = Math.max(1, Math.round(90 * areaScale));
         const patches = [];
         const tints = ['#233650', '#2b3a3a', '#1d2b40', '#2a3446', '#243d3a'];
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < patchCount; i++) {
             const cx = rng() * W, cy = rng() * Wh;
             const rx = 220 + rng() * 320, ry = 140 + rng() * 200;
             const pts = [];
@@ -532,7 +541,9 @@
         }
         const trees = [];
         let tries = 0;
-        while (trees.length < 90 && tries < 1000) {
+        // The retry budget scales with the target too — it exists to bail
+        // out of a map with nowhere left to plant, not to cap the count.
+        while (trees.length < treeCount && tries < treeCount * 12) {
             tries++;
             const x = 70 + rng() * (W - 140), y = 70 + rng() * (Wh - 140);
             if (inRiver(x, y, 55)) continue;
