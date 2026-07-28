@@ -1115,6 +1115,7 @@
         <section class="panel">
             <div class="panel-title">The car &amp; how long you keep it</div>
             <div class="preset-row" id="horizonPresets">
+                <button class="preset-btn" data-months="12" type="button">1 yr</button>
                 <button class="preset-btn" data-months="24" type="button">2 yr</button>
                 <button class="preset-btn" data-months="36" type="button">3 yr</button>
                 <button class="preset-btn" data-months="48" type="button">4 yr</button>
@@ -1168,9 +1169,9 @@
                     <label for="depreciation">Depreciation curve</label>
                     <div class="input-shell">
                         <select id="depreciation">
-                            <option value="slow">Slow — used, truck, Toyota</option>
-                            <option value="typical" selected>Typical — new mainstream</option>
-                            <option value="fast">Fast — luxury, EV</option>
+                            <option value="slow">Slow — 72% left at 5 yr (RAV4, trucks)</option>
+                            <option value="typical" selected>Average — 58% left at 5 yr</option>
+                            <option value="fast">Fast — 45% left at 5 yr (luxury, EV)</option>
                         </select>
                     </div>
                 </div>
@@ -1192,7 +1193,7 @@
                     <label for="insurance">Insurance</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
-                        <input type="number" id="insurance" min="0" step="10" value="160">
+                        <input type="number" id="insurance" min="0" step="10" value="210">
                         <span class="suffix">/mo</span>
                     </div>
                 </div>
@@ -1200,7 +1201,7 @@
                     <label for="maintenance">Maintenance &amp; repairs</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
-                        <input type="number" id="maintenance" min="0" step="10" value="65">
+                        <input type="number" id="maintenance" min="0" step="10" value="110">
                         <span class="suffix">/mo</span>
                     </div>
                 </div>
@@ -1281,7 +1282,7 @@
                         <div class="field">
                             <label for="apr">APR</label>
                             <div class="input-shell">
-                                <input type="number" id="apr" min="0" max="30" step="0.1" value="6.5">
+                                <input type="number" id="apr" min="0" max="30" step="0.01" value="6.39">
                                 <span class="suffix">%</span>
                             </div>
                         </div>
@@ -1311,7 +1312,7 @@
                             <label for="leasePayment">Payment (incl. tax)</label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="leasePayment" min="0" step="10" value="420">
+                                <input type="number" id="leasePayment" min="0" step="10" value="500">
                                 <span class="suffix">/mo</span>
                             </div>
                         </div>
@@ -1601,7 +1602,7 @@
                         <li class="pro" data-mark="+">Return window (a few days) and a short limited warranty — rare on used cars.</li>
                         <li class="pro" data-mark="+">Huge searchable inventory, transferable between stores for a fee.</li>
                         <li class="pro" data-mark="+">Their written appraisal is good for days and costs nothing — use it as the floor price for your trade even if you buy elsewhere.</li>
-                        <li class="con" data-mark="−">You pay for the convenience: typically $1–3k above a negotiated dealer or private price.</li>
+                        <li class="con" data-mark="−">You pay for the convenience — an iSeeCars study put CarMax about 1% above market value, and no-haggle lots generally run 5–10% above a private-party price.</li>
                         <li class="con" data-mark="−">Fixed price cuts both ways — no discount for cash, timing, or walking away.</li>
                         <li class="con" data-mark="−">In-house financing is rarely the best rate. Bring your own.</li>
                     </ul>
@@ -1661,6 +1662,36 @@
                 <li><strong>Business use.</strong> If the car runs through a business, lease payments and depreciation
                     deduct differently (Section 179 / bonus depreciation vs. the lease inclusion amount). That can flip
                     the ranking, and it is a question for a CPA, not a calculator.</li>
+            </ul>
+        </section>
+
+        <!-- Where the defaults come from -->
+        <section class="panel">
+            <div class="panel-title">Where these numbers come from</div>
+            <p class="notes" style="margin-bottom:10px">Every default below is a published US figure, not a guess.
+                They are national averages — your state, credit score and driving record will move them, so overwrite
+                anything you know better.</p>
+            <ul class="notes">
+                <li><strong>Depreciation</strong> — five-year retention per model from the
+                    <a href="https://www.iseecars.com/cars-that-hold-their-value-study" target="_blank"
+                        rel="noopener">iSeeCars 2026 study</a>: RAV4 75%, CR-V 71%, CX-5 58%, X3 ~50%, Equinox 49%,
+                    Escape 46%, against an all-vehicle average of 58%. The generic slow/average/fast curves are
+                    calibrated to the same scale.</li>
+                <li><strong>APR</strong> — Experian's State of the Automotive Finance Market, Q1 2026: 6.39% average
+                    on new, 11.43% on used.</li>
+                <li><strong>Lease payment</strong> — the $500 default is what standard lease maths gives for a $32k
+                    car at a 60% residual over 36 months. Experian puts the national average new-car lease payment at
+                    $619/mo, on a much pricier average car.</li>
+                <li><strong>Insurance</strong> — ~$210/mo for full coverage, the middle of 2026 national estimates
+                    (sources range $186–$244).</li>
+                <li><strong>Maintenance, repairs and tires</strong> — AAA's Your Driving Costs 2025 puts it at 11.04
+                    cents per mile, which is $110/mo at 12,000 mi/yr. Older cars are scaled up from there, and that
+                    scaling is an estimate rather than a published figure.</li>
+                <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
+                    drivers, about $1,200 for the next size up.</li>
+                <li><strong>Everything else</strong> — sales tax, fees, registration, lease terms and subscription
+                    mileage caps are typical values you should replace with your own quote. Fuel is excluded
+                    throughout because it is the same car either way.</li>
             </ul>
         </section>
 
@@ -1724,10 +1755,14 @@
         </button>
 
         <p class="notes" style="margin-top:12px; color:var(--text-mute); font-size:0.75rem">
-            Curves are modelled from each nameplate's typical five-year retention — the well-documented ranking of how
-            these vehicles hold value — not live listings for a specific VIN. Real prices swing with trim, mileage,
-            colour, region and condition, easily ±15%. Use this to compare models against each other, then check
-            actual asking prices before you buy.
+            Each curve is solved so its five-year retention matches the
+            <a href="https://www.iseecars.com/cars-that-hold-their-value-study" target="_blank" rel="noopener"
+                style="color:var(--text-secondary)">iSeeCars 2026 depreciation study</a> — 950,000+ transactions of
+            five-year-old vehicles, March 2025 to February 2026 — anchored on 2019 base-trim MSRPs. Two anchor points
+            per model, not a measured month-by-month curve, and not a specific VIN: real prices swing with trim,
+            mileage, colour, region and condition, easily ±15%, and published figures differ between studies (other
+            sources put the CX-5 nearer 61% and the X3 nearer 46%). Compare models against each other here, then
+            check actual asking prices before you buy.
         </p>
     </div>
 
@@ -1760,23 +1795,26 @@
 
         /* First-year drop and the annual rate on the remainder afterwards. */
         const DEPRECIATION_CURVES = {
-            slow:    { firstYear: 0.12, annual: 0.10 },
-            typical: { firstYear: 0.20, annual: 0.14 },
-            fast:    { firstYear: 0.28, annual: 0.18 }
+            slow:    { firstYear: 0.13, annual: 0.0462 },
+            typical: { firstYear: 0.17, annual: 0.0849 },
+            fast:    { firstYear: 0.24, annual: 0.1228 }
         };
 
         /* A lease keeps you inside the factory warranty, so you buy tires and
            oil changes but not a transmission. */
         const LEASE_MAINTENANCE_SHARE = 0.45;
 
-        /* Starting points for the four buying strategies. Insurance and upkeep
-           move with the car, not just the price — an older car costs less to
-           cover and more to fix. */
+        /* Starting points for the four buying strategies. The new-car row is
+           sourced — AAA puts maintenance, repair and tires at 11.04 cents/mile
+           ($110/mo at 12k mi/yr), Experian's Q1 2026 average new-car APR is
+           6.39% and used 11.43%, and full coverage averages ~$210/mo. The
+           other rows scale those against the car's age: older cars cost less
+           to insure and more to fix. Those scalings are estimates. */
         const CAR_PRESETS = {
-            beater:  { price: 6000,  depreciation: 'slow',    insurance: 95,  maintenance: 190, apr: 12, down: 0 },
-            used:    { price: 18000, depreciation: 'typical', insurance: 140, maintenance: 95,  apr: 8.5, down: 3000 },
-            new:     { price: 32000, depreciation: 'typical', insurance: 160, maintenance: 65,  apr: 6.5, down: 4000 },
-            premium: { price: 58000, depreciation: 'fast',    insurance: 230, maintenance: 130, apr: 6.9, down: 8000 }
+            beater:  { price: 6000,  depreciation: 'slow',    insurance: 120, maintenance: 210, apr: 11.43, down: 0 },
+            used:    { price: 18000, depreciation: 'typical', insurance: 185, maintenance: 150, apr: 11.43, down: 3000 },
+            new:     { price: 32000, depreciation: 'typical', insurance: 210, maintenance: 110, apr: 6.39,  down: 4000 },
+            premium: { price: 58000, depreciation: 'fast',    insurance: 285, maintenance: 190, apr: 6.39,  down: 8000 }
         };
 
         const STORAGE_KEY = 'car-lease-rent-buy-v1';
@@ -2581,16 +2619,18 @@
 
         /* ── Depreciation by model ───────────────────────────────────────
            Each nameplate carries a first-year drop and an annual rate on the
-           remainder, calibrated so the five-year retention matches the
-           well-established ranking for these vehicles. Same shape as the main
-           calculator's curve, so the two agree. */
+           remainder, solved so five-year retention lands on the figure from
+           the iSeeCars 2026 depreciation study (950k+ transactions of
+           five-year-old vehicles, March 2025 – February 2026). Prices when new
+           are 2019 base-trim MSRPs. Same curve shape as the main calculator,
+           so the two agree. */
         const MODELS = [
-            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.15, r: 0.076, msrp2019: 26000, hold5: 0.62 },
-            { key: 'crv',     name: 'Honda CR-V',        d1: 0.16, r: 0.085, msrp2019: 25050, hold5: 0.59 },
-            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.18, r: 0.091, msrp2019: 25000, hold5: 0.56 },
-            { key: 'escape',  name: 'Ford Escape',       d1: 0.21, r: 0.108, msrp2019: 24900, hold5: 0.50 },
-            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.23, r: 0.116, msrp2019: 24000, hold5: 0.47 },
-            { key: 'x3',      name: 'BMW X3',            d1: 0.27, r: 0.124, msrp2019: 41000, hold5: 0.43 }
+            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, msrp2019: 26545, hold5: 0.750 },
+            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, msrp2019: 25570, hold5: 0.711 },
+            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, msrp2019: 25395, hold5: 0.582 },
+            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, msrp2019: 42650, hold5: 0.504 },
+            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, msrp2019: 24995, hold5: 0.494 },
+            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, msrp2019: 25200, hold5: 0.457 }
         ];
 
         const MODEL_YEARS = [];
