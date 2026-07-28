@@ -421,6 +421,22 @@
             padding: 4px 14px 14px;
         }
 
+        .avail-badge {
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 7px;
+            border-radius: 100px;
+            border: 1px solid currentColor;
+            white-space: nowrap;
+        }
+
+        .avail-badge:empty { display: none; }
+        .avail-badge.open { color: var(--success); }
+        .avail-badge.costly { color: var(--warning); }
+        .avail-badge.gated { color: var(--danger); }
+
         .swatch {
             width: 10px;
             height: 10px;
@@ -862,6 +878,184 @@
             color: #6ee7b7;
         }
 
+        /* ── Guided walkthrough ── */
+        .guide-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px 16px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(255, 106, 61, 0.16) 0%, rgba(99, 102, 241, 0.16) 100%);
+            border: 1px solid rgba(255, 106, 61, 0.38);
+            color: var(--accent-soft);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.92rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .guide-btn:hover {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(255, 106, 61, 0.24) 0%, rgba(99, 102, 241, 0.22) 100%);
+            transform: translateY(-1px);
+        }
+
+        .guide-btn .sub {
+            font-weight: 600;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .step-progress {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 14px;
+        }
+
+        .step-pip {
+            flex: 1;
+            height: 3px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.10);
+            transition: background 0.3s ease;
+        }
+
+        .step-pip.done { background: var(--accent); }
+        .step-pip.current { background: var(--accent-soft); }
+
+        .step-count {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-mute);
+            margin-bottom: 6px;
+        }
+
+        .step-q {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+            margin-bottom: 6px;
+        }
+
+        .step-why {
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: var(--text-secondary);
+            margin-bottom: 14px;
+        }
+
+        .step-why strong { color: var(--text-primary); }
+
+        .step-body { min-height: 128px; }
+
+        .choice-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .choice {
+            text-align: left;
+            padding: 11px 13px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1.5px solid var(--glass-border);
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .choice:hover {
+            border-color: rgba(255, 255, 255, 0.22);
+            background: var(--card-hover-bg);
+        }
+
+        .choice.selected {
+            border-color: var(--accent);
+            background: rgba(255, 106, 61, 0.12);
+            box-shadow: 0 0 14px rgba(255, 106, 61, 0.18);
+        }
+
+        .choice .c-label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: block;
+        }
+
+        .choice .c-sub {
+            font-size: 0.74rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+            display: block;
+            line-height: 1.4;
+        }
+
+        .step-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .step-nav button {
+            padding: 9px 18px;
+            border-radius: 100px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .step-nav button:hover { color: var(--text-primary); background: var(--card-hover-bg); }
+
+        .step-nav .next {
+            margin-left: auto;
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #1a0d06;
+        }
+
+        .step-nav .next:hover { background: var(--accent-soft); color: #1a0d06; }
+        .step-nav .next:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .recap {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.83rem;
+        }
+
+        .recap-row {
+            display: flex;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 9px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+        }
+
+        .recap-row .r-label { color: var(--text-secondary); }
+
+        .recap-row .r-val {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
         /* ── Range sliders ── */
         .slider-field {
             display: flex;
@@ -1108,6 +1302,10 @@
             </a>
         </div>
 
+        <button type="button" class="guide-btn" id="openGuide">
+            🧭 Walk me through it <span class="sub">— 8 questions, fills the whole page in</span>
+        </button>
+
         <!-- Verdict -->
         <section class="panel verdict" id="verdict">
             <div class="verdict-head">
@@ -1123,6 +1321,7 @@
         <section class="panel">
             <div class="panel-title">The car &amp; how long you keep it</div>
             <div class="preset-row" id="horizonPresets">
+                <button class="preset-btn" data-months="12" type="button">1 yr</button>
                 <button class="preset-btn" data-months="24" type="button">2 yr</button>
                 <button class="preset-btn" data-months="36" type="button">3 yr</button>
                 <button class="preset-btn" data-months="48" type="button">4 yr</button>
@@ -1159,7 +1358,7 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="taxRate">Sales tax</label>
+                    <label for="taxRate">Tax on the car <span style="color:var(--text-mute)">· GA TAVT 7%</span></label>
                     <div class="input-shell">
                         <input type="number" id="taxRate" min="0" max="15" step="0.1" value="7">
                         <span class="suffix">%</span>
@@ -1176,9 +1375,9 @@
                     <label for="depreciation">Depreciation curve</label>
                     <div class="input-shell">
                         <select id="depreciation">
-                            <option value="slow">Slow — used, truck, Toyota</option>
-                            <option value="typical" selected>Typical — new mainstream</option>
-                            <option value="fast">Fast — luxury, EV</option>
+                            <option value="slow">Slow — 72% left at 5 yr (RAV4, trucks)</option>
+                            <option value="typical" selected>Average — 58% left at 5 yr</option>
+                            <option value="fast">Fast — 45% left at 5 yr (luxury, EV)</option>
                         </select>
                     </div>
                 </div>
@@ -1200,7 +1399,7 @@
                     <label for="insurance">Insurance</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
-                        <input type="number" id="insurance" min="0" step="10" value="160">
+                        <input type="number" id="insurance" min="0" step="10" value="210">
                         <span class="suffix">/mo</span>
                     </div>
                 </div>
@@ -1208,7 +1407,7 @@
                     <label for="maintenance">Maintenance &amp; repairs</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
-                        <input type="number" id="maintenance" min="0" step="10" value="65">
+                        <input type="number" id="maintenance" min="0" step="10" value="110">
                         <span class="suffix">/mo</span>
                     </div>
                 </div>
@@ -1228,7 +1427,14 @@
 
         <!-- Cash position -->
         <section class="panel">
-            <div class="panel-title">Your cash <span class="hint">this is what tips the answer</span></div>
+            <div class="panel-title">Your cash &amp; credit <span class="hint">this is what tips the answer</span></div>
+            <div class="preset-row" id="creditTiers" aria-label="Credit profile">
+                <button class="preset-btn" type="button" data-tier="none">🛬 No US credit</button>
+                <button class="preset-btn" type="button" data-tier="subprime">Under 600</button>
+                <button class="preset-btn" type="button" data-tier="nearprime">601–660</button>
+                <button class="preset-btn" type="button" data-tier="prime">661–780</button>
+                <button class="preset-btn" type="button" data-tier="superprime">781+</button>
+            </div>
             <div class="field-grid">
                 <div class="field">
                     <label for="cash">Cash on hand</label>
@@ -1249,6 +1455,10 @@
                 <span class="ico">💡</span>
                 <span id="cashNote"></span>
             </div>
+            <div class="callout" id="creditCallout" style="margin-top:8px">
+                <span class="ico">🏦</span>
+                <span id="creditNote"></span>
+            </div>
         </section>
 
         <!-- The four options -->
@@ -1260,6 +1470,7 @@
                     <span class="swatch" style="background:var(--opt-cash)"></span>
                     Pay cash
                     <span class="summary-cost" data-cost="cash"></span>
+                    <span class="avail-badge" data-avail="cash"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
@@ -1274,6 +1485,7 @@
                     <span class="swatch" style="background:var(--opt-loan)"></span>
                     Finance it
                     <span class="summary-cost" data-cost="loan"></span>
+                    <span class="avail-badge" data-avail="loan"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
@@ -1289,7 +1501,7 @@
                         <div class="field">
                             <label for="apr">APR</label>
                             <div class="input-shell">
-                                <input type="number" id="apr" min="0" max="30" step="0.1" value="6.5">
+                                <input type="number" id="apr" min="0" max="30" step="0.01" value="6.39">
                                 <span class="suffix">%</span>
                             </div>
                         </div>
@@ -1310,6 +1522,7 @@
                     <span class="swatch" style="background:var(--opt-lease)"></span>
                     Lease it
                     <span class="summary-cost" data-cost="lease"></span>
+                    <span class="avail-badge" data-avail="lease"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
@@ -1319,7 +1532,7 @@
                             <label for="leasePayment">Payment (incl. tax)</label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="leasePayment" min="0" step="10" value="420">
+                                <input type="number" id="leasePayment" min="0" step="10" value="500">
                                 <span class="suffix">/mo</span>
                             </div>
                         </div>
@@ -1369,6 +1582,7 @@
                     <span class="swatch" style="background:var(--opt-rent)"></span>
                     Rent it monthly
                     <span class="summary-cost" data-cost="rent"></span>
+                    <span class="avail-badge" data-avail="rent"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
@@ -1609,7 +1823,7 @@
                         <li class="pro" data-mark="+">Return window (a few days) and a short limited warranty — rare on used cars.</li>
                         <li class="pro" data-mark="+">Huge searchable inventory, transferable between stores for a fee.</li>
                         <li class="pro" data-mark="+">Their written appraisal is good for days and costs nothing — use it as the floor price for your trade even if you buy elsewhere.</li>
-                        <li class="con" data-mark="−">You pay for the convenience: typically $1–3k above a negotiated dealer or private price.</li>
+                        <li class="con" data-mark="−">You pay for the convenience — an iSeeCars study put CarMax about 1% above market value, and no-haggle lots generally run 5–10% above a private-party price.</li>
                         <li class="con" data-mark="−">Fixed price cuts both ways — no discount for cash, timing, or walking away.</li>
                         <li class="con" data-mark="−">In-house financing is rarely the best rate. Bring your own.</li>
                     </ul>
@@ -1646,13 +1860,134 @@
             </div>
         </section>
 
+        <!-- New to the US -->
+        <section class="panel">
+            <div class="panel-title">New to the US? Credit gates most of this</div>
+            <p class="notes" style="margin-bottom:10px">Every route above except one needs a lender, an underwriter
+                or a platform to say yes first, and they all read a US credit file you do not have yet. Arriving with
+                a clean record from another country counts for nothing — the file is empty, not good.</p>
+
+            <div class="pro-con-grid">
+                <div class="pc-card" style="--pc-accent: var(--danger)">
+                    <div class="pc-head"><span>🚫</span> What is shut or repriced</div>
+                    <ul class="pc-list">
+                        <li class="con" data-mark="−"><strong>Financing.</strong> Mainstream banks decline a thin
+                            file outright. Where you are approved, expect a large down payment and a rate in the
+                            10–15% region rather than the 6.39% average.</li>
+                        <li class="con" data-mark="−"><strong>Leasing.</strong> Captive lenders normally want a
+                            score in the 660s or better. Without one you are usually declined, whatever your income.</li>
+                        <li class="con" data-mark="−"><strong>Subscriptions.</strong> Flexcar runs a soft credit
+                            pull that sets both your monthly rate and your deposit ($0–500). Sixt+ takes a deposit
+                            scaled to the vehicle group. No file means the worse end of both.</li>
+                        <li class="con" data-mark="−"><strong>Insurance.</strong> Most states let insurers rate on a
+                            credit-based insurance score, so the same driver pays more with no history. California,
+                            Hawaii, Massachusetts and Michigan ban the practice — Georgia does not.</li>
+                    </ul>
+                </div>
+
+                <div class="pc-card" style="--pc-accent: var(--success)">
+                    <div class="pc-head"><span>✅</span> What actually works</div>
+                    <ul class="pc-list">
+                        <li class="pro" data-mark="+"><strong>Cash.</strong> Nobody can decline it. This is why
+                            having the money matters more here than the return it gives up — with no file, the
+                            "borrow at 6% and keep your cash invested" argument simply is not on the menu.</li>
+                        <li class="pro" data-mark="+"><strong>Manufacturer new-to-country programmes.</strong>
+                            Several captives underwrite on your visa, employment letter and home-country credit
+                            instead of a US score. Ask the brand's finance arm directly, not the salesperson.</li>
+                        <li class="pro" data-mark="+"><strong>Expat finance specialists</strong> and credit-union
+                            newcomer loans, which price on income and residency rather than history.</li>
+                        <li class="pro" data-mark="+"><strong>ITIN lenders.</strong> You do not need a Social
+                            Security number to be approved — some captives accept an ITIN under standard criteria.</li>
+                        <li class="pro" data-mark="+"><strong>Turo</strong>, once you hold a licence — a
+                            peer-to-peer marketplace rather than a credit product. On a foreign licence the minimum
+                            age is 21 and you bring a passport plus an English licence or an international permit;
+                            the deposit runs $200–750 and drivers under 25 pay a young-driver fee.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="callout" style="margin-top:10px">
+                <span class="ico">📄</span>
+                <span><strong>What to have ready:</strong> passport and visa, SSN or ITIN, proof of address, three
+                    months of bank statements and two or three pay stubs. That package is what turns "no history"
+                    into an approval at the places that do underwrite newcomers.</span>
+            </div>
+            <div class="callout">
+                <span class="ico">📈</span>
+                <span><strong>Build the file while you drive.</strong> A secured credit card and an auto loan that
+                    reports on time will give you a usable score in six to twelve months — at which point
+                    refinancing the loan is the single cheapest thing you can do. Buy the car with cash now if you
+                    can; borrow later, once the rate is worth having.</span>
+            </div>
+        </section>
+
+        <!-- Driver's licence -->
+        <section class="panel">
+            <div class="panel-title">Getting a licence in Georgia <span class="hint">the bit nobody warns you
+                    about</span></div>
+            <p class="notes" style="margin-bottom:10px">Georgia gives you <strong>30 days</strong> from becoming a
+                resident to hold a Georgia licence. A non-citizen establishing residency is on the same clock.</p>
+
+            <div class="strategy">
+                <div class="strategy-head"><h3>1 · Check reciprocity first</h3></div>
+                <p class="notes">Georgia recognises licences from countries that hold a reciprocal agreement with
+                    the Department of Driver Services, provided yours is equivalent to a Class C. If your country is
+                    on that list you may be able to exchange without testing. If it is not, you take all three
+                    tests — knowledge, vision and road — like a first-time driver, no matter how many years you have
+                    been driving at home. Check the DDS list before you plan anything else.</p>
+            </div>
+
+            <div class="strategy">
+                <div class="strategy-head"><h3>2 · Learner's permit &amp; the written test</h3></div>
+                <p class="notes">The knowledge test covers road rules and signs, taken from the state driver's
+                    manual, alongside a vision test. Passing gets you a Class CP instructional permit — which only
+                    lets you drive with someone 21 or older, licensed for the same class, sitting in the passenger
+                    seat and capable of taking control. So the permit does not, on its own, get you mobile.</p>
+            </div>
+
+            <div class="strategy">
+                <div class="strategy-head">
+                    <h3>3 · The road test — and the catch</h3>
+                    <span class="risk-meter">Hassle
+                        <span class="risk-dots"><i class="risk-dot on"></i><i class="risk-dot on"></i><i
+                                class="risk-dot on"></i><i class="risk-dot on"></i><i class="risk-dot on"></i></span>
+                    </span>
+                </div>
+                <p class="notes">Here is the rule that catches every newcomer: <strong>you must turn up with a
+                    licensed driver aged 21 or over, and with a car</strong> — registered, insured, four-wheeled,
+                    and with the paper registration and insurance card in it. Only you and that driver may be in the
+                    vehicle: no other passengers, no children, no pets. If the car was bought in the last 30 days or
+                    wears temporary tags, bring the bill of sale.</p>
+                <p class="notes" style="margin-top:8px">Which is circular. You need a car and a licensed friend to
+                    get the licence that lets you have a car — and rental companies will not let you take their
+                    vehicle to a road test. <strong>The usual way out is to pay for it:</strong> driving schools
+                    rent you a car with an instructor who rides along as your licensed accompanier, typically
+                    <strong>$200–400</strong> for the appointment. If you know someone with a car and an afternoon
+                    free, that is the same service for the price of lunch.</p>
+            </div>
+
+            <div class="callout warn" style="margin-top:10px">
+                <span class="ico">⚠️</span>
+                <span>Rules are state law, and they differ sharply — New York will not exchange a foreign licence at
+                    all, other states waive the road test for many countries. This section is Georgia; if you move,
+                    check that state's DMV rather than assuming any of it carries over.</span>
+            </div>
+        </section>
+
         <!-- US specifics -->
         <section class="panel">
             <div class="panel-title">US fine print worth knowing</div>
             <ul class="notes">
-                <li><strong>Sales tax.</strong> Buying is taxed on the full price at purchase. Most states tax a lease
-                    only on each monthly payment — but a handful (Texas, Illinois and a few others) tax the whole
-                    vehicle up front even on a lease. Enter your lease payment tax-inclusive and this is handled.</li>
+                <li><strong>Georgia does not charge sales tax on cars at all.</strong> It charges a one-time
+                    <strong>Title Ad Valorem Tax of 7%</strong> instead, paid when the vehicle is titled, which
+                    replaced both sales tax and the old annual ad valorem bill. Three consequences worth money:
+                    a <strong>new resident titling a car they already own pays 3%</strong>, not 7%, so bringing a
+                    car with you is taxed at half rate; a <strong>private-party purchase is taxed on the state's
+                    own fair-market-value manual, not your bill of sale</strong>, so haggling a cheap price does not
+                    cut the tax; and the <strong>trade-in deduction only applies at a licensed dealer</strong>, never
+                    on a private sale. Outside Georgia, ordinary sales tax applies — on the full price when buying,
+                    and in most states only on each monthly payment when leasing, though Texas and Illinois tax the
+                    whole vehicle up front even on a lease. Enter your lease payment tax-inclusive either way.</li>
                 <li><strong>Cash gets you no discount at the dealer.</strong> Dealers earn on financing, so paying cash
                     can cost you the promotional APR and any finance rebate. Negotiate the out-the-door price first,
                     reveal how you are paying last, then check whether a 0.9–2.9% promo loan beats your cash return.</li>
@@ -1672,7 +2007,66 @@
             </ul>
         </section>
 
+        <!-- Where the defaults come from -->
+        <section class="panel">
+            <div class="panel-title">Where these numbers come from</div>
+            <p class="notes" style="margin-bottom:10px">Every default below is a published US figure, not a guess.
+                They are national averages — your state, credit score and driving record will move them, so overwrite
+                anything you know better.</p>
+            <ul class="notes">
+                <li><strong>Depreciation</strong> — five-year retention per model from the
+                    <a href="https://www.iseecars.com/cars-that-hold-their-value-study" target="_blank"
+                        rel="noopener">iSeeCars 2026 study</a>: RAV4 75%, CR-V 71%, CX-5 58%, X3 ~50%, Equinox 49%,
+                    Escape 46%, against an all-vehicle average of 58%. The generic slow/average/fast curves are
+                    calibrated to the same scale.</li>
+                <li><strong>APR</strong> — Experian's State of the Automotive Finance Market, Q1 2026: 6.39% average
+                    on new, 11.43% on used.</li>
+                <li><strong>Lease payment</strong> — the $500 default is what standard lease maths gives for a $32k
+                    car at a 60% residual over 36 months. Experian puts the national average new-car lease payment at
+                    $619/mo, on a much pricier average car.</li>
+                <li><strong>Insurance</strong> — ~$210/mo for full coverage, the middle of 2026 national estimates
+                    (sources range $186–$244).</li>
+                <li><strong>Maintenance, repairs and tires</strong> — AAA's Your Driving Costs 2025 puts it at 11.04
+                    cents per mile, which is $110/mo at 12,000 mi/yr. Older cars are scaled up from there, and that
+                    scaling is an estimate rather than a published figure.</li>
+                <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
+                    drivers, about $1,200 for the next size up.</li>
+                <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
+                    (781+), 6.27% prime (661–780), 9.57% near prime (601–660), 16.01% for poor credit on new cars;
+                    7.70% to 21.77% across the same range on used. The no-US-file row is an estimate, because what
+                    you are quoted depends entirely on which newcomer programme you can reach.</li>
+                <li><strong>Georgia TAVT and licensing</strong> — Georgia Department of Revenue (7% of fair market
+                    value, 3% for new residents) and the Department of Driver Services (30-day residency clock,
+                    reciprocity list, and the accompanying-driver rule for the road test). The $200–400 for a
+                    road-test car and instructor is a market rate, not a published fee.</li>
+                <li><strong>Everything else</strong> — sales tax, fees, registration, lease terms and subscription
+                    mileage caps are typical values you should replace with your own quote. Fuel is excluded
+                    throughout because it is the same car either way.</li>
+            </ul>
+        </section>
+
         <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+    </div>
+
+    <!-- Guided walkthrough -->
+    <div class="modal-backdrop" id="guideBackdrop"></div>
+    <div class="modal" id="guideModal" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden
+        style="width:min(600px, calc(100vw - 20px))">
+        <div class="modal-head">
+            <span>🧭</span>
+            <h2 id="guideTitle">Let's fill this in together</h2>
+            <button type="button" class="modal-close" id="guideClose" aria-label="Close">✕</button>
+        </div>
+        <div class="step-progress" id="stepProgress"></div>
+        <div class="step-count" id="stepCount"></div>
+        <div class="step-q" id="stepQ"></div>
+        <div class="step-why" id="stepWhy"></div>
+        <div class="step-body" id="stepBody"></div>
+        <div class="step-nav">
+            <button type="button" id="stepBack">← Back</button>
+            <button type="button" id="stepSkip">Skip</button>
+            <button type="button" class="next" id="stepNext">Next →</button>
+        </div>
     </div>
 
     <!-- Depreciation by model -->
@@ -1732,10 +2126,14 @@
         </button>
 
         <p class="notes" style="margin-top:12px; color:var(--text-mute); font-size:0.75rem">
-            Curves are modelled from each nameplate's typical five-year retention — the well-documented ranking of how
-            these vehicles hold value — not live listings for a specific VIN. Real prices swing with trim, mileage,
-            colour, region and condition, easily ±15%. Use this to compare models against each other, then check
-            actual asking prices before you buy.
+            Each curve is solved so its five-year retention matches the
+            <a href="https://www.iseecars.com/cars-that-hold-their-value-study" target="_blank" rel="noopener"
+                style="color:var(--text-secondary)">iSeeCars 2026 depreciation study</a> — 950,000+ transactions of
+            five-year-old vehicles, March 2025 to February 2026 — anchored on 2019 base-trim MSRPs. Two anchor points
+            per model, not a measured month-by-month curve, and not a specific VIN: real prices swing with trim,
+            mileage, colour, region and condition, easily ±15%, and published figures differ between studies (other
+            sources put the CX-5 nearer 61% and the X3 nearer 46%). Compare models against each other here, then
+            check actual asking prices before you buy.
         </p>
     </div>
 
@@ -1768,24 +2166,75 @@
 
         /* First-year drop and the annual rate on the remainder afterwards. */
         const DEPRECIATION_CURVES = {
-            slow:    { firstYear: 0.12, annual: 0.10 },
-            typical: { firstYear: 0.20, annual: 0.14 },
-            fast:    { firstYear: 0.28, annual: 0.18 }
+            slow:    { firstYear: 0.13, annual: 0.0462 },
+            typical: { firstYear: 0.17, annual: 0.0849 },
+            fast:    { firstYear: 0.24, annual: 0.1228 }
         };
 
         /* A lease keeps you inside the factory warranty, so you buy tires and
            oil changes but not a transmission. */
         const LEASE_MAINTENANCE_SHARE = 0.45;
 
-        /* Starting points for the four buying strategies. Insurance and upkeep
-           move with the car, not just the price — an older car costs less to
-           cover and more to fix. */
+        /* Starting points for the four buying strategies. The new-car row is
+           sourced — AAA puts maintenance, repair and tires at 11.04 cents/mile
+           ($110/mo at 12k mi/yr), Experian's Q1 2026 average new-car APR is
+           6.39% and used 11.43%, and full coverage averages ~$210/mo. The
+           other rows scale those against the car's age: older cars cost less
+           to insure and more to fix. Those scalings are estimates. */
         const CAR_PRESETS = {
-            beater:  { price: 6000,  depreciation: 'slow',    insurance: 95,  maintenance: 190, apr: 12, down: 0 },
-            used:    { price: 18000, depreciation: 'typical', insurance: 140, maintenance: 95,  apr: 8.5, down: 3000 },
-            new:     { price: 32000, depreciation: 'typical', insurance: 160, maintenance: 65,  apr: 6.5, down: 4000 },
-            premium: { price: 58000, depreciation: 'fast',    insurance: 230, maintenance: 130, apr: 6.9, down: 8000 }
+            beater:  { price: 6000,  depreciation: 'slow',    insurance: 120, maintenance: 210, down: 0,    used: true },
+            used:    { price: 18000, depreciation: 'typical', insurance: 185, maintenance: 150, down: 3000, used: true },
+            new:     { price: 32000, depreciation: 'typical', insurance: 210, maintenance: 110, down: 4000, used: false },
+            premium: { price: 58000, depreciation: 'fast',    insurance: 285, maintenance: 190, down: 8000, used: false }
         };
+
+        /* ── Credit tiers ────────────────────────────────────────────────
+           Average APRs are Experian's Q1 2026 bands. A tier also decides what
+           you can actually get: a lender's decision comes before any of the
+           maths on this page, and with no US file most of the routes are shut
+           or repriced regardless of how much cash you have. */
+        const CREDIT_TIERS = {
+            none: {
+                label: 'No US credit history', aprNew: 11.0, aprUsed: 15.0, estimated: true,
+                avail: { cash: 'open', loan: 'gated', lease: 'gated', rent: 'costly' },
+                note: 'A thin or empty US file is a lender decision, not a rate: mainstream banks decline, ' +
+                    'captive leases are usually out, and Flexcar\'s soft pull sets both your monthly rate and ' +
+                    'your deposit. What still works — a manufacturer new-to-country programme (proof of ' +
+                    'employment, visa, home-country credit), an expat specialist, a credit union newcomer loan, ' +
+                    'or an ITIN lender. Expect a bigger down payment and a rate in the 10–15% region if you ' +
+                    'go outside those programmes. <strong>Cash is the one route nobody can decline</strong> — ' +
+                    'which is worth more here than the return it gives up.'
+            },
+            subprime: {
+                label: 'Rebuilding · under 600', aprNew: 16.01, aprUsed: 21.77,
+                avail: { cash: 'open', loan: 'costly', lease: 'gated', rent: 'costly' },
+                note: 'Financing is available but brutal — 16% on new and nearly 22% on used. Leases almost ' +
+                    'always need a higher score than this. At these rates paying cash wins by a wide margin.'
+            },
+            nearprime: {
+                label: 'Fair · 601–660', aprNew: 9.57, aprUsedEstimated: true, aprUsed: 13.5,
+                avail: { cash: 'open', loan: 'costly', lease: 'costly', rent: 'open' },
+                note: 'You will be approved, but well above the advertised rate, and promotional 0–2.9% offers ' +
+                    'are out of reach. Leases are possible with a larger drive-off payment.'
+            },
+            prime: {
+                label: 'Good · 661–780', aprNew: 6.27, aprUsed: 11.4,
+                avail: { cash: 'open', loan: 'open', lease: 'open', rent: 'open' },
+                note: 'The mainstream band — every route is open and promotional financing is within reach on ' +
+                    'new cars. This is where the cash-versus-borrow question is genuinely close.'
+            },
+            superprime: {
+                label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 7.70,
+                avail: { cash: 'open', loan: 'open', lease: 'open', rent: 'open' },
+                note: 'Subsidised 0–2.9% offers are yours to take, which usually makes borrowing cheaper than ' +
+                    'paying cash — keep the money invested and let the captive lender fund the car.'
+            }
+        };
+
+        const AVAIL_TEXT = { open: 'available', costly: 'costly', gated: 'hard to get' };
+
+        let creditTier = 'prime';
+        let buyingUsed = false;
 
         const STORAGE_KEY = 'car-lease-rent-buy-v1';
 
@@ -2484,6 +2933,29 @@
             $('cashNote').innerHTML = parts.join(' ');
         }
 
+        /* What the lender decides before any of the maths applies. */
+        function renderCredit() {
+            const tier = CREDIT_TIERS[creditTier];
+            for (const btn of $('creditTiers').querySelectorAll('.preset-btn')) {
+                btn.classList.toggle('active', btn.dataset.tier === creditTier);
+            }
+            for (const badge of document.querySelectorAll('.avail-badge')) {
+                const state = tier.avail[badge.dataset.avail];
+                badge.className = 'avail-badge ' + state;
+                badge.textContent = AVAIL_TEXT[state];
+            }
+            const rate = buyingUsed ? tier.aprUsed : tier.aprNew;
+            const estimated = tier.estimated || (buyingUsed && tier.aprUsedEstimated);
+            $('creditNote').innerHTML = '<strong>' + tier.label + '</strong> — average APR ' + rate.toFixed(2) +
+                '% on a ' + (buyingUsed ? 'used' : 'new') + ' car' +
+                (estimated ? ' (estimated for this band)' : ' (Experian, Q1 2026)') + '. ' + tier.note;
+        }
+
+        function applyCreditTier() {
+            const tier = CREDIT_TIERS[creditTier];
+            $('apr').value = (buyingUsed ? tier.aprUsed : tier.aprNew).toFixed(2);
+        }
+
         function renderOptionNotes(results, v) {
             const loan = results.loan;
             const loanBits = ['Payment: <strong>' + usd0(loan.payment) + '/mo</strong>.'];
@@ -2589,16 +3061,18 @@
 
         /* ── Depreciation by model ───────────────────────────────────────
            Each nameplate carries a first-year drop and an annual rate on the
-           remainder, calibrated so the five-year retention matches the
-           well-established ranking for these vehicles. Same shape as the main
-           calculator's curve, so the two agree. */
+           remainder, solved so five-year retention lands on the figure from
+           the iSeeCars 2026 depreciation study (950k+ transactions of
+           five-year-old vehicles, March 2025 – February 2026). Prices when new
+           are 2019 base-trim MSRPs. Same curve shape as the main calculator,
+           so the two agree. */
         const MODELS = [
-            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.15, r: 0.076, msrp2019: 26000, hold5: 0.62 },
-            { key: 'crv',     name: 'Honda CR-V',        d1: 0.16, r: 0.085, msrp2019: 25050, hold5: 0.59 },
-            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.18, r: 0.091, msrp2019: 25000, hold5: 0.56 },
-            { key: 'escape',  name: 'Ford Escape',       d1: 0.21, r: 0.108, msrp2019: 24900, hold5: 0.50 },
-            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.23, r: 0.116, msrp2019: 24000, hold5: 0.47 },
-            { key: 'x3',      name: 'BMW X3',            d1: 0.27, r: 0.124, msrp2019: 41000, hold5: 0.43 }
+            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, msrp2019: 26545, hold5: 0.750 },
+            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, msrp2019: 25570, hold5: 0.711 },
+            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, msrp2019: 25395, hold5: 0.582 },
+            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, msrp2019: 42650, hold5: 0.504 },
+            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, msrp2019: 24995, hold5: 0.494 },
+            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, msrp2019: 25200, hold5: 0.457 }
         ];
 
         const MODEL_YEARS = [];
@@ -2848,6 +3322,266 @@
             if (lastFocused) lastFocused.focus();
         }
 
+        /* ── Guided walkthrough ──────────────────────────────────────────
+           Same inputs as the page, asked one at a time in plain language.
+           Every step writes straight into the real fields, so closing the
+           guide half way through still leaves the calculator better filled in
+           than it was. */
+        const GUIDE_STEPS = [
+            {
+                id: 'licence',
+                q: 'Do you have a US driver\'s licence yet?',
+                why: 'It decides what is even possible this month. Without one you cannot buy, lease or ' +
+                    'subscribe — a rental counts you as a visiting driver, and everything else waits.',
+                choices: [
+                    { value: 'yes', label: 'Yes, I have one', sub: 'Everything on the page is open to you' },
+                    { value: 'no', label: 'Not yet', sub: 'I will point you at the Georgia steps at the end' }
+                ],
+                get: () => guideAnswers.licence,
+                set: (v) => { guideAnswers.licence = v; }
+            },
+            {
+                id: 'credit',
+                q: 'What does your US credit look like?',
+                why: 'This is the gate. A lender decides before any of the maths matters, and it sets the ' +
+                    'interest rate you would actually be quoted.',
+                choices: [
+                    { value: 'none', label: '🛬 No US credit yet', sub: 'New arrival — empty file, not a bad one' },
+                    { value: 'subprime', label: 'Under 600', sub: 'Rebuilding' },
+                    { value: 'nearprime', label: '601–660', sub: 'Approved, but above the advertised rate' },
+                    { value: 'prime', label: '661–780', sub: 'The mainstream band' },
+                    { value: 'superprime', label: '781+', sub: 'Promotional 0–2.9% offers are yours' }
+                ],
+                get: () => creditTier,
+                set: (v) => { creditTier = v; applyCreditTier(); }
+            },
+            {
+                id: 'cash',
+                q: 'How much cash could you put into a car?',
+                why: 'Not what you have — what you are willing to spend without emptying the buffer you need ' +
+                    'for a deposit, a flight home, or three months of rent.',
+                field: 'cash',
+                prefix: '$',
+                quick: [10000, 20000, 35000, 50000]
+            },
+            {
+                id: 'horizon',
+                q: 'How long will you realistically keep it?',
+                why: 'The single biggest lever on the page. Short answers favour leasing and renting; long ' +
+                    'answers favour buying, because a paid-off car costs almost nothing to keep.',
+                field: 'horizon',
+                suffix: 'months',
+                choices: [
+                    { value: 12, label: '1 year', sub: 'A posting, a trial, a visa year' },
+                    { value: 24, label: '2 years', sub: 'Short assignment' },
+                    { value: 36, label: '3 years', sub: 'The usual lease length' },
+                    { value: 60, label: '5 years', sub: 'Settled' },
+                    { value: 96, label: '8 years', sub: 'Run it into the ground' },
+                    { value: 120, label: '10 years', sub: 'Maximum value per dollar' }
+                ]
+            },
+            {
+                id: 'car',
+                q: 'What kind of car are you picturing?',
+                why: 'Cheaper cars lose less value but hand you the repair risk. This sets a realistic price, ' +
+                    'depreciation curve, insurance and upkeep in one go — all editable afterwards.',
+                choices: [
+                    { value: 'beater', label: '🔧 Beater · $6k', sub: 'Barely depreciates, you own the repairs' },
+                    { value: 'used', label: '👍 Used · $18k', sub: '3–5 years old, the sweet spot' },
+                    { value: 'new', label: '✨ New · $32k', sub: 'Full warranty, first-year hit' },
+                    { value: 'premium', label: '💎 Premium · $58k', sub: 'Brutal depreciation — often lease it' }
+                ],
+                get: () => guideAnswers.car,
+                set: (v) => {
+                    guideAnswers.car = v;
+                    applyCarPreset(v);
+                }
+            },
+            {
+                id: 'miles',
+                q: 'How far do you drive in a year?',
+                why: 'Mileage is what quietly kills leases and subscriptions — both meter it, and both charge ' +
+                    'per mile once you pass the cap.',
+                field: 'miles',
+                suffix: 'mi/yr',
+                choices: [
+                    { value: 6000, label: '6,000', sub: 'City, mostly transit' },
+                    { value: 12000, label: '12,000', sub: 'US average' },
+                    { value: 20000, label: '20,000', sub: 'Long commute' },
+                    { value: 30000, label: '30,000', sub: 'Road warrior — leases stop making sense' }
+                ]
+            },
+            {
+                id: 'tax',
+                q: 'Where are you buying it?',
+                why: 'Georgia has no sales tax on cars. It charges a one-time title tax instead, and a new ' +
+                    'resident bringing their own car pays half rate.',
+                field: 'taxRate',
+                suffix: '%',
+                choices: [
+                    { value: 7, label: 'Georgia — buying here', sub: '7% title ad valorem tax' },
+                    { value: 3, label: 'Georgia — brought my own car', sub: '3% new-resident rate' },
+                    { value: 0, label: 'A state with no car tax', sub: 'Oregon, New Hampshire, Montana…' },
+                    { value: 6, label: 'Somewhere else', sub: 'Type your state\'s rate next' }
+                ]
+            },
+            {
+                id: 'done',
+                q: 'That is everything.',
+                why: 'Here is what went into the calculator. Change anything you like — the answer updates as ' +
+                    'you type.',
+                recap: true
+            }
+        ];
+
+        const guideAnswers = { licence: null, car: null };
+        let guideIndex = 0;
+
+        function applyCarPreset(key) {
+            const preset = CAR_PRESETS[key];
+            if (!preset) return;
+            for (const [id, value] of Object.entries(preset)) {
+                if (id !== 'used') $(id).value = value;
+            }
+            buyingUsed = preset.used;
+            applyCreditTier();
+            priceAnchor = 'price';
+            $('resale').dataset.touched = '0';
+        }
+
+        function renderGuide() {
+            const step = GUIDE_STEPS[guideIndex];
+
+            $('stepProgress').innerHTML = GUIDE_STEPS.map((_, i) =>
+                '<span class="step-pip ' + (i < guideIndex ? 'done' : i === guideIndex ? 'current' : '') +
+                '"></span>').join('');
+            $('stepCount').textContent = 'Step ' + (guideIndex + 1) + ' of ' + GUIDE_STEPS.length;
+            $('stepQ').textContent = step.q;
+            $('stepWhy').innerHTML = step.why;
+
+            const body = $('stepBody');
+            body.innerHTML = '';
+
+            if (step.recap) {
+                body.innerHTML = '<div class="recap">' + [
+                    ['Credit', CREDIT_TIERS[creditTier].label],
+                    ['Cash available', usd0(num('cash'))],
+                    ['Keeping it', $('horizon').value + ' months'],
+                    ['List price', usd0(num('price'))],
+                    ['Out the door', usd0(num('otd'))],
+                    ['Driving', Number($('miles').value).toLocaleString('en-US') + ' mi/yr'],
+                    ['Car tax', $('taxRate').value + '%'],
+                    ['APR you would get', $('apr').value + '%']
+                ].map(([l, v]) => '<div class="recap-row"><span class="r-label">' + l +
+                    '</span><span class="r-val">' + v + '</span></div>').join('') + '</div>';
+
+                if (guideAnswers.licence === 'no') {
+                    body.innerHTML += '<div class="callout warn" style="margin-top:10px"><span class="ico">🪪</span>' +
+                        '<span>Without a licence, renting monthly is your only real route today. The Georgia ' +
+                        'steps — including the road-test rule that needs a licensed passenger and a car — are ' +
+                        'at the bottom of the page.</span></div>';
+                }
+                $('stepNext').textContent = 'Show me the answer →';
+                $('stepSkip').style.display = 'none';
+            } else {
+                $('stepNext').textContent = 'Next →';
+                $('stepSkip').style.display = '';
+            }
+
+            if (step.choices) {
+                const grid = document.createElement('div');
+                grid.className = 'choice-grid';
+                const current = step.get ? step.get() : Number($(step.field).value);
+                for (const choice of step.choices) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'choice' + (choice.value === current ? ' selected' : '');
+                    btn.innerHTML = '<span class="c-label">' + choice.label + '</span>' +
+                        (choice.sub ? '<span class="c-sub">' + choice.sub + '</span>' : '');
+                    btn.addEventListener('click', () => {
+                        if (step.set) step.set(choice.value);
+                        else { $(step.field).value = choice.value; }
+                        update();
+                        renderGuide();
+                    });
+                    grid.appendChild(btn);
+                }
+                body.appendChild(grid);
+            }
+
+            /* A free-text box alongside the choices, for anyone whose answer is
+               not on the list. */
+            if (step.field) {
+                const wrap = document.createElement('div');
+                wrap.className = 'field';
+                wrap.style.marginTop = step.choices ? '10px' : '0';
+                wrap.innerHTML = '<label for="guideInput">' + (step.choices ? 'Or type it exactly' : 'Your number') +
+                    '</label><div class="input-shell">' +
+                    (step.prefix ? '<span class="prefix">' + step.prefix + '</span>' : '') +
+                    '<input type="number" id="guideInput" value="' + $(step.field).value + '">' +
+                    (step.suffix ? '<span class="suffix">' + step.suffix + '</span>' : '') + '</div>';
+                body.appendChild(wrap);
+                const input = wrap.querySelector('#guideInput');
+                input.addEventListener('input', () => {
+                    $(step.field).value = input.value;
+                    if (step.field === 'price') priceAnchor = 'price';
+                    update();
+                    for (const c of body.querySelectorAll('.choice')) c.classList.remove('selected');
+                });
+            }
+
+            if (step.quick) {
+                const row = document.createElement('div');
+                row.className = 'preset-row';
+                row.style.marginTop = '8px';
+                for (const value of step.quick) {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'preset-btn';
+                    btn.textContent = usd0(value);
+                    btn.addEventListener('click', () => {
+                        $(step.field).value = value;
+                        update();
+                        renderGuide();
+                    });
+                    row.appendChild(btn);
+                }
+                body.appendChild(row);
+            }
+
+            $('stepBack').style.visibility = guideIndex === 0 ? 'hidden' : 'visible';
+        }
+
+        function openGuide() {
+            guideIndex = 0;
+            $('guideModal').hidden = false;
+            requestAnimationFrame(() => {
+                $('guideBackdrop').classList.add('open');
+                $('guideModal').classList.add('open');
+            });
+            renderGuide();
+            $('guideClose').focus();
+        }
+
+        function closeGuide(showResult) {
+            $('guideBackdrop').classList.remove('open');
+            $('guideModal').classList.remove('open');
+            setTimeout(() => { $('guideModal').hidden = true; }, 250);
+            if (showResult) {
+                $('verdict').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function guideNext() {
+            if (guideIndex >= GUIDE_STEPS.length - 1) {
+                closeGuide(true);
+                return;
+            }
+            guideIndex++;
+            renderGuide();
+            $('guideModal').scrollTop = 0;
+        }
+
         /* ── Wiring ────────────────────────────────────────────────────── */
         const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'resale', 'miles',
             'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
@@ -2871,6 +3605,7 @@
             renderVerdict(results, best, v);
             renderCashNote(results, v);
             renderOptionNotes(results, v);
+            renderCredit();
             renderInsights(results, v);
             syncPresets(v.months);
             save();
@@ -2884,7 +3619,10 @@
 
         function save() {
             try {
-                const data = { touchedResale: $('resale').dataset.touched === '1' };
+                const data = {
+                    touchedResale: $('resale').dataset.touched === '1',
+                    creditTier, buyingUsed
+                };
                 for (const id of INPUT_IDS) data[id] = $(id).value;
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
             } catch (e) { /* private mode — inputs just will not persist */ }
@@ -2899,6 +3637,8 @@
                     if (typeof data[id] === 'string' && data[id] !== '') $(id).value = data[id];
                 }
                 if (data.touchedResale) $('resale').dataset.touched = '1';
+                if (CREDIT_TIERS[data.creditTier]) creditTier = data.creditTier;
+                if (typeof data.buyingUsed === 'boolean') buyingUsed = data.buyingUsed;
             } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
         }
 
@@ -2934,11 +3674,18 @@
 
         for (const btn of document.querySelectorAll('#carPresets .preset-btn')) {
             btn.addEventListener('click', () => {
-                const preset = CAR_PRESETS[btn.dataset.car];
-                if (!preset) return;
-                for (const [id, value] of Object.entries(preset)) $(id).value = value;
-                priceAnchor = 'price';
-                $('resale').dataset.touched = '0';
+                /* Shared with the guided walkthrough — a used car is a
+                   different lending market, so the APR follows the car as well
+                   as the credit tier. */
+                applyCarPreset(btn.dataset.car);
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#creditTiers .preset-btn')) {
+            btn.addEventListener('click', () => {
+                creditTier = btn.dataset.tier;
+                applyCreditTier();
                 update();
             });
         }
@@ -2967,6 +3714,22 @@
                 update();
             });
         }
+
+        $('openGuide').addEventListener('click', openGuide);
+        $('guideClose').addEventListener('click', () => closeGuide(false));
+        $('guideBackdrop').addEventListener('click', () => closeGuide(false));
+        $('stepNext').addEventListener('click', guideNext);
+        $('stepSkip').addEventListener('click', guideNext);
+        $('stepBack').addEventListener('click', () => {
+            if (guideIndex > 0) { guideIndex--; renderGuide(); }
+        });
+        document.addEventListener('keydown', (e) => {
+            if ($('guideModal').hidden) return;
+            if (e.key === 'Escape') closeGuide(false);
+            /* Enter advances, unless the caret is in the free-text box and the
+               user is still typing a number. */
+            if (e.key === 'Enter' && e.target.id !== 'guideInput') guideNext();
+        });
 
         $('openDepModal').addEventListener('click', openModal);
         $('depClose').addEventListener('click', closeModal);

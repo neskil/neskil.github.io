@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.61.1';</script>
+    <script>window.SC_VERSION = '1.63.3';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -594,6 +594,56 @@
         const n1 = SC.map.unlockNext();
         assert('unlockNext (no filter) activates a site', n1 && n1.active);
         assert('starter products craftable', SC.economy.craftableProducts().includes('bread'));
+        // World-gen skips a pool entry whose spot search comes up empty, so a
+        // pool that outgrows the map loses chains silently. Every recipe in
+        // SC.GOODS must actually reach the map across a spread of seeds.
+        assert('every recipe has a factory somewhere in the pool', (function() {
+            const missing = new Set(Object.keys(SC.GOODS).filter(k => !SC.GOODS[k].raw));
+            for (const seed of ['pool-1', 'pool-2', 'pool-3', 'pool-4', 'pool-5']) {
+                SC.newState(); SC.map._resetSeq(); SC.map.generateWorld(seed);
+                for (const n of SC.state.nodes) if (n.kind === 'factory') missing.delete(n.recipe);
+                for (const k of Object.keys(SC.GOODS)) {
+                    if (!SC.GOODS[k].raw && !SC.state.nodes.some(n => n.recipe === k)) return false;
+                }
+            }
+            return missing.size === 0;
+        })());
+        assert('every raw material has a supplier somewhere in the pool', (function() {
+            SC.newState(); SC.map._resetSeq(); SC.map.generateWorld('pool-mats');
+            return Object.keys(SC.GOODS).filter(k => SC.GOODS[k].raw)
+                .every(m => SC.state.nodes.some(n => n.kind === 'supplier' && n.mat === m));
+        })());
+    })();
+
+    // ── Second-wave chains plan end to end ──────────
+    (function() {
+        // A bicycle needs a tyre plant (rubber + coal) and a smelter (ore +
+        // coal) — the two share the coal pit, which is the whole point of
+        // these chains. The planner has to schedule both sub-factories.
+        SC.newState(); SC.map._resetSeq();
+        SC.state.river = { spine: [{ x: 2100, y: 0 }, { x: 2100, y: SC.CONFIG.WORLD_H }], halfWidths: [10, 10] };
+        SC.map.makeNode('city', 100, 100, { active: true, isHQ: true });
+        SC.map.makeNode('factory', 150, 100, { active: true, recipe: 'bicycle' });
+        SC.map.makeNode('factory', 300, 100, { active: true, recipe: 'tyre' });
+        SC.map.makeNode('factory', 450, 100, { active: true, recipe: 'steel' });
+        for (const mat of ['rubber', 'coal', 'ore']) {
+            SC.map.makeNode('supplier', 600, 300, { active: true, mat });
+        }
+        assert('bicycles are craftable from a shared coal pit',
+            SC.economy.craftableProducts().includes('bicycle'));
+        const o = SC.economy.spawnOrder();
+        assert('only bicycles are orderable in this world', o && o.product === 'bicycle');
+        assert('the depth-2 premium lands on the payout',
+            o.payout >= SC.GOODS.bicycle.value * (1 + SC.CONFIG.ORDER_DEPTH_VALUE * (SC.depthOf('bicycle') - 1)));
+
+        // Scooters take a product (batteries) as an input — the planner must
+        // treat that factory-to-factory hop like any other.
+        SC.map.makeNode('factory', 700, 100, { active: true, recipe: 'scooter' });
+        SC.map.makeNode('factory', 850, 100, { active: true, recipe: 'battery' });
+        SC.map.makeNode('supplier', 600, 300, { active: true, mat: 'copper' });
+        const craftable = SC.economy.craftableProducts();
+        assert('an orderable good can itself be an input',
+            craftable.includes('battery') && craftable.includes('scooter'));
     })();
 
     // ── Seeded RNG: deterministic stream, independent of global state ──
@@ -735,7 +785,10 @@
         SC.map.generateWorld();
         SC.state.time = 1e6; // past any river-grace window: test the raw pool mechanic
 
-        for (let i = 0; i < 20; i++) {
+        // Drain the pool rather than iterating a fixed count — the pool grows
+        // whenever a chain is added to SC.GOODS, and a short loop would leave
+        // sites locked and fail the "all active" assert below for no reason.
+        for (let i = 0; i < SC.state.nodes.length + 1; i++) {
             const n = SC.map.unlockNext(x => x.kind !== 'city');
             if (!n) break;
             assert('kind-filtered unlockNext never activates a city', n.kind !== 'city');
@@ -1372,16 +1425,37 @@
 
     // ── Goods tree sanity ───────────────────────────
     (function() {
-        assert('chain depths: bread=1, car=2, robot=3',
-            SC.depthOf('bread') === 1 && SC.depthOf('car') === 2 && SC.depthOf('robot') === 3);
+        const goods = Object.keys(SC.GOODS);
+        const raws = goods.filter(k => SC.GOODS[k].raw);
+        const usedBy = m => goods.filter(k => (SC.GOODS[k].inputs || []).includes(m));
+        assert('chain depths: bread=1, car=2, robot=3, scooter=2',
+            SC.depthOf('bread') === 1 && SC.depthOf('car') === 2 &&
+            SC.depthOf('robot') === 3 && SC.depthOf('scooter') === 2);
         assert('every crafted good has a building name',
-            Object.keys(SC.GOODS).every(k => SC.GOODS[k].raw || !!SC.GOODS[k].building));
+            goods.every(k => SC.GOODS[k].raw || !!SC.GOODS[k].building));
         assert('every input exists in the goods table',
-            Object.keys(SC.GOODS).every(k => (SC.GOODS[k].inputs || []).every(m => !!SC.GOODS[m])));
-        assert('rubber, chips and steel are each shared by two recipes', (function() {
-            const usedBy = m => Object.keys(SC.GOODS).filter(k => (SC.GOODS[k].inputs || []).includes(m));
-            return usedBy('rubber').length === 2 && usedBy('chips').length === 2 && usedBy('steel').length === 2;
+            goods.every(k => (SC.GOODS[k].inputs || []).every(m => !!SC.GOODS[m])));
+        assert('every crafted good takes exactly two inputs',
+            goods.every(k => SC.GOODS[k].raw || SC.GOODS[k].inputs.length === 2));
+        assert('every orderable good has a value',
+            goods.every(k => !SC.GOODS[k].orderable || SC.GOODS[k].value > 0));
+        assert('a deeper chain is never worth less than a shallower one', (function() {
+            const sell = goods.filter(k => SC.GOODS[k].orderable)
+                              .sort((a, b) => SC.depthOf(a) - SC.depthOf(b));
+            return sell.every((k, i) => i === 0 ||
+                SC.depthOf(k) === SC.depthOf(sell[i - 1]) ||
+                SC.GOODS[k].value >= SC.GOODS[sell[i - 1]].value);
         })());
+        // The point of the second-wave chains: they buy variety with more of
+        // the SAME sites, so a raw material is contended rather than owned by
+        // one recipe. No new raw may appear without a supplier art entry and
+        // a pool slot, hence the fixed count.
+        assert('no raw material is orphaned', raws.every(m => usedBy(m).length > 0));
+        assert('the goods tree still rests on eight raw materials', raws.length === 8);
+        assert('most raw materials are contended by two or more recipes',
+            raws.filter(m => usedBy(m).length >= 2).length >= 6);
+        assert('rubber and coal each feed three or more recipes',
+            usedBy('rubber').length >= 3 && usedBy('coal').length >= 3);
     })();
 
     // ── Inspect mode: factory/supplier/city info + highlight paths ──
@@ -1422,6 +1496,54 @@
             SC.inspect.infoFor(SC.map.makeNode('supplier', 900, 900, { mat: 'ore' })) === null);
     })();
 
+    // ── Supply gaps: what you need and can't reach ──
+    (function() {
+        const { S1, S2, F } = fixture();
+        // Bakery needs wheat + water; both suppliers exist but no roads yet,
+        // so each is owned-but-unroaded, not sourceless.
+        let gaps = SC.economy.supplyGaps();
+        assert('an owned supplier with no road is flagged, not treated as missing',
+            gaps.unroaded.has(S1.id) && gaps.unroaded.has(S2.id) &&
+            gaps.sourceless.size === 0);
+
+        SC.roads.build(S1, F);
+        gaps = SC.economy.supplyGaps();
+        assert('building the road clears that supplier\'s warning', !gaps.unroaded.has(S1.id));
+        assert('the still-unroaded input keeps its warning', gaps.unroaded.has(S2.id));
+
+        SC.roads.build(S2, F);
+        gaps = SC.economy.supplyGaps();
+        assert('a fully roaded factory raises no warnings at all',
+            gaps.unroaded.size === 0 && gaps.sourceless.size === 0);
+
+        // A material no owned supplier provides is 'sourceless' — that's the
+        // only case the map stakes a claim for.
+        const shoes = SC.map.makeNode('factory', 900, 500,
+            { active: true, recipe: 'shoes', underConstruction: false });
+        gaps = SC.economy.supplyGaps();
+        const shoeInputs = SC.GOODS.shoes.inputs.filter(m => SC.GOODS[m].raw);
+        assert('a needed material with no supplier anywhere is sourceless',
+            shoeInputs.every(m => gaps.sourceless.has(m)));
+        assert('sourceless materials raise no per-node warning',
+            gaps.unroaded.size === 0);
+
+        // Unlocking a supplier for it flips the answer from "no deposit" to
+        // "no road" — the claim goes quiet and the site takes the warning.
+        const wool = SC.map.makeNode('supplier', 950, 700,
+            { active: true, mat: shoeInputs[0], underConstruction: false });
+        gaps = SC.economy.supplyGaps();
+        assert('owning a supplier of it stops it being sourceless',
+            !gaps.sourceless.has(shoeInputs[0]) && gaps.unroaded.has(wool.id));
+
+        // Nothing is "needed" until a factory that takes it is operational.
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat', underConstruction: false });
+        assert('a supplier no operational factory needs raises nothing',
+            SC.economy.supplyGaps().unroaded.size === 0 &&
+            SC.economy.supplyGaps().sourceless.size === 0);
+    })();
+
     // ── Supplier stock: cap, regen, consumption, trucks wait when dry ──
     (function() {
         const { S1, S2, F, C } = fixture();
@@ -1431,7 +1553,9 @@
 
         S1.stock = 2;
         SC.economy.tickSuppliers(4);
-        assert('stock regenerates over time', approx(S1.stock, 2 + SC.CONFIG.SUPPLIER_REGEN * 4, 0.01));
+        // Rate is the config base scaled by this site's ground (SC.supplierYield),
+        // so assert against the formula, not the bare constant.
+        assert('stock regenerates over time', approx(S1.stock, 2 + SC.supplierRegen(S1) * 4, 0.01));
         SC.economy.tickSuppliers(10000);
         assert('regen stops at the cap', S1.stock === SC.supplierCap(S1));
 
@@ -1489,6 +1613,67 @@
         SC.state.research.completed.fertilizer = true;
         assert('fertilizer research boosts supplier regen',
             approx(SC.supplierRegen(S1), r0 * (1 + SC.RESEARCH.fertilizer.supplierRegenBonus), 0.001));
+    })();
+
+    // ── Biome field + per-site yield ──
+    (function() {
+        fixture();
+        SC.state.seed = 'biome-test';
+
+        // The field is a pure function of position + seed: same point, same
+        // answer; and every point lands in some band (last one is -Infinity).
+        assert('biome noise is deterministic for a point',
+            SC.biomeNoise(500, 700) === SC.biomeNoise(500, 700));
+        assert('biome noise varies across the map',
+            SC.biomeNoise(200, 200) !== SC.biomeNoise(3000, 2400));
+        assert('every point falls in a band', [[0, 0], [500, 900], [4000, 3000]]
+            .every(([x, y]) => !!SC.biomeAt(x, y).key));
+        assert('band matches its own threshold', [[0, 0], [500, 900], [1700, 2600]]
+            .every(([x, y]) => SC.biomeNoise(x, y) >= SC.biomeAt(x, y).min));
+
+        // Reseeding moves the field — otherwise every map would share one
+        // layout of good and bad ground.
+        const before = SC.biomeNoise(600, 600);
+        SC.state.seed = 'biome-test-2';
+        assert('a different seed gives a different field', SC.biomeNoise(600, 600) !== before);
+
+        // Yield: biome row × per-site roll, applied to regen only.
+        const bandOf = { forest: null, green: null, plains: null, scrub: null, desert: null };
+        for (let x = 0; x < 6000 && Object.values(bandOf).some(v => v === null); x += 40)
+            for (let y = 0; y < 6000; y += 40) {
+                const k = SC.biomeAt(x, y).key;
+                if (bandOf[k] === null) bandOf[k] = { x, y };
+            }
+        const greenSpot = bandOf.green || bandOf.forest, drySpot = bandOf.desert || bandOf.scrub;
+        const farmGreen = SC.map.makeNode('supplier', greenSpot.x, greenSpot.y, { active: true, mat: 'wheat' });
+        const farmDry   = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'wheat' });
+        const mineDry   = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'ore' });
+        assert('a farm on green ground out-yields one in the sand',
+            SC.supplierYield(farmGreen) > SC.supplierYield(farmDry));
+        assert('a mine reads the same ground the other way',
+            SC.supplierYield(mineDry) > SC.supplierYield(farmDry));
+        assert('yield feeds regen, not the stock cap',
+            approx(SC.supplierRegen(farmGreen) / SC.supplierRegen(farmDry),
+                   SC.supplierYield(farmGreen) / SC.supplierYield(farmDry), 0.001) &&
+            SC.supplierCap(farmGreen) === SC.supplierCap(farmDry));
+        assert('yield is stable for a given site', SC.supplierYield(farmGreen) === SC.supplierYield(farmGreen));
+
+        // The per-site roll stays inside SITE_YIELD_VARIANCE, so ground
+        // quality is never swamped by the tiebreaker on top of it.
+        const v = SC.CONFIG.SITE_YIELD_VARIANCE, row = SC.CONFIG.BIOME_YIELD.wheat;
+        assert('the per-site roll stays within its configured band',
+            [farmGreen, farmDry].every(n => {
+                const f = row[SC.biomeAt(n.x, n.y).key];
+                const r = SC.supplierYield(n) / f;
+                return r >= 1 - v - 1e-9 && r <= 1 + v + 1e-9;
+            }));
+        // A fab is built, not grown — no BIOME_YIELD row, so ground is 1×
+        // apart from its own roll.
+        const fab = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'chips' });
+        assert('a material with no yield row is unaffected by its biome',
+            Math.abs(SC.supplierYield(fab) - 1) <= v + 1e-9);
+        assert('non-suppliers have no yield',
+            SC.supplierYield(SC.state.nodes.find(n => n.kind === 'city')) === 1);
     })();
 
     // ── Road upgrades: research gate, cost, routing and truck speed ──

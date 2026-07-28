@@ -139,6 +139,16 @@ Any headless Chromium works (on sandboxed Linux add `--no-sandbox`); below,
   **[DEBUG.md](DEBUG.md) lists every flag** for putting the game into a
   specific state (debt, night, a ferry, the research tree, …) — check it
   before hand-rolling a setup, and add a row when you add a flag.
+- **Research tree zoom/readability**: `<chromium> --headless=new --disable-gpu
+  --window-size=900,1100 --virtual-time-budget=15000 --dump-dom
+  http://localhost:8199/supply-chain/research-zoom-check.html`, grep for
+  `id="summary"` — "N passed / **0 failed**". It drives the real game in a
+  500px-wide iframe (which dodges the headless viewport floor below) and
+  asserts the phone-facing behaviour `tests.html` can't reach: the tree opens
+  at a legible 1:1, pinch/± zoom is anchored, drag still pans, and a tap still
+  starts a tech. Worth running after any change to `fitResearchTree` /
+  `updateResearchTree` in `ui.js` or the tree's pointer handlers in
+  `ui-bind.js`.
 - **Mobile layout**: same screenshot with `--window-size=390,844`. Caveat
   found while building the research-tree overlay: this Chromium build
   enforces a **hard ~500px minimum layout viewport** in headless mode —

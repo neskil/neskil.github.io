@@ -14,19 +14,22 @@ that ambient animation as its background — it now lives independently at
 
 - **Goods & recipes** (emoji-first, colors are accents): suppliers
   (hexagons) provide raw goods; each factory (square) is dedicated to one
-  recipe. 🌾wheat+💧water→🍞bread (bakery), 🧶wool+🛞rubber→👟sneakers
-  (sneaker factory), the two-tier chain 🪨ore+⚫coal→🔩steel (smelter),
-  🔩steel+💾chips→🚗cars (car factory), and the three-tier chain
-  🟠copper+🛞rubber→🧵wire (wire mill), 🧵wire+💾chips→🔌circuit board
-  (circuit factory), 🔌circuit+🔩steel→🤖robots (robot factory). Steel,
-  chips and rubber are each shared by two recipes, so one supplier's
-  placement (and the roads to it) can matter for more than one product.
-  Steel/wire/circuit are intermediates — cities only order `orderable`
-  goods; the planner recursively schedules factory-to-factory runs for
-  chains of any depth (nothing in `economy.js`/`factories.js` is
-  hardcoded to 2 tiers). The goods tree lives in `js/config.js`
-  (`SC.GOODS`) — adding a good/recipe is one entry there, plus a pool
-  entry in `js/map.js` if it should be unlockable.
+  recipe, which always takes exactly two inputs. Chains run one to three
+  tiers deep — 🌾wheat+💧water→🍞bread is the shallow end,
+  🟠copper+🧪rubber→🧵wire→(+💾chips)→🔌circuit→(+🔩steel)→🤖robots the
+  deep one. **Every raw material feeds more than one recipe** (rubber and
+  coal feed three or more), so a supplier's placement and the roads to it
+  matter for several products at once, and running two chains side by side
+  means owning two coal pits rather than discovering a new kind of site.
+  Intermediates like steel/wire/circuit/tyres aren't ordered by cities —
+  only `orderable` goods are — and a good can be both, as batteries are
+  (a product in their own right and the e-scooter's input). The planner
+  recursively schedules factory-to-factory runs for chains of any depth
+  (nothing in `economy.js`/`factories.js` is hardcoded to 2 tiers). The
+  authoritative tree is `SC.GOODS` in `js/config.js` — the start screen's
+  Production Recipes graph is laid out from it, so it never drifts —
+  and adding a good/recipe is one entry there, plus a pool entry in
+  `js/map.js` if it should be unlockable.
 - **Orders**: HQ (⭐) is the only order-placing location at the start.
   New customer DCs (🏢) unlock on their own independent timer (~50-70s for
   the first, ~90-140s between further ones — `CUSTOMER_SPAWN_FIRST` /
@@ -83,6 +86,21 @@ that ambient animation as its background — it now lives independently at
   The cap is per-difficulty (`SC.nodeMaxSpread` → `DIFFICULTIES[].nodeSpread`,
   falling back to `CONFIG.NODE_MAX_SPREAD`): tighter/tidier on Easy (520),
   real sprawl and longer supply lines on Hard (820).
+  Locked **suppliers** can surface as **staked claims** — a dashed plot
+  with the material's mark, flat on unworked ground
+  (`R.drawProspectSites`) — but only when they answer a question you
+  actually have. `SC.economy.supplyGaps()` splits the two ways a raw
+  material can be missing, and the map says exactly one thing at a time:
+  - **sourceless** (a factory you own takes it, you own no supplier of it
+    anywhere) → the claims for that material appear, so you can see where
+    it's coming and how good that ground is for it;
+  - **unroaded** (you own the supplier, nothing reaches it) → the claims
+    stay quiet and the site itself gets a pulsing ⚠ ring, because the
+    answer is "build the road", not "wait for another deposit".
+  Everything else is silent: no claims for materials nothing needs, no
+  warnings on a site that's connected. Locked factories and DCs are never
+  revealed — that would give the whole run away. Dev: `&gaps=1` puts the
+  map into both states at once.
 - **Field expansion**: the playing field only ever grows when the player buys
   it — the map never re-lays itself out mid-run. The `landSurvey` research
   unlocks the Buy land button; each purchase adds `stepW`/`stepH`
@@ -176,6 +194,18 @@ that ambient animation as its background — it now lives independently at
   (`SITE_FW_PER_LEVEL`), with the site art filling the extra ground
   (more furrows, more rubber trees, a second barn) — so a maxed farm
   reads as a big estate from across the map without opening its tooltip.
+- **Ground quality**: no two sites are worth the same. A supplier's regen
+  (not its cap) is multiplied by `SC.supplierYield` = the **biome band**
+  under it × a small per-site roll (`SITE_YIELD_VARIANCE`). The bands and
+  their per-material multipliers live in `BIOME_BANDS`/`BIOME_YIELD` —
+  crops want green ground and wilt in sand, mines run the other way, a
+  chip fab doesn't care. Both the ground tint and the multiplier read the
+  same seeded field (`SC.biomeNoise`, logic layer), so **the map is the
+  legend**: green ground really is the good farmland, and you can read a
+  site's worth before building on it. Inspect a supplier to see its band,
+  yield % and units/sec. Nothing is stored on the node — yields are
+  derived from position + seed, so they're stable across saves and travel
+  with a shared `?seed=`.
 - **Highways** (needs Asphalt Paving researched): Upgrade mode on a road
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer

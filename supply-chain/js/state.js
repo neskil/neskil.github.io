@@ -198,15 +198,70 @@ SC.truckPrice = function(yard) {
         Math.pow(SC.CONFIG.TRUCK_PRICE_GROWTH, SC.trucksAtYard(yard)));
 };
 
+// ── Biome field ───────────────────────────────────────────
+// Seeded noise over world position, sampled by the ground tint in
+// render-env AND by supplier yield below. It lives here, in the logic
+// layer, precisely so the two can't disagree: the band you can see under
+// a farm is the band that sets its output. Pure function of (x, y) + the
+// run's seed — no state, so it's stable across saves and shareable via
+// `?seed=`.
+let biomeSeedOff = 0, biomeSeedFor = null;
+function biomeSeedOffset() {
+    const seedStr = SC.state.seed || '';
+    if (biomeSeedFor === seedStr) return biomeSeedOff;
+    let sOff = 0;
+    for (let i = 0; i < seedStr.length; i++) sOff = (sOff + seedStr.charCodeAt(i) * 0.17) % 100;
+    biomeSeedFor = seedStr;
+    biomeSeedOff = sOff;
+    return sOff;
+}
+
+SC.biomeNoise = function(x, y) {
+    const sOff = biomeSeedOffset();
+    const nx = x / 1200, ny = y / 1200;
+    const v1 = Math.sin(nx + sOff) + Math.sin(ny - sOff);
+    const v2 = Math.sin(nx * 1.5 - ny * 1.1 + sOff * 1.2) + Math.cos(nx * 1.2 + ny * 1.6 - sOff * 0.8);
+    return v1 + v2 * 0.6;
+};
+
+// The band covering a world point. Bands are ordered high→low, so the
+// first one the noise clears wins; the last has min -Infinity, so this
+// never returns null.
+SC.biomeAt = function(x, y) {
+    const noise = SC.biomeNoise(x, y);
+    const bands = SC.CONFIG.BIOME_BANDS;
+    for (const b of bands) if (noise >= b.min) return b;
+    return bands[bands.length - 1];
+};
+
 // ── Suppliers: finite, regenerating, upgradable stock ─────
 SC.supplierCap = function(n) {
     return SC.CONFIG.SUPPLIER_STOCK_CAP + SC.CONFIG.SUPPLIER_CAP_PER_LEVEL * (n.level || 0);
 };
 
+// How good this particular patch of ground is for what the site pulls out
+// of it: the biome factor for its material, times a small per-site roll so
+// two farms in the same greenland still aren't interchangeable. Both parts
+// are derived from position/id + seed rather than stored, so old saves get
+// their yields the moment they load and nothing can drift out of sync.
+SC.supplierYield = function(n) {
+    if (!n || n.kind !== 'supplier') return 1;
+    const row = SC.CONFIG.BIOME_YIELD[n.mat];
+    const band = SC.biomeAt(n.x, n.y);
+    const biomeF = (row && row[band.key] !== undefined) ? row[band.key] : 1;
+    const v = SC.CONFIG.SITE_YIELD_VARIANCE || 0;
+    // Deterministic ±v roll, decorrelated from the biome noise so a site
+    // isn't doubly rewarded for sitting in good ground.
+    const h = Math.sin((n.id || 0) * 127.1 + biomeSeedOffset() * 311.7) * 43758.5453;
+    const roll = 1 + ((h - Math.floor(h)) * 2 - 1) * v;
+    return biomeF * roll;
+};
+
 SC.supplierRegen = function(n) {
     return SC.CONFIG.SUPPLIER_REGEN *
         (1 + SC.CONFIG.SUPPLIER_REGEN_PER_LEVEL * (n.level || 0)) *
-        (1 + SC.research.supplierRegenBonus());
+        (1 + SC.research.supplierRegenBonus()) *
+        SC.supplierYield(n);
 };
 
 SC.supplierUpgradePrice = function(n) {

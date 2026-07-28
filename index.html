@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Niklas Billgren | Portfolio</title>
-    <meta name="description" content="Personal site of Niklas Billgren — supply chain consultant. Browser games and calculators built around logistics: Supply Chain Tycoon, CargoLander, unit converters, and a car cost-of-ownership model.">
+    <meta name="description" content="Personal site of Niklas Billgren, supply chain consultant. Browser games and calculators built around logistics: Supply Chain Tycoon, CargoLander, unit converters, and a car cost-of-ownership model.">
     <meta name="author" content="Niklas Billgren">
     <meta name="theme-color" content="#0f1428">
     <meta name="color-scheme" content="dark">
     <link rel="canonical" href="https://neskil.github.io/">
     <meta property="og:site_name" content="Niklas Billgren">
-    <meta property="og:title" content="Niklas Billgren — logistics, in playable form">
+    <meta property="og:title" content="Niklas Billgren: logistics, in playable form">
     <meta property="og:description" content="Browser games and calculators built around supply chain: haul freight in Supply Chain Tycoon, fly cargo in CargoLander, or work out what a car really costs.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/">
@@ -85,8 +85,8 @@
         }
 
         html[data-theme="card-car"] {
-            --bg-color-1: #08190f;
-            --bg-color-2: #0d2a1b;
+            --bg-color-1: #0b1a1a;
+            --bg-color-2: #102a2c;
         }
 
         html[data-theme="card-cv"] {
@@ -404,7 +404,7 @@
 
         /* ── About: the one card that doesn't navigate. Clicking spins it over to
               a back face with the short version of why this site exists. The flip
-              lives on an inner wrapper rather than on .card itself — .card carries
+              lives on an inner wrapper rather than on .card itself, because .card carries
               backdrop-filter and overflow:hidden, both of which flatten a 3D
               rendering context, so a two-faced flip has to happen one level down.
               The outer card keeps its pointer tilt and glare throughout. ── */
@@ -516,8 +516,8 @@
 
         #card-car {
             --accent-rgb: 16, 185, 129;
-            --card-bg-gradient: linear-gradient(135deg, rgba(14, 34, 26, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
-            --card-hover-gradient: linear-gradient(135deg, rgba(20, 54, 40, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-bg-gradient: linear-gradient(135deg, rgba(12, 34, 30, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(16, 54, 46, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
             --card-border: rgba(16, 185, 129, 0.22);
             --card-hover-border: rgba(52, 211, 153, 0.48);
         }
@@ -1049,7 +1049,7 @@
     </header>
 
     <main class="grid">
-        <a href="supply-chain/index.html?v=1.61.1" class="card card-metal" id="card-supply-chain">
+        <a href="supply-chain/index.html?v=1.63.3" class="card card-metal" id="card-supply-chain">
             <div class="card-bg-hover"></div>
             <div>
                 <div class="card-icon">
@@ -1129,17 +1129,19 @@
             <div>
                 <div class="card-icon">
                     <svg viewBox="0 0 24 24">
-                        <path d="M4 16v2a1 1 0 0 1-1 1H2.5"/>
-                        <path d="M20 16v2a1 1 0 0 0 1 1h.5"/>
-                        <path d="M3 16v-3.2a2 2 0 0 1 .45-1.26L6 8.4A2 2 0 0 1 7.55 7.6h8.9a2 2 0 0 1 1.55.8l2.55 3.14A2 2 0 0 1 21 12.8V16z" fill="currentColor" fill-opacity="0.1"/>
-                        <path d="M3.6 12.2h16.8"/>
-                        <circle cx="7.5" cy="16" r="1.6"/>
-                        <circle cx="16.5" cy="16" r="1.6"/>
+                        <path d="M4 16v2.5a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5V17"/>
+                        <path d="M17 17v1.5a.5.5 0 0 0 .5.5h2a.5.5 0 0 0 .5-.5V16"/>
+                        <path d="M3.5 16h17v-3.2a2 2 0 0 0-.35-1.13l-1.9-2.8A2 2 0 0 0 16.6 8H7.4a2 2 0 0 0-1.65.87l-1.9 2.8A2 2 0 0 0 3.5 12.8z" fill="currentColor" fill-opacity="0.12"/>
+                        <path d="M6 12.5h12" opacity="0.55"/>
+                        <circle cx="7" cy="14" r="1" fill="currentColor"/>
+                        <circle cx="17" cy="14" r="1" fill="currentColor"/>
+                        <path d="M12 2v4m1.6-3.1a1.9 1.9 0 0 0-3.2 1.1c0 1.8 3.2 1 3.2 2.8a1.9 1.9 0 0 1-3.2 1.1" stroke-width="1.5"/>
                     </svg>
                 </div>
                 <h2 class="card-title">Lease, Rent or Buy?</h2>
-                <p class="card-desc">What a car really costs in the US over your own time horizon — lease vs. finance
-                    vs. cash vs. monthly subscription, including the return your cash gives up.</p>
+                <p class="card-desc">What a car actually costs in the US. Compare leasing, financing, paying cash and
+                    monthly subscriptions over your own time horizon — with real depreciation data, a break-even
+                    chart, and a guided walkthrough that fills it in for you.</p>
             </div>
             <span class="card-link">Run the numbers <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1241,7 +1243,7 @@
                 </div>
                 <div class="card-face card-face-back">
                     <div class="about-identity">
-                        <img src="assets/portrait.png" alt="Niklas Billgren" class="about-portrait" width="48"
+                        <img src="assets/portrait.webp" alt="Niklas Billgren" class="about-portrait" width="48"
                             height="48" loading="lazy" decoding="async">
                         <div>
                             <div class="about-name">Niklas Billgren</div>
@@ -1250,7 +1252,7 @@
                     </div>
                     <p class="about-text">This started as a portfolio and turned into a workshop. I plan supply chains
                         for a living; everything here I built to learn, mostly by <strong>vibe coding with Claude and
-                            AntiGravity</strong> — a surprising amount of it on my phone.</p>
+                            AntiGravity</strong>, a surprising amount of it on my phone.</p>
                     <span class="card-link">Flip back <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
@@ -1307,7 +1309,7 @@
                 'card-supply-chain': 45,
                 'card-cargo-lander': 245,
                 'card-converter': 190,
-                'card-car': 155,
+                'card-car': 160,
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
@@ -1377,7 +1379,7 @@
 
                     const config = {
                         'card-converter': { hue: 40, items: ['⇄', 'kg ⇄ lb', 'km ⇄ mi', '°C ⇄ °F'] },
-                        'card-car': { hue: 155, items: ['🚗', '$/mo', 'LEASE', 'CASH', '%', '🔑'] },
+                        'card-car': { hue: 160, items: ['🚗', '🔑', '$/mo', '📉', 'APR'] },
                         'card-about': { hue: 345, items: ['✨', '{ }', '📱', '~/', '◆'] },
                         'card-cv': { hue: 215, items: ['📄', '📜', '</>', '◆', '💼'] },
                         'card-math': { hue: 325, items: ['2.2 lb/kg', '1.6 mi/km', '3.8 gal/L', '+', '×', '÷'] }
@@ -1753,7 +1755,7 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
 
-        // The About card is a button, not a link — clicking it turns the card over
+        // The About card is a button, not a link, so clicking it turns the card over
         // rather than leaving the page. Escape flips it back, same as the vault.
         const aboutCard = document.getElementById('card-about');
         function setAboutFlipped(flipped) {
