@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.63.1';</script>
+    <script>window.SC_VERSION = '1.63.3';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -1494,6 +1494,54 @@
 
         assert('infoFor is null for inactive nodes',
             SC.inspect.infoFor(SC.map.makeNode('supplier', 900, 900, { mat: 'ore' })) === null);
+    })();
+
+    // ── Supply gaps: what you need and can't reach ──
+    (function() {
+        const { S1, S2, F } = fixture();
+        // Bakery needs wheat + water; both suppliers exist but no roads yet,
+        // so each is owned-but-unroaded, not sourceless.
+        let gaps = SC.economy.supplyGaps();
+        assert('an owned supplier with no road is flagged, not treated as missing',
+            gaps.unroaded.has(S1.id) && gaps.unroaded.has(S2.id) &&
+            gaps.sourceless.size === 0);
+
+        SC.roads.build(S1, F);
+        gaps = SC.economy.supplyGaps();
+        assert('building the road clears that supplier\'s warning', !gaps.unroaded.has(S1.id));
+        assert('the still-unroaded input keeps its warning', gaps.unroaded.has(S2.id));
+
+        SC.roads.build(S2, F);
+        gaps = SC.economy.supplyGaps();
+        assert('a fully roaded factory raises no warnings at all',
+            gaps.unroaded.size === 0 && gaps.sourceless.size === 0);
+
+        // A material no owned supplier provides is 'sourceless' — that's the
+        // only case the map stakes a claim for.
+        const shoes = SC.map.makeNode('factory', 900, 500,
+            { active: true, recipe: 'shoes', underConstruction: false });
+        gaps = SC.economy.supplyGaps();
+        const shoeInputs = SC.GOODS.shoes.inputs.filter(m => SC.GOODS[m].raw);
+        assert('a needed material with no supplier anywhere is sourceless',
+            shoeInputs.every(m => gaps.sourceless.has(m)));
+        assert('sourceless materials raise no per-node warning',
+            gaps.unroaded.size === 0);
+
+        // Unlocking a supplier for it flips the answer from "no deposit" to
+        // "no road" — the claim goes quiet and the site takes the warning.
+        const wool = SC.map.makeNode('supplier', 950, 700,
+            { active: true, mat: shoeInputs[0], underConstruction: false });
+        gaps = SC.economy.supplyGaps();
+        assert('owning a supplier of it stops it being sourceless',
+            !gaps.sourceless.has(shoeInputs[0]) && gaps.unroaded.has(wool.id));
+
+        // Nothing is "needed" until a factory that takes it is operational.
+        SC.newState();
+        SC.map._resetSeq();
+        SC.map.makeNode('supplier', 100, 100, { active: true, mat: 'wheat', underConstruction: false });
+        assert('a supplier no operational factory needs raises nothing',
+            SC.economy.supplyGaps().unroaded.size === 0 &&
+            SC.economy.supplyGaps().sourceless.size === 0);
     })();
 
     // ── Supplier stock: cap, regen, consumption, trucks wait when dry ──
