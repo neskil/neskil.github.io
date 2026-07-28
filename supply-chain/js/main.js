@@ -306,6 +306,17 @@ SC.runProbe = function(seconds) {
         SC.state.selectedNode = SC.state.nodes.find(n => String(n.id) === key) ||
             (key === 'factory' ? SC.factories.all()[0] : SC.state.nodes.find(n => n.isHQ));
     }
+    // Open the inspect tooltip on a node (&inspect=wheat|<mat>|hq|factory|
+    // <node id>) without a real tap, so what a site actually reports —
+    // stock, rate, the biome/yield row — can be screenshotted.
+    if (p.has('inspect') && SC.input._setDebugInspect) {
+        const key = p.get('inspect');
+        const node = SC.state.nodes.find(n => String(n.id) === key) ||
+            SC.state.nodes.find(n => n.kind === 'supplier' && n.mat === key && n.active) ||
+            (key === 'factory' ? SC.factories.all()[0] : SC.state.nodes.find(n => n.isHQ));
+        SC.state.mode = 'inspect';
+        SC.input._setDebugInspect(node);
+    }
     // Point the camera somewhere specific (&focus=x,y,zoom — zoom optional):
     // screenshots default to the HQ cluster, so this is how a far corner,
     // the whole-map view (&focus with a low zoom), or a specific site gets

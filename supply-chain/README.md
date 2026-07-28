@@ -179,6 +179,18 @@ that ambient animation as its background — it now lives independently at
   (`SITE_FW_PER_LEVEL`), with the site art filling the extra ground
   (more furrows, more rubber trees, a second barn) — so a maxed farm
   reads as a big estate from across the map without opening its tooltip.
+- **Ground quality**: no two sites are worth the same. A supplier's regen
+  (not its cap) is multiplied by `SC.supplierYield` = the **biome band**
+  under it × a small per-site roll (`SITE_YIELD_VARIANCE`). The bands and
+  their per-material multipliers live in `BIOME_BANDS`/`BIOME_YIELD` —
+  crops want green ground and wilt in sand, mines run the other way, a
+  chip fab doesn't care. Both the ground tint and the multiplier read the
+  same seeded field (`SC.biomeNoise`, logic layer), so **the map is the
+  legend**: green ground really is the good farmland, and you can read a
+  site's worth before building on it. Inspect a supplier to see its band,
+  yield % and units/sec. Nothing is stored on the node — yields are
+  derived from position + seed, so they're stable across saves and travel
+  with a shared `?seed=`.
 - **Highways** (needs Asphalt Paving researched): Upgrade mode on a road
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer

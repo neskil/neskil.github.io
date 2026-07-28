@@ -62,6 +62,16 @@ in Phase 4 — not in README.md, which now just points here. See
   the measured card heights per row instead of one worst-case constant, so the
   tree is considerably shorter and the edges leave from real card bottoms.
   Covered by `research-zoom-check.html` (see CLAUDE.md → Verification).
+- v1.61.2: **ground quality — biome-driven supplier yield** — a supplier's
+  regen is now multiplied by the biome band under it (`BIOME_BANDS` ×
+  `BIOME_YIELD`, per material) plus a small per-site roll
+  (`SITE_YIELD_VARIANCE`), so crops thrive on green ground and struggle in
+  sand while mines read the same map the other way. The biome field moved
+  out of `render-env` into `state.js`, so the tint you see and the
+  multiplier you get come from one seeded source — the map is now the
+  legend for where to build and which site is worth upgrading. Inspect a
+  supplier for its band, yield % and units/sec. Derived from position +
+  seed, so it needs no save-format change and travels with `?seed=`.
 - v1.61.1: **upgraded suppliers grow on the ground, not just upward** — a
   supplier level now widens its plot (`SITE_FW_PER_LEVEL`) as well as
   raising the model, and each site's art fills the extra ground: furrow
