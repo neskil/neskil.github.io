@@ -93,6 +93,32 @@ setTimeout(() => {
     ok('zoom clamps at the whole-tree overview', Math.abs(floor - U.researchTreeScale()) < 0.02,
         floor + ' vs fit ' + U.researchTreeScale());
 
+    // Only the tree may move. The wrap's own height used to track the scaled
+    // tree, so a pinch resized the scroll viewport — and with it the card and
+    // its centred position in the overlay. The window moved under the fingers
+    // that were trying to zoom what was inside it.
+    U.setResearchTreeZoom(1, 0, 0);
+    const card = d.querySelector('.research-tree-card');
+    const box = card.getBoundingClientRect();
+    const sameBox = (b, tol) => Math.abs(b.top - box.top) < tol && Math.abs(b.left - box.left) < tol &&
+                                Math.abs(b.width - box.width) < tol && Math.abs(b.height - box.height) < tol;
+    U.zoomResearchTreeBy(1.6);
+    ok('zooming in does not move or resize the card', sameBox(card.getBoundingClientRect(), 0.5));
+    U.fitResearchTreeToScreen();
+    ok('zooming out to the overview does not shrink the card', sameBox(card.getBoundingClientRect(), 0.5));
+
+    // Emoji spacing: a name must never render on top of its own emoji (some
+    // Android emoji fonts under-report the glyph's advance width).
+    const nameEl = d.querySelector('.rt-node .research-name');
+    const emEl = nameEl.querySelector('.rt-emoji');
+    const textRange = d.createRange();
+    textRange.setStart(nameEl, 1);
+    textRange.setEnd(nameEl, nameEl.childNodes.length);
+    ok('the tech name clears its emoji', !!emEl &&
+        textRange.getBoundingClientRect().left >= emEl.getBoundingClientRect().right - 0.5,
+        emEl ? (emEl.getBoundingClientRect().right.toFixed(1) + ' → ' +
+                textRange.getBoundingClientRect().left.toFixed(1)) : 'no .rt-emoji');
+
     // Reopening forgets the player's zoom.
     U.closeResearchTree();
     U.openResearchTree();
