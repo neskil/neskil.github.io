@@ -13,6 +13,44 @@ SC.economy = (function() {
             n.kind === 'supplier' && n.active && !n.underConstruction && (!mat || n.mat === mat));
     }
 
+    // ── Supply gaps: what you need and can't currently get ────────
+    // A raw material is "unmet" when an operational factory takes it and
+    // no active supplier of it has a road to that factory. The map uses
+    // this to stay quiet: an unbuilt site is only worth pointing at when
+    // you need what's under it and nothing is hauling it yet, and an
+    // already-unlocked site is only worth flagging when it's the one
+    // that's missing its road.
+    //
+    // Recomputed only when the road network or the node roster changes —
+    // it runs a findPath per (supplier, factory) pair and is read from
+    // the render loop.
+    let gapCache = null, gapKey = null;
+    function supplyGaps() {
+        let actives = 0;
+        for (const n of SC.state.nodes) if (n.active && !n.underConstruction) actives++;
+        const key = (SC.state.networkVersion || 0) + ':' + SC.state.nodes.length + ':' + actives;
+        if (gapCache && gapKey === key) return gapCache;
+
+        const sourceless = new Set(); // needed, and you own no supplier of it at all
+        const unroaded = new Set();   // node ids: you own the supplier, it just has no route
+        const factories = SC.factories.all();
+        const needed = new Set();
+        for (const f of factories)
+            for (const mat of SC.GOODS[f.recipe].inputs)
+                if (SC.GOODS[mat].raw) needed.add(mat);
+
+        for (const mat of needed) {
+            const wants = factories.filter(f => SC.GOODS[f.recipe].inputs.includes(mat));
+            const mine = activeSuppliers(mat);
+            if (mine.some(s => wants.some(f => SC.roads.findPath(s, f)))) continue; // supplied
+            if (mine.length) mine.forEach(s => unroaded.add(s.id));
+            else sourceless.add(mat);
+        }
+        gapCache = { sourceless, unroaded };
+        gapKey = key;
+        return gapCache;
+    }
+
     // Can this good be produced with today's suppliers and factories?
     // (Raw: an active supplier exists. Crafted: an operational factory
     // with the recipe exists and every input can itself be sourced.)
@@ -482,7 +520,7 @@ SC.economy = (function() {
 
     return { spawnOrder, planOrder, deliverProduct, expireOrder,
              onNetworkChanged, tick, tickSuppliers, buyUpgrade, upgradeSupplier,
-             craftableProducts, bestSourceFor, maxActiveOrders,
+             craftableProducts, bestSourceFor, maxActiveOrders, supplyGaps,
              isPromoActive, promoTimeLeft, startPromotion,
              rollContractOffer, acceptContract, declineContract,
              getDeadlineRamp, getSpawnRamp };
