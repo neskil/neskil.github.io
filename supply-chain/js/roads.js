@@ -165,6 +165,7 @@ SC.roads = (function() {
             edges.push(edge);
         }
         SC.economy && SC.economy.onNetworkChanged();
+        bumpNetworkVersion();
         for (const edge of edges) SC.emit('roadBuilt', edge);
         return { ok: true, edge: edges[0], edges, junctions: chain.slice(1, -1) };
     }
@@ -219,6 +220,7 @@ SC.roads = (function() {
                 k++; // skip the node just inserted
             }
         }
+        bumpNetworkVersion();
     }
 
     function demolish(edge) {
@@ -236,6 +238,7 @@ SC.roads = (function() {
         const refund = Math.round(edge.cost * SC.CONFIG.ROAD_REFUND);
         SC.state.money += refund;
         SC.economy && SC.economy.onNetworkChanged();
+        bumpNetworkVersion();
         SC.emit('roadDemolished', { edge, refund });
         return true;
     }
@@ -284,15 +287,51 @@ SC.roads = (function() {
         SC.state.money -= q.cost;
         edge.level = 1;
         SC.economy && SC.economy.onNetworkChanged();
+        bumpNetworkVersion();
         SC.emit('roadUpgraded', { edge, cost: q.cost });
         return { ok: true, edge };
+    }
+
+    let pathCache = new Map();
+
+    function bumpNetworkVersion() {
+        if (SC.state) {
+            SC.state.networkVersion = (SC.state.networkVersion || 0) + 1;
+        }
+        pathCache.clear();
+    }
+
+    function clearCache() {
+        pathCache.clear();
     }
 
     // Dijkstra over the road graph, weighted by travel TIME (highway
     // edges count len/speedMult), so routing prefers upgraded roads.
     // Returns { path: [nodes], dist } or null.
     function findPath(from, to) {
+        if (!from || !to) return null;
         if (from === to) return { path: [from], dist: 0 };
+
+        const ver = SC.state ? (SC.state.networkVersion || 0) : 0;
+        let cong = 's';
+        if (SC.state && SC.state.congestionEnabled) {
+            let totalJammed = 0;
+            const edges = SC.state.edges;
+            for (let i = 0; i < edges.length; i++) {
+                const cnt = SC.vehicles ? SC.vehicles.truckCountOnEdge(edges[i]) : 0;
+                if (cnt > 0) totalJammed += (i + 1) * cnt;
+            }
+            cong = 'c' + totalJammed;
+        }
+        const fromId = from.id !== undefined ? from.id : from;
+        const toId = to.id !== undefined ? to.id : to;
+        const key = ver + ':' + cong + ':' + fromId + ':' + toId;
+
+        if (pathCache.has(key)) {
+            const cached = pathCache.get(key);
+            return cached ? { path: cached.path.slice(), dist: cached.dist } : null;
+        }
+
         const dist = new Map([[from, 0]]);
         const prev = new Map();
         const open = [from];
@@ -307,6 +346,7 @@ SC.roads = (function() {
             done.add(cur);
             for (const nb of cur.edges) {
                 const e = findEdge(cur, nb);
+                if (!e) continue;
                 const d = dist.get(cur) + e.len / speedMult(e);
                 if (!dist.has(nb) || d < dist.get(nb)) {
                     dist.set(nb, d);
@@ -315,10 +355,19 @@ SC.roads = (function() {
                 }
             }
         }
-        if (!dist.has(to)) return null;
+        if (!dist.has(to)) {
+            if (pathCache.size > 2000) pathCache.clear();
+            pathCache.set(key, null);
+            return null;
+        }
         const path = [to];
         while (path[0] !== from) path.unshift(prev.get(path[0]));
-        return { path, dist: dist.get(to) };
+        const res = { path, dist: dist.get(to) };
+
+        if (pathCache.size > 2000) pathCache.clear();
+        pathCache.set(key, { path: path.slice(), dist: res.dist });
+
+        return { path: res.path.slice(), dist: res.dist };
     }
 
     function pathDist(from, to) {
@@ -433,11 +482,13 @@ SC.roads = (function() {
         SC.state.edges.push(edge);
         a.edges.push(b);
         b.edges.push(a);
+        bumpNetworkVersion();
         return edge;
     }
 
     return { findEdge, quote, build, demolish, findPath, pathDist,
              speedMult, congestionMult, upgradeQuote, upgrade, getLineIntersection, findClosestCrossing,
              checkSegment, blockMessage, splitEdge, hasCrossings,
+             bumpNetworkVersion, clearCache,
              pointSegDist, pointRoadDist, _addRawEdge };
 })();

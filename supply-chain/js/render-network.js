@@ -9,6 +9,24 @@
     const SITE_OF = { wheat: 'farm', water: 'lake', ore: 'mine', coal: 'mine',
                       copper: 'mine', wool: 'pasture', rubber: 'grove', chips: 'fab' };
     const SITE_H = { farm: 12, lake: 9, mine: 20, pasture: 12, grove: 18, fab: 22 };
+    // An upgraded supplier grows *outward* as well as up: each level widens
+    // the plot, the same way a yard's parking lot grows with the fleet homed
+    // there. At SUPPLIER_MAX_LEVEL (4) a field is ~40% wider, so a maxed farm
+    // reads as a big estate from across the map without opening the tooltip.
+    // Kept well under the ~80-unit minimum node spacing (map.js) so even two
+    // adjacent maxed sites don't overlap.
+    const SITE_FW_PER_LEVEL = 2.5;
+    // Grove canopies [x, y, scale] in plot-relative units, per supplier level:
+    // level 0 is the original trio, each level plants one more in the widened
+    // plot. Built once (drawn ~1×/node/frame) and pre-sorted back-to-front so
+    // nearer canopies overlap the ones behind them.
+    const GROVE_TREES = (function() {
+        const trio = [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]];
+        const extra = [[-0.1, 0.38, 0.95], [0.4, -0.12, 0.85],
+                       [-0.45, -0.28, 1], [0.18, 0.46, 0.9]];
+        return extra.map((_, i) => trio.concat(extra.slice(0, i)).sort((a, b) => a[1] - b[1]))
+            .concat([trio.concat(extra).sort((a, b) => a[1] - b[1])]);
+    })();
     let shadowSprite = null;
     let glowSprite = null;
 
@@ -157,8 +175,44 @@
                 strokeEdge(e, casing + 2, e === pending ? 'rgba(248, 113, 113, 0.9)' : 'rgba(250, 204, 21, 0.9)');
             }
 
-            // Congestion heat
-            if (SC.state.congestionEnabled && !armed) {
+            // Heatmap mode overlay: highlight throughput & congestion
+            if (SC.state.mode === 'heatmap' && !armed) {
+                const activeTrucks = SC.vehicles ? SC.vehicles.truckCountOnEdge(e) : 0;
+                const trips = e.trips || 0;
+                const excess = SC.vehicles ? (activeTrucks - SC.CONFIG.CONGESTION_THRESHOLD) : 0;
+                let heat = 0.05;
+                if (excess > 0) {
+                    heat = Math.min(1, 0.7 + excess * 0.15);
+                } else {
+                    heat = Math.min(0.9, activeTrucks * 0.3 + Math.min(0.6, trips / 15));
+                }
+                heat = Math.max(0.08, heat);
+
+                let color = 'rgba(16, 185, 129, 0.85)'; // Green (clear)
+                if (heat > 0.7) {
+                    color = 'rgba(239, 68, 68, 0.95)'; // Red (heavy/bottleneck)
+                } else if (heat > 0.35) {
+                    color = 'rgba(245, 158, 11, 0.9)'; // Yellow (moderate)
+                }
+
+                // Outer heat aura
+                const auraW = casing + (heat > 0.7 ? 8 : 4) * z;
+                strokeEdge(e, auraW, color.replace(/[\d\.]+\)$/, (heat > 0.7 ? '0.5)' : '0.35)')));
+                // Inner bright heat line
+                strokeEdge(e, surfaceW + 1.5 * z, color);
+
+                // Jam warning indicator at midpoint if jammed
+                if (heat > 0.75 || excess > 0) {
+                    const mx = (e.a.x + e.b.x) / 2, my = (e.a.y + e.b.y) / 2;
+                    const p = S(mx, my);
+                    R.ctx.font = 'bold ' + Math.max(10, Math.round(12 * z)) + 'px sans-serif';
+                    R.ctx.textAlign = 'center';
+                    R.ctx.textBaseline = 'middle';
+                    R.ctx.fillStyle = '#ef4444';
+                    R.ctx.fillText('⚠️', p.x, p.y - 8 * z);
+                }
+            } else if (SC.state.congestionEnabled && !armed) {
+                // Standard congestion heat
                 const excess = SC.vehicles.truckCountOnEdge(e) - SC.CONFIG.CONGESTION_THRESHOLD;
                 if (excess > 0) {
                     const heat = Math.min(1, excess / 3);
@@ -195,14 +249,15 @@
 
     // Hoisted out of nodeSpec (called ~2×/node/frame) so these lookup sets
     // aren't reallocated on every call.
-    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire']);
-    const FACTORY_TALL = new Set(['circuit', 'car']);
+    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire', 'tyre', 'cloth']);
+    const FACTORY_TALL = new Set(['circuit', 'car', 'battery', 'scooter']);
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
             const site = SITE_OF[n.mat] || 'fab';
-            return { base, fw: site === 'fab' ? 20 : 24, site,
-                     h: SITE_H[site] + (n.level || 0) * 3, icon: SC.emojiOf(n.mat) };
+            const lvl = n.level || 0;
+            return { base, fw: (site === 'fab' ? 20 : 24) + lvl * SITE_FW_PER_LEVEL, site, lvl,
+                     h: SITE_H[site] + lvl * 3, icon: SC.emojiOf(n.mat) };
         }
         if (n.kind === 'factory') {
             let base = '#6b7a90', h = 32, stories = 3, stack = true;
@@ -451,15 +506,21 @@
             R.ctx.fillRect(g.x - rx, g.y - ry, rx * 2, ry * 2);
             R.ctx.strokeStyle = rgba(base, 0.6);
             R.ctx.lineWidth = Math.max(1.5, 2.2 * z);
-            for (let k = -2; k <= 2; k++) {
-                const ox = -0.5 * k * rx * 0.36, oy = 0.25 * k * rx * 0.36;
+            // Furrow count tracks the plot width so the rows keep roughly the
+            // same on-screen spacing instead of stretching apart with the
+            // field (or, if subdivided per level, packing into a solid hatch).
+            const half = Math.round(2 * sp.fw / 24), step = 0.72 / half;
+            for (let k = -half; k <= half; k++) {
+                const ox = -0.5 * k * rx * step, oy = 0.25 * k * rx * step;
                 R.ctx.beginPath();
                 R.ctx.moveTo(g.x + ox - rx, g.y + oy - rx * 0.5);
                 R.ctx.lineTo(g.x + ox + rx, g.y + oy + rx * 0.5);
                 R.ctx.stroke();
             }
             R.ctx.restore();
-            prism(g.x, g.y - ry * 0.62, 6, 9 * z, '#8a5a33');
+            prism(g.x, g.y - ry * 0.62, 6 + sp.lvl * 0.5, (9 + sp.lvl) * z, '#8a5a33');
+            // A second barn once the farm is properly built out.
+            if (sp.lvl >= 2) prism(g.x + rx * 0.42, g.y - ry * 0.18, 4.5, 6.5 * z, '#7a4e2c');
         } else if (sp.site === 'lake') {
             // Pond with ripple rings + a pump hut piping out of it.
             const pg = R.ctx.createLinearGradient(0, g.y - ry, 0, g.y + ry);
@@ -535,10 +596,12 @@
             R.ctx.setLineDash([4 * z, 3 * z]);
             R.ctx.stroke();
             R.ctx.setLineDash([]);
-            prism(g.x, g.y - ry * 0.55, 6.5, 9 * z, '#b91c1c');
+            prism(g.x, g.y - ry * 0.55, 6.5 + sp.lvl * 0.5, (9 + sp.lvl) * z, '#b91c1c');
+            if (sp.lvl >= 2) prism(g.x + rx * 0.4, g.y - ry * 0.14, 4.5, 6.5 * z, '#9a1c1c');
         } else if (sp.site === 'grove') {
-            // Rubber-tree grove: round canopies (unlike the wild pines).
-            for (const [tx, ty, s] of [[-0.35, 0.05, 1], [0.05, -0.3, 0.9], [0.32, 0.28, 1.05]]) {
+            // Rubber-tree grove: round canopies (unlike the wild pines). Each
+            // upgrade plants another tree in the widened plot (GROVE_TREES).
+            for (const [tx, ty, s] of GROVE_TREES[Math.min(sp.lvl, GROVE_TREES.length - 1)]) {
                 const cx = g.x + rx * tx, cy = g.y + ry * ty;
                 R.ctx.strokeStyle = '#4a3323';
                 R.ctx.lineWidth = Math.max(1.5, 2 * z);
@@ -923,6 +986,7 @@
         }
 
         // --- per-kind badges/bars -------------------------------------------
+        drawUnroadedWarning(n, g, sp);
         if (n.kind === 'supplier') {
             const cap = SC.supplierCap(n);
             const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
@@ -1031,6 +1095,58 @@
             const s = stall(c, r);
             R.drawTruckAt(s, parkAng, '#8b98ab', z * 0.82, false);
         }
+    }
+
+    // Locked supplier sites — the ones the milestone track hasn't opened
+    // yet. They already exist at their final spot from world-gen (map.js's
+    // pool is created inactive, and unlockNext only flips the flag), so
+    // drawing them as surveyed ground costs nothing in balance terms.
+    //
+    // But drawing ALL of them turns the map into wallpaper — every future
+    // site shouting at once, which is noise, not information. A claim is
+    // only staked when it answers a question you actually have: a factory
+    // you own takes this material and you own no supplier of it anywhere
+    // (SC.economy.supplyGaps().sourceless). The moment you own one, the
+    // claims go quiet and the warning moves to that site instead — see
+    // drawUnroadedWarning: at that point the answer is "build the road",
+    // not "wait for another deposit". Suppliers only; revealing every
+    // future factory and DC as well would give the whole map away.
+    function drawProspectSites() {
+        const z = clampZoom();
+        const gaps = SC.economy.supplyGaps();
+        if (!gaps.sourceless.size) return;
+        for (const n of SC.state.nodes) {
+            if (n.active || n.kind !== 'supplier' || !gaps.sourceless.has(n.mat)) continue;
+            const g = S(n.x, n.y);
+            const { rx, ry } = footRadii(14);
+            R.ctx.save();
+            diamondPath(g.x, g.y, rx, ry);
+            R.ctx.fillStyle = 'rgba(10, 16, 26, 0.16)';
+            R.ctx.fill();
+            R.ctx.setLineDash([5 * z, 4 * z]);
+            R.ctx.strokeStyle = rgba(SC.colorOf(n.mat), 0.5);
+            R.ctx.lineWidth = Math.max(1.2, 1.6 * z);
+            R.ctx.stroke();
+            R.ctx.setLineDash([]);
+            // Enough to read what's coming at a glance, faint enough that a
+            // staked claim never competes with a site that's actually running.
+            R.ctx.globalAlpha = 0.62;
+            emoji(SC.emojiOf(n.mat), g.x, g.y - 3 * z, 16 * z);
+            R.ctx.restore();
+        }
+    }
+
+    // The other half of the same rule: a supplier you already own, whose
+    // material a factory of yours wants, with no road that reaches it. The
+    // order rows say "no route!" and the inspect tooltip flags the consumer,
+    // but neither helps if you haven't tapped the thing — so the site itself
+    // carries a warning ring until it's connected.
+    function drawUnroadedWarning(n, g, sp) {
+        if (n.kind !== 'supplier' || !SC.economy.supplyGaps().unroaded.has(n.id)) return;
+        const z = clampZoom();
+        const pulse = 0.55 + 0.45 * Math.sin(R.seaTime * 3);
+        groundRing(g.x, g.y, sp.fw + 7, `rgba(250, 204, 21, ${0.75 * pulse})`, 2.2);
+        emojiPlateAt('⚠️', g.x + footRadii(sp.fw).rx * 0.75, g.y - sp.h * z - 4 * z, 9 * z, 11 * z);
     }
 
     function drawYardSite(n, sp, g) {
@@ -1666,6 +1782,6 @@
     }
 
     Object.assign(R, { drawRoads, drawRouteFlow, nodeSpec, drawShadow, drawSupplierSite, drawJunction,
-        drawNodeBody, drawYardParking, drawYardSite, emojiPlateAt, drawOrderBubbles,
+        drawNodeBody, drawYardParking, drawYardSite, drawProspectSites, emojiPlateAt, drawOrderBubbles,
         drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawGhostMarks, drawPlacementGhost, drawOffscreenArrows });
 })();

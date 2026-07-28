@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Supply Chain Tycoon — research tree zoom check</title>
+<style>
+  body { background:#111827; color:#e5e7eb; font:14px/1.6 ui-monospace,Menlo,monospace; padding:24px; }
+  h1 { font-size:16px; color:#93c5fd; }
+  .pass { color:#6ee7b7; } .fail { color:#fca5a5; } .info { color:#94a3b8; }
+  #summary { margin-top:14px; font-weight:700; }
+  #summary.pass { color:#6ee7b7; } #summary.fail { color:#fca5a5; }
+  /* Phone-width frame: the research overlay's mobile rules (and the mobile
+     node metrics in ui.js) key off the *game's* viewport, which is this
+     iframe's width — not the outer window. That is what lets a check run at
+     a real 500px layout viewport despite headless Chromium's ~500px floor. */
+  iframe { width:500px; height:900px; border:1px solid #334155; margin-top:16px; }
+</style>
+</head>
+<body>
+<h1>Research tree zoom check</h1>
+<p class="info">
+  The research overlay's readability on a phone rests on DOM behaviour
+  <code>tests.html</code> can't hold (it loads logic modules only): the tree
+  opening at a legible 1:1 instead of a fit-to-width shrink, pinch/button zoom
+  about an anchor, drag-to-pan, and taps still landing on a tech afterwards.
+  This page drives the real game in an iframe and asserts all of it. See
+  CLAUDE.md → Verification.
+</p>
+<div id="summary">running…</div>
+<pre id="log"></pre>
+<iframe id="f" src="index.html?probe=2&amp;techtree=1"></iframe>
+<script>
+const out = [];
+let pass = 0, fail = 0;
+function ok(name, cond, extra) {
+    (cond ? pass++ : fail++);
+    out.push((cond ? '✓ ' : '✗ ') + name + (extra !== undefined ? ' — ' + extra : ''));
+}
+function scaleOf(el) {
+    const t = getComputedStyle(el).transform;
+    return t === 'none' ? 1 : +t.match(/matrix\(([-\d.]+)/)[1];
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function finish() {
+    document.getElementById('log').textContent = out.join('\n');
+    const s = document.getElementById('summary');
+    s.textContent = pass + ' passed / ' + fail + ' failed';
+    s.className = fail ? 'fail' : 'pass';
+}
+
+setTimeout(() => {
+    const w = document.getElementById('f').contentWindow;
+    const d = w.document;
+    const nodes = d.getElementById('research-tree-nodes');
+    const wrap = d.getElementById('research-tree-wrap');
+    const U = w.SC._ui;
+
+    ok('tree overlay is open', !d.getElementById('research-overlay').classList.contains('hidden'));
+    ok('opens at 100% (no unreadable auto-shrink)', Math.abs(scaleOf(nodes) - 1) < 0.001, scaleOf(nodes));
+
+    const nodeW = nodes.getBoundingClientRect().width;
+    d.getElementById('research-zoom-in').click();
+    const s1 = scaleOf(nodes);
+    ok('zoom-in scales the tree up', s1 > 1.2 && s1 < 1.3, s1);
+    ok('scroll extent grows with the zoom', nodes.getBoundingClientRect().width > nodeW * 1.2);
+
+    d.getElementById('research-zoom-out').click();
+    ok('zoom-out returns to 100%', Math.abs(scaleOf(nodes) - 1) < 0.001, scaleOf(nodes));
+
+    d.getElementById('research-zoom-fit').click();
+    const sf = scaleOf(nodes);
+    ok('fit shrinks the whole tree in', sf < 1 && sf > 0.05, sf);
+    ok('fit width fits the wrap', nodes.getBoundingClientRect().width <= wrap.clientWidth + 2);
+    ok('fit scrolls back to the origin', wrap.scrollLeft === 0 && wrap.scrollTop === 0);
+
+    // Anchored zoom: the tree point under the anchor must stay under it.
+    U.setResearchTreeZoom(1, 0, 0);
+    wrap.scrollLeft = 300; wrap.scrollTop = 100;
+    const before = (wrap.scrollLeft + 120) / U.researchTreeScale();
+    U.zoomResearchTreeBy(1.5, 120, 60);
+    const after = (wrap.scrollLeft + 120) / U.researchTreeScale();
+    ok('zoom keeps the anchored point put', Math.abs(before - after) < 1.5, before + ' vs ' + after);
+
+    U.setResearchTreeZoom(99);
+    ok('zoom clamps at the top', U.researchTreeScale() <= 2.5);
+    // The bottom clamp is adaptive: never past what it takes to see the whole
+    // tree, so a wide tree on a phone can still reach its overview.
+    U.setResearchTreeZoom(0.01);
+    const floor = U.researchTreeScale();
+    U.setResearchTreeZoom(1, 0, 0);
+    U.fitResearchTreeToScreen();
+    ok('zoom clamps at the whole-tree overview', Math.abs(floor - U.researchTreeScale()) < 0.02,
+        floor + ' vs fit ' + U.researchTreeScale());
+
+    // Only the tree may move. The wrap's own height used to track the scaled
+    // tree, so a pinch resized the scroll viewport — and with it the card and
+    // its centred position in the overlay. The window moved under the fingers
+    // that were trying to zoom what was inside it.
+    U.setResearchTreeZoom(1, 0, 0);
+    const card = d.querySelector('.research-tree-card');
+    const box = card.getBoundingClientRect();
+    const sameBox = (b, tol) => Math.abs(b.top - box.top) < tol && Math.abs(b.left - box.left) < tol &&
+                                Math.abs(b.width - box.width) < tol && Math.abs(b.height - box.height) < tol;
+    U.zoomResearchTreeBy(1.6);
+    ok('zooming in does not move or resize the card', sameBox(card.getBoundingClientRect(), 0.5));
+    U.fitResearchTreeToScreen();
+    ok('zooming out to the overview does not shrink the card', sameBox(card.getBoundingClientRect(), 0.5));
+
+    // Emoji spacing: a name must never render on top of its own emoji (some
+    // Android emoji fonts under-report the glyph's advance width).
+    const nameEl = d.querySelector('.rt-node .research-name');
+    const emEl = nameEl.querySelector('.rt-emoji');
+    const textRange = d.createRange();
+    textRange.setStart(nameEl, 1);
+    textRange.setEnd(nameEl, nameEl.childNodes.length);
+    ok('the tech name clears its emoji', !!emEl &&
+        textRange.getBoundingClientRect().left >= emEl.getBoundingClientRect().right - 0.5,
+        emEl ? (emEl.getBoundingClientRect().right.toFixed(1) + ' → ' +
+                textRange.getBoundingClientRect().left.toFixed(1)) : 'no .rt-emoji');
+
+    // Reopening forgets the player's zoom.
+    U.closeResearchTree();
+    U.openResearchTree();
+    ok('reopening resets to the auto fit', Math.abs(scaleOf(nodes) - 1) < 0.001, scaleOf(nodes));
+
+    // The whole point: node text has to be legible at the opening scale.
+    const desc = d.querySelector('.rt-node .research-desc');
+    const px = parseFloat(getComputedStyle(desc).fontSize) * scaleOf(nodes);
+    ok('description text is >= 12px on screen', px >= 12, px.toFixed(1) + 'px');
+
+    // Row pitch comes from the measured cards — nothing may overlap.
+    const cards = [...d.querySelectorAll('.rt-node')].map(el => ({
+        top: parseFloat(el.style.top), bottom: parseFloat(el.style.top) + el.offsetHeight,
+        left: parseFloat(el.style.left), right: parseFloat(el.style.left) + el.offsetWidth
+    }));
+    let overlap = 0;
+    for (let i = 0; i < cards.length; i++) for (let j = i + 1; j < cards.length; j++) {
+        const a = cards[i], b = cards[j];
+        if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) overlap++;
+    }
+    ok('no two cards overlap', overlap === 0, overlap + ' overlapping pairs');
+
+    gestures(w, d, wrap, nodes, U).then(finish, e => { ok('gestures ran', false, e); finish(); });
+}, 2500);
+
+async function gestures(w, d, wrap, nodes, U) {
+    function pev(type, id, x, y, target) {
+        target.dispatchEvent(new w.PointerEvent(type, {
+            pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true,
+            pointerType: 'touch', isPrimary: id === 1, button: 0,
+            buttons: type === 'pointerup' ? 0 : 1
+        }));
+    }
+    const scaleOf2 = el => {
+        const t = getComputedStyle(el).transform;
+        return t === 'none' ? 1 : +t.match(/matrix\(([-\d.]+)/)[1];
+    };
+
+    U.setResearchTreeZoom(1, 0, 0);
+    const r = wrap.getBoundingClientRect();
+    const cy = r.top + 200;
+
+    // Two fingers 100px apart, spread to 200px → 2× zoom.
+    pev('pointerdown', 1, r.left + 150, cy, wrap);
+    pev('pointerdown', 2, r.left + 250, cy, wrap);
+    pev('pointermove', 1, r.left + 100, cy, wrap);
+    pev('pointermove', 2, r.left + 300, cy, wrap);
+    ok('pinch out zooms in', Math.abs(scaleOf2(nodes) - 2) < 0.05, scaleOf2(nodes));
+
+    // …and back together → back to 1×.
+    pev('pointermove', 1, r.left + 150, cy, wrap);
+    pev('pointermove', 2, r.left + 250, cy, wrap);
+    ok('pinch in zooms back out', Math.abs(scaleOf2(nodes) - 1) < 0.05, scaleOf2(nodes));
+
+    pev('pointerup', 1, r.left + 150, cy, wrap);
+    pev('pointerup', 2, r.left + 250, cy, wrap);
+    await sleep(150);
+    ok('the pinch releases the drag state', !wrap.classList.contains('is-dragging'));
+
+    // A one-finger drag still pans, and doesn't zoom.
+    U.setResearchTreeZoom(1, 0, 0);
+    wrap.scrollLeft = 0;
+    pev('pointerdown', 3, r.left + 200, cy, wrap);
+    pev('pointermove', 3, r.left + 120, cy, wrap);
+    ok('one-finger drag pans', wrap.scrollLeft === 80, wrap.scrollLeft);
+    ok('one-finger drag does not zoom', Math.abs(scaleOf2(nodes) - 1) < 0.001);
+    pev('pointerup', 3, r.left + 120, cy, wrap);
+    await sleep(150);
+
+    // A tap on a tech still starts it after all that pointer traffic — the
+    // press-hold guard around the 0.4s rebuild is easy to break from here.
+    w.SC.state.money = 100000;
+    U.updateShop();
+    await sleep(50);
+    const btn = d.querySelector('[data-research]:not([disabled])');
+    ok('an affordable tech has a live button', !!btn);
+    if (btn) {
+        const id = btn.dataset.research;
+        pev('pointerdown', 4, r.left + 40, cy, btn);
+        pev('pointerup', 4, r.left + 40, cy, btn);
+        btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
+        ok('tapping a tech still starts it', w.SC.research.isActive(id) || w.SC.research.isQueued(id), id);
+    }
+}
+</script>
+</body>
+</html>

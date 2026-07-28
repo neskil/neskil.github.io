@@ -4,12 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Supply Chain Tycoon | Niklas Billgren</title>
+    <meta name="description" content="A browser logistics mini-game: lay roads, run trucks, combine raw materials into finished goods, and fill city orders before the deadlines catch up with you.">
+    <meta name="author" content="Niklas Billgren">
+    <meta name="theme-color" content="#0d1b2a">
+    <meta name="color-scheme" content="dark">
+    <link rel="canonical" href="https://neskil.github.io/supply-chain/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Supply Chain Tycoon">
+    <meta property="og:description" content="Lay roads, run trucks, combine raw materials in factories and fill city orders before the clock runs out.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/supply-chain/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/supply-chain.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Supply Chain Tycoon start screen with difficulty options and the production recipe tree.">
+    <meta name="twitter:card" content="summary_large_image">
     <!-- ⬇ THE version/cache-bust token. This ONE line is all a release bumps;
          the loaders below stamp ?v=SC_VERSION onto the stylesheet and every
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.60.2';</script>
+    <script>window.SC_VERSION = '1.63.3';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -66,9 +81,21 @@
         <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
         <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
         <button id="mode-inspect" class="mode-btn" title="Inspect: hover or tap a node for its connections">🔍</button>
+        <button id="mode-heatmap" class="mode-btn" title="Heatmap: view road usage & bottleneck congestion">🔥</button>
     </div>
 
     <div id="inspect-tooltip"></div>
+
+    <div id="heatmap-legend" class="panel hidden">
+        <div class="legend-header">🔥 Traffic &amp; Bottleneck Heatmap</div>
+        <div class="legend-scale">
+            <span class="scale-item low"><span class="dot"></span> Clear</span>
+            <span class="scale-item med"><span class="dot"></span> Moderate</span>
+            <span class="scale-item high"><span class="dot"></span> Heavy</span>
+            <span class="scale-item jam"><span class="dot"></span> Bottleneck ⚠️</span>
+        </div>
+        <div id="heatmap-summary" class="legend-summary">Total Network Trips: 0</div>
+    </div>
 
     <!-- Guided first-order tutorial (js/tutorial.js). Hidden unless a fresh
          run is mid-sequence; the map dims and points at the nodes each step
@@ -232,7 +259,15 @@
         <div class="research-tree-card">
             <div class="research-tree-header">
                 <h1>🔬 Research Tree</h1>
-                <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
+                <!-- Zoom controls: the page itself is user-scalable=no (the map
+                     canvas owns pinch), so the tree carries its own zoom —
+                     pinch inside it, or these buttons. -->
+                <div class="research-tree-tools">
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-out" title="Zoom out" aria-label="Zoom out">−</button>
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-in" title="Zoom in" aria-label="Zoom in">+</button>
+                    <button class="icon-btn rt-zoom-btn" id="research-zoom-fit" title="Fit whole tree" aria-label="Fit whole tree">⤢</button>
+                    <button class="icon-btn" id="research-tree-close" title="Close">✕</button>
+                </div>
             </div>
             <div id="research-tree-wrap" class="research-tree-wrap">
                 <svg id="research-tree-edges"></svg>
@@ -367,8 +402,12 @@
                water, the smelter 🔩 turns ore and coal into steel for the car
                factory 🚗. Some chains run deeper and share ingredients: the
                robot factory 🤖 needs a circuit board 🔌 (itself made from wire
-               🧵 and electronics 💾) plus the same steel your cars use. Your
-               trucks do the hauling — but only where roads exist.</p>
+               🧵 and electronics 💾) plus the same steel your cars use. Every
+               raw material feeds more than one recipe — that coal pit is
+               wanted by the smelter, the tyre plant 🛞 and the battery plant
+               🔋 at once — so running several chains means planting more of
+               the suppliers you already have, not just new ones. Your trucks
+               do the hauling — but only where roads exist.</p>
             <ul>
                 <li><b>Guided walkthrough:</b> new runs start with a 4-step guided walkthrough to help link your first bakery, suppliers, and HQ.</li>
                 <li><b>Build roads:</b> tap a node, then tap another. Crossing the river pops up a choice: a pricier bridge (fast) or a cheaper ferry (slower boat crossing).</li>
