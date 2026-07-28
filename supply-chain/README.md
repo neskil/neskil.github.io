@@ -171,7 +171,11 @@ that ambient animation as its background — it now lives independently at
   supplier is individually upgradable in **Upgrade mode** (⬆️, top
   right): tap twice to raise its cap and regen (per-supplier `level`,
   price ladder `SUPPLIER_UPGRADE_BASE/GROWTH`). The Fertilizer Program
-  research boosts all suppliers' regen globally.
+  research boosts all suppliers' regen globally. An upgraded site also
+  physically grows — each level raises the model *and* widens its plot
+  (`SITE_FW_PER_LEVEL`), with the site art filling the extra ground
+  (more furrows, more rubber trees, a second barn) — so a maxed farm
+  reads as a big estate from across the map without opening its tooltip.
 - **Highways** (needs Asphalt Paving researched): Upgrade mode on a road
   paves it (`edge.level 1`) — trucks cross it `HIGHWAY_SPEED_MULT`×
   faster, and pathfinding weighs edges by travel time so routes prefer

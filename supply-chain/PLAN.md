@@ -39,7 +39,7 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
-- v1.62.0: **research tree readable on mobile** — the overlay used to shrink
+- v1.62.1: **research tree readable on mobile** — the overlay used to shrink
   the whole tree to fit a phone's width, bottoming out at 0.62 and putting the
   description text at ~7px, with no way to zoom in (the page is
   `user-scalable=no`, since the map canvas owns pinch). It now opens at 1:1
@@ -50,12 +50,20 @@ in Phase 4 — not in README.md, which now just points here. See
   the measured card heights per row instead of one worst-case constant, so the
   tree is considerably shorter and the edges leave from real card bottoms.
   Covered by `research-zoom-check.html` (see CLAUDE.md → Verification).
+- v1.61.1: **upgraded suppliers grow on the ground, not just upward** — a
+  supplier level now widens its plot (`SITE_FW_PER_LEVEL`) as well as
+  raising the model, and each site's art fills the extra ground: furrow
+  count tracks the field width, a rubber grove plants another tree per
+  level, farm and pasture gain a second barn from level 2. Same idea as a
+  yard's parking lot growing with the fleet homed there — what you spent
+  on a site is legible from across the map, not only in the ▲ pips.
 - v1.61.0: **Traffic & Bottleneck Heatmap + Dijkstra Pathfinding Caching** —
   added a dedicated Heatmap mode button (`🔥`) that visualizes road usage and
   truck throughput with dynamic color gradients (Green → Yellow → Red glow),
   midpoint bottleneck warning badges (`⚠️`), and interactive edge traffic stats;
   implemented Dijkstra path memoization in `roads.js` keyed by `networkVersion` and
   traffic distribution.
+- v1.57.1: **the overlap rules explain themselves on the map** — the build
   ghost marks the site it would run over (clearance ring + ✕) or lights the
   road it can't cross red, and draws the legal alternative in green beside
   it (the two hops through that site, or the ends of the road in the way);
