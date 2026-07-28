@@ -39,6 +39,13 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.63.1: **only the tree moves when you zoom it** — the scroll viewport's
+  own height tracked the scaled tree, so a pinch resized the card and its
+  centred position in the overlay: the window moved under the fingers trying
+  to zoom what was inside it. The box is now sized once from the auto fit and
+  holds still. Also gave each emoji its own inline box (`.rt-emoji`) — several
+  Android emoji fonts report an advance width narrower than the glyph they
+  draw, which had tech names rendering on top of their own emoji.
 - v1.63.0: **six new goods, no new raw materials** — 🛞tyres (rubber+coal)
   and 🧣textiles (wool+water) as intermediates, feeding 🚲bicycles
   (tyre+steel), 🧥jackets (cloth+rubber), 🔋batteries (copper+coal) and
