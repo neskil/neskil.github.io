@@ -215,6 +215,58 @@ html, body {
     color: #0f172a;
 }
 
+/* ── Traffic & Bottleneck Heatmap Legend panel ── */
+#heatmap-legend {
+    position: fixed;
+    top: 4.2rem;
+    right: 1rem;
+    z-index: 100;
+    width: 240px;
+    padding: 0.6rem 0.8rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-size: 0.8rem;
+}
+#heatmap-legend.hidden { display: none; }
+.legend-header {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+}
+.legend-scale {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0.4rem;
+}
+.scale-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+.scale-item .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.scale-item.low .dot { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+.scale-item.med .dot { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+.scale-item.high .dot { background: #f97316; box-shadow: 0 0 6px rgba(249, 115, 22, 0.6); }
+.scale-item.jam .dot { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.9); }
+.legend-summary {
+    font-size: 0.75rem;
+    color: var(--accent-color);
+    border-top: 1px dashed var(--card-border);
+    padding-top: 0.4rem;
+}
+
 /* ── Inspect-mode tooltip ────────────────────────── */
 #inspect-tooltip {
     position: fixed;

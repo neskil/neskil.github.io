@@ -9,7 +9,7 @@
          module, so a bump no longer rewrites ~40 query-string lines (which,
          under parallel agent sessions, conflict on every master merge).
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
-    <script>window.SC_VERSION = '1.60.2';</script>
+    <script>window.SC_VERSION = '1.61.1';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
 </head>
 <body>
@@ -66,9 +66,21 @@
         <button id="mode-build" class="mode-btn active" title="Build roads">🔨</button>
         <button id="mode-upgrade" class="mode-btn" title="Upgrade: tap a supplier or road to level it up">⬆️</button>
         <button id="mode-inspect" class="mode-btn" title="Inspect: hover or tap a node for its connections">🔍</button>
+        <button id="mode-heatmap" class="mode-btn" title="Heatmap: view road usage & bottleneck congestion">🔥</button>
     </div>
 
     <div id="inspect-tooltip"></div>
+
+    <div id="heatmap-legend" class="panel hidden">
+        <div class="legend-header">🔥 Traffic &amp; Bottleneck Heatmap</div>
+        <div class="legend-scale">
+            <span class="scale-item low"><span class="dot"></span> Clear</span>
+            <span class="scale-item med"><span class="dot"></span> Moderate</span>
+            <span class="scale-item high"><span class="dot"></span> Heavy</span>
+            <span class="scale-item jam"><span class="dot"></span> Bottleneck ⚠️</span>
+        </div>
+        <div id="heatmap-summary" class="legend-summary">Total Network Trips: 0</div>
+    </div>
 
     <!-- Guided first-order tutorial (js/tutorial.js). Hidden unless a fresh
          run is mid-sequence; the map dims and points at the nodes each step

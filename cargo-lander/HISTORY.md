@@ -8,6 +8,37 @@ backlog" section.
 
 ---
 
+## 2026-07-27 — L1's HQ (and every other L1 pad) buried under the map (v0.19.9)
+
+Reported as "something happened with the HQ on level 1, it broke the map".
+Every auto-snapped pad on L1 — HQ, the cargo depot and Verdant Depot — was
+sitting at y≈1340 instead of on the hills, i.e. below the level's own
+`worldBounds.bottomY` of 1050, with the lander spawning down there with them.
+
+**Cause.** v0.19.6 (`fix(l4): ... fix cargo pickup surface detection on level
+4`) made `getPolygonSurfaceY()` winding-agnostic, dropping the `p1.x < p2.x`
+test that had restricted the scan to upward-facing floor segments. L1's ground
+polygon closes with one flat edge running right-to-left from `{1640,1350}` back
+to `{-960,1330}` — the polygon's underside. Once direction stopped mattering
+that edge counted as a floor, and being the deepest one at every x it won the
+`maxSurfaceY` scan for the whole level.
+
+**Fix.** Restored the direction-sensitive test and instead normalised each
+polygon's winding first, reusing the signed-area check `generateTerrain()`
+already ran on the same polygons (extracted as `polygonWindingSum()`, now
+shared by both so they can't drift). Polygons authored the other way round —
+L4's ridge, which is what v0.19.6 was chasing — get their endpoints swapped per
+edge rather than the vertex list reversed, so each edge keeps the
+`invisibleEdge` flag of the point that owns it.
+
+L1's pads snap to y=770 / 420 / 700 again (the terrain vertices they sit
+between), and L4's cargo pickup still works. Guarded by two new tests: one
+asserts no auto-snapped pad on any level lands below its `worldBounds.bottomY`,
+the other pins L1's three pads to their vertices. Both were confirmed to fail
+against the reintroduced bug; 135/135 pass with the fix.
+
+---
+
 ## 2026-07-11 — Night Ops rework: sonar ping + objective beam (v0.10.1)
 
 User feedback on v0.10.0: the flashlight cone followed `lander.angle` so it
