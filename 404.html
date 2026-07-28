@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lost in transit · Niklas Billgren</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#0f1428">
+    <meta name="color-scheme" content="dark">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            --card-bg: rgba(30, 41, 80, 0.55);
+            --card-hover-bg: rgba(40, 55, 105, 0.72);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #6366f1;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 20px;
+            gap: 1rem;
+        }
+
+        .code {
+            font-size: clamp(4rem, 18vw, 9rem);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: rgba(255, 255, 255, 0.09);
+        }
+
+        h1 {
+            font-size: clamp(1.4rem, 5vw, 2rem);
+            font-weight: 600;
+        }
+
+        p {
+            color: var(--text-secondary);
+            max-width: 34rem;
+            line-height: 1.6;
+        }
+
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .links a {
+            display: inline-block;
+            padding: 0.7rem 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .links a:hover {
+            background: var(--card-hover-bg);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .links a.primary {
+            border-color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="code">404</div>
+    <h1>This shipment never arrived.</h1>
+    <p>The page you asked for isn't on this route. It was either moved, renamed, or never
+        existed in the first place. The third one is, statistically, the most likely.</p>
+    <div class="links">
+        <a class="primary" href="/">Back to the homepage</a>
+        <a href="/supply-chain/">Supply Chain Tycoon</a>
+        <a href="/cargo-lander/">CargoLander</a>
+        <a href="/cv/">CV</a>
+    </div>
+</body>
+
+</html>
