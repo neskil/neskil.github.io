@@ -170,6 +170,35 @@ SC.CONFIG = {
     SUPPLIER_UPGRADE_BASE: 400,
     SUPPLIER_UPGRADE_GROWTH: 1.6,
 
+    // Biome bands, read off the seeded biome noise (`SC.biomeNoise`).
+    // Ordered high→low; a point belongs to the first band whose `min` it
+    // clears, so the ranges can't drift apart or leave a gap. BOTH the
+    // ground tint (render-env) and supplier yield (below) read this one
+    // table — what the ground looks like is what it pays.
+    BIOME_BANDS: [
+        { key: 'forest', min: 1.2,  label: 'Deep forest', emoji: '🌲', tint: 'rgba(20, 110, 60, 0.45)' },
+        { key: 'green',  min: 0.4,  label: 'Greenland',   emoji: '🌳', tint: 'rgba(34, 139, 34, 0.25)' },
+        { key: 'plains', min: -0.4, label: 'Plains',      emoji: '🏞', tint: null },
+        { key: 'scrub',  min: -1.2, label: 'Arid scrub',  emoji: '🌵', tint: 'rgba(160, 130, 80, 0.22)' },
+        { key: 'desert', min: -Infinity, label: 'Deep desert', emoji: '🏜', tint: 'rgba(210, 160, 70, 0.35)' }
+    ],
+    // Ground quality per raw material: multiplies a supplier's regen (not
+    // its stock cap) by biome. Things that grow want green ground and
+    // struggle in sand; ore/coal/copper run the other way, since rock
+    // shows through where nothing grows. A material with no row here —
+    // or a biome missing from its row — is simply 1×.
+    BIOME_YIELD: {
+        wheat:  { forest: 0.9,  green: 1.25, plains: 1.1,  scrub: 0.85, desert: 0.75 },
+        wool:   { forest: 0.9,  green: 1.25, plains: 1.1,  scrub: 0.85, desert: 0.75 },
+        rubber: { forest: 1.3,  green: 1.15, plains: 0.95, scrub: 0.8,  desert: 0.75 },
+        water:  { forest: 1.15, green: 1.15, plains: 1,    scrub: 0.85, desert: 0.8 },
+        ore:    { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 },
+        coal:   { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 },
+        copper: { forest: 0.85, green: 0.9,  plains: 1,    scrub: 1.2,  desert: 1.25 }
+        // chips: a fab is built, not grown — ground doesn't touch it.
+    },
+    SITE_YIELD_VARIANCE: 0.1,  // ±10% per-site roll on top of the biome factor
+
     FACTORY_SITE_PRICE: 700,
 
     CRAFT_TIME: 4,             // seconds per product at level 0
@@ -439,7 +468,19 @@ SC.GOODS = {
     bread:   { emoji: '🍞', name: 'Bread',    color: '#f59e0b', inputs: ['wheat', 'water'], orderable: true, value: 150, building: 'Bakery' },
     shoes:   { emoji: '👟', name: 'Sneakers', color: '#34d399', inputs: ['wool', 'rubber'], orderable: true, value: 230, building: 'Sneaker factory' },
     car:     { emoji: '🚗', name: 'Cars',     color: '#b07cd8', inputs: ['steel', 'chips'], orderable: true, value: 480, building: 'Car factory' },
-    robot:   { emoji: '🤖', name: 'Robots',   color: '#94a3b8', inputs: ['circuit', 'steel'], orderable: true, value: 900, building: 'Robot factory' }
+    robot:   { emoji: '🤖', name: 'Robots',   color: '#94a3b8', inputs: ['circuit', 'steel'], orderable: true, value: 900, building: 'Robot factory' },
+    // Second-wave chains. Deliberately no new raw material: every one of
+    // these draws on a supplier an earlier chain already wanted (coal was
+    // the smelter's alone, water the bakery's, wool the sneakers'), so the
+    // way to run two of them at once is a second coal pit and a second
+    // water well — more of the sites you already know, competing for the
+    // same roads. Batteries are both a product and the scooter's input.
+    tyre:    { emoji: '🛞', name: 'Tyres',      color: '#475569', inputs: ['rubber', 'coal'], building: 'Tyre plant' },
+    cloth:   { emoji: '🧣', name: 'Textiles',   color: '#f472b6', inputs: ['wool', 'water'], building: 'Textile mill' },
+    battery: { emoji: '🔋', name: 'Batteries',  color: '#4ade80', inputs: ['copper', 'coal'], orderable: true, value: 260, building: 'Battery plant' },
+    jacket:  { emoji: '🧥', name: 'Jackets',    color: '#fb923c', inputs: ['cloth', 'rubber'], orderable: true, value: 400, building: 'Outerwear factory' },
+    bicycle: { emoji: '🚲', name: 'Bicycles',   color: '#22d3ee', inputs: ['tyre', 'steel'], orderable: true, value: 450, building: 'Bicycle works' },
+    scooter: { emoji: '🛵', name: 'E-scooters', color: '#a3e635', inputs: ['tyre', 'battery'], orderable: true, value: 620, building: 'Scooter plant' }
 };
 
 SC.colorOf = function(item) { return SC.GOODS[item].color; };

@@ -306,6 +306,39 @@ SC.runProbe = function(seconds) {
         SC.state.selectedNode = SC.state.nodes.find(n => String(n.id) === key) ||
             (key === 'factory' ? SC.factories.all()[0] : SC.state.nodes.find(n => n.isHQ));
     }
+    // Put the map into both supply-gap states at once (&gaps=1): buy the
+    // first for-sale factory, so its raw inputs are suddenly needed with no
+    // supplier unlocked for them (staked claims appear), and demolish the
+    // bakery's wheat road, so an owned supplier is needed with no route
+    // (warning ring on the site itself).
+    if (p.has('gaps')) {
+        // Own a factory whose raw inputs have no supplier unlocked yet.
+        let site = SC.state.nodes.find(n => n.kind === 'factory' && n.forSale && n.active);
+        if (!site) site = SC.map.unlockNext(n => n.kind === 'factory');
+        if (site) {
+            SC.state.money += SC.CONFIG.FACTORY_SITE_PRICE;
+            SC.factories.buySite(site);
+            site.underConstruction = false; // skip the build timer for the shot
+        }
+        // Strand an owned supplier: park the fleet first, since demolish
+        // (rightly) refuses a road with a truck on it.
+        for (const t of SC.state.trucks) { t.path = null; t.jobs = []; t.cargo = []; }
+        const bakery = SC.factories.all()[0];
+        const wheat = SC.state.nodes.find(n => n.kind === 'supplier' && n.mat === 'wheat' && n.active);
+        const edge = bakery && wheat && SC.roads.findEdge(bakery, wheat);
+        if (edge) SC.roads.demolish(edge);
+    }
+    // Open the inspect tooltip on a node (&inspect=wheat|<mat>|hq|factory|
+    // <node id>) without a real tap, so what a site actually reports —
+    // stock, rate, the biome/yield row — can be screenshotted.
+    if (p.has('inspect') && SC.input._setDebugInspect) {
+        const key = p.get('inspect');
+        const node = SC.state.nodes.find(n => String(n.id) === key) ||
+            SC.state.nodes.find(n => n.kind === 'supplier' && n.mat === key && n.active) ||
+            (key === 'factory' ? SC.factories.all()[0] : SC.state.nodes.find(n => n.isHQ));
+        SC.state.mode = 'inspect';
+        SC.input._setDebugInspect(node);
+    }
     // Point the camera somewhere specific (&focus=x,y,zoom — zoom optional):
     // screenshots default to the HQ cluster, so this is how a far corner,
     // the whole-map view (&focus with a low zoom), or a specific site gets

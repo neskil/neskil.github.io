@@ -5,7 +5,7 @@
 // lived inside the ui.js closure.
 (function () {
     const U = SC._ui;
-    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
+    const { $, fmt, fmtDuration, toast, setMode, setSpeed, setDevMode, setHidePills, getUiScale, setUiScale, openOptionsModal, closeOptionsModal, updateOptionsModal, openToastHistoryModal, closeToastHistoryModal, clearToastHistory, renderToastHistory, openMenu, closeMenu, menuOpen, openResearchTree, closeResearchTree, setResearchTreeHold, zoomResearchTreeBy, setResearchTreeZoom, fitResearchTreeToScreen, researchTreeScale, openStatsOverlay, closeStatsOverlay, openAchievementDetail, closeAchievementDetail, chooseCrossing, closeCrossingChoice, openCrossingChoice, updateContractOffer, updateDevPanel, updateMenuInfo, updateOrders, updateShop, updateStatsOverlay, toggleFullscreen, resetNewGameArm, armNewGame, isNewGameArmed, focusOrder, yardLabel, openYardOverlay, closeYardOverlay, updateTutorial } = U;
     const getDevMode = U.getDevMode;
     const getHidePills = U.getHidePills;
 
@@ -88,6 +88,7 @@
         $('mode-build').addEventListener('click', () => setMode('build'));
         $('mode-upgrade').addEventListener('click', () => setMode('upgrade'));
         $('mode-inspect').addEventListener('click', () => setMode('inspect'));
+        on('mode-heatmap', 'click', () => setMode('heatmap'));
 
         // Whole bar opens the menu, not just the ☰ icon — money/trucks are
         // read-only display, so there's no reason tapping them should miss.
@@ -380,16 +381,56 @@
             if (e.target === $('research-overlay')) closeResearchTree(); // tap outside the card
         });
 
-        // Drag to pan for Research Tree view
+        on('research-zoom-in', 'click', () => { SC.sfx.play('click'); zoomResearchTreeBy(1.25); });
+        on('research-zoom-out', 'click', () => { SC.sfx.play('click'); zoomResearchTreeBy(1 / 1.25); });
+        on('research-zoom-fit', 'click', () => { SC.sfx.play('click'); fitResearchTreeToScreen(); });
+
+        // Drag to pan (one pointer) / pinch to zoom (two) for Research Tree view.
+        // The page is `user-scalable=no` — the map canvas runs its own pinch —
+        // so the tree has to provide the gesture itself, and `touch-action:none`
+        // on the wrap means the browser hands us both pointers untouched.
         const wrap = $('research-tree-wrap');
+        const rtPointers = new Map();   // pointerId -> {x, y}
         let isPointerDown = false;
         let isDragging = false;
         let startX = 0, startY = 0;
         let startScrollLeft = 0, startScrollTop = 0;
         let activePointerId = null;
+        let pinch = null;               // {dist, scale, ax, ay} at the last move
+
+        function rtPinchState() {
+            const [a, b] = [...rtPointers.values()];
+            const r = wrap.getBoundingClientRect();
+            return {
+                dist: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+                ax: (a.x + b.x) / 2 - r.left,
+                ay: (a.y + b.y) / 2 - r.top
+            };
+        }
+
+        function beginPinch() {
+            // A pinch is never a tap: drop the single-pointer drag, and leave
+            // isDragging set so the click that follows is ignored (the node
+            // click handler below bails on it).
+            if (activePointerId !== null) {
+                try { wrap.releasePointerCapture(activePointerId); } catch (_) {}
+                activePointerId = null;
+            }
+            isPointerDown = false;
+            isDragging = true;
+            wrap.classList.add('is-dragging');
+            const s = rtPinchState();
+            pinch = { dist: s.dist, scale: researchTreeScale(), ax: s.ax, ay: s.ay };
+        }
 
         wrap.addEventListener('pointerdown', e => {
             if (e.button !== 0 && e.pointerType === 'mouse') return;
+            rtPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (rtPointers.size >= 2) {
+                setResearchTreeHold(true);
+                beginPinch();
+                return;
+            }
             isPointerDown = true;
             isDragging = false;
             startX = e.clientX;
@@ -408,6 +449,18 @@
         });
 
         wrap.addEventListener('pointermove', e => {
+            if (rtPointers.has(e.pointerId)) rtPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pinch && rtPointers.size >= 2) {
+                const now = rtPinchState();
+                // Zoom about the midpoint, then let the midpoint's own travel
+                // pan the tree — the same feel as the map's two-finger gesture.
+                setResearchTreeZoom(pinch.scale * (now.dist / pinch.dist), now.ax, now.ay);
+                wrap.scrollLeft -= now.ax - pinch.ax;
+                wrap.scrollTop -= now.ay - pinch.ay;
+                pinch.ax = now.ax;
+                pinch.ay = now.ay;
+                return;
+            }
             if (!isPointerDown || e.pointerId !== activePointerId) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
@@ -423,7 +476,20 @@
         });
 
         function endDrag(e) {
-            if (!isPointerDown || (e && e.pointerId !== activePointerId)) return;
+            if (e) rtPointers.delete(e.pointerId);
+            // Lifting one finger of a pinch: stop zooming, but don't re-arm the
+            // drag from the finger still down — that would jump the tree.
+            if (pinch && rtPointers.size < 2) pinch = null;
+            if (!isPointerDown || (e && e.pointerId !== activePointerId)) {
+                // The pinch path leaves isPointerDown false, so release its
+                // drag flag / hold once the last finger is up.
+                if (!isPointerDown && !rtPointers.size && isDragging) {
+                    wrap.classList.remove('is-dragging');
+                    setTimeout(() => { isDragging = false; }, 50);
+                    setTimeout(() => setResearchTreeHold(false), 60);
+                }
+                return;
+            }
             isPointerDown = false;
             if (activePointerId !== null) {
                 try { wrap.releasePointerCapture(activePointerId); } catch (_) {}
@@ -448,6 +514,15 @@
         // Mouse only: with no capture until the threshold, a press that leaves
         // the panel before moving would otherwise stay "armed".
         wrap.addEventListener('pointerleave', e => { if (!isDragging) endDrag(e); });
+
+        // Trackpad pinch and ctrl/⌘+wheel zoom; a plain wheel keeps scrolling
+        // the wrap natively.
+        wrap.addEventListener('wheel', e => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            const r = wrap.getBoundingClientRect();
+            zoomResearchTreeBy(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+        }, { passive: false });
 
         $('research-tree-nodes').addEventListener('click', e => {
             if (isDragging) return;
