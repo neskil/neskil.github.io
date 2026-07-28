@@ -846,8 +846,16 @@ SC.ui = (function() {
                     <span>${c.connected ? Math.round(c.dist) + 'u' : 'no route!'}</span>
                 </div>`).join('') : '<div class="itip-row itip-bad">No factory needs this yet</div>';
             const n = info.node;
+            // Yield is what the ground under this site is worth for this
+            // material (biome band × the site's own roll). Colour-coded
+            // rather than explained: good ground is worth upgrading, poor
+            // ground is worth routing around.
+            const y = SC.supplierYield(n), band = SC.biomeAt(n.x, n.y);
+            const yCls = y >= 1.1 ? 'itip-good' : y <= 0.9 ? 'itip-bad' : '';
             return `<div class="itip-title">${SC.emojiOf(info.mat)} ${SC.nameOf(info.mat)} supplier${n.level ? ` <span class="itip-forsale">Lv${n.level + 1}</span>` : ''}</div>
                     <div class="itip-row"><span>Stock</span><span>${Math.floor(n.stock)}/${SC.supplierCap(n)}</span></div>
+                    <div class="itip-row"><span>Rate</span><span>${SC.supplierRegen(n).toFixed(2)}/s</span></div>
+                    <div class="itip-row ${yCls}"><span>${band.emoji} ${band.label}</span><span>${Math.round(y * 100)}% yield</span></div>
                     <div class="itip-sub">Used by</div>${rows}`;
         }
         if (info.kind === 'junction') {

@@ -68,6 +68,7 @@ Adding a flag? Add the row here too — this table is the whole contract.
 | `&research=id,id` | Instantly complete those techs by id (also tops up money, so the Build section/menu are screenshotable). Ids are the keys of `SC.RESEARCH` in [js/config.js](js/config.js). |
 | `&placemode=factory:shoes` | Arm manual-placement mode. Requires `manualPlacement` researched — pass both together. |
 | `&hoverAt=x,y` | Fake a pointer position (world coords) via `SC.input._setDebugHover`, so the placement/road ghost preview renders without a real pointermove. |
+| `&inspect=<mat>\|hq\|factory\|<node id>` | Switch to inspect mode and open the tooltip on a node via `SC.input._setDebugInspect`, without a real tap — a raw material name (`wheat`, `ore`, …) picks the first active supplier of it. The way to screenshot what a site reports: stock, rate, and its biome/yield row. |
 | `&highway=1` | Complete Asphalt Paving and pave every built road (highway styling). |
 | `&capacity=1` | Max the truck-capacity upgrade, so bundled multi-item hauls (the ×N badge) show up without a long probe. |
 | `&interchange=1` | Complete the Road Crossings research, drop a waypoint either side of the first starter road and connect them, so the **interchange** a legal crossing builds (junction on the crossing point, both roads split through it — see README "Overlap rules") can be screenshotted. Pair with `&focus=` to frame it. |

@@ -301,6 +301,7 @@ html, body {
     padding: 0.1rem 0;
 }
 .itip-row.itip-bad { color: var(--bad); }
+.itip-row.itip-good { color: var(--good); }
 
 /* ── Panels ──────────────────────────────────────── */
 .panel {
