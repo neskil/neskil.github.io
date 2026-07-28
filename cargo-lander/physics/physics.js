@@ -247,15 +247,23 @@ class CargoPhysics {
             }
         }
 
-        for (const rawPoly of this.terrainPolygons) {
-            // If the winding sum > 0, it's counter-clockwise. Reverse it to ensure normals point inwards!
-            const poly = this.polygonWindingSum(rawPoly) > 0 ? [...rawPoly].reverse() : rawPoly;
-            
+        for (const poly of this.terrainPolygons) {
+            // Walk edges in normalised winding order so collision normals point
+            // inwards. Swapping each edge's endpoints (rather than reversing the
+            // vertex list, as this did until v0.19.10) keeps invisibleEdge and
+            // edgeHazard on the point the level file put them on — reversing the
+            // list shifted them one edge along, so a reverse-wound polygon got its
+            // collision gap and its spike body on different edges than the ones the
+            // renderer drew them on.
+            const flip = this.polygonIsReversed(poly);
+
             const THICKNESS = 40;
             for (let i = 0; i < poly.length; i++) {
-                const p1 = poly[i], p2 = poly[(i + 1) % poly.length];
-                if (p1.invisibleEdge) continue;
-                
+                const a = poly[i], b = poly[(i + 1) % poly.length];
+                if (a.invisibleEdge) continue;
+
+                const p1 = flip ? b : a, p2 = flip ? a : b;
+
                 const cx = (p1.x + p2.x) / 2;
                 const cy = (p1.y + p2.y) / 2;
                 const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -273,7 +281,7 @@ class CargoPhysics {
                         angle: angle,
                         friction: this.LANDER_FRICTION,
                         restitution: this.BOX_RESTITUTION,
-                        label: p1.edgeHazard === 'spikes' ? 'terrain_spikes' : 'terrain',
+                        label: a.edgeHazard === 'spikes' ? 'terrain_spikes' : 'terrain',
                         collisionFilter: { category: 0x0002, mask: 0x0001 | 0x0008 },
                     }
                 );

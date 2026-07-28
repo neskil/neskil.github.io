@@ -11,23 +11,13 @@ const CargoPhysicsCollisionMixin = {
         let maxSurfaceY = 0; // The lowest physical surface (largest Y on screen) that we find
         let nearestAboveRef = null;
         for (const poly of this.terrainPolygons) {
-            // Walk every polygon in the same winding direction generateTerrain()
-            // normalises to, so the floor test below sees each polygon's outer
-            // surface traversed left-to-right. Levels are authored either way
-            // (level 4's ridge winds opposite to level 1's ground), and the test
-            // has to stay direction-sensitive: dropping it entirely makes a
-            // polygon's closing underside — level 1's ground runs one flat edge
-            // from x 1640 back to -960 at y≈1340 — read as the deepest "floor",
-            // which drags every auto-snapped pad on the level under the map.
-            const flip = this.polygonWindingSum(poly) > 0;
+            const flip = this.polygonIsReversed(poly);
             for (let i = 0; i < poly.length; i++) {
                 const a = poly[i];
                 const b = poly[(i + 1) % poly.length];
 
                 if (a.invisibleEdge) continue;
 
-                // Swap the endpoints rather than reversing the vertex list, so
-                // each edge keeps the invisibleEdge flag of the point that owns it.
                 const p1 = flip ? b : a;
                 const p2 = flip ? a : b;
 
@@ -48,11 +38,20 @@ const CargoPhysicsCollisionMixin = {
         return maxSurfaceY || this.levelHeight * 0.7;
     },
 
-    // Shoelace-style winding sum for a terrain polygon. Negative = the outer
-    // surface is traversed left-to-right (the authoring convention every level
-    // config and getPolygonSurfaceY() assume); positive = wound the other way.
-    // generateTerrain() reverses the positive ones so collision normals point
-    // inwards — this is the same test, shared so the two can't drift apart.
+    // ── Terrain polygon winding ────────────────────────────────────────────────
+    // Four separate places used to decide "is this edge a floor?" by testing the
+    // vertex order directly (p1.x < p2.x), each assuming levels are authored with
+    // the outer surface running left-to-right. Half the shipped polygons are wound
+    // the other way, so each of those places quietly worked on the polygon's
+    // underside instead: pads snapped below the map (v0.19.9), the edge glow
+    // outlined the wrong rim, spike triangles would point into the rock, and the
+    // grass extent came off the wrong edges. Normalise here instead — one shoelace
+    // test, and every consumer swaps endpoints per edge rather than reversing the
+    // vertex list, so each edge keeps the invisibleEdge/edgeHazard flag of the
+    // point that owns it in the level file.
+
+    // Shoelace-style winding sum. Negative = outer surface already runs
+    // left-to-right (the authoring convention); positive = wound the other way.
     polygonWindingSum(pts) {
         let sum = 0;
         for (let i = 0; i < pts.length; i++) {
@@ -60,6 +59,12 @@ const CargoPhysicsCollisionMixin = {
             sum += (p2.x - p1.x) * (p2.y + p1.y);
         }
         return sum;
+    },
+
+    // True when a polygon's edges must be walked p2→p1 to traverse its outer
+    // surface left-to-right. Callers pair this with a per-edge endpoint swap.
+    polygonIsReversed(pts) {
+        return this.polygonWindingSum(pts) > 0;
     },
 
     pointInPolygon(px, py, pts) {

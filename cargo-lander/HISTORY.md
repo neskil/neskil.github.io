@@ -8,6 +8,56 @@ backlog" section.
 
 ---
 
+## 2026-07-28 — Winding-order cleanup + deploy hygiene (v0.19.10)
+
+Follow-up review after v0.19.9. That fix normalised polygon winding in the
+physics surface scan, but the same raw `p1.x < p2.x` floor test was duplicated
+in three more places, all still reading reverse-wound polygons upside down.
+
+- **Edge glow drew the wrong rim** (`render/terrain.js`). L1's floating island
+  is wound opposite to its ground, so the crisp outline traced the island's
+  underside while the top rim — the part you can actually land on — was left
+  unlit. Visible in-game, confirmed by screenshot before/after.
+- **Spike hazards would point into the rock**. The triangle normal is derived
+  from endpoint order, so a reverse-wound polygon's teeth grow inward. Correct
+  today only because both spike-bearing polygons happen to be wound the right
+  way — a trap for the next level author, not a live bug.
+- **Grass/shadow extent** came off the underside edges for the same reason.
+- **`invisibleEdge` marked different edges in physics vs rendering.**
+  `generateTerrain()` normalised by reversing the vertex *list*, which slides
+  every per-point flag one edge along, while the renderer read the raw order.
+  A reverse-wound polygon using `invisibleEdge` would have had its collision
+  gap and its visual gap in different places. Both now swap endpoints per edge
+  instead, so a flag stays on the edge that starts at it.
+
+All four now go through `polygonIsReversed()`. The stroke loop additionally
+walks reverse-wound polygons back-to-front so consecutive floor edges still
+chain head-to-tail — endpoint-swapping alone unchains them and the `drawing`
+flag then strokes a phantom segment.
+
+**Root cause, fixed at source**: the level editor never normalised winding at
+all, so drawing a polygon the "wrong" way shipped broken data. `buildOut()` now
+emits the canonical winding, shifting the per-point flags to compensate for the
+reversal (an editor self-test pins that bookkeeping — a plain `.reverse()`
+fails it).
+
+**Deploy hygiene.** Nothing enforced the version-bump ritual, and it had
+drifted: at v0.19.8 `index.html` was current while `tests.html` was still on
+0.19.7, meaning the suite was exercising cached JS while reporting green. New
+"Deploy Hygiene" test parses both pages and asserts every local `<script src>`
+carries `?v=CargoGame.VERSION` (vendor/ exempt). The repo-root landing page
+lives above the suite's web root, so `run-tests.sh` gained a sixth check for
+its link — which turned out to have no `?v=` at all despite CLAUDE.md calling
+for one. Also `chmod +x run-tests.sh`: it was committed non-executable, so the
+`./run-tests.sh` every agent is told to run first failed outright.
+
+Three new engine tests: floor edges must have open air directly above them on
+every level (geometric truth, not self-consistency); reversing a polygon's
+vertex order must change nothing observable; plus the editor flag-shift test.
+All were confirmed to fail against the pre-fix code. 138/138 pass.
+
+---
+
 ## 2026-07-27 — L1's HQ (and every other L1 pad) buried under the map (v0.19.9)
 
 Reported as "something happened with the HQ on level 1, it broke the map".

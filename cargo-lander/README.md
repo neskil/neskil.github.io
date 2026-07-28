@@ -67,7 +67,7 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
 | `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
-| `tests.html` | Browser test suite (89 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
+| `tests.html` | Browser test suite (138 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
@@ -159,6 +159,9 @@ failure). It runs, in order:
 4. **Editor export round-trip** — `?autoload=level1.js&dumpExport=1`.
 5. **Game boot probe** — `probe-screenshot.html` renders L1 and stamps the
    post-FX shader link status (implies the full script chain boots).
+6. **Landing-page cache-bust** — the repo-root `index.html`'s link into the
+   game must carry `?v=<CargoGame.VERSION>`. Checked here rather than in
+   `tests.html` because it sits above that suite's web root.
 
 Standard protocol for any code change: run `./run-tests.sh`, then for
 anything touching a specific mechanic, exercise it against the live
@@ -231,6 +234,12 @@ Self-contained, in rough value-per-risk order:
       cache convex decompositions per level; defer ambient-traffic pre-spawn
       a few frames; only then consider spreading `initLevel()` across frames
       (touchy — code assumes a fully-initialized level after `startLevel()`).
+      *2026-07-28 note*: attempted headless — useless, `--virtual-time-budget`
+      freezes `performance.now()` so every level timed 0.0ms. What the geometry
+      says: the levels are small (heaviest is L2 at 106 vertices / 210 Matter
+      bodies; L8 is only 28/60), so terrain decomposition is an unlikely
+      culprit and ambient traffic is the better first suspect. **Needs a real
+      browser profile** — don't optimise off the structural guess above.
 - [ ] **Pendulum-mass special cargo** — a box hanging from the *basic* lander
       by a rope (reuse the drone winch's Matter constraint pattern). Flag
       `cargo: 'pendulum'`; delivery = lower the box onto the pad. Introduce on
@@ -328,10 +337,10 @@ named files/functions before starting, they may have moved.
   points (`setCfg`, `setOOB`, `setGW`, point drag/delete/spawn) all need
   wiring.
 
-**Hygiene** (found during a 2026-07-11 review, still open)
-- `level10.js` is loaded by `index.html` but missing from `tests.html`'s
-  script list — its level config silently skips the schema-driven validation
-  category. Add the `<script>` tag.
+**Hygiene**
+- *(resolved)* `level10.js` missing from `tests.html`'s script list — it is in
+  both lists now, and the "Deploy Hygiene" test category enforces that the two
+  pages stay version-locked to `CargoGame.VERSION`.
 
 ---
 
@@ -346,6 +355,16 @@ named files/functions before starting, they may have moved.
 - Input paths all merge into the same boolean `game.keys` map: keyboard, gamepad (`gp_left/right/up`, `game/input.js pollGamepad()`), touch joystick (`joy_*`, `setupJoystick()` in `index.html`, enabled via Settings).
 - Vitals panel (`#vitals-panel`) is a CSS-grid gauge cluster (fuel with E/F markers, hull, shield) with quarter-tick overlays; the shield row only renders when the `shieldRegen` upgrade is owned (`updateHUD` in `game/hud.js`).
 - Mission panel is tap-to-collapse (`toggleMissionPanel` in `game/hud.js`): on phone-sized viewports it auto-shrinks to a time/budget/cargo chip ~5s after mission start and after each mission event (delivery, bonus result, overtime), re-expanding on the next event. `isSmallViewport()` (height ≤ 500 or width ≤ 480) is kept in sync with the "Compact HUD" CSS media query in `index.html`, which also shrinks `.hud-group` padding and renders the radar smaller + translucent. Probe harness takes `&vw=&vh=` to screenshot these layouts headlessly.
+- **Terrain polygon winding**: an edge is a *floor* (landable surface, glowing
+  outline, collision normal, spike direction) when it runs left-to-right in the
+  polygon's normalised order — `polygonIsReversed()` in `physics/collision.js`
+  decides that once from the shoelace sum, and every consumer swaps that edge's
+  endpoints rather than reversing the vertex list, so per-point `invisibleEdge`
+  / `edgeHazard` flags stay on the edge that starts at them. Level files may be
+  authored either way (L1's ground and L1's island disagree); the editor emits
+  the canonical winding. **Never reintroduce a bare `p1.x < p2.x` test on raw
+  vertex order** — that reads reverse-wound polygons upside down, which is how
+  v0.19.9 buried L1's HQ under the map.
 - `padScale` on level config scales all pad widths (L1=1.5 … L4=0.70).
 - `BOX_SIZE = 28`; big cargo = `BOX_SIZE * 1.8`, claims the whole deck.
 - `overtimeActive`/`overtimeTimer`: mission timer at 0 → 15s grace period to reach HQ; auto-extraction pays only if all cargo was delivered.
