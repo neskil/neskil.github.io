@@ -249,8 +249,8 @@
 
     // Hoisted out of nodeSpec (called ~2×/node/frame) so these lookup sets
     // aren't reallocated on every call.
-    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire']);
-    const FACTORY_TALL = new Set(['circuit', 'car']);
+    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire', 'tyre', 'cloth']);
+    const FACTORY_TALL = new Set(['circuit', 'car', 'battery', 'scooter']);
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
