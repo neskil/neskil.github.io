@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Vendored third-party demo code (Phaser examples and an old CV template) —
+# nothing here is mine and none of it should show up in search results.
+Disallow: /surprise/
+
+Sitemap: https://neskil.github.io/sitemap.xml
