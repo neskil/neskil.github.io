@@ -343,8 +343,10 @@ SC.input = (function() {
         getPendingDemolish: () => pendingDemolish,
         getPendingUpgrade: () => pendingUpgrade,
         _handleTap: handleTap,
-        // Headless verification hook: force a hover point without a real
-        // pointermove, so placement/road ghost previews can be screenshotted.
-        _setDebugHover: (x, y) => { hover = { x, y }; }
+        // Headless verification hooks: force a hover point / an inspected
+        // node without a real pointer event, so the ghost previews and the
+        // inspect tooltip can be screenshotted.
+        _setDebugHover: (x, y) => { hover = { x, y }; },
+        _setDebugInspect: (node) => { inspectNode = node; }
     };
 })();

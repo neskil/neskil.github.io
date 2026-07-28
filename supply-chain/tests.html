@@ -17,7 +17,7 @@
     <!-- Pure logic only: no render/input/ui/main, no canvas needed. Same
          single-token loader as index.html (see supply-chain/CLAUDE.md); the
          version here only feeds SC.VERSION and is irrelevant to the tests. -->
-    <script>window.SC_VERSION = '1.61.1';</script>
+    <script>window.SC_VERSION = '1.61.2';</script>
     <script>
     (function () {
         var mods = ['config', 'state', 'save', 'audio', 'sfx', 'rng', 'map', 'camera',
@@ -1431,7 +1431,9 @@
 
         S1.stock = 2;
         SC.economy.tickSuppliers(4);
-        assert('stock regenerates over time', approx(S1.stock, 2 + SC.CONFIG.SUPPLIER_REGEN * 4, 0.01));
+        // Rate is the config base scaled by this site's ground (SC.supplierYield),
+        // so assert against the formula, not the bare constant.
+        assert('stock regenerates over time', approx(S1.stock, 2 + SC.supplierRegen(S1) * 4, 0.01));
         SC.economy.tickSuppliers(10000);
         assert('regen stops at the cap', S1.stock === SC.supplierCap(S1));
 
@@ -1489,6 +1491,67 @@
         SC.state.research.completed.fertilizer = true;
         assert('fertilizer research boosts supplier regen',
             approx(SC.supplierRegen(S1), r0 * (1 + SC.RESEARCH.fertilizer.supplierRegenBonus), 0.001));
+    })();
+
+    // ── Biome field + per-site yield ──
+    (function() {
+        fixture();
+        SC.state.seed = 'biome-test';
+
+        // The field is a pure function of position + seed: same point, same
+        // answer; and every point lands in some band (last one is -Infinity).
+        assert('biome noise is deterministic for a point',
+            SC.biomeNoise(500, 700) === SC.biomeNoise(500, 700));
+        assert('biome noise varies across the map',
+            SC.biomeNoise(200, 200) !== SC.biomeNoise(3000, 2400));
+        assert('every point falls in a band', [[0, 0], [500, 900], [4000, 3000]]
+            .every(([x, y]) => !!SC.biomeAt(x, y).key));
+        assert('band matches its own threshold', [[0, 0], [500, 900], [1700, 2600]]
+            .every(([x, y]) => SC.biomeNoise(x, y) >= SC.biomeAt(x, y).min));
+
+        // Reseeding moves the field — otherwise every map would share one
+        // layout of good and bad ground.
+        const before = SC.biomeNoise(600, 600);
+        SC.state.seed = 'biome-test-2';
+        assert('a different seed gives a different field', SC.biomeNoise(600, 600) !== before);
+
+        // Yield: biome row × per-site roll, applied to regen only.
+        const bandOf = { forest: null, green: null, plains: null, scrub: null, desert: null };
+        for (let x = 0; x < 6000 && Object.values(bandOf).some(v => v === null); x += 40)
+            for (let y = 0; y < 6000; y += 40) {
+                const k = SC.biomeAt(x, y).key;
+                if (bandOf[k] === null) bandOf[k] = { x, y };
+            }
+        const greenSpot = bandOf.green || bandOf.forest, drySpot = bandOf.desert || bandOf.scrub;
+        const farmGreen = SC.map.makeNode('supplier', greenSpot.x, greenSpot.y, { active: true, mat: 'wheat' });
+        const farmDry   = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'wheat' });
+        const mineDry   = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'ore' });
+        assert('a farm on green ground out-yields one in the sand',
+            SC.supplierYield(farmGreen) > SC.supplierYield(farmDry));
+        assert('a mine reads the same ground the other way',
+            SC.supplierYield(mineDry) > SC.supplierYield(farmDry));
+        assert('yield feeds regen, not the stock cap',
+            approx(SC.supplierRegen(farmGreen) / SC.supplierRegen(farmDry),
+                   SC.supplierYield(farmGreen) / SC.supplierYield(farmDry), 0.001) &&
+            SC.supplierCap(farmGreen) === SC.supplierCap(farmDry));
+        assert('yield is stable for a given site', SC.supplierYield(farmGreen) === SC.supplierYield(farmGreen));
+
+        // The per-site roll stays inside SITE_YIELD_VARIANCE, so ground
+        // quality is never swamped by the tiebreaker on top of it.
+        const v = SC.CONFIG.SITE_YIELD_VARIANCE, row = SC.CONFIG.BIOME_YIELD.wheat;
+        assert('the per-site roll stays within its configured band',
+            [farmGreen, farmDry].every(n => {
+                const f = row[SC.biomeAt(n.x, n.y).key];
+                const r = SC.supplierYield(n) / f;
+                return r >= 1 - v - 1e-9 && r <= 1 + v + 1e-9;
+            }));
+        // A fab is built, not grown — no BIOME_YIELD row, so ground is 1×
+        // apart from its own roll.
+        const fab = SC.map.makeNode('supplier', drySpot.x, drySpot.y, { active: true, mat: 'chips' });
+        assert('a material with no yield row is unaffected by its biome',
+            Math.abs(SC.supplierYield(fab) - 1) <= v + 1e-9);
+        assert('non-suppliers have no yield',
+            SC.supplierYield(SC.state.nodes.find(n => n.kind === 'city')) === 1);
     })();
 
     // ── Road upgrades: research gate, cost, routing and truck speed ──
