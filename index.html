@@ -402,6 +402,82 @@
             color: rgb(34, 211, 238);
         }
 
+        /* Backdrop for the expanded About card. Blurs and dims the grid behind it
+           so the panel reads as a layer above the page rather than a bigger card. */
+        #about-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(6, 8, 20, 0.62);
+            backdrop-filter: blur(9px);
+            -webkit-backdrop-filter: blur(9px);
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.45s ease;
+        }
+
+        #about-backdrop.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Opening lifts the card out of the grid (a placeholder holds its cell) and
+           animates top/left/width/height to a centred panel. Geometry is set inline
+           by JS; the transition that carries it lives here. The tilt handlers bail
+           out while .is-open, so nothing fights these values. */
+        #card-about.is-open {
+            position: fixed;
+            z-index: 301;
+            margin: 0;
+            cursor: default;
+            --rx: 0deg;
+            --ry: 0deg;
+            --ty: 0px;
+            transition: top 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                left 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                height 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.45s ease,
+                border-color 0.45s ease;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+        }
+
+        /* The card's own hover glare would sit on top of the panel content. */
+        #card-about.is-open::before {
+            opacity: 0.05;
+        }
+
+        #about-placeholder {
+            visibility: hidden;
+        }
+
+        /* Roomier type once there's room for it. */
+        #card-about.is-open .card-face {
+            padding: 2.25rem 2.5rem;
+        }
+
+        #card-about.is-open .about-portrait {
+            width: 68px;
+            height: 68px;
+        }
+
+        #card-about.is-open .about-name {
+            font-size: 1.3rem;
+        }
+
+        #card-about.is-open .about-role {
+            font-size: 0.88rem;
+        }
+
+        #card-about.is-open .about-text {
+            font-size: 0.98rem;
+            line-height: 1.65;
+        }
+
+        #card-about.is-open .about-close {
+            opacity: 1;
+        }
+
         /* ── About: the one card that doesn't navigate. Clicking spins it over to
               a back face with the short version of why this site exists. The flip
               lives on an inner wrapper rather than on .card itself, because .card carries
@@ -462,14 +538,20 @@
             inset: 0;
             transform: rotateY(180deg);
             padding: 1.75rem 2rem;
-            gap: 0.85rem;
+            gap: 1.1rem;
+            justify-content: flex-start;
             overflow-y: auto;
+        }
+
+        .card-face-back .card-link {
+            margin-top: auto;
         }
 
         .about-identity {
             display: flex;
             align-items: center;
             gap: 0.85rem;
+            padding-right: 2.25rem; /* keeps the name clear of the close button */
         }
 
         .about-portrait {
@@ -493,10 +575,44 @@
             color: var(--text-secondary);
         }
 
+        .about-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
         .about-text {
             font-size: 0.83rem;
             line-height: 1.6;
             color: var(--text-secondary);
+        }
+
+        .about-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            opacity: 0;
+            transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
+        }
+
+        .about-close svg {
+            width: 15px;
+            height: 15px;
+            fill: none;
+        }
+
+        #card-about:hover .about-close {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .about-text strong {
@@ -990,6 +1106,8 @@
     <div class="bg-glow"></div>
     <div class="bg-glow-2"></div>
 
+    <div id="about-backdrop"></div>
+
     <!-- Secret vault -->
     <div id="vault-backdrop" onclick="closeVault()"></div>
     <div id="vault-panel">
@@ -1233,27 +1351,36 @@
                             </svg>
                         </div>
                         <h2 class="card-title">About</h2>
-                        <p class="card-desc">Why a supply chain consultant ended up writing a physics engine. The short
-                            version is on the back of this card.</p>
+                        <p class="card-desc">What this site is, who builds it, and how.</p>
                     </div>
-                    <span class="card-link">Flip the card <svg viewBox="0 0 24 24">
+                    <span class="card-link">Read more <svg viewBox="0 0 24 24">
                             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg></span>
                 </div>
                 <div class="card-face card-face-back">
+                    <span class="about-close" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </span>
                     <div class="about-identity">
                         <img src="assets/portrait.webp" alt="Niklas Billgren" class="about-portrait" width="48"
                             height="48" loading="lazy" decoding="async">
                         <div>
                             <div class="about-name">Niklas Billgren</div>
-                            <div class="about-role">Supply chain by day</div>
+                            <div class="about-role">Supply chain planning, Linköping</div>
                         </div>
                     </div>
-                    <p class="about-text">This started as a portfolio and turned into a workshop. I plan supply chains
-                        for a living; everything here I built to learn, mostly by <strong>vibe coding with Claude and
-                            AntiGravity</strong>, a surprising amount of it on my phone.</p>
-                    <span class="card-link">Flip back <svg viewBox="0 0 24 24">
+                    <div class="about-body">
+                        <p class="about-text">I work in supply chain planning: forecasting, replenishment, ERP
+                            rollouts. This site started as a portfolio and turned into where I try things out.</p>
+                        <p class="about-text">Most of what's here is <strong>vibe coded with Claude and
+                                AntiGravity</strong>, a lot of it from my phone. The games cover ground my day job
+                            doesn't: physics engines, pathfinding, render loops.</p>
+                    </div>
+                    <span class="card-link">Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg></span>
@@ -1755,18 +1882,92 @@
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
 
-        // The About card is a button, not a link, so clicking it turns the card over
-        // rather than leaving the page. Escape flips it back, same as the vault.
+        /* The About card is a button, not a link: it opens in place instead of
+           leaving the page. Opening does three things at once — the card lifts out
+           of the grid and grows to a centred panel, it flips to its back face, and
+           the page behind it blurs out.
+
+           The grow is a FLIP: freeze the card at its current grid rect as
+           position:fixed, drop a same-sized placeholder into the cell it vacated so
+           the grid doesn't reflow, then set the target rect and let CSS transition
+           the four geometry properties. Closing animates back to wherever the
+           placeholder now sits (the page may have been resized) and only then
+           restores the card to the flow. */
         const aboutCard = document.getElementById('card-about');
-        function setAboutFlipped(flipped) {
-            aboutCard.classList.toggle('is-flipped', flipped);
-            aboutCard.setAttribute('aria-expanded', flipped ? 'true' : 'false');
+        const aboutBackdrop = document.getElementById('about-backdrop');
+        const OPEN_MS = 550;
+        let aboutOpen = false;
+        let aboutTimer = null;
+        let aboutPlaceholder = null;
+
+        function aboutTargetRect() {
+            const w = Math.min(560, window.innerWidth - 32);
+            const h = Math.min(455, window.innerHeight - 32);
+            return { w, h, top: (window.innerHeight - h) / 2, left: (window.innerWidth - w) / 2 };
         }
-        aboutCard.addEventListener('click', () => {
-            setAboutFlipped(!aboutCard.classList.contains('is-flipped'));
-        });
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') setAboutFlipped(false);
+
+        function setAboutRect(top, left, w, h) {
+            aboutCard.style.top = top + 'px';
+            aboutCard.style.left = left + 'px';
+            aboutCard.style.width = w + 'px';
+            aboutCard.style.height = h + 'px';
+        }
+
+        function openAbout() {
+            if (aboutOpen) return;
+            aboutOpen = true;
+            clearTimeout(aboutTimer);
+
+            const r = aboutCard.getBoundingClientRect();
+            aboutPlaceholder = document.createElement('div');
+            aboutPlaceholder.id = 'about-placeholder';
+            aboutPlaceholder.style.height = r.height + 'px';
+            aboutCard.parentNode.insertBefore(aboutPlaceholder, aboutCard);
+
+            // The tilt handlers set style.transition inline on hover; clear it or it
+            // overrides the geometry transition declared for .is-open.
+            aboutCard.style.transition = '';
+            ['--rx', '--ry', '--ty', '--mag'].forEach(p => aboutCard.style.removeProperty(p));
+            aboutCard.classList.add('is-open');
+            setAboutRect(r.top, r.left, r.width, r.height);
+
+            aboutCard.getBoundingClientRect(); // flush the start rect before retargeting
+
+            const t = aboutTargetRect();
+            setAboutRect(t.top, t.left, t.w, t.h);
+            aboutCard.classList.add('is-flipped');
+            aboutBackdrop.classList.add('open');
+            aboutCard.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAbout() {
+            if (!aboutOpen) return;
+            aboutOpen = false;
+            clearTimeout(aboutTimer);
+
+            const r = aboutPlaceholder.getBoundingClientRect();
+            setAboutRect(r.top, r.left, r.width, r.height);
+            aboutCard.classList.remove('is-flipped');
+            aboutBackdrop.classList.remove('open');
+            aboutCard.setAttribute('aria-expanded', 'false');
+
+            aboutTimer = setTimeout(() => {
+                aboutCard.classList.remove('is-open');
+                ['top', 'left', 'width', 'height', 'transition'].forEach(p => aboutCard.style.removeProperty(p));
+                if (aboutPlaceholder) aboutPlaceholder.remove();
+                aboutPlaceholder = null;
+                document.body.style.overflow = '';
+            }, OPEN_MS);
+        }
+
+        aboutCard.addEventListener('click', () => { aboutOpen ? closeAbout() : openAbout(); });
+        aboutBackdrop.addEventListener('click', closeAbout);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAbout(); });
+        window.addEventListener('resize', () => {
+            if (!aboutOpen) return;
+            const t = aboutTargetRect();
+            setAboutRect(t.top, t.left, t.w, t.h);
         });
 
         document.getElementById('vault-danger-button').addEventListener('click', () => {
@@ -1892,6 +2093,7 @@
 
                 // Magnitude (0..1) drives glare opacity — subtle near center, builds up toward the edges.
                 function fromPoint(clientX, clientY) {
+                    if (card.classList.contains('is-open')) return;
                     const rect = card.getBoundingClientRect();
                     const px = clamp((clientX - rect.left) / rect.width, 0, 1);
                     const py = clamp((clientY - rect.top) / rect.height, 0, 1);
@@ -1903,6 +2105,7 @@
                 }
 
                 function activate() {
+                    if (card.classList.contains('is-open')) return;
                     activeCards.add(card);
                     card.style.transition = 'transform 0.15s ease-out';
                     if (typeof activateCardTheme === 'function') {
@@ -1911,6 +2114,7 @@
                 }
 
                 function release() {
+                    if (card.classList.contains('is-open')) return;
                     activeCards.delete(card);
                     // On mobile, hand control back to the ambient loop (next frame) instead of
                     // snapping to flat — it picks up right where release left off, transitioning
@@ -1977,6 +2181,7 @@
 
                 document.querySelectorAll('.card').forEach((card) => {
                     if (activeCards.has(card)) return; // under direct hover control — leave it alone
+                    if (card.classList.contains('is-open')) return; // expanded About panel sets its own geometry
                     const { maxTilt } = cardTilt.get(card) || { maxTilt: 7 };
                     const rect = card.getBoundingClientRect();
 
