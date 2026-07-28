@@ -39,6 +39,17 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.62.0: **research tree readable on mobile** — the overlay used to shrink
+  the whole tree to fit a phone's width, bottoming out at 0.62 and putting the
+  description text at ~7px, with no way to zoom in (the page is
+  `user-scalable=no`, since the map canvas owns pinch). It now opens at 1:1
+  with phone-sized cards and larger type, and carries its own zoom: pinch
+  inside the tree, ± / ⤢ buttons in the header, ctrl-wheel on desktop, all
+  anchored so the point under the gesture stays put. Zooming out reaches a
+  whole-tree overview however wide the tree grows. Rows are also pitched off
+  the measured card heights per row instead of one worst-case constant, so the
+  tree is considerably shorter and the edges leave from real card bottoms.
+  Covered by `research-zoom-check.html` (see CLAUDE.md → Verification).
 - v1.61.0: **Traffic & Bottleneck Heatmap + Dijkstra Pathfinding Caching** —
   added a dedicated Heatmap mode button (`🔥`) that visualizes road usage and
   truck throughput with dynamic color gradients (Green → Yellow → Red glow),

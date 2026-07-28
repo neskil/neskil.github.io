@@ -702,6 +702,18 @@ html, body {
     margin-bottom: 0.8rem;
 }
 .research-tree-header h1 { font-size: 1.1rem; }
+.research-tree-tools {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+.rt-zoom-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.05rem;
+    line-height: 1;
+    flex: none;
+}
 .research-tree-wrap {
     position: relative;
     /* Scrollable & Draggable: players can pan/drag the full-size tree */
@@ -1284,7 +1296,37 @@ html, body {
     /* Float toasts above the bottom control cluster (shop / speed / mode)
        instead of on top of it. */
     #toast { bottom: 6rem; }
-    .research-tree-card { padding: 0.8rem; }
+    /* ── Research tree on a phone ──────────────────────────────────
+       The tree is no longer squeezed to fit the width (it would land near
+       60% and put this text at ~7px); it renders at 100% and pans, so the
+       type goes up to a size that's actually readable at arm's length and
+       the buttons get a proper tap target. Node box metrics move with it —
+       RT_METRICS_PHONE in js/ui.js, keep the two in step. */
+    #research-overlay { padding: 0.4rem; }
+    .research-tree-card {
+        padding: 0.7rem 0.6rem;
+        max-width: 99vw;
+        max-height: 94vh;
+        border-radius: 14px;
+    }
+    /* Title gives way first — four zoom/close buttons plus the readout is
+       most of a narrow header, and the tree behind it says what it is. */
+    .research-tree-header h1 {
+        font-size: 0.95rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .research-tree-tools { gap: 0.25rem; flex: none; }
+    .rt-zoom-btn { width: 34px; height: 34px; }
+    .rt-node { padding: 0.7rem 0.75rem; font-size: 0.95rem; }
+    .rt-node .research-desc {
+        font-size: 0.85rem;
+        line-height: 1.35;
+        margin-bottom: 0.5rem;
+    }
+    .rt-node .research-btn { font-size: 0.88rem; padding: 0.55rem 0.4rem; }
     .stats-card { padding: 0.8rem; }
     .stats-ach-grid { grid-template-columns: repeat(2, 1fr); }
 }
