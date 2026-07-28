@@ -87,6 +87,20 @@ OUT=$(dump "probe-screenshot.html?level=0&debug=1" 9000)
 echo "$OUT" | grep -qi 'postFX link'
 check "game boot probe (probe-screenshot L1)" $? "no postFX stamp — game likely failed to boot"
 
+# 6. Landing-page cache-bust — the repo-root index.html links into the game and
+#    carries its own ?v=. tests.html checks the two in-folder pages, but the root
+#    page sits above its web root, so it gets checked here against the file.
+VERSION=$(sed -n "s/.*static VERSION = '\([^']*\)'.*/\1/p" game/game.js | head -1)
+if [ -z "$VERSION" ]; then
+  check "landing-page cache-bust" 1 "could not read CargoGame.VERSION from game/game.js"
+elif [ ! -f ../index.html ]; then
+  echo "SKIP  landing-page cache-bust — ../index.html not present"
+else
+  grep -q "href=\"cargo-lander/index\.html?v=$VERSION\"" ../index.html
+  check "landing-page cache-bust (root index.html @ $VERSION)" $? \
+    "root index.html link is $(grep -o 'href="cargo-lander/index\.html[^"]*"' ../index.html | head -1), expected ?v=$VERSION"
+fi
+
 echo
 if [ "$FAILED" -eq 0 ]; then echo "ALL CHECKS PASSED"; else echo "CHECKS FAILED"; fi
 exit $FAILED
