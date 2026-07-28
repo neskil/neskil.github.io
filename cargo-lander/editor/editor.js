@@ -3019,6 +3019,34 @@ function playtestLevel() {
   window.location.href = 'index.html?playtest=1';
 }
 
+// Emit terrain polygons wound so their outer surface runs left-to-right, which
+// is the convention every level file follows and what the engine normalises to
+// anyway. Drawing a polygon the other way round in the editor used to ship data
+// whose "floor" edges were the underside — that shipped as v0.19.9's buried-HQ
+// bug on L1, so canonicalise here rather than leaving it to each consumer.
+//
+// The per-point invisibleEdge/edgeHazard flags belong to the edge *starting* at
+// that point, so a plain .reverse() would slide every flag one edge along: after
+// reversing, the edge starting at rev[j] is the one that used to start at
+// rev[j+1], so each point inherits its successor's flags.
+function normalizePolygonWinding(pts) {
+  if (!pts || pts.length < 3) return pts;
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
+    sum += (p2.x - p1.x) * (p2.y + p1.y);
+  }
+  if (sum <= 0) return pts; // already canonical
+  const rev = pts.slice().reverse();
+  return rev.map((pt, j) => {
+    const donor = rev[(j + 1) % rev.length];
+    const out = { x: pt.x, y: pt.y };
+    if (donor.invisibleEdge) out.invisibleEdge = true;
+    if (donor.edgeHazard) out.edgeHazard = donor.edgeHazard;
+    return out;
+  });
+}
+
 function buildOut() {
   const lines = [];
   lines.push(`registerLevel({`);
@@ -3234,10 +3262,11 @@ function buildOut() {
         lines.push('    [');
     }
     
-    poly.pts.forEach((pt,i) => {
+    const exportPts = normalizePolygonWinding(poly.pts);
+    exportPts.forEach((pt,i) => {
       const extra = (pt.invisibleEdge ? ', invisibleEdge: true' : '') +
         (pt.edgeHazard ? `, edgeHazard: ${JSON.stringify(pt.edgeHazard)}` : '');
-      lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}${extra}}${i<poly.pts.length-1?',':''}`);
+      lines.push(`        {x: ${Math.round(pt.x)}, y: ${Math.round(pt.y)}${extra}}${i<exportPts.length-1?',':''}`);
     });
     
     if (hasShadowProps) {
@@ -3981,7 +4010,34 @@ if (new URLSearchParams(window.location.search).get('runTests') === '1') {
       addShape();
       assertEq(S.polygons.length, 2, "addShape() after undo created new polygon");
       assertEq(_redoStack.length, 0, "mutation cleared redo stack");
-      
+
+      // 8. Winding normalisation on export. A hill wound the wrong way round
+      //    (outer surface right-to-left) must come out reversed, with each
+      //    edge flag still on the edge it was authored against — that flag
+      //    bookkeeping is what a plain .reverse() gets wrong.
+      const canonical = [ {x:0,y:100}, {x:100,y:60}, {x:200,y:100}, {x:200,y:300}, {x:0,y:300} ];
+      const already = normalizePolygonWinding(canonical);
+      assertEq(already[0].x, 0, "canonical polygon left untouched (first x)");
+      assertEq(already[1].x, 100, "canonical polygon left untouched (second x)");
+
+      // Same shape, authored backwards, with the summit edge flagged.
+      const backwards = [ {x:0,y:300}, {x:200,y:300}, {x:200,y:100}, {x:100,y:60,edgeHazard:'spikes'}, {x:0,y:100} ];
+      const fixed = normalizePolygonWinding(backwards);
+      assertEq(fixed.length, 5, "normalised polygon keeps its vertex count");
+      assertEq(fixed[0].x + ',' + fixed[0].y, '0,100', "normalised polygon starts at the left foot");
+      assertEq(fixed[1].x + ',' + fixed[1].y, '100,60', "normalised polygon runs over the summit next");
+      // In `backwards` the spiked edge ran (100,60)→(0,100); reversed that is
+      // the edge starting at (0,100), i.e. fixed[0].
+      assertEq(fixed[0].edgeHazard, 'spikes', "edge hazard followed its edge through the reversal");
+      assertEq(fixed[1].edgeHazard, undefined, "edge hazard did not smear onto the neighbouring edge");
+      let windSum = 0;
+      for (let i = 0; i < fixed.length; i++) {
+        const p1 = fixed[i], p2 = fixed[(i + 1) % fixed.length];
+        windSum += (p2.x - p1.x) * (p2.y + p1.y);
+      }
+      assertEq(windSum < 0, true, "normalised polygon has canonical winding");
+
+
       if (failed === 0) {
         console.log(`ALL TESTS PASSED (${passed}/${passed})`);
         const res = document.createElement('div');

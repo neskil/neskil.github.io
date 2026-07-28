@@ -295,24 +295,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.19.12"></script>
-<script src="game/upgrades.js?v=0.19.12"></script>
-<script src="levels/levels.js?v=0.19.12"></script>
-<script src="levels/levelGenerator.js?v=0.19.12"></script>
-<script src="levels/level1.js?v=0.19.12"></script>
-<script src="levels/level2.js?v=0.19.12"></script>
-<script src="levels/level3.js?v=0.19.12"></script>
-<script src="levels/level4.js?v=0.19.12"></script>
-<script src="levels/level5.js?v=0.19.12"></script>
-<script src="levels/level6.js?v=0.19.12"></script>
-<script src="levels/level7.js?v=0.19.12"></script>
-<script src="levels/level8.js?v=0.19.12"></script>
-<script src="levels/level9.js?v=0.19.12"></script>
-<script src="levels/level10.js?v=0.19.12"></script>
-<script src="levels/levelTest.js?v=0.19.12"></script>
-<script src="levels/collectibleTypes.js?v=0.19.12"></script>
-<script src="audio.js?v=0.19.12"></script>
-<script src="render/shaders.js?v=0.19.12"></script>
+<script src="levels/levelSchema.js?v=0.19.13"></script>
+<script src="game/upgrades.js?v=0.19.13"></script>
+<script src="levels/levels.js?v=0.19.13"></script>
+<script src="levels/levelGenerator.js?v=0.19.13"></script>
+<script src="levels/level1.js?v=0.19.13"></script>
+<script src="levels/level2.js?v=0.19.13"></script>
+<script src="levels/level3.js?v=0.19.13"></script>
+<script src="levels/level4.js?v=0.19.13"></script>
+<script src="levels/level5.js?v=0.19.13"></script>
+<script src="levels/level6.js?v=0.19.13"></script>
+<script src="levels/level7.js?v=0.19.13"></script>
+<script src="levels/level8.js?v=0.19.13"></script>
+<script src="levels/level9.js?v=0.19.13"></script>
+<script src="levels/level10.js?v=0.19.13"></script>
+<script src="levels/levelTest.js?v=0.19.13"></script>
+<script src="levels/collectibleTypes.js?v=0.19.13"></script>
+<script src="audio.js?v=0.19.13"></script>
+<script src="render/shaders.js?v=0.19.13"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -349,26 +349,26 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.19.12"></script>
-<script src="physics/collision.js?v=0.19.12"></script>
-<script src="physics/mechanics.js?v=0.19.12"></script>
-<script src="physics/entities.js?v=0.19.12"></script>
-<script src="physics/atmosphere.js?v=0.19.12"></script>
-<script src="game/game.js?v=0.19.12"></script>
-<script src="game/input.js?v=0.19.12"></script>
-<script src="game/menu.js?v=0.19.12"></script>
-<script src="game/hud.js?v=0.19.12"></script>
-<script src="game/cargo.js?v=0.19.12"></script>
-<script src="render/render.js?v=0.19.12"></script>
-<script src="render/background.js?v=0.19.12"></script>
-<script src="render/terrain.js?v=0.19.12"></script>
-<script src="render/entities.js?v=0.19.12"></script>
-<script src="render/pads.js?v=0.19.12"></script>
-<script src="render/lander.js?v=0.19.12"></script>
-<script src="render/creatures.js?v=0.19.12"></script>
-<script src="render/effects.js?v=0.19.12"></script>
-<script src="render/night.js?v=0.19.12"></script>
-<script src="render/ui.js?v=0.19.12"></script>
+<script src="physics/physics.js?v=0.19.13"></script>
+<script src="physics/collision.js?v=0.19.13"></script>
+<script src="physics/mechanics.js?v=0.19.13"></script>
+<script src="physics/entities.js?v=0.19.13"></script>
+<script src="physics/atmosphere.js?v=0.19.13"></script>
+<script src="game/game.js?v=0.19.13"></script>
+<script src="game/input.js?v=0.19.13"></script>
+<script src="game/menu.js?v=0.19.13"></script>
+<script src="game/hud.js?v=0.19.13"></script>
+<script src="game/cargo.js?v=0.19.13"></script>
+<script src="render/render.js?v=0.19.13"></script>
+<script src="render/background.js?v=0.19.13"></script>
+<script src="render/terrain.js?v=0.19.13"></script>
+<script src="render/entities.js?v=0.19.13"></script>
+<script src="render/pads.js?v=0.19.13"></script>
+<script src="render/lander.js?v=0.19.13"></script>
+<script src="render/creatures.js?v=0.19.13"></script>
+<script src="render/effects.js?v=0.19.13"></script>
+<script src="render/night.js?v=0.19.13"></script>
+<script src="render/ui.js?v=0.19.13"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -435,6 +435,68 @@ test('Reduced Gravity and Air Resistance Tuning', () => {
   phys.initLevel(levels[0], 1600, 1300);
   assert(phys.LANDER_DRAG >= 0.990, 'LANDER_DRAG should be at least 0.990 for reduced air resistance');
   assert(phys.gravity === 0.12, 'L1 gravity should be tuned down to 0.12');
+});
+
+// Terrain polygons are authored with either winding — L1's ground runs its
+// outer surface left-to-right, L1's island and L4's ridge run the other way.
+// Physics (surface scan, collision bodies) and rendering (edge glow, spike
+// normals, grass extent) all classify an edge as "floor vs ceiling" from the
+// endpoint order, so all of them normalise through polygonIsReversed() first.
+// This asserts the classification is geometrically true rather than merely
+// self-consistent: directly above a floor edge is open air, every time.
+test('Floor Edges Have Air Above Them On Every Level', () => {
+  const EPS = 2;
+  for (let i = 0; i < levels.length; i++) {
+    const phys = new CargoPhysics();
+    phys.initLevel(levels[i], 1600, 1300);
+    let checked = 0;
+    for (const poly of phys.terrainPolygons) {
+      if (!poly || poly.length < 3) continue;
+      const flip = phys.polygonIsReversed(poly);
+      for (let e = 0; e < poly.length; e++) {
+        const a = poly[e], b = poly[(e + 1) % poly.length];
+        if (a.invisibleEdge) continue; // deliberately non-physical, not drawn either
+        const p1 = flip ? b : a, p2 = flip ? a : b;
+        if (!(p1.x < p2.x)) continue; // classified as ceiling/underside, skip
+        // Predominantly vertical edges are walls — you can't land on them and
+        // the floor/ceiling distinction says nothing useful. L2's ground closes
+        // with a 10px-wide, 1080px-tall edge that is exactly this case.
+        if (Math.abs(p2.y - p1.y) > Math.abs(p2.x - p1.x)) continue;
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        assert(!phys.pointInPolygon(mx, my - EPS, poly),
+          `${levels[i].name}: edge (${p1.x},${p1.y})→(${p2.x},${p2.y}) is treated as a floor but is solid above — it's the polygon's underside`);
+        checked++;
+      }
+    }
+    // The sandbox level is terrainType:'flat' with no polygons at all — nothing
+    // to check there, but any level that *has* geometry must expose some floor.
+    if (phys.terrainPolygons.length) {
+      assert(checked > 0, `${levels[i].name}: has terrain polygons but no floor edges`);
+    }
+  }
+});
+
+// Reversing a polygon's vertex order is a pure authoring choice — it describes
+// the same shape, so nothing the player can observe may change. Guards the
+// endpoint-swap approach: reversing the vertex *list* instead would shift every
+// invisibleEdge/edgeHazard flag one edge along.
+test('Polygon Winding Is An Authoring Detail, Not A Behaviour Change', () => {
+  const cfg = levels[0];
+  const reversed = JSON.parse(JSON.stringify(cfg));
+  reversed.terrainPolygons = cfg.terrainPolygons.map(p => {
+    const pts = Array.isArray(p) ? p : p.pts;
+    return JSON.parse(JSON.stringify(pts)).reverse();
+  });
+
+  const a = new CargoPhysics(); a.initLevel(cfg, 1600, 1300);
+  const b = new CargoPhysics(); b.initLevel(reversed, 1600, 1300);
+
+  for (let x = -900; x <= 1600; x += 25) {
+    assert(Math.abs(a.getPolygonSurfaceY(x) - b.getPolygonSurfaceY(x)) < 0.01,
+      `surface at x=${x} moved when the polygons were reversed: ${a.getPolygonSurfaceY(x)} vs ${b.getPolygonSurfaceY(x)}`);
+  }
+  assert(a.segments.length === b.segments.length,
+    `collision segment count changed with winding: ${a.segments.length} vs ${b.segments.length}`);
 });
 
 // Auto-snapped pads (no explicit startY/collectionY/hub.y) must land on the
@@ -821,6 +883,54 @@ test('Upgrade catalog shape', () => {
     assert(Number.isInteger(u.maxLevel) && u.maxLevel >= 1, `upgrade '${u.id}' maxLevel must be an integer >= 1`);
     assert(isFinite(u.basePrice) && u.basePrice > 0, `upgrade '${u.id}' basePrice must be positive`);
   }
+});
+
+// ─── 4d. DEPLOY HYGIENE ──────────────────────────────────────────────────────
+category('Deploy Hygiene');
+
+// GitHub Pages caches hard, so every local <script src> carries ?v=VERSION and
+// the release ritual is to bump all of them together. Nothing enforced that, and
+// they drifted: at v0.19.8 index.html was current while tests.html was still
+// pinned to 0.19.7 — meaning this very suite was exercising cached, stale JS
+// while reporting green. Sync XHR because the runner above is synchronous.
+test('Cache-busting ?v= matches CargoGame.VERSION everywhere', () => {
+  const readLocal = (path) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', path, false);
+    xhr.send(null);
+    assert(xhr.status === 200 || xhr.status === 0, `could not read ${path} (status ${xhr.status})`);
+    return xhr.responseText;
+  };
+
+  // Parse rather than regex the markup: a text scan finds its own pattern
+  // source in this very file and reports a phantom mismatch.
+  const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
+
+  for (const page of ['index.html', 'tests.html']) {
+    const doc = parse(readLocal(page));
+    const srcs = Array.from(doc.querySelectorAll('script[src]'))
+      .map(el => el.getAttribute('src'))
+      .filter(src => !/^(https?:)?\/\//.test(src));
+    assert(srcs.length > 0, `${page} has no local <script src> tags`);
+
+    let versioned = 0;
+    for (const src of srcs) {
+      // vendor/ is third-party and never edited, so it needs no cache-bust.
+      if (src.startsWith('vendor/')) continue;
+      const q = src.indexOf('?v=');
+      assert(q !== -1,
+        `${page} loads ${src} with no ?v= — Pages will serve it from cache after a deploy`);
+      const v = src.slice(q + 3);
+      assert(v === CargoGame.VERSION,
+        `${page} pins ${src} but CargoGame.VERSION is ${CargoGame.VERSION} — bump them together or Pages serves stale JS`);
+      versioned++;
+    }
+    assert(versioned > 0, `${page} has no versioned local scripts`);
+  }
+
+  // The repo-root landing page also carries a ?v= on its link into the game,
+  // but it lives above this suite's web root and can't be fetched from here —
+  // run-tests.sh checks that one against the filesystem instead.
 });
 
 // ─── 5. RUN TESTS AND RENDER RESULTS ─────────────────────────────────────────

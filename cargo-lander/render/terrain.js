@@ -531,9 +531,11 @@ drawTerrain() {
         let minTerrainX = Infinity;
         let maxTerrainX = -Infinity;
         for (const poly of this.physics.terrainPolygons) {
+            const flip = this.physics.polygonIsReversed(poly);
             for (let i = 0; i < poly.length; i++) {
-                const p1 = poly[i];
-                const p2 = poly[(i + 1) % poly.length];
+                const a = poly[i];
+                const b = poly[(i + 1) % poly.length];
+                const p1 = flip ? b : a, p2 = flip ? a : b;
                 if (p1.x < p2.x) { // floor segment
                     if (p1.x < minTerrainX) minTerrainX = p1.x;
                     if (p2.x > maxTerrainX) maxTerrainX = p2.x;
@@ -565,11 +567,19 @@ drawTerrain() {
             if (!poly || poly.length < 3) continue;
             ctx.beginPath();
             let drawing = false;
-            for (let i = 0; i < poly.length; i++) {
-                const p1 = poly[i];
-                const p2 = poly[(i + 1) % poly.length];
+            const n = poly.length;
+            const flip = this.physics.polygonIsReversed(poly);
+            for (let k = 0; k < n; k++) {
+                // Reverse-wound polygons are walked back-to-front as well as
+                // endpoint-swapped, so consecutive floor edges still chain
+                // head-to-tail — the `drawing` flag skips the moveTo between
+                // them, and an unchained pair would stroke a phantom segment.
+                const i = flip ? n - 1 - k : k;
+                const a = poly[i];
+                const b = poly[(i + 1) % n];
+                const p1 = flip ? b : a, p2 = flip ? a : b;
                 // Only stroke floor segments (left-to-right)
-                if (p1.x <= p2.x && !p1.invisibleEdge) {
+                if (p1.x <= p2.x && !a.invisibleEdge) {
                     if (!drawing) {
                         ctx.moveTo(p1.x, p1.y);
                         drawing = true;
@@ -585,10 +595,14 @@ drawTerrain() {
         // Spike hazard edges — instant death on contact, drawn as a jagged triangle band
         for (const poly of this.physics.terrainPolygons) {
             if (!poly || poly.length < 3) continue;
+            const flip = this.physics.polygonIsReversed(poly);
             for (let i = 0; i < poly.length; i++) {
-                const p1 = poly[i];
-                const p2 = poly[(i + 1) % poly.length];
-                if (p1.edgeHazard !== 'spikes') continue;
+                const a = poly[i];
+                const b = poly[(i + 1) % poly.length];
+                if (a.edgeHazard !== 'spikes') continue;
+                // Endpoint order sets the spike normal below, so it has to follow
+                // the normalised winding or the teeth point into the rock.
+                const p1 = flip ? b : a, p2 = flip ? a : b;
                 const dx = p2.x - p1.x, dy = p2.y - p1.y;
                 const len = Math.sqrt(dx * dx + dy * dy);
                 if (len < 1) continue;
