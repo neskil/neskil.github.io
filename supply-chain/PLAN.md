@@ -39,6 +39,67 @@ in Phase 4 — not in README.md, which now just points here. See
 
 ## Shipped
 
+- v1.63.3: **only the tree moves when you zoom it** — the scroll viewport's
+  own height tracked the scaled tree, so a pinch resized the card and its
+  centred position in the overlay: the window moved under the fingers trying
+  to zoom what was inside it. The box is now sized once from the auto fit and
+  holds still. Also gave each emoji its own inline box (`.rt-emoji`) — several
+  Android emoji fonts report an advance width narrower than the glyph they
+  draw, which had tech names rendering on top of their own emoji.
+- v1.63.2: **the map only speaks when it has something to say** — the
+  staked claims from v1.63.1 drew every locked supplier at once, which is
+  wallpaper, not information (and the six-chains release widened the pool
+  that draws from). `SC.economy.supplyGaps()` now splits the two ways a raw
+  material can be missing and the map says exactly one thing: a material a
+  factory of yours takes with **no supplier owned anywhere** stakes its
+  claims, while a supplier you **own but haven't roaded** keeps the claims
+  quiet and takes a pulsing ⚠ ring itself — the answer there is "build the
+  road", not "wait for another deposit". Materials nothing needs, and sites
+  that are connected, say nothing at all. Dev: `&gaps=1`.
+- v1.63.1: **the map stops reading as empty** — two causes, both fixed.
+  Decor counts (ground patches, trees/rocks) were flat regardless of world
+  size, so every land purchase diluted the scenery — by the third expansion
+  the world is ~4× the starting area with the same 90 trees in it; they now
+  scale with world area, holding a new game's density at any size. And
+  locked **supplier** sites, which have existed at their final spots since
+  world-gen, are drawn as staked claims (dashed plot + material mark, flat
+  on unworked ground) instead of being invisible until their milestone —
+  no economy change, but the blank half of the map becomes a plan you can
+  read, right down to which ground will yield well. Locked factories/DCs
+  stay hidden.
+- v1.63.0: **six new goods, no new raw materials** — 🛞tyres (rubber+coal)
+  and 🧣textiles (wool+water) as intermediates, feeding 🚲bicycles
+  (tyre+steel), 🧥jackets (cloth+rubber), 🔋batteries (copper+coal) and
+  🛵e-scooters (tyre+battery, the first recipe whose input is itself an
+  orderable product). Orderable goods go 4 → 8. Deliberately built from the
+  existing eight raws, so coal is now wanted by the smelter, the tyre plant
+  and the battery plant at once, water by the bakery and the textile mill:
+  running several chains means planting *more of the same suppliers*, and
+  the milestone pool interleaves those extra sites with the new factories.
+  The start screen's Production Recipes graph is now laid out from
+  `SC.GOODS` instead of a hand-written position table that silently dropped
+  anything missing from it.
+- v1.62.1: **research tree readable on mobile** — the overlay used to shrink
+  the whole tree to fit a phone's width, bottoming out at 0.62 and putting the
+  description text at ~7px, with no way to zoom in (the page is
+  `user-scalable=no`, since the map canvas owns pinch). It now opens at 1:1
+  with phone-sized cards and larger type, and carries its own zoom: pinch
+  inside the tree, ± / ⤢ buttons in the header, ctrl-wheel on desktop, all
+  anchored so the point under the gesture stays put. Zooming out reaches a
+  whole-tree overview however wide the tree grows. Rows are also pitched off
+  the measured card heights per row instead of one worst-case constant, so the
+  tree is considerably shorter and the edges leave from real card bottoms.
+  Covered by `research-zoom-check.html` (see CLAUDE.md → Verification).
+- v1.61.2: **ground quality — biome-driven supplier yield** — a supplier's
+  regen is now multiplied by the biome band under it (`BIOME_BANDS` ×
+  `BIOME_YIELD`, per material) plus a small per-site roll
+  (`SITE_YIELD_VARIANCE`), so crops thrive on green ground and struggle in
+  sand while mines read the same map the other way. The biome field moved
+  out of `render-env` into `state.js`, so the tint you see and the
+  multiplier you get come from one seeded source — the map is now the
+  legend for where to build and which site is worth upgrading. Inspect a
+  supplier for its band, yield % and units/sec. Derived from position +
+  seed, so it needs no save-format change and travels with `?seed=`.
 - v1.61.1: **upgraded suppliers grow on the ground, not just upward** — a
   supplier level now widens its plot (`SITE_FW_PER_LEVEL`) as well as
   raising the model, and each site's art fills the extra ground: furrow

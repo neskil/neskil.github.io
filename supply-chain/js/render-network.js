@@ -249,8 +249,8 @@
 
     // Hoisted out of nodeSpec (called ~2×/node/frame) so these lookup sets
     // aren't reallocated on every call.
-    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire']);
-    const FACTORY_TALL = new Set(['circuit', 'car']);
+    const FACTORY_LOW = new Set(['bread', 'shoes', 'steel', 'wire', 'tyre', 'cloth']);
+    const FACTORY_TALL = new Set(['circuit', 'car', 'battery', 'scooter']);
     function nodeSpec(n) {
         if (n.kind === 'supplier') {
             const base = SC.colorOf(n.mat);
@@ -986,6 +986,7 @@
         }
 
         // --- per-kind badges/bars -------------------------------------------
+        drawUnroadedWarning(n, g, sp);
         if (n.kind === 'supplier') {
             const cap = SC.supplierCap(n);
             const frac = Math.max(0, Math.min(1, (n.stock || 0) / cap));
@@ -1094,6 +1095,58 @@
             const s = stall(c, r);
             R.drawTruckAt(s, parkAng, '#8b98ab', z * 0.82, false);
         }
+    }
+
+    // Locked supplier sites — the ones the milestone track hasn't opened
+    // yet. They already exist at their final spot from world-gen (map.js's
+    // pool is created inactive, and unlockNext only flips the flag), so
+    // drawing them as surveyed ground costs nothing in balance terms.
+    //
+    // But drawing ALL of them turns the map into wallpaper — every future
+    // site shouting at once, which is noise, not information. A claim is
+    // only staked when it answers a question you actually have: a factory
+    // you own takes this material and you own no supplier of it anywhere
+    // (SC.economy.supplyGaps().sourceless). The moment you own one, the
+    // claims go quiet and the warning moves to that site instead — see
+    // drawUnroadedWarning: at that point the answer is "build the road",
+    // not "wait for another deposit". Suppliers only; revealing every
+    // future factory and DC as well would give the whole map away.
+    function drawProspectSites() {
+        const z = clampZoom();
+        const gaps = SC.economy.supplyGaps();
+        if (!gaps.sourceless.size) return;
+        for (const n of SC.state.nodes) {
+            if (n.active || n.kind !== 'supplier' || !gaps.sourceless.has(n.mat)) continue;
+            const g = S(n.x, n.y);
+            const { rx, ry } = footRadii(14);
+            R.ctx.save();
+            diamondPath(g.x, g.y, rx, ry);
+            R.ctx.fillStyle = 'rgba(10, 16, 26, 0.16)';
+            R.ctx.fill();
+            R.ctx.setLineDash([5 * z, 4 * z]);
+            R.ctx.strokeStyle = rgba(SC.colorOf(n.mat), 0.5);
+            R.ctx.lineWidth = Math.max(1.2, 1.6 * z);
+            R.ctx.stroke();
+            R.ctx.setLineDash([]);
+            // Enough to read what's coming at a glance, faint enough that a
+            // staked claim never competes with a site that's actually running.
+            R.ctx.globalAlpha = 0.62;
+            emoji(SC.emojiOf(n.mat), g.x, g.y - 3 * z, 16 * z);
+            R.ctx.restore();
+        }
+    }
+
+    // The other half of the same rule: a supplier you already own, whose
+    // material a factory of yours wants, with no road that reaches it. The
+    // order rows say "no route!" and the inspect tooltip flags the consumer,
+    // but neither helps if you haven't tapped the thing — so the site itself
+    // carries a warning ring until it's connected.
+    function drawUnroadedWarning(n, g, sp) {
+        if (n.kind !== 'supplier' || !SC.economy.supplyGaps().unroaded.has(n.id)) return;
+        const z = clampZoom();
+        const pulse = 0.55 + 0.45 * Math.sin(R.seaTime * 3);
+        groundRing(g.x, g.y, sp.fw + 7, `rgba(250, 204, 21, ${0.75 * pulse})`, 2.2);
+        emojiPlateAt('⚠️', g.x + footRadii(sp.fw).rx * 0.75, g.y - sp.h * z - 4 * z, 9 * z, 11 * z);
     }
 
     function drawYardSite(n, sp, g) {
@@ -1729,6 +1782,6 @@
     }
 
     Object.assign(R, { drawRoads, drawRouteFlow, nodeSpec, drawShadow, drawSupplierSite, drawJunction,
-        drawNodeBody, drawYardParking, drawYardSite, emojiPlateAt, drawOrderBubbles,
+        drawNodeBody, drawYardParking, drawYardSite, drawProspectSites, emojiPlateAt, drawOrderBubbles,
         drawHighlight, drawInspectHighlight, drawTutorialFocus, drawGhostRoad, drawGhostMarks, drawPlacementGhost, drawOffscreenArrows });
 })();

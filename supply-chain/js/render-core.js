@@ -303,6 +303,7 @@ SC.render = (function() {
         drawWorld(dt);       // mountains ride inside the cached bg layer
         R.drawCloudShadows(dt); // soft shadows sliding over the ground
         R.drawSnowBlanket();    // pale snow settling on the land
+        R.drawProspectSites();  // staked-out locked sites, under everything built
         R.drawRoads();
         R.drawWetRoads();       // rain sheen on the road surface
         R.drawRouteFlow();      // colored pulses along roads with live trucks
