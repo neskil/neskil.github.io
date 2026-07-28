@@ -708,6 +708,17 @@ html, body {
     align-items: center;
     gap: 0.35rem;
 }
+/* Several Android emoji fonts hand back an advance width narrower than the
+   glyph they draw, so "🔋 Batteries" renders with the word overlapping the
+   emoji. Reserving a fixed inline box per emoji makes the spacing font-proof.
+   Applied where ui.js wraps one in .rt-emoji. */
+.rt-emoji {
+    display: inline-block;
+    min-width: 1.35em;
+    margin-right: 0.12em;
+    text-align: center;
+    flex: none;
+}
 .rt-zoom-btn {
     width: 36px;
     height: 36px;

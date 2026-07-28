@@ -287,9 +287,14 @@ SC.ui = (function() {
         const labMissing = !SC.research.labSatisfied(id); // only `needsLab` late-tier techs
         const queueable = SC.research.isQueueable(id);
         const locked = !done && !active && !queued && !SC.research.isAvailable(id) && !queueable;
+        // Emoji get their own inline box (.rt-emoji): several Android emoji
+        // fonts report an advance width narrower than the glyph they actually
+        // draw, so a plain `${emoji} ${text}` renders with the text sitting on
+        // top of the emoji. See the .rt-emoji rule in style.css.
+        const em = e => `<span class="rt-emoji">${e}</span>`;
         let btn;
         if (done) {
-            btn = '<div class="research-btn" style="background:rgba(52,211,153,0.15);cursor:default">✓ Researched</div>';
+            btn = `<div class="research-btn" style="background:rgba(52,211,153,0.15);cursor:default">${em('✓')}Researched</div>`;
         } else if (active) {
             const pct = Math.round(SC.research.progress(id) * 100);
             const left = Math.max(0, Math.round(t.time * (1 - SC.research.progress(id))));
@@ -299,9 +304,9 @@ SC.ui = (function() {
             const qIdx = SC.research.queueList().indexOf(id) + 1;
             btn = `<button class="research-btn cancel-btn" data-cancel-research="${id}">Queued (#${qIdx}) — Cancel</button>`;
         } else if (labMissing) {
-            btn = '<div class="research-btn" disabled style="cursor:default">🔒 Requires Research Lab</div>';
+            btn = `<div class="research-btn" disabled style="cursor:default">${em('🔒')}Requires Research Lab</div>`;
         } else if (locked) {
-            btn = '<div class="research-btn" disabled style="cursor:default">🔒 Locked</div>';
+            btn = `<div class="research-btn" disabled style="cursor:default">${em('🔒')}Locked</div>`;
         } else {
             const canStart = SC.research.canStart(id);
             const canQueue = SC.research.canQueue(id);
@@ -316,7 +321,7 @@ SC.ui = (function() {
         }
         return `<div class="rt-node research-row ${done ? 'done' : ''} ${queued ? 'queued' : ''} ${locked || labMissing ? 'locked' : ''}"
                      data-rt-id="${id}" style="left:${pos.x}px;top:${pos.y}px;width:${pos.w}px">
-            <div class="research-top"><span class="research-name">${t.emoji} ${t.name}</span></div>
+            <div class="research-top"><span class="research-name">${em(t.emoji)}${t.name}</span></div>
             <div class="research-desc">${t.desc}</div>
             ${btn}
         </div>`;
@@ -448,9 +453,23 @@ SC.ui = (function() {
         // Every node is absolutely positioned, so this box only ever drives the
         // wrap's scroll extent — sizing it to the *scaled* tree is what lets a
         // zoomed-in tree pan all the way out to its right/bottom edge.
+        //
+        // The wrap's OWN height is deliberately not touched here. It used to
+        // track the scaled tree, which meant a pinch resized the scroll
+        // viewport, and with it the card and its centred position in the
+        // overlay: the window moved under the player's fingers while they were
+        // trying to zoom what was inside it. The box is sized once per
+        // open/rebuild instead — see setResearchTreeBoxHeight.
         nodesEl.style.width = (rtTreeW * scale) + 'px';
         nodesEl.style.height = (rtTreeH * scale) + 'px';
-        wrap.style.height = (rtTreeH * scale) + 'px';
+    }
+
+    // The card hugs a short tree instead of always standing 90vh tall, so the
+    // wrap does need a height — just one that comes from the auto fit and then
+    // holds still, however far the player zooms afterwards.
+    function setResearchTreeBoxHeight(scale) {
+        const wrap = $('research-tree-wrap');
+        if (wrap) wrap.style.height = (rtTreeH * scale) + 'px';
     }
 
     function fitResearchTree() {
@@ -458,7 +477,9 @@ SC.ui = (function() {
         if (!wrap || !rtTreeW || !rtTreeH) return;
         const containerWidth = wrap.clientWidth;
         if (containerWidth <= 0) return;
-        applyResearchTreeScale(rtUserScale || autoResearchTreeScale(containerWidth));
+        const auto = autoResearchTreeScale(containerWidth);
+        setResearchTreeBoxHeight(auto);
+        applyResearchTreeScale(rtUserScale || auto);
     }
 
     // Zooming out has to reach the whole-tree overview however wide the tree
