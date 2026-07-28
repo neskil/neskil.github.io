@@ -345,7 +345,29 @@ SC.map = (function() {
             ['supplier', { mat: 'copper' }],
             ['factory', { forSale: true, recipe: 'wire' }],
             ['factory', { forSale: true, recipe: 'circuit' }],
-            ['factory', { forSale: true, recipe: 'robot' }]
+            ['factory', { forSale: true, recipe: 'robot' }],
+            // Second wave (SC.GOODS): tyres, textiles, batteries and what
+            // they feed. No new raw material — each of these factories bids
+            // for coal/water/wool/rubber/copper against a chain already
+            // running, which is what the extra suppliers interleaved here
+            // are for. Late in the pool on purpose: by the time they unlock
+            // the early chains are established enough for the competition
+            // to be a decision rather than a stall.
+            ['supplier', { mat: 'coal' }],
+            ['factory', { forSale: true, recipe: 'tyre' }],
+            ['supplier', { mat: 'rubber' }],
+            ['factory', { forSale: true, recipe: 'bicycle' }],
+            ['city', {}],
+            ['supplier', { mat: 'copper' }],
+            ['factory', { forSale: true, recipe: 'battery' }],
+            ['supplier', { mat: 'wool' }],
+            ['supplier', { mat: 'water' }],
+            ['factory', { forSale: true, recipe: 'cloth' }],
+            ['factory', { forSale: true, recipe: 'jacket' }],
+            ['city', {}],
+            ['supplier', { mat: 'coal' }],
+            ['supplier', { mat: 'ore' }],
+            ['factory', { forSale: true, recipe: 'scooter' }]
         ];
         for (const [kind, opts] of pool) {
             const spot = randomLandSpotNear(md, SC.nodeMaxSpread());
