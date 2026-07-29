@@ -2071,6 +2071,15 @@
                     10yr/100k powertrain.</li>
                 <li><strong>Mileage against resale</strong> — roughly 5–10% of value per 10,000 miles away from
                     average; the page uses 7% and caps the swing.</li>
+                <li><strong>Trim prices</strong> — published 2019 MSRPs for each ladder, plus destination: CR-V LX
+                    $24,350 / EX-L $29,750 / Touring $32,750; RAV4 LE $25,500 / XLE Premium $29,500 / Limited
+                    $33,500; CX-5 Sport $25,325 / Grand Touring $31,090 / Signature $36,890; Equinox L $24,995 / LT
+                    $28,295 / Premier $32,195; Escape S $25,200 / SEL ~$29,000 / Titanium $35,215; X3 sDrive30i
+                    $41,000 / xDrive30i $43,000 / M40i $54,650. Other model years are scaled from 2019 at 3.2% a
+                    year, which is an approximation.</li>
+                <li><strong>Selling it on</strong> — instant offers from CarMax or Carvana run about 14–18% under
+                    private-party money, dealer trade-ins 15–20%, and the gap widens materially on older,
+                    higher-mileage cars. The page uses those midpoints and widens them with age.</li>
                 <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
                     drivers, about $1,200 for the next size up.</li>
                 <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
@@ -2138,11 +2147,7 @@
             </div>
         </div>
 
-        <div class="preset-row" id="trimChips" aria-label="Trim" style="margin-top:10px">
-            <button class="preset-btn" type="button" data-trim="base">Base trim</button>
-            <button class="preset-btn active" type="button" data-trim="mid">Mid trim</button>
-            <button class="preset-btn" type="button" data-trim="top">Top trim</button>
-        </div>
+        <div class="preset-row" id="trimChips" aria-label="Trim" style="margin-top:10px"></div>
         <div class="field-grid">
             <div class="field">
                 <label for="modelMiles">Driven</label>
@@ -3282,21 +3287,31 @@
            are 2019 base-trim MSRPs. Same curve shape as the main calculator,
            so the two agree. */
         const MODELS = [
-            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, msrp2019: 26545, hold5: 0.750 },
-            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, msrp2019: 25570, hold5: 0.711 },
-            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, msrp2019: 25395, hold5: 0.582 },
-            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, msrp2019: 42650, hold5: 0.504 },
-            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, msrp2019: 24995, hold5: 0.494 },
-            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, msrp2019: 25200, hold5: 0.457 }
+            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, hold5: 0.750,
+              trims: { base: ['LE', 25500], mid: ['XLE Premium', 29500], top: ['Limited', 33500] } },
+            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, hold5: 0.711,
+              trims: { base: ['LX', 24350], mid: ['EX-L', 29750], top: ['Touring', 32750] } },
+            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, hold5: 0.582,
+              trims: { base: ['Sport', 25325], mid: ['Grand Touring', 31090], top: ['Signature', 36890] } },
+            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, hold5: 0.504,
+              trims: { base: ['sDrive30i', 41000], mid: ['xDrive30i', 43000], top: ['M40i', 54650] } },
+            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, hold5: 0.494,
+              trims: { base: ['L', 24995], mid: ['LT', 28295], top: ['Premier', 32195] } },
+            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, hold5: 0.457,
+              trims: { base: ['S', 25200], mid: ['SEL', 29000], top: ['Titanium', 35215] } }
         ];
 
-        /* Options cost money new and give most of it back on the way out —
-           the more expensive the trim, the larger the share that evaporates. */
+        /* Real 2019 trim ladders rather than a multiplier — a CR-V Touring
+           was $32,750 against $24,350 for the LX, and a loaded X3 M40i more
+           than half as much again as the base car. Options give back less than
+           they cost, so the retention nudge stays. */
         const TRIMS = {
-            base: { label: 'Base', priceMult: 1.00, retentionAdj:  0.02 },
-            mid:  { label: 'Mid',  priceMult: 1.15, retentionAdj:  0 },
-            top:  { label: 'Top',  priceMult: 1.35, retentionAdj: -0.03 }
+            base: { label: 'Base',   retentionAdj:  0.02 },
+            mid:  { label: 'Middle', retentionAdj:  0 },
+            top:  { label: 'Loaded', retentionAdj: -0.03 }
         };
+
+        const DESTINATION_2019 = 1045;
 
         let selectedTrim = 'mid';
 
@@ -3307,8 +3322,8 @@
 
         /* Sticker prices drifted up over the decade; 2019 is the anchor. */
         function modelMsrp(model, year) {
-            return Math.round(model.msrp2019 * TRIMS[selectedTrim].priceMult *
-                Math.pow(1.032, year - 2019) / 50) * 50;
+            const [, price] = model.trims[selectedTrim];
+            return Math.round((price + DESTINATION_2019) * Math.pow(1.032, year - 2019) / 50) * 50;
         }
 
         function modelRetained(model, years) {
@@ -3498,7 +3513,18 @@
             $('depSummary').innerHTML = bits.join(' ');
         }
 
+        function renderTrimChips() {
+            const model = currentModel();
+            $('trimChips').innerHTML = Object.entries(TRIMS).map(([key, trim]) => {
+                const [name, price] = model.trims[key];
+                return '<button class="preset-btn' + (key === selectedTrim ? ' active' : '') +
+                    '" type="button" data-trim="' + key + '">' + name + ' · ' + usd0(price + DESTINATION_2019) +
+                    '</button>';
+            }).join('');
+        }
+
         function refreshModal() {
+            renderTrimChips();
             const minBuy = earliestBuyAge();
             $('buyAge').min = minBuy;
             if (parseFloat($('buyAge').value) < minBuy) $('buyAge').value = minBuy;
@@ -3543,16 +3569,13 @@
                 $(id).addEventListener('input', refreshModal);
             }
 
-            for (const chip of $('trimChips').querySelectorAll('.preset-btn')) {
-                chip.addEventListener('click', () => {
-                    selectedTrim = chip.dataset.trim;
-                    for (const c of $('trimChips').querySelectorAll('.preset-btn')) {
-                        c.classList.toggle('active', c === chip);
-                    }
-                    $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
-                    refreshModal();
-                });
-            }
+            $('trimChips').addEventListener('click', (e) => {
+                const chip = e.target.closest('.preset-btn');
+                if (!chip) return;
+                selectedTrim = chip.dataset.trim;
+                $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
+                refreshModal();
+            });
 
             $('applyModel').addEventListener('click', () => {
                 const model = currentModel();
