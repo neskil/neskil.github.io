@@ -1892,7 +1892,16 @@
            the grid doesn't reflow, then set the target rect and let CSS transition
            the four geometry properties. Closing animates back to wherever the
            placeholder now sits (the page may have been resized) and only then
-           restores the card to the flow. */
+           restores the card to the flow.
+
+           The card is reparented to <body> while open, and that move is load-
+           bearing. `.grid` animates in with `fadeInUp ... both`, whose final
+           keyframe leaves a `transform: translateY(0)` on it permanently. A
+           non-none transform makes an element both a stacking context and the
+           containing block for fixed-position descendants, so left in the grid the
+           panel would be positioned against the grid box instead of the viewport
+           AND painted underneath the backdrop, since its z-index would be scoped
+           inside the grid. Escaping to <body> is what makes fixed mean fixed. */
         const aboutCard = document.getElementById('card-about');
         const aboutBackdrop = document.getElementById('about-backdrop');
         const OPEN_MS = 550;
@@ -1923,6 +1932,7 @@
             aboutPlaceholder.id = 'about-placeholder';
             aboutPlaceholder.style.height = r.height + 'px';
             aboutCard.parentNode.insertBefore(aboutPlaceholder, aboutCard);
+            document.body.appendChild(aboutCard); // out of .grid's transformed context
 
             // The tilt handlers set style.transition inline on hover; clear it or it
             // overrides the geometry transition declared for .is-open.
@@ -1955,7 +1965,10 @@
             aboutTimer = setTimeout(() => {
                 aboutCard.classList.remove('is-open');
                 ['top', 'left', 'width', 'height', 'transition'].forEach(p => aboutCard.style.removeProperty(p));
-                if (aboutPlaceholder) aboutPlaceholder.remove();
+                if (aboutPlaceholder) {
+                    aboutPlaceholder.parentNode.insertBefore(aboutCard, aboutPlaceholder);
+                    aboutPlaceholder.remove();
+                }
                 aboutPlaceholder = null;
                 document.body.style.overflow = '';
             }, OPEN_MS);
