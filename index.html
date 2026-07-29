@@ -544,7 +544,7 @@
         }
 
         .card-face-back .card-link {
-            margin-top: auto;
+            margin-top: 0.35rem;
         }
 
         .about-identity {
@@ -589,10 +589,10 @@
 
         .about-close {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 32px;
-            height: 32px;
+            top: 0.9rem;
+            right: 0.9rem;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -627,6 +627,41 @@
 
             .card-face-back {
                 padding: 1.25rem;
+            }
+        }
+
+        /* Landscape phones: ~360px of height can't hold the copy at full size, and
+           the panel would top out at the viewport and scroll its close link out of
+           reach. Tightening type and padding lets it fit outright. */
+        @media (max-height: 480px) {
+            #card-about.is-open .card-face {
+                padding: 1.3rem 1.6rem;
+            }
+
+            #card-about.is-open .about-portrait {
+                width: 46px;
+                height: 46px;
+            }
+
+            #card-about.is-open .about-name {
+                font-size: 1.08rem;
+            }
+
+            #card-about.is-open .about-role {
+                font-size: 0.8rem;
+            }
+
+            #card-about.is-open .about-text {
+                font-size: 0.85rem;
+                line-height: 1.5;
+            }
+
+            #card-about.is-open .card-face-back {
+                gap: 0.7rem;
+            }
+
+            #card-about.is-open .about-body {
+                gap: 0.6rem;
             }
         }
 
@@ -1911,9 +1946,35 @@
         let aboutTimer = null;
         let aboutPlaceholder = null;
 
+        /* Height comes from the copy, not a constant: a fixed height left dead space
+           under short text on a tall screen, and pushed the close link out of sight
+           on a landscape phone. Measuring means the panel is exactly as tall as it
+           needs to be, clamped to the viewport, and stays right if the copy changes.
+
+           The measurement writes to the card and reads back, which is a forced
+           reflow — deliberately so. It happens inside openAbout before anything
+           paints, so the layout thrash is invisible and the FLIP still starts from
+           the real grid rect. */
         function aboutTargetRect() {
             const w = Math.min(560, window.innerWidth - 32);
-            const h = Math.min(455, window.innerHeight - 32);
+            const maxH = window.innerHeight - 32;
+
+            const back = aboutCard.querySelector('.card-face-back');
+            const prevW = aboutCard.style.width;
+            const prevH = aboutCard.style.height;
+            aboutCard.style.width = w + 'px';
+            aboutCard.style.height = 'auto';
+            const natural = back.scrollHeight;
+            aboutCard.style.width = prevW;
+            aboutCard.style.height = prevH;
+
+            // box-sizing is border-box, so the height we set has to carry the card's
+            // borders too; scrollHeight only measures the content box. Without this
+            // the panel lands 2px short and scrolls for no reason.
+            const cs = getComputedStyle(aboutCard);
+            const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+
+            const h = Math.max(240, Math.min(natural + border, maxH));
             return { w, h, top: (window.innerHeight - h) / 2, left: (window.innerWidth - w) / 2 };
         }
 
@@ -1941,15 +2002,19 @@
             aboutCard.style.transition = '';
             ['--rx', '--ry', '--ty', '--mag'].forEach(p => aboutCard.style.removeProperty(p));
             aboutCard.classList.add('is-open');
-            setAboutRect(r.top, r.left, r.width, r.height);
 
+            // Measured first: aboutTargetRect() needs .is-open's larger type to be
+            // in effect, and must run before the start rect is committed.
+            const t = aboutTargetRect();
+
+            setAboutRect(r.top, r.left, r.width, r.height);
             aboutCard.getBoundingClientRect(); // flush the start rect before retargeting
 
-            const t = aboutTargetRect();
             setAboutRect(t.top, t.left, t.w, t.h);
             aboutCard.classList.add('is-flipped');
             aboutBackdrop.classList.add('open');
             aboutCard.setAttribute('aria-expanded', 'true');
+            document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
         }
 
@@ -1972,6 +2037,7 @@
                     aboutPlaceholder.remove();
                 }
                 aboutPlaceholder = null;
+                document.documentElement.style.overflow = '';
                 document.body.style.overflow = '';
             }, OPEN_MS);
         }
