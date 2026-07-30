@@ -1760,6 +1760,7 @@
                         <li class="pro" data-mark="+">Cancel with 30 days' notice. No other option lets you leave.</li>
                         <li class="pro" data-mark="+">No credit application drama, no down payment, no depreciation exposure.</li>
                         <li class="pro" data-mark="+">Swap car classes as your needs change; second driver usually included.</li>
+                        <li class="pro" data-mark="+">Works for the Georgia road test — you are the named driver and the insurance is in the rate.</li>
                         <li class="con" data-mark="−">By far the most expensive per month — you are paying for the option to quit.</li>
                         <li class="con" data-mark="−">Mileage caps are tighter than a lease, and overage runs higher.</li>
                         <li class="con" data-mark="−">You build no equity and the rate can be re-priced at renewal.</li>
@@ -1994,9 +1995,16 @@
                     and with the paper registration and insurance card in it. Only you and that driver may be in the
                     vehicle: no other passengers, no children, no pets. If the car was bought in the last 30 days or
                     wears temporary tags, bring the bill of sale.</p>
-                <p class="notes" style="margin-top:8px">Which is circular. You need a car and a licensed friend to
-                    get the licence that lets you have a car — and rental companies will not let you take their
-                    vehicle to a road test. <strong>The usual way out is to pay for it:</strong> driving schools
+                <p class="notes" style="margin-top:8px">Which is circular: you need a car and a licensed friend to
+                    get the licence that lets you have a car. Daily rental counters generally refuse — most will not
+                    rent to an unlicensed driver in the first place, and their terms bar road tests outright.</p>
+                <p class="notes" style="margin-top:8px"><strong>A monthly subscription is the way through it.</strong>
+                    A <strong>Sixt+</strong> car passed at the Georgia road test — <em>you</em> are the named driver
+                    on the agreement, the insurance is bought through the subscription, and the registration and
+                    insurance card travel in the car, which is exactly the paperwork the examiner asks to see. Your
+                    licensed 21-plus accompanier rides along as normal. Bring the agreement with your name on it
+                    alongside the registration and insurance card.</p>
+                <p class="notes" style="margin-top:8px">Failing that, <strong>pay for it:</strong> driving schools
                     rent you a car with an instructor who rides along as your licensed accompanier, typically
                     <strong>$200–400</strong> for the appointment. If you know someone with a car and an afternoon
                     free, that is the same service for the price of lunch.</p>
@@ -2121,7 +2129,9 @@
                     EX-class rung to each ladder — pricing an EX as an EX-L had been overstating it — and gave
                     hybrids their own premium and retention bonus.</li>
                 <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
-                    drivers, about $1,200 for the next size up.</li>
+                    drivers, about $1,200 for the next size up. The road-test acceptance is first-hand: a Sixt+ car
+                    was taken to the Georgia test and accepted, with the subscriber as the named driver and the
+                    insurance bought through the subscription.</li>
                 <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
                     (781+), 6.27% prime (661–780), 9.57% near prime (601–660), 16.01% for poor credit on new cars;
                     7.70% to 21.77% across the same range on used. The no-US-file row is an estimate, because what
@@ -3796,8 +3806,9 @@
             {
                 id: 'licence',
                 q: 'Do you have a US driver\'s licence yet?',
-                why: 'It decides what is even possible this month. Without one you cannot buy, lease or ' +
-                    'subscribe — a rental counts you as a visiting driver, and everything else waits.',
+                why: 'It decides what is even possible this month. Without one, buying and leasing wait — ' +
+                    'a monthly subscription on your foreign licence is the route, and that same car can ' +
+                    'take you to the road test.',
                 choices: [
                     { value: 'yes', label: 'Yes, I have one', sub: 'Everything on the page is open to you' },
                     { value: 'no', label: 'Not yet', sub: 'I will point you at the Georgia steps at the end' }
@@ -4007,9 +4018,10 @@
 
                 if (guideAnswers.licence === 'no') {
                     body.innerHTML += '<div class="callout warn" style="margin-top:10px"><span class="ico">🪪</span>' +
-                        '<span>Without a licence, renting monthly is your only real route today. The Georgia ' +
-                        'steps — including the road-test rule that needs a licensed passenger and a car — are ' +
-                        'at the bottom of the page.</span></div>';
+                        '<span>Without a licence, renting monthly is your only real route today — and it ' +
+                        'doubles as the car for the road test, since you are the named driver and the ' +
+                        'insurance comes with it. The Georgia steps, including the licensed-passenger rule, ' +
+                        'are at the bottom of the page.</span></div>';
                 }
                 $('stepNext').textContent = 'Show me the answer →';
                 $('stepSkip').style.display = 'none';
