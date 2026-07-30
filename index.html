@@ -561,7 +561,8 @@
 
         /* Hover feedback now belongs to the front face, since .card:hover styles a
            surface that is no longer visible. */
-        #card-about:hover .card-face-front {
+        #card-about:hover .card-face-front,
+        #card-about .card-face-front:focus-visible {
             background: var(--card-hover-gradient, var(--card-hover-bg));
             border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
             box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
@@ -628,6 +629,38 @@
             color: var(--text-secondary);
         }
 
+        /* Front face is a real <button> now (the back face holds links, which cannot
+           be nested inside a button), so the UA styles need clearing. */
+        .card-face-front {
+            font: inherit;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .card-face-back .card-link {
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            background: none;
+            border: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .about-text a {
+            color: rgb(253, 164, 175);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(253, 164, 175, 0.4);
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .about-text a:hover {
+            color: #fff;
+            border-bottom-color: rgba(255, 255, 255, 0.7);
+        }
+
         .about-close {
             position: absolute;
             top: 0.9rem;
@@ -642,6 +675,8 @@
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid var(--glass-border);
             opacity: 0;
+            padding: 0;
+            cursor: pointer;
             transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
         }
 
@@ -1409,9 +1444,10 @@
                 </svg></span>
         </a>
 
-        <button type="button" class="card" id="card-about" aria-expanded="false">
+        <div class="card" id="card-about">
             <div class="card-flip-inner">
-                <div class="card-face card-face-front">
+                <button type="button" class="card-face card-face-front" id="about-open" aria-expanded="false"
+                    aria-controls="about-panel">
                     <div>
                         <div class="card-icon">
                             <svg viewBox="0 0 24 24">
@@ -1427,14 +1463,15 @@
                             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg></span>
-                </div>
-                <div class="card-face card-face-back">
-                    <span class="about-close" aria-hidden="true">
+                </button>
+                <div class="card-face card-face-back" id="about-panel" role="dialog" aria-modal="true"
+                    aria-label="About Niklas Billgren">
+                    <button type="button" class="about-close" data-about-close aria-label="Close">
                         <svg viewBox="0 0 24 24">
                             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" />
                         </svg>
-                    </span>
+                    </button>
                     <div class="about-identity">
                         <img src="assets/portrait.webp" alt="Niklas Billgren" class="about-portrait" width="48"
                             height="48" loading="lazy" decoding="async">
@@ -1444,20 +1481,22 @@
                         </div>
                     </div>
                     <div class="about-body">
-                        <p class="about-text">I implement supply chain planning solutions. Forecasting,
-                            replenishment, and the ERP work underneath them.</p>
+                        <p class="about-text">I implement supply chain planning solutions. Have a look at my
+                            <a href="cv/index.html">CV</a> or
+                            <a href="https://www.linkedin.com/in/niklas-eskilsson/" target="_blank"
+                                rel="noopener">LinkedIn</a> if you're curious.</p>
                         <p class="about-text">AI changed how much one person can build on their own, so I started
                             testing that in my spare time. A lander game with its own physics engine, a logistics
                             sim, a couple of calculators I actually use. Mostly from my phone, with Claude and
                             AntiGravity.</p>
                     </div>
-                    <span class="card-link">Close <svg viewBox="0 0 24 24">
+                    <button type="button" class="card-link" data-about-close>Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
-                        </svg></span>
+                        </svg></button>
                 </div>
             </div>
-        </button>
+        </div>
 
     </main>
 
@@ -1975,6 +2014,7 @@
            inside the grid. Escaping to <body> is what makes fixed mean fixed. */
         const aboutCard = document.getElementById('card-about');
         const aboutBackdrop = document.getElementById('about-backdrop');
+        const aboutOpenBtn = document.getElementById('about-open');
         const OPEN_MS = 550;
         let aboutOpen = false;
         let aboutTimer = null;
@@ -2089,7 +2129,7 @@
             aboutCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
             aboutCard.classList.add('is-flipped');
             aboutBackdrop.classList.add('open');
-            aboutCard.setAttribute('aria-expanded', 'true');
+            aboutOpenBtn.setAttribute('aria-expanded', 'true');
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
         }
@@ -2104,12 +2144,19 @@
             aboutCard.style.transform = inverseTransform(aboutPlaceholder.getBoundingClientRect(), aboutRect);
             aboutCard.classList.remove('is-flipped');
             aboutBackdrop.classList.remove('open');
-            aboutCard.setAttribute('aria-expanded', 'false');
+            aboutOpenBtn.setAttribute('aria-expanded', 'false');
 
             aboutTimer = setTimeout(restoreAbout, OPEN_MS);
         }
 
-        aboutCard.addEventListener('click', () => { aboutOpen ? closeAbout() : openAbout(); });
+        /* Opening is the front face's job; closing belongs to the two [data-about-close]
+           buttons, the backdrop and Escape. The back face deliberately does NOT close
+           on a background click any more — it holds links now, and tapping one used to
+           dismiss the panel out from under the navigation. */
+        aboutCard.querySelector('#about-open').addEventListener('click', openAbout);
+        aboutCard.querySelectorAll('[data-about-close]').forEach(el => {
+            el.addEventListener('click', closeAbout);
+        });
         aboutBackdrop.addEventListener('click', closeAbout);
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAbout(); });
         window.addEventListener('resize', () => {
