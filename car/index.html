@@ -1303,7 +1303,7 @@
         </div>
 
         <button type="button" class="guide-btn" id="openGuide">
-            🧭 Walk me through it <span class="sub">— 9 questions, fills the whole page in</span>
+            🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
         </button>
 
         <!-- Verdict -->
@@ -2098,6 +2098,15 @@
                 <li><strong>Warranties</strong> — 3yr/36k basic and 5yr/60k powertrain is the industry standard
                     (Toyota, Honda, Ford, Chevrolet); BMW runs 4yr/50k; Hyundai and Kia lead with 5yr/60k basic and
                     10yr/100k powertrain.</li>
+                <li><strong>Mileage beats model year on a used car.</strong> Holding mileage constant, a model
+                    year is worth only about $240 across these 2019–2022 listings, while 10,000 miles is worth around
+                    $670 — so an older car with fewer miles generally beats a newer one with more. The two are
+                    partly collinear in a sample this narrow, so treat it as a direction rather than a
+                    coefficient.</li>
+                <li><strong>Asking prices are quantised.</strong> All 38 listings end in $998, so what you see is a
+                    price point rather than a valuation, with up to a few hundred dollars of rounding in it. Nothing
+                    in the set was listed below $21,998 whatever its age or mileage, which looks like a retailer
+                    floor for the model.</li>
                 <li><strong>Mileage against resale</strong> — the quoted rule of thumb is 5–10% per 10,000 miles,
                     but real asking prices are gentler: across CR-V listings the slope is about $123 per 1,000 miles
                     on an EX and only $57 on an EX-L, so 2–5% per 10,000. Higher-mileage cars in any sample are
@@ -2225,6 +2234,9 @@
         <div class="legend" id="dataLegend"></div>
         <div class="loss-grid" id="dataStats"></div>
         <p class="notes" id="dataFindings" style="margin-top:12px"></p>
+        <div class="callout" style="margin-top:10px">
+            <span class="ico">🧪</span><span id="dataCaveats"></span>
+        </div>
 
         <button type="button" class="table-toggle" id="dataTableToggle" aria-expanded="false"
             style="margin-top:12px">Show the listings</button>
@@ -3432,17 +3444,17 @@
            are 2019 base-trim MSRPs. Same curve shape as the main calculator,
            so the two agree. */
         const MODELS = [
-            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, hold5: 0.750, hybrid: true,
+            { key: 'rav4',    name: 'Toyota RAV4', brand: 'japanese', d1: 0.12, r: 0.0392, hold5: 0.750, hybrid: true,
               trims: [['LE', 25500], ['XLE', 27300], ['XLE Premium', 29500], ['Limited', 33500]] },
-            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, hold5: 0.711, hybrid: true,
+            { key: 'crv',     name: 'Honda CR-V', brand: 'japanese', d1: 0.13, r: 0.0492, hold5: 0.711, hybrid: true,
               trims: [['LX', 24350], ['EX', 27250], ['EX-L', 29750], ['Touring', 32750]] },
-            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, hold5: 0.582,
+            { key: 'cx5',     name: 'Mazda CX-5', brand: 'japanese', d1: 0.17, r: 0.0849, hold5: 0.582,
               trims: [['Sport', 25325], ['Touring', 27660], ['Grand Touring', 31090], ['Signature', 36890]] },
-            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, hold5: 0.504,
+            { key: 'x3',      name: 'BMW X3', brand: 'germanLux', d1: 0.24, r: 0.0976, hold5: 0.504,
               trims: [['sDrive30i', 41000], ['xDrive30i', 43000], ['M40i', 54650]] },
-            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, hold5: 0.494,
+            { key: 'equinox', name: 'Chevrolet Equinox', brand: 'american', d1: 0.22, r: 0.1079, hold5: 0.494,
               trims: [['L', 24995], ['LS', 26995], ['LT', 28295], ['Premier', 32195]] },
-            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, hold5: 0.457, hybrid: true,
+            { key: 'escape',  name: 'Ford Escape', brand: 'american', d1: 0.23, r: 0.1223, hold5: 0.457, hybrid: true,
               trims: [['S', 25200], ['SE', 26700], ['SEL', 29000], ['Titanium', 35215]] }
         ];
 
@@ -3871,6 +3883,24 @@
                 set: (v) => { carAge = v; if (!carBrand) carBrand = 'japanese'; applyCarProfile(); }
             },
             {
+                id: 'model',
+                q: 'Any particular model in mind?',
+                why: 'Real cars beat averages. Pick one and the price comes from that nameplate\'s own ' +
+                    'depreciation curve at the age you chose, not from a segment average.',
+                skipIf: () => !MODELS.some((m) => m.brand === carBrand),
+                choicesFn: () => MODELS.filter((m) => m.brand === carBrand).map((m) => ({
+                    value: m.key,
+                    label: m.name,
+                    sub: (m.hold5 * 100).toFixed(0) + '% of its value left at 5 years'
+                })).concat([{ value: 'none', label: 'Not decided yet', sub: 'Use the segment average instead' }]),
+                get: () => guideAnswers.model,
+                set: (v) => {
+                    guideAnswers.model = v;
+                    if (v !== 'none') applyRealModel(v);
+                    else applyCarProfile();
+                }
+            },
+            {
                 id: 'miles',
                 q: 'How far do you drive in a year?',
                 why: 'Mileage is what quietly kills leases and subscriptions — both meter it, and both charge ' +
@@ -3907,7 +3937,7 @@
             }
         ];
 
-        const guideAnswers = { licence: null, car: null };
+        const guideAnswers = { licence: null, car: null, model: null };
         let guideIndex = 0;
         let advanceTimer = null;
 
@@ -3944,6 +3974,30 @@
             $('resale').dataset.touched = '0';
         }
 
+        /* A specific nameplate at the age you picked, priced off its own curve
+           rather than the segment average. */
+        function applyRealModel(key) {
+            const model = MODELS.find((m) => m.key === key);
+            const band = AGE_BANDS[carAge];
+            if (!model || !band) return;
+
+            selectedModel = key;
+            const modelYear = new Date().getFullYear() - band.buyAge;
+            const msrp = modelMsrp(model, modelYear);
+            const miles = num('miles') || 12000;
+
+            applyCarProfile();
+            $('price').value = Math.round(modelValueAt(model, msrp, band.buyAge) / 50) * 50;
+            priceAnchor = 'price';
+            /* Whichever generic curve tracks this nameplate most closely. */
+            const target = modelRetained(model, 5);
+            $('depreciation').value = Object.keys(DEPRECIATION_CURVES).reduce((best, k) =>
+                Math.abs(retainedValue(5, k) - target) < Math.abs(retainedValue(5, best) - target) ? k : best,
+                'average');
+            $('resale').dataset.touched = '0';
+            guideAnswers.modelLabel = model.name + ', ' + modelYear;
+        }
+
         /* Says in words what the two chips just did to the numbers. */
         function renderCarProfile(v) {
             const host = $('carProfile').querySelector('span:last-child');
@@ -3978,7 +4032,15 @@
         }
 
         function renderGuide() {
+            /* A step can drop out entirely — there is no point asking which
+               Korean model when none are in the data set. */
+            let guard = 0;
+            while (GUIDE_STEPS[guideIndex] && GUIDE_STEPS[guideIndex].skipIf &&
+                   GUIDE_STEPS[guideIndex].skipIf() && guard++ < GUIDE_STEPS.length) {
+                guideIndex = Math.min(guideIndex + 1, GUIDE_STEPS.length - 1);
+            }
             const step = GUIDE_STEPS[guideIndex];
+            const choices = step.choicesFn ? step.choicesFn() : step.choices;
 
             $('stepProgress').innerHTML = GUIDE_STEPS.map((_, i) =>
                 '<span class="step-pip ' + (i < guideIndex ? 'done' : i === guideIndex ? 'current' : '') +
@@ -3995,7 +4057,9 @@
                     ['Credit', CREDIT_TIERS[creditTier].label],
                     ['Cash available', usd0(num('cash'))],
                     ['Keeping it', $('horizon').value + ' months'],
-                    ['Car', carBrand ? BRANDS[carBrand].label + ', ' + AGE_BANDS[carAge].label.toLowerCase() : '—'],
+                    ['Car', guideAnswers.modelLabel && guideAnswers.model !== 'none'
+                        ? guideAnswers.modelLabel
+                        : (carBrand ? BRANDS[carBrand].label + ', ' + AGE_BANDS[carAge].label.toLowerCase() : '—')],
                     ['List price', usd0(num('price'))],
                     ['Upkeep', usd0(num('maintenance')) + '/mo'],
                     ['Out the door', usd0(num('otd'))],
@@ -4018,11 +4082,11 @@
                 $('stepSkip').style.display = '';
             }
 
-            if (step.choices) {
+            if (choices) {
                 const grid = document.createElement('div');
                 grid.className = 'choice-grid';
                 const current = step.get ? step.get() : Number($(step.field).value);
-                for (const choice of step.choices) {
+                for (const choice of choices) {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'choice' + (choice.value === current ? ' selected' : '');
@@ -4045,8 +4109,8 @@
             if (step.field) {
                 const wrap = document.createElement('div');
                 wrap.className = 'field';
-                wrap.style.marginTop = step.choices ? '10px' : '0';
-                wrap.innerHTML = '<label for="guideInput">' + (step.choices ? 'Or type it exactly' : 'Your number') +
+                wrap.style.marginTop = choices ? '10px' : '0';
+                wrap.innerHTML = '<label for="guideInput">' + (choices ? 'Or type it exactly' : 'Your number') +
                     '</label><div class="input-shell">' +
                     (step.prefix ? '<span class="prefix">' + step.prefix + '</span>' : '') +
                     '<input type="number" id="guideInput" value="' + $(step.field).value + '">' +
@@ -4406,6 +4470,21 @@
                     ', far less than the difference between them when new.');
             }
             $('dataFindings').innerHTML = bits.join(' ');
+
+            /* Two plausible-looking patterns in this data are artefacts, and
+               saying so is more useful than quietly fitting them. */
+            $('dataCaveats').innerHTML =
+                '<strong>Two things this data looks like it says, but does not.</strong> ' +
+                'Split the cars at 50,000 miles and the slope triples — $31 per 1,000 miles below, $97 above — ' +
+                'which suggests mileage only starts to bite late. It is an age artefact: the low-mileage cars here ' +
+                'are also the newer ones, and pricing age separately makes the mileage effect roughly linear again. ' +
+                'Fitting the kink made predictions worse, so it is not in the model. ' +
+                'Likewise the EX-L averages no more than the EX ($26,152 against $26,453 on 2020–21 cars), which ' +
+                'looks like the trim premium vanishing — but the EX-L cars carry 5,000 more miles each. Control for ' +
+                'that and the premium is intact. ' +
+                '<em>What the data does pin down:</em> the observed slope is $67 per 1,000 miles, and the model ' +
+                'reproduces it at a 4.5% mileage rate — minimising raw error would prefer 7%, but that only fits ' +
+                'by over-charging mileage for errors in the age curve.';
         }
 
         function renderDataTable(rows) {
@@ -4640,6 +4719,7 @@
             });
         }
 
+        $('guideCount').textContent = '— ' + (GUIDE_STEPS.length - 1) + ' questions, fills the whole page in';
         $('openGuide').addEventListener('click', openGuide);
         $('guideClose').addEventListener('click', () => closeGuide(false));
         $('guideBackdrop').addEventListener('click', () => closeGuide(false));
