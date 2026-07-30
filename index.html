@@ -1447,9 +1447,9 @@
                         <p class="about-text">I implement supply chain planning solutions. Forecasting,
                             replenishment, and the ERP work underneath them.</p>
                         <p class="about-text">AI changed how much one person can build on their own, so I started
-                            testing that in my spare time. A lander game with a physics engine I had no business
-                            writing, a logistics sim, a couple of calculators I actually use. Mostly from my phone,
-                            with Claude and AntiGravity.</p>
+                            testing that in my spare time. A lander game with its own physics engine, a logistics
+                            sim, a couple of calculators I actually use. Mostly from my phone, with Claude and
+                            AntiGravity.</p>
                     </div>
                     <span class="card-link">Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1981,6 +1981,25 @@
         let aboutPlaceholder = null;
         let aboutRect = null;
 
+        /* Puts the card back in its grid cell and clears the open state. Safe to call
+           at any time: with nothing open it does nothing, and it is what makes
+           open/close re-entrant. */
+        function restoreAbout() {
+            clearTimeout(aboutTimer);
+            aboutTimer = null;
+            aboutCard.classList.remove('is-open');
+            ['top', 'left', 'width', 'height', 'transition', 'transform']
+                .forEach(prop => aboutCard.style.removeProperty(prop));
+            if (aboutPlaceholder) {
+                aboutPlaceholder.parentNode.insertBefore(aboutCard, aboutPlaceholder);
+                aboutPlaceholder.remove();
+                aboutPlaceholder = null;
+            }
+            aboutRect = null;
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+        }
+
         /* The transform that maps the panel's final box back onto `from`, so the
            animation can start visually on the grid cell and run to identity. */
         function inverseTransform(from, to) {
@@ -2032,8 +2051,15 @@
 
         function openAbout() {
             if (aboutOpen) return;
+
+            /* A close may still be animating, with its restore queued. Finish it now
+               rather than cancelling it: openAbout reads aboutCard.parentNode to place
+               the placeholder, and mid-close that parent is still <body>. Cancelling
+               instead of flushing put the placeholder into <body>, orphaned the real
+               one in the grid, and left the card stranded after the footer on the next
+               close. Reopening within the animation window did that every time. */
+            restoreAbout();
             aboutOpen = true;
-            clearTimeout(aboutTimer);
 
             const r = aboutCard.getBoundingClientRect();
             aboutPlaceholder = document.createElement('div');
@@ -2073,22 +2099,14 @@
             aboutOpen = false;
             clearTimeout(aboutTimer);
 
+            if (!aboutPlaceholder || !aboutRect) { restoreAbout(); return; }
+
             aboutCard.style.transform = inverseTransform(aboutPlaceholder.getBoundingClientRect(), aboutRect);
             aboutCard.classList.remove('is-flipped');
             aboutBackdrop.classList.remove('open');
             aboutCard.setAttribute('aria-expanded', 'false');
 
-            aboutTimer = setTimeout(() => {
-                aboutCard.classList.remove('is-open');
-                ['top', 'left', 'width', 'height', 'transition', 'transform'].forEach(p => aboutCard.style.removeProperty(p));
-                if (aboutPlaceholder) {
-                    aboutPlaceholder.parentNode.insertBefore(aboutCard, aboutPlaceholder);
-                    aboutPlaceholder.remove();
-                }
-                aboutPlaceholder = null;
-                document.documentElement.style.overflow = '';
-                document.body.style.overflow = '';
-            }, OPEN_MS);
+            aboutTimer = setTimeout(restoreAbout, OPEN_MS);
         }
 
         aboutCard.addEventListener('click', () => { aboutOpen ? closeAbout() : openAbout(); });
