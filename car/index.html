@@ -2008,6 +2008,31 @@
 
         <!-- US specifics -->
         <section class="panel">
+            <div class="panel-title">Reading a listing price</div>
+            <div class="callout">
+                <span class="ico">🔍</span>
+                <span>Three different numbers get called "the price", and browsing a forecourt only ever shows you
+                    the highest one. <strong>Market value</strong> is what the car is worth — that is what this page
+                    computes. <strong>Asking price</strong> adds roughly 12% for reconditioning, warranty and
+                    overhead, and a no-haggle retailer like CarMax sits at the top of that band by design.
+                    <strong>What you would be paid</strong> for the same car is 12–27% <em>below</em> market
+                    depending on who buys it. A valuation that looks low against the listings you have been
+                    reading is usually all three of those working as intended.</span>
+            </div>
+            <div class="callout warn">
+                <span class="ico">⚠️</span>
+                <span><strong>A price well under market is information, not a bargain.</strong> On a car that should
+                    be $22,000, a $17,000 asking price is the seller telling you something — a check-engine light,
+                    an accident on the report, a branded or salvage title, well above average mileage, or a service
+                    history nobody can produce. Occasionally it is a genuine motivated seller. Either way the answer
+                    is the same $150 pre-purchase inspection, and on a lit dashboard, a scan before you go: an
+                    evaporative-emissions sensor is a cheap afternoon, a catalytic converter or a transmission
+                    fault is several thousand and wipes out the whole discount.</span>
+            </div>
+        </section>
+
+        <!-- US specifics -->
+        <section class="panel">
             <div class="panel-title">US fine print worth knowing</div>
             <ul class="notes">
                 <li><strong>Georgia does not charge sales tax on cars at all.</strong> It charges a one-time
@@ -2077,9 +2102,15 @@
                     $28,295 / Premier $32,195; Escape S $25,200 / SEL ~$29,000 / Titanium $35,215; X3 sDrive30i
                     $41,000 / xDrive30i $43,000 / M40i $54,650. Other model years are scaled from 2019 at 3.2% a
                     year, which is an approximation.</li>
-                <li><strong>Selling it on</strong> — instant offers from CarMax or Carvana run about 14–18% under
-                    private-party money, dealer trade-ins 15–20%, and the gap widens materially on older,
-                    higher-mileage cars. The page uses those midpoints and widens them with age.</li>
+                <li><strong>Selling it on</strong> — the curves give market value, so every route out is below it:
+                    a private sale about 12% under, an instant offer from CarMax or Carvana about 26%, a dealer
+                    trade-in about 27%, all widening with age. Those come from the published spreads — instant
+                    offers 14–18% under private money, trade-ins 15–20% — rebased onto market value rather than
+                    onto each other.</li>
+                <li><strong>Checked against the market.</strong> The curves flatten after year five rather than
+                    decaying at a fixed rate, because real ones do. A 2019 CR-V EX-L lands at $20,400 against KBB's
+                    $20,900 dealer figure; a constant rate gave $19,800. Listing averages for the same car run
+                    $21,000–25,000, which is the asking-price premium, not a different valuation.</li>
                 <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
                     drivers, about $1,200 for the next size up.</li>
                 <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
@@ -2315,23 +2346,28 @@
            in Georgia and most sales-tax states it reduces the tax base on your
            next car. */
         const DISPOSAL = {
-            private: { label: 'a private sale', discount: 0,    taxCredit: false,
-                       note: 'Private sale is the top of the market, and the work is yours: listing, strangers, ' +
-                             'test drives, a bank draft you have to trust, and the title transfer.' },
-            instant: { label: 'an instant offer', discount: 0.16, taxCredit: false,
+            private: { label: 'a private sale', discount: 0.12, taxCredit: false,
+                       note: 'Private sale is the most you can get, but still under the forecourt price — a ' +
+                             'private seller offers no warranty, no reconditioning and no finance. The work is ' +
+                             'yours too: listing, strangers, test drives, and the title transfer.' },
+            instant: { label: 'an instant offer', discount: 0.26, taxCredit: false,
                        note: 'An instant offer from CarMax or Carvana runs about 14-18% under private money — ' +
                              'the price of an appraisal in the morning and a cheque in the afternoon.' },
-            tradein: { label: 'a dealer trade-in', discount: 0.18, taxCredit: true,
+            tradein: { label: 'a dealer trade-in', discount: 0.27, taxCredit: true,
                        note: 'A trade-in is the lowest number of the three, but at a licensed dealer it cuts the ' +
                              'tax base on your next car, which claws a good part of the gap back.' }
         };
+
+        /* What a dealer asks is above what the car is worth — the gap is their
+           reconditioning, warranty and floor space. Listings you browse sit at
+           the asking end, which is why a valuation always looks low. */
+        const ASKING_MARKUP = 1.12;
 
         /* Dealers discount an old car harder than a new one — the spread runs
            from mid-teens on a late-model car to far wider past 100,000 miles. */
         function disposalFactor(channel, ageAtSale) {
             const d = DISPOSAL[channel] || DISPOSAL.private;
-            if (!d.discount) return 1;
-            return 1 - Math.min(0.34, d.discount + 0.015 * Math.max(0, ageAtSale - 5));
+            return 1 - Math.min(0.42, d.discount + 0.015 * Math.max(0, ageAtSale - 5));
         }
 
         /* ── Optimistic / expected / pessimistic ────────────────────────
@@ -2444,11 +2480,25 @@
             };
         }
 
-        function retainedValue(years, curve) {
-            const c = DEPRECIATION_CURVES[curve] || DEPRECIATION_CURVES.typical;
+        /* Depreciation is not a constant percentage forever — it eases off as
+           a car ages, which is why a five-to-ten-year-old car loses far less
+           than a new one. Beyond year five the annual rate drops to 70% of the
+           early rate. Checked against the market: a 2019 CR-V EX-L comes out at
+           $20,400 on this curve against KBB's $20,900, where a constant rate
+           gave $19,800. */
+        const LATE_PHASE = 0.7;
+
+        function retainedCurve(years, firstYear, annual) {
             if (years <= 0) return 1;
-            if (years <= 1) return 1 - c.firstYear * years;
-            return (1 - c.firstYear) * Math.pow(1 - c.annual, years - 1);
+            if (years <= 1) return 1 - firstYear * years;
+            const early = (1 - firstYear) * Math.pow(1 - annual, Math.min(years, 5) - 1);
+            if (years <= 5) return early;
+            return early * Math.pow(1 - annual * LATE_PHASE, years - 5);
+        }
+
+        function retainedValue(years, curve) {
+            const c = DEPRECIATION_CURVES[curve] || DEPRECIATION_CURVES.average;
+            return retainedCurve(years, c.firstYear, c.annual);
         }
 
         function loanPayment(principal, monthlyRate, term) {
@@ -3330,8 +3380,7 @@
             if (years <= 0) return 1;
             const adj = TRIMS[selectedTrim].retentionAdj;
             const d1 = Math.min(0.5, Math.max(0.05, model.d1 - adj));
-            const base = years <= 1 ? 1 - d1 * years : (1 - d1) * Math.pow(1 - model.r, years - 1);
-            return Math.max(0.03, base);
+            return Math.max(0.03, retainedCurve(years, d1, model.r));
         }
 
         /* Same odometer rule the calculator uses. */
@@ -3480,7 +3529,8 @@
                 ['Worth at sale', usd0(sellValue), 'at ' + sellAge.toFixed(1) + ' yr old'],
                 ['Value lost', usd0(loss), pctOfBuy.toFixed(0) + '% of what you paid'],
                 ['Per year', usd0(loss / hold), usd0(loss / (hold * 12)) + '/mo'],
-                ['Of new price', pctOfNew.toFixed(0) + '%', 'the maker\'s $' + Math.round(msrp / 1000) + 'k']
+                ['Of new price', pctOfNew.toFixed(0) + '%', 'the maker\'s $' + Math.round(msrp / 1000) + 'k'],
+                ['Dealer asking', usd0(buyValue * ASKING_MARKUP), 'what you will see listed']
             ].map(([label, val, sub]) =>
                 '<div class="loss-tile"><div class="tile-label">' + label + '</div><div class="tile-val">' + val +
                 '</div><div class="tile-sub">' + sub + '</div></div>').join('');
@@ -3507,8 +3557,13 @@
                 bits.push('That is the best of these six over this window; the ' + worst.m.name + ' would shed ' +
                     usd0(worst.loss) + ', a difference of ' + usd0(worst.loss - loss) + '.');
             }
-            bits.push('Note the curve flattens: the same car held from year 5 to year 10 loses far less than from ' +
-                'year 0 to year 5, which is the whole argument for buying used.');
+            bits.push('Note the curve flattens — the annual rate eases off after year five, so the same car held ' +
+                'from year 5 to year 10 loses far less than from year 0 to year 5. That is the whole argument for ' +
+                'buying used.');
+            bits.push('<strong>These are market values, not asking prices.</strong> A forecourt adds roughly 12% ' +
+                'for reconditioning, warranty and overhead, so browsing listings will always look dearer than a ' +
+                'valuation — a 2019 CR-V values around $20,400 here and KBB puts a dealer EX-L at $20,900, while ' +
+                'the average 2019 CR-V <em>listed</em> runs $21,000–25,000.');
 
             $('depSummary').innerHTML = bits.join(' ');
         }
