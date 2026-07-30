@@ -1371,6 +1371,13 @@
                 <button class="preset-btn" type="button" data-brand="american">🇺🇸 American</button>
                 <button class="preset-btn" type="button" data-brand="germanLux">🇩🇪 German luxury</button>
             </div>
+            <div class="preset-row" id="bodyPresets" aria-label="Body style">
+                <button class="preset-btn" type="button" data-body="compactCar">🚗 Small car</button>
+                <button class="preset-btn" type="button" data-body="sedan">🚙 Saloon</button>
+                <button class="preset-btn" type="button" data-body="suv">🚐 Compact SUV</button>
+                <button class="preset-btn" type="button" data-body="largeSuv">🚌 Three-row SUV</button>
+                <button class="preset-btn" type="button" data-body="truck">🛻 Pickup</button>
+            </div>
             <div class="preset-row" id="agePresets" aria-label="Age when you buy it">
                 <button class="preset-btn" type="button" data-age="new">✨ Brand new</button>
                 <button class="preset-btn" type="button" data-age="three">👍 3 years</button>
@@ -2242,6 +2249,15 @@
                     $20–25/mo rather than the $110/mo lifetime average, which is what AAA's 11.04 cents per mile
                     describes. The four bands and the mileage scaling are modelled; the totals and the warranty
                     terms are published.</li>
+                <li><strong>Body style</strong> — the marque prices are fleet averages describing a compact
+                    crossover, so the shape you pick scales them: a small car ×0.74, a saloon ×0.88, a compact SUV
+                    ×1.00, a three-row SUV ×1.30, a pickup ×1.28. Those are the ratios between real 2026 base prices
+                    inside a single brand's own range — a Corolla against a RAV4 against a Highlander is the same
+                    spread as a Civic against a CR-V against a Pilot. Size carries into upkeep (×0.90 to ×1.20, for
+                    tires, brakes and fluid volumes) and into cover (×0.95 to ×1.10, since a heavier vehicle does
+                    more damage and pickups are stolen more), both smaller effects than the price gap. Picking a
+                    named model overrides all of it — those are real cars with real prices, and every one in the set
+                    is a compact SUV.</li>
                 <li><strong>Warranties</strong> — 3yr/36k basic and 5yr/60k powertrain is the industry standard
                     (Toyota, Honda, Ford, Chevrolet); BMW runs 4yr/50k; Hyundai and Kia lead with 5yr/60k basic and
                     10yr/100k powertrain.</li>
@@ -2575,6 +2591,32 @@
             }
         };
 
+        /* ── Body style ──────────────────────────────────────────────────
+           The marque prices above are fleet averages, and inside one badge the
+           shape is worth as much as the badge: a Civic and a Pilot are the same
+           Honda. The multipliers are the ratio of real 2026 base prices within
+           each brand's own range, taking a compact crossover as 1.00 because
+           that is what the brand averages describe. Size follows through into
+           upkeep — larger tires, bigger brakes, more fluid — and into cover,
+           where a heavier vehicle does more damage and a truck is stolen more
+           often, though both effects are milder than the price gap. */
+        const BODY_TYPES = {
+            compactCar: { label: '🚗 Small car', sub: 'Civic, Corolla, Elantra',
+                          priceMult: 0.74, maintMult: 0.90, insMult: 0.95 },
+            sedan:      { label: '🚙 Saloon', sub: 'Camry, Accord, 3 Series',
+                          priceMult: 0.88, maintMult: 0.95, insMult: 1.00 },
+            suv:        { label: '🚐 Compact SUV', sub: 'RAV4, CR-V, X3 — the baseline',
+                          priceMult: 1.00, maintMult: 1.00, insMult: 1.00 },
+            largeSuv:   { label: '🚌 Three-row SUV', sub: 'Highlander, Pilot, X5',
+                          priceMult: 1.30, maintMult: 1.15, insMult: 1.08 },
+            truck:      { label: '🛻 Pickup', sub: 'F-150, Silverado, Tacoma',
+                          priceMult: 1.28, maintMult: 1.20, insMult: 1.10,
+                          /* No German luxury marque sells one, so the guided
+                             path does not offer a price for a car you cannot
+                             buy. */
+                          notFor: ['germanLux'] }
+        };
+
         /* Repair spend runs at about half the lifetime average while a car is
            under warranty and climbs steeply after, reaching 2.6x past fifteen
            years. These four bands are normalised so their weighted mean across
@@ -2754,6 +2796,10 @@
 
         const usd = (n) => (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n)).toLocaleString('en-US');
         const usd0 = (n) => '$' + Math.round(n).toLocaleString('en-US');
+        /* Rounded to the nearest thousand — a chip has room for "$24k", and a
+           price estimated from a segment average does not deserve four digits
+           of false precision anyway. */
+        const usdK = (n) => '$' + Math.round(n / 1000) + 'k';
 
         /* ── Cash flow ledger ────────────────────────────────────────────
            Each entry is an amount, the month it happens, and its component.
@@ -4162,22 +4208,61 @@
                 why: 'Marque decides two things at once, and they pull the same way: a Toyota keeps 68% of its ' +
                     'value at five years and costs about $5,900 to run for a decade, where a German saloon keeps ' +
                     '45% and costs nearer $16,000.',
-                choices: [
-                    { value: 'japanese', label: '🇯🇵 Japanese', sub: 'Toyota, Honda, Mazda — best resale, cheapest to run' },
-                    { value: 'korean', label: '🇰🇷 Korean', sub: 'Hyundai, Kia — 10yr powertrain warranty' },
-                    { value: 'american', label: '🇺🇸 American', sub: 'Ford, Chevy — cheap upkeep, weak resale' },
-                    { value: 'germanLux', label: '🇩🇪 German luxury', sub: 'BMW, Audi, MB — 3x the upkeep' }
-                ],
+                /* Priced live at whatever age is already chosen, so the ranges
+                   are the ones you would actually be shopping. */
+                choicesFn: () => {
+                    const at = carAge || 'three';
+                    const band = AGE_BANDS[at];
+                    const priced = (key, text) => {
+                        const r = estimateRange(key, at);
+                        return text + ' · <strong>' + usdK(r.low) + '–' + usdK(r.high) + '</strong> ' +
+                            (band.buyAge === 0 ? 'new' : 'at ' + band.label.toLowerCase());
+                    };
+                    return [
+                        { value: 'japanese', label: '🇯🇵 Japanese', sub: priced('japanese', 'Toyota, Honda, Mazda — best resale, cheapest to run') },
+                        { value: 'korean', label: '🇰🇷 Korean', sub: priced('korean', 'Hyundai, Kia — 10yr powertrain warranty') },
+                        { value: 'american', label: '🇺🇸 American', sub: priced('american', 'Ford, Chevy — cheap upkeep, weak resale') },
+                        { value: 'germanLux', label: '🇩🇪 German luxury', sub: priced('germanLux', 'BMW, Audi, MB — 3x the upkeep') }
+                    ];
+                },
                 get: () => carBrand,
                 set: (v) => { carBrand = v; if (!carAge) carAge = 'three'; applyCarProfile(); }
+            },
+            {
+                id: 'body',
+                q: 'What shape?',
+                why: 'Inside one badge the shape moves the price as much as the badge does — a Civic and a ' +
+                    'Pilot are the same Honda. It follows through into upkeep and cover too: bigger tires, ' +
+                    'bigger brakes, more to insure.',
+                skipIf: () => !carBrand,
+                choicesFn: () => Object.entries(BODY_TYPES)
+                    .filter(([, body]) => !(body.notFor || []).includes(carBrand))
+                    .map(([value, body]) => {
+                        const price = estimatePrice(carBrand, value, carAge || 'three');
+                        return {
+                            value,
+                            label: body.label,
+                            sub: body.sub + ' · <strong>' + usdK(price) + '</strong>'
+                        };
+                    }),
+                get: () => carBody,
+                set: (v) => { carBody = v; if (!carAge) carAge = 'three'; applyCarProfile(); }
             },
             {
                 id: 'age',
                 q: 'How old when you buy it?',
                 why: 'Repair spend runs at about half the lifetime average while the warranty holds, and climbs ' +
                     'steeply once it lapses. Age sets the price, the cover you still have, and the bills ahead.',
-                choices: Object.entries(AGE_BANDS).map(([value, band]) =>
-                    ({ value, label: band.label, sub: band.sub })),
+                /* The same car at four ages, so the depreciation you are being
+                   asked about is visible as money rather than described. */
+                choicesFn: () => Object.entries(AGE_BANDS).map(([value, band]) => {
+                    const price = carBrand ? estimatePrice(carBrand, carBody, value) : null;
+                    return {
+                        value,
+                        label: band.label,
+                        sub: band.sub + (price ? ' · <strong>' + usdK(price) + '</strong>' : '')
+                    };
+                }),
                 get: () => carAge,
                 set: (v) => { carAge = v; if (!carBrand) carBrand = 'japanese'; applyCarProfile(); }
             },
@@ -4187,11 +4272,20 @@
                 why: 'Real cars beat averages. Pick one and the price comes from that nameplate\'s own ' +
                     'depreciation curve at the age you chose, not from a segment average.',
                 skipIf: () => !MODELS.some((m) => m.brand === carBrand),
-                choicesFn: () => MODELS.filter((m) => m.brand === carBrand).map((m) => ({
-                    value: m.key,
-                    label: m.name,
-                    sub: (m.hold5 * 100).toFixed(0) + '% of its value left at 5 years'
-                })).concat([{ value: 'none', label: 'Not decided yet', sub: 'Use the segment average instead' }]),
+                choicesFn: () => {
+                    const band = AGE_BANDS[carAge] || AGE_BANDS.three;
+                    const year = new Date().getFullYear() - band.buyAge;
+                    return MODELS.filter((m) => m.brand === carBrand).map((m) => ({
+                        value: m.key,
+                        label: m.name,
+                        sub: (m.hold5 * 100).toFixed(0) + '% left at 5 years · <strong>' +
+                            usdK(modelValueAt(m, modelMsrp(m, year), band.buyAge)) + '</strong> as a ' + year
+                    })).concat([{
+                        value: 'none', label: 'Not decided yet',
+                        sub: 'Use the segment average — ' + (carBrand
+                            ? usdK(estimatePrice(carBrand, carBody, carAge || 'three')) : 'no model picked')
+                    }]);
+                },
                 get: () => guideAnswers.model,
                 set: (v) => {
                     guideAnswers.model = v;
@@ -4207,8 +4301,12 @@
                 field: 'miles',
                 suffix: 'mi/yr',
                 choices: [
-                    { value: 6000, label: '6,000', sub: 'City, mostly transit' },
+                    { value: 4000, label: '4,000', sub: 'Errands only — transit or walking otherwise' },
+                    { value: 6000, label: '6,000', sub: 'City, short hops · fits a 500 mi/mo subscription' },
+                    { value: 8000, label: '8,000', sub: 'Light use, occasional weekend away' },
+                    { value: 10000, label: '10,000', sub: 'Modest commute — under most lease caps' },
                     { value: 12000, label: '12,000', sub: 'US average' },
+                    { value: 15000, label: '15,000', sub: 'Daily commute, the usual big-cap lease' },
                     { value: 20000, label: '20,000', sub: 'Long commute' },
                     { value: 30000, label: '30,000', sub: 'Road warrior — leases stop making sense' }
                 ]
@@ -4249,22 +4347,51 @@
             advanceTimer = setTimeout(guideNext, 220);
         }
 
-        let carBrand = null, carAge = null;
+        let carBrand = null, carAge = null, carBody = null;
 
-        /* Marque and age together decide price, upkeep, cover and resale. */
-        function applyCarProfile() {
+        /* Body style is optional — until it is picked, the marque averages
+           stand on their own, which is what they were before the shape was a
+           question. */
+        function bodyOf(key) {
+            return BODY_TYPES[key === undefined ? carBody : key] || { priceMult: 1, maintMult: 1, insMult: 1 };
+        }
+
+        /* What a car of this marque, shape and age costs today. Kept separate
+           from applyCarProfile so the walkthrough can price a choice before you
+           have committed to it. */
+        function estimatePrice(brandKey, bodyKey, ageKey) {
+            const brand = BRANDS[brandKey];
+            if (!brand) return null;
+            const band = AGE_BANDS[ageKey] || AGE_BANDS.new;
+            const mult = (BODY_TYPES[bodyKey] || { priceMult: 1 }).priceMult;
+            return brand.newPrice * mult * retainedValue(band.buyAge, brand.curve);
+        }
+
+        /* The spread across every shape in the range, which is what "how much
+           is a Toyota" honestly answers. */
+        function estimateRange(brandKey, ageKey) {
+            const prices = Object.entries(BODY_TYPES)
+                .filter(([, body]) => !(body.notFor || []).includes(brandKey))
+                .map(([k]) => estimatePrice(brandKey, k, ageKey));
+            return prices.length ? { low: Math.min(...prices), high: Math.max(...prices) } : null;
+        }
+
+        /* Marque, shape and age together decide price, upkeep, cover and resale. */
+        function applyCarProfile(bodyOverride) {
             const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
             if (!brand || !band) return;
+            const body = bodyOf(bodyOverride);
 
             const holdYears = Math.max(0.5, Math.round(num('horizon')) / 12);
             const miles = num('miles') || 12000;
 
-            const priceNow = brand.newPrice * retainedValue(band.buyAge, brand.curve);
+            const priceNow = brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve);
             $('price').value = Math.round(priceNow / 50) * 50;
             $('depreciation').value = brand.curve;
             $('maintenance').value = Math.round(
-                brand.maint10 / 120 * maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
-            $('insurance').value = Math.round(210 * brand.insMult * band.insMult / 5) * 5;
+                brand.maint10 / 120 * body.maintMult *
+                maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
+            $('insurance').value = Math.round(210 * brand.insMult * body.insMult * band.insMult / 5) * 5;
             $('down').value = Math.round(priceNow * 0.12 / 100) * 100;
 
             buyingUsed = band.buyAge > 0;
@@ -4285,7 +4412,9 @@
             const msrp = modelMsrp(model, modelYear);
             const miles = num('miles') || 12000;
 
-            applyCarProfile();
+            /* Every nameplate in the set is a compact SUV, so a shape picked
+               earlier must not also be applied on top of the real car. */
+            applyCarProfile('suv');
             $('price').value = Math.round(modelValueAt(model, msrp, band.buyAge) / 50) * 50;
             priceAnchor = 'price';
             /* Whichever generic curve tracks this nameplate most closely. */
@@ -4301,11 +4430,13 @@
         function renderCarProfile(v) {
             const host = $('carProfile').querySelector('span:last-child');
             if (!carBrand || !carAge) {
-                host.innerHTML = 'Pick a marque and an age above and the price, depreciation curve, upkeep and ' +
-                    'insurance are all set together — they are not independent. Or type your own numbers below.';
+                host.innerHTML = 'Pick a marque, a shape and an age above and the price, depreciation curve, ' +
+                    'upkeep and insurance are all set together — they are not independent. Or type your own ' +
+                    'numbers below.';
                 return;
             }
             const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
+            const shape = BODY_TYPES[carBody];
             const sellAge = band.buyAge + v.months / 12;
             const basicLeft = Math.max(0, brand.warrantyBasic - band.buyAge);
             const powerLeft = Math.max(0, brand.warrantyPower - band.buyAge);
@@ -4322,12 +4453,19 @@
                 cover = '<strong>Out of warranty entirely</strong> — every repair is yours from day one.';
             }
 
-            host.innerHTML = brand.label + ' (' + brand.examples + ') at ' + band.label.toLowerCase() + ': ' +
+            /* "Japanese compact SUV (RAV4, CR-V…)" once a shape is chosen,
+               otherwise the marque on its own as before. */
+            const name = brand.label + (shape ? ' ' + shape.label.replace(/^\S+\s/, '').toLowerCase() : '');
+            host.innerHTML = name + ' (' + brand.examples +
+                ') at ' + band.label.toLowerCase() + ': ' +
                 'worth ' + usd0(v.price) + ' now, ' + usd0(v.resale) + ' after your ' + v.months + ' months, ' +
                 'which is age ' + sellAge.toFixed(1) + '. ' + cover + ' Upkeep is set to <strong>' +
                 usd0(v.maintenance) + '/mo</strong> — the ten-year total for this marque is ' +
-                usd0(brand.maint10) + ', spread across the years you actually own it and scaled to your mileage. ' +
-                brand.note;
+                usd0(brand.maint10) + ', spread across the years you actually own it and scaled to your mileage' +
+                (shape && shape.maintMult !== 1
+                    ? ' and to the shape, since ' + (shape.maintMult > 1 ? 'a bigger' : 'a smaller') +
+                      ' vehicle is ' + (shape.maintMult > 1 ? 'dearer' : 'cheaper') + ' on tires and brakes'
+                    : '') + '. ' + brand.note;
         }
 
         function renderGuide() {
@@ -4358,7 +4496,9 @@
                     ['Keeping it', $('horizon').value + ' months'],
                     ['Car', guideAnswers.modelLabel && guideAnswers.model !== 'none'
                         ? guideAnswers.modelLabel
-                        : (carBrand ? BRANDS[carBrand].label + ', ' + AGE_BANDS[carAge].label.toLowerCase() : '—')],
+                        : (carBrand ? BRANDS[carBrand].label +
+                            (BODY_TYPES[carBody] ? ' ' + BODY_TYPES[carBody].label.replace(/^\S+\s/, '') : '') +
+                            ', ' + AGE_BANDS[carAge].label.toLowerCase() : '—')],
                     ['List price', usd0(num('price'))],
                     ['Upkeep', usd0(num('maintenance')) + '/mo'],
                     ['Out the door', usd0(num('otd'))],
@@ -4900,6 +5040,9 @@
             for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {
                 btn.classList.toggle('active', btn.dataset.brand === carBrand);
             }
+            for (const btn of document.querySelectorAll('#bodyPresets .preset-btn')) {
+                btn.classList.toggle('active', btn.dataset.body === carBody);
+            }
             for (const btn of document.querySelectorAll('#agePresets .preset-btn')) {
                 btn.classList.toggle('active', btn.dataset.age === carAge);
             }
@@ -4916,7 +5059,7 @@
             try {
                 const data = {
                     touchedResale: $('resale').dataset.touched === '1',
-                    creditTier, buyingUsed, carBrand, carAge, scenarioCase
+                    creditTier, buyingUsed, carBrand, carAge, carBody, scenarioCase
                 };
                 for (const id of INPUT_IDS) data[id] = $(id).value;
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -4936,6 +5079,7 @@
                 if (typeof data.buyingUsed === 'boolean') buyingUsed = data.buyingUsed;
                 if (BRANDS[data.carBrand]) carBrand = data.carBrand;
                 if (AGE_BANDS[data.carAge]) carAge = data.carAge;
+                if (BODY_TYPES[data.carBody]) carBody = data.carBody;
                 if (SCENARIOS[data.scenarioCase]) scenarioCase = data.scenarioCase;
             } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
         }
@@ -4983,6 +5127,16 @@
             btn.addEventListener('click', () => {
                 carAge = btn.dataset.age;
                 if (!carBrand) carBrand = 'japanese';
+                applyCarProfile();
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#bodyPresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                carBody = btn.dataset.body;
+                if (!carBrand) carBrand = 'japanese';
+                if (!carAge) carAge = 'three';
                 applyCarProfile();
                 update();
             });
