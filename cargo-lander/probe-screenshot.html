@@ -105,6 +105,25 @@
                         g.physics.lander.landed = false;
                         g.physics.lander.vy = 6;
                         g.physics.lander.fuel = 100;
+                    } else if (script === 'fullscreenUnsupported') {
+                        // Reproduces iPhone Safari, which implements no element
+                        // Fullscreen API: tapping Fullscreen used to throw a
+                        // TypeError out of the inline onclick and paint
+                        // index.html's red #error-log banner over the game.
+                        // A clean shot here means the banner stayed hidden.
+                        const de = iw.document.documentElement;
+                        for (const k of ['requestFullscreen', 'webkitRequestFullscreen', 'msRequestFullscreen']) {
+                            Object.defineProperty(de, k, { value: undefined, configurable: true });
+                        }
+                        g.updateFullscreenAvailability();
+                        // Click the real button rather than calling the method:
+                        // the symptom depends on the exception escaping the
+                        // inline onclick *inside the iframe*, which is what
+                        // reaches index.html's window.onerror. Calling
+                        // g.toggleFullscreen() from out here throws in the parent
+                        // instead and the banner never shows either way.
+                        const fsBtn = iw.document.getElementById('hud-fullscreen-btn');
+                        if (fsBtn) fsBtn.click();
                     } else if (script === 'shieldGauge') {
                         // Vitals-cluster check: shield upgrade owned (row should
                         // appear) with partial charge, fuel/hull dropped to
