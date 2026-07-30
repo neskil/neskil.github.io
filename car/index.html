@@ -433,6 +433,15 @@
         }
 
         .avail-badge:empty { display: none; }
+
+        td.cost-cell {
+            text-align: left;
+            white-space: normal;
+            font-family: 'Outfit', sans-serif;
+        }
+        td.cost-cell.open { color: var(--success); }
+        td.cost-cell.costly { color: var(--warning); }
+        td.cost-cell.gated { color: var(--danger); }
         .avail-badge.open { color: var(--success); }
         .avail-badge.costly { color: var(--warning); }
         .avail-badge.gated { color: var(--danger); }
@@ -1318,6 +1327,12 @@
             <p class="verdict-sub" id="verdictWarning" style="color:var(--warning)"></p>
         </section>
 
+        <!-- How far you drive -->
+        <section class="panel">
+            <div class="panel-title">What your mileage costs you</div>
+            <div id="mileagePanel"></div>
+        </section>
+
         <!-- Chart -->
         <section class="panel">
             <div class="panel-title">
@@ -1600,10 +1615,10 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="leaseAllowance">Mileage allowance</label>
+                            <label for="leaseAllowance">Miles included</label>
                             <div class="input-shell">
-                                <input type="number" id="leaseAllowance" min="0" step="1000" value="10000">
-                                <span class="suffix">mi/yr</span>
+                                <input type="number" id="leaseAllowance" min="0" step="50" value="1000">
+                                <span class="suffix">mi/mo</span>
                             </div>
                         </div>
                         <div class="field">
@@ -1658,18 +1673,18 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="rentAllowance">Mileage included</label>
+                            <label for="rentAllowance">Miles included</label>
                             <div class="input-shell">
-                                <input type="number" id="rentAllowance" min="0" step="100" value="1250">
+                                <input type="number" id="rentAllowance" min="0" step="100" value="500">
                                 <span class="suffix">mi/mo</span>
                             </div>
                         </div>
                         <div class="field">
-                            <label for="rentOverage">Extra miles</label>
+                            <label for="rentBlockPrice">Each extra 1,000 mi</label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="rentOverage" min="0" step="0.05" value="0.35">
-                                <span class="suffix">/mi</span>
+                                <input type="number" id="rentBlockPrice" min="0" step="5" value="65">
+                                <span class="suffix">/mo</span>
                             </div>
                         </div>
                     </div>
@@ -2687,13 +2702,14 @@
                 leasePayment: num('leasePayment'),
                 leaseSigning: num('leaseSigning'),
                 leaseTerm: Math.max(1, Math.round(num('leaseTerm'))),
-                leaseAllowance: num('leaseAllowance'),
+                /* Quoted per month, contracted per year. */
+                leaseAllowance: num('leaseAllowance') * 12,
                 leaseOverage: num('leaseOverage'),
                 leaseDisposition: num('leaseDisposition'),
                 rentRate: num('rentRate'),
                 rentStartFee: num('rentStartFee'),
                 rentAllowance: num('rentAllowance'),
-                rentOverage: num('rentOverage')
+                rentBlockPrice: num('rentBlockPrice')
             };
         }
 
@@ -2834,10 +2850,13 @@
         function scenarioRent(v) {
             const led = makeLedger(v.months, v.monthlyReturn);
             led.add(v.rentStartFee, 0, 'fees');
-            /* Subscription mileage caps are monthly, and the overage is billed
-               on the same cycle rather than saved up for a turn-in. */
+            /* A subscription sells mileage in blocks rather than billing per
+               mile after the fact, so you buy the whole block or go without.
+               Unused miles roll over, which means your average matters and a
+               single heavy month does not. */
             const excessPerMonth = Math.max(0, v.miles / 12 - v.rentAllowance);
-            const overagePerMonth = excessPerMonth * v.rentOverage;
+            const blocks = Math.ceil(excessPerMonth / 1000);
+            const overagePerMonth = blocks * v.rentBlockPrice;
             for (let m = 1; m <= v.months; m++) {
                 led.add(v.rentRate, m, 'depreciation');
                 led.add(overagePerMonth, m, 'fees');
@@ -2847,6 +2866,7 @@
             return finish(t, v, {
                 resale: 0,
                 overagePerMonth,
+                mileageBlocks: blocks,
                 monthlyOutlay: v.rentRate + overagePerMonth
             });
         }
@@ -3326,7 +3346,9 @@
             for (const btn of $('creditTiers').querySelectorAll('.preset-btn')) {
                 btn.classList.toggle('active', btn.dataset.tier === creditTier);
             }
-            for (const badge of document.querySelectorAll('.avail-badge')) {
+            /* Scoped to the option badges — anything else wearing this class
+               is not the credit tier's business. */
+            for (const badge of document.querySelectorAll('.avail-badge[data-avail]')) {
                 const state = tier.avail[badge.dataset.avail];
                 badge.className = 'avail-badge ' + state;
                 badge.textContent = AVAIL_TEXT[state];
@@ -3391,14 +3413,20 @@
 
             const rent = results.rent;
             const rentBits = [];
+            const perMonth = Math.round(v.miles / 12);
             if (rent.overagePerMonth > 0) {
-                rentBits.push('At ' + Math.round(v.miles / 12).toLocaleString('en-US') + ' mi/mo against a ' +
-                    v.rentAllowance.toLocaleString('en-US') + ' mi cap you add <strong>' +
-                    usd0(rent.overagePerMonth) + '/mo</strong> in excess mileage — ' +
-                    usd0(rent.overagePerMonth * v.months) + ' over the horizon.');
+                rentBits.push('You drive ' + perMonth.toLocaleString('en-US') + ' mi/mo against ' +
+                    v.rentAllowance.toLocaleString('en-US') + ' included, so you buy <strong>' +
+                    rent.mileageBlocks + ' extra block' + (rent.mileageBlocks > 1 ? 's' : '') +
+                    '</strong> of 1,000 miles at ' + usd0(v.rentBlockPrice) + ' each — <strong>' +
+                    usd0(rent.overagePerMonth) + '/mo</strong> on top, ' +
+                    usd0(rent.overagePerMonth * v.months) + ' over the horizon. Blocks are sold whole, so the ' +
+                    'last one is only partly used.');
             } else {
-                rentBits.push('Your ' + Math.round(v.miles / 12).toLocaleString('en-US') +
-                    ' mi/mo fits inside the included mileage.');
+                rentBits.push('Your ' + perMonth.toLocaleString('en-US') + ' mi/mo fits inside the ' +
+                    v.rentAllowance.toLocaleString('en-US') + ' included, with ' +
+                    (v.rentAllowance - perMonth).toLocaleString('en-US') + ' to spare — and unused miles roll ' +
+                    'over, so it is your average that has to fit, not every single month.');
             }
             rentBits.push('Effective all-in: <strong>' + usd0(rent.monthlyOutlay) + '/mo</strong>.');
             $('rentNote').innerHTML = rentBits.join(' ');
@@ -3406,6 +3434,54 @@
             for (const el of document.querySelectorAll('.summary-cost')) {
                 el.textContent = usd0(results[el.dataset.cost].perMonth) + '/mo';
             }
+        }
+
+        /* Mileage is metered on two of the four routes and quietly repriced on
+           the other two, so it deserves its own comparison. */
+        function renderMileagePanel(results, v) {
+            const perMonth = Math.round(v.miles / 12);
+            const leasePerMonth = Math.round(v.leaseAllowance / 12);
+            const rows = [
+                ['Pay cash', 'Unlimited', 'Miles cost you resale value and wear, not a fee — ' +
+                    usd0(v.price * (1 - v.mileageValue)) + ' of value at your mileage',
+                    v.mileageValue < 1 ? 'costly' : 'open'],
+                ['Finance it', 'Unlimited', 'Same as cash, except a high-mileage car is also worth less than ' +
+                    'the loan for longer', v.mileageValue < 1 ? 'costly' : 'open'],
+                ['Lease it', leasePerMonth.toLocaleString('en-US') + ' mi/mo',
+                    results.lease.overageTotal > 0
+                        ? usd0(results.lease.overageTotal) + ' billed at turn-in, at ' +
+                          '$' + v.leaseOverage.toFixed(2) + '/mi over'
+                        : 'Inside the allowance',
+                    results.lease.overageTotal > 0 ? 'gated' : 'open'],
+                ['Rent monthly', v.rentAllowance.toLocaleString('en-US') + ' mi/mo',
+                    results.rent.overagePerMonth > 0
+                        ? usd0(results.rent.overagePerMonth) + '/mo for ' + results.rent.mileageBlocks +
+                          ' extra block' + (results.rent.mileageBlocks > 1 ? 's' : '')
+                        : 'Inside the allowance',
+                    results.rent.overagePerMonth > 0 ? 'gated' : 'open']
+            ];
+
+            const table = '<div class="table-wrap" style="margin-top:0"><table><thead><tr>' +
+                ['Route', 'Included', 'What your ' + perMonth.toLocaleString('en-US') + ' mi/mo costs']
+                    .map((h) => '<th scope="col">' + h + '</th>').join('') +
+                '</tr></thead><tbody>' + rows.map(([r, inc, cost, state]) =>
+                    '<tr><td>' + r + '</td><td>' + inc + '</td><td class="cost-cell ' + state + '">' +
+                    cost + '</td></tr>').join('') +
+                '</tbody></table></div>';
+
+            const metered = results.lease.overageTotal > 0 || results.rent.overagePerMonth > 0;
+            const note = metered
+                ? '<strong>Two of these meter you and two do not.</strong> At ' +
+                  v.miles.toLocaleString('en-US') + ' miles a year you are over on ' +
+                  [results.lease.overageTotal > 0 ? 'the lease' : null,
+                   results.rent.overagePerMonth > 0 ? 'the subscription' : null].filter(Boolean).join(' and ') +
+                  '. Owning has no cap — the mileage comes out of resale instead, which is the quieter but often ' +
+                  'smaller cost. <strong>High-mileage drivers should generally own.</strong>'
+                : 'Your mileage fits every allowance here, which keeps all four routes genuinely comparable. ' +
+                  'Push past a cap and the metered options reprice fast — worth re-checking if your driving changes.';
+
+            $('mileagePanel').innerHTML = table + '<div class="callout" style="margin-top:10px">' +
+                '<span class="ico">🛣️</span><span>' + note + '</span></div>';
         }
 
         function renderInsights(results, v) {
@@ -4564,7 +4640,7 @@
         const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
             'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
             'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition',
-            'rentRate', 'rentStartFee', 'rentAllowance', 'rentOverage'];
+            'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice'];
 
         function update() {
             syncPriceFields();
@@ -4584,6 +4660,7 @@
             renderCashNote(results, v);
             renderOptionNotes(results, v);
             renderCarProfile(v);
+            renderMileagePanel(results, v);
             renderCredit();
             renderInsights(results, v);
             syncPresets(v.months);
