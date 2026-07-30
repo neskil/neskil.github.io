@@ -743,15 +743,64 @@ Object.assign(CargoGame.prototype, {
         this.updateMuteUI();
     },
 
+    // iPhone Safari implements no element Fullscreen API at all — only
+    // HTMLVideoElement.webkitEnterFullscreen(). So requestFullscreen is
+    // *undefined* on documentElement there, and calling it threw a synchronous
+    // TypeError that the .catch() below could never see (a missing method
+    // doesn't return a rejected promise). The TypeError escaped the inline
+    // onclick, tripped index.html's window.onerror handler, and painted the big
+    // red debug banner across the top of the screen — the "fullscreen gives an
+    // error on iPhone" report. iPad Safari does support it, prefixed, so this
+    // has to be feature detection rather than a platform check.
+    fullscreenApi() {
+        const el = document.documentElement;
+        return {
+            request: el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || null,
+            exit: document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen || null,
+            element: () => document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null,
+        };
+    },
+
+    isFullscreenSupported() {
+        return !!this.fullscreenApi().request;
+    },
+
     toggleFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.log(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
+        const api = this.fullscreenApi();
+        if (!api.request) {
+            // Nothing to toggle. Say so where the player is looking rather than
+            // failing silently: iOS's own route to a chromeless game is
+            // Share ▸ Add to Home Screen, which launches it standalone.
+            this.addMessage("Fullscreen isn't supported by this browser", '#f59e0b');
+            return;
+        }
+        try {
+            if (!api.element()) {
+                const p = api.request.call(document.documentElement);
+                // Prefixed implementations return undefined instead of a promise.
+                if (p && typeof p.catch === 'function') {
+                    p.catch(err => console.log(`Error attempting to enable fullscreen: ${err.message}`));
+                }
+            } else if (api.exit) {
+                const p = api.exit.call(document);
+                if (p && typeof p.catch === 'function') {
+                    p.catch(err => console.log(`Error attempting to exit fullscreen: ${err.message}`));
+                }
             }
+        } catch (err) {
+            // A request can still be refused outright (permissions policy in an
+            // iframe, for one). Never let it reach window.onerror.
+            console.log(`Fullscreen unavailable: ${err.message}`);
+        }
+    },
+
+    // Hide the fullscreen buttons where the API doesn't exist, so iPhone players
+    // aren't offered a control that can't do anything.
+    updateFullscreenAvailability() {
+        if (this.isFullscreenSupported()) return;
+        for (const id of ['menu-fullscreen-btn', 'hud-fullscreen-btn']) {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.display = 'none';
         }
     },
 
