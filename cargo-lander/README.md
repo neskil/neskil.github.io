@@ -67,7 +67,7 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
 | `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
-| `tests.html` | Browser test suite (138 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
+| `tests.html` | Browser test suite (142 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
@@ -211,6 +211,12 @@ emulation:
    rules in `index.html` are where to look if it does.
 3. Toggle Settings → Visual Effects off/on once at a small viewport to
    confirm the post-FX pass adapts.
+4. **iPhone has no Fullscreen API** (only iPad does, prefixed), so both
+   fullscreen buttons are hidden there by `updateFullscreenAvailability()`
+   (`game/menu.js`, called from `init()`). Their absence on an iPhone is
+   correct, not a regression. Repro the unsupported path anywhere with
+   `probe-screenshot.html?script=fullscreenUnsupported` — it must render no red
+   `#error-log` banner.
 
 Touch *feel* (joystick drag, button sizing) can only be validated on real
 hardware — both the joystick and gamepad mappings still await a
