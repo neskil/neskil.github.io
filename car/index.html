@@ -1591,6 +1591,10 @@
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
                 <div class="option-body">
+                    <div class="preset-row" id="leasePresets" aria-label="Real lease quotes">
+                        <button class="preset-btn" type="button" data-payment="873">IAS 2026 Tiguan · $873</button>
+                        <button class="preset-btn" type="button" data-payment="500">National average · $500</button>
+                    </div>
                     <div class="field-grid">
                         <div class="field">
                             <label for="leasePayment">Payment (incl. tax)</label>
@@ -1655,6 +1659,21 @@
                         </div>
                     </div>
                     <p class="notes" style="margin-top:10px" id="leaseNote"></p>
+                    <p class="notes" style="margin-top:8px"><strong>Newcomers: leasing means a new car.</strong> With
+                        no US credit file the realistic door is an expat programme — <strong>International AutoSource
+                        (IAS)</strong> underwrites on your visa, job offer and home-country history, and it writes
+                        <em>new</em> cars only. A quoted 2026 VW Tiguan came to <strong>$873/mo</strong>. That figure
+                        is <em>before</em> insurance, so leave the insurance line above filled in — unlike a
+                        subscription, a lease does not include it, and full comprehensive and collision cover is
+                        mandatory for the whole term.</p>
+                    <p class="notes" style="margin-top:8px"><strong>The term moves the payment more than anything
+                        else.</strong> A 12-month lease is the expensive way to buy the same car — the drive-off and
+                        the steepest year of depreciation are spread over a third as many payments — so short terms
+                        quote high. Stretching to 36 months usually brings the monthly down; whether IAS in
+                        particular does is worth asking them, since the quote above was not run at every length.
+                        Move the term field and watch the total, not the payment: a longer lease that costs less per
+                        month can still cost more in the end, and it takes away the early exit you were paying the
+                        short term for.</p>
                 </div>
             </details>
 
@@ -1669,9 +1688,9 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="rentPresets" aria-label="Real subscription rates">
-                        <button class="preset-btn" type="button" data-rate="1000">Sixt+ BMW X1 · $1,000</button>
-                        <button class="preset-btn" type="button" data-rate="1200">Sixt+ midsize SUV · $1,200</button>
-                        <button class="preset-btn" type="button" data-rate="850">Generic sub · $850</button>
+                        <button class="preset-btn" type="button" data-rate="1000" data-allowance="500">Sixt+ BMW X1 2026 · $1,000</button>
+                        <button class="preset-btn" type="button" data-rate="1200" data-allowance="500">Sixt+ midsize SUV · $1,200</button>
+                        <button class="preset-btn" type="button" data-rate="850" data-allowance="1250">Flexcar (650+ score) · $850</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -1710,6 +1729,17 @@
                         registration and roadside are inside it, which is why those lines read $0 in the chart. Sixt+
                         also covers a second driver at no extra charge, worth $15–25/mo of a normal policy. What you
                         are really buying is the 30-day exit.</p>
+                    <p class="notes" style="margin-top:8px"><strong>Read the mileage cap before the rate.</strong>
+                        The $1,000 Sixt+ BMW X1 came with <strong>500 miles a month</strong> — 6,000 a year, well
+                        under half what an average US driver covers, and every mile past it is billed. A 30-mile
+                        round-trip commute alone spends 600. That cap, not the headline rate, is what decides whether
+                        a subscription is $1,000 a month or $1,300; set your real annual mileage at the top of the
+                        page and the note above will price the difference.</p>
+                    <p class="notes" style="margin-top:8px"><strong>Which one you can get is a credit question.</strong>
+                        <strong>Flexcar</strong> is the cheaper subscription, but its soft pull effectively wants a
+                        score around <strong>650</strong>. Below that — and a brand-new US file counts as below it —
+                        <strong>Sixt+</strong> is realistically the only door open, which is why the expensive
+                        preset is the default here rather than the cheap one.</p>
                 </div>
             </details>
         </section>
@@ -1944,10 +1974,14 @@
                             file outright. Where you are approved, expect a large down payment and a rate in the
                             10–15% region rather than the 6.39% average.</li>
                         <li class="con" data-mark="−"><strong>Leasing.</strong> Captive lenders normally want a
-                            score in the 660s or better. Without one you are usually declined, whatever your income.</li>
-                        <li class="con" data-mark="−"><strong>Subscriptions.</strong> Flexcar runs a soft credit
-                            pull that sets both your monthly rate and your deposit ($0–500). Sixt+ takes a deposit
-                            scaled to the vehicle group. No file means the worse end of both.</li>
+                            score in the 660s or better. Without one you are usually declined, whatever your income.
+                            The expat route around it — International AutoSource — writes <em>new</em> cars only,
+                            so "lease something cheap and used" is not on the menu: a quoted 2026 Tiguan was
+                            $873/mo before insurance.</li>
+                        <li class="con" data-mark="−"><strong>Subscriptions.</strong> Flexcar is the cheaper one,
+                            but its soft pull effectively gates at about a 650 score and sets your deposit
+                            ($0–500) too. Below that you are down to Sixt+ — around $1,000/mo, insurance in,
+                            500 miles included — and a deposit scaled to the vehicle group.</li>
                         <li class="con" data-mark="−"><strong>Insurance.</strong> Most states let insurers rate on a
                             credit-based insurance score, so the same driver pays more with no history. California,
                             Hawaii, Massachusetts and Michigan ban the practice — Georgia does not.</li>
@@ -1963,8 +1997,10 @@
                         <li class="pro" data-mark="+"><strong>Manufacturer new-to-country programmes.</strong>
                             Several captives underwrite on your visa, employment letter and home-country credit
                             instead of a US score. Ask the brand's finance arm directly, not the salesperson.</li>
-                        <li class="pro" data-mark="+"><strong>Expat finance specialists</strong> and credit-union
-                            newcomer loans, which price on income and residency rather than history.</li>
+                        <li class="pro" data-mark="+"><strong>Expat finance specialists</strong> — International
+                            AutoSource is the one most newcomers land on, and it underwrites on visa, employment
+                            and home-country history. New cars only, and the payment excludes insurance — and
+                            credit-union newcomer loans, which price on income and residency rather than history.</li>
                         <li class="pro" data-mark="+"><strong>ITIN lenders.</strong> You do not need a Social
                             Security number to be approved — some captives accept an ITIN under standard criteria.</li>
                         <li class="pro" data-mark="+"><strong>Turo</strong>, once you hold a licence — a
@@ -2169,10 +2205,16 @@
                     <strong>−1.9%</strong>, worst case 6.7%. That check is what set the mileage rate, added the
                     EX-class rung to each ladder — pricing an EX as an EX-L had been overstating it — and gave
                     hybrids their own premium and retention bonus.</li>
-                <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
-                    drivers, about $1,200 for the next size up. The road-test acceptance is first-hand: a Sixt+ car
-                    was taken to the Georgia test and accepted, with the subscriber as the named driver and the
+                <li><strong>Subscription rates</strong> — real quotes: Sixt+ at $1,000/mo for a 2026 BMW X1
+                    including insurance and two drivers but only <strong>500 miles a month</strong>, about $1,200
+                    for the next size up. Flexcar prices below that but wants roughly a 650 score, so the Sixt+
+                    number is the one that applies with no US file. The road-test acceptance is first-hand: a Sixt+
+                    car was taken to the Georgia test and accepted, with the subscriber as the named driver and the
                     insurance bought through the subscription.</li>
+                <li><strong>Lease quote</strong> — International AutoSource, the expat programme, on a 2026 VW
+                    Tiguan: <strong>$873/mo, insurance not included</strong>, and new cars only. Short terms quote
+                    highest; whether a longer term brings the monthly down at IAS specifically has not been
+                    verified, so treat the term field as something to ask about rather than a modelled result.</li>
                 <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
                     (781+), 6.27% prime (661–780), 9.57% near prime (601–660), 16.01% for poor credit on new cars;
                     7.70% to 21.77% across the same range on used. The no-US-file row is an estimate, because what
@@ -2554,10 +2596,12 @@
                 label: 'No US credit history', aprNew: 11.0, aprUsed: 15.0, estimated: true,
                 avail: { cash: 'open', loan: 'gated', lease: 'gated', rent: 'costly' },
                 note: 'A thin or empty US file is a lender decision, not a rate: mainstream banks decline, ' +
-                    'captive leases are usually out, and Flexcar\'s soft pull sets both your monthly rate and ' +
-                    'your deposit. What still works — a manufacturer new-to-country programme (proof of ' +
-                    'employment, visa, home-country credit), an expat specialist, a credit union newcomer loan, ' +
-                    'or an ITIN lender. Expect a bigger down payment and a rate in the 10–15% region if you ' +
+                    'captive leases are usually out, and the cheaper subscription (Flexcar, around a 650 score) ' +
+                    'is shut, leaving Sixt+ at roughly $1,000/mo on a 500-mile cap as the route that will ' +
+                    'actually say yes. What still works — a manufacturer new-to-country programme (proof of ' +
+                    'employment, visa, home-country credit), an expat specialist such as International ' +
+                    'AutoSource, which leases new cars only, a credit union newcomer loan, or an ITIN lender. ' +
+                    'Expect a bigger down payment and a rate in the 10–15% region if you ' +
                     'go outside those programmes. <strong>Cash is the one route nobody can decline</strong> — ' +
                     'which is worth more here than the return it gives up.'
             },
@@ -4829,9 +4873,19 @@
             });
         }
 
+        /* A subscription preset is a rate *and* a cap — the Sixt+ 500 mi/mo
+           allowance is as much a part of the quote as the $1,000. */
         for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
             btn.addEventListener('click', () => {
                 $('rentRate').value = btn.dataset.rate;
+                if (btn.dataset.allowance) $('rentAllowance').value = btn.dataset.allowance;
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                $('leasePayment').value = btn.dataset.payment;
                 update();
             });
         }
