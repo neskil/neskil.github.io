@@ -3730,7 +3730,7 @@
                     { value: 7, label: 'Georgia — buying here', sub: '7% title ad valorem tax' },
                     { value: 3, label: 'Georgia — brought my own car', sub: '3% new-resident rate' },
                     { value: 0, label: 'A state with no car tax', sub: 'Oregon, New Hampshire, Montana…' },
-                    { value: 6, label: 'Somewhere else', sub: 'Type your state\'s rate next' }
+                    { value: 6, label: 'Somewhere else', sub: 'Type your state\'s rate below', stay: true }
                 ]
             },
             {
@@ -3744,6 +3744,16 @@
 
         const guideAnswers = { licence: null, car: null };
         let guideIndex = 0;
+        let advanceTimer = null;
+
+        /* Choosing an answer is the answer — move to the next question rather
+           than making people confirm it. The pause is just long enough to see
+           the choice light up, and any option that expects follow-up typing
+           opts out with `stay`. */
+        function queueAdvance() {
+            clearTimeout(advanceTimer);
+            advanceTimer = setTimeout(guideNext, 220);
+        }
 
         let carBrand = null, carAge = null;
 
@@ -3858,6 +3868,7 @@
                         else { $(step.field).value = choice.value; }
                         update();
                         renderGuide();
+                        if (!choice.stay) queueAdvance();
                     });
                     grid.appendChild(btn);
                 }
@@ -3878,6 +3889,7 @@
                 body.appendChild(wrap);
                 const input = wrap.querySelector('#guideInput');
                 input.addEventListener('input', () => {
+                    clearTimeout(advanceTimer);
                     $(step.field).value = input.value;
                     if (step.field === 'price') priceAnchor = 'price';
                     update();
@@ -3898,6 +3910,7 @@
                         $(step.field).value = value;
                         update();
                         renderGuide();
+                        queueAdvance();
                     });
                     row.appendChild(btn);
                 }
@@ -3919,6 +3932,7 @@
         }
 
         function closeGuide(showResult) {
+            clearTimeout(advanceTimer);
             $('guideBackdrop').classList.remove('open');
             $('guideModal').classList.remove('open');
             setTimeout(() => { $('guideModal').hidden = true; }, 250);
@@ -3928,6 +3942,7 @@
         }
 
         function guideNext() {
+            clearTimeout(advanceTimer);
             if (guideIndex >= GUIDE_STEPS.length - 1) {
                 closeGuide(true);
                 return;
@@ -4114,6 +4129,7 @@
         $('stepNext').addEventListener('click', guideNext);
         $('stepSkip').addEventListener('click', guideNext);
         $('stepBack').addEventListener('click', () => {
+            clearTimeout(advanceTimer);
             if (guideIndex > 0) { guideIndex--; renderGuide(); }
         });
         document.addEventListener('keydown', (e) => {
