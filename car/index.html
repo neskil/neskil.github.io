@@ -1622,10 +1622,27 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="leaseOverage">Overage charge</label>
+                            <label for="leaseMileagePlan">Extra miles</label>
+                            <div class="input-shell">
+                                <select id="leaseMileagePlan">
+                                    <option value="turnin" selected>Settle up at turn-in</option>
+                                    <option value="prepaid">Buy them at signing</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseOverage">Turn-in rate</label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
                                 <input type="number" id="leaseOverage" min="0" step="0.05" value="0.25">
+                                <span class="suffix">/mi</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leasePrepaidRate">Pre-buy rate</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leasePrepaidRate" min="0" step="0.01" value="0.15">
                                 <span class="suffix">/mi</span>
                             </div>
                         </div>
@@ -2575,7 +2592,9 @@
         let creditTier = 'prime';
         let buyingUsed = false;
 
-        const STORAGE_KEY = 'car-lease-rent-buy-v1';
+        /* Bumped when input units change — a stored 10,000 from the old
+           per-year mileage field would otherwise reappear in a per-month one. */
+        const STORAGE_KEY = 'car-lease-rent-buy-v2';
 
         const $ = (id) => document.getElementById(id);
         const num = (id) => {
@@ -2705,6 +2724,8 @@
                 /* Quoted per month, contracted per year. */
                 leaseAllowance: num('leaseAllowance') * 12,
                 leaseOverage: num('leaseOverage'),
+                leaseMileagePlan: $('leaseMileagePlan').value,
+                leasePrepaidRate: num('leasePrepaidRate'),
                 leaseDisposition: num('leaseDisposition'),
                 rentRate: num('rentRate'),
                 rentStartFee: num('rentStartFee'),
@@ -2820,14 +2841,25 @@
                 led.add(v.leaseSigning, start, 'depreciation');
                 for (let m = start + 1; m <= end; m++) led.add(v.leasePayment, m, 'depreciation');
 
+                /* Extra miles are cheaper bought at signing than settled at
+                   turn-in, but the money is gone whether you drive them or not,
+                   so a pre-buy is only worth it if you are sure. */
+                const excessThisCycle = Math.max(0, v.miles - v.leaseAllowance) * (monthsThisCycle / 12);
+                if (v.leaseMileagePlan === 'prepaid' && excessThisCycle > 0) {
+                    const prepaid = excessThisCycle * v.leasePrepaidRate;
+                    overageTotal += prepaid;
+                    led.add(prepaid, start, 'fees');
+                }
+
                 /* Turn-in charges only land if this cycle actually finishes
                    inside the horizon. */
                 if (end === start + v.leaseTerm) {
                     led.add(v.leaseDisposition, end, 'fees');
-                    const excess = Math.max(0, v.miles - v.leaseAllowance) * (monthsThisCycle / 12);
-                    const charge = excess * v.leaseOverage;
-                    overageTotal += charge;
-                    led.add(charge, end, 'fees');
+                    if (v.leaseMileagePlan !== 'prepaid') {
+                        const charge = excessThisCycle * v.leaseOverage;
+                        overageTotal += charge;
+                        led.add(charge, end, 'fees');
+                    }
                 } else {
                     /* The horizon ends mid-contract — the remaining payments
                        are outside the comparison, not forgiven. */
@@ -3392,9 +3424,31 @@
                     ' back-to-back leases</strong> on the same terms — signing costs repeat each time.');
             }
             if (lease.overageTotal > 0) {
-                leaseBits.push('At ' + v.miles.toLocaleString('en-US') + ' mi/yr against a ' +
-                    v.leaseAllowance.toLocaleString('en-US') + ' mi allowance you owe <strong>' +
-                    usd0(lease.overageTotal) + '</strong> in overage at turn-in.');
+                const excessPerYear = v.miles - v.leaseAllowance;
+                const prepaying = v.leaseMileagePlan === 'prepaid';
+                /* Price both plans through the real ledger rather than a
+                   shortcut sum — cycles that do not finish inside the horizon
+                   are never billed at turn-in, which the shortcut misses. */
+                const asTurnIn = scenarioLease(Object.assign({}, v, { leaseMileagePlan: 'turnin' }));
+                const asPrepaid = scenarioLease(Object.assign({}, v, { leaseMileagePlan: 'prepaid' }));
+                const atTurnIn = asTurnIn.overageTotal;
+                const atSigning = asPrepaid.overageTotal;
+                const costGap = asPrepaid.total - asTurnIn.total;
+                leaseBits.push('You drive ' + Math.round(v.miles / 12).toLocaleString('en-US') +
+                    ' mi/mo against ' + Math.round(v.leaseAllowance / 12).toLocaleString('en-US') +
+                    ' included — <strong>' + Math.round(excessPerYear / 12).toLocaleString('en-US') +
+                    ' mi/mo over</strong>. ' +
+                    (prepaying
+                        ? 'Bought at signing that is <strong>' + usd0(atSigning) + '</strong>, paid up front and ' +
+                          'non-refundable if you end up driving less.'
+                        : 'Settled at turn-in that is <strong>' + usd0(atTurnIn) + '</strong>, billed when you ' +
+                          'hand the car back.') +
+                    ' Over your ' + v.months + ' months the two plans differ by <strong>' +
+                    usd0(Math.abs(costGap)) + '</strong> all in' +
+                    (Math.abs(costGap) < 1
+                        ? ' — effectively nothing, because the cheaper rate is offset by paying it years earlier.'
+                        : (costGap < 0 ? ', in favour of pre-buying.' : ', in favour of settling at turn-in.') +
+                          ' A pre-buy only wins if you are sure of the mileage: the money is gone either way.'));
             } else if (v.miles > v.leaseAllowance) {
                 leaseBits.push('You are ' + (v.miles - v.leaseAllowance).toLocaleString('en-US') +
                     ' mi/yr over the allowance, but no contract reaches turn-in inside this horizon, so the ' +
@@ -3449,8 +3503,9 @@
                     'the loan for longer', v.mileageValue < 1 ? 'costly' : 'open'],
                 ['Lease it', leasePerMonth.toLocaleString('en-US') + ' mi/mo',
                     results.lease.overageTotal > 0
-                        ? usd0(results.lease.overageTotal) + ' billed at turn-in, at ' +
-                          '$' + v.leaseOverage.toFixed(2) + '/mi over'
+                        ? usd0(results.lease.overageTotal) + (v.leaseMileagePlan === 'prepaid'
+                            ? ' bought up front at $' + v.leasePrepaidRate.toFixed(2) + '/mi'
+                            : ' billed at turn-in at $' + v.leaseOverage.toFixed(2) + '/mi')
                         : 'Inside the allowance',
                     results.lease.overageTotal > 0 ? 'gated' : 'open'],
                 ['Rent monthly', v.rentAllowance.toLocaleString('en-US') + ' mi/mo',
@@ -4639,7 +4694,8 @@
         /* ── Wiring ────────────────────────────────────────────────────── */
         const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
             'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
-            'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition',
+            'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
+            'leasePrepaidRate', 'leaseDisposition',
             'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice'];
 
         function update() {
