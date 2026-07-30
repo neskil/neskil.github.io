@@ -433,18 +433,11 @@
             --rx: 0deg;
             --ry: 0deg;
             --ty: 0px;
-            transition: top 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-                left 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-                width 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-                height 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.45s ease,
-                border-color 0.45s ease;
-            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        /* The card's own hover glare would sit on top of the panel content. */
-        #card-about.is-open::before {
-            opacity: 0.05;
+        #card-about.is-open .card-face {
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
         }
 
         #about-placeholder {
@@ -484,7 +477,19 @@
               backdrop-filter and overflow:hidden, both of which flatten a 3D
               rendering context, so a two-faced flip has to happen one level down.
               The outer card keeps its pointer tilt and glare throughout. ── */
+        /* The card itself is only a stage: transparent, no border, no clipping. Its
+           surface (background, border, radius, shadow) moves onto the two faces,
+           which is what makes the flip read as a card turning over. Left on .card
+           the rectangle stayed put while the text skewed inside it. overflow must be
+           visible too, or the rotating faces get clipped at the card's bounds. */
         #card-about {
+            background: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            border: 0;
+            box-shadow: none;
+            overflow: visible;
+            perspective: 1400px;
             --accent-rgb: 251, 113, 133;
             --card-bg-gradient: linear-gradient(135deg, rgba(38, 20, 28, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
             --card-hover-gradient: linear-gradient(135deg, rgba(58, 28, 42, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
@@ -498,6 +503,10 @@
             width: 100%;
         }
 
+        #card-about::before {
+            content: none;
+        }
+
         #card-about .card-link {
             color: rgb(253, 164, 175);
         }
@@ -508,7 +517,7 @@
             flex: 1;
             width: 100%;
             transform-style: preserve-3d;
-            transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         #card-about.is-flipped .card-flip-inner {
@@ -521,9 +530,41 @@
             justify-content: space-between;
             align-items: flex-start;
             padding: 2.5rem;
-            border-radius: inherit;
+            background: var(--card-bg-gradient, var(--card-bg));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border, var(--glass-border));
+            border-radius: 24px;
+            box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
+            overflow: hidden;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
+            transition: background 0.4s ease-in-out, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        /* Brushed sheen, replacing the .card-metal glare the stage can no longer host. */
+        .card-face::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background:
+                repeating-linear-gradient(95deg,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    rgba(255, 255, 255, 0.03) 1px,
+                    rgba(255, 255, 255, 0) 2px,
+                    rgba(255, 255, 255, 0) 6px),
+                radial-gradient(circle at 30% 12%, rgba(var(--accent-rgb), 0.10), rgba(var(--accent-rgb), 0) 60%);
+            mix-blend-mode: overlay;
+        }
+
+        /* Hover feedback now belongs to the front face, since .card:hover styles a
+           surface that is no longer visible. */
+        #card-about:hover .card-face-front {
+            background: var(--card-hover-gradient, var(--card-hover-bg));
+            border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+            box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
         }
 
         /* Front stays in flow so the card still has an intrinsic height; only the
@@ -613,11 +654,6 @@
         #card-about:hover .about-close {
             color: var(--text-primary);
             background: rgba(255, 255, 255, 0.12);
-        }
-
-        .about-text strong {
-            color: var(--text-primary);
-            font-weight: 600;
         }
 
         @media (max-width: 640px) {
@@ -1373,8 +1409,7 @@
                 </svg></span>
         </a>
 
-        <button type="button" class="card card-metal" id="card-about" aria-expanded="false">
-            <div class="card-bg-hover"></div>
+        <button type="button" class="card" id="card-about" aria-expanded="false">
             <div class="card-flip-inner">
                 <div class="card-face card-face-front">
                     <div>
@@ -1414,8 +1449,8 @@
                             intelligence is reshaping the industry, and how much of the work it can genuinely take
                             on.</p>
                         <p class="about-text">Everything here is a personal project, built to learn and to test what
-                            these tools can actually do. Mostly with <strong>Claude and AntiGravity</strong>, a
-                            surprising amount of it from my phone.</p>
+                            these tools can actually do. Mostly with Claude and AntiGravity, a surprising
+                            amount of it from my phone.</p>
                     </div>
                     <span class="card-link">Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1945,6 +1980,17 @@
         let aboutOpen = false;
         let aboutTimer = null;
         let aboutPlaceholder = null;
+        let aboutRect = null;
+
+        /* The transform that maps the panel's final box back onto `from`, so the
+           animation can start visually on the grid cell and run to identity. */
+        function inverseTransform(from, to) {
+            const sx = from.width / to.w;
+            const sy = from.height / to.h;
+            const dx = (from.left + from.width / 2) - (to.left + to.w / 2);
+            const dy = (from.top + from.height / 2) - (to.top + to.h / 2);
+            return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+        }
 
         /* Height comes from the copy, not a constant: a fixed height left dead space
            under short text on a tall screen, and pushed the close link out of sight
@@ -1971,7 +2017,7 @@
             // box-sizing is border-box, so the height we set has to carry the card's
             // borders too; scrollHeight only measures the content box. Without this
             // the panel lands 2px short and scrolls for no reason.
-            const cs = getComputedStyle(aboutCard);
+            const cs = getComputedStyle(back);
             const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
 
             const h = Math.max(240, Math.min(natural + border, maxH));
@@ -2007,10 +2053,15 @@
             // in effect, and must run before the start rect is committed.
             const t = aboutTargetRect();
 
-            setAboutRect(r.top, r.left, r.width, r.height);
-            aboutCard.getBoundingClientRect(); // flush the start rect before retargeting
-
+            // Final geometry lands instantly and the motion is pure transform, so the
+            // browser composites it rather than re-laying-out every frame. Animating
+            // width/height each frame is what made the spin stutter and read as broken.
+            aboutRect = t;
             setAboutRect(t.top, t.left, t.w, t.h);
+            aboutCard.style.transform = inverseTransform(r, t);
+            aboutCard.getBoundingClientRect(); // flush the inverted start state
+
+            aboutCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
             aboutCard.classList.add('is-flipped');
             aboutBackdrop.classList.add('open');
             aboutCard.setAttribute('aria-expanded', 'true');
@@ -2023,15 +2074,14 @@
             aboutOpen = false;
             clearTimeout(aboutTimer);
 
-            const r = aboutPlaceholder.getBoundingClientRect();
-            setAboutRect(r.top, r.left, r.width, r.height);
+            aboutCard.style.transform = inverseTransform(aboutPlaceholder.getBoundingClientRect(), aboutRect);
             aboutCard.classList.remove('is-flipped');
             aboutBackdrop.classList.remove('open');
             aboutCard.setAttribute('aria-expanded', 'false');
 
             aboutTimer = setTimeout(() => {
                 aboutCard.classList.remove('is-open');
-                ['top', 'left', 'width', 'height', 'transition'].forEach(p => aboutCard.style.removeProperty(p));
+                ['top', 'left', 'width', 'height', 'transition', 'transform'].forEach(p => aboutCard.style.removeProperty(p));
                 if (aboutPlaceholder) {
                     aboutPlaceholder.parentNode.insertBefore(aboutCard, aboutPlaceholder);
                     aboutPlaceholder.remove();
@@ -2048,7 +2098,9 @@
         window.addEventListener('resize', () => {
             if (!aboutOpen) return;
             const t = aboutTargetRect();
+            aboutRect = t;
             setAboutRect(t.top, t.left, t.w, t.h);
+            aboutCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
         });
 
         document.getElementById('vault-danger-button').addEventListener('click', () => {
