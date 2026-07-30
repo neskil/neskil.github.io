@@ -8,6 +8,46 @@ backlog" section.
 
 ---
 
+## 2026-07-30 — Fullscreen button threw a red error banner on iPhone (v0.19.14)
+
+Reported as "full screen gives error message on iphone". The message was
+index.html's own `#error-log` debug banner — a full-width red block over the top
+of the game reading *"Uncaught TypeError:
+document.documentElement.requestFullscreen is not a function"* plus a stack
+trace.
+
+**Cause.** iPhone Safari implements no element Fullscreen API at all — only
+`HTMLVideoElement.webkitEnterFullscreen()`. So on iPhone
+`document.documentElement.requestFullscreen` is `undefined`, and
+`toggleFullscreen()` called it unconditionally. A missing method throws a
+*synchronous* TypeError rather than returning a rejected promise, so the
+`.catch()` that was already there could never see it. The throw escaped the
+inline `onclick`, hit `window.onerror`, and painted the banner. `document
+.fullscreenElement` is also undefined there, so the guard always chose the
+enable branch. iPad Safari *does* support element fullscreen (prefixed), so this
+had to be feature detection, not a platform sniff.
+
+**Fix.** `fullscreenApi()` resolves the standard and `webkit`/`ms` prefixed
+request/exit/element triples; `toggleFullscreen()` bails with a notification
+chip when there's no request method, wraps the call in try/catch (a request can
+also be refused outright by an iframe permissions policy), and only attaches
+`.catch()` when the call actually returned a promise — prefixed implementations
+return undefined. `updateFullscreenAvailability()`, called from `init()`, hides
+both fullscreen buttons where the API is absent, so iPhone players aren't
+offered a control that can't work. The in-HUD button gained an id
+(`hud-fullscreen-btn`) so it can be targeted.
+
+Verified with a new `probe-screenshot.html?script=fullscreenUnsupported` repro:
+it deletes the three request methods and **clicks the real button**, since the
+symptom depends on the exception escaping the inline onclick inside the iframe —
+calling `game.toggleFullscreen()` from the probe's own context throws in the
+parent and shows no banner either way, which briefly made the fix look verified
+when it wasn't. Screenshots confirm the banner before and its absence after.
+Four unit tests cover unsupported / prefixed-only / refused / button-hiding;
+three fail against the old implementation. 142/142 pass.
+
+---
+
 ## 2026-07-28 — Winding-order cleanup + deploy hygiene (v0.19.10)
 
 Follow-up review after v0.19.9. That fix normalised polygon winding in the
