@@ -1481,6 +1481,34 @@
                 <span class="ico">🏷️</span><span id="disposalNote"></span>
             </div>
             <div class="callout">
+                <span class="ico">🔁</span>
+                <span><strong>What a trade-in actually is.</strong> You hand the old car to the dealer you are
+                    buying the next one from, and its value comes off the bill instead of arriving as cash. The
+                    gross number is the worst of the three routes — a dealer has to recondition, warranty and floor
+                    the thing — but it buys two real advantages. <strong>One: the tax.</strong> In Georgia and most
+                    sales-tax states, a trade at a licensed dealer is deducted from the taxable price of the car you
+                    are buying, so a $12,500 trade against 7% TAVT is <strong>$875 you never pay</strong> — and that
+                    is subtracted above, which is why a trade can land ahead of an instant offer that looked a few
+                    hundred dollars better. A private sale gets you none of it, however high the price.
+                    <strong>Two: it is one afternoon</strong> — no listing, no strangers, no title paperwork, and no
+                    gap where you own two cars or none. The catches: it only counts if you are buying at the same
+                    dealer at the same time, the credit is capped by what your next car costs, and the dealer can
+                    quietly fund a generous-looking trade allowance by discounting the new car less. Ask for the
+                    trade figure and the out-the-door price as two separate numbers, then compare that total against
+                    an instant offer plus the tax you would have paid.</span>
+            </div>
+            <div class="callout">
+                <span class="ico">↩️</span>
+                <span><strong>Why a short hold looks so brutal.</strong> If the resale figure above seems harsh,
+                    most of it is not depreciation — it is the round trip. You buy at asking, which carries roughly
+                    12% of dealer markup, and you sell below market, and on a twelve-month horizon there is no time
+                    for anything else to happen. Both spreads are paid in full whether you keep the car one year or
+                    eight, so they are the cost that shrinks fastest per month as the horizon stretches, and the
+                    single biggest reason buying loses to a subscription at twelve months and wins at sixty. Two
+                    ways to cut it: buy privately or hold longer, and sell privately rather than take the
+                    convenience price. Doing both roughly halves the round trip.</span>
+            </div>
+            <div class="callout">
                 <span class="ico">🛡️</span>
                 <span><strong>A new car is more expensive to insure, and the gap is bigger than people expect.</strong>
                     Comprehensive and collision are priced off what the insurer would have to pay out, so a car worth
@@ -2234,9 +2262,21 @@
                     year, which is an approximation.</li>
                 <li><strong>Selling it on</strong> — the curves give market value, so every route out is below it:
                     a private sale about 12% under, an instant offer from CarMax or Carvana about 26%, a dealer
-                    trade-in about 27%, all widening with age. Those come from the published spreads — instant
-                    offers 14–18% under private money, trade-ins 15–20% — rebased onto market value rather than
-                    onto each other.</li>
+                    trade-in about 27%. Those come from the published spreads — instant offers 14–18% under private
+                    money, trade-ins 15–20% — rebased onto market value rather than onto each other. <strong>Two
+                    bases, and it matters:</strong> 26% under market is only about 16% under private money, because
+                    private money is already 12% under market. The note beside the field quotes both, so a figure
+                    there is never as punitive as the market-value number alone reads.</li>
+                <li><strong>What widens a dealer's haircut</strong> — miles, not birthdays. Past 60,000 the spread
+                    grows 1.2 points per 10,000 miles, with a small 0.4-point-a-year age term after year five for
+                    what age alone costs a car, capped at 40% under market. A seven-year-old car with 45,000 miles
+                    is a retail unit and keeps close to the standard haircut; the same car at 130,000 is auction
+                    material. A private sale does not widen at all — a private buyer pays a mileage-adjusted market
+                    price, and that adjustment is already in the value at 4.5% per 10,000 excess miles, so widening
+                    it again would charge you twice for the same odometer. The odometer at sale is the previous
+                    owner's assumed 12,000 a year plus your own driving, so a genuinely low-mileage used car reads
+                    higher here than it is — put the real number in through the model comparison, which takes an
+                    odometer directly.</li>
                 <li><strong>Checked against the market.</strong> The curves flatten after year five rather than
                     decaying at a fixed rate, because real ones do. Predicted asking prices were then tested against
                     eight CarMax CR-V listings spanning 2019–2024, 19,000–91,000 miles and five trims: mean error
@@ -2558,24 +2598,24 @@
         }
 
         /* ── Getting rid of it ───────────────────────────────────────────
-           The curves are calibrated to what cars change hands for privately.
-           A dealer pays less than that because they carry reconditioning,
-           warranty risk and floor space — 15-20% less on a trade-in, 14-18% on
-           an instant offer — and the gap widens on older, higher-mileage cars
-           that are harder for them to move. Trading in does carry one offset:
-           in Georgia and most sales-tax states it reduces the tax base on your
+           The curves give market value. Every route out is below it, and a
+           dealer is furthest below because they carry reconditioning, warranty
+           risk and floor space — 15-20% under private money on a trade-in,
+           14-18% on an instant offer. Trading in does carry one offset: in
+           Georgia and most sales-tax states it reduces the tax base on your
            next car. */
         const DISPOSAL = {
-            private: { label: 'a private sale', discount: 0.12, taxCredit: false,
+            private: { label: 'a private sale', discount: 0.12, taxCredit: false, dealer: false,
                        note: 'Private sale is the most you can get, but still under the forecourt price — a ' +
                              'private seller offers no warranty, no reconditioning and no finance. The work is ' +
                              'yours too: listing, strangers, test drives, and the title transfer.' },
-            instant: { label: 'an instant offer', discount: 0.26, taxCredit: false,
+            instant: { label: 'an instant offer', discount: 0.26, taxCredit: false, dealer: true,
                        note: 'An instant offer from CarMax or Carvana runs about 14-18% under private money — ' +
                              'the price of an appraisal in the morning and a cheque in the afternoon.' },
-            tradein: { label: 'a dealer trade-in', discount: 0.27, taxCredit: true,
-                       note: 'A trade-in is the lowest number of the three, but at a licensed dealer it cuts the ' +
-                             'tax base on your next car, which claws a good part of the gap back.' }
+            tradein: { label: 'a dealer trade-in', discount: 0.27, taxCredit: true, dealer: true,
+                       note: 'A trade-in is the lowest gross number of the three, but at a licensed dealer the ' +
+                             'trade value comes off the taxable price of the car you are buying, which claws a ' +
+                             'good part of the gap back.' }
         };
 
         /* What a dealer asks is above what the car is worth — the gap is their
@@ -2583,11 +2623,34 @@
            the asking end, which is why a valuation always looks low. */
         const ASKING_MARKUP = 1.12;
 
-        /* Dealers discount an old car harder than a new one — the spread runs
-           from mid-teens on a late-model car to far wider past 100,000 miles. */
-        function disposalFactor(channel, ageAtSale) {
+        /* What widens a dealer's spread is the odometer, not the birthday. A
+           seven-year-old car with 45,000 miles is an easy retail unit and gets
+           close to the standard mid-teens haircut; the same car at 130,000 is
+           wholesale-or-auction material, because reconditioning cost and
+           warranty risk both track miles. So the widening is priced per 10,000
+           miles past 60,000, with only a small age term left for the things
+           that age alone does to a car — dated infotainment, a tired interior,
+           a model two generations back. A private buyer is not doing that
+           arithmetic: they pay a mileage-adjusted market price, which
+           mileagePenalty has already taken off the value, so their spread does
+           not widen again here. Absent an odometer reading, assume the US
+           average of 12,000 miles a year. */
+        function disposalFactor(channel, ageAtSale, milesAtSale) {
             const d = DISPOSAL[channel] || DISPOSAL.private;
-            return 1 - Math.min(0.42, d.discount + 0.015 * Math.max(0, ageAtSale - 5));
+            if (!d.dealer) return 1 - d.discount;
+            const odo = Number.isFinite(milesAtSale) && milesAtSale > 0
+                ? milesAtSale : Math.max(0, ageAtSale) * 12000;
+            const widen = 0.012 * Math.max(0, odo - 60000) / 10000 +
+                          0.004 * Math.max(0, ageAtSale - 5);
+            return 1 - Math.min(0.40, d.discount + widen);
+        }
+
+        /* The same haircut expressed against private money rather than market
+           value, which is the number the published spreads quote and the one
+           people can sanity-check against an offer in their inbox. */
+        function haircutVsPrivate(channel, ageAtSale, milesAtSale) {
+            const priv = disposalFactor('private', ageAtSale, milesAtSale);
+            return 1 - disposalFactor(channel, ageAtSale, milesAtSale) / priv;
         }
 
         /* ── Optimistic / expected / pessimistic ────────────────────────
@@ -2762,7 +2825,11 @@
             const channel = $('disposal').value;
             const band = AGE_BANDS[carAge];
             const ageAtSale = (band ? band.buyAge : 0) + months / 12;
-            const disposal = disposalFactor(channel, ageAtSale);
+            /* Miles on the clock when you sell: the previous owner's assumed
+               average plus your own driving, which is what a dealer's appraisal
+               actually keys off. */
+            const milesAtSale = (band ? band.buyAge : 0) * 12000 + milesPerYear * (months / 12);
+            const disposal = disposalFactor(channel, ageAtSale, milesAtSale);
             const autoResale = price * retainedValue(months / 12, curve) * mileageValue * scen.resale * disposal;
             const resaleField = $('resale');
             const resale = resaleField.dataset.touched === '1'
@@ -2781,6 +2848,8 @@
                 channel,
                 disposal,
                 ageAtSale,
+                milesAtSale,
+                haircutVsPrivate: haircutVsPrivate(channel, ageAtSale, milesAtSale),
                 /* Only worth anything if you are buying another car from the
                    same dealer, which is the situation a trade-in implies. */
                 tradeTaxCredit: DISPOSAL[channel].taxCredit ? resaleOf() * (num('taxRate') / 100) : 0,
@@ -3994,7 +4063,8 @@
                     Math.abs(retainedValue(5, key) - target) < Math.abs(retainedValue(5, best) - target)
                         ? key : best, 'average');
                 $('resale').value = Math.round(modelValueAt(model, msrp, buyAge + hold) *
-                    disposalFactor($('disposal').value, buyAge + hold));
+                    disposalFactor($('disposal').value, buyAge + hold,
+                        (num('modelMiles') || 12000) * (buyAge + hold)));
                 $('resale').dataset.touched = '1';
                 closeModal();
                 update();
@@ -4802,12 +4872,22 @@
             renderCredit();
             renderInsights(results, v);
             syncPresets(v.months);
+            /* Two different bases, and conflating them is what makes a haircut
+               look punitive: the model works in market value, the published
+               spreads quote private money. Say both. */
             const disp = DISPOSAL[v.channel];
-            $('disposalNote').innerHTML = disp.note + ' At ' + v.ageAtSale.toFixed(1) +
-                ' years old that is <strong>' + (v.disposal < 1
-                    ? Math.round((1 - v.disposal) * 100) + '% under private money' : 'the full private price') +
-                '</strong>' + (v.tradeTaxCredit > 0
-                    ? ', offset by <strong>' + usd0(v.tradeTaxCredit) + '</strong> of tax credit on your next car'
+            const odo = Math.round(v.milesAtSale / 1000) * 1000;
+            const at = ' At ' + v.ageAtSale.toFixed(1) + ' years and ' +
+                odo.toLocaleString('en-US') + ' miles that is ';
+            const vsMarket = Math.round((1 - v.disposal) * 100);
+            $('disposalNote').innerHTML = disp.note + at + (DISPOSAL[v.channel].dealer
+                ? '<strong>' + Math.round(v.haircutVsPrivate * 100) + '% under private money</strong> — ' +
+                  vsMarket + '% under market value, since private money is itself ' +
+                  Math.round((1 - disposalFactor('private', v.ageAtSale, v.milesAtSale)) * 100) + '% under it'
+                : '<strong>' + vsMarket + '% under market value</strong>, which is what private money means here') +
+                (v.tradeTaxCredit > 0
+                    ? '. That is offset by <strong>' + usd0(v.tradeTaxCredit) +
+                      '</strong> of tax you do not pay on your next car'
                     : '') + '.';
             $('caseBlurb').innerHTML = SCENARIOS[scenarioCase].blurb +
                 (v.repairShock ? ' Includes <strong>' + usd0(v.repairShock) +
