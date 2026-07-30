@@ -12,7 +12,7 @@
 // game.js → game/* → render.js + render/* (render.js instantiates window.game).
 
 class CargoGame {
-    static VERSION = '0.19.13';
+    static VERSION = '0.19.14';
 
     constructor() {
         this.canvas = null;
@@ -173,6 +173,10 @@ class CargoGame {
         // button visually never reflected mute state again after the first
         // load. updateMuteUI() (game/menu.js) updates the SVG in place instead.
         this.updateMuteUI();
+
+        // Drop the fullscreen buttons on browsers with no Fullscreen API
+        // (iPhone Safari) rather than offering a control that only errors.
+        this.updateFullscreenAvailability();
 
         const menuVersion = document.getElementById('menu-version');
         if (menuVersion) menuVersion.textContent = `v${CargoGame.VERSION}`;
