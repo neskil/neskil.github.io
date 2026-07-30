@@ -17,7 +17,7 @@
     <meta property="og:image" content="https://neskil.github.io/assets/og/car.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Car cost calculator showing 'Pay cash' as cheapest at $739 per month over 60 months, with the input panel below.">
+    <meta property="og:image:alt" content="Car cost calculator showing 'Pay cash' as cheapest at $555 per month over 60 months, with an optimistic-to-pessimistic range and a stacked cost breakdown for all four options.">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1303,7 +1303,7 @@
         </div>
 
         <button type="button" class="guide-btn" id="openGuide">
-            🧭 Walk me through it <span class="sub">— 8 questions, fills the whole page in</span>
+            🧭 Walk me through it <span class="sub">— 9 questions, fills the whole page in</span>
         </button>
 
         <!-- Verdict -->
@@ -1314,7 +1314,28 @@
                 <span class="verdict-cost" id="verdictCost"></span>
             </div>
             <p class="verdict-sub" id="verdictSub"></p>
+            <p class="verdict-sub" id="verdictRange"></p>
             <p class="verdict-sub" id="verdictWarning" style="color:var(--warning)"></p>
+        </section>
+
+        <!-- Chart -->
+        <section class="panel">
+            <div class="panel-title">
+                True cost per month
+                <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
+                    aria-controls="tableWrap">Show numbers</button>
+            </div>
+            <div class="seg-toggle" id="caseToggle" role="group" aria-label="Scenario"
+                style="margin:0 0 10px auto; width:fit-content">
+                <button type="button" data-case="optimistic">🙂 Optimistic</button>
+                <button type="button" data-case="expected" class="active">Expected</button>
+                <button type="button" data-case="pessimistic">😬 Pessimistic</button>
+            </div>
+            <p class="notes" id="caseBlurb" style="margin-bottom:10px"></p>
+            <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
+            <p id="chartDesc" class="sr-only"></p>
+            <div class="legend" id="legend"></div>
+            <div class="table-wrap" id="tableWrap" hidden></div>
         </section>
 
         <!-- Shared inputs -->
@@ -1329,11 +1350,20 @@
                 <button class="preset-btn" data-months="96" type="button">8 yr</button>
                 <button class="preset-btn" data-months="120" type="button">10 yr</button>
             </div>
-            <div class="preset-row" id="carPresets" aria-label="Typical cars to start from">
-                <button class="preset-btn" type="button" data-car="beater">🔧 Beater $6k</button>
-                <button class="preset-btn" type="button" data-car="used">👍 Used $18k</button>
-                <button class="preset-btn" type="button" data-car="new">✨ New $32k</button>
-                <button class="preset-btn" type="button" data-car="premium">💎 Premium $58k</button>
+            <div class="preset-row" id="brandPresets" aria-label="Marque">
+                <button class="preset-btn" type="button" data-brand="japanese">🇯🇵 Japanese</button>
+                <button class="preset-btn" type="button" data-brand="korean">🇰🇷 Korean</button>
+                <button class="preset-btn" type="button" data-brand="american">🇺🇸 American</button>
+                <button class="preset-btn" type="button" data-brand="germanLux">🇩🇪 German luxury</button>
+            </div>
+            <div class="preset-row" id="agePresets" aria-label="Age when you buy it">
+                <button class="preset-btn" type="button" data-age="new">✨ Brand new</button>
+                <button class="preset-btn" type="button" data-age="three">👍 3 years</button>
+                <button class="preset-btn" type="button" data-age="six">🔧 5–7 years</button>
+                <button class="preset-btn" type="button" data-age="ten">🛠️ 10+ years</button>
+            </div>
+            <div class="callout" id="carProfile" style="margin-bottom:10px">
+                <span class="ico">🚘</span><span></span>
             </div>
             <div class="field-grid">
                 <div class="field">
@@ -1375,14 +1405,26 @@
                     <label for="depreciation">Depreciation curve</label>
                     <div class="input-shell">
                         <select id="depreciation">
-                            <option value="slow">Slow — 72% left at 5 yr (RAV4, trucks)</option>
-                            <option value="typical" selected>Average — 58% left at 5 yr</option>
-                            <option value="fast">Fast — 45% left at 5 yr (luxury, EV)</option>
+                            <option value="japanese">Japanese — 68% at 5 yr</option>
+                            <option value="average" selected>US average — 58% at 5 yr</option>
+                            <option value="korean">Korean — 55% at 5 yr</option>
+                            <option value="american">American — 48% at 5 yr</option>
+                            <option value="germanLux">German luxury — 45% at 5 yr</option>
                         </select>
                     </div>
                 </div>
                 <div class="field">
-                    <label for="resale">Resale at the end</label>
+                    <label for="disposal">How you sell it</label>
+                    <div class="input-shell">
+                        <select id="disposal">
+                            <option value="private">Private sale — most money, most hassle</option>
+                            <option value="instant" selected>Instant offer — CarMax, Carvana</option>
+                            <option value="tradein">Trade in at the dealer</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="resale">You get for it</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
                         <input type="number" id="resale" min="0" step="250" value="0">
@@ -1419,6 +1461,9 @@
                         <span class="suffix">/yr</span>
                     </div>
                 </div>
+            </div>
+            <div class="callout" style="margin-top:10px">
+                <span class="ico">🏷️</span><span id="disposalNote"></span>
             </div>
             <button type="button" class="open-modal-btn" id="openDepModal">
                 📉 Compare real models — RAV4, CR-V, CX-5, Escape, Equinox, X3
@@ -1631,19 +1676,6 @@
                         are really buying is the 30-day exit.</p>
                 </div>
             </details>
-        </section>
-
-        <!-- Chart -->
-        <section class="panel">
-            <div class="panel-title">
-                True cost per month
-                <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
-                    aria-controls="tableWrap">Show numbers</button>
-            </div>
-            <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
-            <p id="chartDesc" class="sr-only"></p>
-            <div class="legend" id="legend"></div>
-            <div class="table-wrap" id="tableWrap" hidden></div>
         </section>
 
         <!-- Break-even over time -->
@@ -2026,9 +2058,28 @@
                     $619/mo, on a much pricier average car.</li>
                 <li><strong>Insurance</strong> — ~$210/mo for full coverage, the middle of 2026 national estimates
                     (sources range $186–$244).</li>
-                <li><strong>Maintenance, repairs and tires</strong> — AAA's Your Driving Costs 2025 puts it at 11.04
-                    cents per mile, which is $110/mo at 12,000 mi/yr. Older cars are scaled up from there, and that
-                    scaling is an estimate rather than a published figure.</li>
+                <li><strong>Maintenance and repairs</strong> — ten-year brand totals from YourMechanic: Toyota
+                    $5,445, Honda $5,835, Chevrolet $6,275, Ford $6,350, Mazda $6,420, against $14,000–19,000 for
+                    German luxury. Those totals are spread across the years you own the car using the published
+                    pattern that repair spend runs near half the lifetime average under warranty and reaches 2.6x
+                    past fifteen years, then scaled to your mileage. A brand-new car therefore lands around
+                    $20–25/mo rather than the $110/mo lifetime average, which is what AAA's 11.04 cents per mile
+                    describes. The four bands and the mileage scaling are modelled; the totals and the warranty
+                    terms are published.</li>
+                <li><strong>Warranties</strong> — 3yr/36k basic and 5yr/60k powertrain is the industry standard
+                    (Toyota, Honda, Ford, Chevrolet); BMW runs 4yr/50k; Hyundai and Kia lead with 5yr/60k basic and
+                    10yr/100k powertrain.</li>
+                <li><strong>Mileage against resale</strong> — roughly 5–10% of value per 10,000 miles away from
+                    average; the page uses 7% and caps the swing.</li>
+                <li><strong>Trim prices</strong> — published 2019 MSRPs for each ladder, plus destination: CR-V LX
+                    $24,350 / EX-L $29,750 / Touring $32,750; RAV4 LE $25,500 / XLE Premium $29,500 / Limited
+                    $33,500; CX-5 Sport $25,325 / Grand Touring $31,090 / Signature $36,890; Equinox L $24,995 / LT
+                    $28,295 / Premier $32,195; Escape S $25,200 / SEL ~$29,000 / Titanium $35,215; X3 sDrive30i
+                    $41,000 / xDrive30i $43,000 / M40i $54,650. Other model years are scaled from 2019 at 3.2% a
+                    year, which is an approximation.</li>
+                <li><strong>Selling it on</strong> — instant offers from CarMax or Carvana run about 14–18% under
+                    private-party money, dealer trade-ins 15–20%, and the gap widens materially on older,
+                    higher-mileage cars. The page uses those midpoints and widens them with age.</li>
                 <li><strong>Sixt+ rates</strong> — real quotes: $1,000/mo for a BMW X1 including insurance and two
                     drivers, about $1,200 for the next size up.</li>
                 <li><strong>Credit tiers</strong> — Experian Q1 2026 average APRs by band: 4.66% super prime
@@ -2096,6 +2147,17 @@
             </div>
         </div>
 
+        <div class="preset-row" id="trimChips" aria-label="Trim" style="margin-top:10px"></div>
+        <div class="field-grid">
+            <div class="field">
+                <label for="modelMiles">Driven</label>
+                <div class="input-shell">
+                    <input type="number" id="modelMiles" min="0" step="1000" value="12000">
+                    <span class="suffix">mi/yr</span>
+                </div>
+            </div>
+        </div>
+        <p class="notes" id="depAvailability" style="margin-top:10px"></p>
         <div style="margin-top:12px" id="depChart"></div>
         <div class="legend" id="depLegend"></div>
 
@@ -2166,27 +2228,133 @@
 
         /* First-year drop and the annual rate on the remainder afterwards. */
         const DEPRECIATION_CURVES = {
-            slow:    { firstYear: 0.13, annual: 0.0462 },
-            typical: { firstYear: 0.17, annual: 0.0849 },
-            fast:    { firstYear: 0.24, annual: 0.1228 }
+            japanese:  { firstYear: 0.13, annual: 0.0597 },
+            average:   { firstYear: 0.17, annual: 0.0849 },
+            korean:    { firstYear: 0.17, annual: 0.0978 },
+            american:  { firstYear: 0.20, annual: 0.1199 },
+            germanLux: { firstYear: 0.24, annual: 0.1228 }
         };
 
         /* A lease keeps you inside the factory warranty, so you buy tires and
            oil changes but not a transmission. */
         const LEASE_MAINTENANCE_SHARE = 0.45;
 
-        /* Starting points for the four buying strategies. The new-car row is
-           sourced — AAA puts maintenance, repair and tires at 11.04 cents/mile
-           ($110/mo at 12k mi/yr), Experian's Q1 2026 average new-car APR is
-           6.39% and used 11.43%, and full coverage averages ~$210/mo. The
-           other rows scale those against the car's age: older cars cost less
-           to insure and more to fix. Those scalings are estimates. */
-        const CAR_PRESETS = {
-            beater:  { price: 6000,  depreciation: 'slow',    insurance: 120, maintenance: 210, down: 0,    used: true },
-            used:    { price: 18000, depreciation: 'typical', insurance: 185, maintenance: 150, down: 3000, used: true },
-            new:     { price: 32000, depreciation: 'typical', insurance: 210, maintenance: 110, down: 4000, used: false },
-            premium: { price: 58000, depreciation: 'fast',    insurance: 285, maintenance: 190, down: 8000, used: false }
+        /* ── What the car actually is ────────────────────────────────────
+           Marque and age drive price, upkeep and resale together, and they do
+           not move in step: a Toyota keeps 68% of its value at five years and
+           costs $5.4k to run for a decade, while a German saloon keeps 45% and
+           costs $16k. Ten-year maintenance-and-repair totals are YourMechanic
+           brand figures; the retention targets are the iSeeCars 2026 study. */
+        const BRANDS = {
+            japanese: {
+                label: 'Japanese', examples: 'Toyota · Honda · Mazda · Lexus',
+                newPrice: 32000, maint10: 5900, insMult: 1.00, curve: 'japanese',
+                warrantyBasic: 3, warrantyPower: 5,
+                note: 'The reliability premium is real and it compounds: best-in-class resale and the lowest ' +
+                    'repair bills in the same car. You pay more up front second-hand for exactly that reason.'
+            },
+            korean: {
+                label: 'Korean', examples: 'Hyundai · Kia · Genesis',
+                newPrice: 30000, maint10: 6200, insMult: 1.00, curve: 'korean',
+                warrantyBasic: 5, warrantyPower: 10,
+                note: 'The best warranty in the industry — 5yr/60k basic and 10yr/100k powertrain — which takes ' +
+                    'most of the repair risk off a new purchase. Resale is weaker than Japanese, so buying one ' +
+                    'used is where the value is, though the powertrain cover may not transfer in full.'
+            },
+            american: {
+                label: 'American', examples: 'Ford · Chevrolet · Jeep',
+                newPrice: 36000, maint10: 6300, insMult: 1.05, curve: 'american',
+                warrantyBasic: 3, warrantyPower: 5,
+                note: 'Upkeep is close to Japanese and parts are everywhere, but resale is materially worse — ' +
+                    'which cuts both ways. Bad if you are buying new, good if you are buying at four years old ' +
+                    'and letting the first owner absorb it.'
+            },
+            germanLux: {
+                label: 'German luxury', examples: 'BMW · Audi · Mercedes',
+                newPrice: 58000, maint10: 16000, insMult: 1.35, curve: 'germanLux',
+                warrantyBasic: 4, warrantyPower: 4,
+                note: 'Roughly three times a Toyota to maintain over a decade, and the worst resale here. The ' +
+                    'cheap used ones are cheap for a reason: an out-of-warranty German car hands you both the ' +
+                    'depreciation you already ate and repair bills priced like the badge.'
+            }
         };
+
+        /* Repair spend runs at about half the lifetime average while a car is
+           under warranty and climbs steeply after, reaching 2.6x past fifteen
+           years. These four bands are normalised so their weighted mean across
+           ten years is 1.0, which keeps the brand totals honest. */
+        const AGE_BANDS = {
+            new:    { label: 'Brand new',  buyAge: 0,  insMult: 1.00, sub: 'Full warranty, worst depreciation' },
+            three:  { label: '3 years',    buyAge: 3,  insMult: 0.92, sub: 'Cliff already paid for' },
+            six:    { label: '5–7 years',  buyAge: 6,  insMult: 0.80, sub: 'Out of warranty, repairs begin' },
+            ten:    { label: '10+ years',  buyAge: 10, insMult: 0.62, sub: 'Cheap to buy, you own every repair' }
+        };
+
+        function maintMultiplierAt(age) {
+            if (age < 3) return 0.45;
+            if (age < 5) return 0.80;
+            if (age < 8) return 1.16;
+            return 1.79;
+        }
+
+        /* Averaged across the years you actually hold it, so a car bought at
+           three and kept for six crosses out of warranty inside the estimate. */
+        function maintMultiplierOver(buyAge, holdYears) {
+            const steps = Math.max(1, Math.round(holdYears * 4));
+            let total = 0;
+            for (let i = 0; i < steps; i++) total += maintMultiplierAt(buyAge + (i + 0.5) * holdYears / steps);
+            return total / steps;
+        }
+
+        /* ── Getting rid of it ───────────────────────────────────────────
+           The curves are calibrated to what cars change hands for privately.
+           A dealer pays less than that because they carry reconditioning,
+           warranty risk and floor space — 15-20% less on a trade-in, 14-18% on
+           an instant offer — and the gap widens on older, higher-mileage cars
+           that are harder for them to move. Trading in does carry one offset:
+           in Georgia and most sales-tax states it reduces the tax base on your
+           next car. */
+        const DISPOSAL = {
+            private: { label: 'a private sale', discount: 0,    taxCredit: false,
+                       note: 'Private sale is the top of the market, and the work is yours: listing, strangers, ' +
+                             'test drives, a bank draft you have to trust, and the title transfer.' },
+            instant: { label: 'an instant offer', discount: 0.16, taxCredit: false,
+                       note: 'An instant offer from CarMax or Carvana runs about 14-18% under private money — ' +
+                             'the price of an appraisal in the morning and a cheque in the afternoon.' },
+            tradein: { label: 'a dealer trade-in', discount: 0.18, taxCredit: true,
+                       note: 'A trade-in is the lowest number of the three, but at a licensed dealer it cuts the ' +
+                             'tax base on your next car, which claws a good part of the gap back.' }
+        };
+
+        /* Dealers discount an old car harder than a new one — the spread runs
+           from mid-teens on a late-model car to far wider past 100,000 miles. */
+        function disposalFactor(channel, ageAtSale) {
+            const d = DISPOSAL[channel] || DISPOSAL.private;
+            if (!d.discount) return 1;
+            return 1 - Math.min(0.34, d.discount + 0.015 * Math.max(0, ageAtSale - 5));
+        }
+
+        /* ── Optimistic / expected / pessimistic ────────────────────────
+           The two genuinely uncertain inputs are what the car fetches at the
+           end and what it costs you in between, so the cases move those and
+           nothing else. The pessimistic case also books one major failure once
+           the warranty has lapsed — the risk that never shows up in an average
+           and is exactly what you carry when you buy instead of lease. */
+        const SCENARIOS = {
+            optimistic:  { label: 'Optimistic',  resale: 1.10, maint: 0.70, shock: 0,
+                           blurb: 'Strong resale, a good example, nothing unexpected.' },
+            expected:    { label: 'Expected',    resale: 1.00, maint: 1.00, shock: 0,
+                           blurb: 'The published averages, which is what the rest of this page uses.' },
+            pessimistic: { label: 'Pessimistic', resale: 0.88, maint: 1.50, shock: 45,
+                           blurb: 'Soft resale, heavier upkeep, and one major failure out of warranty.' }
+        };
+
+        let scenarioCase = 'expected';
+
+        /* Servicing is part calendar, part odometer. */
+        function mileageFactor(miles) {
+            return 0.4 + 0.6 * (miles / 12000);
+        }
 
         /* ── Credit tiers ────────────────────────────────────────────────
            Average APRs are Experian's Q1 2026 bands. A tier also decides what
@@ -2301,11 +2469,23 @@
             const months = Math.max(1, Math.round(num('horizon')));
             const price = num('price');
             const curve = $('depreciation').value;
-            const autoResale = price * retainedValue(months / 12, curve);
+            /* Buyers price the odometer as well as the birthday: roughly 7% of
+               value per 10,000 miles away from the 12k/yr norm, capped so it
+               cannot run away at extreme mileages. */
+            const milesPerYear = num('miles');
+            const excessMiles = (milesPerYear - 12000) * (months / 12);
+            const mileageValue = Math.min(1.10, Math.max(0.60, 1 - 0.07 * excessMiles / 10000));
+            const scen = SCENARIOS[scenarioCase];
+            const channel = $('disposal').value;
+            const band = AGE_BANDS[carAge];
+            const ageAtSale = (band ? band.buyAge : 0) + months / 12;
+            const disposal = disposalFactor(channel, ageAtSale);
+            const autoResale = price * retainedValue(months / 12, curve) * mileageValue * scen.resale * disposal;
             const resaleField = $('resale');
             const resale = resaleField.dataset.touched === '1'
                 ? Math.max(0, num('resale'))
                 : autoResale;
+            function resaleOf() { return resale; }
 
             return {
                 months,
@@ -2313,11 +2493,23 @@
                 curve,
                 autoResale,
                 resale,
+                mileageValue,
+                scenarioCase,
+                channel,
+                disposal,
+                ageAtSale,
+                /* Only worth anything if you are buying another car from the
+                   same dealer, which is the situation a trade-in implies. */
+                tradeTaxCredit: DISPOSAL[channel].taxCredit ? resaleOf() * (num('taxRate') / 100) : 0,
+                /* One big bill, sized against this car's own upkeep, only if
+                   the basic warranty has run out before you sell. */
+                repairShock: scen.shock && outOfWarrantyDuring(months)
+                    ? num('maintenance') * scen.shock : 0,
                 taxRate: num('taxRate') / 100,
                 fees: num('fees'),
                 miles: num('miles'),
                 insurance: num('insurance'),
-                maintenance: num('maintenance'),
+                maintenance: num('maintenance') * scen.maint,
                 registration: num('registration'),
                 cash: num('cash'),
                 monthlyReturn: Math.pow(1 + num('returnRate') / 100, 1 / 12) - 1,
@@ -2354,6 +2546,14 @@
             }
         }
 
+        /* True once the bumper-to-bumper cover lapses inside the hold. With no
+           marque chosen we cannot know, so assume the cover is gone. */
+        function outOfWarrantyDuring(months) {
+            const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
+            if (!brand || !band) return true;
+            return band.buyAge + months / 12 > brand.warrantyBasic;
+        }
+
         /* Costs an owner carries whichever way the car was bought. */
         function addOwnerRunningCosts(led, v, maintenanceShare) {
             for (let m = 1; m <= v.months; m++) {
@@ -2363,6 +2563,10 @@
             const years = Math.ceil(v.months / 12);
             for (let y = 0; y < years; y++) {
                 led.add(v.registration, Math.min(y * 12, v.months), 'fees');
+            }
+            /* A lease keeps you inside cover, so the failure is the bank's. */
+            if (v.repairShock && maintenanceShare === 1) {
+                led.add(v.repairShock, Math.round(v.months * 0.6), 'maintenance');
             }
         }
 
@@ -2374,6 +2578,7 @@
 
             const t = led.totals();
             t.components.depreciation -= v.resale;
+            t.components.fees -= v.tradeTaxCredit;
             return finish(t, v, { resale: v.resale, monthlyOutlay: v.insurance + v.maintenance });
         }
 
@@ -2407,6 +2612,7 @@
 
             const t = led.totals();
             t.components.depreciation -= v.resale;
+            t.components.fees -= v.tradeTaxCredit;
             return finish(t, v, {
                 resale: v.resale,
                 payment,
@@ -2884,6 +3090,20 @@
                 rent: v.rentStartFee
             };
             const short = upfront[win.key] - v.cash;
+            /* Re-run the winner under the other two cases so the headline
+               carries its own uncertainty rather than pretending to precision. */
+            const spread = {};
+            const held = scenarioCase;
+            for (const key of Object.keys(SCENARIOS)) {
+                scenarioCase = key;
+                spread[key] = computeAll(readInputs())[win.key].perMonth;
+            }
+            scenarioCase = held;
+            $('verdictRange').innerHTML = 'If things go well <strong>' + usd0(spread.optimistic) +
+                '/mo</strong>; if they go badly <strong>' + usd0(spread.pessimistic) + '/mo</strong>. ' +
+                'That spread — ' + usd0(spread.pessimistic - spread.optimistic) +
+                '/mo — is the risk you are taking on, and it is widest on the routes where you own the car.';
+
             $('verdictWarning').innerHTML = short > 0
                 ? '⚠️ It also needs <strong>' + usd0(upfront[win.key]) + '</strong> up front, ' +
                   usd0(short) + ' more cash than you have.'
@@ -3067,13 +3287,33 @@
            are 2019 base-trim MSRPs. Same curve shape as the main calculator,
            so the two agree. */
         const MODELS = [
-            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, msrp2019: 26545, hold5: 0.750 },
-            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, msrp2019: 25570, hold5: 0.711 },
-            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, msrp2019: 25395, hold5: 0.582 },
-            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, msrp2019: 42650, hold5: 0.504 },
-            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, msrp2019: 24995, hold5: 0.494 },
-            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, msrp2019: 25200, hold5: 0.457 }
+            { key: 'rav4',    name: 'Toyota RAV4',       d1: 0.12, r: 0.0392, hold5: 0.750,
+              trims: { base: ['LE', 25500], mid: ['XLE Premium', 29500], top: ['Limited', 33500] } },
+            { key: 'crv',     name: 'Honda CR-V',        d1: 0.13, r: 0.0492, hold5: 0.711,
+              trims: { base: ['LX', 24350], mid: ['EX-L', 29750], top: ['Touring', 32750] } },
+            { key: 'cx5',     name: 'Mazda CX-5',        d1: 0.17, r: 0.0849, hold5: 0.582,
+              trims: { base: ['Sport', 25325], mid: ['Grand Touring', 31090], top: ['Signature', 36890] } },
+            { key: 'x3',      name: 'BMW X3',            d1: 0.24, r: 0.0976, hold5: 0.504,
+              trims: { base: ['sDrive30i', 41000], mid: ['xDrive30i', 43000], top: ['M40i', 54650] } },
+            { key: 'equinox', name: 'Chevrolet Equinox', d1: 0.22, r: 0.1079, hold5: 0.494,
+              trims: { base: ['L', 24995], mid: ['LT', 28295], top: ['Premier', 32195] } },
+            { key: 'escape',  name: 'Ford Escape',       d1: 0.23, r: 0.1223, hold5: 0.457,
+              trims: { base: ['S', 25200], mid: ['SEL', 29000], top: ['Titanium', 35215] } }
         ];
+
+        /* Real 2019 trim ladders rather than a multiplier — a CR-V Touring
+           was $32,750 against $24,350 for the LX, and a loaded X3 M40i more
+           than half as much again as the base car. Options give back less than
+           they cost, so the retention nudge stays. */
+        const TRIMS = {
+            base: { label: 'Base',   retentionAdj:  0.02 },
+            mid:  { label: 'Middle', retentionAdj:  0 },
+            top:  { label: 'Loaded', retentionAdj: -0.03 }
+        };
+
+        const DESTINATION_2019 = 1045;
+
+        let selectedTrim = 'mid';
 
         const MODEL_YEARS = [];
         for (let y = 2026; y >= 2014; y--) MODEL_YEARS.push(y);
@@ -3082,13 +3322,31 @@
 
         /* Sticker prices drifted up over the decade; 2019 is the anchor. */
         function modelMsrp(model, year) {
-            return Math.round(model.msrp2019 * Math.pow(1.032, year - 2019) / 50) * 50;
+            const [, price] = model.trims[selectedTrim];
+            return Math.round((price + DESTINATION_2019) * Math.pow(1.032, year - 2019) / 50) * 50;
         }
 
         function modelRetained(model, years) {
             if (years <= 0) return 1;
-            if (years <= 1) return 1 - model.d1 * years;
-            return (1 - model.d1) * Math.pow(1 - model.r, years - 1);
+            const adj = TRIMS[selectedTrim].retentionAdj;
+            const d1 = Math.min(0.5, Math.max(0.05, model.d1 - adj));
+            const base = years <= 1 ? 1 - d1 * years : (1 - d1) * Math.pow(1 - model.r, years - 1);
+            return Math.max(0.03, base);
+        }
+
+        /* Same odometer rule the calculator uses. */
+        function modelMileageFactor(milesPerYear, age) {
+            const excess = (milesPerYear - 12000) * age;
+            return Math.min(1.10, Math.max(0.60, 1 - 0.07 * excess / 10000));
+        }
+
+        function modelValueAt(model, msrp, age) {
+            return msrp * modelRetained(model, age) * modelMileageFactor(num('modelMiles') || 12000, age);
+        }
+
+        /* A 2019 car is seven years old today — you cannot buy one at nought. */
+        function earliestBuyAge() {
+            return Math.max(0, new Date().getFullYear() - Number($('modelYear').value));
         }
 
         function currentModel() {
@@ -3101,7 +3359,8 @@
             const buyAge = parseFloat($('buyAge').value);
             const hold = parseFloat($('holdYears').value);
             const sellAge = buyAge + hold;
-            const maxAge = 12;
+            /* Always keep the sell point on the canvas. */
+            const maxAge = Math.max(12, Math.ceil(sellAge));
 
             const width = 700, height = 280;
             const pad = { l: 52, r: 58, t: 12, b: 32 };
@@ -3140,14 +3399,14 @@
                 const pts = [];
                 for (let a = 0; a <= maxAge; a += 0.25) {
                     pts.push((a ? 'L' : 'M') + f.px(a).toFixed(1) + ' ' +
-                        f.py(msrp * modelRetained(m, a)).toFixed(1));
+                        f.py(modelValueAt(m, msrp, a)).toFixed(1));
                 }
                 return pts.join(' ');
             };
 
             const modelLabels = [];
             for (const m of MODELS) {
-                const endY = f.py(msrp * modelRetained(m, maxAge)) + 3;
+                const endY = f.py(modelValueAt(m, msrp, maxAge)) + 3;
                 const focus = m.key === selectedModel;
                 if (!focus) svg += '<path class="ctx" d="' + path(m) + '"/>';
                 modelLabels.push({
@@ -3164,8 +3423,15 @@
                     (l.color ? ' fill="' + l.color + '"' : '') + '>' + l.text + '</text>';
             }
 
-            /* Where that model year actually sits today */
-            const ageNow = new Date().getFullYear() - Number($('modelYear').value);
+            /* Everything left of today is history — you cannot buy into it. */
+            const ageNow = earliestBuyAge();
+            if (ageNow > 0) {
+                svg += '<rect x="' + pad.l + '" y="' + pad.t + '" width="' +
+                    Math.max(0, f.px(Math.min(ageNow, maxAge)) - pad.l).toFixed(1) + '" height="' + f.plotH +
+                    '" fill="rgba(148,163,184,0.07)"/>';
+                svg += '<text class="tick" x="' + ((pad.l + f.px(Math.min(ageNow, maxAge))) / 2).toFixed(1) +
+                    '" y="' + (height - pad.b - 6) + '" text-anchor="middle">already happened</text>';
+            }
             if (ageNow > 0 && ageNow <= maxAge) {
                 svg += '<line class="marker-line" x1="' + f.px(ageNow).toFixed(1) + '" y1="' + pad.t +
                     '" x2="' + f.px(ageNow).toFixed(1) + '" y2="' + (height - pad.b) +
@@ -3177,7 +3443,7 @@
             /* The two chosen points */
             for (const [age, label] of [[buyAge, 'buy'], [sellAge, 'sell']]) {
                 if (age > maxAge) continue;
-                const value = msrp * modelRetained(model, age);
+                const value = modelValueAt(model, msrp, age);
                 svg += '<circle cx="' + f.px(age).toFixed(1) + '" cy="' + f.py(value).toFixed(1) +
                     '" r="5" fill="var(--accent)" stroke="var(--surface-1)" stroke-width="2"/>';
                 svg += '<text class="tick" x="' + f.px(age).toFixed(1) + '" y="' + (f.py(value) - 10).toFixed(1) +
@@ -3200,8 +3466,8 @@
             const hold = parseFloat($('holdYears').value);
             const sellAge = buyAge + hold;
 
-            const buyValue = msrp * modelRetained(model, buyAge);
-            const sellValue = msrp * modelRetained(model, sellAge);
+            const buyValue = modelValueAt(model, msrp, buyAge);
+            const sellValue = modelValueAt(model, msrp, sellAge);
             const loss = buyValue - sellValue;
             const pctOfBuy = buyValue > 0 ? loss / buyValue * 100 : 0;
             const pctOfNew = msrp > 0 ? loss / msrp * 100 : 0;
@@ -3222,7 +3488,7 @@
             /* How the same money would have fared in the other five. */
             const ranked = MODELS.map((m) => ({
                 m,
-                loss: msrp * (modelRetained(m, buyAge) - modelRetained(m, sellAge))
+                loss: modelValueAt(m, msrp, buyAge) - modelValueAt(m, msrp, sellAge)
             })).sort((a, b) => a.loss - b.loss);
             const bestAlt = ranked[0];
             const worst = ranked[ranked.length - 1];
@@ -3247,7 +3513,31 @@
             $('depSummary').innerHTML = bits.join(' ');
         }
 
+        function renderTrimChips() {
+            const model = currentModel();
+            $('trimChips').innerHTML = Object.entries(TRIMS).map(([key, trim]) => {
+                const [name, price] = model.trims[key];
+                return '<button class="preset-btn' + (key === selectedTrim ? ' active' : '') +
+                    '" type="button" data-trim="' + key + '">' + name + ' · ' + usd0(price + DESTINATION_2019) +
+                    '</button>';
+            }).join('');
+        }
+
         function refreshModal() {
+            renderTrimChips();
+            const minBuy = earliestBuyAge();
+            $('buyAge').min = minBuy;
+            if (parseFloat($('buyAge').value) < minBuy) $('buyAge').value = minBuy;
+
+            const year = Number($('modelYear').value);
+            const miles = num('modelMiles') || 12000;
+            $('depAvailability').innerHTML = minBuy > 0
+                ? 'A ' + year + ' is <strong>' + minBuy + ' years old today</strong>, so that is the earliest ' +
+                  'you can buy one — the shaded part of the curve already happened to whoever owned it. ' +
+                  'At ' + miles.toLocaleString('en-US') + ' mi/yr it has about <strong>' +
+                  (minBuy * miles).toLocaleString('en-US') + ' miles</strong> on it.'
+                : 'A ' + year + ' can still be bought new, so the whole curve is ahead of you.';
+
             renderDepChart();
             renderDepReadout();
         }
@@ -3275,26 +3565,36 @@
                 $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
                 refreshModal();
             });
-            for (const id of ['modelMsrp', 'buyAge', 'holdYears']) {
+            for (const id of ['modelMsrp', 'modelMiles', 'buyAge', 'holdYears']) {
                 $(id).addEventListener('input', refreshModal);
             }
+
+            $('trimChips').addEventListener('click', (e) => {
+                const chip = e.target.closest('.preset-btn');
+                if (!chip) return;
+                selectedTrim = chip.dataset.trim;
+                $('modelMsrp').value = modelMsrp(currentModel(), Number($('modelYear').value));
+                refreshModal();
+            });
 
             $('applyModel').addEventListener('click', () => {
                 const model = currentModel();
                 const msrp = Math.max(0, num('modelMsrp'));
                 const buyAge = parseFloat($('buyAge').value);
                 const hold = parseFloat($('holdYears').value);
-                $('price').value = Math.round(msrp * modelRetained(model, buyAge));
+                $('price').value = Math.round(modelValueAt(model, msrp, buyAge));
                 priceAnchor = 'price';
                 $('horizon').value = Math.round(hold * 12);
+                $('miles').value = Math.round(num('modelMiles') || 12000);
                 /* Snap the generic curve to whichever preset holds value most
                    like this model, so the break-even chart keeps the right
                    shape either side of the horizon. */
                 const target = modelRetained(model, 5);
                 $('depreciation').value = Object.keys(DEPRECIATION_CURVES).reduce((best, key) =>
                     Math.abs(retainedValue(5, key) - target) < Math.abs(retainedValue(5, best) - target)
-                        ? key : best, 'typical');
-                $('resale').value = Math.round(msrp * modelRetained(model, buyAge + hold));
+                        ? key : best, 'average');
+                $('resale').value = Math.round(modelValueAt(model, msrp, buyAge + hold) *
+                    disposalFactor($('disposal').value, buyAge + hold));
                 $('resale').dataset.touched = '1';
                 closeModal();
                 update();
@@ -3381,21 +3681,29 @@
                 ]
             },
             {
-                id: 'car',
-                q: 'What kind of car are you picturing?',
-                why: 'Cheaper cars lose less value but hand you the repair risk. This sets a realistic price, ' +
-                    'depreciation curve, insurance and upkeep in one go — all editable afterwards.',
+                id: 'brand',
+                q: 'What sort of car are you picturing?',
+                why: 'Marque decides two things at once, and they pull the same way: a Toyota keeps 68% of its ' +
+                    'value at five years and costs about $5,900 to run for a decade, where a German saloon keeps ' +
+                    '45% and costs nearer $16,000.',
                 choices: [
-                    { value: 'beater', label: '🔧 Beater · $6k', sub: 'Barely depreciates, you own the repairs' },
-                    { value: 'used', label: '👍 Used · $18k', sub: '3–5 years old, the sweet spot' },
-                    { value: 'new', label: '✨ New · $32k', sub: 'Full warranty, first-year hit' },
-                    { value: 'premium', label: '💎 Premium · $58k', sub: 'Brutal depreciation — often lease it' }
+                    { value: 'japanese', label: '🇯🇵 Japanese', sub: 'Toyota, Honda, Mazda — best resale, cheapest to run' },
+                    { value: 'korean', label: '🇰🇷 Korean', sub: 'Hyundai, Kia — 10yr powertrain warranty' },
+                    { value: 'american', label: '🇺🇸 American', sub: 'Ford, Chevy — cheap upkeep, weak resale' },
+                    { value: 'germanLux', label: '🇩🇪 German luxury', sub: 'BMW, Audi, MB — 3x the upkeep' }
                 ],
-                get: () => guideAnswers.car,
-                set: (v) => {
-                    guideAnswers.car = v;
-                    applyCarPreset(v);
-                }
+                get: () => carBrand,
+                set: (v) => { carBrand = v; if (!carAge) carAge = 'three'; applyCarProfile(); }
+            },
+            {
+                id: 'age',
+                q: 'How old when you buy it?',
+                why: 'Repair spend runs at about half the lifetime average while the warranty holds, and climbs ' +
+                    'steeply once it lapses. Age sets the price, the cover you still have, and the bills ahead.',
+                choices: Object.entries(AGE_BANDS).map(([value, band]) =>
+                    ({ value, label: band.label, sub: band.sub })),
+                get: () => carAge,
+                set: (v) => { carAge = v; if (!carBrand) carBrand = 'japanese'; applyCarProfile(); }
             },
             {
                 id: 'miles',
@@ -3422,7 +3730,7 @@
                     { value: 7, label: 'Georgia — buying here', sub: '7% title ad valorem tax' },
                     { value: 3, label: 'Georgia — brought my own car', sub: '3% new-resident rate' },
                     { value: 0, label: 'A state with no car tax', sub: 'Oregon, New Hampshire, Montana…' },
-                    { value: 6, label: 'Somewhere else', sub: 'Type your state\'s rate next' }
+                    { value: 6, label: 'Somewhere else', sub: 'Type your state\'s rate below', stay: true }
                 ]
             },
             {
@@ -3436,17 +3744,72 @@
 
         const guideAnswers = { licence: null, car: null };
         let guideIndex = 0;
+        let advanceTimer = null;
 
-        function applyCarPreset(key) {
-            const preset = CAR_PRESETS[key];
-            if (!preset) return;
-            for (const [id, value] of Object.entries(preset)) {
-                if (id !== 'used') $(id).value = value;
-            }
-            buyingUsed = preset.used;
+        /* Choosing an answer is the answer — move to the next question rather
+           than making people confirm it. The pause is just long enough to see
+           the choice light up, and any option that expects follow-up typing
+           opts out with `stay`. */
+        function queueAdvance() {
+            clearTimeout(advanceTimer);
+            advanceTimer = setTimeout(guideNext, 220);
+        }
+
+        let carBrand = null, carAge = null;
+
+        /* Marque and age together decide price, upkeep, cover and resale. */
+        function applyCarProfile() {
+            const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
+            if (!brand || !band) return;
+
+            const holdYears = Math.max(0.5, Math.round(num('horizon')) / 12);
+            const miles = num('miles') || 12000;
+
+            const priceNow = brand.newPrice * retainedValue(band.buyAge, brand.curve);
+            $('price').value = Math.round(priceNow / 50) * 50;
+            $('depreciation').value = brand.curve;
+            $('maintenance').value = Math.round(
+                brand.maint10 / 120 * maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
+            $('insurance').value = Math.round(210 * brand.insMult * band.insMult / 5) * 5;
+            $('down').value = Math.round(priceNow * 0.12 / 100) * 100;
+
+            buyingUsed = band.buyAge > 0;
             applyCreditTier();
             priceAnchor = 'price';
             $('resale').dataset.touched = '0';
+        }
+
+        /* Says in words what the two chips just did to the numbers. */
+        function renderCarProfile(v) {
+            const host = $('carProfile').querySelector('span:last-child');
+            if (!carBrand || !carAge) {
+                host.innerHTML = 'Pick a marque and an age above and the price, depreciation curve, upkeep and ' +
+                    'insurance are all set together — they are not independent. Or type your own numbers below.';
+                return;
+            }
+            const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
+            const sellAge = band.buyAge + v.months / 12;
+            const basicLeft = Math.max(0, brand.warrantyBasic - band.buyAge);
+            const powerLeft = Math.max(0, brand.warrantyPower - band.buyAge);
+
+            let cover;
+            if (basicLeft > 0) {
+                cover = '<strong>' + basicLeft.toFixed(0) + ' years of bumper-to-bumper cover left</strong> (' +
+                    brand.warrantyBasic + 'yr basic, ' + brand.warrantyPower + 'yr powertrain), so early repairs ' +
+                    'are not yours.';
+            } else if (powerLeft > 0) {
+                cover = 'Basic cover has expired; <strong>' + powerLeft.toFixed(0) + ' years of powertrain ' +
+                    'warranty remain</strong>, which is the expensive half.';
+            } else {
+                cover = '<strong>Out of warranty entirely</strong> — every repair is yours from day one.';
+            }
+
+            host.innerHTML = brand.label + ' (' + brand.examples + ') at ' + band.label.toLowerCase() + ': ' +
+                'worth ' + usd0(v.price) + ' now, ' + usd0(v.resale) + ' after your ' + v.months + ' months, ' +
+                'which is age ' + sellAge.toFixed(1) + '. ' + cover + ' Upkeep is set to <strong>' +
+                usd0(v.maintenance) + '/mo</strong> — the ten-year total for this marque is ' +
+                usd0(brand.maint10) + ', spread across the years you actually own it and scaled to your mileage. ' +
+                brand.note;
         }
 
         function renderGuide() {
@@ -3467,7 +3830,9 @@
                     ['Credit', CREDIT_TIERS[creditTier].label],
                     ['Cash available', usd0(num('cash'))],
                     ['Keeping it', $('horizon').value + ' months'],
+                    ['Car', carBrand ? BRANDS[carBrand].label + ', ' + AGE_BANDS[carAge].label.toLowerCase() : '—'],
                     ['List price', usd0(num('price'))],
+                    ['Upkeep', usd0(num('maintenance')) + '/mo'],
                     ['Out the door', usd0(num('otd'))],
                     ['Driving', Number($('miles').value).toLocaleString('en-US') + ' mi/yr'],
                     ['Car tax', $('taxRate').value + '%'],
@@ -3503,6 +3868,7 @@
                         else { $(step.field).value = choice.value; }
                         update();
                         renderGuide();
+                        if (!choice.stay) queueAdvance();
                     });
                     grid.appendChild(btn);
                 }
@@ -3523,6 +3889,7 @@
                 body.appendChild(wrap);
                 const input = wrap.querySelector('#guideInput');
                 input.addEventListener('input', () => {
+                    clearTimeout(advanceTimer);
                     $(step.field).value = input.value;
                     if (step.field === 'price') priceAnchor = 'price';
                     update();
@@ -3543,6 +3910,7 @@
                         $(step.field).value = value;
                         update();
                         renderGuide();
+                        queueAdvance();
                     });
                     row.appendChild(btn);
                 }
@@ -3564,6 +3932,7 @@
         }
 
         function closeGuide(showResult) {
+            clearTimeout(advanceTimer);
             $('guideBackdrop').classList.remove('open');
             $('guideModal').classList.remove('open');
             setTimeout(() => { $('guideModal').hidden = true; }, 250);
@@ -3573,6 +3942,7 @@
         }
 
         function guideNext() {
+            clearTimeout(advanceTimer);
             if (guideIndex >= GUIDE_STEPS.length - 1) {
                 closeGuide(true);
                 return;
@@ -3583,7 +3953,7 @@
         }
 
         /* ── Wiring ────────────────────────────────────────────────────── */
-        const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'resale', 'miles',
+        const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
             'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
             'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseOverage', 'leaseDisposition',
             'rentRate', 'rentStartFee', 'rentAllowance', 'rentOverage'];
@@ -3605,9 +3975,26 @@
             renderVerdict(results, best, v);
             renderCashNote(results, v);
             renderOptionNotes(results, v);
+            renderCarProfile(v);
             renderCredit();
             renderInsights(results, v);
             syncPresets(v.months);
+            const disp = DISPOSAL[v.channel];
+            $('disposalNote').innerHTML = disp.note + ' At ' + v.ageAtSale.toFixed(1) +
+                ' years old that is <strong>' + (v.disposal < 1
+                    ? Math.round((1 - v.disposal) * 100) + '% under private money' : 'the full private price') +
+                '</strong>' + (v.tradeTaxCredit > 0
+                    ? ', offset by <strong>' + usd0(v.tradeTaxCredit) + '</strong> of tax credit on your next car'
+                    : '') + '.';
+            $('caseBlurb').innerHTML = SCENARIOS[scenarioCase].blurb +
+                (v.repairShock ? ' Includes <strong>' + usd0(v.repairShock) +
+                    '</strong> for one major repair, since the warranty runs out before you sell.' : '');
+            for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {
+                btn.classList.toggle('active', btn.dataset.brand === carBrand);
+            }
+            for (const btn of document.querySelectorAll('#agePresets .preset-btn')) {
+                btn.classList.toggle('active', btn.dataset.age === carAge);
+            }
             save();
         }
 
@@ -3621,7 +4008,7 @@
             try {
                 const data = {
                     touchedResale: $('resale').dataset.touched === '1',
-                    creditTier, buyingUsed
+                    creditTier, buyingUsed, carBrand, carAge, scenarioCase
                 };
                 for (const id of INPUT_IDS) data[id] = $(id).value;
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -3639,6 +4026,9 @@
                 if (data.touchedResale) $('resale').dataset.touched = '1';
                 if (CREDIT_TIERS[data.creditTier]) creditTier = data.creditTier;
                 if (typeof data.buyingUsed === 'boolean') buyingUsed = data.buyingUsed;
+                if (BRANDS[data.carBrand]) carBrand = data.carBrand;
+                if (AGE_BANDS[data.carAge]) carAge = data.carAge;
+                if (SCENARIOS[data.scenarioCase]) scenarioCase = data.scenarioCase;
             } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
         }
 
@@ -3672,12 +4062,20 @@
             });
         }
 
-        for (const btn of document.querySelectorAll('#carPresets .preset-btn')) {
+        for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {
             btn.addEventListener('click', () => {
-                /* Shared with the guided walkthrough — a used car is a
-                   different lending market, so the APR follows the car as well
-                   as the credit tier. */
-                applyCarPreset(btn.dataset.car);
+                carBrand = btn.dataset.brand;
+                if (!carAge) carAge = 'three';
+                applyCarProfile();
+                update();
+            });
+        }
+
+        for (const btn of document.querySelectorAll('#agePresets .preset-btn')) {
+            btn.addEventListener('click', () => {
+                carAge = btn.dataset.age;
+                if (!carBrand) carBrand = 'japanese';
+                applyCarProfile();
                 update();
             });
         }
@@ -3705,6 +4103,16 @@
             $('tableToggle').setAttribute('aria-expanded', String(!shown));
         });
 
+        for (const btn of $('caseToggle').querySelectorAll('button')) {
+            btn.addEventListener('click', () => {
+                scenarioCase = btn.dataset.case;
+                for (const b of $('caseToggle').querySelectorAll('button')) {
+                    b.classList.toggle('active', b === btn);
+                }
+                update();
+            });
+        }
+
         for (const btn of $('curveMode').querySelectorAll('button')) {
             btn.addEventListener('click', () => {
                 curveMeasure = btn.dataset.mode;
@@ -3721,6 +4129,7 @@
         $('stepNext').addEventListener('click', guideNext);
         $('stepSkip').addEventListener('click', guideNext);
         $('stepBack').addEventListener('click', () => {
+            clearTimeout(advanceTimer);
             if (guideIndex > 0) { guideIndex--; renderGuide(); }
         });
         document.addEventListener('keydown', (e) => {
