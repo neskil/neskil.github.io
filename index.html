@@ -425,7 +425,21 @@
            animates top/left/width/height to a centred panel. Geometry is set inline
            by JS; the transition that carries it lives here. The tilt handlers bail
            out while .is-open, so nothing fights these values. */
-        #card-about.is-open {
+        .flip-card.is-closing {
+            opacity: 0;
+            transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.42s ease-in;
+        }
+
+        .flip-card.just-restored {
+            animation: flipCardFadeIn 0.22s ease-out both;
+        }
+
+        @keyframes flipCardFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .flip-card.is-open {
             position: fixed;
             z-index: 301;
             margin: 0;
@@ -436,38 +450,45 @@
             transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        #card-about.is-open .card-face {
+        .flip-card.is-open .card-face {
             box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+            /* backdrop-filter samples its backdrop in screen space, so on a face being
+               rotated in 3D it paints as an axis-aligned rectangle that refuses to turn
+               with the card: a ghost panel hanging behind the real one mid-flip. It is
+               also what stops backface-visibility from working here. The page behind is
+               already blurred by #about-backdrop while open, so nothing is lost. */
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
         }
 
-        #about-placeholder {
+        .flip-placeholder {
             visibility: hidden;
         }
 
         /* Roomier type once there's room for it. */
-        #card-about.is-open .card-face {
+        .flip-card.is-open .card-face {
             padding: 2.25rem 2.5rem;
         }
 
-        #card-about.is-open .about-portrait {
+        .flip-card.is-open .about-portrait {
             width: 68px;
             height: 68px;
         }
 
-        #card-about.is-open .about-name {
+        .flip-card.is-open .about-name {
             font-size: 1.3rem;
         }
 
-        #card-about.is-open .about-role {
+        .flip-card.is-open .about-role {
             font-size: 0.88rem;
         }
 
-        #card-about.is-open .about-text {
+        .flip-card.is-open .about-text {
             font-size: 0.98rem;
             line-height: 1.65;
         }
 
-        #card-about.is-open .about-close {
+        .flip-card.is-open .about-close {
             opacity: 1;
         }
 
@@ -482,7 +503,12 @@
            which is what makes the flip read as a card turning over. Left on .card
            the rectangle stayed put while the text skewed inside it. overflow must be
            visible too, or the rotating faces get clipped at the card's bounds. */
-        #card-about {
+        .flip-card {
+            padding: 0;
+            font-family: inherit;
+            font-size: 1rem;
+            text-align: left;
+            width: 100%;
             background: none;
             backdrop-filter: none;
             -webkit-backdrop-filter: none;
@@ -490,24 +516,21 @@
             box-shadow: none;
             overflow: visible;
             perspective: 1400px;
+        }
+
+        #card-about {
             --accent-rgb: 251, 113, 133;
             --card-bg-gradient: linear-gradient(135deg, rgba(38, 20, 28, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
             --card-hover-gradient: linear-gradient(135deg, rgba(58, 28, 42, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
             --card-border: rgba(251, 113, 133, 0.22);
             --card-hover-border: rgba(253, 164, 175, 0.48);
-            perspective: 1000px;
-            padding: 0;
-            font-family: inherit;
-            font-size: 1rem;
-            text-align: left;
-            width: 100%;
         }
 
-        #card-about::before {
+        .flip-card::before {
             content: none;
         }
 
-        #card-about .card-link {
+        .flip-card .card-link {
             color: rgb(253, 164, 175);
         }
 
@@ -520,7 +543,7 @@
             transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        #card-about.is-flipped .card-flip-inner {
+        .flip-card.is-flipped .card-flip-inner {
             transform: rotateY(180deg);
         }
 
@@ -561,8 +584,8 @@
 
         /* Hover feedback now belongs to the front face, since .card:hover styles a
            surface that is no longer visible. */
-        #card-about:hover .card-face-front,
-        #card-about .card-face-front:focus-visible {
+        .flip-card:hover .card-face-front,
+        .flip-card .card-face-front:focus-visible {
             background: var(--card-hover-gradient, var(--card-hover-bg));
             border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
             box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
@@ -573,11 +596,26 @@
         .card-face-front {
             position: relative;
             min-height: 100%;
+            opacity: 1;
+            transition: opacity 0s linear 0.3s;
+        }
+
+        .flip-card.is-flipped .card-face-front {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .flip-card.is-flipped .card-face-back {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .card-face-back {
             position: absolute;
             inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0s linear 0.3s;
             transform: rotateY(180deg);
             padding: 1.75rem 2rem;
             gap: 1.1rem;
@@ -686,7 +724,7 @@
             fill: none;
         }
 
-        #card-about:hover .about-close {
+        .flip-card:hover .about-close {
             color: var(--text-primary);
             background: rgba(255, 255, 255, 0.12);
         }
@@ -705,35 +743,63 @@
            the panel would top out at the viewport and scroll its close link out of
            reach. Tightening type and padding lets it fit outright. */
         @media (max-height: 480px) {
-            #card-about.is-open .card-face {
+            .flip-card.is-open .card-face {
                 padding: 1.3rem 1.6rem;
             }
 
-            #card-about.is-open .about-portrait {
+            .flip-card.is-open .about-portrait {
                 width: 46px;
                 height: 46px;
             }
 
-            #card-about.is-open .about-name {
+            .flip-card.is-open .about-name {
                 font-size: 1.08rem;
             }
 
-            #card-about.is-open .about-role {
+            .flip-card.is-open .about-role {
                 font-size: 0.8rem;
             }
 
-            #card-about.is-open .about-text {
+            .flip-card.is-open .about-text {
                 font-size: 0.85rem;
                 line-height: 1.5;
             }
 
-            #card-about.is-open .card-face-back {
+            .flip-card.is-open .card-face-back {
                 gap: 0.7rem;
             }
 
-            #card-about.is-open .about-body {
+            .flip-card.is-open .about-body {
                 gap: 0.6rem;
             }
+        }
+
+        #card-wip {
+            --accent-rgb: 161, 161, 170;
+            --card-bg-gradient: linear-gradient(135deg, rgba(28, 28, 32, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(44, 44, 50, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(161, 161, 170, 0.20);
+            --card-hover-border: rgba(212, 212, 216, 0.42);
+        }
+
+        #card-wip .card-link {
+            color: rgb(212, 212, 216);
+        }
+
+        .wip-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            width: 100%;
+            text-align: center;
+        }
+
+        .wip-emoji {
+            font-size: 2.6rem;
+            line-height: 1;
         }
 
         #card-car {
@@ -1444,9 +1510,9 @@
                 </svg></span>
         </a>
 
-        <div class="card" id="card-about">
+        <div class="card flip-card" id="card-about">
             <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front" id="about-open" aria-expanded="false"
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
                     aria-controls="about-panel">
                     <div>
                         <div class="card-icon">
@@ -1466,7 +1532,7 @@
                 </button>
                 <div class="card-face card-face-back" id="about-panel" role="dialog" aria-modal="true"
                     aria-label="About Niklas Billgren">
-                    <button type="button" class="about-close" data-about-close aria-label="Close">
+                    <button type="button" class="about-close" data-flip-close aria-label="Close">
                         <svg viewBox="0 0 24 24">
                             <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" />
@@ -1490,7 +1556,49 @@
                             sim, a couple of calculators I actually use. Mostly from my phone, with Claude and
                             AntiGravity.</p>
                     </div>
-                    <button type="button" class="card-link" data-about-close>Close <svg viewBox="0 0 24 24">
+                    <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
+                            <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card flip-card" id="card-wip">
+            <div class="card-flip-inner">
+                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
+                    aria-controls="wip-panel">
+                    <div>
+                        <div class="card-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M3 20h18"/>
+                                <path d="M5 20v-6l7-4 7 4v6" fill="currentColor" fill-opacity="0.1"/>
+                                <path d="M9 20v-4h6v4"/>
+                                <path d="M12 3v3.5" opacity="0.6"/>
+                                <path d="M8.5 5.5l7-2" opacity="0.6"/>
+                            </svg>
+                        </div>
+                        <h2 class="card-title">Under construction</h2>
+                        <p class="card-desc">Something is going here. I don't know what yet.</p>
+                    </div>
+                    <span class="card-link">Have a look anyway <svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg></span>
+                </button>
+                <div class="card-face card-face-back" id="wip-panel" role="dialog" aria-modal="true"
+                    aria-label="Under construction">
+                    <button type="button" class="about-close" data-flip-close aria-label="Close">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
+                        </svg>
+                    </button>
+                    <div class="wip-body">
+                        <div class="wip-emoji">🏗️</div>
+                        <p class="about-text">Told you.</p>
+                    </div>
+                    <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg></button>
@@ -2012,36 +2120,26 @@
            panel would be positioned against the grid box instead of the viewport
            AND painted underneath the backdrop, since its z-index would be scoped
            inside the grid. Escaping to <body> is what makes fixed mean fixed. */
-        const aboutCard = document.getElementById('card-about');
-        const aboutBackdrop = document.getElementById('about-backdrop');
-        const aboutOpenBtn = document.getElementById('about-open');
-        const OPEN_MS = 550;
-        let aboutOpen = false;
-        let aboutTimer = null;
-        let aboutPlaceholder = null;
-        let aboutRect = null;
+        /* Flip cards. Any .flip-card works the same way: its .flip-open button turns
+           the card over and expands it to a centred panel over a blurred page, and
+           any [data-flip-close] control, the backdrop or Escape puts it back.
 
-        /* Puts the card back in its grid cell and clears the open state. Safe to call
-           at any time: with nothing open it does nothing, and it is what makes
-           open/close re-entrant. */
-        function restoreAbout() {
-            clearTimeout(aboutTimer);
-            aboutTimer = null;
-            aboutCard.classList.remove('is-open');
-            ['top', 'left', 'width', 'height', 'transition', 'transform']
-                .forEach(prop => aboutCard.style.removeProperty(prop));
-            if (aboutPlaceholder) {
-                aboutPlaceholder.parentNode.insertBefore(aboutCard, aboutPlaceholder);
-                aboutPlaceholder.remove();
-                aboutPlaceholder = null;
-            }
-            aboutRect = null;
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
-        }
+           Opening is a FLIP. Freeze the card at its grid rect, drop a same-sized
+           placeholder into the cell it vacates so the grid does not reflow, reparent
+           it to <body> (the grid keeps a transform from its fadeIn animation, which
+           would otherwise make it the containing block and stacking context for a
+           fixed-position child), land the final geometry instantly, then animate
+           transform from the inverse of that back to identity. Transform only, so
+           the browser composites it instead of re-laying-out every frame. */
+        const flipBackdrop = document.getElementById('about-backdrop');
+        const OPEN_MS = 620;
+        const CLOSE_MS = 450;
 
-        /* The transform that maps the panel's final box back onto `from`, so the
-           animation can start visually on the grid cell and run to identity. */
+        let openCard = null;
+        let openPlaceholder = null;
+        let openRect = null;
+        let flipTimer = null;
+
         function inverseTransform(from, to) {
             const sx = from.width / to.w;
             const sy = from.height / to.h;
@@ -2050,31 +2148,25 @@
             return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
         }
 
-        /* Height comes from the copy, not a constant: a fixed height left dead space
-           under short text on a tall screen, and pushed the close link out of sight
-           on a landscape phone. Measuring means the panel is exactly as tall as it
-           needs to be, clamped to the viewport, and stays right if the copy changes.
-
-           The measurement writes to the card and reads back, which is a forced
-           reflow — deliberately so. It happens inside openAbout before anything
-           paints, so the layout thrash is invisible and the FLIP still starts from
-           the real grid rect. */
-        function aboutTargetRect() {
+        /* Height comes from the copy rather than a constant, so a panel is exactly as
+           tall as it needs to be at any viewport and the text can change length
+           without anyone re-tuning a number. The write-then-read is a forced reflow
+           on purpose; it runs before anything paints. */
+        function flipTargetRect(card) {
             const w = Math.min(560, window.innerWidth - 32);
             const maxH = window.innerHeight - 32;
+            const back = card.querySelector('.card-face-back');
 
-            const back = aboutCard.querySelector('.card-face-back');
-            const prevW = aboutCard.style.width;
-            const prevH = aboutCard.style.height;
-            aboutCard.style.width = w + 'px';
-            aboutCard.style.height = 'auto';
+            const prevW = card.style.width;
+            const prevH = card.style.height;
+            card.style.width = w + 'px';
+            card.style.height = 'auto';
             const natural = back.scrollHeight;
-            aboutCard.style.width = prevW;
-            aboutCard.style.height = prevH;
+            card.style.width = prevW;
+            card.style.height = prevH;
 
-            // box-sizing is border-box, so the height we set has to carry the card's
-            // borders too; scrollHeight only measures the content box. Without this
-            // the panel lands 2px short and scrolls for no reason.
+            // box-sizing is border-box, so the height set here must carry the face's
+            // borders; scrollHeight reports only the content box.
             const cs = getComputedStyle(back);
             const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
 
@@ -2082,89 +2174,119 @@
             return { w, h, top: (window.innerHeight - h) / 2, left: (window.innerWidth - w) / 2 };
         }
 
-        function setAboutRect(top, left, w, h) {
-            aboutCard.style.top = top + 'px';
-            aboutCard.style.left = left + 'px';
-            aboutCard.style.width = w + 'px';
-            aboutCard.style.height = h + 'px';
+        function setFlipRect(card, top, left, w, h) {
+            card.style.top = top + 'px';
+            card.style.left = left + 'px';
+            card.style.width = w + 'px';
+            card.style.height = h + 'px';
         }
 
-        function openAbout() {
-            if (aboutOpen) return;
+        /* Puts the open card back in its cell and clears all open state. Safe to call
+           at any time; with nothing open it does nothing. This is what makes open and
+           close re-entrant, and it must be flushed rather than cancelled. */
+        function restoreFlip(fade) {
+            clearTimeout(flipTimer);
+            flipTimer = null;
+            if (!openCard) return;
 
-            /* A close may still be animating, with its restore queued. Finish it now
-               rather than cancelling it: openAbout reads aboutCard.parentNode to place
-               the placeholder, and mid-close that parent is still <body>. Cancelling
-               instead of flushing put the placeholder into <body>, orphaned the real
-               one in the grid, and left the card stranded after the footer on the next
-               close. Reopening within the animation window did that every time. */
-            restoreAbout();
-            aboutOpen = true;
+            const card = openCard;
+            card.classList.remove('is-open', 'is-closing', 'is-flipped');
+            ['top', 'left', 'width', 'height', 'transition', 'transform']
+                .forEach(prop => card.style.removeProperty(prop));
+            card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
 
-            const r = aboutCard.getBoundingClientRect();
-            aboutPlaceholder = document.createElement('div');
-            aboutPlaceholder.id = 'about-placeholder';
-            aboutPlaceholder.style.height = r.height + 'px';
-            aboutCard.parentNode.insertBefore(aboutPlaceholder, aboutCard);
-            document.body.appendChild(aboutCard); // out of .grid's transformed context
+            if (openPlaceholder) {
+                openPlaceholder.parentNode.insertBefore(card, openPlaceholder);
+                openPlaceholder.remove();
+            }
 
-            // The tilt handlers set style.transition inline on hover; clear it or it
-            // overrides the geometry transition declared for .is-open.
-            aboutCard.style.transition = '';
-            ['--rx', '--ry', '--ty', '--mag'].forEach(p => aboutCard.style.removeProperty(p));
-            aboutCard.classList.add('is-open');
+            if (fade) {
+                card.classList.add('just-restored');
+                card.addEventListener('animationend', function done() {
+                    card.classList.remove('just-restored');
+                    card.removeEventListener('animationend', done);
+                });
+            }
 
-            // Measured first: aboutTargetRect() needs .is-open's larger type to be
-            // in effect, and must run before the start rect is committed.
-            const t = aboutTargetRect();
+            openCard = null;
+            openPlaceholder = null;
+            openRect = null;
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+        }
 
-            // Final geometry lands instantly and the motion is pure transform, so the
-            // browser composites it rather than re-laying-out every frame. Animating
-            // width/height each frame is what made the spin stutter and read as broken.
-            aboutRect = t;
-            setAboutRect(t.top, t.left, t.w, t.h);
-            aboutCard.style.transform = inverseTransform(r, t);
-            aboutCard.getBoundingClientRect(); // flush the inverted start state
+        function openFlip(card) {
+            if (openCard === card) return;
 
-            aboutCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
-            aboutCard.classList.add('is-flipped');
-            aboutBackdrop.classList.add('open');
-            aboutOpenBtn.setAttribute('aria-expanded', 'true');
+            // A close may still be running with its restore queued. Finish it rather
+            // than cancelling it: the placeholder is positioned from the card's
+            // parentNode, and mid-close that parent is still <body>.
+            restoreFlip(false);
+
+            const r = card.getBoundingClientRect();
+            openPlaceholder = document.createElement('div');
+            openPlaceholder.className = 'flip-placeholder';
+            openPlaceholder.style.height = r.height + 'px';
+            card.parentNode.insertBefore(openPlaceholder, card);
+            document.body.appendChild(card);
+            openCard = card;
+
+            // The tilt handlers write style.transition inline on hover; clear it or it
+            // overrides the transition declared for .is-open.
+            card.style.transition = '';
+            ['--rx', '--ry', '--ty', '--mag'].forEach(prop => card.style.removeProperty(prop));
+            card.classList.add('is-open');
+
+            // Measured with .is-open applied, since that state sets the larger type.
+            const t = flipTargetRect(card);
+            openRect = t;
+            setFlipRect(card, t.top, t.left, t.w, t.h);
+            card.style.transform = inverseTransform(r, t);
+            card.getBoundingClientRect(); // flush the inverted start state
+
+            card.style.transform = 'translate(0px, 0px) scale(1, 1)';
+            card.classList.add('is-flipped');
+            flipBackdrop.classList.add('open');
+            card.querySelector('.flip-open').setAttribute('aria-expanded', 'true');
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
         }
 
-        function closeAbout() {
-            if (!aboutOpen) return;
-            aboutOpen = false;
-            clearTimeout(aboutTimer);
+        function closeFlip() {
+            if (!openCard) return;
+            const card = openCard;
+            clearTimeout(flipTimer);
 
-            if (!aboutPlaceholder || !aboutRect) { restoreAbout(); return; }
+            if (!openPlaceholder || !openRect) { restoreFlip(false); return; }
 
-            aboutCard.style.transform = inverseTransform(aboutPlaceholder.getBoundingClientRect(), aboutRect);
-            aboutCard.classList.remove('is-flipped');
-            aboutBackdrop.classList.remove('open');
-            aboutOpenBtn.setAttribute('aria-expanded', 'false');
+            /* Fades out as it travels back. The panel and the grid cell have different
+               shapes, so scaling one onto the other squashes the text unevenly; letting
+               that un-squash on the final frame is what looked like a resize glitch.
+               Fading means the swap back to the real layout happens unseen. */
+            card.classList.add('is-closing');
+            card.style.transition = '';
+            card.style.transform = inverseTransform(openPlaceholder.getBoundingClientRect(), openRect);
+            card.classList.remove('is-flipped');
+            flipBackdrop.classList.remove('open');
+            card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
 
-            aboutTimer = setTimeout(restoreAbout, OPEN_MS);
+            flipTimer = setTimeout(() => restoreFlip(true), CLOSE_MS);
         }
 
-        /* Opening is the front face's job; closing belongs to the two [data-about-close]
-           buttons, the backdrop and Escape. The back face deliberately does NOT close
-           on a background click any more — it holds links now, and tapping one used to
-           dismiss the panel out from under the navigation. */
-        aboutCard.querySelector('#about-open').addEventListener('click', openAbout);
-        aboutCard.querySelectorAll('[data-about-close]').forEach(el => {
-            el.addEventListener('click', closeAbout);
+        document.querySelectorAll('.flip-card').forEach(card => {
+            card.querySelector('.flip-open').addEventListener('click', () => openFlip(card));
+            card.querySelectorAll('[data-flip-close]').forEach(el => {
+                el.addEventListener('click', closeFlip);
+            });
         });
-        aboutBackdrop.addEventListener('click', closeAbout);
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAbout(); });
+        flipBackdrop.addEventListener('click', closeFlip);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFlip(); });
         window.addEventListener('resize', () => {
-            if (!aboutOpen) return;
-            const t = aboutTargetRect();
-            aboutRect = t;
-            setAboutRect(t.top, t.left, t.w, t.h);
-            aboutCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
+            if (!openCard) return;
+            const t = flipTargetRect(openCard);
+            openRect = t;
+            setFlipRect(openCard, t.top, t.left, t.w, t.h);
+            openCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
         });
 
         document.getElementById('vault-danger-button').addEventListener('click', () => {
