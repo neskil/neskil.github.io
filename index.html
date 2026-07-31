@@ -40,6 +40,7 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
 
         @property --bg-color-1 {
@@ -224,7 +225,7 @@
             align-items: flex-start;
             height: 100%;
             transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
-            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.4s ease, box-shadow 0.4s ease;
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
             box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
             cursor: pointer;
             text-decoration: none;
@@ -257,7 +258,6 @@
             border-radius: inherit;
             background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
             opacity: calc(0.05 + var(--mag) * 0.3);
-            transition: opacity 0.35s ease;
             pointer-events: none;
         }
 
@@ -410,8 +410,8 @@
             position: fixed;
             inset: 0;
             background: rgba(6, 8, 20, 0.62);
-            backdrop-filter: blur(9px);
-            -webkit-backdrop-filter: blur(9px);
+            backdrop-filter: blur(4.5px);
+            -webkit-backdrop-filter: blur(4.5px);
             z-index: 300;
             opacity: 0;
             pointer-events: none;
@@ -445,29 +445,7 @@
             visibility: hidden;
         }
 
-        /* Roomier type once there's room for it. */
-        .flip-card.is-open .card-face {
-            padding: 2.25rem 2.5rem;
-        }
-
-        .flip-card.is-open .about-portrait {
-            width: 68px;
-            height: 68px;
-        }
-
-        .flip-card.is-open .about-name {
-            font-size: 1.3rem;
-        }
-
-        .flip-card.is-open .about-role {
-            font-size: 0.88rem;
-        }
-
-        .flip-card.is-open .about-text {
-            font-size: 0.98rem;
-            line-height: 1.65;
-        }
-
+        .flip-card.is-open .card-close,
         .flip-card.is-open .about-close {
             opacity: 1;
         }
@@ -522,7 +500,7 @@
             width: 100%;
             height: 100%;
             transform-style: preserve-3d;
-            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .flip-card.is-flipped .card-flip-inner {
@@ -537,6 +515,8 @@
             padding: 2.5rem;
             height: 100%;
             background: var(--card-bg-gradient, var(--card-bg));
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border: 1px solid var(--card-border, var(--glass-border));
             border-radius: 24px;
             box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
@@ -1000,35 +980,78 @@
         }
 
         @media (max-width: 640px) {
+            html {
+                background-attachment: scroll;
+                min-height: 100vh;
+                min-height: 100dvh;
+            }
+
+            body {
+                padding: 24px 16px;
+                min-height: 100vh;
+                min-height: 100dvh;
+            }
+
+            #networkCanvas {
+                width: 100%;
+                height: 100%;
+                height: 100dvh;
+            }
+
+            header {
+                margin-bottom: 1.75rem;
+            }
+
             h1 {
-                font-size: 2.25rem;
+                font-size: 2.15rem;
+            }
+
+            p.subtitle {
+                font-size: 1.05rem;
             }
 
             .grid {
                 grid-template-columns: 1fr;
-                gap: 0.75rem;
+                grid-auto-rows: auto;
+                gap: 1rem;
             }
 
             .card {
-                padding: 1.25rem;
-                border-radius: 16px;
+                padding: 1.35rem 1.25rem;
+                border-radius: 18px;
+                height: auto;
+                min-height: auto;
+                justify-content: flex-start;
             }
 
             .card-icon {
                 font-size: 1.75rem;
-                width: 42px;
-                height: 42px;
-                margin-bottom: 0.75rem;
+                width: 44px;
+                height: 44px;
+                margin-bottom: 0.85rem;
             }
 
             .card-title {
-                font-size: 1.15rem;
-                margin-bottom: 0.35rem;
+                font-size: 1.25rem;
+                margin-bottom: 0.4rem;
             }
 
             .card-desc {
-                font-size: 0.775rem;
-                margin-bottom: 1rem;
+                font-size: 0.825rem;
+                margin-bottom: 1.25rem;
+                line-height: 1.5;
+            }
+
+            .card-stat-chip {
+                top: 14px;
+                right: 14px;
+                padding: 2px 8px;
+                font-size: 0.7rem;
+                max-width: calc(100% - 75px);
+            }
+
+            .card-link {
+                margin-top: auto;
             }
         }
 
@@ -1601,7 +1624,15 @@
         let width, height;
         let particles = [];
         let themeEntities = [];
-        const mouse = { x: null, y: null, radius: 150 };
+        const mouse = {
+            x: null, y: null,
+            targetX: null, targetY: null,
+            smoothX: null, smoothY: null,
+            radius: 150,
+            active: false,
+            presence: 0,
+            leaveTimer: null
+        };
 
         let currentGlobalHue = 220, targetGlobalHue = 220;
         let activeThemeCardId = null;
@@ -1743,19 +1774,37 @@
         window.addEventListener('resize', resize);
         resize();
 
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = e.x;
-            mouse.y = e.y;
-        });
+        function handleMouseMove(e) {
+            if (mouse.leaveTimer) {
+                clearTimeout(mouse.leaveTimer);
+                mouse.leaveTimer = null;
+            }
+            mouse.active = true;
+            mouse.targetX = e.clientX;
+            mouse.targetY = e.clientY;
+            if (mouse.smoothX === null) {
+                mouse.smoothX = e.clientX;
+                mouse.smoothY = e.clientY;
+            }
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        }
 
-        window.addEventListener('mouseout', () => {
-            mouse.x = null;
-            mouse.y = null;
-        });
+        function handleMouseLeave() {
+            if (mouse.leaveTimer) return;
+            // Delay 300ms before starting the slow retreat/fade
+            mouse.leaveTimer = setTimeout(() => {
+                mouse.active = false;
+                mouse.leaveTimer = null;
+            }, 300);
+        }
 
-        window.addEventListener('mouseleave', () => {
-            mouse.x = null;
-            mouse.y = null;
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseleave', handleMouseLeave);
+        window.addEventListener('mouseout', (e) => {
+            if (!e.relatedTarget && !e.toElement) {
+                handleMouseLeave();
+            }
         });
 
         class Particle {
@@ -1786,12 +1835,12 @@
                 if (this.y < 0 || this.y > height) this.vy = -this.vy;
 
                 // Mouse proximity: repel + glow
-                if (mouse.x != null) {
-                    let dx = mouse.x - this.x;
-                    let dy = mouse.y - this.y;
+                if (mouse.smoothX !== null && mouse.presence > 0.001) {
+                    let dx = mouse.smoothX - this.x;
+                    let dy = mouse.smoothY - this.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance < mouse.radius) {
-                        const force = (mouse.radius - distance) / mouse.radius;
+                        const force = ((mouse.radius - distance) / mouse.radius) * mouse.presence;
                         this.x -= (dx / distance) * force * 5;
                         this.y -= (dy / distance) * force * 5;
                         this.glow += (force - this.glow) * 0.2;
@@ -1921,6 +1970,28 @@
 
         function animate() {
             ctx.clearRect(0, 0, width, height);
+
+            // Smooth mouse presence & position tracking
+            if (mouse.active) {
+                mouse.presence += (1 - mouse.presence) * 0.1;
+            } else {
+                mouse.presence += (0 - mouse.presence) * 0.035;
+                if (mouse.presence < 0.001) {
+                    mouse.presence = 0;
+                    mouse.x = null;
+                    mouse.y = null;
+                }
+            }
+
+            if (mouse.targetX !== null) {
+                if (mouse.smoothX === null) {
+                    mouse.smoothX = mouse.targetX;
+                    mouse.smoothY = mouse.targetY;
+                } else {
+                    mouse.smoothX += (mouse.targetX - mouse.smoothX) * 0.12;
+                    mouse.smoothY += (mouse.targetY - mouse.smoothY) * 0.12;
+                }
+            }
 
             // Smooth scroll tracking + velocity
             let prevSmooth = smoothScrollY;
@@ -2107,26 +2178,34 @@
            tall as it needs to be at any viewport and the text can change length
            without anyone re-tuning a number. The write-then-read is a forced reflow
            on purpose; it runs before anything paints. */
-        function flipTargetRect(card) {
-            const w = Math.min(560, window.innerWidth - 32);
-            const maxH = window.innerHeight - 32;
-            const back = card.querySelector('.card-face-back');
+        function flipTargetRect(card, r) {
+            const placeholder = card.classList.contains('is-open') && openPlaceholder ? openPlaceholder : card;
+            const rect = r || placeholder.getBoundingClientRect();
+            const isMobile = window.innerWidth <= 640;
 
-            const prevW = card.style.width;
-            const prevH = card.style.height;
-            card.style.width = w + 'px';
-            card.style.height = 'auto';
-            const natural = back.scrollHeight;
-            card.style.width = prevW;
-            card.style.height = prevH;
+            let w, h;
+            if (isMobile) {
+                w = Math.min(520, window.innerWidth - 24);
+                const backFace = card.querySelector('.card-face-back');
+                const contentH = backFace ? backFace.scrollHeight + 32 : 360;
+                h = Math.min(window.innerHeight - 32, Math.max(200, contentH));
+            } else {
+                const aspectRatio = rect.width / rect.height;
+                const maxW = Math.min(rect.width * 1.45, Math.min(520, window.innerWidth - 36));
+                const maxH = window.innerHeight - 40;
 
-            // box-sizing is border-box, so the height set here must carry the face's
-            // borders; scrollHeight reports only the content box.
-            const cs = getComputedStyle(back);
-            const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+                w = maxW;
+                h = w / aspectRatio;
 
-            const h = Math.max(240, Math.min(natural + border, maxH));
-            return { w, h, top: (window.innerHeight - h) / 2, left: (window.innerWidth - w) / 2 };
+                if (h > maxH) {
+                    h = maxH;
+                    w = h * aspectRatio;
+                }
+            }
+
+            const top = (window.innerHeight - h) / 2;
+            const left = (window.innerWidth - w) / 2;
+            return { w, h, top, left };
         }
 
         function setFlipRect(card, top, left, w, h) {
@@ -2191,16 +2270,16 @@
             ['--rx', '--ry', '--ty', '--mag'].forEach(prop => card.style.removeProperty(prop));
             card.classList.add('is-open');
 
-            // Measured with .is-open applied, since that state sets the larger type.
-            const t = flipTargetRect(card);
+            // Measured with same proportions
+            const t = flipTargetRect(card, r);
             openRect = t;
 
             // Start at initial grid rect
             setFlipRect(card, r.top, r.left, r.width, r.height);
             card.getBoundingClientRect(); // flush start state
 
-            // Animate top, left, width, height cleanly without text distortion
-            card.style.transition = 'all 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+            // Animate top, left, width, height smoothly for a rich zoom-in to middle of screen
+            card.style.transition = 'top 0.55s cubic-bezier(0.22, 1, 0.36, 1), left 0.55s cubic-bezier(0.22, 1, 0.36, 1), width 0.55s cubic-bezier(0.22, 1, 0.36, 1), height 0.55s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.55s ease';
             setFlipRect(card, t.top, t.left, t.w, t.h);
 
             card.classList.add('is-flipped');
@@ -2219,13 +2298,13 @@
 
             const p = openPlaceholder.getBoundingClientRect();
             card.classList.add('is-closing');
-            card.style.transition = 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)';
+            card.style.transition = 'top 0.48s cubic-bezier(0.4, 0, 0.2, 1), left 0.48s cubic-bezier(0.4, 0, 0.2, 1), width 0.48s cubic-bezier(0.4, 0, 0.2, 1), height 0.48s cubic-bezier(0.4, 0, 0.2, 1)';
             setFlipRect(card, p.top, p.left, p.width, p.height);
             card.classList.remove('is-flipped');
             flipBackdrop.classList.remove('open');
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
 
-            flipTimer = setTimeout(() => restoreFlip(false), 450);
+            flipTimer = setTimeout(() => restoreFlip(false), 480);
         }
 
         document.querySelectorAll('.flip-card').forEach(card => {
@@ -2241,7 +2320,6 @@
             const t = flipTargetRect(openCard);
             openRect = t;
             setFlipRect(openCard, t.top, t.left, t.w, t.h);
-            openCard.style.transform = 'translate(0px, 0px) scale(1, 1)';
         });
 
         document.getElementById('vault-danger-button').addEventListener('click', () => {
@@ -2350,38 +2428,55 @@
             function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
             const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
-            const activeCards = new Set(); // cards currently under direct mouse/touch control
-            const cardTilt = new Map(); // card -> { maxTilt, lift }
+            const cardState = new Map(); // card -> state object
 
             function applyVars(card, rx, ry, ty, mx, my, mag) {
                 card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
                 card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-                card.style.setProperty('--ty', ty + 'px');
+                card.style.setProperty('--ty', ty.toFixed(1) + 'px');
                 card.style.setProperty('--mx', mx.toFixed(1) + '%');
                 card.style.setProperty('--my', my.toFixed(1) + '%');
                 card.style.setProperty('--mag', mag.toFixed(2));
             }
 
-            function attachTilt(card, { maxTilt = 7, lift = -6 } = {}) {
-                cardTilt.set(card, { maxTilt, lift });
+            function getOrCreateState(card, maxTilt, lift) {
+                let state = cardState.get(card);
+                if (!state) {
+                    state = {
+                        maxTilt, lift,
+                        hovered: false,
+                        targetRx: 0, targetRy: 0, targetTy: 0,
+                        targetMx: 50, targetMy: 50, targetMag: 0,
+                        currentRx: 0, currentRy: 0, currentTy: 0,
+                        currentMx: 50, currentMy: 50, currentMag: 0
+                    };
+                    cardState.set(card, state);
+                } else {
+                    state.maxTilt = maxTilt;
+                    state.lift = lift;
+                }
+                return state;
+            }
 
-                // Magnitude (0..1) drives glare opacity — subtle near center, builds up toward the edges.
+            function attachTilt(card, { maxTilt = 10, lift = -8 } = {}) {
+                const state = getOrCreateState(card, maxTilt, lift);
+
                 function fromPoint(clientX, clientY) {
                     if (card.classList.contains('is-open')) return;
                     const rect = card.getBoundingClientRect();
                     const px = clamp((clientX - rect.left) / rect.width, 0, 1);
                     const py = clamp((clientY - rect.top) / rect.height, 0, 1);
-                    const rx = clamp((0.5 - py) * maxTilt * 2, -maxTilt, maxTilt);
-                    const ry = clamp((px - 0.5) * maxTilt * 2, -maxTilt, maxTilt);
-                    const mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
-                    // Keep the glare a few % inside the border so it never sits right on the rounded-corner seam.
-                    applyVars(card, rx, ry, lift, 5 + px * 90, 5 + py * 90, mag);
+                    state.targetRx = clamp((0.5 - py) * maxTilt * 2, -maxTilt, maxTilt);
+                    state.targetRy = clamp((px - 0.5) * maxTilt * 2, -maxTilt, maxTilt);
+                    state.targetTy = lift;
+                    state.targetMx = 5 + px * 90;
+                    state.targetMy = 5 + py * 90;
+                    state.targetMag = clamp((Math.abs(state.targetRx) + Math.abs(state.targetRy)) / (2 * maxTilt), 0, 1);
                 }
 
                 function activate() {
                     if (card.classList.contains('is-open')) return;
-                    activeCards.add(card);
-                    card.style.transition = 'transform 0.15s ease-out';
+                    state.hovered = true;
                     if (typeof activateCardTheme === 'function') {
                         activateCardTheme(card.id);
                     }
@@ -2389,12 +2484,7 @@
 
                 function release() {
                     if (card.classList.contains('is-open')) return;
-                    activeCards.delete(card);
-                    // On mobile, hand control back to the ambient loop (next frame) instead of
-                    // snapping to flat — it picks up right where release left off, transitioning
-                    // smoothly toward wherever the phone/scroll say the card should rest.
-                    card.style.transition = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
-                    if (!isTouch) applyVars(card, 0, 0, 0, 50, 50, 0);
+                    state.hovered = false;
                 }
 
                 card.addEventListener('mouseenter', activate);
@@ -2416,14 +2506,14 @@
                 const hasMaxSway = card.id === 'card-cargo-lander' || card.id === 'card-supply-chain';
                 const isDry = card.id === 'card-cv';
                 attachTilt(card, {
-                    maxTilt: hasMaxSway ? 12 : (isDry ? 5 : 7),
-                    lift: hasMaxSway ? -10 : (isDry ? -4 : -6)
+                    maxTilt: hasMaxSway ? 15 : (isDry ? 7 : 10),
+                    lift: hasMaxSway ? -12 : (isDry ? -5 : -8)
                 });
             });
 
-            const SCROLL_BEND_FRACTION = 1; // bend can reach up to 100% of a card's own maxTilt at the very edge
-            const SCROLL_BEND_POWER = 5; // higher = flatter through the middle, sharper kick right at the edges
-            const BASELINE_HALFLIFE_S = 3; // how fast "neutral" drifts to track your current hold angle
+            const SCROLL_BEND_FRACTION = 1.4;
+            const SCROLL_BEND_POWER = 1.2;
+            const BASELINE_HALFLIFE_S = 3;
 
             let lastBeta = null, lastGamma = null;
             let baselineBeta = null, baselineGamma = null;
@@ -2441,9 +2531,10 @@
                 lastTick = now;
 
                 const viewportCenter = window.innerHeight / 2;
+                const isMobileView = isTouch || window.innerWidth <= 640;
 
                 let deltaBeta = 0, deltaGamma = 0;
-                if (isTouch && lastBeta !== null) {
+                if (isMobileView && lastBeta !== null) {
                     if (dt > 0) {
                         const drift = 1 - Math.pow(0.5, dt / BASELINE_HALFLIFE_S);
                         baselineBeta += (lastBeta - baselineBeta) * drift;
@@ -2454,47 +2545,67 @@
                 }
 
                 document.querySelectorAll('.card').forEach((card) => {
-                    if (activeCards.has(card)) return; // under direct hover control — leave it alone
-                    if (card.classList.contains('is-open')) return; // expanded About panel sets its own geometry
-                    const { maxTilt } = cardTilt.get(card) || { maxTilt: 7 };
+                    if (card.classList.contains('is-open')) return;
+                    const state = cardState.get(card) || getOrCreateState(card, 10, -8);
+                    const { maxTilt } = state;
                     const rect = card.getBoundingClientRect();
 
-                    let rx = 0, ry = 0, mx = 50, my = 50, mag = 0;
+                    if (!state.hovered) {
+                        if (isMobileView) {
+                            const accelRx = clamp(deltaBeta * -0.3, -maxTilt, maxTilt);
+                            const accelRy = clamp(deltaGamma * 0.3, -maxTilt, maxTilt);
 
-                    if (isTouch) {
-                        const accelRx = clamp(deltaBeta * -0.3, -maxTilt, maxTilt);
-                        const accelRy = clamp(deltaGamma * 0.3, -maxTilt, maxTilt);
+                            const centerY = rect.top + rect.height / 2;
+                            const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
+                            const eased = Math.sign(norm) * Math.pow(Math.abs(norm), SCROLL_BEND_POWER);
+                            const bend = eased * maxTilt * SCROLL_BEND_FRACTION;
 
-                        const centerY = rect.top + rect.height / 2;
-                        const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
-                        const eased = Math.sign(norm) * Math.pow(Math.abs(norm), SCROLL_BEND_POWER);
-                        const bend = eased * maxTilt * SCROLL_BEND_FRACTION;
+                            state.targetRx = clamp(accelRx + bend, -16, 16);
+                            state.targetRy = accelRy;
+                            state.targetTy = Math.abs(eased) * -3;
+                            state.targetMag = clamp((Math.abs(state.targetRx) + Math.abs(state.targetRy)) / 20, 0, 1);
+                            state.targetMx = clamp(50 + deltaGamma * 1.1, 5, 95);
+                            state.targetMy = clamp(50 + deltaBeta * 1.1 + norm * 35, 5, 95);
+                        } else if (mouse.active && mouse.presence > 0.001 && mouse.smoothX !== null && mouse.smoothY !== null) {
+                            // Desktop PC ambient magnetic cursor tilt: cards react subtly to mouse movement outside cards
+                            const cardCenterX = rect.left + rect.width / 2;
+                            const cardCenterY = rect.top + rect.height / 2;
+                            const dx = mouse.smoothX - cardCenterX;
+                            const dy = mouse.smoothY - cardCenterY;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
 
-                        rx = clamp(accelRx + bend, -maxTilt, maxTilt);
-                        ry = accelRy;
-                        mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 1);
-                        mx = clamp(50 + deltaGamma * 1.1, 5, 95);
-                        my = clamp(50 + deltaBeta * 1.1 + norm * 30, 5, 95);
-                    } else if (mouse.x !== null && mouse.y !== null) {
-                        // Desktop PC ambient magnetic cursor tilt: cards react subtly to mouse movement outside cards
-                        const cardCenterX = rect.left + rect.width / 2;
-                        const cardCenterY = rect.top + rect.height / 2;
-                        const dx = mouse.x - cardCenterX;
-                        const dy = mouse.y - cardCenterY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
+                            const ambientMax = Math.min(4, maxTilt * 0.4);
+                            const factor = clamp(1 - dist / 900, 0.15, 1.0) * mouse.presence;
 
-                        const ambientMax = Math.min(3.5, maxTilt * 0.45);
-                        const factor = clamp(1 - dist / 900, 0.15, 1.0);
+                            state.targetRx = clamp((-dy / 450) * ambientMax * factor, -ambientMax, ambientMax);
+                            state.targetRy = clamp((dx / 450) * ambientMax * factor, -ambientMax, ambientMax);
+                            state.targetTy = 0;
+                            state.targetMag = clamp((Math.abs(state.targetRx) + Math.abs(state.targetRy)) / (2 * maxTilt), 0, 0.35) * mouse.presence;
 
-                        rx = clamp((-dy / 450) * ambientMax * factor, -ambientMax, ambientMax);
-                        ry = clamp((dx / 450) * ambientMax * factor, -ambientMax, ambientMax);
-                        mag = clamp((Math.abs(rx) + Math.abs(ry)) / (2 * maxTilt), 0, 0.35);
-
-                        mx = clamp(50 + (dx / rect.width) * 35, 8, 92);
-                        my = clamp(50 + (dy / rect.height) * 35, 8, 92);
+                            state.targetMx = clamp(50 + (dx / rect.width) * 35, 8, 92);
+                            state.targetMy = clamp(50 + (dy / rect.height) * 35, 8, 92);
+                        } else {
+                            // Mouse is outside screen (and delay expired) -> return to neutral 0 tilt and 50% center glare
+                            state.targetRx = 0;
+                            state.targetRy = 0;
+                            state.targetTy = 0;
+                            state.targetMx = 50;
+                            state.targetMy = 50;
+                            state.targetMag = 0;
+                        }
                     }
 
-                    applyVars(card, rx, ry, 0, mx, my, mag);
+                    // On-screen tracking is crisp and responsive; slow decay is strictly for leaving the window
+                    const isOffScreenDecay = !mouse.active && !state.hovered;
+                    const lerpSpeed = state.hovered ? 0.18 : (isOffScreenDecay ? 0.04 : 0.15);
+                    state.currentRx += (state.targetRx - state.currentRx) * lerpSpeed;
+                    state.currentRy += (state.targetRy - state.currentRy) * lerpSpeed;
+                    state.currentTy += (state.targetTy - state.currentTy) * lerpSpeed;
+                    state.currentMx += (state.targetMx - state.currentMx) * lerpSpeed;
+                    state.currentMy += (state.targetMy - state.currentMy) * lerpSpeed;
+                    state.currentMag += (state.targetMag - state.currentMag) * lerpSpeed;
+
+                    applyVars(card, state.currentRx, state.currentRy, state.currentTy, state.currentMx, state.currentMy, state.currentMag);
                 });
 
                 requestAnimationFrame(ambientTick);
