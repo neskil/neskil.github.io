@@ -1392,6 +1392,7 @@
 
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
+            <span class="new-badge">NEW</span>
             <div>
                 <div class="card-icon">
                     <svg viewBox="0 0 24 24">
@@ -1689,21 +1690,8 @@
                     this.symbol = fromLeft ? '🚚' : '🚛';
                     this.maxLife = Math.ceil((width + 100) / Math.abs(this.vx));
                     this.maxAlpha = 0.4;
-                } else if (cardId === 'card-math-game') {
-                    // Fast time-attack streak
-                    this.type = 'streak';
-                    this.x = fromLeft ? -60 : width + 60;
-                    this.y = Math.random() * height;
-                    this.vx = fromLeft ? (Math.random() * 3 + 5.0) : -(Math.random() * 3 + 5.0);
-                    this.vy = (Math.random() - 0.5) * 0.8;
-                    this.size = Math.random() * 10 + 18;
-                    this.hue = 25;
-                    const items = ['⚡', '⏱️', '+10', 'STREAK!', '3x', 'FAST!'];
-                    this.symbol = items[Math.floor(Math.random() * items.length)];
-                    this.maxLife = Math.ceil((width + 120) / Math.abs(this.vx));
-                    this.maxAlpha = 0.4;
-                } else {
-                    // General horizontal floaters for converter, car, cv, math
+                } else if (cardId === 'card-car') {
+                    // Lease, Rent or Buy floater
                     this.type = 'floater';
                     this.x = fromLeft ? -40 : width + 40;
                     this.y = Math.random() * height;
@@ -1712,18 +1700,12 @@
                     this.size = Math.random() * 8 + 14;
                     this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
                     this.maxAlpha = 0.35;
-
-                    const config = {
-                        'card-converter': { hue: 40, items: ['⇄', 'kg ⇄ lb', 'km ⇄ mi', '°C ⇄ °F'] },
-                        'card-car': { hue: 160, items: ['🚗', '🔑', '$/mo', '📉', 'APR'] },
-                        'card-about': { hue: 345, items: ['✨', '{ }', '📱', '~/', '◆'] },
-                        'card-cv': { hue: 215, items: ['📄', '📜', '</>', '◆', '💼'] },
-                        'card-math': { hue: 325, items: ['2.2 lb/kg', '1.6 mi/km', '3.8 gal/L', '+', '×', '÷'] }
-                    };
-
-                    const cfg = config[cardId] || { hue: 220, items: ['•'] };
-                    this.hue = cfg.hue;
-                    this.symbol = cfg.items[Math.floor(Math.random() * cfg.items.length)];
+                    this.hue = 160;
+                    const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
+                    this.symbol = items[Math.floor(Math.random() * items.length)];
+                } else {
+                    this.dead = true;
+                    return;
                 }
 
                 this.alpha = 0;
@@ -2007,7 +1989,8 @@
             }
 
             // Spawn background theme entities after a lingering hover over a card
-            if (themeSpawnArmed && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
+            const allowedThemeCards = ['card-cargo-lander', 'card-supply-chain', 'card-car'];
+            if (themeSpawnArmed && allowedThemeCards.includes(activeThemeCardId) && themeEntities.length < MAX_THEME_ENTITIES && Math.random() < 0.012) {
                 themeEntities.push(new ThemeEntity(activeThemeCardId));
             }
 
