@@ -257,8 +257,17 @@ window.addEventListener('scroll', hideTooltip, { passive: true });
 document.addEventListener('pointerdown', hideTooltip);
 window.addEventListener('resize', () => { if (!$('depModal').hidden) refreshModal(); });
 
+/* Jumping to a folded panel should unfold it — otherwise the link lands
+   you on a closed summary and looks broken. */
+for (const link of document.querySelectorAll('.nav-link')) {
+    link.addEventListener('click', () => {
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target && target.tagName === 'DETAILS') target.open = true;
+    });
+}
+
 // ScrollSpy observer for section index
-const spySections = document.querySelectorAll('section[id]');
+const spySections = document.querySelectorAll('section[id], details[id]');
 const spyLinks = document.querySelectorAll('.nav-link');
 if ('IntersectionObserver' in window && spySections.length > 0) {
     const spyObserver = new IntersectionObserver((entries) => {
