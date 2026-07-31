@@ -192,6 +192,7 @@
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-auto-rows: 1fr;
             gap: 2rem;
             width: 100%;
             max-width: 1000px;
@@ -221,6 +222,7 @@
             flex-direction: column;
             justify-content: space-between;
             align-items: flex-start;
+            height: 100%;
             transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
             transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.4s ease, box-shadow 0.4s ease;
             box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
@@ -553,6 +555,7 @@
             justify-content: space-between;
             align-items: flex-start;
             padding: 2.5rem;
+            height: 100%;
             background: var(--card-bg-gradient, var(--card-bg));
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -1387,7 +1390,6 @@
 
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
-            <span class="new-badge">NEW</span>
             <div>
                 <div class="card-icon">
                     <svg viewBox="0 0 24 24">
@@ -1433,6 +1435,7 @@
 
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
+            <span class="new-badge">NEW</span>
             <div>
                 <div class="card-icon">
                     <svg viewBox="0 0 24 24">
