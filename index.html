@@ -685,11 +685,19 @@
 
         @media (max-width: 640px) {
             .card-face {
-                padding: 1.25rem;
+                padding: 1.35rem 1.25rem;
+                border-radius: 18px;
+            }
+
+            .card-face-front {
+                height: auto;
+                min-height: auto;
+                justify-content: flex-start;
             }
 
             .card-face-back {
                 padding: 1.25rem;
+                border-radius: 18px;
             }
         }
 
@@ -1016,7 +1024,8 @@
                 gap: 1rem;
             }
 
-            .card {
+            .card,
+            .card-face-front {
                 padding: 1.35rem 1.25rem;
                 border-radius: 18px;
                 height: auto;
