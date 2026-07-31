@@ -427,19 +427,6 @@
            animates top/left/width/height to a centred panel. Geometry is set inline
            by JS; the transition that carries it lives here. The tilt handlers bail
            out while .is-open, so nothing fights these values. */
-        .flip-card.is-closing {
-            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        .flip-card.just-restored {
-            animation: flipCardFadeIn 0.22s ease-out both;
-        }
-
-        @keyframes flipCardFadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
         .flip-card.is-open {
             position: fixed;
             z-index: 301;
@@ -448,7 +435,6 @@
             --rx: 0deg;
             --ry: 0deg;
             --ty: 0px;
-            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .flip-card.is-open .card-face {
@@ -959,9 +945,16 @@
         }
 
         .new-badge {
-            background: linear-gradient(135deg, #38bdf8, #6366f1);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 0 20px rgba(99, 102, 241, 0.3);
-            animation: pulse-glow 2s infinite;
+            background: rgba(99, 102, 241, 0.16);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            box-shadow: none;
+            backdrop-filter: blur(4px);
         }
 
         .beta-badge {
@@ -1322,7 +1315,7 @@
 
     <header>
         <h1 id="name-trigger" title="Niklas Billgren" style="cursor:default;user-select:none">Niklas Billgren</h1>
-        <p class="subtitle">Welcome to my personal website</p>
+        <p class="subtitle">Welcome to my personal playground</p>
         <span class="secret-hint" id="secret-hint"></span>
     </header>
 
@@ -1403,26 +1396,6 @@
                 </svg></span>
         </a>
 
-        <a href="converter/index.html" class="card card-metal" id="card-converter">
-            <div class="card-bg-hover"></div>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="9" stroke-dasharray="4 2" opacity="0.35"/>
-                        <path d="M7 9h10l-3-3"/>
-                        <path d="M17 15H7l3 3"/>
-                        <circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.85"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Quick Converter</h2>
-                <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
-            </div>
-            <span class="card-link">Open Converter <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
-
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
             <span class="new-badge">NEW</span>
@@ -1447,6 +1420,26 @@
                 </svg></span>
         </a>
 
+        <a href="converter/index.html" class="card card-metal" id="card-converter">
+            <div class="card-bg-hover"></div>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" stroke-dasharray="4 2" opacity="0.35"/>
+                        <path d="M7 9h10l-3-3"/>
+                        <path d="M17 15H7l3 3"/>
+                        <circle cx="12" cy="12" r="2" fill="currentColor" opacity="0.85"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Quick Converter</h2>
+                <p class="card-desc">Feeling confused about freedom units, here is your solution!</p>
+            </div>
+            <span class="card-link">Open Converter <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="math/index.html" class="card card-metal" id="card-math">
             <div class="card-bg-hover"></div>
             <div>
@@ -1459,8 +1452,8 @@
                         <path d="M13.5 13.5h3.5m-3.5 2.5h3.5" opacity="0.9"/>
                     </svg>
                 </div>
-                <h2 class="card-title">US/Metric Mental Math</h2>
-                <p class="card-desc">Quick reference cheatsheet for practical mental conversions between US and Metric units.</p>
+                <h2 class="card-title">EU/US Unit Cheat Sheet</h2>
+                <p class="card-desc">Quick reference cheatsheet for practical mental conversions between EU and US units.</p>
             </div>
             <span class="card-link">View cheatsheet <svg viewBox="0 0 24 24">
                     <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -2189,24 +2182,27 @@
             openPlaceholder = document.createElement('div');
             openPlaceholder.className = 'flip-placeholder';
             openPlaceholder.style.height = r.height + 'px';
+            openPlaceholder.style.width = r.width + 'px';
             card.parentNode.insertBefore(openPlaceholder, card);
             document.body.appendChild(card);
             openCard = card;
 
-            // The tilt handlers write style.transition inline on hover; clear it or it
-            // overrides the transition declared for .is-open.
-            card.style.transition = '';
+            // Clear tilt properties
             ['--rx', '--ry', '--ty', '--mag'].forEach(prop => card.style.removeProperty(prop));
             card.classList.add('is-open');
 
             // Measured with .is-open applied, since that state sets the larger type.
             const t = flipTargetRect(card);
             openRect = t;
-            setFlipRect(card, t.top, t.left, t.w, t.h);
-            card.style.transform = inverseTransform(r, t);
-            card.getBoundingClientRect(); // flush the inverted start state
 
-            card.style.transform = 'translate(0px, 0px) scale(1, 1)';
+            // Start at initial grid rect
+            setFlipRect(card, r.top, r.left, r.width, r.height);
+            card.getBoundingClientRect(); // flush start state
+
+            // Animate top, left, width, height cleanly without text distortion
+            card.style.transition = 'all 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+            setFlipRect(card, t.top, t.left, t.w, t.h);
+
             card.classList.add('is-flipped');
             flipBackdrop.classList.add('open');
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'true');
@@ -2219,20 +2215,17 @@
             const card = openCard;
             clearTimeout(flipTimer);
 
-            if (!openPlaceholder || !openRect) { restoreFlip(false); return; }
+            if (!openPlaceholder) { restoreFlip(false); return; }
 
-            /* Fades out as it travels back. The panel and the grid cell have different
-               shapes, so scaling one onto the other squashes the text unevenly; letting
-               that un-squash on the final frame is what looked like a resize glitch.
-               Fading means the swap back to the real layout happens unseen. */
+            const p = openPlaceholder.getBoundingClientRect();
             card.classList.add('is-closing');
-            card.style.transition = '';
-            card.style.transform = inverseTransform(openPlaceholder.getBoundingClientRect(), openRect);
+            card.style.transition = 'all 0.45s cubic-bezier(0.4, 0, 0.2, 1)';
+            setFlipRect(card, p.top, p.left, p.width, p.height);
             card.classList.remove('is-flipped');
             flipBackdrop.classList.remove('open');
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'false');
 
-            flipTimer = setTimeout(() => restoreFlip(false), CLOSE_MS);
+            flipTimer = setTimeout(() => restoreFlip(false), 450);
         }
 
         document.querySelectorAll('.flip-card').forEach(card => {
