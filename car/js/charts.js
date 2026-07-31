@@ -188,16 +188,22 @@ function renderCrossings(changes, points, measure, v) {
             ' overtakes ' + labelOf(c.from)).join('; ') + '.');
     }
 
-    /* The gradient at your chosen horizon says whether waiting helps. */
+    /* The gradient at your chosen horizon says whether waiting helps.
+       Stepping a fixed number of points ahead is not a fixed number of
+       months — the curve samples every 2 months, or every 3 once the
+       horizon is long — so walk forward by however many points a year
+       actually is, and say out loud how far ahead we got. */
     const here = points.reduce((a, b) =>
         Math.abs(b.month - v.months) < Math.abs(a.month - v.months) ? b : a);
-    const later = points[Math.min(points.indexOf(here) + 6, points.length - 1)];
+    const step = points.length > 1 ? points[1].month - points[0].month : 1;
+    const later = points[Math.min(points.indexOf(here) + Math.round(12 / step), points.length - 1)];
     if (later !== here) {
         const bestHere = OPTIONS.slice().sort((a, b) => here[a.key][measure] - here[b.key][measure])[0];
         const delta = later[bestHere.key].perMonth - here[bestHere.key].perMonth;
-        parts.push('Keeping it a year longer than your ' + v.months + ' months moves ' +
-            bestHere.label.toLowerCase() + ' by <strong>' + usd0(Math.abs(delta)) + '/mo ' +
-            (delta < 0 ? 'cheaper' : 'dearer') + '</strong>.');
+        const gap = later.month - here.month;
+        parts.push('Keeping it ' + (gap === 12 ? 'a year' : gap + ' months') + ' longer than your ' +
+            v.months + ' months moves ' + bestHere.label.toLowerCase() + ' by <strong>' +
+            usd0(Math.abs(delta)) + '/mo ' + (delta < 0 ? 'cheaper' : 'dearer') + '</strong>.');
     }
 
     $('crossings').innerHTML = parts.join(' ');

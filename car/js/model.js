@@ -66,53 +66,75 @@ function loanBalance(principal, monthlyRate, payment, k) {
     return Math.max(0, grown - paid);
 }
 
-/* Reads every input once so the four scenarios share one snapshot. */
-function readInputs() {
-    const months = Math.max(1, Math.round(num('horizon')));
-    const price = num('price');
-    const curve = $('depreciation').value;
-    const milesPerYear = num('miles');
-    const excessMiles = (milesPerYear - 12000) * (months / 12);
-    const mileageValue = mileagePenalty(excessMiles);
-    const scen = SCENARIOS[scenarioCase];
-    const channel = $('disposal').value;
-    const band = AGE_BANDS[carAge];
-    const ageAtSale = (band ? band.buyAge : 0) + months / 12;
+/* ── Everything that moves when the horizon moves ────────────────
+   The bars price one horizon; the break-even chart prices sixty of
+   them. Deriving these in two places is how they drift apart, and they
+   had: the curve kept the depreciation but quietly dropped the dealer
+   haircut, the mileage penalty and the optimistic/pessimistic multiplier,
+   so at the very month the bars called $848/mo the curve drew $767. One
+   function, called from both. */
+function horizonTerms(base, months) {
+    const scen = SCENARIOS[base.scenarioCase];
+    const mileageValue = mileagePenalty((base.miles - 12000) * (months / 12));
+    const ageAtSale = base.buyAge + months / 12;
     /* Miles on the clock when you sell: the previous owner's assumed
        average plus your own driving, which is what a dealer's appraisal
        actually keys off. */
-    const milesAtSale = (band ? band.buyAge : 0) * 12000 + milesPerYear * (months / 12);
-    const disposal = disposalFactor(channel, ageAtSale, milesAtSale);
-    const autoResale = price * retainedValue(months / 12, curve) * mileageValue * scen.resale * disposal;
-    const resaleField = $('resale');
-    const resale = resaleField.dataset.touched === '1'
-        ? Math.max(0, num('resale'))
-        : autoResale;
-    function resaleOf() { return resale; }
-
+    const milesAtSale = base.buyAge * 12000 + base.miles * (months / 12);
+    const disposal = disposalFactor(base.channel, ageAtSale, milesAtSale);
+    const autoResale = base.price * retainedValue(months / 12, base.curve) *
+        mileageValue * scen.resale * disposal;
+    /* A hand-typed resale is carried as a ratio rather than a fixed sum,
+       so it still reproduces exactly at the chosen horizon but keeps the
+       curve's shape everywhere else. */
+    const resale = Math.max(0, autoResale * base.resaleFactor);
     return {
         months,
-        price,
-        curve,
-        autoResale,
-        resale,
         mileageValue,
-        scenarioCase,
-        channel,
-        disposal,
         ageAtSale,
         milesAtSale,
-        haircutVsPrivate: haircutVsPrivate(channel, ageAtSale, milesAtSale),
+        disposal,
+        autoResale,
+        resale,
+        haircutVsPrivate: haircutVsPrivate(base.channel, ageAtSale, milesAtSale),
         /* Only worth anything if you are buying another car from the
            same dealer, which is the situation a trade-in implies. */
-        tradeTaxCredit: DISPOSAL[channel].taxCredit ? resaleOf() * (num('taxRate') / 100) : 0,
+        tradeTaxCredit: DISPOSAL[base.channel].taxCredit ? resale * base.taxRate : 0,
         /* One big bill, sized against this car's own upkeep, only if
            the basic warranty has run out before you sell. */
         repairShock: scen.shock && outOfWarrantyDuring(months)
-            ? num('maintenance') * scen.shock : 0,
-        taxRate: num('taxRate') / 100,
-        fees: num('fees'),
+            ? base.rawMaintenance * scen.shock : 0
+    };
+}
+
+/* Reads every input once so the four scenarios share one snapshot. */
+function readInputs() {
+    const months = Math.max(1, Math.round(num('horizon')));
+    const scen = SCENARIOS[scenarioCase];
+    const band = AGE_BANDS[carAge];
+
+    /* The half of the snapshot that does not care how long you keep it. */
+    const base = {
+        price: num('price'),
+        curve: $('depreciation').value,
         miles: num('miles'),
+        channel: $('disposal').value,
+        buyAge: band ? band.buyAge : 0,
+        taxRate: num('taxRate') / 100,
+        rawMaintenance: num('maintenance'),
+        scenarioCase,
+        resaleFactor: 1
+    };
+
+    /* An untouched resale field follows the curve. A touched one pins the
+       ratio against what the curve would have said at this horizon. */
+    if ($('resale').dataset.touched === '1') {
+        const auto = horizonTerms(base, months).autoResale;
+        base.resaleFactor = auto > 0 ? Math.max(0, num('resale')) / auto : 1;
+    }
+
+    return Object.assign({}, base, horizonTerms(base, months), {
+        fees: num('fees'),
         insurance: num('insurance'),
         maintenance: num('maintenance') * scen.maint,
         registration: num('registration'),
@@ -135,7 +157,7 @@ function readInputs() {
         rentStartFee: num('rentStartFee'),
         rentAllowance: num('rentAllowance'),
         rentBlockPrice: num('rentBlockPrice')
-    };
+    });
 }
 
 function syncPriceFields() {
@@ -342,18 +364,16 @@ function breakEvenApr(v) {
 
 /* ── Break-even curve ────────────────────────────────────────────
    The whole comparison hinges on how long you keep the car, so this
-   re-runs all four scenarios across a range of horizons. Resale has to
-   move with the horizon or the curves would be meaningless; a manual
-   resale override is carried through as a scaling factor on the curve
-   so the chart still agrees with the bars at the selected month. */
+   re-runs all four scenarios across a range of horizons. Every term that
+   depends on the horizon is re-derived through horizonTerms, which is
+   what makes the curve pass exactly through the bars at the month you
+   picked — the odometer at sale, the dealer's haircut widening with it,
+   the trade-in tax credit and the out-of-warranty repair shock all move
+   with the horizon, not just the depreciation. */
 function costCurve(v, maxMonths, step) {
-    const resaleFactor = v.autoResale > 0 ? v.resale / v.autoResale : 1;
     const points = [];
     for (let m = 6; m <= maxMonths; m += step) {
-        const variant = Object.assign({}, v, {
-            months: m,
-            resale: v.price * retainedValue(m / 12, v.curve) * resaleFactor
-        });
+        const variant = Object.assign({}, v, horizonTerms(v, m));
         const r = computeAll(variant);
         points.push({
             month: m,
