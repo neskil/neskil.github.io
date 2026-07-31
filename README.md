@@ -10,7 +10,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `cv/` | Curriculum vitae site. |
 | `cargo-lander/` | CargoLander — a browser-based 2D lander/logistics game with a custom physics engine. See [cargo-lander/README.md](cargo-lander/README.md) for internals. |
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). |
-| `math/` | US → Metric mental math trainer. |
+| `math/` | EU/US unit cheat sheet. |
 | `converter/` | Quick mental unit converter. |
 | `car/` | Lease vs. finance vs. cash vs. monthly rental — US car cost-of-ownership calculator. Linked from the card grid on the landing page. |
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |

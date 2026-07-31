@@ -95,6 +95,11 @@
             }
         }
 
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 54px;
+        }
+
         body {
             background: var(--bg-gradient);
             background-attachment: fixed;
@@ -135,6 +140,86 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        .app-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .sidebar-index {
+            display: block;
+            width: 100%;
+        }
+
+        .sidebar-title {
+            display: none;
+        }
+
+        .nav-index {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 8px 4px;
+            background: rgba(9, 13, 22, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            margin: -4px 0 6px;
+            scrollbar-width: none;
+        }
+
+        .nav-index::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 12px;
+            border-radius: 100px;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--accent);
+        }
+
+        .app-main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .app-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .controls-col, .results-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
         }
 
         /* ── Header ── */
@@ -1289,6 +1374,85 @@
             border: 0;
         }
 
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 1380px;
+            }
+            .app-layout {
+                display: grid;
+                grid-template-columns: 200px 1fr;
+                gap: 20px;
+                align-items: start;
+            }
+            .sidebar-index {
+                position: sticky;
+                top: 16px;
+                background: var(--card-bg);
+                border: 1px solid var(--glass-border);
+                border-radius: 16px;
+                padding: 14px;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .sidebar-title {
+                display: block;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                color: var(--text-mute);
+                margin-bottom: 4px;
+            }
+            .nav-index {
+                position: static;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                overflow-x: visible;
+                white-space: normal;
+                padding: 0;
+                background: transparent;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                border-bottom: none;
+                margin: 0;
+            }
+            .nav-link {
+                border-radius: 8px;
+                padding: 8px 10px;
+                width: 100%;
+                justify-content: flex-start;
+                font-size: 0.82rem;
+            }
+            .app-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+                align-items: start;
+            }
+            .results-col {
+                grid-column: 1;
+                position: sticky;
+                top: 16px;
+                max-height: calc(100vh - 32px);
+                overflow-y: auto;
+                padding-right: 4px;
+            }
+            .controls-col {
+                grid-column: 2;
+            }
+            .results-col::-webkit-scrollbar {
+                width: 6px;
+            }
+            .results-col::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 4px;
+            }
+        }
+
         @media (max-width: 480px) {
             .verdict-winner { font-size: 1.4rem; }
             .field-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
@@ -1315,47 +1479,26 @@
             🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
         </button>
 
-        <!-- Verdict -->
-        <section class="panel verdict" id="verdict">
-            <div class="verdict-head">
-                <span class="verdict-label">Cheapest over your horizon</span>
-                <span class="verdict-winner" id="verdictWinner">—</span>
-                <span class="verdict-cost" id="verdictCost"></span>
-            </div>
-            <p class="verdict-sub" id="verdictSub"></p>
-            <p class="verdict-sub" id="verdictRange"></p>
-            <p class="verdict-sub" id="verdictWarning" style="color:var(--warning)"></p>
-        </section>
+        <div class="app-layout">
+            <aside class="sidebar-index">
+                <div class="sidebar-title">Jump to</div>
+                <nav class="nav-index" id="navIndex">
+                    <a href="#sec-results" class="nav-link active">🏆 Output &amp; Verdict</a>
+                    <a href="#sec-chart" class="nav-link">📊 Cost Graph</a>
+                    <a href="#sec-inputs" class="nav-link">🎛️ Calculator Inputs</a>
+                    <a href="#sec-routes" class="nav-link">🔑 4 Options</a>
+                    <a href="#sec-breakeven" class="nav-link">📈 Break-even</a>
+                    <a href="#sec-matrix" class="nav-link">⚖️ Pros &amp; Cons</a>
+                    <a href="#sec-guides" class="nav-link">📚 Guides</a>
+                </nav>
+            </aside>
 
-        <!-- How far you drive -->
-        <section class="panel">
-            <div class="panel-title">What your mileage costs you</div>
-            <div id="mileagePanel"></div>
-        </section>
-
-        <!-- Chart -->
-        <section class="panel">
-            <div class="panel-title">
-                True cost per month
-                <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
-                    aria-controls="tableWrap">Show numbers</button>
-            </div>
-            <div class="seg-toggle" id="caseToggle" role="group" aria-label="Scenario"
-                style="margin:0 0 10px auto; width:fit-content">
-                <button type="button" data-case="optimistic">🙂 Optimistic</button>
-                <button type="button" data-case="expected" class="active">Expected</button>
-                <button type="button" data-case="pessimistic">😬 Pessimistic</button>
-            </div>
-            <p class="notes" id="caseBlurb" style="margin-bottom:10px"></p>
-            <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
-            <p id="chartDesc" class="sr-only"></p>
-            <div class="legend" id="legend"></div>
-            <div class="table-wrap" id="tableWrap" hidden></div>
-        </section>
-
-        <!-- Shared inputs -->
-        <section class="panel">
-            <div class="panel-title">The car &amp; how long you keep it</div>
+            <div class="app-main-content">
+                <div class="app-grid">
+                    <div class="controls-col">
+                        <!-- Shared inputs -->
+                        <section class="panel" id="sec-inputs">
+                            <div class="panel-title">The car &amp; how long you keep it</div>
             <div class="preset-row" id="horizonPresets">
                 <button class="preset-btn" data-months="12" type="button">1 yr</button>
                 <button class="preset-btn" data-months="24" type="button">2 yr</button>
@@ -1577,7 +1720,7 @@
         </section>
 
         <!-- The four options -->
-        <section class="panel">
+        <section class="panel" id="sec-routes">
             <div class="panel-title">The four ways to get the keys</div>
 
             <details class="option" id="optCash">
@@ -1806,20 +1949,62 @@
                 </div>
             </details>
         </section>
+                    </div>
 
-        <!-- Break-even over time -->
-        <section class="panel">
-            <div class="panel-title">
-                Break-even: how long you keep it
-                <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
-                    <button type="button" data-mode="perMonth" class="active">Per month</button>
-                    <button type="button" data-mode="total">Total</button>
+                    <div class="results-col">
+                        <!-- Verdict -->
+                        <section class="panel verdict" id="sec-results">
+                            <div class="verdict-head">
+                                <span class="verdict-label">Cheapest over your horizon</span>
+                                <span class="verdict-winner" id="verdictWinner">—</span>
+                                <span class="verdict-cost" id="verdictCost"></span>
+                            </div>
+                            <p class="verdict-sub" id="verdictSub"></p>
+                            <p class="verdict-sub" id="verdictRange"></p>
+                            <p class="verdict-sub" id="verdictWarning" style="color:var(--warning)"></p>
+                        </section>
+
+                        <!-- Chart -->
+                        <section class="panel" id="sec-chart">
+                            <div class="panel-title">
+                                True cost per month
+                                <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
+                                    aria-controls="tableWrap">Show numbers</button>
+                            </div>
+                            <div class="seg-toggle" id="caseToggle" role="group" aria-label="Scenario"
+                                style="margin:0 0 10px auto; width:fit-content">
+                                <button type="button" data-case="optimistic">🙂 Optimistic</button>
+                                <button type="button" data-case="expected" class="active">Expected</button>
+                                <button type="button" data-case="pessimistic">😬 Pessimistic</button>
+                            </div>
+                            <p class="notes" id="caseBlurb" style="margin-bottom:10px"></p>
+                            <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
+                            <p id="chartDesc" class="sr-only"></p>
+                            <div class="legend" id="legend"></div>
+                            <div class="table-wrap" id="tableWrap" hidden></div>
+                        </section>
+
+                        <!-- How far you drive -->
+                        <section class="panel">
+                            <div class="panel-title">What your mileage costs you</div>
+                            <div id="mileagePanel"></div>
+                        </section>
+
+                        <!-- Break-even over time -->
+                        <section class="panel" id="sec-breakeven">
+                            <div class="panel-title">
+                                Break-even: how long you keep it
+                                <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
+                                    <button type="button" data-mode="perMonth" class="active">Per month</button>
+                                    <button type="button" data-mode="total">Total</button>
+                                </div>
+                            </div>
+                            <div id="breakevenChart"></div>
+                            <div class="legend" id="breakevenLegend"></div>
+                            <div class="crossings" id="crossings"></div>
+                        </section>
+                    </div>
                 </div>
-            </div>
-            <div id="breakevenChart"></div>
-            <div class="legend" id="breakevenLegend"></div>
-            <div class="crossings" id="crossings"></div>
-        </section>
 
         <!-- Reading the result -->
         <section class="panel">
@@ -1828,7 +2013,7 @@
         </section>
 
         <!-- Pros and cons -->
-        <section class="panel">
+        <section class="panel" id="sec-matrix">
             <div class="panel-title">Pros &amp; cons, side by side</div>
             <div class="pro-con-grid">
                 <div class="pc-card" style="--pc-accent: var(--series-1)">
@@ -2026,7 +2211,7 @@
         </section>
 
         <!-- New to the US -->
-        <section class="panel">
+        <section class="panel" id="sec-guides">
             <div class="panel-title">New to the US? Credit gates most of this</div>
             <p class="notes" style="margin-bottom:10px">Every route above except one needs a lender, an underwriter
                 or a platform to say yes first, and they all read a US credit file you do not have yet. Arriving with
@@ -2327,6 +2512,9 @@
                     throughout because it is the same car either way.</li>
             </ul>
         </section>
+
+            </div>
+        </div>
 
         <div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
     </div>
@@ -3224,7 +3412,7 @@
 
         function renderBreakeven(v) {
             const host = $('breakevenChart');
-            const maxMonths = Math.max(72, Math.min(240, Math.ceil((v.months + 24) / 12) * 12));
+            const maxMonths = Math.max(24, Math.min(240, Math.ceil((v.months + 24) / 12) * 12));
             const step = maxMonths > 132 ? 3 : 2;
             const points = costCurve(v, maxMonths, step);
             const measure = curveMeasure;
@@ -5230,6 +5418,27 @@
         window.addEventListener('scroll', hideTooltip, { passive: true });
         document.addEventListener('pointerdown', hideTooltip);
         window.addEventListener('resize', () => { if (!$('depModal').hidden) refreshModal(); });
+
+        // ScrollSpy observer for section index
+        const spySections = document.querySelectorAll('section[id]');
+        const spyLinks = document.querySelectorAll('.nav-link');
+        if ('IntersectionObserver' in window && spySections.length > 0) {
+            const spyObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        spyLinks.forEach(link => {
+                            if (link.getAttribute('href') === '#' + id) {
+                                link.classList.add('active');
+                            } else {
+                                link.classList.remove('active');
+                            }
+                        });
+                    }
+                });
+            }, { rootMargin: '-15% 0px -50% 0px' });
+            spySections.forEach(sec => spyObserver.observe(sec));
+        }
 
         buildModal();
         buildDataModal();
