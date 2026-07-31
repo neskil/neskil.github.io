@@ -1033,6 +1033,14 @@
                 justify-content: flex-start;
             }
 
+            /* A flip card is only a transparent stage — its visible surface is the
+               faces, which carry their own padding. The .card rule above matches it
+               too and wins on source order, so without this reset both flip cards
+               sit inset by that padding and read smaller than their neighbours. */
+            .flip-card {
+                padding: 0;
+            }
+
             .card-icon {
                 font-size: 1.75rem;
                 width: 44px;
