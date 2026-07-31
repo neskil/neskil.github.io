@@ -66,8 +66,8 @@ const GUIDE_STEPS = [
         id: 'brand',
         q: 'What sort of car are you picturing?',
         why: 'Marque decides two things at once, and they pull the same way: a Toyota keeps 68% of its ' +
-            'value at five years and costs about $5,900 to run for a decade, where a German saloon keeps ' +
-            '45% and costs nearer $16,000.',
+            'value at five years and costs about $15,000 to run for a decade, where a German saloon keeps ' +
+            '45% and costs nearer $33,000.',
         /* Priced live at whatever age is already chosen, so the ranges
            are the ones you would actually be shopping. */
         choicesFn: () => {
@@ -82,7 +82,7 @@ const GUIDE_STEPS = [
                 { value: 'japanese', label: '🇯🇵 Japanese', sub: priced('japanese', 'Toyota, Honda, Mazda — best resale, cheapest to run') },
                 { value: 'korean', label: '🇰🇷 Korean', sub: priced('korean', 'Hyundai, Kia — 10yr powertrain warranty') },
                 { value: 'american', label: '🇺🇸 American', sub: priced('american', 'Ford, Chevy — cheap upkeep, weak resale') },
-                { value: 'germanLux', label: '🇩🇪 German luxury', sub: priced('germanLux', 'BMW, Audi, MB — 3x the upkeep') }
+                { value: 'germanLux', label: '🇩🇪 German luxury', sub: priced('germanLux', 'BMW, Audi, MB — 2x the upkeep') }
             ];
         },
         get: () => carBrand,
@@ -467,7 +467,7 @@ function closeGuide(showResult) {
     $('guideModal').classList.remove('open');
     setTimeout(() => { $('guideModal').hidden = true; }, 250);
     if (showResult) {
-        $('verdict').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('sec-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 

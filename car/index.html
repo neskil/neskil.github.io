@@ -57,12 +57,14 @@
             <aside class="sidebar-index">
                 <div class="sidebar-title">Jump to</div>
                 <nav class="nav-index" id="navIndex">
-                    <a href="#sec-results" class="nav-link active">🏆 Output &amp; Verdict</a>
-                    <a href="#sec-chart" class="nav-link">📊 Cost Graph</a>
-                    <a href="#sec-inputs" class="nav-link">🎛️ Calculator Inputs</a>
-                    <a href="#sec-routes" class="nav-link">🔑 4 Options</a>
+                    <a href="#sec-results" class="nav-link active">🏆 The answer</a>
+                    <a href="#sec-chart" class="nav-link">📊 Cost breakdown</a>
+                    <a href="#sec-inputs" class="nav-link">🎛️ Your car</a>
+                    <a href="#sec-cash" class="nav-link">💳 Cash &amp; credit</a>
+                    <a href="#sec-routes" class="nav-link">🔑 The 4 routes</a>
                     <a href="#sec-breakeven" class="nav-link">📈 Break-even</a>
-                    <a href="#sec-matrix" class="nav-link">⚖️ Pros &amp; Cons</a>
+                    <a href="#sec-mileage" class="nav-link">🛣️ Mileage</a>
+                    <a href="#sec-matrix" class="nav-link">⚖️ Pros &amp; cons</a>
                     <a href="#sec-guides" class="nav-link">📚 Guides</a>
                 </nav>
             </aside>
@@ -273,7 +275,7 @@
         </section>
 
         <!-- Cash position -->
-        <section class="panel">
+        <section class="panel" id="sec-cash">
             <div class="panel-title">Your cash &amp; credit <span class="hint">this is what tips the answer</span></div>
             <div class="preset-row" id="creditTiers" aria-label="Credit profile">
                 <button class="preset-btn" type="button" data-tier="none">🛬 No US credit</button>
@@ -573,12 +575,6 @@
                             <div class="table-wrap" id="tableWrap" hidden></div>
                         </section>
 
-                        <!-- How far you drive -->
-                        <section class="panel">
-                            <div class="panel-title">What your mileage costs you</div>
-                            <div id="mileagePanel"></div>
-                        </section>
-
                         <!-- Break-even over time -->
                         <section class="panel" id="sec-breakeven">
                             <div class="panel-title">
@@ -592,18 +588,24 @@
                             <div class="legend" id="breakevenLegend"></div>
                             <div class="crossings" id="crossings"></div>
                         </section>
+
+                        <!-- How far you drive -->
+                        <section class="panel" id="sec-mileage">
+                            <div class="panel-title">What your mileage costs you</div>
+                            <div id="mileagePanel"></div>
+                        </section>
                     </div>
                 </div>
 
         <!-- Reading the result -->
-        <section class="panel">
-            <div class="panel-title">How to read this</div>
+        <details class="panel collapsible" open>
+            <summary class="panel-title">How to read this<span class="chev-mark" aria-hidden="true"></span></summary>
             <div id="insights"></div>
-        </section>
+        </details>
 
         <!-- Pros and cons -->
-        <section class="panel" id="sec-matrix">
-            <div class="panel-title">Pros &amp; cons, side by side</div>
+        <details class="panel collapsible" id="sec-matrix">
+            <summary class="panel-title">Pros &amp; cons, side by side<span class="chev-mark" aria-hidden="true"></span></summary>
             <div class="pro-con-grid">
                 <div class="pc-card" style="--pc-accent: var(--series-1)">
                     <div class="pc-head"><span>💵</span> Pay cash</div>
@@ -669,12 +671,11 @@
                         new job, visa, a house move — or you need a car for under a year.</p>
                 </div>
             </div>
-        </section>
+        </details>
 
         <!-- Cheap vs expensive -->
-        <section class="panel">
-            <div class="panel-title">Cheap car or expensive car? <span class="hint">tap a preset above to model
-                    one</span></div>
+        <details class="panel collapsible">
+            <summary class="panel-title">Cheap car or expensive car? <span class="hint">tap a preset above to model one</span><span class="chev-mark" aria-hidden="true"></span></summary>
             <p class="notes" style="margin-bottom:10px">Depreciation and repair risk trade against each other. The
                 cheaper the car, the less value it can lose — and the more of your cost arrives as unpredictable
                 repair bills. Pick the risk you can absorb.</p>
@@ -749,11 +750,11 @@
                     predict, and the manufacturer is frequently subsidising the residual. Buying makes sense mainly
                     second-hand at the four-year mark, with an extended warranty and eyes open.</p>
             </div>
-        </section>
+        </details>
 
         <!-- Where you buy -->
-        <section class="panel">
-            <div class="panel-title">Where you buy it: CarMax vs. dealership vs. private</div>
+        <details class="panel collapsible">
+            <summary class="panel-title">Where you buy it: CarMax vs. dealership vs. private<span class="chev-mark" aria-hidden="true"></span></summary>
             <div class="pro-con-grid">
                 <div class="pc-card" style="--pc-accent: var(--series-1)">
                     <div class="pc-head"><span>🏬</span> CarMax &amp; no-haggle</div>
@@ -797,11 +798,11 @@
                         of the price. Always a pre-purchase inspection and a title check.</p>
                 </div>
             </div>
-        </section>
+        </details>
 
         <!-- New to the US -->
-        <section class="panel" id="sec-guides">
-            <div class="panel-title">New to the US? Credit gates most of this</div>
+        <details class="panel collapsible" id="sec-guides">
+            <summary class="panel-title">New to the US? Credit gates most of this<span class="chev-mark" aria-hidden="true"></span></summary>
             <p class="notes" style="margin-bottom:10px">Every route above except one needs a lender, an underwriter
                 or a platform to say yes first, and they all read a US credit file you do not have yet. Arriving with
                 a clean record from another country counts for nothing — the file is empty, not good.</p>
@@ -864,12 +865,11 @@
                     refinancing the loan is the single cheapest thing you can do. Buy the car with cash now if you
                     can; borrow later, once the rate is worth having.</span>
             </div>
-        </section>
+        </details>
 
         <!-- Driver's licence -->
-        <section class="panel">
-            <div class="panel-title">Getting a licence in Georgia <span class="hint">the bit nobody warns you
-                    about</span></div>
+        <details class="panel collapsible">
+            <summary class="panel-title">Getting a licence in Georgia <span class="hint">the bit nobody warns you about</span><span class="chev-mark" aria-hidden="true"></span></summary>
             <p class="notes" style="margin-bottom:10px">Georgia gives you <strong>30 days</strong> from becoming a
                 resident to hold a Georgia licence. A non-citizen establishing residency is on the same clock.</p>
 
@@ -924,11 +924,11 @@
                     all, other states waive the road test for many countries. This section is Georgia; if you move,
                     check that state's DMV rather than assuming any of it carries over.</span>
             </div>
-        </section>
+        </details>
 
         <!-- US specifics -->
-        <section class="panel">
-            <div class="panel-title">Reading a listing price</div>
+        <details class="panel collapsible">
+            <summary class="panel-title">Reading a listing price<span class="chev-mark" aria-hidden="true"></span></summary>
             <div class="callout">
                 <span class="ico">🔍</span>
                 <span>Three different numbers get called "the price", and browsing a forecourt only ever shows you
@@ -949,11 +949,11 @@
                     evaporative-emissions sensor is a cheap afternoon, a catalytic converter or a transmission
                     fault is several thousand and wipes out the whole discount.</span>
             </div>
-        </section>
+        </details>
 
         <!-- US specifics -->
-        <section class="panel">
-            <div class="panel-title">US fine print worth knowing</div>
+        <details class="panel collapsible">
+            <summary class="panel-title">US fine print worth knowing<span class="chev-mark" aria-hidden="true"></span></summary>
             <ul class="notes">
                 <li><strong>Georgia does not charge sales tax on cars at all.</strong> It charges a one-time
                     <strong>Title Ad Valorem Tax of 7%</strong> instead, paid when the vehicle is titled, which
@@ -989,11 +989,11 @@
                     deduct differently (Section 179 / bonus depreciation vs. the lease inclusion amount). That can flip
                     the ranking, and it is a question for a CPA, not a calculator.</li>
             </ul>
-        </section>
+        </details>
 
         <!-- Where the defaults come from -->
-        <section class="panel">
-            <div class="panel-title">Where these numbers come from</div>
+        <details class="panel collapsible">
+            <summary class="panel-title">Where these numbers come from<span class="chev-mark" aria-hidden="true"></span></summary>
             <p class="notes" style="margin-bottom:10px">Every default below is a published US figure, not a guess.
                 They are national averages — your state, credit score and driving record will move them, so overwrite
                 anything you know better.</p>
@@ -1100,7 +1100,7 @@
                     mileage caps are typical values you should replace with your own quote. Fuel is excluded
                     throughout because it is the same car either way.</li>
             </ul>
-        </section>
+        </details>
 
             </div>
         </div>

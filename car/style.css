@@ -109,6 +109,7 @@ body {
     gap: 10px;
 }
 
+
 .app-layout {
     display: flex;
     flex-direction: column;
@@ -175,6 +176,19 @@ body {
     width: 100%;
 }
 
+/* ── The two reading orders ──────────────────────────────────────────
+   The page answers a question, so the answer goes first — but "first"
+   means two different things depending on how much width there is.
+
+   Narrow: one column, and the order is the argument. Verdict, then the
+   chart that breaks it down, then the inputs you would want to change,
+   then the detail. The columns dissolve with display:contents so every
+   panel becomes a direct child and can be ordered on its own.
+
+   Wide: two columns, the answer on the left and the inputs on the right,
+   because on a wide screen "first" is left rather than top. The answer
+   sticks while you change things beside it. The order property below is
+   irrelevant there — the columns carry the order instead. */
 .app-grid {
     display: flex;
     flex-direction: column;
@@ -183,11 +197,16 @@ body {
 }
 
 .controls-col, .results-col {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
+    display: contents;
 }
+
+#sec-results   { order: 1; }
+#sec-chart     { order: 2; }
+#sec-inputs    { order: 3; }
+#sec-cash      { order: 4; }
+#sec-routes    { order: 5; }
+#sec-breakeven { order: 6; }
+#sec-mileage   { order: 7; }
 
 /* ── Header ── */
 .header-bar {
@@ -263,6 +282,39 @@ body {
     font-size: 0.7rem;
     color: var(--text-mute);
 }
+
+/* ── Collapsible reference panels ────────────────────────────────────
+   Below the calculator sits a long tail of prose — pros and cons, where
+   to buy, the Georgia licence, the sources. All of it is worth reading
+   once and none of it is worth scrolling past every time, so it folds
+   away and the page becomes a page you can see the shape of. */
+.collapsible > summary {
+    cursor: pointer;
+    margin-bottom: 0;
+    list-style: none;
+    user-select: none;
+    padding-right: 2px;
+}
+
+.collapsible > summary::-webkit-details-marker { display: none; }
+.collapsible[open] > summary { margin-bottom: 10px; }
+.collapsible > summary:hover { color: var(--text-secondary); }
+
+/* A chevron that turns, pinned to the right of whatever the title says.
+   .hint already claims margin-left:auto, so this only needs to follow. */
+.chev-mark {
+    margin-left: auto;
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.2s ease;
+}
+
+.panel-title .hint + .chev-mark { margin-left: 8px; }
+.collapsible[open] > summary .chev-mark { transform: rotate(45deg); }
 
 /* ── Verdict ── */
 .verdict {
@@ -394,6 +446,10 @@ body {
 .input-shell input[type=number] { -moz-appearance: textfield; }
 
 /* ── Horizon presets ── */
+/* Chips scroll sideways on a phone, where a horizontal swipe is natural
+   and vertical space is the scarce thing. Once they are in a column on a
+   wide screen there is nothing to swipe with, so they wrap instead of
+   hiding the last option off the edge. */
 .preset-row {
     display: flex;
     gap: 6px;
@@ -401,6 +457,14 @@ body {
     scrollbar-width: none;
     padding-bottom: 2px;
     margin-bottom: 10px;
+}
+
+@media (min-width: 1024px) {
+    .preset-row {
+        flex-wrap: wrap;
+        overflow-x: visible;
+        row-gap: 6px;
+    }
 }
 .preset-row::-webkit-scrollbar { display: none; }
 
@@ -1397,6 +1461,11 @@ input[type="range"]::-moz-range-thumb {
         justify-content: flex-start;
         font-size: 0.82rem;
     }
+    /* Wide enough for two columns, so the columns come back — which means
+       undoing the display:contents that lets the narrow layout order the
+       panels individually. The answer takes the left column, because on a
+       wide screen "first" is left, not top, and it stays put while you
+       change things on the right. */
     .app-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1404,7 +1473,16 @@ input[type="range"]::-moz-range-thumb {
         align-items: start;
     }
     .results-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
         grid-column: 1;
+        /* Both columns are pinned to row 1: the results column comes
+           second in the DOM (so it reads first on a narrow screen) and
+           grid auto-placement will not backtrack to fill row 1 behind
+           it, which would leave the answer stranded below the fold. */
+        grid-row: 1;
         position: sticky;
         top: 16px;
         max-height: calc(100vh - 32px);
@@ -1412,7 +1490,12 @@ input[type="range"]::-moz-range-thumb {
         padding-right: 4px;
     }
     .controls-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
         grid-column: 2;
+        grid-row: 1;
     }
     .results-col::-webkit-scrollbar {
         width: 6px;
