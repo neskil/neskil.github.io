@@ -15,9 +15,11 @@ function update() {
     const v = readInputs();
 
     /* The resale field tracks the depreciation curve until the user
-       overrides it, then it is theirs to keep. */
+       overrides it, then it is theirs to keep. Either way it shows the
+       expected case, so switching to pessimistic moves the bars without
+       rewriting a number under the cursor. */
     if ($('resale').dataset.touched !== '1') {
-        $('resale').value = Math.round(v.autoResale);
+        $('resale').value = Math.round(v.expectedResale);
     }
 
     const results = computeAll(v);
@@ -49,7 +51,16 @@ function update() {
             ? '. That is offset by <strong>' + usd0(v.tradeTaxCredit) +
               '</strong> of tax you do not pay on your next car'
             : '') + '.';
-    $('caseBlurb').innerHTML = SCENARIOS[scenarioCase].blurb +
+    /* The case moves what the car fetches at the end, and that is the
+       largest single line on both owning routes — so say the number
+       rather than leaving it to be inferred from a shifting bar. */
+    const scen = SCENARIOS[scenarioCase];
+    const vsExpected = scenarioCase === 'expected' ? '' :
+        ' — ' + usd0(Math.abs(v.resale - v.resale / scen.resale)) +
+        (scen.resale > 1 ? ' more' : ' less') + ' than expected';
+    $('caseBlurb').innerHTML = scen.blurb +
+        ' Resale at ' + v.months + ' months: <strong>' + usd0(v.resale) + '</strong>' +
+        vsExpected + '.' +
         (v.repairShock ? ' Includes <strong>' + usd0(v.repairShock) +
             '</strong> for one major repair, since the warranty runs out before you sell.' : '');
     for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {

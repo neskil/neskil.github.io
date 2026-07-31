@@ -126,14 +126,27 @@ function readInputs() {
         resaleFactor: 1
     };
 
-    /* An untouched resale field follows the curve. A touched one pins the
-       ratio against what the curve would have said at this horizon. */
+    /* An untouched resale field follows the curve. A touched one is read
+       as the *expected* case and pinned as a ratio against it, so a number
+       you typed still reproduces exactly on Expected while optimistic and
+       pessimistic flex around it — typing a figure should not opt you out
+       of the uncertainty, it should recentre it. */
     if ($('resale').dataset.touched === '1') {
-        const auto = horizonTerms(base, months).autoResale;
+        const expected = Object.assign({}, base, { scenarioCase: 'expected' });
+        const auto = horizonTerms(expected, months).autoResale;
         base.resaleFactor = auto > 0 ? Math.max(0, num('resale')) / auto : 1;
     }
 
+    /* What the car fetches on the middle case. The resale *field* always
+       shows this, whichever scenario is selected, because it is an input
+       — the optimistic and pessimistic figures are outputs and belong in
+       the chart's own caption, not in a box you can type into. */
+    const expectedResale = scenarioCase === 'expected'
+        ? horizonTerms(base, months).resale
+        : horizonTerms(Object.assign({}, base, { scenarioCase: 'expected' }), months).resale;
+
     return Object.assign({}, base, horizonTerms(base, months), {
+        expectedResale,
         fees: num('fees'),
         insurance: num('insurance'),
         maintenance: num('maintenance') * scen.maint,

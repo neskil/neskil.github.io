@@ -186,18 +186,30 @@ function haircutVsPrivate(channel, ageAtSale, milesAtSale) {
 }
 
 /* ── Optimistic / expected / pessimistic ────────────────────────
-   The two genuinely uncertain inputs are what the car fetches at the
-   end and what it costs you in between, so the cases move those and
-   nothing else. The pessimistic case also books one major failure once
-   the warranty has lapsed — the risk that never shows up in an average
-   and is exactly what you carry when you buy instead of lease. */
+   The two genuinely uncertain inputs are what the car fetches at the end
+   and what it costs you in between, so the cases move those and nothing
+   else. The pessimistic case also books one major failure once the
+   warranty has lapsed — the risk that never shows up in an average and is
+   exactly what you carry when you buy instead of lease.
+
+   The resale band is deliberately wide, because the US used market since
+   2020 has earned it. Five-year retention was around 50% before the
+   pandemic, spiked to 60%+ through the 2021-22 shortage, fell back, and
+   has moved again every year since: iSeeCars puts five-year depreciation
+   at 45.6% in 2025 and 41.8% in 2026, so retention swung from 54.4% to
+   58.2% — a 7% relative move in the resale line in a single year, with
+   nothing about the car changing. Cox has average used listings up 6%
+   year on year at a three-year high. A ±10% band would have been broken
+   by every one of the last six years; the asymmetry is there because
+   these markets fall faster than they climb. */
 const SCENARIOS = {
-    optimistic:  { label: 'Optimistic',  resale: 1.10, maint: 0.70, shock: 0,
-                   blurb: 'Strong resale, a good example, nothing unexpected.' },
+    optimistic:  { label: 'Optimistic',  resale: 1.15, maint: 0.70, shock: 0,
+                   blurb: 'A tight used market when you sell, a good example, nothing unexpected.' },
     expected:    { label: 'Expected',    resale: 1.00, maint: 1.00, shock: 0,
                    blurb: 'The published averages, which is what the rest of this page uses.' },
-    pessimistic: { label: 'Pessimistic', resale: 0.88, maint: 1.50, shock: 45,
-                   blurb: 'Soft resale, heavier upkeep, and one major failure out of warranty.' }
+    pessimistic: { label: 'Pessimistic', resale: 0.82, maint: 1.50, shock: 45,
+                   blurb: 'Used values soften before you sell, heavier upkeep, and one major failure ' +
+                          'out of warranty.' }
 };
 
 /* Servicing is part calendar, part odometer. */
