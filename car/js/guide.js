@@ -221,8 +221,8 @@ function estimatePrice(brandKey, bodyKey, ageKey) {
     const brand = BRANDS[brandKey];
     if (!brand) return null;
     const band = AGE_BANDS[ageKey] || AGE_BANDS.new;
-    const mult = (BODY_TYPES[bodyKey] || { priceMult: 1 }).priceMult;
-    return brand.newPrice * mult * retainedValue(band.buyAge, brand.curve);
+    const body = BODY_TYPES[bodyKey] || { priceMult: 1 };
+    return brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve, body.depMult);
 }
 
 /* The spread across every shape in the range, which is what "how much
@@ -243,13 +243,16 @@ function applyCarProfile(bodyOverride) {
     const holdYears = Math.max(0.5, Math.round(num('horizon')) / 12);
     const miles = num('miles') || 12000;
 
-    const priceNow = brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve);
+    const priceNow = brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve, body.depMult);
     $('price').value = Math.round(priceNow / 50) * 50;
     $('depreciation').value = brand.curve;
     $('maintenance').value = Math.round(
         brand.maint10 / 120 * body.maintMult *
         maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
     $('insurance').value = Math.round(210 * brand.insMult * body.insMult * band.insMult / 5) * 5;
+    /* Shape decides the pump bill more than the badge does — the gap
+       between a small car and a pickup is a third of the fuel line. */
+    if (body.mpg) $('mpg').value = body.mpg;
     $('down').value = Math.round(priceNow * 0.12 / 100) * 100;
 
     buyingUsed = band.buyAge > 0;

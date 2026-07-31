@@ -18,7 +18,8 @@ function makeLedger(months, monthlyReturn) {
             flows.push({ amount, month: Math.min(Math.max(month, 0), months), component });
         },
         totals() {
-            const out = { depreciation: 0, interest: 0, fees: 0, insurance: 0, maintenance: 0 };
+            const out = { depreciation: 0, interest: 0, fees: 0, insurance: 0,
+                          maintenance: 0, fuel: 0 };
             let nominal = 0, lostReturn = 0;
             for (const f of flows) {
                 out[f.component] += f.amount;
@@ -48,9 +49,13 @@ function retainedCurve(years, firstYear, annual) {
     return early * Math.pow(1 - annual * LATE_PHASE, years - 5);
 }
 
-function retainedValue(years, curve) {
+/* Body style bends the marque's curve rather than replacing it: a Toyota
+   pickup and a Toyota saloon share a badge and a reputation but not a
+   resale line, and the pickup's is much the stronger of the two. */
+function retainedValue(years, curve, depMult) {
     const c = DEPRECIATION_CURVES[curve] || DEPRECIATION_CURVES.average;
-    return retainedCurve(years, c.firstYear, c.annual);
+    const k = Number.isFinite(depMult) && depMult > 0 ? depMult : 1;
+    return retainedCurve(years, c.firstYear * k, c.annual * k);
 }
 
 function loanPayment(principal, monthlyRate, term) {
@@ -82,7 +87,7 @@ function horizonTerms(base, months) {
        actually keys off. */
     const milesAtSale = base.buyAge * 12000 + base.miles * (months / 12);
     const disposal = disposalFactor(base.channel, ageAtSale, milesAtSale);
-    const autoResale = base.price * retainedValue(months / 12, base.curve) *
+    const autoResale = base.price * retainedValue(months / 12, base.curve, base.depMult) *
         mileageValue * scen.resale * disposal;
     /* A hand-typed resale is carried as a ratio rather than a fixed sum,
        so it still reproduces exactly at the chosen horizon but keeps the
@@ -117,6 +122,7 @@ function readInputs() {
     const base = {
         price: num('price'),
         curve: $('depreciation').value,
+        depMult: (BODY_TYPES[carBody] || {}).depMult || 1,
         miles: num('miles'),
         channel: $('disposal').value,
         buyAge: band ? band.buyAge : 0,
@@ -150,6 +156,8 @@ function readInputs() {
         fees: num('fees'),
         insurance: num('insurance'),
         maintenance: num('maintenance') * scen.maint,
+        mpg: Math.max(1, num('mpg') || FUEL_DEFAULTS.mpg),
+        gasPrice: num('gasPrice'),
         registration: num('registration'),
         cash: num('cash'),
         monthlyReturn: Math.pow(1 + num('returnRate') / 100, 1 / 12) - 1,
@@ -192,11 +200,25 @@ function outOfWarrantyDuring(months) {
     return band.buyAge + months / 12 > brand.warrantyBasic;
 }
 
+/* Fuel is the one running cost every route carries in full, including
+   the subscription — the rate covers insurance, servicing and roadside,
+   but nobody fills the tank for you. It does not change which option
+   wins, because it is the same car either way; it is here because a page
+   that calls itself a total cost of ownership cannot leave out the line
+   AAA, Edmunds and KBB all count, and at 2026 pump prices it is larger
+   than the maintenance line it sits next to. */
+function monthlyFuel(v) {
+    if (!v.gasPrice || !v.mpg) return 0;
+    return (v.miles / 12) / v.mpg * v.gasPrice;
+}
+
 /* Costs an owner carries whichever way the car was bought. */
 function addOwnerRunningCosts(led, v, maintenanceShare) {
+    const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
         led.add(v.insurance, m, 'insurance');
         led.add(v.maintenance * maintenanceShare, m, 'maintenance');
+        led.add(fuel, m, 'fuel');
     }
     const years = Math.ceil(v.months / 12);
     for (let y = 0; y < years; y++) {
@@ -217,7 +239,10 @@ function scenarioCash(v) {
     const t = led.totals();
     t.components.depreciation -= v.resale;
     t.components.fees -= v.tradeTaxCredit;
-    return finish(t, v, { resale: v.resale, monthlyOutlay: v.insurance + v.maintenance });
+    return finish(t, v, {
+        resale: v.resale,
+        monthlyOutlay: v.insurance + v.maintenance + monthlyFuel(v)
+    });
 }
 
 function scenarioLoan(v) {
@@ -256,7 +281,8 @@ function scenarioLoan(v) {
         payment,
         interestPaid,
         balanceAtEnd: balance,
-        monthlyOutlay: (v.months <= v.loanTerm ? payment : 0) + v.insurance + v.maintenance
+        monthlyOutlay: (v.months <= v.loanTerm ? payment : 0) + v.insurance + v.maintenance +
+            monthlyFuel(v)
     });
 }
 
@@ -309,7 +335,8 @@ function scenarioLease(v) {
         cycles,
         overageTotal,
         unfinishedMonths,
-        monthlyOutlay: v.leasePayment + v.insurance + v.maintenance * LEASE_MAINTENANCE_SHARE
+        monthlyOutlay: v.leasePayment + v.insurance + v.maintenance * LEASE_MAINTENANCE_SHARE +
+            monthlyFuel(v)
     });
 }
 
@@ -323,9 +350,11 @@ function scenarioRent(v) {
     const excessPerMonth = Math.max(0, v.miles / 12 - v.rentAllowance);
     const blocks = Math.ceil(excessPerMonth / 1000);
     const overagePerMonth = blocks * v.rentBlockPrice;
+    const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
         led.add(v.rentRate, m, 'depreciation');
         led.add(overagePerMonth, m, 'fees');
+        led.add(fuel, m, 'fuel');
     }
 
     const t = led.totals();
@@ -333,7 +362,7 @@ function scenarioRent(v) {
         resale: 0,
         overagePerMonth,
         mileageBlocks: blocks,
-        monthlyOutlay: v.rentRate + overagePerMonth
+        monthlyOutlay: v.rentRate + overagePerMonth + fuel
     });
 }
 

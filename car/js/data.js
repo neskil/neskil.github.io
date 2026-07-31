@@ -13,7 +13,8 @@ const COMPONENTS = [
     { key: 'interest',     label: 'Interest & lost return',  color: 'var(--series-2)' },
     { key: 'fees',         label: 'Taxes, fees & penalties', color: 'var(--series-3)' },
     { key: 'insurance',    label: 'Insurance',               color: 'var(--series-4)' },
-    { key: 'maintenance',  label: 'Maintenance',             color: 'var(--series-5)' }
+    { key: 'maintenance',  label: 'Maintenance',             color: 'var(--series-5)' },
+    { key: 'fuel',         label: 'Fuel',                    color: 'var(--series-6)' }
 ];
 
 const OPTIONS = [
@@ -38,21 +39,38 @@ const LEASE_MAINTENANCE_SHARE = 0.45;
 
 /* ── What the car actually is ────────────────────────────────────
    Marque and age drive price, upkeep and resale together, and they do
-   not move in step: a Toyota keeps 68% of its value at five years and
-   costs $5.4k to run for a decade, while a German saloon keeps 45% and
-   costs $16k. Ten-year maintenance-and-repair totals are YourMechanic
-   brand figures; the retention targets are the iSeeCars 2026 study. */
+   not move in step: a Toyota keeps 68% of its value at five years and a
+   German saloon keeps 45%, and the German costs twice as much to run
+   while doing it. Retention targets are the iSeeCars 2026 study.
+
+   The ten-year upkeep totals used to be YourMechanic's brand figures,
+   and they were far too low to put on a page that calls itself a total
+   cost of ownership: $5,900 over a decade for a Toyota worked out at
+   $29/mo for a new one over five years, against AAA's measured 11.04
+   cents a mile — $110/mo at 12,000 miles a year — and Edmunds' TCO for a
+   RAV4, which lands near $70/mo. The gap is what each source counts.
+   YourMechanic prices repair labour through its own network and leaves
+   out tires and scheduled service; AAA adds tires, full retail servicing
+   *and* a comprehensive extended warranty, which this page should not
+   carry because it prices catastrophic repair risk separately in the
+   pessimistic case.
+
+   So these are rebased to sit where Edmunds does — a new mainstream
+   compact SUV at roughly $75/mo over its first five years — and the
+   luxury multiple is pulled from YourMechanic's 3x down to 2.2x, which
+   is closer to what RepairPal and Consumer Reports see. They are ten-year
+   totals at 12,000 miles a year, spread by the age curve below. */
 const BRANDS = {
     japanese: {
         label: 'Japanese', examples: 'Toyota · Honda · Mazda · Lexus',
-        newPrice: 32000, maint10: 5900, insMult: 1.00, curve: 'japanese',
+        newPrice: 32000, maint10: 15000, insMult: 1.00, curve: 'japanese',
         warrantyBasic: 3, warrantyPower: 5,
         note: 'The reliability premium is real and it compounds: best-in-class resale and the lowest ' +
             'repair bills in the same car. You pay more up front second-hand for exactly that reason.'
     },
     korean: {
         label: 'Korean', examples: 'Hyundai · Kia · Genesis',
-        newPrice: 30000, maint10: 6200, insMult: 1.00, curve: 'korean',
+        newPrice: 30000, maint10: 15800, insMult: 1.00, curve: 'korean',
         warrantyBasic: 5, warrantyPower: 10,
         note: 'The best warranty in the industry — 5yr/60k basic and 10yr/100k powertrain — which takes ' +
             'most of the repair risk off a new purchase. Resale is weaker than Japanese, so buying one ' +
@@ -60,7 +78,7 @@ const BRANDS = {
     },
     american: {
         label: 'American', examples: 'Ford · Chevrolet · Jeep',
-        newPrice: 36000, maint10: 6300, insMult: 1.05, curve: 'american',
+        newPrice: 36000, maint10: 17000, insMult: 1.05, curve: 'american',
         warrantyBasic: 3, warrantyPower: 5,
         note: 'Upkeep is close to Japanese and parts are everywhere, but resale is materially worse — ' +
             'which cuts both ways. Bad if you are buying new, good if you are buying at four years old ' +
@@ -68,9 +86,9 @@ const BRANDS = {
     },
     germanLux: {
         label: 'German luxury', examples: 'BMW · Audi · Mercedes',
-        newPrice: 58000, maint10: 16000, insMult: 1.35, curve: 'germanLux',
+        newPrice: 58000, maint10: 33000, insMult: 1.35, curve: 'germanLux',
         warrantyBasic: 4, warrantyPower: 4,
-        note: 'Roughly three times a Toyota to maintain over a decade, and the worst resale here. The ' +
+        note: 'Roughly twice a Toyota to maintain over a decade, and the worst resale here. The ' +
             'cheap used ones are cheap for a reason: an out-of-warranty German car hands you both the ' +
             'depreciation you already ate and repair bills priced like the badge.'
     }
@@ -84,23 +102,43 @@ const BRANDS = {
    that is what the brand averages describe. Size follows through into
    upkeep — larger tires, bigger brakes, more fluid — and into cover,
    where a heavier vehicle does more damage and a truck is stolen more
-   often, though both effects are milder than the price gap. */
+   often, though both effects are milder than the price gap.
+
+   depMult scales the depreciation curve, because shape moves resale as
+   hard as it moves price and the page used to ignore that entirely. The
+   iSeeCars 2026 study puts pickups at 34.2% lost over five years against
+   a 41.8% average — 65.8% retained where the market keeps 58.2% — which
+   is the 0.78 below, and it is the single largest body-style effect
+   here: a truck is the one shape that materially defends the largest
+   line on the page. Sedans and SUVs are not broken out separately in
+   that study, so they stay at or near the average rather than being
+   invented.
+
+   mpg is the real-world combined figure, which is what fuel should be
+   priced off — the regulatory CAFE fleet average is a test-cycle number
+   and roughly a third higher than anything you will see. */
 const BODY_TYPES = {
     compactCar: { label: '🚗 Small car', sub: 'Civic, Corolla, Elantra',
-                  priceMult: 0.74, maintMult: 0.90, insMult: 0.95 },
+                  priceMult: 0.74, maintMult: 0.90, insMult: 0.95, depMult: 0.97, mpg: 34 },
     sedan:      { label: '🚙 Saloon', sub: 'Camry, Accord, 3 Series',
-                  priceMult: 0.88, maintMult: 0.95, insMult: 1.00 },
+                  priceMult: 0.88, maintMult: 0.95, insMult: 1.00, depMult: 1.02, mpg: 31 },
     suv:        { label: '🚐 Compact SUV', sub: 'RAV4, CR-V, X3 — the baseline',
-                  priceMult: 1.00, maintMult: 1.00, insMult: 1.00 },
+                  priceMult: 1.00, maintMult: 1.00, insMult: 1.00, depMult: 1.00, mpg: 28 },
     largeSuv:   { label: '🚌 Three-row SUV', sub: 'Highlander, Pilot, X5',
-                  priceMult: 1.30, maintMult: 1.15, insMult: 1.08 },
+                  priceMult: 1.30, maintMult: 1.15, insMult: 1.08, depMult: 0.98, mpg: 24 },
     truck:      { label: '🛻 Pickup', sub: 'F-150, Silverado, Tacoma',
-                  priceMult: 1.28, maintMult: 1.20, insMult: 1.10,
+                  priceMult: 1.28, maintMult: 1.20, insMult: 1.10, depMult: 0.78, mpg: 21,
                   /* No German luxury marque sells one, so the guided
                      path does not offer a price for a car you cannot
                      buy. */
                   notFor: ['germanLux'] }
 };
+
+/* What a gallon costs and what the average car does on one. AAA had the
+   national average at $4.12 in late July 2026 against a $3.71 average
+   across the year, so the default sits between them; it is an input
+   because it moves more than any other figure on this page. */
+const FUEL_DEFAULTS = { pricePerGallon: 3.90, mpg: 28 };
 
 /* Repair spend runs at about half the lifetime average while a car is
    under warranty and climbs steeply after, reaching 2.6x past fifteen
@@ -267,7 +305,7 @@ const CREDIT_TIERS = {
             'new cars. This is where the cash-versus-borrow question is genuinely close.'
     },
     superprime: {
-        label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 7.70,
+        label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 6.30,
         avail: { cash: 'open', loan: 'open', lease: 'open', rent: 'open' },
         note: 'Subsidised 0–2.9% offers are yours to take, which usually makes borrowing cheaper than ' +
             'paying cash — keep the money invested and let the captive lender fund the car.'

@@ -21,6 +21,7 @@
     --series-3: #199e70; /* taxes, fees & penalties */
     --series-4: #c98500; /* insurance */
     --series-5: #d55181; /* maintenance */
+    --series-6: #8b5cf6; /* fuel */
 
     /* The four routes, as their own entity set for the break-even
        lines and the option headers. Four hues cannot clear all-pairs
@@ -562,6 +563,9 @@ td.cost-cell.gated { color: var(--danger); }
     min-width: 0;
     transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), filter 0.15s ease;
     cursor: default;
+    /* A hairline of the surface between segments, so six adjacent fills
+       stay countable even where two of them are close in hue. */
+    box-shadow: 2px 0 0 0 var(--surface-1);
 }
 
 .bar-seg:first-child { border-radius: 4px 0 0 4px; }
