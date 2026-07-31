@@ -11,7 +11,7 @@ This repository uses a simple folder-based routing structure. Each major page or
   - `/cv/`: Curriculum Vitae page.
   - `/games/`: Interactive library of completed games.
   - `/math/` & `/converter/`: Utility and reference applications.
-- **Isolated Applications**: Complex projects like `/cargo-lander/` and `/supply-chain/` contain their own dedicated HTML, logic, assets, and styling. `/cargo-lander/` has its own docs — read `cargo-lander/CLAUDE.md` (agent workflow) and `cargo-lander/README.md` (architecture) before working there.
+- **Isolated Applications**: Complex projects like `/cargo-lander/`, `/supply-chain/` and `/car/` contain their own dedicated HTML, logic, assets, and styling. `/car/` keeps its outstanding work in `car/PLAN.md` — read it before changing the cost model. `/cargo-lander/` has its own docs — read `cargo-lander/CLAUDE.md` (agent workflow) and `cargo-lander/README.md` (architecture) before working there.
 - **Release Flow**: Develop new projects in their own directories. Do NOT add links to the root `index.html` until the project is completely finished, tested, and approved.
 
 ## 🛠️ Technology Stack & Styling
@@ -20,6 +20,7 @@ This repository uses a simple folder-based routing structure. Each major page or
 - **Styling Guidelines**: 
   - Define styles using CSS variables (`:root`) in each page's `<style>` block or local `.css` file.
   - **Theme**: Dark slate backgrounds (`#0f172a`), translucent glassmorphism cards (`backdrop-filter: blur`), and vibrant accents.
+    - **Exception — `/car/`**: deliberately opts out, on the owner's instruction, for flat surfaces, hairline borders and a clay accent. Do not "restore" the glassmorphism there; see the palette comment at the top of `car/style.css`.
   - **Typography**: Google Fonts `Outfit` (headings) and `Inter` (body).
 - **Analytics**: Ensure the Google Analytics tag (`G-9GP823TGLB`) is included in the `<head>` of any newly released public page.
 
