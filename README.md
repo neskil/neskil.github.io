@@ -6,7 +6,9 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | Landing page / portfolio hub linking out to the sections below. |
+| `index.html` | Landing page / portfolio hub linking out to the sections below. Markup only — see [Landing page](#landing-page) for its CSS and JS. |
+| `css/`, `js/` | Stylesheets and scripts for the landing page, and nothing else. |
+| `tests.html` | Logic tests for the landing page's `js/` modules. Open it in a browser; it self-reports. |
 | `cv/` | Curriculum vitae site. |
 | `cargo-lander/` | CargoLander — a browser-based 2D lander/logistics game with a custom physics engine. See [cargo-lander/README.md](cargo-lander/README.md) for internals. |
 | `games/` | Interactive game library — a browsable/filterable catalog of games (`data.js` holds the entries). |
@@ -19,6 +21,51 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code. |
 | `assets/` | `og/` link-preview images (one per page) and `portrait.webp` for the About card. |
 | `favicon.ico` | Site-wide favicon. |
+
+## Landing page
+
+`index.html` is markup only. Its styling and behaviour live in `css/` and
+`js/`, split by concern:
+
+| File | Owns |
+| --- | --- |
+| `css/base.css` | Design tokens, reset, the animated page background, header and footer. |
+| `css/cards.css` | The grid and the standard card: tilt/glare variables, per-card accents, material and shine effects, badges. |
+| `css/flip.css` | Cards that open in place instead of navigating (About, Under construction). |
+| `css/vault.css` | The easter eggs — Vault panel, sparks, toast, gravity glitch. |
+| `js/background.js` | The canvas constellation, the shared pointer state, and the themed drifters. |
+| `js/stats.js` | Reads each game's localStorage save and renders the high-score chip on its card. |
+| `js/tilt.js` | The 3D tilt and glare on every card: hover, accelerometer, scroll bend, cursor proximity. |
+| `js/flip.js` | Opening and closing a flip card, including the grow-to-centre animation. |
+| `js/vault.js` | Five clicks on the name, and everything behind that door. |
+| `js/main.js` | Calls each module's `init()`. The only file that wires anything up. |
+
+Same conventions as `supply-chain/`: plain scripts, no bundler, no modules.
+Each file attaches to a global `HOME` namespace and does nothing until
+`main.js` calls its `init()`, which is what lets `tests.html` load the same
+files and exercise their logic without a page around them.
+
+Adding a card means: markup in `index.html`, an accent block in
+`css/cards.css`, and — if it wants the page tint, a bigger sway or a themed
+drifter — an entry in the tables at the top of `js/background.js` and
+`js/tilt.js`. `tests.html` cross-checks those tables against the real card
+ids when served over HTTP, so a renamed card shows up as a failure rather
+than as an effect that quietly stops working.
+
+### Tests
+
+Open `tests.html` in a browser and read the summary line at the top. Most of
+it runs off `file://`; the card-id cross-checks need the repo served over
+HTTP and say so when skipped. Headless:
+
+```
+chromium --headless=new --virtual-time-budget=8000 --dump-dom \
+         http://localhost:8000/tests.html | grep -o 'id="summary".\{0,80\}'
+```
+
+The tests cover the pure logic only — save-file parsing, panel geometry, tilt
+math, drifter lifecycles. Anything that needs a real layout or a real frame
+clock is left to the eye.
 
 ## Link previews
 

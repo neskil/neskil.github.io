@@ -6,7 +6,7 @@ Welcome to the `neskil.github.io` portfolio workspace.
 
 This repository uses a simple folder-based routing structure. Each major page or application is fully isolated in its own directory with its own `index.html`.
 
-- **Main Portfolio (`/index.html`)**: The root landing page featuring links (cards) to completed projects.
+- **Main Portfolio (`/index.html`)**: The root landing page featuring links (cards) to completed projects. Markup only — its styling lives in `/css/` and its behaviour in `/js/`, one file per concern, wired up by `js/main.js`. `/tests.html` covers the logic in those modules; run it after changing them. See the "Landing page" section of `README.md` before editing.
 - **Content Pages**:
   - `/cv/`: Curriculum Vitae page.
   - `/games/`: Interactive library of completed games.
@@ -18,7 +18,7 @@ This repository uses a simple folder-based routing structure. Each major page or
 
 - **Vanilla Core**: Strictly client-side HTML, CSS, and JS (ES6+). Zero build tooling, bundlers, or frameworks (e.g., no React, no Tailwind).
 - **Styling Guidelines**: 
-  - Define styles using CSS variables (`:root`) in each page's `<style>` block or local `.css` file.
+  - Define styles using CSS variables (`:root`) in each page's `<style>` block or local `.css` file. Keep inline `style=` and `on*=` attributes out of the markup — the landing page has none left.
   - **Theme**: Dark slate backgrounds (`#0f172a`), translucent glassmorphism cards (`backdrop-filter: blur`), and vibrant accents.
   - **Typography**: Google Fonts `Outfit` (headings) and `Inter` (body).
 - **Analytics**: Ensure the Google Analytics tag (`G-9GP823TGLB`) is included in the `<head>` of any newly released public page.

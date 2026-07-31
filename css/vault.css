@@ -1,0 +1,216 @@
+/* ── Easter eggs ─────────────────────────────────────────────────────────
+   The Vault (five clicks on the name), the click sparks, the toast and the
+   gravity glitch. All of it is opt-in: nothing here paints until js/vault.js
+   adds a class. Kept apart from the rest so the page's actual styling stays
+   readable. */
+
+/* ── Secret Vault ── */
+#vault-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+#vault-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#vault-panel {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(110%);
+    width: min(500px, 94vw);
+    background: linear-gradient(160deg, #0d1526 0%, #150f2e 100%);
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-bottom: none;
+    border-radius: 22px 22px 0 0;
+    padding: 1.5rem 1.75rem 2.5rem;
+    z-index: 201;
+    transition: transform 0.45s cubic-bezier(0.34, 1.15, 0.64, 1);
+}
+
+#vault-panel.open {
+    transform: translateX(-50%) translateY(0);
+}
+
+.vault-drag {
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    margin: 0 auto 1.5rem;
+}
+
+.vault-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #6366f1;
+    opacity: 0.7;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.vault-close {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.vault-close:hover {
+    color: #f1f5f9;
+}
+
+.vault-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.vault-row {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    width: 100%;
+    padding: 0.9rem 1.1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.vault-row:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+    transform: translateX(4px);
+}
+
+.vault-row-icon {
+    font-size: 1.3rem;
+    background: rgba(255, 255, 255, 0.06);
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.vault-row-body {
+    flex: 1;
+}
+
+.vault-row-title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 0.1rem;
+}
+
+.vault-row-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.vault-row-arrow {
+    color: #334155;
+    font-size: 0.95rem;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.vault-row:hover .vault-row-arrow {
+    color: #6366f1;
+    transform: translateX(3px);
+}
+
+/* secret hint dots */
+.secret-hint {
+    position: absolute;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: #1e293b;
+    margin-top: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    user-select: none;
+    pointer-events: none;
+}
+
+.secret-hint.show {
+    opacity: 1;
+}
+
+/* ── Secret toast ── */
+#secret-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #f8fafc;
+    padding: 0.7rem 1.4rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    z-index: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    white-space: nowrap;
+}
+
+#secret-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+body.gravity-active .card {
+    transition: none;
+}
+
+/* spark particles */
+.spark {
+    position: fixed;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    animation: spark-fly 0.7s ease-out forwards;
+}
+
+@keyframes spark-fly {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--dx), var(--dy)) scale(0);
+        opacity: 0;
+    }
+}

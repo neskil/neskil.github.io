@@ -1,0 +1,363 @@
+/* ── Flip cards ──────────────────────────────────────────────────────────
+   Cards that open in place instead of navigating (About, Under construction).
+   Layered on top of cards.css: a .flip-card is still a .card and keeps the
+   tilt, glare and accent variables from there.
+
+   Two things make the flip work. First, the rotation lives on an inner
+   wrapper, not on .card — .card carries backdrop-filter and overflow:hidden,
+   both of which flatten a 3D rendering context. Second, .card's own surface
+   (background, border, radius, shadow) moves onto the two faces, so the
+   rectangle turns over with the text instead of standing still around it.
+
+   The open/close geometry (top/left/width/height) is set inline by
+   js/flip.js; only the transitions that carry it live here. */
+
+/* Backdrop for the expanded About card. Blurs and dims the grid behind it
+   so the panel reads as a layer above the page rather than a bigger card. */
+#about-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 8, 20, 0.62);
+    backdrop-filter: blur(4.5px);
+    -webkit-backdrop-filter: blur(4.5px);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+}
+
+#about-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Opening lifts the card out of the grid (a placeholder holds its cell) and
+   animates top/left/width/height to a centred panel. Geometry is set inline
+   by JS; the transition that carries it lives here. The tilt handlers bail
+   out while .is-open, so nothing fights these values. */
+.flip-card.is-open {
+    position: fixed;
+    z-index: 301;
+    margin: 0;
+    cursor: default;
+    --rx: 0deg;
+    --ry: 0deg;
+    --ty: 0px;
+}
+
+.flip-card.is-open .card-face {
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 0 40px rgba(var(--accent-rgb), 0.16);
+}
+
+.flip-placeholder {
+    visibility: hidden;
+}
+
+.flip-card.is-open .about-close {
+    opacity: 1;
+}
+
+/* The card is only a stage: transparent, no border, no clipping. overflow
+   must stay visible, or the rotating faces get clipped at the card's bounds. */
+.flip-card {
+    padding: 0;
+    font-family: inherit;
+    font-size: 1rem;
+    text-align: left;
+    width: 100%;
+    height: 100%;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+    perspective: 1400px;
+}
+
+#card-about {
+    --accent-rgb: 251, 113, 133;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 20, 28, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(58, 28, 42, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(251, 113, 133, 0.22);
+    --card-hover-border: rgba(253, 164, 175, 0.48);
+}
+
+.flip-card::before {
+    content: none;
+}
+
+.flip-card .card-link {
+    color: rgb(253, 164, 175);
+}
+
+.card-flip-inner {
+    position: relative;
+    align-self: stretch;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flip-card.is-flipped .card-flip-inner {
+    transform: rotateY(180deg);
+}
+
+.card-face {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 2.5rem;
+    height: 100%;
+    background: var(--card-bg-gradient, var(--card-bg));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--card-border, var(--glass-border));
+    border-radius: 24px;
+    box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
+    overflow: hidden;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: background 0.4s ease-in-out, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Pointer-tracking glare for flip card faces (matches standard .card::before) */
+.card-face::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
+    opacity: calc(0.05 + var(--mag) * 0.3);
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+/* Hover feedback now belongs to the front face, since .card:hover styles a
+   surface that is no longer visible. */
+.flip-card:hover .card-face-front,
+.flip-card .card-face-front:focus-visible {
+    background: var(--card-hover-gradient, var(--card-hover-bg));
+    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+    box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
+}
+
+/* Front stays in flow so the card still has an intrinsic height; only the
+   back is taken out of it and laid over the top. */
+.card-face-front {
+    position: relative;
+    min-height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.flip-card.is-flipped .card-face-front {
+    pointer-events: none;
+}
+
+.flip-card.is-flipped .card-face-back {
+    pointer-events: auto;
+}
+
+.card-face-back {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    padding: 1.75rem 2rem;
+    gap: 1.1rem;
+    justify-content: flex-start;
+    overflow-y: auto;
+}
+
+.card-face-back .card-link {
+    margin-top: 0.35rem;
+}
+
+.about-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding-right: 2.25rem; /* keeps the name clear of the close button */
+}
+
+.about-portrait {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid rgba(var(--accent-rgb), 0.45);
+    box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.22);
+}
+
+.about-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.about-role {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.about-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.about-text {
+    font-size: 0.83rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+/* Front face is a real <button> now (the back face holds links, which cannot
+   be nested inside a button), so the UA styles need clearing. */
+.card-face-front {
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+}
+
+.card-face-back .card-link {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+}
+
+.about-text a {
+    color: rgb(253, 164, 175);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(253, 164, 175, 0.4);
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.about-text a:hover {
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
+.about-close {
+    position: absolute;
+    top: 0.9rem;
+    right: 0.9rem;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    opacity: 0;
+    padding: 0;
+    cursor: pointer;
+    transition: opacity 0.35s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.about-close svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+}
+
+.flip-card:hover .about-close {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 640px) {
+    .card-face {
+        padding: 1.35rem 1.25rem;
+        border-radius: 18px;
+    }
+
+    .card-face-front {
+        height: auto;
+        min-height: auto;
+        justify-content: flex-start;
+    }
+
+    .card-face-back {
+        padding: 1.25rem;
+        border-radius: 18px;
+    }
+}
+
+/* Landscape phones: ~360px of height can't hold the copy at full size, and
+   the panel would top out at the viewport and scroll its close link out of
+   reach. Tightening type and padding lets it fit outright. */
+@media (max-height: 480px) {
+    .flip-card.is-open .card-face {
+        padding: 1.3rem 1.6rem;
+    }
+
+    .flip-card.is-open .about-portrait {
+        width: 46px;
+        height: 46px;
+    }
+
+    .flip-card.is-open .about-name {
+        font-size: 1.08rem;
+    }
+
+    .flip-card.is-open .about-role {
+        font-size: 0.8rem;
+    }
+
+    .flip-card.is-open .about-text {
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .flip-card.is-open .card-face-back {
+        gap: 0.7rem;
+    }
+
+    .flip-card.is-open .about-body {
+        gap: 0.6rem;
+    }
+}
+
+#card-wip {
+    --accent-rgb: 161, 161, 170;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 28, 32, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 44, 50, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(161, 161, 170, 0.20);
+    --card-hover-border: rgba(212, 212, 216, 0.42);
+}
+
+#card-wip .card-link {
+    color: rgb(212, 212, 216);
+}
+
+.wip-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    text-align: center;
+}
+
+.wip-emoji {
+    font-size: 2.6rem;
+    line-height: 1;
+}

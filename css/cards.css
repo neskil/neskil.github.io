@@ -1,0 +1,429 @@
+/* ── Project cards ───────────────────────────────────────────────────────
+   The grid and the standard (navigating) card. Cards that flip open instead
+   of navigating add to this in flip.css.
+
+   Every card is driven by the same six custom properties, written per frame
+   by js/tilt.js: --rx/--ry (tilt), --ty (lift), --mx/--my (glare position)
+   and --mag (how far from neutral, 0..1). Nothing here animates on its own —
+   transitions cover discrete state changes like :hover, the continuous
+   motion is the lerped variables. Each card also sets --accent-rgb, which
+   tints its icon, chip, link, glare and hover glow in one go. */
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 2rem;
+    width: 100%;
+    max-width: 1000px;
+    animation: fadeInUp 1s ease-out 0.2s both;
+}
+
+.card {
+    --accent-rgb: 99, 102, 241;
+    --rx: 0deg;
+    --ry: 0deg;
+    --ty: 0px;
+    --mx: 50%;
+    --my: 50%;
+    --mag: 0;
+    /* Stacked flat layers underneath give the card a slight physical edge/thickness. */
+    --edge-shadow:
+        0 1px 0 rgba(4, 6, 16, 0.5),
+        0 2px 0 rgba(4, 6, 16, 0.38),
+        0 3px 0 rgba(4, 6, 16, 0.26);
+    background: var(--card-bg-gradient, var(--card-bg));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border, var(--glass-border));
+    border-radius: 24px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    height: 100%;
+    transform: perspective(1000px) translateY(var(--ty)) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    box-shadow: var(--edge-shadow), 0 6px 14px rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.card-bg-hover {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--card-hover-gradient, var(--card-hover-bg));
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.card:hover .card-bg-hover {
+    opacity: 1;
+}
+
+/* Glare that tracks the pointer/tilt, tinted per card category (see accent-rgb rules below). */
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%);
+    opacity: calc(0.05 + var(--mag) * 0.3);
+    pointer-events: none;
+}
+
+.card:hover {
+    border-color: var(--card-hover-border, rgba(255, 255, 255, 0.25));
+    box-shadow: var(--edge-shadow), 0 14px 28px rgba(0, 0, 0, 0.25), 0 0 25px rgba(var(--accent-rgb), 0.18);
+}
+
+.card-icon {
+    margin-bottom: 1.5rem;
+    background: rgba(var(--accent-rgb), 0.14);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    color: rgb(var(--accent-rgb));
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 1.8;
+    stroke: currentColor;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.4s ease, filter 0.3s ease;
+}
+
+.card:hover .card-icon {
+    transform: scale(1.1) rotate(5deg);
+    background: rgba(var(--accent-rgb), 0.24);
+    border-color: rgba(var(--accent-rgb), 0.5);
+    box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.3);
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.card-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 2rem;
+}
+
+.card-stat-chip {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    max-width: calc(100% - 100px);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.725rem;
+    font-weight: 600;
+    font-family: 'Outfit', sans-serif;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    z-index: 10;
+    transition: all 0.3s ease;
+}
+
+.card:hover .card-stat-chip {
+    background: rgba(var(--accent-rgb), 0.22);
+    border-color: rgba(var(--accent-rgb), 0.45);
+    color: var(--text-primary);
+    box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.25);
+}
+
+.card-stat-chip .stat-val {
+    color: rgb(var(--accent-rgb));
+    font-weight: 800;
+}
+
+/* Trailing detail on a chip, e.g. "(12 orders)" after a cash total. */
+.card-stat-chip .stat-note {
+    opacity: 0.65;
+    font-size: 0.7rem;
+    margin-left: 3px;
+}
+
+.card-link {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.card:hover .card-link {
+    color: var(--text-primary);
+}
+
+.card-link svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.card:hover .card-link svg {
+    transform: translateX(4px);
+}
+
+/* ── Per-card identity ──
+   One block per card: the accent it tints everything with, its own surface
+   and hover gradients, and its link colour. #card-about and #card-wip do the
+   same thing over in flip.css, next to the rest of their machinery. */
+#card-supply-chain {
+    --accent-rgb: 245, 158, 11;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 24, 16, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 36, 22, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(245, 158, 11, 0.22);
+    --card-hover-border: rgba(251, 191, 36, 0.50);
+}
+
+#card-supply-chain .card-link {
+    color: rgb(251, 191, 36);
+}
+
+#card-cargo-lander {
+    --accent-rgb: 99, 102, 241;
+    --card-bg-gradient: linear-gradient(135deg, rgba(22, 28, 44, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(32, 42, 68, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(99, 102, 241, 0.22);
+    --card-hover-border: rgba(129, 140, 248, 0.45);
+}
+
+#card-converter {
+    --accent-rgb: 6, 182, 212;
+    --card-bg-gradient: linear-gradient(135deg, rgba(14, 30, 38, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(20, 48, 60, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(6, 182, 212, 0.22);
+    --card-hover-border: rgba(34, 211, 238, 0.48);
+}
+
+#card-converter .card-link {
+    color: rgb(34, 211, 238);
+}
+
+#card-car {
+    --accent-rgb: 16, 185, 129;
+    --card-bg-gradient: linear-gradient(135deg, rgba(12, 34, 30, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(16, 54, 46, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(16, 185, 129, 0.22);
+    --card-hover-border: rgba(52, 211, 153, 0.48);
+}
+
+#card-car .card-link {
+    color: rgb(52, 211, 153);
+}
+
+#card-cv {
+    --accent-rgb: 148, 163, 184;
+    --card-bg-gradient: linear-gradient(135deg, rgba(22, 28, 40, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(32, 40, 58, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(148, 163, 184, 0.18);
+    --card-hover-border: rgba(203, 213, 225, 0.40);
+}
+
+#card-cv .card-link {
+    color: #94a3b8;
+}
+
+/* CV keeps a quieter glare — "dry" on purpose. */
+#card-cv::before {
+    opacity: calc(0.03 + var(--mag) * 0.12);
+}
+
+#card-math {
+    --accent-rgb: 168, 85, 247;
+    --card-bg-gradient: linear-gradient(135deg, rgba(28, 20, 40, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(44, 28, 64, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(168, 85, 247, 0.22);
+    --card-hover-border: rgba(192, 132, 252, 0.48);
+}
+
+#card-math .card-link {
+    color: rgb(192, 132, 252);
+}
+
+#card-math-game {
+    --accent-rgb: 249, 115, 22;
+    --card-bg-gradient: linear-gradient(135deg, rgba(38, 24, 18, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+    --card-hover-gradient: linear-gradient(135deg, rgba(60, 36, 26, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+    --card-border: rgba(249, 115, 22, 0.22);
+    --card-hover-border: rgba(251, 146, 60, 0.48);
+}
+
+#card-math-game .card-link {
+    color: rgb(251, 146, 60);
+}
+
+/* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
+   overlay blend so bright texture only lifts already-light pixels instead of
+   flatly washing out the (already fairly low-contrast) body text underneath. ── */
+
+/* Metal: brushed-texture stripes plus a tighter specular highlight that rides the glare position. */
+.card-metal::before {
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.55), rgba(var(--accent-rgb), 0) 58%),
+        repeating-linear-gradient(95deg,
+            rgba(255, 255, 255, 0.05) 0px,
+            rgba(255, 255, 255, 0.05) 1px,
+            rgba(255, 255, 255, 0) 2px,
+            rgba(255, 255, 255, 0) 5px),
+        radial-gradient(ellipse 55% 35% at var(--mx) var(--my), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 70%);
+    mix-blend-mode: overlay;
+}
+
+/* Paper: faint ruled lines + uneven fiber-like light/shadow patches, minimal shine. */
+.card-paper::before {
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(var(--accent-rgb), 0.35), rgba(var(--accent-rgb), 0) 58%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 22px),
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 55%),
+        radial-gradient(circle at 78% 82%, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0) 60%);
+    mix-blend-mode: overlay;
+}
+
+
+
+/* ── Dynamic tracking shine overlay for Supply Chain Tycoon (modeled on CargoLander) ── */
+#card-supply-chain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
+        repeating-linear-gradient(115deg,
+            rgba(251, 191, 36, 0.25) 0%,
+            rgba(245, 158, 11, 0.25) 15%,
+            rgba(253, 224, 71, 0.25) 30%,
+            rgba(234, 179, 8, 0.25) 45%,
+            rgba(251, 191, 36, 0.25) 60%);
+    background-size: 200% 200%, 420% 420%;
+    background-position: var(--mx) var(--my), var(--mx) var(--my);
+    mix-blend-mode: overlay;
+    opacity: calc(0.18 + var(--mag) * 0.55);
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* ── Holo shine (CargoLander card) — layers on top of the standard glare above ── */
+#card-cargo-lander::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border-radius: inherit;
+    background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 40%),
+        repeating-linear-gradient(115deg,
+            rgba(255, 0, 150, 0.32) 0%,
+            rgba(255, 231, 0, 0.32) 12%,
+            rgba(0, 255, 163, 0.32) 24%,
+            rgba(0, 199, 255, 0.32) 36%,
+            rgba(184, 0, 255, 0.32) 48%,
+            rgba(255, 0, 150, 0.32) 60%);
+    background-size: 200% 200%, 420% 420%;
+    background-position: var(--mx) var(--my), var(--mx) var(--my);
+    mix-blend-mode: overlay;
+    opacity: calc(0.18 + var(--mag) * 0.55);
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* ── Badges ──
+   Shares the chip's corner, so a card carries one or the other, not both. */
+.new-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.16);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+}
+
+@media (max-width: 640px) {
+
+    .grid {
+        grid-template-columns: 1fr;
+        grid-auto-rows: auto;
+        gap: 1rem;
+    }
+
+    .card,
+    .card-face-front {
+        padding: 1.35rem 1.25rem;
+        border-radius: 18px;
+        height: auto;
+        min-height: auto;
+        justify-content: flex-start;
+    }
+
+    .card-icon {
+        font-size: 1.75rem;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 0.85rem;
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .card-desc {
+        font-size: 0.825rem;
+        margin-bottom: 1.25rem;
+        line-height: 1.5;
+    }
+
+    .card-stat-chip {
+        top: 14px;
+        right: 14px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        max-width: calc(100% - 75px);
+    }
+
+    .card-link {
+        margin-top: auto;
+    }
+}

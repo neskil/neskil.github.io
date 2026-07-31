@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Landing page — logic tests</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1rem; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        h2 { font-size: 0.9rem; color: #94a3b8; margin: 1.2rem 0 0.4rem; font-weight: normal; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; }
+    </style>
+</head>
+
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <!-- The same modules index.html loads, minus main.js. Nothing here runs
+         until init() is called, so loading them is side-effect free and the
+         pure logic can be exercised without a page. Open this file directly
+         (file:// is fine) or serve it; either way it self-reports. -->
+    <script src="js/background.js"></script>
+    <script src="js/stats.js"></script>
+    <script src="js/tilt.js"></script>
+    <script src="js/flip.js"></script>
+    <script src="js/vault.js"></script>
+
+    <script>
+        let passed = 0, failed = 0;
+        window.FAILS = [];
+
+        function section(name) {
+            const h = document.createElement('h2');
+            h.textContent = '── ' + name;
+            document.getElementById('results').appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            const div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name);
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            document.getElementById('results').appendChild(div);
+        }
+
+        function approx(a, b, eps) { return Math.abs(a - b) <= (eps || 0.001); }
+
+        // ── Stat chips (js/stats.js) ─────────────────────────────────────
+        section('stats');
+        (function () {
+            const S = HOME.stats;
+
+            assert('no save yields the placeholder', S.supplyChainChip(null).value === S.EMPTY);
+            assert('corrupt JSON does not throw', S.supplyChainChip('{not json').value === S.EMPTY);
+            assert('a save with no progress still reads as empty',
+                S.supplyChainChip('{"earnedTotal":0,"delivered":0}').value === S.EMPTY);
+
+            const sc = S.supplyChainChip('{"earnedTotal":12500,"delivered":42}');
+            assert('earned total is formatted with separators', sc.value === '$' + (12500).toLocaleString(), sc.value);
+            assert('delivery count rides along as a note', sc.note === '(42 orders)', sc.note);
+
+            assert('older saves fall back to `money`',
+                S.supplyChainChip('{"money":300,"delivered":1}').value === '$' + (300).toLocaleString());
+            assert('deliveries alone are enough to show a chip',
+                S.supplyChainChip('{"earnedTotal":0,"delivered":3}').note === '(3 orders)');
+
+            // CargoLander stored bare numbers first, {score} objects later.
+            assert('highest bare-number score wins',
+                S.cargoLanderChip('{"l1":300,"l2":900,"l3":120}', null).value === (900).toLocaleString() + ' pts');
+            assert('highest {score} object wins',
+                S.cargoLanderChip('{"l1":{"score":50},"l2":{"score":800}}', null).value === (800).toLocaleString() + ' pts');
+            assert('mixed old and new shapes are compared together',
+                S.cargoLanderChip('{"l1":950,"l2":{"score":400}}', null).value === (950).toLocaleString() + ' pts');
+            assert('cash is the fallback when no run has scored',
+                S.cargoLanderChip(null, '2500').label === 'Pilot Cash');
+            assert('a scored run outranks cash',
+                S.cargoLanderChip('{"l1":10}', '99999').label === 'High Score');
+            assert('no scores and no cash is the placeholder',
+                S.cargoLanderChip(null, null).value === S.EMPTY);
+
+            assert('mental math zero reads as empty', S.mentalMathChip('0').value === S.EMPTY);
+            assert('mental math score is suffixed', S.mentalMathChip('42').value === '42 pts');
+            assert('mental math garbage does not throw', S.mentalMathChip('abc').value === S.EMPTY);
+
+            // The markup the cards ship with must survive a round trip, or an
+            // untouched chip and a rendered one would look different.
+            assert('placeholder markup matches the static markup in index.html',
+                S.chipHTML(S.mentalMathChip(null)) ===
+                '<span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>',
+                S.chipHTML(S.mentalMathChip(null)));
+            assert('a note renders inside the chip',
+                S.chipHTML(S.supplyChainChip('{"earnedTotal":5,"delivered":2}')).indexOf('<span class="stat-note">(2 orders)</span>') !== -1);
+        })();
+
+        // ── Flip panel geometry (js/flip.js) ─────────────────────────────
+        section('flip');
+        (function () {
+            const rect = (w, h) => ({ width: w, height: h });
+            const target = HOME.flip.computeTargetRect;
+
+            // Desktop: grow by up to 45%, keeping the card's proportions.
+            const d = target(rect(300, 400), 1200, 900, null);
+            assert('desktop panel grows by 45%', approx(d.w, 435), 'w=' + d.w);
+            assert('desktop panel keeps the card aspect ratio', approx(d.w / d.h, 300 / 400), 'w/h=' + (d.w / d.h));
+            assert('desktop panel is centred horizontally', approx(d.left, (1200 - d.w) / 2));
+            assert('desktop panel is centred vertically', approx(d.top, (900 - d.h) / 2));
+
+            // A tall card in a short window has to shrink to fit, still square.
+            const short = target(rect(300, 600), 1200, 500, null);
+            assert('a panel too tall for the window is clamped', approx(short.h, 500 - 40), 'h=' + short.h);
+            assert('clamping preserves the aspect ratio', approx(short.w / short.h, 300 / 600), 'w/h=' + (short.w / short.h));
+            assert('a clamped panel still fits the window', short.h <= 500 && short.w <= 1200);
+
+            // 520 is the hard ceiling: a panel never gets wider than that,
+            // however big the card or the window.
+            assert('a wide card is capped at 520', approx(target(rect(900, 600), 1400, 1000, null).w, 520));
+            assert('a huge window does not widen the panel', approx(target(rect(900, 600), 2560, 1400, null).w, 520));
+            assert('the narrowest desktop window still fits its panel', target(rect(900, 600), 641, 1000, null).w <= 641);
+
+            // Mobile: width from the viewport, height from the copy.
+            const m = target(rect(340, 300), 390, 800, 400);
+            assert('mobile panel leaves a 12px gutter each side', approx(m.w, 390 - 24), 'w=' + m.w);
+            assert('mobile height comes from the content plus padding', approx(m.h, 432), 'h=' + m.h);
+            assert('mobile panel is centred', approx(m.left, (390 - m.w) / 2) && approx(m.top, (800 - m.h) / 2));
+
+            assert('a tiny back face still gets a usable panel',
+                approx(target(rect(340, 300), 390, 800, 10).h, 200));
+            assert('a long back face is clamped to the viewport',
+                approx(target(rect(340, 300), 390, 600, 5000).h, 600 - 32));
+            assert('mobile falls back to a default height with no measurement',
+                approx(target(rect(340, 300), 390, 800, null).h, 360));
+
+            // 640 is the breakpoint shared with the CSS; check both sides. On
+            // the mobile path the height comes from the copy, on the desktop
+            // path from the card's proportions — that is the tell.
+            assert('640px wide is still the mobile path', approx(target(rect(300, 400), 640, 900, 400).h, 432));
+            assert('641px wide takes the desktop path', approx(target(rect(300, 400), 641, 900, 400).w, 435));
+        })();
+
+        // ── Tilt geometry (js/tilt.js) ───────────────────────────────────
+        section('tilt');
+        (function () {
+            const T = HOME.tilt;
+
+            const centre = T.tiltFromPoint(0.5, 0.5, 10);
+            assert('the centre of a card is neutral', centre.rx === 0 && centre.ry === 0);
+            assert('the centre puts the glare in the middle', centre.mx === 50 && centre.my === 50);
+            assert('the centre has no intensity', centre.mag === 0);
+
+            const topRight = T.tiltFromPoint(1, 0, 10);
+            assert('the top edge tilts back the full range', approx(topRight.rx, 10));
+            assert('the right edge tilts to the full range', approx(topRight.ry, 10));
+            assert('a corner is full intensity', approx(topRight.mag, 1));
+            assert('the glare stays 5% clear of the corner', topRight.mx === 95 && topRight.my === 5);
+
+            const bottomLeft = T.tiltFromPoint(0, 1, 10);
+            assert('opposite corners tilt opposite ways',
+                approx(bottomLeft.rx, -topRight.rx) && approx(bottomLeft.ry, -topRight.ry));
+
+            assert('tilt scales with the card tuning', approx(T.tiltFromPoint(1, 0.5, 15).ry, 15));
+            assert('points outside the card are clamped to its edge',
+                approx(T.tiltFromPoint(4, 0.5, 10).ry, 10) && approx(T.tiltFromPoint(-4, 0.5, 10).ry, -10));
+
+            // The scroll bend: flat at the middle of the screen, opposite
+            // signs above and below, biggest at the edges.
+            assert('a card at the viewport centre does not bend', approx(T.scrollBend(400, 800, 10).bend, 0));
+            const above = T.scrollBend(100, 800, 10);
+            const below = T.scrollBend(700, 800, 10);
+            assert('cards above and below centre bend opposite ways', above.bend < 0 && below.bend > 0);
+            assert('the bend is symmetric about the centre', approx(above.bend, -below.bend));
+            assert('the bend is strongest at the edges', Math.abs(T.scrollBend(800, 800, 10).bend) > Math.abs(below.bend));
+            assert('a card scrolled past the edge does not keep bending',
+                approx(T.scrollBend(5000, 800, 10).bend, T.scrollBend(800, 800, 10).bend));
+
+            assert('clamp holds its bounds', T.clamp(5, 0, 1) === 1 && T.clamp(-5, 0, 1) === 0 && T.clamp(0.5, 0, 1) === 0.5);
+
+        })();
+
+        // ── Background drifters (js/background.js) ───────────────────────
+        section('background');
+        (function () {
+            const B = HOME.background;
+            B.view.width = 1000;
+            B.view.height = 800;
+
+            Object.keys(B.ENTITY_SPECS).forEach(id => {
+                const spec = B.ENTITY_SPECS[id];
+                assert('drifter spec has symbols: ' + id, spec.symbols && spec.symbols.length > 0);
+                assert('drifter spec moves: ' + id, spec.speed[0] > 0);
+                assert('a directional spec has one symbol per direction: ' + id,
+                    !spec.directional || spec.symbols.length === 2);
+            });
+
+            const e = new B.ThemeEntity('card-supply-chain');
+            assert('a drifter starts off-screen', e.x < 0 || e.x > B.view.width);
+            assert('a drifter has a finite crossing time', e.maxLife > 0 && isFinite(e.maxLife));
+            assert('a drifter starts invisible', e.alpha === 0);
+            assert('a drifter starts alive', !e.dead);
+
+            e.update();
+            assert('a drifter fades in rather than popping', e.alpha > 0 && e.alpha < e.maxAlpha);
+
+            // Run it to the middle of its crossing, then to the end.
+            const mid = new B.ThemeEntity('card-cargo-lander');
+            for (let i = 0; i < Math.floor(mid.maxLife / 2); i++) mid.update();
+            assert('a drifter is at full opacity mid-crossing', approx(mid.alpha, mid.maxAlpha));
+            assert('a drifter is on screen mid-crossing', mid.x > 0 && mid.x < B.view.width);
+
+            let frames = 0;
+            while (!mid.dead && frames < 10000) { mid.update(); frames++; }
+            assert('a drifter always dies', mid.dead, 'frames=' + frames);
+            assert('a drifter dies within its life budget', frames <= mid.maxLife);
+
+            assert('an unknown card produces no drifter', new B.ThemeEntity('card-nope').dead);
+            assert('a drifter spawns inside the canvas vertically',
+                new B.ThemeEntity('card-car').y <= B.view.height);
+
+            // Dots bounce off the walls rather than escaping.
+            const p = new B.Particle(10, 400);
+            p.vx = -50;
+            p.update();
+            assert('a dot bounces off the left wall', p.vx > 0);
+            assert('a placed dot eases in', p.fade > 0 && p.fade < 1);
+            assert('an ambient dot is fully visible immediately', new B.Particle().fade === 1);
+            assert('an ambient dot lands inside the canvas',
+                (function () { const a = new B.Particle(); return a.x >= 0 && a.x <= B.view.width && a.y >= 0 && a.y <= B.view.height; })());
+        })();
+
+        // ── Vault (js/vault.js) ──────────────────────────────────────────
+        section('vault');
+        (function () {
+            const V = HOME.vault;
+            // Clicks 1..NEEDED-1 show a hint; the NEEDED-th opens the vault
+            // instead, so the last entry in the table is spare.
+            assert('there is a hint for every click that shows one',
+                V.HINT_DOTS.length >= V.NEEDED - 1);
+            assert('the first click shows the full run of dots',
+                V.hintFor(1) === '· · · · ·');
+            assert('the hint loses a dot per click',
+                V.hintFor(1).length > V.hintFor(2).length && V.hintFor(2).length > V.hintFor(3).length);
+            assert('the last hint before the vault opens is the shortest',
+                V.hintFor(V.NEEDED - 1).length < V.hintFor(1).length &&
+                V.hintFor(V.NEEDED - 1) !== '');
+            assert('there is no hint before the first click', V.hintFor(0) === '');
+            assert('the hint runs out rather than repeating past the table',
+                V.hintFor(V.HINT_DOTS.length + 1) === '');
+        })();
+
+        function report() {
+            const el = document.getElementById('summary');
+            el.textContent = failed === 0
+                ? `✓ all ${passed} tests passed`
+                : `✗ ${failed} of ${passed + failed} failed: ${window.FAILS.join(', ')}`;
+            el.className = failed === 0 ? 'pass' : 'fail';
+        }
+
+        // ── Cross-checks against the real markup ─────────────────────────
+        // Both JS tables key off card ids, so a card renamed in index.html
+        // silently stops being tuned or themed. Read the ids back out of the
+        // page to catch that. Needs index.html to be fetchable, which it is
+        // over http:// but not over file:// — skipped rather than failed
+        // there, since the rest of the suite runs fine either way.
+        report();
+        fetch('index.html')
+            .then(r => r.ok ? r.text() : Promise.reject(r.status))
+            .then(html => {
+                section('card ids (cross-checked against index.html)');
+                const ids = (html.match(/id="(card-[a-z-]+)"/g) || [])
+                    .map(m => m.slice(4, -1));
+                assert('index.html has cards to check against', ids.length > 0);
+
+                Object.keys(HOME.tilt.TUNING).forEach(id => {
+                    assert('tilt tuning targets a real card: ' + id, ids.indexOf(id) !== -1);
+                });
+                Object.keys(HOME.background.ENTITY_SPECS).forEach(id => {
+                    assert('drifter spec targets a real card: ' + id, ids.indexOf(id) !== -1);
+                });
+                report();
+            })
+            .catch(() => {
+                section('card ids (cross-checked against index.html)');
+                const div = document.createElement('div');
+                div.textContent = '· skipped — serve the repo over http:// to run these';
+                document.getElementById('results').appendChild(div);
+            });
+    </script>
+</body>
+
+</html>
