@@ -193,10 +193,25 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="registration">Registration</label>
+                    <label for="mpg">Fuel economy <span style="color:var(--text-mute)">· combined</span></label>
+                    <div class="input-shell">
+                        <input type="number" id="mpg" min="1" max="150" step="1" value="28">
+                        <span class="suffix">mpg</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="gasPrice">Gas price</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
-                        <input type="number" id="registration" min="0" step="25" value="150">
+                        <input type="number" id="gasPrice" min="0" max="15" step="0.05" value="3.90">
+                        <span class="suffix">/gal</span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="registration">Registration <span style="color:var(--text-mute)">· GA tag + emissions</span></label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="registration" min="0" step="10" value="70">
                         <span class="suffix">/yr</span>
                     </div>
                 </div>
@@ -1274,8 +1289,9 @@
     </div>
 
     <footer>
-        Estimates only — fuel and charging are left out because they are near enough identical across the four
-        options for the same car. Not financial advice.
+        Estimates only. Fuel is included because AAA, Edmunds and KBB all count it and at 2026 pump prices it is
+        the larger of it and the maintenance line — it is the same for all four options, so it moves every total
+        without changing which one wins. Not financial advice.
     </footer>
 
     <!-- Plain scripts sharing one global scope, in dependency order. -->

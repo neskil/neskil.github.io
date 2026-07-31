@@ -5,7 +5,7 @@
 
 /* ── Wiring ────────────────────────────────────────────────────── */
 const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
-    'insurance', 'maintenance', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
+    'insurance', 'maintenance', 'mpg', 'gasPrice', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
     'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
     'leasePrepaidRate', 'leaseDisposition',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice'];
