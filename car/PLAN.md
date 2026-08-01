@@ -54,20 +54,62 @@ price at $87k. Asking for residual and money factor and computing a lease on
   was making the body a scroll container, which kills `position: sticky` for
   everything inside it) and a sticky wrapper the exact height of its content.
 
-Still open from that:
+## Answers found (August 2026 research pass)
 
-- **Daily rental is a crude model.** It is a flat daily rate times 30.44. Real
-  weekly and monthly rates run far below the daily one — the $130/day figure is
-  a five-day booking — so a long hire is overstated. It should taper, or ask
-  for the weekly and monthly rates separately.
-- **Flexcar's terms are assumed.** The rate and mileage cap are from one
-  quote; the start fee is set to zero without a source.
-- **The subscriptions are not modelled as pausable.** Their real advantage over
-  a lease is the 30-day exit, and nothing on the page prices optionality — a
-  route you can leave in a month is worth more than one you cannot, and right
-  now that only appears as prose.
-- **Lease minimum terms are not enforced.** Most captive leases start at 24
-  months; the page will happily price a 6-month one.
+Four of the open questions had published answers. Two did not, and saying so
+is the point of writing them down.
+
+**Daily rental was overstated by two to three times — fixed.** Long hires trip
+into a different price list at about 28 consecutive days. Hertz's published
+contract rates are $796/mo for a compact sedan, $841 for an intermediate, $908
+for a full-size, $1,509 for a mid-size SUV and $2,116 for a full-size SUV,
+against an average retail rate of $78/day or $543/week. That is $26–70 a day
+against $78 — the monthly rate is roughly a third of the daily one. The route
+is now charged at a monthly rate; the daily rate stays as an input because it
+is what says "and this is why you would not do it for a year". Note the
+contract figures are government procurement rates and so a floor, not a retail
+quote.
+
+**Flexcar's terms — corrected.** Mileage plans are Standard 850 mi/mo, Cruiser
+1,200, Road Warrior 2,000, and Low Gear variable in 200-mile increments; the
+page had an invented 1,250 and now uses 1,200. There is $0 down but a **$249
+annual membership** covering maintenance and roadside, with a two-week free
+trial — the page had $0 and now bills it yearly. Flexcar does check credit but
+publishes no minimum score, so the 650 figure the page quotes remains
+third-party (ValuePenguin) rather than official, and is flagged as such.
+
+**Lease minimum terms — my own note was wrong.** I had written "most captive
+leases start at 24 months" and planned to enforce it. In fact 36 months is the
+standard, 24 and 39 are common, 12-month leases are readily available and
+6-month ones exist but are rare. Short terms cost 20–30% more per month because
+the drive-off and the steep first year spread over fewer payments — which is
+exactly the IAS quote's shape. So: no gate, and the existing lease note already
+makes the point. Item dropped rather than built.
+
+**Body-style retention — the data does not exist, so the invented numbers are
+gone.** iSeeCars publishes only EVs (57.2%), trucks (34.2%), hybrids (35.4%)
+and the 41.8% average across 950,000+ five-year-old cars; there is no sedan
+versus SUV split. The placeholder 0.97/1.02/0.98 multipliers are now exactly
+1.00, and only the sourced pickup figure moves the curve.
+
+**Insurance decay with vehicle age — no usable public answer.** The sources
+agree premiums fall "slowly" as a car ages while its value falls fast — the
+useful framing being that full coverage on a 10-year-old car can reach 46% of
+what the car is worth — but nobody publishes a percentage-per-year curve. This
+would need actuarial tables rather than a search. Item stays open and
+unquantified rather than being filled with a guess.
+
+**Subscription optionality is still not priced.** Nothing found, because it is
+not a published figure — it is an option-value question. The 30-day exit is
+worth real money against a lease you cannot leave, and the page still only says
+so in prose.
+
+## Still open from the six-route pass
+
+- **Subscriptions are not modelled as pausable**, per above.
+- **The 650 Flexcar threshold is third-party**, not published by Flexcar.
+- **Rental monthly rates are contract, not retail** — a floor. A retail Atlanta
+  quote would be better.
 
 ## 1. Electric and hybrid powertrains — the biggest remaining gap
 
@@ -81,12 +123,19 @@ Touches more than the curve:
 
 - **Fuel** becomes kWh and a home/public rate split, not gallons and mpg. The
   input pair added in this pass assumes a combustion engine.
-- **Georgia charges an EV registration surcharge** — $238.59/yr for
-  non-commercial battery-electric registrations renewing between 1 Jul 2026 and
-  30 Jun 2027, against $20 for a petrol tag. That is a real line the fees
+- **Georgia charges an EV registration surcharge** — about **$235/yr** for
+  non-commercial battery-electric vehicles (sources give $234.97 and $238.59
+  for the 2026-27 year; it is indexed annually), against $20 for a petrol tag.
+  A plug-in hybrid with an alternative-fuel plate pays $20 registration plus a
+  $35 special tag fee and a one-time $25 manufacturing fee. Real money the fees
   component should carry.
-- **Insurance** runs higher on EVs (battery replacement dominates the payout).
+- **Insurance** runs higher: $3,159/yr full coverage on an EV against $2,218
+  on a petrol car, so **+42%** across all model years, narrowing to **+18%** on
+  2024-and-newer cars as repair networks catch up. Use something between.
 - **Maintenance** runs lower — no oil, no exhaust, far less brake wear.
+  Consumer Reports puts EV maintenance and repair at about **half** a petrol
+  car's; the Department of Energy says 40% less; roughly $7,000 saved over ten
+  years.
 - Lease economics differ sharply because manufacturers subsidise EV residuals,
   which is exactly the case the pros-and-cons card already calls out.
 

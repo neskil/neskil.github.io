@@ -587,16 +587,18 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="flexStartFee">Start fee</label>
+                            <label for="flexStartFee">Membership <span style="color:var(--text-mute)">·
+                                per year</span></label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="flexStartFee" min="0" step="50" value="0">
+                                <input type="number" id="flexStartFee" min="0" step="10" value="249">
+                                <span class="suffix">/yr</span>
                             </div>
                         </div>
                         <div class="field">
                             <label for="flexAllowance">Miles included</label>
                             <div class="input-shell">
-                                <input type="number" id="flexAllowance" min="0" step="100" value="1250">
+                                <input type="number" id="flexAllowance" min="0" step="50" value="1200">
                                 <span class="suffix">mi/mo</span>
                             </div>
                         </div>
@@ -630,15 +632,24 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="rentalPresets" aria-label="Real rental rates">
-                        <button class="preset-btn" type="button" data-daily="130"
-                                data-car="a rental counter car" data-msrp="30000">What I paid · $650 / 5 days</button>
-                        <button class="preset-btn" type="button" data-daily="75"
-                                data-car="an economy rental" data-msrp="25000">Weekly rate · $75/day</button>
+                        <button class="preset-btn" type="button" data-daily="130" data-monthly="1509"
+                                data-car="a mid-size SUV" data-msrp="35000">Mid-size SUV · $1,509/mo</button>
+                        <button class="preset-btn" type="button" data-daily="78" data-monthly="796"
+                                data-car="a compact sedan" data-msrp="25000">Compact sedan · $796/mo</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
+                            <label for="rentalMonthly">Monthly rate <span style="color:var(--text-mute)">·
+                                what you pay</span></label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="rentalMonthly" min="0" step="50" value="1509">
+                                <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
                             <label for="rentalDaily">Daily rate <span style="color:var(--text-mute)">·
-                                all-in</span></label>
+                                short hire</span></label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
                                 <input type="number" id="rentalDaily" min="0" step="5" value="130">

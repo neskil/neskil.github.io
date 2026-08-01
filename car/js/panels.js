@@ -10,10 +10,10 @@
    subscription do not: they price whatever vehicle the quote you typed
    happens to be for. A $1,000 Sixt+ rate is a BMW X1; the $873 IAS quote
    is a new Tiguan; the car in the inputs might be a nine-year-old Civic.
-   Comparing those four numbers is still useful — it is the real choice in
-   front of you, six ways to have *a* car for a while — but it is not
-   four prices for one car, and reading it as though it were is the
-   easiest mistake this page invites. */
+   Comparing those six numbers is still useful — it is the real choice in
+   front of you, six ways to have *a* car for a while — but it is not six
+   prices for one car, and reading it as though it were is the easiest
+   mistake this page invites. */
 function activePreset(rowId) {
     const btn = document.querySelector('#' + rowId + ' .preset-btn.active');
     return btn ? { car: btn.dataset.car, msrp: Number(btn.dataset.msrp) || 0 } : null;
@@ -38,9 +38,8 @@ function routeVehicle(key, v) {
         return { text: 'whatever Flexcar has locally · about $30k new', matches: false, msrp: 30000 };
     }
     const rate = { lease: v.leasePayment, sixt: v.rentRate, flexcar: v.flexRate,
-                   rental: v.rentalDaily }[key];
-    return { text: 'whatever your ' + usd0(rate) + (key === 'rental' ? '/day' : '/mo') + ' quote is for',
-        matches: false, msrp: 0 };
+                   rental: v.rentalMonthly }[key];
+    return { text: 'whatever your ' + usd0(rate) + '/mo quote is for', matches: false, msrp: 0 };
 }
 
 /* ── Can you actually get this one? ──────────────────────────────────
@@ -125,7 +124,7 @@ function renderVerdict(results, best, v) {
         lease: v.leaseSigning,
         sixt: v.rentStartFee,
         flexcar: v.flexStartFee,
-        rental: v.rentalDaily * 7
+        rental: v.rentalMonthly
     };
     const short = upfront[win.key] - v.cash;
     /* Re-run the winner under the other two cases so the headline
@@ -363,11 +362,14 @@ function renderOptionNotes(results, v) {
        about, so put it next to the one it is a multiple of. */
     const rental = results.rental;
     const cheapestSub = Math.min(results.sixt.perMonth, results.flexcar.perMonth);
-    $('rentalNote').innerHTML = 'At ' + usd0(v.rentalDaily) + '/day every day, that is <strong>' +
-        usd0(v.rentalDaily * DAYS_PER_MONTH) + '/mo</strong> — ' +
-        (rental.perMonth / cheapestSub).toFixed(1) + '× the cheaper subscription and ' +
-        usd0(rental.total) + ' over your ' + v.months + ' months. It is the right answer for a few ' +
-        'weeks and a terrible one for a few years, which is exactly what makes it the yardstick.';
+    $('rentalNote').innerHTML =
+        'At ' + usd0(v.rentalMonthly) + '/mo that is <strong>' +
+        usd0(v.rentalMonthly / DAYS_PER_MONTH) + ' a day</strong>, against ' + usd0(v.rentalDaily) +
+        ' a day on a short booking — long hires trip into a different price list at about 28 days, ' +
+        'and the gap is roughly threefold. Over your ' + v.months + ' months it comes to ' +
+        usd0(rental.total) + ', ' + (rental.perMonth / cheapestSub).toFixed(1) +
+        '× the cheaper subscription. It is the right answer for a few weeks and a poor one for a few ' +
+        'years, which is exactly what makes it the yardstick.'
 
     for (const el of document.querySelectorAll('.summary-cost')) {
         el.textContent = usd0(results[el.dataset.cost].perMonth) + '/mo';

@@ -184,7 +184,8 @@ function readInputs() {
         flexStartFee: num('flexStartFee'),
         flexAllowance: num('flexAllowance'),
         flexBlockPrice: num('flexBlockPrice'),
-        rentalDaily: num('rentalDaily')
+        rentalDaily: num('rentalDaily'),
+        rentalMonthly: num('rentalMonthly')
     });
 }
 
@@ -370,7 +371,15 @@ function scenarioLease(v) {
    yes to, but the arithmetic is identical, so it lives here once. */
 function scenarioSubscription(v, cfg) {
     const led = makeLedger(v.months, v.monthlyReturn);
-    led.add(cfg.startFee, 0, 'fees');
+    if (cfg.annualFee) {
+        /* Flexcar bills membership yearly, not once — $249 covers servicing
+           and roadside and recurs for as long as you stay. */
+        for (let y = 0; y < Math.ceil(v.months / 12); y++) {
+            led.add(cfg.startFee, Math.min(y * 12, v.months), 'fees');
+        }
+    } else {
+        led.add(cfg.startFee, 0, 'fees');
+    }
     /* A subscription sells mileage in blocks rather than billing per
        mile after the fact, so you buy the whole block or go without.
        Unused miles roll over, which means your average matters and a
@@ -405,7 +414,7 @@ function scenarioSixt(v) {
 
 function scenarioFlexcar(v) {
     return scenarioSubscription(v, {
-        rate: v.flexRate, startFee: v.flexStartFee,
+        rate: v.flexRate, startFee: v.flexStartFee, annualFee: true,
         allowance: v.flexAllowance, blockPrice: v.flexBlockPrice
     });
 }
@@ -417,7 +426,7 @@ function scenarioFlexcar(v) {
    registration the way a subscription does — but not fuel. */
 function scenarioRental(v) {
     const led = makeLedger(v.months, v.monthlyReturn);
-    const perMonth = v.rentalDaily * DAYS_PER_MONTH;
+    const perMonth = v.rentalMonthly;
     const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
         led.add(perMonth, m, 'depreciation');
