@@ -7,7 +7,7 @@
 const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
     'insurance', 'maintenance', 'mpg', 'gasPrice', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
     'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
-    'leasePrepaidRate', 'leaseDisposition',
+    'leasePrepaidRate', 'leaseDisposition', 'leaseWear',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice'];
 
 function update() {
@@ -66,6 +66,28 @@ function update() {
         (v.repairShock ? ' Includes <strong>' + usd0(v.repairShock) +
             '</strong> for one major repair, since the warranty runs out before you sell.' : '');
     $('caveatMonths').textContent = v.months;
+
+    /* Resale is the biggest single line on both owning routes and the case
+       toggle swings it by thousands, but the field itself holds the
+       expected figure and does not move — which reads as the toggle doing
+       nothing. Spell the swing out where the number is entered, and mark
+       whichever case is currently driving the bars. */
+    const held = scenarioCase;
+    const bycase = {};
+    for (const key of Object.keys(SCENARIOS)) {
+        scenarioCase = key;
+        bycase[key] = readInputs().resale;
+    }
+    scenarioCase = held;
+    const mark = (key, text) => key === scenarioCase
+        ? '<strong class="now">' + text + '</strong>' : text;
+    $('resaleRange').innerHTML =
+        mark('optimistic', 'good market ' + usd0(bycase.optimistic)) + ' · ' +
+        mark('expected', 'expected ' + usd0(bycase.expected)) + ' · ' +
+        mark('pessimistic', 'soft market ' + usd0(bycase.pessimistic)) +
+        ' — a <strong>' + usd0(bycase.optimistic - bycase.pessimistic) + '</strong> swing, and the ' +
+        'largest single uncertainty in owning the car. The scenario buttons on the chart pick which ' +
+        'one the bars use.';
     for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {
         btn.classList.toggle('active', btn.dataset.brand === carBrand);
     }
@@ -88,7 +110,10 @@ function syncPresets(months, v) {
        no chip lights, which is itself the honest answer — we no longer
        know what car it is. */
     for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
-        btn.classList.toggle('active', Number(btn.dataset.payment) === v.leasePayment);
+        btn.classList.toggle('active',
+            Number(btn.dataset.payment) === v.leasePayment &&
+            (btn.dataset.signing === undefined || Number(btn.dataset.signing) === v.leaseSigning) &&
+            (!btn.dataset.term || Number(btn.dataset.term) === v.leaseTerm));
     }
     for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.rentRate &&
@@ -204,6 +229,8 @@ for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
 for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('leasePayment').value = btn.dataset.payment;
+        if (btn.dataset.signing !== undefined) $('leaseSigning').value = btn.dataset.signing;
+        if (btn.dataset.term) $('leaseTerm').value = btn.dataset.term;
         update();
     });
 }

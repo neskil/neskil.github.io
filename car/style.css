@@ -1581,3 +1581,18 @@ input[type="range"]::-moz-range-thumb {
     .verdict-winner { font-size: 1.4rem; }
     .field-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
 }
+
+/* The resale field holds the expected case, because it is an input and the
+   other two are outputs. But resale is the largest single line on both
+   owning routes and the case toggle swings it by thousands, so the swing is
+   spelled out under the field rather than left to be discovered by flipping
+   the toggle and watching a bar move. */
+.field-note {
+    font-size: 0.68rem;
+    line-height: 1.45;
+    color: var(--text-mute);
+    margin-top: 2px;
+}
+
+.field-note strong { color: var(--text-secondary); font-weight: 700; }
+.field-note .now { color: var(--accent-soft); }

@@ -162,11 +162,13 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="resale">You get for it</label>
+                    <label for="resale">You get for it <span style="color:var(--text-mute)">·
+                        expected</span></label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
                         <input type="number" id="resale" min="0" step="250" value="0">
                     </div>
+                    <p class="field-note" id="resaleRange"></p>
                 </div>
                 <div class="field">
                     <label for="miles">You drive</label>
@@ -379,10 +381,15 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="leasePresets" aria-label="Real lease quotes">
-                        <button class="preset-btn" type="button" data-payment="873"
-                                data-car="a new VW Tiguan" data-msrp="32000">IAS 2026 Tiguan · $873</button>
-                        <button class="preset-btn" type="button" data-payment="500"
-                                data-car="the average new leased car" data-msrp="48800">National average · $500</button>
+                        <button class="preset-btn" type="button" data-payment="365" data-signing="5500"
+                                data-term="12" data-car="a new VW Tiguan"
+                                data-msrp="32000">IAS Tiguan, haggled · $823/mo all-in</button>
+                        <button class="preset-btn" type="button" data-payment="873" data-signing="0"
+                                data-term="12" data-car="a new VW Tiguan"
+                                data-msrp="32000">IAS Tiguan, first quote · $873/mo</button>
+                        <button class="preset-btn" type="button" data-payment="500" data-signing="2500"
+                                data-term="36" data-car="the average new leased car"
+                                data-msrp="48800">National average · $500/mo</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -444,6 +451,14 @@
                             <div class="input-shell">
                                 <span class="prefix">$</span>
                                 <input type="number" id="leaseDisposition" min="0" step="50" value="400">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="leaseWear">Wear &amp; tear <span style="color:var(--text-mute)">· at
+                                turn-in</span></label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="leaseWear" min="0" step="50" value="350">
                             </div>
                         </div>
                     </div>
