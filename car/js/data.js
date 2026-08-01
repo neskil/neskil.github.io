@@ -41,8 +41,16 @@ const OPTIONS = [
     { key: 'rental',  label: 'Daily rental',  short: 'Rental',  color: 'var(--opt-rental)',  dash: '1 3' }
 ];
 
-/* A month has 30.44 days on average, and a daily rate is charged for every
-   one of them if the car is how you get to work. */
+/* A month has 30.44 days on average — but nobody pays 30.44 daily rates.
+   Booking systems trip into long-hire pricing at 28 consecutive days, and
+   the gap is not small: Hertz's published contract rates are $796/mo for a
+   compact sedan and $1,509/mo for a mid-size SUV, against an average
+   retail rate of $78/day. That is $26–50 a day against $78 — the monthly
+   rate is roughly a third of the daily one. Pricing a long hire by
+   multiplying the daily rate, which this page used to do, overstated it by
+   two to three times. So the daily rate is kept for what it is good for —
+   saying what a week costs, and why you would not do this for a year —
+   and the monthly rate is what the route is actually charged at. */
 const DAYS_PER_MONTH = 365 / 12;
 
 /* First-year drop and the annual rate on the remainder afterwards. */
@@ -130,23 +138,24 @@ const BRANDS = {
    iSeeCars 2026 study puts pickups at 34.2% lost over five years against
    a 41.8% average — 65.8% retained where the market keeps 58.2% — which
    is the 0.78 below, and it is the single largest body-style effect
-   here: a truck is the one shape that materially defends the largest
-   line on the page. Sedans and SUVs are not broken out separately in
-   that study, so they stay at or near the average rather than being
-   invented.
+   here: a truck is the one shape that materially defends the largest line
+   on the page. Everything else sits at exactly 1.00 on purpose — iSeeCars
+   publishes only EVs (57.2%), trucks (34.2%), hybrids (35.4%) and the
+   41.8% average, and no segment split for sedans against SUVs, so any
+   number here other than 1.00 would be invented.
 
    mpg is the real-world combined figure, which is what fuel should be
    priced off — the regulatory CAFE fleet average is a test-cycle number
    and roughly a third higher than anything you will see. */
 const BODY_TYPES = {
     compactCar: { label: '🚗 Small car', sub: 'Civic, Corolla, Elantra',
-                  priceMult: 0.74, maintMult: 0.90, insMult: 0.95, depMult: 0.97, mpg: 34 },
+                  priceMult: 0.74, maintMult: 0.90, insMult: 0.95, depMult: 1.00, mpg: 34 },
     sedan:      { label: '🚙 Saloon', sub: 'Camry, Accord, 3 Series',
-                  priceMult: 0.88, maintMult: 0.95, insMult: 1.00, depMult: 1.02, mpg: 31 },
+                  priceMult: 0.88, maintMult: 0.95, insMult: 1.00, depMult: 1.00, mpg: 31 },
     suv:        { label: '🚐 Compact SUV', sub: 'RAV4, CR-V, X3 — the baseline',
                   priceMult: 1.00, maintMult: 1.00, insMult: 1.00, depMult: 1.00, mpg: 28 },
     largeSuv:   { label: '🚌 Three-row SUV', sub: 'Highlander, Pilot, X5',
-                  priceMult: 1.30, maintMult: 1.15, insMult: 1.08, depMult: 0.98, mpg: 24 },
+                  priceMult: 1.30, maintMult: 1.15, insMult: 1.08, depMult: 1.00, mpg: 24 },
     truck:      { label: '🛻 Pickup', sub: 'F-150, Silverado, Tacoma',
                   priceMult: 1.28, maintMult: 1.20, insMult: 1.10, depMult: 0.78, mpg: 21,
                   /* No German luxury marque sells one, so the guided

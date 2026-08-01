@@ -10,7 +10,7 @@ const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation',
     'leasePrepaidRate', 'leaseDisposition', 'leaseWear', 'leaseRenewal',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice',
     'flexRate', 'flexStartFee', 'flexAllowance', 'flexBlockPrice',
-    'rentalDaily'];
+    'rentalDaily', 'rentalMonthly'];
 
 function update() {
     syncPriceFields();
@@ -112,14 +112,7 @@ function syncPresets(months, v) {
        routes are pricing. Match on the rate: type the number by hand and
        no chip lights, which is itself the honest answer — we no longer
        know what car it is. */
-    for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
-    btn.addEventListener('click', () => {
-        $('rentalDaily').value = btn.dataset.daily;
-        update();
-    });
-}
-
-for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
+    for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
         btn.classList.toggle('active',
             Number(btn.dataset.payment) === v.leasePayment &&
             (btn.dataset.signing === undefined || Number(btn.dataset.signing) === v.leaseSigning) &&
@@ -130,7 +123,7 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
             Number(btn.dataset.allowance) === v.rentAllowance);
     }
     for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
-        btn.classList.toggle('active', Number(btn.dataset.daily) === v.rentalDaily);
+        btn.classList.toggle('active', Number(btn.dataset.monthly) === v.rentalMonthly);
     }
 }
 
@@ -244,6 +237,16 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
         $('leasePayment').value = btn.dataset.payment;
         if (btn.dataset.signing !== undefined) $('leaseSigning').value = btn.dataset.signing;
         if (btn.dataset.term) $('leaseTerm').value = btn.dataset.term;
+        update();
+    });
+}
+
+/* A rental chip carries both rates: the monthly one the route is charged
+   at, and the daily one that says what a short hire would have cost. */
+for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
+    btn.addEventListener('click', () => {
+        $('rentalDaily').value = btn.dataset.daily;
+        if (btn.dataset.monthly) $('rentalMonthly').value = btn.dataset.monthly;
         update();
     });
 }
