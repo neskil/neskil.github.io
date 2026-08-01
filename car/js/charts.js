@@ -234,7 +234,8 @@ function hideTooltip() { tooltip.style.opacity = '0'; }
 function segmentLabel(comp, optKey) {
     if (comp.key === 'depreciation') {
         if (optKey === 'lease') return 'Lease payments';
-        if (optKey === 'rent') return 'Subscription';
+        if (optKey === 'sixt' || optKey === 'flexcar') return 'Subscription';
+        if (optKey === 'rental') return 'Rental';
         return 'Depreciation';
     }
     if (comp.key === 'interest') return optKey === 'loan' ? 'Interest' : 'Lost return';
@@ -246,19 +247,38 @@ function renderChart(results, v) {
     chart.innerHTML = '';
 
     const perMonth = OPTIONS.map((o) => results[o.key].perMonth);
-    const max = Math.max(...perMonth, 1);
-    const best = OPTIONS[perMonth.indexOf(Math.min(...perMonth))].key;
+    /* Daily rental runs about four times everything else, and on a shared
+       scale it flattens the five routes anyone is actually choosing
+       between — segments stop being labellable and the differences that
+       matter stop being visible. So a route that runs away from the field
+       is drawn to the edge with a break marker and its real number in the
+       head, and the scale belongs to the rest. The test is relative, not a
+       hard-coded exception: only a value more than double the next one
+       down gets cut, which is the point where one bar is no longer
+       comparable with the others anyway. */
+    const sorted = perMonth.slice().sort((a, b) => b - a);
+    const runaway = sorted.length > 1 && sorted[0] > sorted[1] * 2;
+    const max = Math.max(runaway ? sorted[1] * 1.05 : sorted[0], 1);
+    /* "Cheapest" means cheapest of the ones you can actually have. A route
+       a lender has already declined is still drawn — knowing what it would
+       have cost is the point of showing it — but dimmed, labelled with the
+       reason, and out of the running. */
+    const best = cheapestAvailable(results, v).key;
 
     for (const opt of OPTIONS) {
         const r = results[opt.key];
         const row = document.createElement('div');
         row.className = 'bar-row';
 
+        const avail = routeAvailability(opt.key, v, results);
+        if (avail.state !== 'open') row.classList.add('is-' + avail.state);
+
         const head = document.createElement('div');
         head.className = 'bar-head';
         head.innerHTML =
             '<span>' + opt.label + '</span>' +
-            (opt.key === best ? '<span class="tag">cheapest</span>' : '') +
+            (opt.key === best ? '<span class="tag">cheapest you can get</span>' : '') +
+            (avail.state === 'gated' ? '<span class="tag gate">not open to you</span>' : '') +
             '<span class="total">' + usd0(r.perMonth) + '<small>/mo</small></span>';
         row.appendChild(head);
 
@@ -267,11 +287,13 @@ function renderChart(results, v) {
         const veh = routeVehicle(opt.key, v);
         const sub = document.createElement('div');
         sub.className = 'bar-sub' + (veh.matches ? '' : ' quoted');
-        sub.textContent = veh.text;
+        sub.textContent = veh.text + (avail.reason ? ' — ' + avail.reason : '');
         row.appendChild(sub);
 
         const track = document.createElement('div');
         track.className = 'bar-track';
+        const offScale = r.perMonth > max;
+        if (offScale) track.classList.add('off-scale');
 
         /* Bars are drawn from positive magnitudes; a negative segment
            (a car worth more at the end than it cost) shows as zero
@@ -290,10 +312,12 @@ function renderChart(results, v) {
                Dark ink, not white: near-black clears 4.5:1 on all six
                fills where white manages only 3.1–4.2. A share of the
                track is only a first guess at whether the word fits — the
-               same 13% is 90px on a desktop column and 40px on a phone —
-               so the real check happens against measured pixels once the
-               bars are in the document. */
-            if (pct >= 13) {
+               same 13% is 90px on a desktop column and 40px on a phone,
+               and it collapsed further once daily rental joined the scale
+               at four times everything else — so the gate here is only a
+               cheap reject and the real check is measured in pixels once
+               the bars are in the document. */
+            if (pct >= 4) {
                 seg.textContent = segmentLabel(comp, opt.key);
                 seg.classList.add('labelled');
             }
@@ -313,6 +337,13 @@ function renderChart(results, v) {
             track.appendChild(seg);
         }
         row.appendChild(track);
+        if (offScale) {
+            const mark = document.createElement('div');
+            mark.className = 'bar-offscale';
+            mark.textContent = 'off the scale — ' + usd0(r.perMonth) + '/mo, ' +
+                (r.perMonth / max).toFixed(1) + '× the widest bar shown';
+            row.appendChild(mark);
+        }
         chart.appendChild(row);
     }
 
@@ -325,11 +356,12 @@ function renderChart(results, v) {
         }
     }
 
-    /* One shared scale across the four bars, so their lengths are
+    /* One shared scale across the six bars, so their lengths are
        comparable — say what it is rather than leaving it implied. */
     const axis = document.createElement('div');
     axis.className = 'bar-axis';
-    axis.innerHTML = '<span>$0</span><span>' + usd0(max / 2) + '/mo</span><span>' + usd0(max) + '/mo</span>';
+    axis.innerHTML = '<span>$0</span><span>' + usd0(max / 2) + '/mo</span><span>' +
+        usd0(max) + (runaway ? '+' : '') + '/mo</span>';
     chart.appendChild(axis);
 
     $('chartDesc').textContent = OPTIONS

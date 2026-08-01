@@ -37,16 +37,18 @@
     --series-5: #d55181; /* maintenance */
     --series-6: #8b5cf6; /* fuel */
 
-    /* The four routes, as their own entity set for the break-even
-       lines and the option headers. Four hues cannot clear all-pairs
-       CVD separation on this surface — no set from the ramp can — so
-       these carry dash patterns and direct end labels as secondary
-       encoding, and this set is the one that passes the normal-vision
-       floor. Each chart legends its own meaning. */
+    /* The six routes, as their own entity set for the break-even lines
+       and the option headers. This order is the one that clears
+       adjacent-pair CVD separation on this surface — pink and green
+       cannot be neighbours — and no six-colour set from the ramp clears
+       all pairs, so these also carry dash patterns and direct end labels
+       as secondary encoding. Each chart legends its own meaning. */
     --opt-cash: #3987e5;
-    --opt-loan: #c98500;
-    --opt-lease: #199e70;
-    --opt-rent: #d55181;
+    --opt-loan: #199e70;
+    --opt-lease: #c98500;
+    --opt-sixt: #d55181;
+    --opt-flexcar: #8b5cf6;
+    --opt-rental: #0f9bb0;
 }
 
 * {
@@ -89,7 +91,12 @@ body {
     flex-direction: column;
     align-items: center;
     padding: 10px 12px 40px;
-    overflow-x: hidden;
+    /* clip, not hidden. `overflow-x: hidden` makes the body a scroll
+       container, and a scroll container kills position:sticky for
+       everything inside it — which is why the section index scrolled
+       away on a phone instead of following the viewport. `clip` bounds
+       the same overflow without creating the container. */
+    overflow-x: clip;
 }
 
 .container {
@@ -108,9 +115,15 @@ body {
     width: 100%;
 }
 
+/* Sticky positions inside its parent's box, so the nav could only ever
+   stick within a wrapper exactly its own height — it had nowhere to go and
+   scrolled away. The wrapper is what sticks; the nav fills it. */
 .sidebar-index {
     display: block;
     width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .sidebar-title {
@@ -118,9 +131,9 @@ body {
 }
 
 .nav-index {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    /* Sits over content once the wrapper above detaches, so it needs an
+       opaque backing and a shadow to separate it from what passes under. */
+    box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.9);
     display: flex;
     gap: 6px;
     overflow-x: auto;
@@ -1596,3 +1609,114 @@ input[type="range"]::-moz-range-thumb {
 
 .field-note strong { color: var(--text-secondary); font-weight: 700; }
 .field-note .now { color: var(--accent-soft); }
+
+/* ── Routes you cannot actually take ─────────────────────────────────
+   Still drawn, because what a closed door would have cost is worth
+   knowing, but recessive and out of the running for "cheapest". Opacity
+   alone would be colour-only signalling, so the row also carries a
+   labelled badge and a written reason. */
+.bar-row.is-gated .bar-track,
+.bar-row.is-gated .bar-head { opacity: 0.42; }
+.bar-row.is-gated .bar-head .total { text-decoration: line-through; }
+
+.bar-head .tag.gate {
+    border-color: rgba(148, 163, 184, 0.45);
+    color: var(--text-mute);
+}
+
+/* ── Decision flow ───────────────────────────────────────────────────
+   A spine of gates with the branch your answers take lit and the others
+   left visible as the roads not taken. Not a diagram with arrows: on a
+   phone an SVG flowchart is unreadable, and the shape of this decision is
+   a sequence rather than a graph. */
+.flow-step, .flow-out {
+    position: relative;
+    padding: 0 0 14px 26px;
+    border-left: 2px solid var(--glass-border);
+}
+
+.flow-step:last-of-type { border-left-color: transparent; }
+.flow-out { border-left-color: transparent; padding-bottom: 0; }
+
+.flow-q {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.flow-n {
+    position: absolute;
+    left: -13px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--card-hover-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flow-why {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-mute);
+    margin: 4px 0 8px;
+}
+
+.flow-branches { display: grid; gap: 6px; }
+
+.flow-branch {
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid var(--glass-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    opacity: 0.55;
+}
+
+/* The branch your own answers take. Marked by weight and a rule as well
+   as colour, so it is not colour alone doing the work. */
+.flow-branch.on {
+    opacity: 1;
+    border-left-color: var(--accent);
+    background: rgba(194, 112, 63, 0.07);
+}
+
+.flow-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.flow-branch.on .flow-label { color: var(--accent-soft); }
+
+.flow-then {
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.flow-out .flow-then { font-size: 0.85rem; margin-top: 6px; }
+.flow-out strong { color: var(--text-primary); }
+
+/* A bar that ran off the scale: hard stop with a hatched end, so it never
+   reads as "exactly the width of the chart". The real number is in the row
+   head and again in the note below it. */
+.bar-track.off-scale {
+    border-right: 3px solid var(--accent);
+    background-image: repeating-linear-gradient(45deg,
+        rgba(194, 112, 63, 0.18) 0 5px, transparent 5px 10px);
+}
+
+.bar-offscale {
+    font-size: 0.68rem;
+    color: var(--accent-soft);
+    margin-top: 1px;
+}

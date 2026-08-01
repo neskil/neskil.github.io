@@ -6,7 +6,7 @@
 
 /* ── Cost components ─────────────────────────────────────────────
    Every dollar that leaves your pocket is tagged with one of these,
-   so the four options are broken down the same way and the stacked
+   so the six routes are broken down the same way and the stacked
    bars are comparable segment by segment. */
 /* `short` is what fits inside a bar segment when it is wide enough to
    label directly, which is how the chart stays readable without anyone
@@ -20,12 +20,30 @@ const COMPONENTS = [
     { key: 'fuel',         label: 'Fuel',                    short: 'Fuel',         color: 'var(--series-6)' }
 ];
 
+/* Six routes, not four. The two subscriptions are different products with
+   different prices, mileage caps and credit gates — Sixt+ says yes to a
+   thin file and includes insurance, Flexcar is cheaper but wants a score
+   around 650 — so averaging them into one "rent monthly" line hid the
+   choice that actually matters. Daily rental is here as the anchor: it is
+   what a car costs with no commitment at all, and it is the reason the
+   subscriptions look like a bargain.
+
+   The colour order is the one that passes adjacent-pair CVD separation on
+   this surface; pink and green cannot sit next to each other. Dash
+   patterns and direct end labels carry identity on the break-even chart
+   regardless, because six lines is past what colour alone can do. */
 const OPTIONS = [
-    { key: 'cash',  label: 'Pay cash',     short: 'Cash',   color: 'var(--opt-cash)',  hex: '#3987e5', dash: '' },
-    { key: 'loan',  label: 'Finance it',   short: 'Loan',   color: 'var(--opt-loan)',  hex: '#c98500', dash: '7 3' },
-    { key: 'lease', label: 'Lease it',     short: 'Lease',  color: 'var(--opt-lease)', hex: '#199e70', dash: '2 3' },
-    { key: 'rent',  label: 'Rent monthly', short: 'Rent',   color: 'var(--opt-rent)',  hex: '#d55181', dash: '9 3 2 3' }
+    { key: 'cash',    label: 'Pay cash',      short: 'Cash',    color: 'var(--opt-cash)',    dash: '' },
+    { key: 'loan',    label: 'Finance it',    short: 'Loan',    color: 'var(--opt-loan)',    dash: '7 3' },
+    { key: 'lease',   label: 'Lease it',      short: 'Lease',   color: 'var(--opt-lease)',   dash: '2 3' },
+    { key: 'sixt',    label: 'Sixt+',         short: 'Sixt+',   color: 'var(--opt-sixt)',    dash: '9 3 2 3' },
+    { key: 'flexcar', label: 'Flexcar',       short: 'Flexcar', color: 'var(--opt-flexcar)', dash: '4 3' },
+    { key: 'rental',  label: 'Daily rental',  short: 'Rental',  color: 'var(--opt-rental)',  dash: '1 3' }
 ];
+
+/* A month has 30.44 days on average, and a daily rate is charged for every
+   one of them if the car is how you get to work. */
+const DAYS_PER_MONTH = 365 / 12;
 
 /* First-year drop and the annual rate on the remainder afterwards. */
 const DEPRECIATION_CURVES = {
@@ -272,6 +290,11 @@ function mileagePenalty(excessMiles) {
 }
 
 /* ── Credit tiers ────────────────────────────────────────────────
+   The avail map is per route and it is the first thing that decides your
+   answer: Flexcar's soft pull effectively wants a score around 650, so it
+   is shut to a thin or damaged file; Sixt+ will say yes without one, which
+   is exactly why it costs more; daily rental only really needs a credit
+   card, which is why it is the fallback nobody wants.
    Average APRs are Experian's Q1 2026 bands. A tier also decides what
    you can actually get: a lender's decision comes before any of the
    maths on this page, and with no US file most of the routes are shut
@@ -279,7 +302,7 @@ function mileagePenalty(excessMiles) {
 const CREDIT_TIERS = {
     none: {
         label: 'No US credit history', aprNew: 11.0, aprUsed: 15.0, estimated: true,
-        avail: { cash: 'open', loan: 'gated', lease: 'gated', rent: 'costly' },
+        avail: { cash: 'open', loan: 'gated', lease: 'gated', sixt: 'costly', flexcar: 'gated', rental: 'costly' },
         note: 'A thin or empty US file is a lender decision, not a rate: mainstream banks decline, ' +
             'captive leases are usually out, and the cheaper subscription (Flexcar, around a 650 score) ' +
             'is shut, leaving Sixt+ at roughly $1,000/mo on a 500-mile cap as the route that will ' +
@@ -292,25 +315,25 @@ const CREDIT_TIERS = {
     },
     subprime: {
         label: 'Rebuilding · under 600', aprNew: 16.01, aprUsed: 21.77,
-        avail: { cash: 'open', loan: 'costly', lease: 'gated', rent: 'costly' },
+        avail: { cash: 'open', loan: 'costly', lease: 'gated', sixt: 'costly', flexcar: 'gated', rental: 'open' },
         note: 'Financing is available but brutal — 16% on new and nearly 22% on used. Leases almost ' +
             'always need a higher score than this. At these rates paying cash wins by a wide margin.'
     },
     nearprime: {
         label: 'Fair · 601–660', aprNew: 9.57, aprUsedEstimated: true, aprUsed: 13.5,
-        avail: { cash: 'open', loan: 'costly', lease: 'costly', rent: 'open' },
+        avail: { cash: 'open', loan: 'costly', lease: 'costly', sixt: 'open', flexcar: 'open', rental: 'open' },
         note: 'You will be approved, but well above the advertised rate, and promotional 0–2.9% offers ' +
             'are out of reach. Leases are possible with a larger drive-off payment.'
     },
     prime: {
         label: 'Good · 661–780', aprNew: 6.27, aprUsed: 11.4,
-        avail: { cash: 'open', loan: 'open', lease: 'open', rent: 'open' },
+        avail: { cash: 'open', loan: 'open', lease: 'open', sixt: 'open', flexcar: 'open', rental: 'open' },
         note: 'The mainstream band — every route is open and promotional financing is within reach on ' +
             'new cars. This is where the cash-versus-borrow question is genuinely close.'
     },
     superprime: {
         label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 6.30,
-        avail: { cash: 'open', loan: 'open', lease: 'open', rent: 'open' },
+        avail: { cash: 'open', loan: 'open', lease: 'open', sixt: 'open', flexcar: 'open', rental: 'open' },
         note: 'Subsidised 0–2.9% offers are yours to take, which usually makes borrowing cheaper than ' +
             'paying cash — keep the money invested and let the captive lender fund the car.'
     }
