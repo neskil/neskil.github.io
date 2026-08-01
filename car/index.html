@@ -667,14 +667,17 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="flexPresets" aria-label="Real Flexcar listings">
+                        <button class="preset-btn" type="button" data-rate="424" data-protection="245"
+                                data-delivery="0" data-allowance="850" data-car="a Hyundai Tucson"
+                                data-msrp="30000">Tucson, Standard · $709.14</button>
                         <button class="preset-btn" type="button" data-rate="434" data-protection="315"
-                                data-delivery="199" data-car="a new Toyota Corolla LE"
+                                data-delivery="199" data-allowance="1200" data-car="a new Toyota Corolla LE"
                                 data-msrp="24000">Corolla LE, new · $749</button>
                         <button class="preset-btn" type="button" data-rate="454" data-protection="295"
-                                data-delivery="874" data-car="a 2023 Hyundai Kona Electric"
+                                data-delivery="874" data-allowance="1200" data-car="a 2023 Hyundai Kona Electric"
                                 data-msrp="34000">Kona Electric · $749</button>
                         <button class="preset-btn" type="button" data-rate="459" data-protection="295"
-                                data-delivery="0" data-car="a 2023 Ford Escape"
+                                data-delivery="0" data-allowance="1200" data-car="a 2023 Ford Escape"
                                 data-msrp="30000">Ford Escape · $754</button>
                     </div>
                     <div class="field-grid">
@@ -699,7 +702,7 @@
                         <div class="field">
                             <label for="flexTax">Tax on top</label>
                             <div class="input-shell">
-                                <input type="number" id="flexTax" min="0" max="20" step="0.1" value="8">
+                                <input type="number" id="flexTax" min="0" max="20" step="0.1" value="6">
                                 <span class="suffix">%</span>
                             </div>
                         </div>
@@ -724,14 +727,14 @@
                                 after 6 mo</span></label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="flexOnTrack" min="0" step="5" value="50">
+                                <input type="number" id="flexOnTrack" min="0" step="1" value="52">
                                 <span class="suffix">/mo</span>
                             </div>
                         </div>
                         <div class="field">
                             <label for="flexAllowance">Miles included</label>
                             <div class="input-shell">
-                                <input type="number" id="flexAllowance" min="0" step="50" value="1200">
+                                <input type="number" id="flexAllowance" min="0" step="50" value="850">
                                 <span class="suffix">mi/mo</span>
                             </div>
                         </div>
@@ -757,7 +760,9 @@
                         new Corolla at $434 + $315, a 2023 Kona Electric at $454 + $295, a Ford Escape at $459 +
                         $295. But every one of those is <em>plus tax</em>, where the Sixt+ contract is quoted with
                         tax already in it. Compare the two headline numbers directly and you will flatter Flexcar by
-                        whatever your local rate is; the tax field above puts them back on the same footing.</p>
+                        whatever your local rate is. A checkout that itemises it settles the rate: $40.14 of tax on
+                        $669 of charges is <strong>exactly 6.0%</strong>, which is what the field above is set to —
+                        change it for your own county and both bars move together.</p>
                     <p class="notes" style="margin-top:8px"><strong>A protection plan is mandatory, and your own
                         policy will not do.</strong> Flexcar states plainly that existing personal auto insurance
                         and credit-card cover do not extend to a Flexcar, because it is a long-term ownership
@@ -771,11 +776,19 @@
                         return the car inside them. Delivery is quoted per vehicle and varies enormously: the
                         Corolla above ships for <strong>$199</strong>, the white Kona for <strong>$874</strong>.
                         Filter by what is already local before you fall for a listing.</p>
-                    <p class="notes" style="margin-top:8px"><strong>OnTrack is a real discount, and it is
-                        automatic.</strong> Pay on time and drive safely for six months and the rate drops — the
-                        configured example above goes from $734 to <strong>$684/mo</strong>, and the discount
-                        follows you even if you swap cars. It is modelled above, so a horizon longer than six months
-                        picks it up.</p>
+                    <p class="notes" style="margin-top:8px"><strong>OnTrack is a real discount, it is automatic,
+                        and it is bigger than it looks.</strong> Pay on time and drive safely for six months and the
+                        rate drops, and it follows you even if you swap cars. A Tucson checkout goes from
+                        <strong>$709.14</strong> to <strong>$654.00</strong> a month — but that $55 is the taxed
+                        figure. Work back through the 6% and the cut on the car line itself is
+                        <strong>$52.02</strong>, about <strong>12%</strong>. Over a two-year hold it is worth around
+                        $1,000. It is modelled above, so any horizon past six months picks it up.</p>
+                    <p class="notes" style="margin-top:8px"><strong>The mileage tier is priced, not fixed.</strong>
+                        That Tucson is on the <strong>Standard</strong> plan at 850 mi/mo. Cruiser is 1,200, Road
+                        Warrior 2,000, and Low Gear bills variably in 200-mile increments — each at its own price,
+                        so the tier is part of the quote rather than a setting. 850 a month is 10,200 a year, under
+                        the US average, so check your own mileage against the plan before comparing rates. The chips
+                        above carry each listing's own allowance.</p>
                     <p class="notes" style="margin-top:8px"><strong>Which one you can get is still a credit
                         question.</strong> Flexcar checks credit at signup and a third-party read puts the practical
                         floor around <strong>650</strong> — Flexcar itself publishes no minimum. Below it, and a
