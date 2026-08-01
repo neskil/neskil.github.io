@@ -11,7 +11,7 @@
    happens to be for. A $1,000 Sixt+ rate is a BMW X1; the $873 IAS quote
    is a new Tiguan; the car in the inputs might be a nine-year-old Civic.
    Comparing those four numbers is still useful — it is the real choice in
-   front of you, four ways to have *a* car for a while — but it is not
+   front of you, six ways to have *a* car for a while — but it is not
    four prices for one car, and reading it as though it were is the
    easiest mistake this page invites. */
 function activePreset(rowId) {
@@ -28,14 +28,58 @@ function routeVehicle(key, v) {
             : 'the car you described';
         return { text: described + ' · ' + usd0(v.price), matches: true };
     }
-    const preset = activePreset(key === 'lease' ? 'leasePresets' : 'rentPresets');
+    const ROW = { lease: 'leasePresets', sixt: 'rentPresets', rental: 'rentalPresets' };
+    const preset = ROW[key] ? activePreset(ROW[key]) : null;
     if (preset && preset.car) {
         return { text: preset.car + (preset.msrp ? ' · about ' + usdK(preset.msrp) + ' new' : ''),
                  matches: false, msrp: preset.msrp };
     }
-    return { text: 'whatever your ' +
-        usd0(key === 'lease' ? v.leasePayment : v.rentRate) + '/mo quote is for',
+    if (key === 'flexcar') {
+        return { text: 'whatever Flexcar has locally · about $30k new', matches: false, msrp: 30000 };
+    }
+    const rate = { lease: v.leasePayment, sixt: v.rentRate, flexcar: v.flexRate,
+                   rental: v.rentalDaily }[key];
+    return { text: 'whatever your ' + usd0(rate) + (key === 'rental' ? '/day' : '/mo') + ' quote is for',
         matches: false, msrp: 0 };
+}
+
+/* ── Can you actually get this one? ──────────────────────────────────
+   The cheapest route is useless advice if a lender, a platform or your
+   bank balance says no, and for a newcomer that is most of them. The
+   credit tier decides four of the six; cash decides itself on whether the
+   money is there. Anything gated is drawn dimmed and taken out of the
+   running for "cheapest", with the reason said out loud — the winner
+   should be the cheapest thing you can actually have. */
+const GATE_REASON = {
+    loan: 'mainstream lenders decline a thin file',
+    lease: 'captive leases need a credit history',
+    flexcar: 'Flexcar wants a score around 650',
+    sixt: 'available, but priced for saying yes without a file',
+    rental: 'needs a credit card in your name'
+};
+
+function routeAvailability(key, v, results) {
+    const state = CREDIT_TIERS[creditTier].avail[key] || 'open';
+    if (key === 'cash') {
+        const upfront = v.price + v.price * v.taxRate + v.fees;
+        if (upfront > v.cash) {
+            return { state: 'gated', reason: 'needs ' + usd0(upfront) + ' up front, ' +
+                usd0(upfront - v.cash) + ' more than you have' };
+        }
+        return { state: 'open', reason: '' };
+    }
+    if (key === 'lease' && results && results.lease.unfinishedMonths > 0) {
+        return { state, reason: state === 'gated' ? GATE_REASON.lease
+            : 'your horizon ends mid-contract — leaving early is billed as the rest of the payments' };
+    }
+    return { state, reason: state === 'open' ? '' : (GATE_REASON[key] || '') };
+}
+
+/* The cheapest route you can actually take. */
+function cheapestAvailable(results, v) {
+    const usable = OPTIONS.filter((o) => routeAvailability(o.key, v, results).state !== 'gated');
+    const pool = usable.length ? usable : OPTIONS;
+    return pool.slice().sort((a, b) => results[a.key].total - results[b.key].total)[0];
 }
 
 function renderTable(results, v) {
@@ -59,9 +103,16 @@ function renderTable(results, v) {
 }
 
 function renderVerdict(results, best, v) {
-    const ranked = OPTIONS.slice().sort((a, b) => results[a.key].total - results[b.key].total);
+    /* Ranked among the routes actually open to you. A cheapest that a
+       lender has already declined is not an answer, so gated routes drop
+       out of the ranking and get named separately if one of them would in
+       fact have been cheaper. */
+    const open = OPTIONS.filter((o) => routeAvailability(o.key, v, results).state !== 'gated');
+    const pool = open.length > 1 ? open : OPTIONS;
+    const ranked = pool.slice().sort((a, b) => results[a.key].total - results[b.key].total);
     const win = ranked[0], second = ranked[1];
     const gap = results[second.key].total - results[win.key].total;
+    const overall = OPTIONS.slice().sort((a, b) => results[a.key].total - results[b.key].total)[0];
 
     $('verdictWinner').textContent = win.label;
     $('verdictCost').textContent = usd0(results[win.key].perMonth) + '/mo · ' +
@@ -72,7 +123,9 @@ function renderVerdict(results, best, v) {
         cash: v.price + v.price * v.taxRate + v.fees,
         loan: Math.min(v.down, v.price) + v.price * v.taxRate + v.fees,
         lease: v.leaseSigning,
-        rent: v.rentStartFee
+        sixt: v.rentStartFee,
+        flexcar: v.flexStartFee,
+        rental: v.rentalDaily * 7
     };
     const short = upfront[win.key] - v.cash;
     /* Re-run the winner under the other two cases so the headline
@@ -94,8 +147,18 @@ function renderVerdict(results, best, v) {
           usd0(short) + ' more cash than you have.'
         : '';
 
-    $('verdictSub').innerHTML =
-        'Next best is <strong>' + second.label.toLowerCase() + '</strong>, ' +
+    /* If something cheaper exists but is shut to you, say so — it is the
+       clearest possible statement of what your credit file is costing. */
+    const blocked = overall.key !== win.key
+        ? ' <strong>' + overall.label + '</strong> would be cheaper still at ' +
+          usd0(results[overall.key].perMonth) + '/mo, but ' +
+          routeAvailability(overall.key, v, results).reason + ' — that gap, ' +
+          usd0(results[win.key].total - results[overall.key].total) + ' over the horizon, is what the ' +
+          'closed door costs you.'
+        : '';
+
+    $('verdictSub').innerHTML = blocked +
+        ' Next best of the ones open to you is <strong>' + second.label.toLowerCase() + '</strong>, ' +
         (gap < 1
             ? 'which lands within a rounding error — treat them as a tie and pick on flexibility.'
             : 'costing <strong>' + usd0(gap) + '</strong> more over ' + v.months + ' months (' +
@@ -271,32 +334,47 @@ function renderOptionNotes(results, v) {
         'what you avoid is the recurring maintenance, because the car never leaves warranty.');
     $('leaseNote').innerHTML = leaseBits.join(' ');
 
-    const rent = results.rent;
-    const rentBits = [];
-    const perMonth = Math.round(v.miles / 12);
-    if (rent.overagePerMonth > 0) {
-        rentBits.push('You drive ' + perMonth.toLocaleString('en-US') + ' mi/mo against ' +
-            v.rentAllowance.toLocaleString('en-US') + ' included, so you buy <strong>' +
-            rent.mileageBlocks + ' extra block' + (rent.mileageBlocks > 1 ? 's' : '') +
-            '</strong> of 1,000 miles at ' + usd0(v.rentBlockPrice) + ' each — <strong>' +
-            usd0(rent.overagePerMonth) + '/mo</strong> on top, ' +
-            usd0(rent.overagePerMonth * v.months) + ' over the horizon. Blocks are sold whole, so the ' +
-            'last one is only partly used.');
-    } else {
-        rentBits.push('Your ' + perMonth.toLocaleString('en-US') + ' mi/mo fits inside the ' +
-            v.rentAllowance.toLocaleString('en-US') + ' included, with ' +
-            (v.rentAllowance - perMonth).toLocaleString('en-US') + ' to spare — and unused miles roll ' +
-            'over, so it is your average that has to fit, not every single month.');
-    }
-    rentBits.push('Effective all-in: <strong>' + usd0(rent.monthlyOutlay) + '/mo</strong>.');
-    $('rentNote').innerHTML = rentBits.join(' ');
+    /* Both subscriptions read the same way, so one writer serves both. */
+    const subNote = (res, allowance, blockPrice, host) => {
+        const bits = [];
+        const perMonth = Math.round(v.miles / 12);
+        if (res.overagePerMonth > 0) {
+            bits.push('You drive ' + perMonth.toLocaleString('en-US') + ' mi/mo against ' +
+                allowance.toLocaleString('en-US') + ' included, so you buy <strong>' +
+                res.mileageBlocks + ' extra block' + (res.mileageBlocks > 1 ? 's' : '') +
+                '</strong> of 1,000 miles at ' + usd0(blockPrice) + ' each — <strong>' +
+                usd0(res.overagePerMonth) + '/mo</strong> on top, ' +
+                usd0(res.overagePerMonth * v.months) + ' over the horizon. Blocks are sold whole, so the ' +
+                'last one is only partly used.');
+        } else {
+            bits.push('Your ' + perMonth.toLocaleString('en-US') + ' mi/mo fits inside the ' +
+                allowance.toLocaleString('en-US') + ' included, with ' +
+                (allowance - perMonth).toLocaleString('en-US') + ' to spare — and unused miles roll ' +
+                'over, so it is your average that has to fit, not every single month.');
+        }
+        bits.push('Effective all-in: <strong>' + usd0(res.monthlyOutlay) + '/mo</strong>.');
+        $(host).innerHTML = bits.join(' ');
+    };
+    subNote(results.sixt, v.rentAllowance, v.rentBlockPrice, 'rentNote');
+    subNote(results.flexcar, v.flexAllowance, v.flexBlockPrice, 'flexNote');
+
+    /* The anchor. Saying the multiple out loud is the whole value of the
+       line — a number this big is easier to disbelieve than to reason
+       about, so put it next to the one it is a multiple of. */
+    const rental = results.rental;
+    const cheapestSub = Math.min(results.sixt.perMonth, results.flexcar.perMonth);
+    $('rentalNote').innerHTML = 'At ' + usd0(v.rentalDaily) + '/day every day, that is <strong>' +
+        usd0(v.rentalDaily * DAYS_PER_MONTH) + '/mo</strong> — ' +
+        (rental.perMonth / cheapestSub).toFixed(1) + '× the cheaper subscription and ' +
+        usd0(rental.total) + ' over your ' + v.months + ' months. It is the right answer for a few ' +
+        'weeks and a terrible one for a few years, which is exactly what makes it the yardstick.';
 
     for (const el of document.querySelectorAll('.summary-cost')) {
         el.textContent = usd0(results[el.dataset.cost].perMonth) + '/mo';
     }
 }
 
-/* Mileage is metered on two of the four routes and quietly repriced on
+/* Mileage is metered on three of the six routes and quietly repriced on
    the other two, so it deserves its own comparison. */
 function renderMileagePanel(results, v) {
     const perMonth = Math.round(v.miles / 12);
@@ -314,12 +392,20 @@ function renderMileagePanel(results, v) {
                     : ' billed at turn-in at $' + v.leaseOverage.toFixed(2) + '/mi')
                 : 'Inside the allowance',
             results.lease.overageTotal > 0 ? 'gated' : 'open'],
-        ['Rent monthly', v.rentAllowance.toLocaleString('en-US') + ' mi/mo',
-            results.rent.overagePerMonth > 0
-                ? usd0(results.rent.overagePerMonth) + '/mo for ' + results.rent.mileageBlocks +
-                  ' extra block' + (results.rent.mileageBlocks > 1 ? 's' : '')
+        ['Sixt+', v.rentAllowance.toLocaleString('en-US') + ' mi/mo',
+            results.sixt.overagePerMonth > 0
+                ? usd0(results.sixt.overagePerMonth) + '/mo for ' + results.sixt.mileageBlocks +
+                  ' extra block' + (results.sixt.mileageBlocks > 1 ? 's' : '')
                 : 'Inside the allowance',
-            results.rent.overagePerMonth > 0 ? 'gated' : 'open']
+            results.sixt.overagePerMonth > 0 ? 'gated' : 'open'],
+        ['Flexcar', v.flexAllowance.toLocaleString('en-US') + ' mi/mo',
+            results.flexcar.overagePerMonth > 0
+                ? usd0(results.flexcar.overagePerMonth) + '/mo for ' + results.flexcar.mileageBlocks +
+                  ' extra block' + (results.flexcar.mileageBlocks > 1 ? 's' : '')
+                : 'Inside the allowance',
+            results.flexcar.overagePerMonth > 0 ? 'gated' : 'open'],
+        ['Daily rental', 'Usually unlimited', 'No cap worth planning around — the rate is the problem, ' +
+            'not the mileage', 'open']
     ];
 
     const table = '<div class="table-wrap" style="margin-top:0"><table><thead><tr>' +
@@ -330,16 +416,18 @@ function renderMileagePanel(results, v) {
             cost + '</td></tr>').join('') +
         '</tbody></table></div>';
 
-    const metered = results.lease.overageTotal > 0 || results.rent.overagePerMonth > 0;
-    const note = metered
-        ? '<strong>Two of these meter you and two do not.</strong> At ' +
+    const over = [results.lease.overageTotal > 0 ? 'the lease' : null,
+                  results.sixt.overagePerMonth > 0 ? 'Sixt+' : null,
+                  results.flexcar.overagePerMonth > 0 ? 'Flexcar' : null].filter(Boolean);
+    const note = over.length
+        ? '<strong>Some of these meter you and some do not.</strong> At ' +
           v.miles.toLocaleString('en-US') + ' miles a year you are over on ' +
-          [results.lease.overageTotal > 0 ? 'the lease' : null,
-           results.rent.overagePerMonth > 0 ? 'the subscription' : null].filter(Boolean).join(' and ') +
+          (over.length > 1 ? over.slice(0, -1).join(', ') + ' and ' + over[over.length - 1] : over[0]) +
           '. Owning has no cap — the mileage comes out of resale instead, which is the quieter but often ' +
           'smaller cost. <strong>High-mileage drivers should generally own.</strong>'
-        : 'Your mileage fits every allowance here, which keeps all four routes genuinely comparable. ' +
-          'Push past a cap and the metered options reprice fast — worth re-checking if your driving changes.';
+        : 'Your mileage fits every allowance here, which keeps the metered routes genuinely comparable ' +
+          'with the ones that are not. Push past a cap and they reprice fast — worth re-checking if ' +
+          'your driving changes.';
 
     $('mileagePanel').innerHTML = table + '<div class="callout" style="margin-top:10px">' +
         '<span class="ico">🛣️</span><span>' + note + '</span></div>';
@@ -365,13 +453,14 @@ function renderInsights(results, v) {
         ' price evaporates over ' + v.months + ' months, whether you paid cash or financed. ' +
         'The financing choice only moves the smaller interest line.']);
 
-    const rentPremium = results.rent.total - results[ranked[0].key].total;
+    const subKey = results.sixt.total <= results.flexcar.total ? 'sixt' : 'flexcar';
+    const rentPremium = results[subKey].total - results[ranked[0].key].total;
     out.push(['🗓️',
         rentPremium > 0
-            ? 'Renting monthly costs <strong>' + usd0(rentPremium) + '</strong> more than the cheapest option — ' +
+            ? 'The cheaper subscription costs <strong>' + usd0(rentPremium) + '</strong> more than the cheapest option — ' +
               'about ' + usd0(rentPremium / v.months) + '/mo for the right to hand the keys back any month. ' +
               'Worth it if you might move, deploy, or change jobs; expensive if you will not.'
-            : 'Renting monthly is the cheapest line here, which normally only happens over a short horizon or ' +
+            : 'A subscription is the cheapest line here, which normally only happens over a short horizon or ' +
               'when insurance and maintenance are unusually costly for you.']);
 
     out.push(['⏳',
@@ -381,4 +470,130 @@ function renderInsights(results, v) {
 
     $('insights').innerHTML = out.map(([ico, text]) =>
         '<div class="callout"><span class="ico">' + ico + '</span><span>' + text + '</span></div>').join('');
+}
+
+/* ── How to decide ───────────────────────────────────────────────────
+   The calculator answers "what does each cost". This answers the question
+   people actually arrive with — "which one is even mine to pick" — and it
+   is mostly not about money. Four gates come before the arithmetic, in
+   this order, because each one can eliminate routes the next would have
+   ranked: a licence, a horizon, a credit file, a bank balance. The
+   walkthrough asks the same four.
+
+   It is drawn live rather than as a static diagram, so the branch your
+   own answers take is lit and the rest stay visible as the roads not
+   taken. */
+function renderDecisionFlow(results, v) {
+    const upfront = v.price + v.price * v.taxRate + v.fees;
+    const tier = CREDIT_TIERS[creditTier];
+    const gated = (k) => routeAvailability(k, v, results).state === 'gated';
+
+    const STEPS = [
+        {
+            q: 'Do you have a US licence?',
+            why: 'Nothing else matters until this is settled — you cannot title, insure or lease a car ' +
+                 'without one, and Georgia gives you 30 days from becoming a resident.',
+            branches: [
+                { label: 'Not yet',
+                  then: 'A subscription is the only real route, and it doubles as the car for the road ' +
+                        'test — you are the named driver and the insurance comes with it.',
+                  on: guideAnswers.licence === 'no' },
+                { label: 'Yes',
+                  then: 'Everything on this page is open to you, subject to the gates below.',
+                  on: guideAnswers.licence !== 'no' }
+            ]
+        },
+        {
+            q: 'How long will you keep it?',
+            why: 'The single biggest lever. Every route that hands the car back charges you for the ' +
+                 'privilege every month; every route that keeps it charges the round trip once.',
+            branches: [
+                { label: 'Under a year',
+                  then: 'Owning cannot amortise the buy-sell spread in that time. Subscribe.',
+                  on: v.months < 12 },
+                { label: '1–3 years',
+                  then: 'The genuinely close range — a lease or a subscription against buying, and the ' +
+                        'break-even chart is the argument.',
+                  on: v.months >= 12 && v.months < 36 },
+                { label: 'Three years or more',
+                  then: 'Owning pulls ahead and keeps pulling: a paid-off car costs only insurance, ' +
+                        'upkeep and fuel.',
+                  on: v.months >= 36 }
+            ]
+        },
+        {
+            q: 'What does your credit file say?',
+            why: 'A lender decides before any of the maths applies, and an empty US file is treated ' +
+                 'like a bad one.',
+            branches: [
+                { label: 'Nothing yet, or under 600',
+                  then: 'Loans and captive leases are shut, and so is Flexcar. Cash if you have it, ' +
+                        'Sixt+ or an expat programme such as IAS if you do not.',
+                  on: creditTier === 'none' || creditTier === 'subprime' },
+                { label: '600–660',
+                  then: 'Approved, but above the advertised rate. Both subscriptions open up.',
+                  on: creditTier === 'nearprime' },
+                { label: '661 and up',
+                  then: 'Every route is open, including promotional financing — which is where ' +
+                        'borrowing can genuinely beat paying cash.',
+                  on: creditTier === 'prime' || creditTier === 'superprime' }
+            ]
+        },
+        {
+            q: 'Can you put the money down?',
+            why: 'The cheapest route per month is not an option if the up-front number is not there, ' +
+                 'and emptying the buffer to buy a car is how a car becomes an emergency.',
+            branches: [
+                { label: 'Not ' + usd0(upfront),
+                  then: 'Buying outright is out. Finance if your file allows it, subscribe if it does ' +
+                        'not — a subscription asks for almost nothing up front.',
+                  on: upfront > v.cash },
+                { label: usd0(upfront) + ' and still liquid',
+                  then: 'Cash is on the table. Whether it should be depends on the break-even APR ' +
+                        'above, not on instinct.',
+                  on: upfront <= v.cash }
+            ]
+        },
+        {
+            q: 'How far do you drive?',
+            why: 'Three of the six meter you. Owning has no cap — the miles come out of resale instead, ' +
+                 'which is usually the smaller cost.',
+            branches: [
+                { label: 'Over a cap',
+                  then: 'Metered routes reprice fast. High-mileage drivers should generally own.',
+                  on: results.lease.overageTotal > 0 || results.sixt.overagePerMonth > 0 ||
+                      results.flexcar.overagePerMonth > 0 },
+                { label: 'Inside every allowance',
+                  then: 'All six stay comparable, so the decision is genuinely about money and exit.',
+                  on: !(results.lease.overageTotal > 0 || results.sixt.overagePerMonth > 0 ||
+                        results.flexcar.overagePerMonth > 0) }
+            ]
+        }
+    ];
+
+    const html = STEPS.map((step, i) => {
+        const branches = step.branches.map((br) =>
+            '<div class="flow-branch' + (br.on ? ' on' : '') + '">' +
+            '<div class="flow-label">' + br.label + '</div>' +
+            '<div class="flow-then">' + br.then + '</div></div>').join('');
+        return '<div class="flow-step">' +
+            '<div class="flow-q"><span class="flow-n">' + (i + 1) + '</span>' + step.q + '</div>' +
+            '<p class="flow-why">' + step.why + '</p>' +
+            '<div class="flow-branches">' + branches + '</div></div>';
+    }).join('');
+
+    const shut = OPTIONS.filter((o) => gated(o.key));
+    const outcome = '<div class="flow-out">' +
+        '<div class="flow-q">Where that leaves you</div>' +
+        '<p class="flow-then"><strong>' + $('verdictWinner').textContent + '</strong> at ' +
+        usd0(results[cheapestAvailable(results, v).key].perMonth) + '/mo is the cheapest route open ' +
+        'to you on these answers' +
+        (shut.length
+            ? ', with ' + shut.map((o) => o.label.toLowerCase()).join(', ') + ' shut off. ' +
+              'Change the credit chips or the cash figure and watch which doors open.'
+            : ', and nothing is shut off — every route is genuinely yours to pick, so this is a ' +
+              'question about money and flexibility rather than eligibility.') +
+        '</p></div>';
+
+    $('decisionFlow').innerHTML = html + outcome;
 }

@@ -36,6 +36,39 @@ enough to use — the $873 IAS quote is a ~$32k Tiguan, which that rule would
 price at $87k. Asking for residual and money factor and computing a lease on
 *your* car, alongside the quote you were given, would close it properly.
 
+## Second follow-up (August 2026)
+
+- Six routes instead of four: Sixt+ and Flexcar are separate lines, because
+  they are different products with different caps and different credit gates,
+  and daily rental is in as the anchor everything else is measured against.
+- Routes your credit file or bank balance rules out are drawn dimmed, struck
+  through, labelled with the reason, and taken out of the running for
+  "cheapest" — the verdict now names the cheapest route *you can actually get*
+  and says what the closed door costs you.
+- Leases can be extended rather than re-signed, which is worth $460/mo on the
+  IAS deal at five years.
+- Lease excess wear priced, scenario-scaled.
+- A live decision flowchart panel: four gates before the money, with your own
+  branch lit.
+- Fixed the section index not sticking on mobile (`body { overflow-x: hidden }`
+  was making the body a scroll container, which kills `position: sticky` for
+  everything inside it) and a sticky wrapper the exact height of its content.
+
+Still open from that:
+
+- **Daily rental is a crude model.** It is a flat daily rate times 30.44. Real
+  weekly and monthly rates run far below the daily one — the $130/day figure is
+  a five-day booking — so a long hire is overstated. It should taper, or ask
+  for the weekly and monthly rates separately.
+- **Flexcar's terms are assumed.** The rate and mileage cap are from one
+  quote; the start fee is set to zero without a source.
+- **The subscriptions are not modelled as pausable.** Their real advantage over
+  a lease is the 30-day exit, and nothing on the page prices optionality — a
+  route you can leave in a month is worth more than one you cannot, and right
+  now that only appears as prose.
+- **Lease minimum terms are not enforced.** Most captive leases start at 24
+  months; the page will happily price a 6-month one.
+
 ## 1. Electric and hybrid powertrains — the biggest remaining gap
 
 Nothing on the page computes an EV or a hybrid, and both are now the extremes

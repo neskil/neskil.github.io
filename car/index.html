@@ -17,7 +17,7 @@
     <meta property="og:image" content="https://neskil.github.io/assets/og/car.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Car cost calculator showing 'Pay cash' as cheapest at $555 per month over 60 months, with an optimistic-to-pessimistic range and a stacked cost breakdown for all four options.">
+    <meta property="og:image:alt" content="Car cost calculator comparing cash, finance, lease, two monthly subscriptions and daily rental as stacked cost-per-month bars, with routes your credit file rules out greyed and an optimistic-to-pessimistic range.">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,9 +58,10 @@
                     <a href="#sec-chart" class="nav-link">📊 Cost breakdown</a>
                     <a href="#sec-inputs" class="nav-link">🎛️ Your car</a>
                     <a href="#sec-cash" class="nav-link">💳 Cash &amp; credit</a>
-                    <a href="#sec-routes" class="nav-link">🔑 The 4 routes</a>
+                    <a href="#sec-routes" class="nav-link">🔑 The 6 routes</a>
                     <a href="#sec-breakeven" class="nav-link">📈 Break-even</a>
                     <a href="#sec-mileage" class="nav-link">🛣️ Mileage</a>
+                    <a href="#sec-decide" class="nav-link">🧭 How to decide</a>
                     <a href="#sec-matrix" class="nav-link">⚖️ Pros &amp; cons</a>
                     <a href="#sec-guides" class="nav-link">📚 Guides</a>
                 </nav>
@@ -314,9 +315,9 @@
             </div>
         </section>
 
-        <!-- The four options -->
+        <!-- The six routes -->
         <section class="panel" id="sec-routes">
-            <div class="panel-title">The four ways to get the keys</div>
+            <div class="panel-title">The six ways to get the keys</div>
 
             <details class="option" id="optCash">
                 <summary>
@@ -500,23 +501,21 @@
                 </div>
             </details>
 
-            <details class="option" id="optRent">
+            <details class="option" id="optSixt">
                 <summary>
-                    <span class="swatch" style="background:var(--opt-rent)"></span>
-                    Rent it monthly
-                    <span class="summary-cost" data-cost="rent"></span>
-                    <span class="avail-badge" data-avail="rent"></span>
+                    <span class="swatch" style="background:var(--opt-sixt)"></span>
+                    Sixt+ subscription
+                    <span class="summary-cost" data-cost="sixt"></span>
+                    <span class="avail-badge" data-avail="sixt"></span>
                     <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
                 <div class="option-body">
-                    <div class="preset-row" id="rentPresets" aria-label="Real subscription rates">
+                    <div class="preset-row" id="rentPresets" aria-label="Real Sixt+ rates">
                         <button class="preset-btn" type="button" data-rate="1000" data-allowance="500"
-                                data-car="a BMW X1" data-msrp="42000">Sixt+ BMW X1 2026 · $1,000</button>
+                                data-car="a BMW X1" data-msrp="42000">BMW X1 2026 · $1,000</button>
                         <button class="preset-btn" type="button" data-rate="1200" data-allowance="500"
-                                data-car="a midsize SUV from their fleet" data-msrp="45000">Sixt+ midsize SUV · $1,200</button>
-                        <button class="preset-btn" type="button" data-rate="850" data-allowance="1250"
-                                data-car="whatever Flexcar has locally" data-msrp="30000">Flexcar (650+ score) · $850</button>
+                                data-car="a midsize SUV from their fleet" data-msrp="45000">Midsize SUV · $1,200</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -551,23 +550,114 @@
                         </div>
                     </div>
                     <p class="notes" style="margin-top:10px" id="rentNote"></p>
-                    <p class="notes" style="margin-top:8px">The rate is genuinely all-in — insurance, maintenance,
-                        registration and roadside are inside it, which is why those lines read $0 in the chart. Sixt+
-                        also covers a second driver at no extra charge, worth $15–25/mo of a normal policy. What you
-                        are really buying is the 30-day exit.</p>
+                    <p class="notes" style="margin-top:8px"><strong>The one that says yes.</strong> Sixt+ does not
+                        need a US credit history, which is why it is the realistic door for a newcomer and why it
+                        costs what it does. The rate is genuinely all-in — insurance, maintenance, registration and
+                        roadside are inside it, which is why those lines read $0 in the chart — and a second driver
+                        is included, worth $15–25/mo of a normal policy. What you are really buying is the 30-day
+                        exit: you can pause or hand it back on a month's notice, and no other route on this page
+                        lets you leave.</p>
                     <p class="notes" style="margin-top:8px"><strong>Read the mileage cap before the rate.</strong>
-                        The $1,000 Sixt+ BMW X1 came with <strong>500 miles a month</strong> — 6,000 a year, well
-                        under half what an average US driver covers. A 30-mile round-trip commute alone spends 600.
-                        Extra miles are sold as whole 1,000-mile blocks rather than billed per mile afterwards, so
-                        an average US 12,000 mi/yr on that plan is one block on top: about <strong>$1,065 a
+                        The $1,000 BMW X1 came with <strong>500 miles a month</strong> — 6,000 a year, well under
+                        half what an average US driver covers. A 30-mile round-trip commute alone spends 600. Extra
+                        miles are sold as whole 1,000-mile blocks rather than billed per mile afterwards, so an
+                        average US 12,000 mi/yr on that plan is one block on top: about <strong>$1,065 a
                         month</strong>, and you pay for the whole block whether you use 60 miles of it or 960. That
-                        cap, not the headline rate, is what decides the real number — set your annual mileage at the
-                        top of the page and the note above prices it.</p>
-                    <p class="notes" style="margin-top:8px"><strong>Which one you can get is a credit question.</strong>
-                        <strong>Flexcar</strong> is the cheaper subscription, but its soft pull effectively wants a
-                        score around <strong>650</strong>. Below that — and a brand-new US file counts as below it —
-                        <strong>Sixt+</strong> is realistically the only door open, which is why the expensive
-                        preset is the default here rather than the cheap one.</p>
+                        cap, not the headline rate, is what decides the real number.</p>
+                </div>
+            </details>
+
+            <details class="option" id="optFlexcar">
+                <summary>
+                    <span class="swatch" style="background:var(--opt-flexcar)"></span>
+                    Flexcar subscription
+                    <span class="summary-cost" data-cost="flexcar"></span>
+                    <span class="avail-badge" data-avail="flexcar"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="flexRate">All-in rate</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="flexRate" min="0" step="25" value="850">
+                                <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="flexStartFee">Start fee</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="flexStartFee" min="0" step="50" value="0">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="flexAllowance">Miles included</label>
+                            <div class="input-shell">
+                                <input type="number" id="flexAllowance" min="0" step="100" value="1250">
+                                <span class="suffix">mi/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="flexBlockPrice">Each extra 1,000 mi</label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="flexBlockPrice" min="0" step="5" value="65">
+                                <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="notes" style="margin-top:10px" id="flexNote"></p>
+                    <p class="notes" style="margin-top:8px"><strong>Cheaper, with a gate on it.</strong> Flexcar is
+                        the better-value subscription — less per month and two and a half times the mileage — but
+                        its soft pull effectively wants a score around <strong>650</strong>. Below that, and a
+                        brand-new US file counts as below it, this route is shut and Sixt+ is the only door open.
+                        That is the whole reason the two are separate lines here: they are not interchangeable, and
+                        which one you can actually get is decided before any of the arithmetic.</p>
+                </div>
+            </details>
+
+            <details class="option" id="optRental">
+                <summary>
+                    <span class="swatch" style="background:var(--opt-rental)"></span>
+                    Daily rental
+                    <span class="summary-cost" data-cost="rental"></span>
+                    <span class="avail-badge" data-avail="rental"></span>
+                    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                </summary>
+                <div class="option-body">
+                    <div class="preset-row" id="rentalPresets" aria-label="Real rental rates">
+                        <button class="preset-btn" type="button" data-daily="130"
+                                data-car="a rental counter car" data-msrp="30000">What I paid · $650 / 5 days</button>
+                        <button class="preset-btn" type="button" data-daily="75"
+                                data-car="an economy rental" data-msrp="25000">Weekly rate · $75/day</button>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="rentalDaily">Daily rate <span style="color:var(--text-mute)">·
+                                all-in</span></label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="rentalDaily" min="0" step="5" value="130">
+                                <span class="suffix">/day</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="notes" style="margin-top:10px" id="rentalNote"></p>
+                    <p class="notes" style="margin-top:8px"><strong>Nobody plans to do this for years, which is the
+                        point.</strong> This line prices committing to nothing at all, and it is the ceiling every
+                        other route is measured against — the reason a subscription that looked expensive stops
+                        looking expensive. It is worth knowing exactly, though, because it is genuinely the right
+                        answer for a few weeks, and because it is the fallback if every other door is shut.</p>
+                    <p class="notes" style="margin-top:8px">Mileage is usually unlimited and the rate carries
+                        insurance, servicing and registration the way a subscription does, so those lines read $0
+                        here too. Watch two things a counter quote hides: the collision damage waiver is often extra
+                        at $15–30 a day unless your card covers it, and weekly and monthly rates are far below the
+                        daily one — the $130/day above is a five-day booking, and a month-long hire would be
+                        negotiated well under it.</p>
                 </div>
             </details>
         </section>
@@ -609,13 +699,13 @@
                             <div class="callout warn" style="margin-top:10px">
                                 <span class="ico">🚗</span>
                                 <span><strong>These are probably not the same car.</strong> Cash and finance price
-                                    the car you described above. A lease payment and a subscription rate are quotes
-                                    for whatever vehicle that provider is offering — the $1,000 Sixt+ rate is a BMW
-                                    X1, the $873 IAS quote is a new Tiguan — and the page has no way to make them a
-                                    nine-year-old Civic. So read this as <strong>four ways to have a car for the
-                                    next <span id="caveatMonths">60</span> months</strong>, which is the real choice
-                                    in front of you, and not as four prices for one car. Each bar says which vehicle
-                                    it is pricing.</span>
+                                    the car you described above. Everything else is a quote for whatever vehicle
+                                    that provider is offering — the $1,000 Sixt+ rate is a BMW X1, the IAS quote is
+                                    a new Tiguan, the rental is whatever is on the lot — and the page has no way to
+                                    make any of them a nine-year-old Civic. So read this as <strong>six ways to have
+                                    a car for the next <span id="caveatMonths">60</span> months</strong>, which is
+                                    the real choice in front of you, and not as six prices for one car. Each bar
+                                    says which vehicle it is pricing.</span>
                             </div>
                             <div class="table-wrap" id="tableWrap" hidden></div>
                         </section>
@@ -641,6 +731,17 @@
                         </section>
                     </div>
                 </div>
+
+        <!-- How to decide -->
+        <details class="panel collapsible" id="sec-decide">
+            <summary>
+                <span class="panel-title">How to decide<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Four gates come before the money — a licence, a horizon, a credit
+                    file, a bank balance — and each can rule out routes the next would have ranked. Your
+                    own answers are lit.</span>
+            </summary>
+            <div id="decisionFlow"></div>
+        </details>
 
         <!-- Reading the result -->
         <details class="panel collapsible" open>
@@ -1363,7 +1464,7 @@
 
     <footer>
         Estimates only. Fuel is included because AAA, Edmunds and KBB all count it and at 2026 pump prices it is
-        the larger of it and the maintenance line — it is the same for all four options, so it moves every total
+        the larger of it and the maintenance line — it is the same for all six routes, so it moves every total
         without changing which one wins. Not financial advice.
     </footer>
 

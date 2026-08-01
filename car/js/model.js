@@ -1,5 +1,5 @@
 /* ── The cost model ──────────────────────────────────────────────────
-   Reads the inputs once, then prices the same car four ways through a
+   Reads the inputs once, then prices the same choice six ways through a
    shared cash-flow ledger so the routes are comparable line by line. */
 'use strict';
 
@@ -179,7 +179,12 @@ function readInputs() {
         rentRate: num('rentRate'),
         rentStartFee: num('rentStartFee'),
         rentAllowance: num('rentAllowance'),
-        rentBlockPrice: num('rentBlockPrice')
+        rentBlockPrice: num('rentBlockPrice'),
+        flexRate: num('flexRate'),
+        flexStartFee: num('flexStartFee'),
+        flexAllowance: num('flexAllowance'),
+        flexBlockPrice: num('flexBlockPrice'),
+        rentalDaily: num('rentalDaily')
     });
 }
 
@@ -360,19 +365,22 @@ function scenarioLease(v) {
     });
 }
 
-function scenarioRent(v) {
+/* One subscription engine, two providers. They differ in rate, cap, block
+   price and — the part that decides it for a newcomer — who they will say
+   yes to, but the arithmetic is identical, so it lives here once. */
+function scenarioSubscription(v, cfg) {
     const led = makeLedger(v.months, v.monthlyReturn);
-    led.add(v.rentStartFee, 0, 'fees');
+    led.add(cfg.startFee, 0, 'fees');
     /* A subscription sells mileage in blocks rather than billing per
        mile after the fact, so you buy the whole block or go without.
        Unused miles roll over, which means your average matters and a
        single heavy month does not. */
-    const excessPerMonth = Math.max(0, v.miles / 12 - v.rentAllowance);
+    const excessPerMonth = Math.max(0, v.miles / 12 - cfg.allowance);
     const blocks = Math.ceil(excessPerMonth / 1000);
-    const overagePerMonth = blocks * v.rentBlockPrice;
+    const overagePerMonth = blocks * cfg.blockPrice;
     const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
-        led.add(v.rentRate, m, 'depreciation');
+        led.add(cfg.rate, m, 'depreciation');
         led.add(overagePerMonth, m, 'fees');
         led.add(fuel, m, 'fuel');
     }
@@ -382,7 +390,45 @@ function scenarioRent(v) {
         resale: 0,
         overagePerMonth,
         mileageBlocks: blocks,
-        monthlyOutlay: v.rentRate + overagePerMonth + fuel
+        allowance: cfg.allowance,
+        rate: cfg.rate,
+        monthlyOutlay: cfg.rate + overagePerMonth + fuel
+    });
+}
+
+function scenarioSixt(v) {
+    return scenarioSubscription(v, {
+        rate: v.rentRate, startFee: v.rentStartFee,
+        allowance: v.rentAllowance, blockPrice: v.rentBlockPrice
+    });
+}
+
+function scenarioFlexcar(v) {
+    return scenarioSubscription(v, {
+        rate: v.flexRate, startFee: v.flexStartFee,
+        allowance: v.flexAllowance, blockPrice: v.flexBlockPrice
+    });
+}
+
+/* Renting by the day, every day. Nobody plans to do this for five years,
+   which is the point: it prices the option of committing to nothing, and
+   it is the ceiling every other route is measured against. Mileage is
+   almost always unlimited, and the rate carries insurance, servicing and
+   registration the way a subscription does — but not fuel. */
+function scenarioRental(v) {
+    const led = makeLedger(v.months, v.monthlyReturn);
+    const perMonth = v.rentalDaily * DAYS_PER_MONTH;
+    const fuel = monthlyFuel(v);
+    for (let m = 1; m <= v.months; m++) {
+        led.add(perMonth, m, 'depreciation');
+        led.add(fuel, m, 'fuel');
+    }
+
+    const t = led.totals();
+    return finish(t, v, {
+        resale: 0,
+        dailyRate: v.rentalDaily,
+        monthlyOutlay: perMonth + fuel
     });
 }
 
@@ -404,7 +450,9 @@ function computeAll(v) {
         cash: scenarioCash(v),
         loan: scenarioLoan(v),
         lease: scenarioLease(v),
-        rent: scenarioRent(v)
+        sixt: scenarioSixt(v),
+        flexcar: scenarioFlexcar(v),
+        rental: scenarioRental(v)
     };
 }
 
@@ -426,7 +474,7 @@ function breakEvenApr(v) {
 
 /* ── Break-even curve ────────────────────────────────────────────
    The whole comparison hinges on how long you keep the car, so this
-   re-runs all four scenarios across a range of horizons. Every term that
+   re-runs all six scenarios across a range of horizons. Every term that
    depends on the horizon is re-derived through horizonTerms, which is
    what makes the curve pass exactly through the bars at the month you
    picked — the odometer at sale, the dealer's haircut widening with it,
@@ -439,7 +487,8 @@ function costCurve(v, maxMonths, step) {
         const r = computeAll(variant);
         points.push({
             month: m,
-            cash: r.cash, loan: r.loan, lease: r.lease, rent: r.rent
+            cash: r.cash, loan: r.loan, lease: r.lease,
+            sixt: r.sixt, flexcar: r.flexcar, rental: r.rental
         });
     }
     return points;
