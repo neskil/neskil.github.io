@@ -1406,17 +1406,23 @@ input[type="range"]::-moz-range-thumb {
     color: var(--text-secondary);
 }
 
+/* The hanging indent is padding plus an absolute marker, not flex. As a flex
+   container the li turned every inline child — a <strong> label, an <em>, a
+   link — into its own flex item, so an item carrying emphasis wrapped into
+   ragged side-by-side columns instead of one paragraph. */
 .pc-list li {
-    display: flex;
-    gap: 7px;
+    position: relative;
+    padding-left: 19px;
     margin-bottom: 5px;
 }
 
 .pc-list li::before {
     content: attr(data-mark);
-    flex: 0 0 auto;
-    font-weight: 800;
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 12px;
+    font-weight: 800;
 }
 
 .pc-list li.pro::before { color: var(--success); }
@@ -1593,6 +1599,25 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 480px) {
     .verdict-winner { font-size: 1.4rem; }
     .field-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); }
+
+    /* A labelled item is a heading and a paragraph, so on a phone it is set
+       as one. Inline, the label ate the first line and the hanging indent
+       took another 19px off every line after it, leaving a column too narrow
+       and too uneven to read. The marker goes with the indent: these lists
+       are all one polarity and the card head already says which. Plain
+       one-line items keep their bullet and indent. */
+    .pc-list li:has(> strong:first-child) {
+        padding-left: 0;
+        margin-bottom: 12px;
+    }
+
+    .pc-list li:has(> strong:first-child)::before { display: none; }
+
+    .pc-list li:has(> strong:first-child) > strong:first-child {
+        display: block;
+        font-size: 0.86rem;
+        color: var(--text-primary);
+    }
 }
 
 /* The resale field holds the expected case, because it is an input and the
