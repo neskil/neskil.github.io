@@ -257,6 +257,7 @@ for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
         $('flexRate').value = btn.dataset.rate;
         $('flexProtection').value = btn.dataset.protection;
         $('flexDelivery').value = btn.dataset.delivery;
+        if (btn.dataset.allowance) $('flexAllowance').value = btn.dataset.allowance;
         update();
     });
 }

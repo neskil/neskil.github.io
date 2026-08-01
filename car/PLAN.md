@@ -137,6 +137,15 @@ the two are not the same cover either.
 three — costs more than the X1. Price the model, never the class, and always
 ask what the size up costs.
 
+**Flexcar, from a checkout that itemises everything.** A Hyundai Tucson:
+Standard plan $424.00 (850 mi/mo included) + Essential Protection $245.00 +
+**$40.14 tax** = $709.14/mo, falling to $654.00 after six months on OnTrack.
+That settles two figures the page had been estimating: tax is **exactly 6.0%**
+of the charges, and OnTrack's cut works out at **$52.02 on the car line** —
+about 12% — once you work back through the tax, not the $55 the totals appear
+to differ by. The mileage tier is priced, not fixed: Standard 850, Cruiser
+1,200, Road Warrior 2,000, Low Gear variable in 200-mile increments.
+
 **Flexcar, from live listings.** Real totals are **$749–754/mo plus tax**, far
 below the $850 the page had guessed. Structure: a car line plus a *mandatory*
 protection plan — Essential $245/mo with a $2,000 deductible, or Enhanced
