@@ -119,11 +119,23 @@ minimum term**. The waiver sits on a **$1,000 financial responsibility**, so it
 is an excess, not cover. Waiver plus driver comes to $211.48/mo, within two
 dollars of what the owning routes pay for insurance.
 
-**Sixt+ pricing barely tracks the car.** X1 subscription line $804.56; a BMW X3
-— a class up — quotes **$819.00**, fourteen dollars more, on a shorter one-month
-minimum and a $199 entry fee against $500. A RAV4, much the cheapest car of the
-three, costs more than the X1. Price the model, never the class, and always ask
-for the size up.
+**Sixt+ quotes the same product on two different bases.** A live contract
+prints "Tax included"; the booking flow for a new car prints "Tax not
+included". So the X1's $804.56 and the X3's $819.00 cannot be read side by
+side, and doing so makes the bigger car look $14 dearer when it is not. The
+additional-driver line appears in both — $67.13 with tax, $59.99 without —
+which implies about **11.9%**. On that basis the X3 is roughly **$1,206/mo**
+against the X1's $1,044: about **$160 more**, not fourteen. Both chips now
+carry their own tax basis so the bars compare properly.
+
+The X3's full breakdown, tax not included: $819.00 subscription, $198.99 Smart
+Protection, $59.99 additional driver = **$1,077.98/mo**, plus a **$199
+enrollment fee**. Note the protection product differs from the X1's LDW, so
+the two are not the same cover either.
+
+**Even so, prices barely track the cars.** A RAV4 — much the cheapest of the
+three — costs more than the X1. Price the model, never the class, and always
+ask what the size up costs.
 
 **Flexcar, from live listings.** Real totals are **$749–754/mo plus tax**, far
 below the $850 the page had guessed. Structure: a car line plus a *mandatory*
