@@ -523,7 +523,23 @@
             overflow: hidden;
             backface-visibility: hidden;
             -webkit-backface-visibility: hidden;
-            transition: background 0.4s ease-in-out, border-color 0.4s ease, box-shadow 0.4s ease;
+            transition: background 0.4s ease-in-out, border-color 0.4s ease, box-shadow 0.4s ease,
+                opacity 0s linear 0.36s, visibility 0s linear 0.36s;
+        }
+
+        /* backface-visibility is not enough on its own. A face carries
+           backdrop-filter, which makes it a grouping element, and Firefox responds by
+           flattening the 3D context on .card-flip-inner: both faces then paint in
+           document order and the front shows through the translucent back, mirrored.
+           So hide the face that should not be visible outright, swapping at 0.36s —
+           the midpoint of the 0.72s flip, where the card is edge-on and the change
+           cannot be seen. Chrome, which culls correctly, sees the same swap at the
+           same moment, so both browsers show one face at a time. visibility also
+           keeps the hidden face's button out of the tab order. */
+        .flip-card.is-flipped .card-face-front,
+        .flip-card:not(.is-flipped) .card-face-back {
+            opacity: 0;
+            visibility: hidden;
         }
 
         /* Pointer-tracking glare for flip card faces (matches standard .card::before) */
