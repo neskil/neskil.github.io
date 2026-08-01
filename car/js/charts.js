@@ -225,6 +225,22 @@ function showTooltip(evt, html) {
 }
 function hideTooltip() { tooltip.style.opacity = '0'; }
 
+/* The same bucket means different things depending on the route, and a
+   direct label has to say the route's version or it misinforms: the blue
+   block is depreciation when you own the car, but it is the lease payment
+   or the subscription rate when you do not, and the orange block is
+   interest on a loan but forgone return on cash. The legend keeps the
+   umbrella term — the segments get the specific one. */
+function segmentLabel(comp, optKey) {
+    if (comp.key === 'depreciation') {
+        if (optKey === 'lease') return 'Lease payments';
+        if (optKey === 'rent') return 'Subscription';
+        return 'Depreciation';
+    }
+    if (comp.key === 'interest') return optKey === 'loan' ? 'Interest' : 'Lost return';
+    return comp.short;
+}
+
 function renderChart(results, v) {
     const chart = $('chart');
     chart.innerHTML = '';
@@ -246,6 +262,14 @@ function renderChart(results, v) {
             '<span class="total">' + usd0(r.perMonth) + '<small>/mo</small></span>';
         row.appendChild(head);
 
+        /* Which car this row is actually pricing — the assumption most
+           worth stating, right where the number is read. */
+        const veh = routeVehicle(opt.key, v);
+        const sub = document.createElement('div');
+        sub.className = 'bar-sub' + (veh.matches ? '' : ' quoted');
+        sub.textContent = veh.text;
+        row.appendChild(sub);
+
         const track = document.createElement('div');
         track.className = 'bar-track';
 
@@ -259,7 +283,19 @@ function renderChart(results, v) {
             const seg = document.createElement('div');
             seg.className = 'bar-seg';
             seg.style.background = comp.color;
-            seg.style.width = (value * scale) + '%';
+            const pct = value * scale;
+            seg.style.width = pct + '%';
+
+            /* Label the segment in place when there is room for the word.
+               Dark ink, not white: near-black clears 4.5:1 on all six
+               fills where white manages only 3.1–4.2. Below the width
+               threshold the segment stays a colour and the legend and
+               tooltip carry it, which is why both are still here. */
+            if (pct >= 13) {
+                seg.textContent = segmentLabel(comp, opt.key);
+                seg.classList.add('labelled');
+            }
+
             const tip =
                 '<div class="tt-label"><span class="swatch" style="background:' + comp.color +
                 '"></span>' + comp.label + '</div>' +
@@ -277,6 +313,13 @@ function renderChart(results, v) {
         row.appendChild(track);
         chart.appendChild(row);
     }
+
+    /* One shared scale across the four bars, so their lengths are
+       comparable — say what it is rather than leaving it implied. */
+    const axis = document.createElement('div');
+    axis.className = 'bar-axis';
+    axis.innerHTML = '<span>$0</span><span>' + usd0(max / 2) + '/mo</span><span>' + usd0(max) + '/mo</span>';
+    chart.appendChild(axis);
 
     $('chartDesc').textContent = OPTIONS
         .map((o) => o.label + ': ' + usd0(results[o.key].perMonth) + ' per month')

@@ -595,13 +595,53 @@ td.cost-cell.gated { color: var(--danger); }
     color: var(--success);
 }
 
+/* Says what the reader is looking at before they look at it. */
+.chart-caption {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.chart-caption strong { color: var(--text-primary); }
+
+/* Which car this route prices. Routes tied to the inputs read as an
+   ordinary caption; the two that are quotes for somebody else's vehicle
+   are marked, because that is the difference worth noticing. */
+.bar-sub {
+    font-size: 0.72rem;
+    color: var(--text-mute);
+    margin-top: -1px;
+}
+
+.bar-sub.quoted {
+    color: var(--accent-soft);
+}
+
+.bar-sub.quoted::before {
+    content: 'different car · ';
+    color: var(--text-mute);
+}
+
 .bar-track {
     display: flex;
     gap: 2px;
-    height: 26px;
+    height: 30px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.04);
     overflow: hidden;
+}
+
+/* The shared scale the four bars are drawn against. */
+.bar-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-mute);
+    border-top: 1px solid var(--glass-border);
+    padding-top: 4px;
+    margin-top: 2px;
 }
 
 .bar-seg {
@@ -617,6 +657,20 @@ td.cost-cell.gated { color: var(--danger); }
 .bar-seg:first-child { border-radius: 4px 0 0 4px; }
 .bar-seg:last-child { border-radius: 0 4px 4px 0; }
 .bar-seg:hover { filter: brightness(1.25); }
+
+/* Direct labels sit on the fill in near-black, which clears 4.5:1 on
+   every series step where white reaches only 3.1–4.2. Only segments wide
+   enough for the word get one; the rest rely on legend and tooltip. */
+.bar-seg.labelled {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #12151b;
+    white-space: nowrap;
+    overflow: hidden;
+}
 
 .legend {
     display: flex;

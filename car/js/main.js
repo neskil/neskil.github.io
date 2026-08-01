@@ -23,6 +23,9 @@ function update() {
     }
 
     const results = computeAll(v);
+    /* Before the chart: the bars name the vehicle behind each route, and
+       that comes from which quote chip is lit. */
+    syncPresets(v.months, v);
     const best = renderChart(results, v);
     renderBreakeven(v);
     renderTable(results, v);
@@ -33,7 +36,6 @@ function update() {
     renderMileagePanel(results, v);
     renderCredit();
     renderInsights(results, v);
-    syncPresets(v.months);
     /* Two different bases, and conflating them is what makes a haircut
        look punitive: the model works in market value, the published
        spreads quote private money. Say both. */
@@ -63,6 +65,7 @@ function update() {
         vsExpected + '.' +
         (v.repairShock ? ' Includes <strong>' + usd0(v.repairShock) +
             '</strong> for one major repair, since the warranty runs out before you sell.' : '');
+    $('caveatMonths').textContent = v.months;
     for (const btn of document.querySelectorAll('#brandPresets .preset-btn')) {
         btn.classList.toggle('active', btn.dataset.brand === carBrand);
     }
@@ -75,9 +78,21 @@ function update() {
     save();
 }
 
-function syncPresets(months) {
+function syncPresets(months, v) {
     for (const btn of document.querySelectorAll('#horizonPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.months) === months);
+    }
+    /* The lease and subscription chips are quotes for particular vehicles,
+       so which one is selected decides what the page can say those two
+       routes are pricing. Match on the rate: type the number by hand and
+       no chip lights, which is itself the honest answer — we no longer
+       know what car it is. */
+    for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
+        btn.classList.toggle('active', Number(btn.dataset.payment) === v.leasePayment);
+    }
+    for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
+        btn.classList.toggle('active', Number(btn.dataset.rate) === v.rentRate &&
+            Number(btn.dataset.allowance) === v.rentAllowance);
     }
 }
 
