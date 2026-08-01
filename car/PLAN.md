@@ -18,6 +18,24 @@ currently gives.
   reference tail into collapsible panels.
 - Restyled from glassmorphism to flat surfaces and a clay accent.
 
+## Follow-up pass (August 2026)
+
+- Bars carry direct labels, a shared scale and a caption; labels are per
+  route and drop out when they will not fit.
+- Every route names the vehicle it prices, and a callout says the four are
+  not the same car.
+- Every folded panel carries a standfirst; the three long explainers in the
+  inputs panel fold too.
+- Removed the nested scrollbar on the results column.
+
+Still open from that: the page says the lease and subscription are different
+cars but cannot say *how* different in money. Backing an implied vehicle price
+out of a lease payment needs the residual and the money factor, which the page
+does not ask for; the industry "1% of MSRP" rule of thumb is not reliable
+enough to use — the $873 IAS quote is a ~$32k Tiguan, which that rule would
+price at $87k. Asking for residual and money factor and computing a lease on
+*your* car, alongside the quote you were given, would close it properly.
+
 ## 1. Electric and hybrid powertrains — the biggest remaining gap
 
 Nothing on the page computes an EV or a hybrid, and both are now the extremes
