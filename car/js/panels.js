@@ -184,6 +184,22 @@ function renderOptionNotes(results, v) {
 
     const lease = results.lease;
     const leaseBits = [];
+
+    /* The number a dealer quotes you is the contract alone spread over the
+       term — signing costs plus payments, divided by months, before
+       insurance and before anything you spend running the car. It is not
+       what the bar shows, and it is the only figure that lets you check
+       this page against a quote in your hand, so state it first and say
+       exactly what is in it. Two quotes shaped differently — $365/mo on
+       $5,500 up front against $873/mo on nothing — are comparable here
+       and nowhere else. */
+    const contractOnly = (v.leaseSigning * lease.cycles + v.leasePayment * v.months) / v.months;
+    leaseBits.push('<strong>The contract alone works out at ' + usd0(contractOnly) + '/mo</strong> — ' +
+        usd0(v.leaseSigning) + ' up front' + (lease.cycles > 1 ? ' each cycle' : '') + ' plus ' +
+        usd0(v.leasePayment) + ' a month over ' + v.months + ' months. That is the number to compare ' +
+        'against a quote; the bar above adds insurance, servicing, fuel and the return your ' +
+        'drive-off money stops earning.');
+
     if (lease.cycles > 1) {
         leaseBits.push('A ' + v.leaseTerm + '-month lease does not cover ' + v.months +
             ' months, so this assumes <strong>' + lease.cycles +
@@ -228,7 +244,19 @@ function renderOptionNotes(results, v) {
             ' months into a contract that is still running — walking away early is billed as the remaining ' +
             'payments, which is not counted here.</span>');
     }
-    leaseBits.push('You own nothing at the end — every payment is rent on the depreciation.');
+    /* The trade the whole route rests on, and the reason the pessimistic
+       case is not free here either. */
+    if (lease.wearTotal > 0) {
+        leaseBits.push('Handing it back carries <strong>' + usd0(lease.wearTotal) + '</strong> of excess ' +
+            'wear on this case — kerbed wheels, a deep scratch, tyres under the tread limit. Lessors ' +
+            'expect a used car and are not looking for perfection, but a scratch runs $200–400 and a ' +
+            'set of tyres can be billed at $200 apiece, so a bill in four figures is not unusual on a ' +
+            'car that looked fine to its driver.');
+    }
+    leaseBits.push('<strong>You own nothing at the end</strong> — every payment is rent on the ' +
+        'depreciation, and there is no resale cheque to come. That is the trade: no exposure to what ' +
+        'the used market does, and no share of it either. What you carry instead is the damage, and ' +
+        'what you avoid is the recurring maintenance, because the car never leaves warranty.');
     $('leaseNote').innerHTML = leaseBits.join(' ');
 
     const rent = results.rent;

@@ -174,6 +174,7 @@ function readInputs() {
         leaseMileagePlan: $('leaseMileagePlan').value,
         leasePrepaidRate: num('leasePrepaidRate'),
         leaseDisposition: num('leaseDisposition'),
+        leaseWear: num('leaseWear') * scen.wear,
         rentRate: num('rentRate'),
         rentStartFee: num('rentStartFee'),
         rentAllowance: num('rentAllowance'),
@@ -290,6 +291,7 @@ function scenarioLease(v) {
     const led = makeLedger(v.months, v.monthlyReturn);
     const cycles = Math.ceil(v.months / v.leaseTerm);
     let overageTotal = 0;
+    let wearTotal = 0;
     let unfinishedMonths = 0;
 
     for (let c = 0; c < cycles; c++) {
@@ -315,6 +317,10 @@ function scenarioLease(v) {
            inside the horizon. */
         if (end === start + v.leaseTerm) {
             led.add(v.leaseDisposition, end, 'fees');
+            /* The inspection happens when the car goes back, so this lands
+               with the disposition fee and only on cycles that finish. */
+            wearTotal += v.leaseWear;
+            led.add(v.leaseWear, end, 'fees');
             if (v.leaseMileagePlan !== 'prepaid') {
                 const charge = excessThisCycle * v.leaseOverage;
                 overageTotal += charge;
@@ -334,6 +340,7 @@ function scenarioLease(v) {
         resale: 0,
         cycles,
         overageTotal,
+        wearTotal,
         unfinishedMonths,
         monthlyOutlay: v.leasePayment + v.insurance + v.maintenance * LEASE_MAINTENANCE_SHARE +
             monthlyFuel(v)

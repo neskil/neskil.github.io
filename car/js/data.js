@@ -244,13 +244,14 @@ function haircutVsPrivate(channel, ageAtSale, milesAtSale) {
    by every one of the last six years; the asymmetry is there because
    these markets fall faster than they climb. */
 const SCENARIOS = {
-    optimistic:  { label: 'Optimistic',  resale: 1.15, maint: 0.70, shock: 0,
-                   blurb: 'A tight used market when you sell, a good example, nothing unexpected.' },
-    expected:    { label: 'Expected',    resale: 1.00, maint: 1.00, shock: 0,
+    optimistic:  { label: 'Optimistic',  resale: 1.15, maint: 0.70, shock: 0, wear: 0,
+                   blurb: 'A tight used market when you sell, a good example, nothing unexpected, ' +
+                          'and a lease handed back clean.' },
+    expected:    { label: 'Expected',    resale: 1.00, maint: 1.00, shock: 0, wear: 1,
                    blurb: 'The published averages, which is what the rest of this page uses.' },
-    pessimistic: { label: 'Pessimistic', resale: 0.82, maint: 1.50, shock: 45,
-                   blurb: 'Used values soften before you sell, heavier upkeep, and one major failure ' +
-                          'out of warranty.' }
+    pessimistic: { label: 'Pessimistic', resale: 0.82, maint: 1.50, shock: 45, wear: 3,
+                   blurb: 'Used values soften before you sell, heavier upkeep, one major failure ' +
+                          'out of warranty — and a lease that gets billed for its scuffs.' }
 };
 
 /* Servicing is part calendar, part odometer. */
