@@ -180,7 +180,17 @@ function readInputs() {
         rentStartFee: num('rentStartFee'),
         rentAllowance: num('rentAllowance'),
         rentBlockPrice: num('rentBlockPrice'),
+        sixtLdw: num('sixtLdw'),
+        sixtDriver: num('sixtDriver'),
+        sixtRoadside: num('sixtRoadside'),
+        sixtLicense: num('sixtLicense'),
+        sixtExcess: num('sixtExcess'),
         flexRate: num('flexRate'),
+        flexProtection: num('flexProtection'),
+        flexTax: num('flexTax'),
+        flexDelivery: num('flexDelivery'),
+        flexOnTrack: num('flexOnTrack'),
+        flexExcess: num('flexExcess'),
         flexStartFee: num('flexStartFee'),
         flexAllowance: num('flexAllowance'),
         flexBlockPrice: num('flexBlockPrice'),
@@ -388,12 +398,34 @@ function scenarioSubscription(v, cfg) {
     const blocks = Math.ceil(excessPerMonth / 1000);
     const overagePerMonth = blocks * cfg.blockPrice;
     const fuel = monthlyFuel(v);
+    led.add(cfg.delivery || 0, 0, 'fees');
+    /* Sixt+ quotes tax-inclusive and Flexcar quotes before it. Comparing
+       the two headlines as they are published flatters Flexcar by the
+       local rate, so tax is added here rather than assumed away. */
+    const tax = cfg.taxRate || 0;
     for (let m = 1; m <= v.months; m++) {
-        led.add(cfg.rate, m, 'depreciation');
-        led.add(overagePerMonth, m, 'fees');
+        /* OnTrack: pay on time and drive safely for six months and the
+           rate steps down, and the discount follows you across cars. */
+        const cut = cfg.onTrackCut && m > 6 ? cfg.onTrackCut : 0;
+        const rate = Math.max(0, cfg.rate - cut);
+        led.add(rate, m, 'depreciation');
+        led.add(overagePerMonth + (cfg.fees || 0) +
+                (rate + (cfg.insurance || 0)) * tax, m, 'fees');
+        led.add(cfg.insurance || 0, m, 'insurance');
+        led.add(cfg.upkeep || 0, m, 'maintenance');
         led.add(fuel, m, 'fuel');
     }
 
+    /* A damage waiver is not the same as being covered. Sixt's carries a
+       $1,000 "financial responsibility" — the excess you pay before the
+       waiver does anything — so the bad case books one claim, the same way
+       the owning routes book one major repair and the lease books its
+       turn-in bill. Every route should have something to go wrong. */
+    const excessRisk = cfg.excess && SCENARIOS[v.scenarioCase].wear >= 3 ? cfg.excess : 0;
+    if (excessRisk) led.add(excessRisk, Math.round(v.months * 0.5), 'fees');
+
+    const allIn = (cfg.rate + (cfg.insurance || 0)) * (1 + tax) +
+        (cfg.upkeep || 0) + (cfg.fees || 0);
     const t = led.totals();
     return finish(t, v, {
         resale: 0,
@@ -401,20 +433,46 @@ function scenarioSubscription(v, cfg) {
         mileageBlocks: blocks,
         allowance: cfg.allowance,
         rate: cfg.rate,
-        monthlyOutlay: cfg.rate + overagePerMonth + fuel
+        allIn,
+        insuranceLine: cfg.insurance || 0,
+        excessRisk,
+        monthlyOutlay: allIn + overagePerMonth + fuel
     });
 }
 
+/* The real contract, line by line, rather than one headline number. Each
+   charge lands in the component it actually is, so the Sixt+ bar breaks
+   down like every other route instead of being a single opaque block —
+   and the damage waiver plus the second driver come to $211/mo, which is
+   within a couple of dollars of what the owning routes pay for insurance.
+   That is the clearest evidence on the page that the all-in rate is not
+   the markup it looks like. */
 function scenarioSixt(v) {
     return scenarioSubscription(v, {
-        rate: v.rentRate, startFee: v.rentStartFee,
-        allowance: v.rentAllowance, blockPrice: v.rentBlockPrice
+        rate: v.rentRate,
+        insurance: v.sixtLdw + v.sixtDriver,
+        upkeep: v.sixtRoadside,
+        fees: v.sixtLicense,
+        excess: v.sixtExcess,
+        startFee: v.rentStartFee,
+        allowance: v.rentAllowance,
+        blockPrice: v.rentBlockPrice
     });
 }
 
+/* Flexcar's tile is a car line plus a mandatory protection plan, and the
+   two fees it does not show: a $249 annual membership covering servicing
+   and roadside, and a delivery charge that ranges from $199 to $874
+   depending on where the car happens to be. */
 function scenarioFlexcar(v) {
     return scenarioSubscription(v, {
-        rate: v.flexRate, startFee: v.flexStartFee, annualFee: true,
+        rate: v.flexRate,
+        insurance: v.flexProtection,
+        taxRate: v.flexTax / 100,
+        delivery: v.flexDelivery,
+        onTrackCut: v.flexOnTrack,
+        excess: v.flexExcess,
+        startFee: v.flexStartFee, annualFee: true,
         allowance: v.flexAllowance, blockPrice: v.flexBlockPrice
     });
 }
