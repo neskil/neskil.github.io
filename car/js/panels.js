@@ -355,7 +355,13 @@ function renderOptionNotes(results, v) {
             (res.insuranceLine
                 ? ', of which ' + usd0(res.insuranceLine) + ' is cover you would otherwise be buying ' +
                   'yourself — against ' + usd0(v.insurance) + '/mo on the owning routes'
-                : '') + '.');
+                : '') + '.' +
+            (res.annualFee
+                ? ' The <strong>' + usd0(res.annualFee) + '/yr membership is required</strong> and is not in ' +
+                  'that figure — it is billed separately two weeks after pickup, so the real monthly is ' +
+                  '<strong>' + usd0(res.allIn + res.annualFee / 12) + '</strong>, and it recurs every year ' +
+                  'you stay.'
+                : ''));
         bits.push('With fuel and any mileage blocks on top: <strong>' + usd0(res.monthlyOutlay) +
             '/mo</strong>.' + (res.excessRisk
                 ? ' This case also books the <strong>' + usd0(res.excessRisk) + '</strong> damage excess once.'
