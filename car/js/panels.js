@@ -3,6 +3,41 @@
    per-route notes, the mileage table and the reading guide. */
 'use strict';
 
+/* ── Which car is each route actually pricing? ───────────────────────
+   This is the page's biggest unstated assumption, and it is worth being
+   loud about. Cash and finance price the car described in the inputs —
+   its marque, its shape, its age, its price. The lease and the
+   subscription do not: they price whatever vehicle the quote you typed
+   happens to be for. A $1,000 Sixt+ rate is a BMW X1; the $873 IAS quote
+   is a new Tiguan; the car in the inputs might be a nine-year-old Civic.
+   Comparing those four numbers is still useful — it is the real choice in
+   front of you, four ways to have *a* car for a while — but it is not
+   four prices for one car, and reading it as though it were is the
+   easiest mistake this page invites. */
+function activePreset(rowId) {
+    const btn = document.querySelector('#' + rowId + ' .preset-btn.active');
+    return btn ? { car: btn.dataset.car, msrp: Number(btn.dataset.msrp) || 0 } : null;
+}
+
+function routeVehicle(key, v) {
+    if (key === 'cash' || key === 'loan') {
+        const brand = BRANDS[carBrand], band = AGE_BANDS[carAge], shape = BODY_TYPES[carBody];
+        const described = brand && band
+            ? brand.label + (shape ? ' ' + shape.label.replace(/^\S+\s/, '').toLowerCase() : '') +
+              ', ' + band.label.toLowerCase()
+            : 'the car you described';
+        return { text: described + ' · ' + usd0(v.price), matches: true };
+    }
+    const preset = activePreset(key === 'lease' ? 'leasePresets' : 'rentPresets');
+    if (preset && preset.car) {
+        return { text: preset.car + (preset.msrp ? ' · about ' + usdK(preset.msrp) + ' new' : ''),
+                 matches: false, msrp: preset.msrp };
+    }
+    return { text: 'whatever your ' +
+        usd0(key === 'lease' ? v.leasePayment : v.rentRate) + '/mo quote is for',
+        matches: false, msrp: 0 };
+}
+
 function renderTable(results, v) {
     const rows = COMPONENTS.map((c) =>
         '<tr><td>' + c.label + '</td>' +

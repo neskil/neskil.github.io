@@ -373,8 +373,10 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="leasePresets" aria-label="Real lease quotes">
-                        <button class="preset-btn" type="button" data-payment="873">IAS 2026 Tiguan · $873</button>
-                        <button class="preset-btn" type="button" data-payment="500">National average · $500</button>
+                        <button class="preset-btn" type="button" data-payment="873"
+                                data-car="a new VW Tiguan" data-msrp="32000">IAS 2026 Tiguan · $873</button>
+                        <button class="preset-btn" type="button" data-payment="500"
+                                data-car="the average new leased car" data-msrp="48800">National average · $500</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -479,9 +481,12 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="rentPresets" aria-label="Real subscription rates">
-                        <button class="preset-btn" type="button" data-rate="1000" data-allowance="500">Sixt+ BMW X1 2026 · $1,000</button>
-                        <button class="preset-btn" type="button" data-rate="1200" data-allowance="500">Sixt+ midsize SUV · $1,200</button>
-                        <button class="preset-btn" type="button" data-rate="850" data-allowance="1250">Flexcar (650+ score) · $850</button>
+                        <button class="preset-btn" type="button" data-rate="1000" data-allowance="500"
+                                data-car="a BMW X1" data-msrp="42000">Sixt+ BMW X1 2026 · $1,000</button>
+                        <button class="preset-btn" type="button" data-rate="1200" data-allowance="500"
+                                data-car="a midsize SUV from their fleet" data-msrp="45000">Sixt+ midsize SUV · $1,200</button>
+                        <button class="preset-btn" type="button" data-rate="850" data-allowance="1250"
+                                data-car="whatever Flexcar has locally" data-msrp="30000">Flexcar (650+ score) · $850</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -558,6 +563,9 @@
                                 <button class="table-toggle" type="button" id="tableToggle" aria-expanded="false"
                                     aria-controls="tableWrap">Show numbers</button>
                             </div>
+                            <p class="chart-caption">One bar per route. Length is what it costs you
+                                <strong>every month, all in</strong> — longer is dearer — and the blocks are where
+                                that money goes.</p>
                             <div class="seg-toggle" id="caseToggle" role="group" aria-label="Scenario"
                                 style="margin:0 0 10px auto; width:fit-content">
                                 <button type="button" data-case="optimistic">🙂 Optimistic</button>
@@ -568,6 +576,17 @@
                             <div class="chart" id="chart" role="img" aria-labelledby="chartDesc"></div>
                             <p id="chartDesc" class="sr-only"></p>
                             <div class="legend" id="legend"></div>
+                            <div class="callout warn" style="margin-top:10px">
+                                <span class="ico">🚗</span>
+                                <span><strong>These are probably not the same car.</strong> Cash and finance price
+                                    the car you described above. A lease payment and a subscription rate are quotes
+                                    for whatever vehicle that provider is offering — the $1,000 Sixt+ rate is a BMW
+                                    X1, the $873 IAS quote is a new Tiguan — and the page has no way to make them a
+                                    nine-year-old Civic. So read this as <strong>four ways to have a car for the
+                                    next <span id="caveatMonths">60</span> months</strong>, which is the real choice
+                                    in front of you, and not as four prices for one car. Each bar says which vehicle
+                                    it is pricing.</span>
+                            </div>
                             <div class="table-wrap" id="tableWrap" hidden></div>
                         </section>
 

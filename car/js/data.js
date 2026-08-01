@@ -8,13 +8,16 @@
    Every dollar that leaves your pocket is tagged with one of these,
    so the four options are broken down the same way and the stacked
    bars are comparable segment by segment. */
+/* `short` is what fits inside a bar segment when it is wide enough to
+   label directly, which is how the chart stays readable without anyone
+   having to consult the legend. */
 const COMPONENTS = [
-    { key: 'depreciation', label: 'Depreciation & payments', color: 'var(--series-1)' },
-    { key: 'interest',     label: 'Interest & lost return',  color: 'var(--series-2)' },
-    { key: 'fees',         label: 'Taxes, fees & penalties', color: 'var(--series-3)' },
-    { key: 'insurance',    label: 'Insurance',               color: 'var(--series-4)' },
-    { key: 'maintenance',  label: 'Maintenance',             color: 'var(--series-5)' },
-    { key: 'fuel',         label: 'Fuel',                    color: 'var(--series-6)' }
+    { key: 'depreciation', label: 'Depreciation & payments', short: 'Depreciation', color: 'var(--series-1)' },
+    { key: 'interest',     label: 'Interest & lost return',  short: 'Interest',     color: 'var(--series-2)' },
+    { key: 'fees',         label: 'Taxes, fees & penalties', short: 'Fees',         color: 'var(--series-3)' },
+    { key: 'insurance',    label: 'Insurance',               short: 'Insurance',    color: 'var(--series-4)' },
+    { key: 'maintenance',  label: 'Maintenance',             short: 'Upkeep',       color: 'var(--series-5)' },
+    { key: 'fuel',         label: 'Fuel',                    short: 'Fuel',         color: 'var(--series-6)' }
 ];
 
 const OPTIONS = [
