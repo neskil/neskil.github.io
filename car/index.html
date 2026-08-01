@@ -218,9 +218,10 @@
             <div class="callout" style="margin-top:10px">
                 <span class="ico">🏷️</span><span id="disposalNote"></span>
             </div>
-            <div class="callout">
-                <span class="ico">🔁</span>
-                <span><strong>What a trade-in actually is.</strong> You hand the old car to the dealer you are
+            <details class="callout explainer">
+                <summary><span class="ico">🔁</span>
+                    <span><strong>What a trade-in actually is.</strong> The lowest gross price of the three, but it takes the tax off your next car and takes one afternoon.<span class="chev-mark" aria-hidden="true"></span></span></summary>
+                <div class="explainer-body"><span>You hand the old car to the dealer you are
                     buying the next one from, and its value comes off the bill instead of arriving as cash. The
                     gross number is the worst of the three routes — a dealer has to recondition, warranty and floor
                     the thing — but it buys two real advantages. <strong>One: the tax.</strong> In Georgia and most
@@ -235,9 +236,11 @@
                     trade figure and the out-the-door price as two separate numbers, then compare that total against
                     an instant offer plus the tax you would have paid.</span>
             </div>
-            <div class="callout">
-                <span class="ico">↩️</span>
-                <span><strong>Why a short hold looks so brutal.</strong> If the resale figure above seems harsh,
+            </details>
+            <details class="callout explainer">
+                <summary><span class="ico">↩️</span>
+                    <span><strong>Why a short hold looks so brutal.</strong> Most of a harsh-looking resale is not depreciation — it is the round trip of buying at asking and selling below market.<span class="chev-mark" aria-hidden="true"></span></span></summary>
+                <div class="explainer-body"><span>If the resale figure above seems harsh,
                     most of it is not depreciation — it is the round trip. You buy at asking, which carries roughly
                     12% of dealer markup, and you sell below market, and on a twelve-month horizon there is no time
                     for anything else to happen. Both spreads are paid in full whether you keep the car one year or
@@ -246,9 +249,11 @@
                     ways to cut it: buy privately or hold longer, and sell privately rather than take the
                     convenience price. Doing both roughly halves the round trip.</span>
             </div>
-            <div class="callout">
-                <span class="ico">🛡️</span>
-                <span><strong>A new car is more expensive to insure, and the gap is bigger than people expect.</strong>
+            </details>
+            <details class="callout explainer">
+                <summary><span class="ico">🛡️</span>
+                    <span><strong>A new car costs more to insure.</strong> Cover is priced off the payout, and on a lease or a loan you are not allowed to reduce it.<span class="chev-mark" aria-hidden="true"></span></span></summary>
+                <div class="explainer-body"><span>
                     Comprehensive and collision are priced off what the insurer would have to pay out, so a car worth
                     $34,000 costs more to cover than the same model worth $12,000 — and modern repair costs make it
                     worse, because the radar, cameras and sensors now sitting in bumpers and windscreens turn a
@@ -262,6 +267,7 @@
                     an afterthought: on a $250 lease-versus-buy difference, a $60 swing in insurance is a quarter of
                     your answer.</span>
             </div>
+            </details>
             <button type="button" class="open-modal-btn" id="openDataModal">
                 📊 Explore 38 real CR-V listings — plot any axis against any other
             </button>
@@ -614,13 +620,20 @@
 
         <!-- Reading the result -->
         <details class="panel collapsible" open>
-            <summary class="panel-title">How to read this<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">How to read this<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">What the winning number does and does not mean, in four notes that
+                    move with your inputs.</span>
+            </summary>
             <div id="insights"></div>
         </details>
 
         <!-- Pros and cons -->
         <details class="panel collapsible" id="sec-matrix">
-            <summary class="panel-title">Pros &amp; cons, side by side<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Pros &amp; cons, side by side<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Cash buys certainty and gives up the return; a loan is free money below the break-even APR; a lease caps repair risk and owns nothing; a subscription buys the 30-day exit and charges for it.</span>
+            </summary>
             <div class="pro-con-grid">
                 <div class="pc-card" style="--pc-accent: var(--series-1)">
                     <div class="pc-head"><span>💵</span> Pay cash</div>
@@ -690,7 +703,10 @@
 
         <!-- Cheap vs expensive -->
         <details class="panel collapsible">
-            <summary class="panel-title">Cheap car or expensive car? <span class="hint">tap a preset above to model one</span><span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Cheap car or expensive car? <span class="hint">tap a preset above to model one</span><span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Four bands, from a $3–8k beater to a $50k+ premium car. The cheaper it is, the less value it can lose and the more of your cost arrives as unpredictable repair bills.</span>
+            </summary>
             <p class="notes" style="margin-bottom:10px">Depreciation and repair risk trade against each other. The
                 cheaper the car, the less value it can lose — and the more of your cost arrives as unpredictable
                 repair bills. Pick the risk you can absorb.</p>
@@ -769,7 +785,10 @@
 
         <!-- Where you buy -->
         <details class="panel collapsible">
-            <summary class="panel-title">Where you buy it: CarMax vs. dealership vs. private<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Where you buy it: CarMax vs. dealership vs. private<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">CarMax charges roughly 1% over market for a fixed price and a return window. A franchise dealer is the only route to promo APRs and the trade-in tax credit. Private is cheapest and sold as-is.</span>
+            </summary>
             <div class="pro-con-grid">
                 <div class="pc-card" style="--pc-accent: var(--series-1)">
                     <div class="pc-head"><span>🏬</span> CarMax &amp; no-haggle</div>
@@ -817,7 +836,10 @@
 
         <!-- New to the US -->
         <details class="panel collapsible" id="sec-guides">
-            <summary class="panel-title">New to the US? Credit gates most of this<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">New to the US? Credit gates most of this<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">An empty US file is not a bad one, but lenders read it that way, and every route except cash needs someone to say yes first. What still works: expat programmes, credit-union newcomer loans, ITIN lenders.</span>
+            </summary>
             <p class="notes" style="margin-bottom:10px">Every route above except one needs a lender, an underwriter
                 or a platform to say yes first, and they all read a US credit file you do not have yet. Arriving with
                 a clean record from another country counts for nothing — the file is empty, not good.</p>
@@ -884,7 +906,10 @@
 
         <!-- Driver's licence -->
         <details class="panel collapsible">
-            <summary class="panel-title">Getting a licence in Georgia <span class="hint">the bit nobody warns you about</span><span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Getting a licence in Georgia <span class="hint">the bit nobody warns you about</span><span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Thirty days from becoming a resident. Check reciprocity first — it may be a straight swap. If not, the road test needs a licensed passenger and an insured car you bring yourself.</span>
+            </summary>
             <p class="notes" style="margin-bottom:10px">Georgia gives you <strong>30 days</strong> from becoming a
                 resident to hold a Georgia licence. A non-citizen establishing residency is on the same clock.</p>
 
@@ -943,7 +968,10 @@
 
         <!-- US specifics -->
         <details class="panel collapsible">
-            <summary class="panel-title">Reading a listing price<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Reading a listing price<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Three different numbers get called "the price". Market value is what the car is worth, asking price adds about 12%, and out-the-door adds tax, title and doc fees on top of that.</span>
+            </summary>
             <div class="callout">
                 <span class="ico">🔍</span>
                 <span>Three different numbers get called "the price", and browsing a forecourt only ever shows you
@@ -968,7 +996,10 @@
 
         <!-- US specifics -->
         <details class="panel collapsible">
-            <summary class="panel-title">US fine print worth knowing<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">US fine print worth knowing<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">Georgia charges a one-time 7% title tax instead of sales tax, at half rate for new residents. Plus gap cover, lease disposition fees, and the paperwork that only appears at signing.</span>
+            </summary>
             <ul class="notes">
                 <li><strong>Georgia does not charge sales tax on cars at all.</strong> It charges a one-time
                     <strong>Title Ad Valorem Tax of 7%</strong> instead, paid when the vehicle is titled, which
@@ -1008,7 +1039,10 @@
 
         <!-- Where the defaults come from -->
         <details class="panel collapsible">
-            <summary class="panel-title">Where these numbers come from<span class="chev-mark" aria-hidden="true"></span></summary>
+            <summary>
+                <span class="panel-title">Where these numbers come from<span class="chev-mark" aria-hidden="true"></span></span>
+                <span class="panel-gist">iSeeCars 2026 for depreciation, Experian Q1 2026 for APRs, AAA and Edmunds for running costs, and 38 real CarMax listings the value model was fitted against.</span>
+            </summary>
             <p class="notes" style="margin-bottom:10px">Every default below is a published US figure, not a guess.
                 They are national averages — your state, credit score and driving record will move them, so overwrite
                 anything you know better.</p>
