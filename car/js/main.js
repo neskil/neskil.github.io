@@ -9,7 +9,7 @@ const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation',
     'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
     'leasePrepaidRate', 'leaseDisposition', 'leaseWear', 'leaseRenewal',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice',
-    'sixtLdw', 'sixtDriver', 'sixtRoadside', 'sixtLicense', 'sixtExcess',
+    'sixtLdw', 'sixtDriver', 'sixtRoadside', 'sixtLicense', 'sixtExcess', 'sixtTax',
     'flexRate', 'flexProtection', 'flexTax', 'flexDelivery', 'flexOnTrack', 'flexExcess',
     'flexStartFee', 'flexAllowance', 'flexBlockPrice',
     'rentalDaily', 'rentalMonthly'];
@@ -122,7 +122,7 @@ function syncPresets(months, v) {
     }
     for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.rentRate &&
-            Number(btn.dataset.start) === v.rentStartFee);
+            Number(btn.dataset.ldw) === v.sixtLdw);
     }
     for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.monthly) === v.rentalMonthly);
@@ -233,8 +233,12 @@ for (const btn of document.querySelectorAll('#creditTiers .preset-btn')) {
 for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('rentRate').value = btn.dataset.rate;
-        if (btn.dataset.allowance) $('rentAllowance').value = btn.dataset.allowance;
-        if (btn.dataset.start !== undefined) $('rentStartFee').value = btn.dataset.start;
+        for (const [key, id] of [['ldw', 'sixtLdw'], ['driver', 'sixtDriver'],
+                                 ['roadside', 'sixtRoadside'], ['license', 'sixtLicense'],
+                                 ['tax', 'sixtTax'], ['allowance', 'rentAllowance'],
+                                 ['start', 'rentStartFee']]) {
+            if (btn.dataset[key] !== undefined) $(id).value = btn.dataset[key];
+        }
         update();
     });
 }

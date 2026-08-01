@@ -512,12 +512,14 @@
                 </summary>
                 <div class="option-body">
                     <div class="preset-row" id="rentPresets" aria-label="Real Sixt+ rates">
-                        <button class="preset-btn" type="button" data-rate="804.56" data-allowance="500"
-                                data-start="500" data-car="a BMW X1, small SUV"
-                                data-msrp="42000">BMW X1, 2-mo min · $804.56</button>
-                        <button class="preset-btn" type="button" data-rate="819" data-allowance="500"
-                                data-start="199" data-car="a BMW X3 or similar"
-                                data-msrp="52000">BMW X3, 1-mo min · $819.00</button>
+                        <button class="preset-btn" type="button" data-rate="804.56" data-ldw="144.35"
+                                data-driver="67.13" data-roadside="22.37" data-license="6" data-tax="0"
+                                data-allowance="500" data-start="500" data-car="a BMW X1, small SUV"
+                                data-msrp="42000">BMW X1 · $1,044 tax in</button>
+                        <button class="preset-btn" type="button" data-rate="819" data-ldw="198.99"
+                                data-driver="59.99" data-roadside="0" data-license="0" data-tax="11.9"
+                                data-allowance="500" data-start="199" data-car="a BMW X3 or similar"
+                                data-msrp="52000">BMW X3 · $1,078 + tax</button>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -560,6 +562,14 @@
                                 <span class="prefix">$</span>
                                 <input type="number" id="sixtLicense" min="0" step="1" value="6">
                                 <span class="suffix">/mo</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="sixtTax">Tax on top <span style="color:var(--text-mute)">·
+                                0 if quoted tax-in</span></label>
+                            <div class="input-shell">
+                                <input type="number" id="sixtTax" min="0" max="25" step="0.1" value="0">
+                                <span class="suffix">%</span>
                             </div>
                         </div>
                         <div class="field">
@@ -615,20 +625,27 @@
                         <strong>$1,000 financial responsibility</strong> — your excess. Kerb a wheel badly and that
                         is a four-figure bill before the waiver does anything, which is why the pessimistic case
                         books one. It is the subscription's version of the repair you would have carried yourself.</p>
-                    <p class="notes" style="margin-top:8px"><strong>Their prices barely track what the cars are
-                        worth, and that is the useful part.</strong> The X1 subscription line is
-                        <strong>$804.56</strong>. A <strong>BMW X3</strong> — a class up, and something like $10,000
-                        more car — quotes at <strong>$819.00</strong>, all of <strong>$14 a month</strong> more, on
-                        a shorter one-month minimum and a smaller $199 entry fee. Meanwhile a RAV4, a materially
-                        cheaper car than either, costs <em>more</em> than the X1. Subscription rates follow fleet
-                        economics — what they are holding, what is in demand at that branch, what they expect to
-                        get for it — and almost not at all what the car is worth. The practical consequence: price
-                        the specific model, never the class, and always ask for the size up. It may be free.</p>
-                    <p class="notes" style="margin-top:8px"><strong>The minimum term is a lever, not a fact.</strong>
-                        The X1 contract above ran a two-month minimum; the X3 offer is available at one. A longer
-                        commitment usually buys a lower rate, so it is worth quoting both — and the entry fee moves
-                        too, $500 against $199 between these two. Both figures are on the page above so you can put
-                        your own quote in.</p>
+                    <p class="notes" style="margin-top:8px"><strong>Sixt+ quotes the same product two different
+                        ways, and it will catch you out.</strong> A live contract prints
+                        <em>"Price breakdown — Tax included"</em>. The booking flow for a new car prints
+                        <em>"Tax not included"</em>. So the X1's $804.56 and the X3's $819.00 are not comparable as
+                        printed, and reading them side by side makes the bigger car look $14 dearer when it is
+                        nothing of the sort. The one line that appears in both quotes lets you convert: an
+                        additional driver is $67.13 with tax in and $59.99 without, which implies about
+                        <strong>11.9%</strong>. Apply that and the X3 is roughly <strong>$1,206/mo</strong> against
+                        the X1's $1,044 — about <strong>$160 a month</strong> more, not fourteen. The tax field
+                        above is set to zero on the tax-inclusive chip and 11.9% on the other so the bars compare
+                        properly.</p>
+                    <p class="notes" style="margin-top:8px"><strong>Even so, the prices barely track the
+                        cars.</strong> A RAV4 — much the cheapest of the three by anything a buyer measures — costs
+                        more than the X1. Subscription rates follow fleet economics: what they are holding, what is
+                        in demand at that branch, what they expect to get for it. Price the specific model, never
+                        the class, and always ask what the size up costs.</p>
+                    <p class="notes" style="margin-top:8px"><strong>The minimum term is a lever, not a fact, and so
+                        is the joining fee.</strong> The X1 contract ran a two-month minimum with a $500 start fee;
+                        the X3 quote is one month with a <strong>$199 enrollment fee</strong>. The protection
+                        product differs too — an LDW at $144.35 on one, "Smart Protection" at $198.99 on the other.
+                        Quote both terms, and read the line items rather than the total.</p>
                     <p class="notes" style="margin-top:8px"><strong>Read the mileage cap before the rate.</strong>
                         The $1,000 BMW X1 came with <strong>500 miles a month</strong> — 6,000 a year, well under
                         half what an average US driver covers. A 30-mile round-trip commute alone spends 600. Extra

@@ -35,9 +35,10 @@ function routeVehicle(key, v) {
         return { text: preset.car + (preset.msrp ? ' · about ' + usdK(preset.msrp) + ' new' : ''),
                  matches: false, msrp: preset.msrp };
     }
-    const rate = { lease: v.leasePayment, sixt: v.rentRate + v.sixtLdw + v.sixtDriver +
-                   v.sixtRoadside + v.sixtLicense, flexcar: v.flexRate,
-                   rental: v.rentalMonthly }[key];
+    const rate = { lease: v.leasePayment,
+                   sixt: (v.rentRate + v.sixtLdw + v.sixtDriver) * (1 + v.sixtTax / 100) +
+                         v.sixtRoadside + v.sixtLicense,
+                   flexcar: v.flexRate, rental: v.rentalMonthly }[key];
     return { text: 'whatever your ' + usd0(rate) + '/mo quote is for', matches: false, msrp: 0 };
 }
 
