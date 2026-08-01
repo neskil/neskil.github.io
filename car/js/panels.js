@@ -200,10 +200,22 @@ function renderOptionNotes(results, v) {
         'against a quote; the bar above adds insurance, servicing, fuel and the return your ' +
         'drive-off money stops earning.');
 
-    if (lease.cycles > 1) {
+    if (v.months > v.leaseTerm && lease.extending) {
+        /* The whole reason a short IAS term is not the disaster it looks
+           like: the expensive part happens once. */
+        const resigned = scenarioLease(Object.assign({}, v, { leaseRenewal: 'resign' }));
+        leaseBits.push('Your ' + v.months + ' months outlast the ' + v.leaseTerm +
+            '-month term, and this assumes you <strong>carry on at the same payment</strong> rather ' +
+            'than signing again — so the ' + usd0(v.leaseSigning) + ' drive-off is paid once, not ' +
+            Math.ceil(v.months / v.leaseTerm) + ' times. That is worth <strong>' +
+            usd0(resigned.total - lease.total) + '</strong> over the horizon, and it is the single ' +
+            'thing to confirm in writing before signing a short term.');
+    } else if (lease.cycles > 1) {
         leaseBits.push('A ' + v.leaseTerm + '-month lease does not cover ' + v.months +
             ' months, so this assumes <strong>' + lease.cycles +
-            ' back-to-back leases</strong> on the same terms — signing costs repeat each time.');
+            ' back-to-back leases</strong> on the same terms — signing costs repeat each time. If the ' +
+            'lender will instead let you continue at the same payment, switch "past the term" above; ' +
+            'it is worth thousands.');
     }
     if (lease.overageTotal > 0) {
         const excessPerYear = v.miles - v.leaseAllowance;

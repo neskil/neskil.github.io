@@ -175,6 +175,7 @@ function readInputs() {
         leasePrepaidRate: num('leasePrepaidRate'),
         leaseDisposition: num('leaseDisposition'),
         leaseWear: num('leaseWear') * scen.wear,
+        leaseRenewal: $('leaseRenewal').value,
         rentRate: num('rentRate'),
         rentStartFee: num('rentStartFee'),
         rentAllowance: num('rentAllowance'),
@@ -289,15 +290,25 @@ function scenarioLoan(v) {
 
 function scenarioLease(v) {
     const led = makeLedger(v.months, v.monthlyReturn);
-    const cycles = Math.ceil(v.months / v.leaseTerm);
+    /* Two ways a lease outlives its own term, and they cost very different
+       money. Re-signing starts a fresh contract each time: the drive-off is
+       paid again, the car goes back, and the inspection and disposition fee
+       land at every changeover. Extending keeps the same car on the same
+       payment — which is what IAS offers past the first year — so the
+       drive-off is paid once and there is a single turn-in at the end. On a
+       $5,500 / $365 twelve-month deal held five years that is the
+       difference between paying the drive-off five times and once. */
+    const extending = v.leaseRenewal === 'extend';
+    const cycles = extending ? 1 : Math.ceil(v.months / v.leaseTerm);
+    const cycleLen = extending ? v.months : v.leaseTerm;
     let overageTotal = 0;
     let wearTotal = 0;
     let unfinishedMonths = 0;
 
     for (let c = 0; c < cycles; c++) {
-        const start = c * v.leaseTerm;
+        const start = c * cycleLen;
         if (start >= v.months) break;
-        const end = Math.min(start + v.leaseTerm, v.months);
+        const end = Math.min(start + cycleLen, v.months);
         const monthsThisCycle = end - start;
 
         led.add(v.leaseSigning, start, 'depreciation');
@@ -313,9 +324,10 @@ function scenarioLease(v) {
             led.add(prepaid, start, 'fees');
         }
 
-        /* Turn-in charges only land if this cycle actually finishes
-           inside the horizon. */
-        if (end === start + v.leaseTerm) {
+        /* Turn-in charges only land if this cycle actually finishes inside
+           the horizon. When extending there is one contract and it ends
+           when you do, so the car always goes back inside the comparison. */
+        if (extending || end === start + cycleLen) {
             led.add(v.leaseDisposition, end, 'fees');
             /* The inspection happens when the car goes back, so this lands
                with the disposition fee and only on cycles that finish. */
@@ -329,7 +341,7 @@ function scenarioLease(v) {
         } else {
             /* The horizon ends mid-contract — the remaining payments
                are outside the comparison, not forgiven. */
-            unfinishedMonths = start + v.leaseTerm - v.months;
+            unfinishedMonths = start + cycleLen - v.months;
         }
     }
 
@@ -339,6 +351,7 @@ function scenarioLease(v) {
     return finish(t, v, {
         resale: 0,
         cycles,
+        extending,
         overageTotal,
         wearTotal,
         unfinishedMonths,
