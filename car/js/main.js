@@ -9,7 +9,9 @@ const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation',
     'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
     'leasePrepaidRate', 'leaseDisposition', 'leaseWear', 'leaseRenewal',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice',
-    'flexRate', 'flexStartFee', 'flexAllowance', 'flexBlockPrice',
+    'sixtLdw', 'sixtDriver', 'sixtRoadside', 'sixtLicense', 'sixtExcess',
+    'flexRate', 'flexProtection', 'flexTax', 'flexDelivery', 'flexOnTrack', 'flexExcess',
+    'flexStartFee', 'flexAllowance', 'flexBlockPrice',
     'rentalDaily', 'rentalMonthly'];
 
 function update() {
@@ -120,10 +122,14 @@ function syncPresets(months, v) {
     }
     for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.rentRate &&
-            Number(btn.dataset.allowance) === v.rentAllowance);
+            Number(btn.dataset.start) === v.rentStartFee);
     }
     for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.monthly) === v.rentalMonthly);
+    }
+    for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
+        btn.classList.toggle('active', Number(btn.dataset.rate) === v.flexRate &&
+            Number(btn.dataset.protection) === v.flexProtection);
     }
 }
 
@@ -228,6 +234,7 @@ for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('rentRate').value = btn.dataset.rate;
         if (btn.dataset.allowance) $('rentAllowance').value = btn.dataset.allowance;
+        if (btn.dataset.start !== undefined) $('rentStartFee').value = btn.dataset.start;
         update();
     });
 }
@@ -237,6 +244,15 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
         $('leasePayment').value = btn.dataset.payment;
         if (btn.dataset.signing !== undefined) $('leaseSigning').value = btn.dataset.signing;
         if (btn.dataset.term) $('leaseTerm').value = btn.dataset.term;
+        update();
+    });
+}
+
+for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
+    btn.addEventListener('click', () => {
+        $('flexRate').value = btn.dataset.rate;
+        $('flexProtection').value = btn.dataset.protection;
+        $('flexDelivery').value = btn.dataset.delivery;
         update();
     });
 }

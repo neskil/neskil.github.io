@@ -28,16 +28,15 @@ function routeVehicle(key, v) {
             : 'the car you described';
         return { text: described + ' · ' + usd0(v.price), matches: true };
     }
-    const ROW = { lease: 'leasePresets', sixt: 'rentPresets', rental: 'rentalPresets' };
+    const ROW = { lease: 'leasePresets', sixt: 'rentPresets', flexcar: 'flexPresets',
+                  rental: 'rentalPresets' };
     const preset = ROW[key] ? activePreset(ROW[key]) : null;
     if (preset && preset.car) {
         return { text: preset.car + (preset.msrp ? ' · about ' + usdK(preset.msrp) + ' new' : ''),
                  matches: false, msrp: preset.msrp };
     }
-    if (key === 'flexcar') {
-        return { text: 'whatever Flexcar has locally · about $30k new', matches: false, msrp: 30000 };
-    }
-    const rate = { lease: v.leasePayment, sixt: v.rentRate, flexcar: v.flexRate,
+    const rate = { lease: v.leasePayment, sixt: v.rentRate + v.sixtLdw + v.sixtDriver +
+                   v.sixtRoadside + v.sixtLicense, flexcar: v.flexRate,
                    rental: v.rentalMonthly }[key];
     return { text: 'whatever your ' + usd0(rate) + '/mo quote is for', matches: false, msrp: 0 };
 }
@@ -351,7 +350,15 @@ function renderOptionNotes(results, v) {
                 (allowance - perMonth).toLocaleString('en-US') + ' to spare — and unused miles roll ' +
                 'over, so it is your average that has to fit, not every single month.');
         }
-        bits.push('Effective all-in: <strong>' + usd0(res.monthlyOutlay) + '/mo</strong>.');
+        bits.unshift('The contract runs to <strong>' + usd0(res.allIn) + '/mo</strong>' +
+            (res.insuranceLine
+                ? ', of which ' + usd0(res.insuranceLine) + ' is cover you would otherwise be buying ' +
+                  'yourself — against ' + usd0(v.insurance) + '/mo on the owning routes'
+                : '') + '.');
+        bits.push('With fuel and any mileage blocks on top: <strong>' + usd0(res.monthlyOutlay) +
+            '/mo</strong>.' + (res.excessRisk
+                ? ' This case also books the <strong>' + usd0(res.excessRisk) + '</strong> damage excess once.'
+                : ''));
         $(host).innerHTML = bits.join(' ');
     };
     subNote(results.sixt, v.rentAllowance, v.rentBlockPrice, 'rentNote');

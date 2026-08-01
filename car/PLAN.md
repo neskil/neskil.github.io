@@ -104,12 +104,54 @@ not a published figure — it is an option-value question. The 30-day exit is
 worth real money against a lease you cannot leave, and the page still only says
 so in prose.
 
-## Still open from the six-route pass
+## Real contracts, August 2026
 
-- **Subscriptions are not modelled as pausable**, per above.
-- **The 650 Flexcar threshold is third-party**, not published by Flexcar.
-- **Rental monthly rates are contract, not retail** — a floor. A retail Atlanta
-  quote would be better.
+Both subscriptions are now modelled from actual documents rather than a
+remembered headline, and both turned out to be structured differently from how
+they are advertised.
+
+**Sixt+, from a live contract.** "About $1,000" is five charges: $804.56
+subscription, $144.35 loss damage waiver, $67.13 second driver, $22.37 extended
+roadside, $6.00 vehicle licence fee — **$1,044.41/mo, tax included**. Two
+corrections to what the page used to say: the second driver is *not* free, and
+the exit is not 30 days from day one — that contract carried a **two-month
+minimum term**. The waiver sits on a **$1,000 financial responsibility**, so it
+is an excess, not cover. Waiver plus driver comes to $211.48/mo, within two
+dollars of what the owning routes pay for insurance.
+
+**Sixt+ pricing barely tracks the car.** X1 subscription line $804.56; a BMW X3
+— a class up — quotes **$819.00**, fourteen dollars more, on a shorter one-month
+minimum and a $199 entry fee against $500. A RAV4, much the cheapest car of the
+three, costs more than the X1. Price the model, never the class, and always ask
+for the size up.
+
+**Flexcar, from live listings.** Real totals are **$749–754/mo plus tax**, far
+below the $850 the page had guessed. Structure: a car line plus a *mandatory*
+protection plan — Essential $245/mo with a $2,000 deductible, or Enhanced
+$295/mo with $500 and glass — because personal and credit-card cover explicitly
+do not extend to a Flexcar. Basic liability is state minimum only. Plus $249/yr
+membership (servicing, tyres, brakes, roadside, 20¢/gal at Sunoco; free for two
+weeks) and a delivery fee that ranges from **$199 to $874** depending on where
+the car is. **OnTrack** cuts the rate after six months of on-time payment and
+safe driving — $734 → $684 in their own example — and follows you across cars.
+
+**The comparison trap that motivated the tax field:** Sixt+ quotes with tax in,
+Flexcar quotes without. Reading the two headlines side by side flatters Flexcar
+by whatever the local rate is.
+
+## Still open
+
+- **Subscriptions are not modelled as pausable.** The 30-day-after-minimum exit
+  is real value and nothing on the page prices optionality.
+- **The 650 Flexcar threshold is third-party** (ValuePenguin); Flexcar checks
+  credit but publishes no minimum.
+- **Rental monthly rates are government contract rates** — a floor, not a
+  retail Atlanta quote.
+- **Sixt+ minimum term is a price lever the page does not model.** One month
+  against two changed both the rate and the entry fee in the two real quotes;
+  the page takes them as given rather than letting you trade term for rate.
+- **Flexcar's mileage tiers are not selectable.** Standard 850 / Cruiser 1,200 /
+  Road Warrior 2,000 each carry their own price, and the page has one number.
 
 ## 1. Electric and hybrid powertrains — the biggest remaining gap
 
