@@ -435,6 +435,7 @@ function scenarioSubscription(v, cfg) {
         allowance: cfg.allowance,
         rate: cfg.rate,
         allIn,
+        annualFee: cfg.annualFee ? cfg.startFee : 0,
         insuranceLine: cfg.insurance || 0,
         excessRisk,
         monthlyOutlay: allIn + overagePerMonth + fuel
