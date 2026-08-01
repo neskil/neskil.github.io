@@ -288,9 +288,11 @@ function renderChart(results, v) {
 
             /* Label the segment in place when there is room for the word.
                Dark ink, not white: near-black clears 4.5:1 on all six
-               fills where white manages only 3.1–4.2. Below the width
-               threshold the segment stays a colour and the legend and
-               tooltip carry it, which is why both are still here. */
+               fills where white manages only 3.1–4.2. A share of the
+               track is only a first guess at whether the word fits — the
+               same 13% is 90px on a desktop column and 40px on a phone —
+               so the real check happens against measured pixels once the
+               bars are in the document. */
             if (pct >= 13) {
                 seg.textContent = segmentLabel(comp, opt.key);
                 seg.classList.add('labelled');
@@ -312,6 +314,15 @@ function renderChart(results, v) {
         }
         row.appendChild(track);
         chart.appendChild(row);
+    }
+
+    /* Now that the bars have real widths, drop any label that did not
+       actually fit rather than showing a clipped half-word. */
+    for (const seg of chart.querySelectorAll('.bar-seg.labelled')) {
+        if (seg.scrollWidth > seg.clientWidth + 1) {
+            seg.textContent = '';
+            seg.classList.remove('labelled');
+        }
     }
 
     /* One shared scale across the four bars, so their lengths are

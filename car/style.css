@@ -175,9 +175,9 @@ body {
    panel becomes a direct child and can be ordered on its own.
 
    Wide: two columns, the answer on the left and the inputs on the right,
-   because on a wide screen "first" is left rather than top. The answer
-   sticks while you change things beside it. The order property below is
-   irrelevant there — the columns carry the order instead. */
+   because on a wide screen "first" is left rather than top. The order
+   property below is irrelevant there — the columns carry the order
+   instead. */
 .app-grid {
     display: flex;
     flex-direction: column;
@@ -272,15 +272,29 @@ body {
    away and the page becomes a page you can see the shape of. */
 .collapsible > summary {
     cursor: pointer;
-    margin-bottom: 0;
     list-style: none;
     user-select: none;
-    padding-right: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .collapsible > summary::-webkit-details-marker { display: none; }
-.collapsible[open] > summary { margin-bottom: 10px; }
-.collapsible > summary:hover { color: var(--text-secondary); }
+.collapsible[open] > summary { margin-bottom: 12px; }
+
+/* The point of folding these was to shorten the page, not to hide what is
+   in them. Each carries a standfirst that survives the fold, so the whole
+   page can be read top-down at one level of detail and opened only where
+   you want the next one. */
+.panel-gist {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.collapsible > summary .panel-title { margin-bottom: 0; }
+.collapsible > summary:hover .panel-title { color: var(--text-secondary); }
+.collapsible > summary:hover .panel-gist { color: var(--text-primary); }
 
 /* A chevron that turns, pinned to the right of whatever the title says.
    .hint already claims margin-left:auto, so this only needs to follow. */
@@ -797,6 +811,35 @@ tbody tr.total-row td {
 .callout .ico { flex: 0 0 auto; font-size: 1rem; }
 .callout strong { color: var(--text-primary); }
 .callout.warn { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.07); }
+
+/* ── Folded explainers ───────────────────────────────────────────────
+   Three of these sat open inside the inputs panel — a couple of hundred
+   words each, stacked between you and the next field. The point they
+   make is worth one line; the argument behind it is worth reading once.
+   So the line stays and the argument folds. Same idea as the reference
+   panels at the foot of the page, one level down. */
+.callout.explainer {
+    display: block;
+    padding: 0;
+}
+
+.callout.explainer > summary {
+    display: flex;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.callout.explainer > summary::-webkit-details-marker { display: none; }
+.callout.explainer > summary:hover { color: var(--text-primary); }
+.callout.explainer > summary .chev-mark { display: inline-block; vertical-align: middle; margin-left: 6px; }
+.callout.explainer[open] > summary { padding-bottom: 4px; }
+.callout.explainer[open] > summary .chev-mark { transform: rotate(45deg); }
+
+.explainer-body {
+    padding: 0 12px 11px 38px;
+}
 
 .mono { font-family: 'JetBrains Mono', monospace; }
 
@@ -1516,12 +1559,14 @@ input[type="range"]::-moz-range-thumb {
            grid auto-placement will not backtrack to fill row 1 behind
            it, which would leave the answer stranded below the fold. */
         grid-row: 1;
-        position: sticky;
-        top: 16px;
-        max-height: calc(100vh - 32px);
-        overflow-y: auto;
-        padding-right: 4px;
     }
+
+    /* This column used to be sticky with max-height and its own
+       overflow, which put a second scrollbar inside the page: the
+       break-even chart sat below the fold of a scroller most people
+       would never notice, and the outer scroll wheel did not reach it.
+       Both columns are now about the same height, so letting them scroll
+       together costs nothing and loses no content. */
     .controls-col {
         display: flex;
         flex-direction: column;
@@ -1529,13 +1574,6 @@ input[type="range"]::-moz-range-thumb {
         min-width: 0;
         grid-column: 2;
         grid-row: 1;
-    }
-    .results-col::-webkit-scrollbar {
-        width: 6px;
-    }
-    .results-col::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 4px;
     }
 }
 
