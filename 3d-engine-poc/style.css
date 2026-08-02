@@ -113,6 +113,12 @@ html, body {
     letter-spacing: 0.05em;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .secondary-btn {
     display: flex;
     align-items: center;
@@ -308,6 +314,17 @@ html, body {
 .button-group {
     display: flex;
     gap: 6px;
+}
+
+.select-input {
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.8);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    cursor: pointer;
 }
 
 /* Palette Buttons */

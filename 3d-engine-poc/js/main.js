@@ -2,16 +2,18 @@
     'use strict';
 
     let scene, camera, renderer, orbitControls;
-    let sunLight, ambientLight, hemisphereLight, groundGrid;
-    let sceneControls;
+    let sunLight, ambientLight, hemisphereLight, groundGrid, groundMat;
+    let sceneControls, terminal;
+    let clock;
 
     function init() {
         const container = document.getElementById('canvas-container');
+        clock = new THREE.Clock();
 
         // 1. Create 3D Scene
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a);
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.012);
 
         // 2. Camera Setup
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -49,7 +51,7 @@
         sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 0.5;
         sunLight.shadow.camera.far = 100;
-        const shadowD = 25;
+        const shadowD = 30;
         sunLight.shadow.camera.left = -shadowD;
         sunLight.shadow.camera.right = shadowD;
         sunLight.shadow.camera.top = shadowD;
@@ -59,7 +61,13 @@
         // 6. Ground Terminal Base & Grid
         createGroundTerminal();
 
-        // 7. Initialize Controls & UI Integration
+        // 7. Weather & Audio Engines
+        window.Cargo3D.Weather.initWeather(scene);
+
+        // 8. Intermodal Train & Semi-Truck Terminal
+        terminal = new window.Cargo3D.IntermodalTerminal(scene);
+
+        // 9. Initialize Controls & UI Integration
         sceneControls = new window.Cargo3D.SceneControls(
             scene,
             camera,
@@ -70,21 +78,23 @@
             function() {}
         );
 
-        window.Cargo3D.setupUI(sceneControls, setLightingPreset);
+        window.Cargo3D.setupUI(sceneControls, function(mode) {
+            window.Cargo3D.Weather.setWeatherPreset(scene, sunLight, ambientLight, groundMat, mode);
+        }, terminal);
 
-        // 8. Spawn Starter Containers for immediate visual impression
+        // 10. Spawn Starter Containers
         spawnInitialDemoYard();
 
-        // 9. Window Resize Handling
+        // 11. Window Resize Handling
         window.addEventListener('resize', onWindowResize);
 
-        // 10. Start Animation Loop
+        // 12. Start Animation Loop
         animate();
     }
 
     function createGroundTerminal() {
         const groundGeo = new THREE.PlaneGeometry(80, 80);
-        const groundMat = new THREE.MeshStandardMaterial({
+        groundMat = new THREE.MeshStandardMaterial({
             color: 0x1e293b,
             roughness: 0.8,
             metalness: 0.2
@@ -107,34 +117,6 @@
             pole.castShadow = true;
             scene.add(pole);
         });
-    }
-
-    function setLightingPreset(mode) {
-        if (mode === 'dusk') {
-            scene.background.setHex(0x1e1b4b);
-            scene.fog.color.setHex(0x1e1b4b);
-            sunLight.position.set(-30, 10, -20);
-            sunLight.color.setHex(0xf97316);
-            sunLight.intensity = 1.2;
-            ambientLight.color.setHex(0xc084fc);
-            ambientLight.intensity = 0.4;
-        } else if (mode === 'night') {
-            scene.background.setHex(0x050b14);
-            scene.fog.color.setHex(0x050b14);
-            sunLight.position.set(10, 25, 10);
-            sunLight.color.setHex(0x38bdf8);
-            sunLight.intensity = 0.8;
-            ambientLight.color.setHex(0x6366f1);
-            ambientLight.intensity = 0.3;
-        } else {
-            scene.background.setHex(0x0f172a);
-            scene.fog.color.setHex(0x0f172a);
-            sunLight.position.set(20, 30, 15);
-            sunLight.color.setHex(0xfffbeb);
-            sunLight.intensity = 1.4;
-            ambientLight.color.setHex(0xffffff);
-            ambientLight.intensity = 0.6;
-        }
     }
 
     function spawnInitialDemoYard() {
@@ -165,6 +147,10 @@
 
     function animate() {
         requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        if (sceneControls) sceneControls.update(delta);
+        if (window.Cargo3D.Weather) window.Cargo3D.Weather.updateWeather(delta);
 
         orbitControls.update();
         renderer.render(scene, camera);

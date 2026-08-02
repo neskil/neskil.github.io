@@ -17,6 +17,7 @@
 
         this.placedObjects = [];
         this.selectedObject = null;
+        this.cameraMode = 'orbit';
 
         // Current Spawn Configuration
         this.selectedType = '20ft';
@@ -30,6 +31,9 @@
         // Ground Raycast Plane at Y = 0
         this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+        // Reach Stacker Vehicle Instance
+        this.vehicle = new window.Cargo3D.ReachStacker(this.scene);
+
         this.initEventListeners();
     }
 
@@ -40,7 +44,32 @@
 
     SceneControls.prototype.initEventListeners = function() {
         const container = this.renderer.domElement;
-        container.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        const self = this;
+        
+        container.addEventListener('pointerdown', function(e) { self.onPointerDown(e); });
+
+        // Spacebar to trigger reach stacker pickup / drop
+        window.addEventListener('keydown', function(e) {
+            if (e.code === 'Space') {
+                const action = self.vehicle.togglePickupContainer(self.placedObjects);
+                if (action !== 'none') {
+                    self.updateHUDCallback(self.placedObjects);
+                }
+            }
+        });
+    };
+
+    SceneControls.prototype.update = function(delta) {
+        if (this.vehicle) {
+            this.vehicle.update(this.placedObjects);
+
+            // Follow vehicle with camera if in vehicle camera mode
+            if (this.cameraMode === 'vehicle') {
+                const vehPos = this.vehicle.group.position;
+                this.camera.position.set(vehPos.x - 12 * Math.cos(this.vehicle.angle), vehPos.y + 7, vehPos.z + 12 * Math.sin(this.vehicle.angle));
+                this.orbitControls.target.set(vehPos.x, vehPos.y + 2, vehPos.z);
+            }
+        }
     };
 
     SceneControls.prototype.onPointerDown = function(event) {
@@ -55,7 +84,7 @@
         const selectableMeshes = [];
         this.placedObjects.forEach(group => {
             group.traverse(child => {
-                if (child.isMesh) {
+                if (child.isMesh && !child.userData.isInterior) {
                     child.userData.parentGroup = group;
                     selectableMeshes.push(child);
                 }
@@ -105,6 +134,7 @@
         this.placedObjects.push(containerGroup);
         this.updateHUDCallback(this.placedObjects);
 
+        if (window.Cargo3D.Audio) window.Cargo3D.Audio.playLockSound();
         this.selectObject(containerGroup);
     };
 
@@ -127,6 +157,7 @@
         this.selectedObject.rotation.y += Math.PI / 2;
         this.selectionBox.setFromObject(this.selectedObject);
         this.showInspectorCallback(this.selectedObject);
+        if (window.Cargo3D.Audio) window.Cargo3D.Audio.playLockSound();
     };
 
     SceneControls.prototype.deleteSelectedUnit = function() {
@@ -150,6 +181,7 @@
     };
 
     SceneControls.prototype.setCameraMode = function(mode) {
+        this.cameraMode = mode;
         if (!this.orbitControls) return;
 
         if (mode === 'iso') {
@@ -158,6 +190,10 @@
         } else if (mode === 'crane') {
             this.camera.position.set(0, 35, 0.1);
             this.orbitControls.target.set(0, 0, 0);
+        } else if (mode === 'vehicle') {
+            const vehPos = this.vehicle.group.position;
+            this.camera.position.set(vehPos.x - 12, vehPos.y + 7, vehPos.z + 12);
+            this.orbitControls.target.set(vehPos.x, vehPos.y + 2, vehPos.z);
         } else {
             this.camera.position.set(16, 12, 20);
             this.orbitControls.target.set(0, 2, 0);

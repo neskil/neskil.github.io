@@ -3,7 +3,7 @@
 
     window.Cargo3D = window.Cargo3D || {};
 
-    function setupUI(sceneControls, setLightingPreset) {
+    function setupUI(sceneControls, setWeatherPreset, terminal) {
         const countEl = document.getElementById('metric-count');
         const teuEl = document.getElementById('metric-teu');
         const volEl = document.getElementById('metric-vol');
@@ -51,6 +51,7 @@
         sceneControls.showInspectorCallback = showInspector;
         sceneControls.hideInspectorCallback = hideInspector;
 
+        // Palette Selector
         const paletteBtns = document.querySelectorAll('.palette-btn');
         paletteBtns.forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -63,52 +64,83 @@
             });
         });
 
+        // Camera View Mode Buttons
         const camOrbitBtn = document.getElementById('cam-orbit');
         const camIsoBtn = document.getElementById('cam-iso');
         const camCraneBtn = document.getElementById('cam-crane');
-        const camBtns = [camOrbitBtn, camIsoBtn, camCraneBtn];
+        const camVehicleBtn = document.getElementById('cam-vehicle');
+        const camBtns = [camOrbitBtn, camIsoBtn, camCraneBtn, camVehicleBtn];
 
-        camOrbitBtn.addEventListener('click', function() {
-            camBtns.forEach(function(b) { b.classList.remove('active'); });
+        if (camOrbitBtn) camOrbitBtn.addEventListener('click', function() {
+            camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
             camOrbitBtn.classList.add('active');
             sceneControls.setCameraMode('orbit');
         });
 
-        camIsoBtn.addEventListener('click', function() {
-            camBtns.forEach(function(b) { b.classList.remove('active'); });
+        if (camIsoBtn) camIsoBtn.addEventListener('click', function() {
+            camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
             camIsoBtn.classList.add('active');
             sceneControls.setCameraMode('iso');
         });
 
-        camCraneBtn.addEventListener('click', function() {
-            camBtns.forEach(function(b) { b.classList.remove('active'); });
+        if (camCraneBtn) camCraneBtn.addEventListener('click', function() {
+            camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
             camCraneBtn.classList.add('active');
             sceneControls.setCameraMode('crane');
         });
 
-        const lightDayBtn = document.getElementById('light-day');
-        const lightDuskBtn = document.getElementById('light-dusk');
-        const lightNightBtn = document.getElementById('light-night');
-        const lightBtns = [lightDayBtn, lightDuskBtn, lightNightBtn];
-
-        lightDayBtn.addEventListener('click', function() {
-            lightBtns.forEach(function(b) { b.classList.remove('active'); });
-            lightDayBtn.classList.add('active');
-            setLightingPreset('day');
+        if (camVehicleBtn) camVehicleBtn.addEventListener('click', function() {
+            camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
+            camVehicleBtn.classList.add('active');
+            sceneControls.setCameraMode('vehicle');
         });
 
-        lightDuskBtn.addEventListener('click', function() {
-            lightBtns.forEach(function(b) { b.classList.remove('active'); });
-            lightDuskBtn.classList.add('active');
-            setLightingPreset('dusk');
-        });
+        // Weather Selector Dropdown
+        const weatherSelect = document.getElementById('weather-select');
+        if (weatherSelect) {
+            weatherSelect.addEventListener('change', function(e) {
+                setWeatherPreset(e.target.value);
+            });
+        }
 
-        lightNightBtn.addEventListener('click', function() {
-            lightBtns.forEach(function(b) { b.classList.remove('active'); });
-            lightNightBtn.classList.add('active');
-            setLightingPreset('night');
-        });
+        // X-Ray View Toggle
+        const xrayBtn = document.getElementById('btn-toggle-xray');
+        if (xrayBtn) {
+            xrayBtn.addEventListener('click', function() {
+                const active = window.Cargo3D.Containers.toggleXRayMode(sceneControls.placedObjects);
+                xrayBtn.classList.toggle('active', active);
+            });
+        }
 
+        // Stress Heatmap Toggle
+        const heatmapBtn = document.getElementById('btn-toggle-heatmap');
+        if (heatmapBtn) {
+            heatmapBtn.addEventListener('click', function() {
+                const active = window.Cargo3D.Containers.toggleStressHeatmap(sceneControls.placedObjects);
+                heatmapBtn.classList.toggle('active', active);
+            });
+        }
+
+        // Audio Mute Toggle
+        const audioBtn = document.getElementById('btn-audio-toggle');
+        if (audioBtn) {
+            audioBtn.addEventListener('click', function() {
+                const muted = window.Cargo3D.Audio.toggleMute();
+                audioBtn.innerHTML = muted ? '🔇 Muted' : '🔊 Audio ON';
+            });
+        }
+
+        // Auto Train Unloader Script Button
+        const trainBtn = document.getElementById('btn-unload-train');
+        if (trainBtn) {
+            trainBtn.addEventListener('click', function() {
+                if (terminal) {
+                    terminal.autoUnloadTrain(sceneControls);
+                }
+            });
+        }
+
+        // Inspector Buttons
         document.getElementById('btn-close-inspector')?.addEventListener('click', function() {
             sceneControls.deselectObject();
         });
