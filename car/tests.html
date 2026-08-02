@@ -205,10 +205,59 @@
             res.accountability.fuel.formula.includes('mi/kWh'));
     })();
 
+    // ── 7. Insurance Age Decay Test ─────────────────────────────
+    (function testInsuranceDecay() {
+        carPowertrain = 'petrol';
+        const v = readInputs();
+        v.months = 60;
+        v.buyAge = 0;
+        v.insurance = 200;
+        const res = computeAll(v);
+        assert('Insurance decays slightly over 5 years (Month 60 insurance < Month 1 insurance)',
+            res.cash.components.insurance < 200 * 60);
+    })();
+
+    // ── 8. Price Synchronization Test ─────────────────────────────
+    (function testPriceSync() {
+        priceAnchor = 'price';
+        document.getElementById('price').value = '30000';
+        document.getElementById('taxRate').value = '7';
+        document.getElementById('fees').value = '800';
+        syncPriceFields();
+        const expectedOtd = 30000 * 1.07 + 800;
+        assert('syncPriceFields calculates OTD price ($30,000 * 1.07 + $800 = $' + expectedOtd + ')',
+            approx(num('otd'), expectedOtd, 1));
+    })();
+
+    // ── 9. Scenario Uncertainty Spread Test ───────────────────────
+    (function testScenarioSpread() {
+        const held = scenarioCase;
+        scenarioCase = 'optimistic';
+        const resOpt = computeAll(readInputs());
+        scenarioCase = 'expected';
+        const resExp = computeAll(readInputs());
+        scenarioCase = 'pessimistic';
+        const resPess = computeAll(readInputs());
+        scenarioCase = held;
+
+        assert('Scenario uncertainty bounds hold (Optimistic < Expected < Pessimistic)',
+            resOpt.cash.perMonth < resExp.cash.perMonth && resExp.cash.perMonth < resPess.cash.perMonth);
+    })();
+
+    // ── 10. Depreciation Curve Test ────────────────────────────────
+    (function testDepreciationCurves() {
+        const valJap = retainedValue(5, 'japanese');
+        const valAvg = retainedValue(5, 'average');
+        const valLux = retainedValue(5, 'germanLux');
+        assert('Japanese 5-yr retention > Average > German Luxury',
+            valJap > valAvg && valAvg > valLux);
+    })();
+
     // Summary output
     const summary = document.getElementById('summary');
     summary.innerHTML = passed + ' passed, ' + failed + ' failed' +
-        (failed ? ' <span class="fail">(' + fails.join(', ') + ')</span>' : '');
+        (failed ? ' (' + fails.join(', ') + ')' : '');
+
     summary.className = failed ? 'fail' : 'pass';
     </script>
 </body>
