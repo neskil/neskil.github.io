@@ -1565,20 +1565,24 @@
            Which background the page wears is decided here, before first paint,
            so nobody sees the default ramp swap out a moment later.
 
-           A first-ever visit lands on a random one. Every visit after that steps
-           one along, so a returning visitor works through the whole set instead
-           of seeing the same page twice — the position lives in localStorage.
-           Sitting on the page also steps it along every 30s, with the layers
-           cross-fading (see .bg-variant). A pick from the vault pins one for the
-           life of the tab (sessionStorage) and stops the rotation.
+           Blueprint is the house style. A first-ever visit always gets it; every
+           visit after that rolls a die, and one time in four the page wanders off
+           to one of the others instead. The same roll happens again every 30s of
+           reading, so a long visit drifts now and then — most rolls land back on
+           Blueprint and nothing moves, and when one doesn't, the layers
+           cross-fade (see .bg-variant). A pick from the vault pins one for the
+           life of the tab (sessionStorage) and stops the rolling.
 
-           Adding a variant is one entry here plus its CSS layer. */
+           Adding a variant is one entry here plus its CSS layer; it joins the
+           pool the 25% is drawn from. */
         const BG_VARIANTS = [
             { id: 'blueprint', label: 'Blueprint' },
             { id: 'aurora', label: 'Aurora' },
             { id: 'dawn', label: 'Dawn' }
         ];
-        const BG_LAST_KEY = 'bgVariant.last';
+        const BG_DEFAULT = 'blueprint';
+        const BG_WANDER_CHANCE = 0.25;
+        const BG_SEEN_KEY = 'bgVariant.seen';
         const BG_PIN_KEY = 'bgVariant.pinned';
         const BG_ROTATE_MS = 30000;
 
@@ -1588,11 +1592,19 @@
 
         const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
 
+        /* Blueprint three times in four, one of the rest otherwise */
+        function bgRoll() {
+            if (Math.random() >= BG_WANDER_CHANCE) return BG_DEFAULT;
+            const rest = BG_VARIANTS.filter(v => v.id !== BG_DEFAULT);
+            if (!rest.length) return BG_DEFAULT;
+            return rest[Math.floor(Math.random() * rest.length)].id;
+        }
+
         function bgApply(id) {
-            if (!bgIsKnown(id)) id = BG_VARIANTS[0].id;
+            if (!bgIsKnown(id)) id = BG_DEFAULT;
+            if (id === bgCurrent) return;
             bgCurrent = id;
             document.documentElement.setAttribute('data-bg', id);
-            try { localStorage.setItem(BG_LAST_KEY, id); } catch (e) { }
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
@@ -1601,10 +1613,7 @@
             bgTimer = null;
             if (bgPinned) return;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            bgTimer = setInterval(() => {
-                const i = BG_VARIANTS.findIndex(v => v.id === bgCurrent);
-                bgApply(BG_VARIANTS[(i + 1) % BG_VARIANTS.length].id);
-            }, BG_ROTATE_MS);
+            bgTimer = setInterval(() => bgApply(bgRoll()), BG_ROTATE_MS);
         }
 
         /* id === null hands the page back to the rotation */
@@ -1620,14 +1629,16 @@
                 bgApply(bgPinned);
             } else {
                 bgStartRotation();
-                document.dispatchEvent(new CustomEvent('bg:change'));
             }
+            // Pinning what is already on screen is a no-op for bgApply, so the
+            // picker has to be told either way.
+            document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
         (function bgInit() {
-            let pinned = null, last = null;
+            let pinned = null, seen = null;
             try { pinned = sessionStorage.getItem(BG_PIN_KEY); } catch (e) { }
-            try { last = localStorage.getItem(BG_LAST_KEY); } catch (e) { }
+            try { seen = localStorage.getItem(BG_SEEN_KEY); } catch (e) { }
 
             if (bgIsKnown(pinned)) {
                 bgPinned = pinned;
@@ -1635,11 +1646,9 @@
                 return;
             }
 
-            const lastIdx = BG_VARIANTS.findIndex(v => v.id === last);
-            bgApply(BG_VARIANTS[
-                lastIdx < 0 ? Math.floor(Math.random() * BG_VARIANTS.length)
-                    : (lastIdx + 1) % BG_VARIANTS.length
-            ].id);
+            // First time here is always the house style; after that it can wander.
+            bgApply(seen ? bgRoll() : BG_DEFAULT);
+            try { localStorage.setItem(BG_SEEN_KEY, '1'); } catch (e) { }
             bgStartRotation();
         })();
 
@@ -1733,7 +1742,7 @@
                     <div class="vault-row-icon">🎨</div>
                     <div class="vault-row-body">
                         <div class="vault-row-title">Background</div>
-                        <div class="vault-row-desc" id="vault-bg-desc">Rotates on its own. Pick one to hold it for this tab.</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">Mostly Blueprint, occasionally not. Pick one to hold it for this tab.</div>
                     </div>
                 </div>
                 <div class="vault-bg-chips" id="vault-bg-chips"></div>
@@ -2562,8 +2571,8 @@
                 btn.dataset.live = String(!!id && id === bgCurrent);
             }
             bgDesc.textContent = bgPinned
-                ? 'Held for this tab. Auto puts it back on rotation.'
-                : 'Rotates every 30s, and again on your next visit. Pick one to hold it.';
+                ? 'Held for this tab. Auto lets it wander again.'
+                : 'Blueprint most of the time, something else one visit in four. Pick one to hold it.';
         }
 
         if (bgChips && bgDesc) {
