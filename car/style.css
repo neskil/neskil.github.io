@@ -1000,19 +1000,34 @@ footer {
     z-index: 61;
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -46%) scale(0.98);
-    width: min(760px, calc(100vw - 20px));
-    max-height: min(92vh, 900px);
+    transform: translate(-50%, -50%) scale(0.98);
+    width: min(820px, calc(100vw - 24px));
+    max-height: min(86vh, 820px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    background: var(--card-bg);
+    background: #0f172a;
     border: 1px solid var(--glass-border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 16px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal::-webkit-scrollbar {
+    width: 6px;
+}
+.modal::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+.modal::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+.modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .modal.open {
@@ -1022,11 +1037,19 @@ footer {
 }
 
 .modal-head {
+    position: sticky;
+    top: -16px;
+    z-index: 20;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
+    margin: -16px -16px 12px -16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--glass-border);
 }
+
 
 .modal-head h2 {
     font-size: 1.05rem;
