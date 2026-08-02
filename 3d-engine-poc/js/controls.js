@@ -1,8 +1,9 @@
-import * as THREE from 'three';
-import { createContainerMesh, CONTAINER_SPECS } from './containers.js';
+(function(window) {
+    'use strict';
 
-export class SceneControls {
-    constructor(scene, camera, renderer, orbitControls, updateHUDCallback, showInspectorCallback, hideInspectorCallback) {
+    window.Cargo3D = window.Cargo3D || {};
+
+    function SceneControls(scene, camera, renderer, orbitControls, updateHUDCallback, showInspectorCallback, hideInspectorCallback) {
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
@@ -32,29 +33,25 @@ export class SceneControls {
         this.initEventListeners();
     }
 
-    setSpawnConfig(type, carrier) {
+    SceneControls.prototype.setSpawnConfig = function(type, carrier) {
         this.selectedType = type;
         this.selectedCarrier = carrier;
-    }
+    };
 
-    initEventListeners() {
+    SceneControls.prototype.initEventListeners = function() {
         const container = this.renderer.domElement;
-        
         container.addEventListener('pointerdown', (e) => this.onPointerDown(e));
-    }
+    };
 
-    onPointerDown(event) {
-        // Ignore clicks if clicking on UI overlays
+    SceneControls.prototype.onPointerDown = function(event) {
         if (event.target.tagName !== 'CANVAS') return;
 
-        // Calculate normalized mouse coords (-1 to +1)
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        // First check raycast against existing placed container objects
         const selectableMeshes = [];
         this.placedObjects.forEach(group => {
             group.traverse(child => {
@@ -68,26 +65,21 @@ export class SceneControls {
         const intersects = this.raycaster.intersectObjects(selectableMeshes);
 
         if (intersects.length > 0) {
-            // Selected an existing container
             const hitGroup = intersects[0].object.userData.parentGroup;
             this.selectObject(hitGroup);
         } else {
-            // Raycast against Ground Plane to spawn new container
             const ray = this.raycaster.ray;
             const targetPos = new THREE.Vector3();
             if (ray.intersectPlane(this.groundPlane, targetPos)) {
-                // If we had a selected object, deselect it first
                 if (this.selectedObject) {
                     this.deselectObject();
                     return;
                 }
 
-                // Grid Snapping (2.5m grid step)
-                const spec = CONTAINER_SPECS[this.selectedType] || CONTAINER_SPECS['20ft'];
+                const spec = window.Cargo3D.Containers.CONTAINER_SPECS[this.selectedType] || window.Cargo3D.Containers.CONTAINER_SPECS['20ft'];
                 const gridX = Math.round(targetPos.x / 2.5) * 2.5;
                 const gridZ = Math.round(targetPos.z / 2.5) * 2.5;
 
-                // Find highest existing stack height at (gridX, gridZ)
                 let baseHeight = spec.height / 2;
                 this.placedObjects.forEach(obj => {
                     const dx = Math.abs(obj.position.x - gridX);
@@ -103,42 +95,41 @@ export class SceneControls {
                 this.spawnContainer(gridX, baseHeight, gridZ);
             }
         }
-    }
+    };
 
-    spawnContainer(x, y, z) {
-        const containerGroup = createContainerMesh(this.selectedType, this.selectedCarrier);
+    SceneControls.prototype.spawnContainer = function(x, y, z) {
+        const containerGroup = window.Cargo3D.Containers.createContainerMesh(this.selectedType, this.selectedCarrier);
         containerGroup.position.set(x, y, z);
         this.scene.add(containerGroup);
 
         this.placedObjects.push(containerGroup);
         this.updateHUDCallback(this.placedObjects);
 
-        // Auto select newly spawned unit
         this.selectObject(containerGroup);
-    }
+    };
 
-    selectObject(group) {
+    SceneControls.prototype.selectObject = function(group) {
         this.selectedObject = group;
         this.selectionBox.setFromObject(group);
         this.selectionBox.visible = true;
 
         this.showInspectorCallback(group);
-    }
+    };
 
-    deselectObject() {
+    SceneControls.prototype.deselectObject = function() {
         this.selectedObject = null;
         this.selectionBox.visible = false;
         this.hideInspectorCallback();
-    }
+    };
 
-    rotateSelectedUnit() {
+    SceneControls.prototype.rotateSelectedUnit = function() {
         if (!this.selectedObject) return;
         this.selectedObject.rotation.y += Math.PI / 2;
         this.selectionBox.setFromObject(this.selectedObject);
         this.showInspectorCallback(this.selectedObject);
-    }
+    };
 
-    deleteSelectedUnit() {
+    SceneControls.prototype.deleteSelectedUnit = function() {
         if (!this.selectedObject) return;
 
         this.scene.remove(this.selectedObject);
@@ -149,32 +140,31 @@ export class SceneControls {
 
         this.deselectObject();
         this.updateHUDCallback(this.placedObjects);
-    }
+    };
 
-    clearYard() {
+    SceneControls.prototype.clearYard = function() {
         this.placedObjects.forEach(obj => this.scene.remove(obj));
         this.placedObjects = [];
         this.deselectObject();
         this.updateHUDCallback(this.placedObjects);
-    }
+    };
 
-    setCameraMode(mode) {
+    SceneControls.prototype.setCameraMode = function(mode) {
         if (!this.orbitControls) return;
 
         if (mode === 'iso') {
-            // Isometric Top-Right View
             this.camera.position.set(25, 25, 25);
             this.orbitControls.target.set(0, 0, 0);
         } else if (mode === 'crane') {
-            // Crane Top-Down Direct View
             this.camera.position.set(0, 35, 0.1);
             this.orbitControls.target.set(0, 0, 0);
         } else {
-            // Free Orbit Standard View
             this.camera.position.set(16, 12, 20);
             this.orbitControls.target.set(0, 2, 0);
         }
 
         this.orbitControls.update();
-    }
-}
+    };
+
+    window.Cargo3D.SceneControls = SceneControls;
+})(window);
