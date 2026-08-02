@@ -271,6 +271,40 @@ for (const btn of document.querySelectorAll('#creditTiers .preset-btn')) {
     });
 }
 
+if ($('statePreset')) {
+    $('statePreset').addEventListener('change', () => {
+        const key = $('statePreset').value;
+        if (STATE_PRESETS[key]) {
+            const st = STATE_PRESETS[key];
+            $('taxRate').value = st.taxRate;
+            POWERTRAIN_TYPES.ev.evRegistrationSurcharge = st.evFee;
+            syncPriceFields();
+            update();
+        }
+    });
+}
+
+if ($('shareScenarioBtn')) {
+    $('shareScenarioBtn').addEventListener('click', () => {
+        const params = new URLSearchParams();
+        params.set('price', $('price').value);
+        params.set('pt', carPowertrain);
+        params.set('horizon', $('horizon').value);
+        params.set('credit', creditTier);
+        params.set('miles', $('miles').value);
+        params.set('state', $('statePreset') ? $('statePreset').value : 'ga');
+        const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            const orig = $('shareScenarioBtn').textContent;
+            $('shareScenarioBtn').textContent = '✓ Link copied!';
+            setTimeout(() => { $('shareScenarioBtn').textContent = orig; }, 2000);
+        }).catch(() => {
+            prompt('Copy shareable URL:', shareUrl);
+        });
+    });
+}
+
+
 /* A subscription preset is a rate *and* a cap — the Sixt+ 500 mi/mo
    allowance is as much a part of the quote as the $1,000. */
 for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
