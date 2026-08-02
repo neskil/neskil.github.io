@@ -133,7 +133,6 @@ reach with `Math.random` stubbed, zone-exit safety), plus
 `probe-screenshot.html?script=dustLane` — a new probe script that pins the
 lander at a given altitude, drives traffic/fog synchronously, and stamps
 density, traffic-in-fog count, and hull loss per simulated second.
->>>>>>> claude/level-5-fog-difficulty-431702
 
 ---
 

@@ -197,7 +197,8 @@ _drawFogWarning(cfg, rgb, w) {
         const label = (cfg.fogBandDamage || 0) > 0
             ? '⚠ DUST STORM — HULL ABRASION'
             : '⚠ DUST STORM — VISIBILITY ZERO';
-        ctx.fillText(label, w / 2, 112);
+        // Below the speed pill — the top HUD band owns everything above ~130px.
+        ctx.fillText(label, w / 2, 152);
         ctx.restore();
     },
 
