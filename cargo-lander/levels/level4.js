@@ -7,14 +7,15 @@ registerLevel({
   missionTitle: "Anomaly Zone — Vortex Run",
   description: "HQ sits on a western plateau; the cargo dock is atop a ridge pillar far to the east, past a gravitational vortex drifting in slow orbit over the open valley. Bring each crate back to the Hollow — a cave alcove carved into the ridge below the dock — but a lava vent guards its mouth, flaring on a duty cycle. Time the flare, duck inside to deliver, then take the low tunnel under the valley floor straight back to HQ instead of running the vortex a second time.",
   hint: "The cavern is unlit — you're flying on the lander's spotlight, and its sonar ping sweeps the terrain silhouette every few seconds. Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. The amber sonar ring marks the lava vent: it seals the corridor when it flares, so wait out a flare and cross on the long gap after it. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
-  gravity: 0.11,          // Eased gravity baseline so lander floats smoothly
+  gravity: 0.09,          // Light gravity baseline so lander handles with ease
   maxFuel: 300,
   windVarianceEnabled: false,
   weather: "ash",
-  night: false,           // Bright cavern run — full visibility of terrain and structures
-  fee: 150,
-  timeLimit: 260,
-  padScale: 1.3,
+  night: true,            // Enables radar sonar ping & spotlight beam
+  nightDarkness: 0.35,    // Light 35% base darkness — early level stays bright and clear!
+  fee: 100,
+  timeLimit: 300,
+  padScale: 1.4,
   targetCargo: 2,
   allowedTypes: ["normal"],
   backgroundType: "cave",
@@ -83,10 +84,10 @@ registerLevel({
   hazards: [
     {
       type: "gravwell",
-      speed: 700,
-      radius: 250,
-      startForce: 0.10,
-      endForce: 0.10,
+      speed: 900,
+      radius: 180,
+      startForce: 0.05,
+      endForce: 0.05,
       pts: [
         {x: 1940, y: -160},
         {x: 130, y: -570},
@@ -95,8 +96,8 @@ registerLevel({
     },
     {
       type: "incinerator",
-      onMs: 1000,
-      offMs: 5000,
+      onMs: 800,
+      offMs: 6000,
       warnMs: 900,
       behindTerrain: true,
       pts: [

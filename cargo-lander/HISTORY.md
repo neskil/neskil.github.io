@@ -8,6 +8,16 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — Configurable `nightDarkness` base opacity added for Night Ops + Level 4 rebalance (v0.20.2)
+
+Reported as "make the radar pulse have a parameter for the base darkness, the later level it's use is good level of darkness, but the early level it's too dark."
+
+- **Configurable `nightDarkness` Parameter**: Added `nightDarkness` (0.00 to 1.00) to level schema and `render/night.js`. Allows levels to keep Night Ops spotlight beams and sonar radar pings without total blackouts.
+- **Level 4 Soft Darkness**: Re-enabled `night: true` on Level 4 with `nightDarkness: 0.35` (soft 35% atmospheric shade). Early players keep full terrain & pad visibility alongside the radar sonar ping effect.
+- **Extra Gravity & Hazard Easing**: Eased baseline gravity down to `0.09`, reduced gravwell radius to `180` with `0.05` pull, and lengthened incinerator safe gap to `6000ms`.
+
+---
+
 ## 2026-08-02 — L4 difficulty & lighting rebalance: lower gravity + bright cavern + easier hazards (v0.20.1)
 
 Reported as "level 4 a bit more brighter please it's too dark, to high gravity and too hard currently. would like to scale it down a bit".

@@ -69,7 +69,8 @@ const LEVEL_SCHEMA = {
     { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Sun/Shadow Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
     { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shadow Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
-    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Dramatically darkens the level and relies on ship headlights.', recommended:'False' },
+    { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Darkens the level and enables ship headlights + sonar ping.', recommended:'False' },
+    { key:'nightDarkness',   type:'number',    default:0.90, nullable:true, widget:'number', label:'Night Darkness Alpha', step:0.05, desc:'Base opacity (0.00 - 1.00) of the night overlay. Lower values (e.g. 0.35) keep early levels bright while retaining radar sonar pings.', recommended:'0.35 - 0.45 for early levels, 0.90 for total darkness', sliderMin:0, sliderMax:1, sliderStep:0.05 },
     // Altitude fog band (render/fog.js + physics/atmosphere.js fogDensityAt).
     // A soft ceiling made of weather: visibility collapses as the lander climbs
     // into it. Inactive unless BOTH Y bounds are set. Distinct from palette.fog.
