@@ -8,6 +8,47 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — L4 Anomaly Zone was unclearable; night ops + sonar ping (v0.19.15)
+
+Reported as "lower gravity on level 4", then "the burning hazard needs to be a
+lot slower and not as wide, currently impossible".
+
+**Gravity.** L4 sat at `0.22` — far and away the heaviest level (next is L2 at
+`0.16`, most are `0.12`) and outside `levelSchema.js`'s recommended `0.10 -
+0.15` band. Lowered to `0.15`. The drifting gravwell is the level's gravity
+gimmick; the baseline didn't need to carry it too.
+
+**The vent.** The incinerator sits in the corridor between the Ground polygon's
+underside (y≈390) and Polygon 2's roof (y≈615) — the only route west into The
+Hollow. Its polygon spanned x140–460, which is the corridor's *entire* 320px
+opening, so an active flare sealed the passage wall-to-wall. Timing was
+`onMs:1500 / offMs:1000` with no `warnMs`, so the default 600ms charge warning
+ate most of the gap: 400ms of clear air to cross 320px, on 60% duty. Not
+survivable — the report was accurate.
+
+Now `onMs:1400 / offMs:4200 / warnMs:900` (period 2.5s → 5.6s, duty 60% → 25%,
+clear window 400ms → 3300ms) and the polygon is halved to x230–390, leaving
+~90px of clearance either side inside the corridor. It still seals top-to-bottom
+while lit, so it's a timing gate, not a wall.
+
+**Regression guard.** `tests.html`'s hazards test now asserts every timed
+laser/incinerator leaves `offMs - warnMs >= 900ms` of clear-and-unwarned air,
+using the same `?? default` warnMs the physics uses — the failure mode here was
+a config that reads fine field-by-field but is impossible in combination.
+Verified it fails on the old `offMs:1000` before re-fixing.
+
+**Night ops.** L4 is an unlit volcanic cavern, so it got `night: true` (second
+level to use it after L10) — darkness overlay, lander spotlight, objective beam,
+and the periodic lander sonar sweep that reveals terrain silhouettes. Paired
+with a `radarPingZone` centred on the vent (`310,490`, r 340, amber `249,115,22`
+to match the palette's `rockEdge`), since in the dark the vent is otherwise
+invisible until it flares in your face. `hint` rewritten to teach both.
+
+Verified with `run-tests.sh` (142 passed / 0 failed) plus probe screenshots of
+the corridor (vent vs. corridor width) and of the night overlay at HQ.
+
+---
+
 ## 2026-07-30 — Fullscreen button threw a red error banner on iPhone (v0.19.14)
 
 Reported as "full screen gives error message on iphone". The message was
