@@ -9,11 +9,29 @@
 //   (see hazards[] below) marks the AI spawn zone
 // The worm only spawns after all cargo is delivered if the player lingers — or if OOB timeout fires.
 // The sandworm hazard's centroid drives an animated sonar ring (drawRadarPingZone() in render/ui.js).
+//
+// ── 2026-08-02 difficulty pass: the level had no vertical pressure ──────────
+// The old build could be beaten by climbing to ~y:150 and cruising straight
+// over the mound: the worm's spawn zone topped out around y:300 and nothing
+// else lived up there, so altitude was a free bypass of the level's one hazard.
+// Three changes turn height into a trade instead of an answer:
+//   1. A dust-storm band (fogBandTopY/BottomY) caps the sky. Visibility falls
+//      off from y:330 upward and is a whiteout by y:40, and the grit costs hull
+//      the whole time you're in it — so "just fly higher" is blind AND expensive.
+//   2. Heavy freight traffic is pinned to y:60-300 — i.e. INSIDE that band. The
+//      high road is now a blind lane full of trucks you meet at ~200px notice
+//      (render/fog.js leaves each one a faint running-light glow in the murk).
+//   3. The worm actually hunts: it tracks the lander for ~14 frames instead of
+//      ~1, its strike carries ~570px above the sand instead of ~320, and
+//      proximityScale:2 makes hugging the peak near-certain death.
+// Net: cross low and clear-eyed through the worm's reach, or cross high and
+// blind through the freight lane. Threading the seam between them (y:250-330)
+// gets you a bit of both.
 
 registerLevel({
     name: "L6: The Sand Worm's Lair",
     missionTitle: "Amber Dusk — Sand Worm Extraction",
-    description: "A colossal sand worm has colonised the central dune mound, making the valley floor extremely dangerous. Descend to the left-side shelf to collect cargo, then fly low and fast across the worm's territory to the Eastern Base on the far plateau. The creature hunts by vibration — slow hovering near the mound is an invitation.",
+    description: "A colossal sand worm has colonised the central dune mound, and a standing dust storm has pushed the freight lanes down on top of it. Collect cargo from the left-side shelf, then pick your poison: run the valley floor where you can see but the worm can reach you, or climb into the storm where nothing can reach you except the traffic you won't see coming.",
     weather: 'heatwave',
 
     // ── Identity flag ─────────────────────────────────────────────────────────
@@ -21,8 +39,32 @@ registerLevel({
 
     // ── Physics ───────────────────────────────────────────────────────────────
     gravity: 0.14,
-    wind: 0.02,       // Light, constant desert breeze — texture, not a real obstacle
+    wind: 0.03,       // Storm-driven; the gust cycle below does the real work
     heatHaze: true,
+    // Gusts sell the storm and add a telegraphed, dodgeable pressure on the
+    // crossing — the wind meter flashes amber through `warn` before each surge.
+    windGust: { calm: 5, warn: 2, gust: 5, gustMult: 3.2 },
+
+    // ── Dust storm ceiling ────────────────────────────────────────────────────
+    // Visibility ramps from clear at y:330 to a near-total whiteout at y:40 and
+    // above (render/fog.js). fogBandDamage is grit abrasion at full density —
+    // ~1.4 hull/sec at the freight lane's midpoint, ~2.9 up at the ceiling — so
+    // loitering at altitude bleeds you even if you never touch anything.
+    fogBandBottomY: 330,
+    fogBandTopY: 40,
+    fogBandColor: '210,150,80',
+    fogBandOpacity: 0.94,
+    fogBandDamage: 3,
+
+    // ── Freight traffic ───────────────────────────────────────────────────────
+    // Rate 4 => up to 20 concurrent vehicles, spawning every ~105 frames, and
+    // the pre-warm seeds 4-8 already in the air at mission start. The Y band is
+    // deliberately the same slab of sky as the dust storm: that overlap IS the
+    // level's second hazard.
+    ambientTrafficRate: 4,
+    ambientTrafficSpeed: 1.5,
+    ambientTrafficMinY: 60,     // top of the lane (smaller Y = higher)
+    ambientTrafficMaxY: 300,    // bottom of the lane, just above the clear air
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     // One large organic polygon:
@@ -59,7 +101,7 @@ registerLevel({
     targetCargo: 2,
     deposit: 1000,
     fee: 300,
-    timeLimit: 240,
+    timeLimit: 260,   // +20s over the old build — both routes are slower now
     allowedTypes: ["normal"],
 
     // Start HQ on the upper-left plateau
@@ -89,20 +131,36 @@ registerLevel({
     ],
 
     // ── Hazards ───────────────────────────────────────────────────────────────
-    // Worm danger zone — a triangle around the central mound (cx:900, cy:580,
-    // reach:280 — same footprint as the old 12-point circle approximation).
-    // drawRadarPingZone() (render/ui.js) sonar-pings the triangle's centroid,
-    // so the ping origin always tracks the hazard shape instead of a
-    // separately-maintained radarPingZone config. spawnRate is the risk
-    // multiplier used by the sand-worm spawn check (see terrainType:'worm-lair'
-    // handling in physics/atmosphere.js) while the lander is inside the zone.
+    // Worm danger zone — a triangle around the central mound (cx:900, cy:580).
+    // drawRadarPingZone() (render/ui.js) sonar-pings the triangle's centroid and
+    // sizes the warning ring off `reach`, so the visible zone always matches the
+    // spawn check. spawnRate is the base risk multiplier while the lander is
+    // inside the zone; proximityScale scales it up toward the centre (see the
+    // terrainType:'worm-lair' handling in physics/atmosphere.js).
+    //
+    // reach:330 lifts the zone's ceiling to y:250 above the peak, so it now
+    // overlaps the bottom of the freight lane — there is no altitude that is
+    // clear of both. The strike-shape fields (trackFrames/decay/etc, defaulted
+    // in _sandWormTuning()) are what make it a hunt rather than a formality:
+    // 14 frames of homing punishes hovering but stays dodgeable if you're
+    // moving, and decay:0.94 carries the arc ~570px up instead of ~320.
     hazards: [
         {
             type: 'sandworm',
             spawnRate: 1.0,
-            reach: 280,
+            proximityScale: 2.0,   // 3x risk directly over the peak vs the zone edge
+            reach: 330,
             color: '200, 100, 20',
             period: 5400,
+            trackFrames: 14,
+            steer: 3.2,
+            lungeSpeed: 34,
+            maxSpeed: 46,
+            decay: 0.94,
+            retractSpeed: 16,
+            hitRadius: 85,
+            damage: 6,
+            wormLength: 42,
             comment: 'Worm danger zone (central mound)',
             pts: [
                 {x: 900, y: 300}, {x: 658, y: 720}, {x: 1143, y: 720}
@@ -122,7 +180,7 @@ registerLevel({
     },
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    hint: "Descend quickly to the left valley to collect cargo, then gain altitude before crossing the central mound — the worm targets anything near the dune peak. Once delivered, return to HQ fast.",
+    hint: "Two ways across, both bad. LOW: skim the valley floor and the mound's flanks — you can see everything, but the worm's sonar ring is the zone it can strike into, and hovering anywhere near the peak summons it. HIGH: climb into the dust storm above y:330 — the worm can't reach you, but visibility drops to nothing, the grit grinds your hull, and the freight lanes run straight through it. Watch for running lights in the murk; that's your only warning. The seam just under the storm is the narrowest safe line.",
 
     quests: [
         questPrimary('Deliver 2 cargo to Eastern Base'),

@@ -53,6 +53,7 @@
 <script src="render/creatures.js"></script>
 <script src="render/effects.js"></script>
 <script src="render/night.js"></script>
+<script src="render/fog.js"></script>
 <script src="render/ui.js"></script>
 <script src="game/tutorial.js"></script>
 <script>
@@ -69,6 +70,8 @@
     'render/lander.js mixin':     () => typeof CargoGame.prototype.drawLander === 'function',
     'render/creatures.js mixin':  () => typeof CargoGame.prototype.drawSandWorm === 'function' && typeof CargoGame.prototype.drawMonster === 'function',
     'render/terrain.js mixin':    () => typeof CargoGame.prototype.drawTerrain === 'function',
+    'render/fog.js mixin':        () => typeof CargoGame.prototype.drawAltitudeFog === 'function',
+    'physics fog mixin':          () => typeof CargoPhysics.prototype.fogDensityAt === 'function' && typeof CargoPhysics.prototype.updateAltitudeFog === 'function',
     'physics mixins':             () => typeof CargoPhysics.prototype.initLevel === 'function',
   };
   for (const [name, fn] of Object.entries(checks)) {

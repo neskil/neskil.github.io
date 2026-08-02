@@ -38,7 +38,13 @@ done
 if [ -z "$PY" ]; then echo "FATAL: no working python found"; exit 2; fi
 
 # ── Serve the folder ─────────────────────────────────────────────────────────
-PORT=8177
+# Port is chosen by the OS, not hardcoded. With a fixed port, a server left
+# running by ANOTHER git worktree of this repo already owns it: our
+# http.server fails to bind and dies, the readiness curl below happily answers
+# from the squatter, and every check then validates a different checkout while
+# reporting PASS. That is worse than a failure, so we also verify below that
+# the server we reached is actually serving THIS directory.
+PORT=$("$PY" -c "import socket; s=socket.socket(); s.bind(('127.0.0.1', 0)); print(s.getsockname()[1]); s.close()")
 BASE="http://localhost:$PORT"
 "$PY" -m http.server "$PORT" >/dev/null 2>&1 &
 SRV=$!
@@ -48,6 +54,13 @@ for _ in $(seq 1 20); do
   if curl -s -o /dev/null "$BASE/tests.html"; then break; fi
   sleep 0.5
 done
+
+# Identity check — the bytes on the wire must match the bytes on disk.
+if ! curl -s "$BASE/tests.html" | diff -q - tests.html >/dev/null 2>&1; then
+  echo "FATAL: http://localhost:$PORT is not serving this directory."
+  echo "       Something else answered on the port we picked; results would be meaningless."
+  exit 2
+fi
 
 # Extra flags headless Linux sandboxes tend to need are harmless elsewhere
 FLAGS=(--headless=new --disable-gpu --no-first-run --no-sandbox)
