@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Car Calculator — Logic & Powertrain Tests</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: system-ui, monospace; padding: 1.5rem; line-height: 1.5; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #38bdf8; }
+        .pass { color: #34d399; }
+        .fail { color: #f87171; font-weight: bold; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; padding: 0.5rem; background: #1e293b; border-radius: 6px; }
+        .test-row { margin-bottom: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🚗 Car Lease · Rent · Buy Calculator — Test Suite</h1>
+    <div id="summary">Running tests…</div>
+    <div id="results"></div>
+
+    <!-- DOM Stubs needed for model functions -->
+    <div style="display:none">
+        <input id="horizon" value="60">
+        <input id="price" value="32000">
+        <input id="otd" value="35040">
+        <input id="taxRate" value="7">
+        <input id="fees" value="800">
+        <select id="depreciation"><option value="average">US average</option></select>
+        <select id="disposal"><option value="instant">Instant offer</option></select>
+        <input id="resale" value="0" data-touched="0">
+        <input id="miles" value="12000">
+        <input id="insurance" value="210">
+        <input id="maintenance" value="110">
+        <input id="mpg" value="28">
+        <input id="gasPrice" value="3.90">
+        <input id="evMiPerKwh" value="3.4">
+        <input id="evKwhPrice" value="0.15">
+        <input id="registration" value="70">
+        <input id="cash" value="40000">
+        <input id="returnRate" value="5">
+        <input id="down" value="5000">
+        <input id="apr" value="6.27">
+        <input id="loanTerm" value="60">
+        <input id="leasePayment" value="365">
+        <input id="leaseSigning" value="2500">
+        <input id="leaseTerm" value="36">
+        <input id="leaseAllowance" value="12">
+        <input id="leaseOverage" value="0.25">
+        <select id="leaseMileagePlan"><option value="payatend">Pay at end</option></select>
+        <input id="leasePrepaidRate" value="0.15">
+        <input id="leaseDisposition" value="395">
+        <input id="leaseWear" value="250">
+        <select id="leaseRenewal"><option value="resign">Re-sign</option></select>
+        <input id="rentRate" value="805">
+        <input id="rentStartFee" value="0">
+        <input id="rentAllowance" value="500">
+        <input id="rentBlockPrice" value="199">
+        <input id="sixtLdw" value="144">
+        <input id="sixtDriver" value="67">
+        <input id="sixtRoadside" value="22">
+        <input id="sixtLicense" value="6">
+        <input id="sixtExcess" value="1000">
+        <input id="sixtTax" value="11.9">
+        <input id="flexRate" value="454">
+        <input id="flexProtection" value="295">
+        <input id="ownInsuranceQuote" value="160">
+        <input id="flexTax" value="6">
+        <input id="flexDelivery" value="199">
+        <input id="flexOnTrack" value="50">
+        <input id="flexExcess" value="2000">
+        <input id="flexStartFee" value="249">
+        <input id="flexAllowance" value="850">
+        <input id="flexBlockPrice" value="50">
+        <input id="rentalDaily" value="78">
+        <input id="rentalMonthly" value="908">
+    </div>
+
+    <!-- Scripts under test -->
+    <script src="js/data.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/model.js"></script>
+
+    <script>
+    let passed = 0, failed = 0;
+    const fails = [];
+
+    function assert(name, condition, detail) {
+        const div = document.createElement('div');
+        div.className = 'test-row ' + (condition ? 'pass' : 'fail');
+        if (condition) {
+            passed++;
+            div.textContent = '✓ ' + name;
+        } else {
+            failed++;
+            fails.push(name);
+            div.textContent = '✗ FAIL: ' + name + (detail ? ' — ' + detail : '');
+        }
+        document.getElementById('results').appendChild(div);
+    }
+
+    function approx(a, b, eps = 0.01) {
+        return Math.abs(a - b) <= eps;
+    }
+
+    // ── 1. Reference Data Tests ─────────────────────────────────────
+    (function testData() {
+        assert('POWERTRAIN_TYPES defines petrol, hybrid, and ev',
+            POWERTRAIN_TYPES.petrol && POWERTRAIN_TYPES.hybrid && POWERTRAIN_TYPES.ev);
+
+        assert('EV maintenance multiplier is 0.50 (-50%)',
+            POWERTRAIN_TYPES.ev.maintMult === 0.50);
+
+        assert('EV insurance multiplier is 1.25 (+25%)',
+            POWERTRAIN_TYPES.ev.insMult === 1.25);
+
+        assert('GA EV tag surcharge is $238/yr',
+            POWERTRAIN_TYPES.ev.evRegistrationSurcharge === 238);
+
+        assert('FLEXCAR_TIERS defines standard, cruiser, and warrior',
+            FLEXCAR_TIERS.standard && FLEXCAR_TIERS.cruiser && FLEXCAR_TIERS.warrior);
+    })();
+
+    // ── 2. Fuel Math Tests ──────────────────────────────────────────
+    (function testFuel() {
+        carPowertrain = 'petrol';
+        const vPetrol = readInputs();
+        vPetrol.miles = 12000;
+        vPetrol.mpg = 28;
+        vPetrol.gasPrice = 3.90;
+        const fuelPetrol = monthlyFuel(vPetrol);
+        assert('Petrol fuel cost calculation ($139.29/mo for 12k mi @ 28 mpg, $3.90/gal)',
+            approx(fuelPetrol, 139.29, 0.05));
+
+        carPowertrain = 'ev';
+        const vEV = readInputs();
+        vEV.miles = 12000;
+        vEV.evMiPerKwh = 3.4;
+        vEV.evKwhPrice = 0.15;
+        const fuelEV = monthlyFuel(vEV);
+        assert('EV electricity cost calculation ($44.12/mo for 12k mi @ 3.4 mi/kWh, $0.15/kWh)',
+            approx(fuelEV, 44.12, 0.05));
+    })();
+
+    // ── 3. Powertrain Adjustments Tests ─────────────────────────────
+    (function testPowertrainAdjustments() {
+        carPowertrain = 'ev';
+        const v = readInputs();
+        assert('EV registration includes $238 surcharge ($70 + $238 = $308)',
+            v.registration === 70 + 238);
+
+        assert('EV maintenance multiplier applied to base ($110 * 0.5 = $55)',
+            v.maintenance === 110 * 0.50);
+
+        assert('EV insurance multiplier applied to base ($210 * 1.25 = $262.5)',
+            v.insurance === 210 * 1.25);
+    })();
+
+    // ── 4. Flexcar Tiers Tests ──────────────────────────────────────
+    (function testFlexcarTiers() {
+        flexTier = 'cruiser';
+        const v = readInputs();
+        const res = computeAll(v);
+        assert('Flexcar Cruiser tier applies rate offset (+$50)',
+            res.flexcar.perMonth > 0);
+    })();
+
+    // ── 5. Lease IRA Credit Test ────────────────────────────────────
+    (function testLeaseCredit() {
+        carPowertrain = 'ev';
+        const vEV = readInputs();
+        const resEV = computeAll(vEV);
+        assert('EV lease reflects IRA Sec 45W $7,500 credit',
+            resEV.lease.total > 0 && vEV.leaseResidualBonus === 7500);
+    })();
+
+    // ── 6. Calculation Accountability Test ─────────────────────────
+    (function testAccountability() {
+        carPowertrain = 'ev';
+        const v = readInputs();
+        const res = computeAll(v);
+        assert('computeAll attaches accountability object',
+            res.accountability && res.accountability.fuel && res.accountability.maintenance);
+        assert('Accountability includes EV formula string',
+            res.accountability.fuel.formula.includes('mi/kWh'));
+    })();
+
+    // Summary output
+    const summary = document.getElementById('summary');
+    summary.innerHTML = passed + ' passed, ' + failed + ' failed' +
+        (failed ? ' <span class="fail">(' + fails.join(', ') + ')</span>' : '');
+    summary.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>

@@ -16,6 +16,11 @@ let buyingUsed = false;
    yet" means downstream. */
 let carBrand = null, carAge = null, carBody = null;
 
+/* Powertrain: petrol / hybrid / ev. Flexcar tier: standard / cruiser / warrior. */
+let carPowertrain = 'petrol';
+let flexTier = 'standard';
+
+
 /* Optimistic / expected / pessimistic. */
 let scenarioCase = 'expected';
 

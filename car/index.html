@@ -17,7 +17,8 @@
     <meta property="og:image" content="https://neskil.github.io/assets/og/car.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Car cost calculator comparing cash, finance, lease, two monthly subscriptions and daily rental as stacked cost-per-month bars, with routes your credit file rules out greyed and an optimistic-to-pessimistic range.">
+    <meta property="og:image:alt" content="Car cost calculator comparing cash, finance, lease, EV/hybrid powertrains, subscriptions and rental with calculation accountability and cost breakdowns.">
+
     <meta name="twitter:card" content="summary_large_image">
     <link rel="icon" href="../favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -95,12 +96,18 @@
                 <button class="preset-btn" type="button" data-body="largeSuv">🚌 Three-row SUV</button>
                 <button class="preset-btn" type="button" data-body="truck">🛻 Pickup</button>
             </div>
+            <div class="preset-row" id="powertrainPresets" aria-label="Powertrain">
+                <button class="preset-btn active" type="button" data-powertrain="petrol">⛽ Petrol</button>
+                <button class="preset-btn" type="button" data-powertrain="hybrid">🔋 Hybrid</button>
+                <button class="preset-btn" type="button" data-powertrain="ev">⚡ Electric</button>
+            </div>
             <div class="preset-row" id="agePresets" aria-label="Age when you buy it">
                 <button class="preset-btn" type="button" data-age="new">✨ Brand new</button>
                 <button class="preset-btn" type="button" data-age="three">👍 3 years</button>
                 <button class="preset-btn" type="button" data-age="six">🔧 5–7 years</button>
                 <button class="preset-btn" type="button" data-age="ten">🛠️ 10+ years</button>
             </div>
+
             <div class="callout" id="carProfile" style="margin-bottom:10px">
                 <span class="ico">🚘</span><span></span>
             </div>
@@ -194,19 +201,34 @@
                         <span class="suffix">/mo</span>
                     </div>
                 </div>
-                <div class="field">
+                <div class="field" id="iceMpgField">
                     <label for="mpg">Fuel economy <span style="color:var(--text-mute)">· combined</span></label>
                     <div class="input-shell">
                         <input type="number" id="mpg" min="1" max="150" step="1" value="28">
                         <span class="suffix">mpg</span>
                     </div>
                 </div>
-                <div class="field">
+                <div class="field" id="iceGasPriceField">
                     <label for="gasPrice">Gas price</label>
                     <div class="input-shell">
                         <span class="prefix">$</span>
                         <input type="number" id="gasPrice" min="0" max="15" step="0.05" value="3.90">
                         <span class="suffix">/gal</span>
+                    </div>
+                </div>
+                <div class="field" id="evMiPerKwhField" style="display:none">
+                    <label for="evMiPerKwh">EV efficiency <span style="color:var(--text-mute)">· combined</span></label>
+                    <div class="input-shell">
+                        <input type="number" id="evMiPerKwh" min="0.5" max="10" step="0.1" value="3.4">
+                        <span class="suffix">mi/kWh</span>
+                    </div>
+                </div>
+                <div class="field" id="evKwhPriceField" style="display:none">
+                    <label for="evKwhPrice">Electricity rate <span style="color:var(--text-mute)">· home/avg</span></label>
+                    <div class="input-shell">
+                        <span class="prefix">$</span>
+                        <input type="number" id="evKwhPrice" min="0" max="2" step="0.01" value="0.15">
+                        <span class="suffix">/kWh</span>
                     </div>
                 </div>
                 <div class="field">
@@ -221,6 +243,14 @@
             <div class="callout" style="margin-top:10px">
                 <span class="ico">🏷️</span><span id="disposalNote"></span>
             </div>
+            <details class="callout explainer" id="accountabilityDetails" open style="margin-top:10px">
+                <summary><span class="ico">🔍</span>
+                    <span><strong>Calculation Accountability &amp; Formula Breakdown.</strong> Step-by-step audit of your fuel, maintenance, insurance, and state fees.<span class="chev-mark" aria-hidden="true"></span></span></summary>
+                <div class="explainer-body" id="accountabilityBody">
+                    <!-- Rendered dynamically by panels.js -->
+                </div>
+            </details>
+
             <details class="callout explainer">
                 <summary><span class="ico">🔁</span>
                     <span><strong>What a trade-in actually is.</strong> The lowest gross price of the three, but it takes the tax off your next car and takes one afternoon.<span class="chev-mark" aria-hidden="true"></span></span></summary>
@@ -666,7 +696,13 @@
                         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6" /></svg>
                 </summary>
                 <div class="option-body">
+                    <div class="preset-row" id="flexTierPresets" aria-label="Flexcar Mileage Tiers" style="margin-bottom:6px">
+                        <button class="preset-btn active" type="button" data-tier="standard">Standard 850 mi/mo</button>
+                        <button class="preset-btn" type="button" data-tier="cruiser">Cruiser 1,200 mi/mo (+$50)</button>
+                        <button class="preset-btn" type="button" data-tier="warrior">Road Warrior 2,000 mi (+$150)</button>
+                    </div>
                     <div class="preset-row" id="flexPresets" aria-label="Real Flexcar listings">
+
                         <button class="preset-btn" type="button" data-rate="424" data-protection="245"
                                 data-delivery="0" data-allowance="850" data-car="a Hyundai Tucson"
                                 data-msrp="30000">Tucson, Standard · $709.14</button>
