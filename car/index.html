@@ -1661,16 +1661,77 @@
         </p>
     </div>
 
-    <!-- Enlarged Graph Modal -->
+    <!-- Enlarged Interactive Graph Modal -->
     <div class="modal-backdrop" id="graphBackdrop"></div>
-    <div class="modal" id="graphModal" role="dialog" aria-modal="true" aria-labelledby="graphTitle" hidden style="width:min(1050px, calc(100vw - 20px))">
+    <div class="modal" id="graphModal" role="dialog" aria-modal="true" aria-labelledby="graphTitle" hidden style="width:min(1100px, calc(100vw - 20px))">
         <div class="modal-head">
             <span>🔍</span>
-            <h2 id="graphTitle">Enlarged Chart View</h2>
+            <h2 id="graphTitle">Interactive High-Res Chart Explorer</h2>
             <button type="button" class="modal-close" id="graphClose" aria-label="Close">✕</button>
         </div>
+        <!-- Enlarged Chart Controls Bar -->
+        <div class="field-grid" style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.25);border-radius:10px;gap:8px;">
+            <div class="field">
+                <label for="zoomStartYr">Start Horizon</label>
+                <div class="input-shell">
+                    <select id="zoomStartYr">
+                        <option value="0" selected>0 yr (Start)</option>
+                        <option value="1">1 yr</option>
+                        <option value="2">2 yr</option>
+                        <option value="3">3 yr</option>
+                        <option value="5">5 yr</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomEndYr">End Horizon</label>
+                <div class="input-shell">
+                    <select id="zoomEndYr">
+                        <option value="2">2 yr</option>
+                        <option value="3">3 yr</option>
+                        <option value="5" selected>5 yr</option>
+                        <option value="8">8 yr</option>
+                        <option value="10">10 yr</option>
+                        <option value="15">15 yr</option>
+                        <option value="20">20 yr</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomMeasure">Cost Measure</label>
+                <div class="input-shell">
+                    <select id="zoomMeasure">
+                        <option value="perMonth" selected>Per Month ($/mo)</option>
+                        <option value="total">Total Horizon Cost ($)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomPowertrain">Powertrain</label>
+                <div class="input-shell">
+                    <select id="zoomPowertrain">
+                        <option value="petrol">⛽ Petrol</option>
+                        <option value="hybrid">🔋 Hybrid</option>
+                        <option value="ev">⚡ Electric</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomScenario">Uncertainty Case</label>
+                <div class="input-shell">
+                    <select id="zoomScenario">
+                        <option value="optimistic">Optimistic</option>
+                        <option value="expected" selected>Expected</option>
+                        <option value="pessimistic">Pessimistic</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <div id="expandedChartContainer" style="padding:12px 0;width:100%"></div>
+        <div id="expandedChartLegend" class="legend" style="margin-top:4px"></div>
     </div>
+
 
     <!-- Depreciation by model -->
     <div class="modal-backdrop" id="depBackdrop"></div>

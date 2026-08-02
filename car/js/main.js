@@ -464,42 +464,73 @@ document.addEventListener('keydown', (e) => {
 
 if ($('expandBeChart')) {
     $('expandBeChart').addEventListener('click', () => {
-        const v = readInputs();
-        const maxMonths = Math.max(24, Math.min(240, Math.ceil((v.months + 24) / 12) * 12));
-        const step = maxMonths > 132 ? 3 : 2;
-        const points = costCurve(v, maxMonths, step);
-        const measure = curveMeasure;
-
-        const values = [];
-        for (const p of points) for (const o of OPTIONS) values.push(curveValue(p, o.key, measure));
-        const yMax = Math.max(...values) * 1.06;
-        const yMin = Math.min(0, Math.min(...values));
-
-        const width = 1000, height = 480;
-        const pad = { l: 60, r: 110, t: 20, b: 50 };
-        const f = chartFrame({ width, height, pad, xMin: 6, xMax: maxMonths, yMin, yMax });
-        const yStep = niceStep(yMax - yMin, 5);
-
-        let svg = '<svg class="linechart" viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto" role="img">';
-        for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
-            svg += '<line class="grid" x1="' + pad.l + '" y1="' + f.py(y).toFixed(1) + '" x2="' + (width - pad.r) + '" y2="' + f.py(y).toFixed(1) + '"/>';
-            svg += '<text class="tick" x="' + (pad.l - 8) + '" y="' + (f.py(y) + 4).toFixed(1) + '" text-anchor="end" style="font-size:13px">' + (measure === 'total' ? usdShort(y) : usd0(y)) + '</text>';
-        }
-        for (let m = 12; m <= maxMonths; m += 12) {
-            svg += '<line class="grid" x1="' + f.px(m).toFixed(1) + '" y1="' + pad.t + '" x2="' + f.px(m).toFixed(1) + '" y2="' + (height - pad.b) + '"/>';
-            svg += '<text class="tick" x="' + f.px(m).toFixed(1) + '" y="' + (height - pad.b + 18) + '" text-anchor="middle" style="font-size:13px">' + (m / 12) + ' yr</text>';
-        }
-        for (const o of OPTIONS) {
-            const pts = points.map((p) => f.px(p.month).toFixed(1) + ' ' + f.py(curveValue(p, o.key, measure)).toFixed(1));
-            svg += '<path d="M' + pts.join(' L') + '" fill="none" stroke="var(--opt-' + o.key + ')" stroke-width="3.5"/>';
-            const lastP = points[points.length - 1];
-            const ly = f.py(curveValue(lastP, o.key, measure));
-            svg += '<text x="' + (width - pad.r + 8) + '" y="' + (ly + 4).toFixed(1) + '" fill="var(--opt-' + o.key + ')" style="font-size:12px;font-weight:700">' + o.label + '</text>';
-        }
-        svg += '</svg>';
-        openGraphModal('Break-Even Horizon Chart (Enlarged High-Res View)', svg);
+        $('zoomPowertrain').value = carPowertrain;
+        $('zoomScenario').value = scenarioCase;
+        openGraphModal('Interactive High-Res Horizon Explorer', '');
+        renderInteractiveZoomChart();
     });
 }
+
+for (const id of ['zoomStartYr', 'zoomEndYr', 'zoomMeasure', 'zoomPowertrain', 'zoomScenario']) {
+    const el = $(id);
+    if (el) el.addEventListener('change', renderInteractiveZoomChart);
+}
+
+function renderInteractiveZoomChart() {
+    const startMo = Math.max(0, Number($('zoomStartYr').value) * 12);
+    let endMo = Math.max(startMo + 12, Number($('zoomEndYr').value) * 12);
+    if (endMo <= startMo) endMo = startMo + 12;
+
+    const measure = $('zoomMeasure').value;
+    const ptKey = $('zoomPowertrain').value;
+    const scen = $('zoomScenario').value;
+
+    const heldPt = carPowertrain;
+    const heldScen = scenarioCase;
+    carPowertrain = ptKey;
+    scenarioCase = scen;
+
+    const v = readInputs();
+    const points = costCurve(v, endMo, 2).filter((p) => p.month >= startMo);
+
+    carPowertrain = heldPt;
+    scenarioCase = heldScen;
+
+    const values = [];
+    for (const p of points) for (const o of OPTIONS) values.push(curveValue(p, o.key, measure));
+    const yMax = (Math.max(...values) || 100) * 1.06;
+    const yMin = Math.min(0, Math.min(...values));
+
+    const width = 1000, height = 480;
+    const pad = { l: 65, r: 120, t: 20, b: 50 };
+    const f = chartFrame({ width, height, pad, xMin: Math.max(0.5, startMo), xMax: endMo, yMin, yMax });
+    const yStep = niceStep(yMax - yMin, 6);
+
+    let svg = '<svg class="linechart" viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto" role="img">';
+    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
+        svg += '<line class="grid" x1="' + pad.l + '" y1="' + f.py(y).toFixed(1) + '" x2="' + (width - pad.r) + '" y2="' + f.py(y).toFixed(1) + '"/>';
+        svg += '<text class="tick" x="' + (pad.l - 8) + '" y="' + (f.py(y) + 4).toFixed(1) + '" text-anchor="end" style="font-size:13px">' + (measure === 'total' ? usdShort(y) : usd0(y)) + '</text>';
+    }
+
+    const stepYr = (endMo - startMo) > 120 ? 2 : 1;
+    for (let m = Math.max(12, Math.ceil(startMo / 12) * 12); m <= endMo; m += stepYr * 12) {
+        svg += '<line class="grid" x1="' + f.px(m).toFixed(1) + '" y1="' + pad.t + '" x2="' + f.px(m).toFixed(1) + '" y2="' + (height - pad.b) + '"/>';
+        svg += '<text class="tick" x="' + f.px(m).toFixed(1) + '" y="' + (height - pad.b + 18) + '" text-anchor="middle" style="font-size:13px">' + (m / 12) + ' yr</text>';
+    }
+
+    for (const o of OPTIONS) {
+        const pts = points.map((p) => f.px(p.month).toFixed(1) + ' ' + f.py(curveValue(p, o.key, measure)).toFixed(1));
+        svg += '<path d="M' + pts.join(' L') + '" fill="none" stroke="var(--opt-' + o.key + ')" stroke-width="3.5"/>';
+        const lastP = points[points.length - 1];
+        if (lastP) {
+            const ly = f.py(curveValue(lastP, o.key, measure));
+            svg += '<text x="' + (width - pad.r + 8) + '" y="' + (ly + 4).toFixed(1) + '" fill="var(--opt-' + o.key + ')" style="font-size:13px;font-weight:700">' + o.label + '</text>';
+        }
+    }
+    svg += '</svg>';
+    $('expandedChartContainer').innerHTML = svg;
+}
+
 
 
 window.addEventListener('scroll', hideTooltip, { passive: true });
