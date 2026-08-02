@@ -13,22 +13,37 @@
 function makeLedger(months, monthlyReturn) {
     const flows = [];
     return {
-        add(amount, month, component) {
+        /* `label` is what this money actually is — "sales tax", "doc, title
+           and plates", "one major repair". The component is the colour on
+           the chart; the label is the answer to "what is in that block?",
+           which the chart could not previously give. */
+        add(amount, month, component, label) {
             if (!amount) return;
-            flows.push({ amount, month: Math.min(Math.max(month, 0), months), component });
+            flows.push({ amount, month: Math.min(Math.max(month, 0), months), component, label });
         },
         totals() {
             const out = { depreciation: 0, interest: 0, fees: 0, insurance: 0,
                           maintenance: 0, fuel: 0 };
+            /* Same money, grouped by what it is rather than what colour it
+               is, so a tooltip can itemise a block instead of naming it. */
+            const detail = {};
             let nominal = 0, lostReturn = 0;
             for (const f of flows) {
                 out[f.component] += f.amount;
                 nominal += f.amount;
+                if (f.label) {
+                    detail[f.component] = detail[f.component] || {};
+                    detail[f.component][f.label] = (detail[f.component][f.label] || 0) + f.amount;
+                }
                 const grown = f.amount * Math.pow(1 + monthlyReturn, months - f.month);
                 lostReturn += grown - f.amount;
             }
             out.interest += lostReturn;
-            return { components: out, nominal, lostReturn };
+            if (lostReturn) {
+                detail.interest = detail.interest || {};
+                detail.interest['return your money stops earning'] = lostReturn;
+            }
+            return { components: out, detail, nominal, lostReturn };
         }
     };
 }
@@ -188,6 +203,7 @@ function readInputs() {
         sixtTax: num('sixtTax'),
         flexRate: num('flexRate'),
         flexProtection: num('flexProtection'),
+        ownInsuranceQuote: num('ownInsuranceQuote'),
         flexTax: num('flexTax'),
         flexDelivery: num('flexDelivery'),
         flexOnTrack: num('flexOnTrack'),
@@ -235,24 +251,26 @@ function monthlyFuel(v) {
 function addOwnerRunningCosts(led, v, maintenanceShare) {
     const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
-        led.add(v.insurance, m, 'insurance');
-        led.add(v.maintenance * maintenanceShare, m, 'maintenance');
-        led.add(fuel, m, 'fuel');
+        led.add(v.insurance, m, 'insurance', 'full-coverage premium');
+        led.add(v.maintenance * maintenanceShare, m, 'maintenance',
+            maintenanceShare < 1 ? 'servicing and tyres (warranty covers the rest)' : 'servicing and repairs');
+        led.add(fuel, m, 'fuel', 'petrol at ' + usd0(v.gasPrice) + '/gal, ' + v.mpg + ' mpg');
     }
     const years = Math.ceil(v.months / 12);
     for (let y = 0; y < years; y++) {
-        led.add(v.registration, Math.min(y * 12, v.months), 'fees');
+        led.add(v.registration, Math.min(y * 12, v.months), 'fees', 'annual registration');
     }
     /* A lease keeps you inside cover, so the failure is the bank's. */
     if (v.repairShock && maintenanceShare === 1) {
-        led.add(v.repairShock, Math.round(v.months * 0.6), 'maintenance');
+        led.add(v.repairShock, Math.round(v.months * 0.6), 'maintenance', 'one major failure out of warranty');
     }
 }
 
 function scenarioCash(v) {
     const led = makeLedger(v.months, v.monthlyReturn);
-    led.add(v.price, 0, 'depreciation');
-    led.add(v.price * v.taxRate + v.fees, 0, 'fees');
+    led.add(v.price, 0, 'depreciation', 'the purchase price');
+    led.add(v.price * v.taxRate, 0, 'fees', 'title tax on the purchase');
+    led.add(v.fees, 0, 'fees', 'doc, title and plates');
     addOwnerRunningCosts(led, v, 1);
 
     const t = led.totals();
@@ -272,8 +290,9 @@ function scenarioLoan(v) {
     const payment = loanPayment(principal, j, v.loanTerm);
     const paidMonths = Math.min(v.months, v.loanTerm);
 
-    led.add(down, 0, 'depreciation');
-    led.add(v.price * v.taxRate + v.fees, 0, 'fees');
+    led.add(down, 0, 'depreciation', 'down payment');
+    led.add(v.price * v.taxRate, 0, 'fees', 'title tax on the purchase');
+    led.add(v.fees, 0, 'fees', 'doc, title and plates');
 
     /* Walk the amortisation so interest lands in its own component
        and the principal repaid shows up as money sunk into the car. */
@@ -284,11 +303,11 @@ function scenarioLoan(v) {
         const principalPart = Math.min(payment - interest, balance);
         balance -= principalPart;
         interestPaid += interest;
-        led.add(interest, m, 'interest');
-        led.add(principalPart, m, 'depreciation');
+        led.add(interest, m, 'interest', 'loan interest');
+        led.add(principalPart, m, 'depreciation', 'principal repaid');
     }
     /* Sell before the loan is done and the payoff comes out of the sale. */
-    if (balance > 0.5) led.add(balance, v.months, 'depreciation');
+    if (balance > 0.5) led.add(balance, v.months, 'depreciation', 'loan balance settled at sale');
 
     addOwnerRunningCosts(led, v, 1);
 
@@ -328,8 +347,8 @@ function scenarioLease(v) {
         const end = Math.min(start + cycleLen, v.months);
         const monthsThisCycle = end - start;
 
-        led.add(v.leaseSigning, start, 'depreciation');
-        for (let m = start + 1; m <= end; m++) led.add(v.leasePayment, m, 'depreciation');
+        led.add(v.leaseSigning, start, 'depreciation', 'due at signing');
+        for (let m = start + 1; m <= end; m++) led.add(v.leasePayment, m, 'depreciation', 'monthly lease payment');
 
         /* Extra miles are cheaper bought at signing than settled at
            turn-in, but the money is gone whether you drive them or not,
@@ -338,22 +357,22 @@ function scenarioLease(v) {
         if (v.leaseMileagePlan === 'prepaid' && excessThisCycle > 0) {
             const prepaid = excessThisCycle * v.leasePrepaidRate;
             overageTotal += prepaid;
-            led.add(prepaid, start, 'fees');
+            led.add(prepaid, start, 'fees', 'extra miles bought at signing');
         }
 
         /* Turn-in charges only land if this cycle actually finishes inside
            the horizon. When extending there is one contract and it ends
            when you do, so the car always goes back inside the comparison. */
         if (extending || end === start + cycleLen) {
-            led.add(v.leaseDisposition, end, 'fees');
+            led.add(v.leaseDisposition, end, 'fees', 'disposition fee at turn-in');
             /* The inspection happens when the car goes back, so this lands
                with the disposition fee and only on cycles that finish. */
             wearTotal += v.leaseWear;
-            led.add(v.leaseWear, end, 'fees');
+            led.add(v.leaseWear, end, 'fees', 'excess wear at turn-in');
             if (v.leaseMileagePlan !== 'prepaid') {
                 const charge = excessThisCycle * v.leaseOverage;
                 overageTotal += charge;
-                led.add(charge, end, 'fees');
+                led.add(charge, end, 'fees', 'over-mileage billed at turn-in');
             }
         } else {
             /* The horizon ends mid-contract — the remaining payments
@@ -386,10 +405,10 @@ function scenarioSubscription(v, cfg) {
         /* Flexcar bills membership yearly, not once — $249 covers servicing
            and roadside and recurs for as long as you stay. */
         for (let y = 0; y < Math.ceil(v.months / 12); y++) {
-            led.add(cfg.startFee, Math.min(y * 12, v.months), 'fees');
+            led.add(cfg.startFee, Math.min(y * 12, v.months), 'fees', 'annual membership (required)');
         }
     } else {
-        led.add(cfg.startFee, 0, 'fees');
+        led.add(cfg.startFee, 0, 'fees', 'joining / delivery fee');
     }
     /* A subscription sells mileage in blocks rather than billing per
        mile after the fact, so you buy the whole block or go without.
@@ -399,7 +418,7 @@ function scenarioSubscription(v, cfg) {
     const blocks = Math.ceil(excessPerMonth / 1000);
     const overagePerMonth = blocks * cfg.blockPrice;
     const fuel = monthlyFuel(v);
-    led.add(cfg.delivery || 0, 0, 'fees');
+    led.add(cfg.delivery || 0, 0, 'fees', 'vehicle delivery');
     /* Sixt+ quotes tax-inclusive and Flexcar quotes before it. Comparing
        the two headlines as they are published flatters Flexcar by the
        local rate, so tax is added here rather than assumed away. */
@@ -409,11 +428,12 @@ function scenarioSubscription(v, cfg) {
            rate steps down, and the discount follows you across cars. */
         const cut = cfg.onTrackCut && m > 6 ? cfg.onTrackCut : 0;
         const rate = Math.max(0, cfg.rate - cut);
-        led.add(rate, m, 'depreciation');
-        led.add(overagePerMonth + (cfg.fees || 0) +
-                (rate + (cfg.insurance || 0)) * tax, m, 'fees');
-        led.add(cfg.insurance || 0, m, 'insurance');
-        led.add(cfg.upkeep || 0, m, 'maintenance');
+        led.add(rate, m, 'depreciation', 'monthly subscription rate');
+        led.add(overagePerMonth, m, 'fees', 'extra mileage blocks');
+        led.add(cfg.fees || 0, m, 'fees', 'vehicle licence fee');
+        led.add((rate + (cfg.insurance || 0)) * tax, m, 'fees', 'sales tax on the subscription');
+        led.add(cfg.insurance || 0, m, 'insurance', 'protection plan and extra driver');
+        led.add(cfg.upkeep || 0, m, 'maintenance', 'roadside cover');
         led.add(fuel, m, 'fuel');
     }
 
@@ -423,7 +443,7 @@ function scenarioSubscription(v, cfg) {
        the owning routes book one major repair and the lease books its
        turn-in bill. Every route should have something to go wrong. */
     const excessRisk = cfg.excess && SCENARIOS[v.scenarioCase].wear >= 3 ? cfg.excess : 0;
-    if (excessRisk) led.add(excessRisk, Math.round(v.months * 0.5), 'fees');
+    if (excessRisk) led.add(excessRisk, Math.round(v.months * 0.5), 'fees', 'damage excess on one claim');
 
     const allIn = (cfg.rate + (cfg.insurance || 0)) * (1 + tax) +
         (cfg.upkeep || 0) + (cfg.fees || 0);
@@ -490,7 +510,7 @@ function scenarioRental(v) {
     const perMonth = v.rentalMonthly;
     const fuel = monthlyFuel(v);
     for (let m = 1; m <= v.months; m++) {
-        led.add(perMonth, m, 'depreciation');
+        led.add(perMonth, m, 'depreciation', 'monthly hire rate');
         led.add(fuel, m, 'fuel');
     }
 
@@ -508,6 +528,7 @@ function finish(t, v, extra) {
     const total = Object.values(t.components).reduce((a, b) => a + b, 0);
     return Object.assign({
         components: t.components,
+        detail: t.detail,
         total,
         perMonth: total / v.months,
         cashOut: t.nominal,
@@ -572,7 +593,8 @@ function findLeadChanges(points, measure) {
     for (const p of points) {
         let lead = null, best = Infinity;
         for (const o of OPTIONS) {
-            const val = p[o.key][measure];
+            const val = measure === 'total'
+                ? activeTotal(p[o.key]) : activePerMonth(p[o.key], p.month);
             if (val < best) { best = val; lead = o.key; }
         }
         if (prevLead && lead !== prevLead) {

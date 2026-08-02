@@ -698,6 +698,21 @@
                                 <input type="number" id="flexProtection" min="0" step="5" value="295">
                                 <span class="suffix">/mo</span>
                             </div>
+                            <div class="preset-row" id="flexProtectionTiers" aria-label="Protection tier"
+                                style="margin:6px 0 0">
+                                <button class="preset-btn" type="button" data-prot="230">$230</button>
+                                <button class="preset-btn" type="button" data-prot="245">$245 · $2k excess</button>
+                                <button class="preset-btn" type="button" data-prot="295">$295 · $500 excess</button>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label for="ownInsuranceQuote">Your own quote <span style="color:var(--text-mute)">·
+                                like-for-like</span></label>
+                            <div class="input-shell">
+                                <span class="prefix">$</span>
+                                <input type="number" id="ownInsuranceQuote" min="0" step="5" value="160">
+                                <span class="suffix">/mo</span>
+                            </div>
                         </div>
                         <div class="field">
                             <label for="flexTax">Tax on top</label>
@@ -756,6 +771,9 @@
                         </div>
                     </div>
                     <p class="notes" style="margin-top:10px" id="flexNote"></p>
+                    <div class="callout warn" style="margin-top:10px">
+                        <span class="ico">🛡️</span><span id="flexInsuranceNote"></span>
+                    </div>
                     <p class="notes" style="margin-top:8px"><strong>Cheaper than Sixt+, and quoted differently
                         enough to catch you out.</strong> Real listings run <strong>$749–754/mo</strong> — a brand
                         new Corolla at $434 + $315, a 2023 Kona Electric at $454 + $295, a Ford Escape at $459 +
@@ -769,8 +787,12 @@
                         and credit-card cover do not extend to a Flexcar, because it is a long-term ownership
                         replacement rather than a rental. Basic liability is included at <em>state minimum</em>, and
                         on top of that you must take <strong>Essential at $245/mo with a $2,000 deductible</strong>
-                        or <strong>Enhanced at $295/mo with a $500 deductible</strong> and glass covered. That is
-                        the same shape as the Sixt+ waiver, and the same trap: the headline is not the cover.</p>
+                        or <strong>Enhanced at $295/mo with a $500 deductible</strong> and glass covered, with a
+                        cheaper <strong>$230</strong> tier appearing on some vehicles — the tier is quoted per car,
+                        so use the chips above rather than assuming. Same shape as the Sixt+ waiver, and the same
+                        trap: the headline is not the cover. Between the two main tiers you are paying $50/mo for
+                        $1,500 less deductible, so Enhanced only pays for itself if you expect to claim inside
+                        about two and a half years.</p>
                     <p class="notes" style="margin-top:8px"><strong>Two fees the tile does not show.</strong>
                         Membership is <strong>$249/yr</strong>, required, covering servicing, tyres, brakes,
                         roadside and 20¢/gal off at Sunoco — free for the first two weeks and waived entirely if you

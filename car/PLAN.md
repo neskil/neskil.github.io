@@ -160,6 +160,24 @@ safe driving — $734 → $684 in their own example — and follows you across c
 Flexcar quotes without. Reading the two headlines side by side flatters Flexcar
 by whatever the local rate is.
 
+## Comparison controls (August 2026)
+
+- **The legend is a switch.** Fuel costs the same whichever way you get the
+  car, and so does insurance on the routes that do not bundle it, so tapping a
+  line takes it out of the comparison — bars, verdict and break-even all follow.
+  The verdict says when it is counting a subset. Everything is on by default;
+  this is a lens, not a discount.
+- **Blocks itemise themselves.** The ledger tags every flow with what it *is*
+  rather than only which colour it belongs to, so hovering "Taxes, fees &
+  penalties" on the cash route now answers with title tax, doc-title-plates and
+  annual registration rather than a category name.
+- **Flexcar protection is a spread, and it is dearer than retail.** Tiers of
+  $230 / $245 ($2,000 excess) / $295 ($500 excess, glass) quoted per vehicle,
+  against a real like-for-like GEICO quote of $160/mo — a markup of 44% to 84%
+  that you cannot decline, because personal and credit-card policies do not
+  extend to a Flexcar. That is the sharpest difference from Sixt+, whose waiver
+  and driver together land within two dollars of retail cover.
+
 ## Still open
 
 - **Subscriptions are not modelled as pausable.** The 30-day-after-minimum exit

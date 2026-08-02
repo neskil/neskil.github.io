@@ -1745,3 +1745,65 @@ input[type="range"]::-moz-range-thumb {
     color: var(--accent-soft);
     margin-top: 1px;
 }
+
+/* ── Legend as a switch ──────────────────────────────────────────────
+   Fuel costs the same whichever way you get the car, and so does
+   insurance on the routes that do not bundle it. Switching those off is
+   how you see the difference the decision makes rather than the
+   difference the car makes. */
+.legend-toggle {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 7px;
+    margin: -3px 0;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-secondary);
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.legend-toggle:hover { border-color: var(--glass-border); color: var(--text-primary); }
+
+.legend-toggle.off {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.legend-hint {
+    font-size: 0.7rem;
+    color: var(--text-mute);
+    align-self: center;
+    background: none;
+    border: none;
+    font-family: 'Outfit', sans-serif;
+}
+
+.legend-hint.reset {
+    color: var(--accent-soft);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* What is actually inside a block, itemised in its tooltip. */
+.tt-parts {
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    display: grid;
+    gap: 2px;
+}
+
+.tt-part {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.tt-part span:last-child {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: nowrap;
+}

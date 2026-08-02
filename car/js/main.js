@@ -11,7 +11,7 @@ const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice',
     'sixtLdw', 'sixtDriver', 'sixtRoadside', 'sixtLicense', 'sixtExcess', 'sixtTax',
     'flexRate', 'flexProtection', 'flexTax', 'flexDelivery', 'flexOnTrack', 'flexExcess',
-    'flexStartFee', 'flexAllowance', 'flexBlockPrice',
+    'flexStartFee', 'flexAllowance', 'flexBlockPrice', 'ownInsuranceQuote',
     'rentalDaily', 'rentalMonthly'];
 
 function update() {
@@ -130,6 +130,9 @@ function syncPresets(months, v) {
     for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.flexRate &&
             Number(btn.dataset.protection) === v.flexProtection);
+    }
+    for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
+        btn.classList.toggle('active', Number(btn.dataset.prot) === v.flexProtection);
     }
 }
 
@@ -252,6 +255,13 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
     });
 }
 
+for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
+    btn.addEventListener('click', () => {
+        $('flexProtection').value = btn.dataset.prot;
+        update();
+    });
+}
+
 for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('flexRate').value = btn.dataset.rate;
@@ -271,6 +281,25 @@ for (const btn of document.querySelectorAll('#rentalPresets .preset-btn')) {
         update();
     });
 }
+
+/* The legend is the switch. Delegated, because it is re-rendered on every
+   update. */
+$('legend').addEventListener('click', (e) => {
+    const btn = e.target.closest('.legend-toggle');
+    if (btn) {
+        const key = btn.dataset.comp;
+        if (activeComponents.has(key)) activeComponents.delete(key);
+        else activeComponents.add(key);
+        /* Never leave nothing on — an empty chart answers nothing. */
+        if (!activeComponents.size) activeComponents.add(key);
+        update();
+        return;
+    }
+    if (e.target.closest('#legendReset')) {
+        for (const c of COMPONENTS) activeComponents.add(c.key);
+        update();
+    }
+});
 
 $('tableToggle').addEventListener('click', () => {
     const wrap = $('tableWrap');
