@@ -8,6 +8,15 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — Level 4 map geometry scaled down ~35% for shorter flight distances (v0.20.3)
+
+Reported as "meant literally scale down, like the distances you fly".
+
+- **Scaled Map Geometry**: Scaled down Level 4's physical cavern dimensions, terrain polygons, pad coordinates, and hazard zones by ~35%.
+- **Shorter Flight Spans**: Horizontal distance between HQ start pad (`startX: -280`) and Cargo Dock (`collectionX: 728`) reduced from 1550 units to 1008 units, making transit between depots much faster and far less tedious.
+
+---
+
 ## 2026-08-02 — Configurable `nightDarkness` base opacity added for Night Ops + Level 4 rebalance (v0.20.2)
 
 Reported as "make the radar pulse have a parameter for the base darkness, the later level it's use is good level of darkness, but the early level it's too dark."
