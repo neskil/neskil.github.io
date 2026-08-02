@@ -25,15 +25,9 @@
     <!-- CSS -->
     <link rel="stylesheet" href="style.css">
 
-    <!-- Three.js ES Import Map for modular 3D engine without build tools -->
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+    <!-- Three.js & Vendor Scripts (Compatible with file:// and Firefox) -->
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/OrbitControls.js"></script>
 </head>
 <body>
     <!-- 3D Canvas Container -->
@@ -174,7 +168,7 @@
                 <button id="cam-iso" class="tool-btn" title="Top-Down Isometric View">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 2l10 6.5v7.5L12 22 2 16v-7.5L12 2z"/>
-                        <path d="M12 22V12M12 12L2 6.5M12 12l10-5.5"/>
+                        <path d="M12 12V12M12 12L2 6.5M12 12l10-5.5"/>
                     </svg>
                     <span>Isometric</span>
                 </button>
@@ -204,7 +198,10 @@
         <span>💡 <strong>Click on the 3D ground</strong> to spawn containers • <strong>Click a container</strong> to select, rotate, or remove • <strong>Right-Click & Drag</strong> to rotate camera</span>
     </div>
 
-    <!-- Main Module Application -->
-    <script type="module" src="js/main.js"></script>
+    <!-- Application Modules -->
+    <script src="js/containers.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
