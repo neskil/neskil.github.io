@@ -8,6 +8,16 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — L4 difficulty & lighting rebalance: lower gravity + bright cavern + easier hazards (v0.20.1)
+
+Reported as "level 4 a bit more brighter please it's too dark, to high gravity and too hard currently. would like to scale it down a bit".
+
+- **Brighter Cavern**: Removed `night: true` overlay and updated the palette sky/terrain tones to warm volcanic oranges, providing full visual clarity of terrain, corridors, and pads.
+- **Lower Baseline Gravity**: Lowered `gravity` from `0.15` to `0.11` so the lander floats smoothly.
+- **Scaled Down Hazards**: Scaled down the drifting gravity well (`radius` 370 → 250, force 0.20 → 0.10, slower drift speed). Increased incinerator vent safe window (`offMs` 4200ms → 5000ms with a 1.0s flare), and increased time limit (220s → 260s).
+
+---
+
 ## 2026-08-02 — L5 rebuilt as a traffic-dodging city; traffic pathfinding precomputed (v0.20.0)
 
 **L5 replaced.** "The Needle's Eye" was a crystal-cavern winch-drop level whose
@@ -67,44 +77,63 @@ near a map edge into the stratosphere. Pads sit on roofs already covered by
 
 ---
 
-## 2026-08-02 — L4 Anomaly Zone was unclearable; night ops + sonar ping (v0.19.15)
+## 2026-08-02 — L6 difficulty pass: dust ceiling + freight lanes + a worm that hunts (v0.20.0)
 
-Reported as "lower gravity on level 4", then "the burning hazard needs to be a
-lot slower and not as wide, currently impossible".
+Reported as "the monster is too easy, and you have no threat if you fly higher".
+Both halves were true and they were the same problem: L6's only hazard was the
+sandworm, the worm's spawn zone topped out around y:300, and the level had no
+ceiling — so climbing to ~y:150 and cruising straight over the mound skipped the
+entire level. The worm didn't help its own case: `w.lungeTimer < 1.2` reads as
+"track for 1.2 seconds" but `dt` is **frames**, not seconds, so it homed for a
+single frame and then coasted ballistically along a line aimed at wherever the
+lander had been at spawn. Trivially dodged by just… moving.
 
-**Gravity.** L4 sat at `0.22` — far and away the heaviest level (next is L2 at
-`0.16`, most are `0.12`) and outside `levelSchema.js`'s recommended `0.10 -
-0.15` band. Lowered to `0.15`. The drifting gravwell is the level's gravity
-gimmick; the baseline didn't need to carry it too.
+**Design.** Rather than bolt a `worldBounds` ceiling on (which only deletes the
+player), altitude became a trade. Three pieces:
 
-**The vent.** The incinerator sits in the corridor between the Ground polygon's
-underside (y≈390) and Polygon 2's roof (y≈615) — the only route west into The
-Hollow. Its polygon spanned x140–460, which is the corridor's *entire* 320px
-opening, so an active flare sealed the passage wall-to-wall. Timing was
-`onMs:1500 / offMs:1000` with no `warnMs`, so the default 600ms charge warning
-ate most of the gap: 400ms of clear air to cross 320px, on 60% duty. Not
-survivable — the report was accurate.
+1. **Dust ceiling** — new `fogBandTopY`/`fogBandBottomY` config drives an
+   altitude fog band (`render/fog.js` + `CargoPhysics#fogDensityAt`). Visibility
+   smoothsteps from clear at y:330 to a whiteout at y:40, and `fogBandDamage`
+   grinds hull the whole time you're in it.
+2. **Freight lanes inside the band** — `ambientTrafficRate: 4` (20 concurrent)
+   pinned to `ambientTrafficMinY/MaxY` 60–300, i.e. deliberately the same slab
+   of sky as the storm. The high road is now blind traffic.
+3. **A worm that hunts** — the strike shape moved onto the hazard
+   (`_sandWormTuning()`): `trackFrames: 14` homes long enough to punish
+   hovering but not enough to catch a moving lander, `decay: 0.94` carries the
+   arc ~570px above the sand instead of ~320, and `proximityScale: 2` makes the
+   peak roughly 3× as dangerous as the zone edge. `reach: 330` lifts the zone
+   ceiling to y:250 so it overlaps the bottom of the lane — no altitude is clear
+   of both hazards.
 
-Now `onMs:1400 / offMs:4200 / warnMs:900` (period 2.5s → 5.6s, duty 60% → 25%,
-clear window 400ms → 3300ms) and the polygon is halved to x230–390, leaving
-~90px of clearance either side inside the corridor. It still seals top-to-bottom
-while lit, so it's a timing gate, not a wall.
+**Compatibility.** Every `_sandWormTuning()` default reproduces the old
+hardcoded strike exactly, so L9's worm is byte-for-byte unchanged; only L6 opts
+in. The fog band no-ops on levels that don't set both Y bounds. The one global
+change is the ambient-traffic pre-warm, which now scales with
+`ambientTrafficRate` (rate 1 still yields the original 1–2 vehicles) and spreads
+the seeded vehicles over ±300–1700px instead of ±500 — without it a
+heavy-traffic level hands the player a free first crossing while the lanes fill.
 
-**Regression guard.** `tests.html`'s hazards test now asserts every timed
-laser/incinerator leaves `offMs - warnMs >= 900ms` of clear-and-unwarned air,
-using the same `?? default` warnMs the physics uses — the failure mode here was
-a config that reads fine field-by-field but is impossible in combination.
-Verified it fails on the old `offMs:1000` before re-fixing.
+**Gotcha worth remembering.** `dt` is 1.0 per 60fps frame throughout this
+engine, so any per-second tuning has to divide by 60 explicitly (see
+`updateAltitudeFog`). The old worm comment claiming "1.2 seconds" is exactly the
+bug this convention causes when a comment and the code disagree.
 
-**Night ops.** L4 is an unlit volcanic cavern, so it got `night: true` (second
-level to use it after L10) — darkness overlay, lander spotlight, objective beam,
-and the periodic lander sonar sweep that reveals terrain silhouettes. Paired
-with a `radarPingZone` centred on the vent (`310,490`, r 340, amber `249,115,22`
-to match the palette's `rockEdge`), since in the dark the vent is otherwise
-invisible until it flares in your face. `hint` rewritten to teach both.
+**Also fixed: `run-tests.sh` was testing the wrong checkout.** It hardcoded
+`PORT=8177`. When another git worktree of this repo already had a server there,
+our `http.server` failed to bind and died, the readiness `curl` answered from
+the squatter, and every check validated *that* checkout while printing PASS —
+which is how a suite that actually had 150 tests kept reporting 142/144. The
+port is now OS-assigned and the script diffs `tests.html` off the wire against
+the copy on disk, aborting loudly if they differ. (The stale "142 tests at last
+count" in CLAUDE.md came from this same bad read.)
 
-Verified with `run-tests.sh` (142 passed / 0 failed) plus probe screenshots of
-the corridor (vent vs. corridor width) and of the night overlay at HQ.
+Verified headless: 150/150 tests (fog density curve, abrasion rate, worm strike
+reach with `Math.random` stubbed, zone-exit safety), plus
+`probe-screenshot.html?script=dustLane` — a new probe script that pins the
+lander at a given altitude, drives traffic/fog synchronously, and stamps
+density, traffic-in-fog count, and hull loss per simulated second.
+>>>>>>> claude/level-5-fog-difficulty-431702
 
 ---
 
