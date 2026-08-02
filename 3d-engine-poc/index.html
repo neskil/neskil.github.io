@@ -42,10 +42,13 @@
             <span>Portfolio</span>
         </a>
         <div class="header-title">
-            <h1>3D Cargo Yard POC</h1>
+            <h1>3D Cargo Yard Simulator</h1>
             <span class="badge">WebGL Engine</span>
         </div>
         <div class="header-actions">
+            <button id="btn-audio-toggle" class="secondary-btn" title="Toggle Sound Effects">
+                <span>🔊 Audio ON</span>
+            </button>
             <button id="btn-reset-scene" class="secondary-btn" title="Clear all placed containers">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round"/>
@@ -158,48 +161,47 @@
         <div class="toolbar-section">
             <span class="section-title">Camera Mode</span>
             <div class="button-group">
-                <button id="cam-orbit" class="tool-btn active" title="Free 3D Orbit">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="9"/>
-                        <path d="M12 3a9 9 0 0 1 9 9"/>
-                    </svg>
-                    <span>Orbit</span>
-                </button>
-                <button id="cam-iso" class="tool-btn" title="Top-Down Isometric View">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2l10 6.5v7.5L12 22 2 16v-7.5L12 2z"/>
-                        <path d="M12 12V12M12 12L2 6.5M12 12l10-5.5"/>
-                    </svg>
-                    <span>Isometric</span>
-                </button>
-                <button id="cam-crane" class="tool-btn" title="Crane Overhead View">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 2v20M2 12h20"/>
-                        <circle cx="12" cy="12" r="4"/>
-                    </svg>
-                    <span>Crane Top</span>
-                </button>
+                <button id="cam-orbit" class="tool-btn active" title="Free 3D Orbit">Orbit</button>
+                <button id="cam-iso" class="tool-btn" title="Top-Down Isometric View">Isometric</button>
+                <button id="cam-crane" class="tool-btn" title="Crane Overhead View">Crane Top</button>
+                <button id="cam-vehicle" class="tool-btn" title="Drive Reach Stacker Crane">🚜 Drive Crane</button>
             </div>
         </div>
 
-        <!-- Environment Lighting Controls -->
+        <!-- Simulator Tools (X-Ray, Stress Heatmap, Train Unloader) -->
         <div class="toolbar-section">
-            <span class="section-title">Lighting & Time</span>
+            <span class="section-title">Tools & Analysis</span>
             <div class="button-group">
-                <button id="light-day" class="tool-btn active">☀️ Day</button>
-                <button id="light-dusk" class="tool-btn">🌅 Sunset</button>
-                <button id="light-night" class="tool-btn">🌙 Cyber Night</button>
+                <button id="btn-toggle-xray" class="tool-btn" title="View Interior Cargo">🔍 X-Ray View</button>
+                <button id="btn-toggle-heatmap" class="tool-btn" title="View Stack Safety Heatmap">📊 Balance Heatmap</button>
+                <button id="btn-unload-train" class="tool-btn" title="Unload Container off Freight Train">🚆 Unload Train</button>
             </div>
+        </div>
+
+        <!-- Weather Environment Dropdown -->
+        <div class="toolbar-section">
+            <span class="section-title">Atmosphere & Weather</span>
+            <select id="weather-select" class="select-input">
+                <option value="day">☀️ Sunny Day</option>
+                <option value="dusk">🌅 Sunset Dusk</option>
+                <option value="rain">🌧️ Stormy Rain</option>
+                <option value="night">🌙 Cyber Night</option>
+                <option value="fog">🌫️ Port Fog</option>
+            </select>
         </div>
     </div>
 
     <!-- Instruction Tooltip Bar -->
     <div class="instruction-banner">
-        <span>💡 <strong>Click on the 3D ground</strong> to spawn containers • <strong>Click a container</strong> to select, rotate, or remove • <strong>Right-Click & Drag</strong> to rotate camera</span>
+        <span>💡 <strong>WASD / Arrow Keys</strong> to drive reach stacker • <strong>Spacebar</strong> to pickup/drop container • <strong>Q/E</strong> to tilt boom • <strong>Click ground</strong> to spawn container</span>
     </div>
 
     <!-- Application Modules -->
+    <script src="js/audio.js"></script>
+    <script src="js/weather.js"></script>
     <script src="js/containers.js"></script>
+    <script src="js/vehicle.js"></script>
+    <script src="js/train.js"></script>
     <script src="js/controls.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
