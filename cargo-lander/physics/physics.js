@@ -95,6 +95,7 @@ class CargoPhysics {
         this.wasInFluid = false;
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
+        this.fogDensity = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this._buildMatterWorld();
         this.generateTerrain(levelConfig);
@@ -104,16 +105,23 @@ class CargoPhysics {
             levelConfig.setupPhysics(this);
         }
 
-        // Pre-spawn 1 or 2 ambient traffic vehicles so the sky isn't empty on load
-        if (this.currentLevelConfig && this.currentLevelConfig.name !== "Depot HQ" && (this.currentLevelConfig.ambientTrafficRate ?? 1) > 0) {
-            const numToSpawn = 1 + Math.floor(Math.random() * 2);
+        // Pre-spawn ambient traffic so the sky isn't empty on load. Scaled by
+        // ambientTrafficRate — on a heavy-traffic level the lanes are the
+        // level's main hazard, and waiting ~30s for them to fill in would hand
+        // the player a free first crossing. Rate 1 still yields the original
+        // 1-2 vehicles.
+        const preRate = this.currentLevelConfig?.ambientTrafficRate ?? 1;
+        if (this.currentLevelConfig && this.currentLevelConfig.name !== "Depot HQ" && preRate > 0) {
+            const numToSpawn = Math.max(1, Math.round((1 + Math.random()) * preRate));
             for (let i = 0; i < numToSpawn; i++) {
                 this.trafficSpawnTimer = 500; // force a spawn trigger
                 this.updateAmbientTraffic(16); // step simulation once (dt in ms)
-                // Reposition the newly spawned vehicle directly into the viewport
+                // Reposition the newly spawned vehicle directly into the viewport,
+                // spread across the approach so they don't arrive as one wall
                 const t = this.ambientTraffic[this.ambientTraffic.length - 1];
                 if (t && this.lander) {
-                    t.x = this.lander.x + (Math.random() * 1000 - 500); // +/- 500px around lander
+                    const side = Math.random() < 0.5 ? -1 : 1;
+                    t.x = this.lander.x + side * (300 + Math.random() * 1400);
                 }
             }
             this.trafficSpawnTimer = 0; // reset for normal gameplay
@@ -388,6 +396,7 @@ class CargoPhysics {
         this.updateMonster(levelConfig, dt);
         this.updatePolice(dt);
         this.updateAmbientTraffic(dt);
+        this.updateAltitudeFog(dt);
         this.updateDebris(dt);
         this.updateParticles();
     }

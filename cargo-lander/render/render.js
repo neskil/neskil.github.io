@@ -324,6 +324,11 @@ draw() {
         // vignettes, damage flash, version/FPS counter).
         if (this.drawNightOverlay) this.drawNightOverlay();
 
+        // 9d. Altitude fog band — same screen-space layer position as the night
+        // overlay (above the scene, below the HUD draws). Level-config driven
+        // via fogBandTopY/fogBandBottomY; no-ops on levels without a band.
+        if (this.drawAltitudeFog) this.drawAltitudeFog();
+
         // 10. Notifications are now HTML DOM elements — no canvas draw needed
         this.drawNotifications(); // no-op stub kept for safety
 
