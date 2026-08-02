@@ -55,59 +55,255 @@
             initial-value: #1e1b4b;
         }
 
+        /* The accent hue each card's theme pulls the background towards. Registered
+           so it interpolates: the tints below are derived from it, so one animated
+           number swings every variant's palette at once. Keep in sync with the
+           themeHues map in the canvas script. */
+        @property --hue {
+            syntax: '<number>';
+            inherits: true;
+            initial-value: 232;
+        }
+
         html {
             overflow-x: hidden;
             --bg-color-1: #0f172a;
             --bg-color-2: #1e1b4b;
+            --hue: 232;
             background-color: #0f172a;
             background-image: linear-gradient(135deg, var(--bg-color-1) 0%, var(--bg-color-2) 100%);
             background-attachment: fixed;
-            transition: --bg-color-1 0.8s ease-in-out, --bg-color-2 0.8s ease-in-out;
+            transition: --bg-color-1 0.8s ease-in-out, --bg-color-2 0.8s ease-in-out, --hue 0.8s ease-in-out;
         }
 
         html[data-theme="card-supply-chain"] {
             --bg-color-1: #15110a;
             --bg-color-2: #20170c;
+            --hue: 45;
         }
 
         html[data-theme="card-cargo-lander"] {
             --bg-color-1: #0e1428;
             --bg-color-2: #1a1642;
+            --hue: 245;
         }
 
         html[data-theme="card-converter"] {
             --bg-color-1: #091a24;
             --bg-color-2: #0f2634;
+            --hue: 190;
         }
 
         html[data-theme="card-about"] {
             --bg-color-1: #1e0d16;
             --bg-color-2: #2e1220;
+            --hue: 345;
         }
 
         html[data-theme="card-car"] {
             --bg-color-1: #0b1a1a;
             --bg-color-2: #102a2c;
+            --hue: 160;
         }
 
         html[data-theme="card-cv"] {
             --bg-color-1: #0f1724;
             --bg-color-2: #1a2332;
+            --hue: 215;
         }
 
         html[data-theme="card-math"] {
             --bg-color-1: #160e24;
             --bg-color-2: #241436;
+            --hue: 270;
         }
 
         html[data-theme="card-math-game"] {
             --bg-color-1: #1c130d;
             --bg-color-2: #2c1a0e;
+            --hue: 25;
         }
 
         html[data-theme="card-math-game"] {
             --bg-color-1: #161218;
             --bg-color-2: #261612;
+            --hue: 25;
+        }
+
+        /* ── Background variants ──────────────────────────────────────────────
+           The 135° ramp above stays as the floor; each variant is one fixed layer
+           that cross-fades in over it, so switching costs an opacity change and
+           nothing reflows.
+
+           Every accent field is mixed INTO the current theme colours rather than
+           painted over them. That matters because the card themes are near-black:
+           hovering Supply Chain drops the base to #15110a, and a raw
+           hsl(45 60% 25%) field would blaze on top of it. color-mix keeps each
+           field a nudge away from whatever the base currently is.
+
+           A variant is one layer for its character (ruled plane, vignette, sweep).
+           The drifting lights and the grain sit outside that and show under all of
+           them, so a new variant is one layer here, one html[data-bg="…"] rule and
+           one entry in BG_VARIANTS. */
+        html {
+            --tint-a: color-mix(in oklab, hsl(var(--hue) 70% 45%) 26%, var(--bg-color-1));
+            --tint-b: color-mix(in oklab, hsl(calc(var(--hue) + 55) 60% 45%) 22%, var(--bg-color-2));
+            --tint-c: color-mix(in oklab, hsl(calc(var(--hue) - 45) 60% 42%) 22%, var(--bg-color-2));
+            --tint-top: color-mix(in oklab, hsl(var(--hue) 65% 50%) 24%, var(--bg-color-1));
+            /* How strongly the moving lights read in the current variant */
+            --lights: 1;
+        }
+
+        .bg-variant {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1.4s ease-in-out;
+        }
+
+        html[data-bg="aurora"] [data-bg-layer="aurora"],
+        html[data-bg="blueprint"] [data-bg-layer="blueprint"],
+        html[data-bg="dawn"] [data-bg-layer="dawn"] {
+            opacity: 1;
+        }
+
+        /* ── the lights ──────────────────────────────────────────────────────
+           Three blurred fields on minute-long loops, under every variant. They
+           are the reason the background is never quite the same twice; the
+           variant layers on top only decide how much of them shows through.
+           transform only, so the compositor owns the animation. */
+        #bg-lights {
+            opacity: var(--lights);
+            overflow: hidden;
+            transition: opacity 1.4s ease-in-out;
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            will-change: transform;
+        }
+
+        .bg-blob-a {
+            width: 60vw;
+            height: 60vw;
+            top: -18vw;
+            left: -12vw;
+            background: var(--tint-a);
+            animation: bg-drift-a 62s ease-in-out infinite alternate;
+        }
+
+        .bg-blob-b {
+            width: 50vw;
+            height: 50vw;
+            top: 10vh;
+            right: -14vw;
+            background: var(--tint-b);
+            animation: bg-drift-b 78s ease-in-out infinite alternate;
+        }
+
+        .bg-blob-c {
+            width: 70vw;
+            height: 55vw;
+            bottom: -22vw;
+            left: 20vw;
+            background: var(--tint-c);
+            animation: bg-drift-c 70s ease-in-out infinite alternate;
+        }
+
+        @keyframes bg-drift-a {
+            to { transform: translate(14vw, 10vh) scale(1.18); }
+        }
+
+        @keyframes bg-drift-b {
+            to { transform: translate(-16vw, 14vh) scale(0.86); }
+        }
+
+        @keyframes bg-drift-c {
+            to { transform: translate(10vw, -12vh) scale(1.12); }
+        }
+
+        /* ── 1. Aurora — the lights, focused by a vignette ── */
+        [data-bg-layer="aurora"] {
+            background: radial-gradient(115% 100% at 50% 40%, transparent 42%, rgba(2, 4, 12, 0.78) 100%);
+        }
+
+        /* ── 2. Blueprint — a ruled plane over dimmed lights, masked so the grid
+              fades out before it reaches the edges ── */
+        html[data-bg="blueprint"] {
+            --lights: 0.55;
+        }
+
+        [data-bg-layer="blueprint"] {
+            background:
+                repeating-linear-gradient(0deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px),
+                repeating-linear-gradient(90deg, hsl(var(--hue) 70% 70% / 0.05) 0 1px, transparent 1px 44px);
+            -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+            mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 85%);
+        }
+
+        /* ── 3. Dawn — a slow sweep rising from below the fold. The gradient is
+              centred past the bottom edge and the whole disc turns once every
+              four minutes, so the viewport only ever sees a moving slice of it.
+              Deliberately washed out: two tints and a lot of base. ── */
+        html[data-bg="dawn"] {
+            --lights: 0.5;
+        }
+
+        [data-bg-layer="dawn"] {
+            overflow: hidden;
+            /* The sweep is opaque, so it goes under the lights rather than over
+               them — everything else in the stack paints on top of them. */
+            z-index: -3;
+        }
+
+        .bg-sweep {
+            /* Centred a little below the bottom edge and just big enough to cover
+               the viewport from there — a bigger disc would only cost texture
+               memory, and this one is already thousands of pixels across. */
+            position: absolute;
+            top: 115%;
+            left: 50%;
+            width: 320vh;
+            height: 320vh;
+            margin: -160vh 0 0 -160vh;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg,
+                    color-mix(in oklab, hsl(calc(var(--hue) - 35) 55% 45%) 14%, var(--bg-color-1)) 0deg,
+                    color-mix(in oklab, hsl(var(--hue) 60% 48%) 16%, var(--bg-color-2)) 90deg,
+                    color-mix(in oklab, hsl(calc(var(--hue) + 45) 45% 45%) 12%, var(--bg-color-1)) 190deg,
+                    color-mix(in oklab, hsl(calc(var(--hue) - 35) 55% 45%) 14%, var(--bg-color-1)) 360deg);
+            transform-origin: 50% 50%;
+            animation: bg-sweep-turn 240s linear infinite;
+        }
+
+        @keyframes bg-sweep-turn {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Grain — texture, and it hides the banding dark gradients get on 8-bit
+           panels. Always on, over whichever variant is showing. */
+        #bg-grain {
+            opacity: 1;
+            mix-blend-mode: soft-light;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+        }
+
+        @media (max-width: 600px) {
+            /* Big blurs are the expensive part on a phone — shrink the radius */
+            .bg-blob {
+                filter: blur(60px);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .bg-blob,
+            .bg-sweep {
+                animation: none;
+            }
         }
 
         body {
@@ -1233,6 +1429,58 @@
             transform: translateX(3px);
         }
 
+        /* Background picker — same row furniture, but the chips live under it */
+        .vault-bg {
+            margin-top: 0.4rem;
+            padding: 0.9rem 1.1rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+        }
+
+        .vault-bg-head {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .vault-bg-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.85rem;
+        }
+
+        .vault-bg-chip {
+            font: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .vault-bg-chip:hover {
+            background: rgba(255, 255, 255, 0.11);
+            color: #f1f5f9;
+        }
+
+        .vault-bg-chip[aria-pressed="true"] {
+            background: rgba(99, 102, 241, 0.26);
+            border-color: rgba(129, 140, 248, 0.55);
+            color: #e0e7ff;
+        }
+
+        /* The one currently on screen while rotation is running */
+        .vault-bg-chip[data-live="true"][aria-pressed="false"] {
+            border-color: rgba(255, 255, 255, 0.22);
+            color: #cbd5e1;
+        }
+
         /* secret hint dots */
         .secret-hint {
             position: absolute;
@@ -1312,12 +1560,121 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
+    <script>
+        /* ── Background variants ──────────────────────────────────────────────
+           Which background the page wears is decided here, before first paint,
+           so nobody sees the default ramp swap out a moment later.
+
+           A first-ever visit lands on a random one. Every visit after that steps
+           one along, so a returning visitor works through the whole set instead
+           of seeing the same page twice — the position lives in localStorage.
+           Sitting on the page also steps it along every 30s, with the layers
+           cross-fading (see .bg-variant). A pick from the vault pins one for the
+           life of the tab (sessionStorage) and stops the rotation.
+
+           Adding a variant is one entry here plus its CSS layer. */
+        const BG_VARIANTS = [
+            { id: 'blueprint', label: 'Blueprint' },
+            { id: 'aurora', label: 'Aurora' },
+            { id: 'dawn', label: 'Dawn' }
+        ];
+        const BG_LAST_KEY = 'bgVariant.last';
+        const BG_PIN_KEY = 'bgVariant.pinned';
+        const BG_ROTATE_MS = 30000;
+
+        let bgCurrent = null;
+        let bgPinned = null;
+        let bgTimer = null;
+
+        const bgIsKnown = id => BG_VARIANTS.some(v => v.id === id);
+
+        function bgApply(id) {
+            if (!bgIsKnown(id)) id = BG_VARIANTS[0].id;
+            bgCurrent = id;
+            document.documentElement.setAttribute('data-bg', id);
+            try { localStorage.setItem(BG_LAST_KEY, id); } catch (e) { }
+            document.dispatchEvent(new CustomEvent('bg:change'));
+        }
+
+        function bgStartRotation() {
+            clearInterval(bgTimer);
+            bgTimer = null;
+            if (bgPinned) return;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            bgTimer = setInterval(() => {
+                const i = BG_VARIANTS.findIndex(v => v.id === bgCurrent);
+                bgApply(BG_VARIANTS[(i + 1) % BG_VARIANTS.length].id);
+            }, BG_ROTATE_MS);
+        }
+
+        /* id === null hands the page back to the rotation */
+        function bgPin(id) {
+            bgPinned = bgIsKnown(id) ? id : null;
+            try {
+                if (bgPinned) sessionStorage.setItem(BG_PIN_KEY, bgPinned);
+                else sessionStorage.removeItem(BG_PIN_KEY);
+            } catch (e) { }
+            if (bgPinned) {
+                clearInterval(bgTimer);
+                bgTimer = null;
+                bgApply(bgPinned);
+            } else {
+                bgStartRotation();
+                document.dispatchEvent(new CustomEvent('bg:change'));
+            }
+        }
+
+        (function bgInit() {
+            let pinned = null, last = null;
+            try { pinned = sessionStorage.getItem(BG_PIN_KEY); } catch (e) { }
+            try { last = localStorage.getItem(BG_LAST_KEY); } catch (e) { }
+
+            if (bgIsKnown(pinned)) {
+                bgPinned = pinned;
+                bgApply(pinned);
+                return;
+            }
+
+            const lastIdx = BG_VARIANTS.findIndex(v => v.id === last);
+            bgApply(BG_VARIANTS[
+                lastIdx < 0 ? Math.floor(Math.random() * BG_VARIANTS.length)
+                    : (lastIdx + 1) % BG_VARIANTS.length
+            ].id);
+            bgStartRotation();
+        })();
+
+        // No point rotating a background nobody is looking at.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(bgTimer);
+                bgTimer = null;
+            } else if (!bgPinned && !bgTimer) {
+                bgStartRotation();
+            }
+        });
+    </script>
 </head>
 
 <body>
     <canvas id="networkCanvas"></canvas>
     <div class="bg-glow"></div>
     <div class="bg-glow-2"></div>
+
+    <!-- Background stack, bottom to top: the drifting lights, then whichever
+         variant layer is active (only one is at opacity 1 — see BG_VARIANTS),
+         then the grain. Dawn's sweep is opaque and sets itself below the
+         lights in CSS. -->
+    <div class="bg-variant" id="bg-lights">
+        <span class="bg-blob bg-blob-a"></span>
+        <span class="bg-blob bg-blob-b"></span>
+        <span class="bg-blob bg-blob-c"></span>
+    </div>
+    <div class="bg-variant" data-bg-layer="dawn">
+        <span class="bg-sweep"></span>
+    </div>
+    <div class="bg-variant" data-bg-layer="aurora"></div>
+    <div class="bg-variant" data-bg-layer="blueprint"></div>
+    <div class="bg-variant" id="bg-grain"></div>
 
     <div id="about-backdrop"></div>
 
@@ -1370,6 +1727,17 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </button>
+
+            <div class="vault-bg">
+                <div class="vault-bg-head">
+                    <div class="vault-row-icon">🎨</div>
+                    <div class="vault-row-body">
+                        <div class="vault-row-title">Background</div>
+                        <div class="vault-row-desc" id="vault-bg-desc">Rotates on its own. Pick one to hold it for this tab.</div>
+                    </div>
+                </div>
+                <div class="vault-bg-chips" id="vault-bg-chips"></div>
+            </div>
         </div>
     </div>
 
@@ -2162,6 +2530,47 @@
             document.body.style.overflow = '';
         }
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVault(); });
+
+        /* Background picker in the vault. The chips are built from BG_VARIANTS, so
+           a new variant turns up here for free. "Auto" is the no-pin state: the
+           rotation keeps running and the chip of whatever is on screen is outlined
+           rather than filled. */
+        const bgChips = document.getElementById('vault-bg-chips');
+        const bgDesc = document.getElementById('vault-bg-desc');
+
+        function buildBgChips() {
+            const chip = (id, label) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'vault-bg-chip';
+                b.dataset.bgPick = id;
+                b.textContent = label;
+                return b;
+            };
+            bgChips.appendChild(chip('', 'Auto'));
+            BG_VARIANTS.forEach(v => bgChips.appendChild(chip(v.id, v.label)));
+            bgChips.addEventListener('click', e => {
+                const btn = e.target.closest('[data-bg-pick]');
+                if (btn) bgPin(btn.dataset.bgPick || null);
+            });
+        }
+
+        function syncBgChips() {
+            for (const btn of bgChips.children) {
+                const id = btn.dataset.bgPick;
+                btn.setAttribute('aria-pressed', String(id ? bgPinned === id : !bgPinned));
+                btn.dataset.live = String(!!id && id === bgCurrent);
+            }
+            bgDesc.textContent = bgPinned
+                ? 'Held for this tab. Auto puts it back on rotation.'
+                : 'Rotates every 30s, and again on your next visit. Pick one to hold it.';
+        }
+
+        if (bgChips && bgDesc) {
+            buildBgChips();
+            syncBgChips();
+            document.addEventListener('bg:change', syncBgChips);
+        }
 
         /* The About card is a button, not a link: it opens in place instead of
            leaving the page. Opening does three things at once — the card lifts out
