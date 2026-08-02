@@ -1,8 +1,104 @@
 // atmosphere.js - Extracted physics logic
 
 const CargoPhysicsAtmosphereMixin = {
+    // ── Ambient-traffic lane profile ──────────────────────────────────────────
+    // Every truck used to re-derive its own flight path each frame: scan every
+    // entry in `this.segments`, then every static body in the Matter world, to
+    // find the highest obstacle inside its 500px lookahead. That is
+    // O(trucks × bodies) per frame recomputing an answer that cannot change —
+    // terrain is static for the whole level.
+    //
+    // Bake it once instead. The lookahead only ever looks in the direction of
+    // travel, so there are two answers per position, and both are precomputed
+    // into a bucketed lookup table at first use: `east` for trucks heading +x
+    // (window [x, x+500]) and `west` for -x ([x-500, x]). Stored values are the
+    // clearance altitude (obstacleTop - 140) — exactly what the old scan fed
+    // into `safeAlt` — so per-frame cost drops to a single array index with no
+    // behavioural change. Enable "Show Traffic Lanes" in the dev panel to draw
+    // the two profiles over the level.
+    //
+    // Invalidated by setting `trafficLanes = null` (physics.js initLevel, and
+    // collision.js when a fragile segment shatters out of the world).
+    TRAFFIC_LANE_BUCKET: 25,      // px per lookup bucket
+    TRAFFIC_LANE_LOOKAHEAD: 500,  // must match the old scan's lookAheadRange
+    TRAFFIC_LANE_CLEARANCE: 140,  // how far above an obstacle a truck cruises
+    TRAFFIC_LANE_OPEN_TOP: 1000,  // the old scan's "default low ground" seed
+
+    buildTrafficLanes() {
+        const BUCKET = this.TRAFFIC_LANE_BUCKET;
+        const LOOK = this.TRAFFIC_LANE_LOOKAHEAD;
+        const CLEAR = this.TRAFFIC_LANE_CLEARANCE;
+        const OPEN = this.TRAFFIC_LANE_OPEN_TOP;
+
+        // `this.segments` is the whole obstacle set: generateTerrain() pushes every
+        // terrain-polygon edge into it (physics.js), on top of any level-defined
+        // segments. Same "an obstacle contributes its own topmost point to every x
+        // it spans" rule the per-truck scan used.
+        //
+        // The scan also had a second pass over `this.engine.world.bodies` for
+        // "buildings, pads" — but this class has never had an `engine` property
+        // (the Matter world lives on `matterEngine`/`matterWorld`), so that pass
+        // was dead and is not reproduced here. It must not be "fixed" by pointing
+        // it at matterWorld either: that world contains the three enclosure walls,
+        // whose vertical bodies extend to bounds.min.y ≈ -1.5 × levelHeight, and
+        // feeding those into the clearance min would launch every truck near a map
+        // edge into the stratosphere. Pads sit on roofs that are already in
+        // `segments`, so nothing of value is lost.
+        const items = [];
+        for (const s of this.segments || []) {
+            items.push({ x0: Math.min(s.x1, s.x2), x1: Math.max(s.x1, s.x2), top: Math.min(s.y1, s.y2) });
+        }
+        if (items.length === 0) { this.trafficLanes = { empty: true }; return; }
+
+        let minX = Infinity, maxX = -Infinity;
+        for (const it of items) {
+            if (it.x0 < minX) minX = it.x0;
+            if (it.x1 > maxX) maxX = it.x1;
+        }
+        const originX = minX - LOOK;
+        // Guard against a stray far-flung vertex blowing the table up; past the
+        // table's ends the lookup falls back to open sky, which is what the old
+        // scan returned out there anyway.
+        const n = Math.min(20000, Math.ceil((maxX + LOOK - originX) / BUCKET) + 1);
+
+        // Entry i is the answer sampled at the single point x = originX + i*BUCKET,
+        // not a range — which turns the whole thing into an interval fill with no
+        // sliding window. An obstacle spanning [x0,x1] overlaps an eastbound
+        // truck's window [x, x+LOOK] exactly when x0-LOOK <= x <= x1, and a
+        // westbound truck's [x-LOOK, x] exactly when x0 <= x <= x1+LOOK. So each
+        // obstacle just paints a contiguous run of samples in each table.
+        const east = new Float64Array(n).fill(OPEN);
+        const west = new Float64Array(n).fill(OPEN);
+        const paint = (arr, from, to, top) => {
+            const i0 = Math.max(0, Math.ceil((from - originX) / BUCKET));
+            const i1 = Math.min(n - 1, Math.floor((to - originX) / BUCKET));
+            for (let i = i0; i <= i1; i++) if (top < arr[i]) arr[i] = top;
+        };
+        for (const it of items) {
+            if (it.top >= OPEN) continue;
+            paint(east, it.x0 - LOOK, it.x1, it.top);
+            paint(west, it.x0, it.x1 + LOOK, it.top);
+        }
+        for (let i = 0; i < n; i++) { east[i] -= CLEAR; west[i] -= CLEAR; }
+
+        this.trafficLanes = { originX, bucket: BUCKET, east, west };
+    },
+
+    // Cruise altitude for a truck at `x` heading east (vx > 0) or west.
+    trafficLaneAlt(x, headingEast) {
+        const L = this.trafficLanes;
+        const open = this.TRAFFIC_LANE_OPEN_TOP - this.TRAFFIC_LANE_CLEARANCE;
+        if (!L || L.empty) return open;
+        const i = Math.round((x - L.originX) / L.bucket);
+        if (i < 0 || i >= L.east.length) return open;
+        return headingEast ? L.east[i] : L.west[i];
+    },
+
     updateAmbientTraffic(dt) {
         if (!this.ambientTraffic) this.ambientTraffic = [];
+        // Built lazily rather than from initLevel so it can't be ordered before
+        // the terrain bodies it reads, and so any invalidation just nulls it.
+        if (!this.trafficLanes) this.buildTrafficLanes();
 
         // ambientTrafficRate (level config, default 1) scales both max
         // concurrent traffic and spawn frequency — 0 opts a level out of
@@ -121,36 +217,10 @@ const CargoPhysicsAtmosphereMixin = {
                 t.vx *= 1 + 0.006 * dt;
                 t.vy -= 0.08 * dt; // drift upward into space
             } else {
-                // 1. Terrain & Obstacle Avoidance (Lookahead pathfinding)
-                let obstacleHeight = 1000; // default low ground
-                const lookAheadRange = 500;
-                const minX = Math.min(t.x, t.x + (t.vx > 0 ? lookAheadRange : -lookAheadRange));
-                const maxX = Math.max(t.x, t.x + (t.vx > 0 ? lookAheadRange : -lookAheadRange));
-                
-                // Scan terrain segments ahead
-                if (this.segments) {
-                    this.segments.forEach(s => {
-                        const sMinX = Math.min(s.x1, s.x2);
-                        const sMaxX = Math.max(s.x1, s.x2);
-                        if (sMaxX >= minX && sMinX <= maxX) {
-                            obstacleHeight = Math.min(obstacleHeight, s.y1, s.y2);
-                        }
-                    });
-                }
-                
-                // Scan static physics bodies (buildings, pads)
-                if (this.engine && this.engine.world) {
-                    this.engine.world.bodies.forEach(b => {
-                        if (b.isStatic && b.bounds) {
-                            if (b.bounds.max.x >= minX && b.bounds.min.x <= maxX) {
-                                obstacleHeight = Math.min(obstacleHeight, b.bounds.min.y);
-                            }
-                        }
-                    });
-                }
-                
-                // Keep a safe distance above the highest obstacle ahead
-                const safeAlt = obstacleHeight - 140; 
+                // 1. Terrain & obstacle avoidance — one lookup into the lane
+                // profile baked by buildTrafficLanes() (see the note above it)
+                // instead of the per-truck, per-frame terrain scan this used to do.
+                const safeAlt = this.trafficLaneAlt(t.x, t.vx > 0);
                 const targetY = Math.min(t.baseY, safeAlt); // Target either cruise alt or obstacle clearance
                 
                 // Smooth proportional control for altitude (eliminates bouncing/oscillation)
