@@ -283,7 +283,7 @@ the process).
 | **Pendulum mass physics** | Rope-hung special cargo that destabilizes flight (see backlog). |
 | **Advanced logistics** | More interactive loading/unloading than pad-hovering; persistent ship builds for the harder maps. |
 | **Procedural Expedition mode** | Rogue-like infinite-delivery runs (see backlog). |
-| **Night ops levels** | Darkened scene + lander spotlight cone, ambient hub/hazard glows. **In progress** — see [PLAN.md](PLAN.md). |
+| **Night ops levels** | Darkened scene + lander spotlight cone, ambient hub/hazard glows. Shipped as the `night: true` level flag (`render/night.js`); live on **L10 Crystal Caves** and **L4 Anomaly Zone** — see [PLAN.md](PLAN.md). |
 
 Everything earlier in the original roadmap (dynamic weather, Big Cargo,
 biomes, upgrades integration, in-browser level editor) has shipped — see
