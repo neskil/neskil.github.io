@@ -229,6 +229,79 @@ const CargoPhysicsAtmosphereMixin = {
         }
     },
 
+    // Per-strike sandworm tuning, stashed on the worm at spawn so the update
+    // loop never has to re-find the hazard it came from (the roof worm has no
+    // hazard at all). Every default reproduces the original hardcoded strike,
+    // so a sandworm hazard that sets none of these behaves exactly as before.
+    //
+    //   trackFrames  — frames of active homing before the arc goes ballistic.
+    //                  Note this counts FRAMES, not seconds (dt is 1.0 per
+    //                  60fps frame everywhere in this engine).
+    //   steer        — homing acceleration per frame during that window
+    //   maxSpeed     — speed cap while homing
+    //   decay        — per-frame speed multiplier once tracking ends. Sets how
+    //                  far the strike carries: reach ≈ lungeSpeed / (1 - decay).
+    //   retractSpeed — how fast it withdraws to its burrow afterwards
+    //   hitRadius    — contact radius against the lander, world px
+    //   damage       — hull points per frame while inside hitRadius
+    _sandWormTuning(h) {
+        return {
+            trackFrames:  h?.trackFrames  ?? 1.2,
+            steer:        h?.steer        ?? 2.5,
+            maxSpeed:     h?.maxSpeed     ?? 50,
+            decay:        h?.decay        ?? 0.88,
+            retractSpeed: h?.retractSpeed ?? 12,
+            hitRadius:    h?.hitRadius    ?? 80,
+            damage:       h?.damage       ?? 8,
+        };
+    },
+
+    // ── Altitude fog band ─────────────────────────────────────────────────────
+    // A soft ceiling made of weather instead of geometry: density ramps from 0
+    // at fogBandBottomY to 1 at fogBandTopY (and stays 1 above it), and at full
+    // density the grit costs `fogBandDamage` hull points per second. The curve
+    // lives here rather than in the renderer so the visible band and the damage
+    // can never drift apart — render/fog.js reads this same function.
+    fogDensityAt(y) {
+        const cfg = this.currentLevelConfig;
+        if (!cfg) return 0;
+        const topY = cfg.fogBandTopY;
+        const botY = cfg.fogBandBottomY;
+        if (topY == null || botY == null || botY <= topY) return 0;
+        const t = Math.max(0, Math.min(1, (botY - y) / (botY - topY)));
+        return t * t * (3 - 2 * t); // smoothstep
+    },
+
+    updateAltitudeFog(dt) {
+        const lander = this.lander;
+        if (!lander) { this.fogDensity = 0; return; }
+
+        const density = lander.crashed ? 0 : this.fogDensityAt(lander.y);
+        this.fogDensity = density;
+
+        const dps = this.currentLevelConfig?.fogBandDamage || 0;
+        if (lander.crashed || dps <= 0 || density <= 0.01) return;
+
+        // dps is per second; dt is in 60fps frames.
+        this.applyDamage(lander, (dps * density * dt) / 60);
+
+        // Grit sparking off the hull — the abrasion is a slow drain, so it needs
+        // a visible cause or it just reads as a bug.
+        if (Math.random() < 0.09 * density * dt) {
+            this.particles.push({
+                x: lander.x + (Math.random() - 0.5) * 34,
+                y: lander.y + (Math.random() - 0.5) * 22,
+                vx: (Math.random() - 0.5) * 4 - 2,
+                vy: (Math.random() - 0.5) * 3,
+                life: 0.7, decay: 0.05 + Math.random() * 0.05,
+                color: Math.random() > 0.5 ? '#fcd34d' : '#d97706',
+                size: 1.5 + Math.random() * 2,
+            });
+        }
+
+        if (lander.integrity <= 0) this.triggerExplosion();
+    },
+
     updatePolice(dt) {
         const lander = this.lander;
 
@@ -459,17 +532,19 @@ const CargoPhysicsAtmosphereMixin = {
                 // area is placed as a `sandworm`-type hazard polygon (see the
                 // level editor's Hazard tab).
                 let hasSandwormHazard = false;
+                let zoneHazard = null;
                 for (const h of this.hazards) {
                     if (h.type === 'sandworm' && h.pts && h.pts.length > 0) {
                         hasSandwormHazard = true;
                         let cx = 0, cy = 0;
                         for (let p of h.pts) { cx += p.x; cy += p.y; }
                         cx /= h.pts.length; cy /= h.pts.length;
-                        
+
                         const reach = h.reach || 300;
                         const dist = Math.hypot(lander.x - cx, lander.y - cy);
                         if (dist <= reach) {
                             inWormZone = true;
+                            zoneHazard = h;
                             let baseRate = h.spawnRate || 1.0;
                             let proxScale = h.proximityScale || 0;
                             // As distance goes from reach -> 0, factor goes from 0 -> 1
@@ -504,7 +579,7 @@ const CargoPhysicsAtmosphereMixin = {
                         const dxL = lander.x - spawnX;
                         const dyL = lander.y - spawnY;
                         const distL = Math.max(1, Math.hypot(dxL, dyL));
-                        const speed = 38; // fast lunge
+                        const speed = zoneHazard?.lungeSpeed ?? 38; // fast lunge
                         this.sandWorm = {
                             x: spawnX, y: spawnY,
                             vx: (dxL / distL) * speed,
@@ -512,9 +587,10 @@ const CargoPhysicsAtmosphereMixin = {
                             state: 'lunging',
                             lungeTimer: 0,   // how long it's been lunging
                             trail: [],
-                            length: 35,
+                            length: zoneHazard?.wormLength ?? 35,
                             spawnY: spawnY,  // remember surface Y for retract target
                             spawnX: spawnX,
+                            ...this._sandWormTuning(zoneHazard),
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
@@ -542,6 +618,7 @@ const CargoPhysicsAtmosphereMixin = {
                             isRoofWorm: true,
                             spawnY: spawnY,
                             spawnX: spawnX,
+                            ...this._sandWormTuning(null),
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
@@ -554,22 +631,24 @@ const CargoPhysicsAtmosphereMixin = {
                 w.lungeTimer = (w.lungeTimer || 0) + dt;
 
                 if (w.state === 'lunging') {
-                    // Lunge phase: track toward lander for first 1.2 seconds, then coast
-                    if (w.lungeTimer < 1.2) {
+                    // Tracking phase: steer toward the lander for `trackFrames`
+                    // frames, then coast ballistically. Short window = the strike
+                    // is dodgeable by moving and only really punishes hovering;
+                    // `decay` sets how far past the surface the arc carries.
+                    if (w.lungeTimer < w.trackFrames) {
                         const dxL = lander.x - w.x;
                         const dyL = lander.y - w.y;
                         const distL = Math.max(1, Math.hypot(dxL, dyL));
                         // Steer gradually toward lander
-                        const steer = 2.5;
-                        w.vx += (dxL / distL) * steer * dt;
-                        w.vy += (dyL / distL) * steer * dt;
+                        w.vx += (dxL / distL) * w.steer * dt;
+                        w.vy += (dyL / distL) * w.steer * dt;
                         // Cap speed
                         const spd = Math.hypot(w.vx, w.vy);
-                        if (spd > 50) { w.vx = (w.vx / spd) * 50; w.vy = (w.vy / spd) * 50; }
+                        if (spd > w.maxSpeed) { w.vx = (w.vx / spd) * w.maxSpeed; w.vy = (w.vy / spd) * w.maxSpeed; }
                     } else {
-                        // After 1.2s, start decelerating and then retract
-                        w.vx *= Math.pow(0.88, dt);
-                        w.vy *= Math.pow(0.88, dt);
+                        // Tracking over — decelerate, then retract
+                        w.vx *= Math.pow(w.decay, dt);
+                        w.vy *= Math.pow(w.decay, dt);
                         const spd = Math.hypot(w.vx, w.vy);
                         if (spd < 4) {
                             w.state = 'retracting';
@@ -580,7 +659,7 @@ const CargoPhysicsAtmosphereMixin = {
                     const dxS = w.spawnX - w.x;
                     const dyS = w.spawnY - w.y;
                     const distS = Math.max(1, Math.hypot(dxS, dyS));
-                    const retractSpeed = 12;
+                    const retractSpeed = w.retractSpeed;
                     w.vx = (dxS / distS) * retractSpeed;
                     w.vy = (dyS / distS) * retractSpeed;
                     // Despawn when close to spawn
@@ -604,8 +683,8 @@ const CargoPhysicsAtmosphereMixin = {
                     const dx = lander.x - w.x;
                     const dy = lander.y - w.y;
                     const dist = Math.hypot(dx, dy);
-                    if (dist < 80 && !lander.crashed) {
-                        this.applyDamage(lander, 8 * dt);
+                    if (dist < w.hitRadius && !lander.crashed) {
+                        this.applyDamage(lander, w.damage * dt);
                         if (window.CargoAudio) CargoAudio.playCrash();
                         for (let i = 0; i < 6; i++) {
                             this.particles.push({

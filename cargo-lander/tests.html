@@ -295,24 +295,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.19.14"></script>
-<script src="game/upgrades.js?v=0.19.14"></script>
-<script src="levels/levels.js?v=0.19.14"></script>
-<script src="levels/levelGenerator.js?v=0.19.14"></script>
-<script src="levels/level1.js?v=0.19.14"></script>
-<script src="levels/level2.js?v=0.19.14"></script>
-<script src="levels/level3.js?v=0.19.14"></script>
-<script src="levels/level4.js?v=0.19.14"></script>
-<script src="levels/level5.js?v=0.19.14"></script>
-<script src="levels/level6.js?v=0.19.14"></script>
-<script src="levels/level7.js?v=0.19.14"></script>
-<script src="levels/level8.js?v=0.19.14"></script>
-<script src="levels/level9.js?v=0.19.14"></script>
-<script src="levels/level10.js?v=0.19.14"></script>
-<script src="levels/levelTest.js?v=0.19.14"></script>
-<script src="levels/collectibleTypes.js?v=0.19.14"></script>
-<script src="audio.js?v=0.19.14"></script>
-<script src="render/shaders.js?v=0.19.14"></script>
+<script src="levels/levelSchema.js?v=0.20.0"></script>
+<script src="game/upgrades.js?v=0.20.0"></script>
+<script src="levels/levels.js?v=0.20.0"></script>
+<script src="levels/levelGenerator.js?v=0.20.0"></script>
+<script src="levels/level1.js?v=0.20.0"></script>
+<script src="levels/level2.js?v=0.20.0"></script>
+<script src="levels/level3.js?v=0.20.0"></script>
+<script src="levels/level4.js?v=0.20.0"></script>
+<script src="levels/level5.js?v=0.20.0"></script>
+<script src="levels/level6.js?v=0.20.0"></script>
+<script src="levels/level7.js?v=0.20.0"></script>
+<script src="levels/level8.js?v=0.20.0"></script>
+<script src="levels/level9.js?v=0.20.0"></script>
+<script src="levels/level10.js?v=0.20.0"></script>
+<script src="levels/levelTest.js?v=0.20.0"></script>
+<script src="levels/collectibleTypes.js?v=0.20.0"></script>
+<script src="audio.js?v=0.20.0"></script>
+<script src="render/shaders.js?v=0.20.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -349,26 +349,27 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.19.14"></script>
-<script src="physics/collision.js?v=0.19.14"></script>
-<script src="physics/mechanics.js?v=0.19.14"></script>
-<script src="physics/entities.js?v=0.19.14"></script>
-<script src="physics/atmosphere.js?v=0.19.14"></script>
-<script src="game/game.js?v=0.19.14"></script>
-<script src="game/input.js?v=0.19.14"></script>
-<script src="game/menu.js?v=0.19.14"></script>
-<script src="game/hud.js?v=0.19.14"></script>
-<script src="game/cargo.js?v=0.19.14"></script>
-<script src="render/render.js?v=0.19.14"></script>
-<script src="render/background.js?v=0.19.14"></script>
-<script src="render/terrain.js?v=0.19.14"></script>
-<script src="render/entities.js?v=0.19.14"></script>
-<script src="render/pads.js?v=0.19.14"></script>
-<script src="render/lander.js?v=0.19.14"></script>
-<script src="render/creatures.js?v=0.19.14"></script>
-<script src="render/effects.js?v=0.19.14"></script>
-<script src="render/night.js?v=0.19.14"></script>
-<script src="render/ui.js?v=0.19.14"></script>
+<script src="physics/physics.js?v=0.20.0"></script>
+<script src="physics/collision.js?v=0.20.0"></script>
+<script src="physics/mechanics.js?v=0.20.0"></script>
+<script src="physics/entities.js?v=0.20.0"></script>
+<script src="physics/atmosphere.js?v=0.20.0"></script>
+<script src="game/game.js?v=0.20.0"></script>
+<script src="game/input.js?v=0.20.0"></script>
+<script src="game/menu.js?v=0.20.0"></script>
+<script src="game/hud.js?v=0.20.0"></script>
+<script src="game/cargo.js?v=0.20.0"></script>
+<script src="render/render.js?v=0.20.0"></script>
+<script src="render/background.js?v=0.20.0"></script>
+<script src="render/terrain.js?v=0.20.0"></script>
+<script src="render/entities.js?v=0.20.0"></script>
+<script src="render/pads.js?v=0.20.0"></script>
+<script src="render/lander.js?v=0.20.0"></script>
+<script src="render/creatures.js?v=0.20.0"></script>
+<script src="render/effects.js?v=0.20.0"></script>
+<script src="render/night.js?v=0.20.0"></script>
+<script src="render/fog.js?v=0.20.0"></script>
+<script src="render/ui.js?v=0.20.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -866,6 +867,182 @@ levels.forEach((lv, i) => {
     }
     assert(lv.quests.filter(q => q.type === 'primary').length <= 1, 'at most one primary quest per level');
   });
+});
+
+// ─── 4b2. ALTITUDE FOG BAND ──────────────────────────────────────────────────
+category('Altitude Fog Band');
+
+// Levels can declare a fog band with fogBandTopY/fogBandBottomY. It is the soft
+// ceiling on L6 — the density curve is shared between the renderer and the hull
+// abrasion, so these lock down the curve's shape and the damage plumbing.
+test('fogDensityAt is 0 on levels without a band', () => {
+  const phys = new CargoPhysics();
+  phys.initLevel(levels[0], 1600, 1300);
+  assertEquals(phys.fogDensityAt(0), 0, 'no band configured => no density anywhere');
+  assertEquals(phys.fogDensityAt(-5000), 0, 'not even far above the map');
+});
+
+test('fogDensityAt ramps 0 -> 1 across the band', () => {
+  const lv = levels.find(l => l.fogBandTopY != null && l.fogBandBottomY != null);
+  assert(lv, 'at least one level should configure a fog band');
+  const phys = new CargoPhysics();
+  phys.initLevel(lv, 1600, 1300);
+  const top = lv.fogBandTopY, bot = lv.fogBandBottomY;
+  assert(top < bot, 'fogBandTopY must be above (smaller than) fogBandBottomY');
+
+  assertEquals(phys.fogDensityAt(bot), 0, 'clear at the bottom edge');
+  assertEquals(phys.fogDensityAt(bot + 500), 0, 'clear well below the band');
+  assertEquals(phys.fogDensityAt(top), 1, 'full density at the top edge');
+  assertEquals(phys.fogDensityAt(top - 2000), 1, 'stays capped above the band');
+  assertClose(phys.fogDensityAt((top + bot) / 2), 0.5, 0.001, 'smoothstep is symmetric at the midpoint');
+
+  // Monotonic increase as the lander climbs
+  let prev = -1;
+  for (let y = bot; y >= top; y -= 10) {
+    const d = phys.fogDensityAt(y);
+    assertFinite(d, `density at y=${y}`);
+    assert(d >= prev, `density must not drop while climbing (y=${y})`);
+    prev = d;
+  }
+});
+
+test('fog abrasion scales with density and spares levels with no band', () => {
+  const lv = levels.find(l => (l.fogBandDamage || 0) > 0);
+  assert(lv, 'L6 should configure fogBandDamage');
+  const phys = new CargoPhysics();
+  phys.initLevel(lv, 1600, 1300);
+
+  // Below the band: no damage, and fogDensity reports clear.
+  phys.lander.y = lv.fogBandBottomY + 100;
+  phys.lander.integrity = 100;
+  for (let i = 0; i < 60; i++) phys.updateAltitudeFog(1);
+  assertEquals(phys.fogDensity, 0, 'below the band the lander is in clear air');
+  assertEquals(phys.lander.integrity, 100, 'clear air must not abrade the hull');
+
+  // At full density: one simulated second costs ~fogBandDamage hull.
+  phys.lander.y = lv.fogBandTopY - 50;
+  phys.lander.integrity = 100;
+  for (let i = 0; i < 60; i++) phys.updateAltitudeFog(1);
+  assertEquals(phys.fogDensity, 1, 'above the top edge density is capped at 1');
+  assertClose(100 - phys.lander.integrity, lv.fogBandDamage, 0.001,
+    'one second at full density should cost exactly fogBandDamage hull');
+
+  // A crashed lander stops taking grit damage.
+  phys.lander.crashed = true;
+  const afterCrash = phys.lander.integrity;
+  for (let i = 0; i < 60; i++) phys.updateAltitudeFog(1);
+  assertEquals(phys.lander.integrity, afterCrash, 'a crashed lander takes no fog damage');
+  assertEquals(phys.fogDensity, 0, 'crashed lander reports no fog');
+});
+
+// ─── 4b3. SANDWORM STRIKE TUNING ─────────────────────────────────────────────
+category('Sandworm Strike Tuning');
+
+// The strike shape moved from hardcoded constants onto the sandworm hazard so
+// L6 could get a hunting worm without changing L9's. Defaults must reproduce
+// the original numbers exactly, or every other worm level silently re-tunes.
+test('_sandWormTuning defaults reproduce the original strike', () => {
+  const phys = new CargoPhysics();
+  const d = phys._sandWormTuning(null);
+  assertEquals(d.trackFrames, 1.2, 'default tracking window');
+  assertEquals(d.steer, 2.5, 'default steer');
+  assertEquals(d.maxSpeed, 50, 'default speed cap');
+  assertEquals(d.decay, 0.88, 'default decay');
+  assertEquals(d.retractSpeed, 12, 'default retract speed');
+  assertEquals(d.hitRadius, 80, 'default hit radius');
+  assertEquals(d.damage, 8, 'default contact damage');
+});
+
+test('_sandWormTuning takes overrides from the hazard', () => {
+  const phys = new CargoPhysics();
+  const t = phys._sandWormTuning({ trackFrames: 14, decay: 0.94, hitRadius: 85, damage: 6 });
+  assertEquals(t.trackFrames, 14, 'override applied');
+  assertEquals(t.decay, 0.94, 'override applied');
+  assertEquals(t.hitRadius, 85, 'override applied');
+  assertEquals(t.damage, 6, 'override applied');
+  assertEquals(t.steer, 2.5, 'unspecified fields keep their default');
+});
+
+// Drives a real strike to prove the tuning reaches where the level design says
+// it does. Math.random is stubbed to 0 so the probabilistic spawn fires on the
+// first frame instead of the test depending on luck.
+function simulateWormStrike(lv, landerX, landerY, frames) {
+  const phys = new CargoPhysics();
+  phys.initLevel(lv, 1600, 1300);
+  phys.lander.x = landerX;
+  phys.lander.y = landerY;
+  phys.lander.crashed = false;
+  phys.lander.integrity = phys.lander.maxIntegrity;
+
+  const realRandom = Math.random;
+  Math.random = () => 0; // guarantees the spawn roll passes
+  let peakY = Infinity, spawned = false;
+  try {
+    for (let i = 0; i < frames; i++) {
+      phys.updateMonster(lv, 1);
+      if (phys.sandWorm) {
+        spawned = true;
+        peakY = Math.min(peakY, phys.sandWorm.y);
+      }
+      // Hold the lander still — we're measuring the strike, not evasion
+      phys.lander.y = landerY;
+      phys.lander.x = landerX;
+    }
+  } finally {
+    Math.random = realRandom;
+  }
+  return { spawned, peakY, hullLost: phys.lander.maxIntegrity - phys.lander.integrity, phys };
+}
+
+test('L6 worm strikes up into the freight lane', () => {
+  const lv = levels.find(l => l.name.startsWith('L6'));
+  assert(lv, 'L6 should exist');
+  const worm = lv.hazards.find(h => h.type === 'sandworm');
+
+  // Directly over the mound peak (x:900, surface y:520), hovering at the top of
+  // the worm's declared zone.
+  const r = simulateWormStrike(lv, 900, 260, 240);
+  assert(r.spawned, 'a worm should spawn while hovering inside the zone');
+
+  // The whole point of the difficulty pass: the arc has to clear the old ~320px
+  // ceiling and get into the lane, otherwise altitude is a free bypass again.
+  const surfaceY = 520;
+  const climb = surfaceY - r.peakY;
+  assert(climb > 400, `strike should carry well past the old ~320px reach, got ${climb.toFixed(0)}px`);
+  assert(r.hullLost > 0, 'a stationary lander over the peak should take a hit');
+
+  // Ballistic reach follows lungeSpeed / (1 - decay); keep the config honest
+  // about that so a future tweak to either can't silently shorten the strike.
+  const predicted = worm.lungeSpeed / (1 - worm.decay);
+  assert(predicted > 400, `configured reach ≈ ${predicted.toFixed(0)}px should clear the lane`);
+});
+
+test('L6 worm ignores the lander outside its zone', () => {
+  const lv = levels.find(l => l.name.startsWith('L6'));
+  const worm = lv.hazards.find(h => h.type === 'sandworm');
+  let cx = 0, cy = 0;
+  for (const p of worm.pts) { cx += p.x; cy += p.y; }
+  cx /= worm.pts.length; cy /= worm.pts.length;
+
+  // Just past the zone edge, straight up — the high route has to stay worm-free
+  // or the "traffic vs worm" choice collapses into "everything kills you".
+  const r = simulateWormStrike(lv, cx, cy - (worm.reach + 60), 240);
+  assert(!r.spawned, 'no worm should spawn outside the declared reach');
+  assertEquals(r.hullLost, 0, 'and the hull should be untouched');
+});
+
+test('worm-lair levels declare a matching sandworm hazard', () => {
+  for (const lv of levels.filter(l => l.terrainType === 'worm-lair')) {
+    const worms = (lv.hazards || []).filter(h => h.type === 'sandworm');
+    assert(worms.length > 0, `${lv.name}: terrainType 'worm-lair' needs a sandworm hazard to mark its zone`);
+    for (const h of worms) {
+      assert(Array.isArray(h.pts) && h.pts.length >= 3, `${lv.name}: sandworm hazard needs a polygon`);
+      assert(h.reach == null || h.reach > 0, `${lv.name}: sandworm reach must be positive`);
+      // decay >= 1 would mean the strike never slows down and never retracts.
+      assert(h.decay == null || (h.decay > 0 && h.decay < 1), `${lv.name}: sandworm decay must be in (0, 1)`);
+      assert(h.trackFrames == null || h.trackFrames >= 0, `${lv.name}: sandworm trackFrames must be >= 0`);
+    }
+  }
 });
 
 // ─── 4c. UPGRADE CATALOG VALIDATION ──────────────────────────────────────────
