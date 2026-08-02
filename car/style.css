@@ -439,7 +439,12 @@ body {
 
 .input-shell select {
     font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
     cursor: pointer;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    padding-right: 4px;
 }
 
 .input-shell select option {
@@ -478,15 +483,17 @@ body {
 .preset-row::-webkit-scrollbar { display: none; }
 
 .preset-btn {
-    flex: 0 0 auto;
-    padding: 8px 14px;
+    flex: 1 1 auto;
+    padding: 7px 10px;
     border-radius: 6px;
     background: var(--card-bg);
     border: 1px solid var(--glass-border);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 700;
     cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 
@@ -500,6 +507,7 @@ body {
     border-color: var(--accent);
     color: var(--accent-soft);
 }
+
 
 /* ── Option detail accordions ── */
 details.option {
