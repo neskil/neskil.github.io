@@ -55,10 +55,11 @@ const LISTINGS = [
 const TRIM_STYLE = {
     'EX':              { color: '#3987e5', shape: 'circle' },
     'EX-L':            { color: '#d95926', shape: 'square' },
-    'Touring':         { color: '#199e70', shape: 'triangle' },
+    'Touring':         { color: '#34d399', shape: 'triangle' },
     'Special Edition': { color: '#c98500', shape: 'diamond' },
     'Hybrid':          { color: '#d55181', shape: 'cross' }
 };
+
 
 const AXES = {
     price:        { label: 'Asking price', fmt: (v) => usd0(v), short: (v) => usdShort(v) },
@@ -107,15 +108,15 @@ function regression(pts) {
 }
 
 function marker(shape, cx, cy, color, size) {
-    const s = size || 5;
+    const s = size || 6;
     const common = ' fill="' + color + '" stroke="var(--surface-1)" stroke-width="1.5"';
     switch (shape) {
         case 'square':
             return '<rect x="' + (cx - s) + '" y="' + (cy - s) + '" width="' + s * 2 +
                 '" height="' + s * 2 + '" rx="1"' + common + '/>';
         case 'triangle':
-            return '<polygon points="' + cx + ',' + (cy - s - 1) + ' ' + (cx + s + 1) + ',' + (cy + s) +
-                ' ' + (cx - s - 1) + ',' + (cy + s) + '"' + common + '/>';
+            return '<polygon points="' + cx + ',' + (cy - s - 1) + ' ' + (cx + s + 1) + ',' + (cy + s + 1) +
+                ' ' + (cx - s - 1) + ',' + (cy + s + 1) + '"' + common + '/>';
         case 'diamond':
             return '<polygon points="' + cx + ',' + (cy - s - 1) + ' ' + (cx + s + 1) + ',' + cy + ' ' +
                 cx + ',' + (cy + s + 1) + ' ' + (cx - s - 1) + ',' + cy + '"' + common + '/>';
@@ -127,6 +128,7 @@ function marker(shape, cx, cy, color, size) {
             return '<circle cx="' + cx + '" cy="' + cy + '" r="' + s + '"' + common + '/>';
     }
 }
+
 
 
 function renderDataChart() {
