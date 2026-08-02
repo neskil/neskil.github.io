@@ -164,14 +164,26 @@
             v.insurance === 210 * 1.25);
     })();
 
-    // ── 4. Flexcar Tiers Tests ──────────────────────────────────────
+    // ── 4. Flexcar Tiers & Credit Pricing Tests ─────────────────────
     (function testFlexcarTiers() {
         flexTier = 'cruiser';
-        const v = readInputs();
-        const res = computeAll(v);
-        assert('Flexcar Cruiser tier applies rate offset (+$50)',
-            res.flexcar.perMonth > 0);
+        creditTier = 'prime';
+        const vPrime = readInputs();
+        const resPrime = computeAll(vPrime);
+
+        creditTier = 'nearprime';
+        const vNear = readInputs();
+        const resNear = computeAll(vNear);
+
+        creditTier = 'superprime';
+        const vSuper = readInputs();
+        const resSuper = computeAll(vSuper);
+
+        assert('Flexcar price varies by credit score tier (Nearprime > Prime > Superprime)',
+            resNear.flexcar.perMonth > resPrime.flexcar.perMonth &&
+            resPrime.flexcar.perMonth > resSuper.flexcar.perMonth);
     })();
+
 
     // ── 5. Lease IRA Credit Test ────────────────────────────────────
     (function testLeaseCredit() {

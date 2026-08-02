@@ -367,7 +367,7 @@ function mileagePenalty(excessMiles) {
    or repriced regardless of how much cash you have. */
 const CREDIT_TIERS = {
     none: {
-        label: 'No US credit history', aprNew: 11.0, aprUsed: 15.0, estimated: true,
+        label: 'No US credit history', aprNew: 11.0, aprUsed: 15.0, estimated: true, flexOffset: 120,
         avail: { cash: 'open', loan: 'gated', lease: 'gated', sixt: 'costly', flexcar: 'gated', rental: 'costly' },
         note: 'A thin or empty US file is a lender decision, not a rate: mainstream banks decline, ' +
             'captive leases are usually out, and the cheaper subscription (Flexcar, around a 650 score) ' +
@@ -380,29 +380,26 @@ const CREDIT_TIERS = {
             'which is worth more here than the return it gives up.'
     },
     subprime: {
-        label: 'Rebuilding · under 600', aprNew: 16.01, aprUsed: 21.77,
+        label: 'Rebuilding · under 600', aprNew: 16.01, aprUsed: 21.77, flexOffset: 90,
         avail: { cash: 'open', loan: 'costly', lease: 'gated', sixt: 'costly', flexcar: 'gated', rental: 'open' },
-        note: 'Financing is available but brutal — 16% on new and nearly 22% on used. Leases almost ' +
-            'always need a higher score than this. At these rates paying cash wins by a wide margin.'
+        note: 'Financing is available but brutal — 16% on new and nearly 22% on used. Flexcar requires higher credit score or substantial risk surcharge.'
     },
     nearprime: {
-        label: 'Fair · 601–660', aprNew: 9.57, aprUsedEstimated: true, aprUsed: 13.5,
+        label: 'Fair · 601–660', aprNew: 9.57, aprUsedEstimated: true, aprUsed: 13.5, flexOffset: 45,
         avail: { cash: 'open', loan: 'costly', lease: 'costly', sixt: 'open', flexcar: 'open', rental: 'open' },
-        note: 'You will be approved, but well above the advertised rate, and promotional 0–2.9% offers ' +
-            'are out of reach. Leases are possible with a larger drive-off payment.'
+        note: 'Approved for Flexcar with a $45/mo credit risk tier adjustment. Promotional financing on buying is out of reach.'
     },
     prime: {
-        label: 'Good · 661–780', aprNew: 6.27, aprUsed: 11.4,
+        label: 'Good · 661–780', aprNew: 6.27, aprUsed: 11.4, flexOffset: 0,
         avail: { cash: 'open', loan: 'open', lease: 'open', sixt: 'open', flexcar: 'open', rental: 'open' },
-        note: 'The mainstream band — every route is open and promotional financing is within reach on ' +
-            'new cars. This is where the cash-versus-borrow question is genuinely close.'
+        note: 'The mainstream band — standard Flexcar rate, every route is open, and promotional financing is within reach on new cars.'
     },
     superprime: {
-        label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 6.30,
+        label: 'Excellent · 781+', aprNew: 4.66, aprUsed: 6.30, flexOffset: -30,
         avail: { cash: 'open', loan: 'open', lease: 'open', sixt: 'open', flexcar: 'open', rental: 'open' },
-        note: 'Subsidised 0–2.9% offers are yours to take, which usually makes borrowing cheaper than ' +
-            'paying cash — keep the money invested and let the captive lender fund the car.'
+        note: 'Superprime credit unlocks Flexcar preferred pricing (-$30/mo discount) and 0–2.9% OEM finance rates.'
     }
 };
+
 
 const AVAIL_TEXT = { open: 'available', costly: 'costly', gated: 'hard to get' };

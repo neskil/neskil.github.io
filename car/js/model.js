@@ -527,7 +527,9 @@ function scenarioSixt(v) {
    depending on where the car happens to be. */
 function scenarioFlexcar(v) {
     const tier = FLEXCAR_TIERS[v.flexTier] || FLEXCAR_TIERS.standard;
-    const rate = v.flexRate + tier.rateOffset;
+    const cred = CREDIT_TIERS[creditTier] || CREDIT_TIERS.prime;
+    const credOffset = cred.flexOffset || 0;
+    const rate = Math.max(0, v.flexRate + tier.rateOffset + credOffset);
     const allowance = tier.allowance;
     return scenarioSubscription(v, {
         rate: rate,
@@ -540,6 +542,7 @@ function scenarioFlexcar(v) {
         allowance: allowance, blockPrice: v.flexBlockPrice
     });
 }
+
 
 /* Renting by the day, every day. Nobody plans to do this for five years,
    which is the point: it prices the option of committing to nothing, and
