@@ -26,7 +26,8 @@ drawNightOverlay() {
         const nctx = this._nightCanvas.getContext('2d');
         nctx.clearRect(0, 0, w, h);
 
-        const NIGHT_DARKNESS = 'rgba(3, 5, 14, 0.90)';
+        const baseAlpha = (typeof level.nightDarkness === 'number') ? Math.max(0, Math.min(1, level.nightDarkness)) : 0.90;
+        const NIGHT_DARKNESS = `rgba(3, 5, 14, ${baseAlpha.toFixed(2)})`;
         const NIGHT_LIGHT_RADIUS = 120;      // tight glow around the lander, world px
         const NIGHT_BEAM_LENGTH = 460;       // objective-pointing beam reach, world px
         const NIGHT_BEAM_HALF_ANGLE = 0.16;  // radians (~9°) each side — a narrow searchlight
