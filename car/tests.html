@@ -130,6 +130,15 @@
         assert('Petrol fuel cost calculation ($139.29/mo for 12k mi @ 28 mpg, $3.90/gal)',
             approx(fuelPetrol, 139.29, 0.05));
 
+        carPowertrain = 'hybrid';
+        const vHybrid = readInputs();
+        vHybrid.miles = 12000;
+        vHybrid.mpg = 44;
+        vHybrid.gasPrice = 3.90;
+        const fuelHybrid = monthlyFuel(vHybrid);
+        assert('Hybrid fuel cost calculation ($88.64/mo for 12k mi @ 44 mpg, $3.90/gal)',
+            approx(fuelHybrid, 88.64, 0.05));
+
         carPowertrain = 'ev';
         const vEV = readInputs();
         vEV.miles = 12000;
@@ -139,6 +148,7 @@
         assert('EV electricity cost calculation ($44.12/mo for 12k mi @ 3.4 mi/kWh, $0.15/kWh)',
             approx(fuelEV, 44.12, 0.05));
     })();
+
 
     // ── 3. Powertrain Adjustments Tests ─────────────────────────────
     (function testPowertrainAdjustments() {

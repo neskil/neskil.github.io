@@ -251,8 +251,16 @@ function applyCarProfile(bodyOverride) {
         maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
     $('insurance').value = Math.round(210 * brand.insMult * body.insMult * band.insMult / 5) * 5;
     /* Shape decides the pump bill more than the badge does — the gap
-       between a small car and a pickup is a third of the fuel line. */
-    if (body.mpg) $('mpg').value = body.mpg;
+       between a small car and a pickup is a third of the fuel line.
+       Hybrids deliver ~55% better fuel economy than petrol counterparts. */
+    if (carPowertrain === 'hybrid') {
+        $('mpg').value = body.mpg ? Math.round(body.mpg * 1.55) : 44;
+    } else if (carPowertrain === 'ev') {
+        if ($('evMiPerKwh')) $('evMiPerKwh').value = 3.4;
+    } else {
+        if (body.mpg) $('mpg').value = body.mpg;
+    }
+
     $('down').value = Math.round(priceNow * 0.12 / 100) * 100;
 
     buyingUsed = band.buyAge > 0;
