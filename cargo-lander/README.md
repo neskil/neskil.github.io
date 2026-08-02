@@ -187,7 +187,13 @@ server on port 8177:
   element/computed-style diagnostics on-screen (this is what caught the
   invisible-minimap CSS bug); `&hide=fn1,fn2` no-ops draw calls to bisect a
   visual; `&script=name` runs a scripted repro (add new ones there for future
-  bug hunts). Screenshot with
+  bug hunts); `&lanes=1` mirrors the dev panel's "Show Traffic Lanes" toggle.
+  `&script=trafficSim` drives `updateAmbientTraffic()` in a synchronous loop
+  (`&simx`/`&simy` park the lander first, `&simframes` sets the run length —
+  the default 3600 is ~60s, which is what it takes to reach steady state since
+  trucks spawn 2000px out and only despawn at 2500px) and reports the truck
+  count plus the lane's Y quartiles, then leaves the traffic in place so the
+  same URL can also be screenshotted. Screenshot with
   `--window-size=1280,800 --virtual-time-budget=8000 --screenshot=out.png "<url>"`
   and read the PNG. The probe stamps the post-FX shader's link status
   bottom-left in every shot, since a failed WebGL compile is otherwise silent.
