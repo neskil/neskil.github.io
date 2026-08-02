@@ -78,7 +78,7 @@ function routeAvailability(key, v, results) {
 function cheapestAvailable(results, v) {
     const usable = OPTIONS.filter((o) => routeAvailability(o.key, v, results).state !== 'gated');
     const pool = usable.length ? usable : OPTIONS;
-    return pool.slice().sort((a, b) => results[a.key].total - results[b.key].total)[0];
+    return pool.slice().sort((a, b) => activeTotal(results[a.key]) - activeTotal(results[b.key]))[0];
 }
 
 function renderTable(results, v) {
@@ -108,14 +108,16 @@ function renderVerdict(results, best, v) {
        fact have been cheaper. */
     const open = OPTIONS.filter((o) => routeAvailability(o.key, v, results).state !== 'gated');
     const pool = open.length > 1 ? open : OPTIONS;
-    const ranked = pool.slice().sort((a, b) => results[a.key].total - results[b.key].total);
+    const ranked = pool.slice().sort((a, b) => activeTotal(results[a.key]) - activeTotal(results[b.key]));
     const win = ranked[0], second = ranked[1];
-    const gap = results[second.key].total - results[win.key].total;
-    const overall = OPTIONS.slice().sort((a, b) => results[a.key].total - results[b.key].total)[0];
+    const gap = activeTotal(results[second.key]) - activeTotal(results[win.key]);
+    const overall = OPTIONS.slice().sort((a, b) =>
+        activeTotal(results[a.key]) - activeTotal(results[b.key]))[0];
 
     $('verdictWinner').textContent = win.label;
-    $('verdictCost').textContent = usd0(results[win.key].perMonth) + '/mo · ' +
-        usd0(results[win.key].total) + ' over ' + v.months + ' mo';
+    $('verdictCost').textContent = usd0(activePerMonth(results[win.key], v.months)) + '/mo · ' +
+        usd0(activeTotal(results[win.key])) + ' over ' + v.months + ' mo' +
+        (allComponentsOn() ? '' : ', counting only the lines you left on');
 
     /* Cheapest is only useful if you can actually put the money down. */
     const upfront = {
@@ -133,7 +135,7 @@ function renderVerdict(results, best, v) {
     const held = scenarioCase;
     for (const key of Object.keys(SCENARIOS)) {
         scenarioCase = key;
-        spread[key] = computeAll(readInputs())[win.key].perMonth;
+        spread[key] = activePerMonth(computeAll(readInputs())[win.key], v.months);
     }
     scenarioCase = held;
     $('verdictRange').innerHTML = 'If things go well <strong>' + usd0(spread.optimistic) +
@@ -150,9 +152,10 @@ function renderVerdict(results, best, v) {
        clearest possible statement of what your credit file is costing. */
     const blocked = overall.key !== win.key
         ? ' <strong>' + overall.label + '</strong> would be cheaper still at ' +
-          usd0(results[overall.key].perMonth) + '/mo, but ' +
+          usd0(activePerMonth(results[overall.key], v.months)) + '/mo, but ' +
           routeAvailability(overall.key, v, results).reason + ' — that gap, ' +
-          usd0(results[win.key].total - results[overall.key].total) + ' over the horizon, is what the ' +
+          usd0(activeTotal(results[win.key]) - activeTotal(results[overall.key])) +
+          ' over the horizon, is what the ' +
           'closed door costs you.'
         : '';
 
@@ -163,7 +166,7 @@ function renderVerdict(results, best, v) {
             : 'costing <strong>' + usd0(gap) + '</strong> more over ' + v.months + ' months (' +
               usd0(gap / v.months) + '/mo). Most expensive: <strong>' +
               ranked[ranked.length - 1].label.toLowerCase() + '</strong> at ' +
-              usd0(results[ranked[ranked.length - 1].key].total) + '.');
+              usd0(activeTotal(results[ranked[ranked.length - 1].key])) + '.');
 }
 
 function renderCashNote(results, v) {
@@ -370,6 +373,27 @@ function renderOptionNotes(results, v) {
     };
     subNote(results.sixt, v.rentAllowance, v.rentBlockPrice, 'rentNote');
     subNote(results.flexcar, v.flexAllowance, v.flexBlockPrice, 'flexNote');
+
+    /* Sixt's waiver came to within two dollars of retail cover, which made
+       "it is all-in" a fair claim. Flexcar's does not, and the gap is the
+       whole point: the plan is mandatory *and* dearer than the policy it
+       replaces, because your own insurer is not allowed to cover the car.
+       Price it against a real quote rather than against the page default. */
+    if (v.ownInsuranceQuote > 0) {
+        const markup = v.flexProtection - v.ownInsuranceQuote;
+        $('flexInsuranceNote').innerHTML = markup > 0
+            ? 'Flexcar charges <strong>' + usd0(v.flexProtection) + '/mo</strong> for cover you have been ' +
+              'quoted <strong>' + usd0(v.ownInsuranceQuote) + '</strong> for elsewhere — a markup of ' +
+              '<strong>' + usd0(markup) + '/mo</strong>, ' +
+              Math.round(markup / v.ownInsuranceQuote * 100) + '% over the retail price, or ' +
+              usd0(markup * v.months) + ' across your ' + v.months + ' months. You cannot decline it: ' +
+              'Flexcar states that personal and credit-card policies do not extend to their cars. That is ' +
+              'the honest cost of the route, and it is the clearest difference from Sixt+, whose waiver and ' +
+              'driver together come to about what retail cover costs.'
+            : 'At <strong>' + usd0(v.flexProtection) + '/mo</strong> the mandatory plan is at or below the ' +
+              usd0(v.ownInsuranceQuote) + ' you have been quoted elsewhere, so the bundling is genuinely ' +
+              'working in your favour here.';
+    }
 
     /* The anchor. Saying the multiple out loud is the whole value of the
        line — a number this big is easier to disbelieve than to reason

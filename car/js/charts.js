@@ -37,6 +37,13 @@ function chartFrame(opts) {
     return { px, py, plotW: width - pad.l - pad.r, plotH: height - pad.t - pad.b };
 }
 
+/* Both charts must agree about what is being counted, so the curve reads
+   the switched-on lines too. */
+function curveValue(point, key, measure, months) {
+    const r = point[key];
+    return measure === 'total' ? activeTotal(r) : activePerMonth(r, point.month);
+}
+
 function renderBreakeven(v) {
     const host = $('breakevenChart');
     const maxMonths = Math.max(24, Math.min(240, Math.ceil((v.months + 24) / 12) * 12));
@@ -45,7 +52,7 @@ function renderBreakeven(v) {
     const measure = curveMeasure;
 
     const values = [];
-    for (const p of points) for (const o of OPTIONS) values.push(p[o.key][measure]);
+    for (const p of points) for (const o of OPTIONS) values.push(curveValue(p, o.key, measure));
     const yMax = Math.max(...values) * 1.06;
     const yMin = Math.min(0, Math.min(...values));
 
@@ -91,10 +98,10 @@ function renderBreakeven(v) {
     const labels = [];
     for (const o of OPTIONS) {
         const d = points.map((p, i) => (i ? 'L' : 'M') + f.px(p.month).toFixed(1) + ' ' +
-            f.py(p[o.key][measure]).toFixed(1)).join(' ');
+            f.py(curveValue(p, o.key, measure)).toFixed(1)).join(' ');
         svg += '<path class="serie" d="' + d + '" stroke="' + o.color + '"' +
             (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>';
-        labels.push({ y: f.py(last[o.key][measure]) + 3, text: o.short, color: o.color });
+        labels.push({ y: f.py(curveValue(last, o.key, measure)) + 3, text: o.short, color: o.color });
     }
     for (const l of stackLabels(labels, 11, pad.t + 8, height - pad.b)) {
         svg += '<text class="serie-label" x="' + (width - pad.r + 5) + '" y="' + l.y.toFixed(1) +
@@ -106,7 +113,7 @@ function renderBreakeven(v) {
     for (const c of changes) {
         const p = points.find((q) => q.month === c.month);
         svg += '<circle class="lead-dot" cx="' + f.px(c.month).toFixed(1) + '" cy="' +
-            f.py(p[c.to][measure]).toFixed(1) + '" r="4" fill="var(--accent)"/>';
+            f.py(curveValue(p, c.to, measure)).toFixed(1) + '" r="4" fill="var(--accent)"/>';
     }
 
     svg += '<g id="beCross" style="display:none"><line class="crosshair" y1="' + pad.t + '" y2="' +
@@ -149,12 +156,13 @@ function attachCurveHover() {
         cross.querySelector('line').setAttribute('x1', cx);
         cross.querySelector('line').setAttribute('x2', cx);
         for (const dot of cross.querySelectorAll('circle')) dot.remove();
-        const ranked = OPTIONS.slice().sort((a, b) => nearest[a.key][measure] - nearest[b.key][measure]);
+        const ranked = OPTIONS.slice().sort((a, b) =>
+            curveValue(nearest, a.key, measure) - curveValue(nearest, b.key, measure));
         for (const o of OPTIONS) {
             const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             c.setAttribute('class', 'cross-dot');
             c.setAttribute('cx', cx);
-            c.setAttribute('cy', f.py(nearest[o.key][measure]));
+            c.setAttribute('cy', f.py(curveValue(nearest, o.key, measure)));
             c.setAttribute('r', '3.5');
             c.setAttribute('fill', o.color);
             cross.appendChild(c);
@@ -162,7 +170,7 @@ function attachCurveHover() {
         const rows = ranked.map((o, i) =>
             '<div class="tt-label"><span class="swatch" style="background:' + o.color + '"></span>' +
             o.label + (i === 0 ? ' ✓' : '') + ' <span class="tt-val">' +
-            (measure === 'total' ? usd0(nearest[o.key].total) : usd0(nearest[o.key].perMonth) + '/mo') +
+            usd0(curveValue(nearest, o.key, measure)) + (measure === 'total' ? '' : '/mo') +
             '</span></div>').join('');
         showTooltip(evt, '<div class="tt-val" style="margin-bottom:3px">Keep ' + nearest.month +
             ' months (' + (nearest.month / 12).toFixed(1) + ' yr)</div>' + rows);
@@ -179,7 +187,7 @@ function renderCrossings(changes, points, measure, v) {
 
     if (!changes.length) {
         const lead = OPTIONS.slice().sort((a, b) =>
-            points[0][a.key][measure] - points[0][b.key][measure])[0];
+            curveValue(points[0], a.key, measure) - curveValue(points[0], b.key, measure))[0];
         parts.push('<strong>' + lead.label + '</strong> is cheapest at every length of ownership on these ' +
             'numbers — there is no crossover to wait for.');
     } else {
@@ -198,8 +206,10 @@ function renderCrossings(changes, points, measure, v) {
     const step = points.length > 1 ? points[1].month - points[0].month : 1;
     const later = points[Math.min(points.indexOf(here) + Math.round(12 / step), points.length - 1)];
     if (later !== here) {
-        const bestHere = OPTIONS.slice().sort((a, b) => here[a.key][measure] - here[b.key][measure])[0];
-        const delta = later[bestHere.key].perMonth - here[bestHere.key].perMonth;
+        const bestHere = OPTIONS.slice().sort((a, b) =>
+            curveValue(here, a.key, measure) - curveValue(here, b.key, measure))[0];
+        const delta = activePerMonth(later[bestHere.key], later.month) -
+            activePerMonth(here[bestHere.key], here.month);
         const gap = later.month - here.month;
         parts.push('Keeping it ' + (gap === 12 ? 'a year' : gap + ' months') + ' longer than your ' +
             v.months + ' months moves ' + bestHere.label.toLowerCase() + ' by <strong>' +
@@ -246,7 +256,7 @@ function renderChart(results, v) {
     const chart = $('chart');
     chart.innerHTML = '';
 
-    const perMonth = OPTIONS.map((o) => results[o.key].perMonth);
+    const perMonth = OPTIONS.map((o) => activePerMonth(results[o.key], v.months));
     /* Daily rental runs about four times everything else, and on a shared
        scale it flattens the five routes anyone is actually choosing
        between — segments stop being labellable and the differences that
@@ -279,7 +289,7 @@ function renderChart(results, v) {
             '<span>' + opt.label + '</span>' +
             (opt.key === best ? '<span class="tag">cheapest you can get</span>' : '') +
             (avail.state === 'gated' ? '<span class="tag gate">not open to you</span>' : '') +
-            '<span class="total">' + usd0(r.perMonth) + '<small>/mo</small></span>';
+            '<span class="total">' + usd0(activePerMonth(r, v.months)) + '<small>/mo</small></span>';
         row.appendChild(head);
 
         /* Which car this row is actually pricing — the assumption most
@@ -300,6 +310,7 @@ function renderChart(results, v) {
            width and stays visible in the numbers table. */
         const scale = 100 / max;
         for (const comp of COMPONENTS) {
+            if (!activeComponents.has(comp.key)) continue;
             const value = r.components[comp.key] / v.months;
             if (value <= 0.5) continue;
             const seg = document.createElement('div');
@@ -322,10 +333,22 @@ function renderChart(results, v) {
                 seg.classList.add('labelled');
             }
 
+            /* What is actually inside this block, itemised. The ledger
+               tags every flow with what it is, so the answer to "what
+               counts as a fee here?" is the sum of its parts rather than
+               a category name. */
+            const parts = (r.detail && r.detail[comp.key]) || {};
+            const lines = Object.entries(parts)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+                .map(([label, amt]) =>
+                    '<div class="tt-part"><span>' + label + '</span><span>' +
+                    usd0(amt / v.months) + '/mo</span></div>').join('');
             const tip =
                 '<div class="tt-label"><span class="swatch" style="background:' + comp.color +
                 '"></span>' + comp.label + '</div>' +
-                '<div class="tt-val">' + usd0(value) + '/mo · ' + usd0(r.components[comp.key]) + ' total</div>';
+                '<div class="tt-val">' + usd0(value) + '/mo · ' + usd0(r.components[comp.key]) +
+                ' over ' + v.months + ' mo</div>' +
+                (lines ? '<div class="tt-parts">' + lines + '</div>' : '');
             seg.addEventListener('mousemove', (e) => showTooltip(e, tip));
             seg.addEventListener('mouseleave', hideTooltip);
             /* Touch: tap a segment to read it, tap anywhere to dismiss. */
@@ -369,9 +392,15 @@ function renderChart(results, v) {
         .join('. ') + '.';
 
     const legend = $('legend');
-    legend.innerHTML = COMPONENTS.map((c) =>
-        '<span class="legend-item"><span class="swatch" style="background:' + c.color + '"></span>' +
-        c.label + '</span>').join('');
+    legend.innerHTML = COMPONENTS.map((c) => {
+        const on = activeComponents.has(c.key);
+        return '<button type="button" class="legend-item legend-toggle' + (on ? '' : ' off') +
+            '" data-comp="' + c.key + '" aria-pressed="' + on + '">' +
+            '<span class="swatch" style="background:' + c.color + '"></span>' + c.label + '</button>';
+    }).join('') +
+        (allComponentsOn()
+            ? '<span class="legend-hint">tap a line to take it out of the comparison</span>'
+            : '<button type="button" class="legend-hint reset" id="legendReset">show everything again</button>');
 
     return best;
 }

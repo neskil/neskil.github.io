@@ -19,6 +19,25 @@ let carBrand = null, carAge = null, carBody = null;
 /* Optimistic / expected / pessimistic. */
 let scenarioCase = 'expected';
 
+/* Which cost lines are in the comparison. Fuel costs the same whichever
+   way you get the car, and so does insurance on the routes that do not
+   include it — so being able to switch them off is how you see the
+   difference the *decision* makes rather than the difference the car
+   makes. Everything is on by default: the honest total is the full one,
+   and this is a lens, not a discount. */
+const activeComponents = new Set(['depreciation', 'interest', 'fees',
+                                  'insurance', 'maintenance', 'fuel']);
+
+/* Totals over only the lines currently switched on. The model always
+   computes everything; this is what the chart and the verdict compare. */
+function activeTotal(r) {
+    let sum = 0;
+    for (const c of COMPONENTS) if (activeComponents.has(c.key)) sum += r.components[c.key];
+    return sum;
+}
+function activePerMonth(r, months) { return activeTotal(r) / months; }
+function allComponentsOn() { return activeComponents.size === COMPONENTS.length; }
+
 /* List price and out-the-door are the same number seen from either side
    of the tax line; this says which one the user typed last so the other
    can follow rather than fight it. */
