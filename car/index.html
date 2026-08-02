@@ -47,9 +47,13 @@
             </a>
         </div>
 
-        <button type="button" class="guide-btn" id="openGuide">
-            🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="guide-btn" id="openGuide">
+                🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
+            </button>
+            <button type="button" class="preset-btn" id="shareScenarioBtn" style="padding:10px 14px;border-radius:10px;font-size:0.85rem;" title="Copy shareable URL link">🔗 Share scenario</button>
+        </div>
+
 
         <div class="app-layout">
             <aside class="sidebar-index">
@@ -134,12 +138,26 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="taxRate">Tax on the car <span style="color:var(--text-mute)">· GA TAVT 7%</span></label>
+                    <label for="statePreset">State tax &amp; EV tag preset</label>
+                    <div class="input-shell">
+                        <select id="statePreset">
+                            <option value="ga" selected>Georgia — 7.0% TAVT, $238 EV tag</option>
+                            <option value="ca">California — 7.25% Tax, $108 EV tag</option>
+                            <option value="tx">Texas — 6.25% Tax, $200 EV tag</option>
+                            <option value="fl">Florida — 6.0% Tax, $0 EV tag</option>
+                            <option value="ny">New York — 4.0% Tax, $0 EV tag</option>
+                            <option value="custom">Custom rates</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="taxRate">Tax on the car <span style="color:var(--text-mute)">· rate</span></label>
                     <div class="input-shell">
                         <input type="number" id="taxRate" min="0" max="15" step="0.1" value="7">
                         <span class="suffix">%</span>
                     </div>
                 </div>
+
                 <div class="field">
                     <label for="fees">Doc, title &amp; plates</label>
                     <div class="input-shell">

@@ -177,7 +177,16 @@ const FUEL_DEFAULTS = { pricePerGallon: 3.90, mpg: 28, evKwhPrice: 0.15, evMiPer
    and $7,500 IRA clean vehicle commercial lease pass-through / residual subsidy.
    Hybrids carry ~15% lower maintenance, slightly higher insurance (+2%),
    higher mpg (e.g. 44 mpg), and $1,000 lease subsidy. */
+const STATE_PRESETS = {
+    ga: { name: 'Georgia', taxRate: 7.0, evFee: 238, label: 'GA TAVT 7% + $238 EV tag' },
+    ca: { name: 'California', taxRate: 7.25, evFee: 108, label: 'CA Tax 7.25% + $108 EV tag' },
+    tx: { name: 'Texas', taxRate: 6.25, evFee: 200, label: 'TX Tax 6.25% + $200 EV tag' },
+    fl: { name: 'Florida', taxRate: 6.0, evFee: 0, label: 'FL Tax 6.0%' },
+    ny: { name: 'New York', taxRate: 4.0, evFee: 0, label: 'NY Tax 4.0%' }
+};
+
 const POWERTRAIN_TYPES = {
+
     petrol: {
         label: '⛽ Petrol',
         maintMult: 1.00,
