@@ -967,13 +967,17 @@
 
                         <!-- Break-even over time -->
                         <section class="panel" id="sec-breakeven">
-                            <div class="panel-title">
-                                Break-even: how long you keep it
-                                <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
-                                    <button type="button" data-mode="perMonth" class="active">Per month</button>
-                                    <button type="button" data-mode="total">Total</button>
+                            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                                <span>Break-even: how long you keep it</span>
+                                <div style="display:flex;gap:6px;align-items:center">
+                                    <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
+                                        <button type="button" data-mode="perMonth" class="active">Per month</button>
+                                        <button type="button" data-mode="total">Total</button>
+                                    </div>
+                                    <button type="button" class="preset-btn" id="expandBeChart" style="padding:4px 8px;font-size:0.75rem" title="Enlarge Chart">🔍 Enlarge</button>
                                 </div>
                             </div>
+
                             <div id="breakevenChart"></div>
                             <div class="legend" id="breakevenLegend"></div>
                             <div class="crossings" id="crossings"></div>
@@ -1639,9 +1643,21 @@
         </p>
     </div>
 
+    <!-- Enlarged Graph Modal -->
+    <div class="modal-backdrop" id="graphBackdrop"></div>
+    <div class="modal" id="graphModal" role="dialog" aria-modal="true" aria-labelledby="graphTitle" hidden style="width:min(1050px, calc(100vw - 20px))">
+        <div class="modal-head">
+            <span>🔍</span>
+            <h2 id="graphTitle">Enlarged Chart View</h2>
+            <button type="button" class="modal-close" id="graphClose" aria-label="Close">✕</button>
+        </div>
+        <div id="expandedChartContainer" style="padding:12px 0;width:100%"></div>
+    </div>
+
     <!-- Depreciation by model -->
     <div class="modal-backdrop" id="depBackdrop"></div>
     <div class="modal" id="depModal" role="dialog" aria-modal="true" aria-labelledby="depModalTitle" hidden>
+
         <div class="modal-head">
             <span>📉</span>
             <h2 id="depModalTitle">Depreciation by model</h2>

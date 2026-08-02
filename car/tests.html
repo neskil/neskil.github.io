@@ -253,11 +253,46 @@
             valJap > valAvg && valAvg > valLux);
     })();
 
+    // ── 11. Sixt+ & Flexcar Subscription Math Test ─────────────────
+    (function testSubscriptions() {
+        const v = readInputs();
+        const res = computeAll(v);
+        assert('Sixt+ monthly calculation includes LDW and driver charges',
+            res.sixt.total > 0 && res.sixt.perMonth > 0);
+        assert('Flexcar monthly calculation includes protection and membership fee',
+            res.flexcar.total > 0 && res.flexcar.perMonth > 0);
+    })();
+
+    // ── 12. Daily Rental Option Test ────────────────────────────────
+    (function testDailyRental() {
+        const v = readInputs();
+        const res = computeAll(v);
+        assert('Daily rental includes zero maintenance and zero registration fees',
+            res.rental.components.maintenance === 0 && res.rental.components.fees === 0);
+    })();
+
+    // ── 13. Vehicle Age Band Maintenance Test ────────────────────────
+    (function testAgeBands() {
+        const maintNew = maintMultiplierOver(0, 5);
+        const maintUsed = maintMultiplierOver(5, 5);
+        assert('5-yr-old used car upkeep multiplier > Brand new car upkeep multiplier',
+            maintUsed > maintNew);
+    })();
+
+    // ── 14. Credit Tier Rates & Gating Test ──────────────────────────
+    (function testCreditTiers() {
+        const superprime = CREDIT_TIERS.superprime;
+        const subprime = CREDIT_TIERS.subprime;
+        assert('Superprime loan APR < Subprime loan APR',
+            superprime.aprNew < subprime.aprNew);
+        assert('Subprime credit gates lease option',
+            subprime.avail.lease === 'gated');
+    })();
+
     // Summary output
     const summary = document.getElementById('summary');
     summary.innerHTML = passed + ' passed, ' + failed + ' failed' +
         (failed ? ' (' + fails.join(', ') + ')' : '');
-
     summary.className = failed ? 'fail' : 'pass';
     </script>
 </body>
