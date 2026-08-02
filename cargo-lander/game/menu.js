@@ -820,6 +820,8 @@ Object.assign(CargoGame.prototype, {
             set('dev-fuel', this.physics.lander?.maxFuel ?? 100, 'dv-fuel');
             const unlockCb = document.getElementById('dev-unlock-all');
             if (unlockCb) unlockCb.checked = !!this.devUnlockAll;
+            const lanesCb = document.getElementById('dev-traffic-lanes');
+            if (lanesCb) lanesCb.checked = !!this.showTrafficLanes;
         }
     },
 

@@ -85,6 +85,10 @@
                     // &script=eatenByMonster / noCargoExtract — scripted repros for
                     // the 2026-07-10 gameplay fixes (monster-kill = hard fail,
                     // no-cargo overtime-extraction exploit).
+                    // &lanes=1 mirrors the dev panel's "Show Traffic Lanes" toggle,
+                    // so the precomputed ambient-traffic path can be screenshotted.
+                    if (q.get('lanes') === '1') g.showTrafficLanes = true;
+
                     const script = q.get('script');
                     if (script === 'eatenByMonster') {
                         g.physics.lander.eatenByMonster = true;
@@ -178,6 +182,41 @@
                                 type: 'normal', name: st.toUpperCase(), style: st,
                             });
                         });
+                    } else if (script === 'trafficSim') {
+                        // Ambient-traffic lane check. updateAmbientTraffic() sets each
+                        // truck's altitude from `min(baseY, highestTerrainAhead - 140)`,
+                        // so a level's roof heights — not just ambientTrafficMinY/MaxY —
+                        // decide where the lane actually sits. rAF doesn't tick reliably
+                        // under --virtual-time-budget, so drive it synchronously.
+                        // Optional &simx=/&simy= park the lander first (traffic spawns
+                        // and despawns relative to it, so the sample is position-local).
+                        const l = g.physics.lander;
+                        const simX = parseFloat(q.get('simx') ?? l.x);
+                        const simY = parseFloat(q.get('simy') ?? l.y);
+                        l.x = simX; l.y = simY; l.landed = false;
+                        if (iw.Matter && g.physics.landerBody) {
+                            iw.Matter.Body.setPosition(g.physics.landerBody, { x: simX, y: simY });
+                        }
+                        const log = [];
+                        try {
+                            // ~60s at 60fps — long enough to reach steady state.
+                            // Trucks spawn 2000px out and only despawn at 2500px,
+                            // so a short run reads as artificially empty.
+                            const frames = parseInt(q.get('simframes') || '3600', 10);
+                            for (let i = 0; i < frames; i++) g.physics.updateAmbientTraffic(1);
+                            const tr = g.physics.ambientTraffic || [];
+                            const ys = tr.filter(t => !t.flyingOff).map(t => t.y).sort((a, b) => a - b);
+                            const near = tr.filter(t => Math.abs(t.x - simX) < 700).length;
+                            log.push(`trafficSim @(${simX},${simY}): n=${tr.length} within700px=${near}`);
+                            if (ys.length) {
+                                const q1 = ys[Math.floor(ys.length * 0.25)];
+                                const q3 = ys[Math.floor(ys.length * 0.75)];
+                                log.push(`  lane y: min=${ys[0].toFixed(0)} q1=${q1.toFixed(0)} med=${ys[Math.floor(ys.length / 2)].toFixed(0)} q3=${q3.toFixed(0)} max=${ys[ys.length - 1].toFixed(0)}`);
+                            }
+                        } catch (simErr) {
+                            log.push('SIM ERROR: ' + simErr.message);
+                        }
+                        iw.__probeSimLog = log;
                     } else if (script === 'parachute') {
                         // Headless Chrome's --virtual-time-budget fast-forwards
                         // setTimeout but doesn't reliably keep requestAnimationFrame
@@ -213,6 +252,7 @@
                             msg += '\nlander: fuel=' + l.fuel.toFixed(2) + ' vy=' + l.vy.toFixed(2) + ' chuteTimer=' + (l.chuteTimer || 0).toFixed(1) + ' chuteDeployed=' + !!l.chuteDeployed + ' landed=' + l.landed;
                             msg += '\nconsole errors: ' + (consoleErrors.length ? consoleErrors.join(' || ') : 'none');
                             if (iw.__parachuteSimLog) msg += '\n' + iw.__parachuteSimLog.join('\n');
+                            if (iw.__probeSimLog) msg += '\n' + iw.__probeSimLog.join('\n');
                         }
                         st.textContent = msg;
                     } catch (e) { st.style.color = '#f00'; st.textContent = 'probe err: ' + e.message; }
