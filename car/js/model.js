@@ -281,13 +281,19 @@ function addOwnerRunningCosts(led, v, maintenanceShare) {
         : 'petrol at ' + usd0(v.gasPrice) + '/gal, ' + v.mpg + ' mpg';
 
     for (let m = 1; m <= v.months; m++) {
-        led.add(v.insurance, m, 'insurance', 'full-coverage premium' + (v.powertrain !== 'petrol' ? ' (' + pt.label + ' rate)' : ''));
+        /* Insurance premium decays slightly as the vehicle's replacement value drops over time (~2%/yr) */
+        const vehicleAgeYears = (v.buyAge || 0) + (m / 12);
+        const insAgeDecay = Math.max(0.72, 1 - 0.02 * vehicleAgeYears);
+        const monthlyIns = v.insurance * insAgeDecay;
+
+        led.add(monthlyIns, m, 'insurance', 'full-coverage premium' + (v.powertrain !== 'petrol' ? ' (' + pt.label + ' rate)' : ''));
         led.add(v.maintenance * maintenanceShare, m, 'maintenance',
             maintenanceShare < 1
                 ? 'servicing and tyres (warranty covers the rest)'
                 : (isEV ? 'EV servicing & tyres (no engine/oil repairs)' : 'servicing and repairs'));
         led.add(fuel, m, 'fuel', fuelLabel);
     }
+
     const years = Math.ceil(v.months / 12);
     const regLabel = isEV ? 'annual registration ($70 tag + $238 GA EV surcharge)' : 'annual registration';
     for (let y = 0; y < years; y++) {
