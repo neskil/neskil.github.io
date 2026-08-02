@@ -6,11 +6,12 @@ registerLevel({
   name: "L4: Gravity Anomaly",
   missionTitle: "Anomaly Zone — Vortex Run",
   description: "HQ sits on a western plateau; the cargo dock is atop a ridge pillar far to the east, past a gravitational vortex drifting in slow orbit over the open valley. Bring each crate back to the Hollow — a cave alcove carved into the ridge below the dock — but a lava vent guards its mouth, flaring on a duty cycle. Time the flare, duck inside to deliver, then take the low tunnel under the valley floor straight back to HQ instead of running the vortex a second time.",
-  hint: "Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. Watch the vent flare before ducking into the Hollow to deliver. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
-  gravity: 0.22,
+  hint: "The cavern is unlit — you're flying on the lander's spotlight, and its sonar ping sweeps the terrain silhouette every few seconds. Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. The amber sonar ring marks the lava vent: it seals the corridor when it flares, so wait out a flare and cross on the long gap after it. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
+  gravity: 0.15,          // Eased from 0.22 — the drifting gravwell already supplies the pull here
   maxFuel: 300,
   windVarianceEnabled: false,
   weather: "ash",
+  night: true,            // Cavern run is unlit — spotlight + lander sonar ping do the navigating
   fee: 200,
   timeLimit: 220,
   padScale: 1.3,
@@ -72,6 +73,18 @@ registerLevel({
       ]
     }
   ],
+  // Sonar ring over the vent corridor. With `night: true` the cavern is dark
+  // enough that the vent is invisible until it flares in your face, so the
+  // ping marks the danger zone from outside spotlight range. Purely visual —
+  // drawRadarPingZone() in render/ui.js. Centred on the vent polygon; amber
+  // to match the palette's rockEdge (#f97316).
+  radarPingZone: {
+    cx: 310,
+    cy: 490,
+    r: 340,
+    color: "249,115,22",
+    period: 3600
+  },
   hazards: [
     {
       type: "gravwell",
@@ -86,15 +99,23 @@ registerLevel({
       ]
     },
     {
+      // Vent guarding the mouth of The Hollow. It sits in the corridor between
+      // the Ground polygon's underside (y~390) and Polygon 2's roof (y~615),
+      // so while active it seals the passage floor-to-ceiling — the only way
+      // through is the off-window. It used to span the corridor's full 320px
+      // width on a 1500/1000 cycle, i.e. cross 320px in a 1s gap of which the
+      // last 600ms is already the charge warning: not survivable. Now half as
+      // wide on a cycle better than 2x slower, so the gap is a real window.
       type: "incinerator",
-      onMs: 1500,
-      offMs: 1000,
+      onMs: 1400,
+      offMs: 4200,
+      warnMs: 900,
       behindTerrain: true,
       pts: [
-        {x: 140, y: 350},
-        {x: 460, y: 360},
-        {x: 460, y: 630},
-        {x: 140, y: 620}
+        {x: 230, y: 353},
+        {x: 390, y: 358},
+        {x: 390, y: 628},
+        {x: 230, y: 623}
       ]
     }
   ],
