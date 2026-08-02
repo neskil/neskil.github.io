@@ -654,6 +654,66 @@ drawCityBackground() {
     }
 
 ,
+// Dev overlay for the precomputed ambient-traffic lane profile
+// (physics/atmosphere.js buildTrafficLanes()). Toggled by "Show Traffic Lanes"
+// in the dev panel. Draws the clearance altitude each heading resolves to, plus
+// the level's ambientTrafficMinY/MaxY band and a tick from each live truck to
+// the altitude it is currently steering toward — so a level author can see at a
+// glance where the lane actually sits relative to the pads, instead of guessing
+// from roof heights.
+drawTrafficLanes() {
+    const L = this.physics?.trafficLanes;
+    if (!L || L.empty) return;
+    const ctx = this.ctx;
+    const camX = this.camera ? this.camera.x : 0;
+    const zoom = this.camera?.zoom || 1;
+    const halfW = (this.canvas.width / 2) / zoom + 200;
+
+    const i0 = Math.max(0, Math.floor((camX - halfW - L.originX) / L.bucket));
+    const i1 = Math.min(L.east.length - 1, Math.ceil((camX + halfW - L.originX) / L.bucket));
+    if (i1 <= i0) return;
+
+    ctx.save();
+
+    // Config band (ambientTrafficMinY/MaxY) — the spawn range the profile clips.
+    const cfg = levels[this.currentLevelIndex] || {};
+    if (cfg.ambientTrafficMinY != null && cfg.ambientTrafficMaxY != null) {
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+        ctx.fillRect(camX - halfW, cfg.ambientTrafficMinY, halfW * 2, cfg.ambientTrafficMaxY - cfg.ambientTrafficMinY);
+    }
+
+    const stroke = (arr, color) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 / zoom;
+        ctx.beginPath();
+        for (let i = i0; i <= i1; i++) {
+            const x = L.originX + i * L.bucket;
+            if (i === i0) ctx.moveTo(x, arr[i]); else ctx.lineTo(x, arr[i]);
+        }
+        ctx.stroke();
+    };
+    stroke(L.east, 'rgba(56, 189, 248, 0.75)');   // eastbound (vx > 0)
+    stroke(L.west, 'rgba(251, 191, 36, 0.75)');   // westbound
+
+    // Each live truck's steer-to line, so overshoot/lag is visible.
+    ctx.lineWidth = 1 / zoom;
+    for (const t of this.physics.ambientTraffic || []) {
+        if (t.flyingOff) continue;
+        const target = Math.min(t.baseY, this.physics.trafficLaneAlt(t.x, t.vx > 0));
+        ctx.strokeStyle = t.vx > 0 ? 'rgba(56, 189, 248, 0.5)' : 'rgba(251, 191, 36, 0.5)';
+        ctx.beginPath();
+        ctx.moveTo(t.x + t.w / 2, t.y);
+        ctx.lineTo(t.x + t.w / 2, target);
+        ctx.stroke();
+    }
+
+    ctx.font = `${Math.round(13 / zoom)}px "Courier New", monospace`;
+    ctx.fillStyle = 'rgba(226, 232, 240, 0.8)';
+    ctx.fillText('lane: cyan = eastbound, amber = westbound', camX - halfW + 40 / zoom, L.east[i0] - 24 / zoom);
+
+    ctx.restore();
+},
+
 drawAmbientTraffic() {
         const levelConfig = levels[this.currentLevelIndex] || {};
         const confMinY = levelConfig.ambientTrafficMinY;
@@ -690,6 +750,8 @@ drawAmbientTraffic() {
             ctx.stroke();
             ctx.restore();
         }
+
+        if (this.showTrafficLanes) this.drawTrafficLanes();
 
         const traffic = this.physics?.ambientTraffic;
         if (!traffic || traffic.length === 0) return;

@@ -8,6 +8,65 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — L5 rebuilt as a traffic-dodging city; traffic pathfinding precomputed (v0.20.0)
+
+**L5 replaced.** "The Needle's Eye" was a crystal-cavern winch-drop level whose
+premise didn't exist in its geometry. The "shaft" was a downward wedge in the
+ceiling polygon, not an enclosed passage: there was no vertical throat, so the
+lander could fly around the "funnel" and set cargo down by hand. The winch, the
+narrowing and the side alcove were all decorative. Rather than retrofit terrain
+to support the mechanic, it was replaced with **L5: Rush Hour** — a neon
+downtown built around ambient traffic as the primary obstacle
+(`backgroundType:'city'`, `ambientTrafficRate:5`).
+
+The design hinge is that traffic altitude is set by *roof heights*, not by
+`ambientTrafficMinY/MaxY` alone: trucks hold `min(baseY, highestTerrainAhead -
+140)`. Roofs at y:560-700 put the lane at ~420-500, i.e. directly over every pad
+on the map, so the player is in traffic the moment they lift off. A comms needle
+at x:2300 deliberately yanks eastbound trucks up over the Skyport approach so
+they come diving back down across it. Two hubs at two altitudes give two routes:
+the rooftop Skyport through the lanes, and the Undercity Dock down in the old
+canal district under them, taxed by an L-shaped security-beam grid instead.
+**The level must never gain a ceiling terrain polygon** — `obstacleHeight` takes
+the min y of every segment in range, so a ceiling makes the clearance altitude
+hugely negative and every truck climbs into it (the same reason L4 sets
+`ambientTrafficRate:0`). Altitude is capped by the existing police mechanic.
+
+**Traffic pathfinding precomputed.** `updateAmbientTraffic()` had every truck
+re-derive its own path each frame — a scan of every entry in `segments` inside a
+500px directional lookahead — recomputing an answer that cannot change, since
+terrain is static. `buildTrafficLanes()` (physics/atmosphere.js) now bakes it
+into two 25px-bucketed lookup tables at first use, one per heading, holding the
+clearance altitude directly. An obstacle spanning `[x0,x1]` is in an eastbound
+truck's window exactly when `x0-500 <= x <= x1` (and `x0 <= x <= x1+500`
+westbound), so the build is a plain interval fill — no sliding window. Per-frame
+cost drops to one array index. Invalidated by nulling `trafficLanes` (initLevel,
+and collision.js when a fragile segment shatters).
+
+A first attempt used per-bucket ranges plus a sliding-window minimum and leaked
+obstacles up to two buckets outside the true window — L5's needle bled 680px
+into a position it shouldn't have reached at all. Two tests now pin the tables
+to the scan they replaced, with the old code as the reference implementation:
+across all 10 levels the tables are **exactly** equal at every sample point, and
+between samples the only deviation is 25px quantisation of where a step lands
+(bounded by the step, and invisible against a lagged controller capped at 3px per
+frame). Dev panel gained **Show Traffic Lanes**, drawing both directional
+profiles, the config band, and each truck's steer-to line;
+`probe-screenshot.html?lanes=1` and `&script=trafficSim` expose the same
+headlessly.
+
+Also removed: the scan's second pass over `this.engine.world.bodies` for
+"buildings, pads". `CargoPhysics` has never had an `engine` property (the Matter
+world is `matterEngine`/`matterWorld`), so that pass was dead on every level
+since it was written — the same silent-no-op class as L9's unrendered `'comms'`
+building. It must not be "fixed" by repointing it at `matterWorld`: that world
+holds the three enclosure walls, whose bodies extend to `bounds.min.y` ≈ -1.5 ×
+levelHeight, and feeding those into the clearance min would launch every truck
+near a map edge into the stratosphere. Pads sit on roofs already covered by
+`segments`, so nothing was lost.
+
+---
+
 ## 2026-08-02 — L4 Anomaly Zone was unclearable; night ops + sonar ping (v0.19.15)
 
 Reported as "lower gravity on level 4", then "the burning hazard needs to be a

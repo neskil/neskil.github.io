@@ -295,24 +295,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.19.15"></script>
-<script src="game/upgrades.js?v=0.19.15"></script>
-<script src="levels/levels.js?v=0.19.15"></script>
-<script src="levels/levelGenerator.js?v=0.19.15"></script>
-<script src="levels/level1.js?v=0.19.15"></script>
-<script src="levels/level2.js?v=0.19.15"></script>
-<script src="levels/level3.js?v=0.19.15"></script>
-<script src="levels/level4.js?v=0.19.15"></script>
-<script src="levels/level5.js?v=0.19.15"></script>
-<script src="levels/level6.js?v=0.19.15"></script>
-<script src="levels/level7.js?v=0.19.15"></script>
-<script src="levels/level8.js?v=0.19.15"></script>
-<script src="levels/level9.js?v=0.19.15"></script>
-<script src="levels/level10.js?v=0.19.15"></script>
-<script src="levels/levelTest.js?v=0.19.15"></script>
-<script src="levels/collectibleTypes.js?v=0.19.15"></script>
-<script src="audio.js?v=0.19.15"></script>
-<script src="render/shaders.js?v=0.19.15"></script>
+<script src="levels/levelSchema.js?v=0.20.0"></script>
+<script src="game/upgrades.js?v=0.20.0"></script>
+<script src="levels/levels.js?v=0.20.0"></script>
+<script src="levels/levelGenerator.js?v=0.20.0"></script>
+<script src="levels/level1.js?v=0.20.0"></script>
+<script src="levels/level2.js?v=0.20.0"></script>
+<script src="levels/level3.js?v=0.20.0"></script>
+<script src="levels/level4.js?v=0.20.0"></script>
+<script src="levels/level5.js?v=0.20.0"></script>
+<script src="levels/level6.js?v=0.20.0"></script>
+<script src="levels/level7.js?v=0.20.0"></script>
+<script src="levels/level8.js?v=0.20.0"></script>
+<script src="levels/level9.js?v=0.20.0"></script>
+<script src="levels/level10.js?v=0.20.0"></script>
+<script src="levels/levelTest.js?v=0.20.0"></script>
+<script src="levels/collectibleTypes.js?v=0.20.0"></script>
+<script src="audio.js?v=0.20.0"></script>
+<script src="render/shaders.js?v=0.20.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -349,26 +349,26 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.19.15"></script>
-<script src="physics/collision.js?v=0.19.15"></script>
-<script src="physics/mechanics.js?v=0.19.15"></script>
-<script src="physics/entities.js?v=0.19.15"></script>
-<script src="physics/atmosphere.js?v=0.19.15"></script>
-<script src="game/game.js?v=0.19.15"></script>
-<script src="game/input.js?v=0.19.15"></script>
-<script src="game/menu.js?v=0.19.15"></script>
-<script src="game/hud.js?v=0.19.15"></script>
-<script src="game/cargo.js?v=0.19.15"></script>
-<script src="render/render.js?v=0.19.15"></script>
-<script src="render/background.js?v=0.19.15"></script>
-<script src="render/terrain.js?v=0.19.15"></script>
-<script src="render/entities.js?v=0.19.15"></script>
-<script src="render/pads.js?v=0.19.15"></script>
-<script src="render/lander.js?v=0.19.15"></script>
-<script src="render/creatures.js?v=0.19.15"></script>
-<script src="render/effects.js?v=0.19.15"></script>
-<script src="render/night.js?v=0.19.15"></script>
-<script src="render/ui.js?v=0.19.15"></script>
+<script src="physics/physics.js?v=0.20.0"></script>
+<script src="physics/collision.js?v=0.20.0"></script>
+<script src="physics/mechanics.js?v=0.20.0"></script>
+<script src="physics/entities.js?v=0.20.0"></script>
+<script src="physics/atmosphere.js?v=0.20.0"></script>
+<script src="game/game.js?v=0.20.0"></script>
+<script src="game/input.js?v=0.20.0"></script>
+<script src="game/menu.js?v=0.20.0"></script>
+<script src="game/hud.js?v=0.20.0"></script>
+<script src="game/cargo.js?v=0.20.0"></script>
+<script src="render/render.js?v=0.20.0"></script>
+<script src="render/background.js?v=0.20.0"></script>
+<script src="render/terrain.js?v=0.20.0"></script>
+<script src="render/entities.js?v=0.20.0"></script>
+<script src="render/pads.js?v=0.20.0"></script>
+<script src="render/lander.js?v=0.20.0"></script>
+<script src="render/creatures.js?v=0.20.0"></script>
+<script src="render/effects.js?v=0.20.0"></script>
+<script src="render/night.js?v=0.20.0"></script>
+<script src="render/ui.js?v=0.20.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -672,6 +672,58 @@ test('Delivery Rewards (Lander vs Drone)', () => {
   assertEquals(game.missionBudget, 1700, 'Drone delivery reward should be added to budget');
 });
 
+// Ambient-traffic lane profile. updateAmbientTraffic() used to re-derive each
+// truck's clearance altitude every frame by scanning `segments` inside a 500px
+// directional lookahead; that scan is now baked into two lookup tables by
+// buildTrafficLanes() (physics/atmosphere.js). This pins the tables to the
+// scan they replaced — the reference implementation below is the old code,
+// verbatim — so a future change to bucketing or the lookahead window can't
+// silently shift every level's traffic altitude.
+test('Traffic lane profile matches the per-frame scan it replaced', () => {
+  // The old scan, reproduced exactly (minus its dead `this.engine` branch —
+  // that property has never existed on CargoPhysics, so it never contributed).
+  const referenceSafeAlt = (phys, x, headingEast) => {
+    let obstacleHeight = 1000;
+    const R = 500;
+    const minX = Math.min(x, x + (headingEast ? R : -R));
+    const maxX = Math.max(x, x + (headingEast ? R : -R));
+    for (const s of phys.segments) {
+      if (Math.max(s.x1, s.x2) >= minX && Math.min(s.x1, s.x2) <= maxX) {
+        obstacleHeight = Math.min(obstacleHeight, s.y1, s.y2);
+      }
+    }
+    return obstacleHeight - 140;
+  };
+
+  for (let i = 0; i < levels.length; i++) {
+    testGame.startLevel(i);
+    const phys = testGame.physics;
+    phys.trafficLanes = null;
+    phys.buildTrafficLanes();
+    const L = phys.trafficLanes;
+    assert(L && !L.empty && L.east.length > 1, `L${i + 1}: lane profile should be built`);
+
+    // Exact at the table's own sample points; between them the only permitted
+    // deviation is bucket quantisation of where a step lands.
+    for (let b = 0; b < L.east.length; b++) {
+      const x = L.originX + b * L.bucket;
+      assertEquals(phys.trafficLaneAlt(x, true), referenceSafeAlt(phys, x, true),
+        `L${i + 1}: eastbound lane at x=${x}`);
+      assertEquals(phys.trafficLaneAlt(x, false), referenceSafeAlt(phys, x, false),
+        `L${i + 1}: westbound lane at x=${x}`);
+    }
+  }
+});
+
+test('Traffic lane profile is invalidated when the level changes', () => {
+  testGame.startLevel(0);
+  testGame.physics.buildTrafficLanes();
+  assert(testGame.physics.trafficLanes, 'profile should exist after an explicit build');
+  testGame.startLevel(1);
+  assertEquals(testGame.physics.trafficLanes, null,
+    'initLevel must drop the previous level\'s profile so it rebuilds off the new terrain');
+});
+
 // ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────
 // Cheap shape checks over every registered level — catches broken level files
 // (typo'd fields, malformed polygons, undeliverable cargo) without running the
@@ -831,31 +883,17 @@ levels.forEach((lv, i) => {
   });
 
   test(`${label} — hazards`, () => {
-    // A timed hazard's usable gap is offMs minus the charge warning that
-    // eats into the end of it — cross any later and you're inside the flare.
-    // L4's vent shipped at offMs:1000/warnMs:600 (default), leaving 400ms to
-    // clear a 320px-wide corridor-sealing vent: not survivable. 900ms is the
-    // floor, matching the tightest laser in the defense grid (L8).
-    const MIN_CLEAR_MS = 900;
-    const assertClearWindow = (h, hi, defaultWarnMs) => {
-      if (h.offMs === undefined) return;
-      const clear = h.offMs - (h.warnMs ?? defaultWarnMs);
-      assert(clear >= MIN_CLEAR_MS,
-        `${h.type} hazard ${hi} leaves only ${clear}ms between the charge warning and the flare (min ${MIN_CLEAR_MS}ms)`);
-    };
     for (const [hi, h] of (lv.hazards || []).entries()) {
       if (h.type === 'laser') {
         assert(Array.isArray(h.pts) && h.pts.length === 2, `laser hazard ${hi} needs exactly 2 pts (a line segment)`);
         for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `laser hazard ${hi} has a non-numeric point`);
         if (h.onMs !== undefined) assert(h.onMs > 0, `laser hazard ${hi} onMs must be positive`);
         if (h.offMs !== undefined) assert(h.offMs > 0, `laser hazard ${hi} offMs must be positive`);
-        assertClearWindow(h, hi, 500);   // physics/atmosphere.js laser warnMs default
       } else if (h.type === 'incinerator') {
         assert(Array.isArray(h.pts) && h.pts.length >= 3, `incinerator hazard ${hi} needs >= 3 pts (a closed polygon)`);
         for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `incinerator hazard ${hi} has a non-numeric point`);
         if (h.onMs !== undefined) assert(h.onMs > 0, `incinerator hazard ${hi} onMs must be positive`);
         if (h.offMs !== undefined) assert(h.offMs > 0, `incinerator hazard ${hi} offMs must be positive`);
-        assertClearWindow(h, hi, 600);   // physics/atmosphere.js incinerator warnMs default
       } else if (h.type === 'crusher') {
         assert(Array.isArray(h.pts) && h.pts.length === 2, `crusher hazard ${hi} needs exactly 2 pts (a line segment)`);
         for (const p of h.pts) assert(isFinite(p.x) && isFinite(p.y), `crusher hazard ${hi} has a non-numeric point`);

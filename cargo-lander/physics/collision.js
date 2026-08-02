@@ -154,6 +154,7 @@ const CargoPhysicsCollisionMixin = {
                     Matter.Composite.remove(this.matterWorld, hit.seg.matterBody);
                 }
                 this.segments = this.segments.filter(s => s !== hit.seg);
+                this.trafficLanes = null; // terrain changed — rebuild the traffic lane profile
                 if (window.CargoAudio && !this.isMuted) CargoAudio.playCrash();
                 // Burst through, but lose some speed
                 lander.vx *= 0.8;
