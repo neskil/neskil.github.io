@@ -7,7 +7,7 @@ registerLevel({
   missionTitle: "Anomaly Zone — Vortex Run",
   description: "HQ sits on a western plateau; the cargo dock is atop a ridge pillar far to the east, past a gravitational vortex drifting in slow orbit over the open valley. Bring each crate back to the Hollow — a cave alcove carved into the ridge below the dock — but a lava vent guards its mouth, flaring on a duty cycle. Time the flare, duck inside to deliver, then take the low tunnel under the valley floor straight back to HQ instead of running the vortex a second time.",
   hint: "Grab cargo from the dock atop the eastern ridge, then ride the valley back west — the vortex drifts, so don't hover near its centre. Watch the vent flare before ducking into the Hollow to deliver. Skip the vortex on the way home: dive down the shaft next to the Hollow into the tunnel and ride it straight back to HQ.",
-  gravity: 0.22,
+  gravity: 0.15,          // Eased from 0.22 — the drifting gravwell already supplies the pull here
   maxFuel: 300,
   windVarianceEnabled: false,
   weather: "ash",
