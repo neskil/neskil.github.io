@@ -168,7 +168,64 @@ const BODY_TYPES = {
    national average at $4.12 in late July 2026 against a $3.71 average
    across the year, so the default sits between them; it is an input
    because it moves more than any other figure on this page. */
-const FUEL_DEFAULTS = { pricePerGallon: 3.90, mpg: 28 };
+const FUEL_DEFAULTS = { pricePerGallon: 3.90, mpg: 28, evKwhPrice: 0.15, evMiPerKwh: 3.4 };
+
+/* Powertrain types: Petrol, Hybrid, Electric (BEV).
+   BEVs carry ~50% lower maintenance (no engine/oil/transmission, low brake wear),
+   18-35% higher insurance (battery replacement risk, specialist repairs),
+   Georgia EV registration surcharge ($238/yr), electricity efficiency (mi/kWh),
+   and $7,500 IRA clean vehicle commercial lease pass-through / residual subsidy.
+   Hybrids carry ~15% lower maintenance, slightly higher insurance (+2%),
+   higher mpg (e.g. 44 mpg), and $1,000 lease subsidy. */
+const POWERTRAIN_TYPES = {
+    petrol: {
+        label: '⛽ Petrol',
+        maintMult: 1.00,
+        insMult: 1.00,
+        evRegistrationSurcharge: 0,
+        defaultEfficiency: 28,
+        efficiencyUnit: 'mpg',
+        fuelPriceDefault: 3.90,
+        fuelPriceUnit: '/gal',
+        leaseResidualBonus: 0,
+        depMult: 1.00,
+        note: 'Standard internal combustion engine. Baseline maintenance, insurance, and pump prices.'
+    },
+    hybrid: {
+        label: '🔋 Hybrid',
+        maintMult: 0.85,
+        insMult: 1.02,
+        evRegistrationSurcharge: 0,
+        defaultEfficiency: 44,
+        efficiencyUnit: 'mpg',
+        fuelPriceDefault: 3.90,
+        fuelPriceUnit: '/gal',
+        leaseResidualBonus: 1000,
+        depMult: 0.85,
+        note: 'ICE + electric motor. ~15% lower maintenance, superior fuel economy, and strong resale retention.'
+    },
+    ev: {
+        label: '⚡ Electric',
+        maintMult: 0.50,
+        insMult: 1.25,
+        evRegistrationSurcharge: 238,
+        defaultEfficiency: 3.4,
+        efficiencyUnit: 'mi/kWh',
+        fuelPriceDefault: 0.15,
+        fuelPriceUnit: '/kWh',
+        leaseResidualBonus: 7500,
+        depMult: 1.35,
+        note: 'Full Battery Electric Vehicle. ~50% lower maintenance, higher insurance (+25%), GA $238 tag surcharge, $7.5k IRA lease subsidy.'
+    }
+};
+
+/* Flexcar subscription mileage plans: Standard, Cruiser, Road Warrior */
+const FLEXCAR_TIERS = {
+    standard: { label: 'Standard 850 mi/mo',   allowance: 850,  rateOffset: 0 },
+    cruiser:  { label: 'Cruiser 1,200 mi/mo',  allowance: 1200, rateOffset: 50 },
+    warrior:  { label: 'Road Warrior 2,000 mi', allowance: 2000, rateOffset: 150 }
+};
+
 
 /* Repair spend runs at about half the lifetime average while a car is
    under warranty and climbs steeply after, reaching 2.6x past fifteen

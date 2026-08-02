@@ -5,7 +5,7 @@
 
 /* ── Wiring ────────────────────────────────────────────────────── */
 const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation', 'disposal', 'resale', 'miles',
-    'insurance', 'maintenance', 'mpg', 'gasPrice', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
+    'insurance', 'maintenance', 'mpg', 'gasPrice', 'evKwhPrice', 'evMiPerKwh', 'registration', 'cash', 'returnRate', 'down', 'apr', 'loanTerm',
     'leasePayment', 'leaseSigning', 'leaseTerm', 'leaseAllowance', 'leaseMileagePlan', 'leaseOverage',
     'leasePrepaidRate', 'leaseDisposition', 'leaseWear', 'leaseRenewal',
     'rentRate', 'rentStartFee', 'rentAllowance', 'rentBlockPrice',
@@ -16,6 +16,14 @@ const INPUT_IDS = ['horizon', 'price', 'otd', 'taxRate', 'fees', 'depreciation',
 
 function update() {
     syncPriceFields();
+
+    /* Toggle EV vs ICE fuel input visibility */
+    const isEv = carPowertrain === 'ev';
+    if ($('evMiPerKwhField')) $('evMiPerKwhField').style.display = isEv ? '' : 'none';
+    if ($('evKwhPriceField')) $('evKwhPriceField').style.display = isEv ? '' : 'none';
+    if ($('iceMpgField')) $('iceMpgField').style.display = isEv ? 'none' : '';
+    if ($('iceGasPriceField')) $('iceGasPriceField').style.display = isEv ? 'none' : '';
+
     const v = readInputs();
 
     /* The resale field tracks the depreciation curve until the user
@@ -37,6 +45,7 @@ function update() {
     renderCashNote(results, v);
     renderOptionNotes(results, v);
     renderCarProfile(v);
+    renderAccountabilityPanel(v, results);
     renderMileagePanel(results, v);
     renderCredit();
     renderInsights(results, v);
@@ -99,8 +108,14 @@ function update() {
     for (const btn of document.querySelectorAll('#bodyPresets .preset-btn')) {
         btn.classList.toggle('active', btn.dataset.body === carBody);
     }
+    for (const btn of document.querySelectorAll('#powertrainPresets .preset-btn')) {
+        btn.classList.toggle('active', btn.dataset.powertrain === carPowertrain);
+    }
     for (const btn of document.querySelectorAll('#agePresets .preset-btn')) {
         btn.classList.toggle('active', btn.dataset.age === carAge);
+    }
+    for (const btn of document.querySelectorAll('#flexTierPresets .preset-btn')) {
+        btn.classList.toggle('active', btn.dataset.tier === flexTier);
     }
     save();
 }
@@ -140,9 +155,12 @@ function save() {
     try {
         const data = {
             touchedResale: $('resale').dataset.touched === '1',
-            creditTier, buyingUsed, carBrand, carAge, carBody, scenarioCase
+            creditTier, buyingUsed, carBrand, carAge, carBody, carPowertrain, flexTier, scenarioCase
         };
-        for (const id of INPUT_IDS) data[id] = $(id).value;
+        for (const id of INPUT_IDS) {
+            const el = $(id);
+            if (el) data[id] = el.value;
+        }
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) { /* private mode — inputs just will not persist */ }
 }
@@ -153,7 +171,8 @@ function load() {
         if (!raw) return;
         const data = JSON.parse(raw);
         for (const id of INPUT_IDS) {
-            if (typeof data[id] === 'string' && data[id] !== '') $(id).value = data[id];
+            const el = $(id);
+            if (el && typeof data[id] === 'string' && data[id] !== '') el.value = data[id];
         }
         if (data.touchedResale) $('resale').dataset.touched = '1';
         if (CREDIT_TIERS[data.creditTier]) creditTier = data.creditTier;
@@ -161,9 +180,12 @@ function load() {
         if (BRANDS[data.carBrand]) carBrand = data.carBrand;
         if (AGE_BANDS[data.carAge]) carAge = data.carAge;
         if (BODY_TYPES[data.carBody]) carBody = data.carBody;
+        if (POWERTRAIN_TYPES[data.carPowertrain]) carPowertrain = data.carPowertrain;
+        if (FLEXCAR_TIERS[data.flexTier]) flexTier = data.flexTier;
         if (SCENARIOS[data.scenarioCase]) scenarioCase = data.scenarioCase;
     } catch (e) { /* corrupt or unavailable storage — fall back to defaults */ }
 }
+
 
 /* The price pair has to claim its anchor in the same handler that
    recomputes, or the sync would run against a stale anchor and stomp
@@ -222,6 +244,24 @@ for (const btn of document.querySelectorAll('#bodyPresets .preset-btn')) {
         update();
     });
 }
+
+for (const btn of document.querySelectorAll('#powertrainPresets .preset-btn')) {
+    btn.addEventListener('click', () => {
+        carPowertrain = btn.dataset.powertrain;
+        if (!carBrand) carBrand = 'japanese';
+        if (!carAge) carAge = 'three';
+        applyCarProfile();
+        update();
+    });
+}
+
+for (const btn of document.querySelectorAll('#flexTierPresets .preset-btn')) {
+    btn.addEventListener('click', () => {
+        flexTier = btn.dataset.tier;
+        update();
+    });
+}
+
 
 for (const btn of document.querySelectorAll('#creditTiers .preset-btn')) {
     btn.addEventListener('click', () => {

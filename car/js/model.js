@@ -132,17 +132,31 @@ function readInputs() {
     const months = Math.max(1, Math.round(num('horizon')));
     const scen = SCENARIOS[scenarioCase];
     const band = AGE_BANDS[carAge];
+    const ptKey = POWERTRAIN_TYPES[carPowertrain] ? carPowertrain : 'petrol';
+    const pt = POWERTRAIN_TYPES[ptKey];
+
+    const rawMaint = num('maintenance');
+    const rawIns = num('insurance');
+    const rawReg = num('registration');
+    const rawPrice = num('price');
+
+    const bodyDep = (BODY_TYPES[carBody] || {}).depMult || 1;
+    const combinedDepMult = bodyDep * (pt.depMult || 1);
 
     /* The half of the snapshot that does not care how long you keep it. */
     const base = {
-        price: num('price'),
+        price: rawPrice,
         curve: $('depreciation').value,
-        depMult: (BODY_TYPES[carBody] || {}).depMult || 1,
+        depMult: combinedDepMult,
         miles: num('miles'),
         channel: $('disposal').value,
         buyAge: band ? band.buyAge : 0,
         taxRate: num('taxRate') / 100,
-        rawMaintenance: num('maintenance'),
+        rawMaintenance: rawMaint,
+        rawInsurance: rawIns,
+        rawRegistration: rawReg,
+        powertrain: ptKey,
+        flexTier: typeof flexTier !== 'undefined' && FLEXCAR_TIERS[flexTier] ? flexTier : 'standard',
         scenarioCase,
         resaleFactor: 1
     };
@@ -166,14 +180,20 @@ function readInputs() {
         ? horizonTerms(base, months).resale
         : horizonTerms(Object.assign({}, base, { scenarioCase: 'expected' }), months).resale;
 
+    const evKwhPrice = num('evKwhPrice') || FUEL_DEFAULTS.evKwhPrice;
+    const evMiPerKwh = num('evMiPerKwh') || FUEL_DEFAULTS.evMiPerKwh;
+
     return Object.assign({}, base, horizonTerms(base, months), {
         expectedResale,
         fees: num('fees'),
-        insurance: num('insurance'),
-        maintenance: num('maintenance') * scen.maint,
+        insurance: rawIns * pt.insMult,
+        maintenance: rawMaint * scen.maint * pt.maintMult,
+        registration: rawReg + pt.evRegistrationSurcharge,
         mpg: Math.max(1, num('mpg') || FUEL_DEFAULTS.mpg),
         gasPrice: num('gasPrice'),
-        registration: num('registration'),
+        evKwhPrice,
+        evMiPerKwh,
+        leaseResidualBonus: pt.leaseResidualBonus,
         cash: num('cash'),
         monthlyReturn: Math.pow(1 + num('returnRate') / 100, 1 / 12) - 1,
         returnRate: num('returnRate') / 100,
@@ -243,6 +263,10 @@ function outOfWarrantyDuring(months) {
    AAA, Edmunds and KBB all count, and at 2026 pump prices it is larger
    than the maintenance line it sits next to. */
 function monthlyFuel(v) {
+    if (v.powertrain === 'ev') {
+        if (!v.evKwhPrice || !v.evMiPerKwh) return 0;
+        return (v.miles / 12) / v.evMiPerKwh * v.evKwhPrice;
+    }
     if (!v.gasPrice || !v.mpg) return 0;
     return (v.miles / 12) / v.mpg * v.gasPrice;
 }
@@ -250,21 +274,31 @@ function monthlyFuel(v) {
 /* Costs an owner carries whichever way the car was bought. */
 function addOwnerRunningCosts(led, v, maintenanceShare) {
     const fuel = monthlyFuel(v);
+    const isEV = v.powertrain === 'ev';
+    const pt = POWERTRAIN_TYPES[v.powertrain] || POWERTRAIN_TYPES.petrol;
+    const fuelLabel = isEV
+        ? 'electricity at ' + usd0(v.evKwhPrice) + '/kWh, ' + v.evMiPerKwh + ' mi/kWh'
+        : 'petrol at ' + usd0(v.gasPrice) + '/gal, ' + v.mpg + ' mpg';
+
     for (let m = 1; m <= v.months; m++) {
-        led.add(v.insurance, m, 'insurance', 'full-coverage premium');
+        led.add(v.insurance, m, 'insurance', 'full-coverage premium' + (v.powertrain !== 'petrol' ? ' (' + pt.label + ' rate)' : ''));
         led.add(v.maintenance * maintenanceShare, m, 'maintenance',
-            maintenanceShare < 1 ? 'servicing and tyres (warranty covers the rest)' : 'servicing and repairs');
-        led.add(fuel, m, 'fuel', 'petrol at ' + usd0(v.gasPrice) + '/gal, ' + v.mpg + ' mpg');
+            maintenanceShare < 1
+                ? 'servicing and tyres (warranty covers the rest)'
+                : (isEV ? 'EV servicing & tyres (no engine/oil repairs)' : 'servicing and repairs'));
+        led.add(fuel, m, 'fuel', fuelLabel);
     }
     const years = Math.ceil(v.months / 12);
+    const regLabel = isEV ? 'annual registration ($70 tag + $238 GA EV surcharge)' : 'annual registration';
     for (let y = 0; y < years; y++) {
-        led.add(v.registration, Math.min(y * 12, v.months), 'fees', 'annual registration');
+        led.add(v.registration, Math.min(y * 12, v.months), 'fees', regLabel);
     }
     /* A lease keeps you inside cover, so the failure is the bank's. */
     if (v.repairShock && maintenanceShare === 1) {
         led.add(v.repairShock, Math.round(v.months * 0.6), 'maintenance', 'one major failure out of warranty');
     }
 }
+
 
 function scenarioCash(v) {
     const led = makeLedger(v.months, v.monthlyReturn);
@@ -348,7 +382,11 @@ function scenarioLease(v) {
         const monthsThisCycle = end - start;
 
         led.add(v.leaseSigning, start, 'depreciation', 'due at signing');
+        if (c === 0 && v.leaseResidualBonus > 0) {
+            led.add(-v.leaseResidualBonus, start, 'depreciation', 'IRA Sec 45W clean vehicle lease credit');
+        }
         for (let m = start + 1; m <= end; m++) led.add(v.leasePayment, m, 'depreciation', 'monthly lease payment');
+
 
         /* Extra miles are cheaper bought at signing than settled at
            turn-in, but the money is gone whether you drive them or not,
@@ -488,15 +526,18 @@ function scenarioSixt(v) {
    and roadside, and a delivery charge that ranges from $199 to $874
    depending on where the car happens to be. */
 function scenarioFlexcar(v) {
+    const tier = FLEXCAR_TIERS[v.flexTier] || FLEXCAR_TIERS.standard;
+    const rate = v.flexRate + tier.rateOffset;
+    const allowance = tier.allowance;
     return scenarioSubscription(v, {
-        rate: v.flexRate,
+        rate: rate,
         insurance: v.flexProtection,
         taxRate: v.flexTax / 100,
         delivery: v.flexDelivery,
         onTrackCut: v.flexOnTrack,
         excess: v.flexExcess,
         startFee: v.flexStartFee, annualFee: true,
-        allowance: v.flexAllowance, blockPrice: v.flexBlockPrice
+        allowance: allowance, blockPrice: v.flexBlockPrice
     });
 }
 
@@ -536,6 +577,49 @@ function finish(t, v, extra) {
     }, extra);
 }
 
+function getAccountability(v) {
+    const pt = POWERTRAIN_TYPES[v.powertrain] || POWERTRAIN_TYPES.petrol;
+    const isEV = v.powertrain === 'ev';
+    const fuelMonthly = monthlyFuel(v);
+    const scen = SCENARIOS[v.scenarioCase];
+
+    return {
+        powertrainLabel: pt.label,
+        powertrainNote: pt.note,
+        fuel: {
+            monthly: fuelMonthly,
+            formula: isEV
+                ? `(${v.miles.toLocaleString()} mi/yr ÷ 12) ÷ ${v.evMiPerKwh} mi/kWh × $${v.evKwhPrice}/kWh`
+                : `(${v.miles.toLocaleString()} mi/yr ÷ 12) ÷ ${v.mpg} mpg × $${v.gasPrice}/gal`,
+            unitPrice: isEV ? `$${v.evKwhPrice}/kWh` : `$${v.gasPrice}/gal`,
+            efficiency: isEV ? `${v.evMiPerKwh} mi/kWh` : `${v.mpg} mpg`
+        },
+        maintenance: {
+            monthly: v.maintenance,
+            base: v.rawMaintenance,
+            ptMult: pt.maintMult,
+            scenMult: scen.maint,
+            formula: `$${Math.round(v.rawMaintenance)}/mo base × ${pt.maintMult} (${pt.label}) × ${scen.maint} (${scen.label})`
+        },
+        insurance: {
+            monthly: v.insurance,
+            base: v.rawInsurance,
+            ptMult: pt.insMult,
+            formula: `$${Math.round(v.rawInsurance)}/mo base × ${pt.insMult} (${pt.label})`
+        },
+        registration: {
+            annual: v.registration,
+            monthly: v.registration / 12,
+            base: v.rawRegistration,
+            evSurcharge: pt.evRegistrationSurcharge,
+            formula: pt.evRegistrationSurcharge > 0
+                ? `$${Math.round(v.rawRegistration)}/yr tag + $${pt.evRegistrationSurcharge}/yr GA EV Surcharge`
+                : `$${Math.round(v.rawRegistration)}/yr tag & emissions`
+        },
+        leaseSubsidy: pt.leaseResidualBonus
+    };
+}
+
 function computeAll(v) {
     return {
         cash: scenarioCash(v),
@@ -543,9 +627,11 @@ function computeAll(v) {
         lease: scenarioLease(v),
         sixt: scenarioSixt(v),
         flexcar: scenarioFlexcar(v),
-        rental: scenarioRental(v)
+        rental: scenarioRental(v),
+        accountability: getAccountability(v)
     };
 }
+
 
 /* The APR at which financing stops beating cash. Both scenarios move
    with the APR only through the loan, so a bisection is exact enough

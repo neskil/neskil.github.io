@@ -637,3 +637,50 @@ function renderDecisionFlow(results, v) {
 
     $('decisionFlow').innerHTML = html + outcome;
 }
+
+function renderAccountabilityPanel(v, results) {
+    const el = $('accountabilityBody');
+    if (!el || !results || !results.accountability) return;
+    const acc = results.accountability;
+    const pt = POWERTRAIN_TYPES[v.powertrain] || POWERTRAIN_TYPES.petrol;
+
+    let html = '';
+    html += '<div class="accountability-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:6px;">';
+
+    // 1. Powertrain & Fuel Accountability
+    html += '<div class="acc-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;color:var(--text-main);">' + pt.label + ' Energy & Fuel</div>';
+    html += '<div style="font-size:0.85em;color:var(--text-mute);">' + pt.note + '</div>';
+    html += '<div style="font-size:0.85em;margin-top:6px;"><strong>Monthly Cost:</strong> ' + usd0(acc.fuel.monthly) + '/mo</div>';
+    html += '<div style="font-size:0.8em;font-family:monospace;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;margin-top:4px;">' + acc.fuel.formula + '</div>';
+    html += '</div>';
+
+    // 2. Maintenance Accountability
+    html += '<div class="acc-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;color:var(--text-main);">🔧 Upkeep & Repairs</div>';
+    html += '<div style="font-size:0.85em;color:var(--text-mute);">Powertrain factor: ' + Math.round(pt.maintMult * 100) + '% of petrol upkeep.</div>';
+    html += '<div style="font-size:0.85em;margin-top:6px;"><strong>Monthly Cost:</strong> ' + usd0(acc.maintenance.monthly) + '/mo</div>';
+    html += '<div style="font-size:0.8em;font-family:monospace;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;margin-top:4px;">' + acc.maintenance.formula + '</div>';
+    html += '</div>';
+
+    // 3. Insurance Accountability
+    html += '<div class="acc-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;color:var(--text-main);">🛡️ Insurance Premium</div>';
+    html += '<div style="font-size:0.85em;color:var(--text-mute);">Powertrain factor: ' + ((pt.insMult - 1) >= 0 ? '+' : '') + Math.round((pt.insMult - 1) * 100) + '% premium multiplier.</div>';
+    html += '<div style="font-size:0.85em;margin-top:6px;"><strong>Monthly Cost:</strong> ' + usd0(acc.insurance.monthly) + '/mo</div>';
+    html += '<div style="font-size:0.8em;font-family:monospace;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;margin-top:4px;">' + acc.insurance.formula + '</div>';
+    html += '</div>';
+
+    // 4. Registration & Taxes Accountability
+    html += '<div class="acc-card" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px;">';
+    html += '<div style="font-weight:600;margin-bottom:4px;color:var(--text-main);">🏷️ State Tag & Fees</div>';
+    html += '<div style="font-size:0.85em;color:var(--text-mute);">' + (pt.evRegistrationSurcharge > 0 ? 'Includes $238 GA annual EV tag surcharge to offset zero gas tax.' : 'Standard GA tag & emissions renewal.') + '</div>';
+    html += '<div style="font-size:0.85em;margin-top:6px;"><strong>Annual Fee:</strong> ' + usd0(acc.registration.annual) + '/yr (' + usd0(acc.registration.monthly) + '/mo)</div>';
+    html += '<div style="font-size:0.8em;font-family:monospace;background:rgba(0,0,0,0.2);padding:4px 6px;border-radius:4px;margin-top:4px;">' + acc.registration.formula + '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    el.innerHTML = html;
+}
+
