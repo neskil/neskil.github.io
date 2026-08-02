@@ -266,8 +266,10 @@ function applyCarProfile(bodyOverride) {
     buyingUsed = band.buyAge > 0;
     applyCreditTier();
     priceAnchor = 'price';
+    syncPriceFields();
     $('resale').dataset.touched = '0';
 }
+
 
 /* A specific nameplate at the age you picked, priced off its own curve
    rather than the segment average. */
