@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cargo Yard — logic tests</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1rem; }
+        .pass { color: #34d399; }
+        .fail-item { color: #f87171; font-weight: bold; }
+        h2 { color: #38bdf8; font-size: 0.95rem; margin: 1.2rem 0 0.3rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <!-- Pure logic only: no render/input/ui/main, no canvas, no THREE. Same
+         single-token loader as index.html — see 3d-engine-poc/CLAUDE.md. -->
+    <script>window.CY_VERSION = '0.2.0';</script>
+    <script>
+    (function () {
+        var mods = ['config', 'events', 'rng', 'grid', 'scoring', 'missions', 'save', 'state'];
+        for (var i = 0; i < mods.length; i++)
+            document.write('<script src="js/' + mods[i] + '.js?v=' + CY_VERSION + '"><\/script>');
+    })();
+    </script>
+
+    <script>
+    let passed = 0, failed = 0;
+    window.FAILS = [];
+    function section(name) {
+        const h = document.createElement('h2');
+        h.textContent = name;
+        document.getElementById('results').appendChild(h);
+    }
+    function assert(name, cond, detail) {
+        const div = document.createElement('div');
+        if (cond) { passed++; div.className = 'pass'; div.textContent = '✓ ' + name; }
+        else {
+            failed++; window.FAILS.push(name);
+            div.className = 'fail-item';
+            div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+        }
+        document.getElementById('results').appendChild(div);
+    }
+    function approx(a, b, eps) { return Math.abs(a - b) <= (eps || 0.001); }
+    function key(cells) { return cells.map(c => c.join(',')).sort().join('|'); }
+
+    // ── Shape maths ─────────────────────────────────────────────
+    section('Shape maths');
+    (function () {
+        const G = CY.grid;
+        const line2 = CY.piece('c20').cells;
+        assert('20ft is two cells long', G.span(line2).x === 2 && G.span(line2).z === 1);
+
+        const turned = G.rotate(line2, 1);
+        assert('rotating a 20ft swaps its span', G.span(turned).x === 1 && G.span(turned).z === 2);
+        assert('rotation normalises to the origin',
+            turned.every(c => c[0] >= 0 && c[1] >= 0 && c[2] >= 0));
+        assert('four rotations return the original', key(G.rotate(line2, 4)) === key(line2));
+
+        assert('a line has two distinct orientations', G.orientations(line2).length === 2);
+        assert('a 1x1 crate has one orientation', G.orientations(CY.piece('k1').cells).length === 1);
+        assert('an L-bundle has four orientations', G.orientations(CY.piece('kL').cells).length === 4);
+        assert('a 2x2 block has one orientation', G.orientations(CY.piece('kO').cells).length === 1);
+
+        // The vertical domino must stay vertical: Y is untouched by rotation.
+        const tower = G.rotate(CY.piece('kTower').cells, 1);
+        assert('rotation about Y never lays a tower down', G.span(tower).y === 2);
+
+        const under = G.underside(CY.piece('kTower').cells);
+        assert('a tower has one underside cell', under.length === 1 && under[0][1] === 0);
+        assert('a flat 2x2 has four underside cells', G.underside(CY.piece('kO').cells).length === 4);
+    })();
+
+    // ── Occupancy ───────────────────────────────────────────────
+    section('Occupancy & gravity');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(6, 4, 4);
+        const c20 = CY.piece('c20').cells;
+
+        assert('empty yard reports empty extents', G.extents(g).empty);
+        assert('a piece fits in an empty yard', G.fits(g, c20, 0, 0, 0));
+        assert('a piece does not fit outside the yard', !G.fits(g, c20, 5, 0, 0));
+
+        G.place(g, 'c20', c20, 0, 0, 0);
+        assert('placing marks its cells', G.at(g, 0, 0, 0) > 0 && G.at(g, 1, 0, 0) > 0);
+        assert('placing leaves neighbours free', G.at(g, 2, 0, 0) === -1);
+        assert('a second piece cannot overlap the first', !G.fits(g, c20, 1, 0, 0));
+        assert('out of bounds reads as -2', G.at(g, -1, 0, 0) === -2);
+
+        // This is the bug the old POC had: a 40ft snapped to a 2.5 m grid
+        // happily sat inside its neighbour. Now it cannot.
+        const c40 = CY.piece('c40').cells;
+        assert('a 40ft cannot be dropped through a 20ft', !G.fits(g, c40, 0, 0, 0));
+
+        assert('gravity puts a free piece on the ground', G.dropY(g, c20, 2, 0) === 0);
+        assert('gravity stacks onto an occupied cell', G.dropY(g, c20, 0, 0) === 1);
+
+        // A piece hanging entirely over open air has no resting place, so the
+        // drop must fall through to the ground rather than float.
+        G.place(g, 'c20', c20, 0, 1, 0);
+        assert('two tiers stack cleanly', G.dropY(g, c20, 0, 0) === 2);
+
+        const removed = G.remove(g, 1);
+        assert('remove returns the entry', removed && removed.pieceId === 'c20');
+        assert('remove frees its cells', G.at(g, 0, 0, 0) === -1);
+    })();
+
+    // ── Support ─────────────────────────────────────────────────
+    section('Support ratio');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(8, 4, 4);
+        const c20 = CY.piece('c20').cells;
+        const c40 = CY.piece('c40').cells;
+
+        assert('the ground supports everything fully', G.supportRatio(g, c40, 0, 0, 0) === 1);
+
+        G.place(g, 'c20', c20, 0, 0, 0);
+        // A 40ft laid across a single 20ft is half carried, half over the void.
+        assert('a 40ft on one 20ft is half supported',
+            approx(G.supportRatio(g, c40, 0, 1, 0), 0.5),
+            String(G.supportRatio(g, c40, 0, 1, 0)));
+
+        G.place(g, 'c20', c20, 2, 0, 0);
+        assert('a 40ft on two 20fts is fully supported',
+            G.supportRatio(g, c40, 0, 1, 0) === 1);
+
+        // A tower's upper cell rides on its own lower cell, so only the bottom
+        // counts towards support.
+        const tower = CY.piece('kTower').cells;
+        assert('a tower is judged on its bottom cell only',
+            G.supportRatio(g, tower, 5, 0, 0) === 1);
+    })();
+
+    // ── Hard rules ──────────────────────────────────────────────
+    section('Hard rules');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(6, 4, 4);
+        const c20 = CY.piece('c20').cells;
+
+        G.place(g, 't20', CY.piece('t20').cells, 0, 0, 0);
+        assert('a tank frame refuses a load on top', G.crushesNoTop(g, c20, 0, 1, 0));
+        assert('a tank frame does not block its neighbours', !G.crushesNoTop(g, c20, 2, 0, 0));
+
+        const full = G.create(2, 1, 1);
+        G.place(full, 'c20', c20, 0, 0, 0);
+        assert('a full column reports no drop', G.dropY(full, c20, 0, 0) === -1);
+        assert('no legal move in a full yard',
+            !G.hasLegalMove(full, c20, { maxTier: 1, minSupport: 0.5 }));
+        assert('a legal move exists in an empty yard',
+            G.hasLegalMove(G.create(4, 4, 3), c20, { maxTier: 3, minSupport: 0.5 }));
+    })();
+
+    // ── Burial & plug access ────────────────────────────────────
+    section('Burial & reefer access');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(6, 3, 3);
+        const c20 = CY.piece('c20').cells;
+
+        const bottom = G.place(g, 'c20', c20, 0, 0, 0);
+        assert('a lone box is not buried', !G.isBuried(g, bottom.id));
+        const top = G.place(g, 'c20', c20, 0, 1, 0);
+        assert('a box with something on it is buried', G.isBuried(g, bottom.id));
+        assert('the box on top is not buried', !G.isBuried(g, top.id));
+        assert('supportedBy names the box above', G.supportedBy(g, bottom.id)[0] === top.id);
+
+        // A reefer against the yard edge always has its plug reachable.
+        const g2 = G.create(3, 3, 1);
+        const r = G.place(g2, 'r20', CY.piece('r20').cells, 0, 0, 0);
+        assert('a reefer at the yard edge has plug access', G.hasSideAccess(g2, r.id));
+
+        // Wall it in on a 1-deep yard: neighbours to both sides, edges elsewhere.
+        const g3 = G.create(3, 1, 1);
+        const r2 = G.place(g3, 'k1', CY.piece('k1').cells, 1, 0, 0);
+        G.place(g3, 'k1', CY.piece('k1').cells, 0, 0, 0);
+        G.place(g3, 'k1', CY.piece('k1').cells, 2, 0, 0);
+        assert('a crate boxed in on x still sees the z edge', G.hasSideAccess(g3, r2.id));
+    })();
+
+    // ── Scoring ─────────────────────────────────────────────────
+    section('Scoring');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(6, 4, 4);
+        const cell = CY.CELL.volume;
+
+        assert('an empty yard scores nothing', CY.score.evaluate(g).score === 0);
+
+        G.place(g, 'c20', CY.piece('c20').cells, 0, 0, 0);
+        let r = CY.score.evaluate(g);
+        assert('one 20ft spans 2x1x1 cells', r.spanX === 2 && r.spanY === 1 && r.spanZ === 1);
+        assert('its stack volume is two cells', approx(r.stackVolume, 2 * cell));
+        assert('a solid pack fills its box', approx(r.fill, 1));
+
+        // Height is measured from the ground, so a gap underneath is paid for.
+        const g2 = G.create(6, 4, 4);
+        G.place(g2, 'c20', CY.piece('c20').cells, 0, 0, 0);
+        G.place(g2, 'c20', CY.piece('c20').cells, 0, 1, 0);
+        r = CY.score.evaluate(g2);
+        assert('two stacked 20fts span two tiers', r.spanY === 2);
+        assert('stacking beats spreading',
+            r.stackVolume < CY.score.evaluate((function () {
+                const g3 = G.create(6, 4, 4);
+                G.place(g3, 'c20', CY.piece('c20').cells, 0, 0, 0);
+                G.place(g3, 'c20', CY.piece('c20').cells, 2, 0, 0);
+                G.place(g3, 'c20', CY.piece('c20').cells, 0, 0, 2);
+                return g3;
+            })()).stackVolume);
+
+        // Holes inside the bounding box are counted — that is the whole game.
+        const g4 = G.create(6, 4, 4);
+        G.place(g4, 'k1', CY.piece('k1').cells, 0, 0, 0);
+        G.place(g4, 'k1', CY.piece('k1').cells, 3, 0, 0);
+        r = CY.score.evaluate(g4);
+        assert('a gap between two crates is inside the box', r.bboxCells === 4);
+        assert('the gap shows up as a half-empty fill', approx(r.fill, 0.5));
+    })();
+
+    // ── Penalties ───────────────────────────────────────────────
+    section('Soft-rule penalties');
+    (function () {
+        const G = CY.grid;
+        const g = G.create(4, 3, 3);
+        const bottom = G.place(g, 'c20', CY.piece('c20').cells, 0, 0, 0, 'priority');
+        let r = CY.score.evaluate(g);
+        assert('an unburied priority box is free', r.penaltyVolume === 0);
+
+        G.place(g, 'c20', CY.piece('c20').cells, 0, 1, 0);
+        r = CY.score.evaluate(g);
+        assert('burying a priority box costs volume', r.penaltyVolume === CY.PENALTY.buriedPriority);
+        assert('the penalty names the offender', /departs first/.test(r.penalties[0].text));
+        assert('the score includes the penalty',
+            approx(r.score, r.stackVolume + CY.PENALTY.buriedPriority));
+
+        const abandoned = CY.score.evaluate(g, { abandoned: ['c40'] });
+        assert('an abandoned piece costs volume too',
+            abandoned.penaltyVolume === CY.PENALTY.buriedPriority + CY.PENALTY.abandonedPiece);
+    })();
+
+    // ── Par & medals ────────────────────────────────────────────
+    section('Par & medals');
+    (function () {
+        const par = CY.score.parFor(['c20', 'c20']);
+        assert('par floors at the queue cell count', approx(par.floor, 4 * CY.CELL.volume));
+        assert('gold is tighter than silver', par.gold < par.silver);
+        assert('silver is tighter than bronze', par.silver < par.bronze);
+        assert('a perfect pack takes gold', CY.score.rate(par.floor, par) === 3);
+        assert('par.gold exactly is still gold', CY.score.rate(par.gold, par) === 3);
+        assert('just over bronze scores no medal', CY.score.rate(par.bronze * 1.01, par) === 0);
+    })();
+
+    // ── Mission catalogue ───────────────────────────────────────
+    section('Mission catalogue');
+    (function () {
+        const all = CY.missions.list();
+        assert('the campaign has twelve missions', all.length === 12, String(all.length));
+        assert('every mission names a real chapter',
+            all.every(m => CY.missions.chapters().some(c => c.id === m.chapter)));
+        assert('every mission has a brief and a yard',
+            all.every(m => m.brief && m.yard && m.yard.w > 0 && m.yard.h > 0));
+        assert('every queued piece id exists',
+            all.every(m => CY.missions.buildQueue(m).every(e => !!CY.piece(e.id))));
+        assert('m1 is the first mission', CY.missions.indexOf('m1') === 0);
+        assert('next(m1) is m2', CY.missions.next('m1').id === 'm2');
+        assert('the last mission has no next', CY.missions.next('m12') === null);
+
+        // Generated queues must be reproducible, or scores are meaningless.
+        const a = CY.missions.buildQueue(CY.missions.get('m3')).map(e => e.id).join(',');
+        const b = CY.missions.buildQueue(CY.missions.get('m3')).map(e => e.id).join(',');
+        assert('a generated queue is deterministic', a === b, a + ' vs ' + b);
+        assert('a generated queue honours its count',
+            CY.missions.buildQueue(CY.missions.get('m3')).length === 10);
+        assert('forced pieces actually appear',
+            CY.missions.buildQueue(CY.missions.get('m8')).filter(e => e.id === 't20').length >= 3);
+        assert('priority tags land on containers only',
+            CY.missions.buildQueue(CY.missions.get('m12'))
+                .filter(e => e.tag === 'priority')
+                .every(e => CY.piece(e.id).kind === 'container'));
+        assert('m12 tags three priority sailings',
+            CY.missions.buildQueue(CY.missions.get('m12')).filter(e => e.tag === 'priority').length === 3);
+
+        // Every mission has to be finishable: the queue must fit in the yard.
+        all.forEach(function (m) {
+            const q = CY.missions.buildQueue(m);
+            let cells = 0;
+            q.forEach(e => { cells += CY.piece(e.id).cells.length; });
+            const cap = m.yard.w * m.yard.d * Math.min(m.yard.h, CY.missions.rulesFor(m).maxTier);
+            assert(m.id + ' (' + m.name + ') queue fits its yard',
+                cells <= cap, cells + ' cells into ' + cap);
+        });
+
+        // The longest piece must physically fit the pad in some orientation.
+        all.forEach(function (m) {
+            const q = CY.missions.buildQueue(m);
+            const ok = q.every(function (e) {
+                const s = CY.grid.span(CY.piece(e.id).cells);
+                return (s.x <= m.yard.w && s.z <= m.yard.d) || (s.z <= m.yard.w && s.x <= m.yard.d);
+            });
+            assert(m.id + ' every piece fits the pad in some orientation', ok);
+        });
+    })();
+
+    // ── Unlocking ───────────────────────────────────────────────
+    section('Unlocking');
+    (function () {
+        const none = { missions: {} };
+        assert('m1 is open from the start', CY.missions.isUnlocked('m1', none));
+        assert('m2 is locked until m1 is cleared', !CY.missions.isUnlocked('m2', none));
+        const one = { missions: { m1: { stars: 1, best: 100 } } };
+        assert('one star on m1 opens m2', CY.missions.isUnlocked('m2', one));
+        assert('clearing m1 does not open m3', !CY.missions.isUnlocked('m3', one));
+        const zero = { missions: { m1: { stars: 0, best: 999 } } };
+        assert('finishing with no medal does not unlock', !CY.missions.isUnlocked('m2', zero));
+    })();
+
+    // ── Game state machine ──────────────────────────────────────
+    section('Game state machine');
+    (function () {
+        CY.game.startMission('m1');
+        const s = CY.state;
+        assert('the mission sets its own yard', s.yard.w === 6 && s.yard.d === 4 && s.yard.h === 3);
+        assert('the queue is loaded', s.queue.length === 6);
+        assert('the cursor starts inside the pad',
+            s.cursor.x >= 0 && s.cursor.x < s.yard.w && s.cursor.z >= 0 && s.cursor.z < s.yard.d);
+
+        let p = CY.game.preview();
+        assert('the first preview is valid', p.valid, p.reason);
+        assert('the first piece lands on the ground', p.y === 0);
+
+        CY.game.setCursor(0, 0);
+        const placed = CY.game.place();
+        assert('placing returns the new entry', !!placed);
+        assert('the queue advances', s.index === 1);
+        assert('the yard holds one piece', s.grid.pieces.length === 1);
+
+        CY.game.undo();
+        assert('undo rewinds the queue', s.index === 0);
+        assert('undo empties the yard', s.grid.pieces.length === 0);
+
+        // Walking the whole queue must terminate and produce a result. The
+        // "player" here is the dumbest possible one: first legal cell wins.
+        function playOut(missionId, limit) {
+            CY.game.startMission(missionId);
+            let guard = 0;
+            while (CY.state.status === 'playing' && guard++ < (limit || 60)) {
+                let done = false;
+                for (let r = 0; r < 4 && !done; r++) {
+                    for (let x = 0; x < CY.state.yard.w && !done; x++) {
+                        for (let z = 0; z < CY.state.yard.d && !done; z++) {
+                            CY.game.setCursor(x, z);
+                            if (CY.state.cursor.x !== x || CY.state.cursor.z !== z) continue;
+                            if (CY.game.preview().valid) { CY.game.place(); done = true; }
+                        }
+                    }
+                    if (!done) CY.game.rotate(1);
+                }
+                if (!done) break;
+            }
+            return guard;
+        }
+        const guard = playOut('m1');
+        assert('a full playthrough completes', CY.state.status === 'complete', 'guard=' + guard);
+        assert('the result carries a score', CY.state.result && CY.state.result.score > 0);
+        assert('the result carries a star rating',
+            CY.state.result && CY.state.result.stars >= 0 && CY.state.result.stars <= 3);
+        assert('the result knows its par', !!(CY.state.result && CY.state.result.par));
+
+        // A competent-but-not-clever player: of every legal placement, take
+        // the one that leaves the smallest bounding box. This is the yardstick
+        // the medal multipliers in scoring.js are calibrated against — it must
+        // always clear bronze (or the ladder could lock someone out) and it
+        // must not sweep gold (or three stars would mean nothing).
+        function playGreedy(missionId) {
+            CY.game.startMission(missionId);
+            let guard = 0;
+            while (CY.state.status === 'playing' && guard++ < 200) {
+                let best = null;
+                for (let r = 0; r < 4; r++) {
+                    for (let x = 0; x < CY.state.yard.w; x++) {
+                        for (let z = 0; z < CY.state.yard.d; z++) {
+                            CY.state.cursor.rot = r;
+                            CY.game.setCursor(x, z);
+                            if (CY.state.cursor.x !== x || CY.state.cursor.z !== z || CY.state.cursor.rot !== r) continue;
+                            const pv = CY.game.preview();
+                            if (!pv.valid) continue;
+                            // Score the yard as it would be with this piece in it.
+                            const ext = CY.grid.extents(CY.state.grid);
+                            const maxX = Math.max(ext.empty ? 0 : ext.maxX, x + pv.span.x - 1);
+                            const minX = Math.min(ext.empty ? Infinity : ext.minX, x);
+                            const maxZ = Math.max(ext.empty ? 0 : ext.maxZ, z + pv.span.z - 1);
+                            const minZ = Math.min(ext.empty ? Infinity : ext.minZ, z);
+                            const maxY = Math.max(ext.empty ? 0 : ext.maxY, pv.y + pv.span.y - 1);
+                            const vol = (maxX - minX + 1) * (maxZ - minZ + 1) * (maxY + 1);
+                            if (!best || vol < best.vol) best = { vol: vol, x: x, z: z, r: r };
+                        }
+                    }
+                }
+                if (!best) break;
+                CY.state.cursor.rot = best.r;
+                CY.game.setCursor(best.x, best.z);
+                CY.game.place();
+            }
+            return CY.state.result;
+        }
+
+        let goldSweeps = 0;
+        CY.missions.list().forEach(function (m) {
+            playOut(m.id, 200);
+            assert(m.id + ' (' + m.name + ') can be played to the end',
+                CY.state.status === 'complete',
+                'stopped at ' + CY.state.index + '/' + CY.state.queue.length);
+
+            const r = playGreedy(m.id);
+            assert(m.id + ' is clearable by a competent player',
+                !!r && r.stars >= 1,
+                r ? 'scored ' + Math.round(r.score) + ' vs bronze ' + Math.round(r.par.bronze) : 'no result');
+            if (r && r.stars === 3) goldSweeps++;
+        });
+        assert('gold still asks for more than greedy packing',
+            goldSweeps <= 4, goldSweeps + ' of 12 missions gave a greedy player gold');
+    })();
+
+    // ── Cursor clamping ─────────────────────────────────────────
+    section('Cursor clamping');
+    (function () {
+        CY.game.startMission('m5'); // 8x4 pad, 40ft = 4 cells
+        CY.game.setCursor(99, 99);
+        const s = CY.state;
+        const span = CY.grid.span(CY.game.rotatedCells());
+        assert('the cursor is clamped to the pad',
+            s.cursor.x + span.x <= s.yard.w && s.cursor.z + span.z <= s.yard.d,
+            JSON.stringify(s.cursor) + ' span ' + JSON.stringify(span));
+
+        // Rotating a 4-long box near the far edge must pull it back in, not
+        // leave it hanging off the pad.
+        CY.game.setCursor(s.yard.w - 4, 0);
+        CY.game.rotate(1);
+        const span2 = CY.grid.span(CY.game.rotatedCells());
+        assert('rotating at the edge re-clamps',
+            s.cursor.x + span2.x <= s.yard.w && s.cursor.z + span2.z <= s.yard.d,
+            JSON.stringify(s.cursor) + ' span ' + JSON.stringify(span2));
+        assert('a 40ft turned across the pad is 4 deep', span2.z === 4);
+    })();
+
+    // ── Sandbox ─────────────────────────────────────────────────
+    section('Sandbox mode');
+    (function () {
+        CY.game.startSandbox({ w: 8, d: 6, h: 4 });
+        const s = CY.state;
+        assert('sandbox has no queue', s.queue.length === 0);
+        assert('sandbox still offers a piece', !!CY.game.currentEntry());
+
+        CY.game.setSandboxPiece('c40');
+        assert('the palette changes the piece', CY.game.currentEntry().id === 'c40');
+
+        CY.game.setCursor(0, 0);
+        const a = CY.game.place();
+        assert('sandbox placing works', !!a);
+        assert('sandbox does not advance a queue', s.index === 0);
+
+        CY.game.setCursor(0, 0);
+        const b = CY.game.place();
+        assert('the second box stacks on the first', b && b.origin.y === 1);
+
+        assert('you cannot pull a box out from under a stack', CY.game.removePiece(a.id) === null);
+        assert('you can lift the top box off', !!CY.game.removePiece(b.id));
+        assert('and then the one underneath', !!CY.game.removePiece(a.id));
+
+        CY.game.setCursor(0, 0); CY.game.place();
+        CY.game.setCursor(4, 0); CY.game.place();
+        CY.game.clear();
+        assert('clear empties the yard', s.grid.pieces.length === 0);
+    })();
+
+    // ── Grid ↔ world ────────────────────────────────────────────
+    section('Grid to world');
+    (function () {
+        const yard = { w: 8, d: 4, h: 4 };
+        const w = CY.cellToWorld(0, 0, 0, yard);
+        assert('cell 0 sits at the negative corner', w.x < 0 && w.z < 0);
+        assert('the first tier is half a cell high', approx(w.y, CY.CELL.y / 2));
+
+        const rt = CY.worldToCell(w.x, w.z, yard);
+        assert('world round-trips back to its cell', rt.x === 0 && rt.z === 0,
+            JSON.stringify(rt));
+
+        // The world origin sits on the seam between the two middle cells, so
+        // the pad is centred on the scene rather than hanging off one side.
+        const left = CY.cellToWorld(3, 0, 1, yard);
+        const right = CY.cellToWorld(4, 0, 2, yard);
+        assert('the pad straddles the world origin in x', approx(left.x, -right.x));
+        assert('the pad straddles the world origin in z', approx(left.z, -right.z));
+
+        const size = CY.yardSizeMetres(yard);
+        assert('yard metres match the cell count', approx(size.x, 8 * CY.CELL.x));
+    })();
+
+    // ── Save ────────────────────────────────────────────────────
+    section('Progress');
+    (function () {
+        CY.save.reset();
+        let data = CY.save.load();
+        assert('a fresh profile has no missions', Object.keys(data.missions).length === 0);
+
+        data = CY.save.record('m1', 2, 400);
+        assert('a result is recorded', data.missions.m1.stars === 2);
+        data = CY.save.record('m1', 1, 300);
+        assert('a worse medal never overwrites a better one', data.missions.m1.stars === 2);
+        assert('a better score does replace the old best', data.missions.m1.best === 300);
+        assert('plays are counted', data.missions.m1.plays === 2);
+        CY.save.reset();
+    })();
+
+    // ── Event bus ───────────────────────────────────────────────
+    section('Event bus');
+    (function () {
+        let hits = 0;
+        const fn = function () { hits++; };
+        CY.on('test:ping', fn);
+        CY.emit('test:ping');
+        CY.emit('test:ping');
+        assert('handlers receive emits', hits === 2);
+        CY.off('test:ping', fn);
+        CY.emit('test:ping');
+        assert('off unsubscribes', hits === 2);
+
+        CY.on('test:boom', function () { throw new Error('listener blew up'); });
+        let after = 0;
+        CY.on('test:boom', function () { after++; });
+        CY.emit('test:boom');
+        assert('a throwing listener does not stop the others', after === 1);
+    })();
+
+    document.getElementById('summary').innerHTML =
+        passed + ' passed / <strong>' + failed + ' failed</strong>';
+    </script>
+</body>
+</html>

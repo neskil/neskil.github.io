@@ -1,0 +1,888 @@
+/* ── 3D Cargo Yard POC Design System ── */
+:root {
+    --bg-dark: #0f172a;
+    --bg-card: rgba(15, 23, 42, 0.72);
+    --bg-card-hover: rgba(30, 41, 75, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.05);
+    
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+    --text-muted: #64748b;
+    
+    --accent-cyan: #38bdf8;
+    --accent-blue: #6366f1;
+    --accent-green: #10b981;
+    --accent-orange: #f97316;
+    --accent-red: #ef4444;
+    
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-dark);
+    font-family: var(--font-body);
+    color: var(--text-main);
+}
+
+/* 3D Canvas Viewport Container */
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Top Navigation Bar */
+.top-nav {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    height: 56px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-sub);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-title h1 {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.badge {
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.secondary-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    color: var(--text-sub);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.secondary-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Floating HUD Dashboard */
+.hud-dashboard {
+    position: absolute;
+    top: 86px;
+    right: 16px;
+    width: 280px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.hud-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.hud-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hud-card-header h3 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.close-inspector-btn {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.close-inspector-btn:hover {
+    color: var(--text-main);
+}
+
+.hud-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.metric-label {
+    color: var(--text-sub);
+}
+
+.metric-val {
+    font-weight: 600;
+    font-family: var(--font-heading);
+    color: var(--text-main);
+}
+
+.status-good {
+    color: var(--accent-green);
+}
+
+/* Inspector Panel */
+.inspector-card.hidden {
+    display: none;
+}
+
+.inspector-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(56, 189, 248, 0.2);
+    color: var(--accent-cyan);
+    margin-bottom: 10px;
+}
+
+.inspector-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.82rem;
+    margin-bottom: 12px;
+}
+
+.ins-label {
+    color: var(--text-sub);
+    margin-right: 6px;
+}
+
+.inspector-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-sm:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.btn-sm.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #fca5a5;
+}
+
+/* Bottom Controls Toolbar */
+.bottom-toolbar {
+    position: absolute;
+    bottom: 48px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 10px 18px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    max-width: 95vw;
+    overflow-x: auto;
+}
+
+.toolbar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.section-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.button-group {
+    display: flex;
+    gap: 6px;
+}
+
+.select-input {
+    padding: 7px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.8);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+/* Palette Buttons */
+.palette-btn, .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-sub);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.palette-btn:hover, .tool-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.palette-btn.active, .tool-btn.active {
+    background: rgba(56, 189, 248, 0.18);
+    color: #fff;
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.color-dot.maersk { background-color: #00a0b0; }
+.color-dot.hapag { background-color: #f26522; }
+.color-dot.evergreen { background-color: #008559; }
+.color-dot.msc { background-color: #e5a823; }
+.color-dot.wood { background-color: #b08d57; }
+
+/* Instruction Tooltip Banner */
+.instruction-banner {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 99px;
+    padding: 4px 16px;
+    font-size: 0.78rem;
+    color: var(--text-sub);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+
+
+
+
+
+
+
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+    .bottom-toolbar {
+        bottom: 40px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        max-height: 200px;
+    }
+    .hud-dashboard {
+        width: 220px;
+    }
+    .instruction-banner {
+        display: none;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Game layer — mission chrome, the score, the queue and the overlays.
+   Everything above this line is the original POC's shell; everything below
+   arrived with the puzzle. Same glass-on-slate system either way.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.hidden { display: none !important; }
+
+/* The score moved to the left so the queue can own the right rail. */
+.hud-dashboard {
+    left: 16px;
+    right: auto;
+    width: 296px;
+    max-height: calc(100vh - 230px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 2px;
+}
+
+.queue-panel {
+    position: absolute;
+    top: 86px;
+    right: 16px;
+    width: 240px;
+    z-index: 10;
+}
+
+.hud-hint {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    cursor: help;
+}
+
+/* ── Score headline & par track ── */
+.score-headline {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.score-value {
+    font-family: var(--font-heading);
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.score-unit {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    font-weight: 600;
+}
+
+.par-track {
+    position: relative;
+    height: 8px;
+    border-radius: 99px;
+    background: rgba(148, 163, 184, 0.16);
+    margin-bottom: 6px;
+    overflow: visible;
+}
+
+.par-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--accent-green);
+    transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.par-fill.gold   { background: #fbbf24; }
+.par-fill.silver { background: #cbd5e1; }
+.par-fill.bronze { background: #d97706; }
+.par-fill.over   { background: var(--accent-red); }
+
+.par-mark {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 14px;
+    border-radius: 1px;
+    transform: translateX(-1px);
+}
+
+.par-gold   { background: #fbbf24; }
+.par-silver { background: #e2e8f0; }
+.par-bronze { background: #d97706; }
+
+.par-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.par-legend .lg.gold   { color: #fbbf24; }
+.par-legend .lg.silver { color: #e2e8f0; }
+.par-legend .lg.bronze { color: #d97706; }
+
+.status-bad { color: #fca5a5; }
+.penalty-row { border-top: 1px solid rgba(239, 68, 68, 0.25); padding-top: 6px; }
+
+.penalty-list {
+    list-style: none;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.penalty-list li {
+    font-size: 0.72rem;
+    color: #fca5a5;
+    line-height: 1.35;
+}
+
+.penalty-list em { color: var(--text-sub); font-style: normal; }
+
+/* ── Mission card ── */
+.mission-brief {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--text-sub);
+    margin-bottom: 10px;
+}
+
+.rule-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.chip {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+    border-radius: 99px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    color: #bae6fd;
+    white-space: nowrap;
+}
+
+.chip.teaches {
+    background: rgba(148, 163, 184, 0.10);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: var(--text-sub);
+    white-space: normal;
+    line-height: 1.35;
+}
+
+/* ── Queue ── */
+.queue-count { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.queue-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.queue-item.current {
+    padding: 8px;
+    border-radius: 10px;
+    background: rgba(56, 189, 248, 0.10);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.queue-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.queue-meta strong { font-size: 0.82rem; font-family: var(--font-heading); }
+.queue-meta span { font-size: 0.68rem; color: var(--text-muted); }
+
+.flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+
+.flag {
+    font-size: 0.62rem;
+    padding: 1px 6px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+}
+
+.flag.prio  { background: rgba(244, 63, 94, 0.16);  border-color: rgba(244, 63, 94, 0.4);  color: #fda4af; }
+.flag.cold  { background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.4); color: #bae6fd; }
+.flag.notop { background: rgba(148, 163, 184, 0.16); border-color: rgba(148, 163, 184, 0.4); color: #cbd5e1; }
+
+.queue-next-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 12px 0 6px;
+}
+
+.queue-next { display: flex; flex-direction: column; gap: 6px; }
+
+.queue-item.small {
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 0.74rem;
+    color: var(--text-sub);
+}
+
+.queue-empty { font-size: 0.8rem; color: var(--text-muted); padding: 6px 0; }
+
+.queue-actions { display: flex; gap: 6px; margin-top: 12px; }
+.queue-actions .btn-sm { flex: 1; justify-content: center; }
+
+kbd {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    padding: 0 4px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: var(--text-muted);
+    margin-left: 3px;
+}
+
+svg.thumb { flex: none; display: block; }
+
+/* ── Banner tones ── */
+.instruction-banner.ok  { color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4); }
+.instruction-banner.bad { color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); }
+
+/* ── Toast ── */
+.toast {
+    position: absolute;
+    top: 86px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: 8px 16px;
+    border-radius: 99px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid var(--glass-border);
+    font-size: 0.8rem;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+}
+
+.toast.good { border-color: rgba(16, 185, 129, 0.5); color: #6ee7b7; }
+.toast.bad  { border-color: rgba(239, 68, 68, 0.5);  color: #fca5a5; }
+
+/* ── Overlays ── */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.overlay-panel {
+    width: min(560px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.96);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-panel.wide { width: min(860px, 100%); }
+
+.overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.overlay-header h2 {
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.close-btn:hover { color: var(--text-main); }
+
+.overlay-lede {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--text-sub);
+    margin-bottom: 18px;
+}
+
+.overlay-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.overlay-version { font-size: 0.7rem; color: var(--text-muted); }
+
+.overlay-actions { display: flex; gap: 8px; margin-top: 18px; }
+.overlay-actions .tool-btn { flex: 1; justify-content: center; }
+
+.tool-btn.primary {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: rgba(56, 189, 248, 0.55);
+    color: #fff;
+}
+
+/* ── Mission select ── */
+.chapter { margin-bottom: 20px; }
+
+.chapter h3 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.chapter h3 em {
+    font-style: normal;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.mission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+}
+
+.mission-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.18s ease;
+}
+
+.mission-tile:hover:not(.locked) {
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(56, 189, 248, 0.45);
+}
+
+.mission-tile.locked { opacity: 0.42; cursor: not-allowed; }
+
+.mt-name { font-family: var(--font-heading); font-weight: 600; font-size: 0.88rem; }
+.mt-stars { color: #fbbf24; font-size: 0.82rem; letter-spacing: 0.08em; }
+.mt-best { font-size: 0.68rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ── Result ── */
+.stars { text-align: center; font-size: 2.4rem; letter-spacing: 0.1em; margin: 6px 0; }
+.star { color: rgba(148, 163, 184, 0.3); }
+.star.on { color: #fbbf24; text-shadow: 0 0 18px rgba(251, 191, 36, 0.5); }
+
+.result-score { text-align: center; margin-bottom: 18px; }
+.result-score .score-value { font-size: 2.6rem; }
+
+.result-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+
+.result-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-sub);
+    padding: 6px 8px 6px 0;
+    white-space: nowrap;
+}
+
+.result-table td { padding: 6px 0; color: var(--text-main); }
+.result-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.result-table tr { border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.result-table tr.pen th, .result-table tr.pen td { color: #fca5a5; }
+
+/* ── Help ── */
+.help-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+
+.help-list li {
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--text-sub);
+    padding-left: 14px;
+    border-left: 2px solid rgba(56, 189, 248, 0.35);
+}
+
+.help-list strong { color: var(--text-main); }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+    .hud-dashboard { width: 250px; }
+    .queue-panel { width: 200px; }
+}
+
+@media (max-width: 820px) {
+    .hud-dashboard {
+        width: calc(100vw - 32px);
+        max-height: 34vh;
+    }
+    .queue-panel {
+        top: auto;
+        bottom: 190px;
+        right: 16px;
+        left: 16px;
+        width: auto;
+    }
+    .queue-next { flex-direction: row; flex-wrap: wrap; }
+    .mission-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* The sandbox palette is thirteen pieces wide — let it wrap into a block
+   instead of shoving the camera and weather controls off the toolbar. */
+#palette-section .button-group {
+    flex-wrap: wrap;
+    max-width: 300px;
+    gap: 4px;
+}
+
+#palette-section .palette-btn {
+    padding: 5px 8px;
+    font-size: 0.74rem;
+}
+
+/* Wrap the toolbar rather than scroll it: at 1440 the palette, camera,
+   analysis and weather groups together overflow, and a horizontal scrollbar
+   hides controls people never think to look for. */
+.bottom-toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+    overflow-x: hidden;
+    max-width: min(94vw, 1120px);
+    row-gap: 10px;
+}
+
+.toolbar-section { flex: none; }
+
+/* [hidden] has to beat the display rules above it, or a hidden metric row
+   keeps its `display: flex`. */
+[hidden] { display: none !important; }
+
+/* This build is a parked variant, not the main game — say so in the header
+   so nobody mistakes it for what `3d-engine-poc/index.html` serves. */
+.variant-badge {
+    background: rgba(244, 63, 94, 0.18);
+    border-color: rgba(244, 63, 94, 0.45);
+    color: #fda4af;
+    letter-spacing: 0.08em;
+}

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargo Yard — 3D Container Stacking Puzzle | Niklas Billgren</title>
+    <meta name="description" content="A 3D container-stacking puzzle: clear twelve yard missions by packing intermodal boxes into the smallest possible volume, or free-build in the sandbox. WebGL & Three.js, no build step.">
+    <meta name="author" content="Niklas Billgren">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- Google Tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9GP823TGLB');
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Single-token cache busting: the version lives on this one line, and
+         the loaders below stamp ?v=CY_VERSION onto the stylesheet and every
+         module. config.js copies it into CY.VERSION. See CLAUDE.md. -->
+    <script>window.CY_VERSION = '0.2.0';</script>
+    <script>document.write('<link rel="stylesheet" href="style.css?v=' + CY_VERSION + '">');</script>
+
+    <!-- Vendored so the page also runs straight off file:// -->
+    <script src="../vendor/three.min.js"></script>
+    <script src="../vendor/OrbitControls.js"></script>
+</head>
+<body>
+    <!-- Headless verification aid: any uncaught error lands in this element,
+         so `--dump-dom` can be grepped for it. Invisible in normal use.
+         See CLAUDE.md → Verification. -->
+    <div id="probe-errors" hidden></div>
+    <script>
+    (function () {
+        function log(msg) {
+            var box = document.getElementById('probe-errors');
+            if (box) box.textContent += '[JSERROR] ' + msg + '\n';
+        }
+        window.addEventListener('error', function (e) {
+            log((e.message || 'error') + ' @ ' + (e.filename || '?') + ':' + (e.lineno || 0));
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            log('unhandled rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+        });
+    })();
+    </script>
+
+    <div id="canvas-container"></div>
+
+    <header class="top-nav">
+        <a href="../index.html" class="back-btn" title="Back to Yard Master">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Yard Master</span>
+        </a>
+        <div class="header-title">
+            <h1>Cargo Yard</h1>
+            <span class="badge variant-badge">VARIANT</span>
+            <span class="badge" id="mode-badge">Sandbox</span>
+        </div>
+        <div class="header-actions">
+            <button id="btn-missions" class="secondary-btn" title="Mission select">🗺️ <span>Missions</span></button>
+            <button id="btn-sandbox" class="secondary-btn" title="Free build, no rules">🧱 <span>Sandbox</span></button>
+            <button id="btn-help" class="secondary-btn" title="How to play">?</button>
+            <button id="btn-audio" class="secondary-btn" title="Toggle sound">🔊</button>
+        </div>
+    </header>
+
+    <!-- Left column: the score, the mission, and whatever is under the cursor -->
+    <aside class="hud-dashboard">
+        <div class="hud-card score-card">
+            <div class="hud-card-header">
+                <span class="hud-icon">📐</span>
+                <h3>Stack Volume</h3>
+                <span class="hud-hint" title="The smallest cuboid that still contains everything you have placed. Lower is better.">?</span>
+            </div>
+            <div class="score-headline">
+                <span class="score-value" id="metric-score">0</span>
+                <span class="score-unit">m³</span>
+            </div>
+            <div class="par-track" id="par-track" hidden>
+                <div class="par-fill" id="par-fill"></div>
+                <span class="par-mark par-gold" id="par-mark-gold"></span>
+                <span class="par-mark par-silver" id="par-mark-silver"></span>
+                <span class="par-mark par-bronze" id="par-mark-bronze"></span>
+            </div>
+            <div class="par-legend" id="par-legend" hidden></div>
+            <div class="hud-metrics">
+                <div class="metric-row"><span class="metric-label">Box (cells)</span><span class="metric-val" id="metric-span">—</span></div>
+                <div class="metric-row"><span class="metric-label">Packing</span><span class="metric-val" id="metric-fill">—</span></div>
+                <div class="metric-row"><span class="metric-label">Cargo volume</span><span class="metric-val" id="metric-cargo">0 m³</span></div>
+                <div class="metric-row"><span class="metric-label">Units / TEU</span><span class="metric-val" id="metric-units">0 / 0</span></div>
+                <div class="metric-row"><span class="metric-label">Laden mass</span><span class="metric-val" id="metric-mass">0.0 t</span></div>
+                <div class="metric-row penalty-row" id="metric-penalty-row" hidden>
+                    <span class="metric-label">Penalties</span><span class="metric-val status-bad" id="metric-penalty">0 m³</span>
+                </div>
+            </div>
+            <ul class="penalty-list" id="penalty-list"></ul>
+        </div>
+
+        <div class="hud-card mission-card hidden" id="mission-card">
+            <div class="hud-card-header">
+                <span class="hud-icon">🎯</span>
+                <h3 id="mission-name">Mission</h3>
+            </div>
+            <p class="mission-brief" id="mission-brief"></p>
+            <div class="rule-chips" id="mission-rules"></div>
+        </div>
+
+        <div class="hud-card inspector-card hidden" id="inspector-panel">
+            <div class="hud-card-header">
+                <span class="hud-icon">🔍</span>
+                <h3>Under the cursor</h3>
+            </div>
+            <div class="inspector-badge" id="insp-carrier">—</div>
+            <div class="inspector-grid">
+                <div><span class="ins-label">Type</span><strong id="insp-type">—</strong></div>
+                <div><span class="ins-label">Cells</span><strong id="insp-cells">—</strong></div>
+                <div><span class="ins-label">Tier</span><strong id="insp-tier">—</strong></div>
+                <div><span class="ins-label">Status</span><strong id="insp-status">—</strong></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right column: what you are holding and what is coming -->
+    <aside class="queue-panel" id="queue-panel">
+        <div class="hud-card">
+            <div class="hud-card-header">
+                <span class="hud-icon">📦</span>
+                <h3>On the hook</h3>
+                <span class="queue-count" id="queue-count"></span>
+            </div>
+            <div class="queue-current" id="queue-current"></div>
+            <div class="queue-next-label" id="queue-next-label">Next up</div>
+            <div class="queue-next" id="queue-next"></div>
+            <div class="queue-actions">
+                <button class="btn-sm" id="btn-rotate">🔄 Rotate <kbd>R</kbd></button>
+                <button class="btn-sm" id="btn-undo">↩ Undo <kbd>Z</kbd></button>
+            </div>
+        </div>
+    </aside>
+
+    <div class="bottom-toolbar">
+        <div class="toolbar-section" id="palette-section">
+            <span class="section-title">Sandbox palette</span>
+            <div class="button-group" id="spawn-group"></div>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="section-title">Camera</span>
+            <div class="button-group">
+                <button id="cam-orbit" class="tool-btn active" title="Free orbit">Orbit</button>
+                <button id="cam-iso" class="tool-btn" title="Isometric">Isometric</button>
+                <button id="cam-crane" class="tool-btn" title="Straight down">Crane</button>
+                <button id="cam-vehicle" class="tool-btn" title="Drive the reach stacker (sandbox)">🚜 Stacker</button>
+                <button id="cam-gantry" class="tool-btn" title="Drive the rail-mounted gantry crane (sandbox)">🏗️ Gantry</button>
+            </div>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="section-title">Analysis</span>
+            <div class="button-group">
+                <button id="btn-xray" class="tool-btn" title="See the cargo inside">🔍 X-Ray</button>
+                <button id="btn-heatmap" class="tool-btn" title="Colour by tier load">📊 Heatmap</button>
+                <button id="btn-train" class="tool-btn" title="Lift the next box off the rail siding">🚆 Unload</button>
+            </div>
+        </div>
+
+        <div class="toolbar-section">
+            <span class="section-title">Weather</span>
+            <select id="weather-select" class="select-input">
+                <option value="day">☀️ Sunny day</option>
+                <option value="dusk">🌅 Sunset</option>
+                <option value="rain">🌧️ Storm</option>
+                <option value="night">🌙 Floodlit night</option>
+                <option value="fog">🌫️ Port fog</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="instruction-banner" id="instruction-banner"></div>
+    <div class="toast" id="toast" hidden></div>
+
+    <!-- Mission select -->
+    <div class="overlay hidden" id="overlay-missions">
+        <div class="overlay-panel wide">
+            <div class="overlay-header">
+                <h2>Yard missions</h2>
+                <button class="close-btn" id="btn-close-missions">&times;</button>
+            </div>
+            <p class="overlay-lede">
+                Every mission hands you a fixed queue of boxes. Stack them so the
+                cuboid drawn around the finished pile is as small as it can be —
+                width, depth and height all count, and height counts from the ground.
+            </p>
+            <div id="mission-list"></div>
+            <div class="overlay-footer">
+                <button class="secondary-btn" id="btn-reset-progress">Reset progress</button>
+                <span class="overlay-version">v<span id="version-label"></span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- End-of-mission report -->
+    <div class="overlay hidden" id="overlay-result">
+        <div class="overlay-panel">
+            <div class="overlay-header">
+                <h2 id="result-title">Yard cleared</h2>
+            </div>
+            <div class="stars" id="result-stars"></div>
+            <div class="result-score">
+                <span class="score-value" id="result-score">0</span><span class="score-unit">m³</span>
+            </div>
+            <table class="result-table" id="result-table"></table>
+            <div class="overlay-actions">
+                <button class="tool-btn" id="btn-retry">↻ Retry</button>
+                <button class="tool-btn" id="btn-result-missions">🗺️ Missions</button>
+                <button class="tool-btn primary hidden" id="btn-next-mission">Next mission →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- How to play -->
+    <div class="overlay hidden" id="overlay-help">
+        <div class="overlay-panel">
+            <div class="overlay-header">
+                <h2>How to play</h2>
+                <button class="close-btn" id="btn-close-help">&times;</button>
+            </div>
+            <ul class="help-list">
+                <li><strong>Point and click</strong> to drop the box on the hook. The green outline is where it lands; red means the yard refuses it, and the reason is on the banner.</li>
+                <li><strong>R</strong> rotates 90° about the vertical (right-click does too). <strong>Z</strong> undoes.</li>
+                <li><strong>Arrow keys / WASD</strong> nudge the cursor a cell at a time; <strong>Space</strong> or <strong>Enter</strong> drops.</li>
+                <li><strong>The score is the bounding box</strong> — the smallest cuboid containing everything you placed, in cubic metres. Holes inside it still count, so pack tight in all three directions.</li>
+                <li><strong>Hard rules</strong> stop you: nothing above the tier ceiling, nothing on a tank frame, and enough of a box's underside has to be carried.</li>
+                <li><strong>Soft rules</strong> cost volume at the audit: a reefer with no plug access, a flagged box buried under another.</li>
+                <li><strong>Stacker mode</strong> (sandbox only) gives you the reach stacker: WASD to drive, Q/E for the boom, Space to lift and set down.</li>
+                <li><strong>Gantry mode</strong> (sandbox only) drives the rail-mounted crane instead: W/S runs the gantry along its rails, A/D tracks the trolley across the bridge, Q/E works the hoist, Space lifts and sets down. The cyan beam is where the spreader is over.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Load order matters: logic first, then render, then input/ui, then the
+         bootstrap. Add a module by name to this array, never as a hand-written
+         script tag. See CLAUDE.md. -->
+    <script>
+    (function () {
+        var mods = ['config', 'events', 'rng', 'grid', 'scoring', 'missions', 'save', 'state',
+                    'audio', 'render-core', 'render-yard', 'render-piece', 'weather',
+                    'vehicle', 'crane', 'train', 'input', 'ui', 'ui-bind', 'main'];
+        for (var i = 0; i < mods.length; i++)
+            document.write('<script src="js/' + mods[i] + '.js?v=' + CY_VERSION + '"><\/script>');
+    })();
+    </script>
+</body>
+</html>
