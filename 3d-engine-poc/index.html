@@ -127,6 +127,31 @@
             <div class="metric-row"><span class="metric-label">Stack height</span><span class="metric-val" id="sb-height">0 m</span></div>
             <div class="metric-row"><span class="metric-label">On the train</span><span class="metric-val" id="sb-train">0 left</span></div>
         </section>
+
+        <!-- Optional job board. Hidden until Contracts is switched on. -->
+        <section class="hud-card hidden" id="contracts-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">📜</span>
+                <h3>Logistics Contract</h3>
+                <button class="close-btn" id="btn-ct-reset" title="Reset capital and upgrades">⟲</button>
+            </header>
+            <div class="metric-row"><span class="metric-label">Capital</span><span class="metric-val gold" id="ct-money">$15,000</span></div>
+            <div class="metric-row"><span class="metric-label">Reputation</span><span class="metric-val status-good" id="ct-rating">A+ (100%)</span></div>
+            <div class="metric-row"><span class="metric-label">Delivered</span><span class="metric-val" id="ct-delivered">0</span></div>
+
+            <div class="contract-box">
+                <h4 id="ct-title">Awaiting dispatch…</h4>
+                <p id="ct-desc"></p>
+                <div class="contract-meta">
+                    <span class="tag-reward" id="ct-payout">Reward $0</span>
+                    <span class="tag-timer" id="ct-timer">⏳ 2:30</span>
+                </div>
+                <div class="contract-progress"><span id="ct-progress"></span></div>
+            </div>
+
+            <span class="section-title">Upgrades</span>
+            <div class="upgrade-grid" id="ct-upgrades"></div>
+        </section>
     </aside>
 
     <aside id="inspector-panel" class="hud-card inspector-card hidden">
@@ -155,17 +180,19 @@
             <div class="button-group" id="spawn-palette"></div>
         </div>
         <div class="toolbar-section">
-            <span class="section-title">Camera</span>
+            <span class="section-title">Camera &amp; Machines</span>
             <div class="button-group">
                 <button class="tool-btn active" data-cam="orbit">Orbit</button>
                 <button class="tool-btn" data-cam="iso">Isometric</button>
                 <button class="tool-btn" data-cam="top">Top</button>
-                <button class="tool-btn" data-cam="drive">🚜 Drive</button>
+                <button class="tool-btn" data-cam="stacker" title="Drive the reach stacker — WASD, Q/E boom, Space to grab">🚜 Stacker</button>
+                <button class="tool-btn" data-cam="crane" title="Drive the gantry crane — WASD, Q/E hoist, Space to grab">🏗️ Crane</button>
             </div>
         </div>
         <div class="toolbar-section">
             <span class="section-title">Tools</span>
             <div class="button-group">
+                <button id="btn-contracts" class="tool-btn">📜 Contracts</button>
                 <button id="btn-xray" class="tool-btn">🔍 X-Ray</button>
                 <button id="btn-heatmap" class="tool-btn">📊 Tier Heat</button>
                 <button id="btn-train" class="tool-btn">🚆 Unload Train</button>
@@ -257,10 +284,18 @@
 
                 <section>
                     <h3>Sandbox</h3>
-                    <p>No grid, no rules, no score. Spawn anything anywhere, drive the reach
-                       stacker with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>,
-                       <kbd>Q</kbd>/<kbd>E</kbd> for the boom and <kbd>Space</kbd> to grab or
-                       release. Unload the train, change the weather, X-ray the boxes.</p>
+                    <p>No grid, no rules, no score. Spawn anything anywhere, unload the train,
+                       change the weather, X-ray the boxes.</p>
+                    <p>Two machines, one keyboard — pick <strong>🚜 Stacker</strong> or
+                       <strong>🏗️ Crane</strong> and it takes the controls.
+                       <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> drives,
+                       <kbd>Q</kbd>/<kbd>E</kbd> works the boom or the hoist, and
+                       <kbd>Space</kbd> grabs or releases. The gantry crane spans the rail
+                       tracks and can lift a container straight off a flatcar.</p>
+                    <p><strong>Contracts</strong> turns the sandbox into a job board: timed
+                       delivery orders with a payout, a reputation score and upgrades to buy.
+                       Move cargo into the marked zone before the clock runs out — cargo already
+                       parked there does not count.</p>
                 </section>
             </div>
         </div>
@@ -320,6 +355,7 @@
     <script src="core/rules.js"></script>
     <script src="core/scoring.js"></script>
     <script src="core/manifest.js"></script>
+    <script src="core/contracts.js"></script>
     <script src="core/storage.js"></script>
 
     <script src="missions/missionSchema.js"></script>
@@ -331,12 +367,14 @@
     <script src="render/weather.js"></script>
     <script src="render/terminal.js"></script>
     <script src="render/vehicle.js"></script>
+    <script src="render/crane.js"></script>
     <script src="render/effects.js"></script>
 
     <script src="game/audio.js"></script>
     <script src="game/camera.js"></script>
     <script src="game/placement.js"></script>
     <script src="game/mission.js"></script>
+    <script src="game/contracts.js"></script>
     <script src="game/sandbox.js"></script>
 
     <script src="ui/hud.js"></script>

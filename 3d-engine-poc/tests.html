@@ -28,6 +28,7 @@
     <script src="core/rules.js"></script>
     <script src="core/scoring.js"></script>
     <script src="core/manifest.js"></script>
+    <script src="core/contracts.js"></script>
     <script src="core/storage.js"></script>
     <script src="missions/missionSchema.js"></script>
     <script src="missions/campaign.js"></script>
@@ -440,6 +441,134 @@
             Cargo3D.Storage.resetProgress();
             ok(Cargo3D.Storage.missionRecord('m01') === null, 'reset clears progress');
             ok(mission !== null, 'campaign is still intact after a reset');
+        });
+
+        // ── contracts ───────────────────────────────────────────────────────
+        const Contracts = window.Cargo3D.Contracts;
+
+        suite('contracts — issuing orders', function () {
+            const state = Contracts.createState();
+            eq(state.money, 15000, 'the yard starts with its working capital');
+            eq(state.rating, 100, 'reputation starts perfect');
+            ok(state.active === null, 'no order is active until one is generated');
+
+            const first = Contracts.generate(state, function () { return 0; });
+            eq(first.type, 'unload_train', 'a 0 roll picks the first template');
+            eq(state.active, first, 'the generated order becomes the active one');
+            eq(first.timeRemaining, Contracts.CONTRACT_SECONDS, 'the clock starts full');
+
+            const last = Contracts.generate(state, function () { return 0.999; });
+            eq(last.type, 'express_delivery', 'a 1 roll picks the last template');
+            ok(first.id !== last.id, 'each order gets its own id');
+        });
+
+        suite('contracts — delivery zones', function () {
+            const state = Contracts.createState();
+            const contract = Contracts.generate(state, function () { return 0.5; }); // central depot
+
+            ok(Contracts.inZone(0, 0, contract), 'the depot centre is inside the zone');
+            ok(!Contracts.inZone(25, 0, contract), 'the truck deck is outside the depot zone');
+            ok(!Contracts.inZone(0, 40, contract), 'far down the rail is outside the zone');
+            ok(!Contracts.inZone(0, 0, null), 'no contract means nothing is in zone');
+        });
+
+        suite('contracts — payout and expiry', function () {
+            const state = Contracts.createState();
+            Contracts.generate(state, function () { return 0.5; });
+            const payout = state.active.payout;
+
+            ok(Contracts.tryComplete(state, 25, 0) === null, 'cargo outside the zone pays nothing');
+            eq(state.money, 15000, 'a miss leaves capital untouched');
+
+            const done = Contracts.tryComplete(state, 0, 0);
+            ok(done && done.type === 'completed', 'cargo in the zone completes the order');
+            eq(state.money, 15000 + payout, 'the payout lands');
+            eq(state.delivered, 1, 'the delivery is counted');
+            ok(state.active && state.active.payout !== undefined, 'a fresh order is issued straight away');
+
+            const before = state.money;
+            state.active.timeRemaining = 4;
+            ok(Contracts.tick(state, 1) === null, 'the clock ticking down is not an event');
+            near(state.active.timeRemaining, 3, 1e-9, 'time is deducted');
+
+            const expiry = Contracts.tick(state, 10);
+            ok(expiry && expiry.type === 'expired', 'running out of time expires the order');
+            eq(state.money, before - Contracts.EXPIRY_PENALTY, 'the penalty is charged');
+            // The earlier delivery bonus was capped at 100, so expiry takes it to 95.
+            eq(state.rating, 95, 'reputation drops five points on expiry');
+            ok(state.active !== null, 'a replacement order is issued');
+        });
+
+        suite('contracts — rating floor and ceiling', function () {
+            const state = Contracts.createState({ rating: 51 });
+            Contracts.generate(state, function () { return 0; });
+            state.active.timeRemaining = 0;
+            Contracts.tick(state, 1);
+            eq(state.rating, 50, 'reputation bottoms out at 50');
+
+            const good = Contracts.createState({ rating: 99 });
+            Contracts.generate(good, function () { return 0.5; });
+            Contracts.tryComplete(good, 0, 0);
+            eq(good.rating, 100, 'reputation cannot exceed 100');
+
+            const broke = Contracts.createState({ money: 500 });
+            Contracts.generate(broke, function () { return 0; });
+            broke.active.timeRemaining = 0;
+            Contracts.tick(broke, 1);
+            eq(broke.money, 0, 'capital cannot go negative');
+        });
+
+        suite('contracts — upgrades', function () {
+            const state = Contracts.createState();
+            const cost = Contracts.UPGRADES.fastWinch.cost;
+
+            const bought = Contracts.buyUpgrade(state, 'fastWinch');
+            ok(bought.ok, 'an affordable upgrade is bought');
+            eq(state.money, 15000 - cost, 'the cost is deducted');
+            ok(state.upgrades.fastWinch, 'ownership is recorded');
+
+            const again = Contracts.buyUpgrade(state, 'fastWinch');
+            ok(!again.ok, 'the same upgrade cannot be bought twice');
+            eq(state.money, 15000 - cost, 'a refused purchase costs nothing');
+
+            ok(!Contracts.buyUpgrade(state, 'nonsense').ok, 'unknown upgrades are refused');
+
+            const poor = Contracts.createState({ money: 10 });
+            ok(!Contracts.buyUpgrade(poor, 'autoDispatch').ok, 'an unaffordable upgrade is refused');
+
+            const dispatcher = Contracts.createState();
+            Contracts.buyUpgrade(dispatcher, 'autoDispatch');
+            eq(Contracts.contractDuration(dispatcher), Contracts.CONTRACT_SECONDS + 30,
+                'auto dispatch lengthens the clock');
+            eq(Contracts.generate(dispatcher, function () { return 0; }).timeRemaining,
+                Contracts.CONTRACT_SECONDS + 30, 'new orders get the longer clock');
+        });
+
+        suite('contracts — persistence', function () {
+            Cargo3D.Storage.resetProgress();
+            ok(Cargo3D.Storage.getContracts() === null, 'no economy is stored on a fresh save');
+
+            const state = Contracts.createState();
+            Contracts.buyUpgrade(state, 'extendedSnap');
+            state.delivered = 3;
+            Cargo3D.Storage.saveContracts(state);
+
+            const loaded = Cargo3D.Storage.getContracts();
+            eq(loaded.money, state.money, 'capital survives a save');
+            eq(loaded.delivered, 3, 'deliveries survive a save');
+            ok(loaded.upgrades.extendedSnap, 'upgrades survive a save');
+
+            const resumed = Contracts.createState(loaded);
+            eq(resumed.money, state.money, 'a saved economy can be resumed');
+            ok(resumed.active === null || resumed.active === undefined, 'the active order is not resumed');
+
+            Cargo3D.Storage.resetProgress();
+        });
+
+        suite('contracts — rating labels', function () {
+            eq(Contracts.ratingLabel(100), 'A+', '100% is A+');
+            eq(Contracts.ratingLabel(92), 'A', '92% is A');
+            eq(Contracts.ratingLabel(50), 'E', 'the floor is E');
         });
 
         // ── summary ─────────────────────────────────────────────────────────

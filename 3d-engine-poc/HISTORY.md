@@ -32,6 +32,14 @@ The proof of concept becomes a game.
   game/ · ui/ · styles/`. See `README.md`.
 - Sandbox mode preserved in full — free spawn, reach stacker, train unloading,
   weather, X-ray, tier heatmap — now reachable from the main menu.
+- **Gantry crane and the contracts economy carried across.** The rail-mounted
+  crane became `render/crane.js` and is a second drivable machine in sandbox
+  (only one machine holds the keyboard at a time); it can lift a container
+  straight off a flatcar. The contract system split into `core/contracts.js`
+  (pure state machine — orders, payouts, reputation, expiry, upgrades, now
+  unit-tested) and `game/contracts.js` (sandbox binding, zone marker, HUD).
+  Capital, reputation and upgrades persist. Fixed in the port: cargo already
+  standing in a delivery zone no longer pays out the moment an order is issued.
 - Reach stacker driving is frame-rate independent (was per-frame constants).
 - Camera rigs frame the bay by its bounding sphere and ease between presets.
 

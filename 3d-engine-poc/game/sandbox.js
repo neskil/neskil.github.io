@@ -23,6 +23,9 @@
         this.spawnCarrier = 'maersk';
         this.xray = false;
         this.heatmap = false;
+        /** Which machine has the keyboard: 'none' | 'stacker' | 'crane'. */
+        this.driver = 'none';
+        this.contracts = null;
 
         this.selectionBox = new THREE.BoxHelper(undefined, 0x38bdf8);
         this.selectionBox.visible = false;
@@ -50,8 +53,7 @@
             if (!self.active) return;
             const k = e.key.toLowerCase();
             if (e.code === 'Space') {
-                const action = self.app.vehicle.toggleGrab(self.units);
-                if (action !== 'none') self.refreshHUD();
+                self.grabWithActiveMachine();
                 e.preventDefault();
             } else if (k === 'r' && self.selected) {
                 self.rotateSelected();
@@ -71,9 +73,12 @@
         view.scene.add(this.selectionBox);
         this.app.terminal.setVisible(true);
         view.setMastsVisible(true);
+        this.app.crane.setVisible(true);
         this.app.cameraRig.frameApron();
         this.app.cameraRig.setMode('orbit');
         this.app.weather.set(Cargo3D.Storage.getSettings().weather || 'day');
+
+        if (!this.contracts) this.contracts = new Cargo3D.ContractRunner(this.app, this);
 
         const dom = view.renderer.domElement;
         dom.addEventListener('pointerdown', this._onPointerDown);
@@ -94,15 +99,20 @@
         dom.removeEventListener('pointerup', this._onPointerUp);
         window.removeEventListener('keydown', this._onKeyDown);
 
+        if (this.contracts) this.contracts.stop();
         this.clearYard();
         view.scene.remove(this.selectionBox);
         this.app.vehicle.setEnabled(false);
+        this.app.crane.setEnabled(false);
+        this.app.crane.setVisible(false);
+        this.driver = 'none';
         this.app.terminal.setVisible(false);
         this.app.ui.hideSandboxHUD();
     };
 
-    SandboxMode.prototype.update = function () {
+    SandboxMode.prototype.update = function (delta) {
         if (this.selected) this.selectionBox.setFromObject(this.selected);
+        if (this.contracts) this.contracts.update(delta || 0);
     };
 
     /* ── spawning ──────────────────────────────────────────────────────── */
@@ -206,6 +216,7 @@
         const at = this.units.indexOf(mesh);
         if (at > -1) this.units.splice(at, 1);
         if (this.app.vehicle.carried === mesh) this.app.vehicle.carried = null;
+        if (this.app.crane.carried === mesh) this.app.crane.carried = null;
 
         this.app.sceneView.remove(mesh);
         Meshes.disposeGroup(mesh);
@@ -216,6 +227,7 @@
         const view = this.app.sceneView;
         this.deselect();
         this.app.vehicle.carried = null;
+        this.app.crane.carried = null;
         this.units.forEach(function (mesh) {
             view.remove(mesh);
             Meshes.disposeGroup(mesh);
@@ -255,10 +267,51 @@
         return true;
     };
 
-    SandboxMode.prototype.setDriving = function (on) {
-        this.app.vehicle.setEnabled(on);
-        if (on) this.app.cameraRig.follow(this.app.vehicle);
-        else { this.app.cameraRig.frameApron(); this.app.cameraRig.setMode('orbit'); }
+    /**
+     * Hand the keyboard to one machine at a time — both bind WASD globally, so
+     * exactly one may be enabled.
+     * @param {'none'|'stacker'|'crane'} which
+     */
+    SandboxMode.prototype.setDriving = function (which) {
+        this.driver = which || 'none';
+
+        this.app.vehicle.setEnabled(this.driver === 'stacker');
+        this.app.crane.setEnabled(this.driver === 'crane');
+
+        if (this.driver === 'stacker') {
+            this.app.cameraRig.follow(this.app.vehicle);
+        } else if (this.driver === 'crane') {
+            this.app.cameraRig.frameApron();
+            this.app.cameraRig.focus.set(-24, 8, this.app.crane.zPos);
+            this.app.cameraRig.radius = 58;
+            this.app.cameraRig.setMode('orbit');
+        } else {
+            this.app.cameraRig.frameApron();
+            this.app.cameraRig.setMode('orbit');
+        }
+    };
+
+    /** Space routes to whichever machine is being driven. */
+    SandboxMode.prototype.grabWithActiveMachine = function () {
+        let action = 'none';
+        if (this.driver === 'crane') {
+            action = this.app.crane.toggleGrab(this.units, this.app.terminal);
+        } else if (this.driver === 'stacker') {
+            action = this.app.vehicle.toggleGrab(this.units);
+        } else {
+            this.app.ui.flashReason('Pick a machine to drive first.');
+            return 'none';
+        }
+
+        if (action !== 'none') this.refreshHUD();
+        return action;
+    };
+
+    SandboxMode.prototype.toggleContracts = function () {
+        if (!this.contracts) return false;
+        if (this.contracts.isRunning()) this.contracts.stop();
+        else this.contracts.start();
+        return this.contracts.isRunning();
     };
 
     SandboxMode.prototype.metrics = function () {

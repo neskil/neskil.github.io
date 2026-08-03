@@ -35,6 +35,8 @@
             updateMissionHUD: function (snapshot) { missionHUD.update(snapshot); },
             hideMissionHUD: function () { missionHUD.hide(); },
             flashReason: function (text) { missionHUD.flashReason(text); },
+            flashSuccess: function (text) { missionHUD.flashSuccess(text); },
+            updateContracts: function (snapshot) { sandboxHUD.updateContracts(snapshot); },
             showResults: function (result, saved, next) { results.show(result, saved, next); },
 
             showSandboxHUD: function () { sandboxHUD.show(); },
@@ -87,11 +89,13 @@
                 });
                 btn.classList.add('active');
 
-                if (mode === 'drive') {
-                    if (app.modeName === 'sandbox') app.mode.setDriving(true);
+                // 'stacker' and 'crane' hand the keyboard to a machine rather
+                // than moving the camera; everything else is a plain preset.
+                if (mode === 'stacker' || mode === 'crane') {
+                    if (app.modeName === 'sandbox') app.mode.setDriving(mode);
                     return;
                 }
-                if (app.modeName === 'sandbox') app.mode.setDriving(false);
+                if (app.modeName === 'sandbox') app.mode.setDriving('none');
                 app.cameraRig.setMode(mode);
             });
         });
@@ -140,6 +144,24 @@
         });
         el('btn-clear').addEventListener('click', function () {
             if (app.modeName === 'sandbox') app.mode.clearYard();
+        });
+
+        el('btn-contracts').addEventListener('click', function () {
+            if (app.modeName !== 'sandbox') return;
+            this.classList.toggle('active', app.mode.toggleContracts());
+        });
+
+        // Upgrade buttons are rendered fresh on every HUD tick, so delegate.
+        el('ct-upgrades').addEventListener('click', function (e) {
+            const btn = e.target.closest('[data-upgrade]');
+            if (!btn || app.modeName !== 'sandbox' || !app.mode.contracts) return;
+            app.mode.contracts.buy(btn.getAttribute('data-upgrade'));
+        });
+
+        el('btn-ct-reset').addEventListener('click', function () {
+            if (app.modeName !== 'sandbox' || !app.mode.contracts) return;
+            if (!window.confirm('Reset capital, reputation and upgrades?')) return;
+            app.mode.contracts.reset();
         });
 
         const weatherSelect = el('weather-select');
