@@ -217,6 +217,54 @@
                             log.push('SIM ERROR: ' + simErr.message);
                         }
                         iw.__probeSimLog = log;
+                    } else if (script === 'wormWatch') {
+                        // Sandworm behaviour check. Parks the lander low inside a
+                        // sandworm zone and ticks updateMonster() synchronously
+                        // until the creature is out of the sand, then freezes so
+                        // the screenshot catches it mid-surface alongside the lair
+                        // dressing. &wormBluff=1 forces a threat display instead of
+                        // a committed strike; &wormFrames caps the search.
+                        const l = g.physics.lander;
+                        const lv = g.physics.currentLevelConfig;
+                        const wx = parseFloat(q.get('wormx') || '900');
+                        const wy = parseFloat(q.get('wormy') || '460');
+                        l.landed = false; l.currentPad = null;
+                        l.x = wx; l.y = wy; l.vx = 0; l.vy = 0;
+                        if (iw.Matter && g.physics.landerBody) {
+                            iw.Matter.Body.setPosition(g.physics.landerBody, { x: wx, y: wy });
+                        }
+                        // Scripted RNG, same trick as tests.html: the spawn block
+                        // rolls chance -> spawnX -> bluff, in that order.
+                        const wantBluff = q.get('wormBluff') === '1';
+                        const realRandom = Math.random;
+                        const script3 = [0, 0.5, wantBluff ? 0 : 0.999];
+                        let ri = 0;
+                        Math.random = () => (ri < script3.length ? script3[ri++] : 0.999);
+                        const log = [];
+                        try {
+                            const maxF = parseInt(q.get('wormFrames') || '400', 10);
+                            let f = 0, peak = Infinity;
+                            // Run until the worm is well clear of the sand
+                            for (; f < maxF; f++) {
+                                g.physics.updateMonster(lv, 1);
+                                l.x = wx; l.y = wy; l.vx = 0; l.vy = 0;
+                                const w = g.physics.sandWorm;
+                                if (w) {
+                                    peak = Math.min(peak, w.y);
+                                    if (w.state === 'holding' || (!w.isBluff && w.lungeTimer > 10)) break;
+                                }
+                            }
+                            const w = g.physics.sandWorm;
+                            log.push(`wormWatch @(${wx},${wy}) bluff=${wantBluff} frames=${f}`);
+                            log.push(w ? `  state=${w.state} isBluff=${!!w.isBluff} y=${w.y.toFixed(0)} peak=${peak.toFixed(0)}`
+                                       : '  NO WORM SURFACED');
+                            log.push(`  hull=${l.integrity.toFixed(1)}`);
+                        } catch (simErr) {
+                            log.push('SIM ERROR: ' + simErr.message);
+                        } finally {
+                            Math.random = realRandom;
+                        }
+                        iw.__probeSimLog = log;
                     } else if (script === 'dustLane') {
                         // Altitude fog band + freight lane check (L6). Parks the
                         // lander at `laneY` (default: mid-band) and drives the
