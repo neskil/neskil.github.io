@@ -144,10 +144,12 @@ function syncPresets(months, v) {
     }
     for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.flexRate &&
-            Number(btn.dataset.protection) === v.flexProtection);
+            Number(btn.dataset.protection) === v.flexProtection &&
+            (btn.dataset.excess === undefined || Number(btn.dataset.excess) === v.flexExcess));
     }
     for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
-        btn.classList.toggle('active', Number(btn.dataset.prot) === v.flexProtection);
+        btn.classList.toggle('active', Number(btn.dataset.prot) === v.flexProtection &&
+            (btn.dataset.excess === undefined || Number(btn.dataset.excess) === v.flexExcess));
     }
 }
 
@@ -332,6 +334,7 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
 for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
     btn.addEventListener('click', () => {
         $('flexProtection').value = btn.dataset.prot;
+        if (btn.dataset.excess !== undefined) $('flexExcess').value = btn.dataset.excess;
         update();
     });
 }
@@ -340,6 +343,7 @@ for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('flexRate').value = btn.dataset.rate;
         $('flexProtection').value = btn.dataset.protection;
+        if (btn.dataset.excess !== undefined) $('flexExcess').value = btn.dataset.excess;
         $('flexDelivery').value = btn.dataset.delivery;
         if (btn.dataset.allowance) $('flexAllowance').value = btn.dataset.allowance;
         update();
