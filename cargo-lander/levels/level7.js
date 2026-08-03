@@ -40,6 +40,11 @@ registerLevel({
     wind: 0.03,       // Cave draft — mild most of the time, see windGust below
     windGust: { calm: 9, warn: 2.5, gust: 5, gustMult: 3.2 }, // periodic draft surge through the tunnel
     heavyCargo: true, // Cargo weight affects lander handling
+    fogBandBottomY: 200,
+    fogBandTopY: -50,
+    fogBandColor: '56,189,248',
+    fogBandOpacity: 0.45,
+    fogBandDamage: 0,
 
     // ── Terrain ───────────────────────────────────────────────────────────────
     terrainPolygons: [
@@ -96,7 +101,35 @@ registerLevel({
                 {x: 2000, y: 230}, {x: 2080, y: 230},
                 {x: 2080, y: 360}, {x: 2000, y: 360}
             ]
+        },
+        // Draft currents inside the S-curve squeeze corridor (x:2600-2900)
+        {
+            type: 'repulsor',
+            color: 'rgba(56, 189, 248, 0.14)',
+            travelX: -0.10, travelY: -0.22,
+            pts: [
+                {x: 2600, y: 280}, {x: 2680, y: 280},
+                {x: 2680, y: 400}, {x: 2600, y: 400}
+            ]
+        },
+        {
+            type: 'repulsor',
+            color: 'rgba(56, 189, 248, 0.14)',
+            travelX: -0.10, travelY: 0.22,
+            pts: [
+                {x: 2760, y: 280}, {x: 2840, y: 280},
+                {x: 2840, y: 400}, {x: 2760, y: 400}
+            ]
         }
+    ],
+
+    // ── Collectibles (High-value exploration rewards) ─────────────────────────
+    collectibles: [
+        { type: 'cash', x: 1400, y: 350, value: 500 }, // High vault before Fuel Pump
+        { type: 'fuel', x: 1800, y: 430, amount: 40 }, // Alcove after Fuel Pump
+        { type: 'cash', x: 2350, y: 330, value: 500 }, // Above the bioluminescent lake
+        { type: 'fuel', x: 2700, y: 360, amount: 40 }, // Squeeze corridor midpoint reserve
+        { type: 'fuel', x: 3100, y: 400, amount: 40 }  // Approach to Magma Chute
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────

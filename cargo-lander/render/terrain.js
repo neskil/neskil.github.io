@@ -1000,10 +1000,95 @@ drawUnderground() {
             ctx.setLineDash([]);
         }
 
-        // L5 used to draw purple crystal stalagmites here, from when it was a
-        // crystal cavern. The rebuilt city has an opaque contiguous fill below
-        // street level, so they had nothing to show through and were dead draw
-        // calls — removed rather than restyled (v0.21.0).
+        const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
+
+        // L5 was in this branch until it stopped being a crystal cavern (v0.20.0).
+        // drawUnderground() runs BEFORE drawTerrain(), so it only shows through gaps
+        // in the fill — the city's fill is opaque and continuous below street level,
+        // which made these dead draw calls there. L10 still is a cave.
+        if (this.currentLevelIndex === 9) {
+            // L10 Crystal caves: glowing crystal formations underground
+            const r = 6, g = 182, b = 212;   // cyan, matching L10's palette
+            for (let cx = Math.floor(startX / 40) * 40; cx < endX; cx += 40) {
+                const terrY = this.physics.getPolygonSurfaceY(cx);
+                const depth = 30 + hash(cx) * 50;
+                const cy = terrY + depth;
+                const ch = 15 + hash(cx + 1) * 25;
+                const pulse = 0.4 + Math.sin(t * 1.5 + cx * 0.05) * 0.3;
+                ctx.fillStyle = `rgba(${r},${g},${b},${pulse * 0.6})`;
+                ctx.beginPath();
+                ctx.moveTo(cx - 4, cy);
+                ctx.lineTo(cx, cy - ch);
+                ctx.lineTo(cx + 4, cy);
+                ctx.closePath();
+                ctx.fill();
+                // Glow
+                const cg = ctx.createRadialGradient(cx, cy - ch * 0.5, 0, cx, cy - ch * 0.5, ch);
+                cg.addColorStop(0, `rgba(${r},${g},${b},${pulse * 0.3})`);
+                cg.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                ctx.fillStyle = cg;
+                ctx.beginPath();
+                ctx.arc(cx, cy - ch * 0.5, ch, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (this.currentLevelIndex === 6) {
+            // L7 Bioluminescent Depths: pulsing root networks and mycelium strands below ground
+            for (let rx = Math.floor(startX / 50) * 50; rx < endX; rx += 50) {
+                const terrY = this.physics.getPolygonSurfaceY(rx);
+                const pulse = 0.5 + Math.sin(t * 2.0 + rx * 0.08) * 0.4;
+                ctx.strokeStyle = `rgba(16, 185, 129, ${pulse * 0.5})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(rx, terrY + 10);
+                const midX = rx + (hash(rx) - 0.5) * 30;
+                const midY = terrY + 35 + hash(rx + 1) * 20;
+                ctx.quadraticCurveTo(midX, midY, rx + (hash(rx + 2) - 0.5) * 40, terrY + 70);
+                ctx.stroke();
+                // Glowing mycelium node
+                ctx.fillStyle = `rgba(56, 189, 248, ${pulse * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (this.currentLevelIndex === 7) {
+            // L8 Orbital Gauntlet: derelict station superstructure girders & floating satellite wreckage
+            for (let sx = Math.floor(startX / 120) * 120; sx < endX; sx += 120) {
+                const terrY = this.physics.getPolygonSurfaceY(sx);
+                if (!isFinite(terrY) || terrY > 2000) continue; // Only draw beneath platform decks
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(sx - 20, terrY + 10);
+                ctx.lineTo(sx, terrY + 45);
+                ctx.lineTo(sx + 20, terrY + 10);
+                ctx.stroke();
+                // Sparking broken electrical conduits
+                if (Math.sin(t * 12 + sx) > 0.85) {
+                    ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+                    ctx.fillRect(sx - 2, terrY + 44, 4, 4);
+                }
+            }
+        }
+
+        if (this.currentLevelIndex === 8) {
+            // L9 The Cauldron: bubbling volcanic fissures & magma fractures below ground
+            for (let vx = Math.floor(startX / 60) * 60; vx < endX; vx += 60) {
+                const terrY = this.physics.getPolygonSurfaceY(vx);
+                const pulse = 0.6 + Math.sin(t * 3.5 + vx * 0.15) * 0.35;
+                ctx.fillStyle = `rgba(249, 115, 22, ${pulse * 0.7})`;
+                const depth = 25 + hash(vx) * 35;
+                ctx.beginPath();
+                ctx.moveTo(vx - 5, terrY + 10);
+                ctx.lineTo(vx + (hash(vx) - 0.5) * 15, terrY + depth);
+                ctx.lineTo(vx + 5, terrY + 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
     }
 
 ,

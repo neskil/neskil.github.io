@@ -130,11 +130,6 @@
             --hue: 25;
         }
 
-        html[data-theme="card-3d-poc"] {
-            --bg-color-1: #091926;
-            --bg-color-2: #0e2a3b;
-            --hue: 195;
-        }
 
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
@@ -970,6 +965,18 @@
             color: rgb(212, 212, 216);
         }
 
+        #card-wip .about-text a {
+            color: rgb(212, 212, 216);
+            border-bottom: 1px solid rgba(212, 212, 216, 0.4);
+            text-decoration: none;
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+
+        #card-wip .about-text a:hover {
+            color: #fff;
+            border-bottom-color: rgba(255, 255, 255, 0.7);
+        }
+
         .wip-body {
             flex: 1;
             display: flex;
@@ -1763,7 +1770,7 @@
     </header>
 
     <main class="grid">
-        <a href="cargo-lander/index.html?v=0.21.0" class="card" id="card-cargo-lander">
+        <a href="cargo-lander/index.html?v=0.22.0" class="card" id="card-cargo-lander">
             <div class="card-bg-hover"></div>
             <div>
                 <div class="card-icon">
@@ -1841,27 +1848,6 @@
                 </svg></span>
         </a>
 
-        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
-            <div class="card-bg-hover"></div>
-            <span class="new-badge">3D POC</span>
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" fill-opacity="0.15"/>
-                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 22V12M12 12L2 7M12 12l10-5"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">3D Cargo Yard POC</h2>
-                <p class="card-desc">Interactive 3D intermodal container yard & volume packing simulator powered by WebGL & Three.js.</p>
-                <div class="card-stat-chip" id="stat-3d-poc">
-                    <span class="stat-icon">📦</span> 3D TEU Stacker
-                </div>
-            </div>
-            <span class="card-link">Launch 3D POC <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
 
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
@@ -2036,6 +2022,7 @@
                     <div class="wip-body">
                         <div class="wip-emoji">🏗️</div>
                         <p class="about-text">Told you.</p>
+                        <p class="about-text">But I have <a href="3d-engine-poc/index.html">this</a> cooking.</p>
                     </div>
                     <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -2105,7 +2092,6 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
-                'card-3d-poc': 195,
                 'card-about': 345
             };
 

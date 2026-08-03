@@ -279,9 +279,7 @@ Self-contained, in rough value-per-risk order:
 - [ ] **Editor geometry schema-driving** — fold `terrainPolygons`/
       `waterBodies`/`hazards` into `levelSchema.js`. Deliberately deferred:
       the vertex tooling is bespoke per shape kind; treat as its own project.
-- [ ] **L8 return-gauntlet escalation** — speed up/flip laser phases after
-      final delivery ("defense grid alerted"). Needs an engine hook for
-      quest-triggered hazard state; none exists today.
+- [x] **L8 return-gauntlet escalation** — speed up laser phases after final delivery ("defense grid alerted"). Implemented via `returnGauntlet` schema flag and `onReturn` timing overrides in `atmosphere.js`.
 
 **Parked (needs user input, don't start unprompted)**: "unload drone as R&D
 upgrade" (ambiguous, soft-lock risk); bumping the 4-water-body post-FX uniform

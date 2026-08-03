@@ -30,6 +30,7 @@
             boomUp: false,
             boomDown: false
         };
+        this.isActive = true; // Enabled by default unless driving port crane
 
         this.buildVehicleMesh();
         this.scene.add(this.group);
@@ -62,6 +63,7 @@
 
         // 4 Heavy Rubber Wheels
         const wheelGeo = new THREE.CylinderGeometry(0.65, 0.65, 0.5, 16);
+        wheelGeo.rotateX(Math.PI / 2); // Align cylinder axle directly along local Z axis
         const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
 
         this.wheels = [];
@@ -72,7 +74,6 @@
 
         wheelOffsets.forEach(([x, y, z]) => {
             const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-            wheel.rotation.x = Math.PI / 2;
             wheel.position.set(x, y, z);
             wheel.castShadow = true;
             this.group.add(wheel);
@@ -109,6 +110,7 @@
     ReachStacker.prototype.initKeyListeners = function() {
         const self = this;
         window.addEventListener('keydown', function(e) {
+            if (!self.isActive) return;
             if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') self.keys.forward = true;
             if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') self.keys.backward = true;
             if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') self.keys.left = true;
@@ -118,6 +120,7 @@
         });
 
         window.addEventListener('keyup', function(e) {
+            if (!self.isActive) return;
             if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') self.keys.forward = false;
             if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') self.keys.backward = false;
             if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') self.keys.left = false;
@@ -128,6 +131,10 @@
     };
 
     ReachStacker.prototype.update = function(placedObjects) {
+        if (!this.isActive) {
+            this.speed *= this.friction;
+            return;
+        }
         // Accelerate / Reverse
         if (this.keys.forward) {
             this.speed = Math.min(this.maxSpeed, this.speed + this.acceleration);
@@ -172,7 +179,7 @@
 
         // Rotate wheels when driving
         const wheelRot = this.speed * 2;
-        this.wheels.forEach(function(w) { w.rotation.z += wheelRot; });
+        this.wheels.forEach(function(w) { w.rotation.z -= wheelRot; });
 
         // Update carried container position if picked up
         if (this.carriedContainer) {
