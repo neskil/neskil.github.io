@@ -24,7 +24,7 @@ The proof of concept becomes a game.
 - **`core/` logic layer** with no THREE dependency, and `tests.html` — 133
   assertions covering the grid, every rule, scoring, manifests, the save file
   and the whole campaign's validity, runnable headless over `file://`.
-- Progress saved to `cargo3d.save.v1`; the portfolio card reads it.
+- Progress saved to `cargo3d.save.v1`.
 
 **Changed**
 

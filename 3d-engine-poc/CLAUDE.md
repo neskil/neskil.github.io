@@ -55,5 +55,11 @@ the tests prove the logic, not the wiring.
 
 ## Save schema
 
-`cargo3d.save.v1` is read by the portfolio landing page (`../index.html`,
-`loadHighScores()`). Changing its shape means changing that too.
+`cargo3d.save.v1` is read only by this project. The portfolio landing page links
+here from the work-in-progress card and deliberately has **no card of its own**
+for it — the workspace rule in `.agents/AGENTS.md` is that nothing gets a card in
+the root grid until it is finished and approved. Do not add one.
+
+If that day comes, the card would want a `#stat-3d-poc` chip fed from this key in
+`loadHighScores()`, and an `html[data-theme="card-3d-poc"]` background block —
+but that is the owner's call, not a housekeeping change.

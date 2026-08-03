@@ -137,7 +137,10 @@ One key, `cargo3d.save.v1`:
 }
 ```
 
-The portfolio landing page reads this key to show medals on the card, so treat
-the shape as public: bump `SAVE_VERSION` and migrate rather than repurposing
-fields. `core/storage.js` falls back to an in-memory store when localStorage is
-blocked, so the game still plays from `file://` in a locked-down browser.
+Bump `SAVE_VERSION` and migrate rather than repurposing fields.
+`core/storage.js` falls back to an in-memory store when localStorage is blocked,
+so the game still plays from `file://` in a locked-down browser.
+
+The portfolio root links here from the work-in-progress card only; this project
+has no card in the landing grid until it is finished and approved. See
+`CLAUDE.md`.
