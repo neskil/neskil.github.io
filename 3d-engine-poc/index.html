@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Cargo Yard & Container Stacking Sandbox | Niklas Billgren</title>
-    <meta name="description" content="Interactive 3D intermodal shipping container yard and volumetric packing sandbox built with WebGL & Three.js.">
+    <title>Yard Master — 3D Container Stacking Game | Niklas Billgren</title>
+    <meta name="description" content="A 3D container packing puzzle: stack the manifest into the tightest possible envelope. Line missions, terminal regulations and a free-build cargo yard sandbox, in WebGL.">
     <meta name="author" content="Niklas Billgren">
     <meta name="theme-color" content="#0f172a">
 
@@ -17,193 +17,333 @@
       gtag('config', 'G-9GP823TGLB');
     </script>
 
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/hud.css">
+    <link rel="stylesheet" href="styles/menu.css">
 
-    <!-- Three.js & Vendor Scripts (Compatible with file:// and Firefox) -->
+    <!-- Vendored so the whole thing runs from file:// with no server -->
     <script src="vendor/three.min.js"></script>
     <script src="vendor/OrbitControls.js"></script>
 </head>
 <body>
-    <!-- 3D Canvas Container -->
     <div id="canvas-container"></div>
 
-    <!-- Top Header Navigation Bar -->
+    <!-- ── top bar ──────────────────────────────────────────────────── -->
     <header class="top-nav">
         <a href="../index.html" class="back-btn">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 12H5M12 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <span>Portfolio</span>
         </a>
         <div class="header-title">
-            <h1>3D Cargo Yard Simulator</h1>
-            <span class="badge">WebGL Engine</span>
+            <h1>Yard Master</h1>
+            <span class="badge">3D Packing Puzzle</span>
         </div>
         <div class="header-actions">
-            <button id="btn-audio-toggle" class="secondary-btn" title="Toggle Sound Effects">
-                <span>🔊 Audio ON</span>
-            </button>
-            <button id="btn-reset-scene" class="secondary-btn" title="Clear all placed containers">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round"/>
-                </svg>
-                <span>Clear Yard</span>
-            </button>
+            <button id="btn-audio" class="icon-btn" title="Sound on">🔊</button>
+            <button id="btn-menu" class="icon-btn" title="Menu (Esc)">☰</button>
         </div>
     </header>
 
-    <!-- Floating HUD Metrics Dashboard -->
-    <aside class="hud-dashboard">
-        <div class="hud-card">
-            <div class="hud-card-header">
-                <span class="hud-icon">📦</span>
-                <h3>Yard Statistics</h3>
-            </div>
-            <div class="hud-metrics">
-                <div class="metric-row">
-                    <span class="metric-label">Containers Placed</span>
-                    <span class="metric-val" id="metric-count">0</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Total Volume (TEU)</span>
-                    <span class="metric-val" id="metric-teu">0 TEU</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Volumetric Capacity</span>
-                    <span class="metric-val" id="metric-vol">0 m³</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Est. Cargo Mass</span>
-                    <span class="metric-val" id="metric-mass">0.0 t</span>
-                </div>
-                <div class="metric-row">
-                    <span class="metric-label">Stack Stability</span>
-                    <span class="metric-val status-good" id="metric-stability">100% (Optimal)</span>
-                </div>
+    <!-- ── mission HUD ──────────────────────────────────────────────── -->
+    <aside id="mission-hud" class="hud-stack hidden">
+        <section class="hud-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">🎯</span>
+                <h3 id="hud-mission-name">Mission</h3>
+            </header>
+            <p class="hud-tagline" id="hud-mission-tagline"></p>
+            <div class="metric-row"><span class="metric-label">Bay</span><span class="metric-val" id="hud-bay">—</span></div>
+            <div class="metric-row"><span class="metric-label">Placed</span><span class="metric-val" id="hud-placed">0 / 0</span></div>
+            <div class="mix-row" id="hud-mix"></div>
+        </section>
+
+        <section class="hud-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">📐</span>
+                <h3>Envelope</h3>
+            </header>
+            <div class="metric-row big"><span class="metric-label">Current</span><span class="metric-val" id="hud-envelope">0 m³</span></div>
+            <div class="metric-row"><span class="metric-label">Par</span><span class="metric-val" id="hud-par">0 m³</span></div>
+            <div class="metric-row"><span class="metric-label">Against par</span><span class="metric-val" id="hud-overpar">—</span></div>
+            <div class="medal-track" id="medal-track"><span class="track-fill"></span></div>
+            <div class="medal-pill" id="hud-medal">—</div>
+            <div class="metric-row"><span class="metric-label">Slot efficiency</span><span class="metric-val" id="hud-efficiency">0%</span></div>
+            <div class="metric-row"><span class="metric-label">Box (slots)</span><span class="metric-val" id="hud-footprint">0 × 0 × 0</span></div>
+        </section>
+
+        <section class="hud-card rules-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">📋</span>
+                <h3>Regulations</h3>
+            </header>
+            <ul class="rule-list" id="hud-rules"></ul>
+            <p class="stuck-warning hidden" id="hud-stuck">⚠ Nothing legal left for this unit — press <kbd>Z</kbd> to undo.</p>
+        </section>
+    </aside>
+
+    <div id="reason-flash" class="reason-flash"></div>
+
+    <!-- ── mission queue + controls ─────────────────────────────────── -->
+    <div id="queue-bar" class="queue-bar hidden"></div>
+
+    <div id="mission-controls" class="control-bar hidden">
+        <div class="toolbar-section">
+            <span class="section-title">Placement</span>
+            <div class="button-group">
+                <button id="btn-rotate" class="tool-btn">Rotate <kbd>R</kbd></button>
+                <button id="btn-undo" class="tool-btn">Undo <kbd>Z</kbd></button>
+                <button id="btn-mission-restart" class="tool-btn">Restart</button>
             </div>
         </div>
+        <div class="toolbar-section">
+            <span class="section-title">Camera</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-cam="iso">Isometric</button>
+                <button class="tool-btn" data-cam="orbit">Orbit</button>
+                <button class="tool-btn" data-cam="top">Top</button>
+                <button class="tool-btn" data-cam="front">Front</button>
+            </div>
+        </div>
+        <div class="cursor-note" id="hud-cursor"></div>
+    </div>
 
-        <!-- Selected Object Inspector -->
-        <div class="hud-card inspector-card hidden" id="inspector-panel">
-            <div class="hud-card-header">
-                <span class="hud-icon">🔍</span>
-                <h3>Selected Unit</h3>
-                <button class="close-inspector-btn" id="btn-close-inspector">&times;</button>
-            </div>
-            <div class="inspector-details">
-                <div class="inspector-badge" id="insp-carrier">Maersk Blue</div>
-                <div class="inspector-grid">
-                    <div>
-                        <span class="ins-label">Type:</span>
-                        <strong id="insp-type">40ft High Cube</strong>
-                    </div>
-                    <div>
-                        <span class="ins-label">Dimensions:</span>
-                        <strong id="insp-dim">12.2 x 2.4 x 2.6 m</strong>
-                    </div>
-                    <div>
-                        <span class="ins-label">Position:</span>
-                        <strong id="insp-pos">X:0 Y:0 Z:0</strong>
-                    </div>
-                    <div>
-                        <span class="ins-label">Stack Level:</span>
-                        <strong id="insp-stack">Tier 1</strong>
-                    </div>
-                </div>
-                <div class="inspector-actions">
-                    <button id="btn-rotate-unit" class="btn-sm">
-                        🔄 Rotate 90°
-                    </button>
-                    <button id="btn-delete-unit" class="btn-sm btn-danger">
-                        🗑️ Remove
-                    </button>
-                </div>
-            </div>
+    <!-- ── sandbox HUD ──────────────────────────────────────────────── -->
+    <aside id="sandbox-hud" class="hud-stack hidden">
+        <section class="hud-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">📦</span>
+                <h3>Yard Statistics</h3>
+            </header>
+            <div class="metric-row"><span class="metric-label">Units placed</span><span class="metric-val" id="sb-count">0</span></div>
+            <div class="metric-row"><span class="metric-label">Capacity</span><span class="metric-val" id="sb-teu">0 TEU</span></div>
+            <div class="metric-row"><span class="metric-label">Cargo volume</span><span class="metric-val" id="sb-volume">0 m³</span></div>
+            <div class="metric-row"><span class="metric-label">Est. mass</span><span class="metric-val" id="sb-mass">0 t</span></div>
+            <div class="metric-row"><span class="metric-label">Stack height</span><span class="metric-val" id="sb-height">0 m</span></div>
+            <div class="metric-row"><span class="metric-label">On the train</span><span class="metric-val" id="sb-train">0 left</span></div>
+        </section>
+    </aside>
+
+    <aside id="inspector-panel" class="hud-card inspector-card hidden">
+        <header class="hud-card-header">
+            <span class="hud-icon">🔍</span>
+            <h3>Selected Unit</h3>
+            <button class="close-btn" id="btn-insp-close">&times;</button>
+        </header>
+        <div class="inspector-badge" id="insp-carrier">—</div>
+        <div class="inspector-grid">
+            <div><span class="ins-label">Type</span><strong id="insp-type">—</strong></div>
+            <div><span class="ins-label">Dimensions</span><strong id="insp-dim">—</strong></div>
+            <div><span class="ins-label">Position</span><strong id="insp-pos">—</strong></div>
+            <div><span class="ins-label">Tier</span><strong id="insp-tier">—</strong></div>
+            <div><span class="ins-label">Capacity</span><strong id="insp-volume">—</strong></div>
+        </div>
+        <div class="inspector-actions">
+            <button id="btn-insp-rotate" class="btn-sm">🔄 Rotate</button>
+            <button id="btn-insp-delete" class="btn-sm btn-danger">🗑️ Remove</button>
         </div>
     </aside>
 
-    <!-- Bottom Controls & Container Palette Toolbar -->
-    <div class="bottom-toolbar">
-        <!-- Container Type Selector -->
+    <div id="sandbox-toolbar" class="control-bar hidden">
         <div class="toolbar-section">
             <span class="section-title">Spawn Cargo</span>
-            <div class="button-group" id="spawn-group">
-                <button class="palette-btn active" data-type="20ft" data-carrier="maersk">
-                    <span class="color-dot maersk"></span>
-                    <span>20ft Standard</span>
-                </button>
-                <button class="palette-btn" data-type="40ft" data-carrier="hapag">
-                    <span class="color-dot hapag"></span>
-                    <span>40ft High Cube</span>
-                </button>
-                <button class="palette-btn" data-type="40ft" data-carrier="evergreen">
-                    <span class="color-dot evergreen"></span>
-                    <span>40ft Evergreen</span>
-                </button>
-                <button class="palette-btn" data-type="20ft" data-carrier="msc">
-                    <span class="color-dot msc"></span>
-                    <span>20ft MSC</span>
-                </button>
-                <button class="palette-btn" data-type="pallet" data-carrier="wood">
-                    <span class="color-dot wood"></span>
-                    <span>Wooden Pallet</span>
-                </button>
-            </div>
+            <div class="button-group" id="spawn-palette"></div>
         </div>
-
-        <!-- Camera Views -->
         <div class="toolbar-section">
-            <span class="section-title">Camera Mode</span>
+            <span class="section-title">Camera</span>
             <div class="button-group">
-                <button id="cam-orbit" class="tool-btn active" title="Free 3D Orbit">Orbit</button>
-                <button id="cam-iso" class="tool-btn" title="Top-Down Isometric View">Isometric</button>
-                <button id="cam-crane" class="tool-btn" title="Crane Overhead View">Crane Top</button>
-                <button id="cam-vehicle" class="tool-btn" title="Drive Reach Stacker Crane">🚜 Drive Crane</button>
+                <button class="tool-btn active" data-cam="orbit">Orbit</button>
+                <button class="tool-btn" data-cam="iso">Isometric</button>
+                <button class="tool-btn" data-cam="top">Top</button>
+                <button class="tool-btn" data-cam="drive">🚜 Drive</button>
             </div>
         </div>
-
-        <!-- Simulator Tools (X-Ray, Stress Heatmap, Train Unloader) -->
         <div class="toolbar-section">
-            <span class="section-title">Tools & Analysis</span>
+            <span class="section-title">Tools</span>
             <div class="button-group">
-                <button id="btn-toggle-xray" class="tool-btn" title="View Interior Cargo">🔍 X-Ray View</button>
-                <button id="btn-toggle-heatmap" class="tool-btn" title="View Stack Safety Heatmap">📊 Balance Heatmap</button>
-                <button id="btn-unload-train" class="tool-btn" title="Unload Container off Freight Train">🚆 Unload Train</button>
+                <button id="btn-xray" class="tool-btn">🔍 X-Ray</button>
+                <button id="btn-heatmap" class="tool-btn">📊 Tier Heat</button>
+                <button id="btn-train" class="tool-btn">🚆 Unload Train</button>
+                <button id="btn-clear" class="tool-btn danger">Clear Yard</button>
             </div>
         </div>
-
-        <!-- Weather Environment Dropdown -->
         <div class="toolbar-section">
-            <span class="section-title">Atmosphere & Weather</span>
-            <select id="weather-select" class="select-input">
-                <option value="day">☀️ Sunny Day</option>
-                <option value="dusk">🌅 Sunset Dusk</option>
-                <option value="rain">🌧️ Stormy Rain</option>
-                <option value="night">🌙 Cyber Night</option>
-                <option value="fog">🌫️ Port Fog</option>
-            </select>
+            <span class="section-title">Weather</span>
+            <select id="weather-select" class="select-input"></select>
         </div>
     </div>
 
-    <!-- Instruction Tooltip Bar -->
-    <div class="instruction-banner">
-        <span>💡 <strong>WASD / Arrow Keys</strong> to drive reach stacker • <strong>Spacebar</strong> to pickup/drop container • <strong>Q/E</strong> to tilt boom • <strong>Click ground</strong> to spawn container</span>
+    <!-- ── main menu ────────────────────────────────────────────────── -->
+    <div id="menu-overlay" class="overlay">
+        <div class="panel menu-panel">
+            <div class="menu-brand">
+                <span class="menu-kicker">WebGL · Three.js · no build step</span>
+                <h2>Yard Master</h2>
+                <p>Every container in the manifest has to land somewhere. The score is the
+                   volume of the box around your stack — sprawl and air both cost you.
+                   Lowest envelope wins.</p>
+            </div>
+            <div class="menu-actions">
+                <button id="btn-campaign" class="primary-btn">▶ Campaign</button>
+                <button id="btn-sandbox" class="ghost-btn">🏗️ Sandbox</button>
+                <button id="btn-howto" class="ghost-btn">How to play</button>
+            </div>
+            <div class="menu-progress" id="menu-progress"></div>
+        </div>
     </div>
 
-    <!-- Application Modules -->
-    <script src="js/audio.js"></script>
-    <script src="js/weather.js"></script>
-    <script src="js/containers.js"></script>
-    <script src="js/vehicle.js"></script>
-    <script src="js/train.js"></script>
-    <script src="js/controls.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/main.js"></script>
+    <!-- ── mission select ───────────────────────────────────────────── -->
+    <div id="select-overlay" class="overlay hidden">
+        <div class="panel select-panel">
+            <header class="panel-header">
+                <div>
+                    <h2>Line Missions</h2>
+                    <div class="panel-sub" id="select-summary"></div>
+                </div>
+                <div class="panel-header-actions">
+                    <button id="btn-reset-progress" class="ghost-btn small">Reset progress</button>
+                    <button id="btn-select-close" class="close-btn">&times;</button>
+                </div>
+            </header>
+            <div class="mission-grid" id="mission-grid"></div>
+        </div>
+    </div>
+
+    <!-- ── how to play ──────────────────────────────────────────────── -->
+    <div id="howto-overlay" class="overlay hidden">
+        <div class="panel howto-panel">
+            <header class="panel-header">
+                <h2>How to play</h2>
+                <button id="btn-howto-close" class="close-btn">&times;</button>
+            </header>
+
+            <div class="howto-body">
+                <section>
+                    <h3>The loop</h3>
+                    <ol class="howto-steps">
+                        <li>Cargo arrives in a fixed order. The unit at the head of the queue is the one you are placing.</li>
+                        <li>Move the pointer over the bay — the ghost shows where it lands. Gravity takes it to the top of whatever is underneath.</li>
+                        <li>Green means legal, red means a regulation says no, and the HUD names which one.</li>
+                        <li>Click to lock it in. <kbd>R</kbd> rotates, <kbd>Z</kbd> undoes, <kbd>Esc</kbd> opens the menu.</li>
+                        <li>When the manifest is empty the yard is measured.</li>
+                    </ol>
+                </section>
+
+                <section>
+                    <h3>Scoring</h3>
+                    <p>The envelope is the smallest box containing every slot you used —
+                       <em>width × depth × height</em> taken from the outermost coordinates.
+                       A stray container parked away from the pile widens the box on every
+                       tier, so it costs far more than the slot it sits in.</p>
+                    <p><strong>Par</strong> is a perfect zero-waste pack of the same manifest.
+                       Gold is within 10% of par, silver 30%, bronze 60% — some missions loosen
+                       that where a rule makes a clean tiling genuinely hard.</p>
+                </section>
+
+                <section>
+                    <h3>Cargo</h3>
+                    <ul class="def-list" id="howto-catalogue"></ul>
+                </section>
+
+                <section>
+                    <h3>Regulations</h3>
+                    <ul class="def-list" id="howto-rules"></ul>
+                </section>
+
+                <section>
+                    <h3>Sandbox</h3>
+                    <p>No grid, no rules, no score. Spawn anything anywhere, drive the reach
+                       stacker with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>,
+                       <kbd>Q</kbd>/<kbd>E</kbd> for the boom and <kbd>Space</kbd> to grab or
+                       release. Unload the train, change the weather, X-ray the boxes.</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── pause ────────────────────────────────────────────────────── -->
+    <div id="pause-overlay" class="overlay hidden">
+        <div class="panel pause-panel">
+            <h2>Paused</h2>
+            <div class="menu-actions">
+                <button id="btn-resume" class="primary-btn">Resume</button>
+                <button id="btn-restart" class="ghost-btn">Restart mission</button>
+                <button id="btn-to-select" class="ghost-btn">Mission list</button>
+                <button id="btn-to-menu" class="ghost-btn">Main menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── scorecard ────────────────────────────────────────────────── -->
+    <div id="results-overlay" class="overlay hidden">
+        <div class="panel results-panel">
+            <div class="result-head">
+                <div class="result-medal" id="result-medal">📦</div>
+                <h2 class="result-verdict" id="result-verdict">Shift complete</h2>
+                <p class="result-sub" id="result-sub"></p>
+                <p class="result-best" id="result-best"></p>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-stat headline">
+                    <span class="ins-label">Envelope</span><strong id="result-envelope">—</strong>
+                </div>
+                <div class="result-stat headline">
+                    <span class="ins-label">Par</span><strong id="result-par">—</strong>
+                </div>
+                <div class="result-stat"><span class="ins-label">Box</span><strong id="result-span">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Slot efficiency</span><strong id="result-efficiency">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Cargo</span><strong id="result-cargo">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Mass</span><strong id="result-mass">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Moves</span><strong id="result-moves">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Time</span><strong id="result-time">—</strong></div>
+            </div>
+
+            <ul class="threshold-list" id="result-thresholds"></ul>
+
+            <div class="menu-actions row">
+                <button id="btn-result-retry" class="ghost-btn">↻ Retry</button>
+                <button id="btn-result-select" class="ghost-btn">Mission list</button>
+                <button id="btn-result-next" class="primary-btn">Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── modules: core → missions → render → game → ui → app ──────── -->
+    <script src="core/constants.js"></script>
+    <script src="core/grid.js"></script>
+    <script src="core/rules.js"></script>
+    <script src="core/scoring.js"></script>
+    <script src="core/manifest.js"></script>
+    <script src="core/storage.js"></script>
+
+    <script src="missions/missionSchema.js"></script>
+    <script src="missions/campaign.js"></script>
+
+    <script src="render/containers.js"></script>
+    <script src="render/scene.js"></script>
+    <script src="render/yard.js"></script>
+    <script src="render/weather.js"></script>
+    <script src="render/terminal.js"></script>
+    <script src="render/vehicle.js"></script>
+    <script src="render/effects.js"></script>
+
+    <script src="game/audio.js"></script>
+    <script src="game/camera.js"></script>
+    <script src="game/placement.js"></script>
+    <script src="game/mission.js"></script>
+    <script src="game/sandbox.js"></script>
+
+    <script src="ui/hud.js"></script>
+    <script src="ui/menu.js"></script>
+    <script src="ui/results.js"></script>
+    <script src="ui/ui.js"></script>
+
+    <script src="game/app.js"></script>
 </body>
 </html>

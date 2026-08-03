@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Yard Master — core tests</title>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; padding: 24px; }
+        h1 { font-size: 1.1rem; margin: 0 0 4px; }
+        #summary { padding: 10px 14px; border-radius: 8px; margin: 12px 0 18px; font-weight: 700; }
+        .ok { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.4); }
+        .bad { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+        .suite { margin: 0 0 6px; color: #38bdf8; font-weight: 700; }
+        .case { padding-left: 18px; color: #94a3b8; }
+        .case.fail { color: #fca5a5; }
+        .case.pass::before { content: '✓ '; color: #34d399; }
+        .case.fail::before { content: '✗ '; }
+        .note { color: #64748b; }
+    </style>
+</head>
+<body>
+    <h1>Yard Master — core logic tests</h1>
+    <p class="note">Pure <code>core/</code> + <code>missions/</code>. No WebGL, no DOM dependency — runs over <code>file://</code>.</p>
+    <div id="summary">running…</div>
+    <div id="out"></div>
+
+    <script src="core/constants.js"></script>
+    <script src="core/grid.js"></script>
+    <script src="core/rules.js"></script>
+    <script src="core/scoring.js"></script>
+    <script src="core/manifest.js"></script>
+    <script src="core/storage.js"></script>
+    <script src="missions/missionSchema.js"></script>
+    <script src="missions/campaign.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        const out = document.getElementById('out');
+        let passed = 0, failed = 0;
+        const failures = [];
+
+        function suite(name, fn) {
+            const h = document.createElement('div');
+            h.className = 'suite';
+            h.textContent = name;
+            out.appendChild(h);
+            try {
+                fn();
+            } catch (e) {
+                report(false, name + ' threw: ' + (e && e.message));
+            }
+        }
+
+        function report(ok, label) {
+            const el = document.createElement('div');
+            el.className = 'case ' + (ok ? 'pass' : 'fail');
+            el.textContent = label;
+            out.appendChild(el);
+            if (ok) passed++; else { failed++; failures.push(label); }
+        }
+
+        function ok(cond, label) { report(!!cond, label); }
+        function eq(a, b, label) { report(a === b, label + '  (got ' + a + ', want ' + b + ')'); }
+        function near(a, b, tol, label) {
+            report(Math.abs(a - b) <= tol, label + '  (got ' + a + ', want ~' + b + ')');
+        }
+
+        const C = window.Cargo3D.Constants;
+        const Grid = window.Cargo3D.YardGrid;
+        const Rules = window.Cargo3D.Rules;
+        const Scoring = window.Cargo3D.Scoring;
+        const ManifestLib = window.Cargo3D.Manifest;
+        const Campaign = window.Cargo3D.Campaign;
+        const Schema = window.Cargo3D.MissionSchema;
+
+        function unit(type, extra) {
+            return Object.assign({
+                uid: 'test-' + type, type: type, carrier: 'maersk',
+                traits: [], departure: 0, massT: 10, label: type
+            }, extra || {});
+        }
+
+        // ── constants ───────────────────────────────────────────────────────
+        suite('constants — footprints', function () {
+            eq(C.footprint('20ft', 0).length, 2, '20ft covers 2 cells');
+            eq(C.footprint('40ft', 0).length, 4, '40ft covers 4 cells');
+            eq(C.footprint('crate', 0).length, 4, 'crate covers 4 cells');
+            eq(C.span('40ft', 0)[0], 4, '40ft spans 4 in X unrotated');
+            eq(C.span('40ft', 1)[1], 4, '40ft spans 4 in Z rotated');
+            eq(C.span('crate', 1)[0], 2, 'crate is rotation-symmetric');
+            eq(C.cellCount('10ft'), 1, '10ft is one cell');
+            ok(C.CARGO_TYPES.tank.noTopLoad === true, 'tanks are flagged noTopLoad');
+            ok(C.GRID.CELL_VOLUME > 26 && C.GRID.CELL_VOLUME < 27, 'cell volume is ~27 m³');
+        });
+
+        // ── grid ────────────────────────────────────────────────────────────
+        suite('grid — placement and gravity', function () {
+            const g = new Grid(6, 4, 4);
+
+            ok(g.bounds() === null, 'empty grid has no bounds');
+            eq(g.restTier('20ft', 0, 0, 0), 0, 'first unit rests on tier 0');
+
+            const a = g.place(unit('20ft'), 0, 0, 0, 0);
+            ok(!!a, '20ft placed at origin');
+            eq(g.get(0, 0, 0), a.id, 'cell 0,0,0 holds the placement');
+            eq(g.get(1, 0, 0), a.id, 'cell 1,0,0 holds the same placement');
+            eq(g.get(2, 0, 0), 0, 'cell 2,0,0 is still empty');
+            eq(g.occupiedCells(), 2, 'two cells occupied');
+
+            eq(g.restTier('20ft', 0, 0, 0), 1, 'next unit at the same spot rests on tier 1');
+            eq(g.restTier('20ft', 0, 2, 0), 0, 'a clear column still rests on the ground');
+            eq(g.restTier('40ft', 0, 0, 0), 1, '40ft overlapping the stack rides up to tier 1');
+
+            ok(g.absCells('40ft', 0, 4, 0) === null, '40ft at x=4 falls off a 6-wide bay');
+            ok(g.absCells('40ft', 1, 0, 1) === null, 'rotated 40ft at z=1 runs off the back of the bay');
+
+            const b = g.place(unit('10ft'), 0, 0, 1, 0);
+            ok(!!b, '10ft stacked on tier 1');
+            ok(g.isBuried(a.id), 'the 20ft below is buried');
+            ok(!g.isBuried(b.id), 'the top unit is not buried');
+
+            const removed = g.removeById(b.id);
+            ok(!!removed, 'placement removed');
+            ok(!g.isBuried(a.id), 'no longer buried after removal');
+            eq(g.occupiedCells(), 2, 'cells freed on removal');
+        });
+
+        suite('grid — support, neighbours, perimeter', function () {
+            const g = new Grid(5, 3, 3);
+            g.place(unit('20ft'), 0, 0, 0, 0);            // covers (0,0) (1,0)
+
+            const full = g.supportInfo(g.absCells('20ft', 0, 0, 0), 1);
+            near(full.ratio, 1, 1e-9, 'fully supported on top of the 20ft');
+
+            const half = g.supportInfo(g.absCells('20ft', 0, 1, 0), 1);
+            near(half.ratio, 0.5, 1e-9, 'half overhang gives 0.5 support');
+
+            const none = g.supportInfo(g.absCells('20ft', 0, 3, 0), 1);
+            near(none.ratio, 0, 1e-9, 'floating in mid-air gives 0 support');
+
+            const ground = g.supportInfo(g.absCells('20ft', 0, 3, 0), 0);
+            near(ground.ratio, 1, 1e-9, 'the ground supports everything');
+
+            const nb = g.neighboursAt(g.absCells('10ft', 0, 2, 0), 0);
+            eq(nb.length, 1, 'a 10ft beside the 20ft has one neighbour');
+
+            ok(g.touchesPerimeter(g.absCells('10ft', 0, 0, 0)), 'corner cell is on the perimeter');
+            ok(!g.touchesPerimeter(g.absCells('10ft', 0, 2, 1)), 'the middle cell of a 5×3 bay is interior');
+
+            const under = g.idsUnder(g.absCells('20ft', 0, 0, 0), 2);
+            eq(under.length, 1, 'the column below reports the buried unit');
+        });
+
+        suite('grid — bounds', function () {
+            const g = new Grid(8, 6, 4);
+            g.place(unit('10ft'), 0, 0, 0, 0);
+            g.place(unit('10ft'), 3, 2, 0, 0);
+
+            const b = g.bounds();
+            eq(b.spanX, 4, 'bounds span 4 cells in X');
+            eq(b.spanZ, 3, 'bounds span 3 cells in Z');
+            eq(b.spanTiers, 1, 'bounds span one tier');
+
+            g.place(unit('10ft'), 3, 2, 1, 0);
+            eq(g.bounds().spanTiers, 2, 'stacking grows the tier span');
+        });
+
+        // ── rules ───────────────────────────────────────────────────────────
+        suite('rules — parsing', function () {
+            const p = Rules.parseRule('maxTier:3');
+            eq(p.rule.id, 'maxTier', 'parses the rule id');
+            eq(p.param, 3, 'parses the parameter');
+            eq(Rules.parseRule('support').param, 1, 'falls back to the default parameter');
+            ok(Rules.parseRule('nonsense') === null, 'unknown rules resolve to null');
+            eq(Rules.describeRules(['support:1', 'maxTier:2']).length, 2, 'describes each rule for the briefing');
+        });
+
+        suite('rules — support and reach', function () {
+            const g = new Grid(6, 3, 4);
+            g.place(unit('20ft'), 0, 0, 0, 0);
+
+            const overhang = Rules.validate(g, unit('20ft'), { x: 1, z: 0, tier: 1, rot: 0 }, ['support:1']);
+            ok(!overhang.ok, 'full-support rule rejects a half overhang');
+
+            const lenient = Rules.validate(g, unit('20ft'), { x: 1, z: 0, tier: 1, rot: 0 }, ['support:0.5']);
+            ok(lenient.ok, 'a 50% support rule allows the same overhang');
+
+            const stacked = Rules.validate(g, unit('20ft'), { x: 0, z: 0, tier: 1, rot: 0 }, ['support:1']);
+            ok(stacked.ok, 'a squarely stacked unit is legal');
+
+            const tooHigh = Rules.validate(g, unit('20ft'), { x: 0, z: 0, tier: 2, rot: 0 }, ['maxTier:2']);
+            ok(!tooHigh.ok, 'maxTier:2 rejects tier index 2');
+
+            const offBay = Rules.validate(g, unit('40ft'), { x: 4, z: 0, tier: 0, rot: 0 }, []);
+            ok(!offBay.ok && offBay.violations[0].id === 'fit', 'off-bay placements fail the fit check');
+
+            const occupied = Rules.validate(g, unit('10ft'), { x: 0, z: 0, tier: 0, rot: 0 }, []);
+            ok(!occupied.ok, 'an occupied slot is rejected');
+        });
+
+        suite('rules — cargo regulations', function () {
+            const g = new Grid(6, 4, 4);
+
+            // noTopLoad
+            g.place(unit('tank'), 0, 0, 0, 0);
+            ok(!Rules.validate(g, unit('20ft'), { x: 0, z: 0, tier: 1, rot: 0 }, ['noTopLoad']).ok,
+                'nothing stacks on a tank');
+            ok(Rules.validate(g, unit('20ft'), { x: 0, z: 0, tier: 1, rot: 0 }, []).ok,
+                'without the rule the same placement is fine');
+
+            // heavyBelow
+            const g2 = new Grid(6, 4, 4);
+            g2.place(unit('20ft', { massT: 8 }), 0, 0, 0, 0);
+            ok(!Rules.validate(g2, unit('20ft', { massT: 25 }), { x: 0, z: 0, tier: 1, rot: 0 }, ['heavyBelow']).ok,
+                'a heavy unit may not sit on a light one');
+            ok(Rules.validate(g2, unit('20ft', { massT: 4 }), { x: 0, z: 0, tier: 1, rot: 0 }, ['heavyBelow']).ok,
+                'a lighter unit on top is fine');
+
+            // hazmatGap
+            const g3 = new Grid(6, 4, 4);
+            g3.place(unit('20ft', { traits: ['hazmat'] }), 0, 0, 0, 0);
+            ok(!Rules.validate(g3, unit('20ft', { traits: ['hazmat'] }), { x: 2, z: 0, tier: 0, rot: 0 }, ['hazmatGap']).ok,
+                'hazmat may not touch hazmat side by side');
+            ok(Rules.validate(g3, unit('20ft', { traits: ['hazmat'] }), { x: 3, z: 0, tier: 0, rot: 0 }, ['hazmatGap']).ok,
+                'a one-slot gap satisfies the separation');
+            ok(Rules.validate(g3, unit('20ft', { traits: ['hazmat'] }), { x: 0, z: 0, tier: 1, rot: 0 }, ['hazmatGap']).ok,
+                'hazmat may stack vertically');
+            ok(Rules.validate(g3, unit('20ft'), { x: 2, z: 0, tier: 0, rot: 0 }, ['hazmatGap']).ok,
+                'non-hazmat is unaffected by the rule');
+
+            // reeferEdge
+            const g4 = new Grid(5, 5, 3);
+            ok(Rules.validate(g4, unit('10ft', { traits: ['reefer'] }), { x: 0, z: 2, tier: 0, rot: 0 }, ['reeferEdge']).ok,
+                'a reefer on the bay edge finds power');
+            ok(!Rules.validate(g4, unit('10ft', { traits: ['reefer'] }), { x: 2, z: 2, tier: 0, rot: 0 }, ['reeferEdge']).ok,
+                'a reefer in the middle has no power point');
+
+            // departureOrder
+            const g5 = new Grid(6, 4, 4);
+            g5.place(unit('20ft', { departure: 1 }), 0, 0, 0, 0);
+            ok(!Rules.validate(g5, unit('20ft', { departure: 3 }), { x: 0, z: 0, tier: 1, rot: 0 }, ['departureOrder']).ok,
+                'a late departure may not bury an early one');
+            ok(Rules.validate(g5, unit('20ft', { departure: 1 }), { x: 0, z: 0, tier: 1, rot: 0 }, ['departureOrder']).ok,
+                'same-day cargo may stack');
+            g5.place(unit('20ft', { departure: 3 }), 2, 0, 0, 0);
+            ok(Rules.validate(g5, unit('20ft', { departure: 1 }), { x: 2, z: 0, tier: 1, rot: 0 }, ['departureOrder']).ok,
+                'an early departure may sit on top of a late one');
+        });
+
+        suite('rules — dead-end detection', function () {
+            const g = new Grid(2, 1, 1);
+            ok(Rules.hasLegalPlacement(g, unit('20ft'), ['support:1']), 'an empty bay accepts the unit');
+            g.place(unit('20ft'), 0, 0, 0, 0);
+            ok(!Rules.hasLegalPlacement(g, unit('20ft'), ['support:1']), 'a full single-tier bay is a dead end');
+        });
+
+        // ── scoring ─────────────────────────────────────────────────────────
+        suite('scoring — envelope', function () {
+            const cell = C.GRID.CELL_VOLUME;
+            const g = new Grid(6, 4, 4);
+
+            eq(Scoring.measure(g).envelope, 0, 'an empty yard has no envelope');
+
+            g.place(unit('20ft'), 0, 0, 0, 0);
+            near(Scoring.measure(g).envelope, 2 * cell, 1e-6, 'a lone 20ft measures two cells');
+
+            g.place(unit('20ft'), 2, 0, 0, 0);
+            near(Scoring.measure(g).envelope, 4 * cell, 1e-6, 'two abutting 20ft measure four cells');
+
+            const tidy = Scoring.measure(g);
+            near(tidy.slotEfficiency, 1, 1e-9, 'a solid row is 100% slot-efficient');
+
+            // A unit parked away from the pile inflates the envelope on every tier.
+            const sprawl = new Grid(6, 4, 4);
+            sprawl.place(unit('10ft'), 0, 0, 0, 0);
+            sprawl.place(unit('10ft'), 5, 3, 0, 0);
+            near(Scoring.measure(sprawl).envelope, 6 * 4 * 1 * cell, 1e-6, 'opposite corners cost the whole floor');
+
+            const tall = new Grid(6, 4, 4);
+            tall.place(unit('10ft'), 0, 0, 0, 0);
+            tall.place(unit('10ft'), 0, 0, 1, 0);
+            near(Scoring.measure(tall).envelope, 2 * cell, 1e-6, 'stacking two 10ft measures two cells');
+        });
+
+        suite('scoring — par and medals', function () {
+            const cell = C.GRID.CELL_VOLUME;
+            const units = [unit('40ft'), unit('20ft'), unit('10ft')];
+            near(Scoring.parFor(units), 7 * cell, 1e-6, 'par is the perfect-pack cell volume');
+            eq(Scoring.cellsFor(units), 7, 'cell count matches the manifest');
+
+            const par = 100;
+            eq(Scoring.medalFor(100, par), 'gold', 'hitting par is gold');
+            eq(Scoring.medalFor(109, par), 'gold', 'within 10% of par is gold');
+            eq(Scoring.medalFor(125, par), 'silver', 'within 30% is silver');
+            eq(Scoring.medalFor(150, par), 'bronze', 'within 60% is bronze');
+            ok(Scoring.medalFor(200, par) === null, 'well over par earns nothing');
+            eq(Scoring.medalFor(112, par, { gold: 1.15 }), 'gold', 'missions can loosen the gold threshold');
+            near(Scoring.targetFor(100, null, 'gold'), 110, 1e-9, 'gold target is par × 1.10');
+        });
+
+        suite('scoring — mission result', function () {
+            const mission = Campaign.byId('m01');
+            const units = ManifestLib.build(mission);
+            const g = new Grid(mission.bay.cols, mission.bay.rows, mission.bay.tiers);
+
+            const partial = Scoring.buildResult(g, mission, units, null);
+            ok(!partial.complete, 'an untouched bay is not complete');
+            ok(partial.medal === null, 'an incomplete run earns no medal');
+
+            // Fill the 4×3 floor exactly: four 20ft in two rows, four 10ft in the third.
+            // The manifest arrives shuffled, so pick by type rather than by index.
+            const twenties = units.filter(function (u) { return u.type === '20ft'; });
+            const tens = units.filter(function (u) { return u.type === '10ft'; });
+            [[0, 0], [2, 0], [0, 1], [2, 1]].forEach(function (at, i) {
+                g.place(twenties[i], at[0], at[1], 0, 0);
+            });
+            [[0, 2], [1, 2], [2, 2], [3, 2]].forEach(function (at, i) {
+                g.place(tens[i], at[0], at[1], 0, 0);
+            });
+
+            const perfect = Scoring.buildResult(g, mission, units, null);
+            ok(perfect.complete, 'every unit placed completes the mission');
+            near(perfect.ratio, 1, 1e-9, 'a zero-waste pack lands exactly on par');
+            eq(perfect.medal, 'gold', 'par earns gold');
+        });
+
+        // ── manifest ────────────────────────────────────────────────────────
+        suite('manifest — determinism', function () {
+            const mission = Campaign.byId('m07');
+            const a = ManifestLib.build(mission);
+            const b = ManifestLib.build(mission);
+            eq(JSON.stringify(a), JSON.stringify(b), 'the same seed rebuilds the same manifest');
+
+            const c = ManifestLib.build(mission, 424242);
+            ok(JSON.stringify(a) !== JSON.stringify(c), 'a different seed gives a different manifest');
+            eq(a.length, c.length, 'the unit count is seed-independent');
+
+            const rand = ManifestLib.rng(7);
+            const first = [rand(), rand(), rand()];
+            const rand2 = ManifestLib.rng(7);
+            eq(JSON.stringify(first), JSON.stringify([rand2(), rand2(), rand2()]), 'the PRNG is reproducible');
+
+            const summary = ManifestLib.summarise(a);
+            eq(summary.total, a.length, 'the summary counts every unit');
+            eq(summary.traits.reefer, 3, 'm07 ships three reefers');
+        });
+
+        suite('manifest — unit records', function () {
+            const units = ManifestLib.build(Campaign.byId('m05'));
+            units.forEach(function (u) {
+                if (u.massT <= 0) ok(false, 'unit ' + u.uid + ' has a mass');
+            });
+            ok(true, 'every unit has a positive mass');
+
+            const heavy = units.filter(function (u) { return u.type === '40ft'; })[0];
+            const light = units.filter(function (u) { return u.type === '10ft'; })[0];
+            ok(heavy.massT > light.massT, 'loaded 40ft outweighs a light 10ft');
+        });
+
+        // ── campaign ────────────────────────────────────────────────────────
+        suite('campaign — schema', function () {
+            const problems = Schema.validateCampaign(Campaign.MISSIONS);
+            problems.forEach(function (p) { report(false, p); });
+            ok(problems.length === 0, 'every mission validates (' + Campaign.MISSIONS.length + ' missions)');
+
+            eq(Campaign.byId('m01').id, 'm01', 'missions are addressable by id');
+            eq(Campaign.nextAfter('m01').id, 'm02', 'the chain links forward');
+            ok(Campaign.nextAfter('m12') === null, 'the last mission ends the chain');
+        });
+
+        suite('campaign — par is geometrically reachable', function () {
+            // Par assumes a zero-waste pack. That is only honest if the manifest's
+            // cell count actually factors into a box the bay can hold.
+            Campaign.MISSIONS.forEach(function (mission) {
+                const units = ManifestLib.build(mission);
+                const cells = Scoring.cellsFor(units);
+
+                let tiers = mission.bay.tiers;
+                (mission.rules || []).forEach(function (spec) {
+                    const parsed = Rules.parseRule(spec);
+                    if (parsed && parsed.rule.id === 'maxTier') tiers = Math.min(tiers, parsed.param);
+                });
+
+                let fits = false;
+                for (let a = 1; a <= mission.bay.cols && !fits; a++) {
+                    for (let b = 1; b <= mission.bay.rows && !fits; b++) {
+                        for (let c = 1; c <= tiers && !fits; c++) {
+                            if (a * b * c === cells) fits = true;
+                        }
+                    }
+                }
+                report(fits, mission.id + ' — ' + cells + ' cells factor into a box inside ' +
+                    mission.bay.cols + '×' + mission.bay.rows + '×' + tiers);
+            });
+        });
+
+        suite('campaign — every mission needs its full height', function () {
+            // If the floor alone holds the manifest there is no reason to stack,
+            // which makes the mid-campaign lessons meaningless. Tutorials are exempt.
+            Campaign.MISSIONS.slice(2).forEach(function (mission) {
+                const cells = Scoring.cellsFor(ManifestLib.build(mission));
+                const floor = mission.bay.cols * mission.bay.rows;
+                report(cells > floor, mission.id + ' — ' + cells + ' cells exceed the ' + floor + '-slot floor');
+            });
+        });
+
+        // ── storage ─────────────────────────────────────────────────────────
+        suite('storage — progress', function () {
+            Cargo3D.Storage.resetProgress();
+
+            const mission = Campaign.byId('m01');
+            ok(Cargo3D.Storage.isUnlocked(Campaign.MISSIONS, 'm01'), 'the first mission is always open');
+            ok(!Cargo3D.Storage.isUnlocked(Campaign.MISSIONS, 'm02'), 'later missions start locked');
+
+            const first = Cargo3D.Storage.recordResult({
+                missionId: 'm01', complete: true, placed: 8, envelope: 400, par: 380, medal: 'gold'
+            });
+            ok(first.improved, 'a first completion is an improvement');
+            ok(Cargo3D.Storage.isUnlocked(Campaign.MISSIONS, 'm02'), 'completing m01 unlocks m02');
+
+            const worse = Cargo3D.Storage.recordResult({
+                missionId: 'm01', complete: true, placed: 8, envelope: 500, par: 380, medal: 'silver'
+            });
+            ok(!worse.improved, 'a worse run is not an improvement');
+            eq(Cargo3D.Storage.missionRecord('m01').best, 400, 'the best envelope is kept');
+            eq(Cargo3D.Storage.missionRecord('m01').medal, 'gold', 'the best medal is kept');
+            eq(Cargo3D.Storage.missionRecord('m01').plays, 2, 'plays are counted');
+
+            const better = Cargo3D.Storage.recordResult({
+                missionId: 'm01', complete: true, placed: 8, envelope: 350, par: 380, medal: 'gold'
+            });
+            ok(better.improved, 'a tighter pack is an improvement');
+            eq(better.previousBest, 400, 'the previous best is reported back');
+
+            const s = Cargo3D.Storage.summary(Campaign.MISSIONS);
+            eq(s.gold, 1, 'the summary counts gold medals');
+            eq(s.completed, 1, 'the summary counts completed missions');
+
+            Cargo3D.Storage.resetProgress();
+            ok(Cargo3D.Storage.missionRecord('m01') === null, 'reset clears progress');
+            ok(mission !== null, 'campaign is still intact after a reset');
+        });
+
+        // ── summary ─────────────────────────────────────────────────────────
+        const summary = document.getElementById('summary');
+        summary.className = failed === 0 ? 'ok' : 'bad';
+        summary.textContent = failed === 0
+            ? 'ALL TESTS PASSED — ' + passed + ' assertions'
+            : 'FAILED — ' + failed + ' of ' + (passed + failed) + ' assertions';
+        document.title = (failed === 0 ? 'PASS' : 'FAIL') + ' — Yard Master core tests';
+        window.__TEST_RESULT__ = { passed: passed, failed: failed, failures: failures };
+    })();
+    </script>
+</body>
+</html>
