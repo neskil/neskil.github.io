@@ -33,6 +33,10 @@
 
         // Reach Stacker Vehicle Instance
         this.vehicle = new window.Cargo3D.ReachStacker(this.scene);
+        
+        // Static Rail-Mounted Port Gantry Crane
+        this.crane = new window.Cargo3D.PortCrane(this.scene);
+        this.terminal = null; // Attached during main init
 
         this.initEventListeners();
     }
@@ -48,10 +52,15 @@
         
         container.addEventListener('pointerdown', function(e) { self.onPointerDown(e); });
 
-        // Spacebar to trigger reach stacker pickup / drop
+        // Spacebar to trigger reach stacker or port crane pickup / drop
         window.addEventListener('keydown', function(e) {
             if (e.code === 'Space') {
-                const action = self.vehicle.togglePickupContainer(self.placedObjects);
+                let action = 'none';
+                if (self.crane && self.crane.isActive) {
+                    action = self.crane.togglePickupContainer(self.placedObjects, self.terminal ? self.terminal.trainContainers : []);
+                } else if (self.vehicle) {
+                    action = self.vehicle.togglePickupContainer(self.placedObjects);
+                }
                 if (action !== 'none') {
                     self.updateHUDCallback(self.placedObjects);
                 }
@@ -60,6 +69,14 @@
     };
 
     SceneControls.prototype.update = function(delta) {
+        if (this.crane) {
+            this.crane.update(this.placedObjects);
+            if (this.cameraMode === 'port_crane') {
+                const trPos = this.crane.trolleyGroup.position;
+                this.camera.position.set(trPos.x, 26, this.crane.zPos + 14);
+                this.orbitControls.target.set(trPos.x, this.crane.hoistY - 2, this.crane.zPos);
+            }
+        }
         if (this.vehicle) {
             this.vehicle.update(this.placedObjects);
 
@@ -182,6 +199,8 @@
 
     SceneControls.prototype.setCameraMode = function(mode) {
         this.cameraMode = mode;
+        if (this.crane) this.crane.isActive = (mode === 'port_crane');
+        if (this.vehicle) this.vehicle.isActive = (mode !== 'port_crane');
         if (!this.orbitControls) return;
 
         if (mode === 'iso') {
@@ -190,6 +209,10 @@
         } else if (mode === 'crane') {
             this.camera.position.set(0, 35, 0.1);
             this.orbitControls.target.set(0, 0, 0);
+        } else if (mode === 'port_crane') {
+            const trPos = this.crane.trolleyGroup.position;
+            this.camera.position.set(trPos.x, 26, this.crane.zPos + 14);
+            this.orbitControls.target.set(trPos.x, this.crane.hoistY - 2, this.crane.zPos);
         } else if (mode === 'vehicle') {
             const vehPos = this.vehicle.group.position;
             this.camera.position.set(vehPos.x - 12, vehPos.y + 7, vehPos.z + 12);

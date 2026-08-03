@@ -72,6 +72,7 @@ const LEVEL_SCHEMA = {
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Darkens the level and enables ship headlights + sonar ping.', recommended:'False' },
     { key:'nightDarkness',   type:'number',    default:0.90, nullable:true, widget:'number', label:'Night Darkness Alpha', step:0.05, desc:'Base opacity (0.00 - 1.00) of the night overlay. Lower values (e.g. 0.35) keep early levels bright while retaining radar sonar pings.', recommended:'0.35 - 0.45 for early levels, 0.90 for total darkness', sliderMin:0, sliderMax:1, sliderStep:0.05 },
+    { key:'returnGauntlet',  type:'boolean',   default:false, widget:'checkbox', label:'Return Gauntlet Escalation', desc:'Accelerates defense laser firing cycles and triggers defense grid alerts upon completing all deliveries.', recommended:'False except for gauntlet levels' },
     // Altitude fog band (render/fog.js + physics/atmosphere.js fogDensityAt).
     // A soft ceiling made of weather: visibility collapses as the lander climbs
     // into it. Inactive unless BOTH Y bounds are set. Distinct from palette.fog.

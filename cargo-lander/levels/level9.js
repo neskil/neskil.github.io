@@ -22,8 +22,9 @@ registerLevel({
     gravity: 0.14,           // Slightly heavier gravity
     wind: -0.06,              // Crosswind blowing left; scales up hard during gusts (see windGust)
     windGust: { calm: 4, warn: 1.5, gust: 8, gustMult: 4.5 }, // storm surges — short lulls, long violent gusts
-    weather: 'snow',
+    weather: 'ash',          // Volcanic embers/ash cloud
     weatherParticles: 200,   // Heavy weather
+    heatHaze: true,          // Thermal distortion from the molten cauldron
     heavyCargo: true,
     ambientTrafficRate: 4,   // Maximum traffic frequency
     terrainType: 'worm-lair',// Enables the giant Sandworm hazard (zone defined by the
@@ -132,6 +133,15 @@ registerLevel({
         {
             type: 'sandworm',
             spawnRate: 1.0,
+            trackFrames: 16,
+            steer: 3.5,
+            lungeSpeed: 36,
+            maxSpeed: 52,
+            decay: 0.95,
+            retractSpeed: 16,
+            hitRadius: 95,
+            damage: 8,
+            proximityScale: 2.5,
             comment: 'Worm danger zone (central pit)',
             pts: [
                 {x: 1100, y: 900}, {x: 1060, y: 1050}, {x: 950,  y: 1160}, {x: 800, y: 1200},
@@ -157,6 +167,7 @@ registerLevel({
     // ── Collectibles (Fuel / Cash) ────────────────────────────────────────────
     collectibles: [
         { type: 'cash', x: 800, y: 400, value: 500 }, // Risky flythrough cash above suspended hub
+        { type: 'cash', x: 1550, y: 550, value: 800 }, // Suspended over the acid lake inside the gravity well
         { type: 'fuel', x: 525, y: 650, amount: 40 },
         { type: 'fuel', x: 1040, y: 600, amount: 40 },
         { type: 'fuel', x: 800, y: 650, amount: 35 } // Dead center of the worm zone — highest risk, dead below the hub

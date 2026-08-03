@@ -8,7 +8,7 @@ backlog" section.
 
 ---
 
-## 2026-08-02 — Terrain decoration: skyscraper facades on the geometry (v0.21.0)
+## 2026-08-02 — Terrain decoration: skyscraper facades on the geometry (v0.22.0)
 
 L5 read as flat black slabs with a cyan outline — the terrain *was* the city, but
 nothing said so, and the default rock-edge noise (a jagged line traced along the
@@ -60,6 +60,17 @@ Also removed L5's underground crystal formations. `drawUnderground()` runs
 *before* `drawTerrain()`, so it only shows through gaps in the fill — and the
 rebuilt city has an opaque contiguous fill below street level, making them dead
 draw calls rather than a visual bug.
+
+---
+
+## 2026-08-02 — Comprehensive gameplay & visual overhaul for Levels 7, 8, 9, and 10 + Return Gauntlet mechanics (v0.21.0)
+
+Executed comprehensive upgrades across the final four campaign missions to match late-game aesthetic and mechanics standards:
+
+- **Level 7 (The Deep Haul)**: Added a glowing cyan/emerald ceiling fog band, introduced repulsor wind chutes inside the S-curve squeeze, placed 5 mid-air exploration collectibles across the 4.2 km run, and added subterranean bioluminescent root/mycelium networks.
+- **Level 8 (Orbital Gauntlet)**: Implemented the open backlog feature "return-gauntlet escalation" (`returnGauntlet: true`), triggering accelerated defense grid laser cycles upon delivering the final cargo crate. Placed 4 high-stakes void collectibles inside beams and orbital wells, and added derelict superstructure trusses sparking below the platforms.
+- **Level 9 (The Cauldron)**: Overhauled weather from contradictory cold snow to rising volcanic embers (`weather: 'ash'`) with thermal distortion (`heatHaze: true`). Upgraded the central pit's sandworm from legacy defaults to a fast, tenacious tracking predator (`_sandWormTuning`). Placed a high-reward cash diamond suspended above the acid lake inside the gravity well, and added bubbling magma fractures below the ground.
+- **Level 10 (The Crystal Caves)**: Added an embedded third rock crusher for an alternating rhythmic sequence, introduced a pulsing Crystal Resonance Well gravity anomaly, added 5 glow-in-the-dark collectibles that project soft halos through total darkness (`render/night.js`), and expanded subterranean crystal lattice formations.
 
 ---
 

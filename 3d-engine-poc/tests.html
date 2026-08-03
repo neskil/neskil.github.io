@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cargo Yard Simulator — Automated Logic Tests</title>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: monospace; padding: 1.5rem; }
+        .pass { color: #34d399; margin: 4px 0; }
+        .fail { color: #f87171; font-weight: bold; margin: 4px 0; }
+        #summary { font-size: 1.4rem; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #334155; }
+    </style>
+</head>
+<body>
+    <div id="summary">running test suites…</div>
+    <div id="results"></div>
+
+    <!-- Vendor libraries & Core Engine logic (no canvas DOM container needed for tests) -->
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/OrbitControls.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/containers.js"></script>
+    <script src="js/crane.js"></script>
+    <script src="js/vehicle.js"></script>
+    <script src="js/train.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+
+    <script>
+    let passed = 0, failed = 0;
+    window.FAILS = [];
+    function assert(name, cond, detail) {
+        const div = document.createElement('div');
+        if (cond) { 
+            passed++; 
+            div.className = 'pass'; 
+            div.textContent = '✓ ' + name; 
+        } else { 
+            failed++; 
+            window.FAILS.push(name); 
+            div.className = 'fail'; 
+            div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : ''); 
+        }
+        document.getElementById('results').appendChild(div);
+    }
+    function approx(a, b, eps = 0.001) { return Math.abs(a - b) <= eps; }
+
+    // Disable real audio outputs during tests
+    if (window.Cargo3D.Audio) {
+        window.Cargo3D.Audio.playEngineSound = () => {};
+        window.Cargo3D.Audio.playHydraulicSound = () => {};
+        window.Cargo3D.Audio.playLockSound = () => {};
+    }
+
+    // ── 1. Reach Stacker Vehicle & Wheel Axle Kinematics ─────────────────────────
+    (function() {
+        const scene = new THREE.Scene();
+        const vehicle = new window.Cargo3D.ReachStacker(scene);
+
+        assert('Reach stacker initializes in scene with 4 wheels', vehicle.wheels && vehicle.wheels.length === 4);
+        assert('Wheel meshes have clean zero initial Euler angles (geometry rotated at creation)', 
+            vehicle.wheels.every(w => w.rotation.x === 0 && w.rotation.y === 0 && w.rotation.z === 0));
+
+        const initialX = vehicle.position.x;
+        vehicle.keys.forward = true;
+        vehicle.update([]);
+        
+        assert('Driving forward increases vehicle speed and moves along +X axis', 
+            vehicle.speed > 0 && vehicle.position.x > initialX);
+        
+        assert('Wheels roll around local Z axle clockwise (negative rotation.z angle) when driving forward', 
+            vehicle.wheels.every(w => w.rotation.z < 0));
+
+        vehicle.keys.forward = false;
+        vehicle.keys.boomUp = true;
+        const startBoomAngle = vehicle.boomAngle;
+        vehicle.update([]);
+        assert('Boom lift command raises tilt angle', vehicle.boomAngle > startBoomAngle);
+    })();
+
+    // ── 2. Shipping Container Specs & Yard Analytics ──────────────────────────────
+    (function() {
+        const c20 = window.Cargo3D.Containers.createContainerMesh('20ft', 'msc');
+        const c40 = window.Cargo3D.Containers.createContainerMesh('40ft', 'maersk');
+
+        assert('20ft MSC container initialized with proper carrier name and TEU spec', 
+            c20.userData.carrierName === 'MSC Yellow' && c20.userData.spec.teu === 1);
+        assert('40ft Maersk container initialized with 2 TEU volume capacity', 
+            c40.userData.carrierName === 'Maersk Line' && c40.userData.spec.teu === 2);
+
+        const metrics = window.Cargo3D.Containers.calculateYardMetrics([c20, c40]);
+        assert('Yard metrics calculate total TEU (3.0 TEU)', metrics.teu === '3.0');
+        assert('Yard metrics accurately sum volumetric space in cubic meters', metrics.vol === Math.round(33.2 + 76.4));
+
+        window.Cargo3D.Containers.toggleXRayMode([c20, c40], true);
+        let shellTransparent = true;
+        c20.traverse(child => { if (child.isMesh && child.userData.isShell && !child.material.transparent) shellTransparent = false; });
+        assert('X-Ray mode enables material transparency on outer container walls', shellTransparent);
+
+        window.Cargo3D.Containers.toggleXRayMode([c20, c40], false);
+    })();
+
+    // ── 3. Intermodal Train & Automated Yard Transfer ─────────────────────────────
+    (function() {
+        const scene = new THREE.Scene();
+        const terminal = new window.Cargo3D.IntermodalTerminal(scene);
+
+        assert('Freight train builds in scene with locomotive and 3 container flatcars', 
+            terminal.trainContainers.length === 3 && terminal.trainGroup.children.length > 0);
+        assert('Semi-truck rig spawns at delivery platform', terminal.truckGroup && terminal.truckGroup.children.length > 0);
+
+        let spawnedCount = 0;
+        const mockControls = {
+            setSpawnConfig: (type, carrier) => {},
+            spawnContainer: (x, y, z) => { spawnedCount++; }
+        };
+
+        const result = terminal.autoUnloadTrain(mockControls);
+        assert('autoUnloadTrain removes a container from train flatcar and spawns it in yard', 
+            result === 'unloaded' && terminal.trainContainers.length === 2 && spawnedCount === 1);
+    })();
+
+    // ── 4. Static Port Gantry Crane Mechanics & Hoist ─────────────────────────────
+    (function() {
+        const scene = new THREE.Scene();
+        const crane = new window.Cargo3D.PortCrane(scene);
+
+        assert('Port gantry crane initializes over railroad track span', crane.trolleyX === -32 && crane.group.children.length > 0);
+        assert('Laser targeting beam is mounted to spreader hoist', crane.laserBeam !== undefined);
+
+        crane.isActive = true;
+        const startX = crane.trolleyX;
+        crane.keys.right = true;
+        crane.update([]);
+        assert('Trolley moves along X bridge span when driven right', crane.trolleyX > startX);
+
+        crane.keys.right = false;
+        const startY = crane.hoistY;
+        crane.keys.hoistDown = true;
+        crane.update([]);
+        assert('Winch hoist lowers along Y axis on command', crane.hoistY < startY);
+
+        // Test container twistlock pickup from train flatcar list
+        const testContainer = window.Cargo3D.Containers.createContainerMesh('40ft', 'evergreen');
+        const spreaderPos = new THREE.Vector3();
+        crane.spreaderGroup.getWorldPosition(spreaderPos);
+        testContainer.position.copy(spreaderPos);
+        
+        const mockTrainContainers = [testContainer];
+        const pickRes = crane.togglePickupContainer([], mockTrainContainers);
+        assert('Twistlock clamps and hoists cargo directly off freight train flatcars', 
+            pickRes === 'picked' && crane.carriedContainer === testContainer && mockTrainContainers.length === 0);
+    })();
+
+    // ── 5. Logistics GameManager Contract & Economy System ────────────────────────
+    (function() {
+        const mockControls = { crane: null, vehicle: null };
+        const game = new window.Cargo3D.GameManager(mockControls, null);
+
+        assert('Game starts with $15,000 working capital and perfect A+ rating', game.money === 15000 && game.rating === 100);
+        assert('Active logistics delivery contract is assigned upon start', game.activeContract !== null && game.activeContract.id.startsWith('ORD-'));
+
+        const initialMoney = game.money;
+        const targetMinX = game.activeContract.targetXMin;
+        const targetMinZ = game.activeContract.targetZMin;
+        
+        const fulfilledCargo = window.Cargo3D.Containers.createContainerMesh('40ft', 'hapag');
+        fulfilledCargo.position.set((targetMinX + game.activeContract.targetXMax) / 2, 1.5, (targetMinZ + game.activeContract.targetZMax) / 2);
+        
+        game.update(0.5, [fulfilledCargo]);
+        assert('Placing container inside target mission coordinates satisfies contract and pays financial reward', 
+            game.money > initialMoney && game.deliveredCount === 1 && fulfilledCargo.userData.contractCompleted === true);
+
+        // Test contract timer penalty
+        const moneyBeforePenalty = game.money;
+        game.activeContract.timeRemaining = 0.1;
+        game.update(0.5, []);
+        assert('Allowing contract timer to expire assesses penalty fee and lowers terminal reputation', 
+            game.money < moneyBeforePenalty && game.rating < 100);
+
+        // Test buying upgrade
+        const moneyBeforeUpgrade = game.money;
+        const upRes = game.buyUpgrade('fastWinch', 5000);
+        assert('Purchasing terminal upgrade deducts investment cost and activates feature', 
+            upRes === true && game.upgrades.fastWinch === true && game.money === moneyBeforeUpgrade - 5000);
+    })();
+
+    // Render summary outcome
+    const sumEl = document.getElementById('summary');
+    sumEl.textContent = `${passed} passed / ${failed} failed` + (window.FAILS.length ? ' :: ' + window.FAILS.join(' | ') : '');
+    sumEl.className = failed ? 'fail' : 'pass';
+    </script>
+</body>
+</html>

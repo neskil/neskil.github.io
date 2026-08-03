@@ -70,7 +70,37 @@ registerLevel({
       color: "#06b6d4",
       behindTerrain: true,
       phaseOffset: 1000 // Offset so they don't sync
+    },
+    // Third embedded crusher guarding the final stretch before Deep Mining Post
+    {
+      type: "crusher",
+      pts: [
+        { x: 1520, y: 150 },
+        { x: 1520, y: 750 }
+      ],
+      waitUnloadedMs: 1300,
+      crushMs: 180,
+      waitLoadedMs: 450,
+      retractMs: 1100,
+      thickness: 55,
+      color: "#06b6d4",
+      behindTerrain: true,
+      phaseOffset: 500
+    },
+    // Crystal Resonance Anomaly — gentle pulsing gravity well
+    {
+      type: "gravwell",
+      pts: [{x: 1050, y: 400}, {x: 1150, y: 400}, {x: 1150, y: 500}, {x: 1050, y: 500}],
+      startForce: 0.35, endForce: 0.35, radius: 150, speed: 100
     }
+  ],
+
+  // ── Collectibles (Glow-in-the-dark navigation cues) ───────────────────────
+  collectibles: [
+    { type: 'cash', x: 650, y: 480, value: 600 },  // After first crusher descend
+    { type: 'fuel', x: 1080, y: 450, amount: 40 }, // Inside the Crystal Resonance Well
+    { type: 'cash', x: 1410, y: 450, value: 600 }, // Midway safe zone between crushers 2 & 3
+    { type: 'fuel', x: 1620, y: 480, amount: 40 }  // Final approach to Deep Mining Post
   ],
 
   // ── Mission parameters ────────────────────────────────────────────────────
