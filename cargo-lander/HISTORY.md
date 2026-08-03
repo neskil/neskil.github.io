@@ -8,6 +8,61 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — Terrain decoration: skyscraper facades on the geometry (v0.21.0)
+
+L5 read as flat black slabs with a cyan outline — the terrain *was* the city, but
+nothing said so, and the default rock-edge noise (a jagged line traced along the
+surface) looked like wobbly concrete on a skyline.
+
+**New: `terrainDecor`** — a level-config scalar picking what `drawTerrain()`
+draws on the surface: `rock`, `grass`, `facade`, `none`, or `auto`. `auto` is the
+default and reproduces the rule the renderer used to hard-code (`grass` when
+`currentLevelIndex === 0`, rock otherwise), so no existing level changed; a test
+pins that. It also retires the level-index check, which was the same
+brittle pattern that left L5 drawing crystal-cavern easter eggs after it stopped
+being a cavern.
+
+**`facade`** glazes the silhouette into lit skyscrapers: window lattice, warm/cool
+lit panes with a slow flicker, mullions, roof parapets, and an under-roof shading
+gradient. Nothing is authored per-polygon — the renderer derives the buildings
+from the geometry. Two things that matter:
+
+- Per column it uses that polygon's OWN topmost floor, not
+  `physics.getPolygonSurfaceY()`, which returns the lowest surface across all
+  polygons — that would hang every tower's windows off the street.
+- Windows stop at the lowest floor within `facade.groundReach` (500px) sideways,
+  not at the polygon's global lowest floor. The first attempt used the global
+  floor and drew one dead-flat line of windows straight across the map at
+  y=1420, which looked like a waterline. Each tower has to terminate at its own
+  street.
+
+Cheaper than what it replaces: 0.18ms/frame against the rock-noise branch's
+0.26ms at zoom 0.6, 0.23ms at zoom 0.3, because panes are batched into three
+`fillStyle` groups and the under-roof gradient is built once and `translate()`d
+per roof rather than rebuilt per edge per frame.
+
+Wired through the whole chain rather than bolted onto the renderer:
+`LEVEL_SCHEMA` gains the `terrainDecor` field plus a full `facade` section (12
+fields), which the level editor turns into a generated panel automatically —
+build/toggle/set/load/export follow the existing windGust pattern, and the
+load-sync is written off the schema so a future facade field needs no editor
+edit. `tests.html` validates the section per level (including pane-vs-cell
+sizing, 0..1 ranges, and that a `facade` block can't sit on a level whose
+`terrainDecor` isn't `'facade'`), covers the geometry helpers, and renders every
+decor mode to catch a broken branch.
+
+One consequence worth knowing: the renderer now reads defaults from
+`LEVEL_SCHEMA`, so `levels/levelSchema.js` is loaded by `index.html` too, not
+just the editor and tests. That keeps one home for defaults instead of mirroring
+them into `render/terrain.js`.
+
+Also removed L5's underground crystal formations. `drawUnderground()` runs
+*before* `drawTerrain()`, so it only shows through gaps in the fill — and the
+rebuilt city has an opaque contiguous fill below street level, making them dead
+draw calls rather than a visual bug.
+
+---
+
 ## 2026-08-02 — L5 rebuilt as a traffic-dodging city; traffic pathfinding precomputed (v0.20.0)
 
 **L5 replaced.** "The Needle's Eye" was a crystal-cavern winch-drop level whose

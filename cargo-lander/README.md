@@ -65,15 +65,15 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
-| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
+| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, `tests.html`'s validation checks, *and* (since `facade`) the renderer's own defaults, so `index.html` loads it too — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
-| `tests.html` | Browser test suite (142 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
+| `tests.html` | Browser test suite (158 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
 `index.html` loads `vendor/matter.min.js`, then `upgrades.js →
 levels.js → levelGenerator.js → level1…10.js → levelTest.js →
-collectibleTypes.js → audio.js →
+levelSchema.js → collectibleTypes.js → audio.js →
 shaders.js → physics.js → physics/*.js → game.js → game/*.js → render.js →
 render/*.js`. Class files must precede their prototype-mixin files;
 `render.js` instantiates `window.game`, so every mixin must load before it;
@@ -104,6 +104,14 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
   **To add a new pickup type**, add one entry to `COLLECTIBLE_TYPES` — no
   other file needs a new branch unless the type wants a bespoke visual (set
   `draw(ctx, c)` on its registry entry to override the default token look).
+- **Terrain decoration**: `terrainDecor: 'rock' | 'grass' | 'facade' | 'none'`
+  (default `'auto'`) selects the surface detailing drawn on the terrain
+  polygons themselves. `'facade'` glazes the silhouette into lit skyscrapers
+  and is tuned by an optional `facade: {...}` block (`LEVEL_SCHEMA.facade`
+  supplies every default, so `terrainDecor: 'facade'` alone is a complete
+  configuration). Purely cosmetic — no collision or gameplay effect. Because
+  the renderer reads defaults from `LEVEL_SCHEMA`, `levels/levelSchema.js` is
+  now loaded by `index.html` too, not just the editor and tests.
 
 ---
 
@@ -441,8 +449,10 @@ the file. The class files are small; the bulk is in the mixins.
 - Menu background mock lander needs all fields: `deckWidth`, `deckOffset`, `basketHeight`, `fuel`, `strafePower`.
 - `shadeColor(hex, amount)` helper lives at the bottom of `render.js`.
 - Terrain + background gradient use the level palette; sky gradient is cached and only rebuilt when size/palette changes.
-- Grass tufts (L1): x positions snapped to 10px grid to prevent camera-jitter shimmer.
-- Underground easter eggs (`drawUnderground` in `render/terrain.js`): L4 has blinking server racks below the surface, L5 has pulsing crystal formations — visible through cave gaps.
+- Terrain decoration (`terrainDecor` in a level config) picks what `drawTerrain()` draws on the surface: `rock` edge noise, `grass` tufts, `facade` skyscraper glazing, or `none`. Defaults to `auto`, which reproduces the old hard-coded rule (grass on L1, rock elsewhere) — levels that don't set it are untouched.
+- Grass tufts: x positions snapped to 10px grid to prevent camera-jitter shimmer.
+- Facades (`drawTerrainFacades`): reads building extents off the geometry, so nothing is authored per-polygon. Per column it takes that polygon's OWN topmost floor (not `physics.getPolygonSurfaceY()`, which returns the lowest surface on the map) and stops at the lowest floor within `facade.groundReach` sideways — cutting at the polygon's global floor instead draws one flat line of windows across the whole map. Panes are batched by colour and the under-roof gradient is built once and `translate()`d, so it costs less than the rock-noise branch it replaces.
+- Underground easter eggs (`drawUnderground` in `render/terrain.js`): L4 has blinking server racks below the surface, visible through cave gaps. Note this runs *before* `drawTerrain()`, so anything it draws is hidden wherever the terrain fill is opaque and continuous — that is what made L5's old crystal formations dead draw calls once it became a city.
 - Buildings: only `antenna`/`silo`/`refinery` types have draw branches in `drawBuildings()` — an unknown type renders nothing, silently.
 - Post-FX (`renderPostFX` in `shaders.js`): full-scene texture sample, so world-space text labels get distorted by heat haze — re-check label readability when enabling `heatHaze` on a new level. Max 4 water-shimmer bodies per level (fixed-size uniforms).
 
