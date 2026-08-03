@@ -47,9 +47,13 @@
             </a>
         </div>
 
-        <button type="button" class="guide-btn" id="openGuide">
-            🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button type="button" class="guide-btn" id="openGuide">
+                🧭 Walk me through it <span class="sub" id="guideCount">— fills the whole page in</span>
+            </button>
+            <button type="button" class="preset-btn" id="shareScenarioBtn" style="padding:10px 14px;border-radius:10px;font-size:0.85rem;" title="Copy shareable URL link">🔗 Share scenario</button>
+        </div>
+
 
         <div class="app-layout">
             <aside class="sidebar-index">
@@ -102,11 +106,12 @@
                 <button class="preset-btn" type="button" data-powertrain="ev">⚡ Electric</button>
             </div>
             <div class="preset-row" id="agePresets" aria-label="Age when you buy it">
-                <button class="preset-btn" type="button" data-age="new">✨ Brand new</button>
-                <button class="preset-btn" type="button" data-age="three">👍 3 years</button>
-                <button class="preset-btn" type="button" data-age="six">🔧 5–7 years</button>
-                <button class="preset-btn" type="button" data-age="ten">🛠️ 10+ years</button>
+                <button class="preset-btn" type="button" data-age="new">✨ Brand new (2026)</button>
+                <button class="preset-btn" type="button" data-age="three">👍 3 yrs old (2023)</button>
+                <button class="preset-btn" type="button" data-age="six">🔧 5–7 yrs (2019–21)</button>
+                <button class="preset-btn" type="button" data-age="ten">🛠️ 10+ yrs (≤2016)</button>
             </div>
+
 
             <div class="callout" id="carProfile" style="margin-bottom:10px">
                 <span class="ico">🚘</span><span></span>
@@ -134,12 +139,26 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label for="taxRate">Tax on the car <span style="color:var(--text-mute)">· GA TAVT 7%</span></label>
+                    <label for="statePreset">State tax &amp; EV tag preset</label>
+                    <div class="input-shell">
+                        <select id="statePreset">
+                            <option value="ga" selected>Georgia — 7.0% TAVT, $238 EV tag</option>
+                            <option value="ca">California — 7.25% Tax, $108 EV tag</option>
+                            <option value="tx">Texas — 6.25% Tax, $200 EV tag</option>
+                            <option value="fl">Florida — 6.0% Tax, $0 EV tag</option>
+                            <option value="ny">New York — 4.0% Tax, $0 EV tag</option>
+                            <option value="custom">Custom rates</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="taxRate">Tax on the car <span style="color:var(--text-mute)">· rate</span></label>
                     <div class="input-shell">
                         <input type="number" id="taxRate" min="0" max="15" step="0.1" value="7">
                         <span class="suffix">%</span>
                     </div>
                 </div>
+
                 <div class="field">
                     <label for="fees">Doc, title &amp; plates</label>
                     <div class="input-shell">
@@ -676,7 +695,9 @@
                         the X3 quote is one month with a <strong>$199 enrollment fee</strong>. The protection
                         product differs too — an LDW at $144.35 on one, "Smart Protection" at $198.99 on the other.
                         Quote both terms, and read the line items rather than the total.</p>
+                    <p class="notes" style="margin-top:8px"><strong>⚡ Fleet Powertrain Disclaimer:</strong> Sixt+ US fleet is predominantly ICE (Petrol) German luxury &amp; premium models (BMW X1/X3, Audi Q5). Sixt+ does not offer Electric (EV) or Hybrid inventory in most US markets. If you are looking for EV or Hybrid subscription options, <strong>Flexcar</strong> provides dedicated EV &amp; Hybrid tiers across all mileage plans.</p>
                     <p class="notes" style="margin-top:8px"><strong>Read the mileage cap before the rate.</strong>
+
                         The $1,000 BMW X1 came with <strong>500 miles a month</strong> — 6,000 a year, well under
                         half what an average US driver covers. A 30-mile round-trip commute alone spends 600. Extra
                         miles are sold as whole 1,000-mile blocks rather than billed per mile afterwards, so an
@@ -703,16 +724,16 @@
                     </div>
                     <div class="preset-row" id="flexPresets" aria-label="Real Flexcar listings">
 
-                        <button class="preset-btn" type="button" data-rate="424" data-protection="245"
+                        <button class="preset-btn" type="button" data-rate="424" data-protection="245" data-excess="2000"
                                 data-delivery="0" data-allowance="850" data-car="a Hyundai Tucson"
                                 data-msrp="30000">Tucson, Standard · $709.14</button>
-                        <button class="preset-btn" type="button" data-rate="434" data-protection="315"
-                                data-delivery="199" data-allowance="1200" data-car="a new Toyota Corolla LE"
+                        <button class="preset-btn" type="button" data-rate="454" data-protection="295" data-excess="500"
+                                data-delivery="0" data-allowance="1200" data-car="a new Toyota Corolla LE"
                                 data-msrp="24000">Corolla LE, new · $749</button>
-                        <button class="preset-btn" type="button" data-rate="454" data-protection="295"
-                                data-delivery="874" data-allowance="1200" data-car="a 2023 Hyundai Kona Electric"
+                        <button class="preset-btn" type="button" data-rate="454" data-protection="295" data-excess="500"
+                                data-delivery="0" data-allowance="1200" data-car="a 2023 Hyundai Kona Electric"
                                 data-msrp="34000">Kona Electric · $749</button>
-                        <button class="preset-btn" type="button" data-rate="459" data-protection="295"
+                        <button class="preset-btn" type="button" data-rate="459" data-protection="295" data-excess="500"
                                 data-delivery="0" data-allowance="1200" data-car="a 2023 Ford Escape"
                                 data-msrp="30000">Ford Escape · $754</button>
                     </div>
@@ -736,9 +757,8 @@
                             </div>
                             <div class="preset-row" id="flexProtectionTiers" aria-label="Protection tier"
                                 style="margin:6px 0 0">
-                                <button class="preset-btn" type="button" data-prot="230">$230</button>
-                                <button class="preset-btn" type="button" data-prot="245">$245 · $2k excess</button>
-                                <button class="preset-btn" type="button" data-prot="295">$295 · $500 excess</button>
+                                <button class="preset-btn" type="button" data-prot="245" data-excess="2000">$245 · $2k deductible</button>
+                                <button class="preset-btn" type="button" data-prot="295" data-excess="500">$295 · $500 + glass</button>
                             </div>
                         </div>
                         <div class="field">
@@ -768,10 +788,10 @@
                         </div>
                         <div class="field">
                             <label for="flexDelivery">Delivery <span style="color:var(--text-mute)">·
-                                one-off</span></label>
+                                $0 if local</span></label>
                             <div class="input-shell">
                                 <span class="prefix">$</span>
-                                <input type="number" id="flexDelivery" min="0" step="25" value="874">
+                                <input type="number" id="flexDelivery" min="0" step="25" value="0">
                             </div>
                         </div>
                         <div class="field">
@@ -812,7 +832,7 @@
                     </div>
                     <p class="notes" style="margin-top:8px"><strong>Cheaper than Sixt+, and quoted differently
                         enough to catch you out.</strong> Real listings run <strong>$749–754/mo</strong> — a brand
-                        new Corolla at $434 + $315, a 2023 Kona Electric at $454 + $295, a Ford Escape at $459 +
+                        new Corolla at $454 + $295, a 2023 Kona Electric at $454 + $295, a Ford Escape at $459 +
                         $295. But every one of those is <em>plus tax</em>, where the Sixt+ contract is quoted with
                         tax already in it. Compare the two headline numbers directly and you will flatter Flexcar by
                         whatever your local rate is. A checkout that itemises it settles the rate: $40.14 of tax on
@@ -822,19 +842,17 @@
                         policy will not do.</strong> Flexcar states plainly that existing personal auto insurance
                         and credit-card cover do not extend to a Flexcar, because it is a long-term ownership
                         replacement rather than a rental. Basic liability is included at <em>state minimum</em>, and
-                        on top of that you must take <strong>Essential at $245/mo with a $2,000 deductible</strong>
-                        or <strong>Enhanced at $295/mo with a $500 deductible</strong> and glass covered, with a
-                        cheaper <strong>$230</strong> tier appearing on some vehicles — the tier is quoted per car,
-                        so use the chips above rather than assuming. Same shape as the Sixt+ waiver, and the same
-                        trap: the headline is not the cover. Between the two main tiers you are paying $50/mo for
-                        $1,500 less deductible, so Enhanced only pays for itself if you expect to claim inside
+                        on top of that you must take either <strong>Essential at $245/mo with a $2,000 deductible</strong>
+                        or <strong>Enhanced at $295/mo with a $500 deductible</strong> and glass covered.
+                        Same shape as the Sixt+ waiver, and the same
+                        trap: the headline is not the cover. Between the two tiers you are paying $50/mo for
+                        $1,500 less deductible and glass cover, so Enhanced only pays for itself if you expect to claim inside
                         about two and a half years.</p>
-                    <p class="notes" style="margin-top:8px"><strong>Two fees the tile does not show.</strong>
+                    <p class="notes" style="margin-top:8px"><strong>Annual membership and taxes are required; delivery is only for out-of-state cars.</strong>
                         Membership is <strong>$249/yr</strong>, required, covering servicing, tyres, brakes,
                         roadside and 20¢/gal off at Sunoco — free for the first two weeks and waived entirely if you
-                        return the car inside them. Delivery is quoted per vehicle and varies enormously: the
-                        Corolla above ships for <strong>$199</strong>, the white Kona for <strong>$874</strong>.
-                        Filter by what is already local before you fall for a listing.</p>
+                        return the car inside them. Local vehicles carry a <strong>$0 delivery fee</strong>; you only pay delivery if you select a car shipped from out of state (which can range from $199 to $874).
+                        Filter by what is already local so your only additions to the advertised vehicle rate are mandatory protection, annual membership, and local taxes.</p>
                     <p class="notes" style="margin-top:8px"><strong>OnTrack is a real discount, it is automatic,
                         and it is bigger than it looks.</strong> Pay on time and drive safely for six months and the
                         rate drops, and it follows you even if you swap cars. A Tucson checkout goes from
@@ -909,6 +927,8 @@
                         at $15–30 a day unless your card covers it, and weekly and monthly rates are far below the
                         daily one — the $130/day above is a five-day booking, and a month-long hire would be
                         negotiated well under it.</p>
+                    <p class="notes" style="margin-top:8px"><strong>🚘 How Turo (Peer-to-Peer) compares:</strong> Turo lets private hosts rent out personal cars. While daily rates look cheap ($35–$65/day), Turo charges a <strong>10–25% Trip Fee</strong> plus protection ($15–$25/day) and state tax. On 30-day hires, hosts offer 25–40% monthly discounts (bringing all-in monthly costs to ~$1,200–$1,500/mo). Turo is <strong>great for 1–30 days</strong>, but for 6–12+ months, dedicated subscriptions (Flexcar) or traditional leases win by $300–$600/mo without host cancellation risks or strict 200 mi/day caps.</p>
+
                 </div>
             </details>
         </section>
@@ -963,13 +983,17 @@
 
                         <!-- Break-even over time -->
                         <section class="panel" id="sec-breakeven">
-                            <div class="panel-title">
-                                Break-even: how long you keep it
-                                <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
-                                    <button type="button" data-mode="perMonth" class="active">Per month</button>
-                                    <button type="button" data-mode="total">Total</button>
+                            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+                                <span>Break-even: how long you keep it</span>
+                                <div style="display:flex;gap:6px;align-items:center">
+                                    <div class="seg-toggle" id="curveMode" role="group" aria-label="Cost measure">
+                                        <button type="button" data-mode="perMonth" class="active">Per month</button>
+                                        <button type="button" data-mode="total">Total</button>
+                                    </div>
+                                    <button type="button" class="preset-btn" id="expandBeChart" style="padding:4px 8px;font-size:0.75rem" title="Enlarge Chart">🔍 Enlarge</button>
                                 </div>
                             </div>
+
                             <div id="breakevenChart"></div>
                             <div class="legend" id="breakevenLegend"></div>
                             <div class="crossings" id="crossings"></div>
@@ -1635,9 +1659,82 @@
         </p>
     </div>
 
+    <!-- Enlarged Interactive Graph Modal -->
+    <div class="modal-backdrop" id="graphBackdrop"></div>
+    <div class="modal" id="graphModal" role="dialog" aria-modal="true" aria-labelledby="graphTitle" hidden style="width:min(1100px, calc(100vw - 20px))">
+        <div class="modal-head">
+            <span>🔍</span>
+            <h2 id="graphTitle">Interactive High-Res Chart Explorer</h2>
+            <button type="button" class="modal-close" id="graphClose" aria-label="Close">✕</button>
+        </div>
+        <!-- Enlarged Chart Controls Bar -->
+        <div class="field-grid" style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.25);border-radius:10px;gap:8px;">
+            <div class="field">
+                <label for="zoomStartYr">Start Horizon</label>
+                <div class="input-shell">
+                    <select id="zoomStartYr">
+                        <option value="0" selected>0 yr (Start)</option>
+                        <option value="1">1 yr</option>
+                        <option value="2">2 yr</option>
+                        <option value="3">3 yr</option>
+                        <option value="5">5 yr</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomEndYr">End Horizon</label>
+                <div class="input-shell">
+                    <select id="zoomEndYr">
+                        <option value="2">2 yr</option>
+                        <option value="3">3 yr</option>
+                        <option value="5" selected>5 yr</option>
+                        <option value="8">8 yr</option>
+                        <option value="10">10 yr</option>
+                        <option value="15">15 yr</option>
+                        <option value="20">20 yr</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomMeasure">Cost Measure</label>
+                <div class="input-shell">
+                    <select id="zoomMeasure">
+                        <option value="perMonth" selected>Per Month ($/mo)</option>
+                        <option value="total">Total Horizon Cost ($)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomPowertrain">Powertrain</label>
+                <div class="input-shell">
+                    <select id="zoomPowertrain">
+                        <option value="petrol">⛽ Petrol</option>
+                        <option value="hybrid">🔋 Hybrid</option>
+                        <option value="ev">⚡ Electric</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="zoomScenario">Uncertainty Case</label>
+                <div class="input-shell">
+                    <select id="zoomScenario">
+                        <option value="optimistic">Optimistic</option>
+                        <option value="expected" selected>Expected</option>
+                        <option value="pessimistic">Pessimistic</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="expandedChartContainer" style="padding:12px 0;width:100%"></div>
+        <div id="expandedChartLegend" class="legend" style="margin-top:4px"></div>
+    </div>
+
+
     <!-- Depreciation by model -->
     <div class="modal-backdrop" id="depBackdrop"></div>
     <div class="modal" id="depModal" role="dialog" aria-modal="true" aria-labelledby="depModalTitle" hidden>
+
         <div class="modal-head">
             <span>📉</span>
             <h2 id="depModalTitle">Depreciation by model</h2>

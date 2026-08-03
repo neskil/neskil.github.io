@@ -217,6 +217,45 @@
                             log.push('SIM ERROR: ' + simErr.message);
                         }
                         iw.__probeSimLog = log;
+                    } else if (script === 'dustLane') {
+                        // Altitude fog band + freight lane check (L6). Parks the
+                        // lander at `laneY` (default: mid-band) and drives the
+                        // traffic/fog physics in a synchronous loop, since
+                        // --virtual-time-budget doesn't reliably tick rAF. Shows
+                        // the dust gradient, the lander's clear bubble, the
+                        // running-light glows punched through the murk, and
+                        // stamps hull loss so the abrasion rate is checkable.
+                        const l = g.physics.lander;
+                        const lv = g.physics.currentLevelConfig;
+                        const laneY = parseFloat(q.get('laneY') || String(((lv.fogBandTopY ?? 0) + (lv.fogBandBottomY ?? 0)) / 2));
+                        l.landed = false; l.currentPad = null;
+                        l.x = parseFloat(q.get('laneX') || '900');
+                        l.y = laneY;
+                        l.vx = 0; l.vy = 0;
+                        if (iw.Matter && g.physics.landerBody) {
+                            iw.Matter.Body.setPosition(g.physics.landerBody, { x: l.x, y: l.y });
+                        }
+                        const hull0 = l.integrity;
+                        const frames = parseInt(q.get('laneFrames') || '600');
+                        const log = [];
+                        try {
+                            for (let i = 0; i < frames; i++) {
+                                // Pin the lander in the lane — we're inspecting the
+                                // band, not flying through it.
+                                l.y = laneY; l.vy = 0; l.vx = 0;
+                                g.physics.updateAmbientTraffic(1);
+                                g.physics.updateAltitudeFog(1);
+                            }
+                        } catch (simErr) {
+                            log.push('SIM ERROR: ' + simErr.message);
+                        }
+                        const inBand = g.physics.ambientTraffic.filter(t => g.physics.fogDensityAt(t.y) > 0.05).length;
+                        log.push(`laneY=${laneY} density=${g.physics.fogDensity.toFixed(3)}`);
+                        log.push(`traffic=${g.physics.ambientTraffic.length} (in fog: ${inBand})`);
+                        log.push(`hull ${hull0.toFixed(1)} -> ${l.integrity.toFixed(1)} over ${frames}f (${(hull0 - l.integrity).toFixed(1)} lost / ${(frames / 60).toFixed(1)}s)`);
+                        // Stamp on the iframe's window — the status readout below
+                        // reads these off `iw`, not off the probe page itself.
+                        iw.__probeSimLog = log;
                     } else if (script === 'parachute') {
                         // Headless Chrome's --virtual-time-budget fast-forwards
                         // setTimeout but doesn't reliably keep requestAnimationFrame
@@ -252,8 +291,10 @@
                             msg += '\nlander: fuel=' + l.fuel.toFixed(2) + ' vy=' + l.vy.toFixed(2) + ' chuteTimer=' + (l.chuteTimer || 0).toFixed(1) + ' chuteDeployed=' + !!l.chuteDeployed + ' landed=' + l.landed;
                             msg += '\nconsole errors: ' + (consoleErrors.length ? consoleErrors.join(' || ') : 'none');
                             if (iw.__parachuteSimLog) msg += '\n' + iw.__parachuteSimLog.join('\n');
-                            if (iw.__probeSimLog) msg += '\n' + iw.__probeSimLog.join('\n');
                         }
+                        // A sim script's readout IS its check, so it stamps without
+                        // needing &debug=1.
+                        if (iw.__probeSimLog) msg += '\n' + iw.__probeSimLog.join('\n');
                         st.textContent = msg;
                     } catch (e) { st.style.color = '#f00'; st.textContent = 'probe err: ' + e.message; }
                     document.body.appendChild(st);

@@ -51,7 +51,7 @@ visual, using whatever headless Chromium the environment provides (`chrome`,
 - **Test suite**: `<chromium> --headless=new --disable-gpu
   --virtual-time-budget=15000 --dump-dom http://localhost:8177/tests.html`,
   then grep the dump for `id="summary"` — must say "N passed / **0 failed**"
-  (142 tests at last count; N grows, 0 failed is the bar).
+  (150 tests at last count; N grows, 0 failed is the bar).
   `--virtual-time-budget` fast-forwards timers so the async run completes
   before the dump.
 - **Visual checks**: `probe-screenshot.html?level=N&x=..&y=..&zoom=..`
