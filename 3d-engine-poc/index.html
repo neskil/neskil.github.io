@@ -60,6 +60,32 @@
 
     <!-- Floating HUD Metrics Dashboard -->
     <aside class="hud-dashboard">
+        <!-- Active Contract & Financial Dashboard -->
+        <div class="hud-card game-card">
+            <div class="hud-card-header">
+                <span class="hud-icon">📜</span>
+                <h3>Logistics Contract</h3>
+            </div>
+            <div class="hud-metrics">
+                <div class="metric-row">
+                    <span class="metric-label">Capital Balance</span>
+                    <span class="metric-val gold" id="game-money">$15,000</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Reputation</span>
+                    <span class="metric-val status-good" id="game-rating">A+ (100%)</span>
+                </div>
+                <div class="contract-box">
+                    <h4 id="contract-title">Loading mission...</h4>
+                    <p id="contract-desc">Await terminal dispatcher orders.</p>
+                    <div class="contract-meta">
+                        <span class="tag-reward" id="contract-payout">Reward: $0</span>
+                        <span class="tag-timer" id="contract-timer">⏳ 150s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="hud-card">
             <div class="hud-card-header">
                 <span class="hud-icon">📦</span>
@@ -163,8 +189,8 @@
             <div class="button-group">
                 <button id="cam-orbit" class="tool-btn active" title="Free 3D Orbit">Orbit</button>
                 <button id="cam-iso" class="tool-btn" title="Top-Down Isometric View">Isometric</button>
-                <button id="cam-crane" class="tool-btn" title="Crane Overhead View">Crane Top</button>
-                <button id="cam-vehicle" class="tool-btn" title="Drive Reach Stacker Crane">🚜 Drive Crane</button>
+                <button id="cam-port-crane" class="tool-btn" title="Operate Static Port Gantry Crane">🏗️ Port Gantry Crane</button>
+                <button id="cam-vehicle" class="tool-btn" title="Drive Reach Stacker">🚜 Reach Stacker</button>
             </div>
         </div>
 
@@ -193,15 +219,17 @@
 
     <!-- Instruction Tooltip Bar -->
     <div class="instruction-banner">
-        <span>💡 <strong>WASD / Arrow Keys</strong> to drive reach stacker • <strong>Spacebar</strong> to pickup/drop container • <strong>Q/E</strong> to tilt boom • <strong>Click ground</strong> to spawn container</span>
+        <span>💡 <strong>WASD / Arrows</strong> to operate selected machine (Gantry / Stacker) • <strong>Q/E / Shift/Ctrl</strong> to raise/lower crane hoist or tilt boom • <strong>Spacebar</strong> to engage twistlock & lift cargo</span>
     </div>
 
     <!-- Application Modules -->
     <script src="js/audio.js"></script>
     <script src="js/weather.js"></script>
     <script src="js/containers.js"></script>
+    <script src="js/crane.js"></script>
     <script src="js/vehicle.js"></script>
     <script src="js/train.js"></script>
+    <script src="js/game.js"></script>
     <script src="js/controls.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
