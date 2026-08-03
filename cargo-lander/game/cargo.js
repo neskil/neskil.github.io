@@ -175,6 +175,13 @@ Object.assign(CargoGame.prototype, {
         this.missionDeliveryEarnings = (this.missionDeliveryEarnings || 0) + deliveryReward;
         this.addMessage(`Delivery Complete! +$${deliveryReward}`, "#10b981");
 
+        const level = typeof levels !== 'undefined' ? levels[this.currentLevelIndex] : null;
+        if (level && level.returnGauntlet && this.deliveredCount === (level.targetCargo || 99)) {
+            this.addMessage("DEFENSE GRID ALERTED! LASERS POWERED FOR RETURN RUN!", "#ef4444");
+            if (this.screenShake) this.screenShake.intensity = Math.max(this.screenShake.intensity || 0, 15);
+            if (window.CargoAudio && !this.isMuted && CargoAudio.playExplosion) CargoAudio.playExplosion();
+        }
+
         if (window.CargoAudio && !this.isMuted) CargoAudio.playUnload();
         
         return deliveryReward;

@@ -3,12 +3,36 @@
 
     window.Cargo3D = window.Cargo3D || {};
 
-    function setupUI(sceneControls, setWeatherPreset, terminal) {
+    function setupUI(sceneControls, setWeatherPreset, terminal, gameManager) {
         const countEl = document.getElementById('metric-count');
         const teuEl = document.getElementById('metric-teu');
         const volEl = document.getElementById('metric-vol');
         const massEl = document.getElementById('metric-mass');
         const stabilityEl = document.getElementById('metric-stability');
+
+        if (gameManager) {
+            const moneyEl = document.getElementById('game-money');
+            const ratingEl = document.getElementById('game-rating');
+            const titleEl = document.getElementById('contract-title');
+            const descEl = document.getElementById('contract-desc');
+            const payoutEl = document.getElementById('contract-payout');
+            const timerEl = document.getElementById('contract-timer');
+
+            gameManager.onStatsUpdated = function(stats) {
+                if (moneyEl) moneyEl.textContent = '$' + stats.money.toLocaleString();
+                if (ratingEl) {
+                    const grade = stats.rating >= 90 ? 'A+' : (stats.rating >= 75 ? 'B' : 'C');
+                    ratingEl.textContent = grade + ' (' + stats.rating + '%)';
+                }
+                if (stats.contract) {
+                    if (titleEl) titleEl.textContent = stats.contract.title;
+                    if (descEl) descEl.textContent = stats.contract.desc;
+                    if (payoutEl) payoutEl.textContent = 'Reward: $' + stats.contract.payout.toLocaleString();
+                    if (timerEl) timerEl.textContent = '⏳ ' + Math.ceil(stats.contract.timeRemaining) + 's';
+                }
+            };
+            gameManager.notifyStats();
+        }
 
         const inspectorPanel = document.getElementById('inspector-panel');
         const inspCarrier = document.getElementById('insp-carrier');
@@ -67,9 +91,9 @@
         // Camera View Mode Buttons
         const camOrbitBtn = document.getElementById('cam-orbit');
         const camIsoBtn = document.getElementById('cam-iso');
-        const camCraneBtn = document.getElementById('cam-crane');
+        const camPortCraneBtn = document.getElementById('cam-port-crane');
         const camVehicleBtn = document.getElementById('cam-vehicle');
-        const camBtns = [camOrbitBtn, camIsoBtn, camCraneBtn, camVehicleBtn];
+        const camBtns = [camOrbitBtn, camIsoBtn, camPortCraneBtn, camVehicleBtn];
 
         if (camOrbitBtn) camOrbitBtn.addEventListener('click', function() {
             camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
@@ -83,10 +107,10 @@
             sceneControls.setCameraMode('iso');
         });
 
-        if (camCraneBtn) camCraneBtn.addEventListener('click', function() {
+        if (camPortCraneBtn) camPortCraneBtn.addEventListener('click', function() {
             camBtns.forEach(function(b) { if(b) b.classList.remove('active'); });
-            camCraneBtn.classList.add('active');
-            sceneControls.setCameraMode('crane');
+            camPortCraneBtn.classList.add('active');
+            sceneControls.setCameraMode('port_crane');
         });
 
         if (camVehicleBtn) camVehicleBtn.addEventListener('click', function() {
