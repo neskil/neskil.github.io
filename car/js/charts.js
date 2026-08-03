@@ -273,9 +273,12 @@ function renderChart(results, v) {
        a lender has already declined is still drawn — knowing what it would
        have cost is the point of showing it — but dimmed, labelled with the
        reason, and out of the running. */
-    const best = cheapestAvailable(results, v).key;
+    /* Sort routes from cheapest to most expensive by active monthly cost. */
+    const sortedOptions = OPTIONS.slice().sort((a, b) =>
+        activePerMonth(results[a.key], v.months) - activePerMonth(results[b.key], v.months)
+    );
 
-    for (const opt of OPTIONS) {
+    for (const opt of sortedOptions) {
         const r = results[opt.key];
         const row = document.createElement('div');
         row.className = 'bar-row';
@@ -387,7 +390,7 @@ function renderChart(results, v) {
         usd0(max) + (runaway ? '+' : '') + '/mo</span>';
     chart.appendChild(axis);
 
-    $('chartDesc').textContent = OPTIONS
+    $('chartDesc').textContent = sortedOptions
         .map((o) => o.label + ': ' + usd0(results[o.key].perMonth) + ' per month')
         .join('. ') + '.';
 
