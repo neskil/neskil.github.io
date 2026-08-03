@@ -66,11 +66,13 @@ const LEVEL_SCHEMA = {
     { key:'allowedTypes',    type:'stringList',default:['normal','red','blue','green'], widget:'text', label:'Allowed Cargo Types', required:true, enumValues:VALID_CARGO_TYPES, desc:'Comma-separated list of cargo types available in this level.', recommended:'normal,red,blue' },
     { key:'heavyCargo',      type:'boolean',   default:false, widget:'checkbox', label:'Heavy Cargo Mode', desc:'If true, all cargo weighs significantly more.', recommended:'Use for late-game challenge levels' },
     { key:'backgroundType',  type:'string',    default:'parallax', widget:'select', label:'Background Style', options:['parallax', 'cave', 'city'], desc:'The visual style of the far background.', recommended:'parallax for outdoors, cave for underground, city for urban areas' },
+    { key:'terrainDecor',    type:'string',    default:'auto', widget:'select', label:'Terrain Decoration', options:['auto', 'rock', 'grass', 'facade', 'none'], desc:"Surface detailing drawn on the terrain polygons themselves. 'rock' is the jagged edge noise most levels use, 'grass' the tufted L1 look, 'facade' turns the silhouette into lit skyscrapers (see the Facade section), 'none' leaves the bare outline. 'auto' keeps the historical behaviour: grass on L1, rock everywhere else.", recommended:"auto, or facade with backgroundType:'city'" },
     { key:'shadowAngle',     type:'number',    default:null, nullable:true, widget:'number', label:'Sun/Shadow Angle', desc:'The angle of the sun for terrain shadows.', recommended:'-1.0 to 1.0 (0 is straight down)' },
     { key:'shadowLength',    type:'number',    default:null, nullable:true, widget:'number', label:'Shadow Length', desc:'The length of terrain shadows cast by the sun.', recommended:'20 - 150' },
     { key:'heatHaze',        type:'boolean',   default:false, widget:'checkbox', label:'Heat Haze Effect', desc:'Applies a wavy distortion shader to the bottom of the screen.', recommended:'Use with ash weather or lava levels' },
     { key:'night',           type:'boolean',   default:false, widget:'checkbox', label:'Night Ops (Dark)', desc:'Darkens the level and enables ship headlights + sonar ping.', recommended:'False' },
     { key:'nightDarkness',   type:'number',    default:0.90, nullable:true, widget:'number', label:'Night Darkness Alpha', step:0.05, desc:'Base opacity (0.00 - 1.00) of the night overlay. Lower values (e.g. 0.35) keep early levels bright while retaining radar sonar pings.', recommended:'0.35 - 0.45 for early levels, 0.90 for total darkness', sliderMin:0, sliderMax:1, sliderStep:0.05 },
+    { key:'returnGauntlet',  type:'boolean',   default:false, widget:'checkbox', label:'Return Gauntlet Escalation', desc:'Accelerates defense laser firing cycles and triggers defense grid alerts upon completing all deliveries.', recommended:'False except for gauntlet levels' },
     // Altitude fog band (render/fog.js + physics/atmosphere.js fogDensityAt).
     // A soft ceiling made of weather: visibility collapses as the lander climbs
     // into it. Inactive unless BOTH Y bounds are set. Distinct from palette.fog.
@@ -153,6 +155,35 @@ const LEVEL_SCHEMA = {
       { key:'r',      type:'number', default:300,  widget:'number', label:'Radius', desc:'Maximum radius the sonar ring expands to before fading.', recommended:'200 - 400', sliderMin:20, sliderMax:800, sliderStep:10 },
       { key:'color',  type:'string', default:'210,100,15', widget:'text', label:'Color', desc:'Bare "r,g,b" string (no rgba() wrapper) — the renderer appends its own alpha.', recommended:'200,100,20 (amber warning tone)' },
       { key:'period', type:'number', default:3800, widget:'number', label:'Period (ms)', desc:'Milliseconds per ping cycle — lower is faster/more urgent.', recommended:'3000 - 4000', sliderMin:500, sliderMax:8000, sliderStep:100 },
+    ]
+  },
+
+  // facade: {...} — optional object tuning `terrainDecor: 'facade'`, which
+  // decorates the terrain polygons themselves into lit skyscrapers rather than
+  // leaving them flat silhouettes (drawTerrainFacades() in render/terrain.js).
+  // Purely cosmetic — no collision or gameplay effect. Ignored unless
+  // terrainDecor is 'facade', and every field has a working default, so
+  // `terrainDecor: 'facade'` on its own is a complete configuration.
+  //
+  // The renderer derives what counts as a "building" from the geometry: for
+  // each column it takes that polygon's own top surface and stops at the
+  // polygon's lowest floor edge, so towers get windows while the street and any
+  // basin floors at ground level are left bare. Nothing to author per-polygon.
+  facade: {
+    fields: [
+      { key:'cellW',      type:'number',  default:34,        widget:'number', label:'Column Pitch', positive:true, desc:'Horizontal spacing of the window lattice, in world px.', recommended:'26 - 44', sliderMin:12, sliderMax:80, sliderStep:2 },
+      { key:'cellH',      type:'number',  default:44,        widget:'number', label:'Row Pitch', positive:true, desc:'Vertical spacing of the window lattice, in world px. Larger values read as taller floors.', recommended:'32 - 56', sliderMin:12, sliderMax:100, sliderStep:2 },
+      { key:'windowW',    type:'number',  default:14,        widget:'number', label:'Window Width', positive:true, desc:'Width of an individual window pane. Must be smaller than the column pitch.', recommended:'~40% of Column Pitch', sliderMin:2, sliderMax:40, sliderStep:1 },
+      { key:'windowH',    type:'number',  default:20,        widget:'number', label:'Window Height', positive:true, desc:'Height of an individual window pane. Must be smaller than the row pitch.', recommended:'~45% of Row Pitch', sliderMin:2, sliderMax:60, sliderStep:1 },
+      { key:'litChance',  type:'number',  default:0.45,      widget:'number', label:'Lit Fraction', step:0.05, desc:'Share of windows that are lit. 0 leaves a dark grid of empty panes, 1 lights every one.', recommended:'0.3 - 0.6', sliderMin:0, sliderMax:1, sliderStep:0.05 },
+      { key:'warmRatio',  type:'number',  default:0.5,       widget:'number', label:'Warm/Cool Mix', step:0.05, desc:'Share of the lit windows using the warm colour rather than the cool one.', recommended:'0.4 - 0.7', sliderMin:0, sliderMax:1, sliderStep:0.05 },
+      { key:'warmColor',  type:'color',   default:'#fdba74', widget:'color',  label:'Warm Light', desc:'Colour of warm-lit windows.', recommended:'Amber/sodium tones' },
+      { key:'coolColor',  type:'color',   default:'#7dd3fc', widget:'color',  label:'Cool Light', desc:'Colour of cool-lit windows.', recommended:'Match the palette rockEdge' },
+      { key:'flicker',    type:'number',  default:0.06,      widget:'number', label:'Flicker Fraction', step:0.02, desc:'Share of lit windows that slowly pulse. Keep low — it is per-window animation.', recommended:'0 - 0.1', sliderMin:0, sliderMax:0.4, sliderStep:0.02 },
+      { key:'depth',      type:'number',  default:280,       widget:'number', label:'Shade Depth', positive:true, desc:'How far below a roof the interior shading gradient fades out, in world px. Gives the silhouette some solidity.', recommended:'180 - 400', sliderMin:40, sliderMax:900, sliderStep:20 },
+      { key:'groundReach', type:'number', default:500,       widget:'number', label:'Ground Search', positive:true, desc:'How far sideways to look for the street a tower stands on, in world px. Windows stop at the lowest floor found within this distance, so each tower ends at its own ground line instead of one flat cutoff across the map. Raise it if towers sit far from any lower ground.', recommended:'400 - 700', sliderMin:100, sliderMax:2000, sliderStep:50 },
+      { key:'parapet',    type:'boolean', default:true,      widget:'checkbox', label:'Roof Parapets', desc:'Draws a cornice band just under each roof edge.' },
+      { key:'mullions',   type:'boolean', default:true,      widget:'checkbox', label:'Mullions', desc:'Draws faint vertical pilaster lines between window columns.' },
     ]
   },
 

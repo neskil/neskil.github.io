@@ -8,6 +8,130 @@ backlog" section.
 
 ---
 
+## 2026-08-02 — Terrain decoration: skyscraper facades on the geometry (v0.22.0)
+
+L5 read as flat black slabs with a cyan outline — the terrain *was* the city, but
+nothing said so, and the default rock-edge noise (a jagged line traced along the
+surface) looked like wobbly concrete on a skyline.
+
+**New: `terrainDecor`** — a level-config scalar picking what `drawTerrain()`
+draws on the surface: `rock`, `grass`, `facade`, `none`, or `auto`. `auto` is the
+default and reproduces the rule the renderer used to hard-code (`grass` when
+`currentLevelIndex === 0`, rock otherwise), so no existing level changed; a test
+pins that. It also retires the level-index check, which was the same
+brittle pattern that left L5 drawing crystal-cavern easter eggs after it stopped
+being a cavern.
+
+**`facade`** glazes the silhouette into lit skyscrapers: window lattice, warm/cool
+lit panes with a slow flicker, mullions, roof parapets, and an under-roof shading
+gradient. Nothing is authored per-polygon — the renderer derives the buildings
+from the geometry. Two things that matter:
+
+- Per column it uses that polygon's OWN topmost floor, not
+  `physics.getPolygonSurfaceY()`, which returns the lowest surface across all
+  polygons — that would hang every tower's windows off the street.
+- Windows stop at the lowest floor within `facade.groundReach` (500px) sideways,
+  not at the polygon's global lowest floor. The first attempt used the global
+  floor and drew one dead-flat line of windows straight across the map at
+  y=1420, which looked like a waterline. Each tower has to terminate at its own
+  street.
+
+Cheaper than what it replaces: 0.18ms/frame against the rock-noise branch's
+0.26ms at zoom 0.6, 0.23ms at zoom 0.3, because panes are batched into three
+`fillStyle` groups and the under-roof gradient is built once and `translate()`d
+per roof rather than rebuilt per edge per frame.
+
+Wired through the whole chain rather than bolted onto the renderer:
+`LEVEL_SCHEMA` gains the `terrainDecor` field plus a full `facade` section (12
+fields), which the level editor turns into a generated panel automatically —
+build/toggle/set/load/export follow the existing windGust pattern, and the
+load-sync is written off the schema so a future facade field needs no editor
+edit. `tests.html` validates the section per level (including pane-vs-cell
+sizing, 0..1 ranges, and that a `facade` block can't sit on a level whose
+`terrainDecor` isn't `'facade'`), covers the geometry helpers, and renders every
+decor mode to catch a broken branch.
+
+One consequence worth knowing: the renderer now reads defaults from
+`LEVEL_SCHEMA`, so `levels/levelSchema.js` is loaded by `index.html` too, not
+just the editor and tests. That keeps one home for defaults instead of mirroring
+them into `render/terrain.js`.
+
+Also removed L5's underground crystal formations. `drawUnderground()` runs
+*before* `drawTerrain()`, so it only shows through gaps in the fill — and the
+rebuilt city has an opaque contiguous fill below street level, making them dead
+draw calls rather than a visual bug.
+
+---
+
+## 2026-08-02 — Comprehensive gameplay & visual overhaul for Levels 7, 8, 9, and 10 + Return Gauntlet mechanics (v0.21.0)
+
+Executed comprehensive upgrades across the final four campaign missions to match late-game aesthetic and mechanics standards:
+
+- **Level 7 (The Deep Haul)**: Added a glowing cyan/emerald ceiling fog band, introduced repulsor wind chutes inside the S-curve squeeze, placed 5 mid-air exploration collectibles across the 4.2 km run, and added subterranean bioluminescent root/mycelium networks.
+- **Level 8 (Orbital Gauntlet)**: Implemented the open backlog feature "return-gauntlet escalation" (`returnGauntlet: true`), triggering accelerated defense grid laser cycles upon delivering the final cargo crate. Placed 4 high-stakes void collectibles inside beams and orbital wells, and added derelict superstructure trusses sparking below the platforms.
+- **Level 9 (The Cauldron)**: Overhauled weather from contradictory cold snow to rising volcanic embers (`weather: 'ash'`) with thermal distortion (`heatHaze: true`). Upgraded the central pit's sandworm from legacy defaults to a fast, tenacious tracking predator (`_sandWormTuning`). Placed a high-reward cash diamond suspended above the acid lake inside the gravity well, and added bubbling magma fractures below the ground.
+- **Level 10 (The Crystal Caves)**: Added an embedded third rock crusher for an alternating rhythmic sequence, introduced a pulsing Crystal Resonance Well gravity anomaly, added 5 glow-in-the-dark collectibles that project soft halos through total darkness (`render/night.js`), and expanded subterranean crystal lattice formations.
+
+## 2026-08-02 — L6 playtest pass: three hazards, three altitudes (v0.20.4, shipped in v0.21.1)
+
+Feedback on the first L6 difficulty pass: *"sand worm too aggressive and quick.
+the fog effect starts too far down. traffic too far up, fog should not activate
+in the pit. lair should be a bit more hinting of a lair. sand worm might come
+out and not lunge all the time, it can be random, like threatening."*
+
+All of it came from the same mistake: the first pass stacked the dust ceiling,
+the freight lane and the worm's reach into one blurry column of sky, so every
+hazard was in your face at once and none of them read. They now own three
+separate slabs:
+
+| band | what lives there |
+|---|---|
+| `y < 150` | dust ceiling — whiteout by -180, grit abrasion. Starts ~280px above the plateaus, so the valley and the pit never get dust on screen. |
+| `y 170-380` | freight corridor, in **clear air** — terrain clearance clamps trucks to ~290 over the plateaus, i.e. the line you'd fly anyway. |
+| `y > 387` | worm zone — a 300px circle recentred on (900, 687). |
+
+**The zone, not the arc, is what separates worm from traffic.** The first attempt
+tried to shorten the strike until it stopped reaching the lane, which does not
+work: the mound peak (y:520) is close enough to the corridor that any leap worth
+watching overshoots it. Dropping the hazard centroid from (900, 580) to
+(900, 687) instead puts the zone *ceiling* at y:387 — below the lane — so a
+corridor crossing never summons a worm, while the circle still covers the peak
+and both valley floors. The arc may still carry above the zone once it's out;
+that's deliberate and it can't be triggered from up there.
+
+**The worm.** Calmed to ~370px of reach (was ~600): 6 frames of homing at up to
+30, then `decay: 0.86`. Worth noting for future tuning — reach is *not* just
+`lungeSpeed / (1 - decay)`; the homing phase accelerates toward `maxSpeed` first
+and adds roughly `trackFrames × maxSpeed` on top, which is what made the first
+pass twice as long-ranged as its own comment claimed. `cooldownFrames: 150`
+counts from full withdrawal (not from spawn — the `!this.sandWorm` guard already
+covers the strike itself), so the zone genuinely goes quiet between appearances.
+
+**Bluffs.** New `bluffChance` (0.55 on L6): over half of all surfacings are
+threat displays. A bluff launches at `bluffSpeedScale × lungeSpeed`, never homes,
+and pauses in a new `holding` state — swaying at the top of its arc — before
+sinking back. It still bites on contact, it just doesn't chase. The real strikes
+land because most of what you see is posturing.
+
+**The lair.** New `drawWormLair()` (`render/creatures.js`) dresses any `sandworm`
+hazard's ground: burrow mouths punched into the slope with lit rims and heaped
+spoil, half-buried rib clusters, and a scoured dark wash that fades out at the
+zone edge. Burrows breathe and sand trickles off the lips while the creature is
+out. All positions hash off world X rather than `Math.random()`, so nothing
+crawls between frames.
+
+Verified headless: 154/154 tests — including a rewritten strike test that pins
+the *zone ceiling* against the lane floor rather than the arc, plus new bluff
+(reaches `holding`, stops short of a committed strike) and cooldown (real quiet
+gaps under an always-passing spawn roll) coverage. `tests.html` now scripts
+`Math.random` in call order (chance → spawnX → bluff) instead of stubbing a
+constant, which would silently turn every strike test into a bluff test. New
+`probe-screenshot.html?script=wormWatch` freezes the creature mid-surface for
+visual checks; `&script=dustLane&laneY=680` confirms zero fog density and zero
+hull loss down in the pit.
+
+---
+
 ## 2026-08-02 — Level 4 map geometry scaled down ~35% for shorter flight distances (v0.20.3)
 
 Reported as "meant literally scale down, like the distances you fly".

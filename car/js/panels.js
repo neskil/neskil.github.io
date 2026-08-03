@@ -83,6 +83,9 @@ function cheapestAvailable(results, v) {
 
 function renderTable(results, v) {
     const totalMiles = ((v.miles || 12000) / 12) * v.months;
+    const sortedOptions = OPTIONS.slice().sort((a, b) =>
+        activeTotal(results[a.key]) - activeTotal(results[b.key])
+    );
     const flexMap = {
         cash: 'Full ownership',
         loan: 'Full ownership',
@@ -94,24 +97,24 @@ function renderTable(results, v) {
 
     const rows = COMPONENTS.map((c) =>
         '<tr><td>' + c.label + '</td>' +
-        OPTIONS.map((o) => '<td>' + usd(results[o.key].components[c.key]) + '</td>').join('') +
+        sortedOptions.map((o) => '<td>' + usd(results[o.key].components[c.key]) + '</td>').join('') +
         '</tr>').join('');
 
     $('tableWrap').innerHTML =
         '<table><caption class="sr-only">Total cost by component over ' + v.months + ' months</caption>' +
         '<thead><tr><th scope="col">Component / Metric</th>' +
-        OPTIONS.map((o) => '<th scope="col">' + o.label + '</th>').join('') +
+        sortedOptions.map((o) => '<th scope="col">' + o.label + '</th>').join('') +
         '</tr></thead><tbody>' + rows +
         '<tr class="total-row"><td>Total over ' + v.months + ' mo</td>' +
-        OPTIONS.map((o) => '<td>' + usd(results[o.key].total) + '</td>').join('') + '</tr>' +
+        sortedOptions.map((o) => '<td>' + usd(results[o.key].total) + '</td>').join('') + '</tr>' +
         '<tr class="total-row"><td>Per month (all-in)</td>' +
-        OPTIONS.map((o) => '<td>' + usd0(results[o.key].perMonth) + '</td>').join('') + '</tr>' +
+        sortedOptions.map((o) => '<td>' + usd0(results[o.key].perMonth) + '</td>').join('') + '</tr>' +
         '<tr class="total-row"><td>Cost per 1,000 mi</td>' +
-        OPTIONS.map((o) => '<td>' + usd0(totalMiles ? (results[o.key].total / totalMiles) * 1000 : 0) + '</td>').join('') + '</tr>' +
+        sortedOptions.map((o) => '<td>' + usd0(totalMiles ? (results[o.key].total / totalMiles) * 1000 : 0) + '</td>').join('') + '</tr>' +
         '<tr class="total-row"><td>Retained equity / Resale</td>' +
-        OPTIONS.map((o) => '<td>' + usd0(results[o.key].resale || 0) + '</td>').join('') + '</tr>' +
+        sortedOptions.map((o) => '<td>' + usd0(results[o.key].resale || 0) + '</td>').join('') + '</tr>' +
         '<tr class="total-row"><td>Flexibility &amp; Commitment</td>' +
-        OPTIONS.map((o) => '<td><span class="flex-badge" style="font-size:0.75rem;opacity:0.9">' + flexMap[o.key] + '</span></td>').join('') + '</tr>' +
+        sortedOptions.map((o) => '<td><span class="flex-badge" style="font-size:0.75rem;opacity:0.9">' + flexMap[o.key] + '</span></td>').join('') + '</tr>' +
         '</tbody></table>';
 }
 

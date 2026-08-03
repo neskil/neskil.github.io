@@ -314,15 +314,23 @@ const CargoPhysicsAtmosphereMixin = {
     //   retractSpeed — how fast it withdraws to its burrow afterwards
     //   hitRadius    — contact radius against the lander, world px
     //   damage       — hull points per frame while inside hitRadius
+    //   lungeSpeed   — launch speed out of the sand
+    //   cooldownFrames — quiet frames after it fully withdraws before the zone
+    //                  may roll another surfacing
+    //
+    // Bluffs (see the spawn block) are configured on the hazard, not here:
+    // `bluffChance` / `bluffSpeedScale` / `bluffHoldFrames`.
     _sandWormTuning(h) {
         return {
-            trackFrames:  h?.trackFrames  ?? 1.2,
-            steer:        h?.steer        ?? 2.5,
-            maxSpeed:     h?.maxSpeed     ?? 50,
-            decay:        h?.decay        ?? 0.88,
-            retractSpeed: h?.retractSpeed ?? 12,
-            hitRadius:    h?.hitRadius    ?? 80,
-            damage:       h?.damage       ?? 8,
+            trackFrames:    h?.trackFrames    ?? 1.2,
+            steer:          h?.steer          ?? 2.5,
+            maxSpeed:       h?.maxSpeed       ?? 50,
+            decay:          h?.decay          ?? 0.88,
+            retractSpeed:   h?.retractSpeed   ?? 12,
+            hitRadius:      h?.hitRadius      ?? 80,
+            damage:         h?.damage         ?? 8,
+            lungeSpeed:     h?.lungeSpeed     ?? 38,
+            cooldownFrames: h?.cooldownFrames ?? 0,
         };
     },
 
@@ -638,18 +646,35 @@ const CargoPhysicsAtmosphereMixin = {
                     }
                 }
 
-                if (inWormZone) {
+                // Breathing room between appearances. Without it a zone with a
+                // high proximity multiplier re-rolls the instant the previous
+                // worm finishes retracting, so the creature reads as a constant
+                // stream rather than something that surfaces and submerges.
+                // Default 0 keeps the original back-to-back behavior.
+                if (this.wormCooldown > 0) this.wormCooldown -= dt;
+
+                if (inWormZone && this.wormCooldown <= 0) {
                     if (Math.random() < riskMultiplier * 0.007 * dt) {
                         // Spawn near the lander's X so it's always a threat
                         const spawnX = lander.x + (Math.random() - 0.5) * 160;
                         const surfY  = this.getPolygonSurfaceY(spawnX);
                         const spawnY = surfY !== null ? surfY + 20 : lander.y + 100;
 
+                        // Not every surfacing is a committed strike. A bluff rears
+                        // up out of the sand, holds, and sinks back without ever
+                        // tracking — the threat display that makes the real lunges
+                        // land, and stops the zone from being a metronome. It can
+                        // still hurt if you park on top of the burrow.
+                        const tuning = this._sandWormTuning(zoneHazard);
+                        const isBluff = Math.random() < (zoneHazard?.bluffChance ?? 0);
+                        const speed = isBluff
+                            ? tuning.lungeSpeed * (zoneHazard?.bluffSpeedScale ?? 0.5)
+                            : tuning.lungeSpeed;
+
                         // Aim toward lander's current position
                         const dxL = lander.x - spawnX;
                         const dyL = lander.y - spawnY;
                         const distL = Math.max(1, Math.hypot(dxL, dyL));
-                        const speed = zoneHazard?.lungeSpeed ?? 38; // fast lunge
                         this.sandWorm = {
                             x: spawnX, y: spawnY,
                             vx: (dxL / distL) * speed,
@@ -660,7 +685,11 @@ const CargoPhysicsAtmosphereMixin = {
                             length: zoneHazard?.wormLength ?? 35,
                             spawnY: spawnY,  // remember surface Y for retract target
                             spawnX: spawnX,
-                            ...this._sandWormTuning(zoneHazard),
+                            ...tuning,
+                            isBluff,
+                            // A bluff never homes and pauses at the top of its arc
+                            trackFrames: isBluff ? 0 : tuning.trackFrames,
+                            holdFrames: isBluff ? (zoneHazard?.bluffHoldFrames ?? 26) : 0,
                         };
                         if (window.CargoAudio) CargoAudio.playCrash();
                     }
@@ -721,9 +750,20 @@ const CargoPhysicsAtmosphereMixin = {
                         w.vy *= Math.pow(w.decay, dt);
                         const spd = Math.hypot(w.vx, w.vy);
                         if (spd < 4) {
-                            w.state = 'retracting';
+                            // A bluff hangs at the top of its arc before sinking —
+                            // that pause is the whole threat display. A committed
+                            // strike has holdFrames 0 and withdraws immediately.
+                            w.state = w.holdFrames > 0 ? 'holding' : 'retracting';
+                            w.holdTimer = 0;
                         }
                     }
+                } else if (w.state === 'holding') {
+                    // Reared up out of the sand, swaying, not chasing.
+                    w.vx *= Math.pow(0.86, dt);
+                    w.vy *= Math.pow(0.86, dt);
+                    w.vy += Math.sin(w.holdTimer * 0.12) * 0.35 * dt;
+                    w.holdTimer += dt;
+                    if (w.holdTimer >= w.holdFrames) w.state = 'retracting';
                 } else {
                     // Retract: move back toward spawn point steadily
                     const dxS = w.spawnX - w.x;
@@ -732,8 +772,12 @@ const CargoPhysicsAtmosphereMixin = {
                     const retractSpeed = w.retractSpeed;
                     w.vx = (dxS / distS) * retractSpeed;
                     w.vy = (dyS / distS) * retractSpeed;
-                    // Despawn when close to spawn
+                    // Despawn when close to spawn. The cooldown starts here, not
+                    // at spawn — the `!this.sandWorm` guard already blocks
+                    // overlapping worms, so counting from spawn would be almost
+                    // entirely eaten by the strike itself.
                     if (distS < 30) {
+                        this.wormCooldown = w.cooldownFrames || 0;
                         this.sandWorm = null;
                     }
                 }
@@ -783,9 +827,17 @@ const CargoPhysicsAtmosphereMixin = {
                 if (h.type !== 'laser') continue;
                 if (!h.pts || h.pts.length < 2) continue;
 
-                const onMs = h.onMs ?? 1400;
-                const offMs = h.offMs ?? 1600;
-                const warnMs = h.warnMs ?? 500;
+                const inReturnGauntlet = Boolean(
+                    window.game &&
+                    window.game.currentLevelIndex != null &&
+                    typeof levels !== 'undefined' &&
+                    levels[window.game.currentLevelIndex]?.returnGauntlet &&
+                    window.game.deliveredCount >= (levels[window.game.currentLevelIndex]?.targetCargo || 99)
+                );
+
+                const onMs = (inReturnGauntlet && h.onReturn?.onMs) ?? h.onMs ?? 1400;
+                const offMs = (inReturnGauntlet && h.onReturn?.offMs) ?? h.offMs ?? 1600;
+                const warnMs = (inReturnGauntlet && h.onReturn?.warnMs) ?? h.warnMs ?? 500;
                 const period = onMs + offMs;
                 const t = ((this.hazardTime + (h.phaseOffset || 0)) % period + period) % period;
                 // Active window is the tail end of the "off" phase (charge-up) +

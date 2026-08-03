@@ -527,10 +527,10 @@ function scenarioSixt(v) {
     });
 }
 
-/* Flexcar's tile is a car line plus a mandatory protection plan, and the
-   two fees it does not show: a $249 annual membership covering servicing
-   and roadside, and a delivery charge that ranges from $199 to $874
-   depending on where the car happens to be. */
+/* Flexcar's tile is a car line plus a mandatory protection plan, local taxes,
+   and a required $249 annual membership covering servicing and roadside.
+   Local vehicles have no delivery fee ($0); delivery charges only apply if
+   you opt for an out-of-state vehicle to be shipped to you. */
 function scenarioFlexcar(v) {
     const tier = FLEXCAR_TIERS[v.flexTier] || FLEXCAR_TIERS.standard;
     const cred = CREDIT_TIERS[creditTier] || CREDIT_TIERS.prime;

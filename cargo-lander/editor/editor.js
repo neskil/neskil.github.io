@@ -359,7 +359,7 @@ function buildMetaPanel() {
     info: ['name', 'missionTitle', 'description', 'hint'],
     objectives: ['targetCargo', 'allowedTypes', 'heavyCargo'],
     weather: ['weather', 'heatHaze', 'gravity', 'wind', 'windVarianceEnabled', 'windVarianceAmount', 'windVarianceSpeed'],
-    looksTop: ['backgroundType', 'night'],
+    looksTop: ['backgroundType', 'terrainDecor', 'night'],
     looksBottom: ['shadowAngle', 'shadowLength'],
     rules: ['deposit', 'timeLimit', 'padScale', 'terrainType'],
     traffic: ['ambientTrafficRate', 'ambientTrafficSpeed', 'ambientTrafficMinY', 'ambientTrafficMaxY']
@@ -413,6 +413,10 @@ function buildWindGustPanel() {
   document.getElementById('windgust-fields').innerHTML = LEVEL_SCHEMA.windGust.fields
     .map(f => schemaFieldRowHTML('setWindGust', 'windgust-', f)).join('');
 }
+function buildFacadePanel() {
+  document.getElementById('facade-fields').innerHTML = LEVEL_SCHEMA.facade.fields
+    .map(f => schemaFieldRowHTML('setFacade', 'facade-', f)).join('');
+}
 
 const _undoStack = [];
 const _redoStack = [];
@@ -446,6 +450,7 @@ function _restoreState() {
   buildGWPanel();
   buildRadarPanel();
   buildWindGustPanel();
+  buildFacadePanel();
   if (typeof updateEntityPanel === 'function') updateEntityPanel();
   if (typeof updateHubUI === 'function') updateHubUI();
   if (typeof renderCollectibleAddRow === 'function') renderCollectibleAddRow();
@@ -468,6 +473,7 @@ let S = {
   gravWell: null, // {x,y,radius,orbitRadius,strength}
   radarZone: null, // {cx,cy,r,color,period} — purely visual sonar-ring overlay
   windGust: null, // {calm,warn,gust,gustMult} — optional calm/warning/gust wind cycle
+  facade: null,   // LEVEL_SCHEMA.facade — skyscraper glazing for terrainDecor:'facade'
   oob: null,      // {type,color,mistColor,surfaceY,drag,buoyancy} — the fluid zone
   worldBounds: null, // {ceilingY,ceilingAction,leftMargin,rightMargin,lateralAction,bottomY,bottomAction}
   palette: Object.assign({}, DEFAULT_PAL),
@@ -504,6 +510,7 @@ buildWorldBoundsPanel();
 buildGWPanel();
 buildRadarPanel();
 buildWindGustPanel();
+buildFacadePanel();
 
 // ── Shape-layer helpers (terrain / water / hazard share the same editing code) ─
 function listForLayer(layer) {
@@ -648,6 +655,40 @@ function toggleWindGust() {
   draw(); updateOut();
 }
 function setWindGust(k, v) { snapshot(); if (S.windGust) { S.windGust[k] = v; } draw(); updateOut(); }
+
+// Facade glazing. Only meaningful alongside terrainDecor:'facade' (the renderer
+// ignores it otherwise), but the section is authored independently so a level
+// can keep its tuning while toggling the decoration off.
+function toggleFacade() {
+  snapshot();
+  const en = document.getElementById('facade-enable').checked;
+  document.getElementById('facade-fields').style.display = en ? 'flex' : 'none';
+  if (en && !S.facade) {
+    S.facade = {};
+    LEVEL_SCHEMA.facade.fields.forEach(f => S.facade[f.key] = f.default);
+  } else if (!en) S.facade = null;
+  syncFacadeUI();
+  syncAllSliders();
+  draw(); updateOut();
+}
+function setFacade(k, v) { snapshot(); if (S.facade) { S.facade[k] = v; } draw(); updateOut(); }
+
+// Pushes S.facade into the generated inputs. Written off the schema rather than
+// id-by-id so a new facade field needs no edit here.
+function syncFacadeUI() {
+  const on = !!S.facade;
+  const cb = document.getElementById('facade-enable');
+  if (cb) cb.checked = on;
+  const box = document.getElementById('facade-fields');
+  if (box) box.style.display = on ? 'flex' : 'none';
+  if (!on) return;
+  LEVEL_SCHEMA.facade.fields.forEach(f => {
+    const el = document.getElementById('facade-' + f.key);
+    if (!el) return;
+    const v = S.facade[f.key] !== undefined ? S.facade[f.key] : f.default;
+    if (f.widget === 'checkbox') el.checked = !!v; else el.value = v ?? '';
+  });
+}
 
 function toggleWorldBounds() {
   snapshot();
@@ -972,6 +1013,7 @@ function applyConfig(cfg) {
   S.collectibles = (cfg.collectibles || []).map(c => ({...c}));
   S.radarZone = cfg.radarPingZone || null;
   S.windGust = cfg.windGust || null;
+  S.facade = cfg.facade ? {...cfg.facade} : null;
   // L9-style shorthand: `outOfBounds: true` instead of a full config object.
   // Treated as an empty-but-enabled object internally (so the panel/rendering
   // code that reads S.oob.<field> keeps working unmodified) with a flag that
@@ -1112,6 +1154,8 @@ function applyConfig(cfg) {
     document.getElementById('windgust-fields').style.display = 'none';
   }
 
+  syncFacadeUI();
+
   populatePaletteUI();
   updateHubUI();
   updateCollectibleUI();
@@ -1184,7 +1228,7 @@ function hazardToShape(h, i) {
 }
 
 function resetState() {
-  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.collectibles=[]; S.gravWell=null; S.radarZone=null; S.windGust=null; S.oob=null; S.oobIsBoolean=false;
+  S.polygons=[]; S.waterPolys=[]; S.hazardPolys=[]; S.segments=[]; S.hubs=[]; S.collectibles=[]; S.gravWell=null; S.radarZone=null; S.windGust=null; S.facade=null; S.oob=null; S.oobIsBoolean=false;
   S.palette=Object.assign({},DEFAULT_PAL); S.startX=0; S.startY=null; S.collectionX=null; S.collectionY=null;
   S.padScale=1; S.levelName=''; S.selLayer='terrain'; S.selPoly=-1; S.selPt=-1;
   document.getElementById('lvl-overlay').style.display='none';
@@ -3143,6 +3187,16 @@ function buildOut() {
   if (S.windGust) {
     lines.push(`  windGust: {`);
     Object.entries(S.windGust).forEach(([k,v]) => {
+      if (v == null || v === '') return;
+      lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
+    });
+    lines.push(`  },`);
+  }
+
+  // Facade glazing (terrainDecor: 'facade')
+  if (S.facade) {
+    lines.push(`  facade: {`);
+    Object.entries(S.facade).forEach(([k,v]) => {
       if (v == null || v === '') return;
       lines.push(`    ${k}: ${typeof v === 'string' ? JSON.stringify(v) : v},`);
     });
