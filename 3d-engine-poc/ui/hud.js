@@ -184,10 +184,20 @@
     };
 
     MissionHUD.prototype.flashReason = function (text) {
+        this.flashMessage(text, false);
+    };
+
+    /** Same banner, green, for contract payouts. */
+    MissionHUD.prototype.flashSuccess = function (text) {
+        this.flashMessage(text, true);
+    };
+
+    MissionHUD.prototype.flashMessage = function (text, good) {
         this.flash.textContent = text;
+        this.flash.classList.toggle('good', !!good);
         this.flash.classList.add('visible');
         clearTimeout(this._flashTimer);
-        this._flashTimer = setTimeout(this.clearFlash.bind(this), 2200);
+        this._flashTimer = setTimeout(this.clearFlash.bind(this), 2400);
     };
 
     MissionHUD.prototype.clearFlash = function () {
@@ -200,6 +210,7 @@
         this.root = el('sandbox-hud');
         this.toolbar = el('sandbox-toolbar');
         this.inspector = el('inspector-panel');
+        this.contracts = el('contracts-card');
     }
 
     SandboxHUD.prototype.show = function () {
@@ -210,7 +221,55 @@
     SandboxHUD.prototype.hide = function () {
         this.root.classList.add('hidden');
         this.toolbar.classList.add('hidden');
+        this.contracts.classList.add('hidden');
         this.hideInspector();
+    };
+
+    /** The optional job board: capital, reputation, active order, upgrades. */
+    SandboxHUD.prototype.updateContracts = function (s) {
+        this.contracts.classList.toggle('hidden', !s.running);
+        if (!s.running) return;
+
+        el('ct-money').textContent = '$' + s.money.toLocaleString();
+        el('ct-rating').textContent = s.ratingLabel + ' (' + s.rating + '%)';
+        el('ct-delivered').textContent = s.delivered;
+
+        const contract = s.contract;
+        if (contract) {
+            el('ct-title').textContent = contract.title;
+            el('ct-desc').textContent = contract.desc;
+            el('ct-payout').textContent = 'Reward $' + contract.payout.toLocaleString();
+
+            const left = Math.ceil(contract.timeRemaining);
+            const timer = el('ct-timer');
+            timer.textContent = '⏳ ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+            timer.classList.toggle('urgent', left <= 30);
+
+            el('ct-progress').style.width = (contract.timeRemaining / contract.duration * 100) + '%';
+        }
+
+        // This runs every frame. Rebuilding the buttons each tick would detach
+        // whatever the player is mid-click on, so only redraw when the state
+        // they encode actually changes.
+        const upgrades = Cargo3D.Contracts.UPGRADES;
+        const keys = Object.keys(upgrades);
+        const signature = keys.map(function (key) {
+            return (s.upgrades[key] ? 'o' : '') + (s.money >= upgrades[key].cost ? 'a' : '');
+        }).join('|');
+
+        if (signature === this._upgradeSignature) return;
+        this._upgradeSignature = signature;
+
+        el('ct-upgrades').innerHTML = keys.map(function (key) {
+            const u = upgrades[key];
+            const owned = s.upgrades[key];
+            const afford = s.money >= u.cost;
+            return '<button class="upgrade-btn' + (owned ? ' owned' : '') + '" data-upgrade="' + key + '"' +
+                (owned || !afford ? ' disabled' : '') + ' title="' + u.note + '">' +
+                '<span class="up-label">' + u.label + '</span>' +
+                '<span class="up-cost">' + (owned ? 'owned' : '$' + u.cost.toLocaleString()) + '</span>' +
+                '</button>';
+        }).join('');
     };
 
     SandboxHUD.prototype.update = function (m) {

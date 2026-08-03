@@ -53,6 +53,8 @@
         this.app.terminal.setVisible(true);
         this.app.sceneView.setMastsVisible(false);
         this.app.vehicle.setEnabled(false);
+        this.app.crane.setEnabled(false);
+        this.app.crane.setVisible(false);
         this.app.weather.set('dusk');
         this.app.cameraRig.frameBay(bay);
         this.app.cameraRig.setMode('orbit', true);
@@ -86,6 +88,7 @@
         this.effects = new Cargo3D.Effects(this.sceneView);
         this.terminal = new Cargo3D.TerminalProps(this.sceneView);
         this.vehicle = new Cargo3D.ReachStacker(this.sceneView);
+        this.crane = new Cargo3D.PortCrane(this.sceneView);
         this.cameraRig = new Cargo3D.CameraRig(this.sceneView);
 
         this.modes = {
@@ -133,6 +136,7 @@
             if (self.mode && self.mode.update) self.mode.update(delta);
             self.cameraRig.update(delta);
             self.vehicle.update(delta);
+            self.crane.update(delta);
             self.weather.update(delta);
             self.effects.update(delta);
             self.sceneView.render();

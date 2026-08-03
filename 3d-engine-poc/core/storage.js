@@ -24,7 +24,10 @@
             version: SAVE_VERSION,
             missions: {},
             settings: { muted: false, weather: 'day', showGrid: true },
-            stats: { unitsPlaced: 0, missionsRun: 0 }
+            stats: { unitsPlaced: 0, missionsRun: 0 },
+            // Sandbox contract economy — see core/contracts.js. Only the
+            // durable parts are stored; the active order is not resumed.
+            contracts: null
         };
     }
 
@@ -104,6 +107,23 @@
         return !!(prev && prev.completed);
     }
 
+    /** Durable half of the contract economy: capital, reputation, upgrades. */
+    function getContracts() {
+        return read().contracts;
+    }
+
+    function saveContracts(state) {
+        const data = read();
+        data.contracts = state ? {
+            money: state.money,
+            delivered: state.delivered,
+            rating: state.rating,
+            upgrades: Object.assign({}, state.upgrades)
+        } : null;
+        write(data);
+        return data.contracts;
+    }
+
     function getSettings() {
         return read().settings;
     }
@@ -155,6 +175,8 @@
         missionRecord: missionRecord,
         recordResult: recordResult,
         isUnlocked: isUnlocked,
+        getContracts: getContracts,
+        saveContracts: saveContracts,
         getSettings: getSettings,
         saveSettings: saveSettings,
         summary: summary,

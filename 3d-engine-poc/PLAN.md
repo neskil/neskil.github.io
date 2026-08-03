@@ -138,10 +138,21 @@ any medal. Bay grows, manifest lengthens, one new rule at a time:
 | 11 | Tight Bay | 5×4×5 | Narrow footprint, tall stacking |
 | 12 | Yard Master | 8×5×5 | Full rule set, 28 units |
 
-**Sandbox** — the current POC, preserved and unrestricted: free spawn, reach
-stacker driving, train unloading, weather, X-ray, heatmap. No scoring, no rules.
-This is the mode where the engine gets shown off; the campaign is where it gets
-played.
+**Sandbox** — the POC, preserved and unrestricted: free spawn, weather, X-ray,
+heatmap, train unloading, and two drivable machines — the reach stacker and the
+rail-mounted gantry crane, which spans the tracks and can lift a container
+straight off a flatcar. Only one holds the keyboard at a time. No grid, no
+placement rules.
+
+**Contracts** — an optional layer on top of sandbox, and the one place the game
+has an economy. Timed delivery orders name a zone on the apron and a payout;
+move cargo into it before the clock runs out and you are paid, miss it and you
+lose capital and reputation. Earnings buy machine upgrades. Cargo already parked
+in a zone when the order lands is discounted — an order has to be *delivered*.
+
+It stays deliberately separate from the campaign's envelope score: one rewards
+speed and hauling, the other rewards deliberation and geometry. Mixing them
+would make both worse.
 
 **Daily / seeded run** *(roadmap)* — the same manifest for everyone on a given
 date, derived from `seedFromDate()`. The deterministic manifest generator is
@@ -200,7 +211,8 @@ Load order matters (plain `<script>` tags, no bundler, per house style):
 - Campaign with 12 line missions, computed par, medals, localStorage progress
 - Grid placement with gravity, ghost preview, rotation, undo
 - Live envelope wireframe, mission HUD, queue lookahead, scorecard
-- Sandbox mode preserved with all POC toys
+- Sandbox mode preserved with all POC toys, plus the gantry crane and the
+  contracts economy folded into the new architecture
 - Landing-page card rewritten, wired to campaign progress
 
 **Next**

@@ -371,12 +371,111 @@
 
 .reason-flash.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
+.reason-flash.good {
+    background: rgba(6, 78, 59, 0.92);
+    border-color: rgba(52, 211, 153, 0.55);
+    color: #d1fae5;
+}
+
+/* ── contracts (sandbox job board) ───────────────────────────────────── */
+
+.metric-val.gold { color: var(--gold); }
+
+.contract-box {
+    margin: 12px 0 10px;
+    padding: 11px;
+    border-radius: 10px;
+    background: rgba(56, 189, 248, 0.07);
+    border: 1px solid rgba(56, 189, 248, 0.22);
+}
+
+.contract-box h4 {
+    font-family: var(--font-heading);
+    font-size: 0.86rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    line-height: 1.35;
+}
+
+.contract-box p {
+    font-size: 0.75rem;
+    color: var(--text-sub);
+    line-height: 1.45;
+    margin-bottom: 9px;
+}
+
+.contract-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.tag-reward { color: var(--accent-green); }
+.tag-timer { color: var(--text-sub); }
+.tag-timer.urgent { color: #fca5a5; }
+
+.contract-progress {
+    height: 4px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.09);
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.contract-progress span {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-indigo));
+    transition: width 0.3s linear;
+}
+
+.upgrade-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.upgrade-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 9px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.upgrade-btn:hover:not(:disabled) { background: rgba(56, 189, 248, 0.16); }
+.upgrade-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.upgrade-btn.owned {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.12);
+    opacity: 0.85;
+}
+
+.up-label { font-weight: 600; }
+.up-cost { font-family: var(--font-heading); font-weight: 700; color: var(--gold); }
+.upgrade-btn.owned .up-cost { color: var(--accent-green); }
+
 /* ── inspector ───────────────────────────────────────────────────────── */
 
+/* Sandbox keeps its stats (and the job board) on the right, so the inspector
+   takes the left column that the mission queue would otherwise occupy. */
 .inspector-card {
     position: absolute;
     top: 78px;
-    right: 14px;
+    left: 14px;
     width: 268px;
     z-index: 16;
 }
@@ -406,9 +505,7 @@
 
 .inspector-actions { display: flex; gap: 8px; }
 
-/* Sandbox stats sit below the inspector so the two never collide. */
 #sandbox-hud { top: 78px; }
-#inspector-panel { top: 330px; }
 
 /* ── responsive ──────────────────────────────────────────────────────── */
 

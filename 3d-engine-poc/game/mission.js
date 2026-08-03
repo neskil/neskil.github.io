@@ -38,6 +38,8 @@
         this.app.terminal.setVisible(false);
         this.app.sceneView.setMastsVisible(false);
         this.app.vehicle.setEnabled(false);
+        this.app.crane.setEnabled(false);
+        this.app.crane.setVisible(false);
         this.app.cameraRig.frameBay(mission.bay);
         this.app.cameraRig.setMode('iso');
 

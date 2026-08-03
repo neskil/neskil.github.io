@@ -150,6 +150,35 @@
     };
 
     /**
+     * Detach the flatcar load nearest a world point and hand the mesh over, in
+     * world space, for a crane to carry. Returns null when nothing is in reach.
+     *
+     * @param {THREE.Vector3} at
+     * @param {number} radius
+     * @returns {THREE.Group|null}
+     */
+    TerminalProps.prototype.liftNearestLoad = function (at, radius) {
+        let bestIndex = -1;
+        let best = radius === undefined ? 6 : radius;
+        const world = new THREE.Vector3();
+
+        for (let i = 0; i < this.flatcarLoads.length; i++) {
+            this.flatcarLoads[i].mesh.getWorldPosition(world);
+            const dist = world.distanceTo(at);
+            if (dist < best) { best = dist; bestIndex = i; }
+        }
+
+        if (bestIndex === -1) return null;
+
+        const entry = this.flatcarLoads.splice(bestIndex, 1)[0];
+        entry.mesh.getWorldPosition(world);
+        if (entry.mesh.parent) entry.mesh.parent.remove(entry.mesh);
+        entry.mesh.position.copy(world);
+        entry.mesh.rotation.set(0, 0, 0);
+        return entry.mesh;
+    };
+
+    /**
      * Take the next 40ft off the train.
      * @returns {{carrier:string}|null} null once the train is empty
      */

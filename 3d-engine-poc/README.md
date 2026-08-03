@@ -33,6 +33,7 @@ with no WebGL context, offline, in a headless browser.
 │   ├── rules.js        terminal regulations as predicates + reasons
 │   ├── scoring.js      envelope volume, par, medals, scorecards
 │   ├── manifest.js     seeded PRNG and manifest generation
+│   ├── contracts.js    sandbox job board: orders, payouts, rating, upgrades
 │   └── storage.js      localStorage progress and settings
 │
 ├── missions/
@@ -46,6 +47,7 @@ with no WebGL context, offline, in a headless browser.
 │   ├── weather.js      atmosphere presets
 │   ├── terminal.js     rail track, train, semi truck
 │   ├── vehicle.js      drivable reach stacker
+│   ├── crane.js        rail-mounted gantry crane (trolley, winch, spreader)
 │   └── effects.js      lock-in rings, medal burst
 │
 ├── game/               loop, input, modes
@@ -54,6 +56,7 @@ with no WebGL context, offline, in a headless browser.
 │   ├── camera.js       named camera rigs with eased transitions
 │   ├── placement.js    pointer → legal grid placement, ghost, rotate, undo
 │   ├── mission.js      campaign mode
+│   ├── contracts.js    binds the job board to the sandbox
 │   └── sandbox.js      free-build mode
 │
 ├── ui/                 DOM only
@@ -127,9 +130,10 @@ One key, `cargo3d.save.v1`:
 ```js
 {
   version: 1,
-  missions: { m01: { plays, best, medal, completed, lastEnvelope, par, updatedAt } },
-  settings: { muted, weather, showGrid },
-  stats:    { unitsPlaced, missionsRun }
+  missions:  { m01: { plays, best, medal, completed, lastEnvelope, par, updatedAt } },
+  settings:  { muted, weather, showGrid },
+  stats:     { unitsPlaced, missionsRun },
+  contracts: { money, delivered, rating, upgrades } | null
 }
 ```
 
