@@ -96,6 +96,7 @@ class CargoPhysics {
         this.ambientTraffic = [];
         this.trafficSpawnTimer = 0;
         this.fogDensity = 0;
+        this.wormCooldown = 0;
         this.segments = levelConfig.segments ? levelConfig.segments.map(s => ({ ...s })) : [];
         this.trafficLanes = null;   // rebuilt lazily off the new terrain (atmosphere.js)
         this._buildMatterWorld();
