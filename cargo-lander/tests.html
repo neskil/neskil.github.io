@@ -295,24 +295,24 @@ window.confirm = () => true;
   'game' singleton is created but init() is NOT called here — tests call it explicitly.
 -->
 <script src="vendor/matter.min.js"></script>
-<script src="levels/levelSchema.js?v=0.20.3"></script>
-<script src="game/upgrades.js?v=0.20.3"></script>
-<script src="levels/levels.js?v=0.20.3"></script>
-<script src="levels/levelGenerator.js?v=0.20.3"></script>
-<script src="levels/level1.js?v=0.20.3"></script>
-<script src="levels/level2.js?v=0.20.3"></script>
-<script src="levels/level3.js?v=0.20.3"></script>
-<script src="levels/level4.js?v=0.20.3"></script>
-<script src="levels/level5.js?v=0.20.3"></script>
-<script src="levels/level6.js?v=0.20.3"></script>
-<script src="levels/level7.js?v=0.20.3"></script>
-<script src="levels/level8.js?v=0.20.3"></script>
-<script src="levels/level9.js?v=0.20.3"></script>
-<script src="levels/level10.js?v=0.20.3"></script>
-<script src="levels/levelTest.js?v=0.20.3"></script>
-<script src="levels/collectibleTypes.js?v=0.20.3"></script>
-<script src="audio.js?v=0.20.3"></script>
-<script src="render/shaders.js?v=0.20.3"></script>
+<script src="levels/levelSchema.js?v=0.22.0"></script>
+<script src="game/upgrades.js?v=0.22.0"></script>
+<script src="levels/levels.js?v=0.22.0"></script>
+<script src="levels/levelGenerator.js?v=0.22.0"></script>
+<script src="levels/level1.js?v=0.22.0"></script>
+<script src="levels/level2.js?v=0.22.0"></script>
+<script src="levels/level3.js?v=0.22.0"></script>
+<script src="levels/level4.js?v=0.22.0"></script>
+<script src="levels/level5.js?v=0.22.0"></script>
+<script src="levels/level6.js?v=0.22.0"></script>
+<script src="levels/level7.js?v=0.22.0"></script>
+<script src="levels/level8.js?v=0.22.0"></script>
+<script src="levels/level9.js?v=0.22.0"></script>
+<script src="levels/level10.js?v=0.22.0"></script>
+<script src="levels/levelTest.js?v=0.22.0"></script>
+<script src="levels/collectibleTypes.js?v=0.22.0"></script>
+<script src="audio.js?v=0.22.0"></script>
+<script src="render/shaders.js?v=0.22.0"></script>
 <script>
 // Patch ShaderOverlay so it gracefully handles null WebGL context.
 // top-level `class` in shaders.js creates a non-reassignable lexical binding,
@@ -349,27 +349,27 @@ window.confirm = () => true;
   };
 })();
 </script>
-<script src="physics/physics.js?v=0.20.3"></script>
-<script src="physics/collision.js?v=0.20.3"></script>
-<script src="physics/mechanics.js?v=0.20.3"></script>
-<script src="physics/entities.js?v=0.20.3"></script>
-<script src="physics/atmosphere.js?v=0.20.3"></script>
-<script src="game/game.js?v=0.20.3"></script>
-<script src="game/input.js?v=0.20.3"></script>
-<script src="game/menu.js?v=0.20.3"></script>
-<script src="game/hud.js?v=0.20.3"></script>
-<script src="game/cargo.js?v=0.20.3"></script>
-<script src="render/render.js?v=0.20.3"></script>
-<script src="render/background.js?v=0.20.3"></script>
-<script src="render/terrain.js?v=0.20.3"></script>
-<script src="render/entities.js?v=0.20.3"></script>
-<script src="render/pads.js?v=0.20.3"></script>
-<script src="render/lander.js?v=0.20.3"></script>
-<script src="render/creatures.js?v=0.20.3"></script>
-<script src="render/effects.js?v=0.20.3"></script>
-<script src="render/night.js?v=0.20.3"></script>
-<script src="render/fog.js?v=0.20.3"></script>
-<script src="render/ui.js?v=0.20.3"></script>
+<script src="physics/physics.js?v=0.22.0"></script>
+<script src="physics/collision.js?v=0.22.0"></script>
+<script src="physics/mechanics.js?v=0.22.0"></script>
+<script src="physics/entities.js?v=0.22.0"></script>
+<script src="physics/atmosphere.js?v=0.22.0"></script>
+<script src="game/game.js?v=0.22.0"></script>
+<script src="game/input.js?v=0.22.0"></script>
+<script src="game/menu.js?v=0.22.0"></script>
+<script src="game/hud.js?v=0.22.0"></script>
+<script src="game/cargo.js?v=0.22.0"></script>
+<script src="render/render.js?v=0.22.0"></script>
+<script src="render/background.js?v=0.22.0"></script>
+<script src="render/terrain.js?v=0.22.0"></script>
+<script src="render/entities.js?v=0.22.0"></script>
+<script src="render/pads.js?v=0.22.0"></script>
+<script src="render/lander.js?v=0.22.0"></script>
+<script src="render/creatures.js?v=0.22.0"></script>
+<script src="render/effects.js?v=0.22.0"></script>
+<script src="render/night.js?v=0.22.0"></script>
+<script src="render/fog.js?v=0.22.0"></script>
+<script src="render/ui.js?v=0.22.0"></script>
 
 <script>
 // ─── 3. HELPER: build a minimal input-state object for physics.update() ──────
@@ -725,6 +725,91 @@ test('Traffic lane profile is invalidated when the level changes', () => {
     'initLevel must drop the previous level\'s profile so it rebuilds off the new terrain');
 });
 
+// Terrain decoration (`terrainDecor` + the facade glazing it selects).
+test('terrainDecor defaults leave every existing level unchanged', () => {
+  // 'auto' has to reproduce the rule the renderer used to hard-code — grass on
+  // L1, rock noise everywhere else — or adding the field silently restyles the
+  // whole back catalogue.
+  const resolve = (lv, idx) => (lv.terrainDecor && lv.terrainDecor !== 'auto')
+    ? lv.terrainDecor
+    : (idx === 0 ? 'grass' : 'rock');
+  levels.forEach((lv, i) => {
+    if (lv.terrainDecor !== undefined) return;   // opted in explicitly, not our business
+    assertEquals(resolve(lv, i), i === 0 ? 'grass' : 'rock', `L${i + 1} decor`);
+  });
+  const field = LEVEL_SCHEMA.fields.find(f => f.key === 'terrainDecor');
+  assert(field, 'terrainDecor must be described in LEVEL_SCHEMA.fields');
+  assertEquals(field.default, 'auto', 'terrainDecor must default to auto');
+});
+
+test('Facade geometry reads towers off the terrain, not off level config', () => {
+  const i5 = levels.findIndex(l => l.terrainDecor === 'facade');
+  assert(i5 >= 0, 'expected at least one facade level to exercise');
+  testGame.startLevel(i5);
+  testGame._facadeGeo = null;   // drop any cache from an earlier level
+  const geos = testGame._facadeGeometry();
+  assert(geos.length > 0, 'facade geometry should find at least one polygon');
+
+  const main = geos.reduce((a, b) => (b.maxX - b.minX) > (a.maxX - a.minX) ? b : a);
+  assert(main.floors.length > 2, 'main polygon should expose several floor edges');
+  assert(main.baseY > main.topY, 'baseY (lowest floor) must sit below topY');
+
+  // Every floor edge must run left-to-right — the winding normalisation is what
+  // stops walls and ceilings being mistaken for roofs.
+  for (const f of main.floors) assert(f.x1 < f.x2, 'floor edges must run left to right');
+
+  // A roof column resolves to that roof.
+  const roofEdge = main.floors.reduce((a, b) => b.y1 < a.y1 ? b : a);
+  const midX = (roofEdge.x1 + roofEdge.x2) / 2;
+  assertClose(testGame._facadeSurfaceY(main, midX), roofEdge.y1, 2, 'roof column surface');
+
+  // And it must be the polygon's OWN topmost floor, never the lowest surface on
+  // the map — physics.getPolygonSurfaceY() answers the latter, which would hang
+  // a tower's windows off the street. The two only diverge where polygons
+  // overlap in x (on a plain crenellated skyline each column has one floor), so
+  // assert the invariant everywhere and require it to bite at least once.
+  let sawStrictlyAbove = false;
+  for (const geo of geos) {
+    for (let x = geo.minX; x <= geo.maxX; x += 20) {
+      const own = testGame._facadeSurfaceY(geo, x);
+      if (own === null) continue;
+      const lowest = testGame.physics.getPolygonSurfaceY(x);
+      assert(own <= lowest + 1, `facade surface ${own} dipped below the map surface ${lowest} at x=${x}`);
+      if (own < lowest - 1) sawStrictlyAbove = true;
+    }
+  }
+  assert(sawStrictlyAbove,
+    'expected some column where a polygon\'s own roof sits above the lowest surface — otherwise this is not testing anything');
+
+  // Ground must follow the local street. Cutting at the polygon's global lowest
+  // floor instead draws one flat line of windows across the whole map.
+  const ground = testGame._facadeGroundY(main, midX, roofEdge.y1, 500);
+  assert(ground > roofEdge.y1, 'ground must sit below the roof');
+  assert(ground <= main.baseY, 'ground must not exceed the polygon floor');
+
+  // Off the polygon entirely there is no surface to decorate.
+  assertEquals(testGame._facadeSurfaceY(main, main.minX - 500), null, 'surface off-polygon');
+});
+
+test('Facade rendering runs for every level without throwing', () => {
+  // drawTerrain() dispatches on terrainDecor; run all four modes over a real
+  // level so a broken branch can't ship silently (the canvas is stubbed, so this
+  // checks the code path, not the pixels).
+  const i5 = Math.max(0, levels.findIndex(l => l.terrainDecor === 'facade'));
+  for (const mode of ['auto', 'rock', 'grass', 'facade', 'none']) {
+    testGame.startLevel(i5);
+    const lv = levels[testGame.currentLevelIndex];
+    const original = lv.terrainDecor;
+    lv.terrainDecor = mode;
+    try {
+      testGame._facadeGeo = null;
+      testGame.drawTerrain();
+    } finally {
+      lv.terrainDecor = original;
+    }
+  }
+});
+
 // ─── 4b. LEVEL CONFIG VALIDATION ─────────────────────────────────────────────
 // Cheap shape checks over every registered level — catches broken level files
 // (typo'd fields, malformed polygons, undeliverable cargo) without running the
@@ -861,6 +946,25 @@ levels.forEach((lv, i) => {
     if (lv.windGust === undefined) return;
     assert(typeof lv.windGust === 'object', 'windGust must be an object');
     schemaCheckSection(lv.windGust, LEVEL_SCHEMA.windGust.fields, 'windGust.');
+  });
+
+  test(`${label} — facade glazing`, () => {
+    if (lv.facade === undefined) return;
+    assert(typeof lv.facade === 'object', 'facade must be an object');
+    schemaCheckSection(lv.facade, LEVEL_SCHEMA.facade.fields, 'facade.');
+    const g = (k) => lv.facade[k] !== undefined ? lv.facade[k]
+      : LEVEL_SCHEMA.facade.fields.find(f => f.key === k).default;
+    // A pane at least as wide as its cell merges with its neighbour into a solid
+    // lit slab instead of a window grid.
+    assert(g('windowW') < g('cellW'), `facade.windowW (${g('windowW')}) must be smaller than facade.cellW (${g('cellW')})`);
+    assert(g('windowH') < g('cellH'), `facade.windowH (${g('windowH')}) must be smaller than facade.cellH (${g('cellH')})`);
+    for (const k of ['litChance', 'warmRatio', 'flicker']) {
+      assert(g(k) >= 0 && g(k) <= 1, `facade.${k} must be within 0..1, got ${g(k)}`);
+    }
+    // A facade block on a level that doesn't draw one is dead config — the
+    // renderer only reads it under terrainDecor:'facade'.
+    assertEquals(lv.terrainDecor, 'facade',
+      'level has a facade block but terrainDecor is not \'facade\'');
   });
 
   test(`${label} — terrain geometry`, () => {
@@ -1018,7 +1122,21 @@ test('_sandWormTuning takes overrides from the hazard', () => {
 // Drives a real strike to prove the tuning reaches where the level design says
 // it does. Math.random is stubbed to 0 so the probabilistic spawn fires on the
 // first frame instead of the test depending on luck.
-function simulateWormStrike(lv, landerX, landerY, frames) {
+// Drives a real strike to prove the tuning reaches where the level design says
+// it does. Math.random is stubbed with a fixed script rather than a constant,
+// because the spawn block now rolls three times in a known order:
+//   1. spawn chance      — needs a tiny value to pass
+//   2. spawn X offset    — 0.5 keeps the worm directly under the lander
+//   3. bluff chance      — < bluffChance picks a threat display, >= a real strike
+// A constant stub of 0 would silently turn every strike test into a bluff test.
+function stubRandom(script) {
+  const real = Math.random;
+  let i = 0;
+  Math.random = () => (i < script.length ? script[i++] : 0.999);
+  return () => { Math.random = real; };
+}
+
+function simulateWormStrike(lv, landerX, landerY, frames, opts = {}) {
   const phys = new CargoPhysics();
   phys.initLevel(lv, 1600, 1300);
   phys.lander.x = landerX;
@@ -1026,47 +1144,106 @@ function simulateWormStrike(lv, landerX, landerY, frames) {
   phys.lander.crashed = false;
   phys.lander.integrity = phys.lander.maxIntegrity;
 
-  const realRandom = Math.random;
-  Math.random = () => 0; // guarantees the spawn roll passes
-  let peakY = Infinity, spawned = false;
+  const restore = stubRandom([0, 0.5, opts.bluff ? 0 : 0.999]);
+  let peakY = Infinity, spawned = false, sawBluff = false, sawHold = false;
   try {
     for (let i = 0; i < frames; i++) {
       phys.updateMonster(lv, 1);
       if (phys.sandWorm) {
         spawned = true;
         peakY = Math.min(peakY, phys.sandWorm.y);
+        if (phys.sandWorm.isBluff) sawBluff = true;
+        if (phys.sandWorm.state === 'holding') sawHold = true;
       }
       // Hold the lander still — we're measuring the strike, not evasion
       phys.lander.y = landerY;
       phys.lander.x = landerX;
     }
   } finally {
-    Math.random = realRandom;
+    restore();
   }
-  return { spawned, peakY, hullLost: phys.lander.maxIntegrity - phys.lander.integrity, phys };
+  return {
+    spawned, peakY, sawBluff, sawHold,
+    hullLost: phys.lander.maxIntegrity - phys.lander.integrity,
+    phys,
+  };
 }
 
-test('L6 worm strikes up into the freight lane', () => {
+test('L6 worm owns the valley but not the freight corridor', () => {
   const lv = levels.find(l => l.name.startsWith('L6'));
   assert(lv, 'L6 should exist');
   const worm = lv.hazards.find(h => h.type === 'sandworm');
+  let cx = 0, cy = 0;
+  for (const p of worm.pts) { cx += p.x; cy += p.y; }
+  cx /= worm.pts.length; cy /= worm.pts.length;
 
-  // Directly over the mound peak (x:900, surface y:520), hovering at the top of
-  // the worm's declared zone.
-  const r = simulateWormStrike(lv, 900, 260, 240);
-  assert(r.spawned, 'a worm should spawn while hovering inside the zone');
+  // The separation between the two hazards is enforced by the SPAWN ZONE, not
+  // by the arc — the mound sits close enough to the lane that any leap worth
+  // watching overshoots it. What matters is that a corridor crossing never
+  // summons a worm in the first place.
+  const zoneCeiling = cy - worm.reach;
+  assert(zoneCeiling > lv.ambientTrafficMaxY,
+    `zone ceiling (y=${zoneCeiling.toFixed(0)}) must sit below the freight lane floor (y=${lv.ambientTrafficMaxY}) so corridor runs stay worm-free`);
 
-  // The whole point of the difficulty pass: the arc has to clear the old ~320px
-  // ceiling and get into the lane, otherwise altitude is a free bypass again.
-  const surfaceY = 520;
-  const climb = surfaceY - r.peakY;
-  assert(climb > 400, `strike should carry well past the old ~320px reach, got ${climb.toFixed(0)}px`);
-  assert(r.hullLost > 0, 'a stationary lander over the peak should take a hit');
+  // ...and that it still owns the ground it is supposed to: the mound peak and
+  // both valley floors either side of it.
+  const covered = (x, y) => Math.hypot(x - cx, y - cy) <= worm.reach;
+  assert(covered(900, 520), 'zone must cover the mound peak');
+  assert(covered(700, 800), 'zone must cover the west valley floor');
+  assert(covered(1100, 800), 'zone must cover the east valley floor');
 
-  // Ballistic reach follows lungeSpeed / (1 - decay); keep the config honest
-  // about that so a future tweak to either can't silently shorten the strike.
-  const predicted = worm.lungeSpeed / (1 - worm.decay);
-  assert(predicted > 400, `configured reach ≈ ${predicted.toFixed(0)}px should clear the lane`);
+  // A committed strike from just above the sand should connect.
+  const r = simulateWormStrike(lv, 900, 460, 260);
+  assert(r.spawned, 'a worm should spawn while hovering low inside the zone');
+  assert(!r.sawBluff, 'this run should be a committed strike, not a bluff');
+  assert(r.hullLost > 0, 'a stationary lander over the mound should take a hit');
+
+  // Calmer than the first difficulty pass, which carried ~600px and read as a
+  // reflex check. Bound it so a future tweak cannot quietly restore that.
+  const climb = 520 - r.peakY;
+  assert(climb > 150, `strike should clear the sand meaningfully, got ${climb.toFixed(0)}px`);
+  assert(climb < 480, `strike should stay calmer than the old ~600px arc, got ${climb.toFixed(0)}px`);
+});
+
+test('L6 worm bluffs rear up and sink back without tracking', () => {
+  const lv = levels.find(l => l.name.startsWith('L6'));
+  const worm = lv.hazards.find(h => h.type === 'sandworm');
+  assert(worm.bluffChance > 0, 'L6 should configure bluffs');
+
+  const bluff = simulateWormStrike(lv, 900, 460, 300, { bluff: true });
+  assert(bluff.spawned && bluff.sawBluff, 'the scripted roll should produce a bluff');
+  assert(bluff.sawHold, 'a bluff should pass through the holding state');
+
+  // A bluff never homes, and its shorter arc must not reach as far as a real one.
+  const real = simulateWormStrike(lv, 900, 460, 260);
+  assert(bluff.peakY > real.peakY,
+    `bluff should stop short of a committed strike (bluff y=${bluff.peakY.toFixed(0)}, real y=${real.peakY.toFixed(0)})`);
+});
+
+test('L6 worm goes quiet between appearances', () => {
+  const lv = levels.find(l => l.name.startsWith('L6'));
+  const worm = lv.hazards.find(h => h.type === 'sandworm');
+  assert(worm.cooldownFrames > 0, 'L6 should configure a cooldown');
+
+  const phys = new CargoPhysics();
+  phys.initLevel(lv, 1600, 1300);
+  phys.lander.x = 900; phys.lander.y = 460; phys.lander.crashed = false;
+
+  // Spawn rolls always pass, so without a cooldown the zone would hold a worm
+  // on essentially every frame. Count the frames where nothing is out.
+  const restore = stubRandom([]);
+  Math.random = () => 0.0001; // passes the spawn roll; also picks "bluff"
+  let quiet = 0;
+  try {
+    for (let i = 0; i < 900; i++) {
+      phys.updateMonster(lv, 1);
+      phys.lander.y = 460; phys.lander.x = 900;
+      if (!phys.sandWorm) quiet++;
+    }
+  } finally {
+    restore();
+  }
+  assert(quiet > 120, `the zone should have real gaps between worms, got ${quiet} quiet frames of 900`);
 });
 
 test('L6 worm ignores the lander outside its zone', () => {
@@ -1076,7 +1253,7 @@ test('L6 worm ignores the lander outside its zone', () => {
   for (const p of worm.pts) { cx += p.x; cy += p.y; }
   cx /= worm.pts.length; cy /= worm.pts.length;
 
-  // Just past the zone edge, straight up — the high route has to stay worm-free
+  // Just past the zone edge, straight up — the corridor has to stay worm-free
   // or the "traffic vs worm" choice collapses into "everything kills you".
   const r = simulateWormStrike(lv, cx, cy - (worm.reach + 60), 240);
   assert(!r.spawned, 'no worm should spawn outside the declared reach');

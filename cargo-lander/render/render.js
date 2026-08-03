@@ -160,6 +160,7 @@ draw() {
         this.drawHazards(true); // Draw background hazards (behind terrain)
         this.drawTerrain();
         this.drawSegments();
+        if (this.drawWormLair) this.drawWormLair(); // burrows/bones on the surface of a sandworm zone
         this.drawHazards(false); // Draw foreground hazards (in front of terrain)
         this.drawCollectibles();
 

@@ -510,6 +510,214 @@ drawGroundParallax() {
     }
 
 ,
+// ── Terrain decoration: skyscraper facades (terrainDecor: 'facade') ──────────
+// Turns bare terrain silhouettes into lit high-rises without asking the level
+// author to hand-place anything: what counts as a "building" is read off the
+// geometry. For each lattice column the windows run from that polygon's own top
+// surface down to the polygon's lowest floor edge, and columns whose surface is
+// already at that floor level (streets, basin floors) are skipped — so a
+// crenellated skyline decorates its towers and leaves the road bare.
+//
+// All of it is cosmetic and clipped to the polygon path; nothing here affects
+// collision, and the level config only ever needs `terrainDecor: 'facade'`
+// (LEVEL_SCHEMA.facade supplies every default).
+
+// Per-polygon floor-edge lists + extents, derived once per level. Terrain is
+// static, and polygonIsReversed() plus the winding walk are not cheap enough to
+// redo for every column of every frame.
+_facadeGeometry() {
+    const polys = this.physics.terrainPolygons;
+    if (this._facadeGeo && this._facadeGeoSrc === polys) return this._facadeGeo;
+
+    const out = [];
+    for (const poly of polys || []) {
+        if (!poly || poly.length < 3) continue;
+        const flip = this.physics.polygonIsReversed(poly);
+        const floors = [];
+        let baseY = -Infinity, topY = Infinity, minX = Infinity, maxX = -Infinity;
+        for (let i = 0; i < poly.length; i++) {
+            const a = poly[i], b = poly[(i + 1) % poly.length];
+            const p1 = flip ? b : a, p2 = flip ? a : b;
+            if (p1.x >= p2.x) continue;         // walls and ceilings aren't surfaces
+            floors.push({ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+            if (p1.y > baseY) baseY = p1.y;
+            if (p2.y > baseY) baseY = p2.y;
+            if (p1.y < topY) topY = p1.y;
+            if (p2.y < topY) topY = p2.y;
+            if (p1.x < minX) minX = p1.x;
+            if (p2.x > maxX) maxX = p2.x;
+        }
+        if (!floors.length) continue;
+        out.push({ poly, floors, baseY, topY, minX, maxX });
+    }
+    this._facadeGeo = out;
+    this._facadeGeoSrc = polys;
+    return out;
+},
+
+// Topmost floor of THIS polygon at x (physics.getPolygonSurfaceY() searches all
+// polygons and returns the lowest, which is the wrong answer for a roof).
+_facadeSurfaceY(geo, x) {
+    let best = null;
+    for (const f of geo.floors) {
+        if (x < f.x1 || x > f.x2) continue;
+        const y = f.y1 + ((x - f.x1) / (f.x2 - f.x1)) * (f.y2 - f.y1);
+        if (best === null || y < best) best = y;
+    }
+    return best;
+},
+
+// Where a tower standing at x meets the ground: the lowest floor edge within
+// `reach` sideways. Cutting every column at the polygon's global lowest floor
+// instead draws one flat line of windows straight across the map — towers have
+// to terminate at their own street. Falls back to the global floor when a tower
+// has no lower ground anywhere near it.
+_facadeGroundY(geo, x, surfaceY, reach) {
+    let ground = surfaceY;
+    for (const f of geo.floors) {
+        if (f.x2 < x - reach || f.x1 > x + reach) continue;
+        if (f.y1 > ground) ground = f.y1;
+        if (f.y2 > ground) ground = f.y2;
+    }
+    return ground > surfaceY ? ground : geo.baseY;
+},
+
+drawTerrainFacades() {
+    if (typeof LEVEL_SCHEMA === 'undefined' || !LEVEL_SCHEMA.facade) return;
+    const ctx = this.ctx;
+    const lv = levels[this.currentLevelIndex] || {};
+    const pal = lv.palette || {};
+    const src = lv.facade || {};
+    const F = {};
+    for (const f of LEVEL_SCHEMA.facade.fields) {
+        F[f.key] = src[f.key] !== undefined ? src[f.key] : f.default;
+    }
+    if (!(F.cellW > 0) || !(F.cellH > 0)) return;
+
+    const zoom = (this.camera.zoom > 0 && isFinite(this.camera.zoom)) ? this.camera.zoom : 1;
+    const halfW = (this.canvas.width / 2) / zoom;
+    const halfH = (this.canvas.height / 2) / zoom;
+    const viewL = this.camera.x - halfW - F.cellW;
+    const viewR = this.camera.x + halfW + F.cellW;
+    const viewT = this.camera.y - halfH - F.cellH;
+    const viewB = this.camera.y + halfH + F.cellH;
+    if (!isFinite(viewL) || viewR - viewL > 20000) return;
+
+    // Deterministic per-pane, so windows never crawl as the camera moves.
+    const hash2 = (a, b) => {
+        const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+        return s - Math.floor(s);
+    };
+    const t = Date.now() * 0.001;
+    const glowRGBA = pal.rockGlow || 'rgba(56,189,248,';
+
+    for (const geo of this._facadeGeometry()) {
+        if (geo.maxX < viewL || geo.minX > viewR || geo.baseY < viewT || geo.topY > viewB) continue;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(geo.poly[0].x, geo.poly[0].y);
+        for (let i = 1; i < geo.poly.length; i++) ctx.lineTo(geo.poly[i].x, geo.poly[i].y);
+        ctx.closePath();
+        ctx.clip();
+
+        // 1. Under-roof shading. One gradient built in local space and moved
+        //    under each roof edge with a translate, rather than a fresh
+        //    createLinearGradient() per edge per frame.
+        const shade = this._grad(`facadeShade|${this.currentLevelIndex}|${F.depth}|${glowRGBA}`, (c) => {
+            const g = c.createLinearGradient(0, 0, 0, F.depth);
+            g.addColorStop(0, glowRGBA + '0.10)');
+            g.addColorStop(1, glowRGBA + '0)');
+            return g;
+        });
+        for (const f of geo.floors) {
+            if (f.x2 < viewL || f.x1 > viewR) continue;
+            const edgeTop = Math.min(f.y1, f.y2);
+            if (edgeTop > viewB || edgeTop + F.depth < viewT) continue;
+            if (edgeTop >= geo.baseY - F.cellH) continue;   // street level, not a roof
+            ctx.save();
+            ctx.translate(0, Math.max(f.y1, f.y2));
+            ctx.fillStyle = shade;
+            ctx.fillRect(f.x1, 0, f.x2 - f.x1, F.depth);
+            ctx.restore();
+        }
+
+        // 2. Window lattice. Collected into per-colour batches first — three
+        //    fillStyle changes a frame instead of one per pane.
+        const dark = [], warm = [], cool = [], pulsing = [];
+        const colStart = Math.floor(viewL / F.cellW) * F.cellW;
+        const inset = (F.cellW - F.windowW) / 2;
+        const rowInset = (F.cellH - F.windowH) / 2;
+        const mullionXs = [];
+
+        for (let cx = colStart; cx <= viewR; cx += F.cellW) {
+            const surface = this._facadeSurfaceY(geo, cx + F.cellW / 2);
+            if (surface === null) continue;
+            // A column whose own surface sits at the polygon's lowest floor is
+            // ground, not a tower — leave it bare.
+            if (surface >= geo.baseY - F.cellH) continue;
+            const groundY = this._facadeGroundY(geo, cx + F.cellW / 2, surface, F.groundReach);
+
+            const firstRow = Math.ceil((surface + F.cellH * 0.55) / F.cellH) * F.cellH;
+            const lastRow = Math.min(groundY - F.cellH * 0.5, viewB);
+            if (firstRow > lastRow) continue;
+            if (F.mullions) mullionXs.push({ x: cx, y0: Math.max(surface, viewT), y1: Math.min(lastRow + F.cellH, viewB) });
+
+            for (let ry = firstRow; ry <= lastRow; ry += F.cellH) {
+                if (ry + F.windowH < viewT) continue;
+                const col = Math.round(cx / F.cellW), row = Math.round(ry / F.cellH);
+                const h = hash2(col, row);
+                const x = cx + inset, y = ry - F.cellH + rowInset;
+                if (h > F.litChance) { dark.push(x, y); continue; }
+                const h2 = hash2(col + 91, row + 17);
+                if (F.flicker > 0 && hash2(col + 7, row + 53) < F.flicker) pulsing.push(x, y, h2 < F.warmRatio ? 1 : 0, h);
+                else (h2 < F.warmRatio ? warm : cool).push(x, y);
+            }
+        }
+
+        const batch = (arr, style) => {
+            if (!arr.length) return;
+            ctx.fillStyle = style;
+            for (let i = 0; i < arr.length; i += 2) ctx.fillRect(arr[i], arr[i + 1], F.windowW, F.windowH);
+        };
+        batch(dark, 'rgba(0, 0, 0, 0.5)');
+        batch(warm, F.warmColor);
+        batch(cool, F.coolColor);
+        for (let i = 0; i < pulsing.length; i += 4) {
+            ctx.globalAlpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 1.7 + pulsing[i + 3] * 6.28));
+            ctx.fillStyle = pulsing[i + 2] ? F.warmColor : F.coolColor;
+            ctx.fillRect(pulsing[i], pulsing[i + 1], F.windowW, F.windowH);
+        }
+        ctx.globalAlpha = 1;
+
+        // 3. Mullions — faint vertical pilasters between window columns.
+        if (mullionXs.length) {
+            ctx.strokeStyle = glowRGBA + '0.14)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (const m of mullionXs) { ctx.moveTo(m.x, m.y0); ctx.lineTo(m.x, m.y1); }
+            ctx.stroke();
+        }
+
+        // 4. Parapets — a cornice band just under each roof edge.
+        if (F.parapet) {
+            ctx.strokeStyle = glowRGBA + '0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (const f of geo.floors) {
+                if (f.x2 < viewL || f.x1 > viewR) continue;
+                if (Math.min(f.y1, f.y2) >= geo.baseY - F.cellH) continue;
+                if (f.x2 - f.x1 < F.cellW) continue;
+                ctx.moveTo(f.x1 + 3, f.y1 + 7);
+                ctx.lineTo(f.x2 - 3, f.y2 + 7);
+            }
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+},
+
 drawTerrain() {
         const ctx = this.ctx;
         if (!this.physics.terrainPolygons || this.physics.terrainPolygons.length === 0) return;
@@ -633,8 +841,17 @@ drawTerrain() {
         const getH = (x) => this.physics.getPolygonSurfaceY(x);
         const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
 
-        if (this.currentLevelIndex === 0) {
-            // ── L1: Grass tufts — snap to world-space grid so they never shift ──
+        // Which surface detailing this level wants. `terrainDecor` defaults to
+        // 'auto', which reproduces the original hard-coded rule (grass on L1,
+        // rock noise everywhere else) so levels that don't set it are unchanged.
+        const decor = (lv.terrainDecor && lv.terrainDecor !== 'auto')
+            ? lv.terrainDecor
+            : (this.currentLevelIndex === 0 ? 'grass' : 'rock');
+
+        if (decor === 'facade') {
+            this.drawTerrainFacades();
+        } else if (decor === 'grass') {
+            // ── Grass tufts — snap to world-space grid so they never shift ──
             ctx.lineWidth = 1.3;
             ctx.lineCap = 'round';
             const grassStep = 10;
@@ -671,8 +888,8 @@ drawTerrain() {
             ctx.stroke();
             
             ctx.lineCap = 'butt';
-        } else {
-            // ── Other levels: rock edge noise ──────────────────────────────
+        } else if (decor === 'rock') {
+            // ── Rock edge noise ────────────────────────────────────────────
             ctx.strokeStyle = pal.rockEdge + '99';
             ctx.lineWidth = 1.2;
             ctx.lineJoin = 'round';
@@ -783,16 +1000,22 @@ drawUnderground() {
             ctx.setLineDash([]);
         }
 
-        if (this.currentLevelIndex === 4) {
-            // L5 Crystal cave: glowing crystal formations underground
-            const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
+        const hash = (x) => { let h = x * 127 + 9301; h ^= h >> 16; h *= 0x45d9f3b; return ((h & 0xffff) / 0xffff); };
+
+        // L5 was in this branch until it stopped being a crystal cavern (v0.20.0).
+        // drawUnderground() runs BEFORE drawTerrain(), so it only shows through gaps
+        // in the fill — the city's fill is opaque and continuous below street level,
+        // which made these dead draw calls there. L10 still is a cave.
+        if (this.currentLevelIndex === 9) {
+            // L10 Crystal caves: glowing crystal formations underground
+            const r = 6, g = 182, b = 212;   // cyan, matching L10's palette
             for (let cx = Math.floor(startX / 40) * 40; cx < endX; cx += 40) {
                 const terrY = this.physics.getPolygonSurfaceY(cx);
                 const depth = 30 + hash(cx) * 50;
                 const cy = terrY + depth;
                 const ch = 15 + hash(cx + 1) * 25;
                 const pulse = 0.4 + Math.sin(t * 1.5 + cx * 0.05) * 0.3;
-                ctx.fillStyle = `rgba(168,85,247,${pulse * 0.6})`;
+                ctx.fillStyle = `rgba(${r},${g},${b},${pulse * 0.6})`;
                 ctx.beginPath();
                 ctx.moveTo(cx - 4, cy);
                 ctx.lineTo(cx, cy - ch);
@@ -801,11 +1024,68 @@ drawUnderground() {
                 ctx.fill();
                 // Glow
                 const cg = ctx.createRadialGradient(cx, cy - ch * 0.5, 0, cx, cy - ch * 0.5, ch);
-                cg.addColorStop(0, `rgba(168,85,247,${pulse * 0.3})`);
-                cg.addColorStop(1, 'rgba(168,85,247,0)');
+                cg.addColorStop(0, `rgba(${r},${g},${b},${pulse * 0.3})`);
+                cg.addColorStop(1, `rgba(${r},${g},${b},0)`);
                 ctx.fillStyle = cg;
                 ctx.beginPath();
                 ctx.arc(cx, cy - ch * 0.5, ch, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (this.currentLevelIndex === 6) {
+            // L7 Bioluminescent Depths: pulsing root networks and mycelium strands below ground
+            for (let rx = Math.floor(startX / 50) * 50; rx < endX; rx += 50) {
+                const terrY = this.physics.getPolygonSurfaceY(rx);
+                const pulse = 0.5 + Math.sin(t * 2.0 + rx * 0.08) * 0.4;
+                ctx.strokeStyle = `rgba(16, 185, 129, ${pulse * 0.5})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(rx, terrY + 10);
+                const midX = rx + (hash(rx) - 0.5) * 30;
+                const midY = terrY + 35 + hash(rx + 1) * 20;
+                ctx.quadraticCurveTo(midX, midY, rx + (hash(rx + 2) - 0.5) * 40, terrY + 70);
+                ctx.stroke();
+                // Glowing mycelium node
+                ctx.fillStyle = `rgba(56, 189, 248, ${pulse * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(midX, midY, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (this.currentLevelIndex === 7) {
+            // L8 Orbital Gauntlet: derelict station superstructure girders & floating satellite wreckage
+            for (let sx = Math.floor(startX / 120) * 120; sx < endX; sx += 120) {
+                const terrY = this.physics.getPolygonSurfaceY(sx);
+                if (!isFinite(terrY) || terrY > 2000) continue; // Only draw beneath platform decks
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(sx - 20, terrY + 10);
+                ctx.lineTo(sx, terrY + 45);
+                ctx.lineTo(sx + 20, terrY + 10);
+                ctx.stroke();
+                // Sparking broken electrical conduits
+                if (Math.sin(t * 12 + sx) > 0.85) {
+                    ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+                    ctx.fillRect(sx - 2, terrY + 44, 4, 4);
+                }
+            }
+        }
+
+        if (this.currentLevelIndex === 8) {
+            // L9 The Cauldron: bubbling volcanic fissures & magma fractures below ground
+            for (let vx = Math.floor(startX / 60) * 60; vx < endX; vx += 60) {
+                const terrY = this.physics.getPolygonSurfaceY(vx);
+                const pulse = 0.6 + Math.sin(t * 3.5 + vx * 0.15) * 0.35;
+                ctx.fillStyle = `rgba(249, 115, 22, ${pulse * 0.7})`;
+                const depth = 25 + hash(vx) * 35;
+                ctx.beginPath();
+                ctx.moveTo(vx - 5, terrY + 10);
+                ctx.lineTo(vx + (hash(vx) - 0.5) * 15, terrY + depth);
+                ctx.lineTo(vx + 5, terrY + 10);
+                ctx.closePath();
                 ctx.fill();
             }
         }

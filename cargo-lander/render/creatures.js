@@ -3,6 +3,130 @@
 // Prototype-mixin on CargoGame (see render.js header). Split out of
 // render/entities.js, which had grown past 3000 lines.
 Object.assign(CargoGame.prototype, {
+
+// Surface dressing for a `sandworm` hazard zone, so the danger area reads as a
+// creature's territory rather than an invisible circle with a sonar ring on it.
+// Drawn on the terrain surface inside the zone, in front of the fill so it isn't
+// swallowed by it, and behind hazards/collectibles.
+//
+// Everything is derived deterministically from world X (see `hash`) rather than
+// Math.random(), so the bones and burrows stay put frame to frame instead of
+// crawling. Reads `physics.sandWorm` only to intensify — the lair is there
+// whether or not the worm currently is.
+drawWormLair() {
+        const p = this.physics;
+        if (this.gameState !== 'playing' || !p?.hazards) return;
+
+        const ctx = this.ctx;
+        const now = Date.now() / 1000;
+        // Stirred-up sand while the worm is out, settling once it withdraws.
+        const agitation = p.sandWorm ? (p.sandWorm.state === 'retracting' ? 0.5 : 1) : 0;
+
+        // Cheap deterministic hash -> [0,1)
+        const hash = (n) => {
+            const s = Math.sin(n * 127.1) * 43758.5453;
+            return s - Math.floor(s);
+        };
+
+        for (const h of p.hazards) {
+            if (h.type !== 'sandworm' || !h.pts || h.pts.length < 3) continue;
+
+            let cx = 0, cy = 0;
+            for (const pt of h.pts) { cx += pt.x; cy += pt.y; }
+            cx /= h.pts.length; cy /= h.pts.length;
+            const reach = h.reach || 300;
+            const rgb = h.color || '200, 100, 20';
+
+            ctx.save();
+
+            // ── Scoured ground: the sand inside the zone is churned, so lay a
+            // dark wash along the surface that fades out at the zone edge.
+            const STEP = 26;
+            for (let x = cx - reach; x <= cx + reach; x += STEP) {
+                const surf = p.getPolygonSurfaceY(x);
+                if (surf == null) continue;
+                const falloff = 1 - Math.abs(x - cx) / reach;
+                if (falloff <= 0) continue;
+                const a = 0.30 * falloff * falloff;
+                ctx.fillStyle = `rgba(10, 4, 0, ${a.toFixed(3)})`;
+                ctx.fillRect(x - STEP / 2, surf, STEP + 1, 16 + 26 * falloff);
+            }
+
+            // ── Old burrow mouths — dark maws punched into the slope, with a
+            // lit rim so they read as holes rather than flat blobs.
+            const BURROWS = 5;
+            for (let i = 0; i < BURROWS; i++) {
+                const t = (i + 0.5) / BURROWS;             // 0..1 across the zone
+                const bx = cx + (t - 0.5) * reach * 1.7;
+                const surf = p.getPolygonSurfaceY(bx);
+                if (surf == null) continue;
+                const r = 14 + hash(i * 3.7) * 20;
+                const by = surf + 3;
+                // Breathing glow when the creature is active below
+                const heat = 0.10 + agitation * 0.28 * (0.6 + 0.4 * Math.sin(now * 2.2 + i));
+
+                ctx.beginPath();
+                ctx.ellipse(bx, by, r, r * 0.42, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(6, 2, 0, 0.92)';
+                ctx.fill();
+                ctx.strokeStyle = `rgba(${rgb}, ${(0.35 + heat).toFixed(3)})`;
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                // Spoil heaped on the downhill lip
+                ctx.beginPath();
+                ctx.ellipse(bx, by + r * 0.34, r * 1.25, r * 0.30, 0, 0, Math.PI);
+                ctx.fillStyle = `rgba(${rgb}, 0.13)`;
+                ctx.fill();
+            }
+
+            // ── Picked-clean ribs half-buried in the sand. Three small clusters,
+            // angled off vertical so they read as a carcass, not a fence.
+            const CLUSTERS = 3;
+            for (let c = 0; c < CLUSTERS; c++) {
+                const bx = cx + (hash(c * 11.3) - 0.5) * reach * 1.5;
+                const surf = p.getPolygonSurfaceY(bx);
+                if (surf == null) continue;
+                const lean = (hash(c * 5.1) - 0.5) * 0.6;
+                const ribs = 3 + Math.floor(hash(c * 2.3) * 3);
+                ctx.strokeStyle = 'rgba(226, 214, 190, 0.34)';
+                ctx.lineCap = 'round';
+                for (let r = 0; r < ribs; r++) {
+                    const rx = bx + (r - ribs / 2) * 9;
+                    const len = 12 + hash(c * 7.7 + r) * 16;
+                    ctx.lineWidth = 1.4 + hash(c + r * 0.9) * 1.1;
+                    ctx.beginPath();
+                    ctx.moveTo(rx, surf + 4);
+                    ctx.quadraticCurveTo(rx + lean * len * 0.7, surf - len * 0.6, rx + lean * len, surf - len);
+                    ctx.stroke();
+                }
+                // Spine fragment lying along the surface
+                ctx.strokeStyle = 'rgba(226, 214, 190, 0.20)';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(bx - ribs * 4.5, surf + 3);
+                ctx.lineTo(bx + ribs * 4.5, surf + 3);
+                ctx.stroke();
+            }
+
+            // ── Sand trickling off the lips while something moves down there.
+            if (agitation > 0) {
+                for (let i = 0; i < 7; i++) {
+                    const t = hash(i * 19.7 + Math.floor(now * 3));
+                    const sx = cx + (t - 0.5) * reach * 1.6;
+                    const surf = p.getPolygonSurfaceY(sx);
+                    if (surf == null) continue;
+                    const fall = ((now * 90 + i * 37) % 34);
+                    ctx.fillStyle = `rgba(${rgb}, ${(0.30 * agitation * (1 - fall / 34)).toFixed(3)})`;
+                    ctx.fillRect(sx, surf + fall * 0.5, 1.6, 5);
+                }
+            }
+
+            ctx.restore();
+        }
+    }
+
+,
 getPadRanges() {
         const p = this.physics;
         const ranges = [];

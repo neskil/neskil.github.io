@@ -57,6 +57,26 @@ registerLevel({
     weather: 'rain',
     backgroundType: 'city',
 
+    // ── Terrain decoration ────────────────────────────────────────────────────
+    // The towers ARE the terrain here, so the silhouettes get glazed rather than
+    // given the default rock-edge noise (which read as wobbly concrete on a
+    // skyline). drawTerrainFacades() works the building extents out from the
+    // geometry — windows run from each column's own roof down to the polygon's
+    // lowest floor, and the street/basin columns are skipped automatically.
+    terrainDecor: 'facade',
+    facade: {
+        cellW: 32, cellH: 42,
+        windowW: 13, windowH: 18,
+        litChance: 0.42,
+        warmRatio: 0.55,
+        warmColor: '#fdba74',
+        coolColor: '#67e8f9',   // reads as the palette's cyan rockEdge, lit
+        flicker: 0.05,
+        depth: 300,
+        parapet: true,
+        mullions: true,
+    },
+
     // ── Traffic — the level's main hazard ─────────────────────────────────────
     ambientTrafficRate: 5,    // cap: 25 concurrent, ~8 on screen at any moment
     ambientTrafficSpeed: 1.4, // rush hour

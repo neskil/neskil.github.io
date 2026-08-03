@@ -970,6 +970,18 @@
             color: rgb(212, 212, 216);
         }
 
+        #card-wip .about-text a {
+            color: rgb(212, 212, 216);
+            border-bottom: 1px solid rgba(212, 212, 216, 0.4);
+            text-decoration: none;
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+
+        #card-wip .about-text a:hover {
+            color: #fff;
+            border-bottom-color: rgba(255, 255, 255, 0.7);
+        }
+
         .wip-body {
             flex: 1;
             display: flex;
@@ -1763,7 +1775,7 @@
     </header>
 
     <main class="grid">
-        <a href="cargo-lander/index.html?v=0.20.3" class="card" id="card-cargo-lander">
+        <a href="cargo-lander/index.html?v=0.22.0" class="card" id="card-cargo-lander">
             <div class="card-bg-hover"></div>
             <div>
                 <div class="card-icon">
@@ -2043,6 +2055,7 @@
                     <div class="wip-body">
                         <div class="wip-emoji">🏗️</div>
                         <p class="about-text">Told you.</p>
+                        <p class="about-text">But I have <a href="3d-engine-poc/index.html">this</a> cooking.</p>
                     </div>
                     <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
                             <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -2112,7 +2125,6 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
-                'card-3d-poc': 195,
                 'card-about': 345
             };
 

@@ -65,15 +65,15 @@ so a method you can't find in the class file lives in one of its `game/` or
 | `level1.js` – `level10.js`, `levelTest.js` | Individual level configs (terrain polygons, hubs, OOB zone, palette, physics params, quests). `levelTest.js` is a sandbox reachable via `game.startTestLevel()`. **A new `levelN.js` needs its `<script>` tag added to `index.html`, `tests.html`, and the level-editor's dropdown manually** — everything else (mission-grid button, dev-panel jump) is auto-generated. |
 | `levelGenerator.js` | `generateProceduralLevel(craziness)` — procedural "Mission ??" maps, 3 craziness tiers. |
 | `levels/collectibleTypes.js` | `COLLECTIBLE_TYPES` registry for mid-air flythrough pickups (`cash`, `fuel`, …). Read generically by `physics/atmosphere.js` (award logic), `render/entities.js` (token visual), and the level editor's Entities panel — add a new pickup type here once instead of touching all three. |
-| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, *and* `tests.html`'s validation checks — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
+| `levelSchema.js` | Shared schema (name/type/default/widget) for the scalar/object level-config fields (mission params, `palette`, `outOfBounds`, `worldBounds`, `gravityWell`). Drives `level-editor.html`'s form panels, loader defaults, and export blocks, `tests.html`'s validation checks, *and* (since `facade`) the renderer's own defaults, so `index.html` loads it too — add a scalar field once, in the schema. Geometry (`terrainPolygons`/`waterBodies`/`hazards`) is deliberately out of scope. |
 | `level-editor.html` | Standalone visual level editor. See [Level Editor](#level-editor). |
-| `tests.html` | Browser test suite (142 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
+| `tests.html` | Browser test suite (158 tests): behavioral smoke tests + schema-driven "Level Config Validation" over every registered level. Auto-runs on load; results in `#summary`, failure stacks to `console.error`. |
 | `probe-screenshot.html` | Headless visual-verification harness — see [Verification](#verification). Not part of the shipped game. |
 
 ### Load order matters
 `index.html` loads `vendor/matter.min.js`, then `upgrades.js →
 levels.js → levelGenerator.js → level1…10.js → levelTest.js →
-collectibleTypes.js → audio.js →
+levelSchema.js → collectibleTypes.js → audio.js →
 shaders.js → physics.js → physics/*.js → game.js → game/*.js → render.js →
 render/*.js`. Class files must precede their prototype-mixin files;
 `render.js` instantiates `window.game`, so every mixin must load before it;
@@ -104,6 +104,14 @@ the bootstrap script then calls `game.init('cargoCanvas')`.
   **To add a new pickup type**, add one entry to `COLLECTIBLE_TYPES` — no
   other file needs a new branch unless the type wants a bespoke visual (set
   `draw(ctx, c)` on its registry entry to override the default token look).
+- **Terrain decoration**: `terrainDecor: 'rock' | 'grass' | 'facade' | 'none'`
+  (default `'auto'`) selects the surface detailing drawn on the terrain
+  polygons themselves. `'facade'` glazes the silhouette into lit skyscrapers
+  and is tuned by an optional `facade: {...}` block (`LEVEL_SCHEMA.facade`
+  supplies every default, so `terrainDecor: 'facade'` alone is a complete
+  configuration). Purely cosmetic — no collision or gameplay effect. Because
+  the renderer reads defaults from `LEVEL_SCHEMA`, `levels/levelSchema.js` is
+  now loaded by `index.html` too, not just the editor and tests.
 
 ---
 
@@ -271,9 +279,7 @@ Self-contained, in rough value-per-risk order:
 - [ ] **Editor geometry schema-driving** — fold `terrainPolygons`/
       `waterBodies`/`hazards` into `levelSchema.js`. Deliberately deferred:
       the vertex tooling is bespoke per shape kind; treat as its own project.
-- [ ] **L8 return-gauntlet escalation** — speed up/flip laser phases after
-      final delivery ("defense grid alerted"). Needs an engine hook for
-      quest-triggered hazard state; none exists today.
+- [x] **L8 return-gauntlet escalation** — speed up laser phases after final delivery ("defense grid alerted"). Implemented via `returnGauntlet` schema flag and `onReturn` timing overrides in `atmosphere.js`.
 
 **Parked (needs user input, don't start unprompted)**: "unload drone as R&D
 upgrade" (ambiguous, soft-lock risk); bumping the 4-water-body post-FX uniform
@@ -429,7 +435,9 @@ the file. The class files are small; the bulk is in the mixins.
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt.
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when the lander escapes).
 - **Altitude fog band** (`fogBandTopY`/`fogBandBottomY`, optional): a soft ceiling made of weather rather than geometry. Density smoothsteps 0 → 1 as the lander climbs from `fogBandBottomY` to `fogBandTopY` and stays capped above it; `fogBandDamage` is hull points/sec at full density. `CargoPhysics#fogDensityAt(y)` owns the curve and `render/fog.js` reads it, so the visible band and the abrasion can't disagree. The renderer punches a clear bubble around the lander and a faint glow per ambient truck — that glow is the only warning you get about traffic inside the murk, which is the point on L6.
-- **Sandworm strike shape** is per-hazard, defaulted by `_sandWormTuning()`: `trackFrames` (homing window, in *frames* — dt is 1.0 per 60fps frame), `steer`, `maxSpeed`, `decay`, `retractSpeed`, `hitRadius`, `damage`. Ballistic reach ≈ `lungeSpeed / (1 - decay)`. Every default reproduces the pre-2026-08 hardcoded strike, so only levels that opt in are re-tuned (L6 does; L9 deliberately does not).
+- **Sandworm strike shape** is per-hazard, defaulted by `_sandWormTuning()`: `trackFrames` (homing window, in *frames* — dt is 1.0 per 60fps frame), `steer`, `maxSpeed`, `decay`, `retractSpeed`, `hitRadius`, `damage`, `lungeSpeed`, `cooldownFrames`. Ballistic reach ≈ `lungeSpeed / (1 - decay)` **plus** the distance covered while homing — a `trackFrames` of any size adds `~trackFrames × maxSpeed` on top, which is easy to under-estimate when tuning. `cooldownFrames` counts from full withdrawal, so the zone actually goes quiet between appearances.
+- **Sandworm bluffs**: `bluffChance` on the hazard makes that fraction of surfacings threat displays — launched at `bluffSpeedScale × lungeSpeed`, never homing (`trackFrames` forced to 0), and pausing in a `holding` state for `bluffHoldFrames` at the top of the arc before withdrawing. They still hurt on contact; they just don't chase. Separating worm territory from another airborne hazard should be done with the hazard's `reach`/centroid (what can *summon* it), not by shortening the arc — a zone next to a tall feature will always overshoot.
+- **Worm lair dressing**: `drawWormLair()` (`render/creatures.js`) draws burrow mouths, half-buried ribs and scoured sand along the terrain surface inside any `sandworm` hazard, so the danger zone reads as territory rather than an invisible circle. Deterministic from world X (no `Math.random`) so it doesn't crawl frame to frame. Every default reproduces the pre-2026-08 hardcoded strike, so only levels that opt in are re-tuned (L6 does; L9 deliberately does not).
 - Parachute: fuel at 0 while airborne → `chuteTimer` deploys after ~1s; vx drag + vy capped toward ~2.2 (survivable-ish impact by design).
 - Shield: `applyDamage()` (`physics/entities.js`) is the single entry point for all hit sources; depletable `shieldCharge` mitigates 65% per hit; `shieldAbsorbedThisHit` protects deck cargo from being flung.
 - **On-deck cargo is rigidly clamped**, not friction-simulated: `updateOnDeckStates()` stores a deck-local offset (`box.deckT`/`deckN`) on landing and recomputes world position from the lander transform each frame. Releases only on crash, delivery, or chute pickup. Boxes claim non-overlapping `deckT` slots; a `big` box claims the entire deck.
@@ -446,8 +454,10 @@ the file. The class files are small; the bulk is in the mixins.
 - Menu background mock lander needs all fields: `deckWidth`, `deckOffset`, `basketHeight`, `fuel`, `strafePower`.
 - `shadeColor(hex, amount)` helper lives at the bottom of `render.js`.
 - Terrain + background gradient use the level palette; sky gradient is cached and only rebuilt when size/palette changes.
-- Grass tufts (L1): x positions snapped to 10px grid to prevent camera-jitter shimmer.
-- Underground easter eggs (`drawUnderground` in `render/terrain.js`): L4 has blinking server racks below the surface, L5 has pulsing crystal formations — visible through cave gaps.
+- Terrain decoration (`terrainDecor` in a level config) picks what `drawTerrain()` draws on the surface: `rock` edge noise, `grass` tufts, `facade` skyscraper glazing, or `none`. Defaults to `auto`, which reproduces the old hard-coded rule (grass on L1, rock elsewhere) — levels that don't set it are untouched.
+- Grass tufts: x positions snapped to 10px grid to prevent camera-jitter shimmer.
+- Facades (`drawTerrainFacades`): reads building extents off the geometry, so nothing is authored per-polygon. Per column it takes that polygon's OWN topmost floor (not `physics.getPolygonSurfaceY()`, which returns the lowest surface on the map) and stops at the lowest floor within `facade.groundReach` sideways — cutting at the polygon's global floor instead draws one flat line of windows across the whole map. Panes are batched by colour and the under-roof gradient is built once and `translate()`d, so it costs less than the rock-noise branch it replaces.
+- Underground easter eggs (`drawUnderground` in `render/terrain.js`): L4 has blinking server racks below the surface, visible through cave gaps. Note this runs *before* `drawTerrain()`, so anything it draws is hidden wherever the terrain fill is opaque and continuous — that is what made L5's old crystal formations dead draw calls once it became a city.
 - Buildings: only `antenna`/`silo`/`refinery` types have draw branches in `drawBuildings()` — an unknown type renders nothing, silently.
 - Post-FX (`renderPostFX` in `shaders.js`): full-scene texture sample, so world-space text labels get distorted by heat haze — re-check label readability when enabling `heatHaze` on a new level. Max 4 water-shimmer bodies per level (fixed-size uniforms).
 
