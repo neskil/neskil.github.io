@@ -130,12 +130,6 @@
             --hue: 25;
         }
 
-        html[data-theme="card-3d-poc"] {
-            --bg-color-1: #091926;
-            --bg-color-2: #0e2a3b;
-            --hue: 195;
-        }
-
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1853,35 +1847,6 @@
                 </svg></span>
         </a>
 
-        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
-            <div class="card-bg-hover"></div>
-            <!-- No .new-badge here: it shares the top-right slot with .card-stat-chip,
-                 and the medal tally is the more useful of the two. -->
-            <div>
-                <div class="card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-                         stroke-linecap="round" stroke-linejoin="round">
-                        <!-- stacked containers in isometric, inside a measuring envelope -->
-                        <path d="M12 12.4 4.6 8.6 12 4.8l7.4 3.8z" fill="currentColor" fill-opacity="0.22"/>
-                        <path d="M4.6 8.6v4.1L12 16.5v-4.1" fill="currentColor" fill-opacity="0.12"/>
-                        <path d="M19.4 8.6v4.1L12 16.5" fill="currentColor" fill-opacity="0.07"/>
-                        <path d="M12 12.4 4.6 8.6 12 4.8l7.4 3.8zM4.6 8.6v4.1L12 16.5l7.4-3.8V8.6M12 12.4v4.1"/>
-                        <path d="M2.4 6.2V3.4h2.9M21.6 6.2V3.4h-2.9M2.4 17.8v2.8h2.9M21.6 17.8v2.8h-2.9"
-                              opacity="0.55"/>
-                    </svg>
-                </div>
-                <h2 class="card-title">Yard Master</h2>
-                <p class="card-desc">3D Tetris with shipping containers. Stack the manifest into the smallest possible envelope across 12 line missions — or free-build in the sandbox.</p>
-                <div class="card-stat-chip" id="stat-3d-poc">
-                    <span class="stat-icon">📦</span> <span class="stat-val">—</span>
-                </div>
-            </div>
-            <span class="card-link">Play <svg viewBox="0 0 24 24">
-                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg></span>
-        </a>
-
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
             <span class="new-badge">NEW</span>
@@ -2400,35 +2365,7 @@
                 }
             } catch (e) {}
 
-            // 3. Yard Master (3D container packing) — see 3d-engine-poc/core/storage.js
-            try {
-                const ymRaw = localStorage.getItem('cargo3d.save.v1');
-                const ymBadge = document.getElementById('stat-3d-poc');
-                if (ymBadge) {
-                    let gold = 0, silver = 0, bronze = 0, completed = 0;
-                    if (ymRaw) {
-                        const data = JSON.parse(ymRaw);
-                        const missions = (data && data.missions) || {};
-                        for (const key in missions) {
-                            const rec = missions[key];
-                            if (!rec) continue;
-                            if (rec.completed) completed++;
-                            if (rec.medal === 'gold') gold++;
-                            else if (rec.medal === 'silver') silver++;
-                            else if (rec.medal === 'bronze') bronze++;
-                        }
-                    }
-                    if (gold + silver + bronze > 0) {
-                        ymBadge.innerHTML = `<span class="stat-icon">🥇</span> <span class="stat-val">${gold}·${silver}·${bronze}</span> <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">${completed}/12</span>`;
-                    } else if (completed > 0) {
-                        ymBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">${completed}/12</span> missions`;
-                    } else {
-                        ymBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">12</span> missions`;
-                    }
-                }
-            } catch (e) {}
-
-            // 4. Mental Math Game
+            // 3. Mental Math Game
             try {
                 const mathHs = parseInt(localStorage.getItem('mentalMathHighScore') || '0', 10);
                 const mathBadge = document.getElementById('stat-math-game');

@@ -213,7 +213,11 @@ Load order matters (plain `<script>` tags, no bundler, per house style):
 - Live envelope wireframe, mission HUD, queue lookahead, scorecard
 - Sandbox mode preserved with all POC toys, plus the gantry crane and the
   contracts economy folded into the new architecture
-- Landing-page card rewritten, wired to campaign progress
+
+**Not shipped, by choice**
+- No card in the portfolio landing grid. The root page links here from the
+  work-in-progress card, and that stays until the owner calls this finished —
+  the workspace rule is no grid card before approval.
 
 **Next**
 - Replay/share: serialize the placement list, replay it on load from a URL hash
