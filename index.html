@@ -130,6 +130,12 @@
             --hue: 25;
         }
 
+        html[data-theme="card-3d-poc"] {
+            --bg-color-1: #091926;
+            --bg-color-2: #0e2a3b;
+            --hue: 195;
+        }
+
         /* ── Background variants ──────────────────────────────────────────────
            The 135° ramp above stays as the floor; each variant is one fixed layer
            that cross-fades in over it, so switching costs an opacity change and
@@ -1835,6 +1841,28 @@
                 </svg></span>
         </a>
 
+        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
+            <div class="card-bg-hover"></div>
+            <span class="new-badge">3D POC</span>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor" fill-opacity="0.15"/>
+                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 22V12M12 12L2 7M12 12l10-5"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">3D Cargo Yard POC</h2>
+                <p class="card-desc">Interactive 3D intermodal container yard & volume packing simulator powered by WebGL & Three.js.</p>
+                <div class="card-stat-chip" id="stat-3d-poc">
+                    <span class="stat-icon">📦</span> 3D TEU Stacker
+                </div>
+            </div>
+            <span class="card-link">Launch 3D POC <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="car/index.html" class="card card-metal" id="card-car">
             <div class="card-bg-hover"></div>
             <span class="new-badge">NEW</span>
@@ -2077,6 +2105,7 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
+                'card-3d-poc': 195,
                 'card-about': 345
             };
 

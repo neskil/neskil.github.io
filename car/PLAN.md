@@ -152,8 +152,8 @@ protection plan — Essential $245/mo with a $2,000 deductible, or Enhanced
 $295/mo with $500 and glass — because personal and credit-card cover explicitly
 do not extend to a Flexcar. Basic liability is state minimum only. Plus $249/yr
 membership (servicing, tyres, brakes, roadside, 20¢/gal at Sunoco; free for two
-weeks) and a delivery fee that ranges from **$199 to $874** depending on where
-the car is. **OnTrack** cuts the rate after six months of on-time payment and
+weeks). Local vehicles carry **no delivery fee** ($0); delivery charges ($199
+to $874) only apply if you request a car shipped from out of state. **OnTrack** cuts the rate after six months of on-time payment and
 safe driving — $734 → $684 in their own example — and follows you across cars.
 
 **The comparison trap that motivated the tax field:** Sixt+ quotes with tax in,
@@ -171,12 +171,12 @@ by whatever the local rate is.
   rather than only which colour it belongs to, so hovering "Taxes, fees &
   penalties" on the cash route now answers with title tax, doc-title-plates and
   annual registration rather than a category name.
-- **Flexcar protection is a spread, and it is dearer than retail.** Tiers of
-  $230 / $245 ($2,000 excess) / $295 ($500 excess, glass) quoted per vehicle,
-  against a real like-for-like GEICO quote of $160/mo — a markup of 44% to 84%
-  that you cannot decline, because personal and credit-card policies do not
-  extend to a Flexcar. That is the sharpest difference from Sixt+, whose waiver
-  and driver together land within two dollars of retail cover.
+- **Flexcar protection is a spread, and it is dearer than retail.** Either
+  $245 ($2,000 excess) or $295 ($500 excess, glass), against a real
+  like-for-like GEICO quote of $160/mo — a markup of 53% to 84% that you cannot
+  decline, because personal and credit-card policies do not extend to a Flexcar.
+  That is the sharpest difference from Sixt+, whose waiver and driver together
+  land within two dollars of retail cover.
 
 ## Still open
 

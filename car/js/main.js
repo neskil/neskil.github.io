@@ -144,10 +144,12 @@ function syncPresets(months, v) {
     }
     for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
         btn.classList.toggle('active', Number(btn.dataset.rate) === v.flexRate &&
-            Number(btn.dataset.protection) === v.flexProtection);
+            Number(btn.dataset.protection) === v.flexProtection &&
+            (btn.dataset.excess === undefined || Number(btn.dataset.excess) === v.flexExcess));
     }
     for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
-        btn.classList.toggle('active', Number(btn.dataset.prot) === v.flexProtection);
+        btn.classList.toggle('active', Number(btn.dataset.prot) === v.flexProtection &&
+            (btn.dataset.excess === undefined || Number(btn.dataset.excess) === v.flexExcess));
     }
 }
 
@@ -271,6 +273,40 @@ for (const btn of document.querySelectorAll('#creditTiers .preset-btn')) {
     });
 }
 
+if ($('statePreset')) {
+    $('statePreset').addEventListener('change', () => {
+        const key = $('statePreset').value;
+        if (STATE_PRESETS[key]) {
+            const st = STATE_PRESETS[key];
+            $('taxRate').value = st.taxRate;
+            POWERTRAIN_TYPES.ev.evRegistrationSurcharge = st.evFee;
+            syncPriceFields();
+            update();
+        }
+    });
+}
+
+if ($('shareScenarioBtn')) {
+    $('shareScenarioBtn').addEventListener('click', () => {
+        const params = new URLSearchParams();
+        params.set('price', $('price').value);
+        params.set('pt', carPowertrain);
+        params.set('horizon', $('horizon').value);
+        params.set('credit', creditTier);
+        params.set('miles', $('miles').value);
+        params.set('state', $('statePreset') ? $('statePreset').value : 'ga');
+        const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            const orig = $('shareScenarioBtn').textContent;
+            $('shareScenarioBtn').textContent = '✓ Link copied!';
+            setTimeout(() => { $('shareScenarioBtn').textContent = orig; }, 2000);
+        }).catch(() => {
+            prompt('Copy shareable URL:', shareUrl);
+        });
+    });
+}
+
+
 /* A subscription preset is a rate *and* a cap — the Sixt+ 500 mi/mo
    allowance is as much a part of the quote as the $1,000. */
 for (const btn of document.querySelectorAll('#rentPresets .preset-btn')) {
@@ -298,6 +334,7 @@ for (const btn of document.querySelectorAll('#leasePresets .preset-btn')) {
 for (const btn of document.querySelectorAll('#flexProtectionTiers .preset-btn')) {
     btn.addEventListener('click', () => {
         $('flexProtection').value = btn.dataset.prot;
+        if (btn.dataset.excess !== undefined) $('flexExcess').value = btn.dataset.excess;
         update();
     });
 }
@@ -306,6 +343,7 @@ for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         $('flexRate').value = btn.dataset.rate;
         $('flexProtection').value = btn.dataset.protection;
+        if (btn.dataset.excess !== undefined) $('flexExcess').value = btn.dataset.excess;
         $('flexDelivery').value = btn.dataset.delivery;
         if (btn.dataset.allowance) $('flexAllowance').value = btn.dataset.allowance;
         update();
@@ -400,6 +438,104 @@ $('depBackdrop').addEventListener('click', closeModal);
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !$('depModal').hidden) closeModal();
 });
+
+/* ── Enlarged Graph Modal ── */
+function openGraphModal(title, svgHtml) {
+    $('graphTitle').textContent = title;
+    $('expandedChartContainer').innerHTML = svgHtml;
+    $('graphBackdrop').hidden = false;
+    $('graphModal').hidden = false;
+    requestAnimationFrame(() => {
+        $('graphBackdrop').classList.add('open');
+        $('graphModal').classList.add('open');
+    });
+}
+
+function closeGraphModal() {
+    $('graphBackdrop').classList.remove('open');
+    $('graphModal').classList.remove('open');
+    setTimeout(() => {
+        $('graphBackdrop').hidden = true;
+        $('graphModal').hidden = true;
+    }, 250);
+}
+
+if ($('graphClose')) $('graphClose').addEventListener('click', closeGraphModal);
+if ($('graphBackdrop')) $('graphBackdrop').addEventListener('click', closeGraphModal);
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('graphModal').hidden) closeGraphModal();
+});
+
+if ($('expandBeChart')) {
+    $('expandBeChart').addEventListener('click', () => {
+        $('zoomPowertrain').value = carPowertrain;
+        $('zoomScenario').value = scenarioCase;
+        openGraphModal('Interactive High-Res Horizon Explorer', '');
+        renderInteractiveZoomChart();
+    });
+}
+
+for (const id of ['zoomStartYr', 'zoomEndYr', 'zoomMeasure', 'zoomPowertrain', 'zoomScenario']) {
+    const el = $(id);
+    if (el) el.addEventListener('change', renderInteractiveZoomChart);
+}
+
+function renderInteractiveZoomChart() {
+    const startMo = Math.max(0, Number($('zoomStartYr').value) * 12);
+    let endMo = Math.max(startMo + 12, Number($('zoomEndYr').value) * 12);
+    if (endMo <= startMo) endMo = startMo + 12;
+
+    const measure = $('zoomMeasure').value;
+    const ptKey = $('zoomPowertrain').value;
+    const scen = $('zoomScenario').value;
+
+    const heldPt = carPowertrain;
+    const heldScen = scenarioCase;
+    carPowertrain = ptKey;
+    scenarioCase = scen;
+
+    const v = readInputs();
+    const points = costCurve(v, endMo, 2).filter((p) => p.month >= startMo);
+
+    carPowertrain = heldPt;
+    scenarioCase = heldScen;
+
+    const values = [];
+    for (const p of points) for (const o of OPTIONS) values.push(curveValue(p, o.key, measure));
+    const yMax = (Math.max(...values) || 100) * 1.06;
+    const yMin = Math.min(0, Math.min(...values));
+
+    const width = 1000, height = 480;
+    const pad = { l: 65, r: 120, t: 20, b: 50 };
+    const f = chartFrame({ width, height, pad, xMin: Math.max(0.5, startMo), xMax: endMo, yMin, yMax });
+    const yStep = niceStep(yMax - yMin, 6);
+
+    let svg = '<svg class="linechart" viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto" role="img">';
+    for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) {
+        svg += '<line class="grid" x1="' + pad.l + '" y1="' + f.py(y).toFixed(1) + '" x2="' + (width - pad.r) + '" y2="' + f.py(y).toFixed(1) + '"/>';
+        svg += '<text class="tick" x="' + (pad.l - 8) + '" y="' + (f.py(y) + 4).toFixed(1) + '" text-anchor="end" style="font-size:13px">' + (measure === 'total' ? usdShort(y) : usd0(y)) + '</text>';
+    }
+
+    const stepYr = (endMo - startMo) > 120 ? 2 : 1;
+    for (let m = Math.max(12, Math.ceil(startMo / 12) * 12); m <= endMo; m += stepYr * 12) {
+        svg += '<line class="grid" x1="' + f.px(m).toFixed(1) + '" y1="' + pad.t + '" x2="' + f.px(m).toFixed(1) + '" y2="' + (height - pad.b) + '"/>';
+        svg += '<text class="tick" x="' + f.px(m).toFixed(1) + '" y="' + (height - pad.b + 18) + '" text-anchor="middle" style="font-size:13px">' + (m / 12) + ' yr</text>';
+    }
+
+    for (const o of OPTIONS) {
+        const pts = points.map((p) => f.px(p.month).toFixed(1) + ' ' + f.py(curveValue(p, o.key, measure)).toFixed(1));
+        svg += '<path d="M' + pts.join(' L') + '" fill="none" stroke="var(--opt-' + o.key + ')" stroke-width="3.5"/>';
+        const lastP = points[points.length - 1];
+        if (lastP) {
+            const ly = f.py(curveValue(lastP, o.key, measure));
+            svg += '<text x="' + (width - pad.r + 8) + '" y="' + (ly + 4).toFixed(1) + '" fill="var(--opt-' + o.key + ')" style="font-size:13px;font-weight:700">' + o.label + '</text>';
+        }
+    }
+    svg += '</svg>';
+    $('expandedChartContainer').innerHTML = svg;
+}
+
+
 
 window.addEventListener('scroll', hideTooltip, { passive: true });
 document.addEventListener('pointerdown', hideTooltip);

@@ -297,7 +297,7 @@ the process).
 | **Pendulum mass physics** | Rope-hung special cargo that destabilizes flight (see backlog). |
 | **Advanced logistics** | More interactive loading/unloading than pad-hovering; persistent ship builds for the harder maps. |
 | **Procedural Expedition mode** | Rogue-like infinite-delivery runs (see backlog). |
-| **Night ops levels** | Darkened scene + lander spotlight cone, ambient hub/hazard glows. **In progress** — see [PLAN.md](PLAN.md). |
+| **Night ops levels** | Darkened scene + lander spotlight cone, ambient hub/hazard glows. Shipped as the `night: true` level flag (`render/night.js`); live on **L10 Crystal Caves** and **L4 Anomaly Zone** — see [PLAN.md](PLAN.md). |
 
 Everything earlier in the original roadmap (dynamic weather, Big Cargo,
 biomes, upgrades integration, in-browser level editor) has shipped — see
@@ -414,12 +414,15 @@ the file. The class files are small; the bulk is in the mixins.
 | The lander/drone vehicle drawing | `render/lander.js` |
 | Sandworm, police interceptors, OOB monster | `render/creatures.js` |
 | Particles | `render/effects.js` |
+| Night Ops darkness overlay + spotlight + sonar reveal | `render/night.js` |
+| Altitude fog band (dust ceiling) overlay | `render/fog.js` |
 | Minimap, radar ping, objective arrow, notifications, wind indicator | `render/ui.js` |
 | `initLevel`, Matter world build, terrain generation, `update()` | `physics.js` |
 | Lander spawn/controls/integration, damage & shield, cargo boxes, on-deck clamp | `physics/entities.js` |
 | Polygon/segment collision helpers | `physics/collision.js` |
 | Water bounce, gravity well pull | `physics/mechanics.js` |
 | Gravity/wind, monster AI, ambient traffic, police, particles, hazard ticks | `physics/atmosphere.js` |
+| Sandworm strike tuning (`_sandWormTuning`) + altitude-fog density/abrasion (`fogDensityAt`, `updateAltitudeFog`) | `physics/atmosphere.js` |
 | Mid-air collectible pickup collision/award (`updateParticles`, generic over `COLLECTIBLE_TYPES`) | `physics/atmosphere.js` |
 | Particle/monster WebGL overlay + post-FX pass (`renderPostFX`) | `shaders.js` |
 | Level registry, quest helpers | `levels.js` |
@@ -433,6 +436,8 @@ the file. The class files are small; the bulk is in the mixins.
 - Moving gravity well: `gravityWellTime` phase + `orbitRadius` from config, exposed as `gravityWellPos`.
 - Drone rope: grappleX = `lander.x - sin(angle) * (ropeLength + height/2)` — swings OPPOSITE to tilt.
 - Monster speed: base 0.25 + `speedIntegral * 0.55` (integral builds when the lander escapes).
+- **Altitude fog band** (`fogBandTopY`/`fogBandBottomY`, optional): a soft ceiling made of weather rather than geometry. Density smoothsteps 0 → 1 as the lander climbs from `fogBandBottomY` to `fogBandTopY` and stays capped above it; `fogBandDamage` is hull points/sec at full density. `CargoPhysics#fogDensityAt(y)` owns the curve and `render/fog.js` reads it, so the visible band and the abrasion can't disagree. The renderer punches a clear bubble around the lander and a faint glow per ambient truck — that glow is the only warning you get about traffic inside the murk, which is the point on L6.
+- **Sandworm strike shape** is per-hazard, defaulted by `_sandWormTuning()`: `trackFrames` (homing window, in *frames* — dt is 1.0 per 60fps frame), `steer`, `maxSpeed`, `decay`, `retractSpeed`, `hitRadius`, `damage`. Ballistic reach ≈ `lungeSpeed / (1 - decay)`. Every default reproduces the pre-2026-08 hardcoded strike, so only levels that opt in are re-tuned (L6 does; L9 deliberately does not).
 - Parachute: fuel at 0 while airborne → `chuteTimer` deploys after ~1s; vx drag + vy capped toward ~2.2 (survivable-ish impact by design).
 - Shield: `applyDamage()` (`physics/entities.js`) is the single entry point for all hit sources; depletable `shieldCharge` mitigates 65% per hit; `shieldAbsorbedThisHit` protects deck cargo from being flung.
 - **On-deck cargo is rigidly clamped**, not friction-simulated: `updateOnDeckStates()` stores a deck-local offset (`box.deckT`/`deckN`) on landing and recomputes world position from the lander transform each frame. Releases only on crash, delivery, or chute pickup. Boxes claim non-overlapping `deckT` slots; a `big` box claims the entire deck.
