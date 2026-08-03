@@ -31,6 +31,7 @@ registerLevel({
     gravity: 0.08,           // Low — station void, but the reactor well fights this
     wind: 0.01,              // Faint atmosphere venting from hull breaches — not real "wind" in vacuum, kept tiny
     heavyCargo: true,
+    returnGauntlet: true,
 
 
     // ── Terrain — seven detached rock/hull platforms, no continuous ground.
@@ -84,12 +85,12 @@ registerLevel({
     hazards: [
         { type: 'gravwell', pts: [{x: 1180, y: 480}, {x: 1320, y: 620}, {x: 1180, y: 760}, {x: 1040, y: 620}], startForce: 0.6, endForce: 0.6, radius: 170, speed: 140 },
         // Gauntlet Laser 1 — between Collection Depot and Command Deck
-        { type: 'laser', pts: [{ x: 360, y: 380 }, { x: 360, y: 700 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14 },
+        { type: 'laser', pts: [{ x: 360, y: 380 }, { x: 360, y: 700 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, onReturn: { onMs: 1100, offMs: 1200, warnMs: 400 } },
         // Gauntlet Laser 2 — between Command Deck and Cryo Bay, offset phase so it's
         // never in sync with Laser 1 (forces reading each beam independently)
-        { type: 'laser', pts: [{ x: 685, y: 360 }, { x: 685, y: 760 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, phaseOffset: 900 },
+        { type: 'laser', pts: [{ x: 685, y: 360 }, { x: 685, y: 760 }], onMs: 1300, offMs: 1700, warnMs: 450, damagePerSec: 35, thickness: 14, phaseOffset: 900, onReturn: { onMs: 1000, offMs: 1100, warnMs: 400 } },
         // Gauntlet Laser 3 — the return gauntlet near Terminus Dock, fastest cycle
-        { type: 'laser', pts: [{ x: 1465, y: 400 }, { x: 1465, y: 720 }], onMs: 1100, offMs: 1400, warnMs: 400, damagePerSec: 40, thickness: 14, phaseOffset: 400 },
+        { type: 'laser', pts: [{ x: 1465, y: 400 }, { x: 1465, y: 720 }], onMs: 1100, offMs: 1400, warnMs: 400, damagePerSec: 40, thickness: 14, phaseOffset: 400, onReturn: { onMs: 900, offMs: 1000, warnMs: 350 } },
         // Massive industrial crusher before the Terminus gauntlet
         {
             type: 'crusher',
@@ -104,6 +105,14 @@ registerLevel({
         // Drifting debris-cloud zone (standard polygon hazard) over the reactor well —
         // stray shrapnel pulled into orbit by the gravity anomaly
         { pts: [{ x: 1100, y: 380 }, { x: 1180, y: 380 }, { x: 1200, y: 470 }, { x: 1080, y: 470 }] }
+    ],
+
+    // ── Collectibles (High-stakes void pickups) ───────────────────────────────
+    collectibles: [
+        { type: 'cash', x: 360, y: 520, value: 600 }, // Inside Laser 1 beam line
+        { type: 'cash', x: 780, y: 580, value: 600 }, // Above Cryo Bay void gap
+        { type: 'fuel', x: 1180, y: 540, amount: 40 }, // Inside reactor gravity well
+        { type: 'fuel', x: 1380, y: 500, amount: 40 }  // Adjacent to industrial crusher
     ],
 
     // ── Mission parameters ────────────────────────────────────────────────────

@@ -8,6 +8,7 @@
 
     function init() {
         const container = document.getElementById('canvas-container');
+        if (!container) return;
         clock = new THREE.Clock();
 
         // 1. Create 3D Scene
@@ -77,10 +78,14 @@
             function() {},
             function() {}
         );
+        sceneControls.terminal = terminal;
+
+        const gameManager = new window.Cargo3D.GameManager(sceneControls, terminal);
+        window.Cargo3D.gameInstance = gameManager;
 
         window.Cargo3D.setupUI(sceneControls, function(mode) {
             window.Cargo3D.Weather.setWeatherPreset(scene, sunLight, ambientLight, groundMat, mode);
-        }, terminal);
+        }, terminal, gameManager);
 
         // 10. Spawn Starter Containers
         spawnInitialDemoYard();
@@ -151,6 +156,7 @@
         const delta = clock.getDelta();
         if (sceneControls) sceneControls.update(delta);
         if (window.Cargo3D.Weather) window.Cargo3D.Weather.updateWeather(delta);
+        if (window.Cargo3D.gameInstance && sceneControls) window.Cargo3D.gameInstance.update(delta, sceneControls.placedObjects);
 
         orbitControls.update();
         renderer.render(scene, camera);

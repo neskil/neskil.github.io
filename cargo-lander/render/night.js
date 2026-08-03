@@ -80,6 +80,12 @@ drawNightOverlay() {
             this._nightPunchGlow(nctx, p.x, p.y, NIGHT_HUB_GLOW_RADIUS * zoom, 0.45);
         }
 
+        // ── Constant faint glow on mid-air collectibles (navigation & exploration beacons) ──
+        for (const col of (this.physics.collectibles || [])) {
+            const p = toScreen(col.x, col.y);
+            this._nightPunchGlow(nctx, p.x, p.y, 45 * zoom, 0.35);
+        }
+
         // ── Hazards light up as the ping wavefront passes them ──────────────
         for (const hz of (this.physics.hazards || [])) {
             if (!hz.pts || hz.pts.length < 2) continue;

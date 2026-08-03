@@ -827,9 +827,17 @@ const CargoPhysicsAtmosphereMixin = {
                 if (h.type !== 'laser') continue;
                 if (!h.pts || h.pts.length < 2) continue;
 
-                const onMs = h.onMs ?? 1400;
-                const offMs = h.offMs ?? 1600;
-                const warnMs = h.warnMs ?? 500;
+                const inReturnGauntlet = Boolean(
+                    window.game &&
+                    window.game.currentLevelIndex != null &&
+                    typeof levels !== 'undefined' &&
+                    levels[window.game.currentLevelIndex]?.returnGauntlet &&
+                    window.game.deliveredCount >= (levels[window.game.currentLevelIndex]?.targetCargo || 99)
+                );
+
+                const onMs = (inReturnGauntlet && h.onReturn?.onMs) ?? h.onMs ?? 1400;
+                const offMs = (inReturnGauntlet && h.onReturn?.offMs) ?? h.offMs ?? 1600;
+                const warnMs = (inReturnGauntlet && h.onReturn?.warnMs) ?? h.warnMs ?? 500;
                 const period = onMs + offMs;
                 const t = ((this.hazardTime + (h.phaseOffset || 0)) % period + period) % period;
                 // Active window is the tail end of the "off" phase (charge-up) +
