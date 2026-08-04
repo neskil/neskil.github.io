@@ -101,18 +101,35 @@
             const grill = new THREE.Mesh(grillGeo, grillMat);
             grill.position.set(-spec.length / 2 - 0.5, 0, 0);
             group.add(grill);
+
+            // Reefer power status LED
+            const ledGeo = new THREE.SphereGeometry(0.12, 12, 12);
+            const ledMat = new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x10b981, emissiveIntensity: 0.95 });
+            const led = new THREE.Mesh(ledGeo, ledMat);
+            led.position.set(-spec.length / 2 - 0.52, spec.height * 0.2, spec.width * 0.25);
+            group.add(led);
         }
 
         if (traits.indexOf('hazmat') !== -1) {
             const placardGeo = new THREE.BoxGeometry(0.7, 0.7, 0.05);
             const placardMat = new THREE.MeshStandardMaterial({
-                color: 0xf59e0b, emissive: 0x7c2d12, emissiveIntensity: 0.5, roughness: 0.5
+                color: 0xf59e0b, emissive: 0x7c2d12, emissiveIntensity: 0.6, roughness: 0.4
             });
+            const innerGeo = new THREE.BoxGeometry(0.42, 0.42, 0.07);
+            const innerMat = new THREE.MeshStandardMaterial({
+                color: 0xd97706, emissive: 0xef4444, emissiveIntensity: 0.8
+            });
+
             [1, -1].forEach(function (side) {
                 const placard = new THREE.Mesh(placardGeo, placardMat);
                 placard.position.set(spec.length * 0.22, 0, side * (spec.width / 2 + 0.06));
                 placard.rotation.z = Math.PI / 4;
                 group.add(placard);
+
+                const inner = new THREE.Mesh(innerGeo, innerMat);
+                inner.position.set(spec.length * 0.22, 0, side * (spec.width / 2 + 0.07));
+                inner.rotation.z = Math.PI / 4;
+                group.add(inner);
             });
         }
     }
@@ -252,6 +269,34 @@
         }
     }
 
+    function buildFlatrack(group, spec, palette) {
+        const floorMat = shellMaterial(palette);
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.7 });
+
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(spec.length, 0.35, spec.width), floorMat);
+        deck.position.y = -spec.height / 2 + 0.175;
+        deck.castShadow = true;
+        deck.receiveShadow = true;
+        group.add(tagShell(deck, palette.color));
+
+        const postGeo = new THREE.BoxGeometry(0.3, spec.height - 0.35, 0.3);
+        const beamGeo = new THREE.BoxGeometry(0.2, 0.2, spec.width);
+
+        [-1, 1].forEach(function (sx) {
+            [-1, 1].forEach(function (sz) {
+                const post = new THREE.Mesh(postGeo, postMat);
+                post.position.set(sx * (spec.length / 2 - 0.2), 0, sz * (spec.width / 2 - 0.2));
+                post.castShadow = true;
+                group.add(post);
+            });
+            const beam = new THREE.Mesh(beamGeo, postMat);
+            beam.position.set(sx * (spec.length / 2 - 0.2), spec.height / 2 - 0.2, 0);
+            group.add(beam);
+        });
+
+        addCorners(group, spec.length, spec.height, spec.width);
+    }
+
     /**
      * Build a cargo unit.
      * @param {string} typeId key into CARGO_TYPES
@@ -275,6 +320,7 @@
         if (spec.id === 'pallet') buildPallet(group, spec, palette);
         else if (spec.id === 'tank') buildTank(group, spec, palette);
         else if (spec.id === 'crate') buildCrate(group, spec, palette);
+        else if (spec.id === 'flatrack') buildFlatrack(group, spec, palette);
         else buildIsoBox(group, spec, palette, traits);
 
         return group;

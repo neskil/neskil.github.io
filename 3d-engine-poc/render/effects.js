@@ -29,7 +29,10 @@
         }
 
         this.buildSparks();
+        this.buildDust();
     }
+
+    const DUST_COUNT = 36;
 
     Effects.prototype.buildSparks = function () {
         const positions = new Float32Array(SPARK_COUNT * 3);
@@ -44,6 +47,49 @@
         this.sparks.visible = false;
         this.sparkLife = 0;
         this.sceneView.add(this.sparks);
+    };
+
+    Effects.prototype.buildDust = function () {
+        const positions = new Float32Array(DUST_COUNT * 3);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        this.dustVel = new Float32Array(DUST_COUNT * 3);
+        this.dustGeo = geo;
+        this.dust = new THREE.Points(geo, new THREE.PointsMaterial({
+            color: 0xc8d6e5, size: 0.6, transparent: true, opacity: 0, depthWrite: false
+        }));
+        this.dust.visible = false;
+        this.dustLife = 0;
+        this.sceneView.add(this.dust);
+    };
+
+    /** Radial dust puff when a container lands on the deck or stack. */
+    Effects.prototype.dustPuff = function (x, y, z) {
+        const pos = this.dustGeo.attributes.position.array;
+        for (let i = 0; i < DUST_COUNT; i++) {
+            const angle = (i / DUST_COUNT) * Math.PI * 2 + Math.random() * 0.2;
+            const r = 0.4 + Math.random() * 0.8;
+            pos[i * 3] = x + Math.cos(angle) * r;
+            pos[i * 3 + 1] = y + 0.1;
+            pos[i * 3 + 2] = z + Math.sin(angle) * r;
+
+            const speed = 2.5 + Math.random() * 4.0;
+            this.dustVel[i * 3] = Math.cos(angle) * speed;
+            this.dustVel[i * 3 + 1] = 0.8 + Math.random() * 1.5;
+            this.dustVel[i * 3 + 2] = Math.sin(angle) * speed;
+        }
+        this.dustGeo.attributes.position.needsUpdate = true;
+        this.dust.material.opacity = 0.75;
+        this.dust.visible = true;
+        this.dustLife = 0;
+    };
+
+    /** Trigger a camera micro-shake on heavy impact. */
+    Effects.prototype.shake = function (intensity) {
+        if (this.sceneView && typeof this.sceneView.addShake === 'function') {
+            this.sceneView.addShake(intensity || 0.15);
+        }
     };
 
     /** Expanding ring on the ground under a lock-in. */
@@ -109,6 +155,19 @@
             this.sparkGeo.attributes.position.needsUpdate = true;
             this.sparks.material.opacity = Math.max(0, 1 - this.sparkLife / 2.2);
             if (this.sparkLife > 2.2) this.sparks.visible = false;
+        }
+
+        if (this.dust.visible) {
+            this.dustLife += dt;
+            const pos = this.dustGeo.attributes.position.array;
+            for (let i = 0; i < DUST_COUNT; i++) {
+                pos[i * 3] += this.dustVel[i * 3] * dt;
+                pos[i * 3 + 1] += this.dustVel[i * 3 + 1] * dt;
+                pos[i * 3 + 2] += this.dustVel[i * 3 + 2] * dt;
+            }
+            this.dustGeo.attributes.position.needsUpdate = true;
+            this.dust.material.opacity = Math.max(0, 0.75 * (1 - this.dustLife / 0.7));
+            if (this.dustLife > 0.7) this.dust.visible = false;
         }
     };
 

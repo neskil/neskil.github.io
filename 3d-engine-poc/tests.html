@@ -91,6 +91,8 @@
             eq(C.span('40ft', 1)[1], 4, '40ft spans 4 in Z rotated');
             eq(C.span('crate', 1)[0], 2, 'crate is rotation-symmetric');
             eq(C.cellCount('10ft'), 1, '10ft is one cell');
+            eq(C.footprint('flatrack', 0).length, 2, 'flatrack covers 2 cells');
+            ok(C.CARGO_TYPES.flatrack.gridPiece === true, 'flatrack is a grid piece');
             ok(C.CARGO_TYPES.tank.noTopLoad === true, 'tanks are flagged noTopLoad');
             ok(C.GRID.CELL_VOLUME > 26 && C.GRID.CELL_VOLUME < 27, 'cell volume is ~27 m³');
         });

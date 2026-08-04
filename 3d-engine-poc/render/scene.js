@@ -139,7 +139,18 @@
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     };
 
+    SceneView.prototype.addShake = function (intensity) {
+        this.shakeAmount = Math.min((this.shakeAmount || 0) + (intensity || 0.15), 0.35);
+    };
+
     SceneView.prototype.render = function () {
+        if (this.shakeAmount > 0.005) {
+            this.camera.position.x += (Math.random() - 0.5) * this.shakeAmount;
+            this.camera.position.y += (Math.random() - 0.5) * this.shakeAmount;
+            this.shakeAmount *= 0.86;
+        } else {
+            this.shakeAmount = 0;
+        }
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     };

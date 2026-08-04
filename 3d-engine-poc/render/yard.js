@@ -282,9 +282,18 @@
             if (dy <= 0.01) {
                 mesh.position.y = mesh.userData.dropTarget;
                 mesh.userData.dropping = false;
+                if (typeof this.onLand === 'function') {
+                    this.onLand(mesh.position.x, mesh.position.y, mesh.position.z);
+                }
             } else {
                 mesh.position.y -= Math.max(dy * step * 0.5, 0.04);
-                if (mesh.position.y < mesh.userData.dropTarget) mesh.position.y = mesh.userData.dropTarget;
+                if (mesh.position.y <= mesh.userData.dropTarget) {
+                    mesh.position.y = mesh.userData.dropTarget;
+                    mesh.userData.dropping = false;
+                    if (typeof this.onLand === 'function') {
+                        this.onLand(mesh.position.x, mesh.position.y, mesh.position.z);
+                    }
+                }
             }
         }
     };

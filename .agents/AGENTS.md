@@ -11,8 +11,8 @@ This repository uses a simple folder-based routing structure. Each major page or
   - `/cv/`: Curriculum Vitae page.
   - `/games/`: Interactive library of completed games.
   - `/math/` & `/converter/`: Utility and reference applications.
-- **Isolated Applications**: Complex projects like `/cargo-lander/`, `/supply-chain/` and `/car/` contain their own dedicated HTML, logic, assets, and styling. `/car/` keeps its outstanding work in `car/PLAN.md` — read it before changing the cost model. `/cargo-lander/` has its own docs — read `cargo-lander/CLAUDE.md` (agent workflow) and `cargo-lander/README.md` (architecture) before working there.
-- **Release Flow**: Develop new projects in their own directories. Do NOT add links to the root `index.html` until the project is completely finished, tested, and approved.
+- **Isolated Applications**: Complex projects like `/cargo-lander/`, `/supply-chain/`, `/3d-engine-poc/` (Yard Master 3D), and `/car/` contain their own dedicated HTML, logic, assets, and styling. `/car/` keeps its outstanding work in `car/PLAN.md` — read it before changing the cost model. `/cargo-lander/` has its own docs — read `cargo-lander/CLAUDE.md` (agent workflow) and `cargo-lander/README.md` (architecture) before working there. `/3d-engine-poc/` has `CLAUDE.md`, `README.md`, and `PLAN.md`.
+- **Release Flow**: Develop new projects in their own isolated directories. Do NOT add active project cards to the root `index.html` until the project is completed, tested, and approved. When a new project is under active development, an "Under Construction" flip card (`#card-wip`, class `.flip-card`) can be added to `<main class="grid">` on `index.html` to offer a peek. Its CSS styles (`#card-wip`, `.flip-card`, `.wip-body`) are preserved in `index.html` so a WIP card can be re-inserted into the HTML grid whenever a new unreleased project is being built.
 
 ## 🛠️ Technology Stack & Styling
 
