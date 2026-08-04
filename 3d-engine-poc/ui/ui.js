@@ -17,6 +17,7 @@
         const menu = new Cargo3D.MenuUI(app);
         const missionHUD = new Cargo3D.MissionHUD();
         const sandboxHUD = new Cargo3D.SandboxHUD();
+        const physicsHUD = new Cargo3D.PhysicsHUD();
         const results = new Cargo3D.ResultsUI(app);
 
         menu.renderHowTo();
@@ -43,7 +44,11 @@
             updateSandboxHUD: function (metrics) { sandboxHUD.update(metrics); },
             hideSandboxHUD: function () { sandboxHUD.hide(); },
             showInspector: function (mesh) { sandboxHUD.showInspector(mesh); },
-            hideInspector: function () { sandboxHUD.hideInspector(); }
+            hideInspector: function () { sandboxHUD.hideInspector(); },
+
+            showPhysicsHUD: function () { physicsHUD.show(); },
+            updatePhysicsHUD: function (metrics) { physicsHUD.update(metrics); },
+            hidePhysicsHUD: function () { physicsHUD.hide(); }
         };
 
         /* ── top bar ───────────────────────────────────────────────────── */
@@ -129,6 +134,35 @@
             });
             paletteHost.appendChild(btn);
         });
+
+        const physPaletteHost = el('physics-palette');
+        if (physPaletteHost) {
+            SPAWNS.forEach(function (entry, i) {
+                const type = C.CARGO_TYPES[entry.type];
+                const carrier = C.CARRIERS[entry.carrier];
+                const btn = document.createElement('button');
+                btn.className = 'palette-btn' + (i === 1 ? ' active' : '');
+                btn.title = type.label;
+                btn.innerHTML = '<span class="color-dot" style="background:#' +
+                    carrier.color.toString(16).padStart(6, '0') + '"></span><span>' + entry.label + '</span>';
+                btn.addEventListener('click', function () {
+                    physPaletteHost.querySelectorAll('.palette-btn').forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    if (app.modeName === 'physics') app.mode.setSpawn(entry.type, entry.carrier);
+                });
+                physPaletteHost.appendChild(btn);
+            });
+        }
+        if (el('btn-phys-rotate')) {
+            el('btn-phys-rotate').addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.rotate();
+            });
+        }
+        if (el('btn-phys-clear')) {
+            el('btn-phys-clear').addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.clearYard();
+            });
+        }
 
         el('btn-xray').addEventListener('click', function () {
             if (app.modeName !== 'sandbox') return;

@@ -205,6 +205,43 @@
         </div>
     </div>
 
+    <!-- ── physics HUD & toolbar ────────────────────────────────────── -->
+    <aside id="physics-hud" class="hud-stack hidden">
+        <section class="hud-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">⚖️</span>
+                <h3>Physics Stacker</h3>
+            </header>
+            <p class="hud-tagline">No grid. Containers simulate gravity, inertia, and friction—bad balance causes tipping!</p>
+            <div class="metric-row"><span class="metric-label">Units active</span><span class="metric-val" id="ph-count">0</span></div>
+            <div class="metric-row"><span class="metric-label">Est. mass</span><span class="metric-val" id="ph-mass">0 t</span></div>
+            <div class="metric-row"><span class="metric-label">Max height</span><span class="metric-val" id="ph-height">0 m</span></div>
+        </section>
+    </aside>
+
+    <div id="physics-toolbar" class="control-bar hidden">
+        <div class="toolbar-section">
+            <span class="section-title">Spawn Cargo</span>
+            <div class="button-group" id="physics-palette"></div>
+        </div>
+        <div class="toolbar-section">
+            <span class="section-title">Camera</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-cam="orbit">Orbit</button>
+                <button class="tool-btn" data-cam="iso">Isometric</button>
+                <button class="tool-btn" data-cam="top">Top</button>
+                <button class="tool-btn" data-cam="front">Front</button>
+            </div>
+        </div>
+        <div class="toolbar-section">
+            <span class="section-title">Actions</span>
+            <div class="button-group">
+                <button id="btn-phys-rotate" class="tool-btn" title="Rotate preview by 15 degrees">Rotate <kbd>R</kbd></button>
+                <button id="btn-phys-clear" class="tool-btn danger">Clear Yard <kbd>C</kbd></button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── main menu ────────────────────────────────────────────────── -->
     <div id="menu-overlay" class="overlay">
         <div class="panel menu-panel">
@@ -218,6 +255,7 @@
             <div class="menu-actions">
                 <button id="btn-campaign" class="primary-btn">▶ Campaign</button>
                 <button id="btn-sandbox" class="ghost-btn">🏗️ Sandbox</button>
+                <button id="btn-physics" class="ghost-btn">🧪 Physics (Exp)</button>
                 <button id="btn-howto" class="ghost-btn">How to play</button>
             </div>
             <div class="menu-progress" id="menu-progress"></div>
@@ -376,6 +414,8 @@
     <script src="game/mission.js"></script>
     <script src="game/contracts.js"></script>
     <script src="game/sandbox.js"></script>
+    <script src="game/physics.js"></script>
+    <script src="game/physicsMode.js"></script>
 
     <script src="ui/hud.js"></script>
     <script src="ui/menu.js"></script>
