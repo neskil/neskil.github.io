@@ -36,7 +36,7 @@
         this.yardView.onLand = function (x, y, z) {
             if (self.app.effects) {
                 self.app.effects.dustPuff(x, y, z);
-                self.app.effects.shake(0.12);
+                self.app.effects.shake(0.22);
             }
         };
 

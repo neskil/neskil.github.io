@@ -140,19 +140,25 @@
     };
 
     SceneView.prototype.addShake = function (intensity) {
-        this.shakeAmount = Math.min((this.shakeAmount || 0) + (intensity || 0.15), 0.35);
+        this.shakeAmount = Math.min((this.shakeAmount || 0) + (intensity || 0.25), 0.7);
     };
 
     SceneView.prototype.render = function () {
+        this.controls.update();
+
         if (this.shakeAmount > 0.005) {
-            this.camera.position.x += (Math.random() - 0.5) * this.shakeAmount;
-            this.camera.position.y += (Math.random() - 0.5) * this.shakeAmount;
-            this.shakeAmount *= 0.86;
+            const ox = (Math.random() - 0.5) * this.shakeAmount;
+            const oy = (Math.random() - 0.5) * this.shakeAmount * 0.7;
+            this.camera.position.x += ox;
+            this.camera.position.y += oy;
+            this.renderer.render(this.scene, this.camera);
+            this.camera.position.x -= ox;
+            this.camera.position.y -= oy;
+            this.shakeAmount *= 0.82;
         } else {
             this.shakeAmount = 0;
+            this.renderer.render(this.scene, this.camera);
         }
-        this.controls.update();
-        this.renderer.render(this.scene, this.camera);
     };
 
     SceneView.prototype.add = function (obj) { this.scene.add(obj); };
