@@ -18,6 +18,20 @@ the game design before changing anything here.
 5. **No build step, no bundler, no framework.** Plain `<script>` tags, IIFEs,
    one `window.Cargo3D` namespace — per the workspace rules in `.agents/`.
 
+## Before you push
+
+Stamp the build, so the live page says which version it is:
+
+```sh
+3d-engine-poc/tools/stamp-build.sh && git commit -am "chore(3d): stamp build"
+```
+
+The chip in the top bar reads `version.js` and links to that commit on GitHub.
+It names the commit that was HEAD when the script ran — a file cannot contain
+its own hash, so the stamp always trails by the stamp commit itself. That is the
+useful end of the trade: it names the change you are looking for, not the
+bookkeeping.
+
 ## Before you commit
 
 Run the tests. They are fast and they cover the parts that are easy to break:

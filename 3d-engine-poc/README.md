@@ -22,7 +22,9 @@ with no WebGL context, offline, in a headless browser.
 ```
 3d-engine-poc/
 ├── index.html          DOM shell; script tags define load order
+├── version.js          build stamp shown in the top bar (tools/stamp-build.sh)
 ├── tests.html          headless unit tests for core/ + missions/
+├── physics-tests.html  headless unit tests for the rigid-body solver
 ├── PLAN.md             game design & roadmap
 ├── CLAUDE.md           workflow notes for agents
 ├── HISTORY.md          changelog
@@ -184,6 +186,17 @@ the briefing panel and the how-to page all pick it up automatically.
 **A cargo type** — add it to `CARGO_TYPES` in `core/constants.js` with its cell
 footprint and true metres, then give it a mesh branch in
 `render/containers.js`. Set `gridPiece: false` for sandbox-only props.
+
+## Which build is live
+
+The top bar carries a dim monospace chip with the short commit hash, linking to
+that commit on GitHub — enough to tell at a glance, on a phone, whether the
+deployed page is the one you just pushed. Run `tools/stamp-build.sh` before
+pushing and commit what it writes to `version.js`.
+
+The stamp names the commit that was HEAD when the script ran, not the commit
+that records the stamp: writing a hash into a file changes that file's hash, so
+an unbuilt static site cannot do better. It names the change you care about.
 
 ## Save data
 
