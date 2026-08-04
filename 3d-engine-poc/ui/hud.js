@@ -37,16 +37,38 @@
         return html;
     }
 
+    function shapeGridSVG(typeId) {
+        const type = C.CARGO_TYPES[typeId];
+        if (!type) return '';
+        const cellsX = type.cells[0];
+        const cellsZ = type.cells[1];
+        const pts = C.footprint(typeId, 0);
+        const set = {};
+        pts.forEach(function (p) { set[p[0] + ',' + p[1]] = true; });
+
+        let rects = '';
+        for (let x = 0; x < cellsX; x++) {
+            for (let z = 0; z < cellsZ; z++) {
+                if (set[x + ',' + z]) {
+                    rects += '<rect x="' + (x * 7 + 1) + '" y="' + (z * 7 + 1) + '" width="5.5" height="5.5" rx="1" fill="currentColor"/>';
+                }
+            }
+        }
+        const width = cellsX * 7 + 1;
+        const height = cellsZ * 7 + 1;
+        return '<svg class="shape-icon" viewBox="0 0 ' + width + ' ' + height + '" style="width:' + Math.max(14, cellsX * 9) + 'px;height:' + Math.max(14, cellsZ * 9) + 'px;margin-right:6px;vertical-align:middle;color:rgba(255,255,255,0.85);display:inline-block;">' + rects + '</svg>';
+    }
+
     function unitChip(unit, className) {
         const type = C.CARGO_TYPES[unit.type] || C.CARGO_TYPES['20ft'];
         const carrier = C.CARRIERS[unit.carrier] || C.CARRIERS.maersk;
         const swatch = '#' + carrier.color.toString(16).padStart(6, '0');
-        const cells = type.cells[0] * type.cells[1];
+        const cells = C.cellCount(unit.type);
 
         return '<div class="unit-chip ' + (className || '') + '">' +
             '<span class="chip-swatch" style="background:' + swatch + '"></span>' +
             '<span class="chip-body">' +
-                '<span class="chip-title">' + type.label + '</span>' +
+                '<span class="chip-title">' + shapeGridSVG(unit.type) + type.label + '</span>' +
                 '<span class="chip-meta">' + cells + ' slot' + (cells === 1 ? '' : 's') +
                     ' · ' + unit.massT.toFixed(1) + ' t</span>' +
             '</span>' +

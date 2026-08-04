@@ -256,6 +256,18 @@
         const last = this.grid.lastPlacement();
         if (!last) return false;
 
+        if (last.isObstacle) {
+            if (Cargo3D.Audio) Cargo3D.Audio.reject();
+            this.onReject('Pre-placed obstacles cannot be moved.');
+            return false;
+        }
+
+        if (this.undoLimit !== undefined && this.undos >= this.undoLimit) {
+            if (Cargo3D.Audio) Cargo3D.Audio.reject();
+            this.onReject('Undo limit reached (' + this.undoLimit + '/' + this.undoLimit + ')');
+            return false;
+        }
+
         this.grid.removeById(last.id);
         this.yardView.removeUnit(last.id);
         this.yardView.updateEnvelope(this.grid.bounds());

@@ -297,6 +297,34 @@
         addCorners(group, spec.length, spec.height, spec.width);
     }
 
+    function buildLBlock(group, spec, palette) {
+        const mat = shellMaterial(palette);
+        const cellSize = C.GRID.CELL_X;
+        const mask = spec.mask || [[0, 0], [1, 0], [0, 1]];
+
+        mask.forEach(function (pt) {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(cellSize * 0.94, spec.height, cellSize * 0.94), mat);
+            box.position.set((pt[0] + 0.5 - spec.cells[0] / 2) * cellSize, 0, (pt[1] + 0.5 - spec.cells[1] / 2) * cellSize);
+            box.castShadow = true;
+            box.receiveShadow = true;
+            group.add(tagShell(box, palette.color));
+        });
+    }
+
+    function buildTBlock(group, spec, palette) {
+        const mat = shellMaterial(palette);
+        const cellSize = C.GRID.CELL_X;
+        const mask = spec.mask || [[0, 0], [1, 0], [2, 0], [1, 1]];
+
+        mask.forEach(function (pt) {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(cellSize * 0.94, spec.height, cellSize * 0.94), mat);
+            box.position.set((pt[0] + 0.5 - spec.cells[0] / 2) * cellSize, 0, (pt[1] + 0.5 - spec.cells[1] / 2) * cellSize);
+            box.castShadow = true;
+            box.receiveShadow = true;
+            group.add(tagShell(box, palette.color));
+        });
+    }
+
     /**
      * Build a cargo unit.
      * @param {string} typeId key into CARGO_TYPES
@@ -321,6 +349,8 @@
         else if (spec.id === 'tank') buildTank(group, spec, palette);
         else if (spec.id === 'crate') buildCrate(group, spec, palette);
         else if (spec.id === 'flatrack') buildFlatrack(group, spec, palette);
+        else if (spec.id === 'lblock') buildLBlock(group, spec, palette);
+        else if (spec.id === 'tblock') buildTBlock(group, spec, palette);
         else buildIsoBox(group, spec, palette, traits);
 
         return group;

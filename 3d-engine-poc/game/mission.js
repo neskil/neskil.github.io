@@ -40,6 +40,26 @@
             }
         };
 
+        if (mission.obstacles && mission.obstacles.length) {
+            mission.obstacles.forEach(function (obs, idx) {
+                const obsUnit = {
+                    uid: 'obs-' + idx,
+                    type: obs.type || '20ft',
+                    carrier: obs.carrier || 'steel',
+                    traits: obs.traits || [],
+                    departure: 0,
+                    massT: 15
+                };
+                const p = self.grid.place(obsUnit, obs.x, obs.z, obs.tier || 0, obs.rot || 0);
+                if (p) {
+                    p.isObstacle = true;
+                    const mesh = self.yardView.addUnit(p);
+                    mesh.userData.dropping = false;
+                }
+            });
+            this.yardView.updateEnvelope(this.grid.bounds());
+        }
+
         this.app.weather.set(mission.weather);
         this.app.terminal.setVisible(false);
         this.app.sceneView.setMastsVisible(false);
