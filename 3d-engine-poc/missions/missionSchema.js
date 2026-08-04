@@ -35,6 +35,7 @@
         brief: '',
         teaches: '',
         rules: ['support:1'],
+        obstacles: [],
         weather: 'day',
         shuffle: true
     };
@@ -43,6 +44,7 @@
         const out = Object.assign({}, DEFAULTS, mission);
         out.bay = Object.assign({ cols: 5, rows: 4, tiers: 3 }, mission.bay || {});
         out.medals = Object.assign({}, Cargo3D.Scoring.DEFAULT_MEDALS, mission.medals || {});
+        out.obstacles = mission.obstacles || [];
         return out;
     }
 

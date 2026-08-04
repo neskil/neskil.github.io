@@ -88,6 +88,22 @@
             teu: 1, tare: 2.7, payload: 31.0, volume: 30.0,
             gridPiece: true
         },
+        'lblock': {
+            id: 'lblock', label: 'L-Corner Machinery', short: 'LCB',
+            cells: [2, 2],
+            mask: [[0, 0], [1, 0], [0, 1]],
+            length: 6.06, width: 6.06, height: 2.59,
+            teu: 1.5, tare: 3.2, payload: 22.0, volume: 45.0,
+            gridPiece: true
+        },
+        'tblock': {
+            id: 'tblock', label: 'T-Beam Module', short: 'TBM',
+            cells: [3, 2],
+            mask: [[0, 0], [1, 0], [2, 0], [1, 1]],
+            length: 9.15, width: 6.06, height: 2.59,
+            teu: 2, tare: 4.1, payload: 28.0, volume: 54.0,
+            gridPiece: true
+        },
         'pallet': {
             id: 'pallet', label: 'Wooden Euro-Pallet', short: 'PAL',
             cells: [1, 1],
@@ -105,8 +121,7 @@
     /** Cargo traits. Rules key off these; the HUD renders the badge. */
     const TRAITS = {
         reefer:  { id: 'reefer',  label: 'Reefer',  badge: '❄', color: 0x38bdf8, note: 'Needs a power point on the bay edge' },
-        hazmat:  { id: 'hazmat',  label: 'Hazmat',  badge: '☣', color: 0xf59e0b, note: 'Must not touch other hazmat' },
-        fragile: { id: 'fragile', label: 'Fragile', badge: '✦', color: 0xa78bfa, note: 'Take care on top tiers' },
+        hazmat:  { id: 'hazmat',  label: 'Hazmat',  badge: '☣', color: 0xf59e0b, note: 'May not touch another hazmat unit on the same tier' },
         heavy:   { id: 'heavy',   label: 'Heavy',   badge: '⬤', color: 0xef4444, note: 'Wants to be low in the stack' }
     };
 
@@ -115,21 +130,27 @@
 
     /**
      * Footprint of a type at a given rotation, as a list of [dx, dz] cell
-     * offsets from the piece origin. Kept as an explicit mask (rather than a
-     * width/height pair) so non-rectangular cargo can be added later without
-     * touching grid.js or placement.js.
+     * offsets from the piece origin. Kept as an explicit mask so non-rectangular
+     * cargo works natively with grid.js and placement.js.
      *
      * @param {string} typeId
-     * @param {number} rot 0 or 1 (90° steps; 180°/270° are identical footprints)
+     * @param {number} rot 0 or 1 (90° steps)
      * @returns {Array<[number, number]>}
      */
     function footprint(typeId, rot) {
         const type = CARGO_TYPES[typeId];
         if (!type) return [];
 
-        const swapped = ((rot | 0) % 2) !== 0;
-        const spanX = swapped ? type.cells[1] : type.cells[0];
-        const spanZ = swapped ? type.cells[0] : type.cells[1];
+        const isRot = ((rot | 0) % 2) !== 0;
+
+        if (type.mask) {
+            return type.mask.map(function (pt) {
+                return isRot ? [pt[1], pt[0]] : [pt[0], pt[1]];
+            });
+        }
+
+        const spanX = isRot ? type.cells[1] : type.cells[0];
+        const spanZ = isRot ? type.cells[0] : type.cells[1];
 
         const cells = [];
         for (let dx = 0; dx < spanX; dx++) {
@@ -151,7 +172,8 @@
     /** Number of cells a type occupies (rotation-independent). */
     function cellCount(typeId) {
         const type = CARGO_TYPES[typeId];
-        return type ? type.cells[0] * type.cells[1] : 0;
+        if (!type) return 0;
+        return type.mask ? type.mask.length : (type.cells[0] * type.cells[1]);
     }
 
     Cargo3D.Constants = {

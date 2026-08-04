@@ -100,6 +100,7 @@
                 { type: '10ft', count: 8, load: 0.40 }
             ],
             seed: 1005,
+            obstacles: [{ type: '10ft', carrier: 'steel', x: 2, z: 1, tier: 0 }],
             medals: { gold: 1.12, silver: 1.32, bronze: 1.65 },
             weather: 'rain'
         },
@@ -237,6 +238,30 @@
             seed: 1012,
             medals: { gold: 1.18, silver: 1.42, bronze: 1.85 },
             weather: 'fog'
+        },
+        {
+            id: 'm13',
+            name: 'Endless Yard',
+            tagline: 'Procedural logistics challenge.',
+            teaches: 'Continuous random cargo stream with pre-placed obstacles & Tetris blocks.',
+            brief: 'The terminal never sleeps. Cargo keeps arriving off ships and trains in random sequence with pre-placed obstacles to challenge your packing precision.',
+            bay: { cols: 8, rows: 5, tiers: 4 },
+            rules: ['support:1', 'heavyBelow'],
+            obstacles: [
+                { type: '20ft', carrier: 'steel', x: 1, z: 1, tier: 0 },
+                { type: '10ft', carrier: 'steel', x: 5, z: 3, tier: 0 }
+            ],
+            units: [
+                { type: '40ft', count: 4 },
+                { type: '20ft', count: 8 },
+                { type: '10ft', count: 6 },
+                { type: 'crate', count: 3 },
+                { type: 'lblock', count: 2 },
+                { type: 'tblock', count: 1 }
+            ],
+            seed: 1013,
+            medals: { gold: 1.15, silver: 1.35, bronze: 1.70 },
+            weather: 'night'
         }
     ];
 
