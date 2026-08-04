@@ -92,6 +92,8 @@
         this.invInertiaWorld = new THREE.Matrix3();
         this.sleeping = false;
         this.idleTime = 0;
+        /** Contacts found for this body in the current substep. */
+        this.contacts = 0;
 
         this.samplePoints = this.generateSamplePoints();
         this.updateTransform();
@@ -135,6 +137,49 @@
         this.idleTime = 0;
     };
 
+    /** Linear plus angular energy proxy, used for the sleep threshold. */
+    RigidBox.prototype.speedSq = function () {
+        return this.velocity.lengthSq() + this.angularVelocity.lengthSq();
+    };
+
+    /** Height of the box's highest corner above the ground plane. */
+    RigidBox.prototype.topY = function () {
+        let top = -Infinity;
+        for (let i = 0; i < 8; i++) {
+            worldPos.copy(this.samplePoints[i]).applyQuaternion(this.quaternion).add(this.position);
+            if (worldPos.y > top) top = worldPos.y;
+        }
+        return top;
+    };
+
+
+    /* ── Contact constraint ────────────────────────────────────────────── */
+
+    /**
+     * One point constraint between two bodies (or a body and the ground, when
+     * `bB` is null). Impulses accumulate across solver iterations, which is what
+     * lets a tall stack converge — a single pass can only push the top box down
+     * onto the one below, never propagate the support all the way to the ground.
+     */
+    function Contact() {
+        this.bA = null;
+        this.bB = null;
+        this.point = new THREE.Vector3();
+        this.normal = new THREE.Vector3();
+        this.t1 = new THREE.Vector3();
+        this.t2 = new THREE.Vector3();
+        this.rA = new THREE.Vector3();
+        this.rB = new THREE.Vector3();
+        this.depth = 0;
+        this.massN = 0;
+        this.massT1 = 0;
+        this.massT2 = 0;
+        this.bias = 0;
+        this.Pn = 0;
+        this.Pt1 = 0;
+        this.Pt2 = 0;
+    }
+
     /* ── PhysicsWorld ──────────────────────────────────────────────────── */
 
     function PhysicsWorld() {
@@ -143,6 +188,21 @@
         this.groundY = 0;
         this.restitution = 0.15;
         this.friction = 0.65;
+
+        /** Velocity iterations per substep. Tall stacks need the relaxation. */
+        this.iterations = 10;
+        this.subSteps = 3;
+
+        /** Allowed overlap, in metres. Solving to exactly zero causes jitter. */
+        this.slop = 0.005;
+        /** Fraction of the remaining overlap pushed out per substep. */
+        this.beta = 0.2;
+        /** Below this closing speed a contact is treated as resting, not bouncing. */
+        this.restitutionThreshold = 1.0;
+
+        this.contacts = [];
+        this._pool = [];
+        this._contactCount = 0;
     }
 
     PhysicsWorld.prototype.add = function (body) {
@@ -158,32 +218,51 @@
 
     PhysicsWorld.prototype.clear = function () {
         this.bodies = [];
+        this.contacts.length = 0;
+        this._contactCount = 0;
     };
 
     PhysicsWorld.prototype.update = function (delta) {
         if (delta <= 0) return;
         const timeStep = Math.min(delta, 0.05);
-        const subSteps = 5;
-        const dt = timeStep / subSteps;
+        const dt = timeStep / this.subSteps;
 
-        for (let s = 0; s < subSteps; s++) {
+        for (let s = 0; s < this.subSteps; s++) {
             this.step(dt);
         }
     };
 
     PhysicsWorld.prototype.step = function (dt) {
-        const len = this.bodies.length;
+        this.integrateVelocities(dt);
+        this.collectContacts();
+        this.prepareContacts(dt);
 
-        // 1. Integrate forces and velocity
-        for (let i = 0; i < len; i++) {
+        for (let it = 0; it < this.iterations; it++) {
+            this.solveContacts();
+        }
+
+        this.integratePositions(dt);
+        this.updateSleep(dt);
+    };
+
+    PhysicsWorld.prototype.integrateVelocities = function (dt) {
+        for (let i = 0; i < this.bodies.length; i++) {
             const b = this.bodies[i];
-            if (b.sleeping) continue;
+            if (b.sleeping || b.invMass === 0) continue;
 
             b.velocity.addScaledVector(this.gravity, dt);
 
-            // Damping to simulate ambient air resistance and friction dissipation
-            b.velocity.multiplyScalar(1 - 1.2 * dt);
-            b.angularVelocity.multiplyScalar(1 - 2.0 * dt);
+            // Ambient damping — stands in for air resistance and the energy a
+            // real container loses to its own structure.
+            b.velocity.multiplyScalar(1 - 0.4 * dt);
+            b.angularVelocity.multiplyScalar(1 - 0.8 * dt);
+        }
+    };
+
+    PhysicsWorld.prototype.integratePositions = function (dt) {
+        for (let i = 0; i < this.bodies.length; i++) {
+            const b = this.bodies[i];
+            if (b.sleeping || b.invMass === 0) continue;
 
             b.position.addScaledVector(b.velocity, dt);
 
@@ -201,28 +280,278 @@
 
             b.updateTransform();
         }
+    };
 
-        // 2. Collisions and impulses
+    /* ── Broad and narrow phase ────────────────────────────────────────── */
+
+    PhysicsWorld.prototype.nextContact = function () {
+        let c = this._pool[this._contactCount];
+        if (!c) {
+            c = new Contact();
+            this._pool[this._contactCount] = c;
+        }
+        this._contactCount++;
+        this.contacts.push(c);
+        return c;
+    };
+
+    PhysicsWorld.prototype.addContact = function (bA, bB, point, normal, depth) {
+        const c = this.nextContact();
+        c.bA = bA;
+        c.bB = bB;
+        c.point.copy(point);
+        c.normal.copy(normal);
+        c.depth = depth;
+        c.Pn = 0;
+        c.Pt1 = 0;
+        c.Pt2 = 0;
+        return c;
+    };
+
+    PhysicsWorld.prototype.collectContacts = function () {
+        this.contacts.length = 0;
+        this._contactCount = 0;
+
+        const len = this.bodies.length;
+        for (let i = 0; i < len; i++) this.bodies[i].contacts = 0;
+
         for (let i = 0; i < len; i++) {
             const bA = this.bodies[i];
-            this.resolveGround(bA, dt);
+            this.groundContacts(bA);
 
             for (let j = i + 1; j < len; j++) {
-                const bB = this.bodies[j];
-                if (bA.sleeping && bB.sleeping) continue;
-                this.resolveBoxPair(bA, bB, dt);
+                this.pairContacts(bA, this.bodies[j]);
             }
         }
+    };
 
-        // 3. Update sleep states
-        for (let i = 0; i < len; i++) {
+    PhysicsWorld.prototype.groundContacts = function (body) {
+        if (body.invMass === 0) return;
+
+        const pts = body.samplePoints;
+        for (let k = 0; k < pts.length; k++) {
+            worldPos.copy(pts[k]).applyQuaternion(body.quaternion).add(body.position);
+            if (worldPos.y > this.groundY) continue;
+
+            // The ground never wakes anything — a box resting on it is exactly
+            // the case sleep exists for.
+            if (body.sleeping) {
+                if (this.groundY - worldPos.y <= this.slop * 4) continue;
+                body.wake();
+            }
+
+            norm.set(0, 1, 0);
+            this.addContact(body, null, worldPos, norm, this.groundY - worldPos.y);
+            body.contacts++;
+        }
+    };
+
+    /** Sample points of `from` tested against the oriented box of `into`. */
+    PhysicsWorld.prototype.pointsInBox = function (from, into, flip) {
+        const invRot = flip ? invRotA : invRotB;
+        invRot.copy(into.quaternion).invert();
+
+        const hw = into.width / 2, hh = into.height / 2, hl = into.length / 2;
+        const pts = from.samplePoints;
+        let found = 0;
+
+        for (let k = 0; k < pts.length; k++) {
+            worldPos.copy(pts[k]).applyQuaternion(from.quaternion).add(from.position);
+            localPos.copy(worldPos).sub(into.position).applyQuaternion(invRot);
+
+            const ax = Math.abs(localPos.x), ay = Math.abs(localPos.y), az = Math.abs(localPos.z);
+            if (ax > hw || ay > hh || az > hl) continue;
+
+            // Shallowest face wins — that is the axis the point came in through.
+            const dx = hw - ax, dy = hh - ay, dz = hl - az;
+            let depth;
+
+            if (dy <= dx && dy <= dz) {
+                depth = dy;
+                norm.set(0, localPos.y > 0 ? 1 : -1, 0);
+            } else if (dx <= dz) {
+                depth = dx;
+                norm.set(localPos.x > 0 ? 1 : -1, 0, 0);
+            } else {
+                depth = dz;
+                norm.set(0, 0, localPos.z > 0 ? 1 : -1);
+            }
+
+            norm.applyQuaternion(into.quaternion);
+            // Normal must always point from B toward A.
+            if (flip) norm.negate();
+
+            this.addContact(flip ? into : from, flip ? from : into, worldPos, norm, depth);
+            found++;
+        }
+        return found;
+    };
+
+    PhysicsWorld.prototype.pairContacts = function (bA, bB) {
+        if (bA.sleeping && bB.sleeping) return;
+
+        // Broadphase: bounding spheres.
+        const distSq = bA.position.distanceToSquared(bB.position);
+        const rBoundA = Math.sqrt(bA.width * bA.width + bA.height * bA.height + bA.length * bA.length) / 2;
+        const rBoundB = Math.sqrt(bB.width * bB.width + bB.height * bB.height + bB.length * bB.length) / 2;
+        const reach = rBoundA + rBoundB;
+        if (distSq > reach * reach) return;
+
+        const before = this.contacts.length;
+        this.pointsInBox(bA, bB, false);
+        this.pointsInBox(bB, bA, true);
+        const found = this.contacts.length - before;
+        if (!found) return;
+
+        bA.contacts += found;
+        bB.contacts += found;
+
+        // A sleeping body only wakes for a partner that is actually moving —
+        // otherwise a settled stack would wake itself every frame, forever.
+        if (bA.sleeping && !bB.sleeping && bB.speedSq() > 0.02) bA.wake();
+        if (bB.sleeping && !bA.sleeping && bA.speedSq() > 0.02) bB.wake();
+    };
+
+    /* ── Solver ────────────────────────────────────────────────────────── */
+
+    /** Effective mass of the contact along `dir`, treating sleepers as static. */
+    function effectiveMass(bA, bB, rA, rB, dir) {
+        let sum = bA.sleeping ? 0 : bA.invMass;
+
+        if (!bA.sleeping) {
+            torqueA.copy(rA).cross(dir);
+            applyMatrix3(torqueA, bA.invInertiaWorld);
+            torqueA.cross(rA);
+            sum += torqueA.dot(dir);
+        }
+        if (bB && !bB.sleeping) {
+            sum += bB.invMass;
+            torqueB.copy(rB).cross(dir);
+            applyMatrix3(torqueB, bB.invInertiaWorld);
+            torqueB.cross(rB);
+            sum += torqueB.dot(dir);
+        }
+        return sum > 1e-9 ? 1 / sum : 0;
+    }
+
+    function applyImpulse(bA, bB, rA, rB, imp) {
+        if (!bA.sleeping) {
+            bA.velocity.addScaledVector(imp, bA.invMass);
+            torqueA.copy(rA).cross(imp);
+            applyMatrix3(torqueA, bA.invInertiaWorld);
+            bA.angularVelocity.add(torqueA);
+        }
+        if (bB && !bB.sleeping) {
+            bB.velocity.addScaledVector(imp, -bB.invMass);
+            torqueB.copy(rB).cross(imp).multiplyScalar(-1);
+            applyMatrix3(torqueB, bB.invInertiaWorld);
+            bB.angularVelocity.add(torqueB);
+        }
+    }
+
+    /** Relative velocity of the contact point, A relative to B, into `out`. */
+    function relativeVelocity(c, out) {
+        const bA = c.bA, bB = c.bB;
+        out.copy(bA.velocity).add(vA.copy(bA.angularVelocity).cross(c.rA));
+        if (bB) {
+            vB.copy(bB.velocity).add(torqueB.copy(bB.angularVelocity).cross(c.rB));
+            out.sub(vB);
+        }
+        return out;
+    }
+
+    PhysicsWorld.prototype.prepareContacts = function (dt) {
+        for (let i = 0; i < this.contacts.length; i++) {
+            const c = this.contacts[i];
+
+            c.rA.copy(c.point).sub(c.bA.position);
+            if (c.bB) c.rB.copy(c.point).sub(c.bB.position);
+
+            // Two stable tangents perpendicular to the normal.
+            const n = c.normal;
+            if (Math.abs(n.y) < 0.9) c.t1.set(0, 1, 0).cross(n).normalize();
+            else c.t1.set(1, 0, 0).cross(n).normalize();
+            c.t2.copy(n).cross(c.t1).normalize();
+
+            c.massN = effectiveMass(c.bA, c.bB, c.rA, c.rB, n);
+            c.massT1 = effectiveMass(c.bA, c.bB, c.rA, c.rB, c.t1);
+            c.massT2 = effectiveMass(c.bA, c.bB, c.rA, c.rB, c.t2);
+
+            // Baumgarte: push out the overlap beyond the slop, gently.
+            c.bias = (c.depth > this.slop)
+                ? (this.beta / dt) * (c.depth - this.slop)
+                : 0;
+
+            // Restitution only for genuine impacts — a resting box must not bounce.
+            const vn = relativeVelocity(c, vRel).dot(n);
+            if (vn < -this.restitutionThreshold) {
+                c.bias -= this.restitution * vn;
+            }
+        }
+    };
+
+    PhysicsWorld.prototype.solveContacts = function () {
+        for (let i = 0; i < this.contacts.length; i++) {
+            const c = this.contacts[i];
+            if (c.bA.sleeping && (!c.bB || c.bB.sleeping)) continue;
+
+            /* Normal impulse, accumulated so the clamp applies to the total. */
+            relativeVelocity(c, vRel);
+            const vn = vRel.dot(c.normal);
+            let dPn = c.massN * (-vn + c.bias);
+
+            const Pn0 = c.Pn;
+            c.Pn = Math.max(Pn0 + dPn, 0);
+            dPn = c.Pn - Pn0;
+
+            if (dPn !== 0) {
+                impulse.copy(c.normal).multiplyScalar(dPn);
+                applyImpulse(c.bA, c.bB, c.rA, c.rB, impulse);
+            }
+
+            /* Coulomb friction on both tangents, clamped to the friction cone. */
+            const maxPt = this.friction * c.Pn;
+            if (maxPt <= 0) continue;
+
+            relativeVelocity(c, vRel);
+
+            let dPt1 = c.massT1 * -vRel.dot(c.t1);
+            let dPt2 = c.massT2 * -vRel.dot(c.t2);
+
+            let newPt1 = c.Pt1 + dPt1;
+            let newPt2 = c.Pt2 + dPt2;
+
+            const mag = Math.sqrt(newPt1 * newPt1 + newPt2 * newPt2);
+            if (mag > maxPt) {
+                const scale = maxPt / mag;
+                newPt1 *= scale;
+                newPt2 *= scale;
+            }
+
+            dPt1 = newPt1 - c.Pt1;
+            dPt2 = newPt2 - c.Pt2;
+            c.Pt1 = newPt1;
+            c.Pt2 = newPt2;
+
+            if (dPt1 !== 0 || dPt2 !== 0) {
+                impulse.copy(c.t1).multiplyScalar(dPt1).addScaledVector(c.t2, dPt2);
+                applyImpulse(c.bA, c.bB, c.rA, c.rB, impulse);
+            }
+        }
+    };
+
+    /* ── Sleep ─────────────────────────────────────────────────────────── */
+
+    PhysicsWorld.prototype.updateSleep = function (dt) {
+        for (let i = 0; i < this.bodies.length; i++) {
             const b = this.bodies[i];
-            if (b.sleeping) continue;
+            if (b.sleeping || b.invMass === 0) continue;
 
-            const speedSq = b.velocity.lengthSq() + b.angularVelocity.lengthSq();
-            if (speedSq < 0.003 && b.position.y - b.height / 2 >= -0.02) {
+            // Only something that is touching the world can settle; a box at the
+            // top of its arc is momentarily slow but is not at rest.
+            if (b.contacts > 0 && b.speedSq() < 0.02) {
                 b.idleTime += dt;
-                if (b.idleTime > 0.35) {
+                if (b.idleTime > 0.5) {
                     b.sleeping = true;
                     b.velocity.set(0, 0, 0);
                     b.angularVelocity.set(0, 0, 0);
@@ -233,214 +562,7 @@
         }
     };
 
-    PhysicsWorld.prototype.resolveGround = function (body, dt) {
-        if (body.invMass === 0) return;
-        const pts = body.samplePoints;
-        const numPts = pts.length;
-
-        for (let k = 0; k < numPts; k++) {
-            worldPos.copy(pts[k]).applyQuaternion(body.quaternion).add(body.position);
-
-            if (worldPos.y <= this.groundY) {
-                const depth = this.groundY - worldPos.y;
-                norm.set(0, 1, 0);
-                this.applyContactImpulse(body, null, worldPos, norm, depth, dt);
-                if (body.sleeping) body.wake();
-            }
-        }
-    };
-
-    PhysicsWorld.prototype.resolveBoxPair = function (bA, bB, dt) {
-        // Broadphase bounding sphere test
-        const distSq = bA.position.distanceToSquared(bB.position);
-        const rA_bound = (bA.width + bA.height + bA.length) / 2;
-        const rB_bound = (bB.width + bB.height + bB.length) / 2;
-        if (distSq > (rA_bound + rB_bound) * (rA_bound + rB_bound)) return;
-
-        let contactOccured = false;
-
-        // Test sample points of A inside OBB of B
-        invRotB.copy(bB.quaternion).invert();
-        const ptsA = bA.samplePoints;
-        for (let k = 0; k < ptsA.length; k++) {
-            worldPos.copy(ptsA[k]).applyQuaternion(bA.quaternion).add(bA.position);
-            localPos.copy(worldPos).sub(bB.position).applyQuaternion(invRotB);
-
-            if (Math.abs(localPos.x) <= bB.width / 2 &&
-                Math.abs(localPos.y) <= bB.height / 2 &&
-                Math.abs(localPos.z) <= bB.length / 2) {
-                
-                // Find shortest distance to B's face to establish contact normal and depth
-                const dx = bB.width / 2 - Math.abs(localPos.x);
-                const dy = bB.height / 2 - Math.abs(localPos.y);
-                const dz = bB.length / 2 - Math.abs(localPos.z);
-                let depth;
-
-                if (dy <= dx && dy <= dz) {
-                    depth = dy;
-                    norm.set(0, localPos.y > 0 ? 1 : -1, 0);
-                } else if (dx <= dy && dx <= dz) {
-                    depth = dx;
-                    norm.set(localPos.x > 0 ? 1 : -1, 0, 0);
-                } else {
-                    depth = dz;
-                    norm.set(0, 0, localPos.z > 0 ? 1 : -1);
-                }
-
-                // Transform normal to world space pointing from B to A
-                norm.applyQuaternion(bB.quaternion);
-                this.applyContactImpulse(bA, bB, worldPos, norm, depth, dt);
-                contactOccured = true;
-            }
-        }
-
-        // Test sample points of B inside OBB of A
-        invRotA.copy(bA.quaternion).invert();
-        const ptsB = bB.samplePoints;
-        for (let k = 0; k < ptsB.length; k++) {
-            worldPos.copy(ptsB[k]).applyQuaternion(bB.quaternion).add(bB.position);
-            localPos.copy(worldPos).sub(bA.position).applyQuaternion(invRotA);
-
-            if (Math.abs(localPos.x) <= bA.width / 2 &&
-                Math.abs(localPos.y) <= bA.height / 2 &&
-                Math.abs(localPos.z) <= bA.length / 2) {
-
-                const dx = bA.width / 2 - Math.abs(localPos.x);
-                const dy = bA.height / 2 - Math.abs(localPos.y);
-                const dz = bA.length / 2 - Math.abs(localPos.z);
-                let depth;
-
-                if (dy <= dx && dy <= dz) {
-                    depth = dy;
-                    norm.set(0, localPos.y > 0 ? -1 : 1, 0);
-                } else if (dx <= dy && dx <= dz) {
-                    depth = dx;
-                    norm.set(localPos.x > 0 ? -1 : 1, 0, 0);
-                } else {
-                    depth = dz;
-                    norm.set(0, 0, localPos.z > 0 ? -1 : 1);
-                }
-
-                // Transform normal to world space pointing from B to A
-                norm.applyQuaternion(bA.quaternion);
-                this.applyContactImpulse(bA, bB, worldPos, norm, depth, dt);
-                contactOccured = true;
-            }
-        }
-
-        if (contactOccured) {
-            if (bA.sleeping) bA.wake();
-            if (bB.sleeping) bB.wake();
-        }
-    };
-
-    PhysicsWorld.prototype.applyContactImpulse = function (bA, bB, contactPoint, normal, depth, dt) {
-        rA.copy(contactPoint).sub(bA.position);
-        vA.copy(bA.velocity).add(torqueA.copy(bA.angularVelocity).cross(rA));
-
-        if (bB) {
-            rB.copy(contactPoint).sub(bB.position);
-            vB.copy(bB.velocity).add(torqueB.copy(bB.angularVelocity).cross(rB));
-        } else {
-            vB.set(0, 0, 0);
-        }
-
-        vRel.copy(vA).sub(vB);
-        const vn = vRel.dot(normal);
-
-        // Do not resolve separating contacts unless penetrating
-        if (vn > 0 && depth <= 0) return;
-
-        // Compute normal effective mass
-        torqueA.copy(rA).cross(normal);
-        applyMatrix3(torqueA, bA.invInertiaWorld);
-        torqueA.cross(rA);
-        let effMassN = bA.invMass + torqueA.dot(normal);
-
-        if (bB) {
-            torqueB.copy(rB).cross(normal);
-            applyMatrix3(torqueB, bB.invInertiaWorld);
-            torqueB.cross(rB);
-            effMassN += bB.invMass + torqueB.dot(normal);
-        }
-
-        if (effMassN <= 0.0001) return;
-
-        // Baumgarte position correction to stop interpenetration without explosifying stacks
-        const beta = 0.25;
-        const vBias = (depth > 0.002) ? (beta / dt) * (depth - 0.002) : 0;
-
-        let e = this.restitution;
-        if (Math.abs(vn) < 0.5) e = 0; // Restitution threshold for smooth resting
-
-        let jn = (-(1 + e) * vn + vBias) / effMassN;
-        if (jn < 0) jn = 0;
-
-        // Apply normal impulse
-        impulse.copy(normal).multiplyScalar(jn);
-        bA.velocity.addScaledVector(impulse, bA.invMass);
-        torqueA.copy(rA).cross(impulse);
-        applyMatrix3(torqueA, bA.invInertiaWorld);
-        bA.angularVelocity.add(torqueA);
-
-        if (bB) {
-            bB.velocity.addScaledVector(impulse, -bB.invMass);
-            torqueB.copy(rB).cross(impulse).multiplyScalar(-1);
-            applyMatrix3(torqueB, bB.invInertiaWorld);
-            bB.angularVelocity.add(torqueB);
-        }
-
-        // Friction impulse resolution
-        if (bB) {
-            rB.copy(contactPoint).sub(bB.position);
-            vB.copy(bB.velocity).add(torqueB.copy(bB.angularVelocity).cross(rB));
-        } else {
-            vB.set(0, 0, 0);
-        }
-        rA.copy(contactPoint).sub(bA.position);
-        vA.copy(bA.velocity).add(torqueA.copy(bA.angularVelocity).cross(rA));
-        vRel.copy(vA).sub(vB);
-
-        const vnPost = vRel.dot(normal);
-        tang.copy(vRel).addScaledVector(normal, -vnPost);
-        const vTangLen = tang.length();
-        if (vTangLen < 0.0001) return;
-
-        tang.divideScalar(vTangLen); // Unit friction tangent direction
-
-        torqueA.copy(rA).cross(tang);
-        applyMatrix3(torqueA, bA.invInertiaWorld);
-        torqueA.cross(rA);
-        let effMassT = bA.invMass + torqueA.dot(tang);
-
-        if (bB) {
-            torqueB.copy(rB).cross(tang);
-            applyMatrix3(torqueB, bB.invInertiaWorld);
-            torqueB.cross(rB);
-            effMassT += bB.invMass + torqueB.dot(tang);
-        }
-
-        if (effMassT <= 0.0001) return;
-
-        let jt = -vTangLen / effMassT;
-        const maxJt = jn * this.friction;
-        if (jt < -maxJt) jt = -maxJt;
-        else if (jt > maxJt) jt = maxJt;
-
-        impulse.copy(tang).multiplyScalar(jt);
-        bA.velocity.addScaledVector(impulse, bA.invMass);
-        torqueA.copy(rA).cross(impulse);
-        applyMatrix3(torqueA, bA.invInertiaWorld);
-        bA.angularVelocity.add(torqueA);
-
-        if (bB) {
-            bB.velocity.addScaledVector(impulse, -bB.invMass);
-            torqueB.copy(rB).cross(impulse).multiplyScalar(-1);
-            applyMatrix3(torqueB, bB.invInertiaWorld);
-            bB.angularVelocity.add(torqueB);
-        }
-    };
-
     Cargo3D.RigidBox = RigidBox;
     Cargo3D.PhysicsWorld = PhysicsWorld;
+    Cargo3D.Contact = Contact;
 })(window);
