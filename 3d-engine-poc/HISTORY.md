@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.3.0 — the physics yard
+
+Real rigid-body physics alongside the grid, not instead of it. The campaign's
+`support:1` rule counts occupied cells underneath; it cannot become physics,
+because `core/` may not touch THREE. So the solver sits beside it.
+
+**Added**
+
+- **Tower challenge.** Stack as high as you can. Height counts only once every
+  container is asleep, so the tower has to genuinely stand still. Each settled
+  container remembers where it settled; if one drops 1.2 m below that, something
+  under it gave way and the run ends. Best height persists in the save.
+- **Grid placement in the sandbox and the physics yard.** A toolbar button (and
+  `G`) switches between the campaign's slot lattice in quarter turns, and free
+  placement wherever the cursor points. The grid says where a container lands;
+  physics still says whether it stays. The sandbox gains a ghost preview it
+  never had.
+- **A camera that follows the tower up**, easing and pulling back as the stack
+  grows, and yielding the moment the player takes the camera themselves.
+- Laden mass per container — a 40ft outweighs a 10ft roughly four to one, so
+  what goes where changes what the stack does.
+- 18 more assertions: tower records, and a save written before this release
+  round-tripping intact.
+
+**Fixed**
+
+- **The solver could not stack.** It ran one sequential pass over contacts per
+  substep, so a support impulse never propagated up a chain: a perfectly aligned
+  tower of eight tilted 23° and sagged 0.6 m, and 0.3 m of placement jitter
+  collapsed a tower of twelve outright. Replaced with accumulated impulses
+  relaxed over ten iterations — 23.3° → 0.4°, and the jittered tower now stands.
+- **Sleep was dead code.** `resolveGround()` woke every body it touched, so a
+  container was woken forever by the floor it was resting on. The ground now
+  wakes nothing, and a settled neighbour only wakes for a partner that is
+  actually moving. Forty bodies went from 3.18 ms/frame to 0.55 ms.
+- **A short frame fired the yard into the sky.** The overlap correction divides
+  by the timestep, so one near-zero `delta` — a resumed tab, a stolen clock —
+  produced an impulse that launched a settled stack at 22 m/s. Physics now runs
+  on a fixed 1/120 s step with a clamped correction. The same tower scores
+  identically at 10 fps and 60 fps.
+- `campaign — schema` asserted `nextAfter('m12') === null`; the campaign had
+  gained a thirteenth mission and the assertion had been failing silently. It now
+  derives the last mission instead of naming it.
+
 ## v0.2.0 — Yard Master
 
 The proof of concept becomes a game.

@@ -41,15 +41,25 @@
             showResults: function (result, saved, next) { results.show(result, saved, next); },
 
             showSandboxHUD: function () { sandboxHUD.show(); },
-            updateSandboxHUD: function (metrics) { sandboxHUD.update(metrics); },
+            updateSandboxHUD: function (metrics) {
+                sandboxHUD.update(metrics);
+                if (ui.syncSandboxToolbar) ui.syncSandboxToolbar(metrics);
+            },
             hideSandboxHUD: function () { sandboxHUD.hide(); },
             showInspector: function (mesh) { sandboxHUD.showInspector(mesh); },
             hideInspector: function () { sandboxHUD.hideInspector(); },
 
             showPhysicsHUD: function () { physicsHUD.show(); },
-            updatePhysicsHUD: function (metrics) { physicsHUD.update(metrics); },
-            hidePhysicsHUD: function () { physicsHUD.hide(); }
+            updatePhysicsHUD: function (metrics) {
+                physicsHUD.update(metrics);
+                if (ui.syncPhysicsToolbar) ui.syncPhysicsToolbar(metrics);
+            },
+            hidePhysicsHUD: function () { physicsHUD.hide(); },
+            showTowerResult: function (result) { tower.show(result); },
+            hideTowerResult: function () { tower.hide(); }
         };
+
+        const tower = new Cargo3D.TowerResultUI(app);
 
         /* ── top bar ───────────────────────────────────────────────────── */
 
@@ -163,6 +173,49 @@
                 if (app.modeName === 'physics') app.mode.clearYard();
             });
         }
+
+        /**
+         * Exclusive button groups driven by a data attribute: the button carries
+         * the value, the handler applies it and repaints the group.
+         */
+        function bindToggleGroup(attr, apply) {
+            const buttons = Array.prototype.slice.call(document.querySelectorAll('[' + attr + ']'));
+            function paint(value) {
+                buttons.forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute(attr) === value);
+                });
+            }
+            buttons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    paint(apply(btn.getAttribute(attr)));
+                });
+            });
+            return paint;
+        }
+
+        const paintPlacement = bindToggleGroup('data-phys-place', function (value) {
+            if (app.modeName !== 'physics') return value;
+            return app.mode.setPlacementStyle(value);
+        });
+        const paintChallenge = bindToggleGroup('data-phys-challenge', function (value) {
+            if (app.modeName !== 'physics') return value;
+            return app.mode.setChallenge(value);
+        });
+
+        const paintSandboxPlacement = bindToggleGroup('data-sb-place', function (value) {
+            if (app.modeName !== 'sandbox') return value;
+            return app.mode.setPlacementStyle(value);
+        });
+
+        // The G hotkey changes the same state the buttons do, so the toolbars
+        // have to follow the mode rather than only lead it.
+        ui.syncPhysicsToolbar = function (metrics) {
+            paintPlacement(metrics.placementStyle);
+            paintChallenge(metrics.challenge);
+        };
+        ui.syncSandboxToolbar = function (metrics) {
+            paintSandboxPlacement(metrics.placementStyle);
+        };
 
         el('btn-xray').addEventListener('click', function () {
             if (app.modeName !== 'sandbox') return;

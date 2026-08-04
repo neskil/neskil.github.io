@@ -12,6 +12,7 @@
     const Cargo3D = window.Cargo3D = window.Cargo3D || {};
     const C = Cargo3D.Constants;
     const Meshes = Cargo3D.ContainerMeshes;
+    const Lattice = Cargo3D.GridLattice;
 
     const SNAP = C.GRID.CELL_X;
 
@@ -23,6 +24,10 @@
         this.spawnCarrier = 'maersk';
         this.xray = false;
         this.heatmap = false;
+        /** 'grid' snaps to the campaign's slots and previews; 'free' does not. */
+        this.placementStyle = 'grid';
+        this.rot = 0;
+        this.ghost = null;
         /** Which machine has the keyboard: 'none' | 'stacker' | 'crane'. */
         this.driver = 'none';
         this.contracts = null;
@@ -31,6 +36,7 @@
         this.selectionBox.visible = false;
 
         this._scratch = new THREE.Vector3();
+        this._snap = new THREE.Vector3();
         this.bindHandlers();
     }
 
@@ -49,11 +55,22 @@
             self.onClick(e);
         };
 
+        this._onPointerMove = function (e) {
+            if (!self.active) return;
+            self.updateHover(e);
+        };
+
         this._onKeyDown = function (e) {
             if (!self.active) return;
             const k = e.key.toLowerCase();
             if (e.code === 'Space') {
                 self.grabWithActiveMachine();
+                e.preventDefault();
+            } else if (k === 'g') {
+                self.setPlacementStyle(self.placementStyle === 'grid' ? 'free' : 'grid');
+                e.preventDefault();
+            } else if (k === 'r' && !self.selected) {
+                self.rotate();
                 e.preventDefault();
             } else if (k === 'r' && self.selected) {
                 self.rotateSelected();
@@ -82,11 +99,13 @@
 
         const dom = view.renderer.domElement;
         dom.addEventListener('pointerdown', this._onPointerDown);
+        dom.addEventListener('pointermove', this._onPointerMove);
         dom.addEventListener('pointerup', this._onPointerUp);
         window.addEventListener('keydown', this._onKeyDown);
 
         this.app.ui.showSandboxHUD(this);
         this.seedDemoYard();
+        this.syncGhost();
         this.refreshHUD();
     };
 
@@ -96,10 +115,12 @@
         const dom = view.renderer.domElement;
 
         dom.removeEventListener('pointerdown', this._onPointerDown);
+        dom.removeEventListener('pointermove', this._onPointerMove);
         dom.removeEventListener('pointerup', this._onPointerUp);
         window.removeEventListener('keydown', this._onKeyDown);
 
         if (this.contracts) this.contracts.stop();
+        this.removeGhost();
         this.clearYard();
         view.scene.remove(this.selectionBox);
         this.app.vehicle.setEnabled(false);
@@ -120,6 +141,66 @@
     SandboxMode.prototype.setSpawn = function (type, carrier) {
         this.spawnType = type;
         this.spawnCarrier = carrier;
+        this.syncGhost();
+    };
+
+    /* ── placement style ───────────────────────────────────────────────── */
+
+    /**
+     * Grid placement is the campaign's: the ghost snaps to the slot lattice and
+     * turns in quarter turns. Free placement drops wherever the cursor is, which
+     * is what the sandbox always did.
+     *
+     * @param {'free'|'grid'} style
+     */
+    SandboxMode.prototype.setPlacementStyle = function (style) {
+        this.placementStyle = style === 'free' ? 'free' : 'grid';
+        this.rot = 0;
+        this.syncGhost();
+        this.refreshHUD();
+        return this.placementStyle;
+    };
+
+    SandboxMode.prototype.rotate = function () {
+        this.rot = (this.rot + 1) % 2;
+        this.syncGhost();
+        if (Cargo3D.Audio) Cargo3D.Audio.click();
+    };
+
+    SandboxMode.prototype.syncGhost = function () {
+        this.removeGhost();
+        if (this.placementStyle !== 'grid') return;
+
+        this.ghost = Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []);
+        this.ghost.traverse(function (child) {
+            if (child.isMesh && child.material) {
+                child.material = child.material.clone();
+                child.material.transparent = true;
+                child.material.opacity = 0.45;
+            }
+        });
+        this.ghost.rotation.y = this.rot % 2 === 0 ? 0 : Math.PI / 2;
+        this.ghost.visible = false;
+        this.app.sceneView.add(this.ghost);
+    };
+
+    SandboxMode.prototype.removeGhost = function () {
+        if (!this.ghost) return;
+        this.app.sceneView.remove(this.ghost);
+        Meshes.disposeGroup(this.ghost);
+        this.ghost = null;
+    };
+
+    SandboxMode.prototype.updateHover = function (event) {
+        if (!this.ghost) return;
+
+        const point = this.app.sceneView.pointerToGround(event, this._scratch);
+        if (!point) { this.ghost.visible = false; return; }
+
+        const spec = C.CARGO_TYPES[this.spawnType] || C.CARGO_TYPES['20ft'];
+        const snapped = Lattice.snap(point, this.spawnType, this.rot, this._snap);
+        this.ghost.position.set(snapped.x, this.restHeight(snapped.x, snapped.z, spec), snapped.z);
+        this.ghost.visible = true;
     };
 
     SandboxMode.prototype.spawn = function (x, y, z, type, carrier, traits) {
@@ -167,9 +248,19 @@
         if (!point) return;
 
         const spec = C.CARGO_TYPES[this.spawnType] || C.CARGO_TYPES['20ft'];
-        const x = Math.round(point.x / SNAP) * SNAP;
-        const z = Math.round(point.z / SNAP) * SNAP;
-        this.spawn(x, this.restHeight(x, z, spec), z);
+        let x = point.x;
+        let z = point.z;
+
+        if (this.placementStyle === 'grid') {
+            const snapped = Lattice.snap(point, this.spawnType, this.rot, this._snap);
+            x = snapped.x;
+            z = snapped.z;
+        }
+
+        const mesh = this.spawn(x, this.restHeight(x, z, spec), z);
+        if (this.placementStyle === 'grid') {
+            mesh.rotation.y = this.rot % 2 === 0 ? 0 : Math.PI / 2;
+        }
     };
 
     SandboxMode.prototype.pickables = function () {
@@ -326,6 +417,7 @@
         });
         return {
             count: this.units.length,
+            placementStyle: this.placementStyle,
             teu: teu.toFixed(1),
             volume: Math.round(volume),
             mass: mass.toFixed(1),

@@ -76,6 +76,41 @@
         }
     };
 
+    /**
+     * Keep a growing stack in frame. The tower challenge calls this every frame,
+     * so it eases rather than cuts, and it only ever rises and pulls back —
+     * a camera that crept back down every time a container settled would be
+     * unwatchable. Yields entirely while a preset transition or a chase is live;
+     * the player can still orbit and zoom underneath it.
+     *
+     * @param {number} topY height of the tallest container, in metres
+     */
+    CameraRig.prototype.trackStack = function (topY, delta) {
+        if (this.transition || this.followTarget) return;
+
+        const target = this.controls.target;
+        const wantY = Math.max(3, topY * 0.5);
+
+        if (wantY > target.y + 0.01) {
+            const dy = (wantY - target.y) * Math.min(1, delta * 1.2);
+            target.y += dy;
+            this.camera.position.y += dy;
+            this.focus.y = target.y;
+        }
+
+        // Pull back far enough that the whole stack still fits the vertical FOV.
+        const fov = this.camera.fov * Math.PI / 180;
+        const wantR = Math.max(46, (topY * 0.62) / Math.tan(fov / 2) + 18);
+        const offset = this.camera.position.clone().sub(target);
+        const r = offset.length();
+
+        if (wantR > r && r > 0.001) {
+            offset.multiplyScalar(Math.min(wantR, r + delta * 16) / r);
+            this.camera.position.copy(target).add(offset);
+        }
+        if (wantR > this.radius) this.radius = wantR;
+    };
+
     /** Chase camera for the reach stacker. */
     CameraRig.prototype.follow = function (vehicle) {
         this.mode = 'vehicle';

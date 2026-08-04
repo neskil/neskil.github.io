@@ -1,15 +1,53 @@
 /**
- * game/physicsMode.js — Experimental physics stacking mode.
+ * game/physicsMode.js — the experimental physics yard.
  *
- * Lets players freely drop containers without grid snapping, experimenting with
- * realistic balance, center-of-gravity tipping, and rigid-body collisions.
+ * Everything here is settled by game/physics.js rather than by core/rules.js:
+ * there is no grid holding a stack up and no support rule to satisfy, only
+ * contacts, friction and a centre of gravity. A stack stands because it
+ * balances, and falls when it does not.
+ *
+ * Two challenges share the yard:
+ *   - free play    — drop whatever, wherever, and watch what happens.
+ *   - tower        — stack as high as you can; the run ends when it comes down.
+ *
+ * Two placement styles share both:
+ *   - free         — anywhere the cursor points, rotated in 15° steps.
+ *   - grid         — snapped to the campaign's slot lattice in quarter turns,
+ *                    the same placement the missions use. Physics still decides
+ *                    whether it holds; the grid only decides where it lands.
  */
 (function (window) {
     'use strict';
 
     const Cargo3D = window.Cargo3D = window.Cargo3D || {};
     const Meshes = Cargo3D.ContainerMeshes;
+    const Lattice = Cargo3D.GridLattice;
     const CARRIERS = ['maersk', 'msc', 'evergreen', 'hapag', 'cosco', 'one'];
+
+    const DEFAULT_SPEC = { width: 2.44, height: 2.59, length: 6.06 };
+
+    /** How far above the stack a container is released, per placement style. */
+    const DROP_GAP = { free: 0.6, grid: 0.15 };
+
+    /**
+     * How far a settled container may fall before the tower counts as collapsed.
+     * Settling compresses a stack by millimetres, so anything near half a
+     * container height is unambiguous.
+     */
+    const COLLAPSE_DROP = 1.2;
+
+    const QUARTER = Math.PI / 2;
+
+    /**
+     * Laden mass in tonnes — tare plus a part-full payload, the same assumption
+     * the sandbox HUD reports. A 40ft outweighs a 10ft by roughly four to one,
+     * so what you put where genuinely changes what the stack does.
+     */
+    function unitMass(spec) {
+        if (spec.massT) return spec.massT;
+        const laden = (spec.tare || 0) + (spec.payload || 0) * 0.45;
+        return laden > 0.5 ? laden : 15;
+    }
 
     function PhysicsMode(app) {
         this.app = app;
@@ -20,9 +58,19 @@
         this.ghost = null;
         this.active = false;
 
+        this.placementStyle = 'grid';
+        this.challenge = 'freeplay';
+        this.run = this.blankRun();
+
         this._scratch = new THREE.Vector3();
+        this._snap = new THREE.Vector3();
+        this._box = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
         this.bindHandlers();
     }
+
+    PhysicsMode.prototype.blankRun = function () {
+        return { status: 'idle', height: 0, units: 0, reason: null };
+    };
 
     PhysicsMode.prototype.bindHandlers = function () {
         const self = this;
@@ -49,6 +97,9 @@
             const k = e.key.toLowerCase();
             if (k === 'r') {
                 self.rotate();
+                e.preventDefault();
+            } else if (k === 'g') {
+                self.setPlacementStyle(self.placementStyle === 'grid' ? 'free' : 'grid');
                 e.preventDefault();
             } else if (k === 'c' || k === 'delete' || k === 'backspace') {
                 self.clearYard();
@@ -77,9 +128,7 @@
         dom.addEventListener('pointerup', this._onPointerUp);
         window.addEventListener('keydown', this._onKeyDown);
 
-        if (this.app.ui.showPhysicsHUD) {
-            this.app.ui.showPhysicsHUD(this);
-        }
+        if (this.app.ui.showPhysicsHUD) this.app.ui.showPhysicsHUD(this);
 
         this.syncGhost();
         this.refreshHUD();
@@ -99,18 +148,148 @@
         this.removeGhost();
         this.app.terminal.setVisible(false);
 
-        if (this.app.ui.hidePhysicsHUD) {
-            this.app.ui.hidePhysicsHUD();
-        }
+        if (this.app.ui.hideTowerResult) this.app.ui.hideTowerResult();
+        if (this.app.ui.hidePhysicsHUD) this.app.ui.hidePhysicsHUD();
     };
 
     PhysicsMode.prototype.update = function (delta) {
         if (!this.active) return;
         this.physicsWorld.update(delta || 0.016);
+
+        if (this.challenge === 'tower') {
+            if (this.run.status !== 'over') this.updateRun();
+            this.app.cameraRig.trackStack(this.maxTop(), delta || 0.016);
+        }
         this.refreshHUD();
     };
 
-    /* ── Ghost preview & hover positioning ────────────────────────────── */
+    /** Height of the tallest container corner in the yard, in metres. */
+    PhysicsMode.prototype.maxTop = function () {
+        const bodies = this.physicsWorld.bodies;
+        let top = 0;
+        for (let i = 0; i < bodies.length; i++) {
+            const y = bodies[i].topY();
+            if (y > top) top = y;
+        }
+        return top;
+    };
+
+    /* ── modes ─────────────────────────────────────────────────────────── */
+
+    /** @param {'free'|'grid'} style */
+    PhysicsMode.prototype.setPlacementStyle = function (style) {
+        this.placementStyle = style === 'free' ? 'free' : 'grid';
+
+        // Grid placement only has the two rotations the missions have, so a free
+        // angle has to collapse onto the nearest quarter turn on the way in.
+        if (this.placementStyle === 'grid') {
+            this.rotAngle = Math.round(this.rotAngle / QUARTER) * QUARTER;
+        }
+        this.syncGhost();
+        this.refreshHUD();
+        return this.placementStyle;
+    };
+
+    /** @param {'freeplay'|'tower'} which */
+    PhysicsMode.prototype.setChallenge = function (which) {
+        const next = which === 'tower' ? 'tower' : 'freeplay';
+        if (next === this.challenge) return this.challenge;
+
+        this.challenge = next;
+        this.clearYard();
+        this.run = this.blankRun();
+        if (this.app.ui.hideTowerResult) this.app.ui.hideTowerResult();
+
+        this.app.cameraRig.frameApron();
+        this.app.cameraRig.setMode('orbit');
+
+        this.refreshHUD();
+        return this.challenge;
+    };
+
+    PhysicsMode.prototype.restartRun = function () {
+        this.clearYard();
+        this.run = this.blankRun();
+        if (this.app.ui.hideTowerResult) this.app.ui.hideTowerResult();
+
+        // trackStack() only ever climbs, so a new run needs the rig put back.
+        this.app.cameraRig.frameApron();
+        this.app.cameraRig.setMode('orbit');
+
+        this.syncGhost();
+        this.refreshHUD();
+    };
+
+    /* ── the tower run ─────────────────────────────────────────────────── */
+
+    /**
+     * A container that has settled records the height it settled at. If it ever
+     * drops well below that again, something under it gave way — which is the
+     * only definition of "the tower came down" that does not need a rule.
+     */
+    PhysicsMode.prototype.updateRun = function () {
+        const bodies = this.physicsWorld.bodies;
+        if (!bodies.length) {
+            this.run.status = 'idle';
+            return;
+        }
+
+        for (let i = 0; i < bodies.length; i++) {
+            const b = bodies[i];
+            if (b.settledTop === undefined || b.settledTop === null) continue;
+            if (b.topY() < b.settledTop - COLLAPSE_DROP) {
+                this.endRun('A container came down.');
+                return;
+            }
+        }
+
+        let atRest = true;
+        for (let i = 0; i < bodies.length; i++) {
+            if (!bodies[i].sleeping) { atRest = false; break; }
+        }
+
+        if (!atRest) {
+            this.run.status = 'settling';
+            return;
+        }
+
+        let top = 0;
+        for (let i = 0; i < bodies.length; i++) {
+            const b = bodies[i];
+            const y = b.topY();
+            if (b.settledTop === undefined || b.settledTop === null) b.settledTop = y;
+            if (y > top) top = y;
+        }
+
+        this.run.status = 'stable';
+        this.run.height = top;
+        this.run.units = bodies.length;
+    };
+
+    PhysicsMode.prototype.endRun = function (reason) {
+        this.run.status = 'over';
+        this.run.reason = reason;
+
+        const saved = Cargo3D.Storage.recordTower({
+            height: this.run.height,
+            units: this.run.units
+        });
+
+        if (Cargo3D.Audio) Cargo3D.Audio.reject();
+        if (this.app.ui.showTowerResult) {
+            this.app.ui.showTowerResult({
+                height: this.run.height,
+                units: this.run.units,
+                reason: reason,
+                best: saved.best.bestHeight,
+                previousBest: saved.previousBest,
+                improved: saved.improved,
+                runs: saved.best.runs
+            });
+        }
+    };
+
+    /* ── ghost preview & hover positioning ────────────────────────────── */
 
     PhysicsMode.prototype.syncGhost = function () {
         this.removeGhost();
@@ -135,11 +314,20 @@
     };
 
     PhysicsMode.prototype.rotate = function () {
-        // Fine rotation in 15 degree increments to enable angled stacking experiments
-        this.rotAngle += Math.PI / 12;
+        // Grid placement matches the missions: two rotations, because 180° and
+        // 270° give an identical footprint. Free placement can go anywhere.
+        this.rotAngle += this.placementStyle === 'grid' ? QUARTER : Math.PI / 12;
         if (this.ghost) {
             this.ghost.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.rotAngle);
         }
+        if (Cargo3D.Audio) Cargo3D.Audio.click();
+        this.refreshHUD();
+    };
+
+    /** Quarter turns, 0 or 1 — the rotation core/constants.span() understands. */
+    PhysicsMode.prototype.gridRot = function () {
+        const quarters = Math.round(this.rotAngle / QUARTER);
+        return ((quarters % 2) + 2) % 2;
     };
 
     PhysicsMode.prototype.setSpawn = function (type, carrier) {
@@ -148,59 +336,107 @@
         this.syncGhost();
     };
 
+    /** Horizontal extent of a placed body, from its eight corners. */
+    PhysicsMode.prototype.bodyExtent = function (body, out) {
+        out.minX = Infinity; out.maxX = -Infinity;
+        out.minZ = Infinity; out.maxZ = -Infinity;
+
+        for (let i = 0; i < 8; i++) {
+            this._scratch.copy(body.samplePoints[i])
+                .applyQuaternion(body.quaternion)
+                .add(body.position);
+            if (this._scratch.x < out.minX) out.minX = this._scratch.x;
+            if (this._scratch.x > out.maxX) out.maxX = this._scratch.x;
+            if (this._scratch.z < out.minZ) out.minZ = this._scratch.z;
+            if (this._scratch.z > out.maxZ) out.maxZ = this._scratch.z;
+        }
+        return out;
+    };
+
+    /**
+     * Height the ghost should hover at above (x, z): clear of everything whose
+     * footprint it overlaps. Extents are axis-aligned, so the answer errs on the
+     * high side for a rotated stack — better than clipping into it.
+     */
+    PhysicsMode.prototype.restHeight = function (x, z, halfX, halfZ, spec) {
+        const gap = DROP_GAP[this.placementStyle];
+        let targetY = spec.height / 2 + gap;
+
+        const minX = x - halfX, maxX = x + halfX;
+        const minZ = z - halfZ, maxZ = z + halfZ;
+        const bodies = this.physicsWorld.bodies;
+
+        for (let i = 0; i < bodies.length; i++) {
+            const ext = this.bodyExtent(bodies[i], this._box);
+            if (ext.maxX <= minX || ext.minX >= maxX) continue;
+            if (ext.maxZ <= minZ || ext.minZ >= maxZ) continue;
+
+            const clear = bodies[i].topY() + spec.height / 2 + gap;
+            if (clear > targetY) targetY = clear;
+        }
+        return targetY;
+    };
+
     PhysicsMode.prototype.updateHover = function (e) {
         if (!this.ghost) return;
+        if (this.challenge === 'tower' && this.run.status === 'over') {
+            this.ghost.visible = false;
+            return;
+        }
+
         const point = this.app.sceneView.pointerToGround(e, this._scratch);
         if (!point) {
             this.ghost.visible = false;
             return;
         }
 
-        const spec = this.ghost.userData.spec || { width: 2.44, height: 2.9, length: 6.06 };
-        const radius = Math.sqrt(spec.width * spec.width + spec.length * spec.length) / 2;
+        const spec = this.ghost.userData.spec || DEFAULT_SPEC;
+        let x = point.x;
+        let z = point.z;
+        let halfX, halfZ;
 
-        let targetY = spec.height / 2 + 0.8; // default drop elevation above ground
-
-        // Check if hovering over any existing stacked physics bodies
-        const bodies = this.physicsWorld.bodies;
-        for (let i = 0; i < bodies.length; i++) {
-            const b = bodies[i];
-            const dx = b.position.x - point.x;
-            const dz = b.position.z - point.z;
-            const bRadius = Math.sqrt(b.width * b.width + b.length * b.length) / 2;
-
-            if (dx * dx + dz * dz < (radius + bRadius) * (radius + bRadius) * 0.75) {
-                const bTop = b.position.y + b.height / 2;
-                if (bTop + spec.height / 2 + 0.5 > targetY) {
-                    targetY = bTop + spec.height / 2 + 0.5;
-                }
-            }
+        if (this.placementStyle === 'grid') {
+            const snapped = Lattice.snap(point, this.spawnType, this.gridRot(), this._snap);
+            x = snapped.x;
+            z = snapped.z;
+            const foot = Lattice.footprint(this.spawnType, this.gridRot());
+            halfX = foot.x / 2;
+            halfZ = foot.z / 2;
+        } else {
+            // Rotated footprint, conservatively: the swept half-extent.
+            const c = Math.abs(Math.cos(this.rotAngle));
+            const s = Math.abs(Math.sin(this.rotAngle));
+            halfX = (spec.length * s + spec.width * c) / 2;
+            halfZ = (spec.length * c + spec.width * s) / 2;
         }
 
-        this.ghost.position.set(point.x, targetY, point.z);
+        // _scratch is the ground point; read it before restHeight() reuses it.
+        this.ghost.position.set(x, this.restHeight(x, z, halfX, halfZ, spec), z);
         this.ghost.visible = true;
     };
 
-    /* ── Dropping & mechanics ─────────────────────────────────────────── */
+    /* ── dropping & mechanics ─────────────────────────────────────────── */
 
     PhysicsMode.prototype.dropContainer = function () {
         if (!this.ghost || !this.ghost.visible) return;
+        if (this.challenge === 'tower' && this.run.status === 'over') return;
 
         const mesh = Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []);
         mesh.position.copy(this.ghost.position);
         mesh.quaternion.copy(this.ghost.quaternion);
         this.app.sceneView.add(mesh);
 
-        const spec = mesh.userData.spec || { width: 2.44, height: 2.9, length: 6.06 };
-        const body = new Cargo3D.RigidBox(mesh, spec.massT || 15);
+        const spec = mesh.userData.spec || DEFAULT_SPEC;
+        const body = new Cargo3D.RigidBox(mesh, unitMass(spec));
+        body.settledTop = null;
         this.physicsWorld.add(body);
 
         if (Cargo3D.Audio) Cargo3D.Audio.lock();
-        if (this.app.effects) {
-            this.app.effects.ring(mesh.position.x, 0, mesh.position.z);
-        }
+        if (this.app.effects) this.app.effects.ring(mesh.position.x, 0, mesh.position.z);
 
-        // Cycle carrier color for next drop
+        if (this.challenge === 'tower') this.run.status = 'settling';
+
+        // Cycle carrier colour for the next drop.
         this.spawnCarrier = CARRIERS[Math.floor(Math.random() * CARRIERS.length)];
         this.syncGhost();
         this.refreshHUD();
@@ -209,32 +445,45 @@
     PhysicsMode.prototype.clearYard = function () {
         const bodies = this.physicsWorld.bodies.slice();
         for (let i = 0; i < bodies.length; i++) {
-            const b = bodies[i];
-            this.app.sceneView.scene.remove(b.mesh);
-            if (Meshes.disposeGroup) Meshes.disposeGroup(b.mesh);
+            this.app.sceneView.scene.remove(bodies[i].mesh);
+            if (Meshes.disposeGroup) Meshes.disposeGroup(bodies[i].mesh);
         }
         this.physicsWorld.clear();
+
+        if (this.challenge === 'tower' && this.run.status !== 'over') {
+            this.run = this.blankRun();
+        }
         this.refreshHUD();
+    };
+
+    /* ── HUD ───────────────────────────────────────────────────────────── */
+
+    PhysicsMode.prototype.metrics = function () {
+        const bodies = this.physicsWorld.bodies;
+        let mass = 0;
+        let asleep = 0;
+
+        for (let i = 0; i < bodies.length; i++) {
+            mass += bodies[i].mass;
+            if (bodies[i].sleeping) asleep++;
+        }
+
+        return {
+            count: bodies.length,
+            mass: Math.round(mass),
+            height: Math.round(this.maxTop() * 10) / 10,
+            settled: asleep === bodies.length,
+            challenge: this.challenge,
+            placementStyle: this.placementStyle,
+            status: this.run.status,
+            runHeight: Math.round(this.run.height * 10) / 10,
+            best: Math.round((Cargo3D.Storage.getPhysics().bestHeight || 0) * 10) / 10
+        };
     };
 
     PhysicsMode.prototype.refreshHUD = function () {
         if (!this.active || !this.app.ui.updatePhysicsHUD) return;
-        const bodies = this.physicsWorld.bodies;
-        let mass = 0;
-        let maxHeight = 0;
-
-        for (let i = 0; i < bodies.length; i++) {
-            const b = bodies[i];
-            mass += b.mass;
-            const top = b.position.y + b.height / 2;
-            if (top > maxHeight) maxHeight = top;
-        }
-
-        this.app.ui.updatePhysicsHUD({
-            count: bodies.length,
-            mass: Math.round(mass),
-            height: Math.round(maxHeight * 10) / 10
-        });
+        this.app.ui.updatePhysicsHUD(this.metrics());
     };
 
     Cargo3D.PhysicsMode = PhysicsMode;

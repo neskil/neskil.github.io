@@ -75,6 +75,12 @@
 .status-warn { color: var(--accent-amber); }
 .status-bad  { color: var(--accent-red); }
 
+/* Physics tower run state — the one line that says whether it is still standing. */
+.run-status { font-size: 0.78rem; }
+.run-status.settling  { color: var(--accent-amber); }
+.run-status.stable    { color: var(--accent-green); }
+.run-status.collapsed { color: var(--accent-red); }
+
 .mix-row {
     display: flex;
     flex-wrap: wrap;
