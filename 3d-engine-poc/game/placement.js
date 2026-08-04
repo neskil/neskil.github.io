@@ -24,6 +24,7 @@
         this.yardView = deps.yardView;
         this.grid = deps.grid;
         this.effects = deps.effects;
+        this.cameraRig = deps.cameraRig;
         this.rules = deps.rules || [];
         this.units = deps.units || [];
 
@@ -89,11 +90,33 @@
             self.commit();
         };
 
+        this._onTouchStart = function (e) {
+            if (e.touches && e.touches.length === 1) {
+                self._press = { x: e.touches[0].clientX, y: e.touches[0].clientY, button: 0 };
+            }
+        };
+
+        this._onTouchEnd = function (e) {
+            const press = self._press;
+            self._press = null;
+            if (!press || !e.changedTouches || !e.changedTouches[0]) return;
+            const touch = e.changedTouches[0];
+            if (Math.abs(touch.clientX - press.x) > DRAG_SLOP_PX * 1.5 ||
+                Math.abs(touch.clientY - press.y) > DRAG_SLOP_PX * 1.5) return;
+
+            self.updateHover({ clientX: touch.clientX, clientY: touch.clientY });
+            self.commit();
+        };
+
         this._onKeyDown = function (e) {
             if (!self.attached) return;
             const k = e.key.toLowerCase();
             if (k === 'r') { self.rotate(); e.preventDefault(); }
             else if (k === 'z') { self.undo(); e.preventDefault(); }
+            else if (k === '1' && self.cameraRig) { self.cameraRig.setMode('orbit'); e.preventDefault(); }
+            else if (k === '2' && self.cameraRig) { self.cameraRig.setMode('iso'); e.preventDefault(); }
+            else if (k === '3' && self.cameraRig) { self.cameraRig.setMode('front'); e.preventDefault(); }
+            else if (k === '4' && self.cameraRig) { self.cameraRig.setMode('top'); e.preventDefault(); }
             else if (k === 'escape') { self.onExit(); }
         };
 
@@ -106,6 +129,8 @@
         this._dom.addEventListener('pointermove', this._onPointerMove);
         this._dom.addEventListener('pointerdown', this._onPointerDown);
         this._dom.addEventListener('pointerup', this._onPointerUp);
+        this._dom.addEventListener('touchstart', this._onTouchStart, { passive: true });
+        this._dom.addEventListener('touchend', this._onTouchEnd, { passive: true });
         this._dom.addEventListener('pointerleave', this._onPointerLeaveBound = this.clearHover.bind(this));
         window.addEventListener('keydown', this._onKeyDown);
         this.syncGhost();
@@ -118,6 +143,8 @@
         this._dom.removeEventListener('pointermove', this._onPointerMove);
         this._dom.removeEventListener('pointerdown', this._onPointerDown);
         this._dom.removeEventListener('pointerup', this._onPointerUp);
+        this._dom.removeEventListener('touchstart', this._onTouchStart);
+        this._dom.removeEventListener('touchend', this._onTouchEnd);
         this._dom.removeEventListener('pointerleave', this._onPointerLeaveBound);
         window.removeEventListener('keydown', this._onKeyDown);
         this.yardView.clearGhost();

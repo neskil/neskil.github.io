@@ -1045,6 +1045,18 @@
             color: rgb(251, 146, 60);
         }
 
+        #card-3d-poc {
+            --accent-rgb: 56, 189, 248;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 38, 54, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 58, 80, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(56, 189, 248, 0.22);
+            --card-hover-border: rgba(125, 211, 252, 0.48);
+        }
+
+        #card-3d-poc .card-link {
+            color: rgb(125, 211, 252);
+        }
+
         /* ── Materials: layered onto the same tilt-tracking glare (.card::before). Uses
            overlay blend so bright texture only lifts already-light pixels instead of
            flatly washing out the (already fairly low-contrast) body text underneath. ── */
@@ -1822,6 +1834,30 @@
                 </svg></span>
         </a>
 
+        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
+            <div class="card-bg-hover"></div>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="currentColor" fill-opacity="0.12"/>
+                        <path d="M12 2L3 7l9 5 9-5-9-5z"/>
+                        <path d="M3 7v10l9 5V12L3 7z" opacity="0.6"/>
+                        <path d="M21 7v10l-9 5V12l9-5z" opacity="0.8"/>
+                        <path d="M12 12v10" opacity="0.5"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Yard Master 3D</h2>
+                <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
+                <div class="card-stat-chip" id="stat-3d-poc">
+                    <span class="stat-icon">📦</span> <span class="stat-val">—</span>
+                </div>
+            </div>
+            <span class="card-link">Play Yard Master <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
             <div>
@@ -1987,48 +2023,6 @@
                         stroke-linejoin="round" />
                 </svg></span>
         </a>
-
-        <div class="card flip-card" id="card-wip">
-            <div class="card-flip-inner">
-                <button type="button" class="card-face card-face-front flip-open" aria-expanded="false"
-                    aria-controls="wip-panel">
-                    <div>
-                        <div class="card-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M12 4.4 16.7 18H7.3z" fill="currentColor" fill-opacity="0.12"/>
-                                <path d="M10 10.4h4" opacity="0.65"/>
-                                <path d="M8.9 13.9h6.2" opacity="0.65"/>
-                                <rect x="4.3" y="18" width="15.4" height="3" rx="1.3" fill="currentColor" fill-opacity="0.12"/>
-                            </svg>
-                        </div>
-                        <h2 class="card-title">Under construction</h2>
-                        <p class="card-desc">Something is going here. I don't know what yet.</p>
-                    </div>
-                    <span class="card-link">Have a look anyway <svg viewBox="0 0 24 24">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></span>
-                </button>
-                <div class="card-face card-face-back" id="wip-panel" role="dialog" aria-modal="true"
-                    aria-label="Under construction">
-                    <button type="button" class="about-close" data-flip-close aria-label="Close">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" />
-                        </svg>
-                    </button>
-                    <div class="wip-body">
-                        <div class="wip-emoji">🏗️</div>
-                        <p class="about-text">Told you.</p>
-                        <p class="about-text">But I have <a href="3d-engine-poc/index.html">this</a> cooking.</p>
-                    </div>
-                    <button type="button" class="card-link" data-flip-close>Close <svg viewBox="0 0 24 24">
-                            <path d="M19 12H5m7-7l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg></button>
-                </div>
-            </div>
-        </div>
 
     </main>
 
@@ -2374,6 +2368,30 @@
                         mathBadge.innerHTML = `<span class="stat-icon">⚡</span> High Score: <span class="stat-val">${mathHs} pts</span>`;
                     } else {
                         mathBadge.innerHTML = `<span class="stat-icon">⚡</span> High Score: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 4. Yard Master 3D
+            try {
+                const cargoRaw = localStorage.getItem('cargo3d.save.v1');
+                const cargoBadge = document.getElementById('stat-3d-poc');
+                if (cargoBadge) {
+                    if (cargoRaw) {
+                        const data = JSON.parse(cargoRaw);
+                        const missions = data.missions || {};
+                        let completed = 0, gold = 0;
+                        for (const k in missions) {
+                            if (missions[k].completed) completed++;
+                            if (missions[k].medal === 'gold') gold++;
+                        }
+                        if (completed > 0) {
+                            cargoBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">${completed}/12 Missions</span> <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${gold} 🥇)</span>`;
+                        } else {
+                            cargoBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">—</span>`;
+                        }
+                    } else {
+                        cargoBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}

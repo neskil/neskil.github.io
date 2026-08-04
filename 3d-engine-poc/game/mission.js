@@ -33,6 +33,12 @@
         this.units = ManifestLib.build(mission, opts.seed);
         this.grid = new Cargo3D.YardGrid(mission.bay.cols, mission.bay.rows, mission.bay.tiers);
         this.yardView = new Cargo3D.YardView(this.app.sceneView, mission.bay);
+        this.yardView.onLand = function (x, y, z) {
+            if (self.app.effects) {
+                self.app.effects.dustPuff(x, y, z);
+                self.app.effects.shake(0.12);
+            }
+        };
 
         this.app.weather.set(mission.weather);
         this.app.terminal.setVisible(false);
@@ -49,6 +55,7 @@
             yardView: this.yardView,
             grid: this.grid,
             effects: this.app.effects,
+            cameraRig: this.app.cameraRig,
             rules: mission.rules,
             units: this.units,
             onChange: function (ctrl) { self.app.ui.updateMissionHUD(self.snapshot(ctrl)); },

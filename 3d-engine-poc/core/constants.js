@@ -81,6 +81,13 @@
             noTopLoad: true,
             gridPiece: true
         },
+        'flatrack': {
+            id: 'flatrack', label: '20ft Flat Rack', short: 'FLT',
+            cells: [2, 1],
+            length: 6.06, width: 2.44, height: 2.59,
+            teu: 1, tare: 2.7, payload: 31.0, volume: 30.0,
+            gridPiece: true
+        },
         'pallet': {
             id: 'pallet', label: 'Wooden Euro-Pallet', short: 'PAL',
             cells: [1, 1],

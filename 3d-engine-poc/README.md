@@ -141,6 +141,4 @@ Bump `SAVE_VERSION` and migrate rather than repurposing fields.
 `core/storage.js` falls back to an in-memory store when localStorage is blocked,
 so the game still plays from `file://` in a locked-down browser.
 
-The portfolio root links here from the work-in-progress card only; this project
-has no card in the landing grid until it is finished and approved. See
-`CLAUDE.md`.
+The portfolio landing page links here from the main `#card-3d-poc` card and reads progress via `loadHighScores()` to render the `#stat-3d-poc` mission chip.
