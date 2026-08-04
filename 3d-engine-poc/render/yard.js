@@ -312,5 +312,37 @@
         Meshes.disposeGroup(this.root);
     };
 
+    /* ── the lattice, without a bay ────────────────────────────────────── */
+
+    /**
+     * The same slot lattice a bay is painted with, for the modes that have no
+     * bay. The physics yard offers mission-style grid placement but owns no
+     * YardView, and this file is the only one allowed to turn cells into metres.
+     *
+     * A footprint spanning an even number of cells centres on a slot line, an
+     * odd number on a slot centre — which is why the half-span is taken out
+     * before rounding and added back after.
+     */
+    const GridLattice = {
+        /** Snap a free ground point to the footprint centre of the slot under it. */
+        snap: function (point, typeId, rot, target) {
+            const sp = C.span(typeId, rot);
+            const out = target || new THREE.Vector3();
+            out.set(
+                (Math.round(point.x / C.GRID.CELL_X - sp[0] / 2) + sp[0] / 2) * C.GRID.CELL_X,
+                0,
+                (Math.round(point.z / C.GRID.CELL_Z - sp[1] / 2) + sp[1] / 2) * C.GRID.CELL_Z
+            );
+            return out;
+        },
+
+        /** Footprint of a type in metres, at the given rotation. */
+        footprint: function (typeId, rot) {
+            const sp = C.span(typeId, rot);
+            return { x: sp[0] * C.GRID.CELL_X, z: sp[1] * C.GRID.CELL_Z };
+        }
+    };
+
     Cargo3D.YardView = YardView;
+    Cargo3D.GridLattice = GridLattice;
 })(window);

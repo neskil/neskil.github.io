@@ -200,6 +200,13 @@
             </div>
         </div>
         <div class="toolbar-section">
+            <span class="section-title">Placement</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-sb-place="grid" title="Snap to the campaign's slot lattice, with a preview">Grid <kbd>G</kbd></button>
+                <button class="tool-btn" data-sb-place="free" title="Drop wherever the cursor points">Free</button>
+            </div>
+        </div>
+        <div class="toolbar-section">
             <span class="section-title">Weather</span>
             <select id="weather-select" class="select-input"></select>
         </div>
@@ -212,14 +219,62 @@
                 <span class="hud-icon">⚖️</span>
                 <h3>Physics Stacker</h3>
             </header>
-            <p class="hud-tagline">No grid. Containers simulate gravity, inertia, and friction—bad balance causes tipping!</p>
+            <p class="hud-tagline" id="ph-tagline">No grid holding anything up. Containers have mass, friction and a centre of gravity; bad balance tips.</p>
             <div class="metric-row"><span class="metric-label">Units active</span><span class="metric-val" id="ph-count">0</span></div>
-            <div class="metric-row"><span class="metric-label">Est. mass</span><span class="metric-val" id="ph-mass">0 t</span></div>
-            <div class="metric-row"><span class="metric-label">Max height</span><span class="metric-val" id="ph-height">0 m</span></div>
+            <div class="metric-row"><span class="metric-label">Laden mass</span><span class="metric-val" id="ph-mass">0 t</span></div>
+            <div class="metric-row"><span class="metric-label">Max height</span><span class="metric-val" id="ph-height">0.0 m</span></div>
+            <div id="ph-tower-rows" class="hidden">
+                <div class="metric-row"><span class="metric-label">Confirmed</span><span class="metric-val" id="ph-run-height">0.0 m</span></div>
+                <div class="metric-row"><span class="metric-label">Best ever</span><span class="metric-val" id="ph-best">—</span></div>
+                <div class="metric-row"><span class="metric-label">Tower</span><span class="metric-val run-status" id="ph-status">Drop the first container</span></div>
+            </div>
         </section>
     </aside>
 
+    <!-- ── tower challenge result ───────────────────────────────────── -->
+    <div id="tower-overlay" class="overlay hidden">
+        <div class="panel results-panel">
+            <div class="result-head">
+                <div class="result-medal" id="tower-icon">🏗️</div>
+                <h2 class="result-verdict" id="tower-verdict">The tower came down</h2>
+                <p class="result-sub" id="tower-sub"></p>
+                <p class="result-best" id="tower-record"></p>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-stat headline">
+                    <span class="ins-label">Height</span><strong id="tower-height">—</strong>
+                </div>
+                <div class="result-stat headline">
+                    <span class="ins-label">Best ever</span><strong id="tower-best">—</strong>
+                </div>
+                <div class="result-stat"><span class="ins-label">Containers</span><strong id="tower-units">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Attempts</span><strong id="tower-runs">—</strong></div>
+            </div>
+
+            <div class="menu-actions row">
+                <button id="btn-tower-retry" class="primary-btn">↻ Stack again</button>
+                <button id="btn-tower-free" class="ghost-btn">Free play</button>
+                <button id="btn-tower-menu" class="ghost-btn">Main menu</button>
+            </div>
+        </div>
+    </div>
+
     <div id="physics-toolbar" class="control-bar hidden">
+        <div class="toolbar-section">
+            <span class="section-title">Challenge</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-phys-challenge="freeplay">Free Play</button>
+                <button class="tool-btn" data-phys-challenge="tower" title="Stack as high as you can — a collapse ends the run">🗼 Tower</button>
+            </div>
+        </div>
+        <div class="toolbar-section">
+            <span class="section-title">Placement</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-phys-place="grid" title="Snap to the campaign's slot lattice, quarter turns">Grid <kbd>G</kbd></button>
+                <button class="tool-btn" data-phys-place="free" title="Anywhere the cursor points, 15° turns">Free</button>
+            </div>
+        </div>
         <div class="toolbar-section">
             <span class="section-title">Spawn Cargo</span>
             <div class="button-group" id="physics-palette"></div>

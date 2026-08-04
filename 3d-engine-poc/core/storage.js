@@ -25,6 +25,9 @@
             missions: {},
             settings: { muted: false, weather: 'day', showGrid: true },
             stats: { unitsPlaced: 0, missionsRun: 0 },
+            // Physics tower challenge — see game/physicsMode.js. Additive, so a
+            // save written before the mode existed still reads at version 1.
+            physics: { bestHeight: 0, bestUnits: 0, runs: 0 },
             // Sandbox contract economy — see core/contracts.js. Only the
             // durable parts are stored; the active order is not resumed.
             contracts: null
@@ -41,6 +44,7 @@
             data.missions = data.missions || {};
             data.settings = Object.assign(blank().settings, data.settings || {});
             data.stats = Object.assign(blank().stats, data.stats || {});
+            data.physics = Object.assign(blank().physics, data.physics || {});
             return data;
         } catch (e) {
             return blank();
@@ -124,6 +128,32 @@
         return data.contracts;
     }
 
+    /** Best tower the physics challenge has ever produced. */
+    function getPhysics() {
+        return read().physics;
+    }
+
+    /**
+     * Merge a finished tower run into the save. Only a taller tower overwrites.
+     * @param {{height:number, units:number}} run
+     * @returns {{best:object, improved:boolean, previousBest:number}}
+     */
+    function recordTower(run) {
+        const data = read();
+        const prev = data.physics;
+        const previousBest = prev.bestHeight || 0;
+        const improved = run.height > previousBest + 1e-6;
+
+        data.physics = {
+            bestHeight: improved ? run.height : previousBest,
+            bestUnits: improved ? run.units : (prev.bestUnits || 0),
+            runs: (prev.runs || 0) + 1
+        };
+        write(data);
+
+        return { best: data.physics, improved: improved, previousBest: previousBest };
+    }
+
     function getSettings() {
         return read().settings;
     }
@@ -177,6 +207,8 @@
         isUnlocked: isUnlocked,
         getContracts: getContracts,
         saveContracts: saveContracts,
+        getPhysics: getPhysics,
+        recordTower: recordTower,
         getSettings: getSettings,
         saveSettings: saveSettings,
         summary: summary,

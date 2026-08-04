@@ -189,14 +189,25 @@
         this.restitution = 0.15;
         this.friction = 0.65;
 
-        /** Velocity iterations per substep. Tall stacks need the relaxation. */
+        /** Velocity iterations per step. Tall stacks need the relaxation. */
         this.iterations = 10;
-        this.subSteps = 3;
+
+        /**
+         * Physics runs on a fixed step regardless of frame rate. Two towers
+         * built the same way have to score the same on a slow machine as on a
+         * fast one, and the overlap correction below divides by the step — at a
+         * variable dt, one unusually short frame launches the whole stack.
+         */
+        this.fixedDt = 1 / 120;
+        this.maxStepsPerFrame = 12;
+        this.accumulator = 0;
 
         /** Allowed overlap, in metres. Solving to exactly zero causes jitter. */
         this.slop = 0.005;
-        /** Fraction of the remaining overlap pushed out per substep. */
+        /** Fraction of the remaining overlap pushed out per step. */
         this.beta = 0.2;
+        /** Ceiling on that correction, m/s — overlap is nudged out, never fired. */
+        this.maxCorrection = 2;
         /** Below this closing speed a contact is treated as resting, not bouncing. */
         this.restitutionThreshold = 1.0;
 
@@ -220,16 +231,26 @@
         this.bodies = [];
         this.contacts.length = 0;
         this._contactCount = 0;
+        this.accumulator = 0;
     };
 
+    /**
+     * Advance the world by a frame's worth of real time, in fixed steps.
+     * A frame longer than the step budget is simulated in slow motion rather
+     * than in one huge leap — a backlog is dropped, never fast-forwarded.
+     */
     PhysicsWorld.prototype.update = function (delta) {
-        if (delta <= 0) return;
-        const timeStep = Math.min(delta, 0.05);
-        const dt = timeStep / this.subSteps;
+        if (!(delta > 0)) return;
 
-        for (let s = 0; s < this.subSteps; s++) {
-            this.step(dt);
+        this.accumulator += Math.min(delta, 0.25);
+
+        let steps = 0;
+        while (this.accumulator >= this.fixedDt && steps < this.maxStepsPerFrame) {
+            this.step(this.fixedDt);
+            this.accumulator -= this.fixedDt;
+            steps++;
         }
+        if (steps >= this.maxStepsPerFrame) this.accumulator = 0;
     };
 
     PhysicsWorld.prototype.step = function (dt) {
@@ -477,9 +498,11 @@
             c.massT1 = effectiveMass(c.bA, c.bB, c.rA, c.rB, c.t1);
             c.massT2 = effectiveMass(c.bA, c.bB, c.rA, c.rB, c.t2);
 
-            // Baumgarte: push out the overlap beyond the slop, gently.
+            // Baumgarte: push out the overlap beyond the slop, gently. Clamped,
+            // because this term divides by the step and deep overlap is exactly
+            // the case where an unclamped correction would fire the stack apart.
             c.bias = (c.depth > this.slop)
-                ? (this.beta / dt) * (c.depth - this.slop)
+                ? Math.min((this.beta / dt) * (c.depth - this.slop), this.maxCorrection)
                 : 0;
 
             // Restitution only for genuine impacts — a resting box must not bounce.

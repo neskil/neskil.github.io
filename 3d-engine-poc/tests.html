@@ -369,7 +369,10 @@
 
             eq(Campaign.byId('m01').id, 'm01', 'missions are addressable by id');
             eq(Campaign.nextAfter('m01').id, 'm02', 'the chain links forward');
-            ok(Campaign.nextAfter('m12') === null, 'the last mission ends the chain');
+            // Derived, not hardcoded: this assertion broke silently the last
+            // time a mission was appended to the campaign.
+            const lastId = Campaign.MISSIONS[Campaign.MISSIONS.length - 1].id;
+            ok(Campaign.nextAfter(lastId) === null, 'the last mission ends the chain (' + lastId + ')');
         });
 
         suite('campaign — par is geometrically reachable', function () {
@@ -443,6 +446,55 @@
             Cargo3D.Storage.resetProgress();
             ok(Cargo3D.Storage.missionRecord('m01') === null, 'reset clears progress');
             ok(mission !== null, 'campaign is still intact after a reset');
+        });
+
+        suite('storage — physics tower records', function () {
+            Cargo3D.Storage.resetProgress();
+
+            const blank = Cargo3D.Storage.getPhysics();
+            eq(blank.bestHeight, 0, 'a fresh save has no tower on the board');
+            eq(blank.runs, 0, 'a fresh save has no attempts');
+
+            const first = Cargo3D.Storage.recordTower({ height: 14.2, units: 6 });
+            ok(first.improved, 'a first tower is an improvement');
+            eq(first.previousBest, 0, 'with no previous best to beat');
+            eq(first.best.bestHeight, 14.2, 'the height is kept');
+            eq(first.best.runs, 1, 'the attempt is counted');
+
+            const worse = Cargo3D.Storage.recordTower({ height: 9.1, units: 4 });
+            ok(!worse.improved, 'a shorter tower is not an improvement');
+            eq(worse.best.bestHeight, 14.2, 'the taller tower is kept');
+            eq(worse.best.bestUnits, 6, 'and so is its container count');
+            eq(worse.best.runs, 2, 'but the attempt still counts');
+
+            const better = Cargo3D.Storage.recordTower({ height: 20.7, units: 8 });
+            ok(better.improved, 'a taller tower is an improvement');
+            eq(better.previousBest, 14.2, 'the previous best is reported back');
+
+            Cargo3D.Storage.resetProgress();
+            eq(Cargo3D.Storage.getPhysics().bestHeight, 0, 'reset clears the tower record');
+        });
+
+        suite('storage — schema stays backwards compatible', function () {
+            // A save written before the physics mode existed has no `physics`
+            // key. It must still read at version 1 rather than being discarded,
+            // because the portfolio card reads the same key.
+            Cargo3D.Storage.write({
+                version: Cargo3D.Storage.SAVE_VERSION,
+                missions: { m01: { plays: 3, best: 410, medal: 'silver', completed: true } },
+                settings: { muted: true, weather: 'dusk' },
+                stats: { unitsPlaced: 42, missionsRun: 3 },
+                contracts: null
+            });
+
+            const data = Cargo3D.Storage.read();
+            eq(data.missions.m01.best, 410, 'an old save keeps its mission records');
+            eq(data.settings.weather, 'dusk', 'and its settings');
+            eq(data.stats.unitsPlaced, 42, 'and its stats');
+            eq(data.physics.bestHeight, 0, 'and gains a blank physics record');
+            eq(Cargo3D.Storage.getPhysics().runs, 0, 'readable through the accessor');
+
+            Cargo3D.Storage.resetProgress();
         });
 
         // ── contracts ───────────────────────────────────────────────────────

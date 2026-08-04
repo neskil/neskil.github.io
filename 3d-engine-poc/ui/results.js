@@ -109,5 +109,82 @@
         this.panel.classList.add('hidden');
     };
 
+    /* ── tower challenge scorecard ─────────────────────────────────────── */
+
+    function metres(v) { return (Math.round(v * 10) / 10).toFixed(1) + ' m'; }
+
+    /**
+     * The physics tower's end-of-run card. There is no par and no medal here —
+     * the only measure is how high it stood before it came down.
+     */
+    function TowerResultUI(app) {
+        this.app = app;
+        this.panel = el('tower-overlay');
+        this.bind();
+    }
+
+    TowerResultUI.prototype.bind = function () {
+        const self = this;
+
+        el('btn-tower-retry').addEventListener('click', function () {
+            self.hide();
+            if (self.app.modeName === 'physics') self.app.mode.restartRun();
+        });
+
+        el('btn-tower-free').addEventListener('click', function () {
+            self.hide();
+            if (self.app.modeName === 'physics') self.app.mode.setChallenge('freeplay');
+        });
+
+        el('btn-tower-menu').addEventListener('click', function () {
+            self.hide();
+            self.app.goToMenu();
+        });
+    };
+
+    /**
+     * @param {{height:number, units:number, reason:string, best:number,
+     *          previousBest:number, improved:boolean, runs:number}} result
+     */
+    TowerResultUI.prototype.show = function (result) {
+        el('tower-icon').textContent = result.improved ? '🏆' : '🏗️';
+        el('tower-verdict').textContent = result.improved
+            ? 'A new record — ' + metres(result.height)
+            : 'The tower came down';
+        el('tower-verdict').className = 'result-verdict ' +
+            (result.improved ? 'medal-gold' : 'medal-none');
+
+        el('tower-sub').textContent = result.height > 0
+            ? result.reason + ' It stood at ' + metres(result.height) + '.'
+            : result.reason + ' Nothing had settled yet.';
+
+        el('tower-height').textContent = metres(result.height);
+        el('tower-best').textContent = metres(result.best);
+        el('tower-units').textContent = result.units;
+        el('tower-runs').textContent = result.runs;
+
+        const record = el('tower-record');
+        if (result.improved && result.previousBest > 0) {
+            record.textContent = metres(result.height - result.previousBest) + ' higher than your old best.';
+            record.className = 'result-best improved';
+        } else if (result.improved) {
+            record.textContent = 'Your first tower on the board.';
+            record.className = 'result-best improved';
+        } else if (result.best > 0) {
+            record.textContent = 'Your best still stands at ' + metres(result.best) + '.';
+            record.className = 'result-best';
+        } else {
+            record.textContent = '';
+            record.className = 'result-best';
+        }
+
+        this.panel.classList.remove('hidden');
+    };
+
+    TowerResultUI.prototype.hide = function () {
+        this.panel.classList.add('hidden');
+    };
+
     Cargo3D.ResultsUI = ResultsUI;
+    Cargo3D.TowerResultUI = TowerResultUI;
 })(window);

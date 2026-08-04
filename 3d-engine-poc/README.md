@@ -51,13 +51,15 @@ with no WebGL context, offline, in a headless browser.
 │   └── effects.js      lock-in rings, medal burst
 │
 ├── game/               loop, input, modes
-│   ├── app.js          bootstrap + mode machine (attract/mission/sandbox)
+│   ├── app.js          bootstrap + mode machine (attract/mission/sandbox/physics)
 │   ├── audio.js        procedural sound
 │   ├── camera.js       named camera rigs with eased transitions
 │   ├── placement.js    pointer → legal grid placement, ghost, rotate, undo
 │   ├── mission.js      campaign mode
 │   ├── contracts.js    binds the job board to the sandbox
-│   └── sandbox.js      free-build mode
+│   ├── sandbox.js      free-build mode
+│   ├── physics.js      rigid-body solver — contacts, friction, sleep
+│   └── physicsMode.js  experimental physics yard: free play + tower challenge
 │
 ├── ui/                 DOM only
 │   ├── hud.js          mission HUD, queue, sandbox stats, inspector
@@ -91,21 +93,81 @@ written to be shown to the player verbatim.
 **Par is computed.** `Scoring.parFor(units)` is a perfect zero-waste pack of the
 manifest. Medals are multiples of it. Adding a mission needs no balancing.
 
+**Physics is a sibling of the grid, not a replacement for it.** The campaign
+holds a stack up with `support:1` — a rule that counts occupied cells underneath.
+That is a deliberate abstraction, and it cannot become real physics, because
+`core/` is forbidden from touching THREE. So `game/physics.js` sits beside the
+grid instead: an impulse solver with no grid, no rules and no support ratio,
+where a stack stands because it balances. Both are legitimate; they answer
+different questions. See *The physics yard* below.
+
 **Missions are data.** Everything in `campaign.js` is a plain object;
 `missionSchema.js` validates the lot, and `tests.html` asserts that each
 mission's cell count actually factors into a box the bay can hold — so par stays
 an honest target rather than an unreachable one.
 
+## The physics yard
+
+`🧪 Physics (Exp)` on the main menu. No bay, no manifest, no regulations — every
+container is a rigid body and the stack does whatever the solver says.
+
+**The solver** (`game/physics.js`) is sequential-impulse, boxes only:
+
+- Contacts come from sampling 22 points per box (8 corners, 12 edge midpoints,
+  2 face centres) against the other box's OBB. No SAT, no GJK — for a yard full
+  of cuboids, point-in-box is enough and it is cheap.
+- Each step collects contacts once, then relaxes them over 10 iterations with
+  **accumulated** normal and friction impulses. The accumulation is the part that
+  matters: with a single pass, a support impulse cannot propagate up a stack, and
+  towers sag and topple no matter how carefully they were built.
+- Friction uses two fixed tangents clamped to the friction cone.
+- **Fixed 1/120 s timestep** with an accumulator. Not an optimisation — the
+  overlap correction divides by the step, so at a variable `dt` a single short
+  frame fires the whole yard into the sky. The correction is clamped as well.
+  A side effect worth having: the same tower scores identically at 10 fps and
+  60 fps.
+- Bodies sleep after 0.5 s at rest and drop out of the loop. A settled stack of
+  40 costs ~0.55 ms/frame.
+
+**Two challenges**, switched from the toolbar:
+
+- *Free play* — drop anything anywhere and watch it fall over.
+- *Tower* — stack as high as you can. Height is only credited once every body is
+  asleep, so a tower has to actually stand still to count. Each settled container
+  remembers the height it settled at; if one ever drops more than 1.2 m below
+  that, something under it gave way and the run is over. Best height persists.
+
+**Two placement styles**, in the physics yard *and* the sandbox:
+
+- *Grid* — snaps to the campaign's slot lattice in quarter turns, the same
+  placement the missions use. The grid decides where a container lands; physics
+  still decides whether it stays there.
+- *Free* — anywhere the cursor points, in 15° steps.
+
+`G` toggles between them. The lattice maths lives in `render/yard.js` beside the
+bay's, because that file is the only one allowed to multiply by `CELL_X`.
+
 ## Running the tests
 
-Open `tests.html` in a browser, or headless:
+Two pages, deliberately separate:
+
+| page | covers | loads THREE |
+|---|---|---|
+| `tests.html` | `core/` + `missions/` — grid, rules, scoring, manifests, save | **no** |
+| `physics-tests.html` | the rigid-body solver | yes (maths only, no WebGL) |
+
+`tests.html` loading no THREE at all is the guard behind *the one rule* — it
+breaks loudly if `core/` ever reaches for it. The solver genuinely needs
+`Vector3` and `Quaternion`, so it gets its own page. Do not merge them.
 
 ```sh
-chrome --headless=new --disable-gpu --virtual-time-budget=8000 \
-  --dump-dom "file:///path/to/3d-engine-poc/tests.html" | grep -o 'ALL TESTS PASSED[^<]*'
+for page in tests.html physics-tests.html; do
+  chrome --headless=new --disable-gpu --virtual-time-budget=90000 \
+    --dump-dom "file:///path/to/3d-engine-poc/$page" | grep -oE 'ALL TESTS PASSED[^<]*|FAILED — [^<]*'
+done
 ```
 
-The page sets `document.title` to `PASS`/`FAIL` and leaves
+Both set `document.title` to `PASS`/`FAIL` and leave
 `window.__TEST_RESULT__ = {passed, failed, failures}` for a driver to read.
 
 ## Adding things
@@ -133,9 +195,14 @@ One key, `cargo3d.save.v1`:
   missions:  { m01: { plays, best, medal, completed, lastEnvelope, par, updatedAt } },
   settings:  { muted, weather, showGrid },
   stats:     { unitsPlaced, missionsRun },
+  physics:   { bestHeight, bestUnits, runs },
   contracts: { money, delivered, rating, upgrades } | null
 }
 ```
+
+`physics` was added without bumping the version, because it is purely additive:
+`read()` fills it in for a save written before the mode existed. `tests.html`
+asserts that an old save survives the round trip.
 
 Bump `SAVE_VERSION` and migrate rather than repurposing fields.
 `core/storage.js` falls back to an in-memory store when localStorage is blocked,

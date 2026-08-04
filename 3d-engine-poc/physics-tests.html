@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Yard Master — physics tests</title>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; padding: 24px; }
+        h1 { font-size: 1.1rem; margin: 0 0 4px; }
+        #summary { padding: 10px 14px; border-radius: 8px; margin: 12px 0 18px; font-weight: 700; }
+        .ok { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.4); }
+        .bad { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.4); }
+        .suite { margin: 0 0 6px; color: #38bdf8; font-weight: 700; }
+        .case { padding-left: 18px; color: #94a3b8; }
+        .case.fail { color: #fca5a5; }
+        .case.pass::before { content: '✓ '; color: #34d399; }
+        .case.fail::before { content: '✗ '; }
+        .note { color: #64748b; }
+    </style>
+</head>
+<body>
+    <h1>Yard Master — rigid-body solver tests</h1>
+    <p class="note">
+        <code>game/physics.js</code> only uses THREE's maths — no WebGL context, no canvas.
+        Kept out of <code>tests.html</code> on purpose: that page must stay THREE-free so it
+        still fails loudly if <code>core/</code> ever reaches for it.
+    </p>
+    <div id="summary">running…</div>
+    <div id="out"></div>
+
+    <script src="vendor/three.min.js"></script>
+    <script src="game/physics.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        const out = document.getElementById('out');
+        let passed = 0, failed = 0;
+        const failures = [];
+
+        function suite(name, fn) {
+            const h = document.createElement('div');
+            h.className = 'suite';
+            h.textContent = name;
+            out.appendChild(h);
+            try {
+                fn();
+            } catch (e) {
+                report(false, name + ' threw: ' + (e && e.message));
+            }
+        }
+
+        function report(ok, label) {
+            const el = document.createElement('div');
+            el.className = 'case ' + (ok ? 'pass' : 'fail');
+            el.textContent = label;
+            out.appendChild(el);
+            if (ok) passed++; else { failed++; failures.push(label); }
+        }
+
+        function ok(cond, label) { report(!!cond, label); }
+        function near(a, b, tol, label) {
+            report(Math.abs(a - b) <= tol, label + '  (got ' + round(a) + ', want ~' + b + ')');
+        }
+        function under(a, limit, label) {
+            report(a <= limit, label + '  (got ' + round(a) + ', limit ' + limit + ')');
+        }
+        function round(v) { return Math.round(v * 1000) / 1000; }
+
+        /* ── fixtures ───────────────────────────────────────────────────── */
+
+        // A 20ft box, in real metres and a realistic laden mass.
+        const BOX = { w: 2.44, h: 2.59, l: 6.06, m: 14.9 };
+        const REST_Y = BOX.h / 2;
+
+        function world() { return new Cargo3D.PhysicsWorld(); }
+
+        function drop(w, x, y, z, yaw, spec) {
+            const s = spec || BOX;
+            const mesh = new THREE.Group();
+            mesh.userData.spec = { width: s.w, height: s.h, length: s.l };
+            mesh.position.set(x, y, z);
+            if (yaw) mesh.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+            const body = new Cargo3D.RigidBox(mesh, s.m);
+            w.add(body);
+            return body;
+        }
+
+        /** Run `seconds` of simulated time at a given frame rate. */
+        function run(w, seconds, frameDelta) {
+            const d = frameDelta || 1 / 60;
+            for (let i = 0, n = Math.round(seconds / d); i < n; i++) w.update(d);
+        }
+
+        function tiltDeg(body) {
+            const up = new THREE.Vector3(0, 1, 0);
+            const v = new THREE.Vector3(0, 1, 0).applyQuaternion(body.quaternion);
+            return THREE.MathUtils.radToDeg(Math.acos(Math.min(1, Math.abs(v.dot(up)))));
+        }
+
+        function maxTilt(w) {
+            return w.bodies.reduce(function (m, b) { return Math.max(m, tiltDeg(b)); }, 0);
+        }
+        function topOf(w) {
+            return w.bodies.reduce(function (m, b) { return Math.max(m, b.topY()); }, 0);
+        }
+        function deepest(w) {
+            return w.bodies.reduce(function (m, b) {
+                return Math.min(m, b.position.y - b.height / 2);
+            }, Infinity);
+        }
+        function allAsleep(w) {
+            return w.bodies.every(function (b) { return b.sleeping; });
+        }
+        function anyNaN(w) {
+            return w.bodies.some(function (b) {
+                return !isFinite(b.position.x) || !isFinite(b.position.y) || !isFinite(b.position.z);
+            });
+        }
+        function stack(w, count, jitter) {
+            for (let i = 0; i < count; i++) {
+                const j = jitter || 0;
+                // Deterministic offsets — a test that fails intermittently is useless.
+                drop(w, (i % 2 ? j : -j), REST_Y + 0.05 + i * (BOX.h + 0.03), (i % 3 ? -j : j));
+            }
+        }
+
+        /* ── resting ────────────────────────────────────────────────────── */
+
+        suite('a single box comes to rest on the ground', function () {
+            const w = world();
+            const b = drop(w, 0, 6, 0);
+            run(w, 4);
+
+            near(b.position.y, REST_Y, 0.01, 'it rests at half its height');
+            under(tiltDeg(b), 0.5, 'and flat');
+            ok(!anyNaN(w), 'with finite coordinates');
+            ok(b.sleeping, 'and goes to sleep');
+        });
+
+        suite('the ground does not wake what rests on it', function () {
+            // The original bug: resolveGround() woke every body it touched, so a
+            // settled box was woken forever by the floor holding it up.
+            const w = world();
+            const b = drop(w, 0, REST_Y + 0.02, 0);
+            run(w, 3);
+            ok(b.sleeping, 'a box on the ground falls asleep');
+
+            run(w, 5);
+            ok(b.sleeping, 'and stays asleep');
+            under(b.speedSq(), 1e-9, 'with no residual motion');
+        });
+
+        /* ── stacking ───────────────────────────────────────────────────── */
+
+        suite('a perfectly aligned tower stands straight', function () {
+            // This is the assertion that a single-pass solver cannot satisfy:
+            // it used to tilt 23 degrees and sag 0.6 m.
+            const w = world();
+            stack(w, 8, 0);
+            run(w, 6);
+
+            under(maxTilt(w), 2, 'no container leans');
+            near(topOf(w), 8 * BOX.h, 0.25, 'the tower keeps its full height');
+            under(Math.abs(deepest(w)), 0.02, 'the base does not sink into the ground');
+            ok(allAsleep(w), 'and the whole tower settles');
+        });
+
+        suite('a tower survives realistic placement jitter', function () {
+            // 0.12 m of slop per container — well inside what a player produces.
+            const w = world();
+            stack(w, 12, 0.12);
+            run(w, 8);
+
+            under(maxTilt(w), 5, 'twelve jittered containers still stand');
+            ok(allAsleep(w), 'and settle');
+            ok(!anyNaN(w), 'without exploding');
+        });
+
+        suite('a pyramid holds its shape', function () {
+            const w = world();
+            let y = REST_Y;
+            [5, 4, 3, 2, 1].forEach(function (n) {
+                for (let i = 0; i < n; i++) drop(w, (i - (n - 1) / 2) * 2.6, y, 0);
+                y += BOX.h + 0.03;
+            });
+            run(w, 8);
+
+            under(maxTilt(w), 3, 'fifteen containers keep level');
+            ok(allAsleep(w), 'and settle');
+        });
+
+        suite('a rotated stack still rests flat', function () {
+            const w = world();
+            drop(w, 0, REST_Y, 0, 0);
+            drop(w, 0, REST_Y + BOX.h + 0.02, 0, Math.PI / 4);
+            drop(w, 0, REST_Y + 2 * (BOX.h + 0.02), 0, Math.PI / 2);
+            run(w, 6);
+
+            under(maxTilt(w), 3, 'yaw does not induce lean');
+            ok(allAsleep(w), 'and it settles');
+        });
+
+        /* ── falling over ───────────────────────────────────────────────── */
+
+        suite('an unsupported overhang topples', function () {
+            // The whole point of the mode: balance has to actually matter.
+            const w = world();
+            drop(w, 0, REST_Y, 0);
+            const top = drop(w, 0, REST_Y + BOX.h + 0.1, 4.8);   // ~80% off the end
+            run(w, 6);
+
+            ok(tiltDeg(top) > 15, 'a container hung off the end tips');
+            // Its centre, not its top corner: a container standing on one end is
+            // very much toppled, but its highest point is higher than ever.
+            ok(top.position.y < REST_Y + BOX.h, 'and drops below a clean second tier');
+        });
+
+        suite('a centred container does not topple', function () {
+            const w = world();
+            drop(w, 0, REST_Y, 0);
+            const top = drop(w, 0, REST_Y + BOX.h + 0.1, 0);
+            run(w, 6);
+
+            under(tiltDeg(top), 2, 'a squarely stacked container stays put');
+            near(top.topY(), 2 * BOX.h, 0.1, 'at its proper height');
+        });
+
+        /* ── robustness ─────────────────────────────────────────────────── */
+
+        suite('a fast drop does not tunnel through the ground', function () {
+            const w = world();
+            const b = drop(w, 0, 30, 0);
+            b.velocity.set(0, -40, 0);
+            run(w, 4);
+
+            near(b.position.y, REST_Y, 0.05, 'a 40 m/s impact still lands on the surface');
+            ok(!anyNaN(w), 'with finite coordinates');
+        });
+
+        suite('a near-zero frame delta cannot launch the yard', function () {
+            // The overlap correction divides by the timestep, so a short frame
+            // scales it up without limit. The containers below start overlapping
+            // by 4 cm — which is simply what a stack looks like mid-settle, and
+            // is exactly when the real bug fired the yard up at 22 m/s.
+            const w = world();
+            for (let i = 0; i < 6; i++) drop(w, 0, REST_Y + i * (BOX.h - 0.04), 0);
+
+            let peak = 0;
+            for (let i = 0; i < 600; i++) {
+                w.update(i % 3 === 0 ? 1e-5 : 0.016);
+                w.bodies.forEach(function (b) { peak = Math.max(peak, Math.sqrt(b.speedSq())); });
+            }
+
+            under(peak, 4, 'nothing is fired into the air');
+            near(topOf(w), 6 * BOX.h, 0.4, 'and the tower ends up its proper height');
+            ok(!anyNaN(w), 'with finite coordinates');
+        });
+
+        suite('a huge frame delta is absorbed, not fast-forwarded', function () {
+            const w = world();
+            stack(w, 5, 0);
+            run(w, 3);
+            const before = topOf(w);
+
+            w.update(4);      // a four-second stall
+            w.update(0.016);
+
+            near(topOf(w), before, 0.2, 'the stack survives a long stall');
+            ok(!anyNaN(w), 'with finite coordinates');
+        });
+
+        suite('the same tower scores the same at any frame rate', function () {
+            // A height leaderboard is only fair if physics is frame-rate
+            // independent, which is what the fixed timestep buys.
+            function build(frameDelta) {
+                const w = world();
+                stack(w, 7, 0.06);
+                run(w, 10, frameDelta);
+                return topOf(w);
+            }
+            const a = build(1 / 60), b = build(1 / 30), c = build(1 / 10);
+
+            near(b, a, 0.001, '30 fps matches 60 fps');
+            near(c, a, 0.001, '10 fps matches 60 fps');
+        });
+
+        /* ── sleep ──────────────────────────────────────────────────────── */
+
+        suite('sleeping bodies wake when something lands on them', function () {
+            const w = world();
+            const base = drop(w, 0, REST_Y, 0);
+            run(w, 3);
+            ok(base.sleeping, 'the base is asleep before the impact');
+
+            const falling = drop(w, 0, REST_Y + BOX.h + 4, 0);
+            falling.velocity.set(0, -6, 0);
+            run(w, 1);   // it needs ~0.48 s to fall the 4 m onto the base
+            ok(!base.sleeping, 'and wakes when hit');
+
+            run(w, 6);
+            ok(allAsleep(w), 'then both settle again');
+            near(topOf(w), 2 * BOX.h, 0.15, 'as a clean two-tier stack');
+        });
+
+        suite('a settled stack costs nothing to simulate', function () {
+            const w = world();
+            for (let i = 0; i < 40; i++) {
+                drop(w, (i % 5 - 2) * 2.6, REST_Y + Math.floor(i / 5) * (BOX.h + 0.03), (i % 3 - 1) * 6.5);
+            }
+            run(w, 6);
+            ok(allAsleep(w), 'forty bodies all sleep');
+
+            const t0 = performance.now();
+            run(w, 2);
+            const msPerFrame = (performance.now() - t0) / 120;
+            under(msPerFrame, 8, 'and cost well under a frame budget (ms/frame)');
+        });
+
+        /* ── summary ────────────────────────────────────────────────────── */
+
+        const summary = document.getElementById('summary');
+        if (failed === 0) {
+            summary.className = 'ok';
+            summary.textContent = 'ALL TESTS PASSED — ' + passed + ' assertions';
+            document.title = 'PASS';
+        } else {
+            summary.className = 'bad';
+            summary.textContent = 'FAILED — ' + failed + ' of ' + (passed + failed) + ' assertions';
+            document.title = 'FAIL';
+        }
+        window.__TEST_RESULT__ = { passed: passed, failed: failed, failures: failures };
+    })();
+    </script>
+</body>
+</html>

@@ -339,10 +339,40 @@
         if (this.toolbar) this.toolbar.classList.add('hidden');
     };
 
+    const RUN_STATUS = {
+        idle:     { text: 'Drop the first container', cls: '' },
+        settling: { text: 'Settling…',                cls: 'settling' },
+        stable:   { text: '✓ Standing',               cls: 'stable' },
+        over:     { text: '✗ Collapsed',              cls: 'collapsed' }
+    };
+
     PhysicsHUD.prototype.update = function (m) {
         if (el('ph-count')) el('ph-count').textContent = m.count;
         if (el('ph-mass')) el('ph-mass').textContent = m.mass + ' t';
-        if (el('ph-height')) el('ph-height').textContent = m.height + ' m';
+        if (el('ph-height')) el('ph-height').textContent = m.height.toFixed(1) + ' m';
+
+        const tower = m.challenge === 'tower';
+        const towerRows = el('ph-tower-rows');
+        if (towerRows) towerRows.classList.toggle('hidden', !tower);
+
+        const tagline = el('ph-tagline');
+        if (tagline) {
+            tagline.textContent = tower
+                ? 'Stack as high as you can. Height counts once the tower stands still — one collapse ends the run.'
+                : 'No grid holding anything up. Containers have mass, friction and a centre of gravity; bad balance tips.';
+        }
+
+        if (!tower) return;
+
+        if (el('ph-run-height')) el('ph-run-height').textContent = m.runHeight.toFixed(1) + ' m';
+        if (el('ph-best')) el('ph-best').textContent = m.best > 0 ? m.best.toFixed(1) + ' m' : '—';
+
+        const status = RUN_STATUS[m.status] || RUN_STATUS.idle;
+        const statusEl = el('ph-status');
+        if (statusEl) {
+            statusEl.textContent = status.text;
+            statusEl.className = 'metric-val run-status ' + status.cls;
+        }
     };
 
     Cargo3D.MissionHUD = MissionHUD;
