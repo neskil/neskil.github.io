@@ -300,7 +300,31 @@
         this.inspector.classList.add('hidden');
     };
 
+    /* ── physics HUD ───────────────────────────────────────────────────── */
+
+    function PhysicsHUD() {
+        this.root = el('physics-hud');
+        this.toolbar = el('physics-toolbar');
+    }
+
+    PhysicsHUD.prototype.show = function () {
+        if (this.root) this.root.classList.remove('hidden');
+        if (this.toolbar) this.toolbar.classList.remove('hidden');
+    };
+
+    PhysicsHUD.prototype.hide = function () {
+        if (this.root) this.root.classList.add('hidden');
+        if (this.toolbar) this.toolbar.classList.add('hidden');
+    };
+
+    PhysicsHUD.prototype.update = function (m) {
+        if (el('ph-count')) el('ph-count').textContent = m.count;
+        if (el('ph-mass')) el('ph-mass').textContent = m.mass + ' t';
+        if (el('ph-height')) el('ph-height').textContent = m.height + ' m';
+    };
+
     Cargo3D.MissionHUD = MissionHUD;
     Cargo3D.SandboxHUD = SandboxHUD;
+    Cargo3D.PhysicsHUD = PhysicsHUD;
     Cargo3D.hudFormat = { volume: volume, unitChip: unitChip, unitBadges: unitBadges, MEDAL_ICON: MEDAL_ICON };
 })(window);

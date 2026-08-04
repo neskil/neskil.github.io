@@ -33,6 +33,7 @@
 
         el('btn-campaign').addEventListener('click', function () { self.openSelect(); });
         el('btn-sandbox').addEventListener('click', function () { app.startSandbox(); });
+        if (el('btn-physics')) el('btn-physics').addEventListener('click', function () { app.startPhysics(); });
         el('btn-howto').addEventListener('click', function () { self.open('howto'); });
         el('btn-howto-close').addEventListener('click', function () { self.closeTop(); });
         el('btn-select-close').addEventListener('click', function () { self.openMain(); });
@@ -98,7 +99,7 @@
     };
 
     MenuUI.prototype.openPause = function () {
-        if (this.app.modeName !== 'mission' && this.app.modeName !== 'sandbox') return;
+        if (this.app.modeName !== 'mission' && this.app.modeName !== 'sandbox' && this.app.modeName !== 'physics') return;
         el('btn-restart').classList.toggle('hidden', this.app.modeName !== 'mission');
         el('btn-to-select').classList.toggle('hidden', this.app.modeName !== 'mission');
         this.open('pause');
