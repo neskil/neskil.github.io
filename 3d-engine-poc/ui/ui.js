@@ -68,6 +68,22 @@
             else menu.openPause();
         });
 
+        /* Which build is running — set by tools/stamp-build.sh. */
+        const stamp = el('build-stamp');
+        if (stamp) {
+            const build = Cargo3D.BUILD || {};
+            const commit = build.commit || 'unstamped';
+            stamp.textContent = commit;
+
+            if (build.commit && build.commit !== 'unstamped') {
+                stamp.title = 'Build ' + commit + (build.date ? ' · ' + build.date : '') +
+                    '\nOpens this commit on GitHub';
+                stamp.href = 'https://github.com/' + build.repo + '/commit/' + commit;
+            } else {
+                stamp.title = 'Not stamped — run tools/stamp-build.sh before pushing';
+            }
+        }
+
         const audioBtn = el('btn-audio');
         function paintAudio() {
             const muted = Cargo3D.Audio.isMuted();
