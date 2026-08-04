@@ -94,7 +94,8 @@
         this.modes = {
             attract: new AttractMode(this),
             mission: new Cargo3D.MissionMode(this),
-            sandbox: new Cargo3D.SandboxMode(this)
+            sandbox: new Cargo3D.SandboxMode(this),
+            physics: Cargo3D.PhysicsMode ? new Cargo3D.PhysicsMode(this) : null
         };
         this.modeName = null;
         this.mode = null;
@@ -120,6 +121,11 @@
     App.prototype.startSandbox = function () {
         this.ui.closeAllPanels();
         this.setMode('sandbox');
+    };
+
+    App.prototype.startPhysics = function () {
+        this.ui.closeAllPanels();
+        this.setMode('physics');
     };
 
     App.prototype.goToMenu = function () {
