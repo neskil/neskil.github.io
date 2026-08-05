@@ -372,19 +372,39 @@
             roughness: 0.5, depthWrite: false
         });
 
-        const box = new THREE.Mesh(
-            new THREE.BoxGeometry(sp[0] * C.GRID.CELL_X * 0.94, spec.height, sp[1] * C.GRID.CELL_Z * 0.94),
-            mat
-        );
-        group.add(box);
+        const edgeMat = new THREE.LineBasicMaterial({ color: 0xecfdf5, transparent: true, opacity: 0.9 });
+        const bodies = [];
+        const edges = [];
 
-        const edges = new THREE.LineSegments(
-            new THREE.EdgesGeometry(box.geometry),
-            new THREE.LineBasicMaterial({ color: 0xecfdf5, transparent: true, opacity: 0.9 })
-        );
-        group.add(edges);
+        function addCell(w, h, d, x, z) {
+            const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            box.position.set(x, 0, z);
+            group.add(box);
+            bodies.push(box);
 
-        group.userData = { body: box, edges: edges, material: mat, edgeMaterial: edges.material };
+            const line = new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), edgeMat);
+            line.position.copy(box.position);
+            group.add(line);
+            edges.push(line);
+        }
+
+        if (spec.mask) {
+            // One box per occupied cell, so the preview has the same notch the
+            // piece does — you aim an L-block by its corner, not by its box.
+            const cellX = C.GRID.CELL_X * 0.94;
+            const cellZ = C.GRID.CELL_Z * 0.94;
+            C.footprint(spec.id, rot).forEach(function (cell) {
+                addCell(cellX, spec.height, cellZ,
+                    (cell[0] + 0.5 - sp[0] / 2) * C.GRID.CELL_X,
+                    (cell[1] + 0.5 - sp[1] / 2) * C.GRID.CELL_Z);
+            });
+        } else {
+            addCell(sp[0] * C.GRID.CELL_X * 0.94, spec.height, sp[1] * C.GRID.CELL_Z * 0.94, 0, 0);
+        }
+
+        // One material and one edge material across every cell, so the caller
+        // recolours the whole preview by setting two colours.
+        group.userData = { bodies: bodies, edges: edges, material: mat, edgeMaterial: edgeMat };
         return group;
     }
 

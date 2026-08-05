@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.3.1 — a phone-sized yard, and the Tetris blocks everywhere
+
+**Added**
+
+- **Collapsible toolbar sections on a phone.** The control bar showed every
+  section at once — five stacked rows eating half the yard, most of it cold.
+  Each section now folds to a chip that still reports what it is set to
+  (`Spawn Cargo · 20ft`), one section is open at a time, and picking from an
+  exclusive group folds it away again the way a dropdown would. The desktop bar
+  is untouched: above the breakpoint the module unwinds itself.
+- **The L-corner and T-beam modules are spawnable** in the sandbox and the
+  physics yard, not just in campaign mission 13. They are the most interesting
+  thing in the catalogue to pack, and the most interesting to balance.
+- 5 more assertions: the collider's orientation, and a masked piece being
+  hollow where it looks hollow.
+
+**Fixed**
+
+- **The collider was the mesh rotated 90°.** `RigidBox` put width on X and
+  length on Z; `render/containers.js` builds every container the other way
+  round. Self-consistent and completely wrong: two 20ft containers 3.5 m apart
+  end to end registered no contact at all and slid through each other, while
+  two parked side by side collided with nothing. Vertical stacking was
+  unaffected, which is why the tower challenge looked fine. Two solver tests had
+  been written against the swapped axes and picked their spacings to suit; both
+  now describe the same physical situation on the correct axis.
+- **Masked cargo collided as its bounding box.** An L-block's notch is visibly
+  empty, so cargo dropped into it has to fall through, not rest on air. A body's
+  shape is now a list of boxes, and a masked piece is the union of its cells.
+- **The top bar did not fit a phone.** Five items priced for a desktop: the
+  title wrapped to two lines, the badge to three, and the menu button — the only
+  way out of a mode — was pushed off the right edge.
+- The grid ghost is now mask-aware, so an L-block previews as an L rather than
+  as the 2×2 box around it.
+
 ## v0.3.0 — the physics yard
 
 Real rigid-body physics alongside the grid, not instead of it. The campaign's

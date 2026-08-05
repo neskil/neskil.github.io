@@ -62,6 +62,71 @@
         return vec;
     }
 
+    /* ── Collision shape ───────────────────────────────────────────────── */
+
+    /** Cell pitch of the yard lattice. Constants owns it; this is the fallback. */
+    function cellSize() {
+        const C = Cargo3D.Constants;
+        return (C && C.GRID && C.GRID.CELL_X) || 3.05;
+    }
+
+    /**
+     * The body's shape in body space, as a list of axis-aligned boxes.
+     *
+     * Ordinary cargo is one box. A masked piece — the L-corner and T-beam
+     * machinery modules — is the union of its occupied cells, so the notch is
+     * genuinely empty and a container dropped into it falls past to whatever is
+     * underneath. Cells are merged along X into runs first, which keeps the
+     * count down and, more importantly, keeps interior faces out of the contact
+     * test: a run of three cells is one box with no seams inside it.
+     *
+     * Local axes match the mesh in render/containers.js — length along X,
+     * width along Z.
+     */
+    function shapeParts(spec, length, height, width) {
+        if (!spec.mask || !spec.cells) {
+            return [{ x: 0, y: 0, z: 0, hx: length / 2, hy: height / 2, hz: width / 2 }];
+        }
+
+        const cell = cellSize();
+        const hy = height / 2;
+        // The mesh draws each cell at 94% of the pitch; the collider matches it,
+        // or a piece would collide a hand's width before it looks like it should.
+        const inset = cell * 0.94;
+
+        // Cells grouped by row (constant z), each row sorted along x.
+        const rows = {};
+        spec.mask.forEach(function (pt) {
+            (rows[pt[1]] = rows[pt[1]] || []).push(pt[0]);
+        });
+
+        const parts = [];
+        Object.keys(rows).forEach(function (key) {
+            const row = rows[key].slice().sort(function (a, b) { return a - b; });
+            const z = Number(key);
+
+            let start = row[0];
+            let prev = row[0];
+            for (let i = 1; i <= row.length; i++) {
+                if (i < row.length && row[i] === prev + 1) { prev = row[i]; continue; }
+
+                const span = prev - start + 1;
+                parts.push({
+                    x: ((start + prev) / 2 + 0.5 - spec.cells[0] / 2) * cell,
+                    y: 0,
+                    z: (z + 0.5 - spec.cells[1] / 2) * cell,
+                    hx: ((span - 1) * cell + inset) / 2,
+                    hy: hy,
+                    hz: inset / 2
+                });
+
+                if (i < row.length) { start = row[i]; prev = row[i]; }
+            }
+        });
+
+        return parts;
+    }
+
     /* ── RigidBox Body ─────────────────────────────────────────────────── */
 
     function RigidBox(mesh, mass) {
@@ -74,15 +139,25 @@
         this.height = spec.height;
         this.length = spec.length;
 
-        // Diagonal inverse inertia for a solid rectangular cuboid
+        /*
+         * Diagonal inverse inertia for a solid cuboid the size of the bounding
+         * box. A masked piece is lighter in its notch than that implies, but the
+         * error is a fraction of a cell on a shape whose whole point is that it
+         * balances awkwardly — and the alternative is a full inertia tensor for
+         * a compound body, which this solver has no use for anywhere else.
+         *
+         * Axes: X is length, Y is height, Z is width, matching the mesh.
+         */
         const w2 = this.width * this.width;
         const h2 = this.height * this.height;
         const l2 = this.length * this.length;
         this.invInertiaBody = new THREE.Vector3(
-            12 * this.invMass / (h2 + l2),
-            12 * this.invMass / (w2 + l2),
-            12 * this.invMass / (w2 + h2)
+            12 * this.invMass / (h2 + w2),
+            12 * this.invMass / (l2 + w2),
+            12 * this.invMass / (l2 + h2)
         );
+
+        this.parts = shapeParts(spec, this.length, this.height, this.width);
 
         this.position = mesh.position.clone();
         this.quaternion = mesh.quaternion.clone();
@@ -100,30 +175,55 @@
     }
 
     RigidBox.prototype.generateSamplePoints = function () {
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-        const hl = this.length / 2;
+        const self = this;
         const pts = [];
 
-        // 8 vertices
-        for (let x = -1; x <= 1; x += 2) {
-            for (let y = -1; y <= 1; y += 2) {
-                for (let z = -1; z <= 1; z += 2) {
-                    pts.push(new THREE.Vector3(x * hw, y * hh, z * hl));
+        this.parts.forEach(function (part) {
+            const hx = part.hx, hy = part.hy, hz = part.hz;
+            const px = part.x, py = part.y, pz = part.z;
+            const own = [];
+
+            // 8 vertices
+            for (let x = -1; x <= 1; x += 2) {
+                for (let y = -1; y <= 1; y += 2) {
+                    for (let z = -1; z <= 1; z += 2) {
+                        own.push(new THREE.Vector3(px + x * hx, py + y * hy, pz + z * hz));
+                    }
                 }
             }
-        }
-        // 12 edge midpoints for stability when stacking long boxes over gaps
-        for (let y = -1; y <= 1; y += 2) {
-            for (let z = -1; z <= 1; z += 2) pts.push(new THREE.Vector3(0, y * hh, z * hl));
-            for (let x = -1; x <= 1; x += 2) pts.push(new THREE.Vector3(x * hw, y * hh, 0));
-        }
-        for (let x = -1; x <= 1; x += 2) {
-            for (let z = -1; z <= 1; z += 2) pts.push(new THREE.Vector3(x * hw, 0, z * hl));
-        }
-        // Centers of bottom and top faces
-        pts.push(new THREE.Vector3(0, -hh, 0), new THREE.Vector3(0, hh, 0));
+            // 12 edge midpoints for stability when stacking long boxes over gaps
+            for (let y = -1; y <= 1; y += 2) {
+                for (let z = -1; z <= 1; z += 2) own.push(new THREE.Vector3(px, py + y * hy, pz + z * hz));
+                for (let x = -1; x <= 1; x += 2) own.push(new THREE.Vector3(px + x * hx, py + y * hy, pz));
+            }
+            for (let x = -1; x <= 1; x += 2) {
+                for (let z = -1; z <= 1; z += 2) own.push(new THREE.Vector3(px + x * hx, py, pz + z * hz));
+            }
+            // Centers of bottom and top faces
+            own.push(new THREE.Vector3(px, py - hy, pz), new THREE.Vector3(px, py + hy, pz));
+
+            // A point buried inside a neighbouring part is interior to the piece,
+            // and an interior point can only ever report a contact against a face
+            // that is not on the outside of anything.
+            own.forEach(function (pt) {
+                if (!self.containsPoint(pt, part)) pts.push(pt);
+            });
+        });
+
         return pts;
+    };
+
+    /** True if `pt` (body space) is inside some part other than `skip`. */
+    RigidBox.prototype.containsPoint = function (pt, skip) {
+        const eps = 1e-4;
+        for (let i = 0; i < this.parts.length; i++) {
+            const p = this.parts[i];
+            if (p === skip) continue;
+            if (Math.abs(pt.x - p.x) < p.hx - eps &&
+                Math.abs(pt.y - p.y) < p.hy - eps &&
+                Math.abs(pt.z - p.z) < p.hz - eps) return true;
+        }
+        return false;
     };
 
     RigidBox.prototype.updateTransform = function () {
@@ -142,10 +242,12 @@
         return this.velocity.lengthSq() + this.angularVelocity.lengthSq();
     };
 
-    /** Height of the box's highest corner above the ground plane. */
+    /** Height of the body's highest corner above the ground plane. */
     RigidBox.prototype.topY = function () {
         let top = -Infinity;
-        for (let i = 0; i < 8; i++) {
+        // Every sample point, not just the first eight: a masked piece has a set
+        // of corners per part, and the tallest one is not always in the first.
+        for (let i = 0; i < this.samplePoints.length; i++) {
             worldPos.copy(this.samplePoints[i]).applyQuaternion(this.quaternion).add(this.position);
             if (worldPos.y > top) top = worldPos.y;
         }
@@ -367,12 +469,12 @@
         }
     };
 
-    /** Sample points of `from` tested against the oriented box of `into`. */
+    /** Sample points of `from` tested against the oriented shape of `into`. */
     PhysicsWorld.prototype.pointsInBox = function (from, into, flip) {
         const invRot = flip ? invRotA : invRotB;
         invRot.copy(into.quaternion).invert();
 
-        const hw = into.width / 2, hh = into.height / 2, hl = into.length / 2;
+        const parts = into.parts;
         const pts = from.samplePoints;
         let found = 0;
 
@@ -380,30 +482,37 @@
             worldPos.copy(pts[k]).applyQuaternion(from.quaternion).add(from.position);
             localPos.copy(worldPos).sub(into.position).applyQuaternion(invRot);
 
-            const ax = Math.abs(localPos.x), ay = Math.abs(localPos.y), az = Math.abs(localPos.z);
-            if (ax > hw || ay > hh || az > hl) continue;
+            // A point is inside at most one part — they never overlap.
+            for (let s = 0; s < parts.length; s++) {
+                const part = parts[s];
+                const ax = Math.abs(localPos.x - part.x);
+                const ay = Math.abs(localPos.y - part.y);
+                const az = Math.abs(localPos.z - part.z);
+                if (ax > part.hx || ay > part.hy || az > part.hz) continue;
 
-            // Shallowest face wins — that is the axis the point came in through.
-            const dx = hw - ax, dy = hh - ay, dz = hl - az;
-            let depth;
+                // Shallowest face wins — that is the axis the point came in through.
+                const dx = part.hx - ax, dy = part.hy - ay, dz = part.hz - az;
+                let depth;
 
-            if (dy <= dx && dy <= dz) {
-                depth = dy;
-                norm.set(0, localPos.y > 0 ? 1 : -1, 0);
-            } else if (dx <= dz) {
-                depth = dx;
-                norm.set(localPos.x > 0 ? 1 : -1, 0, 0);
-            } else {
-                depth = dz;
-                norm.set(0, 0, localPos.z > 0 ? 1 : -1);
+                if (dy <= dx && dy <= dz) {
+                    depth = dy;
+                    norm.set(0, localPos.y > part.y ? 1 : -1, 0);
+                } else if (dx <= dz) {
+                    depth = dx;
+                    norm.set(localPos.x > part.x ? 1 : -1, 0, 0);
+                } else {
+                    depth = dz;
+                    norm.set(0, 0, localPos.z > part.z ? 1 : -1);
+                }
+
+                norm.applyQuaternion(into.quaternion);
+                // Normal must always point from B toward A.
+                if (flip) norm.negate();
+
+                this.addContact(flip ? into : from, flip ? from : into, worldPos, norm, depth);
+                found++;
+                break;
             }
-
-            norm.applyQuaternion(into.quaternion);
-            // Normal must always point from B toward A.
-            if (flip) norm.negate();
-
-            this.addContact(flip ? into : from, flip ? from : into, worldPos, norm, depth);
-            found++;
         }
         return found;
     };

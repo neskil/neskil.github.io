@@ -142,7 +142,12 @@
             { type: '40ft', carrier: 'hapag', label: '40ft HC' },
             { type: 'crate', carrier: 'steel', label: 'Crate' },
             { type: 'tank', carrier: 'cosco', label: 'Tank' },
-            { type: 'pallet', carrier: 'wood', label: 'Pallet' }
+            { type: 'pallet', carrier: 'wood', label: 'Pallet' },
+            // The two non-rectangular pieces. Campaign mission 13 is the only
+            // place they turn up otherwise, and they are the most interesting
+            // thing to pack — or to balance a tower on.
+            { type: 'lblock', carrier: 'evergreen', label: 'L-Block' },
+            { type: 'tblock', carrier: 'one', label: 'T-Block' }
         ];
 
         SPAWNS.forEach(function (entry, i) {
