@@ -375,8 +375,22 @@
             font-weight: 800;
             letter-spacing: -0.05em;
             margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            /* The glyphs are transparent and the gradient shows through them, so the
+               title exists only as long as that background paints. With nothing behind
+               it, a dropped paint doesn't dim the title — it deletes it, which is what
+               was happening during fast scrolling on Android: the compositor, already
+               behind, skipped the layer and the header went blank while still taking up
+               its space.
+
+               background-clip applies to the background *colour* as well, so a solid
+               colour underneath is clipped to the same glyphs and acts as a free
+               fallback: invisible whenever the gradient paints, and the title in near
+               white whenever it doesn't. Sampled from the middle of the ramp, which is
+               where the centred text sits. */
+            background-color: #e9eef4;
+            background-image: linear-gradient(to right, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -394,6 +408,60 @@
             width: 100%;
             max-width: 1000px;
             animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        /* ── The six tilt variables, declared up front ────────────────────────
+           An unregistered custom property is an inherited string: setting one on
+           a card marks the card *and every element inside it* for style recalc,
+           and re-parses the value from text each time. The tilt loop writes these
+           every frame, so on a phone that was ~100 elements of recalc per frame
+           just to move a card a fraction of a degree.
+
+           Registering them fixes both halves. They become typed, so the engine
+           validates once and keeps a number rather than a string; and the three
+           that drive nothing but .card's own transform are marked inherits:false,
+           which confines their invalidation to the card itself.
+
+           --mx/--my/--mag must keep inheriting: the glare and holo layers are
+           pseudo-elements on .card and on .card-face, and .card-face is a child
+           of .flip-card, so the values have to reach down to it. Typing them
+           still buys the cheaper parse.
+
+           Values are unchanged — this is purely how the engine stores them. */
+        @property --rx {
+            syntax: '<angle>';
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        @property --ry {
+            syntax: '<angle>';
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        @property --ty {
+            syntax: '<length>';
+            inherits: false;
+            initial-value: 0px;
+        }
+
+        @property --mx {
+            syntax: '<percentage>';
+            inherits: true;
+            initial-value: 50%;
+        }
+
+        @property --my {
+            syntax: '<percentage>';
+            inherits: true;
+            initial-value: 50%;
+        }
+
+        @property --mag {
+            syntax: '<number>';
+            inherits: true;
+            initial-value: 0;
         }
 
         .card {
@@ -1273,6 +1341,31 @@
                 justify-content: flex-start;
             }
 
+            /* The card blur is left at its full 20px on purpose. Measuring a radius
+               sweep while scrolling (390x844, DPR 3, CPU throttled 6x) showed the cost
+               is in having a backdrop-filter at all, not in how wide it is — 4px, 8px,
+               14px and 20px all landed within noise of each other, while removing it
+               outright saved ~7ms a frame. So dropping the radius would have cost the
+               glass look and bought nothing. Two cheaper things go instead: */
+
+            /* A 4px blur behind a chip that is already sitting on a blurred card —
+               visually almost nothing, and worth ~2.6ms a frame. */
+            .card-stat-chip {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
+
+            /* The grain texture stays, since it is what keeps the dark gradients from
+               banding. Only its blend mode goes: soft-light makes the compositor read
+               back everything underneath, and this layer sits inside the backdrop that
+               nine cards then blur, so it was being read back constantly — ~5.5ms a
+               frame, the largest single cost left after the script fixes. Plain
+               low-opacity noise over a background this dark reads almost identically. */
+            #bg-grain {
+                mix-blend-mode: normal;
+                opacity: 0.28;
+            }
+
             /* A flip card is only a transparent stage — its visible surface is the
                faces, which carry their own padding. The .card rule above matches it
                too and wins on source order, so without this reset both flip cards
@@ -1548,10 +1641,6 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        body.gravity-active .card {
-            transition: none;
-        }
-
         /* spark particles */
         .spark {
             position: fixed;
@@ -1585,6 +1674,21 @@
         gtag('config', 'G-9GP823TGLB');
     </script>
     <script>
+        /* Shared "is the page being scrolled right now" flag. Anything that would
+           kick off an expensive visual transition checks it first and waits for the
+           quiet moment afterwards rather than landing on top of the scroll. */
+        let scrollIdleTimer = null;
+        let scrolling = false;
+        function scrollIsActive() { return scrolling; }
+        window.addEventListener('scroll', () => {
+            scrolling = true;
+            clearTimeout(scrollIdleTimer);
+            scrollIdleTimer = setTimeout(() => {
+                scrolling = false;
+                document.dispatchEvent(new CustomEvent('scroll:idle'));
+            }, 180);
+        }, { passive: true });
+
         /* ── Background variants ──────────────────────────────────────────────
            Which background the page wears is decided here, before first paint,
            so nobody sees the default ramp swap out a moment later.
@@ -1632,12 +1736,26 @@
             document.dispatchEvent(new CustomEvent('bg:change'));
         }
 
+        /* A roll that lands on a new variant cross-fades two full-viewport layers over
+           1.4s. Starting that while the page is being scrolled put a compositing spike
+           right on top of the scroll, which read as a stutter — and the whole point of
+           the wander is that you notice it in passing, not that it happens on a
+           schedule. So a roll due mid-scroll waits for the scrolling to stop. */
+        let bgRollPending = false;
+
+        function bgTryRoll() {
+            if (bgPinned) return;
+            if (scrollIsActive()) { bgRollPending = true; return; }
+            bgRollPending = false;
+            bgApply(bgRoll());
+        }
+
         function bgStartRotation() {
             clearInterval(bgTimer);
             bgTimer = null;
             if (bgPinned) return;
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-            bgTimer = setInterval(() => bgApply(bgRoll()), BG_ROTATE_MS);
+            bgTimer = setInterval(bgTryRoll, BG_ROTATE_MS);
         }
 
         /* id === null hands the page back to the rotation */
@@ -1675,6 +1793,11 @@
             try { localStorage.setItem(BG_SEEN_KEY, '1'); } catch (e) { }
             bgStartRotation();
         })();
+
+        // A roll that came due mid-scroll gets its turn once the page settles.
+        document.addEventListener('scroll:idle', () => {
+            if (bgRollPending) bgTryRoll();
+        });
 
         // No point rotating a background nobody is looking at.
         document.addEventListener('visibilitychange', () => {
@@ -1752,15 +1875,6 @@
                 </div>
                 <span class="vault-row-arrow">→</span>
             </a>
-            <button type="button" class="vault-row" id="vault-danger-button">
-                <div class="vault-row-icon">🚨</div>
-                <div class="vault-row-body">
-                    <div class="vault-row-title">Do Not Press</div>
-                    <div class="vault-row-desc">Seriously. Don't.</div>
-                </div>
-                <span class="vault-row-arrow">→</span>
-            </button>
-
             <div class="vault-bg">
                 <div class="vault-bg-head">
                     <div class="vault-row-icon">🎨</div>
@@ -2043,6 +2157,16 @@
         const canvas = document.getElementById('networkCanvas');
         const ctx = canvas.getContext('2d');
 
+        /* The canvas sits behind the grid (z-index 0 vs 1), which makes it part of
+           the backdrop every card's backdrop-filter has to blur. So a frame drawn
+           here is never just a canvas frame — it also dirties nine 20px blurs. On a
+           phone that is the difference between a smooth scroll and a stuttering one,
+           so mobile runs the field at 30fps and skips the costlier flourishes. */
+        const prefersCheapCanvas = window.matchMedia('(hover: none), (pointer: coarse)').matches
+            || window.innerWidth <= 640;
+        const CANVAS_FRAME_MS = prefersCheapCanvas ? 1000 / 30 : 0;
+        let lastCanvasFrame = 0;
+
         let width, height;
         let particles = [];
         let themeEntities = [];
@@ -2065,6 +2189,16 @@
         const MAX_THEME_ENTITIES = 2;
         let themeSpawnArmed = false;
         let themeDwellTimer = null;
+
+        /* On a phone the "hover" that arms this is a touchstart, and a touchstart is
+           also how a scroll begins — so scrolling past a card used to arm it, and the
+           emojis would start flying in mid-scroll. Scrolling means the finger was
+           never dwelling on anything, so it cancels the arming. */
+        function disarmThemeSpawn() {
+            clearTimeout(themeDwellTimer);
+            themeDwellTimer = null;
+            themeSpawnArmed = false;
+        }
 
         function activateCardTheme(cardId) {
             if (!cardId || activeThemeCardId === cardId) return;
@@ -2091,6 +2225,10 @@
                 targetGlobalHue = themeHues[cardId];
             }
         }
+
+        // symbol+size+hue -> pre-rendered glowing glyph. Module-level rather than a
+        // static class field, which needs a newer Safari than the rest of this file.
+        const themeSprites = new Map();
 
         class ThemeEntity {
             constructor(cardId) {
@@ -2143,6 +2281,43 @@
                 }
 
                 this.alpha = 0;
+                this.sprite = ThemeEntity.sprite(this.symbol, this.size, this.hue);
+            }
+
+            /* The glow used to be a canvas shadowBlur applied on every fillText, every
+               frame — the single most expensive draw on the page, because a blurred
+               shadow under a colour-emoji glyph is a full software blur pass. The glyph
+               never changes though, so it only ever needed drawing once: each
+               symbol+size+hue combination is rendered into a small offscreen canvas the
+               first time it appears and blitted from then on. Same halo, one blur per
+               symbol for the life of the page instead of one per entity per frame. */
+            static sprite(symbol, size, hue) {
+                const px = Math.round(size);
+                const key = symbol + '|' + px + '|' + hue;
+                let s = themeSprites.get(key);
+                if (s) return s;
+
+                const blur = 10;
+                const pad = blur + 4;
+                const c = document.createElement('canvas');
+                // Emoji are drawn centred, and a glyph can overshoot its em box, so
+                // give the tile generous room on all sides.
+                c.width = c.height = px * 2 + pad * 2;
+                const g = c.getContext('2d');
+                g.translate(c.width / 2, c.height / 2);
+                g.fillStyle = `hsl(${hue}, 85%, 75%)`;
+                g.shadowColor = `hsla(${hue}, 90%, 65%, 0.8)`;
+                g.shadowBlur = blur;
+                g.font = `${px}px sans-serif`;
+                g.textAlign = 'center';
+                g.textBaseline = 'middle';
+                // Once — the live version cleared the canvas and drew a single shadowed
+                // glyph per frame, so one pass is what the halo used to look like.
+                g.fillText(symbol, 0, 0);
+
+                s = { canvas: c, cx: c.width / 2, cy: c.height / 2 };
+                themeSprites.set(key, s);
+                return s;
             }
 
             update() {
@@ -2170,6 +2345,7 @@
             }
 
             draw(ctx) {
+                if (!this.sprite) return; // unrecognised card id — nothing to draw
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 // 🚚/🚛 have the cab on the left, so they face left as drawn — flip them
@@ -2177,13 +2353,12 @@
                 if (this.type === 'truck' ? this.vx > 0 : (this.type === 'lander' && this.vx < 0)) {
                     ctx.scale(-1, 1);
                 }
-                ctx.fillStyle = `hsla(${this.hue}, 85%, 75%, ${this.alpha})`;
-                ctx.shadowColor = `hsla(${this.hue}, 90%, 65%, ${this.alpha * 0.8})`;
-                ctx.shadowBlur = 10;
-                ctx.font = `${Math.round(this.size)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.symbol, 0, 0);
+                // The fade has to ride globalAlpha: these are mostly colour emoji,
+                // which draw with their own palette and ignore fillStyle entirely, so
+                // the old alpha-in-fillStyle left them popping in and out at full
+                // strength instead of fading. Blitting the sprite fixes that for free.
+                ctx.globalAlpha = this.alpha;
+                ctx.drawImage(this.sprite.canvas, -this.sprite.cx, -this.sprite.cy);
                 ctx.restore();
             }
         }
@@ -2412,9 +2587,18 @@
         }
 
         let scrollY = 0, lastScrollY = 0, scrollVelocity = 0, smoothScrollY = 0;
-        window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+        window.addEventListener('scroll', () => {
+            scrollY = window.scrollY;
+            if (themeDwellTimer || themeSpawnArmed) disarmThemeSpawn();
+        }, { passive: true });
 
-        function animate() {
+        function animate(now) {
+            if (CANVAS_FRAME_MS && now - lastCanvasFrame < CANVAS_FRAME_MS) {
+                requestAnimationFrame(animate);
+                return;
+            }
+            lastCanvasFrame = now;
+
             ctx.clearRect(0, 0, width, height);
 
             // Smooth mouse presence & position tracking
@@ -2439,9 +2623,10 @@
                 }
             }
 
-            // Smooth scroll tracking + velocity
+            // Smooth scroll tracking + velocity. Half the frame rate needs twice the
+            // step, or the parallax noticeably trails the page on mobile.
             let prevSmooth = smoothScrollY;
-            smoothScrollY += (scrollY - smoothScrollY) * 0.08;
+            smoothScrollY += (scrollY - smoothScrollY) * (prefersCheapCanvas ? 0.16 : 0.08);
             scrollVelocity = smoothScrollY - prevSmooth;
 
             // Parallax shift
@@ -2461,28 +2646,32 @@
                 for (let j = i + 1; j < particles.length; j++) {
                     let dx = particles[i].x - particles[j].x;
                     let dy = particles[i].y - particles[j].y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    // Reject on the cheap tests first — this inner loop runs O(n²)
+                    // times a frame and most pairs are nowhere near each other, so
+                    // the square root is only worth taking for the few that pass.
+                    if (dx > 150 || dx < -150 || dy > 150 || dy < -150) continue;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 >= 150 * 150) continue;
+                    const distance = Math.sqrt(d2);
 
-                    if (distance < 150) {
-                        // Blend glow of both endpoints for line color
-                        const combinedGlow = (particles[i].glow + particles[j].glow) * 0.5;
-                        // A link is only as solid as its faintest end, so links ease in
-                        // with the dots they connect.
-                        const linkFade = Math.min(particles[i].fade, particles[j].fade);
-                        const baseAlpha = (0.35 - distance / 430) * linkFade;
-                        const lineAlpha = baseAlpha + combinedGlow * 0.45 * linkFade;
-                        const hue = particles[i].hue;
-                        const saturation = 30 + combinedGlow * 70;
-                        const lightness = 60 + combinedGlow * 30;
-                        ctx.beginPath();
-                        ctx.strokeStyle = combinedGlow > 0.05
-                            ? `hsla(${hue}, ${saturation}%, ${lightness}%, ${lineAlpha})`
-                            : `rgba(148, 163, 184, ${baseAlpha})`;
-                        ctx.lineWidth = 0.8 + combinedGlow * 1.2;
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
-                        ctx.stroke();
-                    }
+                    // Blend glow of both endpoints for line color
+                    const combinedGlow = (particles[i].glow + particles[j].glow) * 0.5;
+                    // A link is only as solid as its faintest end, so links ease in
+                    // with the dots they connect.
+                    const linkFade = Math.min(particles[i].fade, particles[j].fade);
+                    const baseAlpha = (0.35 - distance / 430) * linkFade;
+                    const lineAlpha = baseAlpha + combinedGlow * 0.45 * linkFade;
+                    const hue = particles[i].hue;
+                    const saturation = 30 + combinedGlow * 70;
+                    const lightness = 60 + combinedGlow * 30;
+                    ctx.beginPath();
+                    ctx.strokeStyle = combinedGlow > 0.05
+                        ? `hsla(${hue}, ${saturation}%, ${lightness}%, ${lineAlpha})`
+                        : `rgba(148, 163, 184, ${baseAlpha})`;
+                    ctx.lineWidth = 0.8 + combinedGlow * 1.2;
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.stroke();
                 }
             }
 
@@ -2507,7 +2696,7 @@
         }
 
         init();
-        animate();
+        requestAnimationFrame(animate);
 
         /* ── Secret vault ── */
         const nameEl = document.getElementById('name-trigger');
@@ -2734,6 +2923,9 @@
             openRect = null;
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
+            // The card is back in the grid, so the tilt loop's cached geometry
+            // (its own included) needs re-measuring.
+            document.dispatchEvent(new CustomEvent('flip:change'));
         }
 
         function openFlip(card) {
@@ -2774,6 +2966,8 @@
             card.querySelector('.flip-open').setAttribute('aria-expanded', 'true');
             document.documentElement.style.overflow = 'hidden';
             document.body.style.overflow = 'hidden';
+            // Locking the scrollbar reflows the grid, so cached card geometry is stale.
+            document.dispatchEvent(new CustomEvent('flip:change'));
         }
 
         function closeFlip() {
@@ -2809,13 +3003,6 @@
             setFlipRect(openCard, t.top, t.left, t.w, t.h);
         });
 
-        document.getElementById('vault-danger-button').addEventListener('click', () => {
-            closeVault();
-            setTimeout(() => triggerGravityGlitch(), 350); // let the vault slide away first
-        });
-
-
-
         let toastTimer;
         function showToast(msg) {
             let toast = document.getElementById('secret-toast');
@@ -2832,70 +3019,6 @@
             toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
         }
 
-        function triggerGravityGlitch() {
-            if (document.body.classList.contains('gravity-active')) return;
-            document.body.classList.add('gravity-active');
-            showToast('🛰️ Gravity malfunction detected!');
-
-            const cards = Array.from(document.querySelectorAll('.card'));
-            const bodies = cards.map(card => {
-                const rect = card.getBoundingClientRect();
-                return {
-                    el: card,
-                    floor: Math.max(0, window.innerHeight - rect.bottom - 4),
-                    y: 0,
-                    vy: 0,
-                    rot: 0,
-                    vr: (Math.random() - 0.5) * 8,
-                    settled: false
-                };
-            });
-
-            const gravity = 0.9, damping = 0.5;
-            let frame = 0;
-
-            function step() {
-                frame++;
-                let allSettled = true;
-                bodies.forEach(b => {
-                    if (b.settled) return;
-                    allSettled = false;
-                    b.vy += gravity;
-                    b.y += b.vy;
-                    b.rot += b.vr;
-                    if (b.y >= b.floor) {
-                        b.y = b.floor;
-                        b.vy *= -damping;
-                        b.vr *= 0.55;
-                        if (Math.abs(b.vy) < 1.5) {
-                            b.vy = 0;
-                            b.rot = 0;
-                            b.settled = true;
-                        }
-                    }
-                    b.el.style.transform = `translateY(${b.y}px) rotate(${b.rot}deg)`;
-                });
-                if (!allSettled && frame < 600) {
-                    requestAnimationFrame(step);
-                } else {
-                    setTimeout(resetGravity, 1000);
-                }
-            }
-            requestAnimationFrame(step);
-
-            function resetGravity() {
-                cards.forEach(card => {
-                    card.style.transition = 'transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    card.style.transform = '';
-                });
-                showToast('✅ Gravity restored');
-                setTimeout(() => {
-                    cards.forEach(card => { card.style.transition = ''; });
-                    document.body.classList.remove('gravity-active');
-                }, 800);
-            }
-        }
-
         /* ── Card tilt + glare ──
            Every card gets a gentle 3D tilt + colored glare. Three sources feed it,
            highest-priority first:
@@ -2905,25 +3028,52 @@
                    captured on first reading and then slowly drifts to track wherever
                    the phone actually settles (no hardcoded "held at 45°" assumption,
                    and a deliberate tilt relaxes back to center after a few seconds).
-                b) a scroll-linked bend — cards above the viewport's vertical center
-                   tilt one way, cards below tilt the other, flat in the middle — so
-                   the whole grid reads like a gentle concave shelf as you scroll.
+                b) a scroll-linked bend, vertical only — a card leans back or forward
+                   as its centre nears the bottom or top edge of the screen, and stays
+                   flat while it is anywhere near the middle, so the tilt belongs to
+                   the cards arriving and leaving rather than to all of them at once.
                 Both (a) and (b) are additive.
            CargoLander gets a bigger tilt range plus the rainbow holo layer on top,
-           which rides the same --mag value as everything else. ── */
+           which rides the same --mag value as everything else.
+
+           Performance note — this loop is the page's hottest path on a phone, so
+           three things keep it off the scroll critical path:
+             • Geometry is cached, never measured inside a frame. Measuring meant a
+               getBoundingClientRect() per card interleaved with the style writes
+               below, which forces a synchronous layout for every card, every frame.
+             • Cards outside the viewport are skipped — on mobile the grid is one
+               column, so most of them are.
+             • A settled card is left alone. The lerp approaches its target
+               asymptotically and never quite arrives, so without a dead zone every
+               card keeps rewriting its custom properties (and repainting a
+               backdrop-filtered surface with a gradient overlay on top) long after
+               it has visibly stopped moving. ── */
         (function () {
             function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
             const isTouch = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
             const cardState = new Map(); // card -> state object
 
-            function applyVars(card, rx, ry, ty, mx, my, mag) {
-                card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
-                card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
-                card.style.setProperty('--ty', ty.toFixed(1) + 'px');
-                card.style.setProperty('--mx', mx.toFixed(1) + '%');
-                card.style.setProperty('--my', my.toFixed(1) + '%');
-                card.style.setProperty('--mag', mag.toFixed(2));
+            function applyVars(card, s) {
+                card.style.setProperty('--rx', s.currentRx.toFixed(2) + 'deg');
+                card.style.setProperty('--ry', s.currentRy.toFixed(2) + 'deg');
+                card.style.setProperty('--ty', s.currentTy.toFixed(1) + 'px');
+                card.style.setProperty('--mx', s.currentMx.toFixed(1) + '%');
+                card.style.setProperty('--my', s.currentMy.toFixed(1) + '%');
+                card.style.setProperty('--mag', s.currentMag.toFixed(2));
+                s.wroteRx = s.currentRx; s.wroteRy = s.currentRy; s.wroteTy = s.currentTy;
+                s.wroteMx = s.currentMx; s.wroteMy = s.currentMy; s.wroteMag = s.currentMag;
+            }
+
+            /* Below these the change is invisible, so it isn't worth a repaint. */
+            function needsWrite(s) {
+                return Math.abs(s.currentRx - s.wroteRx) > 0.05
+                    || Math.abs(s.currentRy - s.wroteRy) > 0.05
+                    || Math.abs(s.currentTy - s.wroteTy) > 0.05
+                    || Math.abs(s.currentMx - s.wroteMx) > 0.15
+                    || Math.abs(s.currentMy - s.wroteMy) > 0.15
+                    || Math.abs(s.currentMag - s.wroteMag) > 0.005;
             }
 
             function getOrCreateState(card, maxTilt, lift) {
@@ -2935,7 +3085,13 @@
                         targetRx: 0, targetRy: 0, targetTy: 0,
                         targetMx: 50, targetMy: 50, targetMag: 0,
                         currentRx: 0, currentRy: 0, currentTy: 0,
-                        currentMx: 50, currentMy: 50, currentMag: 0
+                        currentMx: 50, currentMy: 50, currentMag: 0,
+                        // Last values actually pushed to the element, so the frame
+                        // loop can tell a settled card from a moving one.
+                        wroteRx: 0, wroteRy: 0, wroteTy: 0,
+                        wroteMx: 50, wroteMy: 50, wroteMag: 0,
+                        // Cached geometry, in document coordinates (see measureAll).
+                        docTop: 0, height: 0, docLeft: 0, width: 0
                     };
                     cardState.set(card, state);
                 } else {
@@ -2989,7 +3145,11 @@
                 card.addEventListener('touchcancel', release);
             }
 
-            document.querySelectorAll('.card').forEach((card) => {
+            // Queried once. The grid is static markup, so re-querying every frame
+            // only allocated a NodeList 60 times a second.
+            const cards = Array.from(document.querySelectorAll('.card'));
+
+            cards.forEach((card) => {
                 const hasMaxSway = card.id === 'card-cargo-lander' || card.id === 'card-supply-chain';
                 const isDry = card.id === 'card-cv';
                 attachTilt(card, {
@@ -2998,9 +3158,62 @@
                 });
             });
 
-            const SCROLL_BEND_FRACTION = 1.4;
-            const SCROLL_BEND_POWER = 1.2;
+            /* Geometry cache. The frame loop needs each card's position to work out
+               its scroll bend, but measuring inside the loop forces a layout per
+               card per frame. Card positions only change when the page reflows, so
+               measure on those events instead and derive the viewport position from
+               window.scrollY, which is free. */
+            let geometryStale = true;
+
+            function measureAll() {
+                const sy = window.scrollY, sx = window.scrollX;
+                for (const card of cards) {
+                    const s = cardState.get(card);
+                    if (!s || card.classList.contains('is-open')) continue;
+                    const r = card.getBoundingClientRect();
+                    s.docTop = r.top + sy;
+                    s.docLeft = r.left + sx;
+                    s.height = r.height;
+                    s.width = r.width;
+                }
+                geometryStale = false;
+            }
+
+            function invalidateGeometry() { geometryStale = true; }
+
+            window.addEventListener('resize', invalidateGeometry);
+            window.addEventListener('orientationchange', invalidateGeometry);
+            window.addEventListener('load', invalidateGeometry);
+            // A flip opening or closing pulls a card out of the grid and puts it back.
+            document.addEventListener('flip:change', invalidateGeometry);
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(invalidateGeometry).catch(() => {});
+            }
+            // High-score chips land after first paint and change card heights.
+            setTimeout(invalidateGeometry, 0);
+
+            /* ── Shape of the scroll bend ──
+               The bend is vertical only: a card leans back or forward (rotateX) as its
+               centre approaches the bottom or top edge of the screen, and nothing rocks
+               it sideways. It also stays flat through the middle of the screen — the
+               DEADZONE is the fraction of the half-viewport, measured out from the
+               centre, in which a card gets no bend at all. Past that it ramps to full
+               tilt at the very edge, so the effect belongs to the cards arriving and
+               leaving rather than to every card all the time. */
+            const SCROLL_BEND_FRACTION = 1.4;   // full-tilt multiple of the card's maxTilt
+            const SCROLL_BEND_POWER = 1.6;      // >1 eases in, so the bend arrives gently
+            const SCROLL_BEND_DEADZONE = 0.35;  // middle 35% of each half stays flat
+            // Sideways rock from the accelerometer, kept as a trace of its old self so
+            // the grid still answers to the phone without the bend reading as a wobble.
+            const AMBIENT_ROLL_FRACTION = 0.25;
             const BASELINE_HALFLIFE_S = 3;
+            // A phone does not need the ambient bend recomputed 60 times a second;
+            // it is a slow, broad curve and halving the rate halves the style work.
+            const MOBILE_FRAME_MS = 1000 / 30;
+            // How far outside the viewport a card still gets updated, so it is already
+            // in the right position by the time it scrolls into view.
+            const OFFSCREEN_MARGIN = 120;
+            let lastFrame = 0;
 
             let lastBeta = null, lastGamma = null;
             let baselineBeta = null, baselineGamma = null;
@@ -3014,11 +3227,24 @@
             }
 
             function ambientTick(now) {
+                const isMobileView = isTouch || window.innerWidth <= 640;
+
+                // Throttle on mobile. Return before touching lastTick so the
+                // accelerometer baseline still integrates over real elapsed time.
+                if (isMobileView && now - lastFrame < MOBILE_FRAME_MS) {
+                    requestAnimationFrame(ambientTick);
+                    return;
+                }
+                lastFrame = now;
+
                 const dt = lastTick === null ? 0 : Math.min((now - lastTick) / 1000, 0.25);
                 lastTick = now;
 
-                const viewportCenter = window.innerHeight / 2;
-                const isMobileView = isTouch || window.innerWidth <= 640;
+                if (geometryStale) measureAll();
+
+                const viewportH = window.innerHeight;
+                const viewportCenter = viewportH / 2;
+                const scrollTop = window.scrollY;
 
                 let deltaBeta = 0, deltaGamma = 0;
                 if (isMobileView && lastBeta !== null) {
@@ -3031,32 +3257,83 @@
                     deltaGamma = clamp(lastGamma - baselineGamma, -45, 45);
                 }
 
-                document.querySelectorAll('.card').forEach((card) => {
-                    if (card.classList.contains('is-open')) return;
+                for (const card of cards) {
+                    if (card.classList.contains('is-open')) continue;
                     const state = cardState.get(card) || getOrCreateState(card, 10, -8);
                     const { maxTilt } = state;
-                    const rect = card.getBoundingClientRect();
+
+                    // Cached geometry, shifted into the viewport by the scroll offset.
+                    const top = state.docTop - scrollTop;
+                    const left = state.docLeft - window.scrollX;
+
+                    // Nothing to see, and nothing that needs to settle either.
+                    if (!state.hovered
+                        && top + state.height < -OFFSCREEN_MARGIN
+                        && !needsWrite(state)) continue;
+                    if (!state.hovered
+                        && top > viewportH + OFFSCREEN_MARGIN
+                        && !needsWrite(state)) continue;
 
                     if (!state.hovered) {
-                        if (isMobileView) {
+                        if (isMobileView && reduceMotion.matches) {
+                            // The bend and the accelerometer sway are motion nobody
+                            // asked for. Touching a card still tilts it — that is a
+                            // response to input, not ambient movement.
+                            state.targetRx = 0;
+                            state.targetRy = 0;
+                            state.targetTy = 0;
+                            state.targetMx = 50;
+                            state.targetMy = 50;
+                            state.targetMag = 0;
+                        } else if (isMobileView) {
                             const accelRx = clamp(deltaBeta * -0.3, -maxTilt, maxTilt);
-                            const accelRy = clamp(deltaGamma * 0.3, -maxTilt, maxTilt);
+                            const accelRy = clamp(deltaGamma * 0.3 * AMBIENT_ROLL_FRACTION,
+                                -maxTilt, maxTilt);
 
-                            const centerY = rect.top + rect.height / 2;
+                            // -1 at the top edge of the screen, 0 at the middle, +1 at
+                            // the bottom, measured from the card's centre.
+                            const centerY = top + state.height / 2;
                             const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
-                            const eased = Math.sign(norm) * Math.pow(Math.abs(norm), SCROLL_BEND_POWER);
+                            // Flat through the dead zone, then remapped so the ramp
+                            // starts from nothing at its edge and reaches full tilt at
+                            // the screen edge.
+                            const ramp = clamp(
+                                (Math.abs(norm) - SCROLL_BEND_DEADZONE) / (1 - SCROLL_BEND_DEADZONE),
+                                0, 1);
+                            const eased = Math.sign(norm) * Math.pow(ramp, SCROLL_BEND_POWER);
                             const bend = eased * maxTilt * SCROLL_BEND_FRACTION;
 
+                            // The bend goes to the transform, which is the visible
+                            // effect and is nearly free: --rx/--ry/--ty are
+                            // inherits:false and feed nothing but this card's own
+                            // transform, so the compositor takes it from here.
                             state.targetRx = clamp(accelRx + bend, -16, 16);
                             state.targetRy = accelRy;
                             state.targetTy = Math.abs(eased) * -3;
-                            state.targetMag = clamp((Math.abs(state.targetRx) + Math.abs(state.targetRy)) / 20, 0, 1);
+
+                            /* The three glare variables deliberately do NOT take the
+                               bend. They have to stay inherited (pseudo-elements can't
+                               see an inherits:false property — the glare and holo
+                               layers are ::before/::after, and .card-face's glare is a
+                               level further down), so every write marks a whole card
+                               subtree for recalc. They also position gradients rather
+                               than move a layer, so a write repaints the card, re-runs
+                               the holo overlay blend and re-blurs its backdrop.
+
+                               Feeding scroll into them meant paying all of that on
+                               every frame of every scroll — for a shift in sheen that
+                               is imperceptible while the page is moving. Driven by the
+                               finger and the phone's tilt instead, they hold still
+                               during a scroll and the writes stop altogether, and the
+                               glare itself is exactly as it was: full tracking under a
+                               fingertip, full response when the phone tilts. */
+                            state.targetMag = clamp((Math.abs(accelRx) + Math.abs(accelRy)) / 20, 0, 1);
                             state.targetMx = clamp(50 + deltaGamma * 1.1, 5, 95);
-                            state.targetMy = clamp(50 + deltaBeta * 1.1 + norm * 35, 5, 95);
+                            state.targetMy = clamp(50 + deltaBeta * 1.1, 5, 95);
                         } else if (mouse.active && mouse.presence > 0.001 && mouse.smoothX !== null && mouse.smoothY !== null) {
                             // Desktop PC ambient magnetic cursor tilt: cards react subtly to mouse movement outside cards
-                            const cardCenterX = rect.left + rect.width / 2;
-                            const cardCenterY = rect.top + rect.height / 2;
+                            const cardCenterX = left + state.width / 2;
+                            const cardCenterY = top + state.height / 2;
                             const dx = mouse.smoothX - cardCenterX;
                             const dy = mouse.smoothY - cardCenterY;
                             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -3069,8 +3346,8 @@
                             state.targetTy = 0;
                             state.targetMag = clamp((Math.abs(state.targetRx) + Math.abs(state.targetRy)) / (2 * maxTilt), 0, 0.35) * mouse.presence;
 
-                            state.targetMx = clamp(50 + (dx / rect.width) * 35, 8, 92);
-                            state.targetMy = clamp(50 + (dy / rect.height) * 35, 8, 92);
+                            state.targetMx = clamp(50 + (dx / Math.max(state.width, 1)) * 35, 8, 92);
+                            state.targetMy = clamp(50 + (dy / Math.max(state.height, 1)) * 35, 8, 92);
                         } else {
                             // Mouse is outside screen (and delay expired) -> return to neutral 0 tilt and 50% center glare
                             state.targetRx = 0;
@@ -3084,7 +3361,10 @@
 
                     // On-screen tracking is crisp and responsive; slow decay is strictly for leaving the window
                     const isOffScreenDecay = !mouse.active && !state.hovered;
-                    const lerpSpeed = state.hovered ? 0.18 : (isOffScreenDecay ? 0.04 : 0.15);
+                    let lerpSpeed = state.hovered ? 0.18 : (isOffScreenDecay ? 0.04 : 0.15);
+                    // Half the frames means each one has to cover twice the ground,
+                    // or the bend visibly trails the scroll.
+                    if (isMobileView) lerpSpeed = Math.min(1, lerpSpeed * 2);
                     state.currentRx += (state.targetRx - state.currentRx) * lerpSpeed;
                     state.currentRy += (state.targetRy - state.currentRy) * lerpSpeed;
                     state.currentTy += (state.targetTy - state.currentTy) * lerpSpeed;
@@ -3092,8 +3372,8 @@
                     state.currentMy += (state.targetMy - state.currentMy) * lerpSpeed;
                     state.currentMag += (state.targetMag - state.currentMag) * lerpSpeed;
 
-                    applyVars(card, state.currentRx, state.currentRy, state.currentTy, state.currentMx, state.currentMy, state.currentMag);
-                });
+                    if (needsWrite(state)) applyVars(card, state);
+                }
 
                 requestAnimationFrame(ambientTick);
             }
