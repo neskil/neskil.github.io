@@ -21,8 +21,15 @@
 
     const Cargo3D = window.Cargo3D = window.Cargo3D || {};
 
-    /** Matches the `max-width: 820px` block in styles/hud.css. Keep in step. */
-    const NARROW = '(max-width: 820px)';
+    /**
+     * Matches the responsive block in styles/hud.css. Keep in step.
+     *
+     * The height clause is for a phone turned on its side: 844px is wide enough
+     * to escape the width clause, but 390px of height is not enough for a queue
+     * down one edge, a readout down the other and a control bar across the
+     * bottom — the yard ends up a letterbox in the middle.
+     */
+    const NARROW = '(max-width: 820px), (max-height: 500px)';
 
     /* Groups where exactly one button is on, so a collapsed chip can name it. A
        group of independent toggles (the sandbox Tools) has nothing to report. */
@@ -109,12 +116,18 @@
         // The spawn palette is the control you come back to, so it is the one
         // section that starts open — and an open section is the clearest hint
         // that the closed chips beside it also expand.
-        const palette = this.sections.filter(function (entry) {
-            return entry.section.querySelector('.palette-btn') ||
-                   entry.section.querySelector('#spawn-palette, #physics-palette');
-        })[0];
-        if (palette) palette.open = true;
-        else if (this.sections.length) this.sections[0].open = true;
+        //
+        // Except on a phone held sideways, where the folded bar is already a
+        // quarter of the screen and an open section pushes it over the bay.
+        // There the hint costs more than it is worth; the chips still expand.
+        if (window.matchMedia('(min-height: 560px)').matches) {
+            const palette = this.sections.filter(function (entry) {
+                return entry.section.querySelector('.palette-btn') ||
+                       entry.section.querySelector('#spawn-palette, #physics-palette');
+            })[0];
+            if (palette) palette.open = true;
+            else if (this.sections.length) this.sections[0].open = true;
+        }
 
         /* Picking from an exclusive group is a decision, not an exploration:
            fold the section away again so the yard comes back. Delegated, so it

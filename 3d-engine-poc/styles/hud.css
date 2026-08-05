@@ -5,8 +5,12 @@
     top: 78px;
     right: 14px;
     width: 288px;
-    max-height: calc(100vh - 210px);
+    /* Percentages, not vh: the shell is already the height of the viewport the
+       player can see, and vh on a phone is the taller one behind the browser
+       chrome. */
+    max-height: calc(100% - 210px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     z-index: 15;
     display: flex;
     flex-direction: column;
@@ -14,6 +18,14 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
+
+/* Wrapper for the two mission readouts. It generates no box on a desktop, so
+   the queue and the HUD keep their own corners of the screen; below the mobile
+   breakpoint it becomes the sheet that #mission-strip pulls up. */
+.mission-sheet { display: contents; }
+
+/* Phone only — see the responsive block at the foot of this file. */
+.mobile-strip { display: none; }
 
 .hud-stack::-webkit-scrollbar { width: 6px; }
 .hud-stack::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
@@ -525,8 +537,152 @@
     .cursor-note { display: none; }
 }
 
-@media (max-width: 820px) {
-    .hud-stack, .queue-bar, .inspector-card { display: none; }
+@media (max-width: 820px), (max-height: 500px) {
+    /* Yard statistics and the job board are a column of numbers with nowhere to
+       go on a phone, and nothing in the sandbox depends on reading them. */
+    #sandbox-hud { display: none; }
+
+    /*
+     * The mission readouts used to be hidden here too, which left a phone
+     * playing blind: no manifest, no envelope, no medal, and no way to read the
+     * regulation that just refused a move. They fold into one sheet instead —
+     * closed by default so the yard is clear, with #mission-strip as its handle
+     * and its summary.
+     */
+    .mission-sheet {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        position: absolute;
+        top: calc(104px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        bottom: calc(8px + var(--safe-bottom));
+        z-index: 17;
+        padding: 8px;
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+    }
+
+    .mission-sheet.open { opacity: 1; visibility: visible; transform: none; }
+
+    /* Inside the sheet the two panels are ordinary stacked blocks again. */
+    .mission-sheet > .queue-bar,
+    .mission-sheet > .hud-stack {
+        position: static;
+        width: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    /* The strip: what is landing, how far in, and whether the envelope is still
+       inside a medal — the four things a placement decision needs. */
+    .mobile-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: absolute;
+        top: calc(60px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        z-index: 18;
+        min-height: 40px;
+        padding: 6px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        background: var(--bg-card);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: var(--shadow);
+        color: var(--text-main);
+        font-family: var(--font-body);
+        font-size: 0.76rem;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .strip-now {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-heading);
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* The queue chip's swatch is sized for a card; here it is a bar of colour
+       beside one line of text. */
+    .strip-now .chip-swatch { height: 17px; width: 6px; }
+
+    .strip-stat { flex: none; color: var(--text-sub); }
+    .strip-medal { flex: none; font-size: 0.95rem; line-height: 1; }
+
+    .strip-caret {
+        flex: none;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        line-height: 0.7;
+        transition: transform 0.16s ease;
+    }
+
+    .mobile-strip[aria-expanded="true"] { border-color: rgba(56, 189, 248, 0.45); }
+    .mobile-strip[aria-expanded="true"] .strip-caret { transform: rotate(180deg); }
+
+    /* Nothing legal left for this unit — the same warning the sheet spells out. */
+    .mobile-strip.stuck { border-color: rgba(239, 68, 68, 0.55); }
+
+    /*
+     * Selecting a container in the sandbox is pointless if the panel that
+     * rotates or removes it is hidden, so the inspector keeps its buttons and
+     * loses the layout it cannot afford: one strip under the top bar, two
+     * columns of read-outs.
+     */
+    .inspector-card {
+        display: block;
+        top: calc(60px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        width: auto;
+        padding: 9px 11px;
+    }
+
+    .inspector-card .hud-card-header { margin-bottom: 7px; padding-bottom: 6px; }
+    .inspector-card .inspector-badge { display: none; }
+
+    .inspector-card .inspector-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px 12px;
+        font-size: 0.72rem;
+        margin-bottom: 9px;
+    }
+
+    /* Label above value. Side by side, a container's dimensions and position
+       are each long enough to wrap on their own, which reads as two ragged
+       columns of fragments. */
+    .inspector-card .inspector-grid > div {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .inspector-card .inspector-grid strong { font-size: 0.78rem; }
+    .inspector-card .btn-sm { padding: 10px; }
 
     /*
      * The bar was centred at a fixed width, so any group wider than the screen
@@ -536,13 +692,18 @@
      * so the bar is a strip of chips plus whichever one group is open.
      */
     .control-bar {
-        left: 8px;
-        right: 8px;
-        bottom: 10px;
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        bottom: calc(10px + var(--safe-bottom));
         transform: none;
         max-width: none;
-        max-height: 42vh;
+        /* Of the shell, which is the visible viewport — see tokens.css. */
+        max-height: 42%;
         overflow-y: auto;
+        /* This is the scroller the player's thumb lands on. Contain it, or a
+           swipe that reaches the end of the bar carries on into the page. */
+        overscroll-behavior: contain;
+        touch-action: pan-y;
         padding: 8px;
         gap: 6px;
         align-items: flex-start;
@@ -636,9 +797,9 @@
      */
     #physics-hud {
         display: block;
-        top: 60px;
-        left: 8px;
-        right: 8px;
+        top: calc(60px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
         width: auto;
         max-height: none;
         overflow: visible;
