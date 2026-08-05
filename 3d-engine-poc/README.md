@@ -121,13 +121,21 @@ an honest target rather than an unreachable one.
 `🧪 Physics (Exp)` on the main menu. No bay, no manifest, no regulations — every
 container is a rigid body and the stack does whatever the solver says.
 
-**The solver** (`game/physics.js`) is sequential-impulse, boxes only:
+**The solver** (`game/physics.js`) is sequential-impulse, and every shape is a
+box or a small union of them:
 
+- A body's shape is a list of axis-aligned boxes in body space. Ordinary cargo
+  is one. The masked pieces — the L-corner and T-beam modules — are the union of
+  their occupied cells, merged into runs along X, so the notch is genuinely
+  empty and a container dropped into it falls past to whatever is underneath.
 - Contacts come from sampling 23 points per box (8 corners, 12 edge midpoints,
-  2 face centres and the centre itself) against the other box's OBB. No SAT, no
-  GJK — for a yard full of cuboids, point-in-box is enough and it is cheap. The
-  centre point is not optional: without it, a container crossing through the
+  2 face centres and the centre itself) against the other body's boxes. No SAT,
+  no GJK — for a yard full of cuboids, point-in-box is enough and it is cheap.
+  The centre point is not optional: without it, a container crossing through the
   middle of another overlaps with no sample point inside either box.
+- Extents are named by axis — `sizeX`/`sizeY`/`sizeZ` — because the mesh's
+  `length` is X and its `width` is Z, and a body that disagrees with its own
+  mesh is self-consistent and still completely wrong.
 - Each step collects contacts once, then relaxes them over 10 iterations with
   **accumulated** normal and friction impulses. The accumulation is the part that
   matters: with a single pass, a support impulse cannot propagate up a stack, and

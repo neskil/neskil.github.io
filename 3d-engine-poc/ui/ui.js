@@ -142,7 +142,12 @@
             { type: '40ft', carrier: 'hapag', label: '40ft HC' },
             { type: 'crate', carrier: 'steel', label: 'Crate' },
             { type: 'tank', carrier: 'cosco', label: 'Tank' },
-            { type: 'pallet', carrier: 'wood', label: 'Pallet' }
+            { type: 'pallet', carrier: 'wood', label: 'Pallet' },
+            // The two non-rectangular pieces. Campaign mission 13 is the only
+            // place they turn up otherwise, and they are the most interesting
+            // thing to pack — or to balance a tower on.
+            { type: 'lblock', carrier: 'evergreen', label: 'L-Block' },
+            { type: 'tblock', carrier: 'one', label: 'T-Block' }
         ];
 
         SPAWNS.forEach(function (entry, i) {
@@ -291,6 +296,18 @@
         el('btn-insp-delete').addEventListener('click', function () {
             if (app.modeName === 'sandbox') app.mode.deleteSelected();
         });
+
+        /* ── narrow-screen toolbars ────────────────────────────────────── */
+
+        // Runs last: the accordion reads the palettes, which are generated above.
+        const toolbars = Cargo3D.setupToolbars();
+
+        // Hotkeys (G, and the challenge switch) change the same state the
+        // buttons do, so the collapsed chips have to follow the mode too.
+        const syncPhysics = ui.syncPhysicsToolbar;
+        const syncSandbox = ui.syncSandboxToolbar;
+        ui.syncPhysicsToolbar = function (metrics) { syncPhysics(metrics); toolbars.refresh(); };
+        ui.syncSandboxToolbar = function (metrics) { syncSandbox(metrics); toolbars.refresh(); };
 
         return ui;
     }

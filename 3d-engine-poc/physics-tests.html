@@ -28,6 +28,9 @@
     <div id="out"></div>
 
     <script src="vendor/three.min.js"></script>
+    <!-- Data only, and THREE-free: the solver reads the cell pitch from it to
+         build the collider for masked cargo, and the tests read the catalogue. -->
+    <script src="core/constants.js"></script>
     <script src="game/physics.js"></script>
 
     <script>
@@ -78,7 +81,10 @@
         function drop(w, x, y, z, yaw, spec) {
             const s = spec || BOX;
             const mesh = new THREE.Group();
-            mesh.userData.spec = { width: s.w, height: s.h, length: s.l };
+            mesh.userData.spec = {
+                width: s.w, height: s.h, length: s.l,
+                mask: s.mask, cells: s.cells   // undefined for ordinary cargo
+            };
             mesh.position.set(x, y, z);
             if (yaw) mesh.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
             const body = new Cargo3D.RigidBox(mesh, s.m);
@@ -378,6 +384,8 @@
         suite('a settled stack costs nothing to simulate', function () {
             const w = world();
             for (let i = 0; i < 40; i++) {
+                // Clear of each other on both axes: 6.5 m apart along the 6.06 m
+                // length, 2.6 m apart across the 2.44 m width.
                 drop(w, (i % 5 - 2) * 6.5, REST_Y + Math.floor(i / 5) * (BOX.h + 0.03), (i % 3 - 1) * 2.6);
             }
             run(w, 6);
@@ -387,6 +395,33 @@
             run(w, 2);
             const msPerFrame = (performance.now() - t0) / 120;
             under(msPerFrame, 8, 'and cost well under a frame budget (ms/frame)');
+        });
+
+        /* ── shape ──────────────────────────────────────────────────────── */
+
+        suite('a masked piece is hollow where it looks hollow', function () {
+            // The L-corner module occupies three cells of a 2×2 footprint. The
+            // fourth is a notch you can see through, so it has to be a notch you
+            // can drop through — a bounding box here would have cargo resting on
+            // thin air.
+            const L = Cargo3D.Constants.CARGO_TYPES.lblock;
+            const PIECE = { w: L.width, h: L.height, l: L.length, m: 13, mask: L.mask, cells: L.cells };
+            const CELL = Cargo3D.Constants.GRID.CELL_X;
+            const CUBE = { w: 2, h: 2, l: 2, m: 4 };
+
+            // Cell centres of the 2×2 footprint, in the piece's own frame.
+            const solid = { x: (0 + 0.5 - 1) * CELL, z: (1 + 0.5 - 1) * CELL };
+            const notch = { x: (1 + 0.5 - 1) * CELL, z: (1 + 0.5 - 1) * CELL };
+
+            const w = world();
+            drop(w, 0, L.height / 2, 0, 0, PIECE);
+            const through = drop(w, notch.x, L.height + 4, notch.z, 0, CUBE);
+            const onTop = drop(w, solid.x, L.height + 4, solid.z, 0, CUBE);
+            run(w, 6);
+
+            near(through.position.y, CUBE.h / 2, 0.06, 'a cube over the notch lands on the ground');
+            near(onTop.position.y, L.height + CUBE.h / 2, 0.06, 'and over a filled cell, on the piece');
+            ok(allAsleep(w), 'and all three settle');
         });
 
         /* ── summary ────────────────────────────────────────────────────── */

@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.4.1 — a phone-sized yard, and the Tetris blocks everywhere
+
+**Added**
+
+- **Collapsible toolbar sections on a phone.** The control bar showed every
+  section at once — five stacked rows eating half the yard, most of it cold.
+  Each section now folds to a chip that still reports what it is set to
+  (`Spawn Cargo · 20ft`), one section is open at a time, and picking from an
+  exclusive group folds it away again the way a dropdown would. The desktop bar
+  is untouched: above the breakpoint the module unwinds itself.
+- **The L-corner and T-beam modules are spawnable** in the sandbox and the
+  physics yard, not just in the campaign. They are the most interesting thing in
+  the catalogue to pack, and the most interesting to balance.
+- 3 more assertions: a masked piece being hollow where it looks hollow.
+
+**Fixed**
+
+- **Masked cargo collided as its bounding box.** An L-block's notch is visibly
+  empty, so cargo dropped into it has to fall through, not rest on air. A body's
+  shape is now a list of axis-aligned boxes — one for ordinary cargo, the union
+  of the occupied cells for a masked piece, merged into runs so no interior face
+  reaches the contact test. `penetrationOf()` reads the same shape, so the spawn
+  clearance check no longer refuses a slot that is genuinely empty.
+- **The top bar did not fit a phone.** Five items priced for a desktop: the
+  title wrapped to two lines, the badge to three, and the menu button — the only
+  way out of a mode — was pushed off the right edge.
+- The grid ghost is now mask-aware, so an L-block previews as an L rather than
+  as the 2×2 box around it.
+
 ## v0.4.0 — physics as a failure mode
 
 The campaign gets the simulation, in the one place it belongs. `support:1` was
