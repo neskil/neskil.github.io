@@ -375,8 +375,22 @@
             font-weight: 800;
             letter-spacing: -0.05em;
             margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            /* The glyphs are transparent and the gradient shows through them, so the
+               title exists only as long as that background paints. With nothing behind
+               it, a dropped paint doesn't dim the title — it deletes it, which is what
+               was happening during fast scrolling on Android: the compositor, already
+               behind, skipped the layer and the header went blank while still taking up
+               its space.
+
+               background-clip applies to the background *colour* as well, so a solid
+               colour underneath is clipped to the same glyphs and acts as a free
+               fallback: invisible whenever the gradient paints, and the title in near
+               white whenever it doesn't. Sampled from the middle of the ramp, which is
+               where the centred text sits. */
+            background-color: #e9eef4;
+            background-image: linear-gradient(to right, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -3014,9 +3028,10 @@
                    captured on first reading and then slowly drifts to track wherever
                    the phone actually settles (no hardcoded "held at 45°" assumption,
                    and a deliberate tilt relaxes back to center after a few seconds).
-                b) a scroll-linked bend — cards above the viewport's vertical center
-                   tilt one way, cards below tilt the other, flat in the middle — so
-                   the whole grid reads like a gentle concave shelf as you scroll.
+                b) a scroll-linked bend, vertical only — a card leans back or forward
+                   as its centre nears the bottom or top edge of the screen, and stays
+                   flat while it is anywhere near the middle, so the tilt belongs to
+                   the cards arriving and leaving rather than to all of them at once.
                 Both (a) and (b) are additive.
            CargoLander gets a bigger tilt range plus the rainbow holo layer on top,
            which rides the same --mag value as everything else.
@@ -3177,8 +3192,20 @@
             // High-score chips land after first paint and change card heights.
             setTimeout(invalidateGeometry, 0);
 
-            const SCROLL_BEND_FRACTION = 1.4;
-            const SCROLL_BEND_POWER = 1.2;
+            /* ── Shape of the scroll bend ──
+               The bend is vertical only: a card leans back or forward (rotateX) as its
+               centre approaches the bottom or top edge of the screen, and nothing rocks
+               it sideways. It also stays flat through the middle of the screen — the
+               DEADZONE is the fraction of the half-viewport, measured out from the
+               centre, in which a card gets no bend at all. Past that it ramps to full
+               tilt at the very edge, so the effect belongs to the cards arriving and
+               leaving rather than to every card all the time. */
+            const SCROLL_BEND_FRACTION = 1.4;   // full-tilt multiple of the card's maxTilt
+            const SCROLL_BEND_POWER = 1.6;      // >1 eases in, so the bend arrives gently
+            const SCROLL_BEND_DEADZONE = 0.35;  // middle 35% of each half stays flat
+            // Sideways rock from the accelerometer, kept as a trace of its old self so
+            // the grid still answers to the phone without the bend reading as a wobble.
+            const AMBIENT_ROLL_FRACTION = 0.25;
             const BASELINE_HALFLIFE_S = 3;
             // A phone does not need the ambient bend recomputed 60 times a second;
             // it is a slow, broad curve and halving the rate halves the style work.
@@ -3260,11 +3287,20 @@
                             state.targetMag = 0;
                         } else if (isMobileView) {
                             const accelRx = clamp(deltaBeta * -0.3, -maxTilt, maxTilt);
-                            const accelRy = clamp(deltaGamma * 0.3, -maxTilt, maxTilt);
+                            const accelRy = clamp(deltaGamma * 0.3 * AMBIENT_ROLL_FRACTION,
+                                -maxTilt, maxTilt);
 
+                            // -1 at the top edge of the screen, 0 at the middle, +1 at
+                            // the bottom, measured from the card's centre.
                             const centerY = top + state.height / 2;
                             const norm = clamp((centerY - viewportCenter) / Math.max(viewportCenter, 1), -1, 1);
-                            const eased = Math.sign(norm) * Math.pow(Math.abs(norm), SCROLL_BEND_POWER);
+                            // Flat through the dead zone, then remapped so the ramp
+                            // starts from nothing at its edge and reaches full tilt at
+                            // the screen edge.
+                            const ramp = clamp(
+                                (Math.abs(norm) - SCROLL_BEND_DEADZONE) / (1 - SCROLL_BEND_DEADZONE),
+                                0, 1);
+                            const eased = Math.sign(norm) * Math.pow(ramp, SCROLL_BEND_POWER);
                             const bend = eased * maxTilt * SCROLL_BEND_FRACTION;
 
                             // The bend goes to the transform, which is the visible
