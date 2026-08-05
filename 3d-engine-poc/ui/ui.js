@@ -292,6 +292,18 @@
             if (app.modeName === 'sandbox') app.mode.deleteSelected();
         });
 
+        /* ── narrow-screen toolbars ────────────────────────────────────── */
+
+        // Runs last: the accordion reads the palettes, which are generated above.
+        const toolbars = Cargo3D.setupToolbars();
+
+        // Hotkeys (G, and the challenge switch) change the same state the
+        // buttons do, so the collapsed chips have to follow the mode too.
+        const syncPhysics = ui.syncPhysicsToolbar;
+        const syncSandbox = ui.syncSandboxToolbar;
+        ui.syncPhysicsToolbar = function (metrics) { syncPhysics(metrics); toolbars.refresh(); };
+        ui.syncSandboxToolbar = function (metrics) { syncSandbox(metrics); toolbars.refresh(); };
+
         return ui;
     }
 

@@ -296,6 +296,10 @@
 
 .button-group { display: flex; gap: 5px; }
 
+/* What a collapsed section is set to. Only the narrow layout collapses, so on
+   a desktop the value is redundant with the buttons themselves. */
+.section-value { display: none; }
+
 .tool-btn, .palette-btn {
     display: flex;
     align-items: center;
@@ -528,8 +532,8 @@
      * The bar was centred at a fixed width, so any group wider than the screen
      * — the six-button cargo palette, for one — overflowed both edges at once
      * and the first and last buttons could not be reached at all. Pin it to
-     * both margins instead, give every section its own full-width row, and let
-     * the groups themselves wrap.
+     * both margins instead and let the sections collapse (see ui/toolbars.js),
+     * so the bar is a strip of chips plus whichever one group is open.
      */
     .control-bar {
         left: 8px;
@@ -537,18 +541,93 @@
         bottom: 10px;
         transform: none;
         max-width: none;
-        max-height: 45vh;
+        max-height: 42vh;
         overflow-y: auto;
-        padding: 8px 10px;
-        gap: 8px 12px;
-        align-items: stretch;
+        padding: 8px;
+        gap: 6px;
+        align-items: flex-start;
     }
 
-    /* Narrow sections pair up on a row; only the wide ones take a row alone,
-       which keeps the bar off the yard the tower is trying to grow into. */
-    .toolbar-section { flex: 1 1 auto; align-items: center; }
-    .section-title { text-align: center; }
+    /* Collapsed sections are chips sized by their own text, so they pair up two
+       or three to a row and a long one takes the space it needs; the open one
+       takes a row of its own, which keeps the bar off the yard the tower is
+       trying to grow into. */
+    .toolbar-section { flex: 1 1 auto; min-width: 0; align-items: stretch; gap: 6px; }
+    .toolbar-section.is-open { flex: 1 1 100%; }
     .button-group { flex-wrap: wrap; justify-content: center; }
+
+    /* Chip-sized, but still a comfortable thumb target. */
+    .toolbar-section.collapsible > .section-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 6px 9px;
+        border-radius: 10px;
+        /* Tighter than the desktop caption so two chips still share a row on a
+           360px screen — the value beside it has to fit as well. */
+        letter-spacing: 0.03em;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-sub);
+        cursor: pointer;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    .toolbar-section.collapsible > .section-title::after {
+        content: '⌄';
+        margin-left: auto;
+        font-size: 0.9rem;
+        line-height: 0.7;
+        color: var(--text-muted);
+        transform: rotate(-90deg);
+        transition: transform 0.16s ease;
+    }
+
+    .toolbar-section.is-open > .section-title {
+        background: rgba(56, 189, 248, 0.14);
+        border-color: rgba(56, 189, 248, 0.4);
+        color: var(--text-main);
+    }
+
+    .toolbar-section.is-open > .section-title::after { transform: none; }
+
+    .toolbar-section.collapsible > .section-title:focus-visible {
+        outline: 2px solid var(--accent-cyan);
+        outline-offset: 1px;
+    }
+
+    /* The state the section is set to, so a folded control is still readable. */
+    .toolbar-section.collapsible .section-value {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* A section with nothing to report gets no separator dangling after it. */
+    .toolbar-section.collapsible .section-value:not(:empty)::before {
+        content: '·';
+        color: var(--text-muted);
+    }
+
+    .toolbar-section.is-open .section-value { display: none; }
+
+    .toolbar-section.collapsible:not(.is-open) > .button-group,
+    .toolbar-section.collapsible:not(.is-open) > .select-input { display: none; }
+
+    /* Fingers, not a mouse pointer. */
+    .tool-btn, .palette-btn { padding: 9px 12px; font-size: 0.82rem; }
+    .select-input { width: 100%; padding: 9px 12px; }
 
     /*
      * The tower challenge is unplayable blind: height, best and whether the
@@ -557,7 +636,7 @@
      */
     #physics-hud {
         display: block;
-        top: 64px;
+        top: 60px;
         left: 8px;
         right: 8px;
         width: auto;
