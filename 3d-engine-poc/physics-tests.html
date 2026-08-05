@@ -112,7 +112,7 @@
         }
         function deepest(w) {
             return w.bodies.reduce(function (m, b) {
-                return Math.min(m, b.position.y - b.height / 2);
+                return Math.min(m, b.position.y - b.sizeY / 2);
             }, Infinity);
         }
         function allAsleep(w) {
@@ -130,6 +130,35 @@
                 drop(w, (i % 2 ? j : -j), REST_Y + 0.05 + i * (BOX.h + 0.03), (i % 3 ? -j : j));
             }
         }
+
+        /* ── axes ───────────────────────────────────────────────────────── */
+
+        suite('a collision box is the shape of the container drawn', function () {
+            // render/containers.js lays `length` along X and `width` along Z,
+            // and the grid agrees: a 40ft at rotation 0 spans four cells in X.
+            // Reading them the other way round gave every container a hitbox
+            // turned ninety degrees from the container the player can see.
+            const w = world();
+            const b = drop(w, 0, REST_Y, 0);
+
+            near(b.sizeX, BOX.l, 1e-9, 'the long side runs along X');
+            near(b.sizeY, BOX.h, 1e-9, 'height runs along Y');
+            near(b.sizeZ, BOX.w, 1e-9, 'the narrow side runs along Z');
+
+            // Two containers side by side across their narrow axis: 2.6 m of
+            // separation clears a 2.44 m width, and must not read as a contact.
+            const w2 = world();
+            drop(w2, 0, REST_Y, 0);
+            const beside = drop(w2, 0, REST_Y, 2.6);
+            near(w2.penetrationOf(beside), 0, 1e-6, 'neighbours 2.6 m apart across Z are clear');
+
+            // The same gap along X is deep inside a 6.06 m length.
+            const w3 = world();
+            drop(w3, 0, REST_Y, 0);
+            const overlapping = drop(w3, 2.6, REST_Y, 0);
+            // Depth is to the nearest face, not the full 3.46 m of overlap.
+            ok(w3.penetrationOf(overlapping) > 0.3, 'but 2.6 m apart along X overlaps');
+        });
 
         /* ── resting ────────────────────────────────────────────────────── */
 
@@ -187,7 +216,8 @@
             const w = world();
             let y = REST_Y;
             [5, 4, 3, 2, 1].forEach(function (n) {
-                for (let i = 0; i < n; i++) drop(w, (i - (n - 1) / 2) * 2.6, y, 0);
+                // Spaced along Z: X is the container's 6.06 m long axis.
+                for (let i = 0; i < n; i++) drop(w, 0, y, (i - (n - 1) / 2) * 2.6);
                 y += BOX.h + 0.03;
             });
             run(w, 8);
@@ -213,8 +243,7 @@
             // The whole point of the mode: balance has to actually matter.
             const w = world();
             drop(w, 0, REST_Y, 0);
-            // Along X: that is the length axis, on the body as on the mesh.
-            const top = drop(w, 4.8, REST_Y + BOX.h + 0.1, 0);   // ~80% off the end
+            const top = drop(w, 4.8, REST_Y + BOX.h + 0.1, 0);   // ~80% off the end, along X
             run(w, 6);
 
             ok(tiltDeg(top) > 15, 'a container hung off the end tips');
@@ -292,6 +321,48 @@
             near(c, a, 0.001, '10 fps matches 60 fps');
         });
 
+        /* ── overlap detection ─────────────────────────────────────────── */
+
+        suite('penetration is reported for a body spawned inside another', function () {
+            const w = world();
+            drop(w, 0, REST_Y, 0);
+
+            const clear = drop(w, 0, REST_Y + BOX.h + 1, 0);
+            near(w.penetrationOf(clear), 0, 1e-6, 'a container above the stack is clear');
+
+            // A rotated container dropped at the height its *unrotated*
+            // footprint cleared — the stale-hover bug, reproduced.
+            const inside = drop(w, 0, REST_Y + 0.4, 0, Math.PI / 2);
+            ok(w.penetrationOf(inside) > 0.5, 'one dropped inside another is caught');
+        });
+
+        suite('crossed containers are detected even with no corner inside', function () {
+            // Two long boxes crossing in a T: every corner of each is outside
+            // the other, and only the edge and face sample points see it.
+            const w = world();
+            const a = drop(w, 0, REST_Y, 0, 0);
+            const b = drop(w, 0, REST_Y, 0, Math.PI / 2);
+
+            ok(w.penetrationOf(a) > 0.5, 'the overlap is found from a');
+            ok(w.penetrationOf(b) > 0.5, 'and from b');
+        });
+
+        suite('containers never come to rest inside each other', function () {
+            // Started overlapping on purpose, the way a stale hover height used
+            // to place them. Whatever the solver does about it, what it must
+            // not do is leave them merged.
+            const w = world();
+            drop(w, 0, REST_Y, 0, 0);
+            drop(w, 0, REST_Y + 0.5, 0, Math.PI / 2);   // crossed and sunk in
+            run(w, 10);
+
+            const worst = w.bodies.reduce(function (m, b) {
+                return Math.max(m, w.penetrationOf(b));
+            }, 0);
+            under(worst, 0.05, 'they push apart to a contact, not an overlap (m)');
+            ok(allAsleep(w), 'and settle');
+        });
+
         /* ── sleep ──────────────────────────────────────────────────────── */
 
         suite('sleeping bodies wake when something lands on them', function () {
@@ -327,23 +398,6 @@
         });
 
         /* ── shape ──────────────────────────────────────────────────────── */
-
-        suite('the collider is the mesh, not a rotation of it', function () {
-            // render/containers.js lays a container out with its length along X.
-            // A body whose sample points put the length on Z is self-consistent
-            // and completely wrong: containers pass through each other end to
-            // end and collide with the air beside them.
-            function contactsAt(dx, dz) {
-                const w = world();
-                drop(w, 0, REST_Y, 0);
-                drop(w, dx, REST_Y, dz);
-                w.collectContacts();
-                return w.contacts.filter(function (c) { return c.bB; }).length;
-            }
-
-            ok(contactsAt(3.5, 0) > 0, 'two 20ft 3.5 m apart end to end overlap');
-            ok(contactsAt(0, 3.5) === 0, 'and side by side at 3.5 m they do not');
-        });
 
         suite('a masked piece is hollow where it looks hollow', function () {
             // The L-corner module occupies three cells of a 2×2 footprint. The

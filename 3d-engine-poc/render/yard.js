@@ -57,6 +57,14 @@
         return { x: x, z: z };
     };
 
+    /** World metres → the cell containing them. May fall outside the bay. */
+    YardView.prototype.worldToCell = function (x, z) {
+        return {
+            x: Math.floor(x / C.GRID.CELL_X + this.bay.cols / 2),
+            z: Math.floor(z / C.GRID.CELL_Z + this.bay.rows / 2)
+        };
+    };
+
     /** True when a ground point is inside the painted bay (plus a slot of slack). */
     YardView.prototype.isOverBay = function (point) {
         const halfW = (this.bay.cols / 2 + 0.75) * C.GRID.CELL_X;
@@ -219,6 +227,67 @@
         Meshes.disposeGroup(this.ghost);
         this.ghost = null;
         this.ghostType = null;
+    };
+
+    /* ── ground lost to a collapse ─────────────────────────────────────── */
+
+    /**
+     * Paint the squares a collapse has taken out of play. Drawn just above the
+     * slot lines and below everything else, so wrecked ground reads as part of
+     * the apron rather than as cargo sitting on it.
+     *
+     * @param {Array<[number, number]>} cells
+     */
+    YardView.prototype.showBlocked = function (cells) {
+        if (this.blockedGroup) {
+            this.root.remove(this.blockedGroup);
+            Meshes.disposeGroup(this.blockedGroup);
+            this.blockedGroup = null;
+        }
+        if (!cells || !cells.length) return;
+
+        const group = new THREE.Group();
+        const fill = new THREE.MeshStandardMaterial({
+            color: 0x7f1d1d, roughness: 0.95, metalness: 0.05,
+            emissive: 0x450a0a, emissiveIntensity: 0.5,
+            transparent: true, opacity: 0.85
+        });
+        const rubble = new THREE.MeshStandardMaterial({
+            color: 0x64748b, roughness: 0.9, metalness: 0.25
+        });
+
+        for (let i = 0; i < cells.length; i++) {
+            const x = (cells[i][0] + 0.5 - this.bay.cols / 2) * C.GRID.CELL_X;
+            const z = (cells[i][1] + 0.5 - this.bay.rows / 2) * C.GRID.CELL_Z;
+
+            const pad = new THREE.Mesh(
+                new THREE.PlaneGeometry(C.GRID.CELL_X * 0.94, C.GRID.CELL_Z * 0.94),
+                fill
+            );
+            pad.rotation.x = -Math.PI / 2;
+            pad.position.set(x, 0.05, z);
+            group.add(pad);
+
+            // A little wreckage, so it reads as debris and not just paint.
+            for (let k = 0; k < 3; k++) {
+                const a = (i * 7 + k * 5) % 360 * Math.PI / 180;
+                const chunk = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5 + (k % 2) * 0.3, 0.22, 0.34 + (k % 3) * 0.2),
+                    rubble
+                );
+                chunk.position.set(
+                    x + Math.cos(a) * C.GRID.CELL_X * 0.24,
+                    0.13,
+                    z + Math.sin(a) * C.GRID.CELL_Z * 0.24
+                );
+                chunk.rotation.set(0, a, (k - 1) * 0.18);
+                chunk.castShadow = true;
+                group.add(chunk);
+            }
+        }
+
+        this.blockedGroup = group;
+        this.root.add(group);
     };
 
     /* ── placed units ──────────────────────────────────────────────────── */

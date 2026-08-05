@@ -83,13 +83,13 @@
      * Local axes match the mesh in render/containers.js — length along X,
      * width along Z.
      */
-    function shapeParts(spec, length, height, width) {
+    function shapeParts(spec, sizeX, sizeY, sizeZ) {
         if (!spec.mask || !spec.cells) {
-            return [{ x: 0, y: 0, z: 0, hx: length / 2, hy: height / 2, hz: width / 2 }];
+            return [{ x: 0, y: 0, z: 0, hx: sizeX / 2, hy: sizeY / 2, hz: sizeZ / 2 }];
         }
 
         const cell = cellSize();
-        const hy = height / 2;
+        const hy = sizeY / 2;
         // The mesh draws each cell at 94% of the pitch; the collider matches it,
         // or a piece would collide a hand's width before it looks like it should.
         const inset = cell * 0.94;
@@ -135,29 +135,41 @@
         this.invMass = this.mass > 0 ? 1 / this.mass : 0;
 
         const spec = mesh.userData.spec || { width: 2.44, height: 2.9, length: 6.06 };
-        this.width = spec.width;
-        this.height = spec.height;
-        this.length = spec.length;
+
+        /*
+         * Extents are named by axis, not by which side of a container they are.
+         *
+         * render/containers.js lays a container's `length` along X and its
+         * `width` along Z, and the grid agrees — a 40ft at rotation 0 spans four
+         * cells in X. Reading `spec.width` as the X extent, as this did, gave
+         * every container a collision box turned ninety degrees from the box you
+         * can see: stacks that looked flush overlapped, and neighbours that
+         * looked clear shoved each other aside.
+         */
+        this.sizeX = spec.length;
+        this.sizeY = spec.height;
+        this.sizeZ = spec.width;
 
         /*
          * Diagonal inverse inertia for a solid cuboid the size of the bounding
          * box. A masked piece is lighter in its notch than that implies, but the
          * error is a fraction of a cell on a shape whose whole point is that it
-         * balances awkwardly — and the alternative is a full inertia tensor for
-         * a compound body, which this solver has no use for anywhere else.
+         * balances awkwardly — and the alternative is a full inertia tensor for a
+         * compound body, which this solver has no use for anywhere else.
          *
-         * Axes: X is length, Y is height, Z is width, matching the mesh.
+         * Named by axis for the same reason the extents are: each component is
+         * the rotation about that axis, and depends on the other two.
          */
-        const w2 = this.width * this.width;
-        const h2 = this.height * this.height;
-        const l2 = this.length * this.length;
+        const x2 = this.sizeX * this.sizeX;
+        const y2 = this.sizeY * this.sizeY;
+        const z2 = this.sizeZ * this.sizeZ;
         this.invInertiaBody = new THREE.Vector3(
-            12 * this.invMass / (h2 + w2),
-            12 * this.invMass / (l2 + w2),
-            12 * this.invMass / (l2 + h2)
+            12 * this.invMass / (y2 + z2),
+            12 * this.invMass / (x2 + z2),
+            12 * this.invMass / (x2 + y2)
         );
 
-        this.parts = shapeParts(spec, this.length, this.height, this.width);
+        this.parts = shapeParts(spec, this.sizeX, this.sizeY, this.sizeZ);
 
         this.position = mesh.position.clone();
         this.quaternion = mesh.quaternion.clone();
@@ -201,6 +213,12 @@
             }
             // Centers of bottom and top faces
             own.push(new THREE.Vector3(px, py - hy, pz), new THREE.Vector3(px, py + hy, pz));
+
+            // The part's own centre. Without it, a container crossing through the
+            // middle of another can overlap deeply with no sample point inside
+            // either box — every corner is beyond the far face, and the two read
+            // as not touching at all.
+            own.push(new THREE.Vector3(px, py, pz));
 
             // A point buried inside a neighbouring part is interior to the piece,
             // and an interior point can only ever report a contact against a face
@@ -522,8 +540,8 @@
 
         // Broadphase: bounding spheres.
         const distSq = bA.position.distanceToSquared(bB.position);
-        const rBoundA = Math.sqrt(bA.width * bA.width + bA.height * bA.height + bA.length * bA.length) / 2;
-        const rBoundB = Math.sqrt(bB.width * bB.width + bB.height * bB.height + bB.length * bB.length) / 2;
+        const rBoundA = Math.sqrt(bA.sizeX * bA.sizeX + bA.sizeY * bA.sizeY + bA.sizeZ * bA.sizeZ) / 2;
+        const rBoundB = Math.sqrt(bB.sizeX * bB.sizeX + bB.sizeY * bB.sizeY + bB.sizeZ * bB.sizeZ) / 2;
         const reach = rBoundA + rBoundB;
         if (distSq > reach * reach) return;
 
@@ -541,6 +559,71 @@
         if (bA.sleeping && !bB.sleeping && bB.speedSq() > 0.02) bA.wake();
         if (bB.sleeping && !bA.sleeping && bA.speedSq() > 0.02) bB.wake();
     };
+
+    /**
+     * Deepest overlap between `body` and anything else in the world, in metres,
+     * or 0 when it is clear.
+     *
+     * A body spawned *inside* another is the one case the solver cannot recover
+     * from gracefully: a contact point deep inside an OBB reports the nearest
+     * face as its normal, which for a deep overlap is often the wrong way out,
+     * so the pair is pushed through each other rather than apart. Callers use
+     * this to place a new body clear before handing it over.
+     */
+    PhysicsWorld.prototype.penetrationOf = function (body) {
+        let worst = 0;
+
+        for (let k = 0; k < body.samplePoints.length; k++) {
+            worldPos.copy(body.samplePoints[k]).applyQuaternion(body.quaternion).add(body.position);
+            const below = this.groundY - worldPos.y;
+            if (below > worst) worst = below;
+        }
+
+        for (let i = 0; i < this.bodies.length; i++) {
+            const other = this.bodies[i];
+            if (other === body) continue;
+
+            const reachA = Math.sqrt(body.sizeX * body.sizeX + body.sizeY * body.sizeY + body.sizeZ * body.sizeZ) / 2;
+            const reachB = Math.sqrt(other.sizeX * other.sizeX + other.sizeY * other.sizeY + other.sizeZ * other.sizeZ) / 2;
+            const reach = reachA + reachB;
+            if (body.position.distanceToSquared(other.position) > reach * reach) continue;
+
+            const d = Math.max(deepestPointIn(body, other), deepestPointIn(other, body));
+            if (d > worst) worst = d;
+        }
+        return worst;
+    };
+
+    /** Deepest of `from`'s sample points inside `into`'s shape, or 0. */
+    function deepestPointIn(from, into) {
+        invRotA.copy(into.quaternion).invert();
+        const parts = into.parts;
+        let worst = 0;
+
+        for (let k = 0; k < from.samplePoints.length; k++) {
+            worldPos.copy(from.samplePoints[k]).applyQuaternion(from.quaternion).add(from.position);
+            localPos.copy(worldPos).sub(into.position).applyQuaternion(invRotA);
+
+            // Per part, not per bounding box: a point sitting in an L-block's
+            // notch is clear of it, and a caller looking for a free spot to drop
+            // into has to be told so.
+            for (let s = 0; s < parts.length; s++) {
+                const part = parts[s];
+
+                const dx = part.hx - Math.abs(localPos.x - part.x);
+                if (dx <= 0) continue;
+                const dy = part.hy - Math.abs(localPos.y - part.y);
+                if (dy <= 0) continue;
+                const dz = part.hz - Math.abs(localPos.z - part.z);
+                if (dz <= 0) continue;
+
+                const d = Math.min(dx, dy, dz);
+                if (d > worst) worst = d;
+                break;
+            }
+        }
+        return worst;
+    }
 
     /* ── Solver ────────────────────────────────────────────────────────── */
 

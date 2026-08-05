@@ -422,8 +422,11 @@ SC.ui = (function() {
     }
 
     // Unscaled size of the laid-out tree, the scale on screen, and the
-    // player's own zoom (0 = "no opinion", follow the auto fit).
+    // player's own zoom (0 = "no opinion", follow the auto fit). rtRowMinX/
+    // rtRowBottom are per-row geometry from the last updateResearchTree
+    // pass — see setResearchTreeBoxHeight.
     let rtTreeW = 0, rtTreeH = 0, rtScale = 1, rtUserScale = 0;
+    let rtRowMinX = [], rtRowBottom = [];
 
     function researchTreeOpen() { return !$('research-overlay').classList.contains('hidden'); }
 
@@ -464,12 +467,35 @@ SC.ui = (function() {
         nodesEl.style.height = (rtTreeH * scale) + 'px';
     }
 
+    // The tree opens scrolled to (0, 0), so anything past `containerWidth`
+    // needs a horizontal scroll first — a row whose only node sits under a
+    // branch out there isn't reachable yet, and sizing the box to include it
+    // just leaves dead air below whatever *is* in view. Returns the deepest
+    // row that has a node starting within the given width.
+    function visibleTreeHeight(containerWidth) {
+        let maxRow = -1;
+        for (let r = 0; r < rtRowMinX.length; r++) {
+            if (rtRowMinX[r] !== undefined && rtRowMinX[r] < containerWidth) maxRow = r;
+        }
+        return maxRow < 0 ? rtTreeH : rtRowBottom[maxRow] + RT_PAD;
+    }
+
     // The card hugs a short tree instead of always standing 90vh tall, so the
     // wrap does need a height — just one that comes from the auto fit and then
-    // holds still, however far the player zooms afterwards.
-    function setResearchTreeBoxHeight(scale) {
+    // holds still, however far the player zooms afterwards. Two caps on top
+    // of the raw tree height: the viewport (availH — a tree taller than the
+    // screen still needs to fit on it) and, when the tree is wider than the
+    // card so it opens needing a horizontal scroll (every phone open),
+    // visibleTreeHeight — otherwise the box hugged the deepest row in the
+    // *whole* forest, most of it off in columns the player hasn't scrolled
+    // to yet, and the card stood far taller than the couple of rows actually
+    // in view.
+    function setResearchTreeBoxHeight(scale, containerWidth) {
         const wrap = $('research-tree-wrap');
-        if (wrap) wrap.style.height = (rtTreeH * scale) + 'px';
+        if (!wrap) return;
+        const availH = Math.max(240, window.innerHeight * 0.9 - wrap.getBoundingClientRect().top);
+        const visibleH = visibleTreeHeight(containerWidth) * scale;
+        wrap.style.height = Math.min(visibleH, rtTreeH * scale, availH) + 'px';
     }
 
     function fitResearchTree() {
@@ -478,7 +504,7 @@ SC.ui = (function() {
         const containerWidth = wrap.clientWidth;
         if (containerWidth <= 0) return;
         const auto = autoResearchTreeScale(containerWidth);
-        setResearchTreeBoxHeight(auto);
+        setResearchTreeBoxHeight(auto, containerWidth);
         applyResearchTreeScale(rtUserScale || auto);
     }
 
@@ -584,10 +610,16 @@ SC.ui = (function() {
         // under the tallest card of the row above it — a fixed pitch has to
         // clear the wordiest tech in the whole tree, which left every other row
         // swimming in dead space. Positions are pure JS; only `top` hits the DOM.
-        const rowH = [];
+        // Also track each row's leftmost node (rowMinX) — a forest this wide
+        // has rows whose only content sits under a branch several columns to
+        // the right, and setResearchTreeBoxHeight uses this to size the box to
+        // what's actually reachable at the default (unscrolled) position
+        // instead of the deepest row anywhere in the tree.
+        const rowH = [], rowMinX = [];
         for (const id in positions) {
             const r = layout[id].row;
             rowH[r] = Math.max(rowH[r] || 0, rtNodeH[id] || m.nodeH);
+            rowMinX[r] = rowMinX[r] === undefined ? positions[id].x : Math.min(rowMinX[r], positions[id].x);
         }
         const rowTop = [];
         let y = RT_PAD;
@@ -597,6 +629,8 @@ SC.ui = (function() {
         }
         height = y - RT_ROW_GAP + RT_PAD;
         for (const id in positions) positions[id].y = rowTop[layout[id].row];
+        rtRowMinX = rowMinX;
+        rtRowBottom = rowTop.map((top, r) => top + (rowH[r] || m.nodeH));
         const tops = rowTop.join();
         if (changed || tops !== rtLastTops) {
             rtLastTops = tops;

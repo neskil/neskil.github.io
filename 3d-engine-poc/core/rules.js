@@ -43,6 +43,31 @@
             }
         },
 
+        /**
+         * The one rule core/ cannot decide.
+         *
+         * A mission that declares `physics` drops the support rule and lets the
+         * simulation answer instead: place what you like, and if the stack will
+         * not hold, it comes down and the ground it lands on is out of play for
+         * the rest of the shift.
+         *
+         * `check()` always passes because the verdict arrives *after* the
+         * placement, not before — and because deciding it needs a rigid-body
+         * solver, which needs THREE, which core/ may never touch. The entry
+         * exists so the mission card, the briefing and the how-to describe it
+         * like any other rule; game/missionPhysics.js does the enforcing.
+         */
+        physics: {
+            id: 'physics',
+            label: 'Live physics',
+            defaultParam: 1,
+            describe: function () {
+                return 'No support rule — the stack is simulated. Overhang what you dare, ' +
+                       'but anything that falls takes its ground out of play.';
+            },
+            check: function () { return null; }
+        },
+
         maxTier: {
             id: 'maxTier',
             label: 'Crane reach',

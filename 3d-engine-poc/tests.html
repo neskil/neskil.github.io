@@ -411,6 +411,49 @@
             });
         });
 
+        suite('grid — ground lost to a collapse', function () {
+            const g = new Grid(6, 4, 4);
+
+            ok(!g.isBlocked(2, 1), 'a fresh bay has all its ground');
+            eq(g.blockedCount(), 0, 'and nothing blocked');
+
+            eq(g.blockCells([[2, 1], [3, 1]]), 2, 'a collapse takes two squares');
+            eq(g.blockCells([[3, 1], [4, 1]]), 1, 'and only new ground counts the second time');
+            ok(g.isBlocked(2, 1), 'the square is out of play');
+            eq(g.blockedCount(), 3, 'three squares lost in total');
+
+            // Blocked ground reads exactly like being off the bay: no tier.
+            ok(g.restTier('10ft', 0, 2, 1) === null, 'nothing rests on wreckage');
+            ok(g.place(unit('10ft'), 2, 1, 0, 0) === null, 'and nothing can be placed on it');
+
+            ok(g.restTier('10ft', 0, 0, 0) === 0, 'clear ground still takes a unit');
+            ok(g.place(unit('10ft'), 0, 0, 0, 0) !== null, 'and accepts it');
+
+            // A 20ft spans two cells: one blocked cell is enough to refuse it.
+            ok(g.restTier('20ft', 0, 1, 1) === null, 'a footprint touching wreckage has no tier');
+
+            eq(g.blockedCells().length, 3, 'the renderer can enumerate them');
+            g.clear();
+            eq(g.blockedCount(), 0, 'and a cleared bay gets its ground back');
+        });
+
+        suite('rules — physics is declared, not decided here', function () {
+            // The verdict needs a rigid-body solver, which needs THREE, which
+            // core/ may never touch. The entry exists so the UI can describe it.
+            const parsed = Cargo3D.Rules.parseRule('physics');
+            ok(parsed !== null, 'physics parses as a rule');
+            eq(parsed.rule.id, 'physics', 'with its own id');
+            ok(parsed.rule.describe(1).length > 10, 'and a briefing line');
+
+            const g = new Grid(4, 4, 3);
+            g.place(unit('10ft'), 0, 0, 0, 0);
+
+            // A wildly unsupported placement is legal as far as core/ is
+            // concerned — that is the whole point of the rule.
+            const check = Rules.validate(g, unit('10ft'), { x: 3, z: 3, tier: 0, rot: 0 }, ['physics']);
+            ok(check.ok, 'core/ passes what the simulation will judge later');
+        });
+
         // ── storage ─────────────────────────────────────────────────────────
         suite('storage — progress', function () {
             Cargo3D.Storage.resetProgress();

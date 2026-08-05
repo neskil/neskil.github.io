@@ -262,6 +262,70 @@
             seed: 1013,
             medals: { gold: 1.15, silver: 1.35, bronze: 1.70 },
             weather: 'night'
+        },
+
+        /*
+         * The physics arc. These missions drop the support rule entirely: the
+         * simulation decides, and a stack that will not hold comes down and
+         * takes its ground with it. Medals are looser than the campaign's,
+         * because the ground you lose is a cost the par calculation knows
+         * nothing about.
+         */
+        {
+            id: 'm14',
+            name: 'Balancing Act',
+            tagline: 'No support rule. Gravity has opinions.',
+            teaches: 'Physics replaces the support rule — overhang is allowed until it is not.',
+            brief: 'Head office has stopped writing the stacking rules. Nothing here says how much of a box must sit on the one below; the yard will simply tell you. Anything that falls is craned back to the quay, and the ground it lands on is out of service for the shift.',
+            bay: { cols: 6, rows: 4, tiers: 4 },
+            rules: ['physics'],
+            units: [
+                { type: '20ft', count: 10 },
+                { type: '40ft', count: 3 }
+            ],
+            seed: 1014,
+            medals: { gold: 1.30, silver: 1.55, bronze: 1.95 },
+            weather: 'day'
+        },
+        {
+            id: 'm15',
+            name: 'Top Heavy',
+            tagline: 'Weight tells, whether or not a rule says so.',
+            teaches: 'Laden mass is real: a loaded 40ft on a light 10ft topples without a regulation to forbid it.',
+            brief: 'A mixed load, and no rule about what goes underneath what. A full forty on a light ten will not be refused — it will just fall over, in front of everyone.',
+            bay: { cols: 7, rows: 4, tiers: 4 },
+            rules: ['physics', 'maxTier:4'],
+            // 32 cells = a 4 × 4 × 2 box inside a 7 × 4 × 4 bay, over a 28-slot floor.
+            units: [
+                { type: '40ft', count: 4, load: 0.95 },
+                { type: '20ft', count: 6, load: 0.85 },
+                { type: '10ft', count: 4, load: 0.15 }
+            ],
+            seed: 1015,
+            medals: { gold: 1.32, silver: 1.60, bronze: 2.00 },
+            weather: 'dusk'
+        },
+        {
+            id: 'm16',
+            name: 'Salvage Yard',
+            tagline: 'Wreckage already on the ground. Do not add to it.',
+            teaches: 'Ground is finite — every collapse costs slots you cannot get back.',
+            brief: 'Last shift went badly and the apron is still half blocked. Work around what is there, and try not to lose any more of it: the yard you finish with is the yard you have.',
+            bay: { cols: 7, rows: 5, tiers: 4 },
+            rules: ['physics', 'departureOrder'],
+            obstacles: [
+                { type: '20ft', carrier: 'steel', x: 2, z: 1, tier: 0 },
+                { type: '10ft', carrier: 'steel', x: 5, z: 3, tier: 0 }
+            ],
+            // 40 cells = a 5 × 4 × 2 box inside a 7 × 5 × 4 bay, over a 35-slot floor.
+            units: [
+                { type: '20ft', count: 10, departure: 0 },
+                { type: '40ft', count: 4, departure: 1 },
+                { type: '10ft', count: 4, departure: 2 }
+            ],
+            seed: 1016,
+            medals: { gold: 1.35, silver: 1.65, bronze: 2.10 },
+            weather: 'clear'
         }
     ];
 
