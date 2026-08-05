@@ -26,33 +26,85 @@
         this.focus = new THREE.Vector3(0, 3, 0);
         this.transition = null;
         this.followTarget = null;
+        // Whether the player has taken the camera off its preset — see refit().
+        this.userMoved = false;
 
         const self = this;
-        this.controls.addEventListener('start', function () { self.transition = null; });
+        this.controls.addEventListener('start', function () {
+            self.transition = null;
+            self.userMoved = true;
+        });
+
+        this._onResize = function () { self.refit(); };
+        window.addEventListener('resize', this._onResize);
+        window.addEventListener('orientationchange', this._onResize);
     }
+
+    /**
+     * How far back a bounding sphere has to sit to fit on screen.
+     *
+     * The vertical field of view is fixed, but the horizontal one narrows with
+     * the aspect ratio — so on a phone held upright, fitting the vertical one
+     * alone (which is what this used to do) frames a bay whose left and right
+     * ends are off both edges of the screen. Fit whichever is tighter.
+     *
+     * The margin is larger in portrait because that is where the HUD costs the
+     * most: the top bar and the mission strip own the top of the screen and the
+     * control bar the bottom, and none of that is over empty apron.
+     */
+    CameraRig.prototype.fitRadius = function (sphere) {
+        const aspect = this.camera.aspect || 1;
+        const vFov = this.camera.fov * Math.PI / 180;
+        const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+        const margin = aspect < 0.85 ? 1.24 : 1.08;
+        return Math.max(sphere / Math.sin(vFov / 2), sphere / Math.sin(hFov / 2)) * margin;
+    };
 
     /** Size the rig to a bay so every preset frames it sensibly. */
     CameraRig.prototype.frameBay = function (bay) {
+        // Kept so a rotated phone can be re-framed — see refit().
+        this.bay = bay;
+
         const w = bay.cols * C.GRID.CELL_X;
         const d = bay.rows * C.GRID.CELL_Z;
         const h = bay.tiers * C.GRID.TIER_H;
 
-        // Fit the bay's bounding sphere to the vertical field of view, with a
-        // little margin so the HUD panels do not crowd the corners.
-        const fov = this.camera.fov * Math.PI / 180;
         const sphere = 0.5 * Math.sqrt(w * w + d * d + h * h);
-        this.radius = Math.max(16, (sphere / Math.sin(fov / 2)) * 1.08);
+        this.radius = Math.max(16, this.fitRadius(sphere));
         this.focus.set(0, h * 0.34, 0);
     };
 
     CameraRig.prototype.frameApron = function () {
+        this.bay = null;
         this.radius = 46;
         this.focus.set(0, 3, 0);
+    };
+
+    /**
+     * Re-fit after the viewport changed shape — a phone turned on its side, or
+     * a browser window dragged narrow.
+     */
+    CameraRig.prototype.refit = function () {
+        if (!this.bay || this.followTarget) return;
+        this.frameBay(this.bay);
+
+        /* A camera still sitting on its preset is the rig's to place, so re-run
+           that preset at the new aspect — including mid-transition, where the
+           destination is what needs correcting rather than the position it
+           happens to be passing through. Once the player has orbited or zoomed
+           it is theirs, and the most the rig will do is widen. */
+        if (!this.userMoved || this.transition) { this.setMode(this.mode); return; }
+
+        const offset = this.camera.position.clone().sub(this.controls.target);
+        const r = offset.length();
+        if (r < 0.001 || r >= this.radius) return;
+        this.camera.position.copy(this.controls.target).add(offset.multiplyScalar(this.radius / r));
     };
 
     CameraRig.prototype.setMode = function (mode, immediate) {
         this.mode = mode;
         this.followTarget = null;
+        this.userMoved = false;
 
         if (mode === 'vehicle') return; // driven by follow()
 

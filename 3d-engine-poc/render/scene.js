@@ -11,6 +11,24 @@
 
     const APRON_SIZE = 120;
 
+    /**
+     * What to render at: the container's own box, which is pinned to the page
+     * shell in tokens.css.
+     *
+     * Deliberately not `window.innerWidth/innerHeight`. On a phone those track
+     * the visual viewport while the layout is the taller one behind the browser
+     * chrome, so a canvas sized from the window ends up taller than the element
+     * holding it — which is overflow, which is something for a stray swipe to
+     * scroll. Measuring the container instead means the two can never disagree.
+     */
+    function viewportSize(containerEl) {
+        const rect = containerEl.getBoundingClientRect();
+        return {
+            w: Math.max(1, Math.round(rect.width || window.innerWidth)),
+            h: Math.max(1, Math.round(rect.height || window.innerHeight))
+        };
+    }
+
     function SceneView(containerEl) {
         this.container = containerEl;
         this.clock = new THREE.Clock();
@@ -19,11 +37,13 @@
         this.scene.background = new THREE.Color(0x0f172a);
         this.scene.fog = new THREE.FogExp2(0x0f172a, 0.010);
 
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 600);
+        const size = viewportSize(containerEl);
+
+        this.camera = new THREE.PerspectiveCamera(45, size.w / size.h, 0.1, 600);
         this.camera.position.set(18, 15, 24);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(size.w, size.h);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -50,6 +70,15 @@
         const self = this;
         this.onResize = function () { self.resize(); };
         window.addEventListener('resize', this.onResize);
+        window.addEventListener('orientationchange', this.onResize);
+
+        /* Chrome on Android does not fire `resize` when the URL bar slides away
+           — only the visual viewport changes — and the shell is sized in `dvh`,
+           so it does change height. Without this the canvas keeps the old size
+           and leaves a band of stale pixels along one edge. */
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', this.onResize);
+        }
     }
 
     SceneView.prototype.buildLights = function () {
@@ -134,9 +163,10 @@
     };
 
     SceneView.prototype.resize = function () {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        const size = viewportSize(this.container);
+        this.camera.aspect = size.w / size.h;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(size.w, size.h);
     };
 
     SceneView.prototype.addShake = function (intensity) {
