@@ -89,6 +89,11 @@
             self._press = null;
             if (!press || press.button !== 0 || e.button !== 0) return;
             if (Math.abs(e.clientX - press.x) > 6 || Math.abs(e.clientY - press.y) > 6) return;
+
+            // Position from the event that is actually dropping it. A touch tap
+            // cannot be relied on to send a pointermove first, so without this
+            // the drop uses wherever the ghost happened to be left.
+            self.updateHover(e);
             self.dropContainer();
         };
 
@@ -320,6 +325,12 @@
         if (this.ghost) {
             this.ghost.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.rotAngle);
         }
+
+        // A turned container has a different footprint, so the height it can
+        // clear the stack at changes with it. Leaving the old height behind is
+        // what let a rotated container be dropped inside its neighbour.
+        if (this._lastPointer) this.updateHover(this._lastPointer);
+
         if (Cargo3D.Audio) Cargo3D.Audio.click();
         this.refreshHUD();
     };
@@ -384,6 +395,9 @@
             return;
         }
 
+        // Remembered so a rotation can re-solve the hover without a new event.
+        this._lastPointer = { clientX: e.clientX, clientY: e.clientY };
+
         const point = this.app.sceneView.pointerToGround(e, this._scratch);
         if (!point) {
             this.ghost.visible = false;
@@ -430,6 +444,7 @@
         const body = new Cargo3D.RigidBox(mesh, unitMass(spec));
         body.settledTop = null;
         this.physicsWorld.add(body);
+        this.liftClear(body);
 
         if (Cargo3D.Audio) Cargo3D.Audio.lock();
         if (this.app.effects) this.app.effects.ring(mesh.position.x, 0, mesh.position.z);
@@ -440,6 +455,25 @@
         this.spawnCarrier = CARRIERS[Math.floor(Math.random() * CARRIERS.length)];
         this.syncGhost();
         this.refreshHUD();
+    };
+
+    /**
+     * Raise a freshly dropped container until it is clear of everything else.
+     *
+     * The hover height already aims to do this, but it works from axis-aligned
+     * extents and a cursor that may be stale by a frame. This is the backstop:
+     * a container that starts inside another is the one thing the solver cannot
+     * resolve cleanly, and it reads as two boxes melted together.
+     */
+    PhysicsMode.prototype.liftClear = function (body) {
+        const world = this.physicsWorld;
+
+        for (let i = 0; i < 24; i++) {
+            const depth = world.penetrationOf(body);
+            if (depth <= world.slop) return;
+            body.position.y += depth + world.slop;
+            body.updateTransform();
+        }
     };
 
     PhysicsMode.prototype.clearYard = function () {

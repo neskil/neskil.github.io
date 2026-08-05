@@ -123,6 +123,12 @@
         }
         // Centers of bottom and top faces
         pts.push(new THREE.Vector3(0, -hh, 0), new THREE.Vector3(0, hh, 0));
+
+        // The body's own centre, kept last so index 0-7 stay the corners.
+        // Without it, a container crossing through the middle of another can
+        // overlap deeply with no sample point inside either box — every corner
+        // is beyond the far face, and the two read as not touching at all.
+        pts.push(new THREE.Vector3(0, 0, 0));
         return pts;
     };
 
@@ -432,6 +438,63 @@
         if (bA.sleeping && !bB.sleeping && bB.speedSq() > 0.02) bA.wake();
         if (bB.sleeping && !bA.sleeping && bA.speedSq() > 0.02) bB.wake();
     };
+
+    /**
+     * Deepest overlap between `body` and anything else in the world, in metres,
+     * or 0 when it is clear.
+     *
+     * A body spawned *inside* another is the one case the solver cannot recover
+     * from gracefully: a contact point deep inside an OBB reports the nearest
+     * face as its normal, which for a deep overlap is often the wrong way out,
+     * so the pair is pushed through each other rather than apart. Callers use
+     * this to place a new body clear before handing it over.
+     */
+    PhysicsWorld.prototype.penetrationOf = function (body) {
+        let worst = 0;
+
+        for (let k = 0; k < body.samplePoints.length; k++) {
+            worldPos.copy(body.samplePoints[k]).applyQuaternion(body.quaternion).add(body.position);
+            const below = this.groundY - worldPos.y;
+            if (below > worst) worst = below;
+        }
+
+        for (let i = 0; i < this.bodies.length; i++) {
+            const other = this.bodies[i];
+            if (other === body) continue;
+
+            const reachA = Math.sqrt(body.width * body.width + body.height * body.height + body.length * body.length) / 2;
+            const reachB = Math.sqrt(other.width * other.width + other.height * other.height + other.length * other.length) / 2;
+            const reach = reachA + reachB;
+            if (body.position.distanceToSquared(other.position) > reach * reach) continue;
+
+            const d = Math.max(deepestPointIn(body, other), deepestPointIn(other, body));
+            if (d > worst) worst = d;
+        }
+        return worst;
+    };
+
+    /** Deepest of `from`'s sample points inside `into`'s box, or 0. */
+    function deepestPointIn(from, into) {
+        invRotA.copy(into.quaternion).invert();
+        const hw = into.width / 2, hh = into.height / 2, hl = into.length / 2;
+        let worst = 0;
+
+        for (let k = 0; k < from.samplePoints.length; k++) {
+            worldPos.copy(from.samplePoints[k]).applyQuaternion(from.quaternion).add(from.position);
+            localPos.copy(worldPos).sub(into.position).applyQuaternion(invRotA);
+
+            const dx = hw - Math.abs(localPos.x);
+            if (dx <= 0) continue;
+            const dy = hh - Math.abs(localPos.y);
+            if (dy <= 0) continue;
+            const dz = hl - Math.abs(localPos.z);
+            if (dz <= 0) continue;
+
+            const d = Math.min(dx, dy, dz);
+            if (d > worst) worst = d;
+        }
+        return worst;
+    }
 
     /* ── Solver ────────────────────────────────────────────────────────── */
 
