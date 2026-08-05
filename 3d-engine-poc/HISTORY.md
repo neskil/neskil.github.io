@@ -4,10 +4,12 @@
 
 **Added**
 
-- **Tower is a menu item**, not a toggle buried in an experimental mode. The
-  campaign is renamed **Tight Spaces** to match how it actually plays, and the
-  two games now sit next to each other on the main menu: pack the manifest into
-  the smallest box, or stack until it falls over. The physics yard keeps its own
+- **A tidier main menu.** The library credit no longer sits above the game's
+  name, where it wrapped to two lines on a phone; the campaign's four progress
+  pills are one divided pill, which cannot wrap onto a second row.
+- **Tower is a menu item**, not a toggle buried in an experimental mode. The two
+  games now sit next to each other on the main menu: pack the manifest into the
+  smallest box, or stack until it falls over. The physics yard keeps its own
   entry for free play, and the Challenge toggle still switches between them
   in-mode.
 - **An X/Y/Z console.** A pointer aims to within a fingertip, which is not
