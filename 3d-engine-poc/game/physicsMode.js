@@ -62,6 +62,16 @@
         this.challenge = 'freeplay';
         this.run = this.blankRun();
 
+        /**
+         * Nudge offsets from wherever the pointer aimed, in metres. The console
+         * writes them; the hover adds them. Cleared by a fresh aim and by a drop,
+         * so a nudge is always a correction to the shot you are lining up, never
+         * a setting that quietly survives it.
+         */
+        this.offset = { x: 0, y: 0, z: 0 };
+        /** While true the pointer no longer re-aims — a nudge has taken over. */
+        this.aimLocked = false;
+
         this._scratch = new THREE.Vector3();
         this._snap = new THREE.Vector3();
         this._box = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
@@ -88,17 +98,55 @@
             const press = self._press;
             self._press = null;
             if (!press || press.button !== 0 || e.button !== 0) return;
-            if (Math.abs(e.clientX - press.x) > 6 || Math.abs(e.clientY - press.y) > 6) return;
 
-            // Position from the event that is actually dropping it. A touch tap
-            // cannot be relied on to send a pointermove first, so without this
-            // the drop uses wherever the ghost happened to be left.
+            // A drag is the camera, not a placement — and it means the player is
+            // looking around again, so the pointer takes the aim back.
+            if (Math.abs(e.clientX - press.x) > 6 || Math.abs(e.clientY - press.y) > 6) {
+                self.releaseAim();
+                return;
+            }
+
+            /*
+             * A mouse has already aimed the ghost by hovering, so a click is the
+             * commit and drops where the player can see it will land.
+             *
+             * A finger has not. The first tap is the aim — that is the moment the
+             * ghost becomes visible where you meant it — and a second tap on the
+             * same spot commits it. In between is where the X/Y/Z console earns
+             * its place: without it a touch player can only place as accurately
+             * as their fingertip.
+             */
+            const touch = e.pointerType === 'touch' || e.pointerType === 'pen';
+            // Asked before the hover moves the ghost out from under the question.
+            const confirming = self.aimed && self.nearGhost(e);
+
+            self.releaseAim();
             self.updateHover(e);
-            self.dropContainer();
+
+            if (!touch || confirming) self.dropContainer();
         };
 
         this._onKeyDown = function (e) {
             if (!self.active) return;
+
+            // Arrows nudge; shift makes the vertical pair the release height.
+            const NUDGE = {
+                ArrowLeft: ['x', -1], ArrowRight: ['x', 1],
+                ArrowUp: ['z', -1], ArrowDown: ['z', 1]
+            };
+            const move = NUDGE[e.key];
+            if (move) {
+                const axis = e.shiftKey && move[0] === 'z' ? 'y' : move[0];
+                self.nudge(axis, axis === 'y' ? -move[1] : move[1]);
+                e.preventDefault();
+                return;
+            }
+            if (e.key === ' ' || e.key === 'Enter') {
+                self.dropContainer();
+                e.preventDefault();
+                return;
+            }
+
             const k = e.key.toLowerCase();
             if (k === 'r') {
                 self.rotate();
@@ -115,9 +163,16 @@
         };
     };
 
-    PhysicsMode.prototype.enter = function () {
+    PhysicsMode.prototype.enter = function (opts) {
         this.active = true;
         const view = this.app.sceneView;
+
+        // The yard is reached by two menu items, and each one names its game.
+        const wanted = (opts && opts.challenge) || 'freeplay';
+        this.challenge = wanted === 'tower' ? 'tower' : 'freeplay';
+        this.run = this.blankRun();
+        this.releaseAim();
+        this.aimed = false;
 
         this.app.terminal.setVisible(true);
         view.setMastsVisible(true);
@@ -329,7 +384,7 @@
         // A turned container has a different footprint, so the height it can
         // clear the stack at changes with it. Leaving the old height behind is
         // what let a rotated container be dropped inside its neighbour.
-        if (this._lastPointer) this.updateHover(this._lastPointer);
+        this.applyHover();
 
         if (Cargo3D.Audio) Cargo3D.Audio.click();
         this.refreshHUD();
@@ -388,6 +443,71 @@
         return targetY;
     };
 
+    /* ── aiming ────────────────────────────────────────────────────────── */
+
+    /** Step a nudge moves the piece by: a whole slot on the grid, 25 cm free. */
+    PhysicsMode.prototype.nudgeStep = function () {
+        return this.placementStyle === 'grid' ? Cargo3D.Constants.GRID.CELL_X : 0.25;
+    };
+
+    /**
+     * Move the piece one step along an axis, without dropping it.
+     *
+     * X and Z slide it over the yard; Y is the height it is released from, which
+     * only ever goes up — the floor is the height the hover already solved, and
+     * below that is inside whatever it is standing on.
+     *
+     * @param {'x'|'y'|'z'} axis
+     * @param {number} dir -1 or 1
+     */
+    PhysicsMode.prototype.nudge = function (axis, dir) {
+        if (!this.ghost) return;
+        if (this.challenge === 'tower' && this.run.status === 'over') return;
+
+        const step = axis === 'y' ? 0.5 : this.nudgeStep();
+        this.offset[axis] += dir * step;
+        if (this.offset.y < 0) this.offset.y = 0;
+
+        // The pointer would undo this on the next stray mouse move.
+        this.aimLocked = true;
+        this.aimed = true;
+        this.applyHover();
+        this.refreshHUD();
+    };
+
+    /**
+     * Where the piece is about to land, for the console's readout — or null when
+     * there is nothing aimed. `locked` says the nudges are holding the position
+     * against the pointer, which is the part a player needs told.
+     */
+    PhysicsMode.prototype.aimReadout = function () {
+        if (!this.ghost || !this.ghost.visible) return null;
+        const p = this.ghost.position;
+        return {
+            x: Math.round(p.x * 10) / 10,
+            y: Math.round(p.y * 10) / 10,
+            z: Math.round(p.z * 10) / 10,
+            locked: this.aimLocked
+        };
+    };
+
+    /** Hand aiming back to the pointer and forget the nudges. */
+    PhysicsMode.prototype.releaseAim = function () {
+        this.aimLocked = false;
+        this.offset.x = this.offset.y = this.offset.z = 0;
+    };
+
+    /** Is this event pointing at roughly where the ghost already is? */
+    PhysicsMode.prototype.nearGhost = function (e) {
+        if (!this.ghost || !this.ghost.visible) return false;
+        const point = this.app.sceneView.pointerToGround(e, this._scratch);
+        if (!point) return false;
+
+        const reach = this.nudgeStep() * 1.5;
+        return Math.abs(point.x - this.ghost.position.x) <= reach &&
+               Math.abs(point.z - this.ghost.position.z) <= reach;
+    };
+
     PhysicsMode.prototype.updateHover = function (e) {
         if (!this.ghost) return;
         if (this.challenge === 'tower' && this.run.status === 'over') {
@@ -395,8 +515,18 @@
             return;
         }
 
-        // Remembered so a rotation can re-solve the hover without a new event.
+        // Remembered so a rotation, or a nudge, can re-solve without a new event.
         this._lastPointer = { clientX: e.clientX, clientY: e.clientY };
+        if (this.aimLocked) return;
+
+        this.aimed = true;
+        this.applyHover();
+    };
+
+    /** Re-solve the ghost from the last pointer position plus the nudges. */
+    PhysicsMode.prototype.applyHover = function () {
+        const e = this._lastPointer;
+        if (!this.ghost || !e) return;
 
         const point = this.app.sceneView.pointerToGround(e, this._scratch);
         if (!point) {
@@ -405,12 +535,14 @@
         }
 
         const spec = this.ghost.userData.spec || DEFAULT_SPEC;
-        let x = point.x;
-        let z = point.z;
+        let x = point.x + this.offset.x;
+        let z = point.z + this.offset.z;
         let halfX, halfZ;
 
         if (this.placementStyle === 'grid') {
-            const snapped = Lattice.snap(point, this.spawnType, this.gridRot(), this._snap);
+            // Snapped after the nudge, so a whole-slot step lands on a slot.
+            this._scratch.set(x, 0, z);
+            const snapped = Lattice.snap(this._scratch, this.spawnType, this.gridRot(), this._snap);
             x = snapped.x;
             z = snapped.z;
             const foot = Lattice.footprint(this.spawnType, this.gridRot());
@@ -424,8 +556,10 @@
             halfZ = (spec.length * c + spec.width * s) / 2;
         }
 
-        // _scratch is the ground point; read it before restHeight() reuses it.
-        this.ghost.position.set(x, this.restHeight(x, z, halfX, halfZ, spec), z);
+        // The Y nudge only ever adds: restHeight() is already the lowest release
+        // that is clear of everything underneath, and below it is inside them.
+        const y = this.restHeight(x, z, halfX, halfZ, spec) + this.offset.y;
+        this.ghost.position.set(x, y, z);
         this.ghost.visible = true;
     };
 
@@ -450,6 +584,11 @@
         if (this.app.effects) this.app.effects.ring(mesh.position.x, 0, mesh.position.z);
 
         if (this.challenge === 'tower') this.run.status = 'settling';
+
+        // The next piece is a fresh shot: the nudges belong to the one just let
+        // go of, and on touch the aim has to be taken again before it commits.
+        this.releaseAim();
+        this.aimed = false;
 
         // Cycle carrier colour for the next drop.
         this.spawnCarrier = CARRIERS[Math.floor(Math.random() * CARRIERS.length)];
@@ -511,7 +650,8 @@
             placementStyle: this.placementStyle,
             status: this.run.status,
             runHeight: Math.round(this.run.height * 10) / 10,
-            best: Math.round((Cargo3D.Storage.getPhysics().bestHeight || 0) * 10) / 10
+            best: Math.round((Cargo3D.Storage.getPhysics().bestHeight || 0) * 10) / 10,
+            aim: this.aimReadout()
         };
     };
 

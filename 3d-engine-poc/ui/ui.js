@@ -195,6 +195,23 @@
             });
         }
 
+        /* The X/Y/Z console. `data-nudge` is an axis and a direction, so one
+           handler covers all six buttons and the markup carries the meaning. */
+        document.querySelectorAll('[data-nudge]').forEach(function (btn) {
+            const spec = btn.getAttribute('data-nudge');
+            const axis = spec.charAt(0);
+            const dir = Number(spec.slice(1));
+            btn.addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.nudge(axis, dir);
+            });
+        });
+
+        if (el('btn-phys-drop')) {
+            el('btn-phys-drop').addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.dropContainer();
+            });
+        }
+
         /**
          * Exclusive button groups driven by a data attribute: the button carries
          * the value, the handler applies it and repaints the group.

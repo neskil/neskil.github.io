@@ -347,6 +347,17 @@
     };
 
     PhysicsHUD.prototype.update = function (m) {
+        // Where the next container will land. The console can hold a position
+        // the pointer no longer agrees with, so the readout says when it does.
+        const coords = el('phys-coords');
+        if (coords) {
+            const aim = m.aim;
+            coords.textContent = aim
+                ? 'X ' + aim.x.toFixed(1) + '   Y ' + aim.y.toFixed(1) + '   Z ' + aim.z.toFixed(1)
+                : 'Point at the yard';
+            coords.classList.toggle('locked', !!(aim && aim.locked));
+        }
+
         if (el('ph-count')) el('ph-count').textContent = m.count;
         if (el('ph-mass')) el('ph-mass').textContent = m.mass + ' t';
         if (el('ph-height')) el('ph-height').textContent = m.height.toFixed(1) + ' m';

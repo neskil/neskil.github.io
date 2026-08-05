@@ -300,6 +300,64 @@
    a desktop the value is redundant with the buttons themselves. */
 .section-value { display: none; }
 
+/* ── X/Y/Z console ───────────────────────────────────────────────────────
+   Three axis pairs and a commit. A pointer aims to within a fingertip; this
+   is how you place a container to within a slot, and the only way to place
+   one accurately at all on a phone.
+*/
+.nudge-pad {
+    display: grid;
+    grid-template-columns: repeat(3, auto) 1fr;
+    align-items: center;
+    gap: 4px 6px;
+}
+
+.nudge-btn {
+    justify-content: center;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    line-height: 1;
+}
+
+.nudge-axis {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    min-width: 14px;
+}
+
+.drop-btn {
+    grid-row: 1 / span 3;
+    grid-column: 4;
+    justify-content: center;
+    align-self: stretch;
+    margin-left: 6px;
+    font-weight: 600;
+    color: var(--text-main);
+    background: rgba(56, 189, 248, 0.16);
+    border-color: rgba(56, 189, 248, 0.4);
+}
+
+.drop-btn:hover {
+    background: rgba(56, 189, 248, 0.3);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+.nudge-readout {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 3px;
+    white-space: nowrap;
+}
+
+/* Held by the console against the pointer — worth saying, since a mouse move
+   would otherwise be expected to take the aim back. */
+.nudge-readout.locked { color: var(--accent-cyan); }
+
 .tool-btn, .palette-btn {
     display: flex;
     align-items: center;
@@ -623,7 +681,14 @@
     .toolbar-section.is-open .section-value { display: none; }
 
     .toolbar-section.collapsible:not(.is-open) > .button-group,
+    .toolbar-section.collapsible:not(.is-open) > .nudge-readout,
     .toolbar-section.collapsible:not(.is-open) > .select-input { display: none; }
+
+    /* The console is the section you keep open while you play, so it gets the
+       room: the axis pairs stretch across the row and Drop takes the end. */
+    .nudge-pad { grid-template-columns: 1fr auto 1fr auto; gap: 6px; }
+    .nudge-btn { padding: 10px 8px; }
+    .drop-btn { min-width: 88px; }
 
     /* Fingers, not a mouse pointer. */
     .tool-btn, .palette-btn { padding: 9px 12px; font-size: 0.82rem; }

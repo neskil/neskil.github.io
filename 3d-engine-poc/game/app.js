@@ -123,9 +123,10 @@
         this.setMode('sandbox');
     };
 
-    App.prototype.startPhysics = function () {
+    /** @param {'freeplay'|'tower'} [challenge] which game the yard opens on */
+    App.prototype.startPhysics = function (challenge) {
         this.ui.closeAllPanels();
-        this.setMode('physics');
+        this.setMode('physics', { challenge: challenge || 'freeplay' });
     };
 
     App.prototype.goToMenu = function () {
