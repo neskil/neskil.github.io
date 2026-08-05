@@ -106,7 +106,7 @@
         }
         function deepest(w) {
             return w.bodies.reduce(function (m, b) {
-                return Math.min(m, b.position.y - b.height / 2);
+                return Math.min(m, b.position.y - b.sizeY / 2);
             }, Infinity);
         }
         function allAsleep(w) {
@@ -124,6 +124,35 @@
                 drop(w, (i % 2 ? j : -j), REST_Y + 0.05 + i * (BOX.h + 0.03), (i % 3 ? -j : j));
             }
         }
+
+        /* ── axes ───────────────────────────────────────────────────────── */
+
+        suite('a collision box is the shape of the container drawn', function () {
+            // render/containers.js lays `length` along X and `width` along Z,
+            // and the grid agrees: a 40ft at rotation 0 spans four cells in X.
+            // Reading them the other way round gave every container a hitbox
+            // turned ninety degrees from the container the player can see.
+            const w = world();
+            const b = drop(w, 0, REST_Y, 0);
+
+            near(b.sizeX, BOX.l, 1e-9, 'the long side runs along X');
+            near(b.sizeY, BOX.h, 1e-9, 'height runs along Y');
+            near(b.sizeZ, BOX.w, 1e-9, 'the narrow side runs along Z');
+
+            // Two containers side by side across their narrow axis: 2.6 m of
+            // separation clears a 2.44 m width, and must not read as a contact.
+            const w2 = world();
+            drop(w2, 0, REST_Y, 0);
+            const beside = drop(w2, 0, REST_Y, 2.6);
+            near(w2.penetrationOf(beside), 0, 1e-6, 'neighbours 2.6 m apart across Z are clear');
+
+            // The same gap along X is deep inside a 6.06 m length.
+            const w3 = world();
+            drop(w3, 0, REST_Y, 0);
+            const overlapping = drop(w3, 2.6, REST_Y, 0);
+            // Depth is to the nearest face, not the full 3.46 m of overlap.
+            ok(w3.penetrationOf(overlapping) > 0.3, 'but 2.6 m apart along X overlaps');
+        });
 
         /* ── resting ────────────────────────────────────────────────────── */
 
@@ -181,7 +210,8 @@
             const w = world();
             let y = REST_Y;
             [5, 4, 3, 2, 1].forEach(function (n) {
-                for (let i = 0; i < n; i++) drop(w, (i - (n - 1) / 2) * 2.6, y, 0);
+                // Spaced along Z: X is the container's 6.06 m long axis.
+                for (let i = 0; i < n; i++) drop(w, 0, y, (i - (n - 1) / 2) * 2.6);
                 y += BOX.h + 0.03;
             });
             run(w, 8);
@@ -207,7 +237,7 @@
             // The whole point of the mode: balance has to actually matter.
             const w = world();
             drop(w, 0, REST_Y, 0);
-            const top = drop(w, 0, REST_Y + BOX.h + 0.1, 4.8);   // ~80% off the end
+            const top = drop(w, 4.8, REST_Y + BOX.h + 0.1, 0);   // ~80% off the end, along X
             run(w, 6);
 
             ok(tiltDeg(top) > 15, 'a container hung off the end tips');
@@ -348,7 +378,7 @@
         suite('a settled stack costs nothing to simulate', function () {
             const w = world();
             for (let i = 0; i < 40; i++) {
-                drop(w, (i % 5 - 2) * 2.6, REST_Y + Math.floor(i / 5) * (BOX.h + 0.03), (i % 3 - 1) * 6.5);
+                drop(w, (i % 5 - 2) * 6.5, REST_Y + Math.floor(i / 5) * (BOX.h + 0.03), (i % 3 - 1) * 2.6);
             }
             run(w, 6);
             ok(allAsleep(w), 'forty bodies all sleep');

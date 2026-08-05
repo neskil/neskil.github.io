@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.4.0 — physics as a failure mode
+
+The campaign gets the simulation, in the one place it belongs. `support:1` was
+the only rule that was ever a physical claim; the other six are regulations, and
+a real terminal genuinely does refuse those moves. So physics replaces support
+and nothing else.
+
+**Added**
+
+- **A `physics` rule and three missions that use it** — *Balancing Act*,
+  *Top Heavy* and *Salvage Yard*. No support ratio to satisfy: overhang what you
+  like, and the yard tells you. The existing thirteen missions are untouched, so
+  their medals still mean what they meant.
+- **Collapse costs ground.** Anything that falls is craned back onto the queue
+  and the squares it started on and landed on are struck off for the rest of the
+  shift. You re-place the cargo with less yard to do it in, which shows up in the
+  envelope as sprawl. The manifest never changes size, so par stays honest.
+- The grid stays authoritative throughout: physics is only ever asked *did it
+  hold*, and a surviving stack snaps back to the lattice it was always on. That
+  is what keeps envelope scoring and a computed par meaningful.
+- `YardGrid` learned blocked squares; `render/yard.js` paints them as wreckage.
+
+**Fixed**
+
+- **Every container's hitbox was turned ninety degrees.** `render/containers.js`
+  lays a container's length along X, and the grid agrees — a 40ft at rotation 0
+  spans four cells in X — but `RigidBox` read `spec.width` as the X extent. So
+  the collision box was across the container it belonged to: stacks that looked
+  flush overlapped, and neighbours that looked clear shoved each other aside by
+  over a metre. Extents are now named by axis, `sizeX`/`sizeY`/`sizeZ`, so the
+  mistake cannot be spelled.
+- **A rotated container could be dropped inside its neighbour.** `rotate()`
+  turned the ghost but left the clearance height solved for the old footprint,
+  and `pointerup` dropped without re-reading the pointer — which a touch tap
+  needs, since it cannot be relied on to send a `pointermove` first.
+- Sample points covered a box's corners, edges and faces but not its centre, so
+  a container crossing through the middle of another could overlap with no point
+  inside either one.
+- **Any mission with pre-placed obstacles crashed on entry** — the obstacle loop
+  used `self` twenty lines before it was declared. That has been broken since
+  obstacles shipped, taking *Endless Yard* with it.
+
 ## v0.3.0 — the physics yard
 
 Real rigid-body physics alongside the grid, not instead of it. The campaign's

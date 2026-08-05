@@ -86,6 +86,20 @@ the tests prove the logic, not the wiring.
 - **Sleeping bodies are static.** A sleeping body contributes zero inverse mass
   to a contact. Anything that should push one must wake it first — see
   `pairContacts()`, which only wakes for a partner that is actually moving.
+- **A container's length runs along X.** `render/containers.js` draws it that
+  way and the grid agrees — a 40ft at rotation 0 spans four cells in X. So
+  `RigidBox` is `sizeX = spec.length`, `sizeZ = spec.width`, named by axis on
+  purpose. Reading `spec.width` as the X extent gives every container a hitbox
+  turned ninety degrees from the one on screen, which looks like stacks melting
+  into each other and neighbours shoving each other aside.
+- **A tier is taller than a container.** `TIER_H` is 2.90 m, a 20ft is 2.59 m,
+  so the lattice leaves 31 cm of air per tier and a simulated stack legitimately
+  sinks onto itself — more the higher it goes. `missionPhysics.js` allows for
+  that per body; a flat drift tolerance condemns every tall stack as collapsed.
+- **`physics` is a rule core/ cannot decide.** Its `check()` always passes. The
+  verdict needs the solver, which needs THREE, so `game/missionPhysics.js`
+  enforces it after the placement. The entry in `RULES` exists so the mission
+  card and briefing describe it like any other regulation.
 - **Dispose meshes.** `ContainerMeshes.disposeGroup()` on anything removed from
   the scene — modes are entered and exited repeatedly in one page life.
 

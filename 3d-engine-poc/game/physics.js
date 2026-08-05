@@ -70,14 +70,25 @@
         this.invMass = this.mass > 0 ? 1 / this.mass : 0;
 
         const spec = mesh.userData.spec || { width: 2.44, height: 2.9, length: 6.06 };
-        this.width = spec.width;
-        this.height = spec.height;
-        this.length = spec.length;
+
+        /*
+         * Extents are named by axis, not by which side of a container they are.
+         *
+         * render/containers.js lays a container's `length` along X and its
+         * `width` along Z, and the grid agrees — a 40ft at rotation 0 spans four
+         * cells in X. Reading `spec.width` as the X extent, as this did, gave
+         * every container a collision box turned ninety degrees from the box you
+         * can see: stacks that looked flush overlapped, and neighbours that
+         * looked clear shoved each other aside.
+         */
+        this.sizeX = spec.length;
+        this.sizeY = spec.height;
+        this.sizeZ = spec.width;
 
         // Diagonal inverse inertia for a solid rectangular cuboid
-        const w2 = this.width * this.width;
-        const h2 = this.height * this.height;
-        const l2 = this.length * this.length;
+        const w2 = this.sizeX * this.sizeX;
+        const h2 = this.sizeY * this.sizeY;
+        const l2 = this.sizeZ * this.sizeZ;
         this.invInertiaBody = new THREE.Vector3(
             12 * this.invMass / (h2 + l2),
             12 * this.invMass / (w2 + l2),
@@ -100,9 +111,9 @@
     }
 
     RigidBox.prototype.generateSamplePoints = function () {
-        const hw = this.width / 2;
-        const hh = this.height / 2;
-        const hl = this.length / 2;
+        const hw = this.sizeX / 2;
+        const hh = this.sizeY / 2;
+        const hl = this.sizeZ / 2;
         const pts = [];
 
         // 8 vertices
@@ -378,7 +389,7 @@
         const invRot = flip ? invRotA : invRotB;
         invRot.copy(into.quaternion).invert();
 
-        const hw = into.width / 2, hh = into.height / 2, hl = into.length / 2;
+        const hw = into.sizeX / 2, hh = into.sizeY / 2, hl = into.sizeZ / 2;
         const pts = from.samplePoints;
         let found = 0;
 
@@ -419,8 +430,8 @@
 
         // Broadphase: bounding spheres.
         const distSq = bA.position.distanceToSquared(bB.position);
-        const rBoundA = Math.sqrt(bA.width * bA.width + bA.height * bA.height + bA.length * bA.length) / 2;
-        const rBoundB = Math.sqrt(bB.width * bB.width + bB.height * bB.height + bB.length * bB.length) / 2;
+        const rBoundA = Math.sqrt(bA.sizeX * bA.sizeX + bA.sizeY * bA.sizeY + bA.sizeZ * bA.sizeZ) / 2;
+        const rBoundB = Math.sqrt(bB.sizeX * bB.sizeX + bB.sizeY * bB.sizeY + bB.sizeZ * bB.sizeZ) / 2;
         const reach = rBoundA + rBoundB;
         if (distSq > reach * reach) return;
 
@@ -462,8 +473,8 @@
             const other = this.bodies[i];
             if (other === body) continue;
 
-            const reachA = Math.sqrt(body.width * body.width + body.height * body.height + body.length * body.length) / 2;
-            const reachB = Math.sqrt(other.width * other.width + other.height * other.height + other.length * other.length) / 2;
+            const reachA = Math.sqrt(body.sizeX * body.sizeX + body.sizeY * body.sizeY + body.sizeZ * body.sizeZ) / 2;
+            const reachB = Math.sqrt(other.sizeX * other.sizeX + other.sizeY * other.sizeY + other.sizeZ * other.sizeZ) / 2;
             const reach = reachA + reachB;
             if (body.position.distanceToSquared(other.position) > reach * reach) continue;
 
@@ -476,7 +487,7 @@
     /** Deepest of `from`'s sample points inside `into`'s box, or 0. */
     function deepestPointIn(from, into) {
         invRotA.copy(into.quaternion).invert();
-        const hw = into.width / 2, hh = into.height / 2, hl = into.length / 2;
+        const hw = into.sizeX / 2, hh = into.sizeY / 2, hl = into.sizeZ / 2;
         let worst = 0;
 
         for (let k = 0; k < from.samplePoints.length; k++) {

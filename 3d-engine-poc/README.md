@@ -31,7 +31,8 @@ with no WebGL context, offline, in a headless browser.
 │
 ├── core/               pure logic — no THREE, no DOM
 │   ├── constants.js    grid metrics, cargo catalogue, carriers, traits
-│   ├── grid.js         YardGrid: occupancy lattice, gravity, support, bounds
+│   ├── grid.js         YardGrid: occupancy lattice, gravity, support, bounds,
+│   │                   ground lost to a collapse
 │   ├── rules.js        terminal regulations as predicates + reasons
 │   ├── scoring.js      envelope volume, par, medals, scorecards
 │   ├── manifest.js     seeded PRNG and manifest generation
@@ -40,7 +41,7 @@ with no WebGL context, offline, in a headless browser.
 │
 ├── missions/
 │   ├── missionSchema.js  mission shape + validator (run by tests.html)
-│   └── campaign.js       the 12 line missions, as data
+│   └── campaign.js       the 16 line missions, as data
 │
 ├── render/             THREE-dependent scene construction
 │   ├── containers.js   procedural cargo meshes, X-ray, heatmap
@@ -61,7 +62,8 @@ with no WebGL context, offline, in a headless browser.
 │   ├── contracts.js    binds the job board to the sandbox
 │   ├── sandbox.js      free-build mode
 │   ├── physics.js      rigid-body solver — contacts, friction, sleep
-│   └── physicsMode.js  experimental physics yard: free play + tower challenge
+│   ├── physicsMode.js  experimental physics yard: free play + tower challenge
+│   └── missionPhysics.js  the solver as a mission's support rule
 │
 ├── ui/                 DOM only
 │   ├── hud.js          mission HUD, queue, sandbox stats, inspector
@@ -103,6 +105,12 @@ grid instead: an impulse solver with no grid, no rules and no support ratio,
 where a stack stands because it balances. Both are legitimate; they answer
 different questions. See *The physics yard* below.
 
+**Only one rule was ever physics.** `support:1` is a physical claim, and a
+mission can hand it to the solver instead by declaring `physics` — see *Physics
+missions*. The other six rules are regulations: no simulation will tell you that
+hazmat needs a gap or that this box leaves on Tuesday, and a real terminal does
+refuse those moves. They stay refusals, and that is not a shortcut.
+
 **Missions are data.** Everything in `campaign.js` is a plain object;
 `missionSchema.js` validates the lot, and `tests.html` asserts that each
 mission's cell count actually factors into a box the bay can hold — so par stays
@@ -115,9 +123,11 @@ container is a rigid body and the stack does whatever the solver says.
 
 **The solver** (`game/physics.js`) is sequential-impulse, boxes only:
 
-- Contacts come from sampling 22 points per box (8 corners, 12 edge midpoints,
-  2 face centres) against the other box's OBB. No SAT, no GJK — for a yard full
-  of cuboids, point-in-box is enough and it is cheap.
+- Contacts come from sampling 23 points per box (8 corners, 12 edge midpoints,
+  2 face centres and the centre itself) against the other box's OBB. No SAT, no
+  GJK — for a yard full of cuboids, point-in-box is enough and it is cheap. The
+  centre point is not optional: without it, a container crossing through the
+  middle of another overlaps with no sample point inside either box.
 - Each step collects contacts once, then relaxes them over 10 iterations with
   **accumulated** normal and friction impulses. The accumulation is the part that
   matters: with a single pass, a support impulse cannot propagate up a stack, and
@@ -148,6 +158,38 @@ container is a rigid body and the stack does whatever the solver says.
 
 `G` toggles between them. The lattice maths lives in `render/yard.js` beside the
 bay's, because that file is the only one allowed to multiply by `CELL_X`.
+
+## Physics missions
+
+A mission that declares `rules: ['physics']` has no support ratio. Every
+placement is handed to `game/missionPhysics.js`, which rebuilds the whole yard as
+rigid bodies on a throwaway world, settles it, and compares the result against
+where the grid says everything should be.
+
+- **It held** — nothing happens, and it cost a few milliseconds the player never
+  noticed. This is the common case, so it is the one that has to be free.
+- **It fell** — the collapse is replayed live, the fallen cargo goes back on the
+  queue, and every square it started on or landed on is struck off for the rest
+  of the shift. You place it again with less yard, which shows up in the envelope
+  as sprawl you did not choose.
+
+The grid stays authoritative. Physics is only ever asked *did it hold*, and
+survivors snap back to the lattice — so envelope scoring, a computed par and
+medals all keep working, which they could not if containers drifted off-grid.
+The manifest is moved, never grown, so `parFor()` sees the same cargo throughout.
+
+Two properties make this usable, and neither held before the solver was
+rewritten: it is **frame-rate independent**, so a verdict is identical on every
+machine rather than a lottery; and it is fast enough to settle a full bay
+invisibly, so only failures cost time.
+
+Two things to know when judging a settle:
+
+- A tier is 2.90 m and a 20ft is 2.59 m, so the lattice leaves 31 cm of air per
+  tier and a stack legitimately sinks onto itself, more the higher it goes.
+  `expectedSettle` allows for it per body.
+- Sideways movement is always a fall. Downward movement is only a fall once it
+  exceeds that slack.
 
 ## Running the tests
 
