@@ -37,7 +37,8 @@
         rules: ['support:1'],
         obstacles: [],
         weather: 'day',
-        shuffle: true
+        shuffle: true,
+        scoreMode: 'pack'
     };
 
     function normalise(mission) {
@@ -57,6 +58,9 @@
 
         if (!m.id) problems.push('mission has no id');
         if (!m.name) problems.push(m.id + ': no name');
+        if (m.scoreMode !== 'pack' && m.scoreMode !== 'sprawl') {
+            problems.push(m.id + ': unknown scoreMode "' + m.scoreMode + '"');
+        }
 
         ['cols', 'rows', 'tiers'].forEach(function (k) {
             if (!(m.bay[k] > 0)) problems.push(m.id + ': bay.' + k + ' must be positive');

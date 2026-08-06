@@ -82,8 +82,8 @@
                 <h3>Envelope</h3>
             </header>
             <div class="metric-row big"><span class="metric-label">Current</span><span class="metric-val" id="hud-envelope">0 m³</span></div>
-            <div class="metric-row"><span class="metric-label">Par</span><span class="metric-val" id="hud-par">0 m³</span></div>
-            <div class="metric-row"><span class="metric-label">Against par</span><span class="metric-val" id="hud-overpar">—</span></div>
+            <div class="metric-row"><span class="metric-label" id="hud-par-label">Par</span><span class="metric-val" id="hud-par">0 m³</span></div>
+            <div class="metric-row"><span class="metric-label" id="hud-overpar-label">Against par</span><span class="metric-val" id="hud-overpar">—</span></div>
             <div class="medal-track" id="medal-track"><span class="track-fill"></span></div>
             <div class="medal-pill" id="hud-medal">—</div>
             <div class="metric-row"><span class="metric-label">Slot efficiency</span><span class="metric-val" id="hud-efficiency">0%</span></div>
@@ -404,6 +404,11 @@
                     <p><strong>Par</strong> is a perfect zero-waste pack of the same manifest.
                        Gold is within 10% of par, silver 30%, bronze 60% — some missions loosen
                        that where a rule makes a clean tiling genuinely hard.</p>
+                    <p>A few missions run the other way: the goal is the biggest envelope you
+                       can make, not the smallest. Two boxes pushed together barely widen the
+                       box around them; the same two dragged to opposite corners of the bay,
+                       one on the floor and one stacked high, multiply it. Gold there means
+                       filling most of the bay's own volume, not staying close to par.</p>
                 </section>
 
                 <section>
@@ -478,7 +483,7 @@
                     <span class="ins-label">Envelope</span><strong id="result-envelope">—</strong>
                 </div>
                 <div class="result-stat headline">
-                    <span class="ins-label">Par</span><strong id="result-par">—</strong>
+                    <span class="ins-label" id="result-par-label">Par</span><strong id="result-par">—</strong>
                 </div>
                 <div class="result-stat"><span class="ins-label">Box</span><strong id="result-span">—</strong></div>
                 <div class="result-stat"><span class="ins-label">Slot efficiency</span><strong id="result-efficiency">—</strong></div>

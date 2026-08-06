@@ -234,10 +234,12 @@
     MissionMode.prototype.snapshot = function (ctrl) {
         const controller = ctrl || this.placement;
         const measure = Scoring.measure(this.grid);
-        const par = Scoring.parFor(this.units);
+        const scoreMode = this.mission.scoreMode === 'sprawl' ? 'sprawl' : 'pack';
+        const target = Scoring.scoreTarget(this.mission, this.units);
 
         return {
             mission: this.mission,
+            scoreMode: scoreMode,
             current: controller ? controller.current() : null,
             upcoming: controller ? controller.upcoming(3) : [],
             placed: this.grid.count(),
@@ -247,13 +249,13 @@
             rot: controller ? controller.rot : 0,
             hover: controller ? controller.hover : null,
             envelope: measure.envelope,
-            par: par,
-            ratio: par ? measure.envelope / par : 0,
-            projectedMedal: Scoring.medalFor(measure.envelope, par, this.mission.medals),
+            par: target,
+            ratio: target ? measure.envelope / target : 0,
+            projectedMedal: Scoring.medalFor(measure.envelope, target, this.mission.medals, scoreMode),
             thresholds: {
-                gold: Scoring.targetFor(par, this.mission.medals, 'gold'),
-                silver: Scoring.targetFor(par, this.mission.medals, 'silver'),
-                bronze: Scoring.targetFor(par, this.mission.medals, 'bronze')
+                gold: Scoring.targetFor(target, this.mission.medals, 'gold'),
+                silver: Scoring.targetFor(target, this.mission.medals, 'silver'),
+                bronze: Scoring.targetFor(target, this.mission.medals, 'bronze')
             },
             measure: measure,
             stuck: controller ? controller.isStuck() : false

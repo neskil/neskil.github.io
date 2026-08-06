@@ -168,20 +168,37 @@
     };
 
     MissionHUD.prototype.update = function (s) {
+        const sprawl = s.scoreMode === 'sprawl';
+
         el('hud-placed').textContent = s.placed + ' / ' + s.total;
         el('hud-envelope').textContent = volume(s.envelope);
         el('hud-par').textContent = volume(s.par);
+        el('hud-par-label').textContent = sprawl ? 'Bay volume' : 'Par';
 
-        // Mid-mission the envelope is naturally under par, so "over par" would
-        // read as praise for an unfinished yard. Only judge once it is done.
+        // Mid-mission a pack envelope is naturally under par — "over par" would
+        // read as praise for an unfinished yard, so that verdict waits for the
+        // last unit. A sprawl envelope only ever grows toward the bay's own
+        // volume, so it can never overshoot; there is only ever a shortfall.
         const pctOfPar = Math.round(s.ratio * 100);
         const overPar = pctOfPar - 100;
+        const shortfall = 100 - pctOfPar;
         const overEl = el('hud-overpar');
+        const overLabel = el('hud-overpar-label');
         const done = s.placed >= s.total && s.total > 0;
+
+        overLabel.textContent = sprawl ? 'Bay filled' : 'Against par';
 
         if (s.placed === 0) {
             overEl.textContent = '—';
             overEl.className = 'metric-val';
+        } else if (sprawl) {
+            if (!done) {
+                overEl.textContent = pctOfPar + '% of the bay so far';
+                overEl.className = 'metric-val';
+            } else {
+                overEl.textContent = shortfall <= 0 ? 'fills the bay' : shortfall + '% left unclaimed';
+                overEl.className = 'metric-val ' + (shortfall <= 10 ? 'status-good' : shortfall <= 30 ? 'status-warn' : 'status-bad');
+            }
         } else if (!done) {
             overEl.textContent = pctOfPar + '% of par so far';
             overEl.className = 'metric-val';
@@ -191,21 +208,34 @@
         }
 
         // Medal track: how far the current envelope sits along gold→bronze.
+        //
+        // Pack reads the envelope itself against the ladder — small is good.
+        // Sprawl reads the *shortfall* from the bay's volume instead — small is
+        // still good — which lets both modes share one bar with the gold zone
+        // always nearest zero, without re-deriving the gradient per direction.
         const track = el('medal-track');
-        const worst = s.thresholds.bronze * 1.25;
-        const pct = Math.min(100, Math.max(0, (s.envelope / worst) * 100));
+        const badnessOf = sprawl
+            ? function (v) { return Math.max(0, s.par - v); }
+            : function (v) { return v; };
+        const worstBadness = badnessOf(s.thresholds.bronze) * 1.25;
+        const pct = worstBadness ? Math.min(100, Math.max(0, badnessOf(s.envelope) / worstBadness * 100)) : 0;
         track.style.setProperty('--fill', pct + '%');
-        track.style.setProperty('--gold', (s.thresholds.gold / worst * 100) + '%');
-        track.style.setProperty('--silver', (s.thresholds.silver / worst * 100) + '%');
-        track.style.setProperty('--bronze', (s.thresholds.bronze / worst * 100) + '%');
+        track.style.setProperty('--gold', (worstBadness ? badnessOf(s.thresholds.gold) / worstBadness * 100 : 0) + '%');
+        track.style.setProperty('--silver', (worstBadness ? badnessOf(s.thresholds.silver) / worstBadness * 100 : 0) + '%');
+        track.style.setProperty('--bronze', (worstBadness ? badnessOf(s.thresholds.bronze) / worstBadness * 100 : 0) + '%');
 
         const medalEl = el('hud-medal');
         if (s.placed === 0) {
             medalEl.textContent = '—';
             medalEl.className = 'medal-pill';
         } else if (s.projectedMedal) {
-            // The envelope only ever grows, so "still inside" is an honest read.
-            medalEl.textContent = MEDAL_ICON[s.projectedMedal] + (done ? ' ' + s.projectedMedal : ' still inside ' + s.projectedMedal);
+            // Pack: the envelope only ever grows, so a medal held mid-mission
+            // could still be lost — "still inside" is the honest read. Sprawl
+            // runs the other way: the envelope only ever grows *toward* the
+            // target, so a medal held mid-mission can only be kept or bettered.
+            medalEl.textContent = MEDAL_ICON[s.projectedMedal] + (done ? ' ' + s.projectedMedal
+                : sprawl ? ' on track for ' + s.projectedMedal
+                : ' still inside ' + s.projectedMedal);
             medalEl.className = 'medal-pill medal-' + s.projectedMedal;
         } else {
             medalEl.textContent = 'past every medal threshold';
@@ -278,7 +308,9 @@
         }
 
         el('strip-placed').textContent = s.placed + ' / ' + s.total;
-        el('strip-par').textContent = s.placed ? pctOfPar + '% par' : '—';
+        el('strip-par').textContent = s.placed
+            ? pctOfPar + (s.scoreMode === 'sprawl' ? '% full' : '% par')
+            : '—';
 
         // No medal at all is the one state worth a warning glyph — the strip has
         // no room to say "past every threshold", and the sheet already does.

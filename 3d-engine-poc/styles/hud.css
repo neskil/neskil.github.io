@@ -430,12 +430,18 @@
 
 /* ── rejection flash ─────────────────────────────────────────────────── */
 
+/* A toast, not a curtain: it used to sit dead-centre on the yard, which meant
+   every rejection or collapse notice hid the very stack it was reporting on.
+   Anchored under the top bar instead, it stays legible without ever covering
+   the thing the player just asked to look at. */
 .reason-flash {
     position: absolute;
-    top: 50%;
+    top: 82px;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.94);
+    transform: translate(-50%, -10px) scale(0.94);
     z-index: 18;
+    max-width: min(90vw, 460px);
+    text-align: center;
     background: rgba(127, 29, 29, 0.9);
     border: 1px solid rgba(248, 113, 113, 0.55);
     color: #fee2e2;
@@ -449,7 +455,7 @@
     box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
 }
 
-.reason-flash.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.reason-flash.visible { opacity: 1; transform: translate(-50%, 0) scale(1); }
 
 .reason-flash.good {
     background: rgba(6, 78, 59, 0.92);
@@ -703,6 +709,18 @@
 
     /* Nothing legal left for this unit — the same warning the sheet spells out. */
     .mobile-strip.stuck { border-color: rgba(239, 68, 68, 0.55); }
+
+    /* Below the mobile strip here, not the 82px desktop offset — the strip
+       already occupies that band on a phone. */
+    .reason-flash {
+        top: calc(108px + var(--safe-top));
+        max-width: none;
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        transform: translateY(-10px) scale(0.94);
+    }
+
+    .reason-flash.visible { transform: translateY(0) scale(1); }
 
     /*
      * Selecting a container in the sandbox is pointless if the panel that

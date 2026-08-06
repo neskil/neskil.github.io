@@ -136,7 +136,9 @@
             const unlocked = Storage.isUnlocked(Campaign.MISSIONS, mission.id);
             const record = Storage.missionRecord(mission.id);
             const units = Cargo3D.Manifest.build(mission);
-            const par = Scoring.parFor(units);
+            const sprawl = mission.scoreMode === 'sprawl';
+            const target = Scoring.scoreTarget(mission, units);
+            const targetLabel = sprawl ? 'bay' : 'par';
 
             const card = document.createElement('button');
             card.className = 'mission-card' + (unlocked ? '' : ' locked');
@@ -150,8 +152,8 @@
 
             const best = record && record.best
                 ? '<span class="best-val">' + Math.round(record.best).toLocaleString() + ' m³</span>' +
-                  '<span class="best-par">par ' + Math.round(par).toLocaleString() + '</span>'
-                : '<span class="best-par">par ' + Math.round(par).toLocaleString() + ' m³</span>';
+                  '<span class="best-par">' + targetLabel + ' ' + Math.round(target).toLocaleString() + '</span>'
+                : '<span class="best-par">' + targetLabel + ' ' + Math.round(target).toLocaleString() + ' m³</span>';
 
             card.innerHTML =
                 '<span class="mission-index">' + String(i + 1).padStart(2, '0') + '</span>' +

@@ -328,6 +328,46 @@
             eq(perfect.medal, 'gold', 'par earns gold');
         });
 
+        suite('scoring — sprawl mode runs the ladder backwards', function () {
+            const cell = C.GRID.CELL_VOLUME;
+            const bay = { cols: 6, rows: 4, tiers: 2 };
+
+            near(Scoring.bayVolume(bay), 48 * cell, 1e-6, 'bay volume is cols × rows × tiers of cells');
+
+            const mission = { bay: bay, scoreMode: 'sprawl', medals: { gold: 0.90, silver: 0.65, bronze: 0.40 } };
+            const units = [{ type: '20ft' }, { type: '20ft' }, { type: '20ft' }];
+            const target = Scoring.scoreTarget(mission, units);
+            near(target, Scoring.bayVolume(bay), 1e-6, 'sprawl scores against the bay, not a zero-waste pack');
+
+            eq(Scoring.medalFor(target * 0.95, target, mission.medals, 'sprawl'), 'gold', 'filling nearly the whole bay is gold');
+            eq(Scoring.medalFor(target * 0.70, target, mission.medals, 'sprawl'), 'silver', 'a smaller share is silver');
+            eq(Scoring.medalFor(target * 0.50, target, mission.medals, 'sprawl'), 'bronze', 'a smaller share still is bronze');
+            ok(Scoring.medalFor(target * 0.10, target, mission.medals, 'sprawl') === null, 'a bunched-up envelope earns nothing');
+            ok(Scoring.medalFor(target * 0.95, target, mission.medals) === null, 'omitting the mode reads it as pack, which this is not');
+
+            // Show Bay itself: two units spread to opposite corners of the floor,
+            // the third stacked directly on top of one of them.
+            const showBay = Campaign.byId('m17');
+            const grid = new Grid(showBay.bay.cols, showBay.bay.rows, showBay.bay.tiers);
+            const three = ManifestLib.build(showBay);
+
+            grid.place(three[0], 0, 0, 0, 0);
+            grid.place(three[1], 4, 3, 0, 0);
+            grid.place(three[2], 0, 0, 1, 0);
+
+            const spread = Scoring.buildResult(grid, showBay, three, null);
+            ok(spread.complete, 'three units finish the manifest');
+            near(spread.envelope, Scoring.bayVolume(showBay.bay), 1e-6, 'two corners plus a roof claim the whole bay');
+            eq(spread.medal, 'gold', 'claiming the whole bay is gold');
+
+            const bunched = new Grid(showBay.bay.cols, showBay.bay.rows, showBay.bay.tiers);
+            bunched.place(three[0], 0, 0, 0, 0);
+            bunched.place(three[1], 2, 0, 0, 0);
+            bunched.place(three[2], 4, 0, 0, 0);
+            const packed = Scoring.buildResult(bunched, showBay, three, null);
+            ok(packed.medal === null, 'the same three boxes in a tidy row earn nothing under sprawl scoring');
+        });
+
         // ── manifest ────────────────────────────────────────────────────────
         suite('manifest — determinism', function () {
             const mission = Campaign.byId('m07');
@@ -403,8 +443,11 @@
 
         suite('campaign — every mission needs its full height', function () {
             // If the floor alone holds the manifest there is no reason to stack,
-            // which makes the mid-campaign lessons meaningless. Tutorials are exempt.
+            // which makes the mid-campaign lessons meaningless. Tutorials are
+            // exempt, and so is a sprawl mission — its whole point is a manifest
+            // with room to spare, not one that forces stacking through scarcity.
             Campaign.MISSIONS.slice(2).forEach(function (mission) {
+                if (mission.scoreMode === 'sprawl') return;
                 const cells = Scoring.cellsFor(ManifestLib.build(mission));
                 const floor = mission.bay.cols * mission.bay.rows;
                 report(cells > floor, mission.id + ' — ' + cells + ' cells exceed the ' + floor + '-slot floor');

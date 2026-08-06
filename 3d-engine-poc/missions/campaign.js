@@ -327,6 +327,34 @@
             seed: 1016,
             medals: { gold: 1.35, silver: 1.65, bronze: 2.10 },
             weather: 'clear'
+        },
+
+        /*
+         * The one mission that runs the score backwards. `scoreMode: 'sprawl'`
+         * judges the envelope against the bay's own volume instead of a
+         * zero-waste par, and wants it big instead of small — see
+         * core/scoring.js. Medal thresholds here are floors, not ceilings.
+         */
+        {
+            id: 'm17',
+            name: 'Show Bay',
+            tagline: 'Corporate wants the yard looking full for the drone shot.',
+            teaches: 'The envelope is the box around everything you have placed — here, bigger ' +
+                     'is the point. Opposite corners grow it sideways; the roof of a box grows it ' +
+                     'upward, and costs nothing you have not already placed.',
+            brief: 'A photographer is doing a flyover at four and head office wants the bay looking ' +
+                   'busy from above. Three boxes sitting next to each other read as a corner of a big ' +
+                   'empty yard. The same three, two pushed to opposite corners of the floor and the ' +
+                   'third put up on the roof of one of them, read as a full one.',
+            bay: { cols: 6, rows: 4, tiers: 2 },
+            scoreMode: 'sprawl',
+            rules: ['physics'],
+            units: [
+                { type: '20ft', count: 3 }
+            ],
+            seed: 1017,
+            medals: { gold: 0.90, silver: 0.65, bronze: 0.40 },
+            weather: 'day'
         }
     ];
 

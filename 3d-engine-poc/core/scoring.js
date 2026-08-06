@@ -2,12 +2,18 @@
  * core/scoring.js — how a finished yard is measured.
  *
  * The rank is the *envelope*: the volume of the smallest axis-aligned box that
- * contains every occupied cell. Lower wins. Sprawl multiplies across all tiers,
- * air pockets are paid for, and the number is visible in the scene as a
- * wireframe while you play.
+ * contains every occupied cell. A mission's `scoreMode` decides which way that
+ * number should go:
  *
- * Par is derived from the manifest — a perfect zero-waste pack — so a new
- * mission needs no hand-tuned target.
+ *   - 'pack'   (default) — lower wins. Sprawl multiplies across all tiers, air
+ *     pockets are paid for, and par is a perfect zero-waste pack of the
+ *     manifest: the tightest the envelope could ever be.
+ *   - 'sprawl' — higher wins. The target is the bay's own volume: the biggest
+ *     the envelope could ever be, given the mission's own bay size. Medal
+ *     thresholds are read as a floor instead of a ceiling.
+ *
+ * Both targets are derived — from the manifest or from the bay the mission
+ * already declares — so a new mission needs no hand-tuned number either way.
  */
 (function (global) {
     'use strict';
@@ -98,23 +104,51 @@
         return cells;
     }
 
+    /** The whole bay's volume in m³ — the ceiling a sprawl mission scores against. */
+    function bayVolume(bay) {
+        return bay.cols * bay.rows * bay.tiers * cellVolume();
+    }
+
     /**
+     * The volume a mission scores the envelope against: the tightest a pack
+     * mission could ever be, or the biggest a sprawl mission could ever be.
+     * @param {object} mission
+     * @param {object[]} units the full manifest
+     */
+    function scoreTarget(mission, units) {
+        return mission.scoreMode === 'sprawl' ? bayVolume(mission.bay) : parFor(units);
+    }
+
+    /**
+     * @param {number} envelope
+     * @param {number} target par (pack) or bay volume (sprawl)
+     * @param {object} [thresholds]
+     * @param {'pack'|'sprawl'} [mode]
      * @returns {'gold'|'silver'|'bronze'|null}
      */
-    function medalFor(envelope, par, thresholds) {
-        if (!par || !envelope) return null;
+    function medalFor(envelope, target, thresholds, mode) {
+        if (!target || !envelope) return null;
         const t = Object.assign({}, DEFAULT_MEDALS, thresholds || {});
-        const ratio = envelope / par;
+        const ratio = envelope / target;
+        if (mode === 'sprawl') {
+            if (ratio >= t.gold) return 'gold';
+            if (ratio >= t.silver) return 'silver';
+            if (ratio >= t.bronze) return 'bronze';
+            return null;
+        }
         if (ratio <= t.gold) return 'gold';
         if (ratio <= t.silver) return 'silver';
         if (ratio <= t.bronze) return 'bronze';
         return null;
     }
 
-    /** Volume you must not exceed to earn a given medal. */
-    function targetFor(par, thresholds, medal) {
+    /**
+     * Volume threshold for a given medal: the most a pack mission may use, or
+     * the least a sprawl mission must fill.
+     */
+    function targetFor(target, thresholds, medal) {
         const t = Object.assign({}, DEFAULT_MEDALS, thresholds || {});
-        return par * (t[medal] || t.bronze);
+        return target * (t[medal] || t.bronze);
     }
 
     /**
@@ -127,28 +161,30 @@
      */
     function buildResult(grid, mission, units, stats) {
         const m = measure(grid);
-        const par = parFor(units);
+        const mode = mission.scoreMode === 'sprawl' ? 'sprawl' : 'pack';
+        const target = scoreTarget(mission, units);
         const placed = grid.count();
         const complete = placed >= units.length;
-        const medal = complete ? medalFor(m.envelope, par, mission.medals) : null;
+        const medal = complete ? medalFor(m.envelope, target, mission.medals, mode) : null;
 
         return {
             missionId: mission.id,
             missionName: mission.name,
+            scoreMode: mode,
             complete: complete,
             placed: placed,
             required: units.length,
             envelope: m.envelope,
-            par: par,
-            ratio: par ? m.envelope / par : 0,
-            overPar: m.envelope - par,
+            par: target,
+            ratio: target ? m.envelope / target : 0,
+            overPar: m.envelope - target,
             medal: medal,
             measure: m,
             stats: stats || { moves: placed, undos: 0, elapsedMs: 0 },
             thresholds: {
-                gold: targetFor(par, mission.medals, 'gold'),
-                silver: targetFor(par, mission.medals, 'silver'),
-                bronze: targetFor(par, mission.medals, 'bronze')
+                gold: targetFor(target, mission.medals, 'gold'),
+                silver: targetFor(target, mission.medals, 'silver'),
+                bronze: targetFor(target, mission.medals, 'bronze')
             }
         };
     }
@@ -156,9 +192,11 @@
     Cargo3D.Scoring = {
         DEFAULT_MEDALS: DEFAULT_MEDALS,
         cellVolume: cellVolume,
+        bayVolume: bayVolume,
         measure: measure,
         parFor: parFor,
         cellsFor: cellsFor,
+        scoreTarget: scoreTarget,
         medalFor: medalFor,
         targetFor: targetFor,
         buildResult: buildResult

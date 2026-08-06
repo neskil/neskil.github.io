@@ -77,7 +77,11 @@
         const prev = data.missions[result.missionId] || { plays: 0, best: null, medal: null, completed: false };
         const previousBest = prev.best;
 
-        const improved = result.complete && (prev.best === null || result.envelope < prev.best - 1e-6);
+        // Pack: smaller envelope is better. Sprawl: bigger is — the ladder runs
+        // the other way, so "improved" has to flip with it.
+        const improved = result.complete && (prev.best === null || (result.scoreMode === 'sprawl'
+            ? result.envelope > prev.best + 1e-6
+            : result.envelope < prev.best - 1e-6));
 
         const record = {
             plays: (prev.plays || 0) + 1,

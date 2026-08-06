@@ -59,13 +59,23 @@
             : 'Shift complete — ' + result.missionName;
         el('result-verdict').className = 'result-verdict ' + (medal ? 'medal-' + medal : 'medal-none');
 
+        const sprawl = result.scoreMode === 'sprawl';
         const overPar = Math.round((result.ratio - 1) * 100);
-        el('result-sub').textContent = overPar <= 0
-            ? 'A perfect pack. Nothing wasted.'
-            : overPar + '% over par — ' + volume(result.overPar) + ' of air in the envelope.';
+        const shortfall = Math.round((1 - result.ratio) * 100);
+
+        if (sprawl) {
+            el('result-sub').textContent = shortfall <= 0
+                ? 'Filled the bay completely.'
+                : shortfall + '% short of the bay — ' + volume(-result.overPar) + ' left unclaimed.';
+        } else {
+            el('result-sub').textContent = overPar <= 0
+                ? 'A perfect pack. Nothing wasted.'
+                : overPar + '% over par — ' + volume(result.overPar) + ' of air in the envelope.';
+        }
 
         el('result-envelope').textContent = volume(result.envelope);
         el('result-par').textContent = volume(result.par);
+        el('result-par-label').textContent = sprawl ? 'Bay volume' : 'Par';
         el('result-span').textContent = result.measure.spanX + ' × ' + result.measure.spanZ +
             ' × ' + result.measure.spanTiers + ' slots';
         el('result-efficiency').textContent = Math.round(result.measure.slotEfficiency * 100) + '%';
@@ -78,16 +88,17 @@
         // Medal thresholds, so a near miss is legible.
         el('result-thresholds').innerHTML = ['gold', 'silver', 'bronze'].map(function (key) {
             const target = result.thresholds[key];
-            const hit = result.envelope <= target;
+            const hit = sprawl ? result.envelope >= target : result.envelope <= target;
             return '<li class="' + (hit ? 'hit' : 'miss') + '">' +
                 '<span>' + MEDAL_ICON[key] + ' ' + MEDAL_NAME[key] + '</span>' +
-                '<strong>≤ ' + volume(target) + '</strong></li>';
+                '<strong>' + (sprawl ? '≥ ' : '≤ ') + volume(target) + '</strong></li>';
         }).join('');
 
         const bestEl = el('result-best');
         if (saved && saved.improved) {
             bestEl.textContent = saved.previousBest
-                ? 'New best — ' + volume(saved.previousBest - result.envelope) + ' tighter than before.'
+                ? 'New best — ' + volume(Math.abs(result.envelope - saved.previousBest)) +
+                  (sprawl ? ' bigger than before.' : ' tighter than before.')
                 : 'New best result.';
             bestEl.className = 'result-best improved';
         } else if (saved && saved.record && saved.record.best) {
