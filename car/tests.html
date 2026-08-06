@@ -343,6 +343,47 @@
         set('flexAllowance', held.allow); flexTier = held.tier;
     })();
 
+    // ── 16. Flexcar model-year adjustment ────────────────────────────
+    (function testFlexcarAge() {
+        const heldAge = carAge, heldCase = scenarioCase;
+        const rateFor = (age, scen) => {
+            carAge = age; scenarioCase = scen;
+            return computeAll(readInputs()).flexcar.rate;
+        };
+        const base = rateFor('three', 'expected');
+
+        assert('No age picked leaves the Flexcar rate exactly as typed',
+            rateFor(null, 'expected') === base);
+
+        assert('The 3-yr band is the anchor — it adds nothing',
+            rateFor('three', 'expected') === base);
+
+        assert('A current-model-year car costs more than the 3-yr anchor',
+            rateFor('new', 'expected') > base);
+
+        assert('Current model year lands in the observed $100–200 spread',
+            rateFor('new', 'optimistic') - base === 100 &&
+            rateFor('new', 'pessimistic') - base === 200,
+            'got ' + (rateFor('new', 'optimistic') - base) + '–' +
+            (rateFor('new', 'pessimistic') - base));
+
+        assert('Older bands come in under the anchor',
+            rateFor('six', 'expected') < base && rateFor('ten', 'expected') < base);
+
+        assert('The used discount flattens rather than running away',
+            rateFor('ten', 'expected') - rateFor('six', 'expected') >
+            rateFor('six', 'expected') - rateFor('three', 'expected') - 100);
+
+        // Optimistic is the cheaper end on every band, new or used — the
+        // scenario toggle must not invert once the adjustment goes negative.
+        for (const age of ['new', 'three', 'six', 'ten']) {
+            assert('Optimistic is never dearer than pessimistic (' + age + ')',
+                rateFor(age, 'optimistic') <= rateFor(age, 'pessimistic'));
+        }
+
+        carAge = heldAge; scenarioCase = heldCase;
+    })();
+
     // Summary output
     const summary = document.getElementById('summary');
     summary.innerHTML = passed + ' passed, ' + failed + ' failed' +

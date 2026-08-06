@@ -392,6 +392,29 @@ function renderOptionNotes(results, v) {
     subNote(results.sixt, v.rentAllowance, v.rentBlockPrice, 'rentNote');
     subNote(results.flexcar, v.flexAllowance, v.flexBlockPrice, 'flexNote');
 
+    /* The age adjustment moves the car line without the field changing, so
+       say it where the rate is entered — an unexplained number is the same
+       problem the resale field had. */
+    const fx = results.flexcar;
+    if (fx.ageStep && fx.ageAdjustment !== 0) {
+        const dearer = fx.ageAdjustment > 0;
+        /* lo is the cheapest end, so on a discount band it is the *larger*
+           number once the sign is dropped — quote the range ascending. */
+        const ends = [Math.abs(fx.ageStep.lo), Math.abs(fx.ageStep.hi)].sort((a, b) => a - b);
+        $('flexNote').innerHTML +=
+            ' Your ' + AGE_BANDS[carAge].label.toLowerCase() + ' car is priced <strong>' +
+            usd0(Math.abs(fx.ageAdjustment)) + '/mo ' + (dearer ? 'above' : 'below') +
+            '</strong> the rate in the field, which reads as a 3-year-old car — Flexcar charges for ' +
+            'the model year like everyone else, and the other five bars already move when you change ' +
+            'it. The spread runs ' + usd0(ends[0]) + '–' + usd0(ends[1]) +
+            ', and the scenario buttons pick which end you get. <em>Estimated</em> — the ' +
+            'current-model-year figure comes from quotes, the used bands are extrapolated' +
+            (carAge === 'ten'
+                ? ', and this band is the shakiest of them: Flexcar runs a late-model fleet, so a car ' +
+                  'this old is likely not on offer at any price'
+                : '') + '.';
+    }
+
     /* Sixt's waiver came to within two dollars of retail cover, which made
        "it is all-in" a fair claim. Flexcar's does not, and the gap is the
        whole point: the plan is mandatory *and* dearer than the policy it

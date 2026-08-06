@@ -156,6 +156,34 @@ weeks). Local vehicles carry **no delivery fee** ($0); delivery charges ($199
 to $874) only apply if you request a car shipped from out of state. **OnTrack** cuts the rate after six months of on-time payment and
 safe driving — $734 → $684 in their own example — and follows you across cars.
 
+**Flexcar, two more itemised checkouts (Gwinnett County, GA).** A 2024 VW
+Tiguan: Standard Plan $374.00 (850 mi/mo) + Essential Protection $245.00 +
+$37.14 tax = **$656.14**, falling to $604.00 on OnTrack. A loaded hybrid 2026
+Mazda CX-50, same package: $569.00 + $245.00 + $48.84 = **$862.84**, falling to
+$799.00. Both confirm tax at **exactly 6.0%**, and both quote the car line as
+"Standard Plan — 850 miles per month included" — which settles that a listing's
+rate is a *Standard* baseline, so the tier offset is what upgrading off it
+costs rather than something already priced in. Three listing chips had carried
+1,200 mi against a Standard rate and were corrected to 850.
+
+These two also show OnTrack is **not a fixed dollar cut**: working back through
+the tax it is $49.19 on the $374 Tiguan (13.2%), $52.02 on the $424 Tucson
+(12.3%) and $60.23 on the $569 CX-50 (10.6%). It scales with the car line and
+flattens as the line grows. Three points are not enough to fit a rule, so the
+page keeps a single editable figure and this stays a known gap.
+
+**The model year moves the car line, and the page now says so.** The same
+package runs roughly **$100–200/mo more before tax on a current model year**
+than on a 3-year-old car, from the spread between the quotes above and their
+newer equivalents. Every other route already repriced when you changed the age
+band while Flexcar sat still, so the bar was quietly comparing a different car.
+The 3-year band is the anchor — it is what the typed rate represents, and the
+page's own fallback when no age is picked — with newer dearer and older
+cheaper. **The current-model-year figure is observed; the used bands are
+extrapolated**, and the discount deliberately flattens because Flexcar runs a
+late-model fleet and a ten-year-old car is likely not on offer at any price.
+The scenario toggle picks which end of each spread you get.
+
 **The comparison trap that motivated the tax field:** Sixt+ quotes with tax in,
 Flexcar quotes without. Reading the two headlines side by side flatters Flexcar
 by whatever the local rate is.
@@ -189,8 +217,13 @@ by whatever the local rate is.
 - **Sixt+ minimum term is a price lever the page does not model.** One month
   against two changed both the rate and the entry fee in the two real quotes;
   the page takes them as given rather than letting you trade term for rate.
-- **Flexcar's mileage tiers are not selectable.** Standard 850 / Cruiser 1,200 /
-  Road Warrior 2,000 each carry their own price, and the page has one number.
+- **Flexcar's OnTrack cut is a flat figure but behaves like a percentage.**
+  10.6–13.2% of the car line across three quotes, shrinking as the line grows.
+  One editable number stands in for it.
+- **Flexcar's used-age bands are extrapolated**, unlike the current-model-year
+  step, which comes from quotes. No used Flexcar checkout has been seen.
+- **Flexcar has no additional-driver line.** Sixt+ prices one; on Flexcar the
+  charge is currently absorbed into the protection plan.
 
 ## 1. Electric and hybrid powertrains — the biggest remaining gap
 
