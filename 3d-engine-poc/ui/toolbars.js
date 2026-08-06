@@ -113,19 +113,23 @@
             return entry;
         }).filter(Boolean);
 
-        // The spawn palette is the control you come back to, so it is the one
-        // section that starts open — and an open section is the clearest hint
-        // that the closed chips beside it also expand.
+        // One section starts open, both because it is the control you come back
+        // to and because an open section is the clearest hint that the closed
+        // chips beside it also expand. A bar names its own with
+        // `data-open-first`; otherwise it is the spawn palette.
         //
         // Except on a phone held sideways, where the folded bar is already a
         // quarter of the screen and an open section pushes it over the bay.
         // There the hint costs more than it is worth; the chips still expand.
         if (window.matchMedia('(min-height: 560px)').matches) {
-            const palette = this.sections.filter(function (entry) {
+            const first = this.sections.filter(function (entry) {
+                return entry.section.hasAttribute('data-open-first');
+            })[0] || this.sections.filter(function (entry) {
                 return entry.section.querySelector('.palette-btn') ||
                        entry.section.querySelector('#spawn-palette, #physics-palette');
             })[0];
-            if (palette) palette.open = true;
+
+            if (first) first.open = true;
             else if (this.sections.length) this.sections[0].open = true;
         }
 

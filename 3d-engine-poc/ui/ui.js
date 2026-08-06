@@ -76,9 +76,7 @@
             stamp.textContent = commit;
 
             if (build.commit && build.commit !== 'unstamped') {
-                stamp.title = 'Build ' + commit + (build.date ? ' · ' + build.date : '') +
-                    '\nOpens this commit on GitHub';
-                stamp.href = 'https://github.com/' + build.repo + '/commit/' + commit;
+                stamp.title = 'Build ' + commit + (build.date ? ' · ' + build.date : '');
             } else {
                 stamp.title = 'Not stamped — run tools/stamp-build.sh before pushing';
             }
@@ -192,6 +190,23 @@
         if (el('btn-phys-clear')) {
             el('btn-phys-clear').addEventListener('click', function () {
                 if (app.modeName === 'physics') app.mode.clearYard();
+            });
+        }
+
+        /* The X/Y/Z console. `data-nudge` is an axis and a direction, so one
+           handler covers all six buttons and the markup carries the meaning. */
+        document.querySelectorAll('[data-nudge]').forEach(function (btn) {
+            const spec = btn.getAttribute('data-nudge');
+            const axis = spec.charAt(0);
+            const dir = Number(spec.slice(1));
+            btn.addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.nudge(axis, dir);
+            });
+        });
+
+        if (el('btn-phys-drop')) {
+            el('btn-phys-drop').addEventListener('click', function () {
+                if (app.modeName === 'physics') app.mode.dropContainer();
             });
         }
 

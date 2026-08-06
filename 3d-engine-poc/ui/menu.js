@@ -33,7 +33,8 @@
 
         el('btn-campaign').addEventListener('click', function () { self.openSelect(); });
         el('btn-sandbox').addEventListener('click', function () { app.startSandbox(); });
-        if (el('btn-physics')) el('btn-physics').addEventListener('click', function () { app.startPhysics(); });
+        if (el('btn-physics')) el('btn-physics').addEventListener('click', function () { app.startPhysics('freeplay'); });
+        if (el('btn-tower')) el('btn-tower').addEventListener('click', function () { app.startPhysics('tower'); });
         el('btn-howto').addEventListener('click', function () { self.open('howto'); });
         el('btn-howto-close').addEventListener('click', function () { self.closeTop(); });
         el('btn-select-close').addEventListener('click', function () { self.openMain(); });
@@ -107,11 +108,15 @@
 
     MenuUI.prototype.renderProgress = function () {
         const s = Storage.summary(Campaign.MISSIONS);
+        // One pill: four of them wrapped onto a second row on a phone, and they
+        // are one fact — how far through the campaign you are.
         el('menu-progress').innerHTML =
-            '<span class="prog-pill">' + s.completed + ' / ' + s.total + ' missions</span>' +
-            '<span class="prog-pill">🥇 ' + s.gold + '</span>' +
-            '<span class="prog-pill">🥈 ' + s.silver + '</span>' +
-            '<span class="prog-pill">🥉 ' + s.bronze + '</span>';
+            '<span class="prog-pill">' +
+                '<span class="prog-part">' + s.completed + ' / ' + s.total + ' missions</span>' +
+                '<span class="prog-part">🥇 ' + s.gold + '</span>' +
+                '<span class="prog-part">🥈 ' + s.silver + '</span>' +
+                '<span class="prog-part">🥉 ' + s.bronze + '</span>' +
+            '</span>';
     };
 
     MenuUI.prototype.renderSelect = function () {

@@ -149,7 +149,7 @@ box or a small union of them:
 - Bodies sleep after 0.5 s at rest and drop out of the loop. A settled stack of
   40 costs ~0.55 ms/frame.
 
-**Two challenges**, switched from the toolbar:
+**Two challenges**, each with its own menu item and switchable from the toolbar:
 
 - *Free play* — drop anything anywhere and watch it fall over.
 - *Tower* — stack as high as you can. Height is only credited once every body is
@@ -166,6 +166,18 @@ box or a small union of them:
 
 `G` toggles between them. The lattice maths lives in `render/yard.js` beside the
 bay's, because that file is the only one allowed to multiply by `CELL_X`.
+
+**Aiming** is a pointer plus an X/Y/Z console. The pointer sets a position; the
+console nudges it from there — a whole slot per press on the grid, 25 cm free,
+and on Y the height the container is released from, which only ever goes up
+because the hover already solves the lowest release that is clear of everything
+underneath. A nudge locks the aim, so a stray mouse move cannot undo it; a drop
+or a camera drag hands it back.
+
+A mouse click drops in one action, because hovering has already aimed it. A
+touch tap has not aimed anything yet, so the first tap parks the ghost and a
+second tap on the same spot commits — which is the room the console needs to be
+usable at all with a fingertip.
 
 ## Physics missions
 

@@ -492,7 +492,7 @@ function scenarioSubscription(v, cfg) {
     const allIn = (cfg.rate + (cfg.insurance || 0)) * (1 + tax) +
         (cfg.upkeep || 0) + (cfg.fees || 0);
     const t = led.totals();
-    return finish(t, v, {
+    return finish(t, v, Object.assign({
         resale: 0,
         overagePerMonth,
         mileageBlocks: blocks,
@@ -503,7 +503,7 @@ function scenarioSubscription(v, cfg) {
         insuranceLine: cfg.insurance || 0,
         excessRisk,
         monthlyOutlay: allIn + overagePerMonth + fuel
-    });
+    }, cfg.extra || {}));
 }
 
 /* The real contract, line by line, rather than one headline number. Each
@@ -531,11 +531,26 @@ function scenarioSixt(v) {
    and a required $249 annual membership covering servicing and roadside.
    Local vehicles have no delivery fee ($0); delivery charges only apply if
    you opt for an out-of-state vehicle to be shipped to you. */
+/* The model-year adjustment, and which end of its spread this case takes.
+   Zero until an age band is picked — with no car described there is
+   nothing to match the rate to, and guessing would be worse than the
+   honest "this is a different car" the bar already says. */
+function flexcarAgeStep(v) {
+    const step = FLEXCAR_AGE_STEPS[carAge];
+    if (!step) return { amount: 0, step: null };
+    const key = v.scenarioCase;
+    const amount = key === 'optimistic' ? step.lo
+        : key === 'pessimistic' ? step.hi
+        : (step.lo + step.hi) / 2;
+    return { amount, step };
+}
+
 function scenarioFlexcar(v) {
     const tier = FLEXCAR_TIERS[v.flexTier] || FLEXCAR_TIERS.standard;
     const cred = CREDIT_TIERS[creditTier] || CREDIT_TIERS.prime;
     const credOffset = cred.flexOffset || 0;
-    const rate = Math.max(0, v.flexRate + tier.rateOffset + credOffset);
+    const age = flexcarAgeStep(v);
+    const rate = Math.max(0, v.flexRate + tier.rateOffset + credOffset + age.amount);
     /* The car line is quoted against the Standard plan, so the tier offset
        above is what upgrading costs — but the miles themselves come from
        the field, which the tier chips write into. Reading tier.allowance
@@ -551,7 +566,8 @@ function scenarioFlexcar(v) {
         onTrackCut: v.flexOnTrack,
         excess: v.flexExcess,
         startFee: v.flexStartFee, annualFee: true,
-        allowance: allowance, blockPrice: v.flexBlockPrice
+        allowance: allowance, blockPrice: v.flexBlockPrice,
+        extra: { ageAdjustment: age.amount, ageStep: age.step }
     });
 }
 

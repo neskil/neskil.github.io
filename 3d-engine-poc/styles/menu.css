@@ -50,14 +50,22 @@
 .panel-sub { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
 
 .prog-pill {
+    display: inline-flex;
+    align-items: center;
     font-size: 0.74rem;
     font-weight: 600;
-    padding: 3px 10px;
+    padding: 3px 4px;
     border-radius: 99px;
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--glass-border);
     color: var(--text-sub);
+    max-width: 100%;
+    overflow: hidden;
 }
+
+/* Divided rather than separated: one pill cannot wrap onto a second row. */
+.prog-part { padding: 0 9px; white-space: nowrap; }
+.prog-part + .prog-part { border-left: 1px solid rgba(255, 255, 255, 0.12); }
 
 /* ── main menu ───────────────────────────────────────────────────────── */
 
@@ -97,6 +105,19 @@
     margin: 0 auto;
 }
 
+/* The first item, not a different species. A full gradient button here read as
+   another element entirely and pulled the eye off the title; this is the same
+   surface as its neighbours with a warmer edge. */
+.menu-lead {
+    background: rgba(56, 189, 248, 0.11);
+    border-color: rgba(56, 189, 248, 0.36);
+}
+
+.menu-lead:hover {
+    background: rgba(56, 189, 248, 0.19);
+    border-color: rgba(56, 189, 248, 0.5);
+}
+
 .menu-actions {
     display: flex;
     flex-direction: column;
@@ -110,7 +131,16 @@
     justify-content: flex-end;
 }
 
-.menu-progress { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.menu-progress { display: flex; justify-content: center; max-width: 100%; }
+
+/* The build credit sits under the panel, not over the title: it wrapped to two
+   lines on a phone and the first thing above the game's name was a stack of
+   library names. */
+.menu-panel > .menu-kicker {
+    margin-top: -10px;
+    font-size: 0.62rem;
+    color: var(--text-muted);
+}
 
 /* ── mission select ──────────────────────────────────────────────────── */
 
@@ -409,4 +439,11 @@
     .threshold-list { flex-direction: column; }
     .menu-actions.row { flex-direction: column; }
     .menu-brand h2 { font-size: 2rem; }
+
+    /* 34px of padding each side is most of a phone. The progress pill is the
+       widest thing in the panel and has to fit inside its own border. */
+    .menu-panel { padding: 26px 18px; gap: 18px; }
+    .prog-pill { font-size: 0.68rem; }
+    .prog-part { padding: 0 7px; }
+    .menu-panel > .menu-kicker { font-size: 0.58rem; letter-spacing: 0.1em; }
 }
