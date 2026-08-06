@@ -302,6 +302,22 @@
             <span class="section-title">Spawn Cargo</span>
             <div class="button-group" id="physics-palette"></div>
         </div>
+        <div class="toolbar-section" data-open-first>
+            <span class="section-title">Position</span>
+            <div class="button-group nudge-pad">
+                <button class="tool-btn nudge-btn" data-nudge="x-1" title="Move west (←)">◀</button>
+                <span class="nudge-axis">X</span>
+                <button class="tool-btn nudge-btn" data-nudge="x1" title="Move east (→)">▶</button>
+                <button class="tool-btn nudge-btn" data-nudge="z-1" title="Move north (↑)">◀</button>
+                <span class="nudge-axis">Z</span>
+                <button class="tool-btn nudge-btn" data-nudge="z1" title="Move south (↓)">▶</button>
+                <button class="tool-btn nudge-btn" data-nudge="y-1" title="Lower the release (Shift+↓)">▼</button>
+                <span class="nudge-axis">Y</span>
+                <button class="tool-btn nudge-btn" data-nudge="y1" title="Raise the release (Shift+↑)">▲</button>
+                <button id="btn-phys-drop" class="tool-btn drop-btn" title="Drop it here (Space)">⬇ Drop</button>
+            </div>
+            <div class="nudge-readout" id="phys-coords">—</div>
+        </div>
         <div class="toolbar-section">
             <span class="section-title">Camera</span>
             <div class="button-group">
@@ -324,19 +340,21 @@
     <div id="menu-overlay" class="overlay">
         <div class="panel menu-panel">
             <div class="menu-brand">
-                <span class="menu-kicker">WebGL · Three.js · no build step</span>
                 <h2>Yard Master</h2>
-                <p>Every container in the manifest has to land somewhere. The score is the
-                   volume of the box around your stack — sprawl and air both cost you.
-                   Lowest envelope wins.</p>
+                <p><strong>Campaign</strong> is the packing puzzle: the score is the volume of
+                   the box around your stack, so sprawl and air both cost you.
+                   <strong>Tower</strong> is the other way round — no bay, no manifest, just
+                   gravity and how high you dare go.</p>
             </div>
             <div class="menu-actions">
-                <button id="btn-campaign" class="primary-btn">▶ Campaign</button>
+                <button id="btn-campaign" class="ghost-btn menu-lead">▶ Campaign</button>
+                <button id="btn-tower" class="ghost-btn">🗼 Tower</button>
                 <button id="btn-sandbox" class="ghost-btn">🏗️ Sandbox</button>
-                <button id="btn-physics" class="ghost-btn">🧪 Physics (Exp)</button>
+                <button id="btn-physics" class="ghost-btn">🧪 Physics Yard</button>
                 <button id="btn-howto" class="ghost-btn">How to play</button>
             </div>
             <div class="menu-progress" id="menu-progress"></div>
+            <span class="menu-kicker">WebGL · Three.js · no build step</span>
         </div>
     </div>
 
@@ -396,6 +414,21 @@
                 <section>
                     <h3>Regulations</h3>
                     <ul class="def-list" id="howto-rules"></ul>
+                </section>
+
+                <section>
+                    <h3>Tower</h3>
+                    <p>A separate game with the same containers. There is no grid holding
+                       anything up — every unit has mass, friction and a centre of gravity,
+                       and a stack stands only because it balances. Height counts once the
+                       tower stops moving; one collapse ends the run and the best is kept.</p>
+                    <p>Placing to within a fingertip is not good enough for a tall stack, so
+                       the toolbar carries an <strong>X/Y/Z console</strong>. Aim roughly, then
+                       step the container over in whole slots, raise the height it is released
+                       from, and commit with <strong>Drop</strong>. On a keyboard that is the
+                       arrow keys, <kbd>Shift</kbd> with them for height, and <kbd>Space</kbd>
+                       to let go. On a phone the first tap aims and a second tap on the same
+                       spot drops, which leaves room to nudge in between.</p>
                 </section>
 
                 <section>

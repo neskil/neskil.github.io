@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.4.3 — Tower is its own game
+
+**Added**
+
+- **A tidier main menu.** The library credit no longer sits above the game's
+  name, where it wrapped to two lines on a phone; the campaign's four progress
+  pills are one divided pill, which cannot wrap onto a second row.
+- **Tower is a menu item**, not a toggle buried in an experimental mode. The two
+  games now sit next to each other on the main menu: pack the manifest into the
+  smallest box, or stack until it falls over. The physics yard keeps its own
+  entry for free play, and the Challenge toggle still switches between them
+  in-mode.
+- **An X/Y/Z console.** A pointer aims to within a fingertip, which is not
+  enough for a tall stack and is hopeless on a phone. Three axis pairs step the
+  container over in whole slots (25 cm in free placement), raise the height it is
+  released from, and a Drop button commits. Arrow keys do the same on a
+  keyboard, `Shift` with them for height, `Space` to let go. A nudge holds the
+  position against the pointer until you drop or drag the camera, so a stray
+  mouse move cannot undo the aim you just took.
+- **Aim before you drop, on touch.** A mouse has already aimed by hovering, so a
+  click still drops in one action. A finger has not: the first tap parks the
+  ghost where you meant it and a second tap on the same spot commits, which is
+  what leaves room to use the console in between.
 ## v0.4.2 — a phone that stays where you put it
 
 **Fixed**
