@@ -26,7 +26,7 @@ Stamp the build, so the live page says which version it is:
 3d-engine-poc/tools/stamp-build.sh && git commit -am "chore(3d): stamp build"
 ```
 
-The chip in the top bar reads `version.js` and links to that commit on GitHub.
+The chip in the top bar reads `version.js` and shows that commit as plain text.
 It names the commit that was HEAD when the script ran — a file cannot contain
 its own hash, so the stamp always trails by the stamp commit itself. That is the
 useful end of the trade: it names the change you are looking for, not the
