@@ -100,6 +100,19 @@
     margin: 0 auto;
 }
 
+/* The first item, not a different species. A full gradient button here read as
+   another element entirely and pulled the eye off the title; this is the same
+   surface as its neighbours with a warmer edge. */
+.menu-lead {
+    background: rgba(56, 189, 248, 0.11);
+    border-color: rgba(56, 189, 248, 0.36);
+}
+
+.menu-lead:hover {
+    background: rgba(56, 189, 248, 0.19);
+    border-color: rgba(56, 189, 248, 0.5);
+}
+
 .menu-actions {
     display: flex;
     flex-direction: column;
