@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.4.2 — Tower is its own game
+## v0.4.3 — Tower is its own game
 
 **Added**
 
@@ -23,6 +23,48 @@
   click still drops in one action. A finger has not: the first tap parks the
   ghost where you meant it and a second tap on the same spot commits, which is
   what leaves room to use the console in between.
+## v0.4.2 — a phone that stays where you put it
+
+**Fixed**
+
+- **A swipe on the control bar scrolled the whole game off the screen.** The
+  page shell was `height: 100%; overflow: hidden`, which on a phone is two
+  separate lies: `100%` is the layout viewport (browser chrome hidden) rather
+  than the shorter one you are looking at, and `overflow: hidden` suppresses the
+  scrollbar without making the box unscrollable — a swipe that starts inside a
+  nested scroller still chains out to the document and drags it. So the bar had
+  a screenful of slack behind it, and using it pulled the top bar, the HUD and
+  the canvas up past the bottom edge, scrollbar and all. The shell is now a
+  fixed box sized in `dvh`, every panel that scrolls contains its own
+  overscroll, and the canvas is measured from its container instead of from
+  `window.innerHeight` so the two can never disagree.
+- **A bay framed for a desktop ran off both edges of an upright phone.** The
+  camera fitted the bay's bounding sphere to the vertical field of view only,
+  but the horizontal one narrows with the aspect ratio. It now fits whichever
+  axis is tighter, leaves more margin in portrait — where the strip and the
+  control bar own the top and bottom of the screen — and re-fits when the phone
+  is turned, widening rather than yanking a camera the player has moved.
+
+**Added**
+
+- **The mission readouts came back to the phone.** They were hidden outright
+  below the breakpoint, which left a phone playing blind: no manifest, no
+  envelope, no medal, and no way to read the regulation that just refused a
+  move. They fold into one sheet instead, closed by default, with a strip under
+  the top bar that both summarises it and opens it — what is landing, how far
+  through, where the envelope sits against par, and which medal that still
+  leaves. Tapping the yard dismisses the sheet without also dropping a
+  container.
+- **The sandbox inspector works on a phone.** Selecting a container and then
+  being unable to rotate or remove it was the whole interaction, missing.
+- **The phone layout now covers a phone on its side too.** 844 × 390 escaped the
+  width breakpoint and got the desktop arrangement — a queue down one edge, a
+  readout down the other and a bar across the bottom — which leaves the yard a
+  letterbox. Short viewports take the same layout as narrow ones, and start with
+  every toolbar section folded.
+- Safe-area insets on the top bar, the control bar, the strip and the overlays,
+  so nothing sits under a cutout or a gesture bar; larger dismiss and menu
+  targets; and overlay panels laid out for one column rather than two.
 
 ## v0.4.1 — a phone-sized yard, and the Tetris blocks everywhere
 

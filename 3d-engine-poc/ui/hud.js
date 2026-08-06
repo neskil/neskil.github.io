@@ -84,7 +84,53 @@
         this.controls = el('mission-controls');
         this.flash = el('reason-flash');
         this._flashTimer = null;
+
+        /* The phone layout (see the `max-width: 820px` block in hud.css) folds
+           both readouts into one sheet and puts a one-line summary of it under
+           the top bar. Above the breakpoint the strip is not rendered and the
+           sheet wrapper generates no box, so all of this is inert. */
+        this.sheet = el('mission-sheet');
+        this.strip = el('mission-strip');
+        this.sheetOpen = false;
+
+        const self = this;
+        if (this.strip) {
+            this.strip.addEventListener('click', function () { self.toggleSheet(); });
+        }
+
+        /*
+         * An open sheet covers the yard, so anything outside it dismisses it.
+         *
+         * A tap on the canvas dismisses and stops there — dropping a container
+         * on the sliver of yard you could still see is never what that tap
+         * meant. Both event families have to be swallowed: the placement
+         * controller arms itself on `pointerdown` and again on `touchstart`, so
+         * blocking one leaves the other to commit on release.
+         */
+        function dismiss(e) {
+            if (!self.sheetOpen) return;
+            if (self.sheet && self.sheet.contains(e.target)) return;
+            if (self.strip && self.strip.contains(e.target)) return;
+            self.setSheetOpen(false);
+            if (e.target && e.target.tagName === 'CANVAS') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+
+        document.addEventListener('pointerdown', dismiss, true);
+        document.addEventListener('touchstart', dismiss, { capture: true, passive: false });
     }
+
+    MissionHUD.prototype.setSheetOpen = function (open) {
+        this.sheetOpen = !!open;
+        if (this.sheet) this.sheet.classList.toggle('open', this.sheetOpen);
+        if (this.strip) this.strip.setAttribute('aria-expanded', this.sheetOpen ? 'true' : 'false');
+    };
+
+    MissionHUD.prototype.toggleSheet = function () {
+        this.setSheetOpen(!this.sheetOpen);
+    };
 
     MissionHUD.prototype.show = function (mission, units) {
         const rules = Cargo3D.Rules.describeRules(mission.rules);
@@ -109,12 +155,15 @@
         this.root.classList.remove('hidden');
         this.queue.classList.remove('hidden');
         this.controls.classList.remove('hidden');
+        if (this.strip) this.strip.classList.remove('hidden');
     };
 
     MissionHUD.prototype.hide = function () {
         this.root.classList.add('hidden');
         this.queue.classList.add('hidden');
         this.controls.classList.add('hidden');
+        if (this.strip) this.strip.classList.add('hidden');
+        this.setSheetOpen(false);
         this.clearFlash();
     };
 
@@ -202,7 +251,41 @@
         if (rotateBtn) rotateBtn.disabled = !s.canRotate;
 
         const stuckEl = el('hud-stuck');
-        stuckEl.classList.toggle('hidden', !(s.stuck && s.current));
+        const stuck = !!(s.stuck && s.current);
+        stuckEl.classList.toggle('hidden', !stuck);
+
+        this.updateStrip(s, pctOfPar, stuck);
+    };
+
+    /**
+     * The phone strip. Four readings, in the order a placement needs them: what
+     * is landing, how far through the manifest, where the envelope sits against
+     * par, and which medal that still leaves. Everything else — the bay, the
+     * regulations, the rest of the queue — is one tap away in the sheet.
+     */
+    MissionHUD.prototype.updateStrip = function (s, pctOfPar, stuck) {
+        if (!this.strip) return;
+
+        const now = el('strip-now');
+        if (s.current) {
+            const type = C.CARGO_TYPES[s.current.type] || C.CARGO_TYPES['20ft'];
+            const carrier = C.CARRIERS[s.current.carrier] || C.CARRIERS.maersk;
+            now.innerHTML = '<span class="chip-swatch" style="background:#' +
+                carrier.color.toString(16).padStart(6, '0') + '"></span>' +
+                shapeGridSVG(s.current.type) + type.label;
+        } else {
+            now.textContent = 'Manifest cleared';
+        }
+
+        el('strip-placed').textContent = s.placed + ' / ' + s.total;
+        el('strip-par').textContent = s.placed ? pctOfPar + '% par' : '—';
+
+        // No medal at all is the one state worth a warning glyph — the strip has
+        // no room to say "past every threshold", and the sheet already does.
+        el('strip-medal').textContent = !s.placed ? ''
+            : (MEDAL_ICON[s.projectedMedal] || '⚠');
+
+        this.strip.classList.toggle('stuck', stuck);
     };
 
     MissionHUD.prototype.flashReason = function (text) {

@@ -29,6 +29,13 @@
 
     --radius: 14px;
     --shadow: 0 10px 36px rgba(0, 0, 0, 0.42);
+
+    /* Display cutouts and gesture bars. Zero everywhere else, so the calc()s
+       that use them are safe to write unconditionally. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -39,10 +46,40 @@
     -webkit-user-select: none;
 }
 
-html, body {
+html {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    /* A swipe that runs out of content stops there — no pull-to-refresh, no
+       overscroll glow, and nothing for a nested scroller to chain into. */
+    overscroll-behavior: none;
+    background-color: var(--bg-dark);
+}
+
+/*
+ * The shell is taken out of flow on purpose.
+ *
+ * `overflow: hidden` hides the scrollbar and refuses direct gestures, but it
+ * does not make a box unscrollable: a swipe that begins inside a nested
+ * scroller — the control bar, which has `overflow-y: auto` — still chains out
+ * to the document and drags it. And on a phone there is always something to
+ * drag, because `height: 100%` measures the layout viewport (browser chrome
+ * hidden) while the player is looking at the smaller visual one. The result was
+ * the whole UI sliding off the bottom of the screen, scrollbar and all.
+ *
+ * A fixed box has no scrollable overflow at all, so there is nothing to chain
+ * into, and `100dvh` keeps it the height of the viewport that is actually
+ * visible as the browser chrome comes and goes.
+ */
+body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
     background-color: var(--bg-dark);
     font-family: var(--font-body);
     color: var(--text-main);
@@ -52,7 +89,13 @@ html, body {
     position: absolute;
     inset: 0;
     z-index: 1;
+    /* The camera controls own every gesture over the yard. Without this the
+       browser also gets a say — one-finger pan, pinch-zoom and double-tap
+       zoom all fight the orbit controls for the same drag. */
+    touch-action: none;
 }
+
+#canvas-container canvas { display: block; touch-action: none; }
 
 .hidden { display: none !important; }
 
@@ -249,11 +292,11 @@ kbd {
    (the badge repeats the strapline in the menu), reduce the back link to its
    arrow, and hold the title to one line so the two buttons keep their place.
 */
-@media (max-width: 820px) {
+@media (max-width: 820px), (max-height: 500px) {
     .top-nav {
-        top: 8px;
-        left: 8px;
-        right: 8px;
+        top: calc(8px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
         height: 46px;
         padding: 0 8px;
         gap: 8px;
@@ -275,7 +318,8 @@ kbd {
     .badge { display: none; }
 
     .header-actions { gap: 6px; }
-    .icon-btn { width: 34px; height: 32px; font-size: 0.95rem; }
+    /* As tall as the bar allows: these two are the only way out of a mode. */
+    .icon-btn { width: 38px; height: 38px; font-size: 0.95rem; }
     /* Kept — the title ellipsises before the stamp costs anyone a button, and
        knowing which build is live is the whole point of putting it up here. */
     .build-stamp { font-size: 0.62rem; padding: 3px 5px; }

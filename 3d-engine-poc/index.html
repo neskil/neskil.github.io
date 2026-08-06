@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover so the yard runs under a cutout (the HUD keeps clear
+         of it via env(safe-area-inset-*)); user-scalable=no because pinch and
+         double-tap are camera controls here, and browser zoom on top of them
+         leaves the page scrolled somewhere the game cannot see. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>Yard Master — 3D Container Stacking Game | Niklas Billgren</title>
     <meta name="description" content="A 3D container packing puzzle: stack the manifest into the tightest possible envelope. Line missions, terminal regulations and a free-build cargo yard sandbox, in WebGL.">
     <meta name="author" content="Niklas Billgren">
@@ -51,7 +55,15 @@
         </div>
     </header>
 
-    <!-- ── mission HUD ──────────────────────────────────────────────── -->
+    <!-- ── mission HUD ──────────────────────────────────────────────────
+         The wrapper generates no box on a desktop, so the queue keeps the left
+         margin and the readouts the right. On a phone it is the sheet that
+         #mission-strip pulls up. -->
+    <div id="mission-sheet" class="mission-sheet">
+
+    <!-- ── mission queue ────────────────────────────────────────────── -->
+    <div id="queue-bar" class="queue-bar hidden"></div>
+
     <aside id="mission-hud" class="hud-stack hidden">
         <section class="hud-card">
             <header class="hud-card-header">
@@ -88,11 +100,21 @@
         </section>
     </aside>
 
+    </div><!-- /#mission-sheet -->
+
+    <!-- Phone-only summary of the sheet above, and its handle. -->
+    <button id="mission-strip" class="mobile-strip hidden" type="button"
+            aria-expanded="false" aria-controls="mission-sheet">
+        <span class="strip-now" id="strip-now">—</span>
+        <span class="strip-stat" id="strip-placed">0 / 0</span>
+        <span class="strip-stat" id="strip-par">—</span>
+        <span class="strip-medal" id="strip-medal"></span>
+        <span class="strip-caret" aria-hidden="true">⌄</span>
+    </button>
+
     <div id="reason-flash" class="reason-flash"></div>
 
-    <!-- ── mission queue + controls ─────────────────────────────────── -->
-    <div id="queue-bar" class="queue-bar hidden"></div>
-
+    <!-- ── mission controls ─────────────────────────────────────────── -->
     <div id="mission-controls" class="control-bar hidden">
         <div class="toolbar-section">
             <span class="section-title">Placement</span>

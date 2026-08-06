@@ -114,8 +114,11 @@ function update() {
     for (const btn of document.querySelectorAll('#agePresets .preset-btn')) {
         btn.classList.toggle('active', btn.dataset.age === carAge);
     }
+    /* Same rule as the other preset rows: type a cap the named plans do
+       not sell and no chip lights, because it is no longer one of them. */
     for (const btn of document.querySelectorAll('#flexTierPresets .preset-btn')) {
-        btn.classList.toggle('active', btn.dataset.tier === flexTier);
+        btn.classList.toggle('active', btn.dataset.tier === flexTier &&
+            FLEXCAR_TIERS[btn.dataset.tier].allowance === v.flexAllowance);
     }
     save();
 }
@@ -257,9 +260,13 @@ for (const btn of document.querySelectorAll('#powertrainPresets .preset-btn')) {
     });
 }
 
+/* A Flexcar tier is a rate step *and* a mileage cap — the chip has to
+   write the cap into the field, or the model prices one plan while the
+   panels quote another. */
 for (const btn of document.querySelectorAll('#flexTierPresets .preset-btn')) {
     btn.addEventListener('click', () => {
         flexTier = btn.dataset.tier;
+        $('flexAllowance').value = FLEXCAR_TIERS[flexTier].allowance;
         update();
     });
 }
@@ -345,7 +352,16 @@ for (const btn of document.querySelectorAll('#flexPresets .preset-btn')) {
         $('flexProtection').value = btn.dataset.protection;
         if (btn.dataset.excess !== undefined) $('flexExcess').value = btn.dataset.excess;
         $('flexDelivery').value = btn.dataset.delivery;
-        if (btn.dataset.allowance) $('flexAllowance').value = btn.dataset.allowance;
+        /* A listing quotes one plan, and the checkout itemises it as the
+           car line — so the cap comes with the rate, and the tier has to
+           follow both. Leaving a stale tier behind would bill the upgrade
+           without the miles. */
+        if (btn.dataset.allowance) {
+            $('flexAllowance').value = btn.dataset.allowance;
+            const match = Object.keys(FLEXCAR_TIERS).find((k) =>
+                FLEXCAR_TIERS[k].allowance === Number(btn.dataset.allowance));
+            flexTier = match || 'standard';
+        }
         update();
     });
 }

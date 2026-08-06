@@ -536,7 +536,13 @@ function scenarioFlexcar(v) {
     const cred = CREDIT_TIERS[creditTier] || CREDIT_TIERS.prime;
     const credOffset = cred.flexOffset || 0;
     const rate = Math.max(0, v.flexRate + tier.rateOffset + credOffset);
-    const allowance = tier.allowance;
+    /* The car line is quoted against the Standard plan, so the tier offset
+       above is what upgrading costs — but the miles themselves come from
+       the field, which the tier chips write into. Reading tier.allowance
+       here instead left the field inert and, worse, disagreeing with the
+       panels that quote it: Low Gear sells miles in 200-mile steps that no
+       chip covers, and a listing is free to include something else again. */
+    const allowance = v.flexAllowance;
     return scenarioSubscription(v, {
         rate: rate,
         insurance: v.flexProtection,
