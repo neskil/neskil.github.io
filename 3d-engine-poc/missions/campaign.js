@@ -26,7 +26,7 @@
             brief: 'A quiet Monday. Eight units off the feeder, one small bay, no complications. ' +
                    'Fill the floor and you have already matched par.',
             bay: { cols: 4, rows: 3, tiers: 3 },
-            rules: ['support:1'],
+            rules: ['physics'],
             units: [
                 { type: '20ft', count: 4 },
                 { type: '10ft', count: 4 }
@@ -42,7 +42,7 @@
             brief: 'Three high-cubes and three standards. The bay is exactly wide enough for a 40ft ' +
                    'and a 20ft side by side, if you see it.',
             bay: { cols: 6, rows: 3, tiers: 3 },
-            rules: ['support:1'],
+            rules: ['physics'],
             units: [
                 { type: '40ft', count: 3 },
                 { type: '20ft', count: 3 }
@@ -58,7 +58,7 @@
             brief: 'Thirty slots of cargo, twenty slots of floor, and a crane that will not lift past ' +
                    'the second tier. Two clean tiers over three rows is par.',
             bay: { cols: 5, rows: 4, tiers: 2 },
-            rules: ['support:1', 'maxTier:2'],
+            rules: ['physics', 'maxTier:2'],
             units: [
                 { type: '40ft', count: 3 },
                 { type: '20ft', count: 6 },
@@ -75,7 +75,7 @@
             brief: 'Four machinery crates off the heavy-lift berth, plus the usual boxes. ' +
                    'Crates want corners; leave the awkward strips for the 10ft units.',
             bay: { cols: 5, rows: 4, tiers: 3 },
-            rules: ['support:1'],
+            rules: ['physics'],
             units: [
                 { type: 'crate', count: 4 },
                 { type: '20ft', count: 8 },
@@ -93,7 +93,7 @@
             brief: 'Loaded high-cubes at thirty tonnes, half-empty tens at five. Get the order wrong ' +
                    'and the heavy boxes have nowhere left to go but the floor.',
             bay: { cols: 5, rows: 4, tiers: 4 },
-            rules: ['support:1', 'heavyBelow'],
+            rules: ['physics', 'heavyBelow'],
             units: [
                 { type: '40ft', count: 4, load: 0.90 },
                 { type: '20ft', count: 8, load: 0.50 },
@@ -112,7 +112,7 @@
             brief: 'Four tanks in the arrival order. Each one seals the column it lands in, so spend ' +
                    'them on the top tier and not a moment earlier.',
             bay: { cols: 5, rows: 4, tiers: 4 },
-            rules: ['support:1', 'noTopLoad'],
+            rules: ['physics', 'noTopLoad'],
             units: [
                 { type: 'tank', count: 4 },
                 { type: '40ft', count: 2 },
@@ -131,7 +131,7 @@
             brief: 'Three refrigerated high-cubes and the rest dry. The outer rows are the only place ' +
                    'the reefers can live — so decide early what earns an edge slot.',
             bay: { cols: 6, rows: 4, tiers: 4 },
-            rules: ['support:1', 'reeferEdge'],
+            rules: ['physics', 'reeferEdge'],
             units: [
                 { type: '40ft', count: 3, traits: ['reefer'] },
                 { type: '40ft', count: 3 },
@@ -150,7 +150,7 @@
             brief: 'Four flagged boxes in a bay you need to pack solid. The separation rule only looks ' +
                    'sideways; the vertical is yours to exploit.',
             bay: { cols: 6, rows: 4, tiers: 4 },
-            rules: ['support:1', 'hazmatGap'],
+            rules: ['physics', 'hazmatGap'],
             units: [
                 { type: '40ft', count: 6 },
                 { type: '20ft', count: 4, traits: ['hazmat'] },
@@ -169,7 +169,7 @@
             brief: 'Three sailings, three days, one bay. The Wednesday high-cubes are your foundation; ' +
                    'the Monday tens have to stay diggable.',
             bay: { cols: 6, rows: 4, tiers: 4 },
-            rules: ['support:1', 'departureOrder'],
+            rules: ['physics', 'departureOrder'],
             units: [
                 { type: '40ft', count: 6, departure: 3 },
                 { type: '20ft', count: 8, departure: 2 },
@@ -187,7 +187,7 @@
             brief: 'A full shift. Twenty-four units, three regulations, and a seven-wide bay that packs ' +
                    'perfectly into two tiers if you keep the rows honest.',
             bay: { cols: 7, rows: 4, tiers: 4 },
-            rules: ['support:1', 'reeferEdge', 'hazmatGap', 'departureOrder'],
+            rules: ['physics', 'reeferEdge', 'hazmatGap', 'departureOrder'],
             units: [
                 { type: '40ft', count: 4, departure: 3 },
                 { type: '40ft', count: 4, departure: 3, traits: ['reefer'] },
@@ -207,7 +207,7 @@
             brief: 'The overflow bay: four slots wide, three deep, and cleared for five tiers. ' +
                    'A 40ft spans the whole width, so every one you place commits a full row.',
             bay: { cols: 4, rows: 3, tiers: 5 },
-            rules: ['support:1', 'heavyBelow'],
+            rules: ['physics', 'heavyBelow'],
             units: [
                 { type: '40ft', count: 6, load: 0.85 },
                 { type: '20ft', count: 8, load: 0.50 },
@@ -225,7 +225,7 @@
             brief: 'Peak season. Crates, tanks, reefers, dangerous goods and three sailings, in a bay ' +
                    'that is exactly three perfect tiers deep. Nobody gets gold on the first run.',
             bay: { cols: 6, rows: 4, tiers: 5 },
-            rules: ['support:1', 'noTopLoad', 'heavyBelow', 'reeferEdge', 'hazmatGap', 'departureOrder'],
+            rules: ['physics', 'noTopLoad', 'heavyBelow', 'reeferEdge', 'hazmatGap', 'departureOrder'],
             units: [
                 { type: '40ft', count: 5, departure: 3, load: 0.85 },
                 { type: '40ft', count: 3, departure: 3, load: 0.85, traits: ['reefer'] },
@@ -246,7 +246,7 @@
             teaches: 'Continuous random cargo stream with pre-placed obstacles & Tetris blocks.',
             brief: 'The terminal never sleeps. Cargo keeps arriving off ships and trains in random sequence with pre-placed obstacles to challenge your packing precision.',
             bay: { cols: 8, rows: 5, tiers: 4 },
-            rules: ['support:1', 'heavyBelow'],
+            rules: ['physics', 'heavyBelow'],
             obstacles: [
                 { type: '20ft', carrier: 'steel', x: 1, z: 1, tier: 0 },
                 { type: '10ft', carrier: 'steel', x: 5, z: 3, tier: 0 }
@@ -265,11 +265,12 @@
         },
 
         /*
-         * The physics arc. These missions drop the support rule entirely: the
-         * simulation decides, and a stack that will not hold comes down and
-         * takes its ground with it. Medals are looser than the campaign's,
-         * because the ground you lose is a cost the par calculation knows
-         * nothing about.
+         * The physics arc. Every mission already lets the simulation decide
+         * whether a stack holds — these three lean on that harder: heavier
+         * overhangs, top-heavy loads and salvage ground, where a collapse is
+         * the point rather than a rare mistake. Medals are looser than
+         * earlier missions, because the ground you lose to a collapse is a
+         * cost the par calculation knows nothing about.
          */
         {
             id: 'm14',
