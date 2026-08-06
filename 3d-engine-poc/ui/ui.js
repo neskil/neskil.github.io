@@ -76,9 +76,7 @@
             stamp.textContent = commit;
 
             if (build.commit && build.commit !== 'unstamped') {
-                stamp.title = 'Build ' + commit + (build.date ? ' · ' + build.date : '') +
-                    '\nOpens this commit on GitHub';
-                stamp.href = 'https://github.com/' + build.repo + '/commit/' + commit;
+                stamp.title = 'Build ' + commit + (build.date ? ' · ' + build.date : '');
             } else {
                 stamp.title = 'Not stamped — run tools/stamp-build.sh before pushing';
             }
