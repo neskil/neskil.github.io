@@ -235,6 +235,39 @@ const FLEXCAR_TIERS = {
     warrior:  { label: 'Road Warrior 2,000 mi', allowance: 2000, rateOffset: 150 }
 };
 
+/* What the model year does to a Flexcar car line.
+   ─────────────────────────────────────────────────────────────────────
+   Every other route on this page prices the car you described, while
+   Flexcar sat on whatever rate you typed — so picking "brand new" moved
+   five bars and left the sixth quoting something older. That is not a
+   like-for-like comparison, and the page was already admitting as much by
+   labelling the bar "different car".
+
+   The anchor is the 3-year-old band, because that is what the typed rate
+   represents: the page's own fallback when no age is picked, and the era
+   of three of the four listing chips. Newer costs more, older costs less,
+   and the adjustment is zero until you have actually said which car you
+   are pricing.
+
+   These are ESTIMATES and are flagged as such in the UI. The +$100–200
+   for a current model year is an observed spread — a 2024 Tiguan at $374
+   against 2025/2026 mainstream SUVs roughly $100 dearer, and a loaded
+   2026 hybrid at $569 — but the used bands are an extrapolation, not a
+   quote. Flexcar's fleet is late-model, so the discount flattens rather
+   than continuing to fall: they do not stock ten-year-old cars, and a
+   band that kept sliding would invent a price for something you cannot
+   actually subscribe to.
+
+   lo is the cheapest end of the spread and hi the dearest, which is what
+   the scenario toggle picks between — optimistic takes lo, pessimistic
+   takes hi, expected sits at the midpoint. */
+const FLEXCAR_AGE_STEPS = {
+    new:   { lo:  100, hi:  200, label: 'current model year' },
+    three: { lo:    0, hi:    0, label: '3 yrs old — the rate you typed' },
+    six:   { lo:  -90, hi:  -40, label: '5–7 yrs old' },
+    ten:   { lo: -140, hi:  -70, label: '10+ yrs — beyond the usual fleet' }
+};
+
 
 /* Repair spend runs at about half the lifetime average while a car is
    under warranty and climbs steeply after, reaching 2.6x past fifteen
