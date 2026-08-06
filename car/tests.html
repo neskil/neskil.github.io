@@ -166,6 +166,9 @@
 
     // ── 4. Flexcar Tiers & Credit Pricing Tests ─────────────────────
     (function testFlexcarTiers() {
+        /* Both of these are module-level globals, so leaving them set here
+           silently repriced every test below this one. */
+        const heldTier = flexTier, heldCredit = creditTier;
         flexTier = 'cruiser';
         creditTier = 'prime';
         const vPrime = readInputs();
@@ -182,6 +185,9 @@
         assert('Flexcar price varies by credit score tier (Nearprime > Prime > Superprime)',
             resNear.flexcar.perMonth > resPrime.flexcar.perMonth &&
             resPrime.flexcar.perMonth > resSuper.flexcar.perMonth);
+
+        flexTier = heldTier;
+        creditTier = heldCredit;
     })();
 
 
@@ -287,6 +293,54 @@
             superprime.aprNew < subprime.aprNew);
         assert('Subprime credit gates lease option',
             subprime.avail.lease === 'gated');
+    })();
+
+    // ── 15. Flexcar mileage plan ─────────────────────────────────────
+    //    Pinned to two itemised Flexcar checkouts (Gwinnett County, GA).
+    //    Both quote the car line as "Standard Plan — 850 miles per month
+    //    included", which is why a listing rate is a Standard baseline and
+    //    the tier offset is what upgrading off it costs.
+    (function testFlexcarMileage() {
+        const set = (id, val) => { document.getElementById(id).value = val; };
+        const held = { rate: flexRate.value, prot: flexProtection.value,
+                       allow: flexAllowance.value, tier: flexTier };
+
+        const quote = (rate, prot, allowance, tier) => {
+            set('flexRate', rate); set('flexProtection', prot);
+            set('flexAllowance', allowance); flexTier = tier;
+            return computeAll(readInputs()).flexcar;
+        };
+
+        assert('Flexcar reproduces the 2024 Tiguan checkout ($374 + $245 @ 6% = $656.14)',
+            approx(quote(374, 245, 850, 'standard').allIn, 656.14),
+            'got ' + quote(374, 245, 850, 'standard').allIn.toFixed(2));
+
+        assert('Flexcar reproduces the 2026 Mazda CX-50 checkout ($569 + $245 @ 6% = $862.84)',
+            approx(quote(569, 245, 850, 'standard').allIn, 862.84),
+            'got ' + quote(569, 245, 850, 'standard').allIn.toFixed(2));
+
+        // The cap is the field's to own — reading it off the tier left the
+        // input inert and disagreeing with the panels that quote it.
+        assert('Flexcar mileage cap comes from the input, not the tier',
+            quote(454, 295, 1200, 'standard').allowance === 1200);
+
+        assert('A cap above the driven miles buys no overage blocks',
+            quote(454, 295, 1200, 'standard').overagePerMonth === 0);
+
+        assert('A cap below the driven miles does buy overage blocks',
+            quote(454, 295, 850, 'standard').overagePerMonth > 0);
+
+        // ...while the tier still prices the upgrade itself, exactly once.
+        assert('Cruiser tier adds its $50 rate offset to the car line',
+            quote(454, 295, 1200, 'cruiser').rate -
+            quote(454, 295, 1200, 'standard').rate === 50);
+
+        assert('Road Warrior tier adds its $150 rate offset to the car line',
+            quote(454, 295, 2000, 'warrior').rate -
+            quote(454, 295, 2000, 'standard').rate === 150);
+
+        set('flexRate', held.rate); set('flexProtection', held.prot);
+        set('flexAllowance', held.allow); flexTier = held.tier;
     })();
 
     // Summary output

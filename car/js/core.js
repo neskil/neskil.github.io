@@ -59,8 +59,11 @@ let selectedTrim = 1;
 let selectedHybrid = false;
 
 /* Bumped when input units change — a stored 10,000 from the old
-   per-year mileage field would otherwise reappear in a per-month one. */
-const STORAGE_KEY = 'car-lease-rent-buy-v4';
+   per-year mileage field would otherwise reappear in a per-month one.
+   v5: the Flexcar mileage cap became a live input rather than a value
+   derived from the tier, so a stored cap saved against the old meaning
+   would silently misprice the route. */
+const STORAGE_KEY = 'car-lease-rent-buy-v5';
 
 const $ = (id) => document.getElementById(id);
 const num = (id) => {
