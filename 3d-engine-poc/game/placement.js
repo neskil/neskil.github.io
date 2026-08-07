@@ -283,38 +283,6 @@
         return true;
     };
 
-    /**
-     * Put units back at the head of the queue, to be placed again.
-     *
-     * Used when a stack comes down in a physics mission: the cargo is not lost,
-     * it is back on the quay and has to find another home — on less ground than
-     * it had before. Undo is reset at the same time, because the move it would
-     * unwind no longer exists.
-     *
-     * @param {Array<object>} units in the order they should come up
-     */
-    PlacementController.prototype.requeue = function (units) {
-        if (!units || !units.length) return;
-
-        // Move them, do not add them. The queue is also the manifest that par
-        // is computed from, so it has to keep exactly the cargo it started
-        // with — a unit coming back is the same unit, not a new one.
-        for (let i = 0; i < units.length; i++) {
-            const at = this.units.indexOf(units[i]);
-            if (at === -1 || at >= this.index) continue;
-            this.units.splice(at, 1);
-            this.index--;
-        }
-
-        const args = [this.index, 0].concat(units);
-        Array.prototype.splice.apply(this.units, args);
-
-        this.rot = 0;
-        this.syncGhost();
-        this.clearHover();
-        this.onChange(this);
-    };
-
     /** True when the head of the queue has nowhere legal left to go. */
     PlacementController.prototype.isStuck = function () {
         const unit = this.current();

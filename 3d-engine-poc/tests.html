@@ -454,30 +454,70 @@
             });
         });
 
-        suite('grid — ground lost to a collapse', function () {
+        suite('grid — a fallen unit is reseated, not removed', function () {
             const g = new Grid(6, 4, 4);
+            const u = unit('20ft');
+            const p = g.place(u, 0, 0, 0, 0);
 
-            ok(!g.isBlocked(2, 1), 'a fresh bay has all its ground');
-            eq(g.blockedCount(), 0, 'and nothing blocked');
+            eq(g.count(), 1, 'the unit is in the yard');
+            eq(p.tierTop, p.tier, 'a crane-placed unit spans exactly one tier');
 
-            eq(g.blockCells([[2, 1], [3, 1]]), 2, 'a collapse takes two squares');
-            eq(g.blockCells([[3, 1], [4, 1]]), 1, 'and only new ground counts the second time');
-            ok(g.isBlocked(2, 1), 'the square is out of play');
-            eq(g.blockedCount(), 3, 'three squares lost in total');
+            // It topples: two cells further along, lying across tiers 0 and 1.
+            const moved = g.reseat(p.id, [[2, 1], [3, 1]], 0, 1);
 
-            // Blocked ground reads exactly like being off the bay: no tier.
-            ok(g.restTier('10ft', 0, 2, 1) === null, 'nothing rests on wreckage');
-            ok(g.place(unit('10ft'), 2, 1, 0, 0) === null, 'and nothing can be placed on it');
+            eq(g.count(), 1, 'it is still in the yard — nothing was craned away');
+            ok(g.placements[p.id] === moved, 'and it is the same placement, same id');
+            ok(moved.unit === u, 'carrying the same unit, so the manifest sees no gap');
+            eq(moved.tier, 0, 'seated on the ground it landed on');
+            eq(moved.tierTop, 1, 'across every tier its wreck occupies');
 
-            ok(g.restTier('10ft', 0, 0, 0) === 0, 'clear ground still takes a unit');
-            ok(g.place(unit('10ft'), 0, 0, 0, 0) !== null, 'and accepts it');
+            eq(g.get(0, 0, 0), 0, 'the ground it came from is free again');
+            eq(g.get(2, 1, 0), p.id, 'the ground it landed on is taken');
+            eq(g.get(2, 1, 1), p.id, 'on both tiers');
+            eq(g.occupiedCells(), 4, 'two squares over two tiers');
 
-            // A 20ft spans two cells: one blocked cell is enough to refuse it.
-            ok(g.restTier('20ft', 0, 1, 1) === null, 'a footprint touching wreckage has no tier');
+            // The point of claiming the upper tier: the next unit is released
+            // above the wreck, never inside it.
+            eq(g.restTier('10ft', 0, 2, 1), 2, 'the next unit rests clear above the wreck');
+            eq(g.restTier('10ft', 0, 0, 0), 0, 'ground it no longer covers is ordinary again');
 
-            eq(g.blockedCells().length, 3, 'the renderer can enumerate them');
-            g.clear();
-            eq(g.blockedCount(), 0, 'and a cleared bay gets its ground back');
+            // A wreck is not buried by its own upper tier.
+            ok(!g.isBuried(p.id), 'a wreck spanning two tiers is not buried by itself');
+            g.place(unit('10ft'), 2, 1, 2, 0);
+            ok(g.isBuried(p.id), 'but something stacked above it does bury it');
+
+            // The envelope grows to include it — the whole penalty for a
+            // collapse. The pile carries on at the origin; the wreck is lying
+            // two slots away from it, and the score pays for the gap.
+            g.place(unit('10ft'), 0, 0, 0, 0);
+            const b = g.bounds();
+            eq(b.spanX, 4, 'the envelope stretches from the pile out to the wreck');
+            eq(b.spanTiers, 3, 'and up over it');
+        });
+
+        suite('grid — reseat never steals occupied ground', function () {
+            const g = new Grid(6, 4, 4);
+            // A 10ft, so the obstacle is exactly one square and the wreck's
+            // footprint straddles it with clear ground either side.
+            const standing = g.place(unit('10ft'), 2, 1, 0, 0);
+            const faller = g.place(unit('20ft'), 0, 0, 0, 0);
+
+            // An axis-aligned footprint for a box lying at an angle can overlap
+            // a neighbour the solver actually kept clear. The neighbour wins the
+            // contested square, and the wreck still takes the rest.
+            const moved = g.reseat(faller.id, [[1, 1], [2, 1], [3, 1]], 0, 0);
+
+            eq(moved.cells.length, 2, 'the wreck claims around the standing unit');
+            eq(g.get(1, 1, 0), faller.id, 'taking the free square to one side');
+            eq(g.get(3, 1, 0), faller.id, 'and the free square to the other');
+            eq(g.get(2, 1, 0), standing.id, 'while the standing unit keeps its ground');
+            eq(g.count(), 2, 'both units are still in the yard');
+
+            // Even a wreck landing squarely on top of a neighbour keeps a hold
+            // somewhere, rather than dropping out of the envelope entirely.
+            const buried = g.reseat(faller.id, [[2, 1]], 0, 2);
+            ok(buried.cells.length > 0, 'a fully contested footprint still claims its free tiers');
+            eq(g.get(2, 1, 1), faller.id, 'above the unit it came down on');
         });
 
         suite('rules — physics is declared, not decided here', function () {

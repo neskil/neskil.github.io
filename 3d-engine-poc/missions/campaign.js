@@ -277,7 +277,7 @@
             name: 'Balancing Act',
             tagline: 'No support rule. Gravity has opinions.',
             teaches: 'Physics replaces the support rule — overhang is allowed until it is not.',
-            brief: 'Head office has stopped writing the stacking rules. Nothing here says how much of a box must sit on the one below; the yard will simply tell you. Anything that falls is craned back to the quay, and the ground it lands on is out of service for the shift.',
+            brief: 'Head office has stopped writing the stacking rules. Nothing here says how much of a box must sit on the one below; the yard will simply tell you. Nothing gets craned away either: what falls stays down, exactly where it lands, and the box drawn round your yard has to stretch to include it.',
             bay: { cols: 6, rows: 4, tiers: 4 },
             rules: ['physics'],
             units: [
@@ -310,8 +310,8 @@
             id: 'm16',
             name: 'Salvage Yard',
             tagline: 'Wreckage already on the ground. Do not add to it.',
-            teaches: 'Ground is finite — every collapse costs slots you cannot get back.',
-            brief: 'Last shift went badly and the apron is still half blocked. Work around what is there, and try not to lose any more of it: the yard you finish with is the yard you have.',
+            teaches: 'A wreck is a permanent obstacle you have to pack around, not a slot you get back.',
+            brief: 'Last shift went badly and two boxes are still sitting where they stopped. Nobody is coming to move them and nobody will move yours either, so anything you drop badly joins them — in the way, on the floor, and inside the box they measure you by.',
             bay: { cols: 7, rows: 5, tiers: 4 },
             rules: ['physics', 'departureOrder'],
             obstacles: [
