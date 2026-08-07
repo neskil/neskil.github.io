@@ -15,7 +15,7 @@
     const Cargo3D = global.Cargo3D = global.Cargo3D || {};
 
     Cargo3D.BUILD = {
-        commit: '57cf807',
+        commit: '29567a0',
         date: '2026-08-07',
         repo: 'neskil/neskil.github.io'
     };
