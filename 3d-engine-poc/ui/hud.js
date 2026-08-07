@@ -1,9 +1,11 @@
 /**
  * ui/hud.js — in-play readouts.
  *
- * Two HUDs share one file because they share one vocabulary: the mission HUD
- * (queue, envelope, medal track, rule feedback) and the sandbox HUD (yard
- * statistics and the unit inspector).
+ * One file per readout would be four files sharing one vocabulary — chips,
+ * metric rows, a queue, a status line. They live together instead: the mission
+ * HUD (queue, envelope, medal track, rule feedback), the sandbox HUD (yard
+ * statistics and the unit inspector), the physics HUD (tower height and run
+ * state) and the cascade HUD (score, tier fill and what is coming down).
  *
  * All DOM here; no game state is stored beyond what the last update passed in.
  */
@@ -501,8 +503,83 @@
         }
     };
 
+    /* ── cascade HUD ───────────────────────────────────────────────────── */
+
+    /** One word for the state of a run — the last thing the phone strip keeps. */
+    const CASCADE_STATUS = {
+        falling: { text: 'Falling',          cls: '' },
+        soft:    { text: '▼ Soft drop',      cls: 'settling' },
+        danger:  { text: '⚠ Near the roof',  cls: 'collapsed' },
+        paused:  { text: 'Paused',           cls: 'settling' },
+        over:    { text: '✗ Yard blocked',   cls: 'collapsed' }
+    };
+
+    function CascadeHUD() {
+        this.root = el('cascade-hud');
+        this.queue = el('cascade-queue');
+        this.toolbar = el('cascade-toolbar');
+    }
+
+    CascadeHUD.prototype.show = function () {
+        [this.root, this.queue, this.toolbar].forEach(function (node) {
+            if (node) node.classList.remove('hidden');
+        });
+    };
+
+    CascadeHUD.prototype.hide = function () {
+        [this.root, this.queue, this.toolbar].forEach(function (node) {
+            if (node) node.classList.add('hidden');
+        });
+    };
+
+    CascadeHUD.prototype.update = function (m) {
+        el('cs-score').textContent = Math.round(m.score).toLocaleString();
+        el('cs-layers').textContent = m.layers;
+        el('cs-level').textContent = m.level;
+        el('cs-best').textContent = m.best > 0 ? Math.round(m.best).toLocaleString() : '—';
+
+        // How close the lowest unfinished tier is to shipping. It is the whole
+        // decision the mode asks for, so it gets a percentage and a colour.
+        const fill = Math.round(m.tierFill * 100);
+        const fillEl = el('cs-fill');
+        fillEl.textContent = fill + '%';
+        fillEl.className = 'metric-val ' + (fill >= 80 ? 'status-good' : fill >= 45 ? 'status-warn' : '');
+
+        const comboEl = el('cs-combo');
+        comboEl.textContent = m.combo > 1 ? m.combo + '× combo' : '—';
+        comboEl.className = 'metric-val' + (m.combo > 1 ? ' status-good' : '');
+
+        el('cs-stack').textContent = m.stackHeight + ' / ' + m.tiers + ' tiers';
+
+        // The queue in one line, for the phone strip — which is this card with
+        // the chips folded away, and lookahead is not optional in a Tetris.
+        el('cs-next').textContent = (m.upcoming || []).map(function (u) {
+            return (C.CARGO_TYPES[u.type] || {}).short || u.type;
+        }).join(' · ') || '—';
+
+        const status = CASCADE_STATUS[m.status] || CASCADE_STATUS.falling;
+        const statusEl = el('cs-status');
+        statusEl.textContent = status.text;
+        statusEl.className = 'metric-val run-status ' + status.cls;
+
+        // The queue: what is coming down and what follows it. Same chips as the
+        // campaign's manifest, because it is the same cargo doing the same job.
+        let html = '';
+        if (m.current) {
+            html += '<div class="queue-slot queue-now">' +
+                '<span class="queue-label">Coming down</span>' +
+                unitChip(m.current, 'chip-lg') + '</div>';
+        }
+        if (m.upcoming && m.upcoming.length) {
+            html += '<div class="queue-slot queue-next"><span class="queue-label">Next</span>' +
+                m.upcoming.map(function (u) { return unitChip(u, 'chip-sm'); }).join('') + '</div>';
+        }
+        this.queue.innerHTML = html;
+    };
+
     Cargo3D.MissionHUD = MissionHUD;
     Cargo3D.SandboxHUD = SandboxHUD;
     Cargo3D.PhysicsHUD = PhysicsHUD;
+    Cargo3D.CascadeHUD = CascadeHUD;
     Cargo3D.hudFormat = { volume: volume, unitChip: unitChip, unitBadges: unitBadges, MEDAL_ICON: MEDAL_ICON };
 })(window);

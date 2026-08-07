@@ -102,6 +102,17 @@ the tests prove the logic, not the wiring.
   card and briefing describe it like any other regulation.
 - **Dispose meshes.** `ContainerMeshes.disposeGroup()` on anything removed from
   the scene — modes are entered and exited repeatedly in one page life.
+- **Cascade's lock grace is shorter than its fall step** (0.6 s against 1.5 s at
+  level 1). So one `tick()` longer than the grace will both land a piece and
+  lock it in the same call. That is correct at 60 fps and wrong in a test that
+  hands `tick()` one large delta — step in frame-sized deltas instead.
+- **A layer clear mints new placement ids.** `clearTiers()` tears the survivors
+  down and places them again a tier lower, so the ids change. The event carries
+  `moved: [{from, to}]` for exactly that reason, and `YardView.reseatUnit()`
+  re-keys the mesh. Anything else holding a placement id across a clear is stale.
+- **Only Cascade implements `setPaused`.** `MenuUI.syncPause()` calls it on
+  whichever mode is live whenever a panel opens or closes; every other mode is
+  turn-based and quite happily keeps running behind the pause overlay.
 
 ## Save schema
 

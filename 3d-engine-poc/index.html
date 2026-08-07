@@ -336,6 +336,97 @@
         </div>
     </div>
 
+    <!-- ── cascade HUD, queue & toolbar ─────────────────────────────── -->
+    <div id="cascade-queue" class="queue-bar hidden"></div>
+
+    <aside id="cascade-hud" class="hud-stack hidden">
+        <section class="hud-card">
+            <header class="hud-card-header">
+                <span class="hud-icon">🧱</span>
+                <h3>Cascade</h3>
+            </header>
+            <p class="hud-tagline">Cargo comes down on its own. Fill a tier completely and it ships out, and everything above it settles down a level.</p>
+            <!-- Ordered for the phone strip, which is this card flex-wrapped:
+                 the score, what is coming, and how close the tier is to going. -->
+            <div class="metric-row big"><span class="metric-label">Score</span><span class="metric-val" id="cs-score">0</span></div>
+            <div class="metric-row"><span class="metric-label">Tier fill</span><span class="metric-val" id="cs-fill">0%</span></div>
+            <div class="metric-row"><span class="metric-label">Next</span><span class="metric-val" id="cs-next">—</span></div>
+            <div class="metric-row"><span class="metric-label">Level</span><span class="metric-val" id="cs-level">1</span></div>
+            <div class="metric-row"><span class="metric-label">Tiers shipped</span><span class="metric-val" id="cs-layers">0</span></div>
+            <div class="metric-row"><span class="metric-label">Combo</span><span class="metric-val" id="cs-combo">—</span></div>
+            <div class="metric-row"><span class="metric-label">Stack</span><span class="metric-val" id="cs-stack">0 / 8 tiers</span></div>
+            <div class="metric-row"><span class="metric-label">Best ever</span><span class="metric-val" id="cs-best">—</span></div>
+            <div class="metric-row"><span class="metric-label">Run</span><span class="metric-val run-status" id="cs-status">Falling</span></div>
+        </section>
+    </aside>
+
+    <div id="cascade-toolbar" class="control-bar hidden">
+        <div class="toolbar-section" data-open-first>
+            <span class="section-title">Steer</span>
+            <!-- Screen-relative, not world-relative: the yard is orbited
+                 constantly and ◀ has to mean what it looks like it means. -->
+            <div class="button-group nudge-pad">
+                <button class="tool-btn nudge-btn" data-cs-move="left" title="Slide left (←)">◀</button>
+                <span class="nudge-axis">↔</span>
+                <button class="tool-btn nudge-btn" data-cs-move="right" title="Slide right (→)">▶</button>
+                <button class="tool-btn nudge-btn" data-cs-move="forward" title="Slide away (↑)">▲</button>
+                <span class="nudge-axis">↕</span>
+                <button class="tool-btn nudge-btn" data-cs-move="back" title="Slide toward you (↓)">▼</button>
+                <button id="btn-cs-rotate" class="tool-btn nudge-btn" title="Rotate (R)">⟳</button>
+                <span class="nudge-axis">·</span>
+                <button id="btn-cs-soft" class="tool-btn nudge-btn" title="Hold to fall faster (Shift)">⇊</button>
+                <button id="btn-cs-drop" class="tool-btn drop-btn" title="Drop it now (Space)">⬇ Drop</button>
+            </div>
+        </div>
+        <div class="toolbar-section">
+            <span class="section-title">Camera</span>
+            <div class="button-group">
+                <button class="tool-btn active" data-cam="iso">Isometric</button>
+                <button class="tool-btn" data-cam="orbit">Orbit</button>
+                <button class="tool-btn" data-cam="top">Top</button>
+                <button class="tool-btn" data-cam="front">Front</button>
+            </div>
+        </div>
+        <div class="toolbar-section">
+            <span class="section-title">Run</span>
+            <div class="button-group">
+                <button id="btn-cs-restart" class="tool-btn danger">Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── cascade result ───────────────────────────────────────────── -->
+    <div id="cascade-overlay" class="overlay hidden">
+        <div class="panel results-panel">
+            <div class="result-head">
+                <div class="result-medal" id="cascade-icon">🧱</div>
+                <h2 class="result-verdict" id="cascade-verdict">The yard blocked up</h2>
+                <p class="result-sub" id="cascade-sub"></p>
+                <p class="result-best" id="cascade-record"></p>
+            </div>
+
+            <div class="result-grid">
+                <div class="result-stat headline">
+                    <span class="ins-label">Score</span><strong id="cascade-score">—</strong>
+                </div>
+                <div class="result-stat headline">
+                    <span class="ins-label">Best ever</span><strong id="cascade-best">—</strong>
+                </div>
+                <div class="result-stat"><span class="ins-label">Tiers shipped</span><strong id="cascade-layers">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Level reached</span><strong id="cascade-level">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Containers</span><strong id="cascade-units">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Best combo</span><strong id="cascade-combo">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Time</span><strong id="cascade-time">—</strong></div>
+                <div class="result-stat"><span class="ins-label">Attempts</span><strong id="cascade-runs">—</strong></div>
+            </div>
+
+            <div class="menu-actions row">
+                <button id="btn-cascade-retry" class="primary-btn">↻ Drop again</button>
+                <button id="btn-cascade-menu" class="ghost-btn">Main menu</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── main menu ────────────────────────────────────────────────── -->
     <div id="menu-overlay" class="overlay">
         <div class="panel menu-panel">
@@ -343,11 +434,13 @@
                 <h2>Yard Master</h2>
                 <p><strong>Campaign</strong> is the packing puzzle: the score is the volume of
                    the box around your stack, so sprawl and air both cost you.
-                   <strong>Tower</strong> is the other way round — no bay, no manifest, just
-                   gravity and how high you dare go.</p>
+                   <strong>Cascade</strong> takes the time away — cargo falls on its own and a
+                   filled tier ships out. <strong>Tower</strong> is the other way round again —
+                   no bay, no manifest, just gravity and how high you dare go.</p>
             </div>
             <div class="menu-actions">
                 <button id="btn-campaign" class="ghost-btn menu-lead">▶ Campaign</button>
+                <button id="btn-cascade" class="ghost-btn">🧱 Cascade</button>
                 <button id="btn-tower" class="ghost-btn">🗼 Tower</button>
                 <button id="btn-sandbox" class="ghost-btn">🏗️ Sandbox</button>
                 <button id="btn-physics" class="ghost-btn">🧪 Physics Yard</button>
@@ -419,6 +512,27 @@
                 <section>
                     <h3>Regulations</h3>
                     <ul class="def-list" id="howto-rules"></ul>
+                </section>
+
+                <section>
+                    <h3>Cascade</h3>
+                    <p>The campaign with the deliberation taken out: 3D Tetris, played with
+                       the same containers. One unit at a time is released at the top of a
+                       4×4 bay and falls a tier at a time on its own. Steer it while it
+                       comes down; when every one of the bay's sixteen slots on a tier is
+                       filled, that tier ships out and everything above it settles down a
+                       level. The run ends when there is no room left to release the next
+                       container.</p>
+                    <p>The arrows slide it, <kbd>R</kbd> turns it, <kbd>Shift</kbd> held
+                       makes it fall fast, and <kbd>Space</kbd> drops it now. The arrows are
+                       read against the camera, so ◀ always means left on screen no matter
+                       where you have orbited to. With a mouse, hovering aims and a click
+                       drops; on a phone the first tap aims and a second tap on the same
+                       spot commits.</p>
+                    <p>Points come from every container set down, faster from the ones you
+                       drop yourself, and mostly from tiers shipped — worth more each level,
+                       and more again for consecutive clears. Emptying the bay completely is
+                       worth a great deal more than the tier that did it.</p>
                 </section>
 
                 <section>
@@ -511,6 +625,7 @@
     <script src="core/scoring.js"></script>
     <script src="core/manifest.js"></script>
     <script src="core/contracts.js"></script>
+    <script src="core/cascade.js"></script>
     <script src="core/storage.js"></script>
 
     <script src="missions/missionSchema.js"></script>
@@ -534,6 +649,7 @@
     <script src="game/physics.js"></script>
     <script src="game/physicsMode.js"></script>
     <script src="game/missionPhysics.js"></script>
+    <script src="game/cascadeMode.js"></script>
 
     <script src="ui/hud.js"></script>
     <script src="ui/toolbars.js"></script>

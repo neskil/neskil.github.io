@@ -138,6 +138,24 @@ any medal. Bay grows, manifest lengthens, one new rule at a time:
 | 11 | Tight Bay | 5×4×5 | Narrow footprint, tall stacking |
 | 12 | Yard Master | 8×5×5 | Full rule set, 28 units |
 
+**Cascade** — the pitch at the top of this document, taken literally. Cargo falls
+on a clock into a 4×4×8 bay; a tier filled completely ships out and everything
+above it settles down a level; the run ends when the next container cannot be
+released. Same grid, same catalogue, same gravity — the only thing added is the
+clock, and the only thing removed is the manifest.
+
+It is a separate mode rather than a campaign option, which is exactly where
+§8 said a timed variant belonged. The two score different things on purpose:
+the campaign pays for the tightest envelope after all the thinking you like,
+Cascade pays for tiers closed under pressure. Neither is worth much with the
+other's scoring bolted on.
+
+The catalogue needed nothing added to make it work. `10ft` is the single cell,
+`20ft` the domino, `40ft` an I-piece that spans the bay end to end, `crate` the
+O, `lblock` and `tblock` what they say. `tank` and `flatrack` are left out:
+their whole point is a rule about what may be stacked on them, and Cascade has
+no regulations to hang that on.
+
 **Sandbox** — the POC, preserved and unrestricted: free spawn, weather, X-ray,
 heatmap, train unloading, and two drivable machines — the reach stacker and the
 rail-mounted gantry crane, which spans the tracks and can lift a container
@@ -233,4 +251,5 @@ Load order matters (plain `<script>` tags, no bundler, per house style):
 - Physics simulation. Toppling stacks would be spectacular and would make the
   puzzle unreadable. The support rules encode the same intent, legibly.
 - Real-time pressure in the campaign. The fun here is deliberation. If a timed
-  variant is wanted it belongs in a separate mode, not bolted onto missions.
+  variant is wanted it belongs in a separate mode, not bolted onto missions —
+  which is what Cascade is, and the missions are unchanged.

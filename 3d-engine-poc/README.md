@@ -37,6 +37,7 @@ with no WebGL context, offline, in a headless browser.
 │   ├── scoring.js      envelope volume, par, medals, scorecards
 │   ├── manifest.js     seeded PRNG and manifest generation
 │   ├── contracts.js    sandbox job board: orders, payouts, rating, upgrades
+│   ├── cascade.js      the falling-cargo game: gravity clock, layer clears, score
 │   └── storage.js      localStorage progress and settings
 │
 ├── missions/
@@ -63,7 +64,8 @@ with no WebGL context, offline, in a headless browser.
 │   ├── sandbox.js      free-build mode
 │   ├── physics.js      rigid-body solver — contacts, friction, sleep
 │   ├── physicsMode.js  experimental physics yard: free play + tower challenge
-│   └── missionPhysics.js  the solver as a mission's support rule
+│   ├── missionPhysics.js  the solver as a mission's support rule
+│   └── cascadeMode.js  Cascade: meshes, camera and input for core/cascade.js
 │
 ├── ui/                 DOM only
 │   ├── hud.js          mission HUD, queue, sandbox stats, inspector
@@ -115,6 +117,40 @@ refuse those moves. They stay refusals, and that is not a shortcut.
 `missionSchema.js` validates the lot, and `tests.html` asserts that each
 mission's cell count actually factors into a box the bay can hold — so par stays
 an honest target rather than an unreachable one.
+
+## Cascade
+
+`🧱 Cascade` on the main menu. The campaign with the deliberation taken out: 3D
+Tetris, played with the same containers and the same grid.
+
+One unit is released at the roof of a **4×4×8** bay and falls a tier at a time on
+a clock. Fill all sixteen slots of a tier and it ships out; everything above it
+settles down a level. The run ends when the next container cannot be released.
+
+The rules are `core/cascade.js` — plain data and a clock in seconds, like the
+rest of `core/`, so `tests.html` plays whole games with no WebGL context.
+`game/cascadeMode.js` is the wiring: meshes, camera, input, and the events the
+rules hand back.
+
+Three things are worth knowing about the design:
+
+- **One layer per lock, never four.** A container occupies exactly one tier —
+  the grid's model, not a concession made here — so a piece can only complete
+  the tier it lands on. The reward for a run of clears is a **combo**
+  multiplier, climbing by half for each consecutive one, plus a large bonus for
+  emptying the bay outright.
+- **The lock grace is shorter than a fall step.** A grounded piece has 0.6 s
+  before it commits and a slide renews that, up to twelve times. It also means a
+  single `tick()` longer than the grace both lands and locks a piece — which is
+  correct, and is why the tests step in frame-sized deltas rather than one big
+  one.
+- **Steering is screen-relative.** The arrows are resolved against the camera's
+  dominant horizontal axis, so ◀ is left on screen from any orbit. Nothing else
+  in the game needs this, because nothing else is steered while it moves.
+
+The bay is small on purpose. Sixteen cells to a tier is about six pieces, which
+is the rhythm of a ten-cell Tetris row; a campaign-sized bay would take a minute
+to close a single tier.
 
 ## The physics yard
 
@@ -217,7 +253,7 @@ Two pages, deliberately separate:
 
 | page | covers | loads THREE |
 |---|---|---|
-| `tests.html` | `core/` + `missions/` — grid, rules, scoring, manifests, save | **no** |
+| `tests.html` | `core/` + `missions/` — grid, rules, scoring, manifests, cascade, save | **no** |
 | `physics-tests.html` | the rigid-body solver | yes (maths only, no WebGL) |
 
 `tests.html` loading no THREE at all is the guard behind *the one rule* — it
@@ -271,13 +307,14 @@ One key, `cargo3d.save.v1`:
   settings:  { muted, weather, showGrid },
   stats:     { unitsPlaced, missionsRun },
   physics:   { bestHeight, bestUnits, runs },
+  cascade:   { bestScore, bestLayers, bestLevel, runs },
   contracts: { money, delivered, rating, upgrades } | null
 }
 ```
 
-`physics` was added without bumping the version, because it is purely additive:
-`read()` fills it in for a save written before the mode existed. `tests.html`
-asserts that an old save survives the round trip.
+`physics` and `cascade` were both added without bumping the version, because
+they are purely additive: `read()` fills them in for a save written before those
+modes existed. `tests.html` asserts that an old save survives the round trip.
 
 Bump `SAVE_VERSION` and migrate rather than repurposing fields.
 `core/storage.js` falls back to an in-memory store when localStorage is blocked,

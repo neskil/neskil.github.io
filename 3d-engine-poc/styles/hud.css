@@ -912,4 +912,36 @@
 
     #physics-hud .metric-row { gap: 6px; padding: 0; font-size: 0.74rem; }
     #physics-hud .metric-label { font-size: 0.68rem; }
+
+    /*
+     * Cascade folds the same way, and for the same reason: score, tier fill and
+     * what is coming next are the entire loop. The queue's chips are what goes —
+     * a column of cards down the left edge of a falling yard is unreadable, and
+     * the card's one-line "Next" row carries the lookahead instead.
+     */
+    #cascade-queue { display: none; }
+
+    #cascade-hud {
+        display: block;
+        top: calc(60px + var(--safe-top));
+        left: calc(8px + var(--safe-left));
+        right: calc(8px + var(--safe-right));
+        width: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    #cascade-hud .hud-card-header,
+    #cascade-hud .hud-tagline { display: none; }
+
+    #cascade-hud .hud-card {
+        padding: 7px 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px 14px;
+    }
+
+    #cascade-hud .metric-row { gap: 6px; padding: 0; font-size: 0.74rem; }
+    #cascade-hud .metric-label { font-size: 0.68rem; }
+    #cascade-hud .metric-row.big .metric-val { font-size: 0.95rem; }
 }

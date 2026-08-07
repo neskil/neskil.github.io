@@ -60,10 +60,22 @@
         return Math.max(sphere / Math.sin(vFov / 2), sphere / Math.sin(hFov / 2)) * margin;
     };
 
-    /** Size the rig to a bay so every preset frames it sensibly. */
-    CameraRig.prototype.frameBay = function (bay) {
-        // Kept so a rotated phone can be re-framed — see refit().
+    /**
+     * Size the rig to a bay so every preset frames it sensibly.
+     *
+     * The default aim is the bay's lower third, because a campaign bay is wider
+     * than it is tall and the cargo that matters is near the floor. A bay played
+     * from the roof down wants the geometric centre instead: the fit radius is
+     * the half-diagonal about the bay's middle, so aiming below it is what puts
+     * a piece released at the top tier off the top of the screen.
+     *
+     * @param {object} bay
+     * @param {number} [focusFraction] height of the aim point, 0..1 of the bay
+     */
+    CameraRig.prototype.frameBay = function (bay, focusFraction) {
+        // Both kept so a rotated phone can be re-framed — see refit().
         this.bay = bay;
+        this.bayFocus = focusFraction === undefined ? 0.34 : focusFraction;
 
         const w = bay.cols * C.GRID.CELL_X;
         const d = bay.rows * C.GRID.CELL_Z;
@@ -71,7 +83,7 @@
 
         const sphere = 0.5 * Math.sqrt(w * w + d * d + h * h);
         this.radius = Math.max(16, this.fitRadius(sphere));
-        this.focus.set(0, h * 0.34, 0);
+        this.focus.set(0, h * this.bayFocus, 0);
     };
 
     CameraRig.prototype.frameApron = function () {
@@ -86,7 +98,7 @@
      */
     CameraRig.prototype.refit = function () {
         if (!this.bay || this.followTarget) return;
-        this.frameBay(this.bay);
+        this.frameBay(this.bay, this.bayFocus);
 
         /* A camera still sitting on its preset is the rig's to place, so re-run
            that preset at the new aspect — including mid-transition, where the

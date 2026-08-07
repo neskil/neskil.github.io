@@ -95,7 +95,8 @@
             attract: new AttractMode(this),
             mission: new Cargo3D.MissionMode(this),
             sandbox: new Cargo3D.SandboxMode(this),
-            physics: Cargo3D.PhysicsMode ? new Cargo3D.PhysicsMode(this) : null
+            physics: Cargo3D.PhysicsMode ? new Cargo3D.PhysicsMode(this) : null,
+            cascade: Cargo3D.CascadeMode ? new Cargo3D.CascadeMode(this) : null
         };
         this.modeName = null;
         this.mode = null;
@@ -127,6 +128,12 @@
     App.prototype.startPhysics = function (challenge) {
         this.ui.closeAllPanels();
         this.setMode('physics', { challenge: challenge || 'freeplay' });
+    };
+
+    /** The falling-cargo game. @param {object} [opts] bay/seed overrides */
+    App.prototype.startCascade = function (opts) {
+        this.ui.closeAllPanels();
+        this.setMode('cascade', opts || {});
     };
 
     App.prototype.goToMenu = function () {

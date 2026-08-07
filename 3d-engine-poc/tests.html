@@ -29,6 +29,7 @@
     <script src="core/scoring.js"></script>
     <script src="core/manifest.js"></script>
     <script src="core/contracts.js"></script>
+    <script src="core/cascade.js"></script>
     <script src="core/storage.js"></script>
     <script src="missions/missionSchema.js"></script>
     <script src="missions/campaign.js"></script>
@@ -709,6 +710,305 @@
             eq(Contracts.ratingLabel(100), 'A+', '100% is A+');
             eq(Contracts.ratingLabel(92), 'A', '92% is A');
             eq(Contracts.ratingLabel(50), 'E', 'the floor is E');
+        });
+
+        // ── cascade ─────────────────────────────────────────────────────────
+
+        const Cascade = window.Cargo3D.Cascade;
+
+        /** A small bay keeps a tier fillable inside a test. */
+        function cascade(opts) {
+            return new Cascade.Game(Object.assign({
+                bay: { cols: 4, rows: 4, tiers: 6 }, seed: 42
+            }, opts || {}));
+        }
+
+        /** Take the queue out of the equation — the piece is plain data. */
+        function forcePiece(game, type, x, z, tier) {
+            game.piece = {
+                unit: unit(type, { uid: 'forced-' + type + x + z + tier }),
+                type: type, rot: 0, x: x, z: z, tier: tier
+            };
+            game.fallAccum = 0;
+            game.lockAccum = 0;
+            game.lockResets = 0;
+            return game.piece;
+        }
+
+        /**
+         * Play `seconds` of game time at a plausible frame length. Handing tick()
+         * one huge delta is not the same test: the lock grace is shorter than a
+         * fall step, so a single second-long frame both lands a piece and locks it.
+         */
+        function tickFor(game, seconds, dt) {
+            const step = dt || 1 / 60;
+            const frames = Math.round(seconds / step);
+            let events = [];
+            for (let i = 0; i < frames; i++) events = events.concat(game.tick(step));
+            return events;
+        }
+
+        /** Fill a tier with 1×1 boxes, optionally leaving one cell open. */
+        function fillTier(game, tier, holeX, holeZ) {
+            for (let x = 0; x < game.bay.cols; x++) {
+                for (let z = 0; z < game.bay.rows; z++) {
+                    if (x === holeX && z === holeZ) continue;
+                    game.grid.place(unit('10ft', { uid: 'fill-' + tier + x + z }), x, z, tier, 0);
+                }
+            }
+        }
+
+        suite('cascade — the falling piece', function () {
+            const game = cascade();
+
+            ok(!!game.piece, 'a run starts with a piece in the air');
+            eq(game.piece.tier, game.bay.tiers - 1, 'it starts at the top tier');
+            eq(game.over, false, 'a fresh run is not over');
+            eq(game.queue.length, Cascade.PREVIEW, 'the preview queue is kept full');
+
+            const sp = C.span(game.piece.type, game.piece.rot);
+            ok(game.piece.x >= 0 && game.piece.x + sp[0] <= game.bay.cols, 'it spawns inside the bay in X');
+            ok(game.piece.z >= 0 && game.piece.z + sp[1] <= game.bay.rows, 'it spawns inside the bay in Z');
+
+            ok(game.canFall(), 'an empty bay lets it fall');
+            eq(game.landingTier(), 0, 'with nothing below, it lands on the floor');
+        });
+
+        suite('cascade — the same seed plays the same run', function () {
+            const a = cascade({ seed: 1234 });
+            const b = cascade({ seed: 1234 });
+            const c = cascade({ seed: 9999 });
+
+            const typesOf = function (g) {
+                return [g.piece.type].concat(g.queue.map(function (u) { return u.type; })).join(',');
+            };
+            // Long enough that two seeds agreeing by luck is not a thing that
+            // happens: twenty units of type and livery each.
+            const runOf = function (g) {
+                const out = [];
+                for (let i = 0; i < 20; i++) {
+                    const u = g.makeUnit();
+                    out.push(u.type + ':' + u.carrier);
+                }
+                return out.join(',');
+            };
+
+            eq(typesOf(a), typesOf(b), 'two games on one seed deal the same cargo');
+            ok(runOf(a) !== runOf(c), 'a different seed deals a different run');
+
+            a.reset();
+            eq(typesOf(a), typesOf(b), 'a reset replays the same seeded run');
+        });
+
+        suite('cascade — steering', function () {
+            const game = cascade();
+            forcePiece(game, '10ft', 1, 1, 3);
+
+            ok(game.moveBy(1, 0), 'a clear cell accepts the piece');
+            eq(game.piece.x, 2, 'the origin moved');
+
+            ok(game.moveTo(1, 1), 'moveTo reports a real move');
+            eq(game.piece.x + ',' + game.piece.z, '1,1', 'moveTo lands where it was asked');
+
+            ok(game.moveBy(-4, 0), 'an aim off the west edge slides along the wall');
+            eq(game.piece.x, 0, 'and stops at the first column');
+            ok(!game.moveBy(-1, 0), 'a piece already against the wall does not move');
+
+            // A neighbour on the same tier blocks the slide into its cell.
+            game.grid.place(unit('10ft', { uid: 'wall' }), 1, 0, 3, 0);
+            forcePiece(game, '10ft', 0, 0, 3);
+            ok(!game.moveBy(1, 0), 'an occupied cell refuses the slide');
+            eq(game.piece.x, 0, 'and the piece has not moved');
+        });
+
+        suite('cascade — rotation', function () {
+            const game = cascade();
+            forcePiece(game, '20ft', 0, 0, 3);
+
+            eq(C.span('20ft', 0)[0], 2, 'a 20ft is two cells long unrotated');
+            ok(game.rotate(), 'a clear tier accepts the turn');
+            eq(game.piece.rot, 1, 'the rotation is recorded');
+            eq(C.span('20ft', game.piece.rot)[0], 1, 'the footprint swapped axes');
+
+            // A 40ft is four cells long: in a four-wide bay it fits both ways,
+            // and the kick list slides it back inside when it would overhang.
+            const wide = cascade();
+            forcePiece(wide, '40ft', 0, 3, 3);
+            ok(wide.rotate(), 'a 40ft turns when the bay is square');
+            eq(wide.piece.z, 0, 'the kick pulled it back inside the bay');
+
+            const narrow = new Cascade.Game({ bay: { cols: 4, rows: 2, tiers: 4 }, seed: 3 });
+            forcePiece(narrow, '40ft', 0, 0, 2);
+            ok(!narrow.rotate(), 'a 40ft cannot turn into a bay only two deep');
+        });
+
+        suite('cascade — gravity and the lock delay', function () {
+            const game = cascade();
+            forcePiece(game, '10ft', 0, 0, 3);
+
+            const step = game.fallInterval();
+            eq(tickFor(game, step * 0.4).length, 0, 'a part-step does nothing');
+            eq(game.piece.tier, 3, 'and leaves the piece where it was');
+            near(game.fallProgress(), 0.4, 0.05, 'the fall progress reads the part-step');
+
+            tickFor(game, step * 0.7);
+            eq(game.piece.tier, 2, 'a full step drops it one tier');
+
+            tickFor(game, step * 2.0);
+            eq(game.piece.tier, 0, 'it keeps falling to the floor');
+            ok(!game.canFall(), 'the floor stops it');
+            eq(game.fallProgress(), 0, 'a grounded piece has no fall progress');
+
+            eq(tickFor(game, Cascade.LOCK_DELAY * 0.4).length, 0, 'the grace period holds it unlocked');
+            const events = tickFor(game, Cascade.LOCK_DELAY);
+            ok(events.some(function (e) { return e.type === 'lock'; }), 'the grace runs out and it locks');
+            eq(game.grid.count(), 1, 'the container is in the yard');
+            ok(!!game.piece, 'and the next one is already falling');
+        });
+
+        suite('cascade — hard drop', function () {
+            const game = cascade();
+            game.grid.place(unit('10ft', { uid: 'floor' }), 2, 2, 0, 0);
+            forcePiece(game, '10ft', 2, 2, 5);
+
+            const before = game.score;
+            const events = game.hardDrop();
+            ok(events.some(function (e) { return e.type === 'lock'; }), 'a hard drop locks immediately');
+            ok(game.score > before, 'and pays for the tiers given up');
+
+            const placed = game.grid.list().filter(function (p) { return p.unit.uid.indexOf('forced') === 0; })[0];
+            eq(placed.tier, 1, 'it comes to rest on top of what was below it');
+        });
+
+        suite('cascade — a filled tier ships out', function () {
+            const game = cascade();
+            fillTier(game, 0, 3, 3);
+            game.grid.place(unit('20ft', { uid: 'rider' }), 0, 0, 1, 0);
+            forcePiece(game, '10ft', 3, 3, 4);
+
+            const events = game.hardDrop();
+            const clear = events.filter(function (e) { return e.type === 'clear'; })[0];
+
+            ok(!!clear, 'completing every cell of a tier ships it');
+            eq(clear.tiers.join(','), '0', 'the bottom tier is the one that went');
+            eq(game.layers, 1, 'the run counts the tier');
+            eq(game.combo, 1, 'and opens a combo');
+            eq(game.grid.count(), 1, 'only what was above the tier is left');
+
+            const rider = game.grid.list()[0];
+            eq(rider.tier, 0, 'the survivor settled down a tier');
+            eq(rider.unit.uid, 'rider', 'and it is the container that was on top');
+            eq(clear.moved.length, 1, 'the clear reports the mesh that has to follow it');
+            ok(clear.moved[0].to.id !== clear.moved[0].from.id, 'a re-placed unit gets a new placement id');
+            eq(clear.removed.length, 16, 'every container on the tier went with it');
+        });
+
+        suite('cascade — scoring', function () {
+            const game = cascade();
+            fillTier(game, 0, 0, 0);
+            forcePiece(game, '10ft', 0, 0, 3);
+
+            const before = game.score;
+            const events = game.hardDrop();
+            ok(game.score > before + Cascade.SCORE.layer, 'a tier is worth far more than a placement');
+            ok(events.filter(function (e) { return e.type === 'clear'; })[0].perfect,
+                'emptying the bay entirely is a perfect clear');
+
+            eq(game.comboMultiplier(), 1, 'the first clear of a run is a flat multiplier');
+            game.combo = 3;
+            eq(game.comboMultiplier(), 2, 'a third consecutive clear doubles it');
+
+            const cold = cascade();
+            forcePiece(cold, '10ft', 0, 0, 0);
+            cold.combo = 4;
+            cold.hardDrop();
+            eq(cold.combo, 0, 'a placement that clears nothing breaks the combo');
+        });
+
+        suite('cascade — level and speed', function () {
+            const game = cascade();
+            eq(game.level(), 1, 'a run starts at level 1');
+            near(game.fallInterval(), Cascade.BASE_FALL, 0.001, 'and at the base fall interval');
+
+            game.layers = Cascade.TIERS_PER_LEVEL * 3;
+            eq(game.level(), 4, 'every few tiers is a level');
+            ok(game.fallInterval() < Cascade.BASE_FALL, 'a higher level falls faster');
+
+            game.layers = 500;
+            ok(game.fallInterval() >= Cascade.MIN_FALL - 1e-9, 'the interval never goes below its floor');
+
+            const soft = cascade();
+            soft.setSoft(true);
+            near(soft.stepInterval(), soft.fallInterval() / Cascade.SOFT_FACTOR, 0.001,
+                'a soft drop divides the interval');
+            soft.setSoft(false);
+            near(soft.stepInterval(), soft.fallInterval(), 0.001, 'and releasing it restores the interval');
+        });
+
+        suite('cascade — the run ends when the roof is reached', function () {
+            const game = cascade();
+            fillTier(game, game.bay.tiers - 1);
+
+            ok(!game.spawn(), 'a full top tier has no room for the next container');
+            ok(game.over, 'which is the end of the run');
+            ok(game.piece === null, 'and nothing is left falling');
+            eq(tickFor(game, 10).length, 0, 'a finished run ignores the clock');
+        });
+
+        suite('cascade — readouts', function () {
+            const game = cascade();
+            eq(game.stackHeight(), 0, 'an empty bay is zero tiers tall');
+            eq(game.tierFill(), 0, 'and nothing is part-filled');
+
+            fillTier(game, 0, 3, 3);
+            eq(game.stackHeight(), 1, 'a filled floor is one tier tall');
+            near(game.tierFill(), 15 / 16, 0.001, 'the fill is the lowest unfinished tier');
+
+            const snap = game.snapshot();
+            eq(snap.tiers, game.bay.tiers, 'the snapshot carries the bay height');
+            eq(snap.upcoming.length, Cascade.PREVIEW, 'and the lookahead the HUD draws');
+            ok(!!snap.current, 'and what is coming down');
+        });
+
+        suite('cascade — persistence', function () {
+            Cargo3D.Storage.resetProgress();
+            const blank = Cargo3D.Storage.getCascade();
+            eq(blank.bestScore, 0, 'a fresh save has no best run');
+            eq(blank.runs, 0, 'and no attempts');
+
+            const first = Cargo3D.Storage.recordCascade({ score: 900, layers: 3, level: 2 });
+            ok(first.improved, 'the first run is a personal best');
+            eq(first.best.bestScore, 900, 'and is stored');
+            eq(first.best.runs, 1, 'attempts are counted');
+
+            const worse = Cargo3D.Storage.recordCascade({ score: 400, layers: 1, level: 1 });
+            ok(!worse.improved, 'a worse run does not overwrite the best');
+            eq(worse.best.bestScore, 900, 'the best survives');
+            eq(worse.best.bestLayers, 3, 'and keeps the tiers that went with it');
+            eq(worse.best.runs, 2, 'but still counts as an attempt');
+
+            // Additive, like the physics record: a save written before Cascade
+            // existed has to read back at version 1 rather than being discarded.
+            //
+            // Only assertable when localStorage really is available — under the
+            // in-memory fallback read() hands back the very object it was given,
+            // so there is no parse to migrate and nothing here is being tested.
+            let stored = null;
+            try { stored = window.localStorage.getItem(Cargo3D.Storage.SAVE_KEY); } catch (e) { stored = null; }
+
+            if (stored) {
+                const old = JSON.parse(stored);
+                delete old.cascade;
+                window.localStorage.setItem(Cargo3D.Storage.SAVE_KEY, JSON.stringify(old));
+
+                eq(Cargo3D.Storage.getCascade().bestScore, 0, 'a save without the block reads as blank');
+                eq(Cargo3D.Storage.read().version, Cargo3D.Storage.SAVE_VERSION,
+                    'and is still a version 1 save');
+            } else {
+                ok(true, 'localStorage is unavailable — migration assertion skipped');
+            }
+
+            Cargo3D.Storage.resetProgress();
         });
 
         // ── summary ─────────────────────────────────────────────────────────

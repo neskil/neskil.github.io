@@ -28,6 +28,9 @@
             // Physics tower challenge — see game/physicsMode.js. Additive, so a
             // save written before the mode existed still reads at version 1.
             physics: { bestHeight: 0, bestUnits: 0, runs: 0 },
+            // Cascade, the falling-cargo game — see core/cascade.js. Additive
+            // for the same reason, and filled in by read() for older saves.
+            cascade: { bestScore: 0, bestLayers: 0, bestLevel: 0, runs: 0 },
             // Sandbox contract economy — see core/contracts.js. Only the
             // durable parts are stored; the active order is not resumed.
             contracts: null
@@ -45,6 +48,7 @@
             data.settings = Object.assign(blank().settings, data.settings || {});
             data.stats = Object.assign(blank().stats, data.stats || {});
             data.physics = Object.assign(blank().physics, data.physics || {});
+            data.cascade = Object.assign(blank().cascade, data.cascade || {});
             return data;
         } catch (e) {
             return blank();
@@ -158,6 +162,36 @@
         return { best: data.physics, improved: improved, previousBest: previousBest };
     }
 
+    /** Best run the falling-cargo game has ever produced. */
+    function getCascade() {
+        return read().cascade;
+    }
+
+    /**
+     * Merge a finished Cascade run into the save. The score is the ladder —
+     * tiers and level ride along with the run that set it, so the card reads as
+     * one result rather than three unrelated personal bests.
+     *
+     * @param {{score:number, layers:number, level:number}} run
+     * @returns {{best:object, improved:boolean, previousBest:number}}
+     */
+    function recordCascade(run) {
+        const data = read();
+        const prev = data.cascade;
+        const previousBest = prev.bestScore || 0;
+        const improved = (run.score || 0) > previousBest;
+
+        data.cascade = {
+            bestScore: improved ? run.score : previousBest,
+            bestLayers: improved ? (run.layers || 0) : (prev.bestLayers || 0),
+            bestLevel: improved ? (run.level || 0) : (prev.bestLevel || 0),
+            runs: (prev.runs || 0) + 1
+        };
+        write(data);
+
+        return { best: data.cascade, improved: improved, previousBest: previousBest };
+    }
+
     function getSettings() {
         return read().settings;
     }
@@ -213,6 +247,8 @@
         saveContracts: saveContracts,
         getPhysics: getPhysics,
         recordTower: recordTower,
+        getCascade: getCascade,
+        recordCascade: recordCascade,
         getSettings: getSettings,
         saveSettings: saveSettings,
         summary: summary,

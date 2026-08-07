@@ -314,6 +314,41 @@
         return mesh;
     };
 
+    /**
+     * Re-file a unit that the grid has rebuilt somewhere else.
+     *
+     * Cascade ships a full tier by tearing the survivors down and placing them
+     * again a tier lower, which mints new placement ids. The mesh is the same
+     * mesh, so it is re-keyed rather than replaced, and the existing drop
+     * animation carries it down — update() only ever moves a unit toward its
+     * target, which is exactly what settling after a clear is.
+     *
+     * @param {number} oldId the placement id the mesh is filed under
+     * @param {object} placement its replacement record
+     * @returns {THREE.Group|null}
+     */
+    YardView.prototype.reseatUnit = function (oldId, placement) {
+        const mesh = this.unitMeshes[oldId];
+        if (!mesh) return null;
+
+        if (oldId !== placement.id) {
+            delete this.unitMeshes[oldId];
+            this.unitMeshes[placement.id] = mesh;
+        }
+        mesh.userData.placementId = placement.id;
+        mesh.userData.tier = placement.tier;
+
+        const target = this.cellToWorld(placement.x, placement.z, placement.tier, placement.type, placement.rot);
+        mesh.userData.dropTarget = target.y;
+        if (mesh.position.y > target.y + 0.01) {
+            mesh.userData.dropping = true;
+        } else {
+            mesh.position.copy(target);
+            mesh.userData.dropping = false;
+        }
+        return mesh;
+    };
+
     YardView.prototype.removeUnit = function (placementId) {
         const mesh = this.unitMeshes[placementId];
         if (!mesh) return;

@@ -196,6 +196,85 @@
         this.panel.classList.add('hidden');
     };
 
+    /* ── cascade scorecard ─────────────────────────────────────────────── */
+
+    /**
+     * The falling-cargo game's end card. No par and no medal here either — the
+     * run ended because the yard filled up, and the only question is how much
+     * cargo went through it before it did.
+     */
+    function CascadeResultUI(app) {
+        this.app = app;
+        this.panel = el('cascade-overlay');
+        this.bind();
+    }
+
+    CascadeResultUI.prototype.bind = function () {
+        const self = this;
+
+        el('btn-cascade-retry').addEventListener('click', function () {
+            self.hide();
+            if (self.app.modeName === 'cascade') self.app.mode.restartRun();
+        });
+
+        el('btn-cascade-menu').addEventListener('click', function () {
+            self.hide();
+            self.app.goToMenu();
+        });
+    };
+
+    /**
+     * @param {{score:number, layers:number, level:number, dropped:number,
+     *          bestCombo:number, elapsedMs:number, reason:string, best:number,
+     *          previousBest:number, improved:boolean, runs:number}} result
+     */
+    CascadeResultUI.prototype.show = function (result) {
+        const points = function (v) { return Math.round(v).toLocaleString(); };
+
+        el('cascade-icon').textContent = result.improved ? '🏆' : '🧱';
+        el('cascade-verdict').textContent = result.improved
+            ? 'A new best — ' + points(result.score)
+            : 'The yard blocked up';
+        el('cascade-verdict').className = 'result-verdict ' +
+            (result.improved ? 'medal-gold' : 'medal-none');
+
+        el('cascade-sub').textContent = result.reason + ' ' +
+            (result.layers
+                ? result.layers + (result.layers === 1 ? ' tier' : ' tiers') + ' shipped out.'
+                : 'No tier was ever filled.');
+
+        el('cascade-score').textContent = points(result.score);
+        el('cascade-best').textContent = points(result.best);
+        el('cascade-layers').textContent = result.layers;
+        el('cascade-level').textContent = result.level;
+        el('cascade-units').textContent = result.dropped;
+        el('cascade-combo').textContent = result.bestCombo > 1 ? result.bestCombo + '×' : '—';
+        el('cascade-time').textContent = Math.round(result.elapsedMs / 1000) + ' s';
+        el('cascade-runs').textContent = result.runs;
+
+        const record = el('cascade-record');
+        if (result.improved && result.previousBest > 0) {
+            record.textContent = points(result.score - result.previousBest) + ' points better than your old best.';
+            record.className = 'result-best improved';
+        } else if (result.improved) {
+            record.textContent = 'Your first run on the board.';
+            record.className = 'result-best improved';
+        } else if (result.best > 0) {
+            record.textContent = 'Your best still stands at ' + points(result.best) + '.';
+            record.className = 'result-best';
+        } else {
+            record.textContent = '';
+            record.className = 'result-best';
+        }
+
+        this.panel.classList.remove('hidden');
+    };
+
+    CascadeResultUI.prototype.hide = function () {
+        this.panel.classList.add('hidden');
+    };
+
     Cargo3D.ResultsUI = ResultsUI;
     Cargo3D.TowerResultUI = TowerResultUI;
+    Cargo3D.CascadeResultUI = CascadeResultUI;
 })(window);

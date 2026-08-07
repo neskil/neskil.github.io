@@ -18,6 +18,7 @@
         const missionHUD = new Cargo3D.MissionHUD();
         const sandboxHUD = new Cargo3D.SandboxHUD();
         const physicsHUD = new Cargo3D.PhysicsHUD();
+        const cascadeHUD = new Cargo3D.CascadeHUD();
         const results = new Cargo3D.ResultsUI(app);
 
         menu.renderHowTo();
@@ -56,10 +57,17 @@
             },
             hidePhysicsHUD: function () { physicsHUD.hide(); },
             showTowerResult: function (result) { tower.show(result); },
-            hideTowerResult: function () { tower.hide(); }
+            hideTowerResult: function () { tower.hide(); },
+
+            showCascadeHUD: function () { cascadeHUD.show(); },
+            updateCascadeHUD: function (metrics) { cascadeHUD.update(metrics); },
+            hideCascadeHUD: function () { cascadeHUD.hide(); },
+            showCascadeResult: function (result) { cascade.show(result); },
+            hideCascadeResult: function () { cascade.hide(); }
         };
 
         const tower = new Cargo3D.TowerResultUI(app);
+        const cascade = new Cargo3D.CascadeResultUI(app);
 
         /* ── top bar ───────────────────────────────────────────────────── */
 
@@ -207,6 +215,47 @@
         if (el('btn-phys-drop')) {
             el('btn-phys-drop').addEventListener('click', function () {
                 if (app.modeName === 'physics') app.mode.dropContainer();
+            });
+        }
+
+        /* ── cascade toolbar ───────────────────────────────────────────── */
+
+        /* Steering is screen-relative — the mode resolves 'left' against the
+           camera — so the markup carries a direction, not an axis. */
+        document.querySelectorAll('[data-cs-move]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (app.modeName === 'cascade') app.mode.step(btn.getAttribute('data-cs-move'));
+            });
+        });
+
+        if (el('btn-cs-rotate')) {
+            el('btn-cs-rotate').addEventListener('click', function () {
+                if (app.modeName === 'cascade') app.mode.rotate();
+            });
+        }
+        if (el('btn-cs-drop')) {
+            el('btn-cs-drop').addEventListener('click', function () {
+                if (app.modeName === 'cascade') app.mode.hardDrop();
+            });
+        }
+        if (el('btn-cs-restart')) {
+            el('btn-cs-restart').addEventListener('click', function () {
+                if (app.modeName === 'cascade') app.mode.restartRun();
+            });
+        }
+
+        // Soft drop is held, not toggled: it is the keyboard's Shift with a
+        // thumb on it, and it has to let go when the finger does — including
+        // when the finger slides off the button rather than lifting off it.
+        const softBtn = el('btn-cs-soft');
+        if (softBtn) {
+            const holdSoft = function (on) {
+                if (app.modeName !== 'cascade') return;
+                softBtn.classList.toggle('active', !!app.mode.setSoft(on));
+            };
+            softBtn.addEventListener('pointerdown', function (e) { e.preventDefault(); holdSoft(true); });
+            ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (evt) {
+                softBtn.addEventListener(evt, function () { holdSoft(false); });
             });
         }
 

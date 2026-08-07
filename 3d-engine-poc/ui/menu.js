@@ -33,6 +33,7 @@
 
         el('btn-campaign').addEventListener('click', function () { self.openSelect(); });
         el('btn-sandbox').addEventListener('click', function () { app.startSandbox(); });
+        if (el('btn-cascade')) el('btn-cascade').addEventListener('click', function () { app.startCascade(); });
         if (el('btn-physics')) el('btn-physics').addEventListener('click', function () { app.startPhysics('freeplay'); });
         if (el('btn-tower')) el('btn-tower').addEventListener('click', function () { app.startPhysics('tower'); });
         el('btn-howto').addEventListener('click', function () { self.open('howto'); });
@@ -43,6 +44,7 @@
         el('btn-restart').addEventListener('click', function () {
             self.close('pause');
             if (app.modeName === 'mission') app.mode.restart();
+            else if (app.modeName === 'cascade') app.mode.restartRun();
         });
         el('btn-to-select').addEventListener('click', function () {
             self.close('pause');
@@ -72,15 +74,30 @@
 
     MenuUI.prototype.open = function (key) {
         this.panels[key].classList.remove('hidden');
+        this.syncPause();
     };
 
     MenuUI.prototype.close = function (key) {
         this.panels[key].classList.add('hidden');
+        this.syncPause();
     };
 
     MenuUI.prototype.closeAll = function () {
         const self = this;
         Object.keys(this.panels).forEach(function (k) { self.close(k); });
+    };
+
+    /**
+     * Tell the mode whether the pause panel is over the yard.
+     *
+     * Every other mode is turn-based and can quite happily keep running behind a
+     * panel; Cascade cannot, because its cargo is falling. Modes that do not
+     * care simply do not implement setPaused.
+     */
+    MenuUI.prototype.syncPause = function () {
+        const mode = this.app.mode;
+        if (!mode || typeof mode.setPaused !== 'function') return;
+        mode.setPaused(!this.panels.pause.classList.contains('hidden'));
     };
 
     MenuUI.prototype.closeTop = function () {
@@ -99,9 +116,13 @@
         this.open('select');
     };
 
+    const PAUSABLE = ['mission', 'sandbox', 'physics', 'cascade'];
+
     MenuUI.prototype.openPause = function () {
-        if (this.app.modeName !== 'mission' && this.app.modeName !== 'sandbox' && this.app.modeName !== 'physics') return;
-        el('btn-restart').classList.toggle('hidden', this.app.modeName !== 'mission');
+        if (PAUSABLE.indexOf(this.app.modeName) === -1) return;
+        const restartable = this.app.modeName === 'mission' || this.app.modeName === 'cascade';
+        el('btn-restart').textContent = this.app.modeName === 'cascade' ? 'Restart run' : 'Restart mission';
+        el('btn-restart').classList.toggle('hidden', !restartable);
         el('btn-to-select').classList.toggle('hidden', this.app.modeName !== 'mission');
         this.open('pause');
     };

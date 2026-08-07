@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.5.0 — Cascade
+
+**Added**
+
+- **Cascade — the falling-cargo game.** 3D Tetris, played with the containers
+  the campaign already uses. A crane releases one unit at a time at the roof of
+  a 4×4×8 bay and it comes down a tier at a time on its own; you steer it while
+  it falls. Fill every one of a tier's sixteen slots and the tier ships out,
+  everything above settles down a level, and you get the height back. The run
+  ends when there is no room left to release the next container.
+
+  The pitch at the top of `PLAN.md` has always been "3D Tetris for shipping
+  containers", and the campaign deliberately took the clock out of it —
+  deliberation is what that mode is for. This is the other half, in its own
+  mode, where the roadmap said a timed variant belonged.
+
+  The cargo catalogue turns out to read as a tetromino set with nothing added:
+  the 10ft is the single cell, the 20ft the domino, the 40ft an I-piece that
+  spans the bay end to end, the crate an O, and the L-corner and T-beam exactly
+  what their names say.
+
+- **Layer clears, combos and a perfect clear.** A container occupies exactly one
+  tier — that is the grid's model, not a simplification made for this — so a
+  lock can only ever complete the tier it lands on. One layer per piece, never
+  four. Consecutive clears are what pay instead: the multiplier climbs by half
+  for each one in a row, and emptying the bay completely is worth more than the
+  tier that did it.
+
+- **A lock grace.** A piece that touches down is not committed for another
+  0.6 s, and sliding it renews that up to a dozen times. Without it, sliding a
+  container into the gap beside it is a reflex test rather than a decision.
+
+- **Screen-relative steering.** The arrows are resolved against the camera, so ◀
+  means left on screen no matter where you have orbited to — the one thing a 3D
+  Tetris cannot get wrong. `R` turns the piece with a kick list behind it,
+  `Shift` held makes it fall ten times faster, `Space` drops it now. With a
+  mouse, hovering aims and a click drops; on a phone the first tap aims and a
+  second tap on the same spot commits, the same bargain the tower's console
+  struck.
+
+**Changed**
+
+- **`frameBay()` takes an aim height.** It centred on the bay's lower third,
+  which is right for a campaign bay — wider than it is tall, and the cargo that
+  matters is near the floor. Cascade's bay is twice as tall as it is wide and is
+  played from the roof down, so aiming below the middle of it put the piece you
+  were steering off the top of the screen for its first three tiers.
+
 ## v0.4.3 — Tower is its own game
 
 **Added**
