@@ -26,12 +26,6 @@
         this.rows = rows | 0;
         this.tiers = tiers | 0;
         this.cells = new Int32Array(this.cols * this.rows * this.tiers);
-        /**
-         * Ground a collapse has taken out of play, as a cols × rows mask.
-         * Blocking is per column, not per tier: once wreckage is lying on a
-         * square, nothing goes there again at any height.
-         */
-        this.blocked = new Uint8Array(this.cols * this.rows);
         /** @type {Object<number, object>} placement id → placement record */
         this.placements = {};
         this.order = []; // placement ids in the order they were placed
@@ -45,60 +39,6 @@
         return x >= 0 && x < this.cols &&
                z >= 0 && z < this.rows &&
                tier >= 0 && tier < this.tiers;
-    };
-
-    /* ── ground lost to a collapse ─────────────────────────────────────── */
-
-    /** True when wreckage has taken this square out of play. */
-    YardGrid.prototype.isBlocked = function (x, z) {
-        if (x < 0 || x >= this.cols || z < 0 || z >= this.rows) return false;
-        return this.blocked[z * this.cols + x] === 1;
-    };
-
-    /**
-     * Take squares out of play. Cells already blocked are not counted again, so
-     * the return value is the ground this particular collapse cost.
-     * @param {Array<[number, number]>} cells
-     * @returns {number} squares newly lost
-     */
-    YardGrid.prototype.blockCells = function (cells) {
-        let lost = 0;
-        for (let i = 0; i < cells.length; i++) {
-            const x = cells[i][0], z = cells[i][1];
-            if (x < 0 || x >= this.cols || z < 0 || z >= this.rows) continue;
-            const at = z * this.cols + x;
-            if (this.blocked[at]) continue;
-            this.blocked[at] = 1;
-            lost++;
-        }
-        return lost;
-    };
-
-    YardGrid.prototype.blockedCount = function () {
-        let n = 0;
-        for (let i = 0; i < this.blocked.length; i++) {
-            if (this.blocked[i]) n++;
-        }
-        return n;
-    };
-
-    /** Every blocked square, for the renderer. */
-    YardGrid.prototype.blockedCells = function () {
-        const out = [];
-        for (let z = 0; z < this.rows; z++) {
-            for (let x = 0; x < this.cols; x++) {
-                if (this.blocked[z * this.cols + x]) out.push([x, z]);
-            }
-        }
-        return out;
-    };
-
-    /** True when any cell of a footprint has been lost. */
-    YardGrid.prototype.footprintBlocked = function (absCells) {
-        for (let i = 0; i < absCells.length; i++) {
-            if (this.isBlocked(absCells[i][0], absCells[i][1])) return true;
-        }
-        return false;
     };
 
     /** Placement id occupying a cell, or 0. */
@@ -141,9 +81,6 @@
     YardGrid.prototype.restTier = function (typeId, rot, x, z) {
         const cells = this.absCells(typeId, rot, x, z);
         if (!cells) return null;
-
-        // Wreckage reads the same as being off the bay: there is no tier here.
-        if (this.footprintBlocked(cells)) return null;
 
         let top = -1;
         for (let i = 0; i < cells.length; i++) {
@@ -241,7 +178,6 @@
     YardGrid.prototype.place = function (unit, x, z, tier, rot) {
         const cells = this.absCells(unit.type, rot, x, z);
         if (!cells || !this.cellsFree(cells, tier)) return null;
-        if (this.footprintBlocked(cells)) return null;
 
         const placement = {
             id: nextPlacementId++,
@@ -250,6 +186,10 @@
             x: x,
             z: z,
             tier: tier,
+            // Tiers are a span, not a number, because a container that has come
+            // down lies across whatever height its wreck actually occupies. A
+            // unit placed by the crane spans exactly one.
+            tierTop: tier,
             rot: rot | 0,
             cells: cells
         };
@@ -263,15 +203,77 @@
         return placement;
     };
 
+    /** Clear every cell a placement holds, without forgetting the placement. */
+    YardGrid.prototype.releaseCells = function (placement) {
+        const top = placement.tierTop === undefined ? placement.tier : placement.tierTop;
+        for (let i = 0; i < placement.cells.length; i++) {
+            for (let t = placement.tier; t <= top; t++) {
+                if (!this.inBounds(placement.cells[i][0], placement.cells[i][1], t)) continue;
+                const idx = this.index(placement.cells[i][0], placement.cells[i][1], t);
+                if (this.cells[idx] === placement.id) this.cells[idx] = 0;
+            }
+        }
+    };
+
+    /**
+     * Move a placement onto the ground it actually came to rest on.
+     *
+     * Used when a stack comes down. The cargo is not lost and not craned away:
+     * it is still in the yard, still counts, and still widens the envelope —
+     * it is simply not where it was put. The id, the unit and its place in the
+     * order all survive, so the manifest and undo see no gap.
+     *
+     * Ground another placement already holds is claimed around, not stolen: the
+     * wreck's footprint is an axis-aligned approximation of a box lying at an
+     * angle, so it can overlap a neighbour the solver actually kept clear.
+     * Claiming runs per cell *and* per tier rather than all-or-nothing, so a
+     * wreck that clips one corner of a standing unit still takes the rest of
+     * the ground it is genuinely lying on instead of being left holding none.
+     *
+     * @param {number} id
+     * @param {Array<[number, number]>} cells absolute cells the wreck covers
+     * @param {number} tier lowest tier it occupies
+     * @param {number} tierTop highest tier it occupies
+     * @returns {object|null} the updated placement
+     */
+    YardGrid.prototype.reseat = function (id, cells, tier, tierTop) {
+        const placement = this.placements[id];
+        if (!placement) return null;
+
+        this.releaseCells(placement);
+
+        const lo = Math.max(0, Math.min(this.tiers - 1, tier));
+        const hi = Math.max(lo, Math.min(this.tiers - 1, tierTop));
+        const kept = [];
+
+        for (let i = 0; i < cells.length; i++) {
+            const x = cells[i][0], z = cells[i][1];
+            if (x < 0 || x >= this.cols || z < 0 || z >= this.rows) continue;
+
+            let got = false;
+            for (let t = lo; t <= hi; t++) {
+                const idx = this.index(x, z, t);
+                if (this.cells[idx] !== 0) continue;
+                this.cells[idx] = id;
+                got = true;
+            }
+            if (got) kept.push([x, z]);
+        }
+
+        placement.cells = kept;
+        placement.tier = lo;
+        placement.tierTop = hi;
+        placement.x = kept.length ? kept[0][0] : placement.x;
+        placement.z = kept.length ? kept[0][1] : placement.z;
+        return placement;
+    };
+
     /** Remove a placement. Returns the removed record, or null. */
     YardGrid.prototype.removeById = function (id) {
         const placement = this.placements[id];
         if (!placement) return null;
 
-        for (let i = 0; i < placement.cells.length; i++) {
-            const idx = this.index(placement.cells[i][0], placement.cells[i][1], placement.tier);
-            if (this.cells[idx] === id) this.cells[idx] = 0;
-        }
+        this.releaseCells(placement);
 
         delete this.placements[id];
         const at = this.order.indexOf(id);
@@ -290,8 +292,9 @@
         const placement = this.placements[id];
         if (!placement) return false;
 
+        const top = placement.tierTop === undefined ? placement.tier : placement.tierTop;
         for (let i = 0; i < placement.cells.length; i++) {
-            for (let t = placement.tier + 1; t < this.tiers; t++) {
+            for (let t = top + 1; t < this.tiers; t++) {
                 if (this.get(placement.cells[i][0], placement.cells[i][1], t) !== 0) return true;
             }
         }
@@ -355,7 +358,6 @@
 
     YardGrid.prototype.clear = function () {
         this.cells.fill(0);
-        this.blocked.fill(0);
         this.placements = {};
         this.order = [];
     };

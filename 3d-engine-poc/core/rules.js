@@ -48,8 +48,10 @@
          *
          * A mission that declares `physics` drops the support rule and lets the
          * simulation answer instead: place what you like, and if the stack will
-         * not hold, it comes down and the ground it lands on is out of play for
-         * the rest of the shift.
+         * not hold, it comes down. Nothing is lost when it does — the cargo
+         * stays in the yard and keeps counting, from wherever it stopped. The
+         * cost is the envelope, which is the box around everything placed and
+         * therefore grows with every metre a unit slides away from the pile.
          *
          * `check()` always passes because the verdict arrives *after* the
          * placement, not before — and because deciding it needs a rigid-body
@@ -62,8 +64,9 @@
             label: 'Live physics',
             defaultParam: 1,
             describe: function () {
-                return 'No support rule — the stack is simulated. Overhang what you dare, ' +
-                       'but anything that falls takes its ground out of play.';
+                return 'No support rule — the stack is simulated. Overhang what you dare. ' +
+                       'Anything that falls stays where it lands and still counts, so a ' +
+                       'collapse costs you the envelope it sprawls into.';
             },
             check: function () { return null; }
         },

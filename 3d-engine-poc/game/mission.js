@@ -133,8 +133,8 @@
 
     /**
      * Let the player watch it come down. A second live world drives the meshes
-     * while it falls; when it has run its course the fallen units go back on the
-     * queue, the ground they took is struck off, and the survivors snap back to
+     * while it falls; when it has run its course the fallen units are reseated
+     * onto the ground they actually landed on, and the survivors snap back to
      * the lattice the grid never stopped believing they were on.
      */
     MissionMode.prototype.startCollapse = function (verdict) {
@@ -179,26 +179,52 @@
         this.finishCollapse();
     };
 
+    /**
+     * Resolve the collapse.
+     *
+     * Nothing is craned away and no ground goes out of play: a container that
+     * came down is still cargo, still counts against the manifest, and now
+     * claims the slots it is actually lying across. That is the whole penalty,
+     * and it is a real one — the envelope is the box around everything placed,
+     * so a unit that slid two slots sideways has just made the score worse in
+     * the only currency the mission has.
+     */
     MissionMode.prototype.finishCollapse = function () {
         const c = this.collapse;
         const fallen = c.verdict.fallen;
-        const requeue = [];
 
+        // Free every wreck's old ground before any of them claim new ground.
+        // Two containers that came down together have both already left where
+        // they were standing; reseating them one at a time would measure the
+        // first against the second's pre-collapse footprint and leave it
+        // holding nothing.
         for (let i = 0; i < fallen.length; i++) {
-            const p = fallen[i].placement;
-            // Pre-placed obstacles are scenery; they are not cargo to re-stack.
-            if (!p.isObstacle) requeue.push(p.unit);
-            this.grid.removeById(p.id);
-            this.yardView.removeUnit(p.id);
+            this.grid.releaseCells(fallen[i].placement);
         }
 
-        const lost = this.grid.blockCells(c.verdict.cells);
+        for (let i = 0; i < fallen.length; i++) {
+            const f = fallen[i];
+            const p = f.placement;
+
+            // The grid follows the wreck; the wreck remembers its pose so the
+            // next simulation starts it lying down rather than standing it up.
+            this.grid.reseat(p.id, f.slot.cells, f.slot.tier, f.slot.tierTop);
+            p.pose = f.pose;
+
+            const mesh = this.yardView.unitMeshes[p.id];
+            if (!mesh) continue;
+            mesh.position.copy(f.pose.position);
+            mesh.quaternion.copy(f.pose.quaternion);
+            mesh.userData.dropping = false;
+        }
 
         // Everything still standing was only ever off the lattice inside the
-        // simulation; put the meshes back where the grid says they are.
+        // simulation; put the meshes back where the grid says they are. A wreck
+        // from an earlier collapse is not "still standing" — it is where it is.
         const survivors = this.grid.list();
         for (let i = 0; i < survivors.length; i++) {
             const p = survivors[i];
+            if (p.pose) continue;
             const mesh = this.yardView.unitMeshes[p.id];
             if (!mesh) continue;
             this.yardView.cellToWorld(p.x, p.z, p.tier, p.type, p.rot, mesh.position);
@@ -206,26 +232,22 @@
         }
 
         this.yardView.updateEnvelope(this.grid.bounds());
-        this.yardView.showBlocked(this.grid.blockedCells());
 
         if (this.app.effects) {
-            for (let i = 0; i < c.verdict.cells.length; i++) {
-                const at = this.yardView.cellToWorld(c.verdict.cells[i][0], c.verdict.cells[i][1], 0, '10ft', 0);
+            for (let i = 0; i < fallen.length; i++) {
+                const at = fallen[i].pose.position;
                 this.app.effects.ring(at.x, 0.05, at.z, 0xf87171);
             }
             this.app.effects.shake(0.5);
         }
 
         this.collapse = null;
+        if (this.placement) this.placement.attach();
 
-        if (this.placement) {
-            this.placement.requeue(requeue);
-            this.placement.attach();
-        }
-
+        const n = fallen.length;
         this.app.ui.flashReason(
-            requeue.length + (requeue.length === 1 ? ' unit' : ' units') +
-            ' back on the quay · ' + lost + ' slot' + (lost === 1 ? '' : 's') + ' lost'
+            n + (n === 1 ? ' unit came down' : ' units came down') +
+            ' — still counted, where they lie'
         );
         this.app.ui.updateMissionHUD(this.snapshot(this.placement));
     };

@@ -96,6 +96,19 @@ the tests prove the logic, not the wiring.
   so the lattice leaves 31 cm of air per tier and a simulated stack legitimately
   sinks onto itself — more the higher it goes. `missionPhysics.js` allows for
   that per body; a flat drift tolerance condemns every tall stack as collapsed.
+- **A placement owns a tier *span*, not a tier.** `place()` sets
+  `tierTop === tier`, but a unit that came down is reseated across every tier its
+  wreck occupies, so `tierTop > tier`. Anything walking a placement's cells has
+  to loop `tier..tierTop` — see `releaseCells()` and `isBuried()`. Reading
+  `placement.tier` alone leaves half a wreck welded into the lattice.
+- **A collapse costs the envelope, not the cargo.** Nothing is despawned and no
+  ground is blocked; the container stays where it fell and keeps counting. The
+  score suffers because the envelope stretches around it. If you find yourself
+  adding a lava floor back, the penalty you want already exists.
+- **Reseat every wreck's release before any wreck's claim.** `finishCollapse()`
+  frees all the fallen placements' cells first and only then reseats them. One
+  loop doing both means the first wreck is measured against the second's
+  pre-collapse footprint and ends up holding no ground at all.
 - **`physics` is a rule core/ cannot decide.** Its `check()` always passes. The
   verdict needs the solver, which needs THREE, so `game/missionPhysics.js`
   enforces it after the placement. The entry in `RULES` exists so the mission

@@ -32,7 +32,7 @@ with no WebGL context, offline, in a headless browser.
 ├── core/               pure logic — no THREE, no DOM
 │   ├── constants.js    grid metrics, cargo catalogue, carriers, traits
 │   ├── grid.js         YardGrid: occupancy lattice, gravity, support, bounds,
-│   │                   ground lost to a collapse
+│   │                   reseating a unit that came down
 │   ├── rules.js        terminal regulations as predicates + reasons
 │   ├── scoring.js      envelope volume, par, medals, scorecards
 │   ├── manifest.js     seeded PRNG and manifest generation
@@ -224,15 +224,23 @@ where the grid says everything should be.
 
 - **It held** — nothing happens, and it cost a few milliseconds the player never
   noticed. This is the common case, so it is the one that has to be free.
-- **It fell** — the collapse is replayed live, the fallen cargo goes back on the
-  queue, and every square it started on or landed on is struck off for the rest
-  of the shift. You place it again with less yard, which shows up in the envelope
-  as sprawl you did not choose.
+- **It fell** — the collapse is replayed live and then the container *stays
+  down*, exactly where it stopped. Nothing is craned away and no ground goes out
+  of play: it is still cargo, it still counts against the manifest, and the grid
+  reseats it onto the cells it is now lying across. The penalty is the envelope,
+  which is the box around everything placed and therefore grows with every metre
+  a unit slid away from the pile.
 
-The grid stays authoritative. Physics is only ever asked *did it hold*, and
-survivors snap back to the lattice — so envelope scoring, a computed par and
-medals all keep working, which they could not if containers drifted off-grid.
-The manifest is moved, never grown, so `parFor()` sees the same cargo throughout.
+A wreck keeps its resting pose, so the next simulation starts it lying down
+instead of standing it back up, and it claims every tier its own height touches
+— padded by `WRECK_CLEARANCE` — so the next container dropped on that column is
+released in clear air above its highest corner rather than inside it.
+
+The grid stays authoritative about *what ground is taken*; the solver is
+authoritative about *where a body is*. Units that are still standing snap back
+to the lattice, so envelope scoring, a computed par and medals all keep working.
+The manifest is never grown or shortened, so `parFor()` sees the same cargo
+throughout — a unit that fell is placed, not pending.
 
 Two properties make this usable, and neither held before the solver was
 rewritten: it is **frame-rate independent**, so a verdict is identical on every
