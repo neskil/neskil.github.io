@@ -68,6 +68,10 @@
         const group = section.querySelector('.button-group');
         if (!group) return null;
 
+        // A nudge console has nothing to report: its buttons are momentary, so
+        // the count below would only ever say "1 on" for a soft drop being held.
+        if (group.classList.contains('nudge-pad')) return null;
+
         // Independent toggles have no single answer, so they report a count —
         // enough to tell you X-ray is still on without naming five buttons.
         if (!isExclusive(group)) {

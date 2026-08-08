@@ -233,11 +233,12 @@
                 if (app.modeName === 'cascade') app.mode.rotate();
             });
         }
-        if (el('btn-cs-drop')) {
-            el('btn-cs-drop').addEventListener('click', function () {
+        /* Two of them: the arrow console's and the touch console's. */
+        document.querySelectorAll('[data-cs-drop]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
                 if (app.modeName === 'cascade') app.mode.hardDrop();
             });
-        }
+        });
         if (el('btn-cs-restart')) {
             el('btn-cs-restart').addEventListener('click', function () {
                 if (app.modeName === 'cascade') app.mode.restartRun();
@@ -256,6 +257,24 @@
             softBtn.addEventListener('pointerdown', function (e) { e.preventDefault(); holdSoft(true); });
             ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (evt) {
                 softBtn.addEventListener(evt, function () { holdSoft(false); });
+            });
+        }
+
+        // The gesture console that stands in for those buttons on a phone. It
+        // asks for the same four things through the same mode methods; only the
+        // input is different, so there is no second copy of the steering here.
+        const steerPad = el('cs-pad-steer');
+        if (steerPad) {
+            Cargo3D.bindSteerPad(steerPad, {
+                step: function (dir) { if (app.modeName === 'cascade') app.mode.step(dir); },
+                drop: function () { if (app.modeName === 'cascade') app.mode.hardDrop(); },
+                soft: function (on) { if (app.modeName === 'cascade') app.mode.setSoft(on); }
+            });
+        }
+        const turnPad = el('cs-pad-turn');
+        if (turnPad) {
+            Cargo3D.bindTurnPad(turnPad, {
+                turn: function () { if (app.modeName === 'cascade') app.mode.rotate(); }
             });
         }
 

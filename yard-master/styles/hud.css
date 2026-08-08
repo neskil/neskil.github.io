@@ -370,6 +370,120 @@
    would otherwise be expected to take the aim back. */
 .nudge-readout.locked { color: var(--accent-cyan); }
 
+/* ── gesture console ─────────────────────────────────────────────────────
+   Cascade's thumb controls: a large pad to drag and a small one to tap. Off
+   on a desktop, where the arrow console above is the better instrument — the
+   responsive block at the foot of this file swaps the two. Gestures are in
+   ui/touchpad.js; this is the surface they read from.
+*/
+.touch-console { display: none; }
+
+.touch-pad {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid rgba(56, 189, 248, 0.26);
+    /* A dish, so the centre reads as the resting place a knob returns to. */
+    background:
+        radial-gradient(circle at 50% 45%, rgba(56, 189, 248, 0.14), transparent 62%),
+        rgba(255, 255, 255, 0.045);
+    /* The pad owns every gesture that lands on it. Without this the control
+       bar's own `pan-y` claims a vertical drag and the piece never moves. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    cursor: grab;
+    transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.touch-pad.is-active {
+    border-color: rgba(56, 189, 248, 0.6);
+    background-color: rgba(56, 189, 248, 0.12);
+    cursor: grabbing;
+}
+
+/* A held pad is a soft drop, which is the one gesture with no other tell. */
+.touch-pad.is-holding {
+    border-color: var(--accent-amber);
+    background-color: rgba(245, 158, 11, 0.14);
+}
+
+/* The knob follows the finger and springs back on release — the only feedback
+   that the pad is tracking at all before the container starts moving. */
+.pad-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 34px;
+    height: 34px;
+    margin: -17px 0 0 -17px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(226, 232, 240, 0.16);
+    transform: translate(var(--knob-x, 0px), var(--knob-y, 0px));
+    transition: transform 0.16s ease-out, opacity 0.14s ease;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.touch-pad.is-active .pad-knob {
+    /* Under the finger, so it must not lag behind it. */
+    transition: opacity 0.14s ease;
+    opacity: 1;
+    background: rgba(56, 189, 248, 0.4);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.touch-pad.is-holding .pad-knob {
+    background: rgba(245, 158, 11, 0.45);
+}
+
+.pad-edge, .pad-glyph {
+    position: absolute;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.pad-up    { top: 7px;    left: 50%; transform: translateX(-50%); }
+.pad-down  { bottom: 19px; left: 50%; transform: translateX(-50%); }
+.pad-left  { left: 8px;   top: 50%; transform: translateY(-50%); }
+.pad-right { right: 8px;  top: 50%; transform: translateY(-50%); }
+
+.pad-glyph {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.3rem;
+    color: var(--text-sub);
+}
+
+/* What the pad does, on the pad. There is no hover tooltip on a phone and no
+   room in the bar for a legend. */
+.pad-cap {
+    position: absolute;
+    bottom: 5px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.56rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* The drop button below the turn pad, in a flex column rather than the arrow
+   console's grid — so the grid placement it inherits does not apply. */
+.touch-drop {
+    justify-content: center;
+    margin-left: 0;
+    flex: none;
+}
+
 .tool-btn, .palette-btn {
     display: flex;
     align-items: center;
@@ -861,7 +975,55 @@
 
     .toolbar-section.collapsible:not(.is-open) > .button-group,
     .toolbar-section.collapsible:not(.is-open) > .nudge-readout,
+    .toolbar-section.collapsible:not(.is-open) > .touch-console,
     .toolbar-section.collapsible:not(.is-open) > .select-input { display: none; }
+
+    /*
+     * Cascade's steering swaps instruments here: the arrows go and the gesture
+     * console takes their place. A container that is already falling is steered
+     * for as long as it falls, and on a 40px button that is one tap per cell
+     * with the thumb travelling between four of them — the drag is the same
+     * movement in one gesture, and it frees the vertical pair from having to
+     * mean "away" and "toward" on a screen where up also means the sky.
+     *
+     * The arrows stay on a desktop, where a mouse aims by hovering the yard
+     * itself and the console is for the cell it cannot quite land on.
+     */
+    #cascade-toolbar .nudge-pad { display: none; }
+
+    /* Class-only, deliberately: the rule that folds a collapsed section is
+       class-only too, and an id here would outrank it and leave the console
+       showing under a chip that says it is shut. */
+    .touch-console {
+        display: grid;
+        grid-template-columns: 1fr 96px;
+        gap: 8px;
+        width: 100%;
+        /* Same ceiling as the arrow console had, and for the same reason: on a
+           phone held sideways the row is 800px wide and a pad that spans it is
+           further than a thumb reaches, not a bigger target. */
+        max-width: 420px;
+        margin: 0 auto;
+    }
+
+    .steer-pad {
+        /* Tall enough that a drag has somewhere to go before the finger leaves
+           the pad — and the pointer is captured, so leaving it is survivable. */
+        min-height: 132px;
+    }
+
+    .touch-side { display: flex; flex-direction: column; gap: 8px; }
+    .touch-side .turn-pad { flex: 1; min-height: 78px; }
+
+    /* Landscape has no vertical room to spend on a pad; the bar is capped at
+       42% of a 390px-tall viewport. Shorter pads, side by side, still beat the
+       arrows because the gesture is the same either way. */
+    @media (max-height: 500px) {
+        .steer-pad { min-height: 86px; }
+        .touch-side .turn-pad { min-height: 46px; }
+        .pad-cap { font-size: 0.5rem; bottom: 3px; }
+        .pad-down { bottom: 15px; }
+    }
 
     /* The console is the section you keep open while you play, so it gets the
        room: the axis pairs stretch across the row and Drop takes the end. */
@@ -884,43 +1046,25 @@
     .select-input { width: 100%; padding: 9px 12px; }
 
     /*
-     * The tower challenge is unplayable blind: height, best and whether the
-     * stack is standing are the entire feedback loop. The full card does not
-     * fit a phone, so the same numbers become a compact strip under the top bar.
-     */
-    #physics-hud {
-        display: block;
-        top: calc(60px + var(--safe-top));
-        left: calc(8px + var(--safe-left));
-        right: calc(8px + var(--safe-right));
-        width: auto;
-        max-height: none;
-        overflow: visible;
-    }
-
-    #physics-hud .hud-card-header,
-    #physics-hud .hud-tagline { display: none; }
-
-    #physics-hud .hud-card { padding: 7px 10px; }
-
-    #physics-hud .hud-card,
-    #physics-hud #ph-tower-rows {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2px 14px;
-    }
-
-    #physics-hud .metric-row { gap: 6px; padding: 0; font-size: 0.74rem; }
-    #physics-hud .metric-label { font-size: 0.68rem; }
-
-    /*
-     * Cascade folds the same way, and for the same reason: score, tier fill and
-     * what is coming next are the entire loop. The queue's chips are what goes —
-     * a column of cards down the left edge of a falling yard is unreadable, and
-     * the card's one-line "Next" row carries the lookahead instead.
+     * The two real-time modes are unplayable blind. For the tower it is height,
+     * best and whether the thing is still standing; for Cascade it is the score,
+     * how full the tier is and what is coming next. Neither card fits a phone,
+     * so both fold into one strip of readouts under the top bar — and Cascade's
+     * queue folds away entirely, because a column of cards down the left edge of
+     * a falling yard is unreadable and the card's "Next" row already carries the
+     * lookahead.
+     *
+     * Tiles, not rows. Laid out as rows — caption left, value right, wrapped —
+     * nine pairs run together into a paragraph of alternating words and numbers
+     * with the column breaks landing wherever the text happened to end, and the
+     * only way to fit it was to shrink both until neither read. Stacking each
+     * pair into its own cell of an even grid buys that alignment back and spends
+     * it on type: the caption goes small and uppercase so it reads as a caption,
+     * and the value it labels is the biggest thing in the tile.
      */
     #cascade-queue { display: none; }
 
+    #physics-hud,
     #cascade-hud {
         display: block;
         top: calc(60px + var(--safe-top));
@@ -931,17 +1075,76 @@
         overflow: visible;
     }
 
-    #cascade-hud .hud-card-header,
-    #cascade-hud .hud-tagline { display: none; }
+    #physics-hud .hud-card-header, #physics-hud .hud-tagline,
+    #cascade-hud .hud-card-header, #cascade-hud .hud-tagline { display: none; }
 
+    #physics-hud .hud-card,
     #cascade-hud .hud-card {
-        padding: 7px 10px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 2px 14px;
+        padding: 7px 9px;
+        display: grid;
+        /* auto-fit rather than a fixed count: three columns on a 360px phone,
+           four on a 412px one, nine on one held sideways, with no breakpoint per
+           screen width. 80px is the floor at which every caption in either strip
+           still fits — which is what keeps them short. */
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        gap: 4px 6px;
+        /* So a two-cell readout that will not fit the end of a row does not
+           leave the hole it came from empty. */
+        grid-auto-flow: row dense;
+        align-items: end;
     }
 
-    #cascade-hud .metric-row { gap: 6px; padding: 0; font-size: 0.74rem; }
-    #cascade-hud .metric-label { font-size: 0.68rem; }
-    #cascade-hud .metric-row.big .metric-val { font-size: 0.95rem; }
+    /* The tower's second group is a wrapper the mode toggles as a whole, so it
+       cannot become a grid item without taking its three readouts with it;
+       `display: contents` lets them join the grid as though it were not there.
+       `.hidden` is `!important` and still wins, so the toggle keeps working. */
+    #physics-hud #ph-tower-rows { display: contents; }
+
+    #physics-hud .metric-row,
+    #cascade-hud .metric-row {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        padding: 0;
+        min-width: 0;
+    }
+
+    #physics-hud .metric-label,
+    #cascade-hud .metric-label {
+        max-width: 100%;
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #physics-hud .metric-val,
+    #cascade-hud .metric-val {
+        max-width: 100%;
+        font-size: 0.88rem;
+        line-height: 1.2;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* A readout whose value is a phrase rather than a number takes two cells,
+       so the grid stays even instead of ellipsising one tile in three. Marked in
+       the markup, not guessed from the content. */
+    #physics-hud .metric-row.wide,
+    #cascade-hud .metric-row.wide { grid-column: span 2; }
+
+    /* The score is the one number you glance at. It keeps its single cell —
+       five digits fit — and spends the difference on size. */
+    #cascade-hud .metric-row.big .metric-val { font-size: 1.4rem; line-height: 1.1; }
+
+    /* One word, and it says what it means by changing colour. */
+    #physics-hud .run-status,
+    #cascade-hud .run-status { font-size: 0.8rem; }
 }

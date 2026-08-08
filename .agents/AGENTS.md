@@ -11,7 +11,7 @@ Put a fact in exactly one place; point at it rather than restating it.
 | --- | --- |
 | **AGENTS.md** (this file) | Workspace-wide rules: structure, stack, styling, git conventions — what applies to every page. |
 | **[README.md](../README.md)** | Site layout table, link-preview (OG image) recipe, local dev server. |
-| `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `3d-engine-poc/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
+| `cargo-lander/CLAUDE.md`, `supply-chain/CLAUDE.md`, `yard-master/CLAUDE.md` | Per-project standing instructions, versioning/cache-busting, and headless verification recipes. Read the relevant one before touching that folder — do not re-derive its test commands here, they drift. |
 | `car/PLAN.md` | Open TODOs for the car cost calculator, ordered by impact. |
 
 ## Project & page structure
@@ -23,7 +23,7 @@ Folder-based routing — each major page or app is fully isolated with its own
 - **Content pages**: `/cv/` (résumé), `/games/` (game library), `/math/` and
   `/converter/` (unit reference/conversion utilities).
 - **Isolated applications**: `/cargo-lander/`, `/supply-chain/`,
-  `/3d-engine-poc/` (Yard Master 3D), and `/car/` each own their HTML, logic,
+  `/yard-master/` (Yard Master 3D), and `/car/` each own their HTML, logic,
   assets, and styling — see the doc map above before working in any of them.
 - **Release flow**: build new projects in their own isolated directory. Do
   NOT add a card for one to the root `index.html` until it's completed,
@@ -63,7 +63,7 @@ Folder-based routing — each major page or app is fully isolated with its own
 
 - Plain pages (`/cv/`, `/games/`, `/math/`, `/converter/`, `/car/`) need no
   local server — open and exercise them directly over `file://`.
-- `cargo-lander/`, `supply-chain/`, and `3d-engine-poc/` each have a real
+- `cargo-lander/`, `supply-chain/`, and `yard-master/` each have a real
   headless test suite and their own verification recipe — see that
   project's `CLAUDE.md` (do not hand-roll a substitute command here, it will
   go stale the moment their suite changes).

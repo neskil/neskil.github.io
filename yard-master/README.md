@@ -20,7 +20,7 @@ with no WebGL context, offline, in a headless browser.
 ## Layout
 
 ```
-3d-engine-poc/
+yard-master/
 ├── index.html          DOM shell; script tags define load order
 ├── version.js          build stamp shown in the top bar (tools/stamp-build.sh)
 ├── tests.html          headless unit tests for core/ + missions/
@@ -73,6 +73,8 @@ with no WebGL context, offline, in a headless browser.
 │   ├── hud.js          mission HUD, queue, sandbox stats, inspector
 │   ├── menu.js         main menu, mission select, how-to, pause
 │   ├── results.js      scorecard
+│   ├── toolbars.js     control bars as accordions below the mobile breakpoint
+│   ├── touchpad.js     Cascade's drag-to-steer pads, for a thumb
 │   └── ui.js           the facade the game talks to
 │
 ├── styles/             tokens.css → hud.css → menu.css
@@ -273,7 +275,7 @@ breaks loudly if `core/` ever reaches for it. The solver genuinely needs
 ```sh
 for page in tests.html physics-tests.html; do
   chrome --headless=new --disable-gpu --virtual-time-budget=90000 \
-    --dump-dom "file:///path/to/3d-engine-poc/$page" | grep -oE 'ALL TESTS PASSED[^<]*|FAILED — [^<]*'
+    --dump-dom "file:///path/to/yard-master/$page" | grep -oE 'ALL TESTS PASSED[^<]*|FAILED — [^<]*'
 done
 ```
 

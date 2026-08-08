@@ -5,7 +5,7 @@
 #
 # Run it from anywhere in the repo, then commit the result:
 #
-#     3d-engine-poc/tools/stamp-build.sh
+#     yard-master/tools/stamp-build.sh
 #     git commit -am "chore(3d): stamp build"
 #
 # The stamp names the commit that is HEAD right now — the last one carrying
@@ -15,7 +15,7 @@
 set -eu
 
 root=$(git rev-parse --show-toplevel)
-target="$root/3d-engine-poc/version.js"
+target="$root/yard-master/version.js"
 
 commit=$(git rev-parse --short HEAD)
 date=$(git show -s --format=%cs HEAD)

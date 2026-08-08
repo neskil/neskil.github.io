@@ -1,6 +1,6 @@
 # Yard Master — turning the 3D POC into a game
 
-This is the design + roadmap document for `3d-engine-poc/`. The POC shipped as a
+This is the design + roadmap document for `yard-master/`. The POC shipped as a
 sandbox: spawn containers, drive a reach stacker, change the weather. Fun to look
 at, but there was nothing to *win*. This document describes the game that grows
 out of it, and the file architecture that lets it be built incrementally without
@@ -245,7 +245,10 @@ Load order matters (plain `<script>` tags, no bundler, per house style):
 - Solver for a true par (branch-and-bound over the manifest) to replace the
   perfect-pack idealisation
 - Non-rectangular pieces (the grid already accepts arbitrary cell masks)
-- Touch controls and a mobile layout
+- Gesture controls for the turn-based modes. Cascade has them (`ui/touchpad.js`)
+  because a falling container is steered continuously and buttons could not keep
+  up; mission and sandbox placement is deliberate, aims by tapping the yard, and
+  is served well enough by the arrow console the mobile layout folds away.
 
 **Deliberately not doing**
 - Physics simulation. Toppling stacks would be spectacular and would make the

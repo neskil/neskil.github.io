@@ -1113,7 +1113,7 @@
             color: rgb(251, 146, 60);
         }
 
-        #card-3d-poc {
+        #card-yard-master {
             --accent-rgb: 56, 189, 248;
             --card-bg-gradient: linear-gradient(135deg, rgba(14, 38, 54, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
             --card-hover-gradient: linear-gradient(135deg, rgba(20, 58, 80, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
@@ -1121,7 +1121,7 @@
             --card-hover-border: rgba(125, 211, 252, 0.48);
         }
 
-        #card-3d-poc .card-link {
+        #card-yard-master .card-link {
             color: rgb(125, 211, 252);
         }
 
@@ -1948,7 +1948,7 @@
                 </svg></span>
         </a>
 
-        <a href="3d-engine-poc/index.html" class="card card-metal" id="card-3d-poc">
+        <a href="yard-master/index.html" class="card card-metal" id="card-yard-master">
             <div class="card-bg-hover"></div>
             <div>
                 <div class="card-icon">
@@ -1962,7 +1962,7 @@
                 </div>
                 <h2 class="card-title">Yard Master 3D</h2>
                 <p class="card-desc">3D container-packing puzzle & logistics sim. Stack cargo, follow terminal rules, and optimize your yard envelope.</p>
-                <div class="card-stat-chip" id="stat-3d-poc">
+                <div class="card-stat-chip" id="stat-yard-master">
                     <span class="stat-icon">📦</span> <span class="stat-val">—</span>
                 </div>
             </div>
@@ -2550,7 +2550,7 @@
             // 4. Yard Master 3D
             try {
                 const cargoRaw = localStorage.getItem('cargo3d.save.v1');
-                const cargoBadge = document.getElementById('stat-3d-poc');
+                const cargoBadge = document.getElementById('stat-yard-master');
                 if (cargoBadge) {
                     if (cargoRaw) {
                         const data = JSON.parse(cargoRaw);

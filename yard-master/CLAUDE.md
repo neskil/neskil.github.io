@@ -1,4 +1,4 @@
-# Working in `3d-engine-poc/`
+# Working in `yard-master/`
 
 Read [`README.md`](README.md) for the architecture and [`PLAN.md`](PLAN.md) for
 the game design before changing anything here.
@@ -23,7 +23,7 @@ the game design before changing anything here.
 Stamp the build, so the live page says which version it is:
 
 ```sh
-3d-engine-poc/tools/stamp-build.sh && git commit -am "chore(3d): stamp build"
+yard-master/tools/stamp-build.sh && git commit -am "chore(3d): stamp build"
 ```
 
 The chip in the top bar reads `version.js` and shows that commit as plain text.
@@ -175,10 +175,21 @@ the tests prove the logic, not the wiring.
   down and places them again a tier lower, so the ids change. The event carries
   `moved: [{from, to}]` for exactly that reason, and `YardView.reseatUnit()`
   re-keys the mesh. Anything else holding a placement id across a clear is stale.
+- **A responsive rule that shows something must not carry an id.** The rule that
+  folds a collapsed toolbar section is class-only
+  (`.toolbar-section.collapsible:not(.is-open) > …`), so anything it has to hide
+  must be reachable at that specificity. `#cascade-toolbar .touch-console
+  { display: grid }` outranked it and left the gesture pads on screen underneath
+  a chip that said the section was shut.
+- **The gesture pads must own their gestures.** `.control-bar` sets
+  `touch-action: pan-y` so the bar itself can be scrolled, and that claims a
+  vertical drag before `ui/touchpad.js` sees it. `.touch-pad` sets
+  `touch-action: none` for exactly that reason; drop it and the piece moves left
+  and right but never forward or back, only on a real touchscreen.
 - **Only Cascade implements `setPaused`.** `MenuUI.syncPause()` calls it on
   whichever mode is live whenever a panel opens or closes; every other mode is
   turn-based and quite happily keeps running behind the pause overlay.
 
 ## Save schema
 
-`cargo3d.save.v1` is read by `core/storage.js` and by `index.html`'s `loadHighScores()` to populate the `#stat-3d-poc` chip on the main portfolio landing card (`#card-3d-poc`). Keep the save schema backwards compatible.
+`cargo3d.save.v1` is read by `core/storage.js` and by `index.html`'s `loadHighScores()` to populate the `#stat-yard-master` chip on the main portfolio landing card (`#card-yard-master`). Keep the save schema backwards compatible.

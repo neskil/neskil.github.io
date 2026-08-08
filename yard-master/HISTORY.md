@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.5.3 — a thumb on the controls
+
+**Added**
+
+- **Gesture controls for Cascade on a phone.** Below the mobile breakpoint the
+  arrow console gives way to two pads: a large one you drag to steer — one cell
+  per 26 px of travel, on both screen axes at once, so a diagonal drag moves
+  diagonally — and a small one you tap to turn. A tap on the steer pad drops the
+  container and a hold makes it fall faster, which is the whole vocabulary the
+  four arrow buttons plus Drop plus soft-drop used to spread across the bar. A
+  container that is already falling has to be steered for as long as it falls,
+  and that is a drag, not a tap per cell. The pointer is captured, so a drag that
+  leaves the pad keeps steering. `ui/touchpad.js`; the arrows stay on a desktop,
+  where the mouse aims by hovering the yard itself.
+
+**Changed**
+
+- **The phone's readout strip reads.** Nine label-and-value pairs laid out as
+  wrapping rows ran together into a paragraph of alternating words and numbers,
+  with the column breaks landing wherever the text happened to end, and the only
+  way to fit it was to shrink both until neither read. Each pair is its own tile
+  in an even grid now — caption small and uppercase above, value the biggest
+  thing in the tile — and the type went up rather than down. The tower
+  challenge's strip is the same construct and got the same treatment.
+
+- **Renamed the folder from `3d-engine-poc/` to `yard-master/`.** It stopped
+  being a proof of concept a long time ago. The old path keeps a stub that
+  forwards, query and hash intact, so anything already linking to it still lands
+  in the right place.
+
 ## v0.5.2 — somewhere to be
 
 **Added**
