@@ -24,12 +24,14 @@
      * environment map and that is where most of the fill now comes from; the
      * values that looked right when it was the only ambient light there was
      * bleach the yard white on top of one.
+     *
      * Every `sky.stops` list carries a stop just below the horizon in the fog
      * colour — see `paintSky()` for why that seam has to be painted by hand.
+     *
+     * A silhouette is not a cut-out: each `skyline` tint sits between the port's
+     * own tone and that preset's horizon, which is what atmospheric haze does to
+     * anything 300 m away.
      */
-    // A silhouette is not a cut-out: each `skyline` tint sits between the port's
-    // own tone and that preset's horizon, which is what atmospheric haze does to
-    // anything 300 m away.
     const PRESETS = {
         dawn: {
             label: '🌄 Dawn Shift',
