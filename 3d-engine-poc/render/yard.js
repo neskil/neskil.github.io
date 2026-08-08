@@ -78,10 +78,15 @@
         const w = this.bay.cols * C.GRID.CELL_X;
         const d = this.bay.rows * C.GRID.CELL_Z;
 
-        const slab = new THREE.Mesh(
-            new THREE.PlaneGeometry(w + 1.6, d + 1.6),
-            new THREE.MeshStandardMaterial({ color: 0x233045, roughness: 0.9, metalness: 0.1 })
-        );
+        const slabMat = new THREE.MeshStandardMaterial({ color: 0x233045, roughness: 0.9, metalness: 0.1 });
+        if (Cargo3D.Textures) {
+            // Poured in 6 m bays, which is also roughly two slots — the joints
+            // line up with the paint instead of fighting it.
+            Cargo3D.Textures.applySkin(slabMat, Cargo3D.Textures.concrete(),
+                (w + 1.6) / 6, (d + 1.6) / 6, 0.8);
+        }
+
+        const slab = new THREE.Mesh(new THREE.PlaneGeometry(w + 1.6, d + 1.6), slabMat);
         slab.rotation.x = -Math.PI / 2;
         slab.position.y = 0.02;
         slab.receiveShadow = true;
@@ -122,7 +127,9 @@
         }, this);
 
         // Corner posts, one tier tall per allowed tier — a readable height gauge.
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6, roughness: 0.4 });
+        // Galvanised rather than chrome — at metalness 0.6 the environment map
+        // turns these into four bright white rods standing over the bay.
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.25, roughness: 0.6 });
         const bandMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0c4a6e, emissiveIntensity: 0.8 });
         const postH = this.bay.tiers * C.GRID.TIER_H;
 

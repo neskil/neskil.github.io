@@ -60,6 +60,7 @@
         this.controls.target.set(0, 3, 0);
         this.controls.update();
 
+        this.buildEnvironment();
         this.buildLights();
         this.buildApron();
 
@@ -80,6 +81,19 @@
             window.visualViewport.addEventListener('resize', this.onResize);
         }
     }
+
+    /**
+     * A prefiltered sky for the metals to reflect.
+     *
+     * Direct lights alone leave a `metalness: 0.9` material sampling black —
+     * which is why the tank barrel and every steel corner casting used to read
+     * as a hole cut out of the scene. `scene.environment` reaches every standard
+     * material without any of them having to ask for it.
+     */
+    SceneView.prototype.buildEnvironment = function () {
+        if (!Cargo3D.Textures) return;
+        this.scene.environment = Cargo3D.Textures.environment(this.renderer);
+    };
 
     SceneView.prototype.buildLights = function () {
         this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -105,6 +119,13 @@
 
     SceneView.prototype.buildApron = function () {
         this.groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8, metalness: 0.2 });
+        if (Cargo3D.Textures) {
+            // One tile every 8 m of tarmac. Weather still drives the wet look by
+            // setting `roughness`, so the map keeps its values close to 1.
+            Cargo3D.Textures.applySkin(this.groundMat, Cargo3D.Textures.asphalt(),
+                APRON_SIZE / 8, APRON_SIZE / 8, 0.9);
+            this.groundMat.roughness = 0.8;
+        }
         const ground = new THREE.Mesh(new THREE.PlaneGeometry(APRON_SIZE, APRON_SIZE), this.groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
@@ -121,9 +142,18 @@
         this.masts = new THREE.Group();
 
         const poleGeo = new THREE.CylinderGeometry(0.3, 0.4, 20, 12);
-        const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7, roughness: 0.35 });
+        // Galvanised, not chrome: with an environment map in the scene a
+        // metalness of 0.7 turned these into four glowing white sticks across
+        // the skyline.
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.35, roughness: 0.62 });
         const headGeo = new THREE.BoxGeometry(2.4, 0.4, 1.2);
-        const headMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.6, roughness: 0.4 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.35, roughness: 0.55 });
+        if (Cargo3D.Textures) {
+            Cargo3D.Textures.applySkin(poleMat, Cargo3D.Textures.boltedPlate(), 1, 6, 0.5);
+            poleMat.roughness = 0.62;
+            Cargo3D.Textures.applySkin(headMat, Cargo3D.Textures.boltedPlate(), 1, 1, 0.5);
+            headMat.roughness = 0.55;
+        }
 
         [[-34, -34], [34, -34], [-34, 34], [34, 34]].forEach(function (at) {
             const pole = new THREE.Mesh(poleGeo, poleMat);

@@ -45,6 +45,7 @@ with no WebGL context, offline, in a headless browser.
 │   └── campaign.js       the 16 line missions, as data
 │
 ├── render/             THREE-dependent scene construction
+│   ├── textures.js     procedural skins + environment map, drawn once, shared
 │   ├── containers.js   procedural cargo meshes, X-ray, heatmap
 │   ├── scene.js        renderer, camera, lights, apron
 │   ├── yard.js         bay markings, grid↔world transforms, ghost, envelope
@@ -291,7 +292,15 @@ the briefing panel and the how-to page all pick it up automatically.
 
 **A cargo type** — add it to `CARGO_TYPES` in `core/constants.js` with its cell
 footprint and true metres, then give it a mesh branch in
-`render/containers.js`. Set `gridPiece: false` for sandbox-only props.
+`render/containers.js`. Set `gridPiece: false` for sandbox-only props. Give it a
+`mask` and you get the machinery-module mesh for free — the silhouette, kerb,
+hazard skirt and corner castings are all derived from it.
+
+**A surface** — add a generator to `render/textures.js` and hang it on a
+material with `Textures.applySkin(material, skin, repeatX, repeatY)`. Colour
+maps stay greyscale so `material.color` keeps carrying the livery and the
+heatmap keeps working; a material that must hold its own colour sets
+`material.userData.fixedColor`.
 
 ## Which build is live
 

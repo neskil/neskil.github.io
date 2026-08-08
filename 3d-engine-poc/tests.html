@@ -93,6 +93,25 @@
             eq(C.span('crate', 1)[0], 2, 'crate is rotation-symmetric');
             eq(C.cellCount('10ft'), 1, '10ft is one cell');
             eq(C.footprint('flatrack', 0).length, 2, 'flatrack covers 2 cells');
+
+            /* A rotated mask has to be a quarter turn, not a transpose — the
+               mesh is turned 90° about Y, and a transposed L is the mirror of
+               that, so the grid would hold the notch on the wrong corner. */
+            function cellSet(typeId, rot) {
+                return C.footprint(typeId, rot).map(function (c) { return c.join(':'); }).sort().join(' ');
+            }
+            eq(cellSet('lblock', 1), '0:0 0:1 1:1', 'the L turns a quarter, it does not mirror');
+            eq(cellSet('tblock', 1), '0:0 0:1 0:2 1:1', 'the T turns onto its side');
+            eq(cellSet('lblock', 0), '0:0 0:1 1:0', 'an unrotated mask is its own mask');
+            C.GRID_TYPE_KEYS.forEach(function (key) {
+                const sp = C.span(key, 1);
+                const inside = C.footprint(key, 1).every(function (c) {
+                    return c[0] >= 0 && c[0] < sp[0] && c[1] >= 0 && c[1] < sp[1];
+                });
+                ok(inside, key + ' stays inside its own span when rotated');
+                eq(C.footprint(key, 1).length, C.cellCount(key), key + ' keeps its cell count rotated');
+            });
+
             ok(C.CARGO_TYPES.flatrack.gridPiece === true, 'flatrack is a grid piece');
             ok(C.CARGO_TYPES.tank.noTopLoad === true, 'tanks are flagged noTopLoad');
             ok(C.GRID.CELL_VOLUME > 26 && C.GRID.CELL_VOLUME < 27, 'cell volume is ~27 m³');

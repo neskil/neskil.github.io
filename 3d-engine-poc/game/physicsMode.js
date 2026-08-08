@@ -353,14 +353,8 @@
 
     PhysicsMode.prototype.syncGhost = function () {
         this.removeGhost();
-        this.ghost = Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []);
-        this.ghost.traverse(function (child) {
-            if (child.isMesh && child.material) {
-                child.material = child.material.clone();
-                child.material.transparent = true;
-                child.material.opacity = 0.6;
-            }
-        });
+        this.ghost = Meshes.makeTranslucent(
+            Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []), 0.6);
         this.ghost.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.rotAngle);
         this.app.sceneView.add(this.ghost);
         this.ghost.visible = false;

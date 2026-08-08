@@ -59,6 +59,32 @@ the tests prove the logic, not the wiring.
 - **Rotation is 0 or 1.** 180° and 270° produce identical footprints, so the
   controller only tracks two states. Meshes rotate `Math.PI / 2` when `rot` is
   odd.
+- **A rotated mask is a quarter turn, not a transpose.** `footprint()` maps
+  `[dx, dz] → [dz, cells[0]-1-dx]`. The two agree for every rectangle and for
+  the T; they disagree for the L, where a transpose is the mirror image. Since
+  the mesh is turned by `rotation.y`, a transposed mask puts the grid's notch on
+  the opposite corner from the drawn one.
+- **A mesh may carry an array of materials.** A container has one per face and a
+  machinery module has one for its caps and one for its walls. Anything walking
+  `child.material` has to handle both — `materialsOf()` in
+  `render/containers.js` is the only place that should be deciding which.
+  `makeTranslucent()` is there for the modes that hover a real unit as a ghost.
+- **Skins are greyscale, liveries are `material.color`.** `render/textures.js`
+  paints wear and rivets in near-white so `setHeatmap()` can keep recolouring
+  shells by setting `.color`. Anything that must keep its own colour through the
+  heatmap sets `material.userData.fixedColor`. Carrier lettering therefore
+  cannot live in the wall skin — it is its own decal plane, tagged `isSkin` so
+  X-ray fades it with the shell.
+- **Textures are shared and never disposed.** One set serves the whole yard.
+  `disposeGroup()` frees materials, and a three.js material does not dispose its
+  maps, so this is safe — but it also means you must not mutate a skin's
+  `repeat` in place. `applySkin()` memoises a clone per tiling for that reason.
+- **The environment map is per weather preset.** Nothing in r128 scales
+  `scene.environment` globally, so `Weather.set()` swaps the whole sky. Drop
+  that and the night yard is lit like noon. Raising a material's `metalness`
+  past ~0.5 now means it will mirror that sky — which is what fixed the tank,
+  and what turned the floodlight masts into glowing white sticks until they came
+  back down to 0.35.
 - **`restTier()` returns three things:** a tier index, `null` when the footprint
   is off the bay, and `-1` when the stack would exceed the bay height. Check for
   all three.

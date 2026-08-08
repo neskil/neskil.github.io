@@ -83,6 +83,13 @@
         this.current = PRESETS[mode] ? mode : 'day';
         mode = this.current;
 
+        /* The sky the metals reflect is part of the preset, not scenery behind
+           it. Nothing in this three.js scales `scene.environment` globally, so
+           leaving one daylight sky in place lit the night yard like noon. */
+        if (Cargo3D.Textures) {
+            scene.environment = Cargo3D.Textures.environment(view.renderer, mode);
+        }
+
         this.rain.visible = false;
         scene.fog.density = 0.010;
         this.floodlights.forEach(function (spot) { spot.intensity = 0; });

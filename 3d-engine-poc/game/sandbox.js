@@ -171,14 +171,8 @@
         this.removeGhost();
         if (this.placementStyle !== 'grid') return;
 
-        this.ghost = Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []);
-        this.ghost.traverse(function (child) {
-            if (child.isMesh && child.material) {
-                child.material = child.material.clone();
-                child.material.transparent = true;
-                child.material.opacity = 0.45;
-            }
-        });
+        this.ghost = Meshes.makeTranslucent(
+            Meshes.createUnitMesh(this.spawnType, this.spawnCarrier, []), 0.45);
         this.ghost.rotation.y = this.rot % 2 === 0 ? 0 : Math.PI / 2;
         this.ghost.visible = false;
         this.app.sceneView.add(this.ghost);

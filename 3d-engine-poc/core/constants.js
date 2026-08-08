@@ -133,6 +133,13 @@
      * offsets from the piece origin. Kept as an explicit mask so non-rectangular
      * cargo works natively with grid.js and placement.js.
      *
+     * A rotated mask is a real quarter turn — `[dx, dz] → [dz, cells[0]-1-dx]`,
+     * not a transpose. The two agree for anything symmetric about the diagonal
+     * (every rectangle, and the T), and disagree for the L: a transpose mirrors
+     * it, so the grid would reserve the notch on the opposite corner from the
+     * one the mesh draws. render/containers.js turns the piece a quarter turn,
+     * so this has to as well.
+     *
      * @param {string} typeId
      * @param {number} rot 0 or 1 (90° steps)
      * @returns {Array<[number, number]>}
@@ -145,7 +152,7 @@
 
         if (type.mask) {
             return type.mask.map(function (pt) {
-                return isRot ? [pt[1], pt[0]] : [pt[0], pt[1]];
+                return isRot ? [pt[1], type.cells[0] - 1 - pt[0]] : [pt[0], pt[1]];
             });
         }
 

@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.5.1 — the yard gets a surface
+
+**Added**
+
+- **Procedural material skins** (`render/textures.js`). Everything in the yard
+  used to be a flat colour, which is why a container read as a brick and the
+  tank read as a hole. Canvas-drawn skins now carry corrugation, panel seams,
+  bolt rows, weld beads, rain streaks, rust, tread plate, plank grain, brushed
+  steel and tarmac aggregate. One set is drawn at load and shared by every unit
+  in the yard.
+
+- **Carrier livery on the boxes.** The wall skin is greyscale so `material.color`
+  can still carry the paint, so the carrier's name and a container number are
+  their own decal, painted on both flanks.
+
+- **An environment map, one per weather preset.** Metals had nothing to reflect,
+  so a `metalness: 0.95` tank barrel rendered as a black tube and every steel
+  corner casting as a black cube. There is now a painted sky behind them —
+  daylight, dusk, overcast, fog and a floodlit night — because `scene.environment`
+  lights everything it touches and this three.js has no global dial to turn it
+  down after dark.
+
+**Changed**
+
+- **The L and the T are machinery modules, not three cubes.** They are extruded
+  from the silhouette of their own footprint mask, so the notch is a real edge
+  rather than a seam between boxes: bevelled steel, a hazard-chevron skirt, a
+  tread-plate deck inside a raised kerb, corner castings on every outside corner,
+  and lifting eyes, a vent bank and a junction box on top. The placement ghost is
+  extruded from the same outline, so the preview has the shape the piece has.
+
+- **Corrugation moved from geometry into a normal map.** Twenty-odd rib boxes per
+  container were most of the yard's draw calls and read no better than a pressed
+  steel profile does. A 40ft is down from 61 meshes to 31, with more surface
+  detail rather than less; the freed budget went on top and bottom rails, door
+  hardware and crate corner brackets.
+
+**Fixed**
+
+- **A rotated L-block claimed the wrong corner.** `footprint()` transposed a
+  mask on rotation while the mesh turned it a quarter, and a transposed L is the
+  mirror of a rotated one — so the grid reserved the notch on the opposite
+  corner from the one on screen. It is a real quarter turn now. Nothing else in
+  the catalogue was affected: every rectangle and the T are symmetric about the
+  diagonal, which is why this survived this long.
+
 ## v0.5.0 — Cascade
 
 **Added**
