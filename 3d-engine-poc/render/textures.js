@@ -903,52 +903,170 @@
         });
     }
 
+    /**
+     * A soft round dot for point sprites.
+     *
+     * `PointsMaterial` draws untextured points as hard squares, which is fine
+     * for rain seen edge-on and unmistakably wrong for snow — a blizzard of
+     * little paper squares. One shared 64px dot fixes both.
+     */
+    function particleSprite() {
+        return once('particle', function () {
+            const SIZE = 64;
+            const cv = surface(SIZE);
+            const ctx = cv.getContext('2d');
+            const g = ctx.createRadialGradient(SIZE / 2, SIZE / 2, 0, SIZE / 2, SIZE / 2, SIZE / 2);
+            g.addColorStop(0.00, 'rgba(255,255,255,1)');
+            g.addColorStop(0.35, 'rgba(255,255,255,0.85)');
+            g.addColorStop(0.70, 'rgba(255,255,255,0.25)');
+            g.addColorStop(1.00, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, SIZE, SIZE);
+
+            const tex = new THREE.CanvasTexture(cv);
+            tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+            return tex;
+        });
+    }
+
+    /* ── sky ───────────────────────────────────────────────────────────── */
+
+    /**
+     * Where a world direction lands on an equirectangular sky.
+     *
+     * SphereGeometry's default UVs put u = 0 on -X and wind toward +Z, and run
+     * v from the zenith down. Deriving the sun's position on the canvas from
+     * the same vector that positions the directional light is the only way the
+     * painted sun ends up where the shadows say it is.
+     *
+     * @param {number[]} pos a light position, treated as a direction
+     * @returns {{u: number, v: number}} both in 0..1
+     */
+    function skyUV(pos) {
+        const x = pos[0], y = pos[1], z = pos[2];
+        const len = Math.sqrt(x * x + y * y + z * z) || 1;
+        let u = Math.atan2(z, -x) / (Math.PI * 2);
+        if (u < 0) u += 1;
+        return { u: u, v: Math.acos(Math.max(-1, Math.min(1, y / len))) / Math.PI };
+    }
+
+    /**
+     * Paint a weather preset's sky into an equirectangular canvas.
+     *
+     * The horizon sits at v = 0.5. Every preset's gradient carries a stop just
+     * below it in the preset's own fog colour, so the dome and the fogged
+     * middle distance meet without a seam — the dome is drawn with `fog: false`
+     * (at 300 m an exponential fog would swallow it whole), which means the
+     * blend has to be painted rather than computed.
+     *
+     * @param {object} spec the `sky` block of a weather preset
+     * @param {number} W canvas width; height is always half
+     * @param {boolean} detail draw stars and fine cloud, for the visible dome
+     */
+    function paintSky(spec, W, detail) {
+        const H = W / 2;
+        const cv = surface(W, H);
+        const ctx = cv.getContext('2d');
+        const rand = rng(spec.seed || 90210);
+
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        spec.stops.forEach(function (stop) { grad.addColorStop(stop[0], stop[1]); });
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        /** Draw something three times so anything crossing u = 0 still wraps. */
+        function wrapped(x, draw) {
+            draw(x - W); draw(x); draw(x + W);
+        }
+
+        if (detail && spec.stars) {
+            for (let i = 0; i < spec.stars; i++) {
+                // Squared distribution: dense overhead, thinning toward the haze.
+                const t = rand();
+                const y = H * 0.47 * (t * t);
+                const r = 0.5 + rand() * 1.3;
+                ctx.fillStyle = 'rgba(226,238,255,' + (0.25 + rand() * 0.7) * (1 - t * 0.8) + ')';
+                ctx.beginPath();
+                ctx.arc(rand() * W, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        if (spec.sun) {
+            const at = skyUV(spec.sun.at);
+            const cx = at.u * W, cy = at.v * H;
+            const glow = H * spec.sun.glow;
+            wrapped(cx, function (x) {
+                const g = ctx.createRadialGradient(x, cy, 0, x, cy, glow);
+                g.addColorStop(0, 'rgba(' + spec.sun.halo + ',' + spec.sun.a + ')');
+                g.addColorStop(0.18, 'rgba(' + spec.sun.halo + ',' + (spec.sun.a * 0.42) + ')');
+                g.addColorStop(1, 'rgba(' + spec.sun.halo + ',0)');
+                ctx.fillStyle = g;
+                ctx.beginPath(); ctx.arc(x, cy, glow, 0, Math.PI * 2); ctx.fill();
+
+                if (spec.sun.disc) {
+                    ctx.fillStyle = 'rgba(' + spec.sun.core + ',1)';
+                    ctx.beginPath(); ctx.arc(x, cy, H * spec.sun.disc, 0, Math.PI * 2); ctx.fill();
+                }
+            });
+        }
+
+        /* Cloud. Flattened toward the horizon, because that is what perspective
+           does to a cloud deck once it is far enough away to be near it. */
+        if (spec.clouds) {
+            const count = detail ? spec.clouds.count : Math.round(spec.clouds.count * 0.5);
+            for (let i = 0; i < count; i++) {
+                const v = 0.03 + rand() * 0.44;
+                const cy = v * H;
+                const rx = W * (0.02 + rand() * 0.07);
+                const ry = rx * (0.14 + (0.47 - v) * 1.5);
+                const alpha = spec.clouds.a * (0.35 + rand() * 0.65);
+                wrapped(rand() * W, function (x) {
+                    const g = ctx.createRadialGradient(x, cy, 0, x, cy, rx);
+                    g.addColorStop(0, 'rgba(' + spec.clouds.color + ',' + alpha + ')');
+                    g.addColorStop(1, 'rgba(' + spec.clouds.color + ',0)');
+                    ctx.save();
+                    ctx.translate(x, cy);
+                    ctx.scale(1, ry / rx);
+                    ctx.translate(-x, -cy);
+                    ctx.fillStyle = g;
+                    ctx.beginPath(); ctx.arc(x, cy, rx, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                });
+            }
+        }
+
+        // Ground haze: a band of the fog colour hugging the horizon from below,
+        // so the dome does not show a hard edge where the apron runs out.
+        const haze = ctx.createLinearGradient(0, H * 0.5, 0, H * 0.62);
+        haze.addColorStop(0, 'rgba(' + spec.haze + ',0.95)');
+        haze.addColorStop(1, 'rgba(' + spec.haze + ',0)');
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, H * 0.5, W, H * 0.12);
+
+        return cv;
+    }
+
+    /**
+     * The dome texture for a preset. Big enough to read as a sky, small enough
+     * that eight of them do not become the page's memory budget.
+     *
+     * @param {object} spec a weather preset's `sky` block; `spec.key` memoises
+     */
+    function sky(spec) {
+        return once('sky:' + spec.key, function () {
+            const tex = new THREE.CanvasTexture(paintSky(spec, 1024, true));
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.anisotropy = 4;
+            return tex;
+        });
+    }
+
     /* ── environment ───────────────────────────────────────────────────── */
 
     /**
-     * Painted skies, one per weather preset.
-     *
-     * `sky` is the vertical gradient from zenith to nadir with the horizon at
-     * 0.49/0.51; `sun` is an optional glow at a fractional position; `haze` is
-     * how much cloud to scatter through the upper half.
-     */
-    const SKIES = {
-        day: {
-            sky: [[0, '#1b3358'], [0.32, '#3d6a97'], [0.49, '#8fb2cd'],
-                  [0.51, '#26313f'], [1, '#0d131c']],
-            sun: { x: 0.62, y: 0.20, r: 0.34, core: '255,246,214', a: 0.95 },
-            haze: { count: 40, color: '226,238,248', a: 0.14 }
-        },
-        dusk: {
-            sky: [[0, '#1c1740'], [0.30, '#4c2f66'], [0.46, '#c76a45'],
-                  [0.51, '#2a2036'], [1, '#100b17']],
-            sun: { x: 0.30, y: 0.44, r: 0.30, core: '255,186,110', a: 0.85 },
-            haze: { count: 30, color: '244,190,150', a: 0.12 }
-        },
-        rain: {
-            sky: [[0, '#28323e'], [0.32, '#3f4d5c'], [0.49, '#6b7987'],
-                  [0.51, '#1d2530'], [1, '#0d1218']],
-            sun: null,
-            haze: { count: 46, color: '150,166,182', a: 0.14 }
-        },
-        fog: {
-            sky: [[0, '#3d4854'], [0.32, '#5b6773'], [0.49, '#8e99a3'],
-                  [0.51, '#333c46'], [1, '#1d232a']],
-            sun: { x: 0.5, y: 0.30, r: 0.5, core: '224,231,238', a: 0.35 },
-            haze: { count: 60, color: '206,214,222', a: 0.18 }
-        },
-        night: {
-            sky: [[0, '#02040b'], [0.34, '#050d1a'], [0.49, '#0d1c2e'],
-                  [0.51, '#050a12'], [1, '#010307']],
-            sun: null,
-            // The floodlight masts, as far as a reflection is concerned.
-            lamps: { count: 5, color: '147,197,253', a: 0.5 },
-            haze: { count: 10, color: '30,50,76', a: 0.10 }
-        }
-    };
-
-    /**
-     * A prefiltered environment map, from a painted sky.
+     * A prefiltered environment map, from the same sky.
      *
      * Without one, every metallic material in the yard samples black and a
      * chrome tank barrel renders as a black tube. This is the single change
@@ -959,53 +1077,14 @@
      * night preset's yard as bright as noon no matter what the lamps did.
      *
      * @param {THREE.WebGLRenderer} renderer
-     * @param {string} [preset] a key of WEATHER_PRESETS; defaults to `day`
+     * @param {object} spec a weather preset's `sky` block
      * @returns {THREE.Texture}
      */
-    function environment(renderer, preset) {
-        const key = SKIES[preset] ? preset : 'day';
-        return once('env:' + key, function () {
-            const spec = SKIES[key];
-            const W = 512, H = 256;
-            const cv = surface(W, H);
-            const ctx = cv.getContext('2d');
-            const rand = rng(5150 + key.length * 31);
-
-            const sky = ctx.createLinearGradient(0, 0, 0, H);
-            spec.sky.forEach(function (stop) { sky.addColorStop(stop[0], stop[1]); });
-            ctx.fillStyle = sky;
-            ctx.fillRect(0, 0, W, H);
-
-            function glow(x, y, r, color, alpha) {
-                const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                g.addColorStop(0, 'rgba(' + color + ',' + alpha + ')');
-                g.addColorStop(0.25, 'rgba(' + color + ',' + (alpha * 0.36) + ')');
-                g.addColorStop(1, 'rgba(' + color + ',0)');
-                ctx.fillStyle = g;
-                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-            }
-
-            if (spec.sun) {
-                glow(W * spec.sun.x, H * spec.sun.y, H * spec.sun.r, spec.sun.core, spec.sun.a);
-            }
-            if (spec.lamps) {
-                for (let i = 0; i < spec.lamps.count; i++) {
-                    glow(W * (i + 0.5) / spec.lamps.count, H * 0.46, H * 0.10,
-                        spec.lamps.color, spec.lamps.a);
-                }
-            }
-
-            // Cloud, so reflections have something to break up on.
-            for (let i = 0; i < spec.haze.count; i++) {
-                const x = rand() * W, y = H * (0.08 + rand() * 0.36), r = 18 + rand() * 60;
-                const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-                g.addColorStop(0, 'rgba(' + spec.haze.color + ',' + (spec.haze.a * (0.5 + rand() * 0.5)) + ')');
-                g.addColorStop(1, 'rgba(' + spec.haze.color + ',0)');
-                ctx.fillStyle = g;
-                ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-            }
-
-            const equirect = new THREE.CanvasTexture(cv);
+    function environment(renderer, spec) {
+        return once('env:' + spec.key, function () {
+            // PMREM blurs everything below roughness 0 anyway, so the source
+            // can be tiny — and stars in an irradiance map are just noise.
+            const equirect = new THREE.CanvasTexture(paintSky(spec, 256, false));
             equirect.mapping = THREE.EquirectangularReflectionMapping;
 
             const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1076,6 +1155,9 @@
         brushedSteel: brushedSteel,
         asphalt: asphalt,
         concrete: concrete,
+        particleSprite: particleSprite,
+        sky: sky,
+        skyUV: skyUV,
         environment: environment,
         applySkin: applySkin
     };

@@ -38,6 +38,64 @@
     const CARRIER_KEYS = ['maersk', 'hapag', 'evergreen', 'msc', 'cosco', 'one'];
 
     /**
+     * Terminals. A mission names one and the whole yard is repainted in it —
+     * ground, slab, slot lines, hazard stripe and the tier gauge.
+     *
+     * They are ordered, and the campaign walks them: you start on a short
+     * feeder quay with faded paint and finish on an automated terminal where
+     * everything is new. The colours are the only thing that changes — a bay is
+     * a bay — but four hours of missions on one grey slab reads as one long
+     * mission, and this is the cheapest way to say that time has passed.
+     *
+     * Every value is a hex int, so `render/` can hand them straight to THREE and
+     * `core/` still never sees it.
+     */
+    const TERMINALS = {
+        feeder: {
+            id: 'feeder',
+            name: 'Feeder Berth 7',
+            blurb: 'A short quay, a tired slab, and paint that was last done a decade ago.',
+            ground: 0x232a33, apron: 0x2b333d, slab: 0x3b4450,
+            lines: 0x8fc4dd, hazard: 0xe0b429, post: 0x3d4757, band: 0x38bdf8
+        },
+        river: {
+            id: 'river',
+            name: 'Riverside Intermodal',
+            blurb: 'Rail on one side, road on the other, and never enough room between them.',
+            ground: 0x241f1c, apron: 0x2e2724, slab: 0x413730,
+            lines: 0xf0b366, hazard: 0xf97316, post: 0x4a3f33, band: 0xfb923c
+        },
+        deepwater: {
+            id: 'deepwater',
+            name: 'Deepwater Terminal',
+            blurb: 'Post-panamax berths and a stacking plan that assumes you never make a mistake.',
+            ground: 0x121a24, apron: 0x18222e, slab: 0x223140,
+            lines: 0x5eead4, hazard: 0xfacc15, post: 0x2f3b4a, band: 0x22d3ee
+        },
+        automated: {
+            id: 'automated',
+            name: 'Terminal 9 — Automated',
+            blurb: 'Nobody walks the slab here. The paint is new because nothing scuffs it.',
+            ground: 0x2a2c3a, apron: 0x363949, slab: 0x3c4053,
+            lines: 0xe9d5ff, hazard: 0xf5f3ff, post: 0x5b6779, band: 0xa855f7
+        }
+    };
+
+    /** Terminals in campaign order — the arc the missions walk through. */
+    const TERMINAL_KEYS = ['feeder', 'river', 'deepwater', 'automated'];
+
+    /**
+     * The atmospheres a mission may name.
+     *
+     * The vocabulary lives here so `missions/missionSchema.js` can reject a
+     * typo without `core/` knowing what a light is — the presets themselves are
+     * in `render/weather.js`, which checks itself against this list on load.
+     * A mission shipped for a release naming `clear` before there was a `clear`,
+     * and it silently rendered as a sunny day. Once was enough.
+     */
+    const WEATHER_KEYS = ['dawn', 'day', 'clear', 'dusk', 'rain', 'snow', 'fog', 'night'];
+
+    /**
      * Cargo catalogue. `cells` is the footprint in grid cells at rotation 0
      * ([alongX, alongZ]); `length`/`width`/`height` are the true metres used for
      * the mesh and the real-world stats. Every unit occupies exactly one tier.
@@ -183,10 +241,19 @@
         return type.mask ? type.mask.length : (type.cells[0] * type.cells[1]);
     }
 
+    /** A terminal palette by key, falling back to the first one. */
+    function terminal(key) {
+        return TERMINALS[key] || TERMINALS[TERMINAL_KEYS[0]];
+    }
+
     Cargo3D.Constants = {
         GRID: GRID,
         CARRIERS: CARRIERS,
         CARRIER_KEYS: CARRIER_KEYS,
+        TERMINALS: TERMINALS,
+        TERMINAL_KEYS: TERMINAL_KEYS,
+        WEATHER_KEYS: WEATHER_KEYS,
+        terminal: terminal,
         CARGO_TYPES: CARGO_TYPES,
         GRID_TYPE_KEYS: GRID_TYPE_KEYS,
         TRAITS: TRAITS,

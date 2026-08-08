@@ -35,7 +35,9 @@
 
         this.units = ManifestLib.build(mission, opts.seed);
         this.grid = new Cargo3D.YardGrid(mission.bay.cols, mission.bay.rows, mission.bay.tiers);
-        this.yardView = new Cargo3D.YardView(this.app.sceneView, mission.bay);
+        const terminal = Cargo3D.Constants.terminal(mission.terminal);
+        this.app.sceneView.setTerminal(terminal);
+        this.yardView = new Cargo3D.YardView(this.app.sceneView, mission.bay, terminal);
         this.yardView.onLand = function (x, y, z) {
             if (self.app.effects) {
                 self.app.effects.dustPuff(x, y, z);
@@ -100,6 +102,9 @@
     MissionMode.prototype.exit = function () {
         if (this.placement) this.placement.detach();
         if (this.yardView) this.yardView.dispose();
+        // Hand the apron back in its default paint — every other mode assumes
+        // it, and the menu behind this one is not standing in a terminal.
+        this.app.sceneView.setTerminal(null);
         this.app.ui.hideMissionHUD();
         this.placement = null;
         this.yardView = null;

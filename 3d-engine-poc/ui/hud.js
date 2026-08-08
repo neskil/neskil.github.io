@@ -141,6 +141,14 @@
         el('hud-mission-name').textContent = mission.name;
         el('hud-mission-tagline').textContent = mission.tagline || '';
 
+        // The campaign moves through four terminals; naming the one you are
+        // standing on is what turns a repaint into progress.
+        const terminal = Cargo3D.Constants.terminal(mission.terminal);
+        const weather = Cargo3D.WEATHER_PRESETS[mission.weather];
+        el('hud-terminal').textContent = terminal.name +
+            (weather ? ' · ' + weather.label.replace(/^\S+\s/, '') : '');
+        el('hud-terminal').title = terminal.blurb;
+
         el('hud-bay').textContent = mission.bay.cols + ' × ' + mission.bay.rows +
             ' slots · ' + mission.bay.tiers + ' tiers';
 

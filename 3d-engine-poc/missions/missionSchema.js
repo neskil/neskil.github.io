@@ -37,6 +37,7 @@
         rules: ['support:1'],
         obstacles: [],
         weather: 'day',
+        terminal: 'feeder',
         shuffle: true,
         scoreMode: 'pack'
     };
@@ -58,6 +59,16 @@
 
         if (!m.id) problems.push('mission has no id');
         if (!m.name) problems.push(m.id + ': no name');
+
+        /* Both of these used to fall back silently, which is how `weather:
+           'clear'` sat in the campaign for a release naming a preset that did
+           not exist and quietly rendering as a sunny day. */
+        if (!C.TERMINALS[m.terminal]) {
+            problems.push(m.id + ': unknown terminal "' + m.terminal + '"');
+        }
+        if (C.WEATHER_KEYS.indexOf(m.weather) === -1) {
+            problems.push(m.id + ': unknown weather "' + m.weather + '"');
+        }
         if (m.scoreMode !== 'pack' && m.scoreMode !== 'sprawl') {
             problems.push(m.id + ': unknown scoreMode "' + m.scoreMode + '"');
         }

@@ -113,6 +113,32 @@
             });
 
             ok(C.CARGO_TYPES.flatrack.gridPiece === true, 'flatrack is a grid piece');
+        });
+
+        // ── terminals ───────────────────────────────────────────────────────
+        suite('constants — terminals', function () {
+            eq(C.TERMINAL_KEYS.length, 4, 'four terminals in the campaign arc');
+            C.TERMINAL_KEYS.forEach(function (key) {
+                const t = C.TERMINALS[key];
+                ok(!!t, key + ' is a real terminal');
+                ok(!!t.name && !!t.blurb, key + ' has a name and a blurb');
+                ['ground', 'apron', 'slab', 'lines', 'hazard', 'post', 'band'].forEach(function (slot) {
+                    ok(typeof t[slot] === 'number' && t[slot] >= 0 && t[slot] <= 0xffffff,
+                        key + '.' + slot + ' is a hex colour');
+                });
+            });
+            eq(C.terminal('nope').id, C.TERMINALS[C.TERMINAL_KEYS[0]].id, 'an unknown terminal falls back');
+            eq(C.terminal('deepwater').id, 'deepwater', 'a known terminal comes back');
+            ok(C.WEATHER_KEYS.indexOf('clear') !== -1, 'clear is a real atmosphere, not a typo');
+
+            // The campaign should actually walk the arc, not sit on one terminal.
+            const used = {};
+            Campaign.MISSIONS.forEach(function (m) { used[m.terminal] = true; });
+            eq(Object.keys(used).length, C.TERMINAL_KEYS.length, 'the campaign visits every terminal');
+
+            const atmospheres = {};
+            Campaign.MISSIONS.forEach(function (m) { atmospheres[m.weather] = true; });
+            ok(Object.keys(atmospheres).length >= 6, 'the campaign uses most of the atmospheres');
             ok(C.CARGO_TYPES.tank.noTopLoad === true, 'tanks are flagged noTopLoad');
             ok(C.GRID.CELL_VOLUME > 26 && C.GRID.CELL_VOLUME < 27, 'cell volume is ~27 m³');
         });

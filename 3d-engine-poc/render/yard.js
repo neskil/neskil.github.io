@@ -13,9 +13,15 @@
     const C = Cargo3D.Constants;
     const Meshes = Cargo3D.ContainerMeshes;
 
-    function YardView(sceneView, bay) {
+    /**
+     * @param {Cargo3D.SceneView} sceneView
+     * @param {{cols:number, rows:number, tiers:number}} bay
+     * @param {object} [palette] a `Constants.TERMINALS` entry; the bay's paint
+     */
+    function YardView(sceneView, bay, palette) {
         this.sceneView = sceneView;
         this.bay = bay;
+        this.palette = palette || C.terminal();
         this.root = new THREE.Group();
         this.unitMeshes = {};   // placement id → THREE.Group
         this.ghost = null;
@@ -78,7 +84,9 @@
         const w = this.bay.cols * C.GRID.CELL_X;
         const d = this.bay.rows * C.GRID.CELL_Z;
 
-        const slabMat = new THREE.MeshStandardMaterial({ color: 0x233045, roughness: 0.9, metalness: 0.1 });
+        const paint = this.palette;
+
+        const slabMat = new THREE.MeshStandardMaterial({ color: paint.slab, roughness: 0.9, metalness: 0.1 });
         if (Cargo3D.Textures) {
             // Poured in 6 m bays, which is also roughly two slots — the joints
             // line up with the paint instead of fighting it.
@@ -106,13 +114,13 @@
         lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
         this.slotLines = new THREE.LineSegments(
             lineGeo,
-            new THREE.LineBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.5 })
+            new THREE.LineBasicMaterial({ color: paint.lines, transparent: true, opacity: 0.55 })
         );
         this.root.add(this.slotLines);
 
         // Hazard stripe around the perimeter.
         const stripeMat = new THREE.MeshStandardMaterial({
-            color: 0xfacc15, roughness: 0.7, emissive: 0x422006, emissiveIntensity: 0.4
+            color: paint.hazard, roughness: 0.7, emissive: 0x422006, emissiveIntensity: 0.4
         });
         const stripe = 0.35;
         [[w + 1.6, stripe, 0, -(d / 2 + 0.8)], [w + 1.6, stripe, 0, d / 2 + 0.8]].forEach(function (s) {
@@ -129,8 +137,8 @@
         // Corner posts, one tier tall per allowed tier — a readable height gauge.
         // Galvanised rather than chrome — at metalness 0.6 the environment map
         // turns these into four bright white rods standing over the bay.
-        const postMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.25, roughness: 0.6 });
-        const bandMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0c4a6e, emissiveIntensity: 0.8 });
+        const postMat = new THREE.MeshStandardMaterial({ color: paint.post, metalness: 0.25, roughness: 0.6 });
+        const bandMat = new THREE.MeshStandardMaterial({ color: paint.band, emissive: 0x0c4a6e, emissiveIntensity: 0.8 });
         const postH = this.bay.tiers * C.GRID.TIER_H;
 
         // Kept slim and shadowless: they are a reference for the tier limit,

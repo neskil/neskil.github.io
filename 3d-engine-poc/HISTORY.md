@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.5.2 — somewhere to be
+
+**Added**
+
+- **A sky.** The scene used to end in a flat background colour, which is why
+  the apron read as a slab floating in a gradient. There is a painted dome now —
+  a graded sky with a sun where the key light actually is, cloud that flattens
+  toward the horizon, and stars after dark. `scene.background` cannot hold an
+  equirectangular texture in this three.js, so it is a dome: one draw call, and
+  a horizon at a fixed height for the port to stand against.
+
+- **A port on the horizon.** Ship-to-shore gantries along a berth, two container
+  vessels alongside, sheds, a tank farm, chimneys, a town and a lighthouse,
+  arranged in a ring nobody can reach. All silhouettes, all one unlit material,
+  all baked into a single mesh — the whole horizon costs one draw call and the
+  weather recolours it by setting one colour.
+
+- **A hinterland.** The world no longer stops at the apron's edge; the ground
+  runs out to where the haze has taken it.
+
+- **Three more atmospheres — dawn, clear skies and snowfall** — bringing it to
+  eight, and `clear` is now a real preset rather than a name a mission had been
+  using for a release with nothing behind it. Snow falls slowly and wanders on
+  the way down, on the same particle system the rain uses.
+
+- **Four terminals, and a campaign that walks through them.** The line missions
+  now run from a tired feeder berth with faded paint, through a riverside
+  intermodal yard and a deepwater terminal, to an automated one where the paint
+  is new because nothing scuffs it. Each repaints the apron, the slab, the slot
+  lines, the hazard stripe and the tier gauge, and the mission card names where
+  you are standing. The atmospheres follow the same arc, introducing one new sky
+  at a time.
+
+**Changed**
+
+- **Fog is atmospheric perspective now, not a dark vignette.** Every preset's
+  fog colour is its sky's horizon band, so distance fades into the sky instead
+  of into a navy wall. The dome is drawn outside the fog and the join is painted
+  into the texture, because at 300 m an exponential fog swallows a sky whole.
+
+- **The fill lights came down hard.** A painted sky is an environment map, and
+  an environment map is ambient light. The `ambient` and `hemi` values that were
+  right when they were the only ambient there was bleached the yard white on top
+  of one.
+
+- **A weather preset is data.** Lights, fog, precipitation and the recipe for
+  its own sky, all in one table; `Weather.set()` applies it and decides nothing.
+  `render/textures.js` paints whatever sky block it is handed and has no idea
+  what a preset is.
+
+**Fixed**
+
+- **`weather: 'clear'` on mission 16 named a preset that did not exist** and
+  silently rendered as a sunny day. Both `weather` and `terminal` are validated
+  against `core/` vocabularies now, so `tests.html` catches the next one.
+
 ## v0.5.1 — the yard gets a surface
 
 **Added**

@@ -85,6 +85,32 @@ the tests prove the logic, not the wiring.
   past ~0.5 now means it will mirror that sky — which is what fixed the tank,
   and what turned the floodlight masts into glowing white sticks until they came
   back down to 0.35.
+- **The env map *is* the ambient light.** `ambient` and `hemi` are deliberately
+  low in every preset. The values that looked right before there was a painted
+  sky stack on top of one and bleach the yard white — if a preset looks washed
+  out, that is the first thing to check, not the fog.
+- **A preset's fog colour must equal its sky's horizon band.** The dome is drawn
+  with `fog: false` — at 300 m an exponential fog swallows it whole — so the
+  blend between fogged ground and painted sky is painted by hand, in the stop
+  just below `v = 0.5`. Change one without the other and the horizon grows a
+  visible seam right across the picture.
+- **`scene.background` cannot hold an equirect texture in r128.** It takes a
+  colour or a cube map; anything else is stretched across the screen and does
+  not turn with the camera. Hence the sky *dome* in `scene.js`. The background
+  colour is still set as a fallback nobody sees.
+- **The skyline is baked.** `Skyline.bake()` collapses ~100 silhouettes into one
+  positions-only mesh after `build()` runs, so anything added to `build()` is
+  automatically merged — but nothing can be moved or recoloured individually
+  afterwards. The one knob is `setTint()`, on the shared material.
+- **Weather and terminal are independent.** `Weather.set()` owns light, fog, sky
+  and skyline tint; `SceneView.setTerminal()` owns paint. They are applied in
+  either order and must never touch the same property. Mission mode sets both;
+  every other mode leaves the terminal at its default, and `MissionMode.exit()`
+  hands it back.
+- **The atmosphere vocabulary lives in `core/`.** `Constants.WEATHER_KEYS` is
+  what `missionSchema` validates against, because `tests.html` has no `render/`.
+  `render/weather.js` checks itself against that list on load and warns if the
+  two drift.
 - **`restTier()` returns three things:** a tier index, `null` when the footprint
   is off the bay, and `-1` when the stack would exceed the bay height. Check for
   all three.

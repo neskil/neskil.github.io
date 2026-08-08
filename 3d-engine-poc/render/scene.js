@@ -11,6 +11,15 @@
 
     const APRON_SIZE = 120;
 
+    /* The apron is the painted yard; the hinterland is the flat world it sits
+       in, out to where the fog has swallowed everything anyway. Without it the
+       apron's edge is a hard line with sky on the far side. */
+    const HINTERLAND_SIZE = 900;
+
+    /* Comfortably outside the skyline ring (~460 m) and inside the camera's far
+       plane, so the dome never clips the port and never gets clipped itself. */
+    const SKY_RADIUS = 700;
+
     /**
      * What to render at: the container's own box, which is pinned to the page
      * shell in tokens.css.
@@ -39,7 +48,11 @@
 
         const size = viewportSize(containerEl);
 
-        this.camera = new THREE.PerspectiveCamera(45, size.w / size.h, 0.1, 600);
+        /* Near is 0.5, not 0.1: the controls never let the camera closer than
+           8 m to its target, so the extra tenth buys nothing and costs depth
+           precision — which the far plane now needs, with a sky dome and a port
+           on the horizon to keep in front of. */
+        this.camera = new THREE.PerspectiveCamera(45, size.w / size.h, 0.5, 1400);
         this.camera.position.set(18, 15, 24);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -60,9 +73,10 @@
         this.controls.target.set(0, 3, 0);
         this.controls.update();
 
-        this.buildEnvironment();
+        this.buildSky();
         this.buildLights();
         this.buildApron();
+        this.skyline = Cargo3D.Skyline ? new Cargo3D.Skyline(this) : null;
 
         this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         this.raycaster = new THREE.Raycaster();
@@ -83,16 +97,89 @@
     }
 
     /**
-     * A prefiltered sky for the metals to reflect.
+     * The dome the sky is painted on.
      *
-     * Direct lights alone leave a `metalness: 0.9` material sampling black —
-     * which is why the tank barrel and every steel corner casting used to read
-     * as a hole cut out of the scene. `scene.environment` reaches every standard
-     * material without any of them having to ask for it.
+     * `scene.background` cannot do this job: in this three.js it only accepts a
+     * colour or a cube map, and a screen-space image does not turn with the
+     * camera. A big inverted sphere does, costs one draw call, and lets the
+     * horizon sit at a fixed height that the skyline can stand against.
+     *
+     * It is deliberately outside the fog. At 300 m an exponential fog would
+     * swallow the sky whole and hand back a flat wall of fog colour, so the
+     * blend between dome and fogged middle distance is painted into the texture
+     * instead — see `paintSky()`.
      */
-    SceneView.prototype.buildEnvironment = function () {
-        if (!Cargo3D.Textures) return;
-        this.scene.environment = Cargo3D.Textures.environment(this.renderer);
+    SceneView.prototype.buildSky = function () {
+        const geo = new THREE.SphereGeometry(SKY_RADIUS, 32, 20);
+        // Untextured until Weather picks a preset — a bare MeshBasicMaterial is
+        // white, and one frame of a white sky is one frame too many.
+        this.skyMaterial = new THREE.MeshBasicMaterial({
+            color: 0x0f172a, side: THREE.BackSide, fog: false, depthWrite: false
+        });
+        this.sky = new THREE.Mesh(geo, this.skyMaterial);
+        this.sky.renderOrder = -2;
+        this.scene.add(this.sky);
+    };
+
+    /**
+     * Hang a painted sky on the dome. Weather owns which one.
+     * @param {THREE.Texture} texture equirectangular, from `Textures.sky()`
+     */
+    SceneView.prototype.setSky = function (texture) {
+        if (!this.skyMaterial) return;
+        this.skyMaterial.map = texture || null;
+        // The tint is the placeholder, not part of the look: leaving it on
+        // would multiply straight through the painted sky.
+        this.skyMaterial.color.setHex(texture ? 0xffffff : 0x0f172a);
+        this.skyMaterial.needsUpdate = true;
+    };
+
+    /**
+     * (Re)build the apron's slot grid.
+     *
+     * GridHelper bakes its colours into a vertex-colour attribute, so a
+     * repaint is a rebuild — tinting `material.color` only multiplies whatever
+     * was baked in, which turns every terminal's grid into a darker version of
+     * the first one's.
+     */
+    SceneView.prototype.setApronGrid = function (major, minor) {
+        if (this.grid) {
+            const wasVisible = this.grid.visible;
+            this.scene.remove(this.grid);
+            this.grid.geometry.dispose();
+            this.grid.material.dispose();
+            this.grid = new THREE.GridHelper(APRON_SIZE, 40, major, minor);
+            this.grid.visible = wasVisible;
+        } else {
+            this.grid = new THREE.GridHelper(APRON_SIZE, 40, major, minor);
+        }
+        this.grid.position.y = 0.008;
+        this.scene.add(this.grid);
+    };
+
+    /**
+     * Repaint the ground for a terminal.
+     *
+     * The weather owns the light and the sky; a terminal owns the paint. They
+     * are set independently and in either order, which is why this only ever
+     * touches colours the weather never looks at.
+     *
+     * @param {object} palette an entry from `Constants.TERMINALS`
+     */
+    SceneView.prototype.setTerminal = function (palette) {
+        const p = palette || Cargo3D.Constants.terminal();
+        this.terminal = p;
+        if (this.groundMat) this.groundMat.color.setHex(p.apron);
+        if (this.hinterlandMat) this.hinterlandMat.color.setHex(p.ground);
+        this.setApronGrid(p.slab, p.ground);
+    };
+
+    SceneView.prototype.setSkylineTint = function (hex) {
+        if (this.skyline) this.skyline.setTint(hex);
+    };
+
+    SceneView.prototype.setSkylineVisible = function (visible) {
+        if (this.skyline) this.skyline.setVisible(visible);
     };
 
     SceneView.prototype.buildLights = function () {
@@ -132,9 +219,25 @@
         this.scene.add(ground);
         this.ground = ground;
 
-        this.grid = new THREE.GridHelper(APRON_SIZE, 40, 0x334155, 0x1f2c40);
-        this.grid.position.y = 0.008;
-        this.scene.add(this.grid);
+        /* The hinterland. Darker and coarser than the apron, no shadows, and
+           fogged like everything else — so it hands the eye off to the haze
+           rather than ending in a cut edge with sky underneath it. */
+        this.hinterlandMat = new THREE.MeshStandardMaterial({
+            color: 0x16202f, roughness: 0.92, metalness: 0.1
+        });
+        if (Cargo3D.Textures) {
+            Cargo3D.Textures.applySkin(this.hinterlandMat, Cargo3D.Textures.asphalt(),
+                HINTERLAND_SIZE / 26, HINTERLAND_SIZE / 26, 0.4);
+            this.hinterlandMat.roughness = 0.92;
+        }
+        const hinterland = new THREE.Mesh(
+            new THREE.PlaneGeometry(HINTERLAND_SIZE, HINTERLAND_SIZE), this.hinterlandMat);
+        hinterland.rotation.x = -Math.PI / 2;
+        hinterland.position.y = -0.08;
+        this.scene.add(hinterland);
+        this.hinterland = hinterland;
+
+        this.setApronGrid(0x334155, 0x1f2c40);
 
         // Floodlight masts around the apron, doubling as scale reference. They
         // are grouped so bay-framed modes can hide them — at mission camera

@@ -32,6 +32,7 @@
                 { type: '10ft', count: 4 }
             ],
             seed: 1001,
+            terminal: 'feeder',
             weather: 'day'
         },
         {
@@ -48,6 +49,7 @@
                 { type: '20ft', count: 3 }
             ],
             seed: 1002,
+            terminal: 'feeder',
             weather: 'day'
         },
         {
@@ -65,6 +67,7 @@
                 { type: '10ft', count: 6 }
             ],
             seed: 1003,
+            terminal: 'feeder',
             weather: 'dusk'
         },
         {
@@ -83,7 +86,8 @@
             ],
             seed: 1004,
             medals: { gold: 1.12, silver: 1.32, bronze: 1.65 },
-            weather: 'day'
+            terminal: 'feeder',
+            weather: 'dawn'
         },
         {
             id: 'm05',
@@ -102,6 +106,7 @@
             seed: 1005,
             obstacles: [{ type: '10ft', carrier: 'steel', x: 2, z: 1, tier: 0 }],
             medals: { gold: 1.12, silver: 1.32, bronze: 1.65 },
+            terminal: 'river',
             weather: 'rain'
         },
         {
@@ -121,7 +126,8 @@
             ],
             seed: 1006,
             medals: { gold: 1.12, silver: 1.34, bronze: 1.70 },
-            weather: 'fog'
+            terminal: 'river',
+            weather: 'day'
         },
         {
             id: 'm07',
@@ -140,7 +146,8 @@
             ],
             seed: 1007,
             medals: { gold: 1.12, silver: 1.34, bronze: 1.70 },
-            weather: 'night'
+            terminal: 'river',
+            weather: 'fog'
         },
         {
             id: 'm08',
@@ -159,7 +166,8 @@
             ],
             seed: 1008,
             medals: { gold: 1.15, silver: 1.35, bronze: 1.75 },
-            weather: 'dusk'
+            terminal: 'river',
+            weather: 'night'
         },
         {
             id: 'm09',
@@ -177,7 +185,8 @@
             ],
             seed: 1009,
             medals: { gold: 1.12, silver: 1.34, bronze: 1.70 },
-            weather: 'day'
+            terminal: 'deepwater',
+            weather: 'dawn'
         },
         {
             id: 'm10',
@@ -197,7 +206,8 @@
             ],
             seed: 1010,
             medals: { gold: 1.15, silver: 1.38, bronze: 1.80 },
-            weather: 'rain'
+            terminal: 'deepwater',
+            weather: 'clear'
         },
         {
             id: 'm11',
@@ -215,7 +225,8 @@
             ],
             seed: 1011,
             medals: { gold: 1.12, silver: 1.34, bronze: 1.70 },
-            weather: 'night'
+            terminal: 'deepwater',
+            weather: 'rain'
         },
         {
             id: 'm12',
@@ -237,7 +248,8 @@
             ],
             seed: 1012,
             medals: { gold: 1.18, silver: 1.42, bronze: 1.85 },
-            weather: 'fog'
+            terminal: 'deepwater',
+            weather: 'night'
         },
         {
             id: 'm13',
@@ -261,7 +273,8 @@
             ],
             seed: 1013,
             medals: { gold: 1.15, silver: 1.35, bronze: 1.70 },
-            weather: 'night'
+            terminal: 'automated',
+            weather: 'snow'
         },
 
         /*
@@ -286,7 +299,8 @@
             ],
             seed: 1014,
             medals: { gold: 1.30, silver: 1.55, bronze: 1.95 },
-            weather: 'day'
+            terminal: 'automated',
+            weather: 'dusk'
         },
         {
             id: 'm15',
@@ -304,7 +318,8 @@
             ],
             seed: 1015,
             medals: { gold: 1.32, silver: 1.60, bronze: 2.00 },
-            weather: 'dusk'
+            terminal: 'automated',
+            weather: 'fog'
         },
         {
             id: 'm16',
@@ -326,6 +341,7 @@
             ],
             seed: 1016,
             medals: { gold: 1.35, silver: 1.65, bronze: 2.10 },
+            terminal: 'automated',
             weather: 'clear'
         },
 
@@ -354,7 +370,8 @@
             ],
             seed: 1017,
             medals: { gold: 0.90, silver: 0.65, bronze: 0.40 },
-            weather: 'day'
+            terminal: 'automated',
+            weather: 'clear'
         }
     ];
 

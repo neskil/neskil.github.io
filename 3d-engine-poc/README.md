@@ -45,11 +45,12 @@ with no WebGL context, offline, in a headless browser.
 │   └── campaign.js       the 16 line missions, as data
 │
 ├── render/             THREE-dependent scene construction
-│   ├── textures.js     procedural skins + environment map, drawn once, shared
+│   ├── textures.js     procedural skins, skies + environment maps, drawn once
 │   ├── containers.js   procedural cargo meshes, X-ray, heatmap
-│   ├── scene.js        renderer, camera, lights, apron
+│   ├── skyline.js      the port on the horizon, baked into one mesh
+│   ├── scene.js        renderer, camera, lights, sky dome, apron, hinterland
 │   ├── yard.js         bay markings, grid↔world transforms, ghost, envelope
-│   ├── weather.js      atmosphere presets
+│   ├── weather.js      the eight atmospheres, as data
 │   ├── terminal.js     rail track, train, semi truck
 │   ├── vehicle.js      drivable reach stacker
 │   ├── crane.js        rail-mounted gantry crane (trolley, winch, spreader)
@@ -295,6 +296,15 @@ footprint and true metres, then give it a mesh branch in
 `render/containers.js`. Set `gridPiece: false` for sandbox-only props. Give it a
 `mask` and you get the machinery-module mesh for free — the silhouette, kerb,
 hazard skirt and corner castings are all derived from it.
+
+**An atmosphere** — add the key to `WEATHER_KEYS` in `core/constants.js` and the
+preset itself to `PRESETS` in `render/weather.js`: lights, fog, precipitation and
+the recipe for its own sky. No code — `set()` only applies what the table says,
+and `tests.html` rejects a mission naming one that does not exist.
+
+**A terminal** — add an entry to `TERMINALS` in `core/constants.js` with a name,
+a blurb and seven colours, then name it from a mission. The apron, the slab, the
+slot paint, the hazard stripe and the tier gauge all follow.
 
 **A surface** — add a generator to `render/textures.js` and hang it on a
 material with `Textures.applySkin(material, skin, repeatX, repeatY)`. Colour
