@@ -16,7 +16,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
 | `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
 | `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
-| `surprise/` | Misc. personal page ("Bacons lilla hörna"). |
+| `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
 | `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
 | `assets/` | `og/` link-preview images (one per page) and `portrait.webp` for the About card. |
@@ -72,6 +72,41 @@ shows how to suppress via `localStorage`.
 Absolute URLs are required in the tags; scrapers don't resolve relative paths.
 Test changes with LinkedIn's Post Inspector or Facebook's Sharing Debugger; both
 cache aggressively, so re-scrape after an update.
+
+## Pruning `surprise/`
+
+`surprise/` arrived as a full checkout of the Phaser 3 examples repo dropped on
+top of an HTML5 UP template: 4,995 files and 556 MB, of which the site served
+about a hundred. It is now down to what the three pages actually load.
+
+What stayed, and why:
+
+- The Dimension one-pager and its `assets/{css,js,fonts}`, `images/`.
+- `cv_legacy/` **in full**, including files no page references. It is a
+  personal CV, it is 2.4 MB, and `cv/index.html` reaches into it for the
+  profile photo — not the place to save bytes.
+- `img/` **in full**, same reasoning: personal photos, 680 KB.
+- `phaser/dist/phaser.js` (loaded by `game2.html`), the two particle atlases
+  under `phaser/src/particles/`, and `src/games/firstgame/assets/`, which
+  `game.html` loads at runtime.
+
+What went: the examples corpus (`assets/` demo media, `build/` — 223 MB of
+numbered Phaser dev builds), `src/` bar the one game, the vendored Monaco
+editor under `js/vs/`, and `plugins/`.
+
+Two traps if you prune again. Phaser loads assets from **string literals**, so
+`href`/`src` crawling alone will delete files the games need — check
+`load.image(...)`/`load.atlas(...)` calls too. And `index.html` and `game.html`
+pull Phaser from a CDN, so in a sandbox with no egress they fail with "Phaser
+is not defined" and never request their assets; route the CDN to
+`phaser/dist/phaser.js` before trusting a runtime capture.
+
+Pre-existing breakage, left alone: `game.html` loads `img/bg.jpg`, which has
+never existed in this repo, and both game pages link root-absolute favicons
+(`/favicon-16x16.png`) that resolve to the site root rather than `surprise/`.
+
+Note this reclaims working-copy and Pages-deploy size, not `.git` — the blobs
+stay in history, so a fresh clone is unchanged until someone rewrites it.
 
 ## Development
 
