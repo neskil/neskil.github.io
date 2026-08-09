@@ -5,4 +5,15 @@ Allow: /
 # None of it is mine, and none of it should show up in search results.
 Disallow: /surprise/
 
+# Headless test harnesses and screenshot probes. They're linked from nothing,
+# but they sit next to pages that are, so a crawler walking the directory can
+# still land on one. Each also carries <meta name="robots" content="noindex">
+# — this file stops the fetch, the tag stops the indexing if it happens anyway.
+Disallow: /*/tests.html
+Disallow: /3d-engine-poc/physics-tests.html
+Disallow: /cargo-lander/syntax-check.html
+Disallow: /cargo-lander/probe-screenshot.html
+Disallow: /supply-chain/audio-check.html
+Disallow: /supply-chain/research-zoom-check.html
+
 Sitemap: https://neskil.github.io/sitemap.xml
