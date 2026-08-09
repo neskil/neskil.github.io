@@ -14,11 +14,36 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `converter/` | Quick mental unit converter. |
 | `car/` | Lease vs. finance vs. cash vs. monthly rental — US car cost-of-ownership calculator. Linked from the card grid on the landing page. |
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
+| `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
+| `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna"). |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
-| `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code. |
+| `robots.txt` / `sitemap.xml` | Crawler hints. `surprise/` is excluded, being vendored third-party demo code, as are the test harnesses — see "What crawlers see" below. |
 | `assets/` | `og/` link-preview images (one per page) and `portrait.webp` for the About card. |
 | `favicon.ico` | Site-wide favicon. |
+
+## What crawlers see
+
+Every page that is meant to be found carries a `<link rel="canonical">`, a
+`<meta name="description">`, and the Open Graph / Twitter tags described below,
+and appears in `sitemap.xml`.
+
+Everything else must opt out, and does so twice: a `Disallow` line in
+`robots.txt` so the page is never fetched, and `<meta name="robots"
+content="noindex">` in the page itself so it stays out of the index even if
+something reaches it by a route `robots.txt` doesn't cover. Belt and braces,
+because the two mechanisms fail differently — `robots.txt` cannot suppress a
+URL that other sites link to, and a `noindex` tag is never read if the fetch
+is blocked. That set is the headless test harnesses (`*/tests.html`,
+`3d-engine-poc/physics-tests.html`) and the screenshot/audio probes
+(`cargo-lander/syntax-check.html`, `cargo-lander/probe-screenshot.html`,
+`supply-chain/audio-check.html`, `supply-chain/research-zoom-check.html`).
+
+`cargo-lander/level-editor.html` is *not* in that set — it is a real feature
+linked from the game, and stays indexable.
+
+Add a new test or probe page and it needs both lines, or it will quietly show
+up in search results next to the pages you meant to publish.
 
 ## Link previews
 
