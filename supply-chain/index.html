@@ -26,6 +26,15 @@
          config.js copies it to SC.VERSION. See supply-chain/CLAUDE.md. -->
     <script>window.SC_VERSION = '1.63.4';</script>
     <script>document.write('<link rel="stylesheet" href="style.css?v=' + SC_VERSION + '">');</script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-9GP823TGLB');
+    </script>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
