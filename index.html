@@ -106,6 +106,12 @@
             --hue: 160;
         }
 
+        html[data-theme="card-golf"] {
+            --bg-color-1: #08190f;
+            --bg-color-2: #102c1b;
+            --hue: 140;
+        }
+
         html[data-theme="card-cv"] {
             --bg-color-1: #0f1724;
             --bg-color-2: #1a2332;
@@ -666,6 +672,18 @@
 
         #card-converter .card-link {
             color: rgb(34, 211, 238);
+        }
+
+        #card-golf {
+            --accent-rgb: 74, 222, 128;
+            --card-bg-gradient: linear-gradient(135deg, rgba(16, 36, 24, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(24, 56, 36, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(74, 222, 128, 0.22);
+            --card-hover-border: rgba(134, 239, 172, 0.48);
+        }
+
+        #card-golf .card-link {
+            color: rgb(134, 239, 172);
         }
 
         /* Backdrop for the expanded About card. Blurs and dims the grid behind it
@@ -1972,6 +1990,31 @@
                 </svg></span>
         </a>
 
+        <a href="golf/index.html?v=1.0.0" class="card card-metal" id="card-golf">
+            <div class="card-bg-hover"></div>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="19" rx="7.5" ry="2.6" fill="currentColor" fill-opacity="0.12"/>
+                        <path d="M11 19V4.2"/>
+                        <path d="M11.6 4.4l7 2.3-7 2.6z" fill="currentColor" fill-opacity="0.45"/>
+                        <ellipse cx="11" cy="19.2" rx="2.5" ry="1.1" fill="currentColor" fill-opacity="0.75" stroke="none"/>
+                        <circle cx="6.2" cy="17.6" r="1.8"/>
+                        <circle cx="6.2" cy="17.6" r="0.6" fill="currentColor" opacity="0.6" stroke="none"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Pocket Links</h2>
+                <p class="card-desc">Nine holes of mini golf. Bunkers, water, breaking greens and gates that will not wait for you.</p>
+                <div class="card-stat-chip" id="stat-golf">
+                    <span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>
+                </div>
+            </div>
+            <span class="card-link">Play 9 holes <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
             <div>
@@ -2218,6 +2261,7 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
+                'card-golf': 140,
                 'card-about': 345
             };
 
@@ -2275,6 +2319,22 @@
                     this.hue = 160;
                     const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
                     this.symbol = items[Math.floor(Math.random() * items.length)];
+                } else if (cardId === 'card-golf') {
+                    // Struck ball arcing across the screen. Unlike the other
+                    // types this one is under gravity (see update), so it rises,
+                    // hangs and drops rather than tracking a straight line.
+                    this.type = 'golf';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = height * (0.55 + Math.random() * 0.35);
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.6) : -(Math.random() * 1.4 + 2.6);
+                    this.vy = -(Math.random() * 1.5 + 3.0);
+                    this.gravity = 0.05;
+                    this.size = Math.random() * 8 + 16;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.38;
+                    this.hue = 140;
+                    var swings = ['⛳', '🏌️', 'FORE!'];
+                    this.symbol = swings[Math.floor(Math.random() * swings.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -2328,6 +2388,11 @@
                 // Subtle vertical wave for landers
                 if (this.type === 'lander') {
                     this.y += Math.sin(this.life * 0.08) * 0.6;
+                }
+
+                // Golf balls are the one type that falls.
+                if (this.type === 'golf') {
+                    this.vy += this.gravity;
                 }
 
                 const progress = this.life / this.maxLife;
@@ -2567,6 +2632,31 @@
                         }
                     } else {
                         cargoBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 5. Pocket Links
+            try {
+                const golfRaw = localStorage.getItem('miniGolf.save.v1');
+                const golfBadge = document.getElementById('stat-golf');
+                if (golfBadge) {
+                    let done = false;
+                    if (golfRaw) {
+                        const data = JSON.parse(golfRaw);
+                        if (typeof data.best === 'number') {
+                            const vs = typeof data.bestVsPar === 'number'
+                                ? (data.bestVsPar === 0 ? 'E' : (data.bestVsPar > 0 ? '+' : '') + data.bestVsPar)
+                                : '';
+                            const aces = data.aces > 0
+                                ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${data.aces} ace${data.aces === 1 ? '' : 's'})</span>`
+                                : '';
+                            golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">${data.best}${vs ? ' (' + vs + ')' : ''}</span>${aces}`;
+                            done = true;
+                        }
+                    }
+                    if (!done) {
+                        golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}
