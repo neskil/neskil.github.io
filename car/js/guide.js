@@ -38,15 +38,6 @@ const GUIDE_STEPS = [
         set: (v) => { creditTier = v; applyCreditTier(); }
     },
     {
-        id: 'cash',
-        q: 'How much cash could you put into a car?',
-        why: 'Not what you have — what you are willing to spend without emptying the buffer you need ' +
-            'for a deposit, a flight home, or three months of rent.',
-        field: 'cash',
-        prefix: '$',
-        quick: [10000, 20000, 35000, 50000]
-    },
-    {
         id: 'horizon',
         q: 'How long will you realistically keep it?',
         why: 'The single biggest lever on the page. Short answers favour leasing and renting; long ' +
@@ -154,6 +145,52 @@ const GUIDE_STEPS = [
         }
     },
     {
+        /* Asked *after* the car, not before it. A budget in the
+           abstract is a number nobody can place — "could you find
+           $20,000" means nothing until you know whether the car you
+           just described costs $14,000 or $62,000. Everything here is
+           priced off that car. */
+        id: 'cash',
+        q: 'How much cash could you put into it?',
+        whyFn: () => {
+            const otd = num('otd');
+            if (!otd) {
+                return 'Not what you have — what you are willing to spend without emptying the buffer ' +
+                    'you need for a deposit, a flight home, or three months of rent.';
+            }
+            return 'The car you just described is <strong>' + usd0(otd) + '</strong> out the door. ' +
+                'This answer decides which routes stay open: paying cash needs all of it, a loan ' +
+                'needs a deposit against it, and a subscription needs almost none — so it is not ' +
+                'what you have, it is what you would put in without emptying the buffer you keep ' +
+                'for a deposit, a flight home, or three months of rent.';
+        },
+        field: 'cash',
+        prefix: '$',
+        /* Fractions of this car rather than round numbers off a list.
+           Which door each one opens is the label, because that is the
+           only reason the page asks. */
+        choicesFn: () => {
+            const otd = num('otd');
+            if (!otd) return null;
+            const step = (x) => Math.max(500, Math.round(x / 500) * 500);
+            /* Rounded *up*, or "all of it" would land a few hundred short
+               of the car and the page would tell you cash is out of reach. */
+            const whole = Math.ceil(otd / 500) * 500;
+            return [
+                { value: whole, label: 'All of it · ' + usd0(whole),
+                  sub: 'Buy it outright — the one route no lender can decline' },
+                { value: step(otd * 0.5), label: 'Half · ' + usd0(step(otd * 0.5)),
+                  sub: 'A big deposit, a small loan, and the option to just pay cash for something older' },
+                { value: step(otd * 0.2), label: 'A fifth · ' + usd0(step(otd * 0.2)),
+                  sub: 'The conventional 20% down — best rates, no negative equity' },
+                { value: step(otd * 0.1), label: 'A tenth · ' + usd0(step(otd * 0.1)),
+                  sub: 'A thin deposit — financing works, leasing and subscriptions work better' }
+            ];
+        },
+        /* The trade-off behind the number is a whole screen of its own. */
+        explore: 'See what each budget actually buys'
+    },
+    {
         id: 'miles',
         q: 'How far do you drive in a year?',
         why: 'Mileage is what quietly kills leases and subscriptions — both meter it, and both charge ' +
@@ -211,45 +248,27 @@ function queueAdvance() {
    stand on their own, which is what they were before the shape was a
    question. */
 function bodyOf(key) {
-    return BODY_TYPES[key === undefined ? carBody : key] || { priceMult: 1, maintMult: 1, insMult: 1 };
+    return BODY_TYPES[key === undefined ? carBody : key] || NEUTRAL_BODY;
 }
 
-/* What a car of this marque, shape and age costs today. Kept separate
-   from applyCarProfile so the walkthrough can price a choice before you
-   have committed to it. */
-function estimatePrice(brandKey, bodyKey, ageKey) {
-    const brand = BRANDS[brandKey];
-    if (!brand) return null;
-    const band = AGE_BANDS[ageKey] || AGE_BANDS.new;
-    const body = BODY_TYPES[bodyKey] || { priceMult: 1 };
-    return brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve, body.depMult);
-}
-
-/* The spread across every shape in the range, which is what "how much
-   is a Toyota" honestly answers. */
-function estimateRange(brandKey, ageKey) {
-    const prices = Object.entries(BODY_TYPES)
-        .filter(([, body]) => !(body.notFor || []).includes(brandKey))
-        .map(([k]) => estimatePrice(brandKey, k, ageKey));
-    return prices.length ? { low: Math.min(...prices), high: Math.max(...prices) } : null;
-}
-
-/* Marque, shape and age together decide price, upkeep, cover and resale. */
+/* Marque, shape and age together decide price, upkeep, cover and resale.
+   The figures come from estimateOwnership, the same call the walkthrough
+   and the budget explorer price their unchosen options with; this is the
+   one place that writes them into the fields. */
 function applyCarProfile(bodyOverride) {
     const brand = BRANDS[carBrand], band = AGE_BANDS[carAge];
     if (!brand || !band) return;
+    const bodyKey = bodyOverride === undefined ? carBody : bodyOverride;
     const body = bodyOf(bodyOverride);
 
-    const holdYears = Math.max(0.5, Math.round(num('horizon')) / 12);
-    const miles = num('miles') || 12000;
+    const months = Math.max(6, Math.round(num('horizon')));
+    const est = estimateOwnership(carBrand, bodyKey, carAge, months, num('miles'));
 
-    const priceNow = brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve, body.depMult);
+    const priceNow = est.price;
     $('price').value = Math.round(priceNow / 50) * 50;
     $('depreciation').value = brand.curve;
-    $('maintenance').value = Math.round(
-        brand.maint10 / 120 * body.maintMult *
-        maintMultiplierOver(band.buyAge, holdYears) * mileageFactor(miles));
-    $('insurance').value = Math.round(210 * brand.insMult * body.insMult * band.insMult / 5) * 5;
+    $('maintenance').value = Math.round(est.maintenance);
+    $('insurance').value = Math.round(est.insurance / 5) * 5;
     /* Shape decides the pump bill more than the badge does — the gap
        between a small car and a pickup is a third of the fuel line.
        Hybrids deliver ~55% better fuel economy than petrol counterparts. */
@@ -355,7 +374,9 @@ function renderGuide() {
         '"></span>').join('');
     $('stepCount').textContent = 'Step ' + (guideIndex + 1) + ' of ' + GUIDE_STEPS.length;
     $('stepQ').textContent = step.q;
-    $('stepWhy').innerHTML = step.why;
+    /* Some questions can only be explained once the earlier answers are
+       in — a budget means nothing until the car it is buying is priced. */
+    $('stepWhy').innerHTML = step.whyFn ? step.whyFn() : step.why;
 
     const body = $('stepBody');
     body.innerHTML = '';
@@ -455,6 +476,21 @@ function renderGuide() {
             row.appendChild(btn);
         }
         body.appendChild(row);
+    }
+
+    /* A question can hand off to a screen that answers it properly. The
+       explorer opens over the guide and comes back to this same step,
+       with whatever it changed already in the fields. */
+    if (step.explore) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'preset-btn explore-btn';
+        btn.innerHTML = '💰 ' + step.explore + ' →';
+        btn.addEventListener('click', () => {
+            clearTimeout(advanceTimer);
+            openBudgetModal({ onApply: renderGuide });
+        });
+        body.appendChild(btn);
     }
 
     $('stepBack').style.visibility = guideIndex === 0 ? 'hidden' : 'visible';

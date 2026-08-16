@@ -336,3 +336,53 @@ would settle it properly.
 - `BODY_TYPES.truck.notFor: ['germanLux']` is honoured by the walkthrough's
   choice list but not by the body chip row on the page, so you can still select
   German luxury + pickup there and get a price for a car nobody sells.
+
+## Budget explorer (August 2026)
+
+**The walkthrough asked about money before it had described a car.** "How much
+cash could you put into a car?" was question three of eleven, with a fixed
+$10k/$20k/$35k/$50k preset row — asked four questions before the marque, shape
+and age that decide what the car costs. A budget in the abstract is not
+answerable: whether $20,000 is generous or hopeless depends entirely on whether
+the car you have in mind is $14,000 or $62,000, and the page could not say
+which yet. The presets were the same four round numbers for everybody.
+
+The question now comes *after* the car, as question eight, and its options are
+fractions of that car's own out-the-door price — all of it, half, a fifth, a
+tenth — each labelled with the door it opens rather than only the amount. "All
+of it" rounds up rather than to nearest, or it would land a few hundred short
+of the car and the page would tell you cash was out of reach. The reason text
+is generated per car and leads with what it costs.
+
+**A budget is a trade-off, so it got a screen.** `💰 What your budget buys`
+prices every marque × shape × age the page knows about against one number and
+ranks what comes back by cost to *own* — value shed over your horizon, plus
+upkeep, plus insurance — which is the ordering a price tag cannot show you. At
+$35,000: a new Japanese saloon at $430/mo against a three-year-old German SUV
+at $773/mo, a $20,600 difference over five years on cars with the same figure
+on the windscreen. Steppers, a slider and a row of rungs either side of the
+current number — each labelled with the best car it reaches — make the "and if
+I stretch?" question answerable. Tapping a card writes the marque, shape and
+age into the page exactly as the chips do.
+
+It opens from the walkthrough's cash step *and* from the car panel, since the
+question outlives the tutorial. It layers above the guide rather than replacing
+it, and hands the keyboard back on close.
+
+**Shared pricing, one source.** `estimatePrice`, `estimateRange` and the new
+`estimateOwnership` moved out of `guide.js` into `model.js`, and
+`applyCarProfile` now writes what `estimateOwnership` returns instead of
+recomputing it. The walkthrough's labels, the explorer's cards and the page's
+own fields cannot drift apart. Covered by 23 new assertions in `tests.html`.
+
+**Still open from this pass:**
+
+- Cost to own leaves out fuel and financing, on the grounds that they are much
+  the same question whichever of these cars you buy. That is true of fuel to
+  within a third of a line and false of financing at the extremes — a
+  subprime rate on a $40k car is not the same decision as one on a $12k car.
+- The explorer ranks segment averages. Once a real nameplate is picked the
+  page prices *that* car, but the explorer still has nothing to say about it.
+- The ±12% tolerance band is a guess. Too tight and a budget matches one
+  marque, too loose and the "same money" claim in the footnote stops being
+  true.

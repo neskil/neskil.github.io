@@ -385,6 +385,119 @@
         carAge = heldAge; scenarioCase = heldCase;
     })();
 
+    // ── 17. Pricing a car before it is chosen ────────────────────────
+    (function testEstimateOwnership() {
+        assert('estimatePrice falls to the marque average with no shape given',
+            approx(estimatePrice('japanese', null, 'new'), BRANDS.japanese.newPrice, 1));
+
+        assert('A shape multiplies the marque price by its own factor',
+            approx(estimatePrice('japanese', 'compactCar', 'new'),
+                BRANDS.japanese.newPrice * BODY_TYPES.compactCar.priceMult, 1));
+
+        assert('estimatePrice returns null for a marque that does not exist',
+            estimatePrice('martian', 'suv', 'new') === null);
+
+        const range = estimateRange('germanLux', 'new');
+        assert('estimateRange spans the cheapest and dearest shape in the range',
+            range.low < range.high &&
+            approx(range.low, estimatePrice('germanLux', 'compactCar', 'new'), 1));
+
+        // No German marque here sells a pickup, so the German range must
+        // be the min and max of the other four shapes and nothing else.
+        const germanShapes = Object.keys(BODY_TYPES)
+            .filter((k) => k !== 'truck')
+            .map((k) => estimatePrice('germanLux', k, 'new'));
+        assert('estimateRange leaves out shapes a marque does not sell',
+            approx(estimateRange('germanLux', 'new').low, Math.min(...germanShapes), 1) &&
+            approx(estimateRange('germanLux', 'new').high, Math.max(...germanShapes), 1));
+
+        const est = estimateOwnership('japanese', 'suv', 'new', 60, 12000);
+        assert('A car is worth less after the horizon than at the start',
+            est.resale < est.price && est.lost === est.price - est.resale);
+
+        assert('estimateOwnership agrees with estimatePrice on the purchase price',
+            approx(est.price, estimatePrice('japanese', 'suv', 'new'), 0.5));
+
+        assert('A brand-new car has its full basic warranty left',
+            est.warrantyLeft === BRANDS.japanese.warrantyBasic);
+
+        const old = estimateOwnership('japanese', 'suv', 'ten', 60, 12000);
+        assert('A ten-year-old car is out of bumper-to-bumper cover',
+            old.warrantyLeft === 0 && old.powertrainLeft === 0);
+
+        assert('Upkeep climbs with age — an old car costs more to keep than a new one',
+            old.maintenance > est.maintenance);
+
+        assert('Mileage scales upkeep',
+            estimateOwnership('japanese', 'suv', 'new', 60, 24000).maintenance >
+            est.maintenance);
+
+        // Keeping a car longer splits into two effects that very nearly
+        // cancel, which is exactly why the page adds them up rather than
+        // asserting the folk answer: depreciation per month falls…
+        const long = estimateOwnership('japanese', 'suv', 'new', 120, 12000);
+        assert('A longer horizon spreads the depreciation over more months',
+            long.lost / 120 < est.lost / 60,
+            usd0(long.lost / 120) + '/mo vs ' + usd0(est.lost / 60) + '/mo');
+
+        // …while the repair bills of the out-of-warranty years arrive.
+        assert('…and is paid for in upkeep, as the warranty years fall behind',
+            long.maintenance > est.maintenance,
+            usd0(long.maintenance) + '/mo vs ' + usd0(est.maintenance) + '/mo');
+
+        assert('estimateOwnership returns null for a marque that does not exist',
+            estimateOwnership('martian', 'suv', 'new', 60, 12000) === null);
+    })();
+
+    // ── 18. Shopping a budget ────────────────────────────────────────
+    (function testBudgetMatches() {
+        const opts = { months: 60, miles: 12000, taxRate: 7, fees: 800 };
+        const at30k = budgetMatches(30000, opts);
+
+        assert('A mainstream budget matches something',
+            at30k.length > 0);
+
+        assert('Every match lands within tolerance of the budget',
+            at30k.every((m) => Math.abs(m.otd - 30000) / 30000 <= 0.12),
+            at30k.map((m) => Math.round(m.otd)).join(', '));
+
+        assert('Out-the-door carries the tax and the fees',
+            at30k.every((m) => approx(m.otd, m.price * 1.07 + 800, 0.5)));
+
+        assert('Matches come back cheapest-to-own first',
+            at30k.every((m, i) => i === 0 || at30k[i - 1].perMonth <= m.perMonth));
+
+        assert('One budget reaches more than one marque — the whole point',
+            new Set(at30k.map((m) => m.brand)).size > 1,
+            [...new Set(at30k.map((m) => m.brand))].join(', '));
+
+        // The claim the explorer is built to show: cars that cost the
+        // same to buy are nowhere near the same to own, because the badge
+        // that sheds value fastest also costs the most to repair.
+        const cheapest = at30k[0], dearest = at30k[at30k.length - 1];
+        assert('At one budget, the dearest car to own costs at least 25% more per month',
+            dearest.perMonth / cheapest.perMonth > 1.25,
+            usd0(cheapest.perMonth) + '/mo vs ' + usd0(dearest.perMonth) + '/mo');
+
+        assert('…and the price tag does not predict it',
+            Math.abs(dearest.otd - cheapest.otd) / cheapest.otd < 0.25);
+
+        assert('No German pickup is ever offered, at any budget',
+            [10000, 30000, 50000, 80000].every((b) =>
+                budgetMatches(b, opts).every((m) => !(m.brand === 'germanLux' && m.body === 'truck'))));
+
+        assert('A budget below the cheapest car in the data set matches nothing',
+            budgetMatches(3000, opts).length === 0);
+
+        assert('A wider tolerance never returns fewer matches',
+            budgetMatches(30000, Object.assign({}, opts, { tolerance: 0.25 })).length >=
+            at30k.length);
+
+        assert('Tax raises the out-the-door price, so it changes what a budget reaches',
+            budgetMatches(30000, Object.assign({}, opts, { taxRate: 0 }))
+                .every((m) => approx(m.otd, m.price + 800, 0.5)));
+    })();
+
     // Summary output
     const summary = document.getElementById('summary');
     summary.innerHTML = passed + ' passed, ' + failed + ' failed' +

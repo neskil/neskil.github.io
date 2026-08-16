@@ -435,10 +435,31 @@ $('stepBack').addEventListener('click', () => {
 });
 document.addEventListener('keydown', (e) => {
     if ($('guideModal').hidden) return;
+    /* The budget explorer opens over the guide and owns the keyboard
+       while it is up, or Escape would close both at once. */
+    if (!$('budgetModal').hidden) return;
     if (e.key === 'Escape') closeGuide(false);
     /* Enter advances, unless the caret is in the free-text box and the
        user is still typing a number. */
     if (e.key === 'Enter' && e.target.id !== 'guideInput') guideNext();
+});
+
+/* ── What a budget buys ── */
+$('openBudgetModal').addEventListener('click', () => openBudgetModal());
+$('budgetClose').addEventListener('click', closeBudgetModal);
+$('budgetBackdrop').addEventListener('click', closeBudgetModal);
+$('budgetDown').addEventListener('click', () => setBudget(budgetAmount - budgetStepSize(budgetAmount)));
+$('budgetUp').addEventListener('click', () => setBudget(budgetAmount + budgetStepSize(budgetAmount)));
+$('budgetSlider').addEventListener('input', () => setBudget(Number($('budgetSlider').value)));
+/* Typing re-ranks the list but must not fight the caret, so the value is
+   read as given and only snapped back into range once focus leaves. */
+$('budgetInput').addEventListener('input', () => {
+    const v = Number($('budgetInput').value);
+    if (v >= BUDGET_MIN && v <= BUDGET_MAX) { budgetAmount = v; renderBudget(); }
+});
+$('budgetInput').addEventListener('change', () => setBudget(Number($('budgetInput').value)));
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('budgetModal').hidden) closeBudgetModal();
 });
 
 $('openDataModal').addEventListener('click', openDataModal);
