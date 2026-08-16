@@ -115,6 +115,10 @@ body {
     width: 100%;
 }
 
+/* Layering scale, low to high: sticky page chrome (30) < modal backdrop and
+   modal (60/61) < chart tooltip (100, because charts live inside modals and
+   their tooltip has to clear the modal it is drawn over). */
+
 /* Sticky positions inside its parent's box, so the nav could only ever
    stick within a wrapper exactly its own height — it had nowhere to go and
    scrolled away. The wrapper is what sticks; the nav fills it. */
@@ -123,7 +127,9 @@ body {
     width: 100%;
     position: sticky;
     top: 0;
-    z-index: 100;
+    /* Only has to clear the page content it scrolls over. Anything higher
+       and the nav paints on top of an open modal instead of under it. */
+    z-index: 30;
 }
 
 .sidebar-title {
