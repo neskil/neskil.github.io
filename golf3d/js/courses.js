@@ -256,8 +256,8 @@
             blurb: 'Hit it up the ramp. Half measures roll back to you.',
             pads: [
                 pad(0, 0, 6, 5),
-                pad(0, 5, 6, 3, 0, 'green', 0, 0.5),
-                pad(0, 8, 6, 6, 1.5)
+                pad(0, 5, 6, 3, 0, 'green', 0, 0.3),
+                pad(0, 8, 6, 6, 0.9)
             ],
             tee: { x: 3, z: 1.5 }, cup: { x: 3, z: 12 }
         }),
@@ -274,8 +274,8 @@
             blurb: 'Up the ramp, hard left, and try not to come back down.',
             pads: [
                 pad(0, 0, 4, 10),
-                pad(0, 10, 4, 4, 0, 'green', 0, 0.375),
-                pad(0, 14, 10, 4, 1.5)
+                pad(0, 10, 4, 4, 0, 'green', 0, 0.3),
+                pad(0, 14, 10, 4, 1.2)
             ],
             tee: { x: 2, z: 1.5 }, cup: { x: 8.4, z: 16 }
         }),
@@ -305,13 +305,13 @@
             name: 'The Cannon', par: 3,
             blurb: 'The ramp is not a suggestion. Hit it flat out and fly the gap.',
             pads: [
-                pad(0, 0, 6, 6),
-                pad(1.5, 6, 3, 3, 0, 'wood', 0, 0.55),
-                pad(0, 14, 7, 6)
+                pad(0, 0, 6, 4),
+                pad(1.2, 4, 3.6, 2.5, 0, 'wood', 0, 0.45),
+                pad(0, 9.5, 7, 7)
             ],
-            water: [rect(-3, 9, 14, 5, -0.9)],
-            gaps: [shore(rect(-3, 9, 14, 5), 0.7), { x: 1.2, z: 8.4, w: 3.6, d: 1.2 }],
-            tee: { x: 3, z: 1.5 }, cup: { x: 3.5, z: 17.5 }
+            water: [rect(-3, 6.5, 14, 3, -0.9)],
+            gaps: [shore(rect(-3, 6.5, 14, 3), 0.7)],
+            tee: { x: 3, z: 1.5 }, cup: { x: 3.5, z: 12.6 }
         })
     ];
 
@@ -378,12 +378,12 @@
             blurb: 'Ramp, blade, water, green. In that order, if you please.',
             pads: [
                 pad(0, 0, 6, 6),
-                pad(1.5, 6, 3, 2.5, 0, 'wood', 0, 0.4),
+                pad(0, 6, 6, 2.5, 0, 'wood', 0, 0.4),
                 pad(0, 8.5, 6, 4, 1),
                 pad(0, 16, 8, 6)
             ],
             water: [rect(-3, 12.5, 14, 3.5, -0.9)],
-            gaps: [shore(rect(-3, 12.5, 14, 3.5), 0.7), { x: 1.2, z: 8, w: 3.6, d: 1 }],
+            gaps: [shore(rect(-3, 12.5, 14, 3.5), 0.7)],
             extra: [spinner(3, 10.5, 3.6, 0.4, { spin: 1.9, base: 0.9 })],
             tee: { x: 3, z: 1.5 }, cup: { x: 4, z: 19.5 }
         })

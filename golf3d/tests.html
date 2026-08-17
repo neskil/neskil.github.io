@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loft Links — logic tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #061422; color: #eaf6ff; font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1rem; line-height: 1.5; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9fb6c9; margin: 1.4rem 0 0.3rem; border-bottom: 1px solid #ffffff1a; padding-bottom: 0.2rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; background: #ffffff0d; }
+        #summary.ok { color: #4ade80; }
+        #summary.bad { color: #f87171; }
+        .note { color: #9fb6c9; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+
+    <!-- Pure logic only: config, physics, course data and scoring. No render,
+         audio or game module, so nothing here needs WebGL, an AudioContext or a
+         DOM beyond this page. -->
+    <script src="js/config.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/courses.js"></script>
+    <script src="js/scoring.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var C = G3.CONFIG, P = G3.physics, S = G3.scoring, A = G3.authoring;
+        var passed = 0, failed = 0;
+        window.FAILS = [];
+        var out = document.getElementById('results');
+        var t0 = performance.now();
+
+        function section(name) {
+            var h = document.createElement('h2');
+            h.textContent = name;
+            out.appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name + (detail ? ' — ' + detail : ''));
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        function note(text) {
+            var div = document.createElement('div');
+            div.className = 'note';
+            div.textContent = '  ' + text;
+            out.appendChild(div);
+        }
+
+        function approx(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 0.001 : eps); }
+
+        // Seeded PRNG so a failing bot run is reproducible rather than a
+        // "sometimes red" test nobody trusts.
+        function mulberry32(seed) {
+            return function () {
+                seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+                var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+
+        var ALL = [];
+        G3.COURSES.forEach(function (course) {
+            course.holes.forEach(function (h) { ALL.push({ course: course, hole: h }); });
+        });
+
+        // A bare hole to run the integrator on, so these tests do not depend on
+        // the shipped course data staying the way it is today.
+        function lab(opts) {
+            opts = opts || {};
+            var h = {
+                pads: opts.pads || [A.pad(0, 0, 10, 20)],
+                water: opts.water || [],
+                walls: [],
+                tee: { x: 5, z: 2 },
+                cup: opts.cup || { x: 5, z: 15 }
+            };
+            h.walls = opts.walls || [];
+            var t = P.surfaceTop(h, h.tee.x, h.tee.z);
+            var c = P.surfaceTop(h, h.cup.x, h.cup.z);
+            h.tee.y = t ? t.y : 0;
+            h.cup.y = c ? c.y : 0;
+            return h;
+        }
+
+        function shootFrom(hole, from, yaw, power, loft, time, dt) {
+            var w = P.createWorld(hole, from, time || 0);
+            P.launch(w, yaw, power, loft || 0);
+            P.settle(w, C.MAX_SHOT_SECONDS, dt);
+            return w;
+        }
+
+        /* ── pads and surfaces ──────────────────────────────────────────── */
+
+        section('Pads and surfaces');
+        (function () {
+            var flat = A.pad(2, 3, 4, 6, 1);
+            assert('a flat pad is its own height everywhere',
+                approx(P.padHeight(flat, 2, 3), 1) && approx(P.padHeight(flat, 6, 9), 1));
+
+            var tilt = A.pad(0, 0, 4, 4, 2, 'green', -0.5, 0.25);
+            assert('a tilted pad is the plane through its corner',
+                approx(P.padHeight(tilt, 0, 0), 2) &&
+                approx(P.padHeight(tilt, 4, 0), 0) &&
+                approx(P.padHeight(tilt, 0, 4), 3));
+
+            assert('padContains includes the edges',
+                P.padContains(flat, 2, 3) && P.padContains(flat, 6, 9));
+            assert('padContains excludes just outside',
+                !P.padContains(flat, 1.9, 5) && !P.padContains(flat, 4, 9.1));
+
+            var bridge = lab({ pads: [A.pad(0, 0, 10, 20), A.pad(4, 5, 2, 6, 1.4, 'wood')] });
+            var below = P.surfaceUnder(bridge, 5, 8, 0.5);
+            var above = P.surfaceUnder(bridge, 5, 8, 2);
+            assert('a ball under a bridge stands on the ground', below && approx(below.y, 0));
+            assert('a ball on a bridge stands on the bridge', above && approx(above.y, 1.4));
+            assert('surfaceTop ignores the ceiling', approx(P.surfaceTop(bridge, 5, 8).y, 1.4));
+            assert('nothing underfoot off the pad', P.surfaceUnder(bridge, 50, 50, 99) === null);
+            assert('ballTop sits the ball on the surface',
+                approx(P.ballTop(bridge, 5, 8), 1.4 + C.BALL_R));
+
+            var pond = lab({ water: [A.rect(2, 2, 3, 3, -0.5)] });
+            assert('waterAt finds the pond', P.waterAt(pond, 3, 3) !== null);
+            assert('waterAt is null on dry land', P.waterAt(pond, 8, 8) === null);
+            assert('waterAt tolerates a hole with no water', P.waterAt(lab(), 1, 1) === null);
+        })();
+
+        /* ── walls ─────────────────────────────────────────────────────── */
+
+        section('Walls, gates and blades');
+        (function () {
+            var stat = A.wall(4, 6, 2, 0.4, 0.6);
+            var B = P.wallBox(stat, 12.5);
+            assert('a static wall ignores time', approx(B.cx, 5) && approx(B.cz, 6.2) && B.yaw === 0);
+            assert('half-extents come from the footprint', approx(B.hw, 1) && approx(B.hd, 0.2));
+            assert('top is base plus height', approx(B.top - B.base, 0.6));
+            assert('a static wall has no surface velocity',
+                P.wallPointVelocity(B, 5, 6.2).x === 0 && P.wallPointVelocity(B, 5, 6.2).z === 0);
+
+            var gate = A.slider(2, 6, 1.5, 0.4, { amp: 0.8, speed: 2 });
+            assert('a gate is at its base position at t=0', approx(P.wallBox(gate, 0).cx, 2.75));
+            assert('a gate reaches +amp a quarter period later',
+                approx(P.wallBox(gate, Math.PI / 4).cx, 3.55, 1e-6));
+            assert('a gate does not drift on the other axis',
+                approx(P.wallBox(gate, 1.3).cz, 6.2));
+            var g0 = P.wallBox(gate, 1.0), g1 = P.wallBox(gate, 1.0 + 1e-4);
+            assert('gate velocity matches the finite difference',
+                approx(g0.vx, (g1.cx - g0.cx) / 1e-4, 0.01), 'got ' + g0.vx.toFixed(4));
+
+            var blade = A.spinner(5, 10, 3, 0.4, { spin: 1.5 });
+            assert('a blade turns with time', approx(P.wallBox(blade, 2).yaw, 3, 1e-9));
+            var Bb = P.wallBox(blade, 0);
+            var pv = P.wallPointVelocity(Bb, 5 + 1.2, 10);
+            assert('a blade tip moves across the sweep, not along the arm',
+                approx(pv.x, 0, 1e-9) && approx(pv.z, -1.5 * 1.2, 1e-9),
+                'got (' + pv.x.toFixed(3) + ', ' + pv.z.toFixed(3) + ')');
+
+            // Circle vs box, including the rotated case.
+            var box = P.wallBox(A.wall(0, 0, 4, 2, 1), 0);   // centre (2,1), half (2,1)
+            assert('a circle clear of a box does not collide', P.circleBox(9, 9, C.BALL_R, box) === null);
+            assert('a circle overlapping a box collides', P.circleBox(2, 1.05, C.BALL_R, box) !== null);
+
+            var west = P.circleBox(-0.1, 1, C.BALL_R, box);
+            assert('the normal points out of the west face', west && approx(west.nx, -1) && approx(west.nz, 0));
+            assert('penetration depth is the overlap', west && approx(west.depth, C.BALL_R - 0.1, 1e-9),
+                'got ' + (west && west.depth));
+
+            var south = P.circleBox(2, -0.05, C.BALL_R, box);
+            assert('the normal points out of the south face', south && approx(south.nz, -1) && approx(south.nx, 0));
+
+            var corner = P.circleBox(-0.08, -0.08, C.BALL_R, box);
+            assert('a corner contact gives a diagonal normal', corner && corner.nx < 0 && corner.nz < 0);
+
+            var inside = P.circleBox(2, 0.9, C.BALL_R, box);
+            assert('a centre inside the box escapes through the nearest face',
+                inside && approx(inside.nz, -1) && inside.depth > C.BALL_R);
+
+            var turned = P.wallBox(A.wall(0, 0, 4, 1, 1, { yaw: Math.PI / 2 }), 0);
+            // Rotated 90°, the long axis runs along z, so a point 1.6 to the
+            // east is now clear and one 1.6 to the north is not.
+            assert('a rotated box is clear along its short axis',
+                P.circleBox(2 + 1.6, 0.5, C.BALL_R, turned) === null);
+            assert('a rotated box is solid along its long axis',
+                P.circleBox(2, 0.5 + 1.6, C.BALL_R, turned) !== null);
+        })();
+
+        /* ── the integrator ────────────────────────────────────────────── */
+
+        section('The integrator');
+        (function () {
+            var flat = lab();
+            var w = shootFrom(flat, { x: 5, z: 2 }, 0, 10);
+            assert('a shot eventually comes to rest', !w.moving);
+            assert('a resting ball has no speed', P.speedOf(w.ball) < 1e-9);
+            assert('the ball stays on its pad',
+                w.ball.x > 0 && w.ball.x < 10 && w.ball.z > 0 && w.ball.z < 20);
+            assert('a grounded ball sits one radius above the surface',
+                approx(w.ball.y, C.BALL_R, 1e-6), 'y = ' + w.ball.y);
+
+            // Coast distance under exponential drag is v0 / -ln(k), give or
+            // take the last few centimetres below the stop threshold.
+            var far = shootFrom(lab({ pads: [A.pad(0, 0, 10, 40)], cup: { x: 9, z: 39 } }), { x: 5, z: 1 }, 0, C.MAX_POWER);
+            var travelled = far.ball.z - 1;
+            var predicted = C.MAX_POWER / -Math.log(C.FRICTION.green);
+            assert('full power coasts about v0 / -ln(k)', approx(travelled, predicted, 0.6),
+                travelled.toFixed(2) + ' vs ' + predicted.toFixed(2));
+
+            assert('a shot under MIN_POWER is refused', (function () {
+                var t = P.createWorld(flat, { x: 5, z: 2 }, 0);
+                return P.launch(t, 0, C.MIN_POWER * 0.5, 0) === false && !t.moving;
+            })());
+
+            // Frame-rate independence: the game loop hands advance() a real
+            // frame time, the tests hand it 1/120. Both must agree.
+            var slow = shootFrom(flat, { x: 5, z: 2 }, 0.2, 9, 0, 0, 1 / 30);
+            var fast = shootFrom(flat, { x: 5, z: 2 }, 0.2, 9, 0, 0, 1 / 120);
+            var gap = Math.hypot(slow.ball.x - fast.ball.x, slow.ball.z - fast.ball.z);
+            assert('an unobstructed roll is frame-rate independent', gap < 0.02,
+                gap.toFixed(4) + ' units apart');
+
+            var railed = lab({ walls: [A.wall(0, 10, 6, 0.4, 0.6)] });
+            var slowB = shootFrom(railed, { x: 5, z: 2 }, 0.35, 12, 0, 0, 1 / 30);
+            var fastB = shootFrom(railed, { x: 5, z: 2 }, 0.35, 12, 0, 0, 1 / 120);
+            var gapB = Math.hypot(slowB.ball.x - fastB.ball.x, slowB.ball.z - fastB.ball.z);
+            assert('bounce sampling error stays small', gapB < 0.35, gapB.toFixed(4) + ' units apart');
+
+            // Nothing may tunnel through the thinnest wall the courses allow.
+            var thin = lab({ walls: [A.wall(0, 10, 10, 0.24, 0.6)] });
+            var hard = shootFrom(thin, { x: 5, z: 2 }, 0, C.MAX_POWER);
+            assert('full power does not tunnel through a 0.24 wall', hard.ball.z < 10,
+                'ended at z = ' + hard.ball.z.toFixed(2));
+
+            var sandy = lab({ pads: [A.pad(0, 0, 10, 5), A.pad(0, 5, 10, 4, 0, 'sand'), A.pad(0, 9, 10, 11)] });
+            var inSand = shootFrom(sandy, { x: 5, z: 2 }, 0, 10);
+            var onGrass = shootFrom(lab(), { x: 5, z: 2 }, 0, 10);
+            assert('sand stops the ball short of the same shot on grass',
+                inSand.ball.z < onGrass.ball.z - 1.5,
+                inSand.ball.z.toFixed(2) + ' vs ' + onGrass.ball.z.toFixed(2));
+
+            var wet = lab({
+                pads: [A.pad(0, 0, 10, 8), A.pad(0, 12, 10, 8)],
+                water: [A.rect(0, 8, 10, 4, -0.5)]
+            });
+            var splashed = shootFrom(wet, { x: 5, z: 2 }, 0, 12);
+            assert('a ball hit into water splashes', splashed.splash);
+            assert('a splashed ball stops moving', !splashed.moving && P.speedOf(splashed.ball) === 0);
+            assert('a splashed ball is not also holed', !splashed.sunk);
+            assert('the shot origin is kept for the replay',
+                approx(splashed.origin.z, 2) && approx(splashed.origin.x, 5));
+
+            var cliff = lab({ pads: [A.pad(0, 0, 10, 8)] });
+            var lost = shootFrom(cliff, { x: 5, z: 2 }, 0, 12);
+            assert('a ball with nowhere to land is out of play', lost.out);
+            assert('an out ball stops moving', !lost.moving);
+
+            // A ledge: the ball must leave the ground and land lower, not slide
+            // down an invisible ramp.
+            var step = lab({ pads: [A.pad(0, 0, 10, 8, 2), A.pad(0, 8, 10, 12, 0)] });
+            var dropped = shootFrom(step, { x: 5, z: 2 }, 0, 9);
+            assert('a ball rolling off a ledge lands on the lower pad',
+                dropped.ball.z > 8 && approx(dropped.ball.y, C.BALL_R, 0.02),
+                'z ' + dropped.ball.z.toFixed(2) + ' y ' + dropped.ball.y.toFixed(3));
+            assert('and it is grounded again afterwards', dropped.grounded);
+
+            // A kerb the ball cannot climb turns it back.
+            var kerb = lab({ pads: [A.pad(0, 0, 10, 8, 0), A.pad(0, 8, 10, 12, 1.5)] });
+            var blocked = shootFrom(kerb, { x: 5, z: 2 }, 0, 8);
+            assert('a step too tall to climb is not climbed', blocked.ball.z < 8.2,
+                'z = ' + blocked.ball.z.toFixed(2));
+
+            // Loft: a rail that stops a flat shot should be flyable.
+            var fence = lab({ walls: [A.wall(0, 7, 10, 0.4, 0.5, { base: 0 })] });
+            var flatShot = shootFrom(fence, { x: 5, z: 2 }, 0, 11, 0);
+            var lofted = shootFrom(fence, { x: 5, z: 2 }, 0, 11, 0.7);
+            assert('a flat shot is stopped by a rail', flatShot.ball.z < 7.2,
+                'z = ' + flatShot.ball.z.toFixed(2));
+            assert('a lofted shot carries the same rail', lofted.ball.z > 7.5,
+                'z = ' + lofted.ball.z.toFixed(2));
+            assert('loft is capped at MAX_LOFT', (function () {
+                var t = P.createWorld(fence, { x: 5, z: 2 }, 0);
+                P.launch(t, 0, 10, 5);            // absurd loft
+                return t.ball.vy <= 10 * Math.sin(C.MAX_LOFT) + 1e-9;
+            })());
+
+            // A tilted green must break the ball sideways, and must still let
+            // the shot end.
+            var tilted = lab({ pads: [A.pad(0, 0, 10, 20, 1.2, 'green', -0.12, 0)] });
+            var broken = shootFrom(tilted, { x: 5, z: 2 }, 0, 9);
+            assert('a ball on a tilted green drifts downhill', broken.ball.x > 5.3,
+                'x = ' + broken.ball.x.toFixed(2));
+            assert('a shot on a slope still comes to rest', !broken.moving);
+
+            // The cup.
+            var cupHole = lab({ cup: { x: 5, z: 12 } });
+            var holed = shootFrom(cupHole, { x: 5, z: 2 }, 0, 12.1);
+            assert('a ball rolled at the cup drops in', holed.sunk || (function () {
+                // Not every power holes out; scan a few and require one that does.
+                for (var p = 11; p < 13; p += 0.05) {
+                    if (shootFrom(cupHole, { x: 5, z: 2 }, 0, p).sunk) return true;
+                }
+                return false;
+            })());
+            assert('a ball flying over the cup is not swallowed', (function () {
+                var t = P.createWorld(cupHole, { x: 5, z: 2 }, 0);
+                P.launch(t, 0, 13, 0.6);
+                for (var i = 0; i < 200; i++) {
+                    P.advance(t, C.SIM_DT);
+                    if (t.sunk && t.ball.y > cupHole.cup.y + C.BALL_R + C.CUP_HEIGHT) return false;
+                }
+                return true;
+            })());
+            assert('a fast ball over the rim is spat back out', (function () {
+                var w2 = shootFrom(cupHole, { x: 5, z: 11.4 }, 0, 12);
+                return !w2.sunk;
+            })());
+
+            assert('a settled world reports done', P.done(w));
+            assert('a rolling world does not report done', (function () {
+                var t = P.createWorld(flat, { x: 5, z: 2 }, 0);
+                P.launch(t, 0, 10, 0);
+                P.advance(t, C.SIM_DT);
+                return !P.done(t);
+            })());
+            assert('advance on a finished world changes nothing', (function () {
+                var before = splashed.ball.z;
+                P.advance(splashed, 1);
+                return splashed.ball.z === before;
+            })());
+
+            var clone = P.cloneWorld(w);
+            clone.ball.x += 5;
+            assert('cloneWorld does not share the ball', w.ball.x !== clone.ball.x);
+            assert('cloneWorld keeps the clock', clone.time === w.time);
+
+            var pv = P.previewPath(P.createWorld(flat, { x: 5, z: 2 }, 0), 0, 10, 0, 0.5);
+            assert('previewPath starts at the ball', pv.length > 2 && approx(pv[0].z, 2));
+            assert('previewPath goes where the shot goes', pv[pv.length - 1].z > pv[0].z);
+            assert('previewPath does not disturb the world', (function () {
+                var t = P.createWorld(flat, { x: 5, z: 2 }, 0);
+                P.previewPath(t, 1, 12, 0.4, 0.8);
+                return t.ball.z === 2 && !t.moving;
+            })());
+        })();
+
+        /* ── course data ───────────────────────────────────────────────── */
+
+        section('Course data');
+        (function () {
+            assert('three courses', G3.COURSES.length === 3);
+            assert('eighteen holes in total', ALL.length === 18);
+            assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
+            assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
+
+            G3.COURSES.forEach(function (course) {
+                assert(course.name + ': six holes', course.holes.length === 6);
+                assert(course.name + ': has a theme and a blurb', !!course.theme && !!course.blurb);
+            });
+
+            var minThick = Infinity, worstGap = Infinity, worstGapName = '';
+            ALL.forEach(function (entry) {
+                var h = entry.hole, tag = entry.course.id + '/' + h.name;
+
+                assert(tag + ': named and described', !!h.name && !!h.blurb);
+                assert(tag + ': par is sane', h.par >= 2 && h.par <= 5);
+
+                var teePad = P.surfaceTop(h, h.tee.x, h.tee.z);
+                var cupPad = P.surfaceTop(h, h.cup.x, h.cup.z);
+                assert(tag + ': there is ground under the tee', !!teePad);
+                assert(tag + ': there is ground under the cup', !!cupPad);
+                assert(tag + ': tee height matches its pad', teePad && approx(h.tee.y, teePad.y, 1e-9));
+                assert(tag + ': cup height matches its pad', cupPad && approx(h.cup.y, cupPad.y, 1e-9));
+
+                // Neither end may be inside a wall — a cup buried in a rail
+                // cannot be holed and a tee inside one launches from a bounce.
+                var teeBlocked = false, cupBlocked = false;
+                h.walls.forEach(function (wl) {
+                    var B = P.wallBox(wl, 0);
+                    if (h.tee.y + C.BALL_R > B.base && h.tee.y + C.BALL_R - C.BALL_R < B.top &&
+                        P.circleBox(h.tee.x, h.tee.z, C.BALL_R, B)) teeBlocked = true;
+                    if (h.cup.y + C.BALL_R > B.base && h.cup.y < B.top &&
+                        P.circleBox(h.cup.x, h.cup.z, C.HOLE_R, B)) cupBlocked = true;
+                    minThick = Math.min(minThick, wl.w, wl.d);
+                });
+                assert(tag + ': the tee is clear of the walls', !teeBlocked);
+                assert(tag + ': the cup is clear of the walls', !cupBlocked);
+
+                // Pads may only overlap when one is clearly a bridge above the
+                // other; two pads at the same height fighting for a point make
+                // the surface lookup order-dependent.
+                var clash = null;
+                for (var i = 0; i < h.pads.length && !clash; i++) {
+                    for (var j = i + 1; j < h.pads.length && !clash; j++) {
+                        var a = h.pads[i], b = h.pads[j];
+                        var ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+                        var oz = Math.min(a.z + a.d, b.z + b.d) - Math.max(a.z, b.z);
+                        if (ox <= 1e-9 || oz <= 1e-9) continue;   // touching is fine
+                        var mx = Math.max(a.x, b.x) + ox / 2, mz = Math.max(a.z, b.z) + oz / 2;
+                        if (Math.abs(P.padHeight(a, mx, mz) - P.padHeight(b, mx, mz)) < 0.35) {
+                            clash = i + '/' + j;
+                        }
+                    }
+                }
+                assert(tag + ': no two pads fight for the same ground', !clash, 'pads ' + clash);
+
+                /* Whatever moves has to let the ball past. Not at every phase
+                   — a sweeper's whole job is to block the line and then move
+                   off it — but often enough that waiting is a tactic and not a
+                   life sentence. So: walk the line the obstacle sits on at 24
+                   phases of its cycle, and count how many of them leave an
+                   aiming window the ball can be steered through. A hole that
+                   can be sealed shut scores zero here and the bot below never
+                   finishes it. */
+                var movers = h.walls.filter(function (wl) { return wl.move || wl.spin; });
+                if (movers.length) {
+                    movers.forEach(function (wl) {
+                        var B0 = P.wallBox(wl, 0);
+                        var period = wl.spin ? (2 * Math.PI / Math.abs(wl.spin)) : (2 * Math.PI / wl.move.speed);
+                        var open = 0, widest = 0, k, t, g;
+                        for (k = 0; k < 24; k++) {
+                            t = period * k / 24;
+                            g = widestGap(h, B0.cz, t);
+                            widest = Math.max(widest, g);
+                            if (g > 0.25) open++;
+                        }
+                        if (widest < worstGap) { worstGap = widest; worstGapName = tag; }
+                        assert(tag + ': the way past this ' + (wl.spin ? 'blade' : 'gate') + ' opens and stays open',
+                            open >= 8, 'only ' + open + ' of 24 phases are passable');
+                        assert(tag + ': and it opens wide enough to aim at',
+                            widest > 0.4, 'widest window ' + widest.toFixed(2));
+                    });
+                }
+            });
+
+            assert('no wall is thinner than 0.24', minThick >= 0.24, 'thinnest is ' + minThick.toFixed(3));
+            note('tightest window on any moving obstacle: ' + worstGap.toFixed(2) + ' of aim at ' +
+                 worstGapName + ' (ball is ' + (C.BALL_R * 2).toFixed(2) + ' across)');
+
+            // The widest stretch of open ground along a line, at a moment in
+            // time. Used above to prove a gate cannot seal a hole shut.
+            function widestGap(hole, z, t) {
+                var step = 0.05, best = 0, run = 0, x;
+                var boxes = hole.walls.map(function (wl) { return P.wallBox(wl, t); });
+                for (x = hole.bounds.minX; x <= hole.bounds.maxX; x += step) {
+                    var floor = P.surfaceUnder(hole, x, z, Infinity);
+                    var open = !!floor;
+                    if (open) {
+                        for (var i = 0; i < boxes.length && open; i++) {
+                            var B = boxes[i];
+                            if (floor.y + C.BALL_R <= B.base || floor.y + C.BALL_R - C.BALL_R >= B.top) continue;
+                            if (P.circleBox(x, z, C.BALL_R, B)) open = false;
+                        }
+                    }
+                    if (open) { run += step; best = Math.max(best, run); } else { run = 0; }
+                }
+                return best;
+            }
+        })();
+
+        /* ── scoring ───────────────────────────────────────────────────── */
+
+        section('Scoring and the save file');
+        (function () {
+            assert('one stroke is an ace', S.term(1, 3).kind === 'ace');
+            assert('two under par is an eagle', S.term(1, 3).label === 'Hole in One!' && S.term(2, 4).label === 'Eagle');
+            assert('one under par is a birdie', S.term(2, 3).label === 'Birdie');
+            assert('par is par', S.term(3, 3).label === 'Par');
+            assert('one over is a bogey', S.term(4, 3).label === 'Bogey');
+            assert('three under is an albatross', S.term(2, 5).label === 'Albatross');
+            assert('far over gives up and counts', S.term(9, 3).label === '+6');
+
+            assert('level par formats as E', S.formatVsPar(0) === 'E');
+            assert('over par keeps its sign', S.formatVsPar(3) === '+3');
+            assert('under par keeps its sign', S.formatVsPar(-2) === '-2');
+
+            var holes = G3.COURSES[0].holes;
+            assert('course par is the sum of the holes', S.coursePar(holes) === holes.reduce(function (a, h) { return a + h.par; }, 0));
+
+            var partial = [3, 2];
+            var t = S.totals(partial, holes);
+            assert('totals only count holes played', t.played === 2 && t.strokes === 5);
+            assert('totals compare against the par of those holes',
+                t.vsPar === 5 - (holes[0].par + holes[1].par));
+            assert('an empty card totals zero', S.totals([], holes).played === 0);
+            assert('a gap in the card is skipped', S.totals([3, undefined, 4], holes).played === 2);
+
+            var card = holes.map(function (h) { return h.par; });
+            var first = S.recordRound(S.emptySave(), 'seaside', card, holes);
+            assert('a first round is always a record', first.isBest);
+            assert('the record is the round total', first.save.courses.seaside.best === S.coursePar(holes));
+            assert('rounds are counted', first.save.rounds === 1 && first.save.courses.seaside.rounds === 1);
+
+            var worse = card.slice(); worse[0] += 4;
+            var second = S.recordRound(first.save, 'seaside', worse, holes);
+            assert('a worse round is not a record', !second.isBest);
+            assert('a worse round leaves the record alone', second.save.courses.seaside.best === first.save.courses.seaside.best);
+            assert('but it still counts as a round', second.save.rounds === 2);
+
+            var better = card.slice(); better[0] = 1;
+            var third = S.recordRound(second.save, 'seaside', better, holes);
+            assert('a better round takes the record', third.isBest);
+            assert('an ace is counted', third.save.aces === 1);
+            assert('the best card is kept', third.save.courses.seaside.bestCard[0] === 1);
+
+            var other = S.recordRound(third.save, 'quarry', G3.COURSES[1].holes.map(function (h) { return h.par; }), G3.COURSES[1].holes);
+            assert('another course keeps its own record', other.save.courses.quarry.best !== undefined);
+            assert('and does not disturb the first', other.save.courses.seaside.best === third.save.courses.seaside.best);
+            assert('courseRecord returns an empty record for an unplayed course',
+                S.courseRecord(S.emptySave(), 'works').best === null);
+
+            // Round-trip through localStorage under a scratch key, so running
+            // the tests never costs anyone their records.
+            var realKey = C.SAVE_KEY;
+            C.SAVE_KEY = 'loftLinks.test.tmp';
+            try {
+                S.save(third.save);
+                var back = S.load();
+                assert('a save round-trips', back.courses.seaside.best === third.save.courses.seaside.best &&
+                    back.aces === third.save.aces);
+                localStorage.setItem(C.SAVE_KEY, '{not json');
+                assert('a corrupt save loads as empty', S.load().rounds === 0);
+                localStorage.setItem(C.SAVE_KEY, JSON.stringify({ courses: { seaside: { best: 'x' } }, rounds: 'y' }));
+                assert('nonsense fields are dropped', S.load().courses.seaside.best === null);
+                localStorage.removeItem(C.SAVE_KEY);
+                assert('a missing save loads as empty', S.load().rounds === 0);
+            } finally {
+                C.SAVE_KEY = realKey;
+            }
+        })();
+
+        /* ── the bot ───────────────────────────────────────────────────── */
+
+        section('The bot plays every hole');
+        (function () {
+            var BOT_DT = 1 / 60, BOT_SECONDS = 12, sims = 0;
+
+            function d2(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
+
+            function trial(hole, from, yaw, power, loft, time) {
+                sims++;
+                var w = P.createWorld(hole, from, time);
+                if (!P.launch(w, yaw, power, loft)) return null;
+                P.settle(w, BOT_SECONDS, BOT_DT);
+                return w;
+            }
+
+            /* A greedy player: fan out candidate shots, keep the one that ends
+               nearest the cup, repeat. Two refinements around the best coarse
+               shot give it the precision to actually hole out.
+
+               Two details matter. Holes with moving parts get candidates that
+               wait before striking, because a bot that always fires at t=0
+               would report a false failure on a timing hole. And a chosen shot
+               has to go somewhere: without that rule the bot parks in a corner
+               where every legal shot looks worse than standing still, and plays
+               the same nothing until it runs out of strokes. */
+            function bestShot(hole, from, time, rnd) {
+                var cup = hole.cup;
+                var base = Math.atan2(cup.x - from.x, cup.z - from.z);
+                var moves = hole.walls.some(function (wl) { return wl.move || wl.spin; });
+                var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
+                var here = d2(from, cup);
+                var best = null;
+
+                function consider(yaw, power, loft, wait) {
+                    var w = trial(hole, from, yaw, power, loft, time + wait);
+                    if (!w) return;
+                    var moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
+                    var s;
+                    if (w.sunk) s = -1000;
+                    else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
+                    else s = d2(w.ball, cup);
+                    if (!w.sunk && moved < 1 && s >= here) return;
+                    if (!best || s < best.s) best = { s: s, yaw: yaw, power: power, loft: loft, wait: wait, world: w };
+                }
+
+                var i, j, N = 16, powers = [4.5, 8, 11, 14];
+                for (i = 0; i < N; i++) {
+                    for (j = 0; j < powers.length; j++) consider(base + (i / N) * Math.PI * 2, powers[j], 0, 0);
+                }
+                for (i = 0; i < 4; i++) consider(base + (rnd() - 0.5) * 2, 3 + rnd() * 11, rnd() * 0.7, 0);
+
+                var b0 = best;
+                if (!b0) return null;
+                [-2, -1, 0, 1, 2].forEach(function (k) {
+                    [-2, 0, 2].forEach(function (dp) {
+                        [0, 0.45, 0.72].forEach(function (loft) {
+                            waits.forEach(function (wait) {
+                                consider(b0.yaw + k * 0.11,
+                                    Math.max(1, Math.min(C.MAX_POWER, b0.power + dp)), loft, wait);
+                            });
+                        });
+                    });
+                });
+                var b1 = best;
+                [-3, -2, -1, 0, 1, 2, 3].forEach(function (k) {
+                    [-0.7, 0, 0.7].forEach(function (dp) {
+                        waits.forEach(function (wait) {
+                            consider(b1.yaw + k * 0.03,
+                                Math.max(1, Math.min(C.MAX_POWER, b1.power + dp)), b1.loft, wait);
+                        });
+                    });
+                });
+                return best;
+            }
+
+            function play(hole, seed, maxStrokes) {
+                var rnd = mulberry32(seed);
+                var from = { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R };
+                var time = 0, strokes = 0, penalties = 0, s, shot;
+                for (s = 0; s < maxStrokes; s++) {
+                    shot = bestShot(hole, from, time, rnd);
+                    if (!shot) break;
+                    strokes++;
+                    time = shot.world.time;
+                    if (shot.world.sunk) return { sunk: true, strokes: strokes + penalties };
+                    if (shot.world.splash || shot.world.out) {
+                        penalties++;
+                        from = { x: shot.world.origin.x, z: shot.world.origin.z, y: shot.world.origin.y };
+                    } else {
+                        from = { x: shot.world.ball.x, z: shot.world.ball.z, y: shot.world.ball.y };
+                    }
+                }
+                return { sunk: false, strokes: strokes + penalties };
+            }
+
+            var b0 = performance.now();
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                var r = play(h, 12345, 8);
+                assert(entry.course.id + '/' + h.name + ': the bot holes out (par ' + h.par + ')',
+                    r.sunk, r.sunk ? '' : 'gave up after ' + r.strokes + ' strokes');
+                if (r.sunk) {
+                    assert(entry.course.id + '/' + h.name + ': and does it in a plausible number of strokes',
+                        r.strokes <= h.par + 2, 'took ' + r.strokes);
+                }
+            });
+            note(sims + ' simulated shots in ' + Math.round(performance.now() - b0) + 'ms');
+        })();
+
+        /* ── done ──────────────────────────────────────────────────────── */
+
+        var el = document.getElementById('summary');
+        el.className = failed ? 'bad' : 'ok';
+        el.textContent = (failed ? '✗ ' + failed + ' failed, ' : '✓ ') + passed + ' passed' +
+            ' — ' + Math.round(performance.now() - t0) + 'ms';
+        window.TEST_RESULT = { passed: passed, failed: failed, fails: window.FAILS };
+    })();
+    </script>
+</body>
+</html>

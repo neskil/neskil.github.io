@@ -95,7 +95,7 @@
        about its own centre, `move` slides it on a sine, `spin` turns it. The
        renderer calls this same function for the mesh transform, so a blade the
        player sees and the blade the ball hits cannot drift apart. */
-    function wallBox(w, t) {
+    function wallBox(w, t, out) {
         var cx = w.x + w.w / 2, cz = w.z + w.d / 2;
         var yaw = w.yaw || 0;
         var vx = 0, vz = 0, spin = 0;
@@ -109,15 +109,18 @@
             spin = w.spin;
             yaw += w.spin * t;
         }
-        return {
-            cx: cx, cz: cz,
-            hw: w.w / 2, hd: w.d / 2,
-            yaw: yaw, spin: spin,
-            vx: vx, vz: vz,
-            base: w.base || 0,
-            top: (w.base || 0) + w.h,
-            src: w
-        };
+        // `out` lets the solver reuse one object across thousands of substeps.
+        // Callers that keep the result (the renderer) simply omit it.
+        var B = out || {};
+        B.cx = cx; B.cz = cz;
+        B.hw = w.w / 2; B.hd = w.d / 2;
+        B.yaw = yaw; B.spin = spin;
+        B.vx = vx; B.vz = vz;
+        B.base = w.base || 0;
+        B.top = (w.base || 0) + w.h;
+        B.reach = Math.hypot(w.w, w.d) / 2;   // bounding radius, for early rejection
+        B.src = w;
+        return B;
     }
 
     /* Circle vs (possibly rotated) box, in the xz plane. Returns the outward
@@ -241,13 +244,23 @@
 
     /* ── the step ───────────────────────────────────────────────────────── */
 
+    var SCRATCH = {};
+
     function collideWalls(world, dt, events) {
-        var b = world.ball, walls = world.hole.walls, i, B, hit, vn, wv, wn;
+        var b = world.ball, walls = world.hole.walls, i, w, B, hit, vn, wv, wn, dx, dz, reach;
         for (i = 0; i < walls.length; i++) {
-            B = wallBox(walls[i], world.time);
+            w = walls[i];
             // A ball flying over a rail, or rolling under a raised beam, does
-            // not touch it. Vertical overlap first: it is the cheap test.
-            if (b.y - C.BALL_R >= B.top || b.y + C.BALL_R <= B.base) continue;
+            // not touch it. Vertical overlap first: it is the cheapest test,
+            // and it needs none of the trigonometry.
+            if (b.y - C.BALL_R >= (w.base || 0) + w.h || b.y + C.BALL_R <= (w.base || 0)) continue;
+
+            B = wallBox(w, world.time, SCRATCH);
+            // Then a bounding-circle reject, which is what keeps a hole with
+            // twenty rails from costing twenty box transforms per substep.
+            dx = b.x - B.cx; dz = b.z - B.cz;
+            reach = B.reach + C.BALL_R;
+            if (dx * dx + dz * dz > reach * reach) continue;
 
             hit = circleBox(b.x, b.z, C.BALL_R, B);
             if (!hit) continue;
