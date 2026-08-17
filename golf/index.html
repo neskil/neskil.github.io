@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Links — 9-Hole Mini Golf | Niklas Billgren</title>
+    <meta name="description" content="A nine-hole mini golf game in the browser. Drag to aim, mind the water, the bunkers and the moving gates, and try to beat par. No install, no account, works on a phone.">
+    <meta name="theme-color" content="#0c2418">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/golf/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Pocket Links — 9-Hole Mini Golf">
+    <meta property="og:description" content="Nine holes of browser mini golf: bunkers, water, breaking greens and moving gates. Drag, release, try to beat par.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/golf/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/golf.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Top-down mini golf hole: a golf ball with an aim line on the left, a narrow green corridor between two water hazards, and a red flag in the cup on the right.">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-9GP823TGLB');
+    </script>
+    <link rel="stylesheet" href="style.css?v=1.0.0">
+</head>
+<body>
+    <div class="wrap">
+        <div class="topbar">
+            <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
+            <div>
+                <h1 class="title">Pocket <span>Links</span></h1>
+                <p class="tagline">Nine holes. One putter. No caddie.</p>
+            </div>
+            <div class="topbar-actions">
+                <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
+                <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
+            </div>
+        </div>
+
+        <div class="scoreboard">
+            <div class="stat">
+                <div class="stat-label">Hole <span id="hole-num">1 / 9</span></div>
+                <div class="hole-name" id="hole-name">—</div>
+                <div class="hole-blurb" id="hole-blurb">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Par</div>
+                <div class="stat-value" id="hole-par">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Strokes</div>
+                <div class="stat-value" id="hole-strokes">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Total</div>
+                <div class="stat-value" id="total-strokes">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">To par</div>
+                <div class="stat-value" id="total-vspar">—</div>
+            </div>
+        </div>
+
+        <div class="stage" id="stage">
+            <canvas id="board" width="960" height="640" aria-label="Mini golf course"></canvas>
+
+            <div class="banner" id="banner">
+                <div class="banner-term" id="banner-term">Par</div>
+                <div class="banner-detail" id="banner-detail"></div>
+                <button id="banner-next" type="button">Next hole →</button>
+            </div>
+
+            <div class="toast" id="toast"></div>
+        </div>
+
+        <div class="help">
+            <span><b>Drag back</b> from the ball and release — like a slingshot.</span>
+            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
+                (<kbd>shift</kbd> for fine control)</span>
+            <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>M</kbd> sound</span>
+            <span class="touch-help">Turn your phone sideways for a bigger course.</span>
+        </div>
+
+        <div class="legend">
+            <span><i class="sw-sand"></i>Bunker — heavy going</span>
+            <span><i class="sw-water"></i>Water — one stroke penalty</span>
+            <span><i class="sw-wall"></i>Wall</span>
+            <span><i class="sw-move"></i>Moving gate</span>
+            <span><i class="sw-slope"></i>Slope — the arrows point downhill</span>
+            <span>Best round: <b id="best-round">—</b></span>
+        </div>
+    </div>
+
+    <div class="modal" id="scorecard">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="card-title">
+            <h2 id="card-title">Scorecard</h2>
+            <p class="sub" id="card-sub"></p>
+            <div id="card-body"></div>
+            <div class="modal-actions">
+                <button type="button" id="card-close">Close</button>
+                <button type="button" class="primary" id="card-again">Play again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load order is dependency order: config, then the pure logic, then the
+         things that touch the screen. game.js boots itself on DOMContentLoaded. -->
+    <script src="js/config.js?v=1.0.0"></script>
+    <script src="js/courses.js?v=1.0.0"></script>
+    <script src="js/physics.js?v=1.0.0"></script>
+    <script src="js/scoring.js?v=1.0.0"></script>
+    <script src="js/audio.js?v=1.0.0"></script>
+    <script src="js/render.js?v=1.0.0"></script>
+    <script src="js/game.js?v=1.0.0"></script>
+</body>
+</html>
