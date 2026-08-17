@@ -1,0 +1,447 @@
+/* Pocket Links — page chrome. The canvas draws the course; everything here is
+   the clubhouse around it. Palette follows the rest of the site (slate glass,
+   one accent) with the accent swung to fairway green. */
+
+:root {
+    --bg-1: #071a10;
+    --bg-2: #0c2418;
+    --panel: rgba(18, 40, 28, 0.55);
+    --panel-border: rgba(134, 239, 172, 0.16);
+    --ink: #ecfdf5;
+    --ink-dim: #a7c4b5;
+    --accent: #4ade80;
+    --accent-soft: rgba(74, 222, 128, 0.14);
+    --over: #fca5a5;
+    --under: #7dd3fc;
+    --gold: #fbbf24;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+}
+
+body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    background: linear-gradient(140deg, var(--bg-1) 0%, var(--bg-2) 100%) fixed;
+    -webkit-font-smoothing: antialiased;
+    padding: 1rem 1rem 3rem;
+}
+
+/* Faint contour rings behind the page — a topographic hint, cheap and static. */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 15% 12%, rgba(74, 222, 128, 0.10), transparent 42%),
+        radial-gradient(circle at 88% 78%, rgba(56, 189, 248, 0.08), transparent 46%);
+}
+
+.wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.home-link {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    text-decoration: none;
+    font-size: 1.1rem;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    transition: background 0.2s, transform 0.2s;
+}
+
+.home-link:hover { background: var(--accent-soft); transform: translateX(-2px); }
+
+.title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.title span { color: var(--accent); }
+
+.tagline {
+    margin: 0.1rem 0 0;
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+    font-weight: 300;
+}
+
+.topbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+}
+
+button.chip {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+
+button.chip:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
+button.chip:active { transform: translateY(1px); }
+
+/* ── scoreboard ─────────────────────────────────────────────────────────── */
+
+.scoreboard {
+    display: grid;
+    grid-template-columns: 2.4fr repeat(4, 1fr);
+    gap: 0.6rem;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.9rem;
+    backdrop-filter: blur(10px);
+}
+
+.stat { min-width: 0; }
+
+.stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-dim);
+    margin-bottom: 0.15rem;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-value.under { color: var(--under); }
+.stat-value.over { color: var(--over); }
+.stat-value.level { color: var(--accent); }
+
+.hole-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hole-blurb {
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+    font-weight: 300;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── stage ──────────────────────────────────────────────────────────────── */
+
+.stage {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    line-height: 0;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+/* ── hole-complete banner ───────────────────────────────────────────────── */
+
+.banner {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.35rem;
+    text-align: center;
+    background: rgba(4, 20, 12, 0.55);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    line-height: 1.3;
+}
+
+.banner.show { opacity: 1; pointer-events: auto; }
+
+.banner-term {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+    animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.banner-term.ace { color: var(--gold); }
+.banner-term.great, .banner-term.good { color: var(--accent); }
+.banner-term.par { color: var(--ink); }
+.banner-term.over { color: var(--over); }
+
+@keyframes pop {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.banner-detail {
+    font-size: 0.95rem;
+    color: var(--ink-dim);
+    margin-bottom: 0.5rem;
+}
+
+.banner button {
+    font: inherit;
+    font-weight: 600;
+    color: #052e16;
+    background: var(--accent);
+    border: 0;
+    border-radius: 12px;
+    padding: 0.6rem 1.3rem;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    box-shadow: 0 8px 24px rgba(74, 222, 128, 0.28);
+}
+
+.banner button:hover { transform: translateY(-2px); }
+
+/* ── toast ──────────────────────────────────────────────────────────────── */
+
+.toast {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translate(-50%, 14px);
+    background: rgba(6, 24, 15, 0.9);
+    border: 1px solid var(--panel-border);
+    color: var(--ink);
+    font-size: 0.85rem;
+    line-height: 1.2;
+    padding: 0.5rem 0.9rem;
+    border-radius: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
+
+/* ── how to play ────────────────────────────────────────────────────────── */
+
+.help {
+    margin-top: 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    font-size: 0.82rem;
+    color: var(--ink-dim);
+    font-weight: 300;
+}
+
+.help b { color: var(--ink); font-weight: 600; }
+
+/* Keyboard hints are noise on a phone, and the landscape tip is noise on a
+   desktop. Switched on the primary pointer rather than on width, so a small
+   laptop window still gets the shortcuts. */
+.touch-help { display: none; }
+
+@media (pointer: coarse) {
+    .kb-help { display: none; }
+    .touch-help { display: inline; }
+}
+
+kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 5px;
+    color: var(--ink);
+}
+
+.legend {
+    margin-top: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1rem;
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    align-items: center;
+}
+
+.legend i {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border-radius: 4px;
+    margin-right: 0.35rem;
+    vertical-align: -2px;
+}
+
+.sw-sand { background: #e3ca92; }
+.sw-water { background: linear-gradient(#1b6d9e, #0e4468); }
+.sw-wall { background: #6d4a2e; }
+.sw-move { background: repeating-linear-gradient(45deg, #8a5a34 0 4px, #fbbf24 4px 8px); }
+.sw-slope { background: linear-gradient(#ffffff40, #00000060); border: 1px solid #ffffff30; }
+
+/* ── scorecard modal ────────────────────────────────────────────────────── */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(3, 12, 8, 0.72);
+    backdrop-filter: blur(6px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s;
+}
+
+.modal.show { opacity: 1; pointer-events: auto; }
+
+.modal-inner {
+    width: min(460px, 100%);
+    max-height: 88vh;
+    overflow-y: auto;
+    background: linear-gradient(160deg, rgba(18, 44, 30, 0.96), rgba(9, 26, 18, 0.96));
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    padding: 1.4rem;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    transform: translateY(10px) scale(0.98);
+    transition: transform 0.22s;
+}
+
+.modal.show .modal-inner { transform: none; }
+
+.modal h2 { margin: 0; font-size: 1.35rem; letter-spacing: -0.02em; }
+.modal .sub { margin: 0.25rem 0 1rem; font-size: 0.82rem; color: var(--ink-dim); font-weight: 300; }
+
+.card-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.card-table th {
+    text-align: left;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-dim);
+    font-weight: 600;
+    padding-bottom: 0.4rem;
+}
+
+.card-table td { padding: 0.32rem 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.card-table td.n { color: var(--ink-dim); width: 1.8rem; }
+.card-table td.nm { font-weight: 500; }
+.card-table th:last-child, .card-table td:last-child,
+.card-table th:nth-child(3), .card-table td:nth-child(3) { text-align: right; width: 3rem; }
+
+.card-table td.under { color: var(--under); font-weight: 700; }
+.card-table td.over { color: var(--over); }
+.card-table td.level { color: var(--accent); }
+.card-table td.ace { color: var(--gold); font-weight: 800; }
+
+.card-table tfoot td {
+    border-top: 2px solid rgba(255, 255, 255, 0.16);
+    font-weight: 700;
+    padding-top: 0.5rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1.2rem;
+}
+
+.modal-actions button {
+    flex: 1;
+    font: inherit;
+    font-weight: 600;
+    border-radius: 12px;
+    padding: 0.6rem;
+    cursor: pointer;
+    border: 1px solid var(--panel-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--ink);
+    transition: background 0.18s, transform 0.18s;
+}
+
+.modal-actions button.primary {
+    background: var(--accent);
+    color: #052e16;
+    border-color: transparent;
+}
+
+.modal-actions button:hover { transform: translateY(-1px); }
+
+/* ── narrow screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+    body { padding: 0.6rem 0.6rem 2rem; }
+
+    .scoreboard {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+    }
+
+    .scoreboard .stat:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .stat-value { font-size: 1.05rem; }
+    .title { font-size: 1.2rem; }
+    .tagline { display: none; }
+    .hole-blurb { white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

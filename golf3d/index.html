@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loft Links — 3D Mini Golf, Three Courses | Niklas Billgren</title>
+    <meta name="description" content="A 3D mini golf game in the browser: three eighteen— no, six-hole courses with ramps, ledges, water carries, sliding gates and windmill blades. Drag to aim, add loft, mind the drop. No install, no account, works on a phone.">
+    <meta name="theme-color" content="#0b1c2c">
+    <meta name="color-scheme" content="dark">
+    <meta name="author" content="Niklas Billgren">
+    <link rel="canonical" href="https://neskil.github.io/golf3d/">
+    <meta property="og:site_name" content="Niklas Billgren">
+    <meta property="og:title" content="Loft Links — 3D Mini Golf">
+    <meta property="og:description" content="Three courses of 3D mini golf: seaside greens, a quarry full of ramps and ledges, and a workshop where everything moves. Drag to aim, add loft, try to beat par.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://neskil.github.io/golf3d/">
+    <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="A 3D mini golf hole seen from behind the ball: a green strip with white rails, a red flag in the cup ahead, and blue water either side.">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" href="../favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9GP823TGLB"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-9GP823TGLB');
+    </script>
+    <link rel="stylesheet" href="style.css?v=1.0.0">
+</head>
+<body>
+    <div class="wrap">
+        <div class="topbar">
+            <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
+            <div>
+                <h1 class="title">Loft <span>Links</span></h1>
+                <p class="tagline">Three courses. Eighteen holes. One club, and it goes up.</p>
+            </div>
+            <div class="topbar-actions">
+                <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
+                <button class="chip" id="btn-view" title="Overview (V)">Overview</button>
+                <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
+                <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
+            </div>
+        </div>
+
+        <div class="scoreboard">
+            <div class="stat">
+                <div class="stat-label"><span id="course-name">—</span> · Hole <span id="hole-num">1 / 6</span></div>
+                <div class="hole-name" id="hole-name">—</div>
+                <div class="hole-blurb" id="hole-blurb">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Par</div>
+                <div class="stat-value" id="hole-par">—</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Strokes</div>
+                <div class="stat-value" id="hole-strokes">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Total</div>
+                <div class="stat-value" id="total-strokes">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">To par</div>
+                <div class="stat-value" id="total-vspar">—</div>
+            </div>
+        </div>
+
+        <div class="stage" id="stage">
+            <canvas id="board" aria-label="3D mini golf course"></canvas>
+
+            <div class="controls">
+                <div class="power">
+                    <span class="ctl-label">Power</span>
+                    <div class="power-track"><div class="power-fill" id="power-fill"></div></div>
+                </div>
+                <label class="loft">
+                    <span class="ctl-label">Loft <b id="loft-val">0°</b></span>
+                    <input type="range" id="loft" min="0" max="45" step="1" value="0" aria-label="Loft angle in degrees">
+                </label>
+            </div>
+
+            <div class="banner" id="banner">
+                <div class="banner-term" id="banner-term">Par</div>
+                <div class="banner-detail" id="banner-detail"></div>
+                <button id="banner-next" type="button">Next hole →</button>
+            </div>
+
+            <div class="toast" id="toast"></div>
+
+            <div class="fallback" id="fallback">
+                <p><b>This one needs WebGL.</b></p>
+                <p>Your browser could not start a 3D context. The flat version next door
+                   plays fine without one — <a href="../golf/index.html">Pocket Links</a>.</p>
+            </div>
+        </div>
+
+        <div class="help">
+            <span><b>Drag back</b> from the ball to load a shot; let go to hit. Drag sideways to swing the aim.</span>
+            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>[</kbd><kbd>]</kbd> loft
+                · <kbd>space</kbd> hit (<kbd>shift</kbd> for fine control)</span>
+            <span class="kb-help"><kbd>V</kbd> overview · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="touch-help">Pinch to zoom. Turn your phone sideways for a bigger course.</span>
+        </div>
+
+        <div class="legend">
+            <span><i class="sw-grass"></i>Green — normal going</span>
+            <span><i class="sw-sand"></i>Bunker — heavy going</span>
+            <span><i class="sw-wood"></i>Boards — fast, and they ramp</span>
+            <span><i class="sw-water"></i>Water — one stroke penalty</span>
+            <span><i class="sw-gate"></i>Sliding gate</span>
+            <span><i class="sw-blade"></i>Spinning blade</span>
+            <span>Course best: <b id="best-round">—</b></span>
+        </div>
+    </div>
+
+    <div class="modal" id="menu">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+            <h2 id="menu-title">Pick a course</h2>
+            <p class="sub">Six holes each. Records are kept per course.</p>
+            <div id="menu-list" class="course-list"></div>
+            <div class="modal-actions">
+                <button type="button" id="menu-close">Keep playing</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="scorecard">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="card-title">
+            <h2 id="card-title">Scorecard</h2>
+            <p class="sub" id="card-sub"></p>
+            <div id="card-body"></div>
+            <div class="modal-actions">
+                <button type="button" id="card-close">Close</button>
+                <button type="button" class="primary" id="card-again">Play again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- three.js is vendored, r128, no build step and no CDN — same arrangement
+         as Yard Master next door. -->
+    <script src="vendor/three.min.js"></script>
+
+    <!-- Load order is dependency order: config, then the pure logic, then the
+         things that touch the screen. game.js boots itself on DOMContentLoaded. -->
+    <script src="js/config.js?v=1.0.0"></script>
+    <script src="js/physics.js?v=1.0.0"></script>
+    <script src="js/courses.js?v=1.0.0"></script>
+    <script src="js/scoring.js?v=1.0.0"></script>
+    <script src="js/audio.js?v=1.0.0"></script>
+    <script src="js/render.js?v=1.0.0"></script>
+    <script src="js/game.js?v=1.0.0"></script>
+</body>
+</html>

@@ -115,6 +115,10 @@ body {
     width: 100%;
 }
 
+/* Layering scale, low to high: sticky page chrome (30) < modal backdrop and
+   modal (60/61) < chart tooltip (100, because charts live inside modals and
+   their tooltip has to clear the modal it is drawn over). */
+
 /* Sticky positions inside its parent's box, so the nav could only ever
    stick within a wrapper exactly its own height — it had nowhere to go and
    scrolled away. The wrapper is what sticks; the nav fills it. */
@@ -123,7 +127,9 @@ body {
     width: 100%;
     position: sticky;
     top: 0;
-    z-index: 100;
+    /* Only has to clear the page content it scrolls over. Anything higher
+       and the nav paints on top of an open modal instead of under it. */
+    z-index: 30;
 }
 
 .sidebar-title {
@@ -1246,6 +1252,217 @@ footer {
     margin-top: 2px;
     display: block;
     line-height: 1.4;
+}
+
+/* ── Budget explorer ──
+   One price, every car it reaches, ranked by what each costs to own. */
+
+/* Opens over the walkthrough, so it sits one rung above the ordinary
+   modal layer rather than relying on document order. */
+.modal-backdrop.modal-over { z-index: 70; }
+.modal.modal-over { z-index: 71; }
+
+.explore-btn {
+    text-align: left;
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.explore-btn .sub {
+    color: var(--text-mute);
+    font-weight: 600;
+}
+
+.budget-set {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    /* Full width on a phone, but a number this short has no business
+       spanning a desktop modal. */
+    max-width: 420px;
+}
+
+/* The steppers size to their own label; the amount takes what is left,
+   because that is the number being read. */
+.budget-set .preset-btn {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.budget-set .preset-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.budget-amount {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.budget-amount input {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.budget-slider {
+    width: 100%;
+    accent-color: var(--accent);
+    margin-bottom: 12px;
+}
+
+/* The rungs either side of the current number, each carrying an example
+   rather than only an amount — "and if I stretch?" answered in cars. */
+.budget-rungs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    scrollbar-width: none;
+}
+
+.budget-rungs::-webkit-scrollbar { display: none; }
+
+.budget-rung {
+    flex: 1 0 auto;
+    min-width: 132px;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.budget-rung:hover { border-color: rgba(255, 255, 255, 0.22); }
+
+.budget-rung.current {
+    border-color: var(--accent);
+    background: rgba(194, 112, 63, 0.14);
+}
+
+.br-amount {
+    display: block;
+    font-weight: 700;
+    font-size: 0.92rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.br-buys {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    margin-top: 2px;
+}
+
+.budget-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 8px;
+}
+
+.budget-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1.5px solid var(--glass-border);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.budget-card:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    background: var(--card-hover-bg);
+}
+
+.budget-card.current {
+    border-color: var(--accent);
+    background: rgba(194, 112, 63, 0.14);
+}
+
+.bc-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.bc-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+}
+
+/* The number the list is sorted by, so it carries the weight. */
+.bc-month {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--accent-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.bc-month small {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-mute);
+}
+
+.bc-age {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+
+.bc-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.bc-lines strong { color: var(--text-primary); }
+
+.bc-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.bc-pill {
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+}
+
+.bc-pill.good {
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.bc-pill.warn {
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.budget-note {
+    margin-top: 10px;
 }
 
 .step-nav {

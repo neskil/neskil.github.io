@@ -106,6 +106,18 @@
             --hue: 160;
         }
 
+        html[data-theme="card-golf"] {
+            --bg-color-1: #08190f;
+            --bg-color-2: #102c1b;
+            --hue: 140;
+        }
+
+        html[data-theme="card-golf3d"] {
+            --bg-color-1: #06121e;
+            --bg-color-2: #0e2436;
+            --hue: 198;
+        }
+
         html[data-theme="card-cv"] {
             --bg-color-1: #0f1724;
             --bg-color-2: #1a2332;
@@ -666,6 +678,30 @@
 
         #card-converter .card-link {
             color: rgb(34, 211, 238);
+        }
+
+        #card-golf {
+            --accent-rgb: 74, 222, 128;
+            --card-bg-gradient: linear-gradient(135deg, rgba(16, 36, 24, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(24, 56, 36, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(74, 222, 128, 0.22);
+            --card-hover-border: rgba(134, 239, 172, 0.48);
+        }
+
+        #card-golf .card-link {
+            color: rgb(134, 239, 172);
+        }
+
+        #card-golf3d {
+            --accent-rgb: 56, 189, 248;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 32, 48, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 52, 76, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(56, 189, 248, 0.22);
+            --card-hover-border: rgba(125, 211, 252, 0.48);
+        }
+
+        #card-golf3d .card-link {
+            color: rgb(125, 211, 252);
         }
 
         /* Backdrop for the expanded About card. Blurs and dims the grid behind it
@@ -1972,6 +2008,57 @@
                 </svg></span>
         </a>
 
+        <a href="golf/index.html?v=1.0.0" class="card card-metal" id="card-golf">
+            <div class="card-bg-hover"></div>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <ellipse cx="12" cy="19" rx="7.5" ry="2.6" fill="currentColor" fill-opacity="0.12"/>
+                        <path d="M11 19V4.2"/>
+                        <path d="M11.6 4.4l7 2.3-7 2.6z" fill="currentColor" fill-opacity="0.45"/>
+                        <ellipse cx="11" cy="19.2" rx="2.5" ry="1.1" fill="currentColor" fill-opacity="0.75" stroke="none"/>
+                        <circle cx="6.2" cy="17.6" r="1.8"/>
+                        <circle cx="6.2" cy="17.6" r="0.6" fill="currentColor" opacity="0.6" stroke="none"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Pocket Links</h2>
+                <p class="card-desc">Nine holes of mini golf. Bunkers, water, breaking greens and gates that will not wait for you.</p>
+                <div class="card-stat-chip" id="stat-golf">
+                    <span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>
+                </div>
+            </div>
+            <span class="card-link">Play 9 holes <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
+        <a href="golf3d/index.html?v=1.0.0" class="card card-metal" id="card-golf3d">
+            <div class="card-bg-hover"></div>
+            <span class="new-badge">NEW</span>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z" fill="currentColor" fill-opacity="0.14"/>
+                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z"/>
+                        <path d="M7.5 15.2l4.5 1.9 4.5-1.9" opacity="0.5"/>
+                        <path d="M13 16.4V4.6"/>
+                        <path d="M13.6 4.8l6 2-6 2.4z" fill="currentColor" fill-opacity="0.45"/>
+                        <circle cx="8.4" cy="15.1" r="1.5"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Loft Links 3D</h2>
+                <p class="card-desc">Mini golf in three dimensions. Three courses of ramps, ledges, water carries and windmill blades — and a club that can go up.</p>
+                <div class="card-stat-chip" id="stat-golf3d">
+                    <span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>
+                </div>
+            </div>
+            <span class="card-link">Play in 3D <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
             <div>
@@ -2218,6 +2305,8 @@
                 'card-cv': 215,
                 'card-math': 270,
                 'card-math-game': 25,
+                'card-golf': 140,
+                'card-golf3d': 198,
                 'card-about': 345
             };
 
@@ -2275,6 +2364,37 @@
                     this.hue = 160;
                     const items = ['🚗', '🔑', '$/mo', '📉', 'APR'];
                     this.symbol = items[Math.floor(Math.random() * items.length)];
+                } else if (cardId === 'card-golf') {
+                    // Struck ball arcing across the screen. Unlike the other
+                    // types this one is under gravity (see update), so it rises,
+                    // hangs and drops rather than tracking a straight line.
+                    this.type = 'golf';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = height * (0.55 + Math.random() * 0.35);
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.6) : -(Math.random() * 1.4 + 2.6);
+                    this.vy = -(Math.random() * 1.5 + 3.0);
+                    this.gravity = 0.05;
+                    this.size = Math.random() * 8 + 16;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.38;
+                    this.hue = 140;
+                    var swings = ['⛳', '🏌️', 'FORE!'];
+                    this.symbol = swings[Math.floor(Math.random() * swings.length)];
+                } else if (cardId === 'card-golf3d') {
+                    // Same struck ball as Pocket Links, thrown a bit higher and
+                    // tinted to this card's sky blue.
+                    this.type = 'golf';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = height * (0.6 + Math.random() * 0.3);
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.4) : -(Math.random() * 1.4 + 2.4);
+                    this.vy = -(Math.random() * 1.6 + 3.4);
+                    this.gravity = 0.05;
+                    this.size = Math.random() * 8 + 16;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.38;
+                    this.hue = 198;
+                    var lofted = ['⛳', '🏌️', 'LOFT'];
+                    this.symbol = lofted[Math.floor(Math.random() * lofted.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -2328,6 +2448,11 @@
                 // Subtle vertical wave for landers
                 if (this.type === 'lander') {
                     this.y += Math.sin(this.life * 0.08) * 0.6;
+                }
+
+                // Golf balls are the one type that falls.
+                if (this.type === 'golf') {
+                    this.vy += this.gravity;
                 }
 
                 const progress = this.life / this.maxLife;
@@ -2567,6 +2692,66 @@
                         }
                     } else {
                         cargoBadge.innerHTML = `<span class="stat-icon">📦</span> <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 5. Pocket Links
+            try {
+                const golfRaw = localStorage.getItem('miniGolf.save.v1');
+                const golfBadge = document.getElementById('stat-golf');
+                if (golfBadge) {
+                    let done = false;
+                    if (golfRaw) {
+                        const data = JSON.parse(golfRaw);
+                        if (typeof data.best === 'number') {
+                            const vs = typeof data.bestVsPar === 'number'
+                                ? (data.bestVsPar === 0 ? 'E' : (data.bestVsPar > 0 ? '+' : '') + data.bestVsPar)
+                                : '';
+                            const aces = data.aces > 0
+                                ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${data.aces} ace${data.aces === 1 ? '' : 's'})</span>`
+                                : '';
+                            golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">${data.best}${vs ? ' (' + vs + ')' : ''}</span>${aces}`;
+                            done = true;
+                        }
+                    }
+                    if (!done) {
+                        golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 6. Loft Links 3D — records are per course, so the chip shows the
+            // best of them and says which one it was.
+            try {
+                const loftRaw = localStorage.getItem('loftLinks.save.v1');
+                const loftBadge = document.getElementById('stat-golf3d');
+                if (loftBadge) {
+                    const names = { seaside: 'Seaside', quarry: 'Quarry', works: 'Works' };
+                    let best = null, bestVs = null, bestId = null, aces = 0;
+                    if (loftRaw) {
+                        const data = JSON.parse(loftRaw);
+                        aces = typeof data.aces === 'number' ? data.aces : 0;
+                        const courses = data.courses || {};
+                        for (const id of Object.keys(courses)) {
+                            const c = courses[id];
+                            if (typeof c.best !== 'number') continue;
+                            if (best === null || c.best < best) {
+                                best = c.best;
+                                bestVs = typeof c.bestVsPar === 'number' ? c.bestVsPar : null;
+                                bestId = id;
+                            }
+                        }
+                    }
+                    if (best !== null) {
+                        const vs = bestVs === null ? '' : (bestVs === 0 ? 'E' : (bestVs > 0 ? '+' : '') + bestVs);
+                        const where = names[bestId] ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">${names[bestId]}</span>` : '';
+                        const aceTag = aces > 0
+                            ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${aces} ace${aces === 1 ? '' : 's'})</span>`
+                            : '';
+                        loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">${best}${vs ? ' (' + vs + ')' : ''}</span>${where}${aceTag}`;
+                    } else {
+                        loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}

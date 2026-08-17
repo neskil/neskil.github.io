@@ -113,6 +113,11 @@
             </div>
 
 
+            <div class="preset-row">
+                <button type="button" class="preset-btn explore-btn" id="openBudgetModal">💰 What fits my
+                    budget? <span class="sub">— same money, very different cars</span></button>
+            </div>
+
             <div class="callout" id="carProfile" style="margin-bottom:10px">
                 <span class="ico">🚘</span><span></span>
             </div>
@@ -1579,6 +1584,40 @@
         </div>
     </div>
 
+    <!-- What a budget buys. Layered above the walkthrough, which can open it. -->
+    <div class="modal-backdrop modal-over" id="budgetBackdrop" hidden></div>
+    <div class="modal modal-over" id="budgetModal" role="dialog" aria-modal="true"
+        aria-labelledby="budgetTitle" hidden style="width:min(720px, calc(100vw - 20px))">
+        <div class="modal-head">
+            <span>💰</span>
+            <h2 id="budgetTitle">What your budget buys</h2>
+            <button type="button" class="modal-close" id="budgetClose" aria-label="Close">✕</button>
+        </div>
+
+        <p class="notes" style="margin-bottom:10px">One price reaches very different cars, and they are
+            not equally cheap to keep. Move the budget and watch what comes into reach — the list is
+            sorted by what each one costs to <em>own</em>, not what it costs to buy.</p>
+
+        <div class="budget-set">
+            <button type="button" class="preset-btn" id="budgetDown" aria-label="Lower the budget">−</button>
+            <div class="input-shell budget-amount">
+                <span class="prefix">$</span>
+                <label class="sr-only" for="budgetInput">Budget, out the door</label>
+                <input type="number" id="budgetInput" min="8000" max="95000" step="500">
+            </div>
+            <button type="button" class="preset-btn" id="budgetUp" aria-label="Raise the budget">+</button>
+        </div>
+        <label class="sr-only" for="budgetSlider">Budget slider</label>
+        <input type="range" class="budget-slider" id="budgetSlider" min="8000" max="95000" step="500">
+
+        <div class="budget-rungs" id="budgetRungs"></div>
+        <div class="budget-grid" id="budgetGrid"></div>
+        <p class="notes budget-note" id="budgetNote"></p>
+        <p class="notes">Tap any card to price it on the page. Cost to own is the value it sheds over
+            your horizon plus upkeep and insurance; fuel and financing are left out because they are
+            much the same question whichever of these you buy.</p>
+    </div>
+
     <!-- Real listings explorer -->
     <div class="modal-backdrop" id="dataBackdrop"></div>
     <div class="modal" id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataTitle" hidden
@@ -1825,6 +1864,7 @@
     <script src="js/panels.js"></script>
     <script src="js/depreciation-modal.js"></script>
     <script src="js/guide.js"></script>
+    <script src="js/budget.js"></script>
     <script src="js/listings-modal.js"></script>
     <script src="js/main.js"></script>
 </body>

@@ -73,6 +73,108 @@ function retainedValue(years, curve, depMult) {
     return retainedCurve(years, c.firstYear * k, c.annual * k);
 }
 
+/* ── Pricing a car you have not chosen yet ───────────────────────
+   Marque, shape and age price a car together, and every screen that
+   offers a choice needs that price *before* the choice is made — the
+   walkthrough to label its options, the budget explorer to shop a
+   number. applyCarProfile is these same figures written into the
+   fields, so they cannot drift apart. */
+
+/* Shape is optional. Until one is picked the marque averages stand on
+   their own, which is what they were before the shape was a question. */
+const NEUTRAL_BODY = { priceMult: 1, maintMult: 1, insMult: 1, depMult: 1 };
+
+/* What a car of this marque, shape and age costs today. */
+function estimatePrice(brandKey, bodyKey, ageKey) {
+    const brand = BRANDS[brandKey];
+    if (!brand) return null;
+    const band = AGE_BANDS[ageKey] || AGE_BANDS.new;
+    const body = BODY_TYPES[bodyKey] || NEUTRAL_BODY;
+    return brand.newPrice * body.priceMult * retainedValue(band.buyAge, brand.curve, body.depMult);
+}
+
+/* The spread across every shape in the range, which is what "how much
+   is a Toyota" honestly answers. */
+function estimateRange(brandKey, ageKey) {
+    const prices = Object.entries(BODY_TYPES)
+        .filter(([, body]) => !(body.notFor || []).includes(brandKey))
+        .map(([k]) => estimatePrice(brandKey, k, ageKey));
+    return prices.length ? { low: Math.min(...prices), high: Math.max(...prices) } : null;
+}
+
+/* Everything that follows from a description, over the months you
+   actually hold it: what it costs, what it is worth at the end, and
+   what it takes to keep on the road in between. Those three lines are
+   the whole trade-off — a used German saloon and a newer Japanese one
+   can meet at the same price on the windscreen and be nowhere near
+   each other by the time you sell. */
+function estimateOwnership(brandKey, bodyKey, ageKey, months, miles) {
+    const brand = BRANDS[brandKey], band = AGE_BANDS[ageKey];
+    if (!brand || !band) return null;
+    const body = BODY_TYPES[bodyKey] || NEUTRAL_BODY;
+    const hold = Math.max(1, months) / 12;
+    const asNew = brand.newPrice * body.priceMult;
+    const price = asNew * retainedValue(band.buyAge, brand.curve, body.depMult);
+    const resale = asNew * retainedValue(band.buyAge + hold, brand.curve, body.depMult);
+    return {
+        brand: brandKey, body: bodyKey, age: ageKey,
+        price: price,
+        resale: resale,
+        /* Depreciation is the largest line on the page and the one a
+           price tag hides: two cars at one price shed it at rates that
+           differ by a factor of two. */
+        lost: price - resale,
+        maintenance: brand.maint10 / 120 * body.maintMult *
+            maintMultiplierOver(band.buyAge, hold) * mileageFactor(miles || 12000),
+        insurance: 210 * brand.insMult * body.insMult * band.insMult,
+        /* Years of bumper-to-bumper cover you still have on the day you
+           buy it — the difference between a repair bill and a phone call. */
+        warrantyLeft: Math.max(0, brand.warrantyBasic - band.buyAge),
+        powertrainLeft: Math.max(0, brand.warrantyPower - band.buyAge)
+    };
+}
+
+/* The three costs of *owning* it, per month: value shed, upkeep, cover.
+   Not the page's full answer — no fuel, no finance, no lost return on
+   the cash — because this ranks cars against each other rather than
+   routes, and those three are what the description alone can tell you. */
+function ownershipPerMonth(est, months) {
+    if (!est) return 0;
+    return est.lost / Math.max(1, months) + est.maintenance + est.insurance;
+}
+
+/* Every marque × shape × age this page knows about, priced out the door
+   and kept if it lands near the budget. The point is not the closest
+   match: it is that one number reaches a new small Korean car, a
+   three-year-old Japanese SUV *and* a six-year-old German saloon, and
+   those three are nothing alike to live with. */
+function budgetMatches(budget, opts) {
+    const o = opts || {};
+    const months = o.months > 0 ? o.months : 60;
+    const miles = o.miles > 0 ? o.miles : 12000;
+    const taxRate = (o.taxRate || 0) / 100;
+    const fees = o.fees || 0;
+    const tolerance = o.tolerance > 0 ? o.tolerance : 0.12;
+    const matches = [];
+
+    for (const brandKey of Object.keys(BRANDS)) {
+        for (const [bodyKey, body] of Object.entries(BODY_TYPES)) {
+            if ((body.notFor || []).includes(brandKey)) continue;
+            for (const ageKey of Object.keys(AGE_BANDS)) {
+                const est = estimateOwnership(brandKey, bodyKey, ageKey, months, miles);
+                if (!est) continue;
+                est.otd = est.price * (1 + taxRate) + fees;
+                est.perMonth = ownershipPerMonth(est, months);
+                est.gap = budget > 0 ? (est.otd - budget) / budget : 1;
+                if (Math.abs(est.gap) <= tolerance) matches.push(est);
+            }
+        }
+    }
+    /* Cheapest to own first, which is the ranking the budget cannot see
+       and the reason for showing the list at all. */
+    return matches.sort((a, b) => a.perMonth - b.perMonth);
+}
+
 function loanPayment(principal, monthlyRate, term) {
     if (principal <= 0 || term <= 0) return 0;
     if (monthlyRate === 0) return principal / term;
