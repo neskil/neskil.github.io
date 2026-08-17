@@ -321,8 +321,11 @@ kbd {
 
 .sw-sand { background: #e3ca92; }
 .sw-water { background: linear-gradient(#1b6d9e, #0e4468); }
+.sw-ice { background: linear-gradient(135deg, #ffffff 0%, #bfe4f2 55%, #7cc3e0 100%); }
 .sw-wall { background: #6d4a2e; }
 .sw-move { background: repeating-linear-gradient(45deg, #8a5a34 0 4px, #fbbf24 4px 8px); }
+/* Round, like the thing it stands for. */
+.sw-bump { background: radial-gradient(circle at 35% 32%, #fde68a 0 22%, #f59e0b 60%, #b45309 100%); border-radius: 50%; }
 .sw-slope { background: linear-gradient(#ffffff40, #00000060); border: 1px solid #ffffff30; }
 
 /* ── scorecard modal ────────────────────────────────────────────────────── */

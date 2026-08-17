@@ -1,7 +1,6 @@
 /* The simulation. No canvas, no DOM, no input — everything in here is a pure
    function of a world object, which is what lets tests.html run thousands of
-   shots headlessly and lets the renderer draw a predicted trajectory by
-   cloning the world and running it forward.
+   shots headlessly and lets a bot play the whole course between two frames.
 
    The one rule worth protecting: the game loop and the tests must never have
    their own copies of the integrator. Both call advance(), which subdivides
@@ -21,6 +20,9 @@
     // With the integral, distance over a substep is exact at any dt.
     var LN_GRASS = Math.log(C.FRICTION_GRASS);
     var LN_SAND = Math.log(C.FRICTION_SAND);
+    var LN_ICE = Math.log(C.FRICTION_ICE);
+
+    var EMPTY = [];
 
     /* ── geometry ───────────────────────────────────────────────────────── */
 
@@ -81,6 +83,20 @@
         return { nx: 0, ny: 1, depth: bottom + rad };
     }
 
+    /* Circle vs circle, for bumpers. Same contract as circleRect: outward
+       normal and penetration depth, or null. The concentric case cannot
+       happen from play — a bumper is far wider than a substep of travel — but
+       it is answered anyway so the function is total. */
+    function circleCircle(cx, cy, rad, B) {
+        var dx = cx - B.x, dy = cy - B.y;
+        var d2 = dx * dx + dy * dy;
+        var sum = rad + B.r;
+        if (d2 > sum * sum) return null;
+        if (d2 < 1e-9) return { nx: 1, ny: 0, depth: sum };
+        var d = Math.sqrt(d2);
+        return { nx: dx / d, ny: dy / d, depth: sum - d };
+    }
+
     /* ── world ──────────────────────────────────────────────────────────── */
 
     function createWorld(course, from, time) {
@@ -92,18 +108,6 @@
             moving: false,
             sunk: false,
             splash: false
-        };
-    }
-
-    function cloneWorld(w) {
-        return {
-            course: w.course,
-            ball: { x: w.ball.x, y: w.ball.y, vx: w.ball.vx, vy: w.ball.vy },
-            origin: { x: w.origin.x, y: w.origin.y },
-            time: w.time,
-            moving: w.moving,
-            sunk: w.sunk,
-            splash: w.splash
         };
     }
 
@@ -133,9 +137,17 @@
             b.vy += slope.ay * dt;
         }
 
-        var sand = zoneAt(course.sand, b.x, b.y);
-        var decay = Math.pow(sand ? C.FRICTION_SAND : C.FRICTION_GRASS, dt);
-        var travel = (decay - 1) / (sand ? LN_SAND : LN_GRASS);  // ∫₀^dt k^s ds
+        // Surface. Sand wins over ice where they overlap, on the grounds that
+        // a bunker under a frozen pond is the worse news of the two.
+        var k = C.FRICTION_GRASS, lnK = LN_GRASS;
+        if (zoneAt(course.sand, b.x, b.y)) {
+            k = C.FRICTION_SAND; lnK = LN_SAND;
+        } else if (zoneAt(course.ice, b.x, b.y)) {
+            k = C.FRICTION_ICE; lnK = LN_ICE;
+        }
+
+        var decay = Math.pow(k, dt);
+        var travel = (decay - 1) / lnK;  // ∫₀^dt k^s ds
 
         b.x += b.vx * travel;
         b.y += b.vy * travel;
@@ -166,6 +178,25 @@
                 b.vx += wv.x;
                 b.vy += wv.y;
                 events.bounce = true;
+            }
+        }
+
+        // Bumpers. A post the ball comes off faster than it comes off wood,
+        // which is what makes them worth avoiding: they do not merely block a
+        // line, they choose a new one for you.
+        var bumpers = course.bumpers || EMPTY;
+        for (var j = 0; j < bumpers.length; j++) {
+            var bump = circleCircle(b.x, b.y, C.BALL_R, bumpers[j]);
+            if (!bump) continue;
+
+            b.x += bump.nx * bump.depth;
+            b.y += bump.ny * bump.depth;
+
+            var bn = b.vx * bump.nx + b.vy * bump.ny;
+            if (bn < 0) {
+                b.vx -= (1 + C.BUMPER_RESTITUTION) * bn * bump.nx;
+                b.vy -= (1 + C.BUMPER_RESTITUTION) * bn * bump.ny;
+                events.bumper = true;
             }
         }
 
@@ -255,22 +286,11 @@
         return settle(w);
     }
 
-    /* Sample the next `seconds` of a shot for the aiming preview. Returns the
-       path only up to the first bounce plus a little after, because showing
-       the full roll would turn the game into a calculator. */
-    function previewPath(world, angle, power, seconds) {
-        var w = cloneWorld(world);
-        if (!launch(w, angle, power)) return [];
-        var pts = [{ x: w.ball.x, y: w.ball.y }];
-        var steps = Math.ceil((seconds || 0.55) / C.SIM_DT);
-        var ev;
-        for (var i = 0; i < steps; i++) {
-            ev = advance(w, C.SIM_DT, {});
-            pts.push({ x: w.ball.x, y: w.ball.y });
-            if (ev.bounce || ev.splash || ev.sunk || !w.moving) break;
-        }
-        return pts;
-    }
+    /* There is deliberately no trajectory preview in here. An earlier version
+       cloned the world and ran the next 0.6s forward so the renderer could
+       dash the ball's path on screen, which quietly answered the two questions
+       the game is made of — how hard, and off which cushion. The clone is gone
+       with it; nothing else needed one. */
 
     GOLF.physics = {
         wallRect: wallRect,
@@ -278,13 +298,12 @@
         pointInRect: pointInRect,
         zoneAt: zoneAt,
         circleRect: circleRect,
+        circleCircle: circleCircle,
         createWorld: createWorld,
-        cloneWorld: cloneWorld,
         launch: launch,
         advance: advance,
         settle: settle,
         simulateShot: simulateShot,
-        previewPath: previewPath,
         speedOf: speedOf
     };
 

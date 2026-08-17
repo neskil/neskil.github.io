@@ -334,7 +334,11 @@
         var w = state.world;
         var ev = P.advance(w, dt, {});
 
-        if (ev.bounce && now - lastBounceAt > 45) {
+        if (ev.bumper && now - lastBounceAt > 45) {
+            lastBounceAt = now;
+            A.bumper(P.speedOf(w.ball));
+            R.effects.spark(w.ball.x, w.ball.y);
+        } else if (ev.bounce && now - lastBounceAt > 45) {
             lastBounceAt = now;
             A.bounce(P.speedOf(w.ball));
         }
