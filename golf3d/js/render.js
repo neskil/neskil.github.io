@@ -426,9 +426,12 @@
             color: theme.water, map: tex, transparent: true, opacity: 0.88,
             shininess: 18, specular: 0x22333d
         });
-        var mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.w, w.d), mat);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(w.x + w.w / 2, w.y, w.z + w.d / 2);
+        // A box rather than a plane: the pads reach down to the surrounding
+        // ground, so a pond between two of them is a filled channel, and a
+        // sheet floating in the gap would read as a decal.
+        var depth = Math.max(0.6, w.y - theme.surroundY + 0.2);
+        var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d), mat);
+        mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
         R.water.push(mesh);
     }
