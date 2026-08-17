@@ -38,7 +38,7 @@
             strokes: 0,
             scores: [],
             world: null,
-            aim: { active: false, angle: 0, power: 0, keyboard: false },
+            aim: { active: false, angle: 0, power: 0, keyboard: false, origin: null },
             trail: [],
             save: S.load(),
             phase: 'aim',          // aim | rolling | holed | finished
@@ -58,6 +58,7 @@
         state.aim.active = false;
         state.aim.power = 0;
         state.aim.keyboard = false;
+        state.aim.origin = null;
         state.aim.angle = Math.atan2(hole.hole.y - hole.tee.y, hole.hole.x - hole.tee.x);
         state.phase = 'aim';
         R.effects.clear();
@@ -99,6 +100,7 @@
         state.trail = [];
         a.active = false;
         a.power = 0;
+        a.origin = null;
         A.putt(power / C.MAX_POWER);
         // Divot: whatever the ball is standing on sprays backwards.
         var inSand = P.zoneAt(state.world.course.sand, state.world.ball.x, state.world.ball.y);
@@ -213,10 +215,13 @@
     }
 
     function aimFrom(p) {
-        var b = state.world.ball;
         // Pull back away from the target, slingshot style: the ball leaves
-        // along the line from the pointer to the ball.
-        var dx = b.x - p.x, dy = b.y - p.y;
+        // along the line from the pointer to where the drag started. The
+        // origin is wherever the finger landed, not the ball, so a shot can
+        // be dragged out anywhere there is room — on a phone that means the
+        // hand never has to cover the ball it is aiming.
+        var o = state.aim.origin || state.world.ball;
+        var dx = o.x - p.x, dy = o.y - p.y;
         var dist = Math.hypot(dx, dy);
         state.aim.angle = Math.atan2(dy, dx);
         state.aim.power = Math.min(dist, C.DRAG_MAX) / C.DRAG_MAX * C.MAX_POWER;
@@ -231,7 +236,8 @@
                 return;
             }
             canvas.setPointerCapture(e.pointerId);
-            aimFrom(toWorld(e));
+            state.aim.origin = toWorld(e);
+            aimFrom(state.aim.origin);
             e.preventDefault();
         });
 
@@ -248,11 +254,13 @@
             takeShot();
             state.aim.active = false;
             state.aim.power = 0;
+            state.aim.origin = null;
         }
         canvas.addEventListener('pointerup', release);
         canvas.addEventListener('pointercancel', function () {
             state.aim.active = false;
             state.aim.power = 0;
+            state.aim.origin = null;
         });
 
         /* Keyboard play is a first-class path, not an afterthought: aim with
