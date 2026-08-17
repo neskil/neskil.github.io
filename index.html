@@ -112,6 +112,12 @@
             --hue: 140;
         }
 
+        html[data-theme="card-golf3d"] {
+            --bg-color-1: #06121e;
+            --bg-color-2: #0e2436;
+            --hue: 198;
+        }
+
         html[data-theme="card-cv"] {
             --bg-color-1: #0f1724;
             --bg-color-2: #1a2332;
@@ -684,6 +690,18 @@
 
         #card-golf .card-link {
             color: rgb(134, 239, 172);
+        }
+
+        #card-golf3d {
+            --accent-rgb: 56, 189, 248;
+            --card-bg-gradient: linear-gradient(135deg, rgba(14, 32, 48, 0.65) 0%, rgba(15, 22, 35, 0.60) 100%);
+            --card-hover-gradient: linear-gradient(135deg, rgba(20, 52, 76, 0.80) 0%, rgba(20, 28, 48, 0.75) 100%);
+            --card-border: rgba(56, 189, 248, 0.22);
+            --card-hover-border: rgba(125, 211, 252, 0.48);
+        }
+
+        #card-golf3d .card-link {
+            color: rgb(125, 211, 252);
         }
 
         /* Backdrop for the expanded About card. Blurs and dims the grid behind it
@@ -2015,6 +2033,32 @@
                 </svg></span>
         </a>
 
+        <a href="golf3d/index.html?v=1.0.0" class="card card-metal" id="card-golf3d">
+            <div class="card-bg-hover"></div>
+            <span class="new-badge">NEW</span>
+            <div>
+                <div class="card-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z" fill="currentColor" fill-opacity="0.14"/>
+                        <path d="M12 13.4L3 17l9 4 9-4-9-3.6z"/>
+                        <path d="M7.5 15.2l4.5 1.9 4.5-1.9" opacity="0.5"/>
+                        <path d="M13 16.4V4.6"/>
+                        <path d="M13.6 4.8l6 2-6 2.4z" fill="currentColor" fill-opacity="0.45"/>
+                        <circle cx="8.4" cy="15.1" r="1.5"/>
+                    </svg>
+                </div>
+                <h2 class="card-title">Loft Links 3D</h2>
+                <p class="card-desc">Mini golf in three dimensions. Three courses of ramps, ledges, water carries and windmill blades — and a club that can go up.</p>
+                <div class="card-stat-chip" id="stat-golf3d">
+                    <span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>
+                </div>
+            </div>
+            <span class="card-link">Play in 3D <svg viewBox="0 0 24 24">
+                    <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg></span>
+        </a>
+
         <a href="math/index.html#game" class="card card-metal" id="card-math-game">
             <div class="card-bg-hover"></div>
             <div>
@@ -2262,6 +2306,7 @@
                 'card-math': 270,
                 'card-math-game': 25,
                 'card-golf': 140,
+                'card-golf3d': 198,
                 'card-about': 345
             };
 
@@ -2335,6 +2380,21 @@
                     this.hue = 140;
                     var swings = ['⛳', '🏌️', 'FORE!'];
                     this.symbol = swings[Math.floor(Math.random() * swings.length)];
+                } else if (cardId === 'card-golf3d') {
+                    // Same struck ball as Pocket Links, thrown a bit higher and
+                    // tinted to this card's sky blue.
+                    this.type = 'golf';
+                    this.x = fromLeft ? -40 : width + 40;
+                    this.y = height * (0.6 + Math.random() * 0.3);
+                    this.vx = fromLeft ? (Math.random() * 1.4 + 2.4) : -(Math.random() * 1.4 + 2.4);
+                    this.vy = -(Math.random() * 1.6 + 3.4);
+                    this.gravity = 0.05;
+                    this.size = Math.random() * 8 + 16;
+                    this.maxLife = Math.ceil((width + 80) / Math.abs(this.vx));
+                    this.maxAlpha = 0.38;
+                    this.hue = 198;
+                    var lofted = ['⛳', '🏌️', 'LOFT'];
+                    this.symbol = lofted[Math.floor(Math.random() * lofted.length)];
                 } else {
                     this.dead = true;
                     return;
@@ -2657,6 +2717,41 @@
                     }
                     if (!done) {
                         golfBadge.innerHTML = `<span class="stat-icon">⛳</span> Best Round: <span class="stat-val">—</span>`;
+                    }
+                }
+            } catch (e) {}
+
+            // 6. Loft Links 3D — records are per course, so the chip shows the
+            // best of them and says which one it was.
+            try {
+                const loftRaw = localStorage.getItem('loftLinks.save.v1');
+                const loftBadge = document.getElementById('stat-golf3d');
+                if (loftBadge) {
+                    const names = { seaside: 'Seaside', quarry: 'Quarry', works: 'Works' };
+                    let best = null, bestVs = null, bestId = null, aces = 0;
+                    if (loftRaw) {
+                        const data = JSON.parse(loftRaw);
+                        aces = typeof data.aces === 'number' ? data.aces : 0;
+                        const courses = data.courses || {};
+                        for (const id of Object.keys(courses)) {
+                            const c = courses[id];
+                            if (typeof c.best !== 'number') continue;
+                            if (best === null || c.best < best) {
+                                best = c.best;
+                                bestVs = typeof c.bestVsPar === 'number' ? c.bestVsPar : null;
+                                bestId = id;
+                            }
+                        }
+                    }
+                    if (best !== null) {
+                        const vs = bestVs === null ? '' : (bestVs === 0 ? 'E' : (bestVs > 0 ? '+' : '') + bestVs);
+                        const where = names[bestId] ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">${names[bestId]}</span>` : '';
+                        const aceTag = aces > 0
+                            ? ` <span style="opacity:0.65;font-size:0.7rem;margin-left:3px;">(${aces} ace${aces === 1 ? '' : 's'})</span>`
+                            : '';
+                        loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">${best}${vs ? ' (' + vs + ')' : ''}</span>${where}${aceTag}`;
+                    } else {
+                        loftBadge.innerHTML = `<span class="stat-icon">🏌️</span> Best Round: <span class="stat-val">—</span>`;
                     }
                 }
             } catch (e) {}
