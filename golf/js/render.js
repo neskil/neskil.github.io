@@ -90,6 +90,83 @@
         g.restore();
     }
 
+    /* Ice reads as ice through three cues rather than colour alone: a pale
+       fill, a rim of hard frost, and hairline fractures. The fractures are
+       derived from the rectangle's own coordinates rather than from
+       Math.random, so the sheet does not crawl about between frames. */
+    function drawIce(g, s) {
+        g.save();
+        roundRect(g, s.x, s.y, s.w, s.h, 18);
+        g.fillStyle = '#bfe4f2';
+        g.fill();
+        g.clip();
+
+        var grad = g.createLinearGradient(s.x, s.y, s.x + s.w, s.y + s.h);
+        grad.addColorStop(0, 'rgba(255,255,255,0.55)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.10)');
+        grad.addColorStop(1, 'rgba(96,165,250,0.35)');
+        g.fillStyle = grad;
+        g.fillRect(s.x, s.y, s.w, s.h);
+
+        g.strokeStyle = 'rgba(255,255,255,0.55)';
+        g.lineWidth = 1.4;
+        for (var i = 0; i < 7; i++) {
+            var sx = s.x + ((i * 97 + 31) % 100) / 100 * s.w;
+            var sy = s.y + ((i * 61 + 17) % 100) / 100 * s.h;
+            var a = (i * 1.7) % (Math.PI * 2);
+            var len = 26 + (i % 3) * 22;
+            g.beginPath();
+            g.moveTo(sx, sy);
+            g.lineTo(sx + Math.cos(a) * len, sy + Math.sin(a) * len);
+            g.lineTo(sx + Math.cos(a) * len + Math.cos(a + 1.1) * len * 0.6,
+                     sy + Math.sin(a) * len + Math.sin(a + 1.1) * len * 0.6);
+            g.stroke();
+        }
+        g.restore();
+
+        g.save();
+        roundRect(g, s.x, s.y, s.w, s.h, 18);
+        g.strokeStyle = 'rgba(240,253,255,0.75)';
+        g.lineWidth = 3;
+        g.stroke();
+        g.restore();
+    }
+
+    /* A bumper. The cap is drawn a couple of pixels up and left of the collision
+       circle so it reads as a post standing on the green rather than a disc
+       painted on it — but the ring, which is what the ball actually meets, is
+       drawn true to the radius the simulation uses. */
+    function drawBumper(g, b, t) {
+        var pulse = 0.5 + Math.sin(t * 2.2 + b.x * 0.03) * 0.5;
+
+        g.save();
+        g.fillStyle = 'rgba(0,0,0,0.35)';
+        g.beginPath();
+        g.ellipse(b.x + 3, b.y + 4, b.r * 1.02, b.r * 0.92, 0, 0, Math.PI * 2);
+        g.fill();
+
+        g.beginPath();
+        g.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        g.strokeStyle = 'rgba(249,115,22,' + (0.55 + pulse * 0.35) + ')';
+        g.lineWidth = 3;
+        g.stroke();
+
+        var grad = g.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, b.r * 0.15, b.x, b.y, b.r);
+        grad.addColorStop(0, '#fde68a');
+        grad.addColorStop(0.55, '#f59e0b');
+        grad.addColorStop(1, '#b45309');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.arc(b.x - 1, b.y - 1.5, b.r - 3.5, 0, Math.PI * 2);
+        g.fill();
+
+        g.fillStyle = 'rgba(255,255,255,' + (0.25 + pulse * 0.45) + ')';
+        g.beginPath();
+        g.arc(b.x - 1, b.y - 1.5, b.r * 0.32, 0, Math.PI * 2);
+        g.fill();
+        g.restore();
+    }
+
     /* All of a hole's water in one pass rather than rect by rect. A moat is
        built from several overlapping rectangles, and drawing each one as its
        own rounded, outlined shape left notches and doubled shorelines wherever
@@ -306,46 +383,51 @@
 
     /* ── aiming ─────────────────────────────────────────────────────────── */
 
+    /* The aim arrow points, and that is all it does.
+
+       It used to be the ball's real path for the next 0.6 seconds, dashed on
+       screen and stopped at the first bounce, and the pull-back was drawn as a
+       band whose length was the power. Between them they answered the two
+       questions a golf shot is made of — how far will this go, and where does
+       it come off that wall — so the shot was read rather than judged. The
+       arrow is now a fixed length at every power: it tells you the line, and
+       leaves the weight to your hands. */
     function drawAim(g, world, aim, t) {
         var b = world.ball;
-        var power = aim.power, angle = aim.angle;
-        var frac = power / C.MAX_POWER;
+        var frac = aim.power / C.MAX_POWER;
+        var angle = aim.angle;
+        var tip = C.AIM_ARROW;
+        var tail = C.BALL_R + 7;
 
-        var pts = P.previewPath(world, angle, power, 0.6);
-        if (pts.length > 1) {
-            g.save();
-            g.setLineDash([7, 8]);
-            g.lineDashOffset = -t * 26;
-            g.strokeStyle = 'rgba(255,255,255,0.75)';
-            g.lineWidth = 2.5;
-            g.beginPath();
-            for (var i = 0; i < pts.length; i++) {
-                if (i === 0) g.moveTo(pts[i].x, pts[i].y); else g.lineTo(pts[i].x, pts[i].y);
-            }
-            g.stroke();
-
-            var end = pts[pts.length - 1];
-            g.setLineDash([]);
-            g.fillStyle = 'rgba(255,255,255,0.85)';
-            g.beginPath();
-            g.arc(end.x, end.y, 3.5, 0, Math.PI * 2);
-            g.fill();
-            g.restore();
-        }
-
-        // The pull-back itself, drawn behind the ball like a stretched band.
         g.save();
-        g.strokeStyle = 'rgba(255,255,255,0.35)';
-        g.lineWidth = 2;
-        g.setLineDash([4, 5]);
+        g.translate(b.x, b.y);
+        g.rotate(angle);
+
+        // Shaft. It crawls forward so the arrow reads as live while aiming,
+        // but the dashes are a fixed count — nothing here scales with power.
+        g.setLineDash([6, 7]);
+        g.lineDashOffset = -t * 26;
+        g.strokeStyle = 'rgba(255,255,255,0.8)';
+        g.lineWidth = 2.5;
+        g.lineCap = 'butt';
         g.beginPath();
-        g.moveTo(b.x, b.y);
-        g.lineTo(b.x - Math.cos(angle) * frac * C.DRAG_MAX, b.y - Math.sin(angle) * frac * C.DRAG_MAX);
+        g.moveTo(tail, 0);
+        g.lineTo(tip, 0);
         g.stroke();
+
+        g.setLineDash([]);
+        g.fillStyle = 'rgba(255,255,255,0.9)';
+        g.beginPath();
+        g.moveTo(tip + 11, 0);
+        g.lineTo(tip - 2, -6.5);
+        g.lineTo(tip - 2, 6.5);
+        g.closePath();
+        g.fill();
         g.restore();
 
         // Power arc around the ball: green through amber to red, so the meter
-        // is readable without reading a number.
+        // is readable without reading a number. Kept — it is a dial, not a
+        // distance, and a keyboard player has no drag in their hand to feel.
         var hue = 130 - frac * 130;
         g.save();
         g.lineCap = 'round';
@@ -442,6 +524,9 @@
         turf: function (x, y, angle) {
             burst(x, y, { count: 7, color: ['#4ade80', '#3f9d55', '#86efac'], speed: 60, life: 0.4, size: 2, angle: angle, spread: 1.4, gravity: 200 });
         },
+        spark: function (x, y) {
+            burst(x, y, { count: 10, color: ['#fde68a', '#fb923c', '#ffffff'], speed: 150, life: 0.3, size: 2, gravity: 0 });
+        },
         clear: function () { particles.length = 0; }
     };
 
@@ -456,6 +541,7 @@
 
         var i;
         for (i = 0; i < course.slopes.length; i++) drawSlope(g, course.slopes[i]);
+        for (i = 0; i < course.ice.length; i++) drawIce(g, course.ice[i]);
         for (i = 0; i < course.sand.length; i++) drawSand(g, course.sand[i]);
         drawWaterAll(g, course.water, t);
 
@@ -471,6 +557,7 @@
 
         drawHole(g, course.hole, t, state.world.ball);
         for (i = 0; i < course.walls.length; i++) drawWall(g, course.walls[i], t);
+        for (i = 0; i < course.bumpers.length; i++) drawBumper(g, course.bumpers[i], t);
 
         updateParticles(dt);
         drawParticles(g);

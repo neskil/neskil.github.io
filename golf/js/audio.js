@@ -68,6 +68,14 @@
             var p = Math.max(0.1, Math.min(1, speed / 700));
             tone(320 + p * 220, 0.06, 'square', 0.03 + p * 0.05, 180);
         },
+        // A bumper is a bell, not a thud: the ball leaves it faster than it
+        // arrived at any wall, and the ear should hear that before the eye
+        // works out where the ball went.
+        bumper: function (speed) {
+            var p = Math.max(0.15, Math.min(1, speed / 700));
+            tone(880, 0.12, 'square', 0.05 + p * 0.07, 1320);
+            tone(1318.5, 0.09, 'sine', 0.03 + p * 0.05);
+        },
         sand: function () { noise(0.22, 2600, 0.7, 0.09, 'highpass'); },
         splash: function () {
             noise(0.4, 900, 0.6, 0.2);
