@@ -447,3 +447,27 @@
     .prog-part { padding: 0 7px; }
     .menu-panel > .menu-kicker { font-size: 0.58rem; letter-spacing: 0.1em; }
 }
+
+/*
+ * Landscape phones: the menu panel is centred with `align-items: center` and
+ * nothing below the overlay scrolls, so a portrait-height list of six menu
+ * buttons plus the brand blurb ran straight off the bottom of a 380px-tall
+ * viewport with no way to reach it — not tight, just cut off. Letting the
+ * panel scroll fixes that outright; shrinking the blurb and the gaps between
+ * buttons means it rarely has to.
+ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .overlay { align-items: stretch; padding: calc(8px + var(--safe-top)) calc(10px + var(--safe-right)) calc(8px + var(--safe-bottom)) calc(10px + var(--safe-left)); }
+    .panel { overflow-y: auto; overscroll-behavior: contain; }
+
+    .menu-panel { padding: 14px 20px; gap: 8px; justify-content: center; }
+    .menu-brand h2 { font-size: 1.6rem; margin: 2px 0 4px; }
+    .menu-brand p { font-size: 0.8rem; line-height: 1.4; }
+    .menu-actions { gap: 6px; }
+    .primary-btn, .ghost-btn { padding: 8px 18px; font-size: 0.86rem; }
+
+    .panel-header { padding: 10px 14px 8px; }
+    .howto-body, .mission-grid { padding: 10px 14px 14px; gap: 10px; }
+    .results-panel { padding: 14px 16px; gap: 10px; }
+    .result-medal { font-size: 2rem; margin-bottom: 2px; }
+}
