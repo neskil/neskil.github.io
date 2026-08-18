@@ -158,8 +158,16 @@
     }
 
     function finishRound() {
-        var res = S.recordRound(state.save, state.scores, GOLF.COURSE);
-        state.save = S.save(res.save);
+        /* A playtest is one hole handed over by the editor, and a one-hole
+           "round" of three strokes would walk straight into the best-round
+           record. So it is scored and shown, and never written down. */
+        var res;
+        if (GOLF.PLAYTEST) {
+            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
+        } else {
+            res = S.recordRound(state.save, state.scores, GOLF.COURSE);
+            state.save = S.save(res.save);
+        }
         state.phase = 'finished';
         $('banner').classList.remove('show');
         openCard(res);
