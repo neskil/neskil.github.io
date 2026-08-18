@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pocket Links — 18-Hole Mini Golf | Niklas Billgren</title>
-    <meta name="description" content="An eighteen-hole mini golf game in the browser. Drag to aim, mind the water, the bunkers, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. No install, no account, works on a phone.">
+    <meta name="description" content="An eighteen-hole mini golf game in the browser. Drag to aim, mind the water, the bunkers, the rough, the ice, the bumpers and the gates that will not wait. The arrow gives you the line and nothing else — the weight of the shot is yours. Plays fullscreen, remembers your round, no install and no account.">
     <meta name="theme-color" content="#0c2418">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
@@ -32,10 +32,10 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.1.0">
+    <link rel="stylesheet" href="style.css?v=1.2.0">
 </head>
 <body>
-    <div class="wrap">
+    <div class="wrap" id="wrap">
         <div class="topbar">
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div>
@@ -46,6 +46,7 @@
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
                 <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
+                <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
             </div>
         </div>
 
@@ -85,17 +86,29 @@
             <div class="toast" id="toast"></div>
         </div>
 
-        <div class="help">
+        <!-- The power meter sits under the board rather than over it. As an
+             overlay it always covered something that mattered: pinned to the
+             bottom it hid the ball on a hole teed off down there, and flipped
+             to the top it hid the cup on the same hole. Deliberately wordless
+             past the label — the gauge on the ball and this bar are the same
+             value, and neither is allowed to say how far the ball will go. -->
+        <div class="power" id="power" aria-hidden="true">
+            <span class="power-label">Power</span>
+            <div class="power-track"><div class="power-fill" id="power-fill"></div></div>
+        </div>
+
+        <div class="help" id="help">
             <span><b>Drag back</b> from the ball and release — like a slingshot.</span>
             <span>The arrow is the same length at every power: it gives you the <b>line</b>, the
                 dial round the ball gives you the <b>weight</b>. How far that is, you judge.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
                 (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>M</kbd> sound</span>
+            <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>
             <span class="touch-help">Turn your phone sideways for a bigger course.</span>
         </div>
 
-        <div class="legend">
+        <div class="legend" id="legend">
+            <span><i class="sw-rough"></i>Rough — half the roll</span>
             <span><i class="sw-sand"></i>Bunker — heavy going</span>
             <span><i class="sw-water"></i>Water — one stroke penalty</span>
             <span><i class="sw-ice"></i>Ice — three times the roll</span>
@@ -121,12 +134,12 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.1.0"></script>
-    <script src="js/courses.js?v=1.1.0"></script>
-    <script src="js/physics.js?v=1.1.0"></script>
-    <script src="js/scoring.js?v=1.1.0"></script>
-    <script src="js/audio.js?v=1.1.0"></script>
-    <script src="js/render.js?v=1.1.0"></script>
-    <script src="js/game.js?v=1.1.0"></script>
+    <script src="js/config.js?v=1.2.0"></script>
+    <script src="js/courses.js?v=1.2.0"></script>
+    <script src="js/physics.js?v=1.2.0"></script>
+    <script src="js/scoring.js?v=1.2.0"></script>
+    <script src="js/audio.js?v=1.2.0"></script>
+    <script src="js/render.js?v=1.2.0"></script>
+    <script src="js/game.js?v=1.2.0"></script>
 </body>
 </html>

@@ -2,55 +2,154 @@
    thing in here is the particle list, which is visual-only and deliberately
    kept out of the simulation so a dropped frame can never change a score.
 
-   The turf is generated once into an offscreen canvas at load and blitted
-   after that. It is a static 960x640 image: regenerating the stripes, the
-   speckle and the vignette every frame was the single most expensive thing
-   on the page, for a picture that never changes. */
+   The turf is generated into an offscreen canvas and blitted, rather than
+   redrawn per frame; see makeTurf for why it is rebuilt once per hole. */
 (function (GOLF) {
     'use strict';
 
     var C = GOLF.CONFIG;
     var P = GOLF.physics;
 
-    var turf = null;
+    /* The turf is one static 960x640 image, generated offscreen and blitted.
+       Regenerating the stripes, the speckle and the vignette every frame was
+       the single most expensive thing on the page, for a picture that never
+       changes *within* a hole.
 
-    function makeTurf() {
+       It does change *between* holes: the mow angle, the stripe width and the
+       green's depth are derived from the hole index, so eighteen holes do not
+       all look like the same lawn photographed eighteen times. One canvas is
+       kept, rebuilt on hole change — caching all eighteen would be 44MB of
+       bitmap to avoid a 4ms redraw nobody sees. */
+    var turf = null;
+    var turfKey = -1;
+
+    // Deterministic noise, so a hole's blades of grass sit in the same place
+    // every time it is loaded and the course does not shimmer on replay.
+    function hash(n) {
+        var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+        return x - Math.floor(x);
+    }
+
+    function makeTurf(seed) {
         var c = document.createElement('canvas');
         c.width = C.WORLD_W;
         c.height = C.WORLD_H;
         var g = c.getContext('2d');
 
-        g.fillStyle = '#2e7a40';
+        // Base colour drifts a few degrees per hole: high summer at one end of
+        // the course, a shaded valley at the other.
+        var hue = 132 + Math.round((hash(seed) - 0.5) * 14);
+        var lum = 33 + Math.round(hash(seed + 9) * 5);
+        g.fillStyle = 'hsl(' + hue + ', 46%, ' + lum + '%)';
         g.fillRect(0, 0, C.WORLD_W, C.WORLD_H);
 
-        // Mower stripes, angled so they read as a groundskeeper's work rather
-        // than as a CSS gradient.
+        // Mower stripes. The angle and width come from the seed, so a hole is
+        // recognisable from its lawn before you have read its name.
+        var angle = -0.55 + hash(seed + 3) * 1.1;
+        var band = 44 + Math.round(hash(seed + 5) * 34);
         g.save();
         g.translate(C.WORLD_W / 2, C.WORLD_H / 2);
-        g.rotate(-0.22);
+        g.rotate(angle);
         g.translate(-C.WORLD_W, -C.WORLD_H);
-        for (var i = 0; i < 40; i++) {
-            g.fillStyle = i % 2 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.035)';
-            g.fillRect(i * 62, 0, 62, C.WORLD_H * 3);
+        for (var i = 0; i < Math.ceil(C.WORLD_W * 3 / band); i++) {
+            g.fillStyle = i % 2 ? 'rgba(255,255,255,0.040)' : 'rgba(0,0,0,0.040)';
+            g.fillRect(i * band, 0, band, C.WORLD_H * 3);
+        }
+        // A hairline at each stripe boundary — the cut edge the mower leaves.
+        g.strokeStyle = 'rgba(0,0,0,0.05)';
+        g.lineWidth = 1;
+        for (i = 0; i < Math.ceil(C.WORLD_W * 3 / band); i++) {
+            g.beginPath();
+            g.moveTo(i * band, 0);
+            g.lineTo(i * band, C.WORLD_H * 3);
+            g.stroke();
         }
         g.restore();
 
         // Speckle: a few thousand one-pixel blades so flat colour does not
         // read as plastic when the ball rolls over it.
-        for (var n = 0; n < 2600; n++) {
-            var x = Math.random() * C.WORLD_W, y = Math.random() * C.WORLD_H;
-            g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+        for (var n = 0; n < 3000; n++) {
+            var x = hash(seed * 31 + n) * C.WORLD_W, y = hash(seed * 17 + n * 3.7) * C.WORLD_H;
+            g.fillStyle = hash(n * 5.3) < 0.5 ? 'rgba(255,255,255,0.055)' : 'rgba(0,0,0,0.065)';
             g.fillRect(x, y, 1.6, 1.6);
         }
 
         var v = g.createRadialGradient(C.WORLD_W / 2, C.WORLD_H / 2, C.WORLD_H * 0.35,
                                        C.WORLD_W / 2, C.WORLD_H / 2, C.WORLD_H * 0.95);
         v.addColorStop(0, 'rgba(0,0,0,0)');
-        v.addColorStop(1, 'rgba(0,0,0,0.38)');
+        v.addColorStop(1, 'rgba(0,0,0,0.40)');
         g.fillStyle = v;
         g.fillRect(0, 0, C.WORLD_W, C.WORLD_H);
 
         return c;
+    }
+
+    /* The putting green: a disc of shorter grass around the cup, mown in
+       rings. It is decoration in the strict sense — the physics has never
+       heard of it — but it is the one piece of the picture that tells you
+       where the hole *is* from across the field, before you have found the
+       flag among the hazards. */
+    function drawGreen(g, hole) {
+        var R = 96;
+        g.save();
+        g.beginPath();
+        g.arc(hole.x, hole.y, R, 0, Math.PI * 2);
+        g.clip();
+
+        // Faded at the rim rather than cut off at it: a hard circle of paler
+        // grass reads as a target painted on the field, and the eye goes to
+        // the edge instead of to the cup.
+        var grad = g.createRadialGradient(hole.x, hole.y, 6, hole.x, hole.y, R);
+        grad.addColorStop(0, 'rgba(214, 255, 214, 0.15)');
+        grad.addColorStop(0.62, 'rgba(200, 250, 200, 0.10)');
+        grad.addColorStop(1, 'rgba(190, 245, 190, 0)');
+        g.fillStyle = grad;
+        g.fillRect(hole.x - R, hole.y - R, R * 2, R * 2);
+
+        // Mown in rings, the way a green actually is, and fading with them.
+        g.lineWidth = 6;
+        for (var r = 14; r < R - 8; r += 16) {
+            g.strokeStyle = 'rgba(255,255,255,' + (0.05 * (1 - r / R)).toFixed(3) + ')';
+            g.beginPath();
+            g.arc(hole.x, hole.y, r, 0, Math.PI * 2);
+            g.stroke();
+        }
+        g.restore();
+    }
+
+    /* Rough. Darker, denser, and drawn with tufts rather than a flat fill so
+       that "this will cost you" is legible at a glance — the same information
+       the bunker's rake lines carry. */
+    function drawRough(g, s) {
+        g.save();
+        roundRect(g, s.x, s.y, s.w, s.h, 14);
+        g.clip();
+
+        g.fillStyle = 'rgba(9, 46, 22, 0.55)';
+        g.fillRect(s.x, s.y, s.w, s.h);
+
+        var seed = s.x * 7 + s.y * 13 + s.w;
+        var tufts = Math.min(420, Math.round(s.w * s.h / 620));
+        g.strokeStyle = 'rgba(126, 200, 130, 0.30)';
+        g.lineWidth = 1.6;
+        g.lineCap = 'round';
+        g.beginPath();
+        for (var i = 0; i < tufts; i++) {
+            var x = s.x + hash(seed + i) * s.w;
+            var y = s.y + hash(seed + i * 2.7 + 1) * s.h;
+            var lean = (hash(seed + i * 3.1) - 0.5) * 5;
+            g.moveTo(x, y);
+            g.lineTo(x + lean, y - 5 - hash(seed + i * 1.3) * 4);
+        }
+        g.stroke();
+        g.restore();
+
+        g.save();
+        roundRect(g, s.x, s.y, s.w, s.h, 14);
+        g.strokeStyle = 'rgba(8, 40, 20, 0.5)';
+        g.lineWidth = 2;
+        g.stroke();
+        g.restore();
     }
 
     function roundRect(g, x, y, w, h, r) {
@@ -244,12 +343,19 @@
         g.restore();
     }
 
+    /* A wall is a timber sleeper standing on the grass. Everything about the
+       drawing says "above the surface": a shadow cast down-right, a lit top
+       and left edge, a dark underside. The light direction is the same one the
+       ball, the posts and the cup use — the picture only reads as 3D if
+       nothing in it disagrees about where the sun is. */
     function drawWall(g, wall, t) {
         var R = P.wallRect(wall, t);
+
         g.save();
-        g.shadowColor = 'rgba(0,0,0,0.45)';
-        g.shadowBlur = 12;
-        g.shadowOffsetY = 5;
+        g.shadowColor = 'rgba(0,0,0,0.5)';
+        g.shadowBlur = 14;
+        g.shadowOffsetX = 4;
+        g.shadowOffsetY = 6;
         roundRect(g, R.x, R.y, R.w, R.h, 6);
         g.fillStyle = wall.move ? '#8a5a34' : '#6d4a2e';
         g.fill();
@@ -258,12 +364,23 @@
         g.save();
         roundRect(g, R.x, R.y, R.w, R.h, 6);
         g.clip();
-        var grad = g.createLinearGradient(R.x, R.y, R.x, R.y + R.h);
-        grad.addColorStop(0, 'rgba(255,255,255,0.28)');
-        grad.addColorStop(0.18, 'rgba(255,255,255,0.05)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.30)');
+        var grad = g.createLinearGradient(R.x, R.y, R.x + R.w, R.y + R.h);
+        grad.addColorStop(0, 'rgba(255,255,255,0.30)');
+        grad.addColorStop(0.22, 'rgba(255,255,255,0.06)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.34)');
         g.fillStyle = grad;
         g.fillRect(R.x, R.y, R.w, R.h);
+
+        // Grain, along the long axis of the timber.
+        var along = R.w > R.h;
+        g.strokeStyle = 'rgba(60,36,16,0.22)';
+        g.lineWidth = 1;
+        g.beginPath();
+        for (var k = 7; k < (along ? R.h : R.w); k += 7) {
+            if (along) { g.moveTo(R.x, R.y + k); g.lineTo(R.x + R.w, R.y + k); }
+            else { g.moveTo(R.x + k, R.y); g.lineTo(R.x + k, R.y + R.h); }
+        }
+        g.stroke();
         // Hazard stripes mark the walls that move, so a player who gets hit by
         // one at least knew it was coming.
         if (wall.move) {
@@ -276,6 +393,15 @@
                 g.stroke();
             }
         }
+        g.restore();
+
+        // Lit top edge, dark base. Two hairlines do more for the sense of
+        // height than any amount of gradient.
+        g.save();
+        roundRect(g, R.x + 0.5, R.y + 0.5, R.w - 1, R.h - 1, 6);
+        g.strokeStyle = 'rgba(255,236,200,0.22)';
+        g.lineWidth = 1;
+        g.stroke();
         g.restore();
     }
 
@@ -344,21 +470,31 @@
         g.restore();
     }
 
-    function drawBall(g, ball, trail) {
-        if (trail && trail.length > 1) {
-            g.save();
-            g.strokeStyle = 'rgba(255,255,255,0.28)';
-            g.lineWidth = 3;
-            g.lineCap = 'round';
+    /* The trail tapers rather than running at one width and one alpha: drawn
+       as segments so the oldest end can fade to nothing, which reads as speed
+       instead of as a piece of string tied to the ball. */
+    function drawTrail(g, trail) {
+        if (!trail || trail.length < 2) return;
+        g.save();
+        g.lineCap = 'round';
+        for (var i = 1; i < trail.length; i++) {
+            var f = i / (trail.length - 1);
+            g.globalAlpha = 0.05 + f * 0.4;
+            g.lineWidth = 1 + f * 3;
+            g.strokeStyle = '#ffffff';
             g.beginPath();
-            for (var i = 0; i < trail.length; i++) {
-                if (i === 0) g.moveTo(trail[i].x, trail[i].y); else g.lineTo(trail[i].x, trail[i].y);
-            }
-            g.globalAlpha = 0.45;
+            g.moveTo(trail[i - 1].x, trail[i - 1].y);
+            g.lineTo(trail[i].x, trail[i].y);
             g.stroke();
-            g.restore();
         }
+        g.restore();
+    }
 
+    /* The dimples turn with the roll — `spin` is distance travelled over the
+       radius, i.e. the angle a real ball would have turned through. It is the
+       cheapest possible cue that the ball is rolling and not sliding, and at
+       rest it leaves the ball sitting at whatever angle it stopped at. */
+    function drawBall(g, ball, spin) {
         g.save();
         g.fillStyle = 'rgba(0,0,0,0.35)';
         g.beginPath();
@@ -374,6 +510,21 @@
         g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
         g.fill();
 
+        g.beginPath();
+        g.arc(ball.x, ball.y, C.BALL_R, 0, Math.PI * 2);
+        g.clip();
+        g.fillStyle = 'rgba(120,140,155,0.35)';
+        for (var i = 0; i < 5; i++) {
+            var a = spin + i * (Math.PI * 2 / 5);
+            var dx = Math.cos(a) * C.BALL_R * 0.52;
+            var dy = Math.sin(a) * C.BALL_R * 0.52 - 1;
+            g.beginPath();
+            g.arc(ball.x + dx, ball.y + dy, 1.25, 0, Math.PI * 2);
+            g.fill();
+        }
+        g.restore();
+
+        g.save();
         g.fillStyle = 'rgba(255,255,255,0.9)';
         g.beginPath();
         g.arc(ball.x - 2.4, ball.y - 2.8, 1.7, 0, Math.PI * 2);
@@ -396,57 +547,104 @@
         var b = world.ball;
         var frac = aim.power / C.MAX_POWER;
         var angle = aim.angle;
-        var tip = C.AIM_ARROW;
-        var tail = C.BALL_R + 7;
+        var ring = C.AIM_RING_R;
+        var tail = ring + C.AIM_RING_W / 2 + 9;
+        var tip = tail + C.AIM_ARROW;
 
+        /* Direction. A fixed length at every power — see the note above — so
+           the shaft is drawn from outside the gauge and the two never fight
+           for the same pixels. */
         g.save();
         g.translate(b.x, b.y);
         g.rotate(angle);
 
-        // Shaft. It crawls forward so the arrow reads as live while aiming,
-        // but the dashes are a fixed count — nothing here scales with power.
-        g.setLineDash([6, 7]);
+        g.setLineDash([7, 7]);
         g.lineDashOffset = -t * 26;
-        g.strokeStyle = 'rgba(255,255,255,0.8)';
-        g.lineWidth = 2.5;
+        g.strokeStyle = 'rgba(255,255,255,0.28)';
+        g.lineWidth = 5;
         g.lineCap = 'butt';
+        g.beginPath();
+        g.moveTo(tail, 0);
+        g.lineTo(tip, 0);
+        g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,0.88)';
+        g.lineWidth = 2.5;
         g.beginPath();
         g.moveTo(tail, 0);
         g.lineTo(tip, 0);
         g.stroke();
 
         g.setLineDash([]);
-        g.fillStyle = 'rgba(255,255,255,0.9)';
+        g.fillStyle = 'rgba(0,0,0,0.35)';
         g.beginPath();
-        g.moveTo(tip + 11, 0);
-        g.lineTo(tip - 2, -6.5);
-        g.lineTo(tip - 2, 6.5);
+        g.moveTo(tip + 14, 1.5);
+        g.lineTo(tip - 3, -6.5);
+        g.lineTo(tip - 3, 9.5);
+        g.closePath();
+        g.fill();
+        g.fillStyle = '#ffffff';
+        g.beginPath();
+        g.moveTo(tip + 13, 0);
+        g.lineTo(tip - 3, -7.5);
+        g.lineTo(tip - 3, 7.5);
         g.closePath();
         g.fill();
         g.restore();
 
-        // Power arc around the ball: green through amber to red, so the meter
-        // is readable without reading a number. Kept — it is a dial, not a
-        // distance, and a keyboard player has no drag in their hand to feel.
+        /* The power gauge. A ring, not a hairline arc: a track to read the
+           empty part against, a fill that runs green through amber to red, a
+           head that marks the exact level, and quarter ticks so "about a
+           third" is a thing the eye can actually say. No number — the ball
+           still has to be judged, only now the dial can be read. */
+        var a0 = -Math.PI * 0.75, span = Math.PI * 1.5;
         var hue = 130 - frac * 130;
+
         g.save();
         g.lineCap = 'round';
+
+        g.strokeStyle = 'rgba(0,0,0,0.45)';
+        g.lineWidth = C.AIM_RING_W + 4;
+        g.beginPath();
+        g.arc(b.x, b.y, ring, a0, a0 + span);
+        g.stroke();
+
+        g.strokeStyle = 'rgba(255,255,255,0.14)';
+        g.lineWidth = C.AIM_RING_W;
+        g.beginPath();
+        g.arc(b.x, b.y, ring, a0, a0 + span);
+        g.stroke();
+
+        if (frac > 0.001) {
+            g.strokeStyle = 'hsl(' + hue + ', 88%, 56%)';
+            g.lineWidth = C.AIM_RING_W;
+            g.beginPath();
+            g.arc(b.x, b.y, ring, a0, a0 + span * frac);
+            g.stroke();
+
+            var ha = a0 + span * frac;
+            g.fillStyle = '#ffffff';
+            g.beginPath();
+            g.arc(b.x + Math.cos(ha) * ring, b.y + Math.sin(ha) * ring, C.AIM_RING_W * 0.42, 0, Math.PI * 2);
+            g.fill();
+        }
+
         g.strokeStyle = 'rgba(0,0,0,0.35)';
-        g.lineWidth = 6;
-        g.beginPath();
-        g.arc(b.x, b.y, C.BALL_R + 9, -Math.PI * 0.75, Math.PI * 0.75);
-        g.stroke();
-        g.strokeStyle = 'hsl(' + hue + ', 85%, 55%)';
-        g.lineWidth = 5;
-        g.beginPath();
-        g.arc(b.x, b.y, C.BALL_R + 9, -Math.PI * 0.75, -Math.PI * 0.75 + Math.PI * 1.5 * frac);
-        g.stroke();
+        g.lineWidth = 2;
+        for (var q = 1; q <= 3; q++) {
+            var ta = a0 + span * (q / 4);
+            var cx = Math.cos(ta), cy = Math.sin(ta);
+            g.beginPath();
+            g.moveTo(b.x + cx * (ring - C.AIM_RING_W / 2), b.y + cy * (ring - C.AIM_RING_W / 2));
+            g.lineTo(b.x + cx * (ring + C.AIM_RING_W / 2), b.y + cy * (ring + C.AIM_RING_W / 2));
+            g.stroke();
+        }
         g.restore();
     }
 
     /* ── particles ──────────────────────────────────────────────────────── */
 
     var particles = [];
+    var rings = [];
 
     function burst(x, y, opts) {
         var n = opts.count || 14;
@@ -478,6 +676,23 @@
         }
     }
 
+    function updateRings(g, dt) {
+        for (var i = rings.length - 1; i >= 0; i--) {
+            var r = rings[i];
+            r.life += dt;
+            if (r.life >= r.max) { rings.splice(i, 1); continue; }
+            var f = r.life / r.max;
+            g.save();
+            g.globalAlpha = (1 - f) * 0.8;
+            g.strokeStyle = '#fde68a';
+            g.lineWidth = 3 * (1 - f) + 1;
+            g.beginPath();
+            g.arc(r.x, r.y, r.r + f * 26, 0, Math.PI * 2);
+            g.stroke();
+            g.restore();
+        }
+    }
+
     function drawParticles(g) {
         for (var i = 0; i < particles.length; i++) {
             var p = particles[i];
@@ -504,6 +719,10 @@
             burst(x, y, { count: 26, color: ['#ffffff', '#fde68a', '#86efac'], speed: 150, life: 0.8, size: 3, lift: 60 });
         },
         confetti: function (w, h) {
+            // Ninety squares tumbling across the screen is exactly the kind of
+            // thing prefers-reduced-motion exists to turn off. The sound and
+            // the banner still land, so nothing is lost but the shower.
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
             for (var i = 0; i < 90; i++) {
                 particles.push({
                     x: Math.random() * w, y: -20 - Math.random() * h * 0.5,
@@ -524,22 +743,34 @@
         turf: function (x, y, angle) {
             burst(x, y, { count: 7, color: ['#4ade80', '#3f9d55', '#86efac'], speed: 60, life: 0.4, size: 2, angle: angle, spread: 1.4, gravity: 200 });
         },
+        // A ring that expands and fades where the ball met a post. Particles
+        // alone read as "something happened"; the ring says where.
+        ring: function (x, y, r) {
+            rings.push({ x: x, y: y, r: r, life: 0, max: 0.45 });
+        },
         spark: function (x, y) {
             burst(x, y, { count: 10, color: ['#fde68a', '#fb923c', '#ffffff'], speed: 150, life: 0.3, size: 2, gravity: 0 });
         },
-        clear: function () { particles.length = 0; }
+        clear: function () { particles.length = 0; rings.length = 0; }
     };
 
     /* ── frame ──────────────────────────────────────────────────────────── */
+
+    var spin = 0;
 
     function frame(g, state, dt) {
         var course = state.world.course;
         var t = state.world.time;
 
-        if (!turf) turf = makeTurf();
+        if (!turf || turfKey !== state.holeIndex) {
+            turfKey = state.holeIndex;
+            turf = makeTurf(turfKey + 1);
+        }
         g.drawImage(turf, 0, 0);
 
         var i;
+        drawGreen(g, course.hole);
+        for (i = 0; i < course.rough.length; i++) drawRough(g, course.rough[i]);
         for (i = 0; i < course.slopes.length; i++) drawSlope(g, course.slopes[i]);
         for (i = 0; i < course.ice.length; i++) drawIce(g, course.ice[i]);
         for (i = 0; i < course.sand.length; i++) drawSand(g, course.sand[i]);
@@ -560,9 +791,14 @@
         for (i = 0; i < course.bumpers.length; i++) drawBumper(g, course.bumpers[i], t);
 
         updateParticles(dt);
+        updateRings(g, dt);
         drawParticles(g);
 
-        if (!state.world.sunk) drawBall(g, state.world.ball, state.trail);
+        spin += P.speedOf(state.world.ball) * dt / C.BALL_R;
+        if (!state.world.sunk) {
+            drawTrail(g, state.trail);
+            drawBall(g, state.world.ball, spin);
+        }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
             drawAim(g, state.world, state.aim, t);
         }

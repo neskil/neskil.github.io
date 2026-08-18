@@ -68,6 +68,56 @@
         return data;
     }
 
+    /* ── the round in progress ──────────────────────────────────────────
+
+       Eighteen holes is a long sitting, and a browser tab is a fragile place
+       to keep one: a refresh, a phone locking, a laptop lid. The card is
+       written to its own key after every hole so the round survives all three.
+
+       What is *not* stored is the state of the hole you are standing on — no
+       ball position, no stroke count, no clock for the moving gates. Resuming
+       mid-flight would mean serialising the whole world and trusting it to
+       still be legal after a course edit; resuming at the tee of that hole is
+       a rule that fits in a sentence and cannot be wrong. You get the hole
+       back, not the lie. */
+
+    function saveRound(holeIndex, scores, course) {
+        try {
+            localStorage.setItem(C.ROUND_KEY, JSON.stringify({
+                holes: course.length,
+                holeIndex: holeIndex,
+                scores: Array.prototype.slice.call(scores, 0, course.length)
+            }));
+        } catch (e) { /* not worth a crash */ }
+    }
+
+    /* Returns a resumable round, or null. Null covers every kind of nonsense:
+       no save, corrupt JSON, a card from a course with a different number of
+       holes (the eighteen-hole rewrite invalidated every nine-hole save), an
+       index off the end, and a round that had not actually started. */
+    function loadRound(course) {
+        try {
+            var raw = localStorage.getItem(C.ROUND_KEY);
+            if (!raw) return null;
+            var d = JSON.parse(raw);
+            if (!d || !Array.isArray(d.scores) || d.holes !== course.length) return null;
+            if (typeof d.holeIndex !== 'number' || d.holeIndex < 1 || d.holeIndex >= course.length) return null;
+
+            var scores = [], played = 0;
+            for (var i = 0; i < course.length; i++) {
+                if (typeof d.scores[i] === 'number' && d.scores[i] > 0) { scores[i] = d.scores[i]; played++; }
+            }
+            if (!played) return null;
+            return { holeIndex: d.holeIndex, scores: scores };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function clearRound() {
+        try { localStorage.removeItem(C.ROUND_KEY); } catch (e) { /* ignore */ }
+    }
+
     /* Fold a finished round into the save. Returns the new save plus whether
        this round beat the record, because the end-of-round screen wants to
        make a fuss about it. */
@@ -96,6 +146,9 @@
         emptySave: emptySave,
         load: load,
         save: save,
+        saveRound: saveRound,
+        loadRound: loadRound,
+        clearRound: clearRound,
         recordRound: recordRound
     };
 

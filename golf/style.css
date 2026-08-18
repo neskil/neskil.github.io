@@ -170,19 +170,111 @@ button.chip:active { transform: translateY(1px); }
 
 .stage {
     position: relative;
+    display: grid;
+    place-items: center;
     border-radius: 18px;
     overflow: hidden;
     border: 1px solid var(--panel-border);
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    /* The board is sized by JS to fit both axes, so on a wide window there is
+       room left over at the sides. Paint it rather than leaving a bright gap. */
+    background: #05150c;
     line-height: 0;
 }
 
 canvas {
     display: block;
-    width: 100%;
+    max-width: 100%;
     touch-action: none;
     cursor: crosshair;
 }
+
+/* ── power meter ────────────────────────────────────────────────────────── */
+
+.power {
+    margin-top: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.55rem 0.95rem;
+    border-radius: 999px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    opacity: 0.55;
+    transition: opacity 0.14s, border-color 0.14s;
+    line-height: 1;
+}
+
+.power.show { opacity: 1; }
+
+.power-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    flex: none;
+}
+
+.power-track {
+    position: relative;
+    flex: 1;
+    height: 16px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.09);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+/* The gradient is laid across the *whole* track and then clipped back to the
+   current power, rather than being a coloured box that grows. Stretching one
+   gradient into a shrinking box would repaint every level a different colour
+   every frame — half power would be red at half power and amber at full — and
+   a meter whose colours move is not a meter. Clipped, three-quarters is always
+   the same amber, wherever it is on the way up. */
+.power-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4ade80 0%, #a3e635 34%, #fbbf24 62%, #fb7185 100%);
+    clip-path: inset(0 100% 0 0);
+    transition: clip-path 0.05s linear;
+}
+
+.power.hot { border-color: rgba(251, 113, 133, 0.55); }
+
+/* ── fullscreen ─────────────────────────────────────────────────────────── */
+
+/* The wrap is what goes fullscreen, not the canvas: the scoreboard is part of
+   the game. The help text and the legend are not, at least not while you are
+   using the whole screen, so they stand down and give the board their pixels. */
+.wrap:fullscreen {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(140deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.wrap:-webkit-full-screen {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    padding: 0.8rem 1rem;
+    background: linear-gradient(140deg, #071a10 0%, #0c2418 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+body.is-full .help,
+body.is-full .legend,
+body.is-tight .help,
+body.is-tight .legend { display: none; }
+
+body.is-full .stage { box-shadow: none; }
 
 /* ── hole-complete banner ───────────────────────────────────────────────── */
 
@@ -319,6 +411,7 @@ kbd {
     vertical-align: -2px;
 }
 
+.sw-rough { background: linear-gradient(135deg, #14532d 0%, #1c6b39 60%, #0d3a1d 100%); }
 .sw-sand { background: #e3ca92; }
 .sw-water { background: linear-gradient(#1b6d9e, #0e4468); }
 .sw-ice { background: linear-gradient(135deg, #ffffff 0%, #bfe4f2 55%, #7cc3e0 100%); }

@@ -7,7 +7,7 @@
    and on a desktop and none of the tuning below is resolution dependent. */
 window.GOLF = window.GOLF || {};
 
-GOLF.VERSION = '1.1.0';
+GOLF.VERSION = '1.2.0';
 
 GOLF.CONFIG = {
     WORLD_W: 960,
@@ -29,6 +29,12 @@ GOLF.CONFIG = {
        still bring it to rest inside MAX_SHOT_SECONDS — a shot that has to be
        waited out is not a shot. tests.html measures the worst case. */
     FRICTION_ICE: 0.72,
+    /* Rough is the missing middle. Sand is a punishment and grass is free, so
+       every hole was a binary: on the fairway, or in the bunker. Rough halves
+       the roll instead of ending it, which is what lets a hole be shaped
+       rather than merely walled — a wide line costs you a stroke's worth of
+       distance and nothing more. */
+    FRICTION_ROUGH: 0.15,
 
     /* At full power the ball coasts v0 / -ln(k) ≈ 1250px, comfortably more than
        the 960px field, so every hole is reachable in one shot and the skill is
@@ -53,7 +59,14 @@ GOLF.CONFIG = {
        the ball's simulated path, which meant the screen answered the only
        question the game asks — how hard, and off which cushion. Direction is
        shown; distance is the player's problem. */
-    AIM_ARROW: 58,
+    AIM_ARROW: 62,
+
+    /* The power gauge used to be a 16px arc hugging the ball, which is a
+       readable *shape* and an unreadable *value* — at a glance you could tell
+       it was filling, not how far. It is now a proper ring, and the arrow
+       starts outside it so the two never overlap. */
+    AIM_RING_R: 27,
+    AIM_RING_W: 9,
 
     SIM_DT: 1 / 120,
     MAX_SUBSTEPS: 24,
@@ -61,5 +74,6 @@ GOLF.CONFIG = {
 
     WATER_PENALTY: 1,
 
-    SAVE_KEY: 'miniGolf.save.v1'
+    SAVE_KEY: 'miniGolf.save.v1',
+    ROUND_KEY: 'miniGolf.round.v1'
 };

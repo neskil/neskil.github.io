@@ -31,6 +31,7 @@ A hole is axis-aligned rectangles, round posts and two points:
     walls:   [ { x, y, w, h, move? } ],  // solid; `move` makes it oscillate
     water:   [ { x, y, w, h } ],         // splash, one penalty stroke, replay the shot
     sand:    [ { x, y, w, h } ],         // heavy friction
+    rough:   [ { x, y, w, h } ],         // half the roll of grass
     ice:     [ { x, y, w, h } ],         // almost none — ~3x the roll of grass
     bumpers: [ { x, y, r } ],            // round, and bouncier than a wall
     slopes:  [ { x, y, w, h, ax, ay } ]  // constant acceleration, i.e. a breaking green
@@ -103,6 +104,13 @@ The cup pulls the ball inward while it is over the rim and only captures below
 fast one curl around the lip and come out the far side. A ball hit far too hard
 runs straight past — and often rolls back in off the cushion, which is a feature.
 
+There are four surfaces, and they are one lookup rather than a blend — sand
+first, then ice, then rough, then grass. Rough is the one worth arguing for:
+before it, a hole was binary, on the fairway or in the bunker, and the only way
+to shape a line was to wall it in. Halving the roll costs a wide shot a stroke's
+worth of distance and nothing more, which is what lets hole one teach you to
+stay off the cushions without ever taking a stroke off you for it.
+
 One invariant the hazards are built around: **nothing may hand the ball energy.**
 Every coefficient in the simulation is under 1, bumpers included
 (`BUMPER_RESTITUTION`), because friction is the only thing that ends a shot and
@@ -123,14 +131,67 @@ and a pull-back band drawn to the length of the power, the screen answered the
 only two questions a golf shot is made of — how far will this go, and where does
 it come off that wall. Both are gone, and `physics.previewPath` with them.
 
-What remains is the arc around the ball, which is a dial rather than a distance,
-and which a keyboard player needs because they have no drag in their hand to
-feel. Judging what the dial means in pixels is the game.
+What remains is the power meter, which is a dial rather than a distance, and
+which a keyboard player needs because they have no drag in their hand to feel.
+Judging what the dial means in pixels is the game.
+
+It is shown twice, on purpose. The ring around the ball is where the eye
+already is; the bar under the board is the same value at ten times the size,
+for the phone where your own thumb is over the ball. The bar sits *under* the
+board rather than over it because as an overlay it always covered something
+that mattered — pinned to the bottom it hid the ball on the hole teed off down
+there, and flipped to the top it hid the cup on that same hole. Neither meter
+carries a number.
+
+The bar's gradient is laid across the whole track and clipped back to the
+current power, not painted into a box that grows. Stretching one gradient into
+a shrinking box repaints every level a different colour every frame — half
+power would be red at half power and amber at full — and a meter whose colours
+move is not a meter.
+
+## The screen
+
+The board is a fixed 960×640 world scaled to fit whatever room there is, on
+**both** axes. It used to scale on width alone, which is right until the window
+is wider than it is tall — then a 3:2 board sized to the width runs off the
+bottom and you play the first two thirds of the hole. The smaller ratio wins
+and the leftover space becomes letterboxing, which is why the stage centres its
+canvas and paints its own background.
+
+The height budget is the viewport minus the chrome above the board, the page's
+own bottom padding, and the power meter. When what is left would squeeze the
+board below 70% of its natural height, the keyboard hints and the hazard key
+stand down and give it their pixels — on a 1440×700 laptop that is the
+difference between a 595px board and a 780px one. The measurement of those
+elements is cached from when they were last visible, because the decision to
+hide them has to be answerable while they are `display: none` or it oscillates.
+
+**Fullscreen** (the ⛶ button, or `F`) puts the wrap into the Fullscreen API —
+the scoreboard is part of the game, so it goes too; the reference text does
+not. The backing store is capped at three device pixels per world pixel, or a
+4K monitor at `devicePixelRatio` 2 would ask for a ten-megapixel canvas sixty
+times a second.
+
+## The round in progress
+
+Eighteen holes is a long sitting and a browser tab is a fragile place to keep
+one, so the card is written to `miniGolf.round.v1` after every hole and the
+game resumes there on load. What is not stored is the hole you were standing
+on — no ball position, no stroke count, no clock for the moving gates.
+Serialising the whole world would mean trusting it to still be legal after a
+course edit; resuming at the tee of that hole is a rule that fits in a sentence
+and cannot be wrong. You get the hole back, not the lie.
+
+A stored card is discarded rather than trusted when it is corrupt, when its
+index is off the end of the course, when the round never actually started, or
+when it was written for a course with a different number of holes — which is
+what happened to every nine-hole save the day this became eighteen.
 
 ## Tests
 
-Open `tests.html`. 269 assertions covering geometry, the integrator, the hazards,
-the course data and the scorecard, in about 700ms.
+Open `tests.html`. 284 assertions covering geometry, the integrator, the four
+surfaces, the course data, the scorecard and the resumable round, in about
+750ms.
 
 The one worth knowing about is the **bot**: a greedy player tries a fan of
 candidate shots on every hole, keeps the one that finishes nearest the cup, and
@@ -162,7 +223,8 @@ rule in the root README.
 
 ## Saving
 
-One key, `miniGolf.save.v1`: best round, that round's card, rounds played and a
-running ace count. The landing page reads the same key for the card's stat chip.
+Two keys. `miniGolf.round.v1` is the round in progress, described above.
+`miniGolf.save.v1` is the record: best round, that round's card, rounds played
+and a running ace count. The landing page reads the same key for the card's stat chip.
 Mute state lives separately under `miniGolf.muted`. Both writes are wrapped —
 a browser with storage disabled should cost you your records, not your round.

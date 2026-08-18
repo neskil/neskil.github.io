@@ -12,7 +12,8 @@
      water    center of the ball inside -> splash, one penalty stroke, replay
               the shot from where it was taken.
      sand     heavy friction while the ball's center is inside.
-     ice      almost no friction — about four times the roll of grass. The
+     rough    half the roll of grass — shapes a fairway without walling it in.
+     ice      almost no friction — close to three times the roll of grass. The
               ball goes where it was sent, not where it was aimed.
      bumpers  round posts, {x, y, r}. Bouncier than the cushions, and being
               round they answer a one-degree difference in approach with a
@@ -43,7 +44,11 @@
             par: 2,
             tee: { x: 140, y: 320 },
             hole: { x: 820, y: 320 },
-            walls: [r(450, 110, 24, 130), r(450, 400, 24, 130)]
+            walls: [r(450, 110, 24, 130), r(450, 400, 24, 130)],
+            // Rough along both cushions, so hole one already teaches the
+            // lesson the rest of the course examines: the bank shot is not
+            // free, and the middle of the field is where the ball wants to be.
+            rough: [r(0, 0, 960, 110), r(0, 530, 960, 110)]
         },
         {
             name: 'The Dogleg',
@@ -52,24 +57,35 @@
             tee: { x: 140, y: 530 },
             hole: { x: 830, y: 130 },
             walls: [r(300, 0, 240, 430)],
-            sand: [r(540, 440, 220, 200)]
+            sand: [r(540, 440, 220, 200)],
+            rough: [r(560, 0, 400, 70)]
         },
         {
             name: 'Bunker Hill',
-            blurb: 'Go the long way round, or take your chances in the sand.',
+            blurb: 'Straight up through the sand, or thread one of the two side doors.',
             par: 3,
-            tee: { x: 110, y: 320 },
-            hole: { x: 860, y: 320 },
-            walls: [r(400, 0, 24, 110), r(400, 530, 24, 110)],
-            sand: [r(400, 130, 230, 380)]
+            /* The one hole played up the field rather than across it. Every
+               other hole on the front nine reads left to right, which after a
+               while stops being a course and starts being a corridor. */
+            tee: { x: 480, y: 590 },
+            hole: { x: 480, y: 70 },
+            walls: [r(0, 300, 150, 26), r(810, 300, 150, 26)],
+            sand: [r(210, 250, 540, 130)]
         },
         {
             name: 'The Narrows',
-            blurb: 'A hundred and ten pixels of dry land. Good luck.',
-            par: 3,
-            tee: { x: 110, y: 320 },
-            hole: { x: 855, y: 320 },
-            water: [r(300, 0, 370, 265), r(300, 375, 370, 265)]
+            blurb: 'Three landings, each a hundred and twenty pixels wide, each one step up.',
+            par: 4,
+            /* A straight channel is one shot, aimed once. A staircase is the
+               same width of dry land and a different problem: the line that
+               clears the first step is in the water at the second, so the
+               distance has to be judged as well as the angle. */
+            tee: { x: 140, y: 360 },
+            hole: { x: 850, y: 200 },
+            water: [
+                r(280, 0, 220, 300), r(500, 0, 220, 220), r(720, 0, 240, 140),
+                r(280, 420, 220, 220), r(500, 340, 220, 300), r(720, 260, 240, 380)
+            ]
         },
         {
             name: 'Bank Shot',
@@ -77,14 +93,15 @@
             par: 3,
             tee: { x: 140, y: 490 },
             hole: { x: 840, y: 500 },
-            walls: [r(400, 300, 24, 340), r(700, 0, 24, 300)]
+            walls: [r(400, 300, 24, 340), r(700, 0, 24, 300)],
+            rough: [r(700, 570, 260, 70)]
         },
         {
             name: 'Traffic',
             blurb: 'Two gates, two rhythms, and neither of them is waiting.',
             par: 3,
-            tee: { x: 110, y: 320 },
-            hole: { x: 870, y: 320 },
+            tee: { x: 110, y: 520 },
+            hole: { x: 870, y: 150 },
             walls: [
                 { x: 400, y: 220, w: 26, h: 200, move: { axis: 'y', amp: 195, speed: 1.35, phase: 0 } },
                 { x: 640, y: 220, w: 26, h: 200, move: { axis: 'y', amp: 195, speed: 1.8, phase: Math.PI / 2 } }
@@ -136,10 +153,10 @@
             name: 'Cold Snap',
             blurb: 'The rink will not slow you down, and the far bank is a lake.',
             par: 3,
-            tee: { x: 110, y: 320 },
-            hole: { x: 800, y: 320 },
+            tee: { x: 110, y: 540 },
+            hole: { x: 790, y: 150 },
             water: [r(880, 0, 80, 640)],
-            ice: [r(320, 90, 340, 460)]
+            ice: [r(300, 80, 380, 470)]
         },
         {
             name: 'Pinball',
@@ -147,6 +164,7 @@
             par: 3,
             tee: { x: 100, y: 320 },
             hole: { x: 870, y: 320 },
+            rough: [r(0, 0, 960, 90), r(0, 550, 960, 90)],
             bumpers: [
                 post(370, 160, 26), post(370, 320, 26), post(370, 480, 26),
                 post(540, 240, 26), post(540, 400, 26),
@@ -185,8 +203,8 @@
             name: 'The Gauntlet',
             blurb: 'Time the gate, then survive what is behind it.',
             par: 4,
-            tee: { x: 100, y: 320 },
-            hole: { x: 890, y: 320 },
+            tee: { x: 100, y: 520 },
+            hole: { x: 890, y: 190 },
             walls: [
                 { x: 420, y: 200, w: 26, h: 220, move: { axis: 'y', amp: 180, speed: 1.5, phase: 0 } }
             ],
@@ -223,6 +241,7 @@
             hole: { x: 870, y: 110 },
             walls: [r(300, 0, 26, 470), r(600, 170, 26, 470)],
             sand: [r(650, 210, 160, 130)],
+            rough: [r(640, 430, 320, 210)],
             ice: [r(340, 480, 240, 160)]
         },
         {
@@ -247,7 +266,7 @@
        when it lists only the hazards it uses, and every consumer downstream
        gets to loop without a guard. */
     GOLF.COURSE.forEach(function (h) {
-        ['walls', 'water', 'sand', 'ice', 'bumpers', 'slopes'].forEach(function (key) {
+        ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (key) {
             if (!h[key]) h[key] = [];
         });
     });

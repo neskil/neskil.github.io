@@ -253,6 +253,43 @@
         })();
 
         (function () {
+            var scrub = {
+                name: 'rough', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], sand: [], ice: [], slopes: [],
+                rough: [rect(100, 200, 800, 240)]
+            };
+            var sandOverRough = {
+                name: 'sand over rough', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], ice: [], slopes: [],
+                sand: [rect(100, 200, 800, 240)],
+                rough: [rect(100, 200, 800, 240)]
+            };
+            var plain = {
+                name: 'grass', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], sand: [], ice: [], rough: [], slopes: []
+            };
+            var bunker = {
+                name: 'sand', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], ice: [], rough: [], slopes: [],
+                sand: [rect(100, 200, 800, 240)]
+            };
+            var soft2 = C.MAX_POWER * 0.4;
+            var g2 = P.simulateShot(plain, { x: 40, y: 320 }, 0, soft2);
+            var r2 = P.simulateShot(scrub, { x: 40, y: 320 }, 0, soft2);
+            var s2 = P.simulateShot(bunker, { x: 40, y: 320 }, 0, soft2);
+            var o2 = P.simulateShot(sandOverRough, { x: 40, y: 320 }, 0, soft2);
+            note('a two-fifths roll: ' + Math.round(g2.ball.x - 40) + 'px on grass, ' +
+                 Math.round(r2.ball.x - 40) + 'px in rough');
+            assert('rough is slower than grass', r2.ball.x < g2.ball.x - 80,
+                'rough ' + r2.ball.x.toFixed(0) + ' vs grass ' + g2.ball.x.toFixed(0));
+            assert('rough is kinder than sand', r2.ball.x > s2.ball.x + 80,
+                'rough ' + r2.ball.x.toFixed(0) + ' vs sand ' + s2.ball.x.toFixed(0));
+            assert('sand wins where sand and rough overlap', approx(o2.ball.x, s2.ball.x, 0.5),
+                'overlap ' + o2.ball.x.toFixed(1) + ' vs sand ' + s2.ball.x.toFixed(1));
+            assert('a hole with no rough list is fine', !isNaN(g2.ball.x));
+        })();
+
+        (function () {
             var lane = {
                 name: 'bumper', par: 3, tee: { x: 40, y: 320 }, hole: { x: -999, y: -999 },
                 walls: [], water: [], sand: [], slopes: [],
@@ -376,7 +413,7 @@
         (function () {
             var all = [], posts = [];
             GOLF.COURSE.forEach(function (h) {
-                all = all.concat(h.walls, h.water, h.sand, h.ice, h.slopes);
+                all = all.concat(h.walls, h.water, h.sand, h.rough, h.ice, h.slopes);
                 posts = posts.concat(h.bumpers);
             });
 
@@ -388,7 +425,7 @@
             // The normaliser exists so nothing downstream has to guard; if it
             // ever stops running, everything else fails in confusing ways.
             var lists = GOLF.COURSE.every(function (h) {
-                return ['walls', 'water', 'sand', 'ice', 'bumpers', 'slopes'].every(function (k) {
+                return ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].every(function (k) {
                     return Array.isArray(h[k]);
                 });
             });
@@ -406,7 +443,7 @@
             assert('every hole has a name and a blurb', named);
 
             // Hazards are not decoration: each one has to be in play somewhere.
-            ['walls', 'water', 'sand', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
+            ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
                 assert('the course uses ' + k + ' somewhere',
                     GOLF.COURSE.some(function (h) { return h[k].length > 0; }));
             });
@@ -561,6 +598,45 @@
             var bad = S.load.call(null);
             assert('load always returns a usable save object',
                 bad && typeof bad === 'object' && 'best' in bad);
+        })();
+
+        /* The round in progress. Eighteen holes is long enough that losing one
+           to a refresh matters, and every one of these rejections is a way a
+           stored card could come back wrong rather than merely absent. */
+        (function () {
+            var course = GOLF.COURSE;
+            var card = [];
+            card[0] = 3; card[1] = 2;
+
+            S.clearRound();
+            assert('no stored round means nothing to resume', S.loadRound(course) === null);
+
+            S.saveRound(2, card, course);
+            var back = S.loadRound(course);
+            assert('a stored round comes back', back !== null);
+            assert('it resumes on the hole it was left at', back && back.holeIndex === 2);
+            assert('the card comes back with it', back && back.scores[0] === 3 && back.scores[1] === 2);
+            assert('unplayed holes stay unplayed', back && typeof back.scores[5] !== 'number');
+
+            // Hole one with an empty card is not a round, it is a page load.
+            S.saveRound(0, [], course);
+            assert('a round that never started is not resumed', S.loadRound(course) === null);
+
+            // The nine-to-eighteen rewrite invalidated every stored card, and
+            // the next change to the hole count will do the same.
+            S.saveRound(2, card, course);
+            assert('a card from a course of another size is discarded',
+                S.loadRound(course.slice(0, 9)) === null);
+
+            var raw = localStorage.getItem(C.ROUND_KEY);
+            localStorage.setItem(C.ROUND_KEY, '{not json');
+            assert('corrupt storage is discarded, not thrown', S.loadRound(course) === null);
+            localStorage.setItem(C.ROUND_KEY, JSON.stringify({ holes: course.length, holeIndex: 99, scores: [3] }));
+            assert('an index off the end of the course is discarded', S.loadRound(course) === null);
+            if (raw) localStorage.setItem(C.ROUND_KEY, raw);
+
+            S.clearRound();
+            assert('clearing a round removes it', S.loadRound(course) === null);
         })();
 
         /* ── the bot ────────────────────────────────────────────────────── */

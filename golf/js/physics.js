@@ -21,6 +21,7 @@
     var LN_GRASS = Math.log(C.FRICTION_GRASS);
     var LN_SAND = Math.log(C.FRICTION_SAND);
     var LN_ICE = Math.log(C.FRICTION_ICE);
+    var LN_ROUGH = Math.log(C.FRICTION_ROUGH);
 
     var EMPTY = [];
 
@@ -137,13 +138,16 @@
             b.vy += slope.ay * dt;
         }
 
-        // Surface. Sand wins over ice where they overlap, on the grounds that
-        // a bunker under a frozen pond is the worse news of the two.
+        // Surface, worst first: a bunker under a frozen pond is the worse
+        // news of the two, and rough is what is left when nothing else claims
+        // the ball. One lookup wins outright — surfaces do not blend.
         var k = C.FRICTION_GRASS, lnK = LN_GRASS;
         if (zoneAt(course.sand, b.x, b.y)) {
             k = C.FRICTION_SAND; lnK = LN_SAND;
         } else if (zoneAt(course.ice, b.x, b.y)) {
             k = C.FRICTION_ICE; lnK = LN_ICE;
+        } else if (zoneAt(course.rough, b.x, b.y)) {
+            k = C.FRICTION_ROUGH; lnK = LN_ROUGH;
         }
 
         var decay = Math.pow(k, dt);

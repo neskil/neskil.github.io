@@ -32,7 +32,11 @@
 
     /* ── round state ────────────────────────────────────────────────────── */
 
-    function newRound() {
+    /* `resume` is true only on boot. Every other caller — the Play again
+       button, a fresh start — means a new round and says so. */
+    function newRound(resume) {
+        var carry = resume ? S.loadRound(GOLF.COURSE) : null;
+        if (!carry) S.clearRound();
         state = {
             holeIndex: 0,
             strokes: 0,
@@ -44,9 +48,13 @@
             phase: 'aim',          // aim | rolling | holed | finished
             splashAt: 0
         };
-        loadHole(0);
+        if (carry) state.scores = carry.scores;
+        loadHole(carry ? carry.holeIndex : 0);
         closeCard();
         syncHud();
+        if (carry) {
+            toast('Round resumed at hole ' + (carry.holeIndex + 1));
+        }
     }
 
     function loadHole(i) {
@@ -63,6 +71,7 @@
         state.phase = 'aim';
         R.effects.clear();
         $('banner').classList.remove('show');
+        S.saveRound(i, state.scores, GOLF.COURSE);
         syncHud();
     }
 
@@ -139,6 +148,9 @@
         }
 
         var last = state.holeIndex === GOLF.COURSE.length - 1;
+        // Written now rather than on the next tee, so closing the tab on the
+        // banner keeps the hole you just finished.
+        if (!last) S.saveRound(state.holeIndex + 1, state.scores, GOLF.COURSE);
         $('banner-term').textContent = term.label;
         $('banner-term').className = 'banner-term ' + term.kind;
         $('banner-detail').textContent = state.strokes + ' stroke' + (state.strokes === 1 ? '' : 's') +
@@ -158,6 +170,7 @@
     }
 
     function finishRound() {
+        S.clearRound();
         var res = S.recordRound(state.save, state.scores, GOLF.COURSE);
         state.save = S.save(res.save);
         state.phase = 'finished';
@@ -272,6 +285,7 @@
             var k = e.key;
 
             if (k === 'm' || k === 'M') { setMuted(A.toggleMute()); return; }
+            if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
             if (k === 'r' || k === 'R') { restartHole(); return; }
             if (k === 'Escape') { closeCard(); return; }
 
@@ -313,15 +327,114 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
+    /* Fit the board to whatever room there is, on both axes.
+
+       It used to scale on width alone, which is right until the window is
+       wider than it is tall — then a 3:2 board sized to the width runs off the
+       bottom of the screen and you play the first two thirds of the hole. Now
+       the smaller of the two ratios wins and the leftover space becomes
+       letterboxing, which is why .stage centres its canvas and paints its own
+       background. Fullscreen is the same calculation with the chrome hidden,
+       so it needs no special case beyond a bigger budget. */
+    var chromeH = 0;   // help + legend, remembered from when they were visible
+
     function resize() {
-        var wrap = $('stage');
-        var w = wrap.clientWidth;
+        var stage = $('stage');
+        var wrap = $('wrap');
+        var full = !!fullscreenEl();
+        var top = stage.getBoundingClientRect().top;
+
+        // Measure the reference text only while it is on screen, and keep the
+        // figure: the tight-mode decision below has to be answerable when the
+        // very elements it is about are display:none, or it oscillates.
+        if (!full && !document.body.classList.contains('is-tight')) {
+            var m = 0;
+            ['help', 'legend'].forEach(function (id) {
+                var el = $(id);
+                if (el) m += el.offsetHeight + 14;
+            });
+            if (m > 0) chromeH = m;
+        }
+
+        /* Short window: the key and the shortcuts stand down so the board can
+           have their pixels. On a 1440x700 laptop that is the difference
+           between a 595px board and a 778px one, and the legend is reference
+           material you read once — the board is the game. */
+        // The page's own bottom padding is part of the budget; without it the
+        // board fits the viewport and the document still scrolls by an inch.
+        var pad = full ? 14 : (parseFloat(getComputedStyle(document.body).paddingBottom) || 0) + 4;
+        var meter = $('power').offsetHeight + 10;   // always on, even in fullscreen
+        var room = window.innerHeight - top - pad - meter;
+        var tight = !full && (room - chromeH) < C.WORLD_H * 0.7;
+        document.body.classList.toggle('is-tight', tight);
+
+        var availH = room - ((full || tight) ? 0 : chromeH);
+        var availW = wrap.clientWidth;
+        scale = Math.max(0.3, Math.min(availW / C.WORLD_W, availH / C.WORLD_H));
+
+        // Keep the backing store sane: a 4K monitor at devicePixelRatio 2 would
+        // otherwise ask for a 10-megapixel canvas to redraw sixty times a second.
         var dpr = Math.min(window.devicePixelRatio || 1, 2);
-        scale = w / C.WORLD_W;
+        if (scale * dpr > 3) dpr = 3 / scale;
+
         canvas.width = Math.round(C.WORLD_W * scale * dpr);
         canvas.height = Math.round(C.WORLD_H * scale * dpr);
+        canvas.style.width = Math.round(C.WORLD_W * scale) + 'px';
         canvas.style.height = Math.round(C.WORLD_H * scale) + 'px';
         ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    }
+
+    /* ── fullscreen ─────────────────────────────────────────────────────── */
+
+    function fullscreenEl() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function canFullscreen() {
+        var el = $('wrap');
+        return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+    }
+
+    function toggleFullscreen() {
+        var el = $('wrap');
+        if (fullscreenEl()) {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+            var req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                // Older Safari resolves nothing and rejects nothing; guard both.
+                var r = req.call(el);
+                if (r && r.catch) r.catch(function () { toast('Fullscreen was refused'); });
+            }
+        }
+    }
+
+    function syncFullscreen() {
+        var on = !!fullscreenEl();
+        document.body.classList.toggle('is-full', on);
+        var btn = $('btn-full');
+        btn.textContent = on ? '⤡' : '⛶';
+        btn.setAttribute('aria-label', on ? 'Leave fullscreen' : 'Fullscreen');
+        // The browser resizes the element before it fires the event, but the
+        // hidden chrome has not been laid out yet on every engine.
+        resize();
+        requestAnimationFrame(resize);
+    }
+
+    /* ── power meter ────────────────────────────────────────────────────── */
+
+    /* The on-canvas gauge is where the eye already is, but it is small and it
+       sits under the player's own thumb on a phone. The bar under the board is
+       the same value at ten times the size — still no number on it, because
+       knowing the power to the percent is not the skill being tested. */
+    function syncPower() {
+        var a = state.aim;
+        var showing = a.active && state.phase === 'aim';
+        var frac = showing ? Math.max(0, Math.min(1, a.power / C.MAX_POWER)) : 0;
+        var el = $('power');
+        el.classList.toggle('show', showing);
+        $('power-fill').style.clipPath = 'inset(0 ' + ((1 - frac) * 100).toFixed(1) + '% 0 0)';
+        el.classList.toggle('hot', frac > 0.82);
     }
 
     var lastT = 0;
@@ -338,6 +451,7 @@
             lastBounceAt = now;
             A.bumper(P.speedOf(w.ball));
             R.effects.spark(w.ball.x, w.ball.y);
+            R.effects.ring(w.ball.x, w.ball.y, C.BALL_R + 6);
         } else if (ev.bounce && now - lastBounceAt > 45) {
             lastBounceAt = now;
             A.bounce(P.speedOf(w.ball));
@@ -369,6 +483,7 @@
             state.aim.angle = Math.atan2(w.course.hole.y - w.ball.y, w.course.hole.x - w.ball.x);
         }
 
+        syncPower();
         ctx.clearRect(0, 0, C.WORLD_W, C.WORLD_H);
         R.frame(ctx, state, dt);
     }
@@ -379,16 +494,23 @@
         canvas = $('board');
         ctx = canvas.getContext('2d');
 
-        newRound();
+        newRound(true);
         bindInput();
         setMuted(A.isMuted());
 
         $('banner-next').addEventListener('click', advanceHole);
+        if (canFullscreen()) {
+            $('btn-full').addEventListener('click', toggleFullscreen);
+            document.addEventListener('fullscreenchange', syncFullscreen);
+            document.addEventListener('webkitfullscreenchange', syncFullscreen);
+        } else {
+            $('btn-full').style.display = 'none';   // iPhone Safari, mostly
+        }
         $('btn-restart').addEventListener('click', restartHole);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-mute').addEventListener('click', function () { setMuted(A.toggleMute()); });
         $('card-close').addEventListener('click', closeCard);
-        $('card-again').addEventListener('click', function () { newRound(); });
+        $('card-again').addEventListener('click', function () { newRound(false); });
         $('scorecard').addEventListener('click', function (e) {
             if (e.target === $('scorecard')) closeCard();
         });
