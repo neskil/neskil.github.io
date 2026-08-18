@@ -7,7 +7,8 @@ everything else here, open `index.html` and it runs.
 It is a deliberate sibling of [Pocket Links](../golf/README.md) next door: same
 module split, same scoring vocabulary, same rule that the physics is pure and
 lives in exactly one file. The difference is a third axis, and everything that
-falls out of it.
+falls out of it — height, ledges, carries, and a bag of clubs to deal with
+them.
 
 ## Files
 
@@ -24,6 +25,33 @@ falls out of it.
 | `js/game.js` | Loop, input, and what a shot means. |
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness. Open it; green is green. |
+
+## The bag
+
+Four clubs, in `config.js`. A club is a loft and a ceiling on power and that is
+the whole of it — the simulation never hears the word "club", it is handed a
+launch angle and a speed exactly as before.
+
+| Club | Loft | Full swing | Carry | Total | What it is for |
+| --- | --- | --- | --- | --- | --- |
+| Putter | 0° | 7.5 | — | 6.0 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 4° | 17 | 2.2 | 14.1 | The reach club. Barely off the ground, and it runs. |
+| Chipper | 22° | 11 | 4.6 | 12.0 | Hops a rail — apex about half a unit — and keeps running. |
+| Wedge | 42° | 9.5 | 5.0 | 10.4 | The high one: apex over a unit, clears anything the courses put in the way, and does not run far when it lands. |
+
+Carry and total are measured on flat grass at a full swing, in world units.
+They are the numbers the courses are built against, and the last column is why
+the bag has four entries and not one: each club is longest at exactly one job.
+
+The carry figures are a design constraint, not a curiosity: **no club flies much
+past five units**, so a hole asking for more air than that has to offer a way
+round — a bridge, a ramp, a bank. `tests.html` measures the carry rather than
+trusting this table, and the bot plays every hole out of this bag rather than
+with any loft the physics would accept, so "the courses are solvable" means
+solvable with the clubs a player actually has.
+
+Picking a club keeps the power you had already pulled back, as a fraction of the
+swing. Swapping mid-aim is meant to be a comparison, not a reset.
 
 ## The model, in one paragraph
 
@@ -72,8 +100,14 @@ Where a hole wants an open edge — a shoreline, a ledge, a drop — it lists a
 likely way to break a new hole, which is why the tests check that the tee and
 the cup are clear of walls and that the bot can still finish.
 
-**Two rules a new hole has to respect**, both asserted in `tests.html` rather
+**Three rules a new hole has to respect**, all asserted in `tests.html` rather
 than left to memory:
+
+- **Something has to be on the line between the tee and the cup.** A wall, a
+  hazard, a change of surface, a slope, a step, or ground narrow enough that
+  missing costs you the ball. A hole you can finish by aiming at the flag and
+  letting go is a corridor, not a hole. The test walks that line and says which
+  of those it found, so a failure names the dud.
 
 - **No wall thinner than 0.24 units.** Substepping caps ball travel at half a
   radius (0.08) per step, which is what stops the ball tunnelling through a
@@ -102,6 +136,10 @@ copy, a dropped frame could change a score.
 
 Details that are easy to get wrong and are pinned by tests:
 
+- **Rolling costs `-ln(k)` of speed per unit travelled** — about 1.2/unit on
+  grass. That is the number behind every distance in this game: a full driver
+  at 17 runs out after some fourteen units, and a ramp at the far end of a long
+  run-up may be unclimbable however hard you hit it.
 - **Rolling uses the closed form of exponential drag**, not "decay the velocity,
   then move at the new velocity". The shortcut carries an O(dt) bias which the
   substep cap hides at speed and stops hiding below walking pace. With the
@@ -122,6 +160,24 @@ The cup pulls the ball inward while it is over the rim and only captures below
 fast one horseshoe out the far side. There is a height test too, so a lofted
 ball flying over the cup is not swallowed in mid-air.
 
+## The chrome
+
+Everything the player can reach lives in `index.html` and is wired in
+`game.js`; there is no framework and no state library, because there are about
+a dozen pieces of state and they all fit in one object.
+
+- **How to play** opens by itself on a first visit — before the course picker,
+  which appears when the rules are closed — and after that lives behind the `?`
+  button and `H`. The flag is one key in `localStorage`.
+- **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *stage*, not the
+  document, so the canvas and every overlay inside it come along and the page
+  chrome does not. The scoreboard above the canvas is gone in that mode, so a
+  compact hole/par/strokes/distance strip appears inside the stage instead.
+- **To cup** in the scoreboard counts down live while the ball rolls. It is the
+  number the club choice is actually about.
+- The **club bar** is generated from `CONFIG.CLUBS`, so a fifth club would need
+  no markup and no CSS.
+
 ## Rendering
 
 `render.js` is the only file that knows three.js exists. Everything it draws
@@ -132,9 +188,16 @@ ground so a raised green reads as a plateau rather than a slab in mid-air.
 Boards are the exception and stay thin — a jetty should look like a plank, not
 a causeway.
 
-Textures are drawn into canvases at load: grass with mow stripes, sand, planks,
-rock, and an opaque ripple map for water. No image files to ship and no requests
-to fail. Each of the three courses is a theme: sky gradient, fog colour matched
+Textures are drawn into canvases at load: grass, sand, planks, rock, and an
+opaque ripple map for water. No image files to ship and no requests to fail.
+The green is the one surface the camera is always looking at, so it gets the
+most attention — mow bands with a soft seam, broad mottling so the tiling does
+not show as a grid, a mat of blade strokes, and a bump map of the same blades so
+the light rakes across it. It is also the only surface on Phong rather than
+Lambert; a little sheen is the difference between mown grass and green paint.
+The ball gets its dimples the same way, as a hex grid of soft circles used as a
+bump map — a few thousand triangles saved on the one object the camera is always
+closest to. Each of the three courses is a theme: sky gradient, fog colour matched
 to the horizon so the ground plane fades instead of ending in a line, sun angle,
 palette.
 
@@ -144,18 +207,19 @@ line, which is what makes "drag left, aim left" true from any angle, and
 
 ## Tests
 
-Open `tests.html`. 322 assertions covering the surfaces, the collision
-geometry, the integrator, all eighteen holes of course data and the scorecard,
-in about a second.
+Open `tests.html`. 367 assertions covering the surfaces, the collision
+geometry, the integrator, the bag, all eighteen holes of course data and the
+scorecard, in about a second and a half.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all
 eighteen. If a hole is sealed off, unreachable, or has a cup buried where
 nothing can settle, the bot never holes out and the suite goes red. It runs off
-a seeded PRNG, so a failure is reproducible rather than "sometimes red", its
-candidates include a wait before striking (the timing holes are only solvable
-with one, and a bot that always fires at `t=0` would report a false failure),
-and a chosen shot has to actually go somewhere — without that rule the greedy
+a seeded PRNG, so a failure is reproducible rather than "sometimes red", it
+plays out of the same four clubs the player gets, its candidates include a wait
+before striking (the timing holes are only solvable with one, and a bot that
+always fires at `t=0` would report a false failure), and a chosen shot has to
+actually go somewhere — without that rule the greedy
 player parks in a corner where every legal shot looks worse than standing still
 and plays the same nothing until it runs out of strokes.
 
@@ -172,6 +236,15 @@ Works, and merging them would just reward playing the easy one. The landing
 page reads the same key for the card's stat chip. Mute state lives separately
 under `loftLinks.muted`. Both writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
+
+## Controls
+
+Drag back from the ball and let go; drag sideways to swing the aim, and the
+camera swings with it. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
+<kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
+cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
+overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>H</kbd>
+the rules, <kbd>M</kbd> sound. Scroll or pinch to zoom.
 
 ## Query parameters
 

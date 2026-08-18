@@ -35,7 +35,7 @@
             sun: 0xffe6bd, sunPos: [-8, 15, 6], ambient: 0xd8b58e, ambientI: 0.6,
             grass: ['#6f9c4e', '#628f45'],
             rail: 0xc7ae8c,
-            surroundY: -4.5, surround: 'rock',
+            surroundY: -2.4, surround: 'rock',
             water: 0x2f7fa8,
             side: '#8d7355'
         },
@@ -62,19 +62,63 @@
         return t;
     }
 
+    /* Grass is three things stacked: a mow pattern, a mat of blades, and dirt.
+       The mow bands are what make a green read as a surface rather than a flat
+       colour when the camera is low, the blades give it something for the light
+       to catch at close range, and the mottling stops the tiling from showing
+       as a grid on the big pads. */
     function grassTexture(theme) {
-        return canvasTex(256, function (g, s) {
+        return canvasTex(512, function (g, s) {
+            var i, n, x, y, a;
             g.fillStyle = theme.grass[0];
             g.fillRect(0, 0, s, s);
-            // Mow stripes: the reason a fairway reads as a surface and not a
-            // flat colour when the camera is low.
-            g.fillStyle = theme.grass[1];
-            for (var i = 0; i < s; i += 32) g.fillRect(0, i, s, 16);
-            for (var n = 0; n < 2600; n++) {
-                g.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.05) + ')';
-                g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
-                g.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.05) + ')';
-                g.fillRect(Math.random() * s, Math.random() * s, 2, 2);
+
+            // Mow bands, with a soft seam so the roller looks like a roller.
+            for (i = 0; i < s; i += 64) {
+                var grd = g.createLinearGradient(0, i, 0, i + 32);
+                grd.addColorStop(0, theme.grass[1]);
+                grd.addColorStop(1, theme.grass[0]);
+                g.fillStyle = grd;
+                g.fillRect(0, i, s, 32);
+            }
+
+            // Broad mottling: light and shade at a scale bigger than a blade.
+            for (n = 0; n < 90; n++) {
+                g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '255,255,255,' : '0,0,0,') +
+                    (0.015 + Math.random() * 0.03) + ')';
+                g.beginPath();
+                g.arc(Math.random() * s, Math.random() * s, 20 + Math.random() * 70, 0, 6.283);
+                g.fill();
+            }
+
+            // Blades: short strokes leaning a few degrees off vertical.
+            g.lineWidth = 1;
+            for (n = 0; n < 5200; n++) {
+                x = Math.random() * s; y = Math.random() * s;
+                a = (Math.random() - 0.5) * 0.5;
+                g.strokeStyle = Math.random() < 0.5
+                    ? 'rgba(255,255,255,' + (0.02 + Math.random() * 0.05) + ')'
+                    : 'rgba(0,0,0,' + (0.02 + Math.random() * 0.05) + ')';
+                g.beginPath();
+                g.moveTo(x, y);
+                g.lineTo(x + Math.sin(a) * 6, y - Math.cos(a) * 6);
+                g.stroke();
+            }
+        });
+    }
+
+    /* A height field for the same blades, so the light rakes across the green
+       instead of lying on it flat. Cheap: one greyscale canvas, no normal maths
+       — three.js turns a bump map into normals for us. */
+    function grassBump() {
+        return canvasTex(256, function (g, s) {
+            var n, x, y;
+            g.fillStyle = '#808080';
+            g.fillRect(0, 0, s, s);
+            for (n = 0; n < 5000; n++) {
+                x = Math.random() * s; y = Math.random() * s;
+                g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+                g.fillRect(x, y, 2, 3);
             }
         });
     }
@@ -201,7 +245,10 @@
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
 
+        R.maxAniso = R.renderer.capabilities.getMaxAnisotropy();
         R.tex.sand = sandTexture();
+        R.tex.grassBump = grassBump();
+        R.tex.dimple = dimpleTexture();
         R.tex.wood = woodTexture();
         R.tex.rough = roughTexture();
         R.tex.ripple = rippleTexture();
@@ -227,9 +274,41 @@
 
     /* ── persistent objects ─────────────────────────────────────────────── */
 
+    /* Dimples, as a bump map. Modelling them as geometry would cost a few
+       thousand triangles on the one object the camera is always closest to;
+       a hex grid of soft circles in a canvas costs nothing and reads the same
+       at every distance the game ever uses. */
+    function dimpleTexture() {
+        return canvasTex(256, function (g, s) {
+            var cols = 16, r = s / cols / 2, row, col, cx, cz, grd;
+            g.fillStyle = '#b4b4b4';
+            g.fillRect(0, 0, s, s);
+            for (row = 0; row < cols * 2; row++) {
+                for (col = 0; col < cols; col++) {
+                    cx = col * (s / cols) + (row % 2 ? r : 0) + r;
+                    cz = row * (s / (cols * 2)) + r / 2;
+                    grd = g.createRadialGradient(cx, cz, 0, cx, cz, r * 0.92);
+                    grd.addColorStop(0, '#3a3a3a');
+                    grd.addColorStop(0.72, '#a0a0a0');
+                    grd.addColorStop(1, '#ffffff');
+                    g.fillStyle = grd;
+                    g.beginPath();
+                    g.arc(cx, cz, r * 0.92, 0, 6.283);
+                    g.fill();
+                }
+            }
+        });
+    }
+
     function buildBall() {
-        var geo = new THREE.SphereGeometry(C.BALL_R, 26, 18);
-        var mat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 70, specular: 0x666666 });
+        var geo = new THREE.SphereGeometry(C.BALL_R, 32, 24);
+        var mat = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            bumpMap: R.tex.dimple,
+            bumpScale: 0.012,
+            shininess: 55,
+            specular: 0x9aa4ac
+        });
         R.ball = new THREE.Mesh(geo, mat);
         R.ball.castShadow = true;
         R.scene.add(R.ball);
@@ -341,17 +420,36 @@
         return new THREE.Mesh(new THREE.SphereGeometry(180, 24, 16), mat);
     }
 
-    function padMaterial(kind, theme, w, d) {
-        var tex;
-        if (kind === 'sand') tex = R.tex.sand.clone();
-        else if (kind === 'wood') tex = R.tex.wood.clone();
-        else if (kind === 'rough') tex = R.tex.rough.clone();
-        else tex = R.tex.grass.clone();
+    function tiled(base, w, d, scale) {
+        var tex = base.clone();
         tex.needsUpdate = true;
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(Math.max(1, w / 2), Math.max(1, d / 2));
+        tex.anisotropy = R.maxAniso;      // the grazing angles are most of the view
+        tex.repeat.set(Math.max(1, w / scale), Math.max(1, d / scale));
+        return tex;
+    }
+
+    function padMaterial(kind, theme, w, d) {
         var side = new THREE.MeshLambertMaterial({ color: new THREE.Color(theme.side) });
-        var top = new THREE.MeshLambertMaterial({ map: tex });
+        var top;
+        if (kind === 'sand') {
+            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.sand, w, d, 2) });
+        } else if (kind === 'wood') {
+            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.wood, w, d, 2) });
+        } else if (kind === 'rough') {
+            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.rough, w, d, 2) });
+        } else {
+            // Phong rather than Lambert on the greens only: a little sheen and
+            // a bump map is the difference between mown grass and green paint,
+            // and the greens are what the camera is looking at.
+            top = new THREE.MeshPhongMaterial({
+                map: tiled(R.tex.grass, w, d, 3.5),
+                bumpMap: tiled(R.tex.grassBump, w, d, 0.8),
+                bumpScale: 0.035,
+                shininess: 4,
+                specular: 0x1c2a18
+            });
+        }
         // Box material order: +x, -x, +y, -y, +z, -z.
         return [side, side, top, side, side, side];
     }

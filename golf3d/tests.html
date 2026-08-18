@@ -421,6 +421,14 @@
                 }
                 assert(tag + ': no two pads fight for the same ground', !clash, 'pads ' + clash);
 
+                /* Every hole has to put something on the line between the tee
+                   and the cup: a wall, a hazard, a change of surface, a slope
+                   or a step. A hole you can hole out on by aiming at the flag
+                   and letting go is a corridor, not a hole. */
+                var line = straightLineTrouble(h);
+                assert(tag + ': the direct line is not empty', line.length > 0,
+                    'nothing between the tee and the cup');
+
                 /* Whatever moves has to let the ball past. Not at every phase
                    — a sweeper's whole job is to block the line and then move
                    off it — but often enough that waiting is a tactic and not a
@@ -454,6 +462,62 @@
             note('tightest window on any moving obstacle: ' + worstGap.toFixed(2) + ' of aim at ' +
                  worstGapName + ' (ball is ' + (C.BALL_R * 2).toFixed(2) + ' across)');
 
+            /* What a ball would meet if it simply rolled from the tee to the
+               cup. Returns the kinds of trouble found, so a failure says which
+               hole is a plain corridor rather than just that one is. Walls are
+               sampled at a few phases, because a gate that is off the line at
+               t=0 is still on it a moment later. */
+            function straightLineTrouble(hole) {
+                var found = {}, teeY = hole.tee.y;
+                var dx = hole.cup.x - hole.tee.x, dz = hole.cup.z - hole.tee.z;
+                var len = Math.hypot(dx, dz), steps = Math.ceil(len / 0.1), i, t, x, z, surf, w, k, phase, B;
+
+                var px = -dz / len, pz = dx / len;      // perpendicular to the line
+
+                for (i = 1; i < steps; i++) {
+                    t = i / steps;
+                    x = hole.tee.x + dx * t;
+                    z = hole.tee.z + dz * t;
+
+                    surf = P.surfaceUnder(hole, x, z, Infinity);
+                    if (!surf) { found.gap = true; continue; }
+                    if (surf.pad.kind !== 'green') found[surf.pad.kind] = true;
+                    if (Math.abs(surf.pad.sx || 0) + Math.abs(surf.pad.sz || 0) > 0.05) found.slope = true;
+                    if (Math.abs(surf.y - teeY) > 0.25) found.step = true;
+                    // Water only counts if the line is over it rather than over
+                    // a walkway above it — a bridge is not a hazard.
+                    var pond = P.waterAt(hole, x, z);
+                    if (pond && surf.y <= pond.y + 0.01) found.water = true;
+                    // Ground narrow enough that missing the line costs you the
+                    // ball is a challenge whether or not anything is in the way.
+                    if (walkableWidth(hole, x, z, px, pz, surf.y) < 2.6) found.narrow = true;
+
+                    for (k = 0; k < hole.walls.length; k++) {
+                        w = hole.walls[k];
+                        for (phase = 0; phase < 4; phase++) {
+                            B = P.wallBox(w, phase * 0.6);
+                            if (surf.y + C.BALL_R - C.BALL_R >= B.top || surf.y + C.BALL_R + C.BALL_R <= B.base) continue;
+                            if (P.circleBox(x, z, C.BALL_R, B)) { found.wall = true; break; }
+                        }
+                    }
+                }
+                return Object.keys(found);
+            }
+
+            // How much ground there is either side of a point, across the line
+            // of play, before it runs out or steps away.
+            function walkableWidth(hole, x, z, px, pz, y) {
+                var total = 0, dir, step, s2;
+                for (dir = -1; dir <= 1; dir += 2) {
+                    for (step = 0.15; step <= 1.6; step += 0.15) {
+                        s2 = P.surfaceUnder(hole, x + px * dir * step, z + pz * dir * step, Infinity);
+                        if (!s2 || Math.abs(s2.y - y) > 0.3) break;
+                        total += 0.15;
+                    }
+                }
+                return total;
+            }
+
             // The widest stretch of open ground along a line, at a moment in
             // time. Used above to prove a gate cannot seal a hole shut.
             function widestGap(hole, z, t) {
@@ -472,6 +536,58 @@
                     if (open) { run += step; best = Math.max(best, run); } else { run = 0; }
                 }
                 return best;
+            }
+        })();
+
+        /* ── the bag ───────────────────────────────────────────────────── */
+
+        section('Clubs');
+        (function () {
+            var seenId = {}, seenKey = {}, flat = 0, longest = null;
+            assert('there is a bag', C.CLUBS.length >= 2);
+            C.CLUBS.forEach(function (club) {
+                assert(club.id + ': named, keyed and described',
+                    !!club.name && !!club.short && !!club.key && !!club.blurb);
+                assert(club.id + ': loft is inside what launch() will accept',
+                    club.loft >= 0 && club.loft <= C.MAX_LOFT,
+                    (club.loft * 180 / Math.PI).toFixed(1) + '°');
+                assert(club.id + ': a full swing is a legal shot',
+                    club.power > C.MIN_POWER && club.power <= C.MAX_POWER);
+                assert(club.id + ': the id is unique', !seenId[club.id]);
+                assert(club.id + ': the shortcut is unique', !seenKey[club.key]);
+                seenId[club.id] = seenKey[club.key] = true;
+                if (club.loft === 0) flat++;
+                if (!longest || club.power > longest.power) longest = club;
+            });
+            assert('at least one club rolls flat', flat >= 1);
+            assert('the longest club reaches the whole power range', longest.power === C.MAX_POWER);
+            assert('the default club is in the bag',
+                C.CLUBS.filter(function (c) { return c.id === C.DEFAULT_CLUB; }).length === 1);
+
+            // The bag has to be able to do the two things the courses ask of
+            // it: roll a long way, and go over something.
+            var open = lab({ pads: [A.pad(0, 0, 10, 40)], cup: { x: 9, z: 39 } });
+            var reach = 0;
+            C.CLUBS.forEach(function (club) {
+                var w = shootFrom(open, { x: 5, z: 1 }, 0, club.power, club.loft);
+                reach = Math.max(reach, w.ball.z - 1);
+            });
+            assert('some club reaches ten units in one shot', reach > 10, 'best is ' + reach.toFixed(1));
+
+            /* The wedge tops out around five and a half units of carry, so the
+               rail goes where a lofted club is over it and a rolling one is
+               not — about two and a half units out. Any hole asking for more
+               air than that has to offer a way round. */
+            var fence = lab({ walls: [A.wall(0, 4.6, 10, 0.4, 0.5, { base: 0 })] });
+            var carried = C.CLUBS.some(function (club) {
+                return shootFrom(fence, { x: 5, z: 2 }, 0, club.power, club.loft).ball.z > 5.2;
+            });
+            assert('some club carries a rail the putter would bounce off', carried);
+            assert('and the putter is not that club',
+                shootFrom(fence, { x: 5, z: 2 }, 0, clubOf('putter').power, clubOf('putter').loft).ball.z < 4.8);
+
+            function clubOf(id) {
+                return C.CLUBS.filter(function (c) { return c.id === id; })[0];
             }
         })();
 
@@ -566,6 +682,10 @@
                nearest the cup, repeat. Two refinements around the best coarse
                shot give it the precision to actually hole out.
 
+               It plays out of the same bag the player gets, so this is a test
+               that the holes are solvable with the clubs that exist rather than
+               with any loft the physics would accept.
+
                Two details matter. Holes with moving parts get candidates that
                wait before striking, because a bot that always fires at t=0
                would report a false failure on a timing hole. And a chosen shot
@@ -580,8 +700,8 @@
                 var here = d2(from, cup);
                 var best = null;
 
-                function consider(yaw, power, loft, wait) {
-                    var w = trial(hole, from, yaw, power, loft, time + wait);
+                function consider(yaw, club, power, wait) {
+                    var w = trial(hole, from, yaw, power, club.loft, time + wait);
                     if (!w) return;
                     var moved = Math.hypot(w.ball.x - from.x, w.ball.z - from.z);
                     var s;
@@ -589,33 +709,35 @@
                     else if (w.splash || w.out) s = 500 + d2(w.origin, cup);
                     else s = d2(w.ball, cup);
                     if (!w.sunk && moved < 1 && s >= here) return;
-                    if (!best || s < best.s) best = { s: s, yaw: yaw, power: power, loft: loft, wait: wait, world: w };
+                    if (!best || s < best.s) best = { s: s, yaw: yaw, club: club, power: power, wait: wait, world: w };
                 }
 
-                var i, j, N = 16, powers = [4.5, 8, 11, 14];
-                for (i = 0; i < N; i++) {
-                    for (j = 0; j < powers.length; j++) consider(base + (i / N) * Math.PI * 2, powers[j], 0, 0);
-                }
-                for (i = 0; i < 4; i++) consider(base + (rnd() - 0.5) * 2, 3 + rnd() * 11, rnd() * 0.7, 0);
+                var i, N = 16;
+                C.CLUBS.forEach(function (club) {
+                    for (i = 0; i < N; i++) {
+                        [0.35, 0.7, 1].forEach(function (f) {
+                            consider(base + (i / N) * Math.PI * 2, club, club.power * f, 0);
+                        });
+                    }
+                });
 
                 var b0 = best;
                 if (!b0) return null;
                 [-2, -1, 0, 1, 2].forEach(function (k) {
-                    [-2, 0, 2].forEach(function (dp) {
-                        [0, 0.45, 0.72].forEach(function (loft) {
+                    C.CLUBS.forEach(function (club) {
+                        [0.25, 0.5, 0.75, 1].forEach(function (f) {
                             waits.forEach(function (wait) {
-                                consider(b0.yaw + k * 0.11,
-                                    Math.max(1, Math.min(C.MAX_POWER, b0.power + dp)), loft, wait);
+                                consider(b0.yaw + k * 0.11, club, club.power * f, wait);
                             });
                         });
                     });
                 });
                 var b1 = best;
                 [-3, -2, -1, 0, 1, 2, 3].forEach(function (k) {
-                    [-0.7, 0, 0.7].forEach(function (dp) {
+                    [-0.7, -0.35, 0, 0.35, 0.7].forEach(function (dp) {
                         waits.forEach(function (wait) {
-                            consider(b1.yaw + k * 0.03,
-                                Math.max(1, Math.min(C.MAX_POWER, b1.power + dp)), b1.loft, wait);
+                            consider(b1.yaw + k * 0.03, b1.club,
+                                Math.max(C.MIN_POWER, Math.min(b1.club.power, b1.power + dp)), wait);
                         });
                     });
                 });
@@ -646,7 +768,7 @@
             ALL.forEach(function (entry) {
                 var h = entry.hole;
                 var r = play(h, 12345, 8);
-                assert(entry.course.id + '/' + h.name + ': the bot holes out (par ' + h.par + ')',
+                assert(entry.course.id + '/' + h.name + ': the bot holes out with the clubs it has (par ' + h.par + ')',
                     r.sunk, r.sunk ? '' : 'gave up after ' + r.strokes + ' strokes');
                 if (r.sunk) {
                     assert(entry.course.id + '/' + h.name + ': and does it in a plausible number of strokes',

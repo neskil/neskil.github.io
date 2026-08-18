@@ -25,6 +25,13 @@
 
     function $(id) { return document.getElementById(id); }
 
+    function clubById(id) {
+        for (var i = 0; i < C.CLUBS.length; i++) {
+            if (C.CLUBS[i].id === id) return C.CLUBS[i];
+        }
+        return C.CLUBS[0];
+    }
+
     function toast(msg, kind) {
         var el = $('toast');
         el.textContent = msg;
@@ -43,7 +50,8 @@
             strokes: 0,
             scores: [],
             world: null,
-            aim: { yaw: 0, power: 0, loft: 0, show: false, dragging: false },
+            aim: { yaw: 0, power: 0, show: false },
+            club: clubById(state && state.club ? state.club.id : C.DEFAULT_CLUB),
             drag: null,
             save: state && state.save ? state.save : S.load(),
             phase: 'aim'
@@ -79,13 +87,25 @@
     function shoot() {
         if (state.phase !== 'aim') return;
         if (state.aim.power < C.MIN_POWER) return;
-        if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.aim.loft)) return;
+        if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.club.loft)) return;
         state.strokes++;
         state.phase = 'rolling';
         state.aim.show = false;
-        A.putt(state.aim.power / C.MAX_POWER);
+        A.putt(state.aim.power / state.club.power);
         state.aim.power = 0;
         syncHud();
+    }
+
+    /* Picking a club is picking a loft and a ceiling on power. The power
+       already loaded is kept as a fraction of the swing, so swapping clubs
+       mid-aim changes the shot rather than resetting it. */
+    function pickClub(club) {
+        if (!club || club === state.club) return;
+        var frac = state.aim.power / state.club.power;
+        state.club = club;
+        state.aim.power = Math.min(club.power, frac * club.power);
+        syncClubs();
+        syncPower();
     }
 
     function handleEvents(ev) {
@@ -187,15 +207,61 @@
         $('best-round').textContent = rec.best === null
             ? '—'
             : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
+
+        syncDistance();
+        syncClubs();
         syncPower();
+
+        // The compact overlay only shows in fullscreen, where the scoreboard
+        // above the canvas is off screen.
+        $('shud-hole').textContent = 'Hole ' + (state.holeIndex + 1) + '/' + state.course.holes.length;
+        $('shud-par').textContent = 'Par ' + hole.par;
+        $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
+    }
+
+    // How far there is left to go, which is the number the club choice is
+    // really about. Updated every frame while the ball is rolling.
+    function syncDistance() {
+        var b = state.world.ball, cup = state.course.holes[state.holeIndex].cup;
+        var d = Math.hypot(cup.x - b.x, cup.z - b.z);
+        var text = state.world.sunk ? 'in' : d.toFixed(1) + ' m';
+        $('to-cup').textContent = text;
+        $('shud-dist').textContent = text;
     }
 
     function syncPower() {
-        var frac = Math.max(0, Math.min(1, state.aim.power / C.MAX_POWER));
+        var club = state.club;
+        var frac = Math.max(0, Math.min(1, state.aim.power / club.power));
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
         $('power-fill').style.background = 'hsl(' + (120 - 120 * frac) + ' 85% 55%)';
-        $('loft-val').textContent = Math.round(state.aim.loft * 180 / Math.PI) + '°';
-        $('loft').value = Math.round(state.aim.loft * 180 / Math.PI);
+        $('power-val').textContent = Math.round(frac * 100) + '%';
+    }
+
+    // The bag is drawn from the config, so a fifth club would need no markup.
+    function buildClubs() {
+        var host = $('clubs');
+        host.innerHTML = '';
+        C.CLUBS.forEach(function (club) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'club';
+            b.dataset.club = club.id;
+            b.title = club.name + ' — ' + club.blurb + ' (' + club.key + ')';
+            b.setAttribute('aria-label', club.name + '. ' + club.blurb);
+            b.innerHTML = '<span class="club-key">' + club.key + '</span>' +
+                '<span class="club-name">' + club.name + '</span>' +
+                '<span class="club-loft">' + Math.round(club.loft * 180 / Math.PI) + '°</span>';
+            b.addEventListener('click', function () { pickClub(club); });
+            host.appendChild(b);
+        });
+    }
+
+    function syncClubs() {
+        var host = $('clubs'), i, kids = host.children;
+        for (i = 0; i < kids.length; i++) {
+            kids[i].classList.toggle('on', kids[i].dataset.club === state.club.id);
+        }
+        $('club-hint').textContent = state.club.blurb;
     }
 
     /* ── input ──────────────────────────────────────────────────────────── */
@@ -241,7 +307,7 @@
         // Drag right, aim right: screen-right is -x when the camera sits behind
         // the ball, so the yaw goes the other way.
         state.aim.yaw = state.drag.yaw - dx * YAW_PER_PX;
-        state.aim.power = Math.max(0, Math.min(1, dy / C.DRAG_MAX)) * C.MAX_POWER;
+        state.aim.power = Math.max(0, Math.min(1, dy / C.DRAG_MAX)) * state.club.power;
         syncPower();
     }
 
@@ -258,11 +324,6 @@
         R.cam.dist = Math.max(4, Math.min(24, R.cam.dist + delta));
     }
 
-    function setLoft(deg) {
-        state.aim.loft = Math.max(0, Math.min(C.MAX_LOFT, deg * Math.PI / 180));
-        syncPower();
-    }
-
     function onKey(e) {
         if (!state) return;
         var fine = e.shiftKey;
@@ -271,8 +332,17 @@
         if (k === 'm' || k === 'M') { toggleMute(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { toggleOverview(); return; }
-        if (k === '[') { setLoft(Math.round(state.aim.loft * 180 / Math.PI) - 5); return; }
-        if (k === ']') { setLoft(Math.round(state.aim.loft * 180 / Math.PI) + 5); return; }
+        if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
+        if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
+        if (k === 'Escape') { closeHowTo(); return; }
+        if (k >= '1' && k <= '9') {
+            var byKey = C.CLUBS.filter(function (c) { return c.key === k; })[0];
+            if (byKey) { pickClub(byKey); return; }
+        }
+        if (k === 'c' || k === 'C') {
+            pickClub(C.CLUBS[(C.CLUBS.indexOf(state.club) + 1) % C.CLUBS.length]);
+            return;
+        }
 
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) { e.preventDefault(); nextHole(); return; }
         if (state.phase !== 'aim') return;
@@ -293,6 +363,49 @@
     function toggleOverview() {
         R.cam.overview = !R.cam.overview;
         $('btn-view').classList.toggle('on', R.cam.overview);
+    }
+
+    /* Fullscreen is on the stage, not the document, so the canvas and every
+       overlay inside it (power, clubs, banner, toast) come along and the page
+       chrome does not. Vendor-prefixed for the Safaris that still need it. */
+    function fullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function toggleFullscreen() {
+        var stage = $('stage');
+        if (fullscreenElement()) {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else if (stage.requestFullscreen || stage.webkitRequestFullscreen) {
+            (stage.requestFullscreen || stage.webkitRequestFullscreen).call(stage);
+        } else {
+            toast('This browser will not do fullscreen here');
+        }
+    }
+
+    function onFullscreenChange() {
+        var on = !!fullscreenElement();
+        $('btn-full').classList.toggle('on', on);
+        document.body.classList.toggle('is-full', on);
+        // The canvas has a new size the moment the browser swaps modes, and
+        // again when it swaps back.
+        setTimeout(function () { R.resize(); }, 60);
+    }
+
+    var menuAfterHowTo = false;
+
+    function openHowTo() { $('howto').className = 'modal show'; }
+
+    function closeHowTo() {
+        $('howto').className = 'modal';
+        try { localStorage.setItem(C.SEEN_KEY, '1'); } catch (e) { /* ignore */ }
+        // On a first visit the rules come before the course list, so the list
+        // is what you get when you have read them.
+        if (menuAfterHowTo) { menuAfterHowTo = false; openMenu(); }
+    }
+
+    function seenHowTo() {
+        try { return localStorage.getItem(C.SEEN_KEY) === '1'; } catch (e) { return true; }
     }
 
     function toggleMute() {
@@ -366,6 +479,7 @@
         if (state.phase === 'rolling') {
             var ev = P.advance(state.world, dt, {});
             handleEvents(ev);
+            syncDistance();
             if (P.done(state.world)) endShot();
         } else {
             // Gates and blades keep their own time whether or not the ball is
@@ -378,7 +492,7 @@
             show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
             yaw: state.aim.yaw,
             power: state.aim.power,
-            loft: state.aim.loft
+            loft: state.club.loft
         });
     }
 
@@ -423,14 +537,21 @@
         $('btn-courses').addEventListener('click', openMenu);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', toggleOverview);
+        $('btn-full').addEventListener('click', toggleFullscreen);
+        $('btn-help').addEventListener('click', openHowTo);
+        $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
+        $('howto-close').addEventListener('click', closeHowTo);
+        $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', onFullscreenChange);
         $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('menu-close').addEventListener('click', function () {
             if (state && state.world) closeMenu();
         });
-        $('loft').addEventListener('input', function () { setLoft(parseFloat(this.value)); });
 
+        buildClubs();
         if (A.isMuted()) $('btn-mute').textContent = '🔇';
 
         var q = params();
@@ -443,9 +564,15 @@
             }
         } else {
             // Something has to be on screen behind the menu, and the first hole
-            // of the first course is as good an advert as any.
+            // of the first course is as good an advert as any. A first-time
+            // player gets the rules before the course list.
             newRound(G3.COURSES[0].id);
-            openMenu();
+            if (seenHowTo()) {
+                openMenu();
+            } else {
+                menuAfterHowTo = true;
+                openHowTo();
+            }
         }
 
         last = performance.now();
@@ -455,6 +582,13 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 
-    G3.game = { newRound: newRound, restartHole: restartHole, get state() { return state; } };
+    G3.game = {
+        newRound: newRound,
+        restartHole: restartHole,
+        pickClub: pickClub,
+        toggleFullscreen: toggleFullscreen,
+        openHowTo: openHowTo,
+        get state() { return state; }
+    };
 
 })(window.G3);
