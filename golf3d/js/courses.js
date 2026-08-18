@@ -199,10 +199,14 @@
 
     var seaside = [
         build({
-            name: 'Sea Legs', par: 2,
-            blurb: 'Straight up the strip. Find your pace before the sea does.',
-            pads: [pad(0, 0, 5, 14)],
-            tee: { x: 2.5, z: 2 }, cup: { x: 2.5, z: 11.6 }
+            name: 'Sea Legs', par: 3,
+            blurb: 'Right, then left, then in. Find your pace before the sea does.',
+            pads: [pad(0, 0, 6, 15)],
+            extra: [
+                wall(-0.2, 5.4, 3.6, 0.35, 0.55, { base: -0.1 }),
+                wall(2.6, 9.4, 3.6, 0.35, 0.55, { base: -0.1 })
+            ],
+            tee: { x: 4.4, z: 1.6 }, cup: { x: 1.6, z: 13 }
         }),
         build({
             name: 'The Bend', par: 3,
@@ -293,12 +297,13 @@
         }),
         build({
             name: 'Halfpipe', par: 3,
-            blurb: 'Two banks and a gutter. Use the walls, they are doing the work.',
+            blurb: 'The gutter is blocked halfway. Ride a bank round it.',
             pads: [
                 pad(0, 0, 2.5, 15, 1.25, 'green', -0.5, 0),
                 pad(2.5, 0, 2, 15),
                 pad(4.5, 0, 2.5, 15, 0, 'green', 0.5, 0)
             ],
+            extra: [wall(2.5, 7.6, 2, 0.4, 0.55, { base: -0.1 })],
             tee: { x: 3.5, z: 1.5 }, cup: { x: 3.5, z: 13 }
         }),
         build({

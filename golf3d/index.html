@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loft Links — 3D Mini Golf, Three Courses | Niklas Billgren</title>
-    <meta name="description" content="A 3D mini golf game in the browser: three eighteen— no, six-hole courses with ramps, ledges, water carries, sliding gates and windmill blades. Drag to aim, add loft, mind the drop. No install, no account, works on a phone.">
+    <meta name="description" content="A 3D mini golf game in the browser: three six-hole courses of ramps, ledges, water carries, sliding gates and windmill blades. Drag to aim, pick a club, mind the drop. No install, no account, works on a phone.">
     <meta name="theme-color" content="#0b1c2c">
     <meta name="color-scheme" content="dark">
     <meta name="author" content="Niklas Billgren">
     <link rel="canonical" href="https://neskil.github.io/golf3d/">
     <meta property="og:site_name" content="Niklas Billgren">
     <meta property="og:title" content="Loft Links — 3D Mini Golf">
-    <meta property="og:description" content="Three courses of 3D mini golf: seaside greens, a quarry full of ramps and ledges, and a workshop where everything moves. Drag to aim, add loft, try to beat par.">
+    <meta property="og:description" content="Three courses of 3D mini golf: seaside greens, a quarry full of ramps and ledges, and a workshop where everything moves. Drag to aim, pick a club, try to beat par.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://neskil.github.io/golf3d/">
     <meta property="og:image" content="https://neskil.github.io/assets/og/golf3d.png">
@@ -40,13 +40,15 @@
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div>
                 <h1 class="title">Loft <span>Links</span></h1>
-                <p class="tagline">Three courses. Eighteen holes. One club, and it goes up.</p>
+                <p class="tagline">Three courses. Eighteen holes. Four clubs, and one of them flies.</p>
             </div>
             <div class="topbar-actions">
                 <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
-                <button class="chip" id="btn-view" title="Overview (V)">Overview</button>
+                <button class="chip" id="btn-view" title="Look at the whole hole (V)">Overview</button>
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?</button>
+                <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
                 <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
             </div>
         </div>
@@ -73,20 +75,29 @@
                 <div class="stat-label">To par</div>
                 <div class="stat-value" id="total-vspar">—</div>
             </div>
+            <div class="stat">
+                <div class="stat-label">To cup</div>
+                <div class="stat-value" id="to-cup">—</div>
+            </div>
         </div>
 
         <div class="stage" id="stage">
             <canvas id="board" aria-label="3D mini golf course"></canvas>
 
+            <div class="stage-hud" id="stage-hud">
+                <span id="shud-hole">Hole 1/6</span>
+                <span id="shud-par">Par 3</span>
+                <span id="shud-strokes">0 strokes</span>
+                <span id="shud-dist">—</span>
+            </div>
+
             <div class="controls">
+                <div class="clubs" id="clubs" role="group" aria-label="Club"></div>
                 <div class="power">
-                    <span class="ctl-label">Power</span>
+                    <span class="ctl-label">Power <b id="power-val">0%</b></span>
                     <div class="power-track"><div class="power-fill" id="power-fill"></div></div>
+                    <span class="club-hint" id="club-hint"></span>
                 </div>
-                <label class="loft">
-                    <span class="ctl-label">Loft <b id="loft-val">0°</b></span>
-                    <input type="range" id="loft" min="0" max="45" step="1" value="0" aria-label="Loft angle in degrees">
-                </label>
             </div>
 
             <div class="banner" id="banner">
@@ -106,10 +117,11 @@
 
         <div class="help">
             <span><b>Drag back</b> from the ball to load a shot; let go to hit. Drag sideways to swing the aim.</span>
-            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>[</kbd><kbd>]</kbd> loft
+            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> hit (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> overview · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · scroll to zoom</span>
             <span class="touch-help">Pinch to zoom. Turn your phone sideways for a bigger course.</span>
+            <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
 
         <div class="legend">
@@ -120,6 +132,49 @@
             <span><i class="sw-gate"></i>Sliding gate</span>
             <span><i class="sw-blade"></i>Spinning blade</span>
             <span>Course best: <b id="best-round">—</b></span>
+        </div>
+    </div>
+
+    <div class="modal" id="howto">
+        <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+            <h2 id="howto-title">How to play</h2>
+            <p class="sub">Mini golf, three dimensions, four clubs. Ninety seconds of reading.</p>
+
+            <ol class="steps">
+                <li>
+                    <b>Drag back, let go.</b> Press anywhere on the course and pull away from the
+                    ball like a slingshot: how far you pull is how hard you hit. Drag sideways to
+                    swing the aim — the camera swings with it, so you are always looking down the
+                    line you will hit along. Let go to play the shot.
+                </li>
+                <li>
+                    <b>Pick a club.</b> The bag is under the course, or keys <kbd>1</kbd>–<kbd>4</kbd>.
+                    The <b>putter</b> rolls flat and stops where you tell it, the <b>driver</b> is the
+                    reach club, the <b>chipper</b> hops a rail and keeps running, and the <b>wedge</b>
+                    goes up and over water and sand. Each one has its own ceiling on power, so a
+                    full swing means something different in every hand.
+                </li>
+                <li>
+                    <b>Read the hole first.</b> <kbd>V</kbd> lifts the camera above the whole hole;
+                    scroll or pinch to zoom. The dotted line in front of the ball is where the shot
+                    starts out — it is real physics, so it tells you the truth about rails and ramps.
+                </li>
+                <li>
+                    <b>Mind the water.</b> A splash or a fall off the edge costs one stroke and you
+                    play again from where you hit. Sand is heavy going, boards are quick, and a
+                    tilted green breaks the ball downhill the whole way.
+                </li>
+            </ol>
+
+            <p class="sub kb-help">
+                <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit ·
+                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview · <kbd>F</kbd> fullscreen ·
+                <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
+            </p>
+
+            <div class="modal-actions">
+                <button type="button" class="primary" id="howto-close">Got it — let me play</button>
+            </div>
         </div>
     </div>
 

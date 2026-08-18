@@ -32,13 +32,47 @@ G3.CONFIG = {
     },
     FRICTION_DEFAULT: 0.30,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 11.6 units on grass. The
-       longest hole is a little over that, so the big fields need two shots and
-       the short ones are drivable — the skill is in not overcooking it. */
-    MAX_POWER: 14,
+    /* At full power the ball coasts v0 / -ln(k) ≈ 14 units on grass, which is
+       most of the way down the longest hole. Nearly everything is reachable
+       with one big swing, so the skill is in not overcooking it — a fast ball
+       horseshoes out of the cup, hops the rails and lands in the water. */
+    MAX_POWER: 17,
     MIN_POWER: 0.9,
-    DRAG_MAX: 190,        // px of screen pull-back that equals MAX_POWER
+    DRAG_MAX: 190,        // px of screen pull-back that equals a full swing
     MAX_LOFT: 45 * Math.PI / 180,
+
+    /* The bag. A club is a loft and a ceiling on power, and that is the whole
+       of it — the simulation never hears the word "club", it is handed a launch
+       angle and a speed like before. Picking one is picking a trade: the driver
+       has the reach, the wedge has the height to clear what the driver would
+       bounce off, and the putter's ceiling is low enough that full power is
+       still a tap.
+
+       Order matters: it is the order they appear in the bag and the order the
+       number keys select. */
+    CLUBS: [
+        {
+            id: 'putter', name: 'Putter', short: 'PT', key: '1',
+            loft: 0, power: 7.5,
+            blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
+        },
+        {
+            id: 'driver', name: 'Driver', short: 'DR', key: '2',
+            loft: 4 * Math.PI / 180, power: 17,
+            blurb: 'The reach club. Barely off the ground, and it runs.'
+        },
+        {
+            id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
+            loft: 22 * Math.PI / 180, power: 11,
+            blurb: 'Hops a rail and keeps running. The all-rounder.'
+        },
+        {
+            id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
+            loft: 42 * Math.PI / 180, power: 9.5,
+            blurb: 'Up and over water, sand and anything else in the way.'
+        }
+    ],
+    DEFAULT_CLUB: 'driver',
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
     BOUNCE: 0.34,         // vertical speed kept after landing
@@ -67,5 +101,6 @@ G3.CONFIG = {
     OOB_PENALTY: 1,
 
     SAVE_KEY: 'loftLinks.save.v1',
-    MUTE_KEY: 'loftLinks.muted'
+    MUTE_KEY: 'loftLinks.muted',
+    SEEN_KEY: 'loftLinks.seenHowTo'
 };
