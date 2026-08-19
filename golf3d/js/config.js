@@ -39,13 +39,19 @@ G3.CONFIG = {
     },
     FRICTION_DEFAULT: 0.30,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 14 units on grass, which is
-       most of the way down the longest hole. Nearly everything is reachable
-       with one big swing, so the skill is in not overcooking it — a fast ball
-       horseshoes out of the cup, hops the rails and lands in the water. */
-    MAX_POWER: 17,
+    /* At full power the ball coasts v0 / -ln(k) ≈ 18 units on grass, which is
+       the length of the longest hole and then some. Everything is reachable
+       with one big swing, so the skill is entirely in not overcooking it — the
+       cup will not take a ball arriving much above 7, and a driver that has
+       only run half its length is doing about 9. */
+    MAX_POWER: 22,
     MIN_POWER: 0.9,
-    DRAG_MAX: 190,        // px of screen pull-back that equals a full swing
+
+    /* How far the ball has to be pulled back, in pixels, for a full swing. The
+       longer this is the more precisely a half shot can be set, and the more a
+       big one feels like winding up; too long and it will not fit on a phone
+       in portrait. */
+    DRAG_MAX: 230,
     MAX_LOFT: 45 * Math.PI / 180,
 
     /* The bag. A club is a loft and a ceiling on power, and that is the whole
@@ -60,22 +66,22 @@ G3.CONFIG = {
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
-            loft: 0, power: 7.5,
+            loft: 0, power: 8.5,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 17,
+            loft: 4 * Math.PI / 180, power: 22,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
         {
             id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
-            loft: 22 * Math.PI / 180, power: 11,
+            loft: 22 * Math.PI / 180, power: 12,
             blurb: 'Hops a rail and keeps running. The all-rounder.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
-            loft: 42 * Math.PI / 180, power: 9.5,
+            loft: 42 * Math.PI / 180, power: 10,
             blurb: 'Up and over water, sand and anything else in the way.'
         }
     ],
@@ -103,6 +109,13 @@ G3.CONFIG = {
     OOB_Y: -6,            // fall past this and the shot is lost
     WATER_PENALTY: 1,
     OOB_PENALTY: 1,
+
+    /* Feel. None of this touches the simulation — it is what the shot looks
+       and sounds like while you are winding it up and after you let go. */
+    OVERSWING: 0.85,      // past this fraction the meter turns and the arrow reddens
+    DRAG_DEADZONE: 8,     // px of slack before a press counts as a pull
+    KICK: 0.55,           // camera punch on impact, in units of pull-back
+    TRAIL: 56,            // ball trail samples
 
     SAVE_KEY: 'loftLinks.save.v1',
     MUTE_KEY: 'loftLinks.muted',

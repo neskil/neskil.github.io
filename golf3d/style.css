@@ -314,18 +314,40 @@ canvas:active { cursor: grabbing; }
 .ctl-label b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
 .power-track {
-    height: 9px;
-    border-radius: 6px;
-    background: rgba(3, 12, 20, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+    height: 13px;
+    border-radius: 7px;
+    background: rgba(3, 12, 20, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .power-fill {
     height: 100%;
     width: 0;
     background: var(--accent);
-    transition: width 0.05s linear;
+    box-shadow: 0 0 12px currentColor;
+    transition: width 0.04s linear;
+}
+
+/* Where the swing runs out. Everything past it is the part of the shot most
+   likely to end in the water. */
+.power-max {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 85%;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.power-track.hot { border-color: rgba(248, 113, 113, 0.85); }
+.power-track.hot .power-fill { animation: powerPulse 0.45s ease-in-out infinite alternate; }
+
+@keyframes powerPulse {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.45); }
 }
 
 /* ── hole-complete banner ───────────────────────────────────────────────── */

@@ -228,7 +228,11 @@
         water: [],             // meshes whose texture scrolls
         tex: {},
         theme: null,
-        cam: { yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false },
+        cam: {
+            yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false,
+            kick: 0,          // impact flinch, decays
+            speedPull: 0      // extra distance while the ball is quick
+        },
         smooth: { pos: new THREE.Vector3(), target: new THREE.Vector3(), started: false },
         particles: null, pAlive: 0,
         lastBall: new THREE.Vector3(),
@@ -256,6 +260,7 @@
 
         buildBall();
         buildAim();
+        buildTrail();
         buildParticles();
 
         R.ready = true;
@@ -328,6 +333,32 @@
         R.arrow.renderOrder = 5;
         R.aimGroup.add(R.arrow);
 
+        /* The band: a tapered strip behind the ball, opposite the shot, that
+           grows as the pull grows. It is the part of a slingshot you can see
+           straining, and without it a big shot and a small one look the same
+           until the ball moves. */
+        var band = new THREE.BufferGeometry();
+        band.setAttribute('position', new THREE.Float32BufferAttribute(new Array(6 * 3).fill(0), 3));
+        R.band = new THREE.Mesh(band, new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+            depthTest: false
+        }));
+        R.band.renderOrder = 4;
+        R.aimGroup.add(R.band);
+
+        /* The ring: a full circle round the ball drawn only as far as the power
+           has wound on. RingGeometry lays its triangles out in order round the
+           circle, so a draw range is an arc, and an arc costs nothing. */
+        var ring = new THREE.RingGeometry(0.30, 0.40, 64);
+        R.ringCount = ring.index.count;
+        R.ring = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({
+            color: 0x9ae6b4, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+            depthTest: false
+        }));
+        R.ring.rotation.x = -Math.PI / 2;
+        R.ring.renderOrder = 7;
+        R.aimGroup.add(R.ring);
+
         // Predicted path, as a row of dots. A line would be one pixel wide on
         // a phone; dots survive.
         var pg = new THREE.BufferGeometry();
@@ -340,6 +371,46 @@
         R.aimGroup.add(R.arcPoints);
 
         R.scene.add(R.aimGroup);
+    }
+
+    /* A tail of where the ball has just been. Additive blending and a colour
+       that darkens with age does the fading for us — per-point alpha would want
+       a custom shader, and this reads the same. */
+    function buildTrail() {
+        var n = C.TRAIL;
+        var g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(new Array(n * 3).fill(-9999), 3));
+        g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), 3));
+        R.trail = new THREE.Points(g, new THREE.PointsMaterial({
+            size: 0.13, map: R.tex.dot, transparent: true, depthWrite: false,
+            blending: THREE.AdditiveBlending, vertexColors: true
+        }));
+        R.trail.frustumCulled = false;
+        R.trailAt = 0;
+        R.trailOn = false;
+        R.scene.add(R.trail);
+    }
+
+    function pushTrail(x, y, z) {
+        var pos = R.trail.geometry.attributes.position.array;
+        var col = R.trail.geometry.attributes.color.array;
+        var n = C.TRAIL, i, age, f;
+        R.trailAt = (R.trailAt + 1) % n;
+        pos[R.trailAt * 3] = x; pos[R.trailAt * 3 + 1] = y; pos[R.trailAt * 3 + 2] = z;
+        for (i = 0; i < n; i++) {
+            age = (R.trailAt - i + n) % n;          // 0 = newest
+            f = Math.max(0, 1 - age / n);
+            f = f * f * 0.75;
+            col[i * 3] = f; col[i * 3 + 1] = f * 1.05; col[i * 3 + 2] = f * 0.9;
+        }
+        R.trail.geometry.attributes.position.needsUpdate = true;
+        R.trail.geometry.attributes.color.needsUpdate = true;
+    }
+
+    function clearTrail() {
+        var pos = R.trail.geometry.attributes.position.array, i;
+        for (i = 0; i < pos.length; i++) pos[i] = -9999;
+        R.trail.geometry.attributes.position.needsUpdate = true;
     }
 
     function buildParticles() {
@@ -732,6 +803,9 @@
         R.holeGroup = g;
         R.smooth.started = false;
         R.clock = 0;
+        R.cam.kick = 0;
+        R.cam.speedPull = 0;
+        clearTrail();
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
@@ -789,9 +863,36 @@
         put(6, shaft, -halfW * 2.4); put(7, shaft, halfW * 2.4); put(8, len, 0);
         R.arrow.geometry.attributes.position.needsUpdate = true;
         R.arrow.geometry.computeBoundingSphere();
-        R.arrow.material.color.setHSL(0.33 - 0.33 * frac, 0.85, 0.55);
 
-        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, 0.85);
+        // Green through amber to red as the swing fills, and hard red once it
+        // is into the last of it.
+        var hue = frac > C.OVERSWING ? 0 : 0.33 * (1 - frac / C.OVERSWING);
+        R.arrow.material.color.setHSL(hue, 0.85, frac > C.OVERSWING ? 0.62 : 0.55);
+
+        // The band, stretched out behind the ball by the same fraction.
+        var ba = R.band.geometry.attributes.position.array;
+        var back = 0.26 + frac * 2.2;
+        function bandPut(i, sx, sz) {
+            ba[i * 3] = b.x - dirX * sx + px * sz;
+            ba[i * 3 + 1] = y;
+            ba[i * 3 + 2] = b.z - dirZ * sx + pz * sz;
+        }
+        var tip = 0.05 + frac * 0.03;
+        bandPut(0, 0.18, -0.13); bandPut(1, 0.18, 0.13); bandPut(2, back, tip);
+        bandPut(3, 0.18, -0.13); bandPut(4, back, tip); bandPut(5, back, -tip);
+        R.band.geometry.attributes.position.needsUpdate = true;
+        R.band.geometry.computeBoundingSphere();
+        R.band.material.color.copy(R.arrow.material.color);
+        R.band.material.opacity = 0.25 + frac * 0.4;
+
+        // The ring fills clockwise from the shot line as the power winds on.
+        R.ring.position.set(b.x, y, b.z);
+        R.ring.rotation.z = -aim.yaw;
+        R.ring.geometry.setDrawRange(0, Math.max(3, Math.floor(R.ringCount * frac / 3) * 3));
+        R.ring.material.color.copy(R.arrow.material.color);
+        R.ring.visible = frac > 0.02;
+
+        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, 0.5 + frac * 0.5);
         var arr = R.arcPoints.geometry.attributes.position.array;
         // Thirty-odd dots evenly along the path: dense enough to read as a
         // trajectory, sparse enough to read as dots.
@@ -835,10 +936,14 @@
             py = Math.sin(tilt) * dist;
             pz = bz - Math.cos(c.yaw) * Math.cos(tilt) * dist;
         } else {
+            /* Two things move the camera besides the player: it flinches when
+               the ball is struck, and it drifts back as the ball gets quick, so
+               a hard shot feels quick rather than merely distant. */
+            var dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
             tx = ball.x; ty = ball.y + 0.35; tz = ball.z;
-            var back = c.dist * Math.cos(c.pitch);
+            var back = dist * Math.cos(c.pitch);
             px = ball.x - Math.sin(c.yaw) * back;
-            py = ball.y + c.dist * Math.sin(c.pitch);
+            py = ball.y + dist * Math.sin(c.pitch);
             pz = ball.z - Math.cos(c.yaw) * back;
         }
 
@@ -861,6 +966,29 @@
 
         syncMovers(world.time);
         rollBall(world.ball);
+
+        /* Speed, spent two ways: the camera eases back and the lens opens a
+           little, both of which read as "this one is going somewhere". */
+        var speed = Math.hypot(world.ball.vx, world.ball.vy, world.ball.vz);
+        var wantPull = Math.min(3.2, speed * 0.14);
+        var wantFov = 52 + Math.min(7, speed * 0.4);
+        var ease = 1 - Math.pow(0.06, dt);
+        R.cam.speedPull += (wantPull - R.cam.speedPull) * ease;
+        if (Math.abs(R.camera.fov - wantFov) > 0.05) {
+            R.camera.fov += (wantFov - R.camera.fov) * ease;
+            R.camera.updateProjectionMatrix();
+        }
+        R.cam.kick *= Math.pow(0.008, dt);
+        if (R.cam.kick < 0.002) R.cam.kick = 0;
+
+        // The tail only follows a ball that is actually going somewhere.
+        if (world.moving && speed > 1.2) {
+            R.trailOn = true;
+            pushTrail(world.ball.x, world.ball.y, world.ball.z);
+        } else if (R.trailOn) {
+            R.trailOn = false;
+            clearTrail();
+        }
 
         var i;
         for (i = 0; i < R.water.length; i++) {
@@ -890,6 +1018,17 @@
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     function sinkAt(x, y, z) { burst(x, y + 0.1, z, 0xffe98a, 26, 2.2); }
 
+    /* Whatever the ball was sitting on, sprayed backwards off the strike. */
+    function divot(x, y, z, yaw, frac, kind) {
+        var colour = kind === 'sand' ? 0xe8d8a8 : (kind === 'wood' ? 0xc79a63 : 0x6fbf5a);
+        var n = 5 + Math.round(frac * 13);
+        burst(x - Math.sin(yaw) * 0.1, y + 0.03, z - Math.cos(yaw) * 0.1,
+            colour, n, 0.8 + frac * 2.2);
+    }
+
+    // The camera flinch. Decays in about a third of a second (see frame()).
+    function punch(frac) { R.cam.kick = Math.max(R.cam.kick, 0.35 + frac * 0.65); }
+
     function setCam(patch) {
         for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) R.cam[k] = patch[k];
     }
@@ -902,6 +1041,8 @@
         splashAt: splashAt,
         sandAt: sandAt,
         sinkAt: sinkAt,
+        divot: divot,
+        punch: punch,
         setCam: setCam,
         cam: R.cam,
         state: R,

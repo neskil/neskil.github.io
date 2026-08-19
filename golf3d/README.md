@@ -34,17 +34,20 @@ launch angle and a speed exactly as before.
 
 | Club | Loft | Full swing | Carry | Total | What it is for |
 | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 7.5 | — | 6.0 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 4° | 17 | 2.2 | 14.1 | The reach club. Barely off the ground, and it runs. |
-| Chipper | 22° | 11 | 4.6 | 12.0 | Hops a rail — apex about half a unit — and keeps running. |
-| Wedge | 42° | 9.5 | 5.0 | 10.4 | The high one: apex over a unit, clears anything the courses put in the way, and does not run far when it lands. |
+| Putter | 0° | 8.5 | — | 6.9 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 4° | 22 | 3.7 | 19.2 | The reach club: nineteen units, and it skips off the tee on the way. |
+| Chipper | 22° | 12 | 5.5 | 13.7 | Hops a rail — apex about half a unit — and keeps running. |
+| Wedge | 42° | 10 | 5.5 | 11.3 | The high one: apex over a unit, clears anything the courses put in the way, and does not run far when it lands. |
 
 Carry and total are measured on flat grass at a full swing, in world units.
 They are the numbers the courses are built against, and the last column is why
 the bag has four entries and not one: each club is longest at exactly one job.
 
-The carry figures are a design constraint, not a curiosity: **no club flies much
-past five units**, so a hole asking for more air than that has to offer a way
+Only the driver got the extra power when the swings were made bigger, and that
+was deliberate: a wedge that carries eight units flies over the design of half
+the course, and the bridges and ramps stop being choices. The carry figures are
+a design constraint, not a curiosity: **no club flies much
+past five and a half units**, so a hole asking for more air than that has to offer a way
 round — a bridge, a ramp, a bank. `tests.html` measures the carry rather than
 trusting this table, and the bot plays every hole out of this bag rather than
 with any loft the physics would accept, so "the courses are solvable" means
@@ -199,6 +202,38 @@ Two consequences worth knowing:
 On a tilted green the liner is sunk vertically, so one side of the rim sits
 proud of the grass. That is not a bug and it is not corrected: it is what a real
 cup on a slope does.
+
+## The strike
+
+One gesture: press anywhere, pull *away* from where the ball should go, let go.
+Two decisions make that feel like a catapult rather than a pair of sliders.
+
+**Power is the length of the pull, not its vertical part.** Pulling in any
+direction loads the shot, and the aim falls out of the angle for free — which is
+a full turn of aim in one gesture, without ever touching the camera.
+
+**The camera holds still for the whole pull.** It used to swing one-to-one with
+sideways drag, which spun the world under your thumb at exactly the moment you
+were trying to be precise; now it keeps the yaw it had when the pull began and
+eases in behind the shot once the ball is away.
+
+Everything else is feedback, and all of it is scaled by the same fraction of the
+swing:
+
+- a **band** stretching back behind the ball, the part of a catapult you can see
+  straining;
+- a **ring** round the ball that fills as the power winds on, green through
+  amber to red;
+- a **ratchet** — one tick per tenth — so a long pull *sounds* like a long pull;
+- the **overswing mark** at 85%, past which the meter turns and pulses;
+- on release, a **divot** of whatever the ball was sitting on, a **camera
+  flinch**, and a strike with a low thump under it that only shows up on a big
+  one;
+- while the ball is quick, the camera **drifts back** and the lens opens a few
+  degrees, and the ball drags a **tail** behind it.
+
+None of that is in `physics.js`. The simulation is handed a yaw, a speed and a
+loft exactly as it was before.
 
 ## The chrome
 
