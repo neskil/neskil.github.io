@@ -87,11 +87,19 @@
     function shoot() {
         if (state.phase !== 'aim') return;
         if (state.aim.power < C.MIN_POWER) return;
+        var b = state.world.ball;
+        var frac = state.aim.power / state.club.power;
+        var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
         if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.club.loft)) return;
+
         state.strokes++;
         state.phase = 'rolling';
         state.aim.show = false;
-        A.putt(state.aim.power / state.club.power);
+        // Everything that says "that was a hit": the spray off the club, the
+        // camera flinching, and a thump that grows with the swing.
+        R.divot(b.x, b.y - C.BALL_R, b.z, state.aim.yaw, frac, lie && lie.pad.kind);
+        R.punch(frac);
+        A.putt(frac);
         state.aim.power = 0;
         syncHud();
     }
@@ -234,9 +242,14 @@
     function syncPower() {
         var club = state.club;
         var frac = Math.max(0, Math.min(1, state.aim.power / club.power));
+        var hot = frac > C.OVERSWING;
+        // Green through amber to red, and the same hue the arrow and the ring
+        // are wearing out on the course.
+        var hue = hot ? 0 : 120 * (1 - frac / C.OVERSWING);
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
-        $('power-fill').style.background = 'hsl(' + (120 - 120 * frac) + ' 85% 55%)';
+        $('power-fill').style.color = $('power-fill').style.background = 'hsl(' + hue + ' 85% 55%)';
         $('power-val').textContent = Math.round(frac * 100) + '%';
+        $('power-fill').parentNode.classList.toggle('hot', hot);
     }
 
     // The bag is drawn from the config, so a fifth club would need no markup.
@@ -266,9 +279,21 @@
         $('club-hint').textContent = state.club.blurb;
     }
 
-    /* ── input ──────────────────────────────────────────────────────────── */
+    /* ── input ──────────────────────────────────────────────────────────────
 
-    var YAW_PER_PX = 0.0065;
+       The shot is a slingshot, and it is one gesture: press anywhere, pull away
+       from where you want the ball to go, let go. How far you pull is how hard
+       you hit; the *direction* you pull is the direction you do not go.
+
+       Two things make that feel right rather than fiddly. The camera holds
+       still for the whole pull — it used to swing one-to-one with sideways
+       drag, which spun the world under your thumb just as you were trying to
+       be precise — and it eases in behind the shot once the ball is away. And
+       power comes from the length of the pull rather than its vertical part, so
+       a pull in any direction loads the shot and the aim comes out of the angle
+       for free. That is worth a full turn of aim in one gesture, without ever
+       touching the camera. */
+
     var pointers = {};
     var pinchDist = 0;
 
@@ -281,7 +306,7 @@
             return;
         }
         if (state.phase !== 'aim') return;
-        state.drag = { x: e.clientX, y: e.clientY, yaw: state.aim.yaw };
+        state.drag = { x: e.clientX, y: e.clientY, yaw: state.aim.yaw, camYaw: R.cam.yaw, notch: 0 };
         state.aim.show = true;
     }
 
@@ -306,10 +331,29 @@
         if (!state.drag) return;
         var dx = e.clientX - state.drag.x;
         var dy = e.clientY - state.drag.y;
-        // Drag right, aim right: screen-right is -x when the camera sits behind
-        // the ball, so the yaw goes the other way.
-        state.aim.yaw = state.drag.yaw - dx * YAW_PER_PX;
-        state.aim.power = Math.max(0, Math.min(1, dy / C.DRAG_MAX)) * state.club.power;
+        var pull = Math.hypot(dx, dy);
+
+        if (pull < C.DRAG_DEADZONE) {
+            // Too small to mean anything: leave the aim where it was rather
+            // than letting a twitch spin it.
+            state.aim.power = 0;
+            syncPower();
+            return;
+        }
+
+        /* The ball leaves along the reverse of the pull. Screen-right is world
+           -x with the camera behind the ball, which is why pulling toward the
+           bottom-right sends it away to the left. */
+        state.aim.yaw = state.drag.camYaw + Math.atan2(dx, dy);
+        state.aim.power = Math.min(1, pull / C.DRAG_MAX) * state.club.power;
+
+        // A ratchet as the power winds on, one notch per tenth. It is the
+        // difference between a slider and a drawn bow.
+        var notch = Math.floor((state.aim.power / state.club.power) * 10);
+        if (notch !== state.drag.notch) {
+            state.drag.notch = notch;
+            if (notch > 0) A.tick(notch / 10);
+        }
         syncPower();
     }
 
@@ -489,7 +533,7 @@
             state.world.time += dt;
         }
 
-        R.cam.yaw = state.aim.yaw;
+        R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw;
         R.frame(dt, state.world, {
             show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
             yaw: state.aim.yaw,

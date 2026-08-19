@@ -63,10 +63,21 @@
     }
 
     var A = {
+        /* The strike. Three layers, because one oscillator sounds like a
+           doorbell: the click of the face, a body that drops in pitch with the
+           power behind it, and a thump you feel more than hear on a big one. */
         putt: function (power) {
             var p = Math.max(0.15, Math.min(1, power));
-            tone(150 + p * 190, 0.09, 'triangle', 0.16 + p * 0.1, 70);
-            noise(0.05, 1400, 1.5, 0.05 + p * 0.06);
+            noise(0.035, 2600 - p * 900, 1.2, 0.05 + p * 0.07, 'bandpass');
+            tone(190 + p * 210, 0.1, 'triangle', 0.15 + p * 0.12, 60);
+            if (p > 0.45) tone(90 + p * 40, 0.16, 'sine', 0.06 + p * 0.12, 40);
+        },
+
+        /* One notch of the ratchet as the shot is wound back. Quiet, short and
+           rising, so a long pull sounds like a long pull. */
+        tick: function (frac) {
+            var p = Math.max(0, Math.min(1, frac));
+            tone(420 + p * 620, 0.028, 'square', 0.022 + p * 0.03);
         },
         bounce: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 12));
