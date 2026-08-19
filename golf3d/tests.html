@@ -309,29 +309,79 @@
                 'x = ' + broken.ball.x.toFixed(2));
             assert('a shot on a slope still comes to rest', !broken.moving);
 
-            // The cup.
+            /* The cup. There is no capture rule to test any more — the hole is
+               a hole — so these check the geometry and then measure what falls
+               out of it. */
             var cupHole = lab({ cup: { x: 5, z: 12 } });
-            var holed = shootFrom(cupHole, { x: 5, z: 2 }, 0, 12.1);
-            assert('a ball rolled at the cup drops in', holed.sunk || (function () {
-                // Not every power holes out; scan a few and require one that does.
-                for (var p = 11; p < 13; p += 0.05) {
-                    if (shootFrom(cupHole, { x: 5, z: 2 }, 0, p).sunk) return true;
-                }
-                return false;
-            })());
+
+            var overCup = P.surfaceUnder(cupHole, 5, 12, Infinity);
+            var besideCup = P.surfaceUnder(cupHole, 5, 12 - C.HOLE_R - 0.05, Infinity);
+            assert('the green is missing over the cup',
+                overCup && approx(overCup.y, cupHole.cup.y - C.CUP_DEPTH, 1e-9),
+                'ground at ' + (overCup && overCup.y));
+            assert('and present again just outside the rim',
+                besideCup && approx(besideCup.y, cupHole.cup.y, 1e-9));
+            assert('the floor of the cup is its own surface', overCup.pad.kind === 'cup');
+            assert('the cup is deeper than the ball is wide', C.CUP_DEPTH > C.BALL_R * 2);
+
+            // Ten units of grass costs about twelve of swing, so the pace that
+            // arrives at the hole is what matters: scan for one that does.
+            var dropped = null, sp;
+            for (sp = 12; sp <= C.MAX_POWER && !dropped; sp += 0.25) {
+                var attempt = shootFrom(cupHole, { x: 5, z: 2 }, 0, sp);
+                if (attempt.sunk) dropped = attempt;
+            }
+            assert('a ball rolled at the cup drops in', !!dropped);
+            dropped = dropped || shootFrom(cupHole, { x: 5, z: 2 }, 0, 13);
+            assert('a holed ball ends below the green',
+                dropped.ball.y + C.BALL_R < cupHole.cup.y,
+                'centre at ' + dropped.ball.y.toFixed(3) + ' vs rim ' + cupHole.cup.y);
+            assert('a holed ball ends inside the shaft',
+                Math.hypot(dropped.ball.x - 5, dropped.ball.z - 12) <= C.HOLE_R - C.BALL_R + 1e-6);
+            assert('and it stops', !dropped.moving && P.speedOf(dropped.ball) === 0);
+
+            assert('a ball rolled past the edge of the hole stays out',
+                !shootFrom(cupHole, { x: 5 + C.HOLE_R + 0.06, z: 2 }, 0, 13).sunk);
+
+            /* A lip-out: struck from close enough that it is still travelling
+               when it gets there, the ball crosses the mouth faster than it can
+               fall, catches the far edge and is thrown back out. Nothing
+               scripts this — it is the rim collision and gravity. */
+            var fast = shootFrom(cupHole, { x: 5, z: 10 }, 0, C.MAX_POWER);
+            assert('a ball hit far too hard rides over the hole', !fast.sunk);
+            assert('and ends up past it', fast.ball.z > 12, 'ended at z = ' + fast.ball.z.toFixed(2));
+
+            // A ball dropped in from above cannot bounce back out of a hole
+            // this deep.
+            var lobbed = shootFrom(lab({ cup: { x: 5, z: 6.9 } }), { x: 5, z: 2 }, 0, 9.5, C.CLUBS[3].loft);
+            assert('a ball that lands in the cup stays in', lobbed.sunk);
+
             assert('a ball flying over the cup is not swallowed', (function () {
                 var t = P.createWorld(cupHole, { x: 5, z: 2 }, 0);
                 P.launch(t, 0, 13, 0.6);
-                for (var i = 0; i < 200; i++) {
+                for (var i = 0; i < 400; i++) {
                     P.advance(t, C.SIM_DT);
-                    if (t.sunk && t.ball.y > cupHole.cup.y + C.BALL_R + C.CUP_HEIGHT) return false;
+                    if (t.sunk && t.ball.y > cupHole.cup.y) return false;
                 }
                 return true;
             })());
-            assert('a fast ball over the rim is spat back out', (function () {
-                var w2 = shootFrom(cupHole, { x: 5, z: 11.4 }, 0, 12);
-                return !w2.sunk;
-            })());
+
+            // The pace at which the hole stops accepting the ball is emergent:
+            // it is the speed at which the ball crosses the mouth faster than
+            // it can fall past the far rim. Worth knowing, and worth noticing
+            // if it ever changes.
+            var firstIn = 0, lastIn = 0, p;
+            for (p = 10; p <= C.MAX_POWER; p += 0.1) {
+                if (shootFrom(cupHole, { x: 5, z: 2 }, 0, p).sunk) {
+                    if (!firstIn) firstIn = p;
+                    lastIn = p;
+                }
+            }
+            assert('there is a workable range of pace that holes out from ten units',
+                firstIn > 0 && lastIn - firstIn > 1,
+                'from ' + firstIn.toFixed(1) + ' to ' + lastIn.toFixed(1));
+            note('from ten units the cup accepts swings of ' + firstIn.toFixed(1) + ' to ' +
+                 lastIn.toFixed(1) + ' — everything slower is short, everything faster rides the lip');
 
             assert('a settled world reports done', P.done(w));
             assert('a rolling world does not report done', (function () {
@@ -387,7 +437,36 @@
                 assert(tag + ': there is ground under the tee', !!teePad);
                 assert(tag + ': there is ground under the cup', !!cupPad);
                 assert(tag + ': tee height matches its pad', teePad && approx(h.tee.y, teePad.y, 1e-9));
-                assert(tag + ': cup height matches its pad', cupPad && approx(h.cup.y, cupPad.y, 1e-9));
+                /* surfaceTop in the middle of the cup is the floor of the cup,
+                   so the lip is checked from just outside the rim — against the
+                   pad's own surface there, not against cup.y. On a tilted green
+                   those differ, and correctly so: the liner is sunk vertically,
+                   the way a real one is, so one side of the rim sits proud. */
+                var bx = h.cup.x + C.HOLE_R + 0.08, bz = h.cup.z + C.HOLE_R + 0.08;
+                var beside = P.surfaceTop(h, bx, h.cup.z);
+                var alsoBeside = P.surfaceTop(h, h.cup.x, bz);
+                assert(tag + ': the ground carries on around the cup',
+                    beside && alsoBeside &&
+                    approx(beside.y, P.padHeight(beside.pad, bx, h.cup.z), 1e-9) &&
+                    approx(alsoBeside.y, P.padHeight(alsoBeside.pad, h.cup.x, bz), 1e-9) &&
+                    Math.abs(beside.y - h.cup.y) < 0.12 && Math.abs(alsoBeside.y - h.cup.y) < 0.12,
+                    'lip ' + h.cup.y.toFixed(3) + ', ground ' + (beside && beside.y.toFixed(3)));
+                assert(tag + ': the cup is cut a full depth into it',
+                    cupPad && approx(cupPad.y, h.cup.y - C.CUP_DEPTH, 1e-9));
+
+                /* The whole mouth of the cup has to be inside one pad. The rim
+                   is a full circle in the physics and a hole punched out of one
+                   slab in the renderer; a cup overhanging the edge of its pad
+                   would be neither. */
+                var own = null, q;
+                for (q = 0; q < h.pads.length; q++) {
+                    if (P.padContains(h.pads[q], h.cup.x, h.cup.z) &&
+                        Math.abs(P.padHeight(h.pads[q], h.cup.x, h.cup.z) - h.cup.y) < 0.06) own = h.pads[q];
+                }
+                var clear = own ? Math.min(h.cup.x - own.x, own.x + own.w - h.cup.x,
+                                           h.cup.z - own.z, own.z + own.d - h.cup.z) : 0;
+                assert(tag + ': the mouth of the cup is clear of the pad edge',
+                    clear > C.HOLE_R + 0.05, 'only ' + clear.toFixed(2) + ' to the edge');
 
                 // Neither end may be inside a wall — a cup buried in a rail
                 // cannot be holed and a tee inside one launches from a bounce.
@@ -471,11 +550,16 @@
                 var found = {}, teeY = hole.tee.y;
                 var dx = hole.cup.x - hole.tee.x, dz = hole.cup.z - hole.tee.z;
                 var len = Math.hypot(dx, dz), steps = Math.ceil(len / 0.1), i, t, x, z, surf, w, k, phase, B;
+                // Stop before the cup: the hole in the ground is not an
+                // obstacle on the way to itself, and counting it would make
+                // this assertion pass for any corridor ever written.
+                var stopAt = Math.max(0, (len - (C.HOLE_R + C.BALL_R)) / len);
 
                 var px = -dz / len, pz = dx / len;      // perpendicular to the line
 
                 for (i = 1; i < steps; i++) {
                     t = i / steps;
+                    if (t > stopAt) break;
                     x = hole.tee.x + dx * t;
                     z = hole.tee.z + dz * t;
 

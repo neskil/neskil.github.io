@@ -58,10 +58,21 @@
         return x >= pad.x && x <= pad.x + pad.w && z >= pad.z && z <= pad.z + pad.d;
     }
 
+    /* The floor of the cup, as a pad the rest of the code can treat like any
+       other. It has no footprint of its own: surfaceUnder() hands it back for
+       points inside the cup, and its friction is what stops a ball that has
+       dropped in from rattling about down there. */
+    var CUP_PAD = { x: 0, z: 0, w: 0, d: 0, y: 0, kind: 'cup', sx: 0, sz: 0 };
+
     /* The pad the ball is standing on: the highest one under the point that is
        not above `ceil`. The ceiling is what makes bridges work — a ball on the
        ground below a walkway must not be teleported onto it, and a ball on the
-       walkway must not fall through to the ground. */
+       walkway must not fall through to the ground.
+
+       Inside the cup there is no green at all — the ground there is the floor
+       of the hole, a cup's depth below. That one substitution is what makes the
+       cup a hole rather than a rule: a ball whose centre crosses the rim runs
+       out of support and falls, exactly as it would over any other edge. */
     function surfaceUnder(hole, x, z, ceil) {
         var best = null, bestY = -Infinity, pads = hole.pads, i, h;
         for (i = 0; i < pads.length; i++) {
@@ -69,6 +80,15 @@
             h = padHeight(pads[i], x, z);
             if (h > ceil) continue;
             if (h > bestY) { bestY = h; best = pads[i]; }
+        }
+
+        var cup = hole.cup;
+        if (cup && best !== null && Math.abs(bestY - cup.y) < 0.06) {
+            var cdx = x - cup.x, cdz = z - cup.z;
+            if (cdx * cdx + cdz * cdz < C.HOLE_R * C.HOLE_R) {
+                var floor = cup.y - C.CUP_DEPTH;
+                return floor > ceil ? null : { pad: CUP_PAD, y: floor };
+            }
         }
         return best ? { pad: best, y: bestY } : null;
     }
@@ -285,31 +305,74 @@
         }
     }
 
-    /* The cup pulls the ball inward while it is over the rim and only captures
-       below CAPTURE_SPEED, which is what makes a slow ball on a bad line still
-       drop and a fast one horseshoe out the far side. The height test stops a
-       ball flying over the cup on a lofted shot from being swallowed in mid
-       air. */
-    function checkCup(world, dt, events) {
-        var b = world.ball, cup = world.hole.cup;
-        var dx = cup.x - b.x, dz = cup.z - b.z;
-        var d = Math.hypot(dx, dz);
-        if (d >= C.HOLE_R) return false;
-        if (Math.abs(b.y - (cup.y + C.BALL_R)) > C.CUP_HEIGHT) return false;
+    /* The cup, in three pieces of geometry and no rules at all.
 
-        if (groundSpeed(b) < C.CAPTURE_SPEED && b.vy <= 0.4) {
-            b.x = cup.x; b.z = cup.z;
-            b.vx = b.vy = b.vz = 0;
-            world.sunk = true;
-            world.moving = false;
-            events.sunk = true;
-            return true;
+       The rim is the circle where the green ends, and it is an *edge*: the ball
+       is a sphere, so the nearest point of that circle is what it can touch.
+       Everything the old capture test used to fake falls out of this one
+       collision. A ball whose centre is still outside the rim rests on it and
+       rolls past. A slow ball crossing the rim loses its support, drops, and
+       the inside of the edge nudges it toward the middle. A fast one is only a
+       few centimetres down by the time it reaches the far edge, catches it on
+       the way through, and is thrown up and out — a lip-out that nobody wrote.
+
+       Below the rim the shaft is a cylinder the ball can bounce around inside,
+       and its floor is a pad like any other (see surfaceUnder). "Holed" is then
+       a statement about geometry rather than a threshold: the ball is under the
+       rim and has not got the vertical speed to climb back out. */
+    function cupContact(world, events) {
+        var b = world.ball, cup = world.hole.cup;
+        var dx = b.x - cup.x, dz = b.z - cup.z;
+        var d = Math.hypot(dx, dz);
+        // Out of reach of the rim: nothing about the cup applies, whatever
+        // height the ball is at. (Testing the height here instead would hand
+        // the shaft to every ball on a level below the green.)
+        if (d > C.HOLE_R + C.BALL_R) return false;
+
+        var ux = d > 1e-9 ? dx / d : 1, uz = d > 1e-9 ? dz / d : 0;
+        var e = 1 + C.CUP_RESTITUTION;
+
+        // The rim edge: distance from the ball's centre to the nearest point of
+        // the rim circle, in the plane that contains both.
+        var rx = d - C.HOLE_R, ry = b.y - cup.y;
+        var rd = Math.hypot(rx, ry);
+        if (rd < C.BALL_R && rd > 1e-9) {
+            var nx = (rx / rd) * ux, ny = ry / rd, nz = (rx / rd) * uz;
+            var depth = C.BALL_R - rd;
+            b.x += nx * depth; b.y += ny * depth; b.z += nz * depth;
+            var vn = b.vx * nx + b.vy * ny + b.vz * nz;
+            if (vn < 0) {
+                b.vx -= e * vn * nx;
+                b.vy -= e * vn * ny;
+                b.vz -= e * vn * nz;
+                events.rim = true;
+            }
         }
-        if (d > 1e-6) {
-            var pull = C.CUP_PULL * (1 - d / C.HOLE_R) * dt;
-            b.vx += (dx / d) * pull;
-            b.vz += (dz / d) * pull;
-            events.lip = true;
+
+        // The shaft wall, once the ball's centre is under the green and inside
+        // the mouth of the hole.
+        if (b.y < cup.y && d < C.HOLE_R) {
+            var maxR = C.HOLE_R - C.BALL_R;
+            if (d > maxR) {
+                b.x = cup.x + ux * maxR;
+                b.z = cup.z + uz * maxR;
+                var vr = b.vx * ux + b.vz * uz;
+                if (vr > 0) {
+                    b.vx -= e * vr * ux;
+                    b.vz -= e * vr * uz;
+                    events.rim = true;
+                }
+            }
+            // Under the rim with no way back up: that is the ball holed.
+            var apex = b.y + (b.vy > 0 ? (b.vy * b.vy) / (2 * C.GRAVITY) : 0);
+            if (b.y + C.BALL_R < cup.y - 0.01 && apex < cup.y - 0.02) {
+                b.y = cup.y - C.CUP_DEPTH + C.BALL_R;
+                b.vx = b.vy = b.vz = 0;
+                world.sunk = true;
+                world.moving = false;
+                events.sunk = true;
+                return true;
+            }
         }
         return false;
     }
@@ -412,7 +475,7 @@
 
         collideWalls(world, dt, events);
 
-        if (checkCup(world, dt, events)) return;
+        if (cupContact(world, events)) return;
         if (drown(world, events)) return;
 
         if (b.y < C.OOB_Y) {
@@ -423,22 +486,26 @@
             return;
         }
 
-        // At rest — unless it is sitting on a slope, in which case gravity has
-        // not finished with it and stopping here would leave the ball hanging
-        // on a hillside. A ball that has been slow for a while on a slope has
-        // found something to lean on (a rail, the gutter of a halfpipe) and is
-        // allowed to stop, or a tilted green would never end a shot.
-        if (world.grounded && groundSpeed(b) < C.STOP_SPEED) {
+        /* At rest — unless it is sitting on a slope, in which case gravity has
+           not finished with it and stopping here would leave the ball hanging
+           on a hillside.
+
+           The timer covers the two states where "grounded" never becomes true
+           but the ball has plainly stopped: leaning on something on a slope,
+           and perched on the lip of the cup with the ground missing under it.
+           Without it those shots would run until the clock ran out. */
+        var slow = speedOf(b) < C.STOP_SPEED;
+        if (!slow) {
+            world.slowFor = 0;
+        } else {
+            world.slowFor += dt;
             var lie = surfaceUnder(hole, b.x, b.z, b.y + C.STEP_UP);
             var steep = lie && (Math.abs(lie.pad.sx || 0) > 0.02 || Math.abs(lie.pad.sz || 0) > 0.02);
-            world.slowFor += dt;
-            if (!steep || world.slowFor > C.SLOPE_SETTLE) {
+            if ((world.grounded && !steep) || world.slowFor > C.SLOPE_SETTLE) {
                 b.vx = b.vy = b.vz = 0;
                 if (world.moving) events.rest = true;
                 world.moving = false;
             }
-        } else {
-            world.slowFor = 0;
         }
     }
 

@@ -62,9 +62,11 @@ acceleration, which is why a breaking green and a ramp are the same piece of
 code. When the ground falls away — a ledge, the lip of a ramp, a lofted shot —
 the ball goes **airborne**, gravity takes over, and it lands on whatever pad it
 meets. **Walls** are boxes with a base and a top, so a ball above a rail flies
-over it and one under a raised beam rolls beneath. That is the whole model, and
-it is small on purpose: circle-vs-box in the xz plane is the one collision test
-cheap enough to run at 32 substeps and simple enough to be obviously correct.
+over it and one under a raised beam rolls beneath. The **cup** is a genuine hole
+cut through the pad, with an edge to catch and a shaft to fall down. That is the
+whole model, and it is small on purpose: circle-vs-box in the xz plane is the
+one collision test cheap enough to run at 32 substeps and simple enough to be
+obviously correct.
 
 ## How a hole is built
 
@@ -73,7 +75,7 @@ cheap enough to run at 32 substeps and simple enough to be obviously correct.
     name: 'The Cannon', blurb: '…', par: 3,
     tee: { x: 3, z: 1.5 },              // y is filled in from the pad below
     cup: { x: 3.5, z: 12.6 },
-    pads: [ pad(x, z, w, d, y, kind, sx, sz) ],
+    pads: [ pad(x, z, w, d, y, kind, sx, sz) ],   // the cup is cut into one of these
     water: [ rect(x, z, w, d, y) ],
     gaps:  [ rect(…) ],                 // where *not* to build a rail
     extra: [ wall(…), slider(…), spinner(…) ]
@@ -155,10 +157,48 @@ Details that are easy to get wrong and are pinned by tests:
   the ball is moving, so the predicted path is drawn from the clock the shot
   will actually be played on.
 
-The cup pulls the ball inward while it is over the rim and only captures below
-`CAPTURE_SPEED`, which is what makes a slow ball on a bad line still drop and a
-fast one horseshoe out the far side. There is a height test too, so a lofted
-ball flying over the cup is not swallowed in mid-air.
+## The cup
+
+The cup is a hole, not a rule. There is no capture test, no radius that counts
+as holed and no pull toward the middle — three pieces of geometry, and the rest
+falls out of them.
+
+- **The ground is missing.** `surfaceUnder()` hands back the floor of the cup,
+  a cup's depth down, for any point inside the rim. A ball whose centre crosses
+  the rim runs out of support and falls, exactly as it would over any other
+  edge.
+- **The rim is an edge**, not a circle drawn on the grass: the ball is a sphere,
+  so what it can touch is the nearest point of the rim *circle*, and the
+  collision is sphere-against-that-point.
+- **The shaft is a cylinder** with a floor of its own, high-friction, so a ball
+  that drops in settles instead of rattling.
+
+Everything the old capture rule used to fake now happens on its own. A ball
+whose centre is still outside the rim is resting on it and rolls past. A slow
+ball crossing the rim drops, and the inside of the edge nudges it toward the
+middle. A fast one is only a few centimetres down by the time it reaches the far
+edge, catches it on the way through, and is thrown up and out — a lip-out
+nobody wrote. "Holed" is then a statement about geometry: the ball is under the
+rim and has not the vertical speed to climb back out.
+
+Because none of it is tuned, the pace the hole accepts is a *measurement*, not a
+setting — `tests.html` prints the range and would notice it changing. From ten
+units out the cup currently takes about half the useful swing range, and
+anything faster rides the lip.
+
+Two consequences worth knowing:
+
+- **The cup must sit clear of the edge of its pad** — the rim is a full circle
+  in the physics and a hole punched out of one slab in the renderer, and a cup
+  overhanging the edge of its pad would be neither. Asserted per hole.
+- **The pin stands beside the cup, not in it.** A flagstick down the middle of
+  a hole this size is something the ball ought to hit, and it would go straight
+  through — better to put it where the lie is honest and the mouth is open. It
+  is the one thing on the course that is scenery rather than simulation.
+
+On a tilted green the liner is sunk vertically, so one side of the rim sits
+proud of the grass. That is not a bug and it is not corrected: it is what a real
+cup on a slope does.
 
 ## The chrome
 
@@ -207,9 +247,9 @@ line, which is what makes "drag left, aim left" true from any angle, and
 
 ## Tests
 
-Open `tests.html`. 367 assertions covering the surfaces, the collision
-geometry, the integrator, the bag, all eighteen holes of course data and the
-scorecard, in about a second and a half.
+Open `tests.html`. 414 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, all eighteen holes of course data
+and the scorecard, in about a second.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all

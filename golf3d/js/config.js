@@ -12,7 +12,13 @@ G3.VERSION = '1.0.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
-    HOLE_R: 0.30,
+    /* Ball and cup are in the proportion the real game uses — a 108mm cup and
+       a 42mm ball, near enough — because that ratio is what decides whether a
+       rolling ball drops or rides the far lip, and there is no capture rule
+       here to paper over a bad one. */
+    HOLE_R: 0.40,
+    CUP_DEPTH: 0.42,      // the ball is 0.32 across, so it is well under the rim
+    CUP_RESTITUTION: 0.35,// what the rim and the shaft wall give back
 
     /* Positive downward acceleration. Real gravity makes a lofted shot hang
        for ages at this scale; 18 keeps an arc inside a second or so, which is
@@ -28,7 +34,8 @@ G3.CONFIG = {
         green: 0.30,
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
         sand: 0.004,   // a bunker eats a shot
-        rough: 0.06
+        rough: 0.06,
+        cup: 0.004     // the bottom of the hole: whatever lands here stays
     },
     FRICTION_DEFAULT: 0.30,
 
@@ -88,9 +95,6 @@ G3.CONFIG = {
     STEP_UP: 0.14,
     DROP: 0.10,
 
-    CUP_PULL: 11,         // inward acceleration while the ball is over the cup
-    CAPTURE_SPEED: 3.1,   // faster than this and the rim spits it back out
-    CUP_HEIGHT: 0.40,     // vertical slop allowed when testing for a capture
 
     SIM_DT: 1 / 120,
     MAX_SUBSTEPS: 32,

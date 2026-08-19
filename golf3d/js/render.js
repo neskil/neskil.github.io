@@ -429,29 +429,44 @@
         return tex;
     }
 
-    function padMaterial(kind, theme, w, d) {
+    // An extruded slab's cap is UV-mapped in the shape's own coordinates —
+    // world units — where a box's cap runs 0..1. Same texture, different
+    // repeat, or the green around the cup comes out a hundred times too big.
+    function tiledCap(base, w, d, scale, worldUv) {
+        if (!worldUv) return tiled(base, w, d, scale);
+        var tex = base.clone();
+        tex.needsUpdate = true;
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = R.maxAniso;
+        tex.repeat.set(1 / scale, 1 / scale);    // UVs are already world units
+        return tex;
+    }
+
+    function padMaterial(kind, theme, w, d, worldUv) {
         var side = new THREE.MeshLambertMaterial({ color: new THREE.Color(theme.side) });
         var top;
         if (kind === 'sand') {
-            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.sand, w, d, 2) });
+            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.sand, w, d, 2, worldUv) });
         } else if (kind === 'wood') {
-            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.wood, w, d, 2) });
+            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.wood, w, d, 2, worldUv) });
         } else if (kind === 'rough') {
-            top = new THREE.MeshLambertMaterial({ map: tiled(R.tex.rough, w, d, 2) });
+            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.rough, w, d, 2, worldUv) });
         } else {
             // Phong rather than Lambert on the greens only: a little sheen and
             // a bump map is the difference between mown grass and green paint,
             // and the greens are what the camera is looking at.
             top = new THREE.MeshPhongMaterial({
-                map: tiled(R.tex.grass, w, d, 3.5),
-                bumpMap: tiled(R.tex.grassBump, w, d, 0.8),
+                map: tiledCap(R.tex.grass, w, d, 3.5, worldUv),
+                bumpMap: tiledCap(R.tex.grassBump, w, d, 0.8, worldUv),
                 bumpScale: 0.035,
                 shininess: 4,
                 specular: 0x1c2a18
             });
         }
-        // Box material order: +x, -x, +y, -y, +z, -z.
-        return [side, side, top, side, side, side];
+        // Box material order is +x, -x, +y, -y, +z, -z; an extruded slab has
+        // just two groups, caps then walls. Passing six covers both, since the
+        // slab only ever reads the first two — so cap first, wall second.
+        return worldUv ? [top, side] : [side, side, top, side, side, side];
     }
 
     var PLANK_THICK = 0.3;
@@ -460,7 +475,35 @@
        so a raised green reads as a plateau with a cliff instead of a slab
        hovering in the air. Boards are the exception: a jetty is supposed to
        look like a plank over the water, not a causeway through it. */
-    function addPad(group, pad, theme) {
+    /* The pad that holds the cup is built as an extruded shape with a circular
+       hole in it rather than as a box, so the hole in the picture is the hole
+       the ball falls through. Everything else stays a box: this costs a
+       triangulation, and only one pad per hole needs it. */
+    function punchedSlab(pad, thick, cup) {
+        var shape = new THREE.Shape();
+        var hw = pad.w / 2, hd = pad.d / 2;
+        // Built around the pad's centre, in the plane three.js extrudes; after
+        // the rotation below, shape-y runs along world -z.
+        shape.moveTo(-hw, -hd);
+        shape.lineTo(hw, -hd);
+        shape.lineTo(hw, hd);
+        shape.lineTo(-hw, hd);
+        shape.lineTo(-hw, -hd);
+
+        var hole = new THREE.Path();
+        var cx = pad.x + hw, cz = pad.z + hd;
+        hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R, 0, Math.PI * 2, true);
+        shape.holes.push(hole);
+
+        var geo = new THREE.ExtrudeGeometry(shape, {
+            depth: thick, bevelEnabled: false, curveSegments: 28
+        });
+        geo.rotateX(-Math.PI / 2);       // lay it flat: extrusion now runs +y
+        geo.translate(0, -thick, 0);     // top face at y = 0, like the box
+        return geo;
+    }
+
+    function addPad(group, pad, theme, cup) {
         var cx = pad.x + pad.w / 2, cz = pad.z + pad.d / 2;
         var sx = pad.sx || 0, sz = pad.sz || 0;
         var cy = P.padHeight(pad, cx, cz);
@@ -468,7 +511,16 @@
         var thick = pad.kind === 'wood'
             ? PLANK_THICK
             : Math.max(0.6, cy - (theme.surroundY - 0.4) + rise);
-        var geo = new THREE.BoxGeometry(pad.w, thick, pad.d);
+        var holed = cup && P.padContains(pad, cup.x, cup.z) &&
+            Math.abs(P.padHeight(pad, cup.x, cup.z) - cup.y) < 0.06;
+        var geo = holed
+            ? punchedSlab(pad, thick, cup)
+            : new THREE.BoxGeometry(pad.w, thick, pad.d);
+        if (holed) {
+            // The box is centred on its own middle; the extruded slab is built
+            // that way too, so both share the placement below.
+            geo.translate(0, thick / 2, 0);
+        }
         if (sx || sz) {
             // Shear about the pad's own centre: y' = y + sx·x + sz·z. Vertical
             // edges stay vertical, so a tilted pad still meets its neighbours.
@@ -480,7 +532,7 @@
             geo.applyMatrix4(m);
             geo.computeVertexNormals();
         }
-        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, theme, pad.w, pad.d));
+        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, theme, pad.w, pad.d, holed));
         mesh.position.set(cx, cy - thick / 2, cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
@@ -558,37 +610,55 @@
         if (theme.surround === 'water') R.water.push(mesh);
     }
 
+    /* The hole through the green is real geometry (see punchedSlab); what is
+       added here is the liner that makes the shaft read as a shaft, the floor
+       the ball comes to rest on, and the white rim.
+
+       The pin stands beside the cup rather than in it. A flagstick down the
+       middle of a hole this size would be something the ball ought to hit, and
+       the ball would go straight through it — better to put it where the lie
+       is honest and the mouth of the cup is open. */
     function addCup(group, hole) {
         var cup = hole.cup;
-        var lining = new THREE.Mesh(
-            new THREE.CylinderGeometry(C.HOLE_R, C.HOLE_R * 0.86, 0.5, 24, 1, true),
-            new THREE.MeshLambertMaterial({ color: 0x1a1a1a, side: THREE.DoubleSide })
+
+        var liner = new THREE.Mesh(
+            new THREE.CylinderGeometry(C.HOLE_R - 0.004, C.HOLE_R - 0.004, C.CUP_DEPTH, 28, 1, true),
+            new THREE.MeshLambertMaterial({ color: 0x14170f, side: THREE.BackSide })
         );
-        lining.position.set(cup.x, cup.y - 0.25, cup.z);
-        group.add(lining);
+        liner.position.set(cup.x, cup.y - C.CUP_DEPTH / 2, cup.z);
+        group.add(liner);
 
         var floor = new THREE.Mesh(
-            new THREE.CircleGeometry(C.HOLE_R * 0.86, 24),
-            new THREE.MeshLambertMaterial({ color: 0x111111 })
+            new THREE.CircleGeometry(C.HOLE_R, 28),
+            new THREE.MeshLambertMaterial({ color: 0x1d2416 })
         );
         floor.rotation.x = -Math.PI / 2;
-        floor.position.set(cup.x, cup.y - 0.5, cup.z);
+        floor.position.set(cup.x, cup.y - C.CUP_DEPTH, cup.z);
+        floor.receiveShadow = true;
         group.add(floor);
 
         var rim = new THREE.Mesh(
-            new THREE.RingGeometry(C.HOLE_R, C.HOLE_R + 0.06, 28),
-            new THREE.MeshBasicMaterial({ color: 0xf5f5f5, side: THREE.DoubleSide })
+            new THREE.RingGeometry(C.HOLE_R - 0.005, C.HOLE_R + 0.045, 32),
+            new THREE.MeshBasicMaterial({ color: 0xf2f5f0, side: THREE.DoubleSide })
         );
         rim.rotation.x = -Math.PI / 2;
-        rim.position.set(cup.x, cup.y + 0.012, cup.z);
+        rim.position.set(cup.x, cup.y + 0.006, cup.z);
         group.add(rim);
         R.cupMesh = rim;
 
+        // Beyond the cup, on the line of play, so it never stands between the
+        // ball and the hole.
+        var away = Math.atan2(cup.x - hole.tee.x, cup.z - hole.tee.z);
+        var px = cup.x + Math.sin(away) * (C.HOLE_R + 0.28);
+        var pz = cup.z + Math.cos(away) * (C.HOLE_R + 0.28);
+        var stand = P.surfaceUnder(hole, px, pz, Infinity);
+        var py = stand ? stand.y : cup.y;
+
         var pole = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.035, 0.035, 1.6, 8),
+            new THREE.CylinderGeometry(0.03, 0.035, 1.6, 8),
             new THREE.MeshLambertMaterial({ color: 0xf0f0f0 })
         );
-        pole.position.set(cup.x, cup.y + 0.8, cup.z);
+        pole.position.set(px, py + 0.8, pz);
         pole.castShadow = true;
         group.add(pole);
         R.flagPole = pole;
@@ -597,10 +667,10 @@
             new THREE.PlaneGeometry(0.72, 0.42, 8, 2),
             new THREE.MeshLambertMaterial({ color: 0xe23b3b, side: THREE.DoubleSide })
         );
-        cloth.position.set(cup.x + 0.36, cup.y + 1.36, cup.z);
+        cloth.position.set(px + 0.36, py + 1.36, pz);
         group.add(cloth);
         R.flagCloth = cloth;
-        R.flagBase = { x: cup.x, y: cup.y, z: cup.z };
+        R.flagBase = { x: px, y: py, z: pz };
     }
 
     function addTeeMark(group, hole) {
@@ -652,7 +722,7 @@
         addSurround(g, hole, theme);
 
         var i;
-        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme);
+        for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup);
         for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i], theme);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
@@ -662,13 +732,6 @@
         R.holeGroup = g;
         R.smooth.started = false;
         R.clock = 0;
-        setFlagDown(false);
-    }
-
-    function setFlagDown(down) {
-        if (!R.flagPole) return;
-        R.flagPole.visible = !down;
-        R.flagCloth.visible = !down;
     }
 
     /* ── per-frame ──────────────────────────────────────────────────────── */
@@ -797,10 +860,7 @@
         R.clock += dt;
 
         syncMovers(world.time);
-        if (!world.sunk) {
-            R.ball.visible = true;
-            rollBall(world.ball);
-        }
+        rollBall(world.ball);
 
         var i;
         for (i = 0; i < R.water.length; i++) {
@@ -809,7 +869,7 @@
                 R.water[i].material.map.offset.y = R.clock * 0.014;
             }
         }
-        if (R.flagCloth) {
+        if (R.flagCloth && R.flagCloth.visible) {
             var g = R.flagCloth.geometry.attributes.position;
             for (i = 0; i < g.count; i++) {
                 var lx = g.getX(i);
@@ -830,8 +890,6 @@
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
     function sinkAt(x, y, z) { burst(x, y + 0.1, z, 0xffe98a, 26, 2.2); }
 
-    function hideBall() { R.ball.visible = false; }
-
     function setCam(patch) {
         for (var k in patch) if (Object.prototype.hasOwnProperty.call(patch, k)) R.cam[k] = patch[k];
     }
@@ -844,8 +902,6 @@
         splashAt: splashAt,
         sandAt: sandAt,
         sinkAt: sinkAt,
-        hideBall: hideBall,
-        setFlagDown: setFlagDown,
         setCam: setCam,
         cam: R.cam,
         state: R,

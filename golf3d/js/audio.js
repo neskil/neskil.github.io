@@ -76,6 +76,13 @@
             var p = Math.max(0.1, Math.min(1, speed / 10));
             noise(0.07, 180 + p * 120, 1.2, 0.05 + p * 0.07, 'lowpass');
         },
+        // The rattle of the rim: the ball catching the edge of the cup and
+        // either dropping or being thrown back out.
+        rim: function (speed) {
+            var p = Math.max(0.1, Math.min(1, speed / 8));
+            tone(520 + p * 260, 0.05, 'triangle', 0.05 + p * 0.06, 240);
+            noise(0.05, 900, 2.5, 0.04 + p * 0.05);
+        },
         sand: function () { noise(0.22, 2600, 0.7, 0.09, 'highpass'); },
         splash: function () {
             noise(0.4, 900, 0.6, 0.2);
