@@ -21,7 +21,7 @@
     var canvas;
     var state = null;
     var raf = 0, last = 0;
-    var lastBounceAt = 0, lastLandAt = 0;
+    var lastBounceAt = 0, lastLandAt = 0, lastRimAt = 0;
 
     function $(id) { return document.getElementById(id); }
 
@@ -124,8 +124,12 @@
             R.splashAt(b.x, b.y, b.z);
             A.splash();
         }
+        if (ev.rim && now - lastRimAt > 55) {
+            lastRimAt = now;
+            A.rim(P.speedOf(b));
+        }
         if (ev.out) A.out();
-        if (ev.sunk) R.sinkAt(b.x, b.y, b.z);
+        if (ev.sunk) R.sinkAt(b.x, b.y + C.CUP_DEPTH, b.z);
     }
 
     function endShot() {
@@ -146,8 +150,6 @@
         var hole = state.course.holes[state.holeIndex];
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
-        R.hideBall();
-        R.setFlagDown(true);
 
         var t = S.term(state.strokes, hole.par);
         if (t.kind === 'ace') A.ace(); else A.sink();
