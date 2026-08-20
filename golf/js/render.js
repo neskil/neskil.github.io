@@ -543,31 +543,46 @@
        it come off that wall — so the shot was read rather than judged. The
        arrow is now a fixed length at every power: it tells you the line, and
        leaves the weight to your hands. */
-    function drawAim(g, world, aim, t) {
+    function drawAim(g, world, aim, t, lastFrac) {
         var b = world.ball;
-        var frac = aim.power / C.MAX_POWER;
+        var frac = Math.max(0, Math.min(1, aim.power / C.MAX_POWER));
         var angle = aim.angle;
         var ring = C.AIM_RING_R;
+        var ux = Math.cos(angle), uy = Math.sin(angle);
         var tail = ring + C.AIM_RING_W / 2 + 9;
-        var tip = tail + C.AIM_ARROW;
+        // Square root: generous where the touch shots are, compressed at the
+        // top where nobody is trying to tell 90% from 95% by eye.
+        var tip = tail + C.AIM_ARROW + (C.AIM_ARROW_FULL - C.AIM_ARROW) * Math.sqrt(frac);
 
-        /* Direction. A fixed length at every power — see the note above — so
-           the shaft is drawn from outside the gauge and the two never fight
-           for the same pixels. */
+        /* The guide ray, out to the edge of the field. Direction only: it does
+           not stop at a wall, because where the ball comes off a wall is the
+           question the hole is asking. */
+        g.save();
+        g.globalAlpha = C.AIM_GUIDE_ALPHA;
+        g.strokeStyle = '#ffffff';
+        g.lineWidth = 1.5;
+        g.setLineDash([2, 9]);
+        g.lineDashOffset = -t * 18;
+        g.beginPath();
+        g.moveTo(b.x + ux * tip, b.y + uy * tip);
+        g.lineTo(b.x + ux * 1600, b.y + uy * 1600);
+        g.stroke();
+        g.restore();
+
         g.save();
         g.translate(b.x, b.y);
         g.rotate(angle);
 
         g.setLineDash([7, 7]);
         g.lineDashOffset = -t * 26;
-        g.strokeStyle = 'rgba(255,255,255,0.28)';
+        g.strokeStyle = 'rgba(0,0,0,0.30)';
         g.lineWidth = 5;
         g.lineCap = 'butt';
         g.beginPath();
         g.moveTo(tail, 0);
         g.lineTo(tip, 0);
         g.stroke();
-        g.strokeStyle = 'rgba(255,255,255,0.88)';
+        g.strokeStyle = 'rgba(255,255,255,0.9)';
         g.lineWidth = 2.5;
         g.beginPath();
         g.moveTo(tail, 0);
@@ -636,6 +651,20 @@
             g.beginPath();
             g.moveTo(b.x + cx * (ring - C.AIM_RING_W / 2), b.y + cy * (ring - C.AIM_RING_W / 2));
             g.lineTo(b.x + cx * (ring + C.AIM_RING_W / 2), b.y + cy * (ring + C.AIM_RING_W / 2));
+            g.stroke();
+        }
+
+        /* Where the last shot on this hole was struck. Without a number on the
+           dial, "a bit harder than that one" is the only language the player
+           has for weight, and this is what gives them it. */
+        if (typeof lastFrac === 'number') {
+            var la = a0 + span * Math.max(0, Math.min(1, lastFrac));
+            var lx = Math.cos(la), ly = Math.sin(la);
+            g.strokeStyle = '#fbbf24';
+            g.lineWidth = 2.5;
+            g.beginPath();
+            g.moveTo(b.x + lx * (ring - C.AIM_RING_W / 2 - 3), b.y + ly * (ring - C.AIM_RING_W / 2 - 3));
+            g.lineTo(b.x + lx * (ring + C.AIM_RING_W / 2 + 3), b.y + ly * (ring + C.AIM_RING_W / 2 + 3));
             g.stroke();
         }
         g.restore();
@@ -804,7 +833,7 @@
             drawBall(g, state.world.ball, spin);
         }
         if (state.aim && state.aim.active && !state.world.moving && !state.world.sunk) {
-            drawAim(g, state.world, state.aim, t);
+            drawAim(g, state.world, state.aim, t, state.lastFrac);
         }
 
         // Field frame, drawn last so nothing spills over the cushions.

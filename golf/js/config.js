@@ -55,11 +55,26 @@ GOLF.CONFIG = {
     CUP_PULL: 900,        // inward acceleration while the ball is over the cup
     CAPTURE_SPEED: 250,   // faster than this and the rim spits it back out
 
-    /* The aim arrow is a fixed length, on purpose. It used to be drawn from
-       the ball's simulated path, which meant the screen answered the only
-       question the game asks — how hard, and off which cushion. Direction is
-       shown; distance is the player's problem. */
-    AIM_ARROW: 62,
+    /* The aim arrow. It was once the ball's simulated path, which answered the
+       only two questions the game asks — how hard, and off which cushion — and
+       then it was a fixed length at every power, which answered neither and
+       made a gentle tap and a full swing look identical.
+
+       It now grows with the shot, but only from 54px to 108px while the ball
+       itself rolls up to 1250px: a hint you can feel, at a twelfth of the
+       scale of the thing it is hinting at, on a square-root curve that spends
+       most of its travel in the bottom half of the dial where the touch shots
+       live. You can see that this one is harder than the last one. You still
+       cannot read a distance off it. */
+    AIM_ARROW: 54,
+    AIM_ARROW_FULL: 108,
+
+    /* The guide ray runs on past the arrowhead to the edge of the field, thin
+       and faint. It is pure direction — no bounce, no distance, no stopping
+       where the ball would stop — and it is the whole of the leniency: lining
+       a putt up across a 960px field off a 100px arrow was asking players to
+       extend a line by eye that the screen could simply draw. */
+    AIM_GUIDE_ALPHA: 0.17,
 
     /* The power gauge used to be a 16px arc hugging the ball, which is a
        readable *shape* and an unreadable *value* — at a glance you could tell

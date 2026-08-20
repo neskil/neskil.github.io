@@ -57,6 +57,7 @@
             trail: [],
             save: S.load(),
             phase: 'aim',          // aim | rolling | holed | finished
+            lastFrac: null,        // weight of the last shot on this hole, 0..1
             splashAt: 0
         };
         if (carry) state.scores = carry.scores;
@@ -79,6 +80,7 @@
         state.aim.keyboard = false;
         state.aim.origin = null;
         state.aim.angle = Math.atan2(hole.hole.y - hole.tee.y, hole.hole.x - hole.tee.x);
+        state.lastFrac = null;
         state.phase = 'aim';
         R.effects.clear();
         $('banner').classList.remove('show');
@@ -117,6 +119,7 @@
 
         state.strokes++;
         state.phase = 'rolling';
+        state.lastFrac = power / C.MAX_POWER;
         state.trail = [];
         a.active = false;
         a.power = 0;
@@ -452,8 +455,17 @@
         var frac = showing ? Math.max(0, Math.min(1, a.power / C.MAX_POWER)) : 0;
         var el = $('power');
         el.classList.toggle('show', showing);
-        $('power-fill').style.clipPath = 'inset(0 ' + ((1 - frac) * 100).toFixed(1) + '% 0 0)';
         el.classList.toggle('hot', frac > 0.82);
+        $('power-fill').style.clipPath = 'inset(0 ' + ((1 - frac) * 100).toFixed(1) + '% 0 0)';
+        $('power-knob').style.left = (frac * 100).toFixed(1) + '%';
+
+        var mark = $('power-last');
+        if (typeof state.lastFrac === 'number') {
+            mark.hidden = false;
+            mark.style.left = (state.lastFrac * 100).toFixed(1) + '%';
+        } else {
+            mark.hidden = true;
+        }
     }
 
     var lastT = 0;
