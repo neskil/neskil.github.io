@@ -762,9 +762,13 @@
         var course = state.world.course;
         var t = state.world.time;
 
-        if (!turf || turfKey !== state.holeIndex) {
-            turfKey = state.holeIndex;
-            turf = makeTurf(turfKey + 1);
+        // The editor hands frame() a state of its own making, with no hole
+        // number in it. Defaulting keeps the seed a number: NaN here would
+        // reach hsl() and paint the whole field transparent.
+        var key = typeof state.holeIndex === 'number' ? state.holeIndex : 0;
+        if (!turf || turfKey !== key) {
+            turfKey = key;
+            turf = makeTurf(key + 1);
         }
         g.drawImage(turf, 0, 0);
 

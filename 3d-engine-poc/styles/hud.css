@@ -945,3 +945,58 @@
     #cascade-hud .metric-label { font-size: 0.68rem; }
     #cascade-hud .metric-row.big .metric-val { font-size: 0.95rem; }
 }
+
+/* ── phone, landscape ────────────────────────────────────────────────────
+   See tokens.css for why this is a separate block from the one above: same
+   phone, but the top bar shrank, so every band anchored under it moves up to
+   match, and every fixed-height bar gives back some of the padding a portrait
+   layout could afford. */
+@media (max-height: 500px) and (orientation: landscape) {
+    .mobile-strip {
+        top: calc(48px + var(--safe-top));
+        min-height: 32px;
+        padding: 4px 9px;
+    }
+
+    .mission-sheet {
+        top: calc(84px + var(--safe-top));
+        padding: 6px;
+        background: rgba(2, 6, 23, 0.6);
+    }
+
+    .reason-flash { top: calc(88px + var(--safe-top)); }
+
+    #physics-hud,
+    #cascade-hud,
+    .inspector-card {
+        top: calc(46px + var(--safe-top));
+    }
+
+    .hud-card { padding: 10px 12px; }
+    .hud-card-header { margin-bottom: 6px; padding-bottom: 5px; }
+
+    #physics-hud .hud-card,
+    #cascade-hud .hud-card { padding: 5px 9px; }
+
+    .inspector-card { padding: 7px 10px; }
+    .inspector-card .hud-card-header { margin-bottom: 4px; padding-bottom: 4px; }
+
+    /* The bar itself: less air around a shorter row of chips, and a lower
+       ceiling so an open section can't eat the yard the player is placing
+       into. */
+    .control-bar {
+        bottom: calc(6px + var(--safe-bottom));
+        padding: 6px 8px;
+        gap: 4px 8px;
+        max-height: 34%;
+    }
+
+    .toolbar-section.collapsible > .section-title {
+        min-height: 28px;
+        padding: 4px 8px;
+    }
+
+    .tool-btn, .palette-btn { padding: 6px 10px; font-size: 0.78rem; }
+    .nudge-btn { padding: 7px 6px; }
+    .select-input { padding: 6px 10px; }
+}

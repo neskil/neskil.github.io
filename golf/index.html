@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.2.0">
+    <link rel="stylesheet" href="style.css?v=1.3.0">
 </head>
 <body>
     <div class="wrap" id="wrap">
@@ -45,6 +45,7 @@
             <div class="topbar-actions">
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                <a class="chip" href="level-editor.html" title="Build a hole of your own">&#9998; Editor</a>
                 <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
                 <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
             </div>
@@ -134,12 +135,45 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.2.0"></script>
-    <script src="js/courses.js?v=1.2.0"></script>
-    <script src="js/physics.js?v=1.2.0"></script>
-    <script src="js/scoring.js?v=1.2.0"></script>
-    <script src="js/audio.js?v=1.2.0"></script>
-    <script src="js/render.js?v=1.2.0"></script>
-    <script src="js/game.js?v=1.2.0"></script>
+    <script src="js/config.js?v=1.3.0"></script>
+    <script src="js/courses.js?v=1.3.0"></script>
+    <script>
+        /* Playtest hand-off from the hole editor. It writes one hole into
+           session storage and sends the player here with ?playtest=1; swapping
+           GOLF.COURSE before game.js boots is the whole mechanism, and the
+           round is then one hole long.
+
+           GOLF.PLAYTEST is what keeps that round out of the save file. A
+           one-hole round is three or four strokes and would beat any real
+           eighteen-hole record the first time anyone tried a draft. */
+        (function () {
+            if (!/[?&]playtest=1/.test(window.location.search)) return;
+            try {
+                var raw = sessionStorage.getItem('miniGolf.playtest.v1');
+                if (!raw) return;
+                var hole = JSON.parse(raw);
+                ['walls', 'water', 'sand', 'rough', 'ice', 'bumpers', 'slopes'].forEach(function (k) {
+                    if (!Array.isArray(hole[k])) hole[k] = [];
+                });
+                GOLF.COURSE = [hole];
+                GOLF.PLAYTEST = true;
+                document.addEventListener('DOMContentLoaded', function () {
+                    document.querySelector('.tagline').textContent = 'Playtest — this round is not recorded.';
+                    // The editor chip is already there; on a playtest it is a
+                    // way back rather than a way out.
+                    var chip = document.querySelector('.topbar-actions a[href="level-editor.html"]');
+                    if (chip) {
+                        chip.textContent = '\u2190 Editor';
+                        chip.title = 'Back to the hole editor';
+                    }
+                });
+            } catch (e) { /* storage disabled: fall through to the real course */ }
+        })();
+    </script>
+    <script src="js/physics.js?v=1.3.0"></script>
+    <script src="js/scoring.js?v=1.3.0"></script>
+    <script src="js/audio.js?v=1.3.0"></script>
+    <script src="js/render.js?v=1.3.0"></script>
+    <script src="js/game.js?v=1.3.0"></script>
 </body>
 </html>

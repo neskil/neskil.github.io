@@ -121,7 +121,7 @@ button.chip.on { background: var(--accent); color: #06212f; border-color: transp
 
 .scoreboard {
     display: grid;
-    grid-template-columns: 2.6fr repeat(4, 1fr);
+    grid-template-columns: 2.4fr repeat(5, 1fr);
     gap: 0.6rem;
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -198,7 +198,7 @@ canvas:active { cursor: grabbing; }
     canvas { aspect-ratio: 4 / 3; }
 }
 
-/* ── power and loft ─────────────────────────────────────────────────────── */
+/* ── clubs and power ────────────────────────────────────────────────────── */
 
 .controls {
     position: absolute;
@@ -206,21 +206,107 @@ canvas:active { cursor: grabbing; }
     right: 12px;
     bottom: 12px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.9rem;
     line-height: 1.2;
     pointer-events: none;
 }
 
 .controls .power { flex: 1 1 auto; min-width: 0; }
-.controls .loft { flex: 0 0 auto; pointer-events: auto; }
+.controls .clubs { flex: 0 0 auto; pointer-events: auto; display: flex; gap: 0.35rem; }
+
+.club {
+    font: inherit;
+    display: grid;
+    justify-items: center;
+    gap: 0.05rem;
+    min-width: 62px;
+    padding: 0.3rem 0.5rem 0.35rem;
+    border-radius: 11px;
+    cursor: pointer;
+    color: var(--ink);
+    background: rgba(6, 20, 32, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(6px);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.club:hover { background: rgba(56, 189, 248, 0.22); transform: translateY(-1px); }
+
+.club.on {
+    background: var(--accent);
+    border-color: transparent;
+    color: #06212f;
+    box-shadow: 0 6px 18px rgba(56, 189, 248, 0.35);
+}
+
+.club-key {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.58rem;
+    opacity: 0.65;
+}
+
+.club-name { font-size: 0.8rem; font-weight: 600; line-height: 1.1; }
+
+.club-loft {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.6rem;
+    opacity: 0.75;
+}
+
+.club-hint {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 300;
+    color: rgba(234, 246, 255, 0.85);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── compact overlay, for when the scoreboard is off screen ─────────────── */
+
+.stage-hud {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    display: none;
+    gap: 0.75rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: rgba(6, 20, 32, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(6px);
+    line-height: 1.3;
+    pointer-events: none;
+}
+
+.stage-hud span + span { padding-left: 0.75rem; border-left: 1px solid rgba(255, 255, 255, 0.15); }
+
+.stage:fullscreen .stage-hud,
+.stage:-webkit-full-screen .stage-hud { display: flex; }
+
+.stage:fullscreen,
+.stage:-webkit-full-screen { border-radius: 0; border: 0; }
+
+.stage:fullscreen canvas,
+.stage:-webkit-full-screen canvas {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+}
 
 .ctl-label {
     display: block;
     font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: rgba(234, 246, 255, 0.75);
+    color: rgba(234, 246, 255, 0.8);
     text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
     margin-bottom: 0.25rem;
 }
@@ -228,24 +314,40 @@ canvas:active { cursor: grabbing; }
 .ctl-label b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
 .power-track {
-    height: 9px;
-    border-radius: 6px;
-    background: rgba(3, 12, 20, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+    height: 13px;
+    border-radius: 7px;
+    background: rgba(3, 12, 20, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .power-fill {
     height: 100%;
     width: 0;
     background: var(--accent);
-    transition: width 0.05s linear;
+    box-shadow: 0 0 12px currentColor;
+    transition: width 0.04s linear;
 }
 
-.loft input[type="range"] {
-    width: 130px;
-    accent-color: var(--accent);
-    cursor: pointer;
+/* Where the swing runs out. Everything past it is the part of the shot most
+   likely to end in the water. */
+.power-max {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 85%;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.power-track.hot { border-color: rgba(248, 113, 113, 0.85); }
+.power-track.hot .power-fill { animation: powerPulse 0.45s ease-in-out infinite alternate; }
+
+@keyframes powerPulse {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.45); }
 }
 
 /* ── hole-complete banner ───────────────────────────────────────────────── */
@@ -479,6 +581,37 @@ kbd {
     margin-top: 0.2rem;
 }
 
+/* ── how to play ────────────────────────────────────────────────────────── */
+
+.steps {
+    margin: 0;
+    padding-left: 1.3rem;
+    display: grid;
+    gap: 0.7rem;
+    font-size: 0.87rem;
+    font-weight: 300;
+    line-height: 1.5;
+    color: var(--ink-dim);
+}
+
+.steps li::marker { color: var(--accent); font-weight: 700; }
+.steps b { color: var(--ink); font-weight: 600; }
+.steps kbd { margin: 0 1px; }
+
+.linkish {
+    font: inherit;
+    font-size: 0.82rem;
+    color: var(--accent);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.linkish:hover { color: #7dd3fc; }
+
 /* ── scorecard ──────────────────────────────────────────────────────────── */
 
 .card-table {
@@ -548,7 +681,7 @@ kbd {
 
 @media (max-width: 760px) {
     .scoreboard {
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: repeat(5, 1fr);
         row-gap: 0.7rem;
     }
     .scoreboard .stat:first-child { grid-column: 1 / -1; }
@@ -556,5 +689,9 @@ kbd {
     .tagline { display: none; }
     .topbar-actions { gap: 0.35rem; }
     button.chip { padding: 0.4rem 0.6rem; font-size: 0.78rem; }
-    .loft input[type="range"] { width: 90px; }
+    .club { min-width: 0; padding: 0.28rem 0.42rem; }
+    .club-name { font-size: 0.7rem; }
+    .club-key, .club-loft { font-size: 0.55rem; }
+    .club-hint { display: none; }
+    .stage-hud { font-size: 0.7rem; gap: 0.5rem; }
 }

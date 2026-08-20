@@ -16,7 +16,7 @@ Niklas Billgren's personal site, hosted on GitHub Pages. Static HTML/CSS/JS, no 
 | `supply-chain/` | Supply Chain Tycoon — a Mini-Metro-style logistics mini-game (roads, trucks, factories, orders). See [supply-chain/README.md](supply-chain/README.md). |
 | `supply-chain-legacy/` | Frozen single-file snapshot of the pre-rewrite Supply Chain sim. Reachable only from the "vault" row on the landing page; kept out of the sitemap on purpose. |
 | `3d-engine-poc/` | Yard Master — a WebGL container-stacking puzzle (three.js, vendored, no build step). See [3d-engine-poc/README.md](3d-engine-poc/README.md). |
-| `golf/` | Pocket Links — an eighteen-hole 2D mini golf game (canvas, own physics). See [golf/README.md](golf/README.md). |
+| `golf/` | Pocket Links — an eighteen-hole 2D mini golf game (canvas, own physics), plus `level-editor.html`, a visual hole editor that runs on the game's own modules. See [golf/README.md](golf/README.md). |
 | `golf3d/` | Loft Links — 3D mini golf, three six-hole courses (three.js, vendored; own physics). See [golf3d/README.md](golf3d/README.md). |
 | `surprise/` | Misc. personal page ("Bacons lilla hörna") — an HTML5 UP "Dimension" one-pager with two Phaser toys, plus `cv_legacy/`. Pruned to what it actually serves; see "Pruning surprise/" below before adding to it. |
 | `404.html` | Custom not-found page (GitHub Pages serves it automatically). |
@@ -41,8 +41,9 @@ is blocked. That set is the headless test harnesses (`*/tests.html`,
 (`cargo-lander/syntax-check.html`, `cargo-lander/probe-screenshot.html`,
 `supply-chain/audio-check.html`, `supply-chain/research-zoom-check.html`).
 
-`cargo-lander/level-editor.html` is *not* in that set — it is a real feature
-linked from the game, and stays indexable.
+`cargo-lander/level-editor.html` and `golf/level-editor.html` are *not* in
+that set — both are real features linked from their games, and stay
+indexable.
 
 Add a new test or probe page and it needs both lines, or it will quietly show
 up in search results next to the pages you meant to publish.

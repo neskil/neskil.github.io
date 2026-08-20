@@ -99,7 +99,9 @@ body::before {
     gap: 0.5rem;
 }
 
-button.chip {
+/* Buttons and links both wear this: the editor link sits in the same row as
+   the restart and mute buttons and has no business looking different. */
+.chip {
     font: inherit;
     font-size: 0.85rem;
     color: var(--ink);
@@ -108,11 +110,14 @@ button.chip {
     border-radius: 10px;
     padding: 0.45rem 0.8rem;
     cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
     transition: background 0.18s, border-color 0.18s, transform 0.18s;
 }
 
-button.chip:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
-button.chip:active { transform: translateY(1px); }
+.chip:hover { background: var(--accent-soft); border-color: rgba(134, 239, 172, 0.4); }
+.chip:active { transform: translateY(1px); }
 
 /* ── scoreboard ─────────────────────────────────────────────────────────── */
 

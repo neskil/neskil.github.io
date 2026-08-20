@@ -63,10 +63,21 @@
     }
 
     var A = {
+        /* The strike. Three layers, because one oscillator sounds like a
+           doorbell: the click of the face, a body that drops in pitch with the
+           power behind it, and a thump you feel more than hear on a big one. */
         putt: function (power) {
             var p = Math.max(0.15, Math.min(1, power));
-            tone(150 + p * 190, 0.09, 'triangle', 0.16 + p * 0.1, 70);
-            noise(0.05, 1400, 1.5, 0.05 + p * 0.06);
+            noise(0.035, 2600 - p * 900, 1.2, 0.05 + p * 0.07, 'bandpass');
+            tone(190 + p * 210, 0.1, 'triangle', 0.15 + p * 0.12, 60);
+            if (p > 0.45) tone(90 + p * 40, 0.16, 'sine', 0.06 + p * 0.12, 40);
+        },
+
+        /* One notch of the ratchet as the shot is wound back. Quiet, short and
+           rising, so a long pull sounds like a long pull. */
+        tick: function (frac) {
+            var p = Math.max(0, Math.min(1, frac));
+            tone(420 + p * 620, 0.028, 'square', 0.022 + p * 0.03);
         },
         bounce: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 12));
@@ -75,6 +86,13 @@
         land: function (speed) {
             var p = Math.max(0.1, Math.min(1, speed / 10));
             noise(0.07, 180 + p * 120, 1.2, 0.05 + p * 0.07, 'lowpass');
+        },
+        // The rattle of the rim: the ball catching the edge of the cup and
+        // either dropping or being thrown back out.
+        rim: function (speed) {
+            var p = Math.max(0.1, Math.min(1, speed / 8));
+            tone(520 + p * 260, 0.05, 'triangle', 0.05 + p * 0.06, 240);
+            noise(0.05, 900, 2.5, 0.04 + p * 0.05);
         },
         sand: function () { noise(0.22, 2600, 0.7, 0.09, 'highpass'); },
         splash: function () {

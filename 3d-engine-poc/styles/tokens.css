@@ -324,3 +324,31 @@ kbd {
        knowing which build is live is the whole point of putting it up here. */
     .build-stamp { font-size: 0.62rem; padding: 3px 5px; }
 }
+
+/*
+ * Landscape phones are not short on width — 700-930px of it — they are short
+ * on height: 340-430px between a notch and a home indicator. The rules above
+ * solve the wrong axis here (a full-width bar is cheap on a dimension there is
+ * plenty of), so this block spends the height budget back: every fixed band
+ * shrinks a second time, and the glass panels lean more transparent so the
+ * yard still reads through the strip of screen they're allowed to keep.
+ */
+@media (max-height: 500px) and (orientation: landscape) {
+    :root {
+        --bg-card: rgba(15, 23, 42, 0.52);
+        --bg-panel: rgba(15, 23, 42, 0.74);
+    }
+
+    .top-nav {
+        top: calc(6px + var(--safe-top));
+        height: 38px;
+        padding: 0 7px;
+        gap: 6px;
+    }
+
+    .header-title { gap: 6px; }
+    .header-title h1 { font-size: 0.94rem; }
+    .icon-btn { width: 32px; height: 32px; font-size: 0.86rem; }
+    .back-btn { padding: 6px; }
+    .build-stamp { padding: 2px 4px; }
+}

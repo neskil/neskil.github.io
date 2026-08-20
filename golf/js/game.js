@@ -32,11 +32,22 @@
 
     /* ── round state ────────────────────────────────────────────────────── */
 
+    /* A playtest is the editor handing over a single hole. It is not a round:
+       it must neither resume the one you have going nor overwrite it, so every
+       call into the round store goes through these two and stops here. */
+    function storeRound(i) {
+        if (!GOLF.PLAYTEST) S.saveRound(i, state.scores, GOLF.COURSE);
+    }
+
+    function clearStoredRound() {
+        if (!GOLF.PLAYTEST) S.clearRound();
+    }
+
     /* `resume` is true only on boot. Every other caller — the Play again
        button, a fresh start — means a new round and says so. */
     function newRound(resume) {
-        var carry = resume ? S.loadRound(GOLF.COURSE) : null;
-        if (!carry) S.clearRound();
+        var carry = (resume && !GOLF.PLAYTEST) ? S.loadRound(GOLF.COURSE) : null;
+        if (!carry) clearStoredRound();
         state = {
             holeIndex: 0,
             strokes: 0,
@@ -71,7 +82,7 @@
         state.phase = 'aim';
         R.effects.clear();
         $('banner').classList.remove('show');
-        S.saveRound(i, state.scores, GOLF.COURSE);
+        storeRound(i);
         syncHud();
     }
 
@@ -150,7 +161,7 @@
         var last = state.holeIndex === GOLF.COURSE.length - 1;
         // Written now rather than on the next tee, so closing the tab on the
         // banner keeps the hole you just finished.
-        if (!last) S.saveRound(state.holeIndex + 1, state.scores, GOLF.COURSE);
+        if (!last) storeRound(state.holeIndex + 1);
         $('banner-term').textContent = term.label;
         $('banner-term').className = 'banner-term ' + term.kind;
         $('banner-detail').textContent = state.strokes + ' stroke' + (state.strokes === 1 ? '' : 's') +
@@ -170,9 +181,17 @@
     }
 
     function finishRound() {
-        S.clearRound();
-        var res = S.recordRound(state.save, state.scores, GOLF.COURSE);
-        state.save = S.save(res.save);
+        /* A playtest is one hole handed over by the editor, and a one-hole
+           "round" of three strokes would walk straight into the best-round
+           record. So it is scored and shown, and never written down. */
+        var res;
+        if (GOLF.PLAYTEST) {
+            res = { save: state.save, isBest: false, totals: S.totals(state.scores, GOLF.COURSE) };
+        } else {
+            clearStoredRound();
+            res = S.recordRound(state.save, state.scores, GOLF.COURSE);
+            state.save = S.save(res.save);
+        }
         state.phase = 'finished';
         $('banner').classList.remove('show');
         openCard(res);

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hole Editor — Pocket Links</title>
+<meta name="description" content="A visual editor for Pocket Links holes: drag out walls, water, bunkers, ice, bumpers and slopes, putt the ball without leaving the page, and export the hole as courses.js data.">
+<meta name="theme-color" content="#0d1117">
+<meta name="color-scheme" content="dark">
+<meta name="author" content="Niklas Billgren">
+<link rel="canonical" href="https://neskil.github.io/golf/level-editor.html">
+<meta property="og:site_name" content="Niklas Billgren">
+<meta property="og:title" content="Pocket Links — Hole Editor">
+<meta property="og:description" content="Build a mini golf hole in the browser: drag out the hazards, putt it to see if it plays, and export it as data.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://neskil.github.io/golf/level-editor.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="editor/editor.css?v=1.3.0">
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-resize-handle"></div>
+
+  <div class="sec" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+    <div class="row">
+      <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)">↶</button>
+      <button class="btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)">↷</button>
+    </div>
+    <div class="row">
+      <button class="btn btn-play" id="btn-playtest" title="Open this hole in the real game">Playtest ↗</button>
+      <a class="btn btn-warn" href="index.html" title="Back to Pocket Links" style="text-decoration:none">Exit</a>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="row" style="margin-bottom:8px">
+      <span class="lbl lbl-w">Mode:</span>
+      <button class="btn on" id="mode-edit" title="Edit the hole (E)">✎ Edit</button>
+      <button class="btn" id="mode-play" title="Putt the ball right here (P)">▶ Play</button>
+      <span class="lbl" id="anim-wrap" style="margin-left:auto">
+        <button class="btn" id="btn-anim" title="Pause or resume the moving walls">⏸ Clock</button>
+      </span>
+    </div>
+    <div id="tools">
+      <button class="btn on" data-tool="select" title="Select and drag (V)">▣ Select</button>
+      <button class="btn" data-tool="walls" title="Drag out a wall (1)"><i class="swatch" style="background:#6d4a2e"></i>Wall</button>
+      <button class="btn" data-tool="water" title="Drag out water (2)"><i class="swatch" style="background:#1b6d9e"></i>Water</button>
+      <button class="btn" data-tool="sand" title="Drag out a bunker (3)"><i class="swatch" style="background:#e3ca92"></i>Sand</button>
+      <button class="btn" data-tool="rough" title="Drag out rough (4)"><i class="swatch" style="background:#1c6b39"></i>Rough</button>
+      <button class="btn" data-tool="ice" title="Drag out ice (5)"><i class="swatch" style="background:#bfe4f2"></i>Ice</button>
+      <button class="btn" data-tool="bumpers" title="Drag out a post (6)"><i class="swatch round" style="background:#f59e0b"></i>Post</button>
+      <button class="btn" data-tool="slopes" title="Drag out a slope (7)"><i class="swatch" style="background:#4b6f52"></i>Slope</button>
+      <button class="btn" data-tool="tee" title="Place the tee (8)">⛳ Tee</button>
+      <button class="btn" data-tool="hole" title="Place the cup (9)">◉ Cup</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="lbl lbl-w">Snap:</span>
+      <button class="btn" data-snap="1">1</button>
+      <button class="btn" data-snap="5">5</button>
+      <button class="btn on" data-snap="10">10</button>
+      <button class="btn" data-snap="20">20</button>
+      <button class="btn" id="btn-grid" title="Show the grid (G)" style="margin-left:auto">Grid</button>
+    </div>
+  </div>
+
+  <div id="sidebar-scrollable">
+
+    <details class="sec" open>
+      <summary class="sec-title"><span class="sec-title-text">Hole</span></summary>
+      <div class="sec-content">
+        <div class="row">
+          <select id="load-select"><option value="">— load a hole —</option></select>
+        </div>
+        <div class="row">
+          <button class="btn" id="btn-load" style="flex:1">Load</button>
+          <button class="btn btn-blue" id="btn-blank" style="flex:1" title="Start from an empty field">+ Blank</button>
+        </div>
+        <div class="subhead">Card</div>
+        <div class="row">
+          <span class="lbl lbl-w">Name</span>
+          <input type="text" id="f-name" style="flex:1; min-width:0">
+        </div>
+        <div class="row">
+          <span class="lbl lbl-w">Blurb</span>
+          <input type="text" id="f-blurb" style="flex:1; min-width:0">
+        </div>
+        <div class="row">
+          <span class="lbl lbl-w">Par</span>
+          <input type="number" id="f-par" min="2" max="5" step="1" style="width:60px">
+          <span class="hint" id="par-hint"></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary class="sec-title"><span class="sec-title-text">Shapes</span></summary>
+      <div class="sec-content">
+        <div id="shape-list"></div>
+        <div id="inspector"></div>
+      </div>
+    </details>
+
+    <details class="sec" open>
+      <summary class="sec-title"><span class="sec-title-text">Check</span></summary>
+      <div class="sec-content">
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn btn-blue" id="btn-check" style="flex:1">Run the checks</button>
+          <button class="btn" id="btn-bot" title="Let the test suite's bot try to hole out">+ Bot</button>
+        </div>
+        <div id="report-summary" class="busy">Not run yet.</div>
+        <div id="report"></div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary class="sec-title"><span class="sec-title-text">Import / Export</span></summary>
+      <div class="sec-content">
+        <div class="row" style="margin-bottom:6px">
+          <span class="lbl" style="flex:1">Paste into <code>js/courses.js</code></span>
+        </div>
+        <textarea id="out" readonly style="height:150px; color:#79c0ff; font-size:11px;"></textarea>
+        <div class="row">
+          <button class="btn" id="btn-copy" style="flex:1">Copy</button>
+          <button class="btn" id="btn-download" style="flex:1">Download</button>
+          <button class="btn" id="btn-copy-ai" style="flex:1" title="Copy the hole with a prompt ready for an AI assistant">For AI</button>
+        </div>
+        <div class="subhead">Load from source</div>
+        <textarea id="paste-in" placeholder="Paste a hole literal — { name: '…', par: 3, tee: {…}, … } — with or without the r()/post() helpers." style="height:80px; font-size:11px;"></textarea>
+        <div class="row">
+          <button class="btn" id="btn-paste" style="flex:1">Parse &amp; load</button>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec">
+      <summary class="sec-title"><span class="sec-title-text">Help &amp; Shortcuts</span></summary>
+      <div class="sec-content hint">
+        <div><b>V</b> select · <b>1</b>–<b>8</b> pick a tool · <b>E</b>/<b>P</b> edit or play</div>
+        <div><b>Drag</b> on the green with a shape tool to draw one</div>
+        <div><b>Shift</b> while dragging = snap ×5 · <b>Alt</b> = ignore snap</div>
+        <div><b>Arrows</b> nudge · <b>Del</b> delete · <b>Ctrl+D</b> duplicate</div>
+        <div><b>Ctrl+Z</b> / <b>Ctrl+Shift+Z</b> undo, redo · <b>G</b> grid</div>
+        <div><b>Space+drag</b> or middle-drag pans · scroll zooms · <b>F</b> fits</div>
+        <hr style="border:0; border-top:1px solid #30363d; margin:8px 0;">
+        <div><b>Play mode:</b> drag back from the ball and release, exactly as
+          in the game. <b>R</b> puts it back on the tee.</div>
+        <div style="margin-top:6px">The green is drawn by the game's own
+          renderer, so what you see here is what the hole looks like in play —
+          moving walls and all.</div>
+      </div>
+    </details>
+
+  </div>
+</div>
+
+<div id="stage">
+  <canvas id="board"></canvas>
+  <div id="hud"></div>
+  <div id="zoom-controls">
+    <button id="btn-zoom-in" title="Zoom in">+</button>
+    <button id="btn-zoom-out" title="Zoom out">−</button>
+    <button id="btn-fit" title="Fit the field (F)">⤢</button>
+  </div>
+  <div id="toast"></div>
+  <div id="statusbar">
+    <span>x <b id="st-x">0</b> y <b id="st-y">0</b></span>
+    <span>snap <b id="st-snap">10</b></span>
+    <span>zoom <b id="st-zoom">100%</b></span>
+    <span id="st-sel">nothing selected</span>
+    <span style="margin-left:auto" id="st-msg"></span>
+  </div>
+  <div id="selftest"></div>
+</div>
+
+<!-- The editor runs on the game's own modules: the same constants, the same
+     integrator, the same renderer. A hole that looks and plays right in here
+     is the hole that ships, because there is no second implementation of any
+     of it. -->
+<script src="js/config.js?v=1.3.0"></script>
+<script src="js/courses.js?v=1.3.0"></script>
+<script src="js/physics.js?v=1.3.0"></script>
+<script src="js/render.js?v=1.3.0"></script>
+<script src="editor/editor.js?v=1.3.0"></script>
+</body>
+</html>

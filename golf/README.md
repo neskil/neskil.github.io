@@ -17,6 +17,9 @@ build step and no dependencies — same as everything else here, open
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
 | `js/render.js` | All drawing, plus the (visual-only) particle system. |
 | `js/game.js` | Loop, input, and what a shot means. |
+| `level-editor.html` | Visual hole editor. See [The editor](#the-editor). |
+| `editor/editor.js` | All of it. Runs on the game's own modules, owns no copy of any of them. |
+| `editor/editor.css` | Sidebar chrome. The green in there is the game's renderer. |
 | `tests.html` | Headless test harness. Open it; green is green. |
 
 ## How a hole is built
@@ -187,6 +190,63 @@ index is off the end of the course, when the round never actually started, or
 when it was written for a course with a different number of holes — which is
 what happened to every nine-hole save the day this became eighteen.
 
+## The editor
+
+`level-editor.html` builds a hole by dragging rectangles about, and is linked
+from the game's top bar. It runs on `config.js`, `physics.js` and `render.js`
+directly, which is the whole design:
+
+- **The green is the game's renderer.** `GOLF.render.frame` draws the editor
+  canvas, so the picture is not an approximation of the hole — it *is* the
+  hole, mower stripes, rake lines, swinging gates and all. There is no second
+  drawing routine to drift out of step with the first.
+- **Play mode is the game's integrator.** Toggle to Play and putt: same
+  `advance()`, same constants, same slingshot drag, same water penalty. What
+  is missing is the scorecard, because one hole is not a round.
+- **The checks are the suite's rules**, ported one for one out of
+  `tests.html` — thicknesses, post radii, tee and cup clearance, pinched
+  posts, gates that stray off the field or seal it shut. Two of them the
+  suite states as prose and measures rather than asserts per hole, and the
+  editor runs them as well: that a ball left anywhere on a slope always comes
+  to rest, and that a fan of full-power shots all settle inside
+  `MAX_SHOT_SECONDS`. **+ Bot** is the suite's greedy bot, three attempts at
+  the hole; it reports the strokes it needed, which is a decent first guess
+  at par.
+
+The slope check is worth a note, since it is the one the geometry cannot
+answer. The rule — *a slope must not reach a cushion or a wall it can press
+the ball against* — is about a failure the shape of the rectangles does not
+show: a ball inside a slope zone is never counted as at rest, so a ball
+pinned at the foot of one rattles there for ever and the hole never hands
+itself back. Rather than guess, the editor drops a ball at nine points across
+each slope and watches whether it ever stops. A slope with `ax` and `ay` both
+zero fails it too, and should: nothing moves the ball and nothing lets it
+rest.
+
+Everything else is what you would expect. Drag a shape tool across the green
+to draw one, drag it or its grips to reshape, snap at 1/5/10/20 with shift for
+×5 and alt for off, undo the lot with Ctrl+Z. Moving walls show dashed ghosts
+at both ends of their travel, which is the pair of positions that decides
+whether a gate is a gate or a wall. Work in progress autosaves to
+`miniGolf.editor.v1`; nothing else in the editor touches storage.
+
+**Export** emits the hole in exactly the shape `courses.js` is written in —
+the `r()` and `post()` helpers, `-Math.PI / 2` rather than `-1.571`, lists
+left out when the hole does not use them — so it pastes straight into
+`GOLF.COURSE`. **Import** reads the same thing back, with or without the
+helpers, braces or a trailing comma. **Playtest** hands the hole to the game
+through session storage and opens `index.html?playtest=1`, which swaps
+`GOLF.COURSE` for that one hole before `game.js` boots. That round is scored
+and shown but never written down: a one-hole round is three or four strokes
+and would beat any real eighteen-hole record the first time anyone tried a
+draft.
+
+`level-editor.html?runTests=1` runs the editor's own tests — the export/parse
+round trip over all eighteen shipped holes, the checks passing everything
+that ships and catching three holes deliberately broken, and undo/redo. It is
+a real feature linked from the game, so unlike `tests.html` it stays
+indexable; the self-test overlay only appears with the query string.
+
 ## Tests
 
 Open `tests.html`. 284 assertions covering geometry, the integrator, the four
@@ -223,8 +283,14 @@ rule in the root README.
 
 ## Saving
 
-Two keys. `miniGolf.round.v1` is the round in progress, described above.
-`miniGolf.save.v1` is the record: best round, that round's card, rounds played
-and a running ace count. The landing page reads the same key for the card's stat chip.
+Two keys carry a round. `miniGolf.round.v1` is the one in progress, described
+above; `miniGolf.save.v1` is the record — best round, that round's card, rounds
+played and a running ace count. The landing page reads the record for the
+card's stat chip. (The editor keeps its work in progress under
+`miniGolf.editor.v1` and hands a playtest over in session storage under
+`miniGolf.playtest.v1`; neither goes near either of them, and a playtest is
+locked out of both the record and the round in progress — a one-hole round of
+three strokes would otherwise beat any real eighteen-hole score, and starting
+one would throw away the round you had going.)
 Mute state lives separately under `miniGolf.muted`. Both writes are wrapped —
 a browser with storage disabled should cost you your records, not your round.

@@ -12,7 +12,13 @@ G3.VERSION = '1.0.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
-    HOLE_R: 0.30,
+    /* Ball and cup are in the proportion the real game uses — a 108mm cup and
+       a 42mm ball, near enough — because that ratio is what decides whether a
+       rolling ball drops or rides the far lip, and there is no capture rule
+       here to paper over a bad one. */
+    HOLE_R: 0.40,
+    CUP_DEPTH: 0.42,      // the ball is 0.32 across, so it is well under the rim
+    CUP_RESTITUTION: 0.35,// what the rim and the shaft wall give back
 
     /* Positive downward acceleration. Real gravity makes a lofted shot hang
        for ages at this scale; 18 keeps an arc inside a second or so, which is
@@ -28,17 +34,58 @@ G3.CONFIG = {
         green: 0.30,
         wood: 0.55,    // bridges and ramps: slick, you carry your speed
         sand: 0.004,   // a bunker eats a shot
-        rough: 0.06
+        rough: 0.06,
+        cup: 0.004     // the bottom of the hole: whatever lands here stays
     },
     FRICTION_DEFAULT: 0.30,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 11.6 units on grass. The
-       longest hole is a little over that, so the big fields need two shots and
-       the short ones are drivable — the skill is in not overcooking it. */
-    MAX_POWER: 14,
+    /* At full power the ball coasts v0 / -ln(k) ≈ 18 units on grass, which is
+       the length of the longest hole and then some. Everything is reachable
+       with one big swing, so the skill is entirely in not overcooking it — the
+       cup will not take a ball arriving much above 7, and a driver that has
+       only run half its length is doing about 9. */
+    MAX_POWER: 22,
     MIN_POWER: 0.9,
-    DRAG_MAX: 190,        // px of screen pull-back that equals MAX_POWER
+
+    /* How far the ball has to be pulled back, in pixels, for a full swing. The
+       longer this is the more precisely a half shot can be set, and the more a
+       big one feels like winding up; too long and it will not fit on a phone
+       in portrait. */
+    DRAG_MAX: 230,
     MAX_LOFT: 45 * Math.PI / 180,
+
+    /* The bag. A club is a loft and a ceiling on power, and that is the whole
+       of it — the simulation never hears the word "club", it is handed a launch
+       angle and a speed like before. Picking one is picking a trade: the driver
+       has the reach, the wedge has the height to clear what the driver would
+       bounce off, and the putter's ceiling is low enough that full power is
+       still a tap.
+
+       Order matters: it is the order they appear in the bag and the order the
+       number keys select. */
+    CLUBS: [
+        {
+            id: 'putter', name: 'Putter', short: 'PT', key: '1',
+            loft: 0, power: 8.5,
+            blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
+        },
+        {
+            id: 'driver', name: 'Driver', short: 'DR', key: '2',
+            loft: 4 * Math.PI / 180, power: 22,
+            blurb: 'The reach club. Barely off the ground, and it runs.'
+        },
+        {
+            id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
+            loft: 22 * Math.PI / 180, power: 12,
+            blurb: 'Hops a rail and keeps running. The all-rounder.'
+        },
+        {
+            id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
+            loft: 42 * Math.PI / 180, power: 10,
+            blurb: 'Up and over water, sand and anything else in the way.'
+        }
+    ],
+    DEFAULT_CLUB: 'driver',
 
     RESTITUTION: 0.62,    // horizontal speed kept after a rail bounce
     BOUNCE: 0.34,         // vertical speed kept after landing
@@ -54,9 +101,6 @@ G3.CONFIG = {
     STEP_UP: 0.14,
     DROP: 0.10,
 
-    CUP_PULL: 11,         // inward acceleration while the ball is over the cup
-    CAPTURE_SPEED: 3.1,   // faster than this and the rim spits it back out
-    CUP_HEIGHT: 0.40,     // vertical slop allowed when testing for a capture
 
     SIM_DT: 1 / 120,
     MAX_SUBSTEPS: 32,
@@ -66,6 +110,14 @@ G3.CONFIG = {
     WATER_PENALTY: 1,
     OOB_PENALTY: 1,
 
+    /* Feel. None of this touches the simulation — it is what the shot looks
+       and sounds like while you are winding it up and after you let go. */
+    OVERSWING: 0.85,      // past this fraction the meter turns and the arrow reddens
+    DRAG_DEADZONE: 8,     // px of slack before a press counts as a pull
+    KICK: 0.55,           // camera punch on impact, in units of pull-back
+    TRAIL: 56,            // ball trail samples
+
     SAVE_KEY: 'loftLinks.save.v1',
-    MUTE_KEY: 'loftLinks.muted'
+    MUTE_KEY: 'loftLinks.muted',
+    SEEN_KEY: 'loftLinks.seenHowTo'
 };
