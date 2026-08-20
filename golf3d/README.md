@@ -217,6 +217,27 @@ sideways drag, which spun the world under your thumb at exactly the moment you
 were trying to be precise; now it keeps the yaw it had when the pull began and
 eases in behind the shot once the ball is away.
 
+**One finger owns the shot.** The pull follows the pointer that started it and
+no other, from press to release. A second finger landing while a pull is loaded
+is ignored — it is almost always the hand holding the phone, and the pull it
+used to throw away was worth more than the zoom it would have started. With
+nothing loaded there is nothing to lose, so two fingers mean pinch, and the
+pinch holds the input until every finger is off the glass, which is what stops
+the aim jumping when one thumb comes up before the other. Anything that cancels
+a pull — a pinch that takes it, a `pointercancel` from the system — puts the aim
+back exactly where the pull found it, rather than leaving the meter stuck at the
+number it died on.
+
+**The aim line rides through one wall.** `previewPath` normally stops where the
+shot stops being a shot — a landing, the water, the cup — because drawing the
+whole roll would turn the game into a calculator. A rail is the exception: if
+you are lined up against one then the rail *is* the shot, so the path carries on
+through the first ricochet, the window opens 60% further to give the way out
+room to be read, and the point where it turns is tagged. The renderer draws that
+tag as a fat dot in the power colour and dims everything after it, so a bank
+shot reads as two legs rather than one odd curve. A second wall inside the same
+window is where honest prediction ends, and that is where it stops.
+
 Everything else is feedback, and all of it is scaled by the same fraction of the
 swing:
 
