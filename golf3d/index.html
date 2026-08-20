@@ -92,14 +92,13 @@
             </div>
 
             <div class="controls">
-                <div class="clubs" id="clubs" role="group" aria-label="Club"></div>
                 <div class="power">
                     <span class="ctl-label">Power <b id="power-val">0%</b></span>
                     <div class="power-track">
                         <div class="power-fill" id="power-fill"></div>
                         <i class="power-max" aria-hidden="true"></i>
                     </div>
-                    <span class="club-hint" id="club-hint"></span>
+                    <span class="club-hint" id="club-hint" aria-live="polite"></span>
                 </div>
             </div>
 
@@ -153,7 +152,9 @@
                     do it. Let go to play the shot.
                 </li>
                 <li>
-                    <b>Pick a club.</b> The bag is under the course, or keys <kbd>1</kbd>–<kbd>4</kbd>.
+                    <b>Pick a club.</b> Click the bag in the corner and it opens; click a club to
+                    take it. The heads are set at their real lofts, so the wedge lying right back
+                    is the one that goes up. Keys <kbd>1</kbd>–<kbd>4</kbd> do the same thing.
                     The <b>putter</b> rolls flat and stops where you tell it, the <b>driver</b> is the
                     reach club, the <b>chipper</b> hops a rail and keeps running, and the <b>wedge</b>
                     goes up and over water and sand. Each one has its own ceiling on power, so a
@@ -217,6 +218,7 @@
     <script src="js/courses.js?v=1.0.0"></script>
     <script src="js/scoring.js?v=1.0.0"></script>
     <script src="js/audio.js?v=1.0.0"></script>
+    <script src="js/bag.js?v=1.0.0"></script>
     <script src="js/render.js?v=1.0.0"></script>
     <script src="js/game.js?v=1.0.0"></script>
 </body>
