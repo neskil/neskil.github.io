@@ -259,6 +259,28 @@
     function syncClubs() {
         if (G3.bag) G3.bag.setSelected(state.club.id);
         $('club-hint').textContent = state.club.name + ' — ' + state.club.blurb;
+        syncPicker();
+    }
+
+    /* The written half of the club picker. The clubs are modelled and turning
+       on the canvas; what each one is *for* is text, and text belongs in the
+       DOM where it can be read, selected and announced. */
+    function syncPicker() {
+        var open = !!(G3.bag && G3.bag.isExpanded());
+        var el = $('picker');
+        el.className = 'picker' + (open ? ' show' : '');
+        el.setAttribute('aria-hidden', open ? 'false' : 'true');
+        if (!open) return;
+
+        // Whichever club is under the pointer, or the one in hand.
+        var id = (G3.bag && G3.bag.state.hover) || state.club.id;
+        var club = clubById(id);
+        $('picker-name').textContent = club.name;
+        $('picker-blurb').textContent = club.blurb;
+        $('picker-stats').innerHTML =
+            'key <b>' + club.key + '</b> · loft <b>' + Math.round(club.loft * 180 / Math.PI) + '°</b>' +
+            ' · full swing <b>' + club.power + '</b>' +
+            (club.id === state.club.id ? ' · <b>in hand</b>' : '');
     }
 
     /* ── input ──────────────────────────────────────────────────────────────
@@ -293,15 +315,23 @@
         if (hit === 'bag') {
             G3.bag.toggle();
             A.tick(G3.bag.isExpanded() ? 0.7 : 0.3);
+            syncPicker();
             return;
         }
         if (hit) {
             pickClub(clubById(hit));
             G3.bag.setExpanded(false);
             A.tick(1);
+            syncPicker();
             return;
         }
-        if (G3.bag && G3.bag.isExpanded()) G3.bag.setExpanded(false);
+        // A press anywhere else shuts the picker; it does not also play a shot,
+        // because a click meant for a club that missed should not cost a stroke.
+        if (G3.bag && G3.bag.isExpanded()) {
+            G3.bag.setExpanded(false);
+            syncPicker();
+            return;
+        }
 
         if (state.phase !== 'aim') return;
         state.drag = { x: e.clientX, y: e.clientY, yaw: state.aim.yaw, camYaw: R.cam.yaw, notch: 0 };
@@ -329,8 +359,10 @@
         if (state && state.drag) return;
         if (!G3.bag || !R.pickAt) return;
         var hit = R.pickAt(ndcX(e), ndcY(e));
+        var was = G3.bag.state.hover;
         G3.bag.setHover(hit && hit !== 'bag' ? hit : null);
         canvas.style.cursor = hit ? 'pointer' : '';
+        if (G3.bag.state.hover !== was) syncPicker();
     }
 
     function onMove(e) {
@@ -396,13 +428,24 @@
         if (k === 'v' || k === 'V') { toggleOverview(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
-        if (k === 'Escape') { closeHowTo(); return; }
+        if (k === 'Escape') {
+            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
+            closeHowTo();
+            return;
+        }
         if (k >= '1' && k <= '9') {
             var byKey = C.CLUBS.filter(function (c) { return c.key === k; })[0];
-            if (byKey) { pickClub(byKey); return; }
+            if (byKey) { pickClub(byKey); if (G3.bag) G3.bag.setExpanded(false); syncPicker(); return; }
         }
         if (k === 'c' || k === 'C') {
+            // C cycles; with the bag open it walks the row instead of shutting
+            // it, which is how you compare two clubs without the mouse.
             pickClub(C.CLUBS[(C.CLUBS.indexOf(state.club) + 1) % C.CLUBS.length]);
+            syncPicker();
+            return;
+        }
+        if (k === 'b' || k === 'B') {
+            if (G3.bag) { G3.bag.toggle(); syncPicker(); }
             return;
         }
 

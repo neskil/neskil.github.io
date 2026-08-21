@@ -20,15 +20,22 @@
    it is the angle of the face you are looking at. Add a fifth club to the
    config and it appears in the bag, in the fan, with a label, pickable.
 
-   Interaction: click the bag to open it, click a club to take it. Everything
-   the mouse can do here the number keys can do too. */
+   Interaction: the bag sits low in the corner, mostly off the bottom of the
+   screen, showing only its cuff and the heads standing in it — enough to say
+   "your clubs are here" and small enough to ignore. Click it and the clubs
+   come *out* of the bag and line up across the middle of the view, each turning
+   slowly so the face can be seen from every side, and the club under the
+   pointer is named and explained above them (that part is DOM, in game.js —
+   text belongs in text). Click one to take it and they drop back in the bag.
+   Everything the mouse can do here the number keys can do too. */
 (function (G3) {
     'use strict';
 
     var C = G3.CONFIG;
 
     var B = {
-        rig: null,
+        rig: null,           // the bag, parked in the corner
+        clubRig: null,       // the clubs, which travel out of it
         clubs: [],           // { group, meshes, label, target, now }
         pickables: [],
         expanded: false,
@@ -36,7 +43,11 @@
         ray: null,
         ndc: null,
         ready: false,
-        hover: null
+        hover: null,
+        // Where the rig is, as a blend between tucked away and front and
+        // centre. Everything about the open state is this number.
+        open01: 0,
+        spin: 0
     };
 
     /* ── materials ─────────────────────────────────────────────────────── */
@@ -47,11 +58,40 @@
             panel: new THREE.MeshLambertMaterial({ color: 0x39424b }),
             trim: new THREE.MeshLambertMaterial({ color: 0x38bdf8 }),
             dark: new THREE.MeshLambertMaterial({ color: 0x14181d }),
+            /* Broad and soft rather than mirror-bright: the course has
+               three lights of its own and the picker adds a fourth, and a
+               shininess up in the hundreds gives a crown one hard white spot
+               per light instead of one long sheen. */
+            crown: new THREE.MeshPhongMaterial({
+                color: 0x212b38, shininess: 26, specular: 0x556373
+            }),
+            insert: new THREE.MeshPhongMaterial({ color: 0x1e2932, shininess: 20, specular: 0x333c44 }),
             steel: new THREE.MeshPhongMaterial({ color: 0xc2cad3, shininess: 80, specular: 0x8892a0 }),
             grip: new THREE.MeshLambertMaterial({ color: 0x23272e }),
             head: new THREE.MeshPhongMaterial({ color: 0xa9b3bf, shininess: 90, specular: 0xffffff }),
-            face: new THREE.MeshLambertMaterial({ color: 0xe8eef4 })
+            face: new THREE.MeshPhongMaterial({ color: 0xdfe7ee, shininess: 60, specular: 0x777f88 }),
+            grooves: new THREE.MeshPhongMaterial({
+                map: grooveTexture(), shininess: 45, specular: 0x666e77, side: THREE.DoubleSide
+            })
         };
+    }
+
+    // Grooves, drawn: a dozen lines across a face is a texture, not geometry.
+    var _grooves = null;
+    function grooveTexture() {
+        if (_grooves) return _grooves;
+        var cv = document.createElement('canvas');
+        cv.width = cv.height = 64;
+        var g = cv.getContext('2d');
+        g.fillStyle = '#cfd8e0';
+        g.fillRect(0, 0, 64, 64);
+        g.strokeStyle = 'rgba(40, 50, 60, 0.55)';
+        g.lineWidth = 2;
+        for (var y = 8; y < 60; y += 6) {
+            g.beginPath(); g.moveTo(4, y); g.lineTo(60, y); g.stroke();
+        }
+        _grooves = new THREE.CanvasTexture(cv);
+        return _grooves;
     }
 
     /* ── one club ──────────────────────────────────────────────────────── */
@@ -89,62 +129,206 @@
         g.add(ferrule);
 
         var head = new THREE.Group();
-        head.position.y = len - 0.042;
-
-        if (club.id === 'putter') {
-            // A mallet: flat face, a flange behind it and a sight line on top.
-            var body = new THREE.Mesh(new THREE.BoxGeometry(0.098, 0.030, 0.042), M.head);
-            body.position.set(0.030, 0.014, 0);
-            head.add(body);
-            var flange = new THREE.Mesh(new THREE.BoxGeometry(0.070, 0.024, 0.038), M.dark);
-            flange.position.set(0.046, 0.013, -0.035);
-            head.add(flange);
-            var sight = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.003, 0.055), M.face);
-            sight.position.set(0.030, 0.030, -0.014);
-            head.add(sight);
-        } else if (club.id === 'driver') {
-            // 460cc is about five inches across and two deep, and mostly crown.
-            var crown = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), M.dark);
-            crown.scale.set(0.115, 0.055, 0.095);
-            crown.position.set(0.042, 0.026, 0);
-            head.add(crown);
-            var face = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.048, 0.072), M.face);
-            face.position.set(0.094, 0.026, 0);
-            head.add(face);
-            var sole = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 10), M.head);
-            sole.scale.set(0.10, 0.018, 0.08);
-            sole.position.set(0.042, 0.006, 0);
-            head.add(sole);
-        } else {
-            // An iron: hosel, blade, sole, and grooves across the face.
-            var hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.05, 8), M.head);
-            hosel.position.set(0.004, 0.024, 0);
-            head.add(hosel);
-            var blade = new THREE.Mesh(new THREE.BoxGeometry(0.019, 0.055, 0.072), M.head);
-            blade.position.set(0.030, 0.028, 0);
-            head.add(blade);
-            var sole = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.013, 0.072), M.dark);
-            sole.position.set(0.032, 0.004, 0);
-            head.add(sole);
-            var grooves = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.036, 0.058), M.face);
-            grooves.position.set(0.040, 0.030, 0);
-            head.add(grooves);
-        }
+        head.position.y = len - 0.004;
+        head.add(buildHead(club, M));
 
         head.rotation.z = -club.loft;
         g.add(head);
 
         var hit = new THREE.Mesh(
-            new THREE.BoxGeometry(0.16, 0.2, 0.16),
+            new THREE.BoxGeometry(0.20, 0.20, 0.24),
             new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
         );
-        hit.position.y = len - 0.02;
+        hit.position.set(0, len + 0.02, 0.05);
         hit.userData.clubId = club.id;
         g.add(hit);
 
         g.userData.clubId = club.id;
         g.userData.len = len;
         return { group: g, hit: hit, head: head, len: len };
+    }
+
+    /* Heads, modelled from photographs rather than guessed at. A driver is a
+       swollen pear sliced off square where the face goes; an iron is a thin
+       blade hung off its heel with a rounded toe and a topline that runs down
+       to it; a mallet putter is a wide, low slab with wings behind the face.
+
+       Sizes are the real ones. The USGA caps a driver head at 127mm heel to
+       toe and 71mm tall, and a 460cc head sits right on that limit; an iron
+       blade is about 76mm heel to toe and 50mm tall; a mallet is about 105mm
+       across and 55mm front to back. References are listed in the README.
+
+       Everything is built in the head's own frame, and that frame is the club
+       as it stands in a bag — grip down in the well, head up where it can be
+       seen. The origin is where the shaft ends, +Y runs on past it to the
+       sole, +X is the way the face looks, and Z is heel to toe with the head
+       hung out to +Z from a hosel at z = 0. That last part is what was wrong
+       before: the heads floated beside their shafts because nothing sat where
+       the shaft actually ended. */
+
+    /* A sphere pushed into the shape of a driver: squashed flat, swelling
+       toward the back, and sliced off where the face goes. A club head is a
+       curved volume, and a curved volume is what a warped sphere is — the
+       extruded outline it replaces could only ever be a rounded brick. */
+    function driverBody() {
+        var R = 0.052, FACE = 0.040;
+        var geo = new THREE.SphereGeometry(R, 28, 20);
+        var p = geo.attributes.position;
+        for (var i = 0; i < p.count; i++) {
+            var x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+            var back = (R - x) / (2 * R);        // 0 at the face, 1 at the back
+            z *= 0.78 + 0.50 * back;             // the pear: narrow at the face
+            y *= 0.60 + 0.12 * back;             // and a touch deeper at the back
+            if (x > FACE) x = FACE;              // slice the face flat
+            p.setXYZ(i, x, y, z);
+        }
+        geo.computeVertexNormals();
+        return geo;
+    }
+
+    /* An iron blade, seen from the face: heel on the left at x = 0, toe out to
+       the right, sole along the bottom. +y is away from the shaft, so the
+       topline is the near edge and the sole is the far one. */
+    function bladeShape(h) {
+        var sh = new THREE.Shape();
+        sh.moveTo(0.004, 0.006);
+        sh.lineTo(0.050, 0.012);                                  // the topline
+        sh.quadraticCurveTo(0.070, 0.016, 0.074, 0.030);          // the toe
+        sh.quadraticCurveTo(0.078, h - 0.008, 0.062, h);
+        sh.lineTo(0.012, h - 0.005);                              // the sole
+        sh.quadraticCurveTo(-0.002, h - 0.008, 0.004, 0.006);     // up the heel
+        return sh;
+    }
+
+    /* The muscle behind a blade: a bar of steel hugging the sole from heel
+       to toe, which is where the weight in a real iron actually sits. Without
+       it the blade reads as a butter knife; as a box bolted on the back it
+       read as a step. */
+    function muscleShape(h) {
+        var sh = new THREE.Shape();
+        sh.moveTo(0.012, h - 0.026);
+        sh.lineTo(0.056, h - 0.022);
+        sh.quadraticCurveTo(0.066, h - 0.021, 0.066, h - 0.012);
+        sh.quadraticCurveTo(0.065, h - 0.004, 0.054, h - 0.004);
+        sh.lineTo(0.016, h - 0.008);
+        sh.quadraticCurveTo(0.006, h - 0.010, 0.012, h - 0.026);
+        return sh;
+    }
+
+    /* A mallet, seen from above: the flat face at +x, wings swept back. +y is
+       heel to toe here; the extrusion is the head's height. */
+    function malletShape() {
+        var w = 0.052, f = 0.026, b = -0.030;
+        var sh = new THREE.Shape();
+        sh.moveTo(f, -w + 0.008);
+        sh.lineTo(f, w - 0.008);
+        sh.quadraticCurveTo(f, w, f - 0.010, w);
+        sh.lineTo(b + 0.016, w);
+        sh.quadraticCurveTo(b, w, b, w - 0.020);
+        sh.lineTo(b, -w + 0.020);
+        sh.quadraticCurveTo(b, -w, b + 0.016, -w);
+        sh.lineTo(f - 0.010, -w);
+        sh.quadraticCurveTo(f, -w, f, -w + 0.008);
+        return sh;
+    }
+
+    function extruded(shape, depth, bevel) {
+        return new THREE.ExtrudeGeometry(shape, {
+            depth: depth, curveSegments: 16,
+            bevelEnabled: true, bevelSegments: 4,
+            bevelSize: bevel, bevelThickness: bevel, bevelOffset: 0
+        });
+    }
+
+    function buildHead(club, M) {
+        var g = new THREE.Group();
+        var hosel;
+
+        if (club.id === 'driver') {
+            /* Hung off its heel: the body is pushed out to +z so that z = 0,
+               where the shaft is, lands on the heel and not in the middle of
+               the crown. */
+            var body = new THREE.Mesh(driverBody(), M.crown);
+            body.position.set(0, 0.042, 0.044);
+            g.add(body);
+
+            // The face plate sits exactly on the flat slice.
+            /* Sized to the slice, not guessed: at x = 0.040 the warped
+               sphere is 0.028 across and 0.020 tall, so anything bigger than
+               that stands out past the body as a rim. A driver face is wider
+               than it is tall, which the y scale is doing. */
+            var face = new THREE.Mesh(new THREE.CircleGeometry(0.027, 26), M.face);
+            face.rotation.y = Math.PI / 2;
+            face.scale.set(1, 0.72, 1);
+            face.position.set(0.0404, 0.042, 0.044);
+            g.add(face);
+
+            /* Short. A long one climbs straight out through the crown,
+               which is the one thing a driver never does. */
+            hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0105, 0.032, 12), M.head);
+            hosel.position.set(0.004, 0.013, 0.002);
+            g.add(hosel);
+
+        } else if (club.id === 'putter') {
+            var mallet = extruded(malletShape(), 0.019, 0.005);
+            mallet.rotateX(-Math.PI / 2);        // extrude upward, face to +x
+            mallet.translate(0, 0.020, 0.042);
+            g.add(new THREE.Mesh(mallet, M.head));
+
+            // A dark insert across the face — every mallet has one, and it is
+            // the quickest way to read "putter" at a glance.
+            var insert = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.022, 0.084), M.insert);
+            insert.position.set(0.0265, 0.030, 0.042);
+            g.add(insert);
+
+            // The sight line, pointing where the ball goes.
+            var sight = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.003, 0.005), M.trim);
+            sight.position.set(-0.006, 0.0138, 0.042);
+            g.add(sight);
+
+            // A plumber's neck: straight down off the shaft, then across to
+            // the heel. Two cylinders and the club stops looking welded on.
+            hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.024, 12), M.head);
+            hosel.position.set(0.004, 0.010, -0.004);
+            g.add(hosel);
+            var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.026, 12), M.head);
+            neck.rotation.x = Math.PI / 2;
+            neck.position.set(0.004, 0.021, 0.006);
+            g.add(neck);
+
+        } else {
+            /* An iron. The blade is extruded backward from x = 0, so the face
+               is the plane the shaft stands on and the loft rotation tilts
+               exactly the thing you are looking at. */
+            var wedgey = club.id === 'wedge';
+            var h = wedgey ? 0.053 : 0.047;
+            var blade = extruded(bladeShape(h), 0.011, 0.003);
+            blade.rotateY(-Math.PI / 2);         // extrusion runs to -x, toe to +z
+            var iron = new THREE.Mesh(blade, M.head);
+            g.add(iron);
+
+            /* A muscle back: a thicker pad along the sole behind the blade.
+               It is what stops an iron reading as a butter knife, and it is
+               where the weight really is. */
+            var mus = extruded(muscleShape(h), 0.011, 0.004);
+            mus.rotateY(-Math.PI / 2);
+            mus.translate(-0.009, 0, 0);
+            g.add(new THREE.Mesh(mus, M.head));
+
+            var faceI = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.056, h - 0.016),
+                M.grooves
+            );
+            faceI.rotation.y = Math.PI / 2;
+            faceI.position.set(0.0034, h / 2 + 0.002, 0.040);
+            g.add(faceI);
+
+            hosel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.0092, 0.040, 12), M.head);
+            hosel.position.set(-0.004, 0.016, 0.003);
+            g.add(hosel);
+        }
+
+        return g;
     }
 
     /* ── the bag itself ────────────────────────────────────────────────── */
@@ -297,19 +481,33 @@
     /* Where each club sits, closed and open. Closed they are bunched in the
        mouth of the bag leaning back; open they fan across the screen, stand up,
        and come forward far enough to be worth clicking. */
-    function layout(i, n) {
+    function layout(i, n, len) {
         var spread = (i - (n - 1) / 2);
         var floor = BAG_H - WELL;          // where a grip rests in its well
         return {
+            /* Fanned, and each one turned to show its own head. The heads
+               hang out to one side of their shafts now, so four clubs stood
+               dead straight in a tight bunch simply hide behind each other —
+               splaying them is what makes the bag read as four clubs. */
             closed: {
-                x: spread * 0.03, y: floor, z: spread * 0.026,
-                rz: -0.13 - spread * 0.05, rx: 0.05, scale: 1
+                x: spread * 0.052, y: floor, z: spread * 0.048,
+                rz: -0.13 - spread * 0.05, rx: 0.05, ry: spread * 0.55, scale: 1
             },
-            // Open, the grips stay down in the wells and the heads splay: the
-            // fan turns about the mouth, which is what a handful of clubs does.
+            // Out of the bag altogether: stood up in a row across the middle of
+            // the view, evenly spaced and square to the camera, where they can
+            // be looked at properly.
+            /* Out of the bag and right up to the camera, heads in a row at eye
+               level with the shafts running down out of frame.
+
+               A club is 45 inches of shaft and four of head. Shown whole at a
+               size where the head can be read it is a lamp post, and the head
+               is the entire thing you are choosing between — so the row is
+               aligned on the heads (`-len` puts each one at the same height)
+               and cropped by the bottom of the screen. The different lengths
+               still show where they belong, which is standing in the bag. */
             open: {
-                x: spread * 0.03, y: floor + 0.03, z: 0.02 + spread * 0.035,
-                rz: spread * 0.33, rx: -0.04, scale: 1
+                x: spread * 0.16, y: -len + 0.15, z: 0,
+                rz: 0, rx: 0, ry: 0, scale: 1
             }
         };
     }
@@ -324,9 +522,15 @@
         B.rig.add(body.group);
         B.pickables.push(body.hit);
 
+        /* The clubs live in a rig of their own so that opening the bag can
+           carry *them* into the middle of the view while the bag itself stays
+           where it was. Closed, the two rigs sit on top of each other and the
+           clubs are simply in the bag. */
+        B.clubRig = new THREE.Group();
+
         C.CLUBS.forEach(function (club, i) {
             var built = buildClub(club, mats());
-            var spot = layout(i, C.CLUBS.length);
+            var spot = layout(i, C.CLUBS.length, built.len);
             var label = buildLabel(club);
 
             built.group.add(label);
@@ -334,7 +538,7 @@
             // themselves — driver highest, putter lowest.
             label.position.set(0.02, built.len + 0.1, 0.02);
 
-            B.rig.add(built.group);
+            B.clubRig.add(built.group);
             B.pickables.push(built.hit);
             B.clubs.push({
                 id: club.id,
@@ -344,13 +548,15 @@
                 head: built.head,
                 label: label,
                 spot: spot,
-                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, scale: 1, lift: 0, glow: 0 }
+                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0 }
             });
         });
 
         // No shadows: it is a metre from the lens and would smear one across
         // the whole hole.
+        B.clubRig.traverse(function (o) { o.castShadow = false; o.receiveShadow = false; });
         B.rig.traverse(function (o) { o.castShadow = false; o.receiveShadow = false; });
+        scene.add(B.clubRig);
         /* A soft dark haze behind the bag. Chrome shafts against a bright sky
            are nearly invisible without something to sit against, and this is
            cheaper and calmer than an outline. */
@@ -359,13 +565,21 @@
         }));
         haze.scale.set(1.5, 2.0, 1);
         haze.position.set(0.05, 0.75, -0.3);
+        B.haze = haze;
         B.rig.add(haze);
 
         var lamp = new THREE.PointLight(0xfff2dd, 0.55, 3.2);
         lamp.position.set(0.6, 1.2, 0.9);
         B.rig.add(lamp);
 
-        B.rig.scale.setScalar(0.66);
+        /* A light that travels with the clubs. The bag's lamp stays in the
+           corner when the picker opens, and the course's own sun is behind
+           the row — without this the heads come forward into their own
+           shadow and every one of them is the same flat grey. */
+        B.lamp = new THREE.PointLight(0xfff6e6, 0.3, 6);
+        B.lamp.position.set(0.35, 0.75, 1.3);
+        B.clubRig.add(B.lamp);
+
         scene.add(B.rig);
 
         B.ray = new THREE.Raycaster();
@@ -379,28 +593,58 @@
 
     var _off = new THREE.Vector3();
 
-    /* Parked at a fixed offset in camera space, then turned a little off-axis
-       so it reads as an object with sides rather than a picture of a bag. */
+    /* Parked at an offset in camera space and turned off-axis so it reads as an
+       object with sides. Opening slides the whole rig from the corner — where
+       it is deliberately half off the bottom of the screen — to the middle of
+       the view, and squares it up to the camera on the way. */
     function place(camera, aspect) {
         if (!B.ready) return;
+        var k = B.open01;
         var wide = aspect > 0.95;
-        _off.set(wide ? -0.66 : -0.44, wide ? -0.60 : -0.70, -1.45);
+
+        // The bag: low in a corner, half of it below the bottom of the screen.
+        // Only the cuff and the heads standing in it are meant to show.
+        var cx = wide ? -0.76 : -0.48, cy = wide ? -0.88 : -0.96, cz = -1.5;
+        put(B.rig, camera, cx, cy, cz, 0.52, -0.62, 0.1);
+
+        // The clubs: the same place when shut, the middle of the view when
+        // open, squaring up to the camera as they come.
+        put(B.clubRig, camera,
+            cx + (0 - cx) * k,
+            cy + (-0.26 - cy) * k,
+            cz + (-1.3 - cz) * k,
+            0.52 + 1.48 * k,          // they come up to the lens
+            -0.62 + 0.62 * k,
+            0.1 - 0.1 * k);
+    }
+
+    function put(rig, camera, x, y, z, scale, twistY, twistX) {
+        _off.set(x, y, z);
         _off.applyQuaternion(camera.quaternion);
-        B.rig.position.copy(camera.position).add(_off);
-        B.rig.quaternion.copy(camera.quaternion);
-        B.rig.rotateY(-0.55);
-        B.rig.rotateX(0.10);
+        rig.position.copy(camera.position).add(_off);
+        rig.quaternion.copy(camera.quaternion);
+        rig.rotateY(twistY);
+        rig.rotateX(twistX);
+        rig.scale.setScalar(scale);
     }
 
     function update(dt, camera, aspect) {
         if (!B.ready) return;
-        place(camera, aspect);
 
         var ease = 1 - Math.pow(0.0008, dt);      // ~0.25s to settle
+        B.open01 += ((B.expanded ? 1 : 0) - B.open01) * ease;
+        if (B.open01 < 0.001) B.open01 = 0;
+        B.spin += dt * 0.7;                        // a slow turn, once open
+        place(camera, aspect);
+        if (B.haze) B.haze.material.opacity = 0.3 * (1 - B.open01);
+        if (B.lamp) B.lamp.intensity = 0.3 + 0.85 * B.open01;
         B.clubs.forEach(function (c) {
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
-            var lift = chosen ? (B.expanded ? 0.05 : 0.045) : 0;
+            // Kept small: at the zoom the open row uses, a tenth of a unit is
+            // a fifth of the screen and the club in hand floats away from the
+            // others instead of standing a little proud of them.
+            var lift = chosen ? (B.expanded ? 0.022 : 0.045) : 0;
             var glow = chosen ? 1 : (B.hover === c.id ? 0.5 : 0);
 
             c.now.x += (to.x - c.now.x) * ease;
@@ -408,27 +652,37 @@
             c.now.z += (to.z - c.now.z) * ease;
             c.now.rz += (to.rz - c.now.rz) * ease;
             c.now.rx += (to.rx - c.now.rx) * ease;
-            c.now.scale += (to.scale * (chosen ? 1.08 : 1) - c.now.scale) * ease;
+            c.now.ry += (to.ry - c.now.ry) * ease;
+            /* No size bump for the club in hand. The open row is aligned on
+               the *heads*, and scaling a club scales its length, so a 1.08
+               bump lifted the driver's head four times further than the lift
+               itself did — invisible in the bag, a hundred pixels out of line
+               in the picker. It is marked by the glow and the panel instead. */
+            c.now.scale += (to.scale - c.now.scale) * ease;
             c.now.lift += (lift - c.now.lift) * ease;
             c.now.glow += (glow - c.now.glow) * ease;
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
-            c.group.rotation.set(c.now.rx, 0, c.now.rz);
+            // Turning on its own axis while it is out of the bag, so the head
+            // can be seen from every side. The one in hand turns to face front
+            // instead of spinning, so it is obvious which is which.
+            var turn = c.now.ry + B.open01 * (chosen ? 0 : 1) * B.spin;
+            c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
 
             // The club in hand catches a light of its own. Every club owns its
             // materials, so this stays on the one club it is meant for.
-            var e = 0.34 * c.now.glow;
+            /* Gentle. A driver crown is nearly black, and any more than
+               this floods it pale blue — the club in hand ends up the one you
+               can see least of. */
+            var e = 0.15 * c.now.glow;
             c.group.traverse(function (o) {
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);
             });
 
-            // Only the club in hand wears its name, plus whichever one is under
-            // the pointer — four labels at once was a wall of text over the
-            // course.
-            var want = chosen ? 0.9 : (B.hover === c.id ? 1 : 0);
-            c.label.material.opacity += (want - c.label.material.opacity) * ease;
-            c.label.visible = c.label.material.opacity > 0.02;
+            // The name is written in the panel above (game.js), not floated
+            // over the course on a sprite.
+            if (c.label) c.label.visible = false;
         });
     }
 
@@ -459,7 +713,7 @@
 
         if (B.expanded) {
             var aspect = camera.aspect || 1;
-            var best = null, bestD = 0.13;      // ~a fingertip at any size
+            var best = null, bestD = 0.2;       // a generous target in a row
             B.clubs.forEach(function (c) {
                 var d = Math.min(
                     screenGap(c.group, c.len - 0.02, nx, ny, aspect, camera),

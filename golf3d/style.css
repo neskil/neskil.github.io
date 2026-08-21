@@ -229,6 +229,67 @@ canvas:active { cursor: grabbing; }
     text-overflow: ellipsis;
 }
 
+/* ── the club picker ────────────────────────────────────────────────────── */
+
+/* The clubs themselves are modelled and drawn on the canvas; this is the part
+   that has to be readable, so it is text. It sits above the row of clubs and
+   dims the course behind them. */
+.picker {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 0.18rem;
+    padding: clamp(0.8rem, 5vh, 2.6rem) 1rem 0;
+    text-align: center;
+    background: radial-gradient(ellipse at 50% 62%, rgba(4, 14, 24, 0.1), rgba(4, 14, 24, 0.62) 70%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+}
+
+.picker.show { opacity: 1; }
+
+.picker-title {
+    margin: 0;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+}
+
+.picker-name {
+    margin: 0.15rem 0 0;
+    font-size: clamp(1.4rem, 3.4vw, 2rem);
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.65);
+}
+
+.picker-blurb {
+    margin: 0.1rem 0 0;
+    max-width: 30ch;
+    font-size: 0.88rem;
+    font-weight: 300;
+    line-height: 1.35;
+    color: var(--ink-dim);
+}
+
+.picker-stats {
+    margin: 0.35rem 0 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+}
+
+.picker-stats b { color: var(--ink); font-weight: 700; }
+
+@media (max-width: 640px) {
+    .picker-blurb { font-size: 0.78rem; }
+}
+
 /* ── compact overlay, for when the scoreboard is off screen ─────────────── */
 
 .stage-hud {
