@@ -75,7 +75,13 @@
         // solution — the cup is rarely straight ahead of anything.
         state.aim.yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
 
-        R.buildHole(hole, state.course.theme);
+        // The sky is part of the hole: chosen from the course and the hole
+        // number, so it is the same sky every time you come back to this one.
+        state.weather = G3.weather
+            ? G3.weather.pick(state.course.id, i, state.course.theme)
+            : null;
+        R.buildHole(hole, state.course.theme, state.weather);
+        A.ambience(state.weather);
         R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, overview: false });
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
@@ -221,12 +227,45 @@
         syncDistance();
         syncClubs();
         syncPower();
+        syncWeather();
 
         // The compact overlay only shows in fullscreen, where the scoreboard
         // above the canvas is off screen.
         $('shud-hole').textContent = 'Hole ' + (state.holeIndex + 1) + '/' + state.course.holes.length;
         $('shud-par').textContent = 'Par ' + hole.par;
         $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
+    }
+
+    /* What the sky is doing, in words, under the hole's name. The wind figure
+       is live — it is the same number the flag is answering to, so a gust you
+       can see on the cloth is a gust you can read off the panel. */
+    function syncWeather() {
+        var W = G3.weather;
+        if (!W || !state.weather) return;
+        $('sky-icon').textContent = state.weather.icon;
+        $('sky-label').textContent = state.weather.label;
+        $('shud-sky').textContent = state.weather.icon + ' ' + state.weather.label;
+    }
+
+    function syncWind() {
+        var W = G3.weather;
+        if (!W || !state.weather) return;
+        var kph = W.windSpeedKph();
+        $('sky-wind').textContent = '· ' + (kph < 4 ? 'still' : kph + ' km/h');
+    }
+
+    /* W, or the chip under the hole name. It sets an override that lasts the
+       round, so a player who wants to see all six holes in the rain can. The
+       hole is rebuilt because half of the weather is baked into materials. */
+    function cycleWeather() {
+        var W = G3.weather;
+        if (!W || !state || !state.world) return;
+        W.cycle(state.course.theme);
+        state.weather = W.pick(state.course.id, state.holeIndex, state.course.theme);
+        R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
+        A.ambience(state.weather);
+        syncWeather();
+        toast(state.weather.icon + '  ' + state.weather.label);
     }
 
     // How far there is left to go, which is the number the club choice is
@@ -467,6 +506,7 @@
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { toggleOverview(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
+        if (k === 'w' || k === 'W') { cycleWeather(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
         if (k === 'Escape') { closeHowTo(); return; }
         if (k >= '1' && k <= '9') {
@@ -621,6 +661,10 @@
             state.world.time += dt;
         }
 
+        // The wind gusts whether or not anything is happening, so the readout
+        // under the hole name is refreshed on the frame rather than the shot.
+        syncWind();
+
         R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw;
         R.frame(dt, state.world, {
             show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
@@ -675,6 +719,7 @@
         $('btn-help').addEventListener('click', openHowTo);
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
+        $('btn-weather').addEventListener('click', cycleWeather);
         $('howto-close').addEventListener('click', closeHowTo);
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);
@@ -689,6 +734,9 @@
 
         var q = params();
         state = { save: S.load() };
+        // ?weather=rain holds for the whole round, the same as picking it with
+        // W would; anything unrecognised is simply ignored.
+        if (q.weather && G3.weather) G3.weather.setOverride(q.weather);
         if (q.course) {
             newRound(q.course);
             if (q.hole) {

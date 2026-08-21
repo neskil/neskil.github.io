@@ -20,7 +20,9 @@ them.
 | `js/courses.js` | The eighteen holes, as data, plus the rail generator. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
-| `js/audio.js` | Synthesised sound effects — no audio files to ship. |
+| `js/audio.js` | Synthesised sound effects and the weather's sound bed — no audio files to ship. |
+| `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
+| `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js. Procedural textures, no images. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
 | `js/game.js` | Loop, input, and what a shot means. |
@@ -230,10 +232,20 @@ Two consequences worth knowing:
 - **The cup must sit clear of the edge of its pad** — the rim is a full circle
   in the physics and a hole punched out of one slab in the renderer, and a cup
   overhanging the edge of its pad would be neither. Asserted per hole.
-- **The pin stands beside the cup, not in it.** A flagstick down the middle of
-  a hole this size is something the ball ought to hit, and it would go straight
-  through — better to put it where the lie is honest and the mouth is open. It
-  is the one thing on the course that is scenery rather than simulation.
+- **The pin stands in the cup**, which is where a pin stands. It used to be
+  planted beside it, on the grounds that a flagstick down the middle of a hole
+  this size is something the ball ought to hit and would instead pass straight
+  through — an honest dodge that made every hole look wrong. The honest fix is
+  the one a real unattended pin makes for itself: **it is not vertical**. A
+  flagstick dropped into a cup rests against the far wall of the liner and
+  leans away, and leaning it away *along the line of play* puts everything
+  above the first few centimetres out of the ball's path. Run the numbers: at
+  the height of a rolling ball the pole is 0.135 units off the cup's centre, on
+  the far side, and the ball would have to get its centre past the middle of
+  the hole to touch it — by which point it is already falling. What is left in
+  the way is the base, down in the mouth of the cup, and the pin is still
+  scenery rather than simulation: nothing stops the ball, so when one drops the
+  pin rattles instead, which is what your ear is expecting under the cup sound.
 
 On a tilted green the liner is sunk vertically, so one side of the rim sits
 proud of the grass. That is not a bug and it is not corrected: it is what a real
@@ -287,7 +299,9 @@ swing:
   flinch**, and a strike with a low thump under it that only shows up on a big
   one;
 - while the ball is quick, the camera **drifts back** and the lens opens a few
-  degrees, and the ball drags a **tail** behind it.
+  degrees, and the ball drags a **tail** behind it;
+- and when it drops, the **pin rattles** — nothing stopped the ball on the way
+  past it, so the least the pin can do is admit it happened.
 
 None of that is in `physics.js`. The simulation is handed a yaw, a speed and a
 loft exactly as it was before.
@@ -312,6 +326,74 @@ a dozen pieces of state and they all fit in one object.
   also what a screen reader is told; the number keys do everything the bag
   does.
 
+## Weather
+
+Every hole has a sky of its own, and it is the same sky every time you come
+back to it. Eight kinds — clear, fair, overcast, drizzle, rain, mist, golden
+hour and a dust haze — each of which is a cloud cover, a fog distance, two
+light intensities, a colour to pull the sky and the horizon towards, and a
+colour grade. Courses draw from their own list: a quarry does not get sea mist
+and the works, which is already after dark, does not get a golden hour.
+
+**None of it touches the simulation.** Wind does not push the ball, rain does
+not slow it, and a hole in the mist plays exactly as it does in the sun. That
+is the point: the weather changes what a hole *feels* like without changing
+what it *costs*, so a personal best still means the same thing whatever the sky
+was doing. `physics.js` has never heard of `weather.js` and `tests.html` does
+not load it.
+
+**It is dealt, not rolled.** The kinds are shuffled once per course off a seed
+made from the course id, and the holes are dealt off the top of that deck — so
+a six-hole round sees six different skies, in an order that is the same one
+every time. The first version hashed the hole number and took it modulo the
+list, which is the obvious thing and was wrong: six samples of a six-way choice
+repeat about as often as they do not, and a course whose first two holes are
+both *Clear* reads as a course with no weather in it at all. One rule sits on
+top of the deal — **hole one always gets a sky you can see it in**, because it
+is what is behind the course picker on a first visit and opening a round in the
+rain is a poor advertisement.
+
+`?weather=rain` fixes it for a whole round, and `W` cycles through what the
+current course can plausibly do. Changing it rebuilds the hole rather than
+tweening, because half of the weather is uniforms and would tween beautifully
+and the other half is baked into materials and would not.
+
+### The wind
+
+One vector — a bearing that wanders and a speed that gusts, three sines with
+periods that do not divide into each other — and everything answers to it:
+
+- **the flag**, which is the only instrument on the course telling you what the
+  air is doing. It streams downwind, ripples faster and deeper in a gust, and
+  on a still day the whole sheet sags towards the ground. The readout under the
+  hole name is the same number the cloth is answering to.
+- **the rain**, which slants with it, and the **motes** — pollen over a summer
+  green, grit over the quarry — which drift with it.
+- **the sea**, which gets choppier as it gets up, and the **clouds**, which
+  ride it a good deal faster because they are a long way off the ground.
+- **the sound bed**: one looping second of brown noise through two filters, a
+  narrow lowpass for the air and a bandpass up in the sibilance for the rain,
+  with the wind's cutoff and gain on slow LFOs so it breathes instead of
+  sitting there. It never restarts — changing the weather ramps the gains and
+  leaves the loop running, which is why a squall can arrive without a click.
+
+### What each kind is made of
+
+- **Rain** is a shader. Each drop is a two-vertex segment and the vertex shader
+  falls it, wraps it in a box that follows the camera, slants it into the wind
+  and stretches the tail along the direction it is going. The buffer is written
+  once and never touched again; the only thing crossing the bus per frame is
+  the clock. It also lands on the water — see below — and wets the ground,
+  which is one number handed to every pad material: darker, and shinier.
+- **Mist** is four buckled sheets at ankle, knee and waist height turning
+  against each other. Flat ones were the first attempt and a dead-flat sheet
+  crossing a raised green cuts it in a dead-straight line; a couple of sines
+  through the vertices make that intersection a wandering edge, which is what
+  fog against an object actually looks like.
+- **Birds** are two triangles apiece, hinged down the middle and flapped by
+  moving four vertices. A flock costs less than one of the rails and it is what
+  stops a clear sky reading as a painted ceiling.
+
 ## Rendering
 
 `render.js` is the only file that knows three.js exists. Everything it draws
@@ -322,8 +404,8 @@ ground so a raised green reads as a plateau rather than a slab in mid-air.
 Boards are the exception and stay thin — a jetty should look like a plank, not
 a causeway.
 
-Textures are drawn into canvases at load: grass, sand, planks, rock, and an
-opaque ripple map for water. No image files to ship and no requests to fail.
+Textures are drawn into canvases at load: grass, sand, planks and rock. No
+image files to ship and no requests to fail.
 The green is the one surface the camera is always looking at, so it gets the
 most attention — mow bands with a soft seam, broad mottling so the tiling does
 not show as a grid, a mat of blade strokes, and a bump map of the same blades so
@@ -335,13 +417,114 @@ closest to. Each of the three courses is a theme: sky gradient, fog colour match
 to the horizon so the ground plane fades instead of ending in a line, sun angle,
 palette.
 
+### The sky
+
+A two-stop gradient, which was fine until you looked up. It is now the one
+genuinely expensive shader in the game and it earns it, because everything the
+weather does above the horizon happens in there.
+
+**Clouds are noise, not geometry.** The view ray is dropped onto a flat sheet a
+long way overhead — divide the direction by its own height and you have where
+it crosses — and five octaves of value noise are sampled at that point.
+Coverage is a threshold on the noise, so one uniform takes the sky from clear
+to solid, and drifting the sample point with the wind moves the weather across
+the course without moving a vertex. They are shaded by sampling the *same*
+noise a short way towards the sun and comparing: where the field rises towards
+the light the cloud is lit, where it falls it is in its own shadow. Two texture
+reads, and it looks like a cloud.
+
+Two details are load-bearing. The **fine octaves fade out towards the horizon**,
+weighted by how much room they have left and renormalised so the mean does not
+move: the projection stretches without limit as the ray flattens, and by the
+horizon one pixel would span several periods of the top octave and the sky
+would turn to static. It is a level-of-detail scheme in four lines and it is
+also, by happy accident, what distance does to a real cloud — you stop seeing
+the small stuff first. And **how far up the horizon haze reaches is the
+weather's business**: a clear day gets the last few degrees, a sea fog gets a
+third of the sky. Without that, thick fog swallows the water and then stops
+dead at a horizon with a hard-edged cloud deck sitting on it.
+
+The night course gets **stars**: a hash grid on the sphere's own angles, one
+cell in twenty holding one, each twinkling on a period of its own — and its
+clouds are multiplied down, because a white cloud over a night sky reads as a
+hole in it.
+
+### The water
+
+A blue box with a scrolling ripple texture on it, which from a low camera read
+as lino. It is now a shader, and the thing that makes it read as water is not
+the waves — it is **Fresnel**: water is nearly a mirror at a grazing angle and
+nearly transparent looking down, so the horizon takes the colour of the sky and
+the near edge keeps the colour of the water. Everything else is secondary to
+that one term.
+
+The surface is five directional waves summed and differentiated analytically —
+no normal map to tile, nothing to align to a shore, about a dozen instructions
+— travelling on the wind vector, so the sea gets rougher when the flag does.
+Every frequency and bearing in there is picked *not* to divide into the others:
+harmonic trains on similar bearings beat into a plaid that reads as a tiled
+texture the moment the camera goes overhead, which is exactly the thing this
+replaced. Rain lands on it as well: a hash grid picks a drop per cell and a
+ring expands out of it, tilting the normal as it goes.
+
+### Light
+
+Three lights, and the weather sets all three. The sun changes most — an
+overcast takes it to a fifth and hands the difference to the sky, the golden
+hour drops it towards the horizon and warms it — and its shadow **softens** with
+the cloud rather than merely fading, because a sharp shadow under a solid
+overcast is the loudest possible way to tell a player that the sky is a
+picture. The third is a fill from the opposite side, tinted the same colour as
+the sky: without it the shaded face of every rail is flat ambient and the hole
+reads as a diagram.
+
+One thing worth knowing before touching any of this. **The lit materials in
+this game hand three.js an sRGB hex as if it were a linear albedo**, and have
+always looked the way they look because of it — that is the palette. The two
+unlit shaders, the sky and the water, have no lighting to bring them back down,
+so they convert their colours properly. The exception inside the exception is
+the **fog colour, which is deliberately left unconverted in both**: it is the
+colour the sky has to *match*, and what it is matching is three.js's own fog on
+the lit materials. Convert it and the sky ends a visibly different colour from
+the ground it is meeting — a seam straight across the middle of the picture.
+
+### After the course is drawn
+
+`postfx.js` renders the scene into an offscreen buffer and turns it into the
+image with one full-screen pass: bloom, shafts of light out of the sun, a
+filmic shoulder so a white rail in full sun rolls off instead of clipping, the
+weather's colour grade, a vignette, and a little grain to stop the sky banding.
+
+- **The renderer's own tone mapping and output encoding are switched off** and
+  this file does both at the end instead — otherwise the picture would be
+  tone-mapped on the way into the buffer and graded on a value that had already
+  been squashed, and the sky, a raw `ShaderMaterial` that three.js does not
+  decorate with the tone-mapping chunk, would be the one thing in frame that
+  had missed the treatment.
+- **Bloom is two blurs.** One half-resolution pass gives a tight halo that reads
+  as a mistake; a second at quarter resolution underneath gives the broad glow
+  that reads as light.
+- **The light shafts are free.** Marching the already-blurred bright pass
+  towards the sun is the cheap version of god rays — the expensive part,
+  isolating what is bright, has been paid for by the bloom. They fade out as
+  the sun leaves the frame rather than switching off, and go to nothing when it
+  is behind the camera, because `project()` gives a mirrored answer there and
+  rays converging on a phantom is the one artefact a player would notice.
+- **It measures itself.** A machine that cannot hold about 32fps with the whole
+  chain loses the shafts, then the bloom, and keeps the grade — which is the
+  part doing most of the work anyway. Two seconds of grace first, so a phone is
+  not demoted for the frames it spends compiling shaders. Nothing to configure.
+- **Multisampling moves into the buffer** on WebGL2, because rendering into one
+  throws away the canvas's own — a jagged rail in exchange for a nicer sky is
+  not a trade.
+
 The camera is never flown directly. It sits behind the ball looking down the aim
 line, which is what makes "drag left, aim left" true from any angle, and
 `V` lifts it to an overview that fits the hole's bounding box in frame.
 
 ## Tests
 
-Open `tests.html`. 414 assertions covering the surfaces, the collision
+Open `tests.html`. 423 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all eighteen holes of course data
 and the scorecard, in about a second.
 
@@ -358,8 +541,9 @@ player parks in a corner where every legal shot looks worse than standing still
 and plays the same nothing until it runs out of strokes.
 
 Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
-is excluded from search results by both `robots.txt` and its own `noindex`, per
-the rule in the root README.
+loads `config.js`, `physics.js`, `courses.js` and `scoring.js` and nothing else
+— the weather, the renderer and the post chain are all absent from it, which is
+the strongest statement available that none of them can change a score.
 
 ## Saving
 
@@ -377,11 +561,14 @@ Drag back from the ball and let go; drag sideways to swing the aim, and the
 camera swings with it. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
-overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>H</kbd>
-the rules, <kbd>M</kbd> sound. Scroll or pinch to zoom.
+overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd>
+the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound. Scroll or pinch to
+zoom.
 
 ## Query parameters
 
-`?course=seaside|quarry|works` starts a round directly, skipping the picker, and
-`&hole=1..6` jumps to a hole. Handy for screenshots and for linking someone at
-the hole you are complaining about.
+`?course=seaside|quarry|works` starts a round directly, skipping the picker,
+`&hole=1..6` jumps to a hole, and
+`&weather=clear|fair|overcast|drizzle|rain|mist|golden|dust` fixes the sky for
+the round. Handy for screenshots and for linking someone at the hole you are
+complaining about, in the weather you were complaining about it in.

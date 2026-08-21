@@ -23,6 +23,11 @@
             ctx = new AC();
         }
         if (ctx.state === 'suspended') ctx.resume();
+        // The weather asked for a sound bed before there was a context to put
+        // it in — which is always, since the weather is chosen when the hole
+        // loads and the context cannot exist until the player has touched
+        // something. First effect of the round is what actually starts it.
+        if (pending && !bed) startBed();
         return ctx;
     }
 
@@ -62,7 +67,114 @@
         src.start();
     }
 
+    /* ── the bed ────────────────────────────────────────────────────────
+
+       Everything above is a sound that happens. This is the sound that is
+       always happening: wind through the noise floor, and rain on top of it
+       when there is rain. Both are the same second of looped white noise
+       through different filters — a lowpass so narrow it is more of a hiss
+       than a sound for the wind, and a bandpass up in the sibilance for the
+       rain — with the wind's cutoff and gain riding a slow LFO so it breathes
+       instead of sitting there.
+
+       One buffer, two filters, two gains, and it never restarts: changing the
+       weather ramps the gains and leaves the loop running, which is why a
+       squall can arrive without a click. */
+    var bed = null;
+    var pending = null;
+
+    function noiseLoop(c, seconds) {
+        var n = Math.floor(c.sampleRate * seconds);
+        var buf = c.createBuffer(1, n, c.sampleRate);
+        var d = buf.getChannelData(0), i, last = 0;
+        for (i = 0; i < n; i++) {
+            // Brown-ish rather than white: a flat spectrum reads as static,
+            // and the low end is what makes it read as air.
+            last = (last + (Math.random() * 2 - 1) * 0.14) * 0.985;
+            d[i] = last;
+        }
+        // Crossfade the tail into the head so the loop point is inaudible.
+        var fade = Math.min(n >> 3, Math.floor(c.sampleRate * 0.25));
+        for (i = 0; i < fade; i++) {
+            var k = i / fade;
+            d[i] = d[i] * k + d[n - fade + i] * (1 - k);
+        }
+        return buf;
+    }
+
+    function startBed() {
+        var c = ctx;
+        if (!c || bed) return;
+        var src = c.createBufferSource();
+        src.buffer = noiseLoop(c, 4);
+        src.loop = true;
+
+        var windF = c.createBiquadFilter();
+        windF.type = 'lowpass';
+        windF.frequency.value = 420;
+        windF.Q.value = 0.6;
+        var windG = c.createGain();
+        windG.gain.value = 0;
+
+        var rainF = c.createBiquadFilter();
+        rainF.type = 'bandpass';
+        rainF.frequency.value = 3200;
+        rainF.Q.value = 0.35;
+        var rainG = c.createGain();
+        rainG.gain.value = 0;
+
+        src.connect(windF).connect(windG).connect(c.destination);
+        src.connect(rainF).connect(rainG).connect(c.destination);
+
+        // The gust: one slow oscillator on the wind's gain and another, slower
+        // still, on its cutoff. Nothing else in the game breathes, and without
+        // this the wind is a fan.
+        var lfo = c.createOscillator();
+        lfo.frequency.value = 0.07;
+        var lfoG = c.createGain();
+        lfoG.gain.value = 0;
+        lfo.connect(lfoG).connect(windG.gain);
+
+        var lfo2 = c.createOscillator();
+        lfo2.frequency.value = 0.041;
+        var lfo2G = c.createGain();
+        lfo2G.gain.value = 160;
+        lfo2.connect(lfo2G).connect(windF.frequency);
+
+        src.start();
+        lfo.start();
+        lfo2.start();
+        bed = { windG: windG, rainG: rainG, lfoG: lfoG, windF: windF };
+        if (pending) applyBed(pending);
+    }
+
+    function applyBed(w) {
+        if (!bed || !ctx) return;
+        var t = ctx.currentTime;
+        var wind = Math.max(0, Math.min(1, (w && w.wind) || 0));
+        var rain = Math.max(0, Math.min(1, (w && w.rain) || 0));
+        // Two seconds to cross over, which is about how long a hole takes to
+        // load and long enough that nobody hears it happen.
+        bed.windG.gain.cancelScheduledValues(t);
+        bed.windG.gain.setTargetAtTime(0.010 + wind * 0.055, t, 0.9);
+        bed.rainG.gain.cancelScheduledValues(t);
+        bed.rainG.gain.setTargetAtTime(rain * 0.075, t, 0.9);
+        bed.lfoG.gain.setTargetAtTime(0.006 + wind * 0.030, t, 0.9);
+        bed.windF.frequency.setTargetAtTime(320 + wind * 520, t, 0.9);
+    }
+
     var A = {
+        /* The weather hands over its own record and the bed reads two numbers
+           off it. Called on every hole load, whether or not there is a context
+           yet: if there is not, the profile is remembered and the first putt
+           of the round starts the loop. */
+        ambience: function (w) {
+            pending = w || null;
+            if (muted) { if (bed) applyBed(null); return; }
+            if (ctx && !bed) startBed();
+            applyBed(pending);
+        },
+
         /* The strike. Three layers, because one oscillator sounds like a
            doorbell: the click of the face, a body that drops in pitch with the
            power behind it, and a thump you feel more than hear on a big one. */
@@ -116,6 +228,9 @@
         toggleMute: function () {
             muted = !muted;
             try { localStorage.setItem(C.MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* ignore */ }
+            // The bed is a loop, not an effect: muting has to reach in and
+            // turn it down, because nothing is going to stop asking for it.
+            applyBed(muted ? null : pending);
             return muted;
         },
         isMuted: function () { return muted; }
