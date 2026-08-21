@@ -39,12 +39,12 @@ G3.CONFIG = {
     },
     FRICTION_DEFAULT: 0.30,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 18 units on grass, which is
-       the length of the longest hole and then some. Everything is reachable
-       with one big swing, so the skill is entirely in not overcooking it — the
-       cup will not take a ball arriving much above 7, and a driver that has
-       only run half its length is doing about 9. */
-    MAX_POWER: 22,
+    /* At full power the ball coasts v0 / -ln(k) ≈ 23 units on grass — longer
+       than any hole here. Everything is reachable with one swing and most
+       things are reachable with half of one, so the skill is entirely in not
+       overcooking it: the cup will not take a ball arriving much above 7, and a
+       driver that has only run half its length is still doing about 12. */
+    MAX_POWER: 28,
     MIN_POWER: 0.9,
 
     /* How far the ball has to be pulled back, in pixels, for a full swing. The
@@ -66,22 +66,22 @@ G3.CONFIG = {
     CLUBS: [
         {
             id: 'putter', name: 'Putter', short: 'PT', key: '1',
-            loft: 0, power: 8.5,
+            loft: 0, power: 10.5,
             blurb: 'Rolls flat and true. Nothing else stops where you tell it.'
         },
         {
             id: 'driver', name: 'Driver', short: 'DR', key: '2',
-            loft: 4 * Math.PI / 180, power: 22,
+            loft: 4 * Math.PI / 180, power: 28,
             blurb: 'The reach club. Barely off the ground, and it runs.'
         },
         {
             id: 'chipper', name: 'Chipper', short: 'CH', key: '3',
-            loft: 22 * Math.PI / 180, power: 12,
+            loft: 22 * Math.PI / 180, power: 14,
             blurb: 'Hops a rail and keeps running. The all-rounder.'
         },
         {
             id: 'wedge', name: 'Wedge', short: 'WG', key: '4',
-            loft: 42 * Math.PI / 180, power: 10,
+            loft: 42 * Math.PI / 180, power: 11.5,
             blurb: 'Up and over water, sand and anything else in the way.'
         }
     ],

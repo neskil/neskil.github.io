@@ -35,21 +35,24 @@ launch angle and a speed exactly as before.
 
 | Club | Loft | Full swing | Carry | Total | What it is for |
 | --- | --- | --- | --- | --- | --- |
-| Putter | 0° | 8.5 | — | 6.9 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
-| Driver | 4° | 22 | 3.7 | 19.2 | The reach club: nineteen units, and it skips off the tee on the way. |
-| Chipper | 22° | 12 | 5.5 | 13.7 | Hops a rail — apex about half a unit — and keeps running. |
-| Wedge | 42° | 10 | 5.5 | 11.3 | The high one: apex over a unit, clears anything the courses put in the way, and does not run far when it lands. |
+| Putter | 0° | 10.5 | — | 8.5 | Rolls flat and true. Full power is still a tap, which is what makes it the club you can aim. |
+| Driver | 4° | 28 | 6.1 | 24.8 | The reach club: longer than any hole here, and it skips off the tee on the way. |
+| Chipper | 22° | 14 | 7.5 | 16.9 | Hops a rail — apex about three quarters of a unit — and keeps running. |
+| Wedge | 42° | 11.5 | 7.3 | 14.3 | The high one: apex over a unit and a half, clears anything the courses put in the way, and does not run far when it lands. |
 
 Carry and total are measured on flat grass at a full swing, in world units.
 They are the numbers the courses are built against, and the last column is why
 the bag has four entries and not one: each club is longest at exactly one job.
 
-Only the driver got the extra power when the swings were made bigger, and that
-was deliberate: a wedge that carries eight units flies over the design of half
-the course, and the bridges and ramps stop being choices. The carry figures are
-a design constraint, not a curiosity: **no club flies much
-past five and a half units**, so a hole asking for more air than that has to offer a way
-round — a bridge, a ramp, a bank. `tests.html` measures the carry rather than
+The driver takes the lion's share of every power increase, deliberately: the
+lofted clubs are what fly over the *design* of a hole, so their carries are held
+down while the driver's reach goes up. Even so the bag has grown into the
+courses — at seven and a half units of carry a wedge will now fly most of the
+water here, which turns the bridges and the ramps from requirements into
+choices. That is the trade for shots that feel worth hitting, and the number to
+turn if it ever goes too far is the wedge's, not the driver's. The carry figures
+are a design constraint rather than a curiosity: **a hole asking for more air
+than the bag has must offer a way round** — a bridge, a ramp, a bank. `tests.html` measures the carry rather than
 trusting this table, and the bot plays every hole out of this bag rather than
 with any loft the physics would accept, so "the courses are solvable" means
 solvable with the clubs a player actually has.
@@ -59,13 +62,22 @@ swing. Swapping mid-aim is meant to be a comparison, not a reset.
 
 ### The picker
 
-The bag is modelled and stands in the corner of the view: click it and the
-clubs fan out of the mouth, click a head to take that club. It is furniture
-rather than course — it rides at a fixed offset in *camera* space, so it never
-occludes the hole, never has to be played around, and never pretends to be
-something the ball could hit. That is why it lives in `bag.js` and not in
-`render.js`: one file draws the world the simulation knows about, the other
-draws a thing the simulation has never heard of.
+The bag sits low in the corner with half of it below the bottom of the screen —
+enough to say "your clubs are here" and small enough to ignore. Click it and the
+*clubs* come out: they travel to the middle of the view, line up with their
+heads at eye level and their shafts running out of frame, and turn slowly on
+their own axes so the face can be read from every side. The course dims behind
+them, the club under the pointer is named and explained above, and clicking one
+takes it and drops them back in the bag.
+
+The bag stays where it is while that happens, which is why there are two rigs:
+one parked in the corner holding the bag, one that travels holding the clubs.
+
+It is furniture rather than course — both rigs ride at fixed offsets in *camera*
+space, so nothing here ever occludes the hole, has to be played around, or
+pretends to be something the ball could hit. That is why it lives in `bag.js`
+and not in `render.js`: one file draws the world the simulation knows about, the
+other draws a thing the simulation has never heard of.
 
 It is built from `CONFIG.CLUBS`, so a fifth club would appear in the bag, in
 the fan, with a label, pickable, with no markup and no CSS. Each head is turned
@@ -85,12 +97,82 @@ and [cuff and divider counts](https://www.moresports.com/blogs/the-extra-mile/wh
 for the bag; [standard club lengths](https://www.hirekogolf.com/hireko-standard-length-golf-club-chart)
 for the clubs.
 
-Two details worth keeping. Clubs are picked by **which head is nearest the
-click on screen**, not by a ray through their hit boxes: the fan is seen from an
-angle, so the shafts overlap in depth and a ray aimed squarely at one head
-passes through its neighbour's box on the way. And only the club **in hand**
-wears its name — with the hovered one shown as well, since that is the moment
-you want to be told. Four labels at once was a wall of text over the course.
+### Modelling the heads
+
+The heads went through three versions and only the third is any good, which is
+worth writing down because the first two failed for reasons that look like
+opinions and are not.
+
+**Stacked boxes** read as four grey blocks. **Extruded outlines with bevelled
+edges** gave them silhouettes but a club head is a curved volume, and the best
+an extrusion can do is a rounded brick — the driver came out a slab and the
+irons came out L-shapes. What they are now:
+
+- **Driver** — a sphere pushed into shape: squashed to 60% height, swelling
+  wider toward the back so it pears, and sliced off flat at `x = 0.040` where
+  the face goes. One warp loop, and it is a curved volume rather than an
+  impression of one. The face plate is sized to the slice (28mm across, 20mm
+  tall) so it sits flush instead of standing proud as a rim.
+- **Irons** — a bevelled extrusion is right here, because a blade genuinely is
+  a flat outline: a topline running out to a rounded toe, a sole, a heel. Behind
+  it sits a **muscle** — a second extrusion hugging the sole from heel to toe,
+  which is where the weight in a real iron is and what stops a blade reading as
+  a butter knife. As a box bolted to the back it read as a step; following the
+  sole, it reads as an iron.
+- **Putter** — a mallet: a wide, low, rounded slab with wings swept back behind
+  the face, a dark insert across the face, a sight line on the crown, and a
+  plumber's neck rather than a shaft pushed into the middle.
+
+Sizes are the real ones. The USGA caps a driver head at **127mm heel to toe and
+71mm tall** and a 460cc head sits right on that limit; an iron blade is about
+**76mm heel to toe**; a mallet is about **105mm across and 55mm front to back**.
+
+Everything is built in the head's own frame, and **that frame is the club as it
+stands in a bag** — grip down in the well, head up where it can be seen and
+clicked. The origin is where the shaft ends, `+Y` runs on past it to the sole,
+`+X` is the way the face looks, and `Z` is heel to toe with the head hung out to
+`+Z` from a hosel at `z = 0`. That last part is the bug the rebuild fixed: the
+heads had been floating a couple of centimetres beside their shafts, because
+nothing in the model sat where the shaft actually ended. A real head hangs off
+its heel, and the hosel is the thing that says so.
+
+The clubs are also **splayed** in the closed bag — each turned a little on its
+own axis — for the same reason. Heads that hang to one side of their shafts
+hide behind each other if four of them stand dead straight in a bunch.
+
+References: [USGA head-size limits](https://www.usga.org/equipment-standards/equipment-rules-2019/equipment-rules/equipment-rules.html),
+and photographs of a driver from above (the pear), an iron from the face (the
+topline and toe) and a mallet from above (the wings) — the three views the
+three shapes are drawn from.
+
+*Not* a downloaded model, and that was a decision rather than an oversight: it
+would need a loader (`GLTFLoader` is not vendored, and vendoring one for four
+club heads is a lot of kilobytes), a licence that can be verified and carried in
+the repo, and a binary asset in a project whose rule everywhere else is that
+textures and geometry are generated at load. CC0 model kits exist and would
+work; the trade is a build-time dependency and an asset directory against about
+two hundred lines of maths, and at this size the maths wins.
+
+Three details worth keeping.
+
+Clubs are picked by **which head is nearest the click on screen**, not by a ray
+through their hit boxes: the row is seen at an angle while it is moving, so the
+shafts overlap in depth and a ray aimed squarely at one head can pass through
+its neighbour's box on the way.
+
+The open row is aligned on the **heads**, not the grips — `-len` puts every head
+at the same height — because a club is 45 inches of shaft and four of head, and
+the head is the entire thing being chosen between. The different lengths still
+show where they belong, which is standing in the bag.
+
+And nothing in that row may be **scaled**. Marking the club in hand with a 1.08
+size bump lifted its head four times further than the lift meant to: scaling a
+club scales its length, and the row is aligned on the far end of it. It is
+marked with a glow and a word in the panel instead.
+
+The names live in the DOM, above the clubs, rather than on sprites in the scene.
+Text belongs in text: it stays crisp, it can be read by a screen reader, and it
+was the part that looked cheap when it floated over the course.
 
 ## The model, in one paragraph
 

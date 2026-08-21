@@ -84,6 +84,15 @@
         <div class="stage" id="stage">
             <canvas id="board" aria-label="3D mini golf course"></canvas>
 
+            <!-- The club picker's text half: the modelled clubs are drawn on
+                 the canvas, but what they are for is written here. -->
+            <div class="picker" id="picker" aria-hidden="true">
+                <p class="picker-title">Pick a club</p>
+                <p class="picker-name" id="picker-name">Driver</p>
+                <p class="picker-blurb" id="picker-blurb"></p>
+                <p class="picker-stats" id="picker-stats"></p>
+            </div>
+
             <div class="stage-hud" id="stage-hud">
                 <span id="shud-hole">Hole 1/6</span>
                 <span id="shud-par">Par 3</span>
@@ -153,9 +162,11 @@
                     second one landing on the glass will not move your aim.
                 </li>
                 <li>
-                    <b>Pick a club.</b> Click the bag in the corner and it opens; click a club to
-                    take it. The heads are set at their real lofts, so the wedge lying right back
-                    is the one that goes up. Keys <kbd>1</kbd>–<kbd>4</kbd> do the same thing.
+                    <b>Pick a club.</b> Click the bag in the bottom corner: the clubs come out,
+                    line up and turn slowly so you can look at them, and the one under your pointer
+                    is explained above. Click a head to take it. The heads are set at their real
+                    lofts, so the wedge lying right back is the one that goes up. Keys
+                    <kbd>1</kbd>–<kbd>4</kbd> do the same thing, and <kbd>B</kbd> opens the bag.
                     The <b>putter</b> rolls flat and stops where you tell it, the <b>driver</b> is the
                     reach club, the <b>chipper</b> hops a rail and keeps running, and the <b>wedge</b>
                     goes up and over water and sand. Each one has its own ceiling on power, so a
