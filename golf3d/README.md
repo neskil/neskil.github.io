@@ -21,7 +21,8 @@ them.
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects — no audio files to ship. |
-| `js/render.js` | The only file that touches three.js. Procedural textures, no images. |
+| `js/render.js` | The course, in three.js. Procedural textures, no images. |
+| `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
 | `js/game.js` | Loop, input, and what a shot means. |
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness. Open it; green is green. |
@@ -55,6 +56,41 @@ solvable with the clubs a player actually has.
 
 Picking a club keeps the power you had already pulled back, as a fraction of the
 swing. Swapping mid-aim is meant to be a comparison, not a reset.
+
+### The picker
+
+The bag is modelled and stands in the corner of the view: click it and the
+clubs fan out of the mouth, click a head to take that club. It is furniture
+rather than course — it rides at a fixed offset in *camera* space, so it never
+occludes the hole, never has to be played around, and never pretends to be
+something the ball could hit. That is why it lives in `bag.js` and not in
+`render.js`: one file draws the world the simulation knows about, the other
+draws a thing the simulation has never heard of.
+
+It is built from `CONFIG.CLUBS`, so a fifth club would appear in the bag, in
+the fan, with a label, pickable, with no markup and no CSS. Each head is turned
+by that club's own loft, which means the difference between the driver and the
+wedge is not a caption — it is the angle of the face you are looking at.
+
+The first version was drawn from memory and came out looking like a bin, so the
+second is built to the real thing's numbers: a cart bag is about **35 inches
+tall with a 9–10.5 inch cuff** and fourteen full-length dividers — nearly four
+times as tall as it is wide, where mine had been under two — and it holds a
+**45 inch driver, 35.5 inch wedges and a 34 inch putter**. Those lengths are
+why the driver towers over the other heads and the putter barely clears the
+cuff, and why the labels stagger themselves without being told to.
+
+References: [golf bag sizes](https://golfersauthority.com/how-tall-is-a-golf-bag/)
+and [cuff and divider counts](https://www.moresports.com/blogs/the-extra-mile/what-size-golf-bag-do-i-need)
+for the bag; [standard club lengths](https://www.hirekogolf.com/hireko-standard-length-golf-club-chart)
+for the clubs.
+
+Two details worth keeping. Clubs are picked by **which head is nearest the
+click on screen**, not by a ray through their hit boxes: the fan is seen from an
+angle, so the shafts overlap in depth and a ray aimed squarely at one head
+passes through its neighbour's box on the way. And only the club **in hand**
+wears its name — with the hovered one shown as well, since that is the moment
+you want to be told. Four labels at once was a wall of text over the course.
 
 ## The model, in one paragraph
 
@@ -217,6 +253,27 @@ sideways drag, which spun the world under your thumb at exactly the moment you
 were trying to be precise; now it keeps the yaw it had when the pull began and
 eases in behind the shot once the ball is away.
 
+**One finger owns the shot.** The pull follows the pointer that started it and
+no other, from press to release. A second finger landing while a pull is loaded
+is ignored — it is almost always the hand holding the phone, and the pull it
+used to throw away was worth more than the zoom it would have started. With
+nothing loaded there is nothing to lose, so two fingers mean pinch, and the
+pinch holds the input until every finger is off the glass, which is what stops
+the aim jumping when one thumb comes up before the other. Anything that cancels
+a pull — a pinch that takes it, a `pointercancel` from the system — puts the aim
+back exactly where the pull found it, rather than leaving the meter stuck at the
+number it died on.
+
+**The aim line rides through one wall.** `previewPath` normally stops where the
+shot stops being a shot — a landing, the water, the cup — because drawing the
+whole roll would turn the game into a calculator. A rail is the exception: if
+you are lined up against one then the rail *is* the shot, so the path carries on
+through the first ricochet, the window opens 60% further to give the way out
+room to be read, and the point where it turns is tagged. The renderer draws that
+tag as a fat dot in the power colour and dims everything after it, so a bank
+shot reads as two legs rather than one odd curve. A second wall inside the same
+window is where honest prediction ends, and that is where it stops.
+
 Everything else is feedback, and all of it is scaled by the same fraction of the
 swing:
 
@@ -250,8 +307,10 @@ a dozen pieces of state and they all fit in one object.
   compact hole/par/strokes/distance strip appears inside the stage instead.
 - **To cup** in the scoreboard counts down live while the ball rolls. It is the
   number the club choice is actually about.
-- The **club bar** is generated from `CONFIG.CLUBS`, so a fifth club would need
-  no markup and no CSS.
+- The **club picker** is the modelled bag described above. What is left in the
+  DOM is the line of text under the meter, which names the club in hand and is
+  also what a screen reader is told; the number keys do everything the bag
+  does.
 
 ## Rendering
 
