@@ -224,32 +224,57 @@ Load order matters (plain `<script>` tags, no bundler, per house style):
 
 ## 8. Roadmap
 
-**Shipped in this pass**
-- `core/` logic layer, fully unit-tested
-- Campaign with 12 line missions, computed par, medals, localStorage progress
-- Grid placement with gravity, ghost preview, rotation, undo
-- Live envelope wireframe, mission HUD, queue lookahead, scorecard
-- Sandbox mode preserved with all POC toys, plus the gantry crane and the
-  contracts economy folded into the new architecture
+This section tracked the first pass; the game has since grown three more modes
+on top of it. What follows is what actually shipped, kept here rather than
+deleted because §1–§7 are still the design that governs all of it. `HISTORY.md`
+has the version-by-version detail.
 
-**Not shipped, by choice**
-- No card in the portfolio landing grid. The root page links here from the
-  work-in-progress card, and that stays until the owner calls this finished —
-  the workspace rule is no grid card before approval.
+**Shipped**
+- `core/` logic layer, fully unit-tested (`tests.html`, no THREE loaded at all).
+- Campaign: 17 line missions across four terminals, computed par, medals,
+  localStorage progress.
+- Grid placement with gravity, ghost preview, rotation, undo — mask-aware, so
+  the L-corner and T-beam modules preview and collide as the shape they are,
+  not their bounding box. Non-rectangular pieces from §3 are in.
+- Live envelope wireframe, mission HUD, queue lookahead, scorecard.
+- Sandbox mode preserved with all POC toys, plus the gantry crane and the
+  contracts economy folded into the new architecture.
+- **Cascade** — the falling-cargo mode described in §5, its own bay, its own
+  scoring, `core/cascade.js` unit-tested the same way the campaign is.
+- **The physics yard** — a rigid-body solver (`game/physics.js`) as a sibling
+  of the grid, not a replacement for it: *Free play* and *Tower* challenges,
+  grid or free placement, its own `physics-tests.html`. See "Deliberately not
+  doing" below for why this doesn't contradict itself.
+- **Physics missions** — three campaign missions (`Balancing Act`, `Top Heavy`,
+  `Salvage Yard`) hand `support:1` to the solver instead of the ratio rule. A
+  collapse costs envelope, not cargo: nothing despawns, the wreck stays down
+  and counts against the manifest.
+- Touch controls throughout (placement, Cascade, the physics yard) and a
+  mobile layout — collapsible toolbar sections, a landscape-phone layout, the
+  mission readouts and sandbox inspector both reachable below the desktop
+  breakpoint.
+- A build stamp in the top bar (`tools/stamp-build.sh` → `version.js`), linking
+  to the exact commit that's live.
+- A card in the portfolio landing grid (`#card-3d-poc`), reading progress via
+  `loadHighScores()` for its stat chip.
 
 **Next**
 - Replay/share: serialize the placement list, replay it on load from a URL hash
-- Daily seeded run + local leaderboard
+- Daily seeded run + local leaderboard — `seedFromDate()` already exists in
+  `core/manifest.js` for exactly this, it's just not wired to a mode
 - Reach stacker as an optional *manual* placement mode in campaign (drive the
   unit into position instead of clicking) — the vehicle code is already there
 - Solver for a true par (branch-and-bound over the manifest) to replace the
   perfect-pack idealisation
-- Non-rectangular pieces (the grid already accepts arbitrary cell masks)
-- Touch controls and a mobile layout
 
 **Deliberately not doing**
-- Physics simulation. Toppling stacks would be spectacular and would make the
-  puzzle unreadable. The support rules encode the same intent, legibly.
-- Real-time pressure in the campaign. The fun here is deliberation. If a timed
-  variant is wanted it belongs in a separate mode, not bolted onto missions —
-  which is what Cascade is, and the missions are unchanged.
+- Physics as the campaign's normal support check. The physics yard and the
+  three physics missions above are real rigid-body simulation, but they are an
+  explicit opt-in living beside the grid (`game/physics.js`), never inside
+  `core/`. The other thirteen missions still use `support:1` — a count of
+  occupied cells, not a physical claim — on purpose: toppling stacks by default
+  would be spectacular and would make the puzzle unreadable, and a rule you can
+  reason about from the HUD's rejection message is worth more there than a
+  simulation you can't.
+- Real-time pressure in the campaign. The fun here is deliberation. Cascade is
+  where a timed variant belongs, and the missions stay untimed.

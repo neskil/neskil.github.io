@@ -341,7 +341,7 @@ line, which is what makes "drag left, aim left" true from any angle, and
 
 ## Tests
 
-Open `tests.html`. 414 assertions covering the surfaces, the collision
+Open `tests.html`. 423 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all eighteen holes of course data
 and the scorecard, in about a second.
 

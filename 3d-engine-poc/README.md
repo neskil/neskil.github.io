@@ -73,6 +73,7 @@ with no WebGL context, offline, in a headless browser.
 │   ├── hud.js          mission HUD, queue, sandbox stats, inspector
 │   ├── menu.js         main menu, mission select, how-to, pause
 │   ├── results.js      scorecard
+│   ├── toolbars.js     collapsible control-bar sections below the mobile breakpoint
 │   └── ui.js           the facade the game talks to
 │
 ├── styles/             tokens.css → hud.css → menu.css
