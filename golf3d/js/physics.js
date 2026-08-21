@@ -549,19 +549,37 @@
         return settle(w);
     }
 
-    /* Sample the next few seconds of a shot for the aiming preview. Stops at
-       the first bounce (plus the airborne arc, which is the interesting part
-       of a lofted shot) because drawing the whole roll would turn the game
-       into a calculator. */
+    /* Sample the next few seconds of a shot for the aiming preview. It stops
+       where the shot stops being a shot and starts being a roll — a landing,
+       the water, the cup — because drawing the whole roll would turn the game
+       into a calculator.
+
+       A wall is the exception. If you are lined up against a rail then the
+       rail *is* the shot, and stopping the dots at the paint tells you nothing
+       about the half you actually care about. So the path rides through the
+       first ricochet and carries on, the point where it turns is tagged
+       `bounce` so the dots can mark the kiss, and the window is opened a
+       little further so the way out is long enough to aim by — a ball that
+       spends its whole window reaching the wall would otherwise come off it in
+       three dots. A second wall inside that window is where honest prediction
+       ends, so that is where it stops. */
     function previewPath(world, yaw, power, loft, seconds) {
         var w = cloneWorld(world);
         if (!launch(w, yaw, power, loft)) return [];
         var pts = [{ x: w.ball.x, y: w.ball.y, z: w.ball.z }];
-        var steps = Math.ceil((seconds || 0.7) / C.SIM_DT), i, ev;
+        var steps = Math.ceil((seconds || 0.7) / C.SIM_DT);
+        var grant = Math.ceil(steps * 0.6);
+        var turn = -1, i, ev, p;
         for (i = 0; i < steps; i++) {
             ev = advance(w, C.SIM_DT, {});
-            pts.push({ x: w.ball.x, y: w.ball.y, z: w.ball.z });
-            if (ev.bounce || ev.land || ev.splash || ev.sunk || ev.out || !w.moving) break;
+            p = { x: w.ball.x, y: w.ball.y, z: w.ball.z };
+            pts.push(p);
+            if (ev.land || ev.splash || ev.sunk || ev.out || !w.moving) break;
+            if (!ev.bounce) continue;
+            // Contact can span two steps while the ball is still against the
+            // wall; that is one ricochet, not two.
+            if (turn >= 0 && i > turn + 1) break;
+            if (turn < 0) { turn = i; p.bounce = true; steps += grant; }
         }
         return pts;
     }

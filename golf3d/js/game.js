@@ -276,17 +276,92 @@
        for free. That is worth a full turn of aim in one gesture, without ever
        touching the camera. */
 
-    var pointers = {};
-    var pinchDist = 0;
+    /* Multitouch is the part that used to bite. A second finger landing on the
+       glass would throw away whatever pull was loaded, leave the power meter
+       stuck at the number it died on, and snap the camera round to the
+       half-drawn angle — a shot lost to the hand that was only holding the
+       phone. Three rules fix it:
+
+         · One finger owns the shot. The pull follows *that* pointer and no
+           other, from press to release, so a stray touch cannot move the aim.
+         · A loaded pull outranks a pinch. Once the pull is past the deadzone
+           the second finger is ignored; before that there is nothing to lose,
+           so two fingers mean zoom.
+         · A pinch holds the input until every finger is off the glass. A
+           leftover finger from a pinch cannot start a shot, which is what
+           stopped the aim jumping when one thumb came up before the other.
+
+       Anything that cancels a pull — a pinch that takes it, a pointercancel
+       from the system — puts the aim back exactly where the pull found it. */
+
+    var pointers = {};       // live pointers on the canvas, keyed by pointerId
+    var pinchIds = null;     // the two the pinch is measuring, so lifting a
+                             // third finger cannot swap the pair under it
+    var pinchDist = 0;       // their spread at the last sample; 0 = unseeded
+    var pinching = false;    // a pinch owns the input until all fingers lift
+
+    function pinchSpread() {
+        if (!pinchIds) return 0;
+        var a = pointers[pinchIds[0]], b = pointers[pinchIds[1]];
+        if (!a || !b) return 0;
+        return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    // Pick the pair to measure and reseed the spread, so the first move after
+    // a change of fingers is a delta of zero rather than a lurch.
+    function seedPinch() {
+        var k = Object.keys(pointers);
+        pinchIds = k.length >= 2 ? [k[0], k[1]] : null;
+        pinchDist = pinchSpread();
+    }
+
+    // Pointer position as three.js wants it: -1..1 with y up.
+    function ndcX(e) {
+        var r = canvas.getBoundingClientRect();
+        return ((e.clientX - r.left) / r.width) * 2 - 1;
+    }
+    function ndcY(e) {
+        var r = canvas.getBoundingClientRect();
+        return -((e.clientY - r.top) / r.height) * 2 + 1;
+    }
+
+    function onHover(e) {
+        if (pinching) return;
+        if (state && state.drag) return;
+        if (!G3.bag || !R.pickAt) return;
+        var hit = R.pickAt(ndcX(e), ndcY(e));
+        G3.bag.setHover(hit && hit !== 'bag' ? hit : null);
+        canvas.style.cursor = hit ? 'pointer' : '';
+    }
+
+    // Undo a pull as if it had never started: same aim, same power, same
+    // camera. Used when a pinch takes the gesture or the system cancels it.
+    function cancelDrag() {
+        if (!state || !state.drag) return;
+        state.aim.yaw = state.drag.yaw;
+        state.aim.power = state.drag.power;
+        state.aim.show = state.drag.show;
+        state.drag = null;
+        syncPower();
+    }
 
     function onDown(e) {
-        canvas.setPointerCapture(e.pointerId);
+        // A pointer that has already gone cannot be captured; that is not a
+        // reason to lose track of it.
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
-        if (Object.keys(pointers).length === 2) {
-            pinchDist = twoFingerDistance();
-            state.drag = null;
+        if (!state) return;
+
+        if (Object.keys(pointers).length >= 2) {
+            // A pull worth keeping is worth more than the zoom this would be.
+            if (state.drag && state.aim.power > 0) return;
+            cancelDrag();
+            pinching = true;
+            seedPinch();
             return;
         }
+        if (pinching) return;
+
         // The bag is in front of everything else, so it is asked first: a
         // press that lands on it is a press on the picker, not a shot.
         var hit = R.pickAt ? R.pickAt(ndcX(e), ndcY(e)) : null;
@@ -304,47 +379,27 @@
         if (G3.bag && G3.bag.isExpanded()) G3.bag.setExpanded(false);
 
         if (state.phase !== 'aim') return;
-        state.drag = { x: e.clientX, y: e.clientY, yaw: state.aim.yaw, camYaw: R.cam.yaw, notch: 0 };
+        state.drag = {
+            id: e.pointerId, x: e.clientX, y: e.clientY, notch: 0,
+            yaw: state.aim.yaw, power: state.aim.power, show: state.aim.show,
+            camYaw: R.cam.yaw
+        };
         state.aim.show = true;
     }
 
-    // Pointer position as three.js wants it: -1..1 with y up.
-    function ndcX(e) {
-        var r = canvas.getBoundingClientRect();
-        return ((e.clientX - r.left) / r.width) * 2 - 1;
-    }
-    function ndcY(e) {
-        var r = canvas.getBoundingClientRect();
-        return -((e.clientY - r.top) / r.height) * 2 + 1;
-    }
-
-    function twoFingerDistance() {
-        var k = Object.keys(pointers);
-        if (k.length < 2) return 0;
-        var a = pointers[k[0]], b = pointers[k[1]];
-        return Math.hypot(a.x - b.x, a.y - b.y);
-    }
-
-    function onHover(e) {
-        if (state && state.drag) return;
-        if (!G3.bag || !R.pickAt) return;
-        var hit = R.pickAt(ndcX(e), ndcY(e));
-        G3.bag.setHover(hit && hit !== 'bag' ? hit : null);
-        canvas.style.cursor = hit ? 'pointer' : '';
-    }
-
     function onMove(e) {
-        if (!pointers[e.pointerId]) { onHover(e); return; }
-        pointers[e.pointerId].x = e.clientX;
-        pointers[e.pointerId].y = e.clientY;
+        var p = pointers[e.pointerId];
+        if (!p) { onHover(e); return; }
+        p.x = e.clientX;
+        p.y = e.clientY;
 
-        if (Object.keys(pointers).length === 2) {
-            var d = twoFingerDistance();
-            if (pinchDist > 0) zoom((pinchDist - d) * 0.02);
+        if (pinching) {
+            var d = pinchSpread();
+            if (pinchDist > 0 && d > 0) zoom((pinchDist - d) * 0.02);
             pinchDist = d;
             return;
         }
-        if (!state.drag) return;
+        if (!state || !state.drag || state.drag.id !== e.pointerId) return;
         var dx = e.clientX - state.drag.x;
         var dy = e.clientY - state.drag.y;
         var pull = Math.hypot(dx, dy);
@@ -374,12 +429,29 @@
     }
 
     function onUp(e) {
-        delete pointers[e.pointerId];
-        pinchDist = 0;
-        if (!state.drag) return;
+        var owned = !!(state && state.drag && state.drag.id === e.pointerId);
+        forget(e.pointerId);
+        if (!owned) return;
         state.drag = null;
         if (state.aim.power >= C.MIN_POWER) shoot();
         else { state.aim.power = 0; syncPower(); }
+    }
+
+    // The system took the pointer away — a palm, a notification, an edge
+    // swipe. That is not a shot, so put the aim back.
+    function onCancel(e) {
+        var owned = !!(state && state.drag && state.drag.id === e.pointerId);
+        forget(e.pointerId);
+        if (owned) cancelDrag();
+    }
+
+    function forget(id) {
+        delete pointers[id];
+        if (!pinching) return;
+        if (pinchIds && (pinchIds[0] === String(id) || pinchIds[1] === String(id))) seedPinch();
+        // The pinch is over only once the glass is clear, so the finger still
+        // resting there cannot start a shot on its own.
+        if (!Object.keys(pointers).length) { pinching = false; pinchIds = null; pinchDist = 0; }
     }
 
     function zoom(delta) {
@@ -586,7 +658,7 @@
         canvas.addEventListener('pointerdown', onDown);
         canvas.addEventListener('pointermove', onMove);
         canvas.addEventListener('pointerup', onUp);
-        canvas.addEventListener('pointercancel', onUp);
+        canvas.addEventListener('pointercancel', onCancel);
         canvas.addEventListener('wheel', function (e) {
             e.preventDefault();
             zoom(e.deltaY * 0.004);

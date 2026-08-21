@@ -361,15 +361,31 @@
         R.aimGroup.add(R.ring);
 
         // Predicted path, as a row of dots. A line would be one pixel wide on
-        // a phone; dots survive.
+        // a phone; dots survive. Per-point colour so the stretch after a wall
+        // can be dimmed without a second object to keep in step.
         var pg = new THREE.BufferGeometry();
         pg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(120 * 3).fill(0), 3));
+        pg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(120 * 3).fill(1), 3));
         R.arcPoints = new THREE.Points(pg, new THREE.PointsMaterial({
             size: 0.16, map: R.tex.dot, transparent: true, opacity: 0.85,
-            depthTest: false, sizeAttenuation: true
+            depthTest: false, sizeAttenuation: true, vertexColors: true
         }));
         R.arcPoints.renderOrder = 6;
         R.aimGroup.add(R.arcPoints);
+
+        /* The kiss: one fat dot where the path meets a rail. The dots either
+           side of it already say which way the ball comes off; this says
+           *there*, which is the bit you are actually aiming at on a bank shot.
+           A single point rather than a mark on the ground, so it sits right
+           whether the ball meets the wall rolling or in the air. */
+        var kg = new THREE.BufferGeometry();
+        kg.setAttribute('position', new THREE.Float32BufferAttribute([0, -999, 0], 3));
+        R.kiss = new THREE.Points(kg, new THREE.PointsMaterial({
+            size: 0.34, map: R.tex.dot, transparent: true, opacity: 0.9,
+            depthTest: false, sizeAttenuation: true
+        }));
+        R.kiss.renderOrder = 7;
+        R.aimGroup.add(R.kiss);
 
         R.scene.add(R.aimGroup);
     }
@@ -894,22 +910,47 @@
         R.ring.visible = frac > 0.02;
 
         var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, 0.5 + frac * 0.5);
+
+        /* If the path is close enough to a rail to reach it, physics carries it
+           through the ricochet and tags the point it turns. Everything past
+           that tag is drawn dimmer: it is the way the ball comes off the wall,
+           which is worth seeing, but it is a step further from certain than the
+           leg you are pointing. */
+        var turn = -1, i, k;
+        for (i = 1; i < pts.length; i++) {
+            if (pts[i].bounce) { turn = i; break; }
+        }
+
         var arr = R.arcPoints.geometry.attributes.position.array;
+        var col = R.arcPoints.geometry.attributes.color.array;
         // Thirty-odd dots evenly along the path: dense enough to read as a
         // trajectory, sparse enough to read as dots.
-        var n = Math.min(34, pts.length), i, k;
+        var n = Math.min(34, pts.length), shade;
         for (i = 0; i < 120; i++) {
             if (i < n) {
                 k = Math.min(pts.length - 1, Math.round(i * ((pts.length - 1) / Math.max(1, n - 1))));
                 arr[i * 3] = pts[k].x;
                 arr[i * 3 + 1] = pts[k].y;
                 arr[i * 3 + 2] = pts[k].z;
+                shade = (turn >= 0 && k >= turn) ? 0.6 : 1;
+                col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade;
             } else {
                 arr[i * 3 + 1] = -999;
             }
         }
         R.arcPoints.geometry.attributes.position.needsUpdate = true;
+        R.arcPoints.geometry.attributes.color.needsUpdate = true;
         R.arcPoints.geometry.computeBoundingSphere();
+
+        // And the kiss itself, in the colour the power is wearing.
+        R.kiss.visible = turn >= 0;
+        if (turn >= 0) {
+            var kp = R.kiss.geometry.attributes.position.array;
+            kp[0] = pts[turn].x; kp[1] = pts[turn].y; kp[2] = pts[turn].z;
+            R.kiss.geometry.attributes.position.needsUpdate = true;
+            R.kiss.geometry.computeBoundingSphere();
+            R.kiss.material.color.copy(R.arrow.material.color);
+        }
     }
 
     /* Camera. The player never flies it directly: it sits behind the ball

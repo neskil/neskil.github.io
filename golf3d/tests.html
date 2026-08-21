@@ -409,6 +409,38 @@
                 P.previewPath(t, 1, 12, 0.4, 0.8);
                 return t.ball.z === 2 && !t.moving;
             })());
+
+            // A rail inside the preview window is part of the shot, so the
+            // path rides through it and tags where it turns.
+            assert('previewPath leaves an open shot untagged', (function () {
+                return !P.previewPath(P.createWorld(flat, { x: 5, z: 2 }, 0), 0, 14, 0, 1)
+                    .some(function (q) { return q.bounce; });
+            })());
+
+            var railed = lab({ walls: [A.wall(3, 8, 4, 0.4, 0.6)] });
+            var bank = P.previewPath(P.createWorld(railed, { x: 5, z: 2 }, 0), 0, 14, 0, 1);
+            var turn = -1;
+            bank.forEach(function (q, qi) { if (q.bounce && turn < 0) turn = qi; });
+            assert('previewPath tags the point it meets a rail',
+                turn > 0 && approx(bank[turn].z, 8.2 - 0.2 - C.BALL_R, 0.05),
+                'turn at z = ' + (turn > 0 ? bank[turn].z.toFixed(2) : 'never'));
+            assert('previewPath carries on past the rail',
+                turn > 0 && bank.length > turn + 4 &&
+                bank[bank.length - 1].z < bank[turn].z,
+                'ends at z = ' + bank[bank.length - 1].z.toFixed(2));
+            assert('the ricochet is tagged once, not every step',
+                bank.filter(function (q) { return q.bounce; }).length === 1);
+
+            // Two rails inside one window is where honest prediction ends.
+            var slot = lab({ walls: [A.wall(6, 0, 0.4, 20, 0.6), A.wall(3.6, 0, 0.4, 20, 0.6)] });
+            var caged = P.previewPath(P.createWorld(slot, { x: 5, z: 2 }, 0), 1.1, 20, 0, 1);
+            assert('previewPath stops at the second rail',
+                caged.length < Math.ceil(1 / C.SIM_DT) &&
+                caged.filter(function (q) { return q.bounce; }).length === 1,
+                'length ' + caged.length);
+            assert('the ricochet gets room the straight path does not',
+                bank.length > Math.ceil(1 / C.SIM_DT) + 1,
+                'length ' + bank.length);
         })();
 
         /* ── course data ───────────────────────────────────────────────── */
