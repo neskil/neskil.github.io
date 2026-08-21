@@ -125,14 +125,27 @@ ever ticks upward.
 
 ## Aiming
 
-The arrow gives you the line. It is the same length at full power and at a tap,
-and there is no trajectory preview.
+The arrow gives you the line, and a faint ray runs on from its head to the edge
+of the field. There is no trajectory preview.
 
 There used to be one: the renderer cloned the world, ran 0.6 seconds forward and
 dashed the ball's real path on screen, stopping at the first bounce. Between that
 and a pull-back band drawn to the length of the power, the screen answered the
 only two questions a golf shot is made of — how far will this go, and where does
 it come off that wall. Both are gone, and `physics.previewPath` with them.
+
+What went too far was the replacement: an arrow of exactly one length made a
+gentle tap and a full swing look identical, and lining a putt up across a 960px
+field off a 100px arrow asked the player to extend a line by eye that the screen
+could simply draw. So two things came back, neither of them a prediction:
+
+- **The ray**, which is pure direction. It does not stop at a wall, because
+  where the ball comes off a wall is the question the hole is asking.
+- **A little length.** The arrow runs 54px to 108px while the ball rolls up to
+  1250px — a twelfth of the scale of the thing it is hinting at, on a
+  square-root curve that spends most of its travel in the bottom half of the
+  dial where the touch shots live. You can see that this shot is harder than
+  the last one. You cannot read a distance off it.
 
 What remains is the power meter, which is a dial rather than a distance, and
 which a keyboard player needs because they have no drag in their hand to feel.
@@ -151,6 +164,14 @@ current power, not painted into a box that grows. Stretching one gradient into
 a shrinking box repaints every level a different colour every frame — half
 power would be red at half power and amber at full — and a meter whose colours
 move is not a meter.
+
+Both meters carry two more marks. Quarter ticks, because a bar with nothing on
+it can be read as "some" and "a lot" but not as "just over a third". And a gold
+mark at **the weight of your last shot on this hole** — without a number on the
+dial, "a bit harder than that one" is the only language the player has for
+weight, and this is what gives them it. The mark is as often under the bright
+fill as beyond it, which is why it is gold with a dark halo rather than gold:
+one colour has to read against everything the bar can put behind it.
 
 ## The screen
 

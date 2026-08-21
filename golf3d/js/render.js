@@ -262,6 +262,7 @@
         buildAim();
         buildTrail();
         buildParticles();
+        if (G3.bag) G3.bag.build(R.scene);
 
         R.ready = true;
         resize();
@@ -1050,6 +1051,9 @@
         updateAim(world, aim);
         stepParticles(dt);
         updateCamera(world.hole, world.ball, dt);
+        // The bag rides in front of the camera, so it is placed after the
+        // camera has finished moving and before anything is drawn.
+        if (G3.bag) G3.bag.update(dt, R.camera, R.camera.aspect);
         R.renderer.render(R.scene, R.camera);
     }
 
@@ -1086,6 +1090,10 @@
         punch: punch,
         setCam: setCam,
         cam: R.cam,
+        // The bag picks against these, and nothing else needs them.
+        pickAt: function (nx, ny) {
+            return G3.bag ? G3.bag.pick(nx, ny, R.camera, R.scene) : null;
+        },
         state: R,
         THEMES: THEMES
     };

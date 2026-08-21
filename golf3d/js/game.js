@@ -252,31 +252,13 @@
         $('power-fill').parentNode.classList.toggle('hot', hot);
     }
 
-    // The bag is drawn from the config, so a fifth club would need no markup.
-    function buildClubs() {
-        var host = $('clubs');
-        host.innerHTML = '';
-        C.CLUBS.forEach(function (club) {
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'club';
-            b.dataset.club = club.id;
-            b.title = club.name + ' — ' + club.blurb + ' (' + club.key + ')';
-            b.setAttribute('aria-label', club.name + '. ' + club.blurb);
-            b.innerHTML = '<span class="club-key">' + club.key + '</span>' +
-                '<span class="club-name">' + club.name + '</span>' +
-                '<span class="club-loft">' + Math.round(club.loft * 180 / Math.PI) + '°</span>';
-            b.addEventListener('click', function () { pickClub(club); });
-            host.appendChild(b);
-        });
-    }
-
+    /* The club in hand lives in the bag now — a modelled one, parked in front
+       of the camera (see bag.js). What stays in the DOM is the line of text
+       under the meter, which doubles as the announcement for anyone who cannot
+       see the bag at all. */
     function syncClubs() {
-        var host = $('clubs'), i, kids = host.children;
-        for (i = 0; i < kids.length; i++) {
-            kids[i].classList.toggle('on', kids[i].dataset.club === state.club.id);
-        }
-        $('club-hint').textContent = state.club.blurb;
+        if (G3.bag) G3.bag.setSelected(state.club.id);
+        $('club-hint').textContent = state.club.name + ' — ' + state.club.blurb;
     }
 
     /* ── input ──────────────────────────────────────────────────────────────
@@ -333,6 +315,25 @@
         pinchDist = pinchSpread();
     }
 
+    // Pointer position as three.js wants it: -1..1 with y up.
+    function ndcX(e) {
+        var r = canvas.getBoundingClientRect();
+        return ((e.clientX - r.left) / r.width) * 2 - 1;
+    }
+    function ndcY(e) {
+        var r = canvas.getBoundingClientRect();
+        return -((e.clientY - r.top) / r.height) * 2 + 1;
+    }
+
+    function onHover(e) {
+        if (pinching) return;
+        if (state && state.drag) return;
+        if (!G3.bag || !R.pickAt) return;
+        var hit = R.pickAt(ndcX(e), ndcY(e));
+        G3.bag.setHover(hit && hit !== 'bag' ? hit : null);
+        canvas.style.cursor = hit ? 'pointer' : '';
+    }
+
     // Undo a pull as if it had never started: same aim, same power, same
     // camera. Used when a pinch takes the gesture or the system cancels it.
     function cancelDrag() {
@@ -360,6 +361,23 @@
             return;
         }
         if (pinching) return;
+
+        // The bag is in front of everything else, so it is asked first: a
+        // press that lands on it is a press on the picker, not a shot.
+        var hit = R.pickAt ? R.pickAt(ndcX(e), ndcY(e)) : null;
+        if (hit === 'bag') {
+            G3.bag.toggle();
+            A.tick(G3.bag.isExpanded() ? 0.7 : 0.3);
+            return;
+        }
+        if (hit) {
+            pickClub(clubById(hit));
+            G3.bag.setExpanded(false);
+            A.tick(1);
+            return;
+        }
+        if (G3.bag && G3.bag.isExpanded()) G3.bag.setExpanded(false);
+
         if (state.phase !== 'aim') return;
         state.drag = {
             id: e.pointerId, x: e.clientX, y: e.clientY, notch: 0,
@@ -371,7 +389,7 @@
 
     function onMove(e) {
         var p = pointers[e.pointerId];
-        if (!p) return;
+        if (!p) { onHover(e); return; }
         p.x = e.clientX;
         p.y = e.clientY;
 
@@ -667,7 +685,6 @@
             if (state && state.world) closeMenu();
         });
 
-        buildClubs();
         if (A.isMuted()) $('btn-mute').textContent = '🔇';
 
         var q = params();
