@@ -45,8 +45,11 @@
             sun: 0xffe0b0, sunPos: [6, 14, -4], ambient: 0x5a6c94, ambientI: 0.75,
             grass: ['#2f7f5c', '#2a7355'],
             rail: 0xd9b36a,
+            stars: 0.9,             // the one course played after dark
+            cloudLum: 0.20,         // …so its clouds are moonlit, not sunlit
             surroundY: -2.6, surround: 'floor',
             water: 0x2b6f8f,
+            floor: '#2b2f39',
             side: '#4a4a55'
         }
     };
@@ -125,7 +128,7 @@
 
     function sandTexture() {
         return canvasTex(128, function (g, s) {
-            g.fillStyle = '#e4d3a4';
+            g.fillStyle = '#d8c391';
             g.fillRect(0, 0, s, s);
             for (var n = 0; n < 4000; n++) {
                 g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(150,120,70,0.28)';
@@ -180,32 +183,6 @@
         });
     }
 
-    /* Opaque on purpose. The map multiplies the material colour, so a mid grey
-       base keeps the water its own colour and only the crests brighten; a
-       texture with transparent pixels would read as white here and bleach the
-       whole sea. */
-    function rippleTexture() {
-        return canvasTex(256, function (g, s) {
-            g.fillStyle = '#8f9aa2';
-            g.fillRect(0, 0, s, s);
-            var n;
-            for (n = 0; n < 260; n++) {
-                g.strokeStyle = 'rgba(255,255,255,' + (0.10 + Math.random() * 0.22) + ')';
-                g.lineWidth = 1 + Math.random() * 2.5;
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, 4 + Math.random() * 26, 0.6, 2.5);
-                g.stroke();
-            }
-            for (n = 0; n < 120; n++) {
-                g.strokeStyle = 'rgba(0,0,0,0.10)';
-                g.lineWidth = 1 + Math.random() * 3;
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, 6 + Math.random() * 30, 3.4, 5.4);
-                g.stroke();
-            }
-        });
-    }
-
     function dotTexture() {
         return canvasTex(64, function (g, s) {
             var grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
@@ -224,10 +201,15 @@
         scene: null, camera: null, renderer: null,
         holeGroup: null, ball: null, aimGroup: null, arcPoints: null, arrow: null,
         flagCloth: null, flagPole: null, cupMesh: null,
+        pin: null, flagSwivel: null, flagRest: null, pinShake: 0,
         movers: [],            // { mesh, wall } — updated from physics each frame
-        water: [],             // meshes whose texture scrolls
+        waterMats: [],         // water shaders whose clock and wind we advance
+        sky: null,             // the sky shader's material, for the same reason
+        sun: null,             // the directional light, and where it is pointing
+        sunDir: new THREE.Vector3(0, 1, 0),
+        sunUv: new THREE.Vector2(0.5, 1.2),
         tex: {},
-        theme: null,
+        theme: null, weather: null,
         cam: {
             yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false,
             kick: 0,          // impact flinch, decays
@@ -246,6 +228,12 @@
         R.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         if (THREE.sRGBEncoding !== undefined) R.renderer.outputEncoding = THREE.sRGBEncoding;
 
+        /* The picture goes through postfx.js if the context will have it, and
+           straight to the canvas if it will not. Everything downstream of here
+           is written so that either is a complete game: the grade is the last
+           word on how a hole looks, not the only word. */
+        R.fx = G3.postfx ? G3.postfx.init(R.renderer) : false;
+
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
 
@@ -255,7 +243,6 @@
         R.tex.dimple = dimpleTexture();
         R.tex.wood = woodTexture();
         R.tex.rough = roughTexture();
-        R.tex.ripple = rippleTexture();
         R.tex.dot = dotTexture();
 
         buildBall();
@@ -276,6 +263,10 @@
         R.renderer.setSize(w, h, false);
         R.camera.aspect = w / Math.max(1, h);
         R.camera.updateProjectionMatrix();
+        if (R.fx) {
+            var dpr = R.renderer.getPixelRatio();
+            G3.postfx.resize(w * dpr, h * dpr);
+        }
     }
 
     /* ── persistent objects ─────────────────────────────────────────────── */
@@ -495,17 +486,162 @@
         R.scene.remove(g);
     }
 
-    function skyDome(theme) {
+    /* ── the sky ────────────────────────────────────────────────────────
+
+       The sky was a two-stop gradient, which is fine until you look up. It is
+       now the one genuinely expensive shader in the game, and it earns it: the
+       whole of the weather that you can see without looking down is in here.
+
+       Clouds are noise, not geometry. The ray from the camera is projected
+       onto a flat sheet a long way up — divide the direction by its own height
+       and you have the point where it crosses that sheet — and five octaves of
+       value noise are sampled there. Coverage is a threshold on that noise, so
+       one uniform takes the sky from clear to solid, and drifting the sample
+       point with the wind moves the weather across the course without moving
+       a single vertex.
+
+       Two details do most of the work. The clouds are shaded by sampling the
+       *same* noise a short way towards the sun and comparing: where the field
+       is rising towards the light the cloud is lit, where it is falling it is
+       in its own shadow, which is a fair imitation of a cloud for two texture
+       reads. And the sun's own halo is added on top of the cloud rather than
+       under it, so an overcast sky still has a bright patch where the sun is
+       and a rim of silver on whatever is passing in front of it. */
+
+    var SKY_VS =
+        'varying vec3 vDir;' +
+        'void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+
+    var SKY_FS = [
+        'uniform vec3 top, bottom, fogColour, sunColour, cloudTop, cloudBase, sunDir;',
+        'uniform float cover, sunI, sharp, hazeTop, starI;',
+        'uniform vec2 drift;',
+        'varying vec3 vDir;',
+
+        'float hash21(vec2 p){',
+        '  p = fract(p * vec2(123.34, 456.21));',
+        '  p += dot(p, p + 45.32);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'float vnoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  vec2 u = f * f * (3.0 - 2.0 * f);',
+        '  float a = hash21(i), b = hash21(i + vec2(1.0, 0.0));',
+        '  float c = hash21(i + vec2(0.0, 1.0)), d = hash21(i + vec2(1.0, 1.0));',
+        '  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);',
+        '}',
+        /* Five octaves, with the fine ones faded out towards the horizon.
+           The projection below stretches the cloud sheet without limit as the
+           ray flattens, so by the horizon a single pixel spans several periods
+           of the top octave and the sky turns to static. Weighting each octave
+           by how much room it has left, and normalising by the weights so the
+           mean does not move with it, is a level-of-detail scheme in four
+           lines — and it is also, by happy accident, what distance does to a
+           real cloud: you stop seeing the small stuff first. */
+        'float fbm(vec2 p, float lod){',
+        '  float v = 0.0, a = 0.5, w = 0.0;',
+        '  for (int i = 0; i < 5; i++) {',
+        '    float k = a * clamp(lod * 4.0 - float(i) + 1.0, 0.0, 1.0);',
+        '    v += k * vnoise(p);',
+        '    w += k;',
+        '    p = p * 2.03 + vec2(1.7, 9.2);',
+        '    a *= 0.5;',
+        '  }',
+        '  return v / max(w, 1e-4);',
+        '}',
+
+        /* Stars, for the course that is played after dark. A hash grid on the
+           sphere's own angles: one cell in twenty holds a star, and each one
+           twinkles on a period of its own. It costs two hashes and it is the
+           difference between a night sky and a dark ceiling. */
+        'float stars(vec3 d){',
+        '  vec2 uv = vec2(atan(d.z, d.x), asin(clamp(d.y, -1.0, 1.0))) * 46.0;',
+        '  vec2 gi = floor(uv), gf = fract(uv) - 0.5;',
+        '  float r = hash21(gi);',
+        '  if (r < 0.95) return 0.0;',
+        '  float mag = hash21(gi + 3.7);',
+        '  return smoothstep(0.34, 0.02, length(gf)) * (0.25 + 0.75 * mag);',
+        '}',
+
+        'void main(){',
+        '  vec3 d = normalize(vDir);',
+        '  float h = d.y;',
+        '  vec3 sky = mix(bottom, top, smoothstep(-0.12, 0.62, h));',
+        '  if (starI > 0.001) sky += vec3(0.85, 0.90, 1.0) * stars(d) * starI * smoothstep(0.0, 0.28, h);',
+
+        '  float sd = max(dot(d, sunDir), 0.0);',
+        // A disc a couple of degrees across — bigger than the real one, which
+        // is what every photograph of a sun looks like anyway — plus two
+        // widths of halo so the air round it reads as air.
+        '  float disc = smoothstep(0.9986, 0.9997, sd) * 3.2;',
+        '  float glow = pow(sd, 22.0) * 0.42 + pow(sd, 4.0) * 0.09;',
+        '  sky += sunColour * (disc * sharp + glow * (0.3 + 0.7 * sharp)) * sunI;',
+
+        '  if (h > 0.0) {',
+        // The ray is dropped onto a flat sheet overhead: divide the direction
+        // by its own height and you have where it crosses. max() keeps the
+        // last few degrees above the horizon from dividing by nothing.
+        '    float hh = max(h, 0.07);',
+        '    vec2 uv = d.xz / hh * 1.6 + drift;',
+        '    float lod = smoothstep(0.04, 0.34, hh);',
+        '    float f = fbm(uv, lod);',
+        '    float lit = fbm(uv + normalize(sunDir.xz + vec2(1e-3)) * 0.5, lod);',
+        '    float edge = mix(0.58, 0.06, cover);',
+        '    float a = smoothstep(edge, edge + 0.26, f) * smoothstep(hazeTop * 0.3, hazeTop + 0.24, h);',
+        '    vec3 cc = mix(cloudBase, cloudTop, clamp((f - lit) * 2.4 + 0.62, 0.0, 1.0));',
+        '    cc += sunColour * pow(sd, 10.0) * 0.55 * sunI;',
+        '    sky = mix(sky, cc, a * 0.96);',
+        '  }',
+
+        /* Meet the fog at the horizon, so the ground plane and the sky end in
+           the same colour and the join is a haze rather than a seam. How far
+           up that haze reaches is the weather's business: a clear day gives it
+           the last few degrees, a sea fog gives it a third of the sky, and
+           without that the fog would swallow the water and then stop dead at a
+           horizon with a hard-edged cloud deck sitting on it. */
+        '  sky = mix(sky, fogColour, smoothstep(hazeTop, -0.04, h));',
+        '  gl_FragColor = vec4(sky, 1.0);',
+        '}'
+    ].join('\n');
+
+    function skyDome(theme, weather) {
         var mat = new THREE.ShaderMaterial({
-            side: THREE.BackSide, depthWrite: false,
+            side: THREE.BackSide, depthWrite: false, fog: false,
             uniforms: {
-                top: { value: new THREE.Color(theme.sky[0]) },
-                bottom: { value: new THREE.Color(theme.sky[1]) }
+                top: { value: skyTint(theme.sky[0], weather, true) },
+                bottom: { value: skyTint(theme.sky[1], weather, true) },
+                /* Not converted, unlike everything else in here. This is the
+                   colour the horizon has to *match*, and what it is matching
+                   is three.js's own fog on the lit materials — which reads the
+                   hex as a linear value, the way this game's whole palette
+                   does. Convert it and the sky ends a visibly different colour
+                   from the ground it is supposed to be meeting, which is a
+                   seam right across the middle of the picture. */
+                fogColour: { value: skyTint(theme.fog, weather, false) },
+                sunColour: { value: lin(theme.sun) },
+                // Cloud colours are written for daylight. On the course that
+                // is played after dark the same cloud is lit by a fraction as
+                // much, and a white one over a night sky reads as a hole in it.
+                cloudTop: { value: lin(weather.cloudTop).multiplyScalar(theme.cloudLum || 1) },
+                cloudBase: { value: lin(weather.cloudBase).multiplyScalar(theme.cloudLum || 1) },
+                sunDir: { value: new THREE.Vector3(0, 1, 0) },
+                cover: { value: weather.cloud },
+                sunI: { value: weather.sun },
+                sharp: { value: weather.sunSharp },
+                // Thick air, tall haze. Clamped so a clear sky still gets a
+                // few degrees of it rather than a hard edge at the water line.
+                hazeTop: { value: Math.max(0.10, Math.min(0.34, 0.40 - 0.17 * weather.fog)) },
+                // Only after dark, and a solid overcast puts them out.
+                starI: { value: (theme.stars || 0) * (1 - weather.cloud * 0.85) },
+                drift: { value: new THREE.Vector2() }
             },
-            vertexShader: 'varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-            fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying float h; void main(){ gl_FragColor = vec4(mix(bottom, top, smoothstep(-0.15, 0.55, h)), 1.0); }'
+            vertexShader: SKY_VS,
+            fragmentShader: SKY_FS
         });
-        return new THREE.Mesh(new THREE.SphereGeometry(180, 24, 16), mat);
+        var mesh = new THREE.Mesh(new THREE.SphereGeometry(180, 32, 20), mat);
+        mesh.renderOrder = -1;
+        R.sky = mat;
+        return mesh;
     }
 
     function tiled(base, w, d, scale) {
@@ -530,25 +666,49 @@
         return tex;
     }
 
+    /* Every surface is Phong now, which sounds like a cost and is not: with a
+       black specular a Phong material is a Lambert material, and what it buys
+       is one number — how wet the ground is. Rain darkens a surface and makes
+       it shine, and doing that to the sand and the boards as well as the green
+       is the difference between "it is raining" and "there is rain in front of
+       the screen". */
     function padMaterial(kind, theme, w, d, worldUv) {
-        var side = new THREE.MeshLambertMaterial({ color: new THREE.Color(theme.side) });
+        var wet = R.weather ? (R.weather.wet || 0) : 0;
+        var side = new THREE.MeshLambertMaterial({
+            color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20)
+        });
         var top;
+        // Wet ground is darker ground, whatever it is made of.
+        function damp() { return new THREE.Color(1, 1, 1).multiplyScalar(1 - wet * 0.24); }
         if (kind === 'sand') {
-            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.sand, w, d, 2, worldUv) });
+            top = new THREE.MeshPhongMaterial({
+                map: tiledCap(R.tex.sand, w, d, 2, worldUv),
+                color: damp(), shininess: 4 + wet * 60, specular: new THREE.Color(0x000000).lerp(new THREE.Color(0x9aa4ac), wet)
+            });
         } else if (kind === 'wood') {
-            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.wood, w, d, 2, worldUv) });
+            top = new THREE.MeshPhongMaterial({
+                map: tiledCap(R.tex.wood, w, d, 2, worldUv),
+                color: damp(), shininess: 8 + wet * 80, specular: new THREE.Color(0x151515).lerp(new THREE.Color(0xb0bcc4), wet)
+            });
         } else if (kind === 'rough') {
-            top = new THREE.MeshLambertMaterial({ map: tiledCap(R.tex.rough, w, d, 2, worldUv) });
+            top = new THREE.MeshPhongMaterial({
+                map: tiledCap(R.tex.rough, w, d, 2, worldUv),
+                color: damp(), shininess: 3 + wet * 40, specular: new THREE.Color(0x000000).lerp(new THREE.Color(0x7d8a92), wet)
+            });
         } else {
-            // Phong rather than Lambert on the greens only: a little sheen and
-            // a bump map is the difference between mown grass and green paint,
-            // and the greens are what the camera is looking at.
+            // The greens get the most of everything: a bump map of the same
+            // blades that are in the colour map, so the light rakes across the
+            // mow bands rather than lying on them flat.
             top = new THREE.MeshPhongMaterial({
                 map: tiledCap(R.tex.grass, w, d, 3.5, worldUv),
                 bumpMap: tiledCap(R.tex.grassBump, w, d, 0.8, worldUv),
-                bumpScale: 0.035,
-                shininess: 4,
-                specular: 0x1c2a18
+                bumpScale: 0.035 + wet * 0.02,
+                color: damp(),
+                // Wet grass is dark and sheeny, not glittery: a bump map under
+                // a hard specular puts a white speck on every blade and the
+                // green comes out looking like frost.
+                shininess: 4 + wet * 22,
+                specular: new THREE.Color(0x1c2a18).lerp(new THREE.Color(0x4a5a60), wet)
             });
         }
         // Box material order is +x, -x, +y, -y, +z, -z; an extruded slab has
@@ -557,7 +717,37 @@
         return worldUv ? [top, side] : [side, side, top, side, side, side];
     }
 
+    /* The lit materials in this game hand three.js an sRGB hex as if it were a
+       linear albedo and have always looked the way they look because of it —
+       that is the palette, and changing it now would be a different game. The
+       two *unlit* shaders, the sky and the water, have no lighting to bring
+       them back down, so a raw hex out of one of those comes out a stop and a
+       half too pale. They get the conversion the palette never had. */
+    function lin(hex) {
+        var c = new THREE.Color(hex);
+        return c.convertSRGBToLinear ? c.convertSRGBToLinear() : c;
+    }
+
+    /* The sky, the fog and the horizon are one colour scheme and the weather
+       has to be allowed to move all three together. A golden hour that warms
+       the light but leaves a noon-blue sky behind it reads as a filter over a
+       photograph rather than as an evening. */
+    function skyTint(hex, weather, linear) {
+        var c = linear ? lin(hex) : new THREE.Color(hex);
+        if (weather && weather.tintSky) {
+            c.lerp(linear ? lin(weather.tintSky) : new THREE.Color(weather.tintSky),
+                weather.tintAmt === undefined ? 0.4 : weather.tintAmt);
+        }
+        return c;
+    }
+
     var PLANK_THICK = 0.3;
+
+    // How far a flagstick dropped into a cup leans against the far wall of the
+    // liner: 0.40 units of pole out of 1.72 at the top, which is about what a
+    // pin resting in a real cup does and enough to clear the line of play.
+    var PIN_LEAN = 0.235;
+    var FLAG_W = 0.92;
 
     /* Pads are drawn as boxes whose underside reaches the surrounding ground,
        so a raised green reads as a plateau with a cliff instead of a slab
@@ -631,7 +821,15 @@
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
         var color = wall.kind === 'blade' ? 0xd8523f : (wall.kind === 'gate' ? 0xe0a13a : theme.rail);
-        var mat = new THREE.MeshLambertMaterial({ color: color });
+        var wet = R.weather ? (R.weather.wet || 0) : 0;
+        // A painted rail has a sheen on it in any weather and a hard one in the
+        // rain; it is also the brightest thing on most holes, which is what
+        // gives the bloom something to find.
+        var mat = new THREE.MeshPhongMaterial({
+            color: new THREE.Color(color).multiplyScalar(1 - wet * 0.16),
+            shininess: 22 + wet * 80,
+            specular: new THREE.Color(0x2a2f33).lerp(new THREE.Color(0xaab6bd), wet)
+        });
         var mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(B.cx, B.base + wall.h / 2, B.cz);
         mesh.rotation.y = B.yaw;
@@ -655,36 +853,149 @@
         }
     }
 
-    function addWater(group, w, theme) {
-        var tex = R.tex.ripple.clone();
-        tex.needsUpdate = true;
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(Math.max(1, w.w / 3), Math.max(1, w.d / 3));
-        var mat = new THREE.MeshPhongMaterial({
-            color: theme.water, map: tex, transparent: true, opacity: 0.88,
-            shininess: 18, specular: 0x22333d
+    /* ── water ──────────────────────────────────────────────────────────
+
+       The sea used to be a blue box with a scrolling ripple texture painted on
+       it, and from a low camera it read as lino. It is now a shader, and the
+       thing that makes it read as water is not the waves — it is the Fresnel
+       term: water is nearly a mirror at a grazing angle and nearly transparent
+       looking straight down, so the horizon takes the colour of the sky and
+       the near edge keeps the colour of the water. Every other trick here is
+       secondary to that one.
+
+       The surface itself is four directional waves summed and differentiated
+       by hand. Because the derivative is analytic there is no normal map to
+       tile, nothing to align to the shore, and the whole thing costs about a
+       dozen instructions; because they travel on the wind vector, the sea gets
+       rougher when the flag does.
+
+       Rain lands on it. A hash grid picks a drop per cell and a ring expands
+       out of it, tilting the normal as it goes — which is enough for a squall
+       to be visible on the water from the tee. */
+
+    var WATER_VS = [
+        'varying vec3 vWorld;',
+        'void main(){',
+        '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+        '  vWorld = wp.xyz;',
+        '  gl_Position = projectionMatrix * viewMatrix * wp;',
+        '}'
+    ].join('\n');
+
+    var WATER_FS = [
+        'uniform vec3 deep, shallow, skyColour, sunColour, fogColour, sunDir;',
+        'uniform float time, gloss, rain, fogNear, fogFar, alpha, chop;',
+        'uniform vec2 wind;',
+        'varying vec3 vWorld;',
+
+        // One travelling wave, accumulated as a slope rather than a height:
+        // the height is never needed, only what it does to the normal.
+        'void wave(inout vec2 g, vec2 dir, float freq, float amp, float speed, vec2 p, float t){',
+        '  g += dir * (cos(dot(p, dir) * freq + t * speed) * amp * freq);',
+        '}',
+
+        'void main(){',
+        '  vec2 p = vWorld.xz;',
+        '  float t = time;',
+        '  vec2 w = normalize(wind + vec2(1e-3));',
+        '  vec2 wp = vec2(-w.y, w.x);',
+        /* Five trains, and every number in here is chosen not to divide into
+           the others. Harmonic frequencies on similar bearings beat against
+           each other into a plaid that reads as a tiled texture the moment the
+           camera goes overhead — which is exactly what this replaced. */
+        '  vec2 g = vec2(0.0);',
+        '  wave(g, w, 1.27, 0.046 * chop, 1.31, p, t);',
+        '  wave(g, normalize(w + wp * 0.75), 2.11, 0.026 * chop, 1.77, p, t);',
+        '  wave(g, normalize(w - wp * 1.35), 3.67, 0.014 * chop, 2.39, p, t);',
+        '  wave(g, normalize(-w + wp * 0.45), 6.31, 0.0072 * chop, 3.07, p, t);',
+        '  wave(g, normalize(w * 0.35 - wp), 9.87, 0.0036 * chop, 4.13, p, t);',
+
+        '  if (rain > 0.001) {',
+        '    vec2 cell = floor(p * 2.2);',
+        '    vec2 f = fract(p * 2.2) - 0.5;',
+        '    float r = length(f) + 1e-4;',
+        '    float seed = fract(sin(dot(cell, vec2(21.98, 78.23))) * 4375.85);',
+        '    float ph = fract(t * 0.75 + seed);',
+        '    float ring = sin((r - ph * 0.55) * 46.0) * exp(-r * 7.0) * (1.0 - ph);',
+        '    g += (f / r) * ring * 0.55 * rain;',
+        '  }',
+
+        '  vec3 n = normalize(vec3(-g.x, 1.0, -g.y));',
+        '  vec3 v = normalize(cameraPosition - vWorld);',
+        '  float ndv = max(dot(n, v), 0.0);',
+
+        // Schlick, with water's 0.02 at normal incidence. This is the whole
+        // trick: a mirror at the horizon, a pond at your feet.
+        '  float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);',
+        '  vec3 body = mix(deep, shallow, clamp(ndv * 1.25, 0.0, 1.0));',
+        '  vec3 col = mix(body, skyColour, clamp(fres, 0.0, 0.92));',
+
+        // Sun glint. Two exponents: a broad sheen and the hard sparkle on the
+        // crests, which is the part that makes it move.
+        '  vec3 hv = normalize(sunDir + v);',
+        '  float spec = max(dot(n, hv), 0.0);',
+        '  col += sunColour * pow(spec, 48.0) * 0.34 * gloss;',
+        '  col += sunColour * pow(spec, 320.0) * 1.10 * gloss;',
+
+        '  float depth = length(cameraPosition - vWorld);',
+        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, depth));',
+        '  gl_FragColor = vec4(col, alpha);',
+        '}'
+    ].join('\n');
+
+    function waterMaterial(theme, opts) {
+        var deep = lin(theme.water);
+        var shallow = deep.clone().lerp(lin(0xffffff), 0.18);
+        var mat = new THREE.ShaderMaterial({
+            uniforms: {
+                deep: { value: deep },
+                shallow: { value: shallow },
+                skyColour: { value: lin(theme.sky[1]) },
+                sunColour: { value: lin(theme.sun) },
+                fogColour: { value: new THREE.Color(theme.fog) },   // see skyDome
+                sunDir: { value: new THREE.Vector3(0, 1, 0) },
+                time: { value: 0 },
+                gloss: { value: 1 },
+                chop: { value: 1 },
+                rain: { value: 0 },
+                fogNear: { value: 24 },
+                fogFar: { value: 95 },
+                alpha: { value: opts && opts.alpha !== undefined ? opts.alpha : 1 },
+                wind: { value: new THREE.Vector2(0.4, 0.9) }
+            },
+            vertexShader: WATER_VS,
+            fragmentShader: WATER_FS,
+            transparent: !!(opts && opts.alpha !== undefined && opts.alpha < 1)
         });
+        R.waterMats.push(mat);
+        return mat;
+    }
+
+    function addWater(group, w, theme) {
         // A box rather than a plane: the pads reach down to the surrounding
         // ground, so a pond between two of them is a filled channel, and a
-        // sheet floating in the gap would read as a decal.
+        // sheet floating in the gap would read as a decal. Only the top face
+        // gets the water shader; the sides are the murk underneath it.
         var depth = Math.max(0.6, w.y - theme.surroundY + 0.2);
-        var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d), mat);
+        var murk = new THREE.MeshLambertMaterial({
+            color: new THREE.Color(theme.water).multiplyScalar(0.45)
+        });
+        var top = waterMaterial(theme, { alpha: 0.9 });
+        // Box material order: +x, -x, +y, -y, +z, -z.
+        var mesh = new THREE.Mesh(new THREE.BoxGeometry(w.w, depth, w.d),
+            [murk, murk, top, murk, murk, murk]);
         mesh.position.set(w.x + w.w / 2, w.y - depth / 2, w.z + w.d / 2);
         group.add(mesh);
-        R.water.push(mesh);
     }
 
     function addSurround(group, hole, theme) {
         var mat;
         if (theme.surround === 'water') {
-            var tex = R.tex.ripple.clone();
-            tex.needsUpdate = true;
-            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-            tex.repeat.set(150, 150);
-            mat = new THREE.MeshPhongMaterial({ color: theme.water, map: tex, shininess: 18, specular: 0x22333d });
+            mat = waterMaterial(theme, {});
         } else {
-            var rt = rockTexture(theme.surround === 'rock' ? '#9c8466' : '#3f4450');
+            var rt = rockTexture(theme.surround === 'rock' ? '#9c8466' : (theme.floor || '#3f4450'));
             rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
+            rt.anisotropy = R.maxAniso;
             rt.repeat.set(150, 150);
             R.tex.surroundTemp = rt;
             mat = new THREE.MeshLambertMaterial({ map: rt });
@@ -695,17 +1006,27 @@
         mesh.rotation.x = -Math.PI / 2;
         mesh.position.set((hole.bounds.minX + hole.bounds.maxX) / 2, theme.surroundY, (hole.bounds.minZ + hole.bounds.maxZ) / 2);
         group.add(mesh);
-        if (theme.surround === 'water') R.water.push(mesh);
     }
 
     /* The hole through the green is real geometry (see punchedSlab); what is
        added here is the liner that makes the shaft read as a shaft, the floor
-       the ball comes to rest on, and the white rim.
+       the ball comes to rest on, the white rim, and the pin.
 
-       The pin stands beside the cup rather than in it. A flagstick down the
-       middle of a hole this size would be something the ball ought to hit, and
-       the ball would go straight through it — better to put it where the lie
-       is honest and the mouth of the cup is open. */
+       **The pin stands in the cup**, which is where a pin stands. It used to
+       be planted beside it, on the grounds that a flagstick down the middle of
+       a hole this size is something the ball ought to hit and would instead go
+       straight through — an honest dodge that made every hole look wrong. The
+       honest fix is the one a real unattended pin makes for itself: it is not
+       vertical. A flagstick dropped into a cup rests against the far wall of
+       the liner and leans away, and leaning it away *along the line of play*
+       puts everything above the first few centimetres out of the ball's path.
+       What is left in the way is the base, down in the mouth of the cup, where
+       a ball arriving is already falling.
+
+       The pin also does a job nothing else on the course does: it is the only
+       instrument telling you what the wind is doing. The cloth streams
+       downwind, snaps in a gust and hangs limp when it drops — so a glance at
+       the flag is a reading, not a decoration. */
     function addCup(group, hole) {
         var cup = hole.cup;
 
@@ -734,31 +1055,66 @@
         group.add(rim);
         R.cupMesh = rim;
 
-        // Beyond the cup, on the line of play, so it never stands between the
-        // ball and the hole.
+        /* The pin. Everything below hangs off one group standing at the
+           centre of the cup, tilted away down the line of play, so the lean is
+           set once and the flag, the ferrule and the wobble all inherit it. */
         var away = Math.atan2(cup.x - hole.tee.x, cup.z - hole.tee.z);
-        var px = cup.x + Math.sin(away) * (C.HOLE_R + 0.28);
-        var pz = cup.z + Math.cos(away) * (C.HOLE_R + 0.28);
-        var stand = P.surfaceUnder(hole, px, pz, Infinity);
-        var py = stand ? stand.y : cup.y;
+        var pin = new THREE.Group();
+        pin.position.set(cup.x, cup.y - C.CUP_DEPTH + 0.01, cup.z);
+        pin.rotation.y = away;
+        pin.rotation.x = -PIN_LEAN;        // leaning away from the tee
+        group.add(pin);
+        R.pin = pin;
+        R.pinLean = PIN_LEAN;
 
+        var H = 1.95;
         var pole = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.03, 0.035, 1.6, 8),
-            new THREE.MeshLambertMaterial({ color: 0xf0f0f0 })
+            new THREE.CylinderGeometry(0.021, 0.030, H, 10),
+            new THREE.MeshPhongMaterial({ color: 0xf4f6f4, shininess: 40, specular: 0x556066 })
         );
-        pole.position.set(px, py + 0.8, pz);
+        pole.position.y = H / 2;
         pole.castShadow = true;
-        group.add(pole);
+        pin.add(pole);
         R.flagPole = pole;
 
-        var cloth = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.72, 0.42, 8, 2),
-            new THREE.MeshLambertMaterial({ color: 0xe23b3b, side: THREE.DoubleSide })
+        // The weighted foot that sits on the floor of the cup, and the black
+        // band at the lip: both are what a real flagstick has, and between
+        // them they stop the pole reading as a wire pushed into the grass.
+        var foot = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.055, 0.075, 0.07, 12),
+            new THREE.MeshLambertMaterial({ color: 0x23262a })
         );
-        cloth.position.set(px + 0.36, py + 1.36, pz);
-        group.add(cloth);
+        foot.position.y = 0.035;
+        pin.add(foot);
+
+        var band = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.033, 0.033, 0.16, 10),
+            new THREE.MeshLambertMaterial({ color: 0x23262a })
+        );
+        band.position.y = C.CUP_DEPTH + 0.10;
+        pin.add(band);
+
+        /* The cloth turns about the pole rather than with the hole, because a
+           flag points where the wind is going and nowhere else. It is built
+           with its hoist at the origin so that rotating the group swings it
+           round the stick instead of round its own middle. */
+        var swivel = new THREE.Group();
+        swivel.position.y = H - 0.10;
+        pin.add(swivel);
+        R.flagSwivel = swivel;
+
+        var cloth = new THREE.Mesh(
+            new THREE.PlaneGeometry(FLAG_W, 0.52, 14, 3),
+            new THREE.MeshPhongMaterial({
+                color: 0xe23b3b, side: THREE.DoubleSide, shininess: 6, specular: 0x2a1010
+            })
+        );
+        cloth.geometry.translate(FLAG_W / 2, -0.26, 0);   // hoist at the origin
+        cloth.castShadow = true;
+        swivel.add(cloth);
         R.flagCloth = cloth;
-        R.flagBase = { x: px, y: py, z: pz };
+        R.flagRest = cloth.geometry.attributes.position.array.slice();
+        R.pinShake = 0;
     }
 
     function addTeeMark(group, hole) {
@@ -771,14 +1127,41 @@
         group.add(m);
     }
 
-    function lights(group, hole, theme) {
-        var amb = new THREE.HemisphereLight(theme.ambient, 0x404030, theme.ambientI);
-        group.add(amb);
+    /* Three lights, and the weather sets all three.
 
-        var sun = new THREE.DirectionalLight(theme.sun, 0.95);
+       The sun is the one that changes most: overcast takes it down to a fifth
+       and hands the difference to the sky, which is exactly what a cloud does,
+       and the golden-hour kinds drop it towards the horizon and warm it, which
+       is what gives those holes their long shadows. The shadow *softens* with
+       the cloud rather than merely fading, by widening the sampling radius —
+       a sharp shadow under a solid overcast is the single loudest way to tell
+       a player that the sky is a picture.
+
+       The third is a fill from the opposite side at a fraction of the sun's
+       strength. Without it the shaded face of every rail on the course is the
+       flat ambient colour and the hole reads as a diagram; with it there is a
+       bounce off the ground and the boxes turn into objects. */
+    function lights(group, hole, theme, weather) {
         var cx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var cz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
-        sun.position.set(cx + theme.sunPos[0], theme.sunPos[1], cz + theme.sunPos[2]);
+
+        /* The fill light is the sky, so it is the same colour as the sky: an
+           overcast one goes grey, a golden one goes orange. Skipping this is
+           what leaves a sunset looking like a warm filter over a scene still
+           lit by a blue afternoon. */
+        var skyLight = skyTint(theme.ambient, weather, false);
+        if (weather.cloud > 0.6) skyLight.lerp(new THREE.Color(0xc6d2de), (weather.cloud - 0.6) * 1.2);
+        var amb = new THREE.HemisphereLight(skyLight, 0x3c4436, theme.ambientI * weather.amb);
+        group.add(amb);
+
+        var sunColour = new THREE.Color(weather.warm || theme.sun);
+        var pos = theme.sunPos;
+        // A low sun is a long shadow: pull the height down and push the reach
+        // out, keeping the bearing the hole was designed around.
+        var lift = weather.low ? 0.30 : 1;
+        var reach = weather.low ? 1.9 : 1;
+        var sun = new THREE.DirectionalLight(sunColour, 0.95 * weather.sun);
+        sun.position.set(cx + pos[0] * reach, Math.max(2.5, pos[1] * lift), cz + pos[2] * reach);
         sun.target.position.set(cx, 0, cz);
         sun.castShadow = true;
         var span = Math.max(hole.bounds.maxX - hole.bounds.minX, hole.bounds.maxZ - hole.bounds.minZ) * 0.75 + 4;
@@ -787,26 +1170,52 @@
         sun.shadow.camera.top = span;
         sun.shadow.camera.bottom = -span;
         sun.shadow.camera.near = 1;
-        sun.shadow.camera.far = 60;
-        sun.shadow.mapSize.set(1024, 1024);
-        sun.shadow.bias = -0.0012;
+        sun.shadow.camera.far = 120;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.bias = -0.0009;
+        sun.shadow.normalBias = 0.02;
+        sun.shadow.radius = 1.5 + weather.cloud * 4.5;
         group.add(sun);
         group.add(sun.target);
+        R.sun = sun;
+        R.sunDir.set(pos[0] * reach, Math.max(2.5, pos[1] * lift), pos[2] * reach).normalize();
+
+        var fill = new THREE.DirectionalLight(skyLight, 0.16 + weather.cloud * 0.10);
+        fill.position.set(cx - pos[0], Math.abs(pos[1]) * 0.45, cz - pos[2]);
+        fill.target.position.set(cx, 0, cz);
+        group.add(fill);
+        group.add(fill.target);
     }
 
-    function buildHole(hole, themeName) {
+    /* A hole is built once, and the weather it is built under is baked into
+       every material in it — the wetness of the grass, the softness of the
+       shadows, the colour of the fill. That is why changing the weather
+       rebuilds the hole rather than tweening: half of it is uniforms and would
+       tween beautifully, and the other half is material state that would not,
+       and a hole that is half sunny is worse than a cut. */
+    function buildHole(hole, themeName, weatherKind) {
         var theme = THEMES[themeName] || THEMES.seaside;
+        var W = G3.weather;
+        var weather = weatherKind || (W ? W.now : null) || { cloud: 0.4, fog: 1.3, sun: 1, amb: 1, sunSharp: 1, cloudTop: '#ffffff', cloudBase: '#b9c6d4', grade: {} };
         R.theme = theme;
+        R.weather = weather;
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
-        R.water = [];
+        R.waterMats = [];
 
+        // One grass texture per hole, and the last one goes with it: the pad
+        // materials hold clones, which disposeGroup has already taken.
+        if (R.tex.grass) R.tex.grass.dispose();
         R.tex.grass = grassTexture(theme);
 
         var g = new THREE.Group();
-        R.scene.fog = new THREE.Fog(theme.fog, 24, 95);
-        g.add(skyDome(theme));
-        lights(g, hole, theme);
+        // The weather scales the theme's own fog, which is what makes mist a
+        // different hole rather than a different filter over the same one.
+        R.fogNear = 24 * weather.fog;
+        R.fogFar = 95 * weather.fog;
+        R.scene.fog = new THREE.Fog(skyTint(theme.fog, weather, false), R.fogNear, R.fogFar);
+        g.add(skyDome(theme, weather));
+        lights(g, hole, theme, weather);
         addSurround(g, hole, theme);
 
         var i;
@@ -815,6 +1224,28 @@
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
         addTeeMark(g, hole);
+
+        // The rain, the mist banks and whatever is drifting in the air are
+        // parented to the hole, so the next hole disposes them with it.
+        if (W) g.add(W.build(hole, theme, weather));
+        if (R.fx) G3.postfx.setGrade(weather.grade);
+
+        // Every water shader on the hole is told the same sky it is going to
+        // be reflecting, once, here.
+        for (i = 0; i < R.waterMats.length; i++) {
+            var u = R.waterMats[i].uniforms;
+            u.sunDir.value.copy(R.sunDir);
+            u.sunColour.value.copy(lin(weather.warm || theme.sun));
+            u.gloss.value = weather.sun;
+            u.rain.value = weather.rain || 0;
+            u.fogNear.value = R.fogNear;
+            u.fogFar.value = R.fogFar;
+            // An overcast sea reflects an overcast sky, not the blue one the
+            // theme was drawn against.
+            u.skyColour.value.copy(skyTint(theme.sky[1], weather, true)).lerp(lin(weather.cloudBase), weather.cloud * 0.8);
+            u.fogColour.value.copy(skyTint(theme.fog, weather, false));
+        }
+        if (R.sky) R.sky.uniforms.sunDir.value.copy(R.sunDir);
 
         R.scene.add(g);
         R.holeGroup = g;
@@ -1032,36 +1463,110 @@
             clearTrail();
         }
 
-        var i;
-        for (i = 0; i < R.water.length; i++) {
-            if (R.water[i].material.map) {
-                R.water[i].material.map.offset.x = R.clock * 0.02;
-                R.water[i].material.map.offset.y = R.clock * 0.014;
-            }
-        }
-        if (R.flagCloth && R.flagCloth.visible) {
-            var g = R.flagCloth.geometry.attributes.position;
-            for (i = 0; i < g.count; i++) {
-                var lx = g.getX(i);
-                g.setZ(i, Math.sin(R.clock * 4 + lx * 3) * 0.06 * (lx + 0.36));
-            }
-            g.needsUpdate = true;
-        }
-
         updateAim(world, aim);
         stepParticles(dt);
         updateCamera(world.hole, world.ball, dt);
+
+        // The weather runs off the camera, so it is stepped after the camera
+        // has finished moving: the rain column, the motes and the mist banks
+        // all follow it, and a frame's lag shows as a jitter at the edges.
+        var wind = { x: 0.4, z: 0.9, speed: 0.5 };
+        if (G3.weather) {
+            G3.weather.update(dt, R.camera);
+            wind = G3.weather.wind;
+        }
+
+        var i;
+        for (i = 0; i < R.waterMats.length; i++) {
+            var u = R.waterMats[i].uniforms;
+            u.time.value = R.clock;
+            u.wind.value.set(wind.x, wind.z);
+            // A rough day is a choppy sea, and the same number does both.
+            u.chop.value = 0.55 + Math.min(1.6, wind.speed * 1.5);
+        }
+        if (R.sky && G3.weather) R.sky.uniforms.drift.value.copy(G3.weather.cloudOffset);
+
+        flapFlag(dt, wind);
+
         // The bag rides in front of the camera, so it is placed after the
         // camera has finished moving and before anything is drawn.
         if (G3.bag) G3.bag.update(dt, R.camera, R.camera.aspect);
+
+        if (R.fx && G3.postfx.render(R.scene, R.camera, sunOnScreen(), dt)) return;
+        R.renderer.setRenderTarget(null);
         R.renderer.render(R.scene, R.camera);
+    }
+
+    /* Where the sun lands on the screen, and how much of it is on there. The
+       light shafts march towards this point, so a sun behind the camera has to
+       report nothing at all — project() gives a mirrored answer for anything
+       behind the near plane, and rays converging on a phantom is the one
+       artefact of the whole chain that a player would notice. */
+    var _sunPt = new THREE.Vector3();
+    var _sun = { uv: new THREE.Vector2(0.5, 1.2), vis: 0 };
+    function sunOnScreen() {
+        _sunPt.copy(R.sunDir).multiplyScalar(140).add(R.camera.position).project(R.camera);
+        if (_sunPt.z > 1) { _sun.vis = 0; return _sun; }
+        _sun.uv.set(_sunPt.x * 0.5 + 0.5, _sunPt.y * 0.5 + 0.5);
+        var out = Math.max(0, Math.max(Math.abs(_sun.uv.x - 0.5), Math.abs(_sun.uv.y - 0.5)) - 0.5);
+        _sun.vis = Math.max(0, 1 - out * 2.2);
+        return _sun;
+    }
+
+    /* The flag, which is three separate things pretending to be one.
+
+       It **points downwind** — the swivel takes the wind's bearing, less the
+       pin's own yaw, so the cloth turns about the stick rather than about the
+       hole. It **ripples** at a rate and a depth that come from the wind
+       speed, with the wave growing along the fly so the hoist stays put and
+       the free end does the moving. And on a still day it **hangs**: the whole
+       sheet sags towards the ground by as much as the wind is failing to hold
+       it up, which is the detail that makes a calm hole read as calm. */
+    function flapFlag(dt, wind) {
+        if (!R.flagCloth || !R.flagSwivel) return;
+        var t = R.clock;
+        var gust = Math.min(1, wind.speed / 0.95);
+        var yaw = Math.atan2(wind.x, wind.z);
+
+        if (R.pinShake > 0) {
+            R.pinShake = Math.max(0, R.pinShake - dt * 2.6);
+            var q = R.pinShake * R.pinShake;
+            R.pin.rotation.z = Math.sin(t * 34) * 0.07 * q;
+            R.pin.rotation.x = -R.pinLean + Math.sin(t * 29 + 1.2) * 0.05 * q;
+        }
+
+        // The cloth streams away from the wind, which means the swivel points
+        // where the wind is going: the flag's own yaw, less the pin's.
+        R.flagSwivel.rotation.y = yaw - R.pin.rotation.y + Math.PI / 2 +
+            Math.sin(t * 1.7) * 0.10 * gust;
+
+        var g = R.flagCloth.geometry.attributes.position;
+        var rest = R.flagRest;
+        var sag = (1 - gust) * 0.42;
+        for (var i = 0; i < g.count; i++) {
+            var lx = rest[i * 3];                 // 0 at the hoist, FLAG_W at the fly
+            var f = lx / FLAG_W;
+            var ripple = Math.sin(t * (5 + gust * 7) - lx * 7.5) * (0.02 + gust * 0.13) * f;
+            g.setZ(i, ripple);
+            // A limp flag falls, and it falls further the further out it is.
+            g.setY(i, rest[i * 3 + 1] - sag * f * f - Math.abs(ripple) * 0.35);
+        }
+        g.needsUpdate = true;
+        R.flagCloth.geometry.computeBoundingSphere();
     }
 
     /* ── effects the game asks for ──────────────────────────────────────── */
 
     function splashAt(x, y, z) { burst(x, y, z, 0x9fd8ff, 26, 2.6); }
     function sandAt(x, y, z) { burst(x, y, z, 0xe8d8a8, 14, 1.5); }
-    function sinkAt(x, y, z) { burst(x, y + 0.1, z, 0xffe98a, 26, 2.2); }
+    /* The ball goes past the pin on its way in — nothing stops it, since the
+       simulation has never heard of the pin — so the pin at least acknowledges
+       it and rattles, which is what a real one does and what your ear is
+       expecting when the cup sound plays. */
+    function sinkAt(x, y, z) {
+        burst(x, y + 0.1, z, 0xffe98a, 26, 2.2);
+        R.pinShake = 1;
+    }
 
     /* Whatever the ball was sitting on, sprayed backwards off the strike. */
     function divot(x, y, z, yaw, frac, kind) {
@@ -1095,7 +1600,9 @@
             return G3.bag ? G3.bag.pick(nx, ny, R.camera, R.scene) : null;
         },
         state: R,
-        THEMES: THEMES
+        THEMES: THEMES,
+        // What the HUD needs to name the sky it is standing under.
+        get weather() { return R.weather; }
     };
 
 })(window.G3);
