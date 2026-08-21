@@ -138,6 +138,75 @@
             assert('static wall has zero velocity', P.wallVelocity(stat, 3).x === 0 && P.wallVelocity(stat, 3).y === 0);
         })();
 
+        /* ── the overswing ──────────────────────────────────────────────── */
+        section('Overswing');
+
+        (function () {
+            assert('a shot inside the safe zone has no spread',
+                P.spread(C.SAFE_POWER) === 0 && P.spread(C.SAFE_POWER - 100) === 0 && P.spread(C.MIN_POWER) === 0);
+            assert('the top of the dial spreads by SPREAD_MAX',
+                approx(P.spread(C.MAX_POWER), C.SPREAD_MAX, 1e-9));
+            assert('spread never exceeds SPREAD_MAX, even past the dial',
+                P.spread(C.MAX_POWER * 3) <= C.SPREAD_MAX + 1e-9);
+
+            // Quadratic, so the first sliver past the line is nearly free.
+            var quarter = C.SAFE_POWER + (C.MAX_POWER - C.SAFE_POWER) * 0.25;
+            var half = C.SAFE_POWER + (C.MAX_POWER - C.SAFE_POWER) * 0.5;
+            assert('spread grows, and grows faster the further past the line',
+                P.spread(quarter) > 0 && P.spread(quarter) < P.spread(half) &&
+                P.spread(half) - P.spread(quarter) < P.spread(C.MAX_POWER) - P.spread(half));
+            assert('a quarter past the line costs almost nothing',
+                P.spread(quarter) < C.SPREAD_MAX * 0.1, 'got ' + P.spread(quarter).toFixed(4));
+
+            assert('the middle of the draw is dead straight', P.scatter(C.MAX_POWER, 0.5) === 0);
+            assert('the draw is symmetric',
+                approx(P.scatter(C.MAX_POWER, 0.2), -P.scatter(C.MAX_POWER, 0.8), 1e-12));
+            assert('the draw is bounded by the spread',
+                Math.abs(P.scatter(C.MAX_POWER, 0)) <= C.SPREAD_MAX + 1e-9 &&
+                Math.abs(P.scatter(C.MAX_POWER, 0.999999)) <= C.SPREAD_MAX + 1e-9);
+            assert('a safe shot cannot be pushed off line at all',
+                P.scatter(C.SAFE_POWER, 0) === 0 && P.scatter(C.SAFE_POWER, 1) === 0);
+
+            // Concentrated near the middle: half the draws land inside a
+            // quarter of the cone, which is what makes an overswing feel like
+            // a shot you did not quite control rather than a coin toss.
+            var inner = 0, n = 2001;
+            for (var i = 0; i < n; i++) {
+                if (Math.abs(P.scatter(C.MAX_POWER, i / (n - 1))) < C.SPREAD_MAX * 0.25) inner++;
+            }
+            note('overswing draws inside a quarter of the cone: ' + Math.round(inner / n * 100) + '%');
+            assert('the draw bunches near the middle', inner / n > 0.45, Math.round(inner / n * 100) + '%');
+
+            /* The property that keeps the rest of this file honest: the luck is
+               drawn by the caller, never inside the simulation. */
+            var field = {
+                name: 'spread', par: 3, tee: { x: 60, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: []
+            };
+            var a1 = P.simulateShot(field, { x: 60, y: 320 }, 0.3, C.MAX_POWER);
+            var a2 = P.simulateShot(field, { x: 60, y: 320 }, 0.3, C.MAX_POWER);
+            assert('the same shot simulated twice lands in the same place',
+                a1.ball.x === a2.ball.x && a1.ball.y === a2.ball.y);
+
+            // And the safe zone still reaches across the field, or the
+            // overswing would not be a choice but a requirement.
+            var roll = P.createWorld({
+                name: 'roll', par: 3, tee: { x: 20, y: 320 }, hole: { x: -999, y: -999 },
+                walls: [], water: [], sand: [], rough: [], ice: [], bumpers: [], slopes: []
+            }, { x: 20, y: 320 }, 0);
+            P.launch(roll, 0, C.SAFE_POWER);
+            var travelled = 0, px = roll.ball.x;
+            for (var k = 0; k < 2400 && roll.moving; k++) {
+                P.advance(roll, 1 / 120);
+                travelled += Math.abs(roll.ball.x - px);
+                px = roll.ball.x;
+            }
+            note('safe-zone roll: ' + Math.round(travelled) + 'px, full-power adds ' +
+                 Math.round((C.MAX_POWER - C.SAFE_POWER) / -Math.log(C.FRICTION_GRASS)) + 'px more');
+            assert('the safe zone alone outruns the field', travelled > C.WORLD_W,
+                'only rolled ' + Math.round(travelled) + 'px');
+        })();
+
         /* ── integrator ─────────────────────────────────────────────────── */
         section('Integrator');
 
@@ -185,13 +254,39 @@
                 return w.ball;
             }
 
-            // Clean roll, no cushion: friction and integration alone, which
-            // should agree to well under a ball radius.
-            var a = settleAt(0, C.MAX_POWER * 0.6, 1 / 120);
-            var b = settleAt(0, C.MAX_POWER * 0.6, 1 / 30);
+            /* Clean roll, no cushion: friction and integration alone, which
+               should agree to well under a ball radius — the closed form makes
+               a substep exact at any dt, so the two ought to be identical.
+
+               The power is chosen to stop short of the far cushion and the
+               test then checks that it did. It used to be a fraction of
+               MAX_POWER, and when the dial grew an overswing zone the same
+               fraction started reaching the wall: the assertion went on
+               measuring something, but no longer the thing it is named after. */
+            var CLEAN = 620;
+            var a = settleAt(0, CLEAN, 1 / 120);
+            var b = settleAt(0, CLEAN, 1 / 30);
+            assert('the clean-roll fixture never reaches a cushion',
+                a.x < C.WORLD_W - C.BALL_R - 1 && b.x < C.WORLD_W - C.BALL_R - 1,
+                'ended at ' + a.x.toFixed(0));
             var clean = Math.hypot(a.x - b.x, a.y - b.y);
-            note('120Hz vs 30Hz, no cushion: ' + clean.toFixed(3) + 'px apart');
-            assert('an unobstructed roll is frame-rate independent', clean < 0.3, clean.toFixed(3) + 'px apart');
+            /* The bound is not arbitrary. The closed form makes the roll
+               itself exact at any dt, so the only thing left that can differ is
+               *when the ball is noticed to have stopped*: the rest check runs
+               at substep boundaries, and at STOP_SPEED a 30Hz caller can carry
+               the ball STOP_SPEED / 30 further than a 120Hz one before it
+               fires. That is 0.47px, and no roll can beat it.
+
+               This assertion used to read `< 0.3`, which the fixture happened
+               to satisfy — the ball stopped at a lucky phase of the sampling
+               grid. Retuning the power dial moved that luck and the test went
+               red without anything being broken. A bound derived from the
+               mechanism does not have that failure mode. */
+            var restBound = C.STOP_SPEED / 30;
+            note('120Hz vs 30Hz, no cushion: ' + clean.toFixed(3) + 'px apart (bound ' +
+                 restBound.toFixed(2) + 'px, one 30Hz frame at STOP_SPEED)');
+            assert('an unobstructed roll is frame-rate independent to within one rest check',
+                clean <= restBound, clean.toFixed(3) + 'px apart');
 
             // With bounces the two disagree slightly and always will: a
             // collision is resolved at a substep boundary rather than at the
@@ -675,6 +770,11 @@
                         : rand() * Math.PI * 2;
                     var power = C.MIN_POWER + rand() * (C.MAX_POWER - C.MIN_POWER);
                     var wait = rand() * 3;
+                    // The bot overswings on the same terms the player does. A
+                    // bot with a truer stroke than the game allows would sign
+                    // off holes that are only finishable by a shot nobody can
+                    // reliably play.
+                    angle += P.scatter(power, rand());
 
                     var w = P.simulateShot(hole, pos, angle, power, time + wait);
                     if (w.sunk) { best = { w: w, d: -1 }; break; }

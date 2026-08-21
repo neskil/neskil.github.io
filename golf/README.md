@@ -96,7 +96,10 @@ Two details that are easy to get wrong and are pinned by tests:
   then move at the new velocity". The shortcut carries an O(dt) bias which the
   substep cap hides at speed and stops hiding below ~110px/s, where it quietly
   rolls the ball a couple of pixels short at 30Hz versus 120Hz. With the
-  integral the same shot lands within 0.15px at either rate.
+  integral a substep is exact at any dt, and the only difference left between
+  30Hz and 120Hz is *when the ball is noticed to have stopped* — bounded by one
+  frame at `STOP_SPEED`, which is 0.47px, and asserted at exactly that rather
+  than at a round number that happened to hold.
 - **A ball at rest on a slope is not at rest.** The stop threshold has to
   exclude slope zones or the ball hangs on the hillside — which is the whole
   reason a slope may not reach something it can pin the ball against, per the
@@ -172,6 +175,37 @@ dial, "a bit harder than that one" is the only language the player has for
 weight, and this is what gives them it. The mark is as often under the bright
 fill as beyond it, which is why it is gold with a dark halo rather than gold:
 one colour has to read against everything the bar can put behind it.
+
+## The overswing
+
+The dial runs past what you can control. Everything up to `SAFE_POWER` goes
+exactly where the arrow points and is the whole of the old game — 1080 coasts
+about 1180px, more than the 960px field, so every hole stays reachable in one
+clean shot. The last fifth is borrowed distance: 1400 reaches about 1530px and
+pays for it in accuracy, `physics.spread` opening from nothing at the line to
+±0.13rad — about 7.5°, or ±52px over a 400px carry — at the top.
+
+Three things make it a choice rather than a trick:
+
+- **The curve is quadratic**, so the boundary is not a cliff. A quarter of the
+  way into the overswing costs under a tenth of the full spread; the last
+  sliver costs everything.
+- **The cone is drawn before you commit**, to scale, in the moment you are
+  deciding how far to pull — and the meters mark where the safe zone ends, on
+  the ring and in hatching on the bar.
+- **The draw bunches in the middle.** `scatter` squares the signed offset, so
+  half of all shots land inside a quarter of the cone. A uniform draw would put
+  the ball on the edge as often as on the line, which reads as the game taking
+  the shot away from you rather than as a shot you did not quite control.
+
+The randomness lives in the *caller*, never in `physics.js`. `spread(power)`
+and `scatter(power, u)` are both pure — `u` is a uniform sample handed in — so
+the game draws from `Math.random`, the bot from its seeded PRNG, and the tests
+from whatever they need to prove. Nothing downstream of `launch` knows a die
+was rolled, which is what keeps the integrator's determinism, the frame-rate
+tests and the reproducible bot intact. The bot overswings on the same terms the
+player does: one with a truer stroke than the game allows would sign off holes
+that are only finishable by a shot nobody can reliably play.
 
 ## The screen
 
@@ -270,9 +304,9 @@ indexable; the self-test overlay only appears with the query string.
 
 ## Tests
 
-Open `tests.html`. 284 assertions covering geometry, the integrator, the four
-surfaces, the course data, the scorecard and the resumable round, in about
-750ms.
+Open `tests.html`. 297 assertions covering geometry, the integrator, the four
+surfaces, the overswing, the course data, the scorecard and the resumable
+round, in about 500ms.
 
 The one worth knowing about is the **bot**: a greedy player tries a fan of
 candidate shots on every hole, keeps the one that finishes nearest the cup, and

@@ -556,18 +556,44 @@
 
         /* The guide ray, out to the edge of the field. Direction only: it does
            not stop at a wall, because where the ball comes off a wall is the
-           question the hole is asking. */
+           question the hole is asking.
+
+           Past SAFE_POWER it opens into the cone the shot can actually leave
+           in. The scatter is not a surprise the game springs on you after the
+           fact — it is drawn, to scale, in the moment you are deciding how far
+           to pull, which is the only way a risk is a choice rather than a
+           trick. */
+        var cone = P.spread(aim.power);
         g.save();
-        g.globalAlpha = C.AIM_GUIDE_ALPHA;
-        g.strokeStyle = '#ffffff';
+        // The cone is a warning, not a hint: it earns twice the ink the plain
+        // ray gets, or the one drawing on screen that says "this shot may not
+        // go where you are pointing" is the faintest thing on the field.
+        g.globalAlpha = cone > 0 ? C.AIM_GUIDE_ALPHA * 2.2 : C.AIM_GUIDE_ALPHA;
+        g.strokeStyle = cone > 0 ? '#fb7185' : '#ffffff';
         g.lineWidth = 1.5;
         g.setLineDash([2, 9]);
         g.lineDashOffset = -t * 18;
-        g.beginPath();
-        g.moveTo(b.x + ux * tip, b.y + uy * tip);
-        g.lineTo(b.x + ux * 1600, b.y + uy * 1600);
-        g.stroke();
+        for (var e = -1; e <= 1; e++) {
+            if (e !== 0 && cone === 0) continue;
+            var ea = angle + e * cone;
+            g.beginPath();
+            g.moveTo(b.x + Math.cos(ea) * tip, b.y + Math.sin(ea) * tip);
+            g.lineTo(b.x + Math.cos(ea) * 1600, b.y + Math.sin(ea) * 1600);
+            g.stroke();
+        }
         g.restore();
+
+        if (cone > 0) {
+            g.save();
+            g.globalAlpha = 0.13;
+            g.fillStyle = '#fb7185';
+            g.beginPath();
+            g.moveTo(b.x + ux * tip, b.y + uy * tip);
+            g.arc(b.x, b.y, 1600, angle - cone, angle + cone);
+            g.closePath();
+            g.fill();
+            g.restore();
+        }
 
         g.save();
         g.translate(b.x, b.y);
@@ -642,6 +668,17 @@
             g.arc(b.x + Math.cos(ha) * ring, b.y + Math.sin(ha) * ring, C.AIM_RING_W * 0.42, 0, Math.PI * 2);
             g.fill();
         }
+
+        // Where the safe zone ends. Everything clockwise of this line is
+        // borrowed distance.
+        var sf = C.SAFE_POWER / C.MAX_POWER;
+        g.strokeStyle = 'rgba(251,113,133,0.85)';
+        g.lineWidth = 2.5;
+        var sa = a0 + span * sf, sx = Math.cos(sa), sy = Math.sin(sa);
+        g.beginPath();
+        g.moveTo(b.x + sx * (ring - C.AIM_RING_W / 2 - 4), b.y + sy * (ring - C.AIM_RING_W / 2 - 4));
+        g.lineTo(b.x + sx * (ring + C.AIM_RING_W / 2 + 4), b.y + sy * (ring + C.AIM_RING_W / 2 + 4));
+        g.stroke();
 
         g.strokeStyle = 'rgba(0,0,0,0.35)';
         g.lineWidth = 2;

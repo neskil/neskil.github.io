@@ -654,7 +654,10 @@
 
     function playUp() {
         if (!play.aim.active) return;
-        if (play.aim.power >= C.MIN_POWER && P.launch(play.world, play.aim.angle, play.aim.power)) {
+        // Same overswing the game applies: playtesting a hole with a truer
+        // stroke than the player gets would be testing a different hole.
+        var fired = play.aim.angle + P.scatter(play.aim.power, Math.random());
+        if (play.aim.power >= C.MIN_POWER && P.launch(play.world, fired, play.aim.power)) {
             play.strokes++;
             play.trail = [];
         }

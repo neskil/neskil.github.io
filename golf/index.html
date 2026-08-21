@@ -98,6 +98,9 @@
             <div class="power-track">
                 <div class="power-fill" id="power-fill"></div>
                 <div class="power-ticks"></div>
+                <!-- Past this line the ball leaves on a line of its own
+                     choosing. Placed from the config at boot. -->
+                <div class="power-danger" id="power-danger"></div>
                 <!-- Where the last shot on this hole was struck. No numbers
                      anywhere on this meter, so "a bit harder than that one" is
                      the only language the player has for weight. -->
@@ -111,6 +114,9 @@
             <span>The arrow gives you the <b>line</b> — the ray runs on to show where it points —
                 and the dial gives you the <b>weight</b>. The gold mark is your last shot on this
                 hole. How far any of that is, you judge.</span>
+            <span>The last stretch of the dial is <b>overswing</b>: more roll than the safe
+                zone can give you, paid for in accuracy. Pull into the hatching and the arrow
+                opens into the cone the ball may actually leave in.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit
                 (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>R</kbd> restart hole · <kbd>F</kbd> fullscreen · <kbd>M</kbd> sound</span>

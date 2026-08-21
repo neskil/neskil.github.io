@@ -36,12 +36,25 @@ GOLF.CONFIG = {
        distance and nothing more. */
     FRICTION_ROUGH: 0.15,
 
-    /* At full power the ball coasts v0 / -ln(k) ≈ 1250px, comfortably more than
-       the 960px field, so every hole is reachable in one shot and the skill is
-       in not overcooking it. */
-    MAX_POWER: 1150,
+    /* The dial runs past what you can control.
+
+       Up to SAFE_POWER the ball goes exactly where the arrow points, and that
+       is still the whole of the old game: 1080 coasts v0 / -ln(k) ≈ 1180px,
+       more than the 960px field, so every hole stays reachable in one clean
+       shot. The last fifth of the dial is the overswing — 1400 reaches
+       ≈ 1530px, and buys that extra roll with the only currency the game has
+       left to charge in, which is accuracy. See physics.spread. */
+    MAX_POWER: 1400,
+    SAFE_POWER: 1080,
     MIN_POWER: 35,
-    DRAG_MAX: 190,        // world px of pull-back that equals MAX_POWER
+    DRAG_MAX: 210,        // world px of pull-back that equals MAX_POWER
+
+    /* Radians of scatter at the very top of the dial: ±0.13 is about 7.5°,
+       which over a 400px carry is ±52px — enough to miss a cup with, not
+       enough to feel like the game took the shot away from you. The curve
+       between SAFE_POWER and MAX_POWER is quadratic, so the first sliver past
+       the line is nearly free and the last one is genuinely wild. */
+    SPREAD_MAX: 0.13,
 
     RESTITUTION: 0.74,    // speed kept after a cushion bounce
     /* Bumpers are livelier than a cushion but still under 1, which is what
@@ -61,7 +74,7 @@ GOLF.CONFIG = {
        made a gentle tap and a full swing look identical.
 
        It now grows with the shot, but only from 54px to 108px while the ball
-       itself rolls up to 1250px: a hint you can feel, at a twelfth of the
+       itself rolls up to 1530px: a hint you can feel, at a twelfth of the
        scale of the thing it is hinting at, on a square-root curve that spends
        most of its travel in the bottom half of the dial where the touch shots
        live. You can see that this one is harder than the last one. You still

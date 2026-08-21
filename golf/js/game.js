@@ -115,7 +115,15 @@
         var a = state.aim;
         var power = a.power;
         if (power < C.MIN_POWER) return;
-        if (!P.launch(state.world, a.angle, power)) return;
+
+        /* The overswing. Past SAFE_POWER the ball leaves on a line of its own
+           choosing, within the cone the aim drawing has been showing all along.
+           The luck is drawn here rather than inside physics.js, which stays a
+           pure function of its arguments; the ball is then simply launched
+           along the angle that came out, so nothing downstream — the
+           integrator, the tests, the bot — has to know a die was rolled. */
+        var fired = a.angle + P.scatter(power, Math.random());
+        if (!P.launch(state.world, fired, power)) return;
 
         state.strokes++;
         state.phase = 'rolling';
@@ -127,7 +135,7 @@
         A.putt(power / C.MAX_POWER);
         // Divot: whatever the ball is standing on sprays backwards.
         var inSand = P.zoneAt(state.world.course.sand, state.world.ball.x, state.world.ball.y);
-        (inSand ? R.effects.sand : R.effects.turf)(state.world.ball.x, state.world.ball.y, a.angle + Math.PI);
+        (inSand ? R.effects.sand : R.effects.turf)(state.world.ball.x, state.world.ball.y, fired + Math.PI);
         syncHud();
     }
 
@@ -449,13 +457,19 @@
        sits under the player's own thumb on a phone. The bar under the board is
        the same value at ten times the size — still no number on it, because
        knowing the power to the percent is not the skill being tested. */
+    /* The overswing zone is a fact about the config, not about the shot, so
+       the bar is marked once at boot rather than every frame. */
+    function markSafeZone() {
+        $('power-danger').style.left = (C.SAFE_POWER / C.MAX_POWER * 100).toFixed(2) + '%';
+    }
+
     function syncPower() {
         var a = state.aim;
         var showing = a.active && state.phase === 'aim';
         var frac = showing ? Math.max(0, Math.min(1, a.power / C.MAX_POWER)) : 0;
         var el = $('power');
         el.classList.toggle('show', showing);
-        el.classList.toggle('hot', frac > 0.82);
+        el.classList.toggle('hot', a.power > C.SAFE_POWER);
         $('power-fill').style.clipPath = 'inset(0 ' + ((1 - frac) * 100).toFixed(1) + '% 0 0)';
         $('power-knob').style.left = (frac * 100).toFixed(1) + '%';
 
@@ -525,6 +539,7 @@
         canvas = $('board');
         ctx = canvas.getContext('2d');
 
+        markSafeZone();
         newRound(true);
         bindInput();
         setMuted(A.isMuted());

@@ -255,6 +255,22 @@ canvas {
     pointer-events: none;
 }
 
+/* The overswing zone: extra distance you can have for the price of your
+   accuracy. Hatched rather than merely tinted, because the fill runs through
+   amber and red on its own way up and a flat wash there would read as part of
+   the gradient rather than as a warning about it. */
+.power-danger {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    background: repeating-linear-gradient(-45deg,
+        rgba(0, 0, 0, 0.42) 0 5px,
+        rgba(0, 0, 0, 0) 5px 10px);
+    border-left: 2px solid rgba(251, 113, 133, 0.9);
+    pointer-events: none;
+}
+
 .power-knob {
     position: absolute;
     top: -2px;

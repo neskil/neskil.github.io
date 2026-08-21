@@ -112,6 +112,34 @@
         };
     }
 
+    /* ── the overswing ──────────────────────────────────────────────────
+
+       How far off line a shot at this power may stray, in radians. Zero
+       through the whole of the safe zone, then quadratic to SPREAD_MAX at the
+       top of the dial, so the boundary is not a cliff you fall off — the first
+       few pixels of extra pull cost almost nothing, and the last ones cost
+       everything. */
+    function spread(power) {
+        if (power <= C.SAFE_POWER) return 0;
+        var over = Math.min(1, (power - C.SAFE_POWER) / (C.MAX_POWER - C.SAFE_POWER));
+        return C.SPREAD_MAX * over * over;
+    }
+
+    /* The deviation for one particular shot. `u` is a uniform sample in [0,1)
+       and is passed in rather than drawn here, because everything else in this
+       file is a pure function of its arguments and this is what keeps it that
+       way: the game draws from Math.random, the bot from its seeded PRNG, and
+       the tests from whatever they need to prove.
+
+       Squaring the signed offset concentrates the result near the middle. A
+       uniform draw would put the ball on the edge of the cone as often as on
+       the line, which reads as the shot being taken away from you rather than
+       as a shot you did not quite control. */
+    function scatter(power, u) {
+        var d = u * 2 - 1;
+        return d * Math.abs(d) * spread(power);
+    }
+
     function launch(world, angle, power) {
         var p = Math.max(0, Math.min(C.MAX_POWER, power));
         if (p < C.MIN_POWER) return false;
@@ -303,6 +331,8 @@
         zoneAt: zoneAt,
         circleRect: circleRect,
         circleCircle: circleCircle,
+        spread: spread,
+        scatter: scatter,
         createWorld: createWorld,
         launch: launch,
         advance: advance,
