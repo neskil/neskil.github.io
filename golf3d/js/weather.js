@@ -324,7 +324,7 @@
         'varying float vFade;',
         'void main(){',
         '  float speed = 0.75 + seed * 0.55;',
-        '  float ph = fract(position.y + time * speed);',   // 1 at the top
+        '  float ph = fract(position.y - time * speed);',   // 1 at the top
         '  float dropped = (1.0 - ph) * box.y;',
         '  vec3 p;',
         '  p.x = origin.x + position.x * box.x + wind.x * dropped * 0.26;',
