@@ -1282,7 +1282,10 @@
 
         var b = world.ball;
         var dirX = Math.sin(aim.yaw), dirZ = Math.cos(aim.yaw);
-        var frac = Math.max(0.08, Math.min(1, aim.power / C.MAX_POWER));
+        var rawFrac = Math.max(0, Math.min(1, aim.power / C.MAX_POWER));
+        // The wedge and band keep a floor so the shot direction is always
+        // visible; the ring below uses the real fraction so it reads 0% at 0%.
+        var frac = Math.max(0.08, rawFrac);
         var len = 0.7 + frac * 2.6;
         var halfW = 0.11 + frac * 0.05;
         var y = b.y - C.BALL_R + 0.02;
@@ -1327,9 +1330,9 @@
         // The ring fills clockwise from the shot line as the power winds on.
         R.ring.position.set(b.x, y, b.z);
         R.ring.rotation.z = -aim.yaw;
-        R.ring.geometry.setDrawRange(0, Math.max(3, Math.floor(R.ringCount * frac / 3) * 3));
+        R.ring.geometry.setDrawRange(0, Math.max(3, Math.floor(R.ringCount * rawFrac / 3) * 3));
         R.ring.material.color.copy(R.arrow.material.color);
-        R.ring.visible = frac > 0.02;
+        R.ring.visible = rawFrac > 0.02;
 
         /* A cone of possible paths rather than one certain line: touch is too
            coarse to load an exact number, and a single dotted parabola read as
