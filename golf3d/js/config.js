@@ -47,11 +47,6 @@ G3.CONFIG = {
     MAX_POWER: 28,
     MIN_POWER: 0.9,
 
-    /* How far the ball has to be pulled back, in pixels, for a full swing. The
-       longer this is the more precisely a half shot can be set, and the more a
-       big one feels like winding up; too long and it will not fit on a phone
-       in portrait. */
-    DRAG_MAX: 230,
     MAX_LOFT: 45 * Math.PI / 180,
 
     /* The bag. A club is a loft and a ceiling on power, and that is the whole
@@ -113,7 +108,6 @@ G3.CONFIG = {
     /* Feel. None of this touches the simulation — it is what the shot looks
        and sounds like while you are winding it up and after you let go. */
     OVERSWING: 0.85,      // past this fraction the meter turns and the arrow reddens
-    DRAG_DEADZONE: 8,     // px of slack before a press counts as a pull
     KICK: 0.55,           // camera punch on impact, in units of pull-back
     TRAIL: 56,            // ball trail samples
 
