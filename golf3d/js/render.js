@@ -1340,48 +1340,48 @@
         R.ring.material.color.copy(R.arrow.material.color);
         R.ring.visible = frac > 0.02;
 
-        var pts = P.previewPath(world, aim.yaw, aim.power, aim.loft, 0.5 + frac * 0.5);
-
-        /* If the path is close enough to a rail to reach it, physics carries it
-           through the ricochet and tags the point it turns. Everything past
-           that tag is drawn dimmer: it is the way the ball comes off the wall,
-           which is worth seeing, but it is a step further from certain than the
-           leg you are pointing. */
-        var turn = -1, i, k;
-        for (i = 1; i < pts.length; i++) {
-            if (pts[i].bounce) { turn = i; break; }
-        }
+        /* A cone of possible paths rather than one certain line: touch is too
+           coarse to load an exact number, and a single dotted parabola read as
+           a promise the game could not keep — the ball never quite landed
+           where the last dot sat. Three paths at a spread of power either side
+           of what is loaded stand in for that uncertainty; together they read
+           as a lane, not a prediction. The kiss dot is gone for the same
+           reason — it named one exact metre on the wall, which was the thing
+           this is trying to stop being honest about. */
+        var lo = Math.max(C.MIN_POWER, aim.power * 0.82);
+        var hi = Math.min(C.MAX_POWER, aim.power * 1.18);
+        var powers = [lo, aim.power, hi];
+        var shades = [0.55, 1, 0.55];
+        var seconds = 0.5 + frac * 0.5;
 
         var arr = R.arcPoints.geometry.attributes.position.array;
         var col = R.arcPoints.geometry.attributes.color.array;
-        // Thirty-odd dots evenly along the path: dense enough to read as a
-        // trajectory, sparse enough to read as dots.
-        var n = Math.min(34, pts.length), shade;
-        for (i = 0; i < 120; i++) {
-            if (i < n) {
-                k = Math.min(pts.length - 1, Math.round(i * ((pts.length - 1) / Math.max(1, n - 1))));
-                arr[i * 3] = pts[k].x;
-                arr[i * 3 + 1] = pts[k].y;
-                arr[i * 3 + 2] = pts[k].z;
-                shade = (turn >= 0 && k >= turn) ? 0.6 : 1;
-                col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = shade;
-            } else {
-                arr[i * 3 + 1] = -999;
+        var perPath = 40, i, j, k, n, pts, turn, shade;
+        for (j = 0; j < 3; j++) {
+            pts = P.previewPath(world, aim.yaw, powers[j], aim.loft, seconds);
+            turn = -1;
+            for (i = 1; i < pts.length; i++) {
+                if (pts[i].bounce) { turn = i; break; }
+            }
+            n = Math.min(perPath, pts.length);
+            for (i = 0; i < perPath; i++) {
+                var slot = j * perPath + i;
+                if (i < n) {
+                    k = Math.min(pts.length - 1, Math.round(i * ((pts.length - 1) / Math.max(1, n - 1))));
+                    arr[slot * 3] = pts[k].x;
+                    arr[slot * 3 + 1] = pts[k].y;
+                    arr[slot * 3 + 2] = pts[k].z;
+                    shade = shades[j] * ((turn >= 0 && k >= turn) ? 0.6 : 1);
+                    col[slot * 3] = col[slot * 3 + 1] = col[slot * 3 + 2] = shade;
+                } else {
+                    arr[slot * 3 + 1] = -999;
+                }
             }
         }
         R.arcPoints.geometry.attributes.position.needsUpdate = true;
         R.arcPoints.geometry.attributes.color.needsUpdate = true;
         R.arcPoints.geometry.computeBoundingSphere();
-
-        // And the kiss itself, in the colour the power is wearing.
-        R.kiss.visible = turn >= 0;
-        if (turn >= 0) {
-            var kp = R.kiss.geometry.attributes.position.array;
-            kp[0] = pts[turn].x; kp[1] = pts[turn].y; kp[2] = pts[turn].z;
-            R.kiss.geometry.attributes.position.needsUpdate = true;
-            R.kiss.geometry.computeBoundingSphere();
-            R.kiss.material.color.copy(R.arrow.material.color);
-        }
+        R.kiss.visible = false;
     }
 
     /* Camera. The player never flies it directly: it sits behind the ball
