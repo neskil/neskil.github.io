@@ -36,6 +36,10 @@
 </head>
 <body>
     <div class="wrap">
+      <!-- Topbar, scoreboard and stage together: on a phone this block is the
+           whole viewport, so the course starts full screen and the rest of the
+           page waits below the fold. -->
+      <div class="viewport">
         <div class="topbar">
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div>
@@ -102,6 +106,7 @@
 
             <div class="stage-hud" id="stage-hud">
                 <span id="shud-hole">Hole 1/6</span>
+                <span id="shud-name" class="shud-name">—</span>
                 <span id="shud-par">Par 3</span>
                 <span id="shud-strokes">0 strokes</span>
                 <span id="shud-dist">—</span>
@@ -139,6 +144,7 @@
                    plays fine without one — <a href="../golf/index.html">Pocket Links</a>.</p>
             </div>
         </div>
+      </div>
 
         <div class="help">
             <span><b>Pull away</b> from where you want the ball to go, anywhere on the course, and let go — the further you pull, the harder it goes.</span>

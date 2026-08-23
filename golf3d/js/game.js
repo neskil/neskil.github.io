@@ -244,9 +244,11 @@
         syncPower();
         syncWeather();
 
-        // The compact overlay only shows in fullscreen, where the scoreboard
-        // above the canvas is off screen.
+        // The compact overlay carries the same figures as the scoreboard, for
+        // the layouts where the scoreboard is off screen — fullscreen, and the
+        // immersive phone layout where the canvas owns the viewport.
         $('shud-hole').textContent = 'Hole ' + (state.holeIndex + 1) + '/' + state.course.holes.length;
+        $('shud-name').textContent = hole.name;
         $('shud-par').textContent = 'Par ' + hole.par;
         $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
     }
