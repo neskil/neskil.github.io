@@ -88,6 +88,7 @@
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
         syncHud();
+        showHoleCard();
     }
 
     /* ── the shot ───────────────────────────────────────────────────────── */
@@ -100,6 +101,7 @@
         var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
         if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.club.loft)) return;
 
+        hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
         syncSwing();
@@ -222,7 +224,6 @@
         $('course-name').textContent = state.course.name;
         $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
         $('hole-name').textContent = hole.name;
-        $('hole-blurb').textContent = hole.blurb;
         $('hole-par').textContent = hole.par;
         $('hole-strokes').textContent = state.strokes;
         $('total-strokes').textContent = t.strokes;
@@ -243,11 +244,97 @@
 
         // The compact overlay carries the same figures as the scoreboard, for
         // the layouts where the scoreboard is off screen — fullscreen, and the
-        // immersive phone layout where the canvas owns the viewport.
-        $('shud-hole').textContent = 'Hole ' + (state.holeIndex + 1) + '/' + state.course.holes.length;
-        $('shud-name').textContent = hole.name;
+        // immersive phone layout where the canvas owns the viewport. Only the
+        // four that move during a shot are on the line; the name, the blurb
+        // and the sky are in the half that opens.
+        $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
         $('shud-par').textContent = 'Par ' + hole.par;
         $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
+        $('shud-name').textContent = hole.name;
+        $('shud-blurb').textContent = hole.blurb;
+    }
+
+    /* ── the hole card ──────────────────────────────────────────────────── */
+
+    /* What a hole is only needs saying once. It is said here, when the hole
+       loads, and then it leaves — rather than sitting under the name for the
+       whole round. The name in the scoreboard and the overlay's own drawer
+       both ask for it back, so nothing is lost by letting it go. */
+    var holeCardTimer = 0;
+
+    function showHoleCard() {
+        if (!state || !state.world) return;
+        var hole = state.course.holes[state.holeIndex];
+        var b = state.world.ball;
+        $('hc-eyebrow').textContent = state.course.name + ' · Hole ' +
+            (state.holeIndex + 1) + ' of ' + state.course.holes.length;
+        $('hc-name').textContent = hole.name;
+        $('hc-blurb').textContent = hole.blurb;
+        $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
+            Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z).toFixed(1) + ' m' +
+            (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
+        $('hole-card').classList.add('show');
+        // The card and the overlay's drawer say the same thing; whichever was
+        // asked for last is the one that says it.
+        toggleHudDetail(false);
+        clearTimeout(holeCardTimer);
+        holeCardTimer = setTimeout(hideHoleCard, 4600);
+    }
+
+    function hideHoleCard() {
+        clearTimeout(holeCardTimer);
+        $('hole-card').classList.remove('show');
+    }
+
+    /* ── the collapsible chrome ─────────────────────────────────────────── */
+
+    /* Compact chrome is on wherever the immersive layout is: a narrow window,
+       a touch screen, or fullscreen on anything. The stylesheet answers the
+       same three questions in its media queries; this is the one place that
+       decides, so the topbar's two modes cannot disagree with each other. */
+    var compactQuery = null;
+
+    function syncCompact() {
+        if (!compactQuery && window.matchMedia) {
+            compactQuery = window.matchMedia('(max-width: 900px), (pointer: coarse)');
+        }
+        var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenElement();
+        var was = document.body.classList.contains('compact-ui');
+        document.body.classList.toggle('compact-ui', on);
+        if (!on) closeTopMenu();
+        // Compact chrome takes the topbar out of the flow, which hands the
+        // canvas the height it was standing in. That is a new size for the
+        // renderer, and one nothing else would tell it about: the window has
+        // not changed, only what is in it.
+        if (was !== on) { R.resize(); measurePickerBand(); }
+    }
+
+    /* Five of the seven chips live behind ☰ when the bar is compact. Overview
+       and fullscreen stay out, because those are the two you reach for with a
+       shot half aimed. */
+    function closeTopMenu() {
+        $('topbar-menu').classList.remove('open');
+        $('btn-menu').classList.remove('on');
+        $('btn-menu').setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleTopMenu() {
+        var el = $('topbar-menu');
+        var open = !el.classList.contains('open');
+        el.classList.toggle('open', open);
+        $('btn-menu').classList.toggle('on', open);
+        $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    /* The overlay's second half: the hole's name, what it is, and the sky.
+       Shut by default, because none of it changes while you play. */
+    function toggleHudDetail(force) {
+        var hud = $('stage-hud');
+        var open = typeof force === 'boolean' ? force : !hud.classList.contains('open');
+        if (open) hideHoleCard();
+        hud.classList.toggle('open', open);
+        $('hud-detail').hidden = !open;
+        $('hud-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
     /* What the sky is doing, in words, under the hole's name. The wind figure
@@ -279,6 +366,7 @@
         R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
         A.ambience(state.weather);
         syncWeather();
+        if ($('hole-card').classList.contains('show')) showHoleCard();
         toast(state.weather.icon + '  ' + state.weather.label);
     }
 
@@ -335,7 +423,12 @@
         var el = $('picker');
         el.className = 'picker' + (open ? ' show' : '');
         el.setAttribute('aria-hidden', open ? 'false' : 'true');
+        // Four turning clubs are hard enough to read without the overlay, the
+        // hole card and the fullscreen offer sitting on top of them.
+        $('stage').classList.toggle('picker-open', open);
         if (!open) return;
+        hideHoleCard();
+        measurePickerBand();
 
         // Whichever club is under the pointer, or the one in hand.
         var id = (G3.bag && G3.bag.state.hover) || state.club.id;
@@ -349,6 +442,26 @@
             '<b>' + club.key + '</b> · pwr <b>' + club.power + '</b> · loft <b>' +
             Math.round(club.loft * 180 / Math.PI) + '°</b>' +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
+    }
+
+    /* How much of the stage the club panel and the shot controls have taken,
+       as fractions of its height. The clubs come out of the bag into whatever
+       is left between them, and both of those are text and buttons — a font
+       size, a line count and a phone away from anything the renderer could
+       work out for itself. So they are measured and handed over rather than
+       guessed at, which is what stops the row landing under the panel naming
+       it on a screen nobody tested. */
+    function measurePickerBand() {
+        if (!G3.bag || !G3.bag.setBand) return;
+        var stage = $('stage').getBoundingClientRect();
+        var ctl = document.querySelector('.controls');
+        if (!stage.height || !ctl) return;
+        var text = $('picker-stats').getBoundingClientRect();
+        var bar = ctl.getBoundingClientRect();
+        G3.bag.setBand(
+            (text.bottom - stage.top) / stage.height + 0.02,
+            (stage.bottom - bar.top) / stage.height + 0.02
+        );
     }
 
     /* ── input ──────────────────────────────────────────────────────────────
@@ -434,6 +547,7 @@
         // reason to lose track of it.
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        hideHoleCard();
         if (!state) return;
 
         if (Object.keys(pointers).length >= 2) {
@@ -632,6 +746,12 @@
             syncPicker();
             return;
         }
+        if (k === 'Escape') {
+            closeTopMenu();
+            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); }
+            hideHoleCard();
+            return;
+        }
         if (k === 'b' || k === 'B') {
             if (G3.bag) { G3.bag.toggle(); syncPicker(); }
             return;
@@ -675,27 +795,42 @@
         var on = !!fullscreenElement();
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
+        syncCompact();
         if (on) dismissFsPrompt(false);
         // The canvas has a new size the moment the browser swaps modes, and
         // again when it swaps back.
-        setTimeout(function () { R.resize(); }, 60);
+        setTimeout(function () { R.resize(); measurePickerBand(); }, 60);
     }
 
     /* The chip in the topbar does the same job, but it is one small icon among
        six others and easy to never notice. This is the same offer said once,
        plainly, right where a round starts — and it remembers being waved off,
        so it is not something to dismiss twice. */
+    var fsPromptTimer = 0;
+
     function fsPromptDismissed() {
         try { return localStorage.getItem(C.FS_PROMPT_KEY) === '1'; } catch (e) { return false; }
     }
     function dismissFsPrompt(remember) {
+        clearTimeout(fsPromptTimer);
         $('fs-prompt').classList.remove('show');
         if (remember) { try { localStorage.setItem(C.FS_PROMPT_KEY, '1'); } catch (e) { /* ignore */ } }
     }
+    /* Said once, after the hole has introduced itself, and then gone by itself:
+       an offer that has to be dismissed to stop being in the way is a second
+       thing to do before playing, and two things arriving at once on the same
+       corner of a phone is neither of them being read. */
     function maybeShowFsPrompt() {
         if (fsPromptDismissed() || fullscreenElement()) return;
         if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
-        $('fs-prompt').classList.add('show');
+        clearTimeout(fsPromptTimer);
+        fsPromptTimer = setTimeout(function () {
+            if (fsPromptDismissed() || fullscreenElement()) return;
+            $('fs-prompt').classList.add('show');
+            fsPromptTimer = setTimeout(function () {
+                $('fs-prompt').classList.remove('show');
+            }, 9000);
+        }, 5200);
     }
 
     var menuAfterHowTo = false;
@@ -716,7 +851,7 @@
 
     function toggleMute() {
         var m = A.toggleMute();
-        $('btn-mute').textContent = m ? '🔇' : '🔊';
+        $('mute-icon').textContent = m ? '🔇' : '🔊';
         $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
     }
 
@@ -841,7 +976,11 @@
             zoom(e.deltaY * 0.004);
         }, { passive: false });
         window.addEventListener('keydown', onKey);
-        window.addEventListener('resize', function () { R.resize(); });
+        window.addEventListener('resize', function () {
+            R.resize();
+            syncCompact();
+            measurePickerBand();
+        });
 
         $('banner-next').addEventListener('click', nextHole);
         $('btn-restart').addEventListener('click', restartHole);
@@ -863,6 +1002,23 @@
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
         $('btn-weather').addEventListener('click', cycleWeather);
+        $('shud-sky').addEventListener('click', cycleWeather);
+        $('hole-name').addEventListener('click', showHoleCard);
+        $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
+        $('btn-menu').addEventListener('click', toggleTopMenu);
+        // Anything picked out of the menu is the last thing the menu is for.
+        $('topbar-menu').addEventListener('click', closeTopMenu);
+        // A press anywhere else shuts it, the way a menu should.
+        document.addEventListener('pointerdown', function (e) {
+            if (!$('topbar-menu').classList.contains('open')) return;
+            if (e.target && e.target.closest && e.target.closest('.topbar-actions')) return;
+            closeTopMenu();
+        }, true);
+        syncCompact();
+        if (compactQuery) {
+            if (compactQuery.addEventListener) compactQuery.addEventListener('change', syncCompact);
+            else if (compactQuery.addListener) compactQuery.addListener(syncCompact);
+        }
         $('howto-close').addEventListener('click', closeHowTo);
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);
@@ -873,7 +1029,7 @@
             if (state && state.world) closeMenu();
         });
 
-        if (A.isMuted()) $('btn-mute').textContent = '🔇';
+        if (A.isMuted()) $('mute-icon').textContent = '🔇';
 
         var q = params();
         state = { save: S.load() };

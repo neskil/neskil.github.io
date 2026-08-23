@@ -77,6 +77,8 @@ body::before {
 
 .home-link:hover { background: var(--accent-soft); transform: translateX(-2px); }
 
+.brand { min-width: 0; }
+
 .title {
     margin: 0;
     font-size: 1.5rem;
@@ -94,12 +96,25 @@ body::before {
 }
 
 .topbar-actions {
+    position: relative;
     margin-left: auto;
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
 }
+
+/* Wide enough for all of them and the menu is not a menu: `display: contents`
+   drops the wrapper out of the layout and its chips sit in the topbar row
+   exactly as they used to. The compact rules further down put the wrapper
+   back and turn it into a panel. */
+.topbar-menu { display: contents; }
+.chip-menu { display: none; }
+
+/* Chips are icons in the row and words in the panel — a lone "?" reads fine
+   next to five siblings and reads like nothing in a list of five items. */
+.chip-text { display: none; }
 
 button.chip {
     font: inherit;
@@ -155,22 +170,28 @@ button.chip.on { background: var(--accent); color: #06212f; border-color: transp
 .stat-value.over { color: var(--over); }
 .stat-value.level { color: var(--accent); }
 
+/* The name asks for the hole card back, so it is a button — one that has to
+   keep looking like the heading it was. */
 .hole-name {
+    display: block;
+    max-width: 100%;
+    font: inherit;
     font-size: 1.05rem;
     font-weight: 700;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color 0.15s;
 }
 
-.hole-blurb {
-    font-size: 0.75rem;
-    color: var(--ink-dim);
-    font-weight: 300;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+.hole-name:hover,
+.hole-name:focus-visible { color: var(--accent); }
 
 /* The sky under the hole's name: what the weather is doing, and a button
    that changes it. Quiet enough to read as a caption, and it only stops
@@ -225,7 +246,7 @@ canvas {
     /* Tall enough to be the thing you are looking at. The floor keeps it
        playable on a short laptop, the ceiling stops it turning into a
        letterbox on a big desktop monitor. */
-    height: clamp(380px, calc(100dvh - 250px), 760px);
+    height: clamp(380px, calc(100dvh - 210px), 820px);
     touch-action: none;
     cursor: grab;
 }
@@ -361,6 +382,11 @@ canvas:active { cursor: grabbing; }
 .picker-blurb {
     margin: 0.1rem 0 0;
     max-width: 30ch;
+    /* Two lines whether the blurb needs two or one: the clubs are laid out in
+       whatever room this panel leaves them, and a panel that changed height
+       from club to club would shuffle the row every time you looked at a
+       different one. */
+    min-height: 2.7em;
     font-size: 0.88rem;
     font-weight: 300;
     line-height: 1.35;
@@ -382,29 +408,84 @@ canvas:active { cursor: grabbing; }
 
 /* ── compact overlay, for when the scoreboard is off screen ─────────────── */
 
+/* Hole, par, strokes and distance — the four figures that move during a
+   shot — on one line, with everything that merely describes the hole one tap
+   underneath. The line itself is the button that opens the rest. */
 .stage-hud {
     position: absolute;
     top: 12px;
     left: 12px;
     display: none;
-    gap: 0.75rem;
-    padding: 0.35rem 0.7rem;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    max-width: calc(100% - 24px);
+    border-radius: 12px;
     color: var(--ink);
     background: rgba(6, 20, 32, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.14);
     backdrop-filter: blur(6px);
     line-height: 1.3;
-    pointer-events: none;
+    overflow: hidden;
+    transition: opacity 0.2s;
 }
 
-.stage-hud span + span { padding-left: 0.75rem; border-left: 1px solid rgba(255, 255, 255, 0.15); }
+.hud-line {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.35rem 0.6rem;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+}
 
-/* The hole's name rides along in the overlay, since the scoreboard that
-   normally carries it is off screen wherever this overlay is on. */
-.shud-name { font-weight: 800; letter-spacing: -0.01em; }
+.hud-line span + span { padding-left: 0.6rem; border-left: 1px solid rgba(255, 255, 255, 0.15); }
+
+.hud-caret {
+    border-left: 0 !important;
+    padding-left: 0.1rem !important;
+    font-size: 0.7rem;
+    color: var(--ink-dim);
+    transition: transform 0.2s;
+}
+
+.stage-hud.open .hud-caret { transform: rotate(180deg); }
+
+.hud-detail {
+    padding: 0 0.65rem 0.55rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 34ch;
+}
+
+.hud-name { font-size: 0.92rem; font-weight: 800; letter-spacing: -0.01em; margin-top: 0.4rem; }
+
+.hud-blurb {
+    font-size: 0.76rem;
+    font-weight: 300;
+    color: var(--ink-dim);
+    line-height: 1.35;
+    margin-top: 0.1rem;
+}
+
+.hud-sky {
+    margin-top: 0.4rem;
+    font: inherit;
+    font-size: 0.74rem;
+    color: var(--ink-dim);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.hud-sky:hover { color: var(--ink); background: rgba(255, 255, 255, 0.12); }
 
 /* Fullscreen is taken on the viewport, so the topbar, the overlay and the
    modals come with it: the same immersive layout the phone gets, on any
@@ -429,8 +510,7 @@ canvas:active { cursor: grabbing; }
 }
 
 .viewport:fullscreen .stage-hud {
-    display: flex;
-    flex-wrap: wrap;
+    display: block;
 }
 
 .viewport:fullscreen .stage {
@@ -463,8 +543,7 @@ canvas:active { cursor: grabbing; }
 }
 
 .viewport:-webkit-full-screen .stage-hud {
-    display: flex;
-    flex-wrap: wrap;
+    display: block;
 }
 
 .viewport:-webkit-full-screen .stage {
@@ -619,11 +698,13 @@ canvas:active { cursor: grabbing; }
 /* The topbar chip does the same job, but it is one icon among six and easy
    to miss. This says it once, plainly, when a round starts — and stays
    dismissed once waved off, so it never nags. */
+/* Parked under the topbar on the side the overlay is not on, so the offer is
+   never something to read the hole through. */
 .fs-prompt {
     position: absolute;
-    left: 50%;
-    top: 64px;
-    transform: translate(-50%, -10px);
+    right: 12px;
+    top: 12px;
+    transform: translateY(-10px);
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -639,7 +720,7 @@ canvas:active { cursor: grabbing; }
     z-index: 5;
 }
 
-.fs-prompt.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.fs-prompt.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
 
 .fs-prompt button { font: inherit; cursor: pointer; }
 
@@ -928,7 +1009,7 @@ kbd {
     .tagline { display: none; }
     .topbar-actions { gap: 0.35rem; }
     button.chip { padding: 0.4rem 0.6rem; font-size: 0.78rem; }
-    .stage-hud { font-size: 0.7rem; gap: 0.5rem; }
+    .hud-line { font-size: 0.72rem; gap: 0.45rem; }
 }
 
 
@@ -970,15 +1051,7 @@ kbd {
 
     canvas { height: 100%; }
 
-    .stage-hud {
-        display: flex;
-        flex-wrap: wrap;
-        max-width: calc(100% - 24px);
-        row-gap: 0.15rem;
-    }
-
-    /* Wrapped rows should not keep the divider of the row above them. */
-    .stage-hud span + span { padding-left: 0.6rem; }
+    .stage-hud { display: block; }
 
     /* One row is not enough for the meter and the buttons on a phone, so they
        stack — both kept clear of the bag standing in the corner. */
@@ -994,10 +1067,246 @@ kbd {
 
     .swing { flex: 1 1 auto; padding: 0.65rem 1rem; }
 
-    .help, .legend { padding: 0 0.8rem; }
-    .legend { padding-bottom: 2rem; }
+    .panel, .best-line { margin-left: 0.8rem; margin-right: 0.8rem; }
+    .panel:last-of-type { margin-bottom: 2rem; }
 }
 
 @media (max-width: 900px) and (min-width: 641px), (pointer: coarse) and (min-width: 641px) {
     .stage-hud { top: 10px; left: 10px; }
+}
+
+
+/* ── the hole card ──────────────────────────────────────────────────────── */
+
+/* What a hole is only needs saying once. It is said here, when the hole
+   loads, and then it goes — rather than sitting under the name for the whole
+   round taking up the width of the scoreboard. The name in the scoreboard and
+   the overlay both ask for it back. */
+.hole-card {
+    position: absolute;
+    left: 50%;
+    top: 22%;
+    transform: translate(-50%, 8px);
+    width: min(34ch, calc(100% - 32px));
+    padding: 0.85rem 1rem 0.9rem;
+    text-align: center;
+    line-height: 1.35;
+    border-radius: 16px;
+    background: rgba(5, 18, 28, 0.84);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    z-index: 4;
+}
+
+.hole-card.show { opacity: 1; transform: translate(-50%, 0); }
+
+.hc-eyebrow {
+    margin: 0;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--accent);
+}
+
+.hc-name {
+    margin: 0.2rem 0 0;
+    font-size: clamp(1.15rem, 4vw, 1.55rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.hc-blurb {
+    margin: 0.25rem 0 0;
+    font-size: 0.84rem;
+    font-weight: 300;
+    color: var(--ink-dim);
+}
+
+.hc-meta {
+    margin: 0.55rem 0 0;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+}
+
+/* Two things at the top of the stage, and a phone with room for one: the offer
+   of fullscreen gives way to whatever was asked for — the drawer, or the card
+   naming the hole. */
+.stage-hud.open ~ .fs-prompt,
+.hole-card.show ~ .fs-prompt {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Opening the bag dims the course; anything else floating over it would be
+   read through four turning clubs. */
+.stage.picker-open .stage-hud,
+.stage.picker-open .fs-prompt,
+.stage.picker-open .hole-card {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── compact chrome ─────────────────────────────────────────────────────── */
+
+/* Set from game.js wherever the immersive layout is on — a phone, a coarse
+   pointer, or fullscreen on anything. Two changes, and both are about giving
+   the course back the pixels: the topbar stops standing above the canvas and
+   starts floating over it, and five of the seven chips fold behind ☰. */
+body.compact-ui .viewport { position: relative; }
+
+body.compact-ui .topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    margin: 0;
+    padding: 0.45rem 0.6rem;
+    gap: 0.5rem;
+    background: linear-gradient(to bottom,
+        rgba(4, 14, 24, 0.85) 0%, rgba(4, 14, 24, 0.5) 62%, rgba(4, 14, 24, 0) 100%);
+    pointer-events: none;
+}
+
+/* The bar is a scrim, not a surface: only the things in it take a press, so
+   a drag that starts on the sky above the course still turns the camera. */
+body.compact-ui .topbar > * { pointer-events: auto; }
+
+body.compact-ui .tagline { display: none; }
+body.compact-ui .title { font-size: 1.05rem; white-space: nowrap; }
+
+body.compact-ui .home-link {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+}
+
+body.compact-ui .chip-menu { display: inline-block; }
+body.compact-ui .chip-text { display: inline; }
+
+body.compact-ui .topbar-menu {
+    display: grid;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 8;
+    gap: 0.35rem;
+    min-width: 170px;
+    padding: 0.4rem;
+    background: rgba(9, 24, 38, 0.97);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+body.compact-ui .topbar-menu.open {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+body.compact-ui .topbar-menu .chip {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Clear of the floating bar rather than under it. Everything that starts at
+   the top of the stage starts below the bar instead — including the club
+   picker's text, which is the one that used to run straight into it. */
+body.compact-ui .stage-hud { top: 52px; left: 10px; }
+body.compact-ui .fs-prompt { top: 52px; right: 10px; }
+body.compact-ui .picker { padding-top: 52px; }
+
+/* ── the panels below the fold ──────────────────────────────────────────── */
+
+.panel {
+    margin-top: 0.8rem;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.panel > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    list-style: none;
+    transition: background 0.15s;
+}
+
+.panel > summary::-webkit-details-marker { display: none; }
+
+.panel > summary::before {
+    content: '▸';
+    color: var(--accent);
+    font-size: 0.75rem;
+    transition: transform 0.18s;
+}
+
+.panel[open] > summary::before { transform: rotate(90deg); }
+.panel > summary:hover { background: var(--accent-soft); }
+
+.panel .help,
+.panel .legend {
+    margin: 0;
+    padding: 0 0.9rem 0.9rem;
+}
+
+.best-line {
+    margin: 0.8rem 0 0;
+    font-size: 0.8rem;
+    color: var(--ink-dim);
+}
+
+.best-line b { color: var(--ink); }
+
+/* ── short viewports ────────────────────────────────────────────────────── */
+
+/* A phone held sideways has half the height and twice the need for it. */
+@media (max-height: 520px) {
+    body.compact-ui .topbar { padding: 0.3rem 0.5rem; }
+    body.compact-ui .title { font-size: 0.95rem; }
+    body.compact-ui .home-link { width: 28px; height: 28px; font-size: 0.9rem; }
+    body.compact-ui .stage-hud { top: 44px; }
+    body.compact-ui .fs-prompt { top: 44px; }
+    body.compact-ui button.chip { padding: 0.3rem 0.55rem; font-size: 0.75rem; }
+
+    .hole-card { top: 14%; padding: 0.6rem 0.9rem 0.65rem; }
+    .hc-blurb { font-size: 0.78rem; }
+    .hc-meta { margin-top: 0.35rem; }
+
+    body.compact-ui .picker { padding-top: 44px; }
+    .picker-title { display: none; }
+    .picker-name { font-size: clamp(1.05rem, 3vw, 1.35rem); }
+    .picker-blurb {
+        margin-top: 0;
+        max-width: 52ch;
+        min-height: 1.35em;
+        font-size: 0.75rem;
+    }
+    .picker-stats { margin-top: 0.15rem; font-size: 0.68rem; }
+}
+
+/* Shorter still and the wordmark is the first thing that can go: the back
+   arrow already says where you are. */
+@media (max-height: 420px) {
+    body.compact-ui .brand { display: none; }
+    body.compact-ui .stage-hud { top: 40px; }
+    body.compact-ui .fs-prompt { top: 40px; }
+    body.compact-ui .picker { padding-top: 40px; }
 }
