@@ -1015,13 +1015,9 @@
        **The pin stands in the cup**, which is where a pin stands. It used to
        be planted beside it, on the grounds that a flagstick down the middle of
        a hole this size is something the ball ought to hit and would instead go
-       straight through — an honest dodge that made every hole look wrong. The
-       honest fix is the one a real unattended pin makes for itself: it is not
-       vertical. A flagstick dropped into a cup rests against the far wall of
-       the liner and leans away, and leaning it away *along the line of play*
-       puts everything above the first few centimetres out of the ball's path.
-       What is left in the way is the base, down in the mouth of the cup, where
-       a ball arriving is already falling.
+       straight through — an honest dodge that made every hole look wrong. It
+       stands vertical, as a real flagstick does; the ball passes through the
+       green geometry around the cup, not through the pin itself.
 
        The pin also does a job nothing else on the course does: it is the only
        instrument telling you what the wind is doing. The cloth streams
@@ -1061,11 +1057,10 @@
         var away = Math.atan2(cup.x - hole.tee.x, cup.z - hole.tee.z);
         var pin = new THREE.Group();
         pin.position.set(cup.x, cup.y - C.CUP_DEPTH + 0.01, cup.z);
-        pin.rotation.y = away;
-        pin.rotation.x = -PIN_LEAN;        // leaning away from the tee
+        pin.rotation.y = away;             // a real flagstick stands vertical
         group.add(pin);
         R.pin = pin;
-        R.pinLean = PIN_LEAN;
+        R.pinLean = 0;
 
         var H = 1.95;
         var pole = new THREE.Mesh(
