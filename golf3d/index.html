@@ -45,10 +45,11 @@
             <div class="topbar-actions">
                 <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                 <button class="chip" id="btn-view" title="Look at the whole hole (V)">Overview</button>
+                <button class="chip" id="btn-lock-aim" title="Lock the aim so a swipe turns the camera instead (L)">🔓 Aim</button>
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
                 <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?</button>
-                <button class="chip" id="btn-full" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+                <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶</button>
                 <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
             </div>
         </div>
@@ -107,11 +108,6 @@
                 <span id="shud-sky">☀ Clear</span>
             </div>
 
-            <div class="look-ctl" id="look-ctl">
-                <button type="button" class="look-btn" id="btn-look-left" aria-label="Look left">&#8634;</button>
-                <button type="button" class="look-btn" id="btn-look-right" aria-label="Look right">&#8635;</button>
-            </div>
-
             <div class="controls">
                 <div class="power">
                     <span class="ctl-label">Power <b id="power-val">0%</b></span>
@@ -131,6 +127,12 @@
 
             <div class="toast" id="toast"></div>
 
+            <div class="fs-prompt" id="fs-prompt">
+                <span>Play fullscreen for the full course view</span>
+                <button type="button" id="fs-prompt-go">⛶ Fullscreen</button>
+                <button type="button" id="fs-prompt-dismiss" aria-label="Dismiss">×</button>
+            </div>
+
             <div class="fallback" id="fallback">
                 <p><b>This one needs WebGL.</b></p>
                 <p>Your browser could not start a 3D context. The flat version next door
@@ -142,8 +144,8 @@
             <span><b>Pull away</b> from where you want the ball to go, anywhere on the course, and let go — the further you pull, the harder it goes.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> hit (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
-            <span class="touch-help">Pinch to zoom, hold <b>&#8634;</b>/<b>&#8635;</b> at top-right to look around without hitting. Turn your phone sideways for a bigger course.</span>
+            <span class="kb-help"><kbd>V</kbd> overview · <kbd>L</kbd> lock aim · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="touch-help">Pinch to zoom, swipe the bag to switch clubs. <b>Lock aim</b> and swipe to spin the camera and look around without loading a shot. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
 
@@ -176,21 +178,23 @@
                 <li>
                     <b>Pick a club.</b> Click the bag in the bottom corner: the clubs come out,
                     line up and turn slowly so you can look at them, and the one under your pointer
-                    is explained above. Click a head to take it. The heads are set at their real
-                    lofts, so the wedge lying right back is the one that goes up. Keys
-                    <kbd>1</kbd>–<kbd>4</kbd> do the same thing, and <kbd>B</kbd> opens the bag.
-                    The <b>putter</b> rolls flat and stops where you tell it, the <b>driver</b> is the
-                    reach club, the <b>chipper</b> hops a rail and keeps running, and the <b>wedge</b>
-                    goes up and over water and sand. Each one has its own ceiling on power, so a
-                    full swing means something different in every hand.
+                    is explained above. Click a head to take it, or swipe across the bag to step
+                    to the next one without opening it. The heads are set at their real lofts, so
+                    the wedge lying right back is the one that goes up. Keys <kbd>1</kbd>–<kbd>4</kbd>
+                    take a club directly, <kbd>C</kbd> steps to the next one, and <kbd>B</kbd> opens
+                    the bag. The <b>putter</b> rolls flat and stops where you tell it, the
+                    <b>driver</b> is the reach club, the <b>chipper</b> hops a rail and keeps
+                    running, and the <b>wedge</b> goes up and over water and sand. Each one has its
+                    own ceiling on power, so a full swing means something different in every hand.
                 </li>
                 <li>
                     <b>Read the hole first.</b> <kbd>V</kbd> lifts the camera above the whole hole;
-                    scroll or pinch to zoom. The dotted line in front of the ball is where the shot
-                    starts out — it is real physics, so it tells you the truth about rails and ramps.
-                    Aim at a rail near enough to reach and the line carries on through it: the bright
-                    dot is where the ball kisses the wall, and the faint dots after it are the way it
-                    comes off. That is how a bank shot gets aimed.
+                    scroll or pinch to zoom. The dotted lines in front of the ball are where the shot
+                    is headed — real physics, not a guess, so they tell you the truth about rails and
+                    ramps. There are three of them rather than one: a lane of a bit less power, a bit
+                    more, and what is loaded right now, because touch is too coarse to load an exact
+                    number and the game should not pretend otherwise. Aim the lane at a rail and it
+                    carries on through the bounce, fainter, on the way it comes off.
                 </li>
                 <li>
                     <b>Read the flag.</b> The pin stands in the cup, and it is the only
@@ -210,8 +214,8 @@
 
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit ·
-                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview · <kbd>F</kbd> fullscreen ·
-                <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
+                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview · <kbd>L</kbd> lock aim ·
+                <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
             </p>
 
             <div class="modal-actions">
@@ -249,7 +253,7 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.1.0"></script>
+    <script src="js/config.js?v=1.1.1"></script>
     <script src="js/physics.js?v=1.1.0"></script>
     <script src="js/courses.js?v=1.1.0"></script>
     <script src="js/scoring.js?v=1.1.0"></script>
@@ -257,7 +261,7 @@
     <script src="js/bag.js?v=1.1.0"></script>
     <script src="js/postfx.js?v=1.1.0"></script>
     <script src="js/weather.js?v=1.1.0"></script>
-    <script src="js/render.js?v=1.1.0"></script>
+    <script src="js/render.js?v=1.1.1"></script>
     <script src="js/game.js?v=1.1.1"></script>
 </body>
 </html>

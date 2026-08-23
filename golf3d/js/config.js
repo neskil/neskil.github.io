@@ -119,5 +119,6 @@ G3.CONFIG = {
 
     SAVE_KEY: 'loftLinks.save.v1',
     MUTE_KEY: 'loftLinks.muted',
-    SEEN_KEY: 'loftLinks.seenHowTo'
+    SEEN_KEY: 'loftLinks.seenHowTo',
+    FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed'
 };

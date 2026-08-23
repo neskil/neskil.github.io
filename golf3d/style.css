@@ -233,39 +233,6 @@ canvas:active { cursor: grabbing; }
     canvas { aspect-ratio: 4 / 3; }
 }
 
-/* ── look controls (mobile) ─────────────────────────────────────────────── */
-
-/* Dragging the course both aims and shoots, so there was no way on a phone to
-   just spin the camera and look around. These sit clear of the bag and the
-   power meter and hold-to-rotate the aim/camera without ever loading a shot. */
-.look-ctl {
-    display: none;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    gap: 0.5rem;
-}
-
-@media (pointer: coarse) {
-    .look-ctl { display: flex; }
-}
-
-.look-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 999px;
-    border: 1px solid var(--panel-border);
-    background: var(--panel);
-    color: var(--ink);
-    font-size: 1.2rem;
-    line-height: 1;
-    backdrop-filter: blur(6px);
-    touch-action: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.look-btn:active { background: var(--accent-soft); border-color: var(--accent); }
-
 /* ── clubs and power ────────────────────────────────────────────────────── */
 
 .controls {
@@ -522,6 +489,62 @@ canvas:active { cursor: grabbing; }
 
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.bad { border-color: rgba(248, 113, 113, 0.5); color: var(--over); }
+
+/* ── fullscreen prompt ─────────────────────────────────────────────────── */
+
+/* The topbar chip does the same job, but it is one icon among six and easy
+   to miss. This says it once, plainly, when a round starts — and stays
+   dismissed once waved off, so it never nags. */
+.fs-prompt {
+    position: absolute;
+    left: 50%;
+    top: 64px;
+    transform: translate(-50%, -10px);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(5, 18, 28, 0.92);
+    border: 1px solid var(--panel-border);
+    color: var(--ink);
+    font-size: 0.82rem;
+    padding: 0.55rem 0.6rem 0.55rem 0.9rem;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 5;
+}
+
+.fs-prompt.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+
+.fs-prompt button { font: inherit; cursor: pointer; }
+
+#fs-prompt-go {
+    background: var(--accent);
+    color: #06212f;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#fs-prompt-dismiss {
+    background: transparent;
+    border: 0;
+    color: var(--ink-dim);
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+#fs-prompt-dismiss:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+
+@media (max-width: 560px) {
+    .fs-prompt span { display: none; }
+}
 
 .fallback {
     position: absolute;

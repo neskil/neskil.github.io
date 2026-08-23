@@ -50,7 +50,7 @@
             strokes: 0,
             scores: [],
             world: null,
-            aim: { yaw: 0, power: 0, show: false },
+            aim: { yaw: 0, power: 0, show: false, lock: false },
             club: clubById(state && state.club ? state.club.id : C.DEFAULT_CLUB),
             drag: null,
             save: state && state.save ? state.save : S.load(),
@@ -59,6 +59,7 @@
         closeMenu();
         closeCard();
         loadHole(0);
+        maybeShowFsPrompt();
     }
 
     function loadHole(i) {
@@ -74,6 +75,11 @@
         // Point the player at the cup to begin with; it is a suggestion, not a
         // solution — the cup is rarely straight ahead of anything.
         state.aim.yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
+        camYaw = 0;
+        camDrag = null;
+        state.aim.lock = false;
+        var lockBtn = $('btn-lock-aim');
+        if (lockBtn) { lockBtn.classList.remove('on'); lockBtn.textContent = '🔓 Aim'; }
 
         // The sky is part of the hole: chosen from the course and the hole
         // number, so it is the same sky every time you come back to this one.
@@ -120,6 +126,15 @@
         state.aim.power = Math.min(club.power, frac * club.power);
         syncClubs();
         syncPower();
+    }
+
+    // dir is +1 or -1; wraps round the bag either way, so a swipe the wrong
+    // way just walks backward instead of doing nothing.
+    function cycleClub(dir) {
+        if (!state) return;
+        var n = C.CLUBS.length;
+        var i = (C.CLUBS.indexOf(state.club) + dir + n) % n;
+        pickClub(C.CLUBS[i]);
     }
 
     function handleEvents(ev) {
@@ -355,18 +370,31 @@
        Anything that cancels a pull — a pinch that takes it, a pointercancel
        from the system — puts the aim back exactly where the pull found it. */
 
-    /* The look buttons are a way to spin the camera that a drag never gave you
-       on a phone: holding one turns the aim (and the camera behind it, which
-       is the same thing) at a steady rate and never arms a shot, because it
-       never touches state.aim.power or state.drag at all. */
-    var lookDir = 0;         // -1 left, 0 idle, 1 right, driven by pointer hold
-    var LOOK_RATE = 1.6;     // radians/sec
+    /* Locking the aim hands the same swipe to the camera instead of the shot:
+       state.aim.yaw stops moving, and the drag that would otherwise load a
+       pull turns state.camYaw — a free offset added on top of the locked aim
+       for display only — so looking around never touches power or arms a
+       shot. Unlocking bakes that offset back into the aim, so the camera does
+       not snap and the direction you were just looking becomes the one you
+       are aiming. */
+    var camYaw = 0;
+    var camDrag = null;      // { id, x, startYaw } while locked and dragging
+    var bagGesture = null;   // { id, x, y, hit, fired } while a press on the
+                              // bag or a club is still deciding tap vs. swipe
 
-    function lookStart(dir) {
-        lookDir = dir;
-        if (state && state.phase === 'aim') state.aim.show = true;
+    function setAimLock(on) {
+        if (!state) return;
+        if (state.aim.lock && !on) state.aim.yaw += camYaw;
+        state.aim.lock = on;
+        camYaw = 0;
+        camDrag = null;
+        var btn = $('btn-lock-aim');
+        if (btn) {
+            btn.classList.toggle('on', on);
+            btn.textContent = on ? '🔒 Aim' : '🔓 Aim';
+        }
     }
-    function lookStop() { lookDir = 0; }
+    function toggleAimLock() { setAimLock(!(state && state.aim.lock)); }
 
     var pointers = {};       // live pointers on the canvas, keyed by pointerId
     var pinchIds = null;     // the two the pinch is measuring, so lifting a
@@ -441,19 +469,12 @@
         if (pinching) return;
 
         // The bag is in front of everything else, so it is asked first: a
-        // press that lands on it is a press on the picker, not a shot.
+        // press that lands on it is a press on the picker, not a shot. Which
+        // of those it turns into waits for the release — a swipe over it
+        // switches clubs instead, so both gestures share the same press.
         var hit = R.pickAt ? R.pickAt(ndcX(e), ndcY(e)) : null;
-        if (hit === 'bag') {
-            G3.bag.toggle();
-            A.tick(G3.bag.isExpanded() ? 0.7 : 0.3);
-            syncPicker();
-            return;
-        }
         if (hit) {
-            pickClub(clubById(hit));
-            G3.bag.setExpanded(false);
-            A.tick(1);
-            syncPicker();
+            bagGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, hit: hit, fired: false };
             return;
         }
         // A press anywhere else shuts the picker; it does not also play a shot,
@@ -465,6 +486,14 @@
         }
 
         if (state.phase !== 'aim') return;
+
+        if (state.aim.lock) {
+            // Locked, the same press turns the camera instead of the shot: no
+            // power, no drag, so releasing it can never fire.
+            camDrag = { id: e.pointerId, x: e.clientX, startYaw: camYaw };
+            return;
+        }
+
         state.drag = {
             id: e.pointerId, x: e.clientX, y: e.clientY, notch: 0,
             yaw: state.aim.yaw, power: state.aim.power, show: state.aim.show,
@@ -485,6 +514,27 @@
             pinchDist = d;
             return;
         }
+
+        if (bagGesture && bagGesture.id === e.pointerId) {
+            var bdx = e.clientX - bagGesture.x, bdy = e.clientY - bagGesture.y;
+            // A clean, mostly-sideways flick past the deadzone is a swipe;
+            // anything smaller is still open for a tap on release. Fires once
+            // per press, same as a key press would.
+            if (!bagGesture.fired && Math.abs(bdx) > 26 && Math.abs(bdx) > Math.abs(bdy) * 1.4) {
+                bagGesture.fired = true;
+                cycleClub(bdx < 0 ? 1 : -1);
+            }
+            return;
+        }
+
+        if (camDrag && camDrag.id === e.pointerId) {
+            // Screen-right spins the view the same way a shot pull would send
+            // the ball the other way, so a swipe here reads like the one you
+            // already know: right goes right.
+            camYaw = camDrag.startYaw - (e.clientX - camDrag.x) * 0.012;
+            return;
+        }
+
         if (!state || !state.drag || state.drag.id !== e.pointerId) return;
         var dx = e.clientX - state.drag.x;
         var dy = e.clientY - state.drag.y;
@@ -515,6 +565,28 @@
     }
 
     function onUp(e) {
+        if (bagGesture && bagGesture.id === e.pointerId) {
+            var fired = bagGesture.fired, hit = bagGesture.hit;
+            bagGesture = null;
+            forget(e.pointerId);
+            if (fired) return;
+            if (hit === 'bag') {
+                G3.bag.toggle();
+                A.tick(G3.bag.isExpanded() ? 0.7 : 0.3);
+                syncPicker();
+            } else {
+                pickClub(clubById(hit));
+                G3.bag.setExpanded(false);
+                A.tick(1);
+                syncPicker();
+            }
+            return;
+        }
+        if (camDrag && camDrag.id === e.pointerId) {
+            camDrag = null;
+            forget(e.pointerId);
+            return;
+        }
         var owned = !!(state && state.drag && state.drag.id === e.pointerId);
         forget(e.pointerId);
         if (!owned) return;
@@ -526,6 +598,8 @@
     // The system took the pointer away — a palm, a notification, an edge
     // swipe. That is not a shot, so put the aim back.
     function onCancel(e) {
+        if (bagGesture && bagGesture.id === e.pointerId) { bagGesture = null; forget(e.pointerId); return; }
+        if (camDrag && camDrag.id === e.pointerId) { camDrag = null; forget(e.pointerId); return; }
         var owned = !!(state && state.drag && state.drag.id === e.pointerId);
         forget(e.pointerId);
         if (owned) cancelDrag();
@@ -567,12 +641,16 @@
         if (k === 'c' || k === 'C') {
             // C cycles; with the bag open it walks the row instead of shutting
             // it, which is how you compare two clubs without the mouse.
-            pickClub(C.CLUBS[(C.CLUBS.indexOf(state.club) + 1) % C.CLUBS.length]);
+            cycleClub(1);
             syncPicker();
             return;
         }
         if (k === 'b' || k === 'B') {
             if (G3.bag) { G3.bag.toggle(); syncPicker(); }
+            return;
+        }
+        if (k === 'l' || k === 'L') {
+            toggleAimLock();
             return;
         }
 
@@ -590,22 +668,6 @@
         } else if (k === ' ') {
             shoot(); e.preventDefault();
         }
-    }
-
-    // Held to spin the look, released (or interrupted) to stop it — the same
-    // three ways a drag on the canvas can end, so a call away from the app or
-    // a stray system gesture never leaves it spinning.
-    function bindLookButton(btn, dir) {
-        if (!btn) return;
-        btn.addEventListener('pointerdown', function (e) {
-            e.preventDefault();
-            try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
-            lookStart(dir);
-        });
-        btn.addEventListener('pointerup', lookStop);
-        btn.addEventListener('pointercancel', lookStop);
-        btn.addEventListener('pointerleave', lookStop);
-        btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     }
 
     function toggleOverview() {
@@ -635,9 +697,27 @@
         var on = !!fullscreenElement();
         $('btn-full').classList.toggle('on', on);
         document.body.classList.toggle('is-full', on);
+        if (on) dismissFsPrompt(false);
         // The canvas has a new size the moment the browser swaps modes, and
         // again when it swaps back.
         setTimeout(function () { R.resize(); }, 60);
+    }
+
+    /* The chip in the topbar does the same job, but it is one small icon among
+       six others and easy to never notice. This is the same offer said once,
+       plainly, right where a round starts — and it remembers being waved off,
+       so it is not something to dismiss twice. */
+    function fsPromptDismissed() {
+        try { return localStorage.getItem(C.FS_PROMPT_KEY) === '1'; } catch (e) { return false; }
+    }
+    function dismissFsPrompt(remember) {
+        $('fs-prompt').classList.remove('show');
+        if (remember) { try { localStorage.setItem(C.FS_PROMPT_KEY, '1'); } catch (e) { /* ignore */ } }
+    }
+    function maybeShowFsPrompt() {
+        if (fsPromptDismissed() || fullscreenElement()) return;
+        if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
+        $('fs-prompt').classList.add('show');
     }
 
     var menuAfterHowTo = false;
@@ -739,11 +819,7 @@
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
 
-        if (lookDir && state.phase === 'aim' && !state.drag) {
-            state.aim.yaw += lookDir * LOOK_RATE * dt;
-        }
-
-        R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw;
+        R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw + (state.aim.lock ? camYaw : 0);
         R.frame(dt, state.world, {
             show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
             yaw: state.aim.yaw,
@@ -793,13 +869,14 @@
         $('btn-courses').addEventListener('click', openMenu);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', toggleOverview);
+        $('btn-lock-aim').addEventListener('click', toggleAimLock);
+        $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });
+        $('fs-prompt-dismiss').addEventListener('click', function () { dismissFsPrompt(true); });
         $('btn-full').addEventListener('click', toggleFullscreen);
         $('btn-help').addEventListener('click', openHowTo);
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
         $('btn-weather').addEventListener('click', cycleWeather);
-        bindLookButton($('btn-look-left'), -1);
-        bindLookButton($('btn-look-right'), 1);
         $('howto-close').addEventListener('click', closeHowTo);
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);
