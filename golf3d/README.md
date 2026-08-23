@@ -86,6 +86,20 @@ the fan, with a label, pickable, with no markup and no CSS. Each head is turned
 by that club's own loft, which means the difference between the driver and the
 wedge is not a caption — it is the angle of the face you are looking at.
 
+The row that comes out is **measured, not tuned**. One row of four at a fixed
+size fits a laptop and runs off both edges of a phone held upright, because the
+frustum is half as wide as it is tall there and the row was a constant. So
+`fitOpen` divides instead: the frustum's two half-extents at the depth the clubs
+come to, against the block's own two half-extents from the layout, scaled to
+whichever binds. What is left of the screen after the panel naming the club and
+the power meter have taken theirs is measured in the DOM and handed over
+(`setBand`), because how tall a paragraph is at a given font on a given phone is
+not something the renderer could work out. A row is what the clubs are *for* —
+four heads side by side, compared at a glance — so it is what they get wherever
+the screen allows; below a floor where the heads stop being tellable apart it
+wraps into a grid, with its labels a full label apart since only a single row
+can stagger them into two heights.
+
 The first version was drawn from memory and came out looking like a bin, so the
 second is built to the real thing's numbers: a cart bag is about **35 inches
 tall with a 9–10.5 inch cuff** and fourteen full-length dividers — nearly four
@@ -398,19 +412,49 @@ Everything the player can reach lives in `index.html` and is wired in
 `game.js`; there is no framework and no state library, because there are about
 a dozen pieces of state and they all fit in one object.
 
+The rule the chrome is built to: **a thing that only needs saying once should
+only be said once**, and everything else should be one press away rather than
+permanently on screen. A phone is 400 points wide and the course is the point.
+
+- **The topbar** is one row and never more than one. Overview and fullscreen
+  stay out where a thumb can reach them mid-shot; Courses, restart, the card,
+  the rules and sound fold behind ☰ — a real menu that shuts on a press
+  outside it, on `Escape`, and on picking anything out of it. Wide enough for
+  all seven and the wrapper drops out of the layout entirely
+  (`display: contents`) and the chips sit in the row as before.
+- **Compact chrome** is on wherever the immersive layout is — a narrow window, a
+  touch screen, or fullscreen on anything — and `game.js` decides it in one
+  place (`syncCompact`) so the bar's two modes cannot disagree with the
+  stylesheet's. In it the topbar stops standing above the canvas and starts
+  floating over it on a scrim, which is worth 50 to 90 points of course; the
+  scrim itself takes no presses, so a drag that starts on it still turns the
+  camera. Toggling it resizes the renderer, because the canvas has just been
+  handed the height the bar was standing in.
+- **The hole card** says what a hole is — name, blurb, par, distance, sky — when
+  the hole loads, and then leaves: four and a half seconds, or the moment you
+  touch the course, whichever comes first. It used to be a line of text pinned
+  under the hole's name for the whole round. The name in the scoreboard and the
+  overlay's drawer both ask for it back.
+- **The overlay** inside the stage carries the four figures that move during a
+  shot — hole, par, strokes, distance — on one line, and the three that merely
+  describe the hole behind a caret: name, blurb, and the sky, which is also the
+  button that changes it.
 - **How to play** opens by itself on a first visit — before the course picker,
   which appears when the rules are closed — and after that lives behind the `?`
   button and `H`. The flag is one key in `localStorage`.
-- **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *stage*, not the
-  document, so the canvas and every overlay inside it come along and the page
-  chrome does not. The scoreboard above the canvas is gone in that mode, so a
-  compact hole/par/strokes/distance strip appears inside the stage instead.
+- **Fullscreen** (`F`, or the ⛶ button) goes fullscreen on the *viewport*, not
+  the document, so the canvas and every overlay inside it come along and the
+  page chrome does not. The scoreboard above the canvas is gone in that mode,
+  and the compact overlay takes over. The one-off offer to use it sits out of
+  the play area and times out rather than waiting to be dismissed.
 - **To cup** in the scoreboard counts down live while the ball rolls. It is the
   number the club choice is actually about.
 - The **club picker** is the modelled bag described above. What is left in the
-  DOM is the line of text under the meter, which names the club in hand and is
-  also what a screen reader is told; the number keys do everything the bag
-  does.
+  DOM is the panel above the row, which names whatever is under the pointer;
+  opening it hides everything else floating over the course, because four
+  turning clubs are hard enough to read without an overlay on top of them.
+- **The reminders below the fold** — the controls and what the course is made
+  of — are `<details>` panels. They are worth having and not worth a screenful.
 
 ## Weather
 

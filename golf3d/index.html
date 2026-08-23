@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.2.0">
+    <link rel="stylesheet" href="style.css?v=1.3.0">
 </head>
 <body>
     <div class="wrap">
@@ -40,28 +40,38 @@
            whole viewport, so the course starts full screen and the rest of the
            page waits below the fold. -->
       <div class="viewport" id="viewport">
+        <!-- The topbar is one row and never more than one: the two chips worth
+             a thumb during a shot stay out, the rest fold behind ☰. On a phone
+             and in fullscreen it floats over the course rather than standing
+             above it, because a slab of chrome is a slab of course you cannot
+             see. -->
         <div class="topbar">
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
-            <div>
+            <div class="brand">
                 <h1 class="title">Loft <span>Links</span></h1>
                 <p class="tagline">Three courses. Eighteen holes. Four clubs, and one of them flies.</p>
             </div>
             <div class="topbar-actions">
-                <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                 <button class="chip" id="btn-view" title="Look at the whole hole (V)">Overview</button>
-                <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
-                <button class="chip" id="btn-card" title="Scorecard">Card</button>
-                <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?</button>
                 <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶</button>
-                <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute">🔊</button>
+                <div class="topbar-menu" id="topbar-menu">
+                    <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
+                    <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
+                    <button class="chip" id="btn-card" title="Scorecard">Card</button>
+                    <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
+                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute"><span id="mute-icon">🔊</span><span class="chip-text"> Sound</span></button>
+                </div>
+                <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
+                        aria-expanded="false" aria-controls="topbar-menu">☰</button>
             </div>
         </div>
 
         <div class="scoreboard">
             <div class="stat">
                 <div class="stat-label"><span id="course-name">—</span> · Hole <span id="hole-num">1 / 6</span></div>
-                <div class="hole-name" id="hole-name">—</div>
-                <div class="hole-blurb" id="hole-blurb">—</div>
+                <!-- The hole's name is a button: what the hole *is* was said once
+                     on the card when it loaded, and this asks for it again. -->
+                <button type="button" class="hole-name" id="hole-name" title="What this hole is">—</button>
                 <button type="button" class="hole-sky" id="btn-weather"
                         title="Change the weather (W)">
                     <span id="sky-icon">☀</span>
@@ -103,13 +113,32 @@
                 <p class="picker-stats" id="picker-stats"></p>
             </div>
 
+            <!-- Six figures on one line is a paragraph; the four that change
+                 during a shot stay up, and the three that describe the hole
+                 (name, blurb, sky) live one tap down. -->
             <div class="stage-hud" id="stage-hud">
-                <span id="shud-hole">Hole 1/6</span>
-                <span id="shud-name" class="shud-name">—</span>
-                <span id="shud-par">Par 3</span>
-                <span id="shud-strokes">0 strokes</span>
-                <span id="shud-dist">—</span>
-                <span id="shud-sky">☀ Clear</span>
+                <button type="button" class="hud-line" id="hud-toggle"
+                        aria-expanded="false" aria-controls="hud-detail" title="This hole">
+                    <span id="shud-hole">1/6</span>
+                    <span id="shud-par">Par 3</span>
+                    <span id="shud-strokes">0</span>
+                    <span id="shud-dist">—</span>
+                    <span class="hud-caret" aria-hidden="true">▾</span>
+                </button>
+                <div class="hud-detail" id="hud-detail" hidden>
+                    <div class="hud-name" id="shud-name">—</div>
+                    <div class="hud-blurb" id="shud-blurb">—</div>
+                    <button type="button" class="hud-sky" id="shud-sky" title="Change the weather (W)">☀ Clear</button>
+                </div>
+            </div>
+
+            <!-- What the hole is, said once when it loads and then out of the
+                 way. The scoreboard name and the overlay both ask for it back. -->
+            <div class="hole-card" id="hole-card" aria-live="polite">
+                <p class="hc-eyebrow" id="hc-eyebrow">Hole 1 of 6</p>
+                <p class="hc-name" id="hc-name">—</p>
+                <p class="hc-blurb" id="hc-blurb">—</p>
+                <p class="hc-meta" id="hc-meta">—</p>
             </div>
 
             <div class="controls">
@@ -241,6 +270,10 @@
     </div>
       </div>
 
+        <!-- Below the fold, and folded: the reminders are worth having and not
+             worth a screenful. -->
+        <details class="panel">
+        <summary>Controls</summary>
         <div class="help">
             <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
@@ -249,7 +282,10 @@
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
+        </details>
 
+        <details class="panel">
+        <summary>What the course is made of</summary>
         <div class="legend">
             <span><i class="sw-grass"></i>Green — normal going</span>
             <span><i class="sw-sand"></i>Bunker — heavy going</span>
@@ -257,8 +293,10 @@
             <span><i class="sw-water"></i>Water — one stroke penalty</span>
             <span><i class="sw-gate"></i>Sliding gate</span>
             <span><i class="sw-blade"></i>Spinning blade</span>
-            <span>Course best: <b id="best-round">—</b></span>
         </div>
+        </details>
+
+        <p class="best-line">Course best: <b id="best-round">—</b></p>
     </div>
 
     <!-- three.js is vendored, r128, no build step and no CDN — same arrangement
@@ -272,10 +310,10 @@
     <script src="js/courses.js?v=1.1.0"></script>
     <script src="js/scoring.js?v=1.1.0"></script>
     <script src="js/audio.js?v=1.1.0"></script>
-    <script src="js/bag.js?v=1.1.4"></script>
+    <script src="js/bag.js?v=1.2.0"></script>
     <script src="js/postfx.js?v=1.1.0"></script>
     <script src="js/weather.js?v=1.1.0"></script>
     <script src="js/render.js?v=1.1.1"></script>
-    <script src="js/game.js?v=1.2.0"></script>
+    <script src="js/game.js?v=1.3.0"></script>
 </body>
 </html>
