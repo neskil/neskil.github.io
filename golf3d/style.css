@@ -264,7 +264,7 @@ canvas:active { cursor: grabbing; }
     left: 12px;
     right: 12px;
     bottom: 12px;
-    padding-left: min(30%, 260px);   /* the bag stands here */
+    padding-left: min(26%, 220px);   /* the bag stands here */
     display: flex;
     align-items: flex-end;
     gap: 0.9rem;

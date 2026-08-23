@@ -52,7 +52,8 @@
         // the shape of the screen, so they are recomputed rather than baked.
         cols: 0,
         openScale: 2,
-        openY: -0.26
+        openY: -0.26,
+        crest: 1.31          // how tall the bag stands with its clubs in it
     };
 
     /* ── materials ─────────────────────────────────────────────────────── */
@@ -542,6 +543,21 @@
     var OPEN_DEPTH = 1.3;      // how far in front of the lens the clubs come
     var MAX_OPEN = 2;          // and how big they are allowed to get there
 
+    /* And the corner the shut bag stands in, in the same spirit: how far out
+       toward the left edge, and how far its tallest head crests above whatever
+       the shot controls are using along the bottom. Fractions of the frame,
+       not distances in metres — a fixed offset in camera space is a different
+       place on every screen, and the one that tucked the bag into the corner
+       of a laptop put it off the side of a phone held upright, where the
+       frustum is half as wide but exactly as tall. */
+    var BAG_DEPTH = 1.5, BAG_SCALE = 0.52;
+    var BAG_EDGE = 0.78;       // 1 would be the left edge itself
+    var BAG_CLEAR = 0.16;      // in half-heights, above the controls' top
+    /* …and however deep the controls are, the heads crest somewhere between
+       these two. A tall monitor makes the meter a thin strip near the bottom,
+       and a bag that only had to clear that would sink out of sight. */
+    var BAG_LOW = -0.56, BAG_HIGH = -0.30;
+
     /* The band of the screen the clubs may use. Not the whole of it: the panel
        naming the club is along the top and the power meter and Swing are along
        the bottom, and a label that lands under either is a label nobody can
@@ -762,6 +778,14 @@
 
         scene.add(B.rig);
 
+        // How high the bag stands, from the clubs actually in it: the tallest
+        // head, from the well it rests in. A longer club in the config makes
+        // the bag sit lower rather than poking out of the top of the corner.
+        B.crest = 0;
+        B.clubs.forEach(function (c) {
+            B.crest = Math.max(B.crest, BAG_H - WELL + c.len);
+        });
+
         // A starting arrangement, so a club has somewhere to be before the
         // first frame has measured the window.
         relayoutOpen(B.clubs.length);
@@ -777,19 +801,32 @@
 
     var _off = new THREE.Vector3();
 
-    /* Parked at an offset in camera space and turned off-axis so it reads as an
-       object with sides. Opening slides the whole rig from the corner — where
-       it is deliberately half off the bottom of the screen — to the middle of
-       the view, and squares it up to the camera on the way. */
+    /* Parked in the corner of the frame and turned off-axis so it reads as an
+       object with sides. Opening slides the whole rig from there to the middle
+       of the view, squaring it up to the camera on the way.
+
+       Where that corner is gets worked out the same way the open row does:
+       against the frustum, so the bag stands in the same place on a laptop, a
+       phone on its side and a phone held upright. It is deliberately half off
+       the bottom and half off the left — only the cuff and the heads standing
+       in it are meant to show — but half off is a fraction, and the fixed
+       offsets this used before were a quarter of the way into a wide screen
+       and clean off the side of a narrow one. */
     function place(camera, aspect) {
         if (!B.ready) return;
         var k = B.open01;
-        var wide = aspect > 0.95;
 
-        // The bag: low in a corner, half of it below the bottom of the screen.
-        // Only the cuff and the heads standing in it are meant to show.
-        var cx = wide ? -0.76 : -0.48, cy = wide ? -0.88 : -0.96, cz = -1.5;
-        put(B.rig, camera, cx, cy, cz, 0.52, -0.62, 0.1);
+        var bagH = Math.tan((camera.fov || 52) * Math.PI / 360) * BAG_DEPTH;
+        var bagW = bagH * aspect;
+        var cz = -BAG_DEPTH;
+        var cx = -bagW * BAG_EDGE;
+        // Cresting just above the controls, wherever they have ended up: the
+        // heads are what say "your clubs are here", so they are the part that
+        // has to clear the meter, and the rest of the bag can go under it.
+        var crest = Math.max(BAG_LOW, Math.min(BAG_HIGH,
+            BAG_CLEAR - (1 - 2 * BAND.bottom)));
+        var cy = bagH * crest - B.crest * BAG_SCALE;
+        put(B.rig, camera, cx, cy, cz, BAG_SCALE, -0.62, 0.1);
 
         /* How the clubs are arranged, how big they get and how high they sit
            are all measured against this window, every frame — the lens opens as
@@ -807,7 +844,7 @@
             cx + (0 - cx) * k,
             cy + (B.openY - cy) * k,
             cz + (-OPEN_DEPTH - cz) * k,
-            0.52 + (B.openScale - 0.52) * k,   // they come up to the lens
+            BAG_SCALE + (B.openScale - BAG_SCALE) * k,   // up to the lens
             -0.62 + 0.62 * k,
             0.1 - 0.1 * k);
     }
