@@ -510,7 +510,7 @@
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
             map: labelTexture(club), transparent: true, opacity: 0, depthTest: false
         }));
-        sprite.scale.set(0.33, 0.115, 1);
+        sprite.scale.set(0.29, 0.10, 1);
         sprite.renderOrder = 20;
         return sprite;
     }
@@ -581,10 +581,18 @@
             // head rather than above it, because the open row is cropped to
             // the bottom of the screen and the heads already sit right
             // against the "pick a club" panel above.
+            //
+            // All four are up at once now, and the clubs stand closer
+            // together than a label is wide, so neighbours would overlap at
+            // a single height. Dropping alternate clubs a little further
+            // down staggers them into two rows — since every pair of
+            // *adjacent* clubs is one even, one odd, that is exactly the
+            // pairing that would otherwise collide.
             built.head.updateMatrixWorld(true);
             var headBox = new THREE.Box3().setFromObject(built.head);
             var headMid = headBox.getCenter(new THREE.Vector3());
-            label.position.set(headMid.x, headBox.min.y - 0.09, headMid.z);
+            var drop = 0.06 + (i % 2) * 0.17;
+            label.position.set(headMid.x, headBox.min.y - drop, headMid.z);
 
             B.clubRig.add(built.group);
             B.pickables.push(built.hit);
@@ -689,7 +697,6 @@
         B.clubs.forEach(function (c) {
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
-            var facing = chosen || B.hover === c.id;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
             // a fifth of the screen and the club in hand floats away from the
             // others instead of standing a little proud of them.
@@ -712,12 +719,12 @@
             c.now.glow += (glow - c.now.glow) * ease;
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
-            // Turning on its own axis while it is out of the bag, so the head
-            // can be seen from every side. The one in hand turns to face front
-            // instead of spinning, so it is obvious which is which — and so
-            // does whichever one is under the pointer, because a label is not
-            // worth reading while it is orbiting past.
-            var turn = c.now.ry + B.open01 * (facing ? 0 : 1) * B.spin;
+            // Turning on its own axis while it is in the bag, so a glance
+            // at the cuff still reads as four different heads. Once the row
+            // is out where it can be read, all four hold still instead —
+            // every club now carries its own label the whole time it is
+            // open, and a label is not worth reading while it orbits past.
+            var turn = c.now.ry + B.open01 * (B.expanded ? 0 : 1) * B.spin;
             c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
 
@@ -733,11 +740,11 @@
 
             // The full write-up still lives in the panel above (game.js,
             // where it can be read by a screen reader); this is the fast
-            // version, floating right over the club it is about — up while
-            // the row is open and the club is the one in hand or under the
-            // pointer, gone otherwise so four of them are never on at once.
+            // version, floating right over the club it belongs to, all four
+            // up together the moment the row is open so every club can be
+            // compared at a glance rather than one at a time.
             if (c.label) {
-                var wantOp = (B.expanded && facing) ? 1 : 0;
+                var wantOp = B.expanded ? 1 : 0;
                 c.now.labelOp += (wantOp - c.now.labelOp) * ease;
                 c.label.material.opacity = c.now.labelOp;
                 c.label.visible = c.now.labelOp > 0.01;
