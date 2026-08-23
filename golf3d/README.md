@@ -59,7 +59,7 @@ trusting this table, and the bot plays every hole out of this bag rather than
 with any loft the physics would accept, so "the courses are solvable" means
 solvable with the clubs a player actually has.
 
-Picking a club keeps the power you had already pulled back, as a fraction of the
+Picking a club keeps the power already loaded, as a fraction of the
 swing. Swapping mid-aim is meant to be a comparison, not a reset.
 
 ### The picker
@@ -335,28 +335,32 @@ cup on a slope does.
 
 ## The strike
 
-One gesture: press anywhere, pull *away* from where the ball should go, let go.
-Two decisions make that feel like a catapult rather than a pair of sliders.
+Three separate things, in the order you do them: **aim, load, swing.**
 
-**Power is the length of the pull, not its vertical part.** Pulling in any
-direction loads the shot, and the aim falls out of the angle for free — which is
-a full turn of aim in one gesture, without ever touching the camera.
+**Dragging the course only moves the view.** Sideways turns the aim, and the
+camera with it; up and down tilts the camera between looking along the shot and
+looking down onto it. No gesture out on the glass can cost a stroke, which is
+what lets you drag as much as you like while you read the hole — and it is the
+answer to the camera angle you could not change before.
 
-**The camera holds still for the whole pull.** It used to swing one-to-one with
-sideways drag, which spun the world under your thumb at exactly the moment you
-were trying to be precise; now it keeps the yaw it had when the pull began and
-eases in behind the shot once the ball is away.
+**Power is loaded on the meter**, which is a real slider: press anywhere along
+it, drag to trim, tab to it and use the arrows, `Home` and `End`. It is exact,
+repeatable, and independent of the aim, so correcting one never disturbs the
+other.
 
-**One finger owns the shot.** The pull follows the pointer that started it and
-no other, from press to release. A second finger landing while a pull is loaded
-is ignored — it is almost always the hand holding the phone, and the pull it
-used to throw away was worth more than the zoom it would have started. With
-nothing loaded there is nothing to lose, so two fingers mean pinch, and the
-pinch holds the input until every finger is off the glass, which is what stops
-the aim jumping when one thumb comes up before the other. Anything that cancels
-a pull — a pinch that takes it, a `pointercancel` from the system — puts the aim
-back exactly where the pull found it, rather than leaving the meter stuck at the
-number it died on.
+**Swing plays the shot**, and nothing else does — the button, or `space`. It is
+disabled while there is nothing loaded and while the ball is still rolling, so
+it says what the game will accept rather than swallowing the press. The `‹` and
+`›` buttons beside it nudge the aim by a hair, which is the part a drag is too
+coarse for on a short putt.
+
+This replaced a slingshot — press, pull away, let go. It read well with a mouse,
+but it fused aim and power into one throw you could not correct: every
+adjustment to one was an adjustment to both, and a finger leaving the glass a
+pixel early was a played stroke. Two fingers still mean pinch-to-zoom, and a
+pinch now interrupts a look drag rather than throwing away a loaded shot; the
+pinch holds the input until every finger is off the glass, so a leftover thumb
+cannot start turning the camera on its own.
 
 **The aim line rides through one wall.** `previewPath` normally stops where the
 shot stops being a shot — a landing, the water, the cup — because drawing the

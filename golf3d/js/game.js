@@ -50,7 +50,7 @@
             strokes: 0,
             scores: [],
             world: null,
-            aim: { yaw: 0, power: 0, show: false, lock: false },
+            aim: { yaw: 0, power: 0, show: true },
             club: clubById(state && state.club ? state.club.id : C.DEFAULT_CLUB),
             drag: null,
             save: state && state.save ? state.save : S.load(),
@@ -71,15 +71,11 @@
         state.world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 0);
         state.phase = 'aim';
         state.aim.power = 0;
-        state.aim.show = false;
+        state.aim.show = true;
         // Point the player at the cup to begin with; it is a suggestion, not a
         // solution — the cup is rarely straight ahead of anything.
         state.aim.yaw = Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z);
-        camYaw = 0;
-        camDrag = null;
-        state.aim.lock = false;
-        var lockBtn = $('btn-lock-aim');
-        if (lockBtn) { lockBtn.classList.remove('on'); lockBtn.textContent = '🔓 Aim'; }
+        look = null;
 
         // The sky is part of the hole: chosen from the course and the hole
         // number, so it is the same sky every time you come back to this one.
@@ -106,7 +102,7 @@
 
         state.strokes++;
         state.phase = 'rolling';
-        state.aim.show = false;
+        syncSwing();
         // Everything that says "that was a hit": the spray off the club, the
         // camera flinching, and a thump that grows with the swing.
         R.divot(b.x, b.y - C.BALL_R, b.z, state.aim.yaw, frac, lie && lie.pad.kind);
@@ -179,6 +175,7 @@
         var hole = state.course.holes[state.holeIndex];
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
+        syncSwing();
 
         var t = S.term(state.strokes, hole.par);
         if (t.kind === 'ace') A.ace(); else A.sink();
@@ -306,6 +303,18 @@
         $('power-fill').style.color = $('power-fill').style.background = 'hsl(' + hue + ' 85% 55%)';
         $('power-val').textContent = Math.round(frac * 100) + '%';
         $('power-fill').parentNode.classList.toggle('hot', hot);
+        $('power-track').setAttribute('aria-valuenow', Math.round(frac * 100));
+        syncSwing();
+    }
+
+    /* Swing is the only thing that plays a stroke, so it says plainly when it
+       cannot: nothing loaded, or the ball is still moving. */
+    function syncSwing() {
+        var btn = $('btn-swing');
+        if (!btn) return;
+        var ready = state.phase === 'aim' && state.aim.power >= C.MIN_POWER;
+        btn.disabled = !ready;
+        btn.classList.toggle('ready', ready);
     }
 
     /* The club in hand lives in the bag now — a modelled one, parked in front
@@ -344,62 +353,29 @@
 
     /* ── input ──────────────────────────────────────────────────────────────
 
-       The shot is a slingshot, and it is one gesture: press anywhere, pull away
-       from where you want the ball to go, let go. How far you pull is how hard
-       you hit; the *direction* you pull is the direction you do not go.
+       Three separate things, in the order you do them: aim, load, swing.
 
-       Two things make that feel right rather than fiddly. The camera holds
-       still for the whole pull — it used to swing one-to-one with sideways
-       drag, which spun the world under your thumb just as you were trying to
-       be precise — and it eases in behind the shot once the ball is away. And
-       power comes from the length of the pull rather than its vertical part, so
-       a pull in any direction loads the shot and the aim comes out of the angle
-       for free. That is worth a full turn of aim in one gesture, without ever
-       touching the camera. */
+       Dragging the course only ever moves the camera and the aim with it —
+       sideways turns, up and down tilts — so no gesture out on the glass can
+       cost a stroke. Power is loaded on the meter at the bottom, which is a
+       real slider you can drag, tab to and nudge with the arrows. The shot
+       waits for the Swing button (or space).
 
-    /* Multitouch is the part that used to bite. A second finger landing on the
-       glass would throw away whatever pull was loaded, leave the power meter
-       stuck at the number it died on, and snap the camera round to the
-       half-drawn angle — a shot lost to the hand that was only holding the
-       phone. Three rules fix it:
+       This replaced a slingshot: press, pull away, let go. The pull was one
+       fluid gesture and read well on a desktop, but it fused aim and power
+       into a single throw you could not correct — every adjustment to one was
+       an adjustment to both, and a finger leaving the glass a pixel early was
+       a played stroke. Splitting the three lets you line the shot up, look
+       around it from any angle, and only then commit. */
 
-         · One finger owns the shot. The pull follows *that* pointer and no
-           other, from press to release, so a stray touch cannot move the aim.
-         · A loaded pull outranks a pinch. Once the pull is past the deadzone
-           the second finger is ignored; before that there is nothing to lose,
-           so two fingers mean zoom.
-         · A pinch holds the input until every finger is off the glass. A
-           leftover finger from a pinch cannot start a shot, which is what
-           stopped the aim jumping when one thumb came up before the other.
-
-       Anything that cancels a pull — a pinch that takes it, a pointercancel
-       from the system — puts the aim back exactly where the pull found it. */
-
-    /* Locking the aim hands the same swipe to the camera instead of the shot:
-       state.aim.yaw stops moving, and the drag that would otherwise load a
-       pull turns state.camYaw — a free offset added on top of the locked aim
-       for display only — so looking around never touches power or arms a
-       shot. Unlocking bakes that offset back into the aim, so the camera does
-       not snap and the direction you were just looking becomes the one you
-       are aiming. */
-    var camYaw = 0;
-    var camDrag = null;      // { id, x, startYaw } while locked and dragging
+    /* Multitouch still matters, but it has far less to lose now: a second
+       finger on the glass means pinch-to-zoom, and it takes over from a look
+       drag rather than throwing away a loaded shot. A pinch holds the input
+       until every finger is off the glass, so a leftover thumb cannot start
+       turning the camera on its own. */
+    var look = null;         // { id, x, y, yaw, pitch } while dragging the view
     var bagGesture = null;   // { id, x, y, hit, fired } while a press on the
                               // bag or a club is still deciding tap vs. swipe
-
-    function setAimLock(on) {
-        if (!state) return;
-        if (state.aim.lock && !on) state.aim.yaw += camYaw;
-        state.aim.lock = on;
-        camYaw = 0;
-        camDrag = null;
-        var btn = $('btn-lock-aim');
-        if (btn) {
-            btn.classList.toggle('on', on);
-            btn.textContent = on ? '🔒 Aim' : '🔓 Aim';
-        }
-    }
-    function toggleAimLock() { setAimLock(!(state && state.aim.lock)); }
 
     var pointers = {};       // live pointers on the canvas, keyed by pointerId
     var pinchIds = null;     // the two the pinch is measuring, so lifting a
@@ -433,8 +409,7 @@
     }
 
     function onHover(e) {
-        if (pinching) return;
-        if (state && state.drag) return;
+        if (pinching || look) return;
         if (!G3.bag || !R.pickAt) return;
         var hit = R.pickAt(ndcX(e), ndcY(e));
         var was = G3.bag.state.hover;
@@ -445,15 +420,13 @@
         if (G3.bag.state.hover !== was) syncPicker();
     }
 
-    // Undo a pull as if it had never started: same aim, same power, same
-    // camera. Used when a pinch takes the gesture or the system cancels it.
-    function cancelDrag() {
-        if (!state || !state.drag) return;
-        state.aim.yaw = state.drag.yaw;
-        state.aim.power = state.drag.power;
-        state.aim.show = state.drag.show;
-        state.drag = null;
-        syncPower();
+    // Put the view back where the drag found it. Used when a pinch takes the
+    // gesture over, or when the system cancels it out from under us.
+    function cancelLook() {
+        if (!look || !state) return;
+        state.aim.yaw = look.yaw;
+        R.cam.pitch = look.pitch;
+        look = null;
     }
 
     function onDown(e) {
@@ -464,9 +437,9 @@
         if (!state) return;
 
         if (Object.keys(pointers).length >= 2) {
-            // A pull worth keeping is worth more than the zoom this would be.
-            if (state.drag && state.aim.power > 0) return;
-            cancelDrag();
+            // Two fingers mean zoom; the look drag they interrupt goes back to
+            // where it started rather than ending somewhere half-turned.
+            cancelLook();
             pinching = true;
             seedPinch();
             return;
@@ -482,29 +455,18 @@
             bagGesture = { id: e.pointerId, x: e.clientX, y: e.clientY, hit: hit, fired: false };
             return;
         }
-        // A press anywhere else shuts the picker; it does not also play a shot,
-        // because a click meant for a club that missed should not cost a stroke.
+        // A press anywhere else shuts the picker rather than turning the view,
+        // so the drag that dismisses it cannot also swing the camera round.
         if (G3.bag && G3.bag.isExpanded()) {
             G3.bag.setExpanded(false);
             syncPicker();
             return;
         }
 
-        if (state.phase !== 'aim') return;
-
-        if (state.aim.lock) {
-            // Locked, the same press turns the camera instead of the shot: no
-            // power, no drag, so releasing it can never fire.
-            camDrag = { id: e.pointerId, x: e.clientX, startYaw: camYaw };
-            return;
-        }
-
-        state.drag = {
-            id: e.pointerId, x: e.clientX, y: e.clientY, notch: 0,
-            yaw: state.aim.yaw, power: state.aim.power, show: state.aim.show,
-            camYaw: R.cam.yaw
-        };
-        state.aim.show = true;
+        // Looking around is allowed at any time — while the ball rolls too,
+        // since the camera is following it and you may want another angle on
+        // where it is going.
+        look = { id: e.pointerId, x: e.clientX, y: e.clientY, yaw: state.aim.yaw, pitch: R.cam.pitch };
     }
 
     function onMove(e) {
@@ -532,41 +494,12 @@
             return;
         }
 
-        if (camDrag && camDrag.id === e.pointerId) {
-            // Screen-right spins the view the same way a shot pull would send
-            // the ball the other way, so a swipe here reads like the one you
-            // already know: right goes right.
-            camYaw = camDrag.startYaw - (e.clientX - camDrag.x) * 0.012;
-            return;
+        if (look && look.id === e.pointerId) {
+            // Screen-right spins the view to the right, and dragging down
+            // lifts the camera, the way pushing the ground away would.
+            state.aim.yaw = look.yaw - (e.clientX - look.x) * 0.008;
+            R.cam.pitch = Math.max(0.06, Math.min(1.3, look.pitch + (e.clientY - look.y) * 0.004));
         }
-
-        if (!state || !state.drag || state.drag.id !== e.pointerId) return;
-        var dx = e.clientX - state.drag.x;
-        var dy = e.clientY - state.drag.y;
-        var pull = Math.hypot(dx, dy);
-
-        if (pull < C.DRAG_DEADZONE) {
-            // Too small to mean anything: leave the aim where it was rather
-            // than letting a twitch spin it.
-            state.aim.power = 0;
-            syncPower();
-            return;
-        }
-
-        /* The ball leaves along the reverse of the pull. Screen-right is world
-           -x with the camera behind the ball, which is why pulling toward the
-           bottom-right sends it away to the left. */
-        state.aim.yaw = state.drag.camYaw + Math.atan2(dx, dy);
-        state.aim.power = Math.min(1, pull / C.DRAG_MAX) * state.club.power;
-
-        // A ratchet as the power winds on, one notch per tenth. It is the
-        // difference between a slider and a drawn bow.
-        var notch = Math.floor((state.aim.power / state.club.power) * 10);
-        if (notch !== state.drag.notch) {
-            state.drag.notch = notch;
-            if (notch > 0) A.tick(notch / 10);
-        }
-        syncPower();
     }
 
     function onUp(e) {
@@ -587,27 +520,16 @@
             }
             return;
         }
-        if (camDrag && camDrag.id === e.pointerId) {
-            camDrag = null;
-            forget(e.pointerId);
-            return;
-        }
-        var owned = !!(state && state.drag && state.drag.id === e.pointerId);
+        if (look && look.id === e.pointerId) look = null;
         forget(e.pointerId);
-        if (!owned) return;
-        state.drag = null;
-        if (state.aim.power >= C.MIN_POWER) shoot();
-        else { state.aim.power = 0; syncPower(); }
     }
 
     // The system took the pointer away — a palm, a notification, an edge
-    // swipe. That is not a shot, so put the aim back.
+    // swipe. Nothing was loaded, so this only puts the view back.
     function onCancel(e) {
         if (bagGesture && bagGesture.id === e.pointerId) { bagGesture = null; forget(e.pointerId); return; }
-        if (camDrag && camDrag.id === e.pointerId) { camDrag = null; forget(e.pointerId); return; }
-        var owned = !!(state && state.drag && state.drag.id === e.pointerId);
+        if (look && look.id === e.pointerId) cancelLook();
         forget(e.pointerId);
-        if (owned) cancelDrag();
     }
 
     function forget(id) {
@@ -617,6 +539,66 @@
         // The pinch is over only once the glass is clear, so the finger still
         // resting there cannot start a shot on its own.
         if (!Object.keys(pointers).length) { pinching = false; pinchIds = null; pinchDist = 0; }
+    }
+
+    /* ── loading the shot ───────────────────────────────────────────────────
+
+       The meter is the only thing that sets power now, so it has to behave
+       like a control rather than a readout: press anywhere along it to load
+       that much, drag to trim, and the same nudges the arrow keys use. It
+       carries a slider role, so a keyboard or a screen reader gets the same
+       three moves as a thumb. */
+
+    function setPower(v) {
+        if (!state) return;
+        state.aim.power = Math.max(0, Math.min(state.club.power, v));
+        syncPower();
+    }
+
+    function nudgePower(by) {
+        setPower(state.aim.power + by);
+        // A tick on the way up, the way the drawn bow used to sound.
+        if (by > 0) A.tick(Math.max(0.1, state.aim.power / state.club.power));
+    }
+
+    function nudgeAim(by) {
+        if (!state || state.phase !== 'aim') return;
+        state.aim.yaw += by;
+    }
+
+    function powerFromEvent(e) {
+        var track = $('power-track');
+        var r = track.getBoundingClientRect();
+        if (!r.width) return;
+        setPower(((e.clientX - r.left) / r.width) * state.club.power);
+    }
+
+    var powerDrag = 0;       // pointerId owning the meter, 0 when nobody is
+
+    function onPowerDown(e) {
+        if (!state) return;
+        powerDrag = e.pointerId;
+        try { $('power-track').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        powerFromEvent(e);
+        e.preventDefault();
+    }
+    function onPowerMove(e) {
+        if (powerDrag !== e.pointerId) return;
+        powerFromEvent(e);
+    }
+    function onPowerUp(e) {
+        if (powerDrag !== e.pointerId) return;
+        powerDrag = 0;
+    }
+    function onPowerKey(e) {
+        var fine = e.shiftKey;
+        // The window handler would otherwise nudge a second time.
+        e.stopPropagation();
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudgePower(fine ? -0.15 : -0.55); e.preventDefault(); }
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudgePower(fine ? 0.15 : 0.55); e.preventDefault(); }
+        else if (e.key === 'Home') { setPower(0); e.preventDefault(); }
+        else if (e.key === 'End') { setPower(state.club.power); e.preventDefault(); }
+        else if (e.key === 'Enter' || e.key === ' ') { shoot(); e.preventDefault(); }
     }
 
     function zoom(delta) {
@@ -654,25 +636,14 @@
             if (G3.bag) { G3.bag.toggle(); syncPicker(); }
             return;
         }
-        if (k === 'l' || k === 'L') {
-            toggleAimLock();
-            return;
-        }
-
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) { e.preventDefault(); nextHole(); return; }
         if (state.phase !== 'aim') return;
 
-        if (k === 'ArrowLeft') { state.aim.yaw += fine ? 0.008 : 0.035; state.aim.show = true; e.preventDefault(); }
-        else if (k === 'ArrowRight') { state.aim.yaw -= fine ? 0.008 : 0.035; state.aim.show = true; e.preventDefault(); }
-        else if (k === 'ArrowUp') {
-            state.aim.power = Math.min(C.MAX_POWER, state.aim.power + (fine ? 0.15 : 0.55));
-            state.aim.show = true; syncPower(); e.preventDefault();
-        } else if (k === 'ArrowDown') {
-            state.aim.power = Math.max(0, state.aim.power - (fine ? 0.15 : 0.55));
-            state.aim.show = true; syncPower(); e.preventDefault();
-        } else if (k === ' ') {
-            shoot(); e.preventDefault();
-        }
+        if (k === 'ArrowLeft') { nudgeAim(fine ? 0.008 : 0.035); e.preventDefault(); }
+        else if (k === 'ArrowRight') { nudgeAim(fine ? -0.008 : -0.035); e.preventDefault(); }
+        else if (k === 'ArrowUp') { nudgePower(fine ? 0.15 : 0.55); e.preventDefault(); }
+        else if (k === 'ArrowDown') { nudgePower(fine ? -0.15 : -0.55); e.preventDefault(); }
+        else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
     function toggleOverview() {
@@ -680,19 +651,21 @@
         $('btn-view').classList.toggle('on', R.cam.overview);
     }
 
-    /* Fullscreen is on the stage, not the document, so the canvas and every
-       overlay inside it (power, clubs, banner, toast) come along and the page
-       chrome does not. Vendor-prefixed for the Safaris that still need it. */
+    /* Fullscreen is taken on the viewport rather than the stage: the topbar,
+       the overlay and the modals live inside it, so every control comes along
+       and there is no mode where the course is on screen but Overview,
+       Courses or the scorecard are not. Vendor-prefixed for the Safaris that
+       still need it. */
     function fullscreenElement() {
         return document.fullscreenElement || document.webkitFullscreenElement || null;
     }
 
     function toggleFullscreen() {
-        var stage = $('stage');
+        var el = $('viewport');
         if (fullscreenElement()) {
             (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        } else if (stage.requestFullscreen || stage.webkitRequestFullscreen) {
-            (stage.requestFullscreen || stage.webkitRequestFullscreen).call(stage);
+        } else if (el.requestFullscreen || el.webkitRequestFullscreen) {
+            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
         } else {
             toast('This browser will not do fullscreen here');
         }
@@ -824,9 +797,10 @@
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
 
-        R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw + (state.aim.lock ? camYaw : 0);
+        // The camera sits behind the aim, so turning one turns the other.
+        R.cam.yaw = state.aim.yaw;
         R.frame(dt, state.world, {
-            show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
+            show: state.phase === 'aim',
             yaw: state.aim.yaw,
             power: state.aim.power,
             loft: state.club.loft
@@ -874,7 +848,14 @@
         $('btn-courses').addEventListener('click', openMenu);
         $('btn-card').addEventListener('click', function () { openCard(null); });
         $('btn-view').addEventListener('click', toggleOverview);
-        $('btn-lock-aim').addEventListener('click', toggleAimLock);
+        $('btn-swing').addEventListener('click', shoot);
+        $('btn-aim-left').addEventListener('click', function () { nudgeAim(0.035); });
+        $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
+        $('power-track').addEventListener('pointerdown', onPowerDown);
+        $('power-track').addEventListener('pointermove', onPowerMove);
+        $('power-track').addEventListener('pointerup', onPowerUp);
+        $('power-track').addEventListener('pointercancel', onPowerUp);
+        $('power-track').addEventListener('keydown', onPowerKey);
         $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });
         $('fs-prompt-dismiss').addEventListener('click', function () { dismissFsPrompt(true); });
         $('btn-full').addEventListener('click', toggleFullscreen);
