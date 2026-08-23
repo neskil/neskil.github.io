@@ -1395,6 +1395,16 @@
         var hiPts = P.previewPath(world, aim.yaw, hi, aim.loft, seconds);
         var midPts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
 
+        /* Under MIN_POWER there is no shot to preview: launch() refuses it and
+           previewPath hands back nothing. Park the plane and the arrowhead
+           rather than reading the last point of an empty path — which is what
+           a freshly loaded hole does on every frame until the player winds a
+           swing on. The wedge, band and ring above still draw, because the
+           shot line is worth showing before there is a shot. */
+        R.pathPlane.visible = midPts.length > 1;
+        R.pathHead.visible = midPts.length > 1;
+        if (midPts.length < 2) return;
+
         var turn = -1;
         for (i = 1; i < midPts.length; i++) {
             if (midPts[i].bounce) { turn = i; break; }
