@@ -199,7 +199,7 @@
     var R = {
         ready: false,
         scene: null, camera: null, renderer: null,
-        holeGroup: null, ball: null, aimGroup: null, arcPoints: null, arrow: null,
+        holeGroup: null, ball: null, aimGroup: null, pathPlane: null, pathHead: null, arrow: null,
         flagCloth: null, flagPole: null, cupMesh: null,
         pin: null, flagSwivel: null, flagRest: null, pinShake: 0,
         movers: [],            // { mesh, wall } — updated from physics each frame
@@ -351,34 +351,54 @@
         R.ring.renderOrder = 7;
         R.aimGroup.add(R.ring);
 
-        // Predicted path, as a row of dots. A line would be one pixel wide on
-        // a phone; dots survive. Per-point colour so the stretch after a wall
-        // can be dimmed without a second object to keep in step.
+        /* Predicted path, as a filled plane rather than a row of dots. Two
+           power-perturbed arcs — a touch light, a touch heavy — bound a
+           quad-strip surface between them: the shape of it *is* the answer to
+           "how far could this go", spanning the min and max air time a loaded
+           shot could land at. An arrowhead at the loaded shot's own landing
+           point (or its first bounce) marks the one result actually aimed
+           at, without pretending the game can promise it. */
+        var perPath = 40;
+        R.pathPerPath = perPath;
+        var pvcount = (perPath - 1) * 6;
         var pg = new THREE.BufferGeometry();
-        pg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(120 * 3).fill(0), 3));
-        pg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(120 * 3).fill(1), 3));
-        R.arcPoints = new THREE.Points(pg, new THREE.PointsMaterial({
-            size: 0.16, map: R.tex.dot, transparent: true, opacity: 0.85,
-            depthTest: false, sizeAttenuation: true, vertexColors: true
+        pg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(pvcount * 3).fill(0), 3));
+        pg.setAttribute('color', new THREE.Float32BufferAttribute(new Array(pvcount * 3).fill(1), 3));
+        R.pathPlane = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+            vertexColors: true, depthTest: false
         }));
-        R.arcPoints.renderOrder = 6;
-        R.aimGroup.add(R.arcPoints);
+        R.pathPlane.renderOrder = 6;
+        R.pathPlane.frustumCulled = false;
+        R.aimGroup.add(R.pathPlane);
 
-        /* The kiss: one fat dot where the path meets a rail. The dots either
-           side of it already say which way the ball comes off; this says
-           *there*, which is the bit you are actually aiming at on a bank shot.
-           A single point rather than a mark on the ground, so it sits right
-           whether the ball meets the wall rolling or in the air. */
-        var kg = new THREE.BufferGeometry();
-        kg.setAttribute('position', new THREE.Float32BufferAttribute([0, -999, 0], 3));
-        R.kiss = new THREE.Points(kg, new THREE.PointsMaterial({
-            size: 0.34, map: R.tex.dot, transparent: true, opacity: 0.9,
-            depthTest: false, sizeAttenuation: true
+        var hg = new THREE.BufferGeometry();
+        hg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(3 * 3).fill(0), 3));
+        R.pathHead = new THREE.Mesh(hg, new THREE.MeshBasicMaterial({
+            color: 0xffffff, transparent: true, opacity: 0.95, side: THREE.DoubleSide,
+            depthTest: false
         }));
-        R.kiss.renderOrder = 7;
-        R.aimGroup.add(R.kiss);
+        R.pathHead.renderOrder = 7;
+        R.pathHead.frustumCulled = false;
+        R.aimGroup.add(R.pathHead);
 
         R.scene.add(R.aimGroup);
+    }
+
+    // One quad of the path plane, as two triangles: pA-pB-pC and pA-pC-pD.
+    function putPathQuad(arr, base, pA, pB, pC, pD) {
+        var idx = base * 3;
+        arr[idx] = pA.x; arr[idx + 1] = pA.y; arr[idx + 2] = pA.z;
+        arr[idx + 3] = pB.x; arr[idx + 4] = pB.y; arr[idx + 5] = pB.z;
+        arr[idx + 6] = pC.x; arr[idx + 7] = pC.y; arr[idx + 8] = pC.z;
+        arr[idx + 9] = pA.x; arr[idx + 10] = pA.y; arr[idx + 11] = pA.z;
+        arr[idx + 12] = pC.x; arr[idx + 13] = pC.y; arr[idx + 14] = pC.z;
+        arr[idx + 15] = pD.x; arr[idx + 16] = pD.y; arr[idx + 17] = pD.z;
+    }
+
+    function setPathQuadShade(col, base, shade) {
+        var idx = base * 3;
+        for (var v = 0; v < 6; v++) { col[idx + v * 3] = col[idx + v * 3 + 1] = col[idx + v * 3 + 2] = shade; }
     }
 
     /* A tail of where the ball has just been. Additive blending and a colour
@@ -1334,48 +1354,71 @@
         R.ring.material.color.copy(R.arrow.material.color);
         R.ring.visible = rawFrac > 0.02;
 
-        /* A cone of possible paths rather than one certain line: touch is too
-           coarse to load an exact number, and a single dotted parabola read as
-           a promise the game could not keep — the ball never quite landed
-           where the last dot sat. Three paths at a spread of power either side
-           of what is loaded stand in for that uncertainty; together they read
-           as a lane, not a prediction. The kiss dot is gone for the same
-           reason — it named one exact metre on the wall, which was the thing
-           this is trying to stop being honest about. */
+        // Touch is too coarse to load an exact number, so the plane spans a
+        // spread of power either side of what is loaded — its two edges are
+        // the lightest and heaviest this shot could actually be, and its
+        // width at any point is how much air time is still in question there.
         var lo = Math.max(C.MIN_POWER, aim.power * 0.82);
         var hi = Math.min(C.MAX_POWER, aim.power * 1.18);
-        var powers = [lo, aim.power, hi];
-        var shades = [0.55, 1, 0.55];
         var seconds = 0.5 + frac * 0.5;
+        var perPath = R.pathPerPath;
+        var i, k;
 
-        var arr = R.arcPoints.geometry.attributes.position.array;
-        var col = R.arcPoints.geometry.attributes.color.array;
-        var perPath = 40, i, j, k, n, pts, turn, shade;
-        for (j = 0; j < 3; j++) {
-            pts = P.previewPath(world, aim.yaw, powers[j], aim.loft, seconds);
-            turn = -1;
-            for (i = 1; i < pts.length; i++) {
-                if (pts[i].bounce) { turn = i; break; }
-            }
-            n = Math.min(perPath, pts.length);
-            for (i = 0; i < perPath; i++) {
-                var slot = j * perPath + i;
-                if (i < n) {
-                    k = Math.min(pts.length - 1, Math.round(i * ((pts.length - 1) / Math.max(1, n - 1))));
-                    arr[slot * 3] = pts[k].x;
-                    arr[slot * 3 + 1] = pts[k].y;
-                    arr[slot * 3 + 2] = pts[k].z;
-                    shade = shades[j] * ((turn >= 0 && k >= turn) ? 0.6 : 1);
-                    col[slot * 3] = col[slot * 3 + 1] = col[slot * 3 + 2] = shade;
-                } else {
-                    arr[slot * 3 + 1] = -999;
-                }
+        var loPts = P.previewPath(world, aim.yaw, lo, aim.loft, seconds);
+        var hiPts = P.previewPath(world, aim.yaw, hi, aim.loft, seconds);
+        var midPts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
+
+        var turn = -1;
+        for (i = 1; i < midPts.length; i++) {
+            if (midPts[i].bounce) { turn = i; break; }
+        }
+
+        var nSamples = Math.min(perPath, Math.min(loPts.length, hiPts.length));
+        var segCount = Math.max(0, nSamples - 1);
+        var turnFrac = (turn >= 0 && midPts.length > 1) ? turn / (midPts.length - 1) : -1;
+        var turnSample = turnFrac >= 0 ? Math.round(turnFrac * segCount) : -1;
+
+        var loArr = [], hiArr = [];
+        for (i = 0; i < nSamples; i++) {
+            var kl = Math.min(loPts.length - 1, Math.round(i * ((loPts.length - 1) / Math.max(1, nSamples - 1))));
+            var kh = Math.min(hiPts.length - 1, Math.round(i * ((hiPts.length - 1) / Math.max(1, nSamples - 1))));
+            loArr.push(loPts[kl]);
+            hiArr.push(hiPts[kh]);
+        }
+
+        var pos = R.pathPlane.geometry.attributes.position.array;
+        var col = R.pathPlane.geometry.attributes.color.array;
+        for (i = 0; i < perPath - 1; i++) {
+            var base = i * 6;
+            if (i < segCount) {
+                var shade = (1 - (i / segCount) * 0.4) * ((turnSample >= 0 && i >= turnSample) ? 0.5 : 1);
+                putPathQuad(pos, base, loArr[i], hiArr[i], hiArr[i + 1], loArr[i + 1]);
+                setPathQuadShade(col, base, shade);
+            } else {
+                for (var v = 0; v < 6; v++) pos[(base + v) * 3 + 1] = -999;
             }
         }
-        R.arcPoints.geometry.attributes.position.needsUpdate = true;
-        R.arcPoints.geometry.attributes.color.needsUpdate = true;
-        R.arcPoints.geometry.computeBoundingSphere();
-        R.kiss.visible = false;
+        R.pathPlane.geometry.attributes.position.needsUpdate = true;
+        R.pathPlane.geometry.attributes.color.needsUpdate = true;
+        R.pathPlane.geometry.computeBoundingSphere();
+
+        // The arrowhead: where the loaded shot itself lands, or first meets a
+        // wall — the one point in the plane that is actually being aimed at.
+        var headIdx = turn >= 0 ? turn : midPts.length - 1;
+        var headPos = midPts[headIdx];
+        var prevPos = midPts[Math.max(0, headIdx - 1)];
+        var hdx = headPos.x - prevPos.x, hdz = headPos.z - prevPos.z;
+        var hlen = Math.hypot(hdx, hdz) || 1;
+        hdx /= hlen; hdz /= hlen;
+        var hpx = -hdz, hpz = hdx;
+        var hs = 0.14 + frac * 0.05;
+        var hp = R.pathHead.geometry.attributes.position.array;
+        hp[0] = headPos.x - hpx * hs; hp[1] = headPos.y; hp[2] = headPos.z - hpz * hs;
+        hp[3] = headPos.x + hpx * hs; hp[4] = headPos.y; hp[5] = headPos.z + hpz * hs;
+        hp[6] = headPos.x + hdx * hs * 2; hp[7] = headPos.y; hp[8] = headPos.z + hdz * hs * 2;
+        R.pathHead.geometry.attributes.position.needsUpdate = true;
+        R.pathHead.geometry.computeBoundingSphere();
+        R.pathHead.material.color.copy(R.arrow.material.color);
     }
 
     /* Camera. The player never flies it directly: it sits behind the ball
