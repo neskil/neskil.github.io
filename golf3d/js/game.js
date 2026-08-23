@@ -355,6 +355,19 @@
        Anything that cancels a pull — a pinch that takes it, a pointercancel
        from the system — puts the aim back exactly where the pull found it. */
 
+    /* The look buttons are a way to spin the camera that a drag never gave you
+       on a phone: holding one turns the aim (and the camera behind it, which
+       is the same thing) at a steady rate and never arms a shot, because it
+       never touches state.aim.power or state.drag at all. */
+    var lookDir = 0;         // -1 left, 0 idle, 1 right, driven by pointer hold
+    var LOOK_RATE = 1.6;     // radians/sec
+
+    function lookStart(dir) {
+        lookDir = dir;
+        if (state && state.phase === 'aim') state.aim.show = true;
+    }
+    function lookStop() { lookDir = 0; }
+
     var pointers = {};       // live pointers on the canvas, keyed by pointerId
     var pinchIds = null;     // the two the pinch is measuring, so lifting a
                              // third finger cannot swap the pair under it
@@ -579,6 +592,22 @@
         }
     }
 
+    // Held to spin the look, released (or interrupted) to stop it — the same
+    // three ways a drag on the canvas can end, so a call away from the app or
+    // a stray system gesture never leaves it spinning.
+    function bindLookButton(btn, dir) {
+        if (!btn) return;
+        btn.addEventListener('pointerdown', function (e) {
+            e.preventDefault();
+            try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+            lookStart(dir);
+        });
+        btn.addEventListener('pointerup', lookStop);
+        btn.addEventListener('pointercancel', lookStop);
+        btn.addEventListener('pointerleave', lookStop);
+        btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    }
+
     function toggleOverview() {
         R.cam.overview = !R.cam.overview;
         $('btn-view').classList.toggle('on', R.cam.overview);
@@ -710,6 +739,10 @@
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
 
+        if (lookDir && state.phase === 'aim' && !state.drag) {
+            state.aim.yaw += lookDir * LOOK_RATE * dt;
+        }
+
         R.cam.yaw = state.drag ? state.drag.camYaw : state.aim.yaw;
         R.frame(dt, state.world, {
             show: state.phase === 'aim' && (state.aim.show || state.aim.power > 0),
@@ -765,6 +798,8 @@
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
         $('btn-weather').addEventListener('click', cycleWeather);
+        bindLookButton($('btn-look-left'), -1);
+        bindLookButton($('btn-look-right'), 1);
         $('howto-close').addEventListener('click', closeHowTo);
         $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
         document.addEventListener('fullscreenchange', onFullscreenChange);

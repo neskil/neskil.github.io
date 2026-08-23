@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.1.0">
+    <link rel="stylesheet" href="style.css?v=1.1.1">
 </head>
 <body>
     <div class="wrap">
@@ -107,6 +107,11 @@
                 <span id="shud-sky">☀ Clear</span>
             </div>
 
+            <div class="look-ctl" id="look-ctl">
+                <button type="button" class="look-btn" id="btn-look-left" aria-label="Look left">&#8634;</button>
+                <button type="button" class="look-btn" id="btn-look-right" aria-label="Look right">&#8635;</button>
+            </div>
+
             <div class="controls">
                 <div class="power">
                     <span class="ctl-label">Power <b id="power-val">0%</b></span>
@@ -138,7 +143,7 @@
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> hit (<kbd>shift</kbd> for fine control)</span>
             <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
-            <span class="touch-help">Pinch to zoom. Turn your phone sideways for a bigger course.</span>
+            <span class="touch-help">Pinch to zoom, hold <b>&#8634;</b>/<b>&#8635;</b> at top-right to look around without hitting. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
 
@@ -253,6 +258,6 @@
     <script src="js/postfx.js?v=1.1.0"></script>
     <script src="js/weather.js?v=1.1.0"></script>
     <script src="js/render.js?v=1.1.0"></script>
-    <script src="js/game.js?v=1.1.0"></script>
+    <script src="js/game.js?v=1.1.1"></script>
 </body>
 </html>
