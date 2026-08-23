@@ -67,17 +67,6 @@
 
         function approx(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 0.001 : eps); }
 
-        // Seeded PRNG so a failing bot run is reproducible rather than a
-        // "sometimes red" test nobody trusts.
-        function mulberry32(seed) {
-            return function () {
-                seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-                var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-                return ((t ^ t >>> 14) >>> 0) / 4294967296;
-            };
-        }
-
         var ALL = [];
         G3.COURSES.forEach(function (course) {
             course.holes.forEach(function (h) { ALL.push({ course: course, hole: h }); });
@@ -287,6 +276,26 @@
             assert('a step too tall to climb is not climbed', blocked.ball.z < 8.2,
                 'z = ' + blocked.ball.z.toFixed(2));
 
+            /* …and so does the face of that kerb when the ball meets it in
+               mid-air. Pads are surfaces rather than solids, so a ball flying
+               into the side of a step used to sail through the hillside and
+               drop out of the world underneath it. Hit low and hard enough to
+               still be climbing when it gets there: it must not end up on the
+               far side and it must not be lost. */
+            var flown = shootFrom(kerb, { x: 5, z: 2 }, 0, 20, 0.12);
+            assert('a ball flown into the face of a step does not pass through it',
+                !flown.out && flown.ball.z < 8.2,
+                (flown.out ? 'lost' : 'z = ' + flown.ball.z.toFixed(2)));
+
+            /* The same test must not close a bridge, and the difference is the
+               whole rule: under a bridge there is ground below the ball, inside
+               a hillside there is not. */
+            var span = lab({ pads: [A.pad(0, 0, 10, 20, 0), A.pad(3, 8, 4, 4, 1.4)] });
+            var under = shootFrom(span, { x: 5, z: 2 }, 0, 14, 0);
+            assert('a ball rolling under a bridge still gets through',
+                under.ball.z > 12 && under.ball.y < 1,
+                'z ' + under.ball.z.toFixed(2) + ' y ' + under.ball.y.toFixed(2));
+
             // Loft: a rail that stops a flat shot should be flyable.
             var fence = lab({ walls: [A.wall(0, 7, 10, 0.4, 0.5, { base: 0 })] });
             var flatShot = shootFrom(fence, { x: 5, z: 2 }, 0, 11, 0);
@@ -355,6 +364,46 @@
             // this deep.
             var lobbed = shootFrom(lab({ cup: { x: 5, z: 6.9 } }), { x: 5, z: 2 }, 0, 9.5, C.CLUBS[3].loft);
             assert('a ball that lands in the cup stays in', lobbed.sunk);
+
+            /* A raised green with an open edge — a tabletop, a summit — puts
+               air under the putting surface, and the shaft used to be an
+               infinitely deep well with no sides: a ball flying beneath the
+               green arrived inside the mouth from below or from the side and
+               was counted as holed without ever touching the green. Two
+               guards, one for each way in. */
+            var table = lab({
+                pads: [A.pad(0, 0, 10, 6), A.pad(3, 10, 5, 5, 1.2)],
+                cup: { x: 5, z: 12.5 }
+            });
+            assert('the tabletop cup is where the test thinks it is', approx(table.cup.y, 1.2));
+            assert('a ball passing under a raised green is not holed from below', (function () {
+                var t = P.createWorld(table, { x: 5, z: 4 }, 0);
+                P.launch(t, 0, 22, 0.07);
+                for (var i = 0; i < 400 && !P.done(t); i++) P.advance(t, C.SIM_DT);
+                return !t.sunk;
+            })(), 'it flew under the table and dropped in');
+            assert('and it is out of play rather than quietly forgotten', (function () {
+                var t = P.createWorld(table, { x: 5, z: 4 }, 0);
+                P.launch(t, 0, 22, 0.07);
+                P.settle(t);
+                return t.out || t.splash;
+            })());
+            assert('a ball crossing the mouth just under the rim is not holed', (function () {
+                // Launched from inside the table's own level, below the lip:
+                // the only way it reaches the shaft is sideways.
+                var t = P.createWorld(table, { x: 5, z: 4 }, 0);
+                t.ball.y = 1.2 - 0.2;
+                t.grounded = false;
+                P.launch(t, 0, 20, 0);
+                for (var i = 0; i < 400 && !P.done(t); i++) P.advance(t, C.SIM_DT);
+                return !t.sunk;
+            })());
+            assert('but a ball arriving across the green still drops in', (function () {
+                var t = P.createWorld(table, { x: 5, z: 11 }, 0);
+                P.launch(t, 0, 4.2, 0);
+                P.settle(t);
+                return t.sunk;
+            })());
 
             assert('a ball flying over the cup is not swallowed', (function () {
                 var t = P.createWorld(cupHole, { x: 5, z: 2 }, 0);
@@ -447,8 +496,8 @@
 
         section('Course data');
         (function () {
-            assert('three courses', G3.COURSES.length === 3);
-            assert('eighteen holes in total', ALL.length === 18);
+            assert('five courses', G3.COURSES.length === 5);
+            assert('thirty holes in total', ALL.length === 30);
             assert('courseById finds a course', G3.courseById('quarry').id === 'quarry');
             assert('courseById falls back to the first', G3.courseById('nope').id === G3.COURSES[0].id);
 
@@ -813,13 +862,14 @@
                has to go somewhere: without that rule the bot parks in a corner
                where every legal shot looks worse than standing still, and plays
                the same nothing until it runs out of strokes. */
-            function bestShot(hole, from, time, rnd) {
+            function bestShot(hole, from, time, bag) {
                 var cup = hole.cup;
                 var base = Math.atan2(cup.x - from.x, cup.z - from.z);
                 var moves = hole.walls.some(function (wl) { return wl.move || wl.spin; });
                 var waits = moves ? [0, 0.45, 0.95, 1.5] : [0];
                 var here = d2(from, cup);
                 var best = null;
+                bag = bag || C.CLUBS;
 
                 function consider(yaw, club, power, wait) {
                     var w = trial(hole, from, yaw, power, club.loft, time + wait);
@@ -834,7 +884,7 @@
                 }
 
                 var i, N = 16;
-                C.CLUBS.forEach(function (club) {
+                bag.forEach(function (club) {
                     for (i = 0; i < N; i++) {
                         [0.35, 0.7, 1].forEach(function (f) {
                             consider(base + (i / N) * Math.PI * 2, club, club.power * f, 0);
@@ -845,7 +895,7 @@
                 var b0 = best;
                 if (!b0) return null;
                 [-2, -1, 0, 1, 2].forEach(function (k) {
-                    C.CLUBS.forEach(function (club) {
+                    bag.forEach(function (club) {
                         [0.25, 0.5, 0.75, 1].forEach(function (f) {
                             waits.forEach(function (wait) {
                                 consider(b0.yaw + k * 0.11, club, club.power * f, wait);
@@ -865,12 +915,11 @@
                 return best;
             }
 
-            function play(hole, seed, maxStrokes) {
-                var rnd = mulberry32(seed);
+            function play(hole, maxStrokes, bag) {
                 var from = { x: hole.tee.x, z: hole.tee.z, y: hole.tee.y + C.BALL_R };
                 var time = 0, strokes = 0, penalties = 0, s, shot;
                 for (s = 0; s < maxStrokes; s++) {
-                    shot = bestShot(hole, from, time, rnd);
+                    shot = bestShot(hole, from, time, bag);
                     if (!shot) break;
                     strokes++;
                     time = shot.world.time;
@@ -888,7 +937,7 @@
             var b0 = performance.now();
             ALL.forEach(function (entry) {
                 var h = entry.hole;
-                var r = play(h, 12345, 8);
+                var r = play(h, 8);
                 assert(entry.course.id + '/' + h.name + ': the bot holes out with the clubs it has (par ' + h.par + ')',
                     r.sunk, r.sunk ? '' : 'gave up after ' + r.strokes + ' strokes');
                 if (r.sunk) {
@@ -897,6 +946,34 @@
                 }
             });
             note(sims + ' simulated shots in ' + Math.round(performance.now() - b0) + 'ms');
+
+            /* Some holes exist to be flown. Tidewater's islands and tabletop,
+               Highland's steps and its wall: on those the loft is the hole, and
+               a hole that turns out to have a quiet route along the floor is a
+               hole that has lost its point — usually because a rail moved or a
+               step got shorter, and always without anyone noticing.
+
+               So the same bot plays them again out of half a bag, with only the
+               clubs that keep the ball down, and has to fail. It is a stronger
+               statement than "the wedge works here": it is "nothing else does".
+               Holes without the flag are free to have a flat answer, and
+               several deliberately do — Under the Boardwalk wants one. */
+            var b1 = performance.now(), flatBag = [], marked = 0;
+            C.CLUBS.forEach(function (club) {
+                if (club.loft < 10 * Math.PI / 180) flatBag.push(club);
+            });
+            assert('there are flat clubs to try', flatBag.length >= 2);
+            ALL.forEach(function (entry) {
+                var h = entry.hole;
+                if (!h.needsLoft) return;
+                marked++;
+                var r = play(h, 10, flatBag);
+                assert(entry.course.id + '/' + h.name + ': cannot be played along the floor',
+                    !r.sunk, 'the flat bag holed out in ' + r.strokes);
+            });
+            assert('some holes are marked as needing loft', marked >= 6, marked + ' marked');
+            note(marked + ' holes checked against the flat bag in ' +
+                 Math.round(performance.now() - b1) + 'ms');
         })();
 
         /* ── done ──────────────────────────────────────────────────────── */

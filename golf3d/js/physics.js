@@ -219,7 +219,8 @@
             slowFor: 0,
             sunk: false,
             splash: false,
-            out: false
+            out: false,
+            overCup: false      // has the ball been over the mouth? see cupContact
         };
     }
 
@@ -235,7 +236,8 @@
             moving: w.moving,
             sunk: w.sunk,
             splash: w.splash,
-            out: w.out
+            out: w.out,
+            overCup: w.overCup
         };
     }
 
@@ -255,6 +257,7 @@
         world.moving = true;
         world.splash = false;
         world.out = false;
+        world.overCup = false;
         if (b.vy > 0.01) world.grounded = false;
         return true;
     }
@@ -327,7 +330,23 @@
         // Out of reach of the rim: nothing about the cup applies, whatever
         // height the ball is at. (Testing the height here instead would hand
         // the shaft to every ball on a level below the green.)
-        if (d > C.HOLE_R + C.BALL_R) return false;
+        if (d > C.HOLE_R + C.BALL_R) { world.overCup = false; return false; }
+
+        /* The mouth of the cup is open from above and from nowhere else.
+
+           The shaft is modelled as a cylinder with no sides above the rim,
+           which is fine while the only way to reach it is across the green.
+           Give a hole a raised green with an open edge — a tabletop, a summit,
+           a crater wall — and a ball can fly in *under* the putting surface,
+           arrive inside the mouth on the way past, and be counted as holed
+           from below. That is a hole in one that never touched the green.
+
+           So the shaft only accepts a ball that has been over it: centre
+           inside the mouth, at or above the rim. A putt crossing the lip
+           qualifies, a lob dropping in qualifies, and a shot passing beneath
+           the green does not. The flag clears as soon as the ball is out of
+           reach of the rim again, so a lip-out cannot bank the permission. */
+        if (d < C.HOLE_R && b.y >= cup.y) world.overCup = true;
 
         var ux = d > 1e-9 ? dx / d : 1, uz = d > 1e-9 ? dz / d : 0;
         var e = 1 + C.CUP_RESTITUTION;
@@ -350,8 +369,8 @@
         }
 
         // The shaft wall, once the ball's centre is under the green and inside
-        // the mouth of the hole.
-        if (b.y < cup.y && d < C.HOLE_R) {
+        // the mouth of the hole — and only for a ball that came in through it.
+        if (b.y < cup.y && d < C.HOLE_R && world.overCup) {
             var maxR = C.HOLE_R - C.BALL_R;
             if (d > maxR) {
                 b.x = cup.x + ux * maxR;
@@ -453,12 +472,42 @@
                 }
             }
         } else {
+            var px = b.x, pz = b.z;
             b.vy -= C.GRAVITY * dt;
             b.x += b.vx * dt;
             b.z += b.vz * dt;
             b.y += b.vy * dt;
 
             var land = surfaceUnder(hole, b.x, b.z, b.y);
+
+            /* A cliff met in mid-air. Pads are surfaces, not solids, so
+               nothing in the model stops a ball flying into the *side* of
+               something: it sails on through the hillside and out of the
+               world underneath. That is how a ball vanishes into a terrace
+               riser, and how one used to arrive in the mouth of a raised cup
+               from below and be counted as holed.
+
+               The test is "there is ground here and every bit of it is over
+               the ball's crown" — which is exactly what being inside a face
+               means, and exactly what being under a bridge is not: under a
+               bridge there is a pad below the ball, and this never fires.
+               Resolved one axis at a time, like the kerb backstop on the
+               ground, so a glancing blow slides along the face instead of
+               stopping dead. It costs two lookups and only over a void, which
+               is the only place the ball can be inside anything. */
+            if (!land) {
+                var lid = b.y + C.BALL_R;
+                if (!surfaceUnder(hole, b.x, b.z, lid) && surfaceUnder(hole, b.x, b.z, Infinity)) {
+                    if (!surfaceUnder(hole, b.x, pz, lid) && surfaceUnder(hole, b.x, pz, Infinity)) {
+                        b.x = px; b.vx = -b.vx * C.RESTITUTION; events.bounce = true;
+                    }
+                    if (!surfaceUnder(hole, px, b.z, lid) && surfaceUnder(hole, px, b.z, Infinity)) {
+                        b.z = pz; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
+                    }
+                    land = surfaceUnder(hole, b.x, b.z, b.y);
+                }
+            }
+
             if (land && b.y - C.BALL_R <= land.y) {
                 b.y = land.y + C.BALL_R;
                 var impact = -b.vy;
