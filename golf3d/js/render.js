@@ -39,6 +39,30 @@
             water: 0x2f7fa8,
             side: '#8d7355'
         },
+        lagoon: {
+            sky: [0x1f86c8, 0xbfe9f4],
+            fog: 0xbfe9f4,
+            sun: 0xfff7e6, sunPos: [7, 17, -6], ambient: 0x9adfe8, ambientI: 0.62,
+            grass: ['#5cba62', '#4faa55'],
+            rail: 0xfbf4e4,
+            surroundY: -0.78, surround: 'water',
+            water: 0x11a5c0,
+            side: '#c9b287'
+        },
+        highland: {
+            sky: [0x4d74ab, 0xd9e5f0],
+            fog: 0xd9e5f0,
+            sun: 0xffeccb, sunPos: [-8, 14, -7], ambient: 0xa6bcd4, ambientI: 0.5,
+            grass: ['#4a9159', '#3f8149'],
+            rail: 0x99a3ac,
+            /* Moor, not quarry: the surround takes a tint of its own so the
+               two rock courses do not read as the same place. It lands about
+               twice as bright as it looks here once the sun, the hemisphere
+               and the tone map have all had a go at it. */
+            surroundY: -2.7, surround: 'rock', ground: '#454c3c',
+            water: 0x2b6d8d,
+            side: '#7d7566'
+        },
         works: {
             sky: [0x0d121d, 0x33405e],
             fog: 0x33405e,
@@ -820,7 +844,10 @@
     function addWall(group, wall, theme) {
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
-        var color = wall.kind === 'blade' ? 0xd8523f : (wall.kind === 'gate' ? 0xe0a13a : theme.rail);
+        var color = wall.kind === 'blade' ? 0xd8523f
+            : wall.kind === 'gate' ? 0xe0a13a
+            : wall.kind === 'beam' ? 0x9a6a3c
+            : theme.rail;
         var wet = R.weather ? (R.weather.wet || 0) : 0;
         // A painted rail has a sheen on it in any weather and a hard one in the
         // rain; it is also the brightest thing on most holes, which is what
@@ -993,7 +1020,7 @@
         if (theme.surround === 'water') {
             mat = waterMaterial(theme, {});
         } else {
-            var rt = rockTexture(theme.surround === 'rock' ? '#9c8466' : (theme.floor || '#3f4450'));
+            var rt = rockTexture(theme.surround === 'rock' ? (theme.ground || '#9c8466') : (theme.floor || '#3f4450'));
             rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
             rt.anisotropy = R.maxAniso;
             rt.repeat.set(150, 150);

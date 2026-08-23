@@ -1,6 +1,6 @@
 # Loft Links
 
-Three six-hole courses of 3D mini golf. three.js (vendored, r128), plain
+Five six-hole courses of 3D mini golf. three.js (vendored, r128), plain
 ES5-flavoured JavaScript, no build step and no other dependencies — same as
 everything else here, open `index.html` and it runs.
 
@@ -17,7 +17,7 @@ them.
 | `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
-| `js/courses.js` | The eighteen holes, as data, plus the rail generator. |
+| `js/courses.js` | The thirty holes, as data, plus the rail generator. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects and the weather's sound bed — no audio files to ship. |
@@ -48,16 +48,22 @@ the bag has four entries and not one: each club is longest at exactly one job.
 
 The driver takes the lion's share of every power increase, deliberately: the
 lofted clubs are what fly over the *design* of a hole, so their carries are held
-down while the driver's reach goes up. Even so the bag has grown into the
-courses — at seven and a half units of carry a wedge will now fly most of the
-water here, which turns the bridges and the ramps from requirements into
-choices. That is the trade for shots that feel worth hitting, and the number to
-turn if it ever goes too far is the wedge's, not the driver's. The carry figures
-are a design constraint rather than a curiosity: **a hole asking for more air
-than the bag has must offer a way round** — a bridge, a ramp, a bank. `tests.html` measures the carry rather than
-trusting this table, and the bot plays every hole out of this bag rather than
-with any loft the physics would accept, so "the courses are solvable" means
-solvable with the clubs a player actually has.
+down while the driver's reach goes up. On the first three courses that made the
+bridges and the ramps into choices rather than requirements — at seven and a
+half units of carry a wedge flies most of the water at Seaside. Tidewater Reach
+and Highland Steps were built the other way round, from the carries outward:
+they take the ground away and let the numbers in this table decide what is
+reachable, which is why so many of their holes have no route along the floor at
+all.
+
+Either way the carry figures are a design constraint rather than a curiosity:
+**a hole asking for more air than the bag has is not a hard hole, it is a
+broken one**, and the only way in the game to tell those apart is to play it.
+So `tests.html` measures the carry rather than trusting this table, and the bot
+plays every hole out of this bag rather than with any loft the physics would
+accept — "the courses are solvable" means solvable with the clubs a player
+actually has. The two numbers to turn if any of it ever goes too far are the
+wedge's carry and its apex, not the driver's.
 
 Picking a club keeps the power already loaded, as a fraction of the
 swing. Swapping mid-aim is meant to be a comparison, not a reset.
@@ -205,6 +211,47 @@ whole model, and it is small on purpose: circle-vs-box in the xz plane is the
 one collision test cheap enough to run at 32 substeps and simple enough to be
 obviously correct.
 
+## The courses
+
+Five, six holes each, and they are meant to be played in the order they are
+listed — the picker is a difficulty curve as much as a menu.
+
+| Course | Theme | What it is about |
+| --- | --- | --- |
+| Seaside Green | `seaside` | Flat-ish holes by the water. Pace, and a first bridge to fly if you would rather not walk it. |
+| Quarry Ridge | `quarry` | Ramps, ledges and a long way down. Height as a hazard. |
+| Windmill Works | `works` | Gates and blades, after dark. Timing. |
+| Tidewater Reach | `lagoon` | The loft course. Almost nothing here can be reached along the floor. |
+| Highland Steps | `highland` | The same lesson from the other side: things in the way rather than things missing, and the ground handed back as a tool. |
+
+The last two are why the bag has four clubs rather than two. Every hole on
+Tidewater is built round the one thing a chip can do that a putt cannot —
+leave the ground — and each asks for it differently: **Stepping Stones** is
+two carries onto islands whose kerbs the driver cannot clear; **Short Side**
+puts sand across the front, a kerb on the green and two metres of room behind
+the pin; **The Letterbox** is four walls and no door; **Tabletop** puts the
+green a metre up with nothing to run up, which is a shot only the wedge owns;
+**The Reach** finishes in a crater that gathers whatever lands in it. And then
+**Under the Boardwalk**, which is the joke at the course's expense: a bar too
+tall to fly, standing high enough off the ground that a putt runs under it. The
+club that has answered every other hole is suddenly the wrong one; land it
+short of the bar and let it run.
+
+Highland turns the same screw with ground instead of water. **Stairway** is
+three steps with no ramp — a wall you cannot climb is a wall you have to hop.
+**Over the Top** is a wall nothing goes round and one club goes over.
+**Crown** runs a ramp up to a shoulder that stops short of the summit, and the
+last step up is yours to fly. The other three keep a flat answer on purpose,
+because a course where every shot is the same shot is not varied, it is
+uniform: **The Backboard** bricks up the front door and leaves a bank to throw
+the ball at, **Two Roads** offers a long low road under a beam or a short high
+one you have to chip onto first, and **The Gorge** will let you lay up at the
+lip and blast it across for the price of a stroke.
+
+Which holes are which is not a matter of taste in the tests: the ones that must
+be flown carry `needsLoft: true` and are replayed by the bot with the lofted
+clubs taken away (see [Tests](#tests)).
+
 ## How a hole is built
 
 ```js
@@ -230,12 +277,33 @@ obviously correct.
 - **wall** — a box. `yaw` turns it, `move` slides it on a sine, `spin` rotates
   it. A `spinner` is a blade authored the way you think about it (middle,
   length, thickness); a `slider` is a gate.
+- **beam** — a bar on two posts, and the one obstacle in the game that punishes
+  loft instead of rewarding it: the underside clears a resting ball's crown and
+  the first hop after a chip, so a putt goes under; the top is out of reach of
+  the highest club in the bag, so nothing flies it. Put one in front of a green
+  and the wedge becomes the wrong answer. The posts are real walls, not
+  scenery — partly for the rule that the ball must hit what you can see, and
+  partly because they do the explaining: a bar hanging in mid-air reads as a
+  wall from the tee however carefully it is lit, and a bar on two legs reads as
+  a doorway, which is the one thing the player has to understand before taking
+  the shot.
+- **pen** — four walls round a rectangle: no door, so the only way in is over
+  the top and down.
+- **bowl** — a funnel green in nine pads: a flat floor, four ramps up to a rim,
+  and four corners that are *the two ramps beside them added together*. That
+  last part is the whole trick — a corner built as the sum of its neighbours
+  meets both of them exactly, so the nine tile without a single step for the
+  ball to stub its toe on. The cup goes in the flat floor, because the mouth has
+  to sit a clear radius inside one pad and a cup on a seam would not.
 
 **Rails are generated, not authored.** `enclose()` walks the boundary of the pad
 union and puts a rail on every edge that has no neighbouring pad at roughly the
 same height, so a hole is drawn by listing its floor and the fences follow.
 Where a hole wants an open edge — a shoreline, a ledge, a drop — it lists a
-`gaps` rectangle and no rail is built inside it. Getting this wrong is the most
+`gaps` rectangle and no rail is built inside it. `shore()` grows a water
+rectangle into one of those; `brink()` does the same for a step you are meant to
+be able to fall off, which is the difference between "land it on the table" and
+"bounce it off the kerb and hope". Getting this wrong is the most
 likely way to break a new hole, which is why the tests check that the tee and
 the cup are clear of walls and that the bot can still finish.
 
@@ -283,6 +351,18 @@ Details that are easy to get wrong and are pinned by tests:
   then move at the new velocity". The shortcut carries an O(dt) bias which the
   substep cap hides at speed and stops hiding below walking pace. With the
   integral, the same shot lands within 0.02 units at 30Hz or 120Hz.
+- **A pad is a surface, not a solid — except from the side.** The ground is a
+  set of quads with nothing underneath them, which is exactly what makes
+  bridges work and exactly what lets a ball fly *into* the side of a step and
+  sail on through the hillside, out of the world beneath it. So the airborne
+  step has one extra test: if there is ground at the new point and every bit of
+  it is above the ball's crown, the ball is inside a face, and it bounces off
+  one axis at a time like the kerb backstop on the ground. That single
+  condition tells a cliff from a bridge — under a bridge there is a pad *below*
+  the ball, and it never fires. It costs two lookups and only over a void,
+  which is the only place the ball can be inside anything. Without it a terrace
+  swallows balls at three specific heights and a raised green can be holed from
+  underneath.
 - **A ball at rest on a slope is not at rest** — but a ball that has been slow
   for a while on one has found something to lean on, and is allowed to stop.
   Without the first half the ball hangs on a hillside; without the second, a
@@ -308,7 +388,18 @@ falls out of them.
   so what it can touch is the nearest point of the rim *circle*, and the
   collision is sphere-against-that-point.
 - **The shaft is a cylinder** with a floor of its own, high-friction, so a ball
-  that drops in settles instead of rattling.
+  that drops in settles instead of rattling — and **it is open from above and
+  nowhere else**. That last clause is not decoration. The shaft is modelled as a
+  cylinder with no sides above the rim, which is fine as long as the only way to
+  reach it is across the green; give a hole a raised green with an open edge — a
+  tabletop, a summit, the wall of a crater — and there is suddenly air under the
+  putting surface, and a ball can fly *beneath* it, arrive inside the mouth on
+  the way past, and be counted as holed from below. So the shaft only accepts a
+  ball that has been over it with its centre at or above the rim. A putt
+  crossing the lip qualifies; a lob dropping in qualifies; a shot passing under
+  the green does not, and takes the splash it earned. The permission clears the
+  moment the ball is out of reach of the rim again, so a lip-out cannot bank
+  it.
 
 Everything the old capture rule used to fake now happens on its own. A ball
 whose centre is still outside the rim is resting on it and rolls past. A slow
@@ -654,21 +745,32 @@ line, which is what makes "drag left, aim left" true from any angle, and
 
 ## Tests
 
-Open `tests.html`. 423 assertions covering the surfaces, the collision
-geometry, the cup, the integrator, the bag, all eighteen holes of course data
-and the scorecard, in about a second.
+Open `tests.html`. 610 assertions covering the surfaces, the collision
+geometry, the cup, the integrator, the bag, all thirty holes of course data
+and the scorecard, in a few seconds.
 
 The one worth knowing about is the **bot**: a greedy player fans out candidate
 shots on every hole, keeps the one that finishes nearest the cup, and plays all
-eighteen. If a hole is sealed off, unreachable, or has a cup buried where
-nothing can settle, the bot never holes out and the suite goes red. It runs off
-a seeded PRNG, so a failure is reproducible rather than "sometimes red", it
+thirty. If a hole is sealed off, unreachable, or has a cup buried where
+nothing can settle, the bot never holes out and the suite goes red. It is
+deterministic, so a failure is reproducible rather than "sometimes red", it
 plays out of the same four clubs the player gets, its candidates include a wait
 before striking (the timing holes are only solvable with one, and a bot that
 always fires at `t=0` would report a false failure), and a chosen shot has to
 actually go somewhere — without that rule the greedy
 player parks in a corner where every legal shot looks worse than standing still
 and plays the same nothing until it runs out of strokes.
+
+Then it plays some of them again **out of half a bag.** A hole flagged
+`needsLoft` exists to be flown, and a hole like that which turns out to have a
+quiet route along the floor has lost its point — usually because a rail moved or
+a step got shorter, and always without anyone noticing. So the same bot replays
+those eight holes with only the clubs that keep the ball down, and has to *fail*
+on every one. It is a stronger statement than "the wedge works here": it is
+"nothing else does". Holes without the flag are free to have a flat answer, and
+several deliberately do — Under the Boardwalk wants one, The Backboard's bank
+and Two Roads' low road are the whole point of those holes, and The Gorge will
+let you lay up and blast it for the price of a stroke.
 
 Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
 loads `config.js`, `physics.js`, `courses.js` and `scoring.js` and nothing else
@@ -697,8 +799,8 @@ zoom.
 
 ## Query parameters
 
-`?course=seaside|quarry|works` starts a round directly, skipping the picker,
-`&hole=1..6` jumps to a hole, and
+`?course=seaside|quarry|works|tidewater|highland` starts a round directly,
+skipping the picker, `&hole=1..6` jumps to a hole, and
 `&weather=clear|fair|overcast|drizzle|rain|mist|golden|dust` fixes the sky for
 the round. Handy for screenshots and for linking someone at the hole you are
 complaining about, in the weather you were complaining about it in.

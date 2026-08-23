@@ -145,7 +145,9 @@
     var BY_THEME = {
         seaside: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
         quarry: ['clear', 'fair', 'golden', 'dust', 'overcast', 'drizzle'],
-        works: ['fair', 'clear', 'mist', 'overcast', 'rain']
+        works: ['fair', 'clear', 'mist', 'overcast', 'rain'],
+        lagoon: ['clear', 'fair', 'golden', 'mist', 'drizzle', 'rain'],
+        highland: ['fair', 'clear', 'overcast', 'mist', 'drizzle', 'golden']
     };
 
     // Skies a course is happy to open on.
