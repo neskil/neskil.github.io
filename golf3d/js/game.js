@@ -333,9 +333,12 @@
         var club = clubById(id);
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
+        // Short on purpose: the club itself now carries the same line in its
+        // own hand (bag.js), so this is the backup for a screen reader and a
+        // reminder, not the only place to read it.
         $('picker-stats').innerHTML =
-            'key <b>' + club.key + '</b> · loft <b>' + Math.round(club.loft * 180 / Math.PI) + '°</b>' +
-            ' · full swing <b>' + club.power + '</b>' +
+            '<b>' + club.key + '</b> · pwr <b>' + club.power + '</b> · loft <b>' +
+            Math.round(club.loft * 180 / Math.PI) + '°</b>' +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
     }
 

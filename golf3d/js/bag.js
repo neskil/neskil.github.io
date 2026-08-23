@@ -423,31 +423,70 @@
 
     /* ── labels ────────────────────────────────────────────────────────── */
 
+    /* Each club gets up its own hand, not just its own name: a driver reads
+       hot and heavy because it is the reach club, a wedge reads soft and
+       looping because it is the touch club, and so on. The gradient and the
+       glow behind the type carry that; the words underneath do not have to. */
+    var LABEL_STYLE = {
+        driver: {
+            font: '800 44px Outfit, system-ui, sans-serif',
+            grad: ['#fff3b0', '#fb923c', '#ef4444'],
+            glow: 'rgba(248, 113, 41, 0.85)', accent: '#fda57d'
+        },
+        wedge: {
+            font: 'italic 700 40px Georgia, "Times New Roman", serif',
+            grad: ['#fef9c3', '#facc15', '#ca8a04'],
+            glow: 'rgba(250, 204, 21, 0.6)', accent: '#fde68a'
+        },
+        chipper: {
+            font: '700 38px "JetBrains Mono", ui-monospace, monospace',
+            grad: ['#bbf7d0', '#4ade80', '#16a34a'],
+            glow: 'rgba(74, 222, 128, 0.55)', accent: '#86efac'
+        },
+        putter: {
+            font: '600 40px Outfit, system-ui, sans-serif',
+            grad: ['#e0f2fe', '#7dd3fc', '#38bdf8'],
+            glow: 'rgba(125, 211, 252, 0.55)', accent: '#93c5fd'
+        }
+    };
+
     function labelTexture(club) {
         var cv = document.createElement('canvas');
-        cv.width = 320; cv.height = 96;
+        cv.width = 320; cv.height = 112;
         var g = cv.getContext('2d');
-        g.clearRect(0, 0, 320, 96);
+        g.clearRect(0, 0, 320, 112);
 
         g.fillStyle = 'rgba(6, 20, 32, 0.86)';
         g.strokeStyle = 'rgba(125, 211, 252, 0.5)';
         g.lineWidth = 3;
         if (g.roundRect) {
-            g.beginPath(); g.roundRect(4, 4, 312, 88, 18); g.fill(); g.stroke();
+            g.beginPath(); g.roundRect(4, 4, 312, 104, 18); g.fill(); g.stroke();
         } else {
-            g.fillRect(4, 4, 312, 88);
-            g.strokeRect(4, 4, 312, 88);
+            g.fillRect(4, 4, 312, 104);
+            g.strokeRect(4, 4, 312, 104);
         }
 
-        g.fillStyle = '#eaf6ff';
-        g.font = '600 40px Outfit, system-ui, sans-serif';
+        var style = LABEL_STYLE[club.id] || LABEL_STYLE.chipper;
         g.textAlign = 'center';
         g.textBaseline = 'middle';
-        g.fillText(club.name, 160, 38);
 
-        g.fillStyle = '#7dd3fc';
-        g.font = '600 24px "JetBrains Mono", ui-monospace, monospace';
-        g.fillText(club.key + ' · ' + Math.round(club.loft * 180 / Math.PI) + '°', 160, 72);
+        // The name, in its own gradient and glow — this is the "personality"
+        // half. Short enough that a linear gradient across the whole word
+        // reads as a colour, not a smear.
+        g.font = style.font;
+        var grad = g.createLinearGradient(50, 0, 270, 0);
+        style.grad.forEach(function (c, i) { grad.addColorStop(i / (style.grad.length - 1), c); });
+        g.fillStyle = grad;
+        g.shadowColor = style.glow;
+        g.shadowBlur = 16;
+        g.fillText(club.name, 160, 42);
+        g.shadowBlur = 0;
+
+        // The stats, kept to one short line — this is the part a player
+        // actually compares club to club, so it stays plain and legible.
+        g.fillStyle = style.accent;
+        g.font = '600 22px "JetBrains Mono", ui-monospace, monospace';
+        g.fillText('pwr ' + club.power + ' · loft ' + Math.round(club.loft * 180 / Math.PI) + '°', 160, 84);
 
         var t = new THREE.CanvasTexture(cv);
         t.needsUpdate = true;
@@ -471,7 +510,7 @@
         var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
             map: labelTexture(club), transparent: true, opacity: 0, depthTest: false
         }));
-        sprite.scale.set(0.30, 0.09, 1);
+        sprite.scale.set(0.33, 0.115, 1);
         sprite.renderOrder = 20;
         return sprite;
     }
@@ -534,9 +573,11 @@
             var label = buildLabel(club);
 
             built.group.add(label);
-            // Above the head. The clubs are real lengths, so the labels stagger
-            // themselves — driver highest, putter lowest.
-            label.position.set(0.02, built.len + 0.1, 0.02);
+            // Just under the head rather than above it — the open row is
+            // cropped to the bottom of the screen and the heads already sit
+            // right against the "pick a club" panel, so a label stacked any
+            // higher would fight that text instead of sitting near its club.
+            label.position.set(0.02, built.len - 0.2, 0.05);
 
             B.clubRig.add(built.group);
             B.pickables.push(built.hit);
@@ -548,7 +589,7 @@
                 head: built.head,
                 label: label,
                 spot: spot,
-                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0 }
+                now: { x: spot.closed.x, y: spot.closed.y, z: spot.closed.z, rz: spot.closed.rz, rx: spot.closed.rx, ry: spot.closed.ry, scale: 1, lift: 0, glow: 0, labelOp: 0 }
             });
         });
 
@@ -641,6 +682,7 @@
         B.clubs.forEach(function (c) {
             var to = B.expanded ? c.spot.open : c.spot.closed;
             var chosen = c.id === B.selected;
+            var facing = chosen || B.hover === c.id;
             // Kept small: at the zoom the open row uses, a tenth of a unit is
             // a fifth of the screen and the club in hand floats away from the
             // others instead of standing a little proud of them.
@@ -665,8 +707,10 @@
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
             // Turning on its own axis while it is out of the bag, so the head
             // can be seen from every side. The one in hand turns to face front
-            // instead of spinning, so it is obvious which is which.
-            var turn = c.now.ry + B.open01 * (chosen ? 0 : 1) * B.spin;
+            // instead of spinning, so it is obvious which is which — and so
+            // does whichever one is under the pointer, because a label is not
+            // worth reading while it is orbiting past.
+            var turn = c.now.ry + B.open01 * (facing ? 0 : 1) * B.spin;
             c.group.rotation.set(c.now.rx, turn, c.now.rz);
             c.group.scale.setScalar(c.now.scale);
 
@@ -680,9 +724,17 @@
                 if (o.material && o.material.emissive) o.material.emissive.setRGB(e * 0.45, e * 0.7, e);
             });
 
-            // The name is written in the panel above (game.js), not floated
-            // over the course on a sprite.
-            if (c.label) c.label.visible = false;
+            // The full write-up still lives in the panel above (game.js,
+            // where it can be read by a screen reader); this is the fast
+            // version, floating right over the club it is about — up while
+            // the row is open and the club is the one in hand or under the
+            // pointer, gone otherwise so four of them are never on at once.
+            if (c.label) {
+                var wantOp = (B.expanded && facing) ? 1 : 0;
+                c.now.labelOp += (wantOp - c.now.labelOp) * ease;
+                c.label.material.opacity = c.now.labelOp;
+                c.label.visible = c.now.labelOp > 0.01;
+            }
         });
     }
 
