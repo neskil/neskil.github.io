@@ -684,10 +684,6 @@
             // but a typo in one of them is invisible until someone plays.
             assert('the overswing mark is a fraction of the swing',
                 C.OVERSWING > 0.5 && C.OVERSWING < 1);
-            assert('a full pull is a reasonable number of pixels',
-                C.DRAG_MAX >= 120 && C.DRAG_MAX <= 400);
-            assert('the pull has a deadzone, and a small one',
-                C.DRAG_DEADZONE > 0 && C.DRAG_DEADZONE < 40);
 
             // The bag has to be able to do the two things the courses ask of
             // it: roll a long way, and go over something.

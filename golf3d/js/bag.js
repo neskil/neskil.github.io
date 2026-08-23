@@ -573,11 +573,18 @@
             var label = buildLabel(club);
 
             built.group.add(label);
-            // Just under the head rather than above it — the open row is
-            // cropped to the bottom of the screen and the heads already sit
-            // right against the "pick a club" panel, so a label stacked any
-            // higher would fight that text instead of sitting near its club.
-            label.position.set(0.02, built.len - 0.2, 0.05);
+            // Centred on the head it belongs to, not guessed at: a driver's
+            // body, a blade's toe and a mallet's wings all sit at a different
+            // offset from the shaft, so the one fixed x/z this used before
+            // was only ever right for one of the four. The box read straight
+            // off the head geometry is right for all of them. Just under the
+            // head rather than above it, because the open row is cropped to
+            // the bottom of the screen and the heads already sit right
+            // against the "pick a club" panel above.
+            built.head.updateMatrixWorld(true);
+            var headBox = new THREE.Box3().setFromObject(built.head);
+            var headMid = headBox.getCenter(new THREE.Vector3());
+            label.position.set(headMid.x, headBox.min.y - 0.09, headMid.z);
 
             B.clubRig.add(built.group);
             B.pickables.push(built.hit);

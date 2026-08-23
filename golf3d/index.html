@@ -32,14 +32,14 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.1.1">
+    <link rel="stylesheet" href="style.css?v=1.2.0">
 </head>
 <body>
     <div class="wrap">
       <!-- Topbar, scoreboard and stage together: on a phone this block is the
            whole viewport, so the course starts full screen and the rest of the
            page waits below the fold. -->
-      <div class="viewport">
+      <div class="viewport" id="viewport">
         <div class="topbar">
             <a class="home-link" href="../index.html" title="Back to home" aria-label="Back to home">&#8592;</a>
             <div>
@@ -49,7 +49,6 @@
             <div class="topbar-actions">
                 <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                 <button class="chip" id="btn-view" title="Look at the whole hole (V)">Overview</button>
-                <button class="chip" id="btn-lock-aim" title="Lock the aim so a swipe turns the camera instead (L)">🔓 Aim</button>
                 <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                 <button class="chip" id="btn-card" title="Scorecard">Card</button>
                 <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?</button>
@@ -116,11 +115,18 @@
             <div class="controls">
                 <div class="power">
                     <span class="ctl-label">Power <b id="power-val">0%</b></span>
-                    <div class="power-track">
+                    <div class="power-track" id="power-track" role="slider" tabindex="0"
+                         aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                         <div class="power-fill" id="power-fill"></div>
                         <i class="power-max" aria-hidden="true"></i>
                     </div>
                     <span class="club-hint" id="club-hint" aria-live="polite"></span>
+                </div>
+
+                <div class="shot-actions">
+                    <button type="button" class="aim-nudge" id="btn-aim-left" title="Aim left (←)" aria-label="Aim left">‹</button>
+                    <button type="button" class="swing" id="btn-swing" title="Play the shot (space)">Swing</button>
+                    <button type="button" class="aim-nudge" id="btn-aim-right" title="Aim right (→)" aria-label="Aim right">›</button>
                 </div>
             </div>
 
@@ -144,27 +150,6 @@
                    plays fine without one — <a href="../golf/index.html">Pocket Links</a>.</p>
             </div>
         </div>
-      </div>
-
-        <div class="help">
-            <span><b>Pull away</b> from where you want the ball to go, anywhere on the course, and let go — the further you pull, the harder it goes.</span>
-            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
-                · <kbd>space</kbd> hit (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> overview · <kbd>L</kbd> lock aim · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
-            <span class="touch-help">Pinch to zoom, swipe the bag to switch clubs. <b>Lock aim</b> and swipe to spin the camera and look around without loading a shot. Turn your phone sideways for a bigger course.</span>
-            <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
-        </div>
-
-        <div class="legend">
-            <span><i class="sw-grass"></i>Green — normal going</span>
-            <span><i class="sw-sand"></i>Bunker — heavy going</span>
-            <span><i class="sw-wood"></i>Boards — fast, and they ramp</span>
-            <span><i class="sw-water"></i>Water — one stroke penalty</span>
-            <span><i class="sw-gate"></i>Sliding gate</span>
-            <span><i class="sw-blade"></i>Spinning blade</span>
-            <span>Course best: <b id="best-round">—</b></span>
-        </div>
-    </div>
 
     <div class="modal" id="howto">
         <div class="modal-inner" role="dialog" aria-modal="true" aria-labelledby="howto-title">
@@ -173,13 +158,15 @@
 
             <ol class="steps">
                 <li>
-                    <b>Pull, and let go.</b> Press anywhere on the course and pull <i>away</i> from
-                    where you want the ball to go, like a catapult. How far you pull is how hard you
-                    hit — the ring round the ball fills up as it winds on, and turns red when there
-                    is nothing left to give. The direction is simply the reverse of your pull, so
-                    one drag aims anywhere, all the way round, and the camera holds still while you
-                    do it. Let go to play the shot. The finger that starts the pull owns it: a
-                    second one landing on the glass will not move your aim.
+                    <b>Aim, load, swing.</b> Three separate things, in that order. Drag anywhere on
+                    the course to turn: sideways swings the aim and the camera with it, all the way
+                    round, and up and down raises and drops the camera so you can look along the
+                    shot or down onto it. Nothing you do out there plays a stroke. Then set the
+                    power on the meter at the bottom — drag it, or nudge it with
+                    <kbd>↑</kbd><kbd>↓</kbd> — and the ring round the ball fills as it winds on,
+                    turning red when there is nothing left to give. <b>Swing</b> plays the shot,
+                    and so does <kbd>space</kbd>. The <b>‹</b> and <b>›</b> buttons beside it nudge
+                    the aim a hair, for the putts that need it.
                 </li>
                 <li>
                     <b>Pick a club.</b> Click the bag in the bottom corner: the clubs come out,
@@ -219,8 +206,8 @@
             </ol>
 
             <p class="sub kb-help">
-                <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> hit ·
-                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview · <kbd>L</kbd> lock aim ·
+                <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> swing ·
+                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview ·
                 <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
             </p>
 
@@ -252,6 +239,27 @@
             </div>
         </div>
     </div>
+      </div>
+
+        <div class="help">
+            <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
+            <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
+                · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
+            <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
+            <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
+        </div>
+
+        <div class="legend">
+            <span><i class="sw-grass"></i>Green — normal going</span>
+            <span><i class="sw-sand"></i>Bunker — heavy going</span>
+            <span><i class="sw-wood"></i>Boards — fast, and they ramp</span>
+            <span><i class="sw-water"></i>Water — one stroke penalty</span>
+            <span><i class="sw-gate"></i>Sliding gate</span>
+            <span><i class="sw-blade"></i>Spinning blade</span>
+            <span>Course best: <b id="best-round">—</b></span>
+        </div>
+    </div>
 
     <!-- three.js is vendored, r128, no build step and no CDN — same arrangement
          as Yard Master next door. -->
@@ -259,15 +267,15 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.1.1"></script>
+    <script src="js/config.js?v=1.2.0"></script>
     <script src="js/physics.js?v=1.1.0"></script>
     <script src="js/courses.js?v=1.1.0"></script>
     <script src="js/scoring.js?v=1.1.0"></script>
     <script src="js/audio.js?v=1.1.0"></script>
-    <script src="js/bag.js?v=1.1.2"></script>
+    <script src="js/bag.js?v=1.1.3"></script>
     <script src="js/postfx.js?v=1.1.0"></script>
     <script src="js/weather.js?v=1.1.0"></script>
     <script src="js/render.js?v=1.1.1"></script>
-    <script src="js/game.js?v=1.1.2"></script>
+    <script src="js/game.js?v=1.2.0"></script>
 </body>
 </html>
