@@ -303,17 +303,42 @@
          as Yard Master next door. -->
     <script src="vendor/three.min.js"></script>
 
-    <!-- Load order is dependency order: config, then the pure logic, then the
-         things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.2.0"></script>
-    <script src="js/physics.js?v=1.1.0"></script>
-    <script src="js/courses.js?v=1.1.0"></script>
-    <script src="js/scoring.js?v=1.1.0"></script>
-    <script src="js/audio.js?v=1.1.0"></script>
-    <script src="js/bag.js?v=1.2.0"></script>
-    <script src="js/postfx.js?v=1.1.0"></script>
-    <script src="js/weather.js?v=1.1.0"></script>
-    <script src="js/render.js?v=1.1.1"></script>
-    <script src="js/game.js?v=1.3.0"></script>
+    <!-- Load order is dependency order, and the layers run bottom-up: the
+         rules first, then the picture, then the game that drives both. Nothing
+         here is fetched, bundled or resolved at runtime — the order below is
+         the dependency graph, so a module may use anything above it and
+         nothing below it. game.js boots itself on DOMContentLoaded.
+
+         `?v=` is one version for the whole game, not one per file: bump it in
+         this block whenever anything under js/ or style.css changes, or GitHub
+         Pages will serve someone yesterday's game. One number, changed once —
+         see CLAUDE.md. -->
+
+    <!-- the rules: no THREE, no DOM, no canvas -->
+    <script src="js/config.js?v=1.4.0"></script>
+    <script src="js/physics.js?v=1.4.0"></script>
+    <script src="js/courses.js?v=1.4.0"></script>
+    <script src="js/scoring.js?v=1.4.0"></script>
+
+    <!-- the senses -->
+    <script src="js/audio.js?v=1.4.0"></script>
+    <script src="js/postfx.js?v=1.4.0"></script>
+    <script src="js/weather.js?v=1.4.0"></script>
+
+    <!-- the picture -->
+    <script src="js/render/palette.js?v=1.4.0"></script>
+    <script src="js/render/textures.js?v=1.4.0"></script>
+    <script src="js/render/sky.js?v=1.4.0"></script>
+    <script src="js/render/water.js?v=1.4.0"></script>
+    <script src="js/render/hole.js?v=1.4.0"></script>
+    <script src="js/render/aim.js?v=1.4.0"></script>
+    <script src="js/render/effects.js?v=1.4.0"></script>
+    <script src="js/bag/models.js?v=1.4.0"></script>
+    <script src="js/bag.js?v=1.4.0"></script>
+    <script src="js/render.js?v=1.4.0"></script>
+
+    <!-- the game -->
+    <script src="js/game/hud.js?v=1.4.0"></script>
+    <script src="js/game.js?v=1.4.0"></script>
 </body>
 </html>

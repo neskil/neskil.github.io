@@ -1,14 +1,39 @@
-/* Game loop, input and the DOM chrome around the canvas.
-
-   The split that matters: this file decides *when* a shot happens and what a
-   score means, physics.js decides where the ball goes, render.js decides what
-   it looks like. Nothing here integrates anything, so a stutter, a background
-   tab or a slow phone can lose frames without ever changing an outcome.
-
-   One wrinkle the flat game did not have: the clock keeps running while you
-   aim. Gates slide and blades turn whether or not you have hit the ball, so
-   world.time advances every frame and the predicted path is drawn from the
-   same clock the shot will be played on. */
+/* game.js — the round, the shot, and the loop that drives both.
+ *
+ * ## Where things are
+ *
+ * This is the top layer and the only one that decides anything. Under it:
+ *
+ *     config.js      every tuning constant. Nothing else holds a number.
+ *     physics.js     the simulation. Pure — no THREE, no DOM.
+ *     courses.js     the eighteen holes, as data.
+ *     scoring.js     scorecard arithmetic and the save file.
+ *     audio.js       synthesised sound.
+ *     weather.js     the sky, the wind, and what is drifting in the air.
+ *     render.js      the picture (and render/* under it).
+ *     bag.js         the club picker.
+ *     game/hud.js    the DOM chrome: scoreboard, overlay, modals, panels.
+ *
+ * What is left here is the four things that are genuinely the game's:
+ *
+ *   - **the round** — which course, which hole, how many strokes
+ *   - **the shot** — what pressing Swing means, and what a settled ball costs
+ *   - **input** — pointer, keyboard and the power slider
+ *   - **the loop** — advance the simulation, then draw a frame
+ *
+ * ## The one rule
+ *
+ * `state` is the whole of the game. It lives here and nowhere else: hud.js is
+ * handed a read-only accessor, and render.js is handed a world and an aim a
+ * frame at a time. Nothing outside this file writes a stroke, a score or a
+ * ball position. Anything that wants to has to go through a function here,
+ * which is what keeps "what did that cost me" answerable by reading one file.
+ *
+ * A shot is simulated at a fixed step regardless of frame rate, so a 144Hz
+ * monitor and a 30fps phone roll the ball exactly the same distance — see
+ * `CONFIG.SIM_DT`. `?course=&hole=&weather=` open any hole directly, which is
+ * how you get to hole 14 without playing thirteen.
+ */
 (function (G3) {
     'use strict';
 
@@ -17,6 +42,7 @@
     var S = G3.scoring;
     var A = G3.audio;
     var R = G3.render;
+    var H = G3.hud;
 
     var canvas;
     var state = null;
@@ -30,14 +56,6 @@
             if (C.CLUBS[i].id === id) return C.CLUBS[i];
         }
         return C.CLUBS[0];
-    }
-
-    function toast(msg, kind) {
-        var el = $('toast');
-        el.textContent = msg;
-        el.className = 'toast show' + (kind ? ' ' + kind : '');
-        clearTimeout(toast._t);
-        toast._t = setTimeout(function () { el.className = 'toast'; }, 2300);
     }
 
     /* ── round state ────────────────────────────────────────────────────── */
@@ -56,10 +74,10 @@
             save: state && state.save ? state.save : S.load(),
             phase: 'aim'
         };
-        closeMenu();
-        closeCard();
+        H.closeMenu();
+        H.closeCard();
         loadHole(0);
-        maybeShowFsPrompt();
+        H.maybeShowFsPrompt();
     }
 
     function loadHole(i) {
@@ -86,9 +104,9 @@
         A.ambience(state.weather);
         R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, overview: false });
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
-        hideBanner();
-        syncHud();
-        showHoleCard();
+        H.hideBanner();
+        H.sync();
+        H.showHoleCard();
     }
 
     /* ── the shot ───────────────────────────────────────────────────────── */
@@ -101,17 +119,17 @@
         var lie = P.surfaceUnder(state.world.hole, b.x, b.z, b.y + C.STEP_UP);
         if (!P.launch(state.world, state.aim.yaw, state.aim.power, state.club.loft)) return;
 
-        hideHoleCard();
+        H.hideHoleCard();
         state.strokes++;
         state.phase = 'rolling';
-        syncSwing();
+        H.syncSwing();
         // Everything that says "that was a hit": the spray off the club, the
         // camera flinching, and a thump that grows with the swing.
         R.divot(b.x, b.y - C.BALL_R, b.z, state.aim.yaw, frac, lie && lie.pad.kind);
         R.punch(frac);
         A.putt(frac);
         state.aim.power = 0;
-        syncHud();
+        H.sync();
     }
 
     /* Picking a club is picking a loft and a ceiling on power. The power
@@ -122,8 +140,8 @@
         var frac = state.aim.power / state.club.power;
         state.club = club;
         state.aim.power = Math.min(club.power, frac * club.power);
-        syncClubs();
-        syncPower();
+        H.syncClubs();
+        H.syncPower();
     }
 
     // dir is +1 or -1; wraps round the bag either way, so a swipe the wrong
@@ -165,35 +183,30 @@
 
         if (w.splash || w.out) {
             state.strokes += w.splash ? C.WATER_PENALTY : C.OOB_PENALTY;
-            toast(w.splash ? 'Water — one stroke penalty' : 'Out of play — one stroke penalty', 'bad');
+            H.toast(w.splash ? 'Water — one stroke penalty' : 'Out of play — one stroke penalty', 'bad');
             state.world = P.createWorld(w.hole, w.origin, w.time);
             R.state.lastBall.set(w.origin.x, w.origin.y, w.origin.z);
         }
         state.phase = 'aim';
-        syncHud();
+        H.sync();
     }
 
     function holeComplete() {
         var hole = state.course.holes[state.holeIndex];
         state.scores[state.holeIndex] = state.strokes;
         state.phase = 'holed';
-        syncSwing();
+        H.syncSwing();
 
         var t = S.term(state.strokes, hole.par);
         if (t.kind === 'ace') A.ace(); else A.sink();
 
-        var last = state.holeIndex === state.course.holes.length - 1;
-        $('banner-term').textContent = t.label;
-        $('banner-term').className = 'banner-term ' + t.kind;
-        $('banner-detail').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes') +
-            ' · par ' + hole.par;
-        $('banner-next').textContent = last ? 'See the card →' : 'Next hole →';
-        $('banner').className = 'banner show';
-        syncHud();
+        H.showBanner(t, state.strokes, hole.par,
+            state.holeIndex === state.course.holes.length - 1);
+        H.sync();
     }
 
     function nextHole() {
-        hideBanner();
+        H.hideBanner();
         if (state.holeIndex < state.course.holes.length - 1) {
             loadHole(state.holeIndex + 1);
         } else {
@@ -205,154 +218,13 @@
         var res = S.recordRound(state.save, state.course.id, state.scores, state.course.holes);
         state.save = S.save(res.save);
         state.phase = 'finished';
-        openCard(res);
+        H.openCard(res);
     }
-
-    function hideBanner() { $('banner').className = 'banner'; }
 
     function restartHole() {
         if (state.phase === 'finished') return;
         loadHole(state.holeIndex);
-        toast('Hole restarted');
-    }
-
-    /* ── HUD ────────────────────────────────────────────────────────────── */
-
-    function syncHud() {
-        var hole = state.course.holes[state.holeIndex];
-        var t = S.totals(state.scores, state.course.holes);
-        $('course-name').textContent = state.course.name;
-        $('hole-num').textContent = (state.holeIndex + 1) + ' / ' + state.course.holes.length;
-        $('hole-name').textContent = hole.name;
-        $('hole-par').textContent = hole.par;
-        $('hole-strokes').textContent = state.strokes;
-        $('total-strokes').textContent = t.strokes;
-
-        var vs = $('total-vspar');
-        vs.textContent = t.played ? S.formatVsPar(t.vsPar) : '—';
-        vs.className = 'stat-value ' + (t.vsPar < 0 ? 'under' : t.vsPar > 0 ? 'over' : 'level');
-
-        var rec = S.courseRecord(state.save, state.course.id);
-        $('best-round').textContent = rec.best === null
-            ? '—'
-            : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')';
-
-        syncDistance();
-        syncClubs();
-        syncPower();
-        syncWeather();
-
-        // The compact overlay carries the same figures as the scoreboard, for
-        // the layouts where the scoreboard is off screen — fullscreen, and the
-        // immersive phone layout where the canvas owns the viewport. Only the
-        // four that move during a shot are on the line; the name, the blurb
-        // and the sky are in the half that opens.
-        $('shud-hole').textContent = (state.holeIndex + 1) + '/' + state.course.holes.length;
-        $('shud-par').textContent = 'Par ' + hole.par;
-        $('shud-strokes').textContent = state.strokes + (state.strokes === 1 ? ' stroke' : ' strokes');
-        $('shud-name').textContent = hole.name;
-        $('shud-blurb').textContent = hole.blurb;
-    }
-
-    /* ── the hole card ──────────────────────────────────────────────────── */
-
-    /* What a hole is only needs saying once. It is said here, when the hole
-       loads, and then it leaves — rather than sitting under the name for the
-       whole round. The name in the scoreboard and the overlay's own drawer
-       both ask for it back, so nothing is lost by letting it go. */
-    var holeCardTimer = 0;
-
-    function showHoleCard() {
-        if (!state || !state.world) return;
-        var hole = state.course.holes[state.holeIndex];
-        var b = state.world.ball;
-        $('hc-eyebrow').textContent = state.course.name + ' · Hole ' +
-            (state.holeIndex + 1) + ' of ' + state.course.holes.length;
-        $('hc-name').textContent = hole.name;
-        $('hc-blurb').textContent = hole.blurb;
-        $('hc-meta').textContent = 'Par ' + hole.par + ' · ' +
-            Math.hypot(hole.cup.x - b.x, hole.cup.z - b.z).toFixed(1) + ' m' +
-            (state.weather ? ' · ' + state.weather.icon + ' ' + state.weather.label : '');
-        $('hole-card').classList.add('show');
-        // The card and the overlay's drawer say the same thing; whichever was
-        // asked for last is the one that says it.
-        toggleHudDetail(false);
-        clearTimeout(holeCardTimer);
-        holeCardTimer = setTimeout(hideHoleCard, 4600);
-    }
-
-    function hideHoleCard() {
-        clearTimeout(holeCardTimer);
-        $('hole-card').classList.remove('show');
-    }
-
-    /* ── the collapsible chrome ─────────────────────────────────────────── */
-
-    /* Compact chrome is on wherever the immersive layout is: a narrow window,
-       a touch screen, or fullscreen on anything. The stylesheet answers the
-       same three questions in its media queries; this is the one place that
-       decides, so the topbar's two modes cannot disagree with each other. */
-    var compactQuery = null;
-
-    function syncCompact() {
-        if (!compactQuery && window.matchMedia) {
-            compactQuery = window.matchMedia('(max-width: 900px), (pointer: coarse)');
-        }
-        var on = (compactQuery ? compactQuery.matches : false) || !!fullscreenElement();
-        var was = document.body.classList.contains('compact-ui');
-        document.body.classList.toggle('compact-ui', on);
-        if (!on) closeTopMenu();
-        // Compact chrome takes the topbar out of the flow, which hands the
-        // canvas the height it was standing in. That is a new size for the
-        // renderer, and one nothing else would tell it about: the window has
-        // not changed, only what is in it.
-        if (was !== on) { R.resize(); measurePickerBand(); }
-    }
-
-    /* Five of the seven chips live behind ☰ when the bar is compact. Overview
-       and fullscreen stay out, because those are the two you reach for with a
-       shot half aimed. */
-    function closeTopMenu() {
-        $('topbar-menu').classList.remove('open');
-        $('btn-menu').classList.remove('on');
-        $('btn-menu').setAttribute('aria-expanded', 'false');
-    }
-
-    function toggleTopMenu() {
-        var el = $('topbar-menu');
-        var open = !el.classList.contains('open');
-        el.classList.toggle('open', open);
-        $('btn-menu').classList.toggle('on', open);
-        $('btn-menu').setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-
-    /* The overlay's second half: the hole's name, what it is, and the sky.
-       Shut by default, because none of it changes while you play. */
-    function toggleHudDetail(force) {
-        var hud = $('stage-hud');
-        var open = typeof force === 'boolean' ? force : !hud.classList.contains('open');
-        if (open) hideHoleCard();
-        hud.classList.toggle('open', open);
-        $('hud-detail').hidden = !open;
-        $('hud-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-
-    /* What the sky is doing, in words, under the hole's name. The wind figure
-       is live — it is the same number the flag is answering to, so a gust you
-       can see on the cloth is a gust you can read off the panel. */
-    function syncWeather() {
-        var W = G3.weather;
-        if (!W || !state.weather) return;
-        $('sky-icon').textContent = state.weather.icon;
-        $('sky-label').textContent = state.weather.label;
-        $('shud-sky').textContent = state.weather.icon + ' ' + state.weather.label;
-    }
-
-    function syncWind() {
-        var W = G3.weather;
-        if (!W || !state.weather) return;
-        var kph = W.windSpeedKph();
-        $('sky-wind').textContent = '· ' + (kph < 4 ? 'still' : kph + ' km/h');
+        H.toast('Hole restarted');
     }
 
     /* W, or the chip under the hole name. It sets an override that lasts the
@@ -365,103 +237,9 @@
         state.weather = W.pick(state.course.id, state.holeIndex, state.course.theme);
         R.buildHole(state.course.holes[state.holeIndex], state.course.theme, state.weather);
         A.ambience(state.weather);
-        syncWeather();
-        if ($('hole-card').classList.contains('show')) showHoleCard();
-        toast(state.weather.icon + '  ' + state.weather.label);
-    }
-
-    // How far there is left to go, which is the number the club choice is
-    // really about. Updated every frame while the ball is rolling.
-    function syncDistance() {
-        var b = state.world.ball, cup = state.course.holes[state.holeIndex].cup;
-        var d = Math.hypot(cup.x - b.x, cup.z - b.z);
-        var text = state.world.sunk ? 'in' : d.toFixed(1) + ' m';
-        $('to-cup').textContent = text;
-        $('shud-dist').textContent = text;
-    }
-
-    function syncPower() {
-        var club = state.club;
-        var frac = Math.max(0, Math.min(1, state.aim.power / club.power));
-        var hot = frac > C.OVERSWING;
-        // Green through amber to red, and the same hue the arrow and the ring
-        // are wearing out on the course.
-        var hue = hot ? 0 : 120 * (1 - frac / C.OVERSWING);
-        $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
-        $('power-fill').style.color = $('power-fill').style.background = 'hsl(' + hue + ' 85% 55%)';
-        $('power-val').textContent = Math.round(frac * 100) + '%';
-        $('power-fill').parentNode.classList.toggle('hot', hot);
-        $('power-track').setAttribute('aria-valuenow', Math.round(frac * 100));
-        syncSwing();
-    }
-
-    /* Swing is the only thing that plays a stroke, so it says plainly when it
-       cannot: nothing loaded, or the ball is still moving. */
-    function syncSwing() {
-        var btn = $('btn-swing');
-        if (!btn) return;
-        var ready = state.phase === 'aim' && state.aim.power >= C.MIN_POWER;
-        btn.disabled = !ready;
-        btn.classList.toggle('ready', ready);
-    }
-
-    /* The club in hand lives in the bag now — a modelled one, parked in front
-       of the camera (see bag.js). What stays in the DOM is the line of text
-       under the meter, which doubles as the announcement for anyone who cannot
-       see the bag at all. */
-    function syncClubs() {
-        if (G3.bag) G3.bag.setSelected(state.club.id);
-        $('club-hint').textContent = state.club.name + ' — ' + state.club.blurb;
-        syncPicker();
-    }
-
-    /* The written half of the club picker. The clubs are modelled and turning
-       on the canvas; what each one is *for* is text, and text belongs in the
-       DOM where it can be read, selected and announced. */
-    function syncPicker() {
-        var open = !!(G3.bag && G3.bag.isExpanded());
-        var el = $('picker');
-        el.className = 'picker' + (open ? ' show' : '');
-        el.setAttribute('aria-hidden', open ? 'false' : 'true');
-        // Four turning clubs are hard enough to read without the overlay, the
-        // hole card and the fullscreen offer sitting on top of them.
-        $('stage').classList.toggle('picker-open', open);
-        if (!open) return;
-        hideHoleCard();
-        measurePickerBand();
-
-        // Whichever club is under the pointer, or the one in hand.
-        var id = (G3.bag && G3.bag.state.hover) || state.club.id;
-        var club = clubById(id);
-        $('picker-name').textContent = club.name;
-        $('picker-blurb').textContent = club.blurb;
-        // Short on purpose: the club itself now carries the same line in its
-        // own hand (bag.js), so this is the backup for a screen reader and a
-        // reminder, not the only place to read it.
-        $('picker-stats').innerHTML =
-            '<b>' + club.key + '</b> · pwr <b>' + club.power + '</b> · loft <b>' +
-            Math.round(club.loft * 180 / Math.PI) + '°</b>' +
-            (club.id === state.club.id ? ' · <b>in hand</b>' : '');
-    }
-
-    /* How much of the stage the club panel and the shot controls have taken,
-       as fractions of its height. The clubs come out of the bag into whatever
-       is left between them, and both of those are text and buttons — a font
-       size, a line count and a phone away from anything the renderer could
-       work out for itself. So they are measured and handed over rather than
-       guessed at, which is what stops the row landing under the panel naming
-       it on a screen nobody tested. */
-    function measurePickerBand() {
-        if (!G3.bag || !G3.bag.setBand) return;
-        var stage = $('stage').getBoundingClientRect();
-        var ctl = document.querySelector('.controls');
-        if (!stage.height || !ctl) return;
-        var text = $('picker-stats').getBoundingClientRect();
-        var bar = ctl.getBoundingClientRect();
-        G3.bag.setBand(
-            (text.bottom - stage.top) / stage.height + 0.02,
-            (stage.bottom - bar.top) / stage.height + 0.02
-        );
+        H.syncWeather();
+        H.showHoleCardIfShowing();
+        H.toast(state.weather.icon + '  ' + state.weather.label);
     }
 
     /* ── input ──────────────────────────────────────────────────────────────
@@ -530,7 +308,7 @@
         canvas.style.cursor = hit ? 'pointer' : '';
         // The panel above the row names whatever is under the pointer, so a
         // change of hover is a change of text.
-        if (G3.bag.state.hover !== was) syncPicker();
+        if (G3.bag.state.hover !== was) H.syncPicker();
     }
 
     // Put the view back where the drag found it. Used when a pinch takes the
@@ -547,7 +325,7 @@
         // reason to lose track of it.
         try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
-        hideHoleCard();
+        H.hideHoleCard();
         if (!state) return;
 
         if (Object.keys(pointers).length >= 2) {
@@ -573,7 +351,7 @@
         // so the drag that dismisses it cannot also swing the camera round.
         if (G3.bag && G3.bag.isExpanded()) {
             G3.bag.setExpanded(false);
-            syncPicker();
+            H.syncPicker();
             return;
         }
 
@@ -625,12 +403,12 @@
             if (hit === 'bag') {
                 G3.bag.toggle();
                 A.tick(G3.bag.isExpanded() ? 0.7 : 0.3);
-                syncPicker();
+                H.syncPicker();
             } else {
                 pickClub(clubById(hit));
                 G3.bag.setExpanded(false);
                 A.tick(1);
-                syncPicker();
+                H.syncPicker();
             }
             return;
         }
@@ -666,7 +444,7 @@
     function setPower(v) {
         if (!state) return;
         state.aim.power = Math.max(0, Math.min(state.club.power, v));
-        syncPower();
+        H.syncPower();
     }
 
     function nudgePower(by) {
@@ -724,36 +502,36 @@
         var fine = e.shiftKey;
         var k = e.key;
 
-        if (k === 'm' || k === 'M') { toggleMute(); return; }
+        if (k === 'm' || k === 'M') { H.toggleMute(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
-        if (k === 'v' || k === 'V') { toggleOverview(); return; }
-        if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
+        if (k === 'v' || k === 'V') { H.toggleOverview(); return; }
+        if (k === 'f' || k === 'F') { H.toggleFullscreen(); return; }
         if (k === 'w' || k === 'W') { cycleWeather(); return; }
-        if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
+        if (k === '?' || k === 'h' || k === 'H') { H.openHowTo(); return; }
         if (k === 'Escape') {
-            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); return; }
-            closeHowTo();
+            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); H.syncPicker(); return; }
+            H.closeHowTo();
             return;
         }
         if (k >= '1' && k <= '9') {
             var byKey = C.CLUBS.filter(function (c) { return c.key === k; })[0];
-            if (byKey) { pickClub(byKey); if (G3.bag) G3.bag.setExpanded(false); syncPicker(); return; }
+            if (byKey) { pickClub(byKey); if (G3.bag) G3.bag.setExpanded(false); H.syncPicker(); return; }
         }
         if (k === 'c' || k === 'C') {
             // C cycles; with the bag open it walks the row instead of shutting
             // it, which is how you compare two clubs without the mouse.
             cycleClub(1);
-            syncPicker();
+            H.syncPicker();
             return;
         }
         if (k === 'Escape') {
-            closeTopMenu();
-            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); syncPicker(); }
-            hideHoleCard();
+            H.closeTopMenu();
+            if (G3.bag && G3.bag.isExpanded()) { G3.bag.setExpanded(false); H.syncPicker(); }
+            H.hideHoleCard();
             return;
         }
         if (k === 'b' || k === 'B') {
-            if (G3.bag) { G3.bag.toggle(); syncPicker(); }
+            if (G3.bag) { G3.bag.toggle(); H.syncPicker(); }
             return;
         }
         if (state.phase === 'holed' && (k === 'Enter' || k === ' ')) { e.preventDefault(); nextHole(); return; }
@@ -766,149 +544,6 @@
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
-    function toggleOverview() {
-        R.cam.overview = !R.cam.overview;
-        $('btn-view').classList.toggle('on', R.cam.overview);
-    }
-
-    /* Fullscreen is taken on the viewport rather than the stage: the topbar,
-       the overlay and the modals live inside it, so every control comes along
-       and there is no mode where the course is on screen but Overview,
-       Courses or the scorecard are not. Vendor-prefixed for the Safaris that
-       still need it. */
-    function fullscreenElement() {
-        return document.fullscreenElement || document.webkitFullscreenElement || null;
-    }
-
-    function toggleFullscreen() {
-        var el = $('viewport');
-        if (fullscreenElement()) {
-            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        } else if (el.requestFullscreen || el.webkitRequestFullscreen) {
-            (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-        } else {
-            toast('This browser will not do fullscreen here');
-        }
-    }
-
-    function onFullscreenChange() {
-        var on = !!fullscreenElement();
-        $('btn-full').classList.toggle('on', on);
-        document.body.classList.toggle('is-full', on);
-        syncCompact();
-        if (on) dismissFsPrompt(false);
-        // The canvas has a new size the moment the browser swaps modes, and
-        // again when it swaps back.
-        setTimeout(function () { R.resize(); measurePickerBand(); }, 60);
-    }
-
-    /* The chip in the topbar does the same job, but it is one small icon among
-       six others and easy to never notice. This is the same offer said once,
-       plainly, right where a round starts — and it remembers being waved off,
-       so it is not something to dismiss twice. */
-    var fsPromptTimer = 0;
-
-    function fsPromptDismissed() {
-        try { return localStorage.getItem(C.FS_PROMPT_KEY) === '1'; } catch (e) { return false; }
-    }
-    function dismissFsPrompt(remember) {
-        clearTimeout(fsPromptTimer);
-        $('fs-prompt').classList.remove('show');
-        if (remember) { try { localStorage.setItem(C.FS_PROMPT_KEY, '1'); } catch (e) { /* ignore */ } }
-    }
-    /* Said once, after the hole has introduced itself, and then gone by itself:
-       an offer that has to be dismissed to stop being in the way is a second
-       thing to do before playing, and two things arriving at once on the same
-       corner of a phone is neither of them being read. */
-    function maybeShowFsPrompt() {
-        if (fsPromptDismissed() || fullscreenElement()) return;
-        if (!($('stage').requestFullscreen || $('stage').webkitRequestFullscreen)) return;
-        clearTimeout(fsPromptTimer);
-        fsPromptTimer = setTimeout(function () {
-            if (fsPromptDismissed() || fullscreenElement()) return;
-            $('fs-prompt').classList.add('show');
-            fsPromptTimer = setTimeout(function () {
-                $('fs-prompt').classList.remove('show');
-            }, 9000);
-        }, 5200);
-    }
-
-    var menuAfterHowTo = false;
-
-    function openHowTo() { $('howto').className = 'modal show'; }
-
-    function closeHowTo() {
-        $('howto').className = 'modal';
-        try { localStorage.setItem(C.SEEN_KEY, '1'); } catch (e) { /* ignore */ }
-        // On a first visit the rules come before the course list, so the list
-        // is what you get when you have read them.
-        if (menuAfterHowTo) { menuAfterHowTo = false; openMenu(); }
-    }
-
-    function seenHowTo() {
-        try { return localStorage.getItem(C.SEEN_KEY) === '1'; } catch (e) { return true; }
-    }
-
-    function toggleMute() {
-        var m = A.toggleMute();
-        $('mute-icon').textContent = m ? '🔇' : '🔊';
-        $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
-    }
-
-    /* ── menus and cards ────────────────────────────────────────────────── */
-
-    function openMenu() {
-        var save = state ? state.save : S.load();
-        var host = $('menu-list');
-        host.innerHTML = '';
-        G3.COURSES.forEach(function (course) {
-            var rec = S.courseRecord(save, course.id);
-            var par = S.coursePar(course.holes);
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'course-card';
-            btn.innerHTML =
-                '<span class="cc-name">' + course.name + '</span>' +
-                '<span class="cc-blurb">' + course.blurb + '</span>' +
-                '<span class="cc-meta">' + course.holes.length + ' holes · par ' + par +
-                ' · best ' + (rec.best === null ? '—' : rec.best + ' (' + S.formatVsPar(rec.bestVsPar) + ')') +
-                '</span>';
-            btn.addEventListener('click', function () { newRound(course.id); });
-            host.appendChild(btn);
-        });
-        $('menu').className = 'modal show';
-    }
-
-    function closeMenu() { $('menu').className = 'modal'; }
-
-    function openCard(res) {
-        var holes = state.course.holes;
-        var rows = '', i, sc, t;
-        for (i = 0; i < holes.length; i++) {
-            sc = state.scores[i];
-            t = typeof sc === 'number' ? S.term(sc, holes[i].par) : null;
-            rows += '<tr><td class="n">' + (i + 1) + '</td>' +
-                '<td class="nm">' + holes[i].name + '</td>' +
-                '<td>' + holes[i].par + '</td>' +
-                '<td class="' + (t ? (sc === 1 ? 'ace' : t.kind === 'over' ? 'over' : t.kind === 'par' ? 'level' : 'under') : '') + '">' +
-                (typeof sc === 'number' ? sc : '—') + '</td></tr>';
-        }
-        var tot = res ? res.totals : S.totals(state.scores, holes);
-        var par = S.coursePar(holes);
-        $('card-title').textContent = res ? 'Round complete' : 'Scorecard';
-        $('card-sub').textContent = state.course.name + (res && res.isBest ? ' — a new personal best.' : '');
-        $('card-body').innerHTML =
-            '<table class="card-table"><thead><tr><th></th><th>Hole</th><th>Par</th><th>Score</th></tr></thead>' +
-            '<tbody>' + rows + '</tbody>' +
-            '<tfoot><tr><td></td><td>Total</td><td>' + par + '</td><td>' + tot.strokes + '</td></tr>' +
-            '<tr><td></td><td>To par</td><td></td><td class="' +
-            (tot.vsPar < 0 ? 'under' : tot.vsPar > 0 ? 'over' : 'level') + '">' +
-            S.formatVsPar(tot.vsPar) + '</td></tr></tfoot></table>';
-        $('scorecard').className = 'modal show';
-    }
-
-    function closeCard() { $('scorecard').className = 'modal'; }
-
     /* ── loop ───────────────────────────────────────────────────────────── */
 
     function loop(now) {
@@ -920,7 +555,7 @@
         if (state.phase === 'rolling') {
             var ev = P.advance(state.world, dt, {});
             handleEvents(ev);
-            syncDistance();
+            H.syncDistance();
             if (P.done(state.world)) endShot();
         } else {
             // Gates and blades keep their own time whether or not the ball is
@@ -930,7 +565,7 @@
 
         // The wind gusts whether or not anything is happening, so the readout
         // under the hole name is refreshed on the frame rather than the shot.
-        syncWind();
+        H.syncWind();
 
         // The camera sits behind the aim, so turning one turns the other.
         R.cam.yaw = state.aim.yaw;
@@ -967,6 +602,16 @@
             return;
         }
 
+        /* What the chrome is allowed to ask the game to do. This object is the
+           whole of it — hud.js has no other way in — so it doubles as the list
+           of what a button on the page can set in motion. */
+        H.init({
+            state: function () { return state; },
+            clubById: clubById,
+            newRound: newRound
+        });
+
+        /* ── the course ─────────────────────────────────────────────────── */
         canvas.addEventListener('pointerdown', onDown);
         canvas.addEventListener('pointermove', onMove);
         canvas.addEventListener('pointerup', onUp);
@@ -978,15 +623,11 @@
         window.addEventListener('keydown', onKey);
         window.addEventListener('resize', function () {
             R.resize();
-            syncCompact();
-            measurePickerBand();
+            H.syncCompact();
+            H.measurePickerBand();
         });
 
-        $('banner-next').addEventListener('click', nextHole);
-        $('btn-restart').addEventListener('click', restartHole);
-        $('btn-courses').addEventListener('click', openMenu);
-        $('btn-card').addEventListener('click', function () { openCard(null); });
-        $('btn-view').addEventListener('click', toggleOverview);
+        /* ── the shot ───────────────────────────────────────────────────── */
         $('btn-swing').addEventListener('click', shoot);
         $('btn-aim-left').addEventListener('click', function () { nudgeAim(0.035); });
         $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
@@ -995,41 +636,21 @@
         $('power-track').addEventListener('pointerup', onPowerUp);
         $('power-track').addEventListener('pointercancel', onPowerUp);
         $('power-track').addEventListener('keydown', onPowerKey);
-        $('fs-prompt-go').addEventListener('click', function () { dismissFsPrompt(true); toggleFullscreen(); });
-        $('fs-prompt-dismiss').addEventListener('click', function () { dismissFsPrompt(true); });
-        $('btn-full').addEventListener('click', toggleFullscreen);
-        $('btn-help').addEventListener('click', openHowTo);
-        $('btn-help-2').addEventListener('click', openHowTo);
-        $('btn-mute').addEventListener('click', toggleMute);
+
+        /* ── the round ──────────────────────────────────────────────────── */
+        $('banner-next').addEventListener('click', nextHole);
+        $('btn-restart').addEventListener('click', restartHole);
         $('btn-weather').addEventListener('click', cycleWeather);
         $('shud-sky').addEventListener('click', cycleWeather);
-        $('hole-name').addEventListener('click', showHoleCard);
-        $('hud-toggle').addEventListener('click', function () { toggleHudDetail(); });
-        $('btn-menu').addEventListener('click', toggleTopMenu);
-        // Anything picked out of the menu is the last thing the menu is for.
-        $('topbar-menu').addEventListener('click', closeTopMenu);
-        // A press anywhere else shuts it, the way a menu should.
-        document.addEventListener('pointerdown', function (e) {
-            if (!$('topbar-menu').classList.contains('open')) return;
-            if (e.target && e.target.closest && e.target.closest('.topbar-actions')) return;
-            closeTopMenu();
-        }, true);
-        syncCompact();
-        if (compactQuery) {
-            if (compactQuery.addEventListener) compactQuery.addEventListener('change', syncCompact);
-            else if (compactQuery.addListener) compactQuery.addListener(syncCompact);
-        }
-        $('howto-close').addEventListener('click', closeHowTo);
-        $('howto').addEventListener('click', function (e) { if (e.target === this) closeHowTo(); });
-        document.addEventListener('fullscreenchange', onFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', onFullscreenChange);
-        $('card-close').addEventListener('click', closeCard);
         $('card-again').addEventListener('click', function () { newRound(state.course.id); });
         $('menu-close').addEventListener('click', function () {
-            if (state && state.world) closeMenu();
+            // Nothing to go back to before a round has started.
+            if (state && state.world) H.closeMenu();
         });
 
-        if (A.isMuted()) $('mute-icon').textContent = '🔇';
+        /* ── the chrome ─────────────────────────────────────────────────── */
+        H.bindChrome();
+        H.setMuteIcon(A.isMuted());
 
         var q = params();
         state = { save: S.load() };
@@ -1047,17 +668,17 @@
             // of the first course is as good an advert as any. A first-time
             // player gets the rules before the course list.
             newRound(G3.COURSES[0].id);
-            if (seenHowTo()) {
-                openMenu();
+            if (H.seenHowTo()) {
+                H.openMenu();
             } else {
-                menuAfterHowTo = true;
-                openHowTo();
+                H.setMenuAfterHowTo(true);
+                H.openHowTo();
             }
         }
 
         // One measurement before the first frame, so the bag stands in the
         // right corner of the round rather than the frame after it.
-        measurePickerBand();
+        H.measurePickerBand();
 
         last = performance.now();
         raf = requestAnimationFrame(loop);
@@ -1066,12 +687,17 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();
 
+    /* What the page and the console can do to a round in progress. Everything
+       else is private — including `state`, which is readable and not writable
+       on purpose. */
     G3.game = {
         newRound: newRound,
         restartHole: restartHole,
         pickClub: pickClub,
-        toggleFullscreen: toggleFullscreen,
-        openHowTo: openHowTo,
+        shoot: shoot,
+        cycleWeather: cycleWeather,
+        toggleFullscreen: function () { H.toggleFullscreen(); },
+        openHowTo: function () { H.openHowTo(); },
         get state() { return state; }
     };
 

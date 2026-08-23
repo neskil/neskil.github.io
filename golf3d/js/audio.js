@@ -1,4 +1,13 @@
-/* Synthesised sound effects — no audio files to ship, and nothing is created
+/* audio.js — every sound the game makes, synthesised.
+
+   No audio files ship and none are fetched. Two halves: one-shot effects (the
+   strike, a bounce, a rim, the cup) and the weather's bed, a continuous wind
+   and rain loop whose two gains follow the sky.
+
+   Read by game.js and game/hud.js. Depends on config.js. Touches nothing else
+   — it is handed numbers and makes a noise.
+
+   Synthesised sound effects — no audio files to ship, and nothing is created
    until the first putt, because browsers refuse to start an AudioContext
    before a gesture and a suspended context logs a warning on every load.
 

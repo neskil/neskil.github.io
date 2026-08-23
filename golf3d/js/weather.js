@@ -1,4 +1,16 @@
-/* Weather, wind and the things drifting about in the air.
+/* weather.js — the sky each hole gets, and the wind everything answers to.
+
+   Owns: which sky a hole has, the wind vector, and the rain, mist and motes
+   parented to the hole. Hands the renderer a group to draw and a wind to
+   follow.
+
+   **Never the simulation.** Wind does not push the ball and rain does not slow
+   it — see below. physics.js has never heard of this file.
+
+   Read by render.js, render/hole.js, game.js and game/hud.js. Depends on
+   config.js and THREE.
+
+   Weather, wind and the things drifting about in the air.
 
    A course used to be a fixed set of colours: the same noon, the same flat
    sky, every hole, every round. This file gives each hole a sky of its own and

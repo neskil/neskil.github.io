@@ -1,4 +1,11 @@
-/* Scorecard arithmetic and the save file. Pure except for the two functions
+/* scoring.js — what a round is worth, and what is remembered of it.
+
+   Pure arithmetic and one localStorage key. No THREE, no DOM — render-tests.html
+   checks that, because this file runs in tests.html where neither exists.
+
+   Read by game.js and game/hud.js. Depends on config.js.
+
+   Scorecard arithmetic and the save file. Pure except for the two functions
    that touch localStorage, which swallow their errors — a browser with storage
    disabled should cost you your records, not your round.
 

@@ -1,6 +1,13 @@
-/* Tuning constants for Loft Links. Everything the simulation reads lives here,
-   so physics.js holds no magic numbers and the tests reason about the same
-   values the game runs on. Same arrangement as the 2D game next door.
+/* config.js — every number in the game.
+
+   Nothing else holds a magic number. If a value has to be argued about it is
+   here, with the argument beside it; if a file needs a number it reads it from
+   here. So physics.js holds no constants of its own, the tests reason about
+   the same figures the game runs on, and changing how the game *plays* is
+   usually an edit to this file and nothing else. Same arrangement as the 2D
+   game next door.
+
+   Read by everything. Depends on nothing.
 
    Units are world units and seconds. One unit is roughly a metre; the ball is
    deliberately oversized (16cm) because a real 4cm ball is invisible from a
@@ -8,7 +15,10 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.1.0';
+/* The build, shown nowhere and useful in the console. Keep it equal to the
+   `?v=` on the script tags in index.html — one number for the whole game, so
+   there is only ever one thing to bump. See CLAUDE.md → "Before you push". */
+G3.VERSION = '1.4.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,

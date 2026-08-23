@@ -1,4 +1,18 @@
-/* Three courses of six holes, as data.
+/* courses.js — the eighteen holes, as data.
+
+   A hole is pads, walls, water and two points; a course is six of them and a
+   theme. Nothing here is code the game runs — the helpers at the top exist to
+   keep the data readable, and `enclose()` generates the rails so a hole's
+   author never places one by hand.
+
+   Adding a hole is adding an object to one of the three arrays below. Adding a
+   course is a fourth array, an entry in `G3.COURSES`, and a palette in
+   render/palette.js. Neither needs a line anywhere else.
+
+   Read by game.js, render/hole.js and both test pages. Depends on config.js
+   and physics.js (for `surfaceTop`, to derive tee and cup heights).
+
+   Three courses of six holes, as data.
 
    A hole is a set of pads (the ground), a set of walls (things that bounce),
    a set of water rectangles (things that punish), a tee and a cup. Everything

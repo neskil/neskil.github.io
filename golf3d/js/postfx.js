@@ -1,4 +1,14 @@
-/* Everything that happens to the picture after the course has been drawn.
+/* postfx.js — the picture, after the course has been drawn.
+
+   Bloom, light shafts, tone mapping, the weather's grade, vignette and grain.
+   Entirely optional: `init()` returns false on a context that cannot have it
+   and render.js draws straight to the canvas instead. Everything downstream is
+   written so either is a complete game.
+
+   Read by render.js only. Depends on THREE. Knows nothing about holes, balls
+   or the game.
+
+   Everything that happens to the picture after the course has been drawn.
 
    The course goes into an offscreen buffer instead of straight to the canvas,
    and one full-screen pass turns that buffer into the image you see: bloom on

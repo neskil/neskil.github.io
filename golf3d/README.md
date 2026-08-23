@@ -12,22 +12,43 @@ them.
 
 ## Files
 
+Four layers, and the load order in `index.html` is the dependency order: a file
+may use anything above it and nothing below it. [`CLAUDE.md`](CLAUDE.md) has a
+"what am I changing → which file" table and the rules that hold the layers
+apart.
+
 | Path | What it is |
 | --- | --- |
-| `index.html` | Page shell: scoreboard, canvas, power/loft controls, banner, course picker, scorecard. |
+| `index.html` | Page shell: scoreboard, canvas, power controls, banner, course picker, scorecard. |
 | `style.css` | Page chrome. The course itself is all WebGL. |
+| **the rules** | *no three.js, no DOM — this half runs headless* |
 | `js/config.js` | Every tuning constant. Nothing else holds a magic number. |
+| `js/physics.js` | The simulation. Pure. |
 | `js/courses.js` | The eighteen holes, as data, plus the rail generator. |
-| `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
+| **the senses** | |
 | `js/audio.js` | Synthesised sound effects and the weather's sound bed — no audio files to ship. |
-| `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
-| `js/render.js` | The course, in three.js. Procedural textures, no images. |
-| `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
-| `js/game.js` | Loop, input, and what a shot means. |
+| `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
+| **the picture** | *procedural textures, no images* |
+| `js/render/palette.js` | The three courses' colours, and how weather bends them. |
+| `js/render/textures.js` | Every surface, painted into a canvas at load. |
+| `js/render/sky.js` | The dome overhead and the clouds in it. |
+| `js/render/water.js` | The sea and the ponds. |
+| `js/render/hole.js` | The course itself, as meshes. |
+| `js/render/aim.js` | The shot you have not taken yet. |
+| `js/render/effects.js` | The trail behind the ball, and everything that sprays. |
+| `js/bag/models.js` | A golf bag and four clubs, as geometry. |
+| `js/bag.js` | The club picker: where the clubs stand and what happens when one is clicked. |
+| `js/render.js` | The conductor: state, the camera, and the order things happen in a frame. |
+| **the game** | |
+| `js/game/hud.js` | The DOM chrome: scoreboard, overlay, modals, club panel. Decides nothing. |
+| `js/game.js` | The round, the shot, input, and the loop. The only file that holds `state`. |
+| **and** | |
 | `vendor/three.min.js` | three.js r128, vendored. |
-| `tests.html` | Headless test harness. Open it; green is green. |
+| `tests.html` | The rules, headless, with no THREE loaded at all. Open it; green is green. |
+| `render-tests.html` | The wiring: every hole built and drawn against a real WebGL context. |
+| `CLAUDE.md` | Standing instructions: where to change what, the non-negotiables, how to verify. |
 
 ## The bag
 
@@ -408,9 +429,12 @@ loft exactly as it was before.
 
 ## The chrome
 
-Everything the player can reach lives in `index.html` and is wired in
-`game.js`; there is no framework and no state library, because there are about
-a dozen pieces of state and they all fit in one object.
+Everything the player can reach lives in `index.html`. `game/hud.js` writes it
+and `game.js` decides what it says: the chrome is handed a read-only view of
+the round and three things it may ask for, so a change to the scoreboard cannot
+change what a stroke costs. There is no framework and no state library, because
+there are about a dozen pieces of state and they all fit in one object, in one
+file.
 
 The rule the chrome is built to: **a thing that only needs saying once should
 only be said once**, and everything else should be one press away rather than
@@ -423,7 +447,7 @@ permanently on screen. A phone is 400 points wide and the course is the point.
   all seven and the wrapper drops out of the layout entirely
   (`display: contents`) and the chips sit in the row as before.
 - **Compact chrome** is on wherever the immersive layout is — a narrow window, a
-  touch screen, or fullscreen on anything — and `game.js` decides it in one
+  touch screen, or fullscreen on anything — and `game/hud.js` decides it in one
   place (`syncCompact`) so the bar's two modes cannot disagree with the
   stylesheet's. In it the topbar stops standing above the canvas and starts
   floating over it on a scrim, which is worth 50 to 90 points of course; the
@@ -526,8 +550,14 @@ periods that do not divide into each other — and everything answers to it:
 
 ## Rendering
 
-`render.js` is the only file that knows three.js exists. Everything it draws
-comes from the same data the simulation reads: pads are boxes sheared by the
+Three.js lives in exactly one layer: `render.js` and the files under
+`js/render/`, plus `bag.js` for the furniture in front of the camera. Nothing
+in the rules layer has heard of it, and `render-tests.html` asserts as much.
+`render.js` itself is the conductor — state, the camera, and the order things
+happen in a frame — and hands the actual model-building to `render/hole.js`,
+`render/sky.js`, `render/water.js` and `render/textures.js`.
+
+Everything it draws comes from the same data the simulation reads: pads are boxes sheared by the
 pad's own gradient (a shear keeps the vertical edges vertical, so a tilted pad
 still meets its neighbours), and a pad's underside reaches the surrounding
 ground so a raised green reads as a plateau rather than a slab in mid-air.
@@ -654,7 +684,12 @@ line, which is what makes "drag left, aim left" true from any angle, and
 
 ## Tests
 
-Open `tests.html`. 423 assertions covering the surfaces, the collision
+Two pages, because they need different things. [`CLAUDE.md`](CLAUDE.md) has the
+exact headless command for both.
+
+### `tests.html` — the rules
+
+Open it. Four hundred-odd assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all eighteen holes of course data
 and the scorecard, in about a second.
 
@@ -674,6 +709,24 @@ Being pure logic, `tests.html` needs no WebGL, no canvas and no AudioContext. It
 loads `config.js`, `physics.js`, `courses.js` and `scoring.js` and nothing else
 — the weather, the renderer and the post chain are all absent from it, which is
 the strongest statement available that none of them can change a score.
+
+### `render-tests.html` — the wiring
+
+Which is also its blind spot. A suite that loads none of the renderer cannot
+tell you the renderer works, and for a while it did not: an uncaught throw in
+the aim preview killed the frame callback before its own draw call, and the
+game showed a black canvas while four hundred assertions stayed green. Nothing
+in a logic suite can catch that, because nothing in a logic suite runs a frame.
+
+So there is a second page that does. It takes a real WebGL context, builds all
+eighteen holes under every theme and every sky, and draws a frame in each of
+six aim states — including the zero-power one the game sits in between shots,
+which is the one that was broken. It also checks the two rules that keep the
+picture honest: that a moving wall's mesh is where `physics.wallBox()` says it
+is, and that the rules layer has not quietly grown a reference to three.js.
+
+The split matches the reason for it. `tests.html` proves the game is fair;
+`render-tests.html` proves it is on screen.
 
 ## Saving
 

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loft Links — wiring tests</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { background: #061422; color: #eaf6ff; font-family: 'JetBrains Mono', ui-monospace, monospace; padding: 1rem; line-height: 1.5; }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; font-weight: bold; }
+        h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9fb6c9; margin: 1.4rem 0 0.3rem; border-bottom: 1px solid #ffffff1a; padding-bottom: 0.2rem; }
+        #summary { font-size: 1.2rem; margin-bottom: 0.5rem; padding: 0.6rem 0.9rem; border-radius: 10px; background: #ffffff0d; }
+        #summary.ok { color: #4ade80; }
+        #summary.bad { color: #f87171; }
+        .note { color: #9fb6c9; font-size: 0.8rem; }
+        canvas { position: fixed; left: -4000px; width: 640px; height: 400px; }
+    </style>
+</head>
+<body>
+    <div id="summary">running…</div>
+    <div id="results"></div>
+    <canvas id="board" width="640" height="400"></canvas>
+
+    <!-- The other half of the suite. `tests.html` proves the rules; this page
+         proves the wiring, which is the half that used to ship broken.
+
+         Everything index.html loads except game.js, because game.js boots
+         itself against index.html's chrome and this page has none. So the
+         layers under it are driven directly: a real WebGLRenderingContext, a
+         real hole, a real frame. A throw anywhere in that chain is a failure
+         here, where nothing catches it — in the game, `frame()` dies before
+         its own draw call and the canvas simply goes black. -->
+    <script src="vendor/three.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/courses.js"></script>
+    <script src="js/scoring.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/bag/models.js"></script>
+    <script src="js/bag.js"></script>
+    <script src="js/postfx.js"></script>
+    <script src="js/weather.js"></script>
+    <script src="js/render/palette.js"></script>
+    <script src="js/render/textures.js"></script>
+    <script src="js/render/sky.js"></script>
+    <script src="js/render/water.js"></script>
+    <script src="js/render/hole.js"></script>
+    <script src="js/render/aim.js"></script>
+    <script src="js/render/effects.js"></script>
+    <script src="js/render.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        var C = G3.CONFIG, P = G3.physics, R = G3.render;
+        var passed = 0, failed = 0;
+        window.FAILS = [];
+        var out = document.getElementById('results');
+        var t0 = performance.now();
+
+        function section(name) {
+            var h = document.createElement('h2');
+            h.textContent = name;
+            out.appendChild(h);
+        }
+
+        function assert(name, cond, detail) {
+            var div = document.createElement('div');
+            if (cond) {
+                passed++;
+                div.className = 'pass';
+                div.textContent = '✓ ' + name;
+            } else {
+                failed++;
+                window.FAILS.push(name + (detail ? ' — ' + detail : ''));
+                div.className = 'fail';
+                div.textContent = 'FAIL: ' + name + (detail ? ' — ' + detail : '');
+            }
+            out.appendChild(div);
+        }
+
+        /* Almost everything here is "does this run at all", so the assertion
+           that matters is the one that catches a throw and names where. */
+        function survives(name, fn) {
+            try {
+                fn();
+                assert(name, true);
+            } catch (e) {
+                assert(name, false, (e && e.message) || String(e));
+            }
+        }
+
+        function note(text) {
+            var div = document.createElement('div');
+            div.className = 'note';
+            div.textContent = text;
+            out.appendChild(div);
+        }
+
+        function finish() {
+            var el = document.getElementById('summary');
+            el.className = failed ? 'bad' : 'ok';
+            el.textContent = (failed ? '✗ ' + failed + ' failed, ' : '✓ ') + passed + ' passed' +
+                ' — ' + Math.round(performance.now() - t0) + 'ms';
+            window.TEST_RESULT = { passed: passed, failed: failed, fails: window.FAILS };
+        }
+
+        /* ── the modules are all here ──────────────────────────────────── */
+
+        section('modules');
+
+        [
+            ['CONFIG', 'config.js'], ['physics', 'physics.js'], ['COURSES', 'courses.js'],
+            ['scoring', 'scoring.js'], ['audio', 'audio.js'], ['bag', 'bag.js'],
+            ['clubModels', 'bag/models.js'], ['postfx', 'postfx.js'], ['weather', 'weather.js'],
+            ['palette', 'render/palette.js'], ['textures', 'render/textures.js'],
+            ['sky', 'render/sky.js'], ['water', 'render/water.js'],
+            ['holeMesh', 'render/hole.js'], ['aimView', 'render/aim.js'],
+            ['effects', 'render/effects.js'], ['render', 'render.js']
+        ].forEach(function (m) {
+            assert('G3.' + m[0] + ' is exported by ' + m[1], G3[m[0]] !== undefined);
+        });
+
+        /* The layer rule, checked rather than asserted in a comment: nothing
+           under the render layer may reach for THREE. If one of these ever
+           grows a `new THREE.Vector3()` the pure half of the suite stops
+           being able to run without a GPU, and tests.html breaks loudly. */
+        section('the layer rule');
+
+        function code(mod) {
+            var src = Object.keys(mod).map(function (k) {
+                return typeof mod[k] === 'function' ? mod[k].toString() : '';
+            }).join('\n');
+            // Comments are allowed to say the word; code is not allowed to use it.
+            return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+        }
+
+        [['physics', G3.physics], ['scoring', G3.scoring]].forEach(function (m) {
+            assert(m[0] + '.js never reaches for THREE', !/\bTHREE\s*\./.test(code(m[1])),
+                'the pure half of the suite runs with no WebGL context at all');
+        });
+
+        /* ── a real context ────────────────────────────────────────────── */
+
+        section('the renderer starts');
+
+        var canvas = document.getElementById('board');
+        var started = false;
+        survives('render.init() takes a real canvas', function () {
+            R.init(canvas);
+            started = true;
+        });
+
+        if (!started || !R.state.ready) {
+            assert('a WebGL context is available', false,
+                'no context — run with a GPU or --use-gl=swiftshader');
+            finish();
+            return;
+        }
+        assert('render.state.ready is set', R.state.ready === true);
+        assert('the scene has a camera', !!R.state.camera);
+        survives('bag.build() puts the clubs in the scene', function () {
+            G3.bag.build(R.state.scene);
+        });
+        assert('the bag has a rig', !!G3.bag.state.rig);
+
+        /* ── every hole, built and drawn ───────────────────────────────── */
+
+        section('every hole builds and draws');
+
+        /* An aim state per line of updateAim worth reaching. Power 0 is the
+           one the game sits in between shots and the one that shipped broken:
+           the simulation refuses anything under MIN_POWER, so a preview asked
+           for 0 comes back empty and the arrowhead has nothing to point at. */
+        var AIMS = [
+            { name: 'at rest, no power loaded', aim: { yaw: 0.4, power: 0, loft: 0, show: true } },
+            { name: 'just under the minimum swing', aim: { yaw: 0.4, power: C.MIN_POWER * 0.5, loft: 0, show: true } },
+            { name: 'at the minimum swing', aim: { yaw: 0.4, power: C.MIN_POWER, loft: 0, show: true } },
+            { name: 'half a swing, lofted', aim: { yaw: -1.2, power: C.MAX_POWER * 0.5, loft: C.MAX_LOFT * 0.5, show: true } },
+            { name: 'everything, at full loft', aim: { yaw: 2.9, power: C.MAX_POWER, loft: C.MAX_LOFT, show: true } },
+            { name: 'aim hidden', aim: { yaw: 0, power: 12, loft: 0, show: false } }
+        ];
+
+        var frames = 0, holes = 0;
+
+        G3.COURSES.forEach(function (course) {
+            course.holes.forEach(function (hole, i) {
+                var weather = G3.weather.pick(course.id, i, course.theme);
+                var label = course.id + '/' + hole.name;
+
+                survives(label + ': builds', function () {
+                    R.buildHole(hole, course.theme, weather);
+                    holes++;
+                });
+
+                var world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 0);
+                survives(label + ': draws a frame in every aim state', function () {
+                    AIMS.forEach(function (a) {
+                        R.frame(1 / 60, world, a.aim);
+                        frames++;
+                    });
+                });
+            });
+        });
+
+        note(holes + ' holes built, ' + frames + ' frames drawn');
+
+        /* ── the parts of a frame that have their own failure modes ────── */
+
+        section('a shot, drawn all the way through');
+
+        var course = G3.COURSES[2];        // Windmill Works: everything moves
+        var hole = course.holes[0];
+        var weather = G3.weather.pick(course.id, 0, course.theme);
+        R.buildHole(hole, course.theme, weather);
+
+        var world = P.createWorld(hole, { x: hole.tee.x, z: hole.tee.z }, 0);
+        var aim = { yaw: Math.atan2(hole.cup.x - hole.tee.x, hole.cup.z - hole.tee.z),
+                    power: C.MAX_POWER * 0.55, loft: 12 * Math.PI / 180, show: true };
+
+        assert('the hole has walls that move', R.state.movers.length > 0,
+            'no movers on ' + hole.name);
+
+        survives('a shot launches, flies and settles with a frame on every step', function () {
+            P.launch(world, aim.yaw, aim.power, aim.loft);
+            aim.show = false;
+            var steps = 0;
+            while (world.moving && steps < 60 * 20) {
+                P.advance(world, C.SIM_DT, {});
+                if (steps % 2 === 0) R.frame(C.SIM_DT * 2, world, aim);
+                steps++;
+            }
+            if (world.moving) throw new Error('the ball never settled');
+        });
+
+        /* A moving wall is drawn from physics.wallBox(), which is the same
+           call the solver makes. Anything that breaks that link puts a blade
+           you can see somewhere other than the blade you can hit. */
+        survives('a mover mesh sits exactly where the solver says it does', function () {
+            var box = {};
+            // Draw a frame, then ask the solver where those walls were at the
+            // same instant. A mesh placed any other way drifts away from the
+            // thing the ball actually bounces off.
+            R.frame(1 / 60, world, aim);
+            R.state.movers.forEach(function (m) {
+                P.wallBox(m.wall, world.time, box);
+                var dx = Math.abs(m.mesh.position.x - box.cx);
+                var dz = Math.abs(m.mesh.position.z - box.cz);
+                var dy = Math.abs(m.mesh.rotation.y - box.yaw);
+                if (dx > 1e-6 || dz > 1e-6 || dy > 1e-6) {
+                    throw new Error('mesh at ' + m.mesh.position.x.toFixed(3) + ',' +
+                        m.mesh.position.z.toFixed(3) + ' yaw ' + m.mesh.rotation.y.toFixed(3) +
+                        ' but the solver says ' + box.cx.toFixed(3) + ',' +
+                        box.cz.toFixed(3) + ' yaw ' + box.yaw.toFixed(3));
+                }
+            });
+        });
+
+        survives('the effects the game asks for all run', function () {
+            var b = world.ball;
+            R.splashAt(b.x, b.y, b.z);
+            R.sandAt(b.x, b.y, b.z);
+            R.sinkAt(b.x, b.y, b.z);
+            R.divot(b.x, b.y, b.z, 0.5, 0.7, 'green');
+            R.punch(0.8);
+            R.frame(1 / 60, world, aim);
+        });
+
+        survives('the camera takes an overview and comes back', function () {
+            R.setCam({ overview: true });
+            R.frame(1 / 60, world, aim);
+            R.setCam({ overview: false, yaw: 1, dist: 9, pitch: 0.46 });
+            R.frame(1 / 60, world, aim);
+        });
+
+        survives('resize() survives a zero-sized canvas', function () {
+            R.resize();
+        });
+
+        /* ── the bag ───────────────────────────────────────────────────── */
+
+        section('the bag');
+
+        survives('the bag opens, is picked from and closes', function () {
+            G3.bag.setBand(80, 120);
+            G3.bag.setExpanded(true);
+            R.frame(1 / 60, world, aim);
+            G3.bag.setHover(C.CLUBS[2].id);
+            G3.bag.setSelected(C.CLUBS[2].id);
+            R.frame(1 / 60, world, aim);
+            R.pickAt(0, 0);
+            G3.bag.setExpanded(false);
+            R.frame(1 / 60, world, aim);
+        });
+
+        assert('every club in CONFIG has a model in the bag',
+            C.CLUBS.every(function (club) { return !!G3.clubModels.LENGTHS[club.id]; }),
+            'add a length in js/bag/models.js for any club added to config.js');
+
+        /* ── the weather ───────────────────────────────────────────────── */
+
+        section('the weather');
+
+        survives('every kind of sky builds and draws', function () {
+            Object.keys(G3.weather.KINDS).forEach(function (id) {
+                G3.weather.setOverride(id);
+                R.buildHole(hole, course.theme, G3.weather.pick(course.id, 0, course.theme));
+                R.frame(1 / 60, world, aim);
+            });
+            G3.weather.setOverride(null);
+        });
+
+        survives('every theme builds and draws', function () {
+            Object.keys(G3.palette.themes).forEach(function (name) {
+                R.buildHole(hole, name, weather);
+                R.frame(1 / 60, world, aim);
+            });
+        });
+
+        finish();
+    })();
+    </script>
+</body>
+</html>

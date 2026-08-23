@@ -1,4 +1,25 @@
-/* The simulation. No three.js, no canvas, no DOM — everything in here is a
+/* physics.js — the simulation, and the only thing that decides where a ball
+   goes.
+
+   ## The layer rule
+
+   No three.js, no canvas, no DOM, no game. Nothing in this file may reach for
+   any of them, and render-tests.html fails if it does — because that rule is
+   what lets tests.html play four hundred assertions' worth of golf with no
+   GPU at all, and what lets the renderer draw a *true* preview arc by cloning
+   the world and running it forward with this same code.
+
+   ## Sections
+
+     pads     the ground: flat and tilted quads, and what is under the ball
+     walls    boxes that may slide or spin, and circle-vs-box in the xz plane
+     world    creating, cloning and launching
+     the step advance(), which is the integrator and the only one there is
+
+   Read by game.js, render/hole.js, render/aim.js, courses.js and both test
+   pages. Depends on config.js and nothing else.
+
+   The simulation. No three.js, no canvas, no DOM — everything in here is a
    pure function of a world object, which is what lets tests.html play whole
    rounds headlessly and lets the renderer draw a predicted arc by cloning the
    world and running it forward.
