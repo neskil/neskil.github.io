@@ -743,11 +743,7 @@
 
     var PLANK_THICK = 0.3;
 
-    // How far a flagstick dropped into a cup leans against the far wall of the
-    // liner: 0.40 units of pole out of 1.72 at the top, which is about what a
-    // pin resting in a real cup does and enough to clear the line of play.
-    var PIN_LEAN = 0.235;
-    var FLAG_W = 0.92;
+    var FLAG_W = 0.76;
 
     /* Pads are drawn as boxes whose underside reaches the surrounding ground,
        so a raised green reads as a plateau with a cliff instead of a slab
@@ -1062,7 +1058,7 @@
         R.pin = pin;
         R.pinLean = 0;
 
-        var H = 1.95;
+        var H = 2.25;
         var pole = new THREE.Mesh(
             new THREE.CylinderGeometry(0.021, 0.030, H, 10),
             new THREE.MeshPhongMaterial({ color: 0xf4f6f4, shininess: 40, specular: 0x556066 })
@@ -1099,12 +1095,12 @@
         R.flagSwivel = swivel;
 
         var cloth = new THREE.Mesh(
-            new THREE.PlaneGeometry(FLAG_W, 0.52, 14, 3),
+            new THREE.PlaneGeometry(FLAG_W, 0.43, 14, 3),
             new THREE.MeshPhongMaterial({
                 color: 0xe23b3b, side: THREE.DoubleSide, shininess: 6, specular: 0x2a1010
             })
         );
-        cloth.geometry.translate(FLAG_W / 2, -0.26, 0);   // hoist at the origin
+        cloth.geometry.translate(FLAG_W / 2, -0.215, 0);   // hoist at the origin
         cloth.castShadow = true;
         swivel.add(cloth);
         R.flagCloth = cloth;
