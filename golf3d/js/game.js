@@ -1055,6 +1055,10 @@
             }
         }
 
+        // One measurement before the first frame, so the bag stands in the
+        // right corner of the round rather than the frame after it.
+        measurePickerBand();
+
         last = performance.now();
         raf = requestAnimationFrame(loop);
     }
