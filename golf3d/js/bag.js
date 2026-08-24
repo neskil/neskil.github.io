@@ -39,6 +39,7 @@
         clubs: [],           // { group, meshes, label, target, now }
         pickables: [],
         expanded: false,
+        settled: false,        // shut, still, and nothing left to ease
         selected: null,
         ray: null,
         ndc: null,
@@ -859,8 +860,25 @@
         rig.scale.setScalar(scale);
     }
 
+    /* A shut bag is a still object. It rides in camera space so it still has
+       to be *placed* every frame — the lens opens as the ball speeds up, and a
+       phone can be turned over mid-round — but once the clubs have eased back
+       into it there is nothing left to ease: the closed spin is multiplied by
+       open01, which is zero, and every club is already where it is going. So
+       the loop below stops running until something asks it to start again, and
+       what can ask is exactly four things (below). Four traverses of four club
+       models a frame is not much; it is also not nothing, and it was buying
+       precisely no change on screen. */
     function update(dt, camera, aspect) {
         if (!B.ready) return;
+        if (B.settled && !B.expanded) { place(camera, aspect); return; }
+
+        var moved = 0;
+        function ease1(now, to, k) {
+            var d = (to - now) * k;
+            if (Math.abs(d) > moved) moved = Math.abs(d);
+            return now + d;
+        }
 
         var ease = 1 - Math.pow(0.0008, dt);      // ~0.25s to settle
         B.open01 += ((B.expanded ? 1 : 0) - B.open01) * ease;
@@ -878,20 +896,20 @@
             var lift = chosen ? (B.expanded ? 0.022 : 0.045) : 0;
             var glow = chosen ? 1 : (B.hover === c.id ? 0.5 : 0);
 
-            c.now.x += (to.x - c.now.x) * ease;
-            c.now.y += (to.y - c.now.y) * ease;
-            c.now.z += (to.z - c.now.z) * ease;
-            c.now.rz += (to.rz - c.now.rz) * ease;
-            c.now.rx += (to.rx - c.now.rx) * ease;
-            c.now.ry += (to.ry - c.now.ry) * ease;
+            c.now.x = ease1(c.now.x, to.x, ease);
+            c.now.y = ease1(c.now.y, to.y, ease);
+            c.now.z = ease1(c.now.z, to.z, ease);
+            c.now.rz = ease1(c.now.rz, to.rz, ease);
+            c.now.rx = ease1(c.now.rx, to.rx, ease);
+            c.now.ry = ease1(c.now.ry, to.ry, ease);
             /* No size bump for the club in hand. The open row is aligned on
                the *heads*, and scaling a club scales its length, so a 1.08
                bump lifted the driver's head four times further than the lift
                itself did — invisible in the bag, a hundred pixels out of line
                in the picker. It is marked by the glow and the panel instead. */
-            c.now.scale += (to.scale - c.now.scale) * ease;
-            c.now.lift += (lift - c.now.lift) * ease;
-            c.now.glow += (glow - c.now.glow) * ease;
+            c.now.scale = ease1(c.now.scale, to.scale, ease);
+            c.now.lift = ease1(c.now.lift, lift, ease);
+            c.now.glow = ease1(c.now.glow, glow, ease);
 
             c.group.position.set(c.now.x, c.now.y + c.now.lift, c.now.z);
             // Turning on its own axis while it is in the bag, so a glance
@@ -919,12 +937,14 @@
             // up together the moment the row is open so every club can be
             // compared at a glance rather than one at a time.
             if (c.label) {
-                var wantOp = B.expanded ? 1 : 0;
-                c.now.labelOp += (wantOp - c.now.labelOp) * ease;
+                c.now.labelOp = ease1(c.now.labelOp, B.expanded ? 1 : 0, ease);
                 c.label.material.opacity = c.now.labelOp;
                 c.label.visible = c.now.labelOp > 0.01;
             }
         });
+
+        // Shut, and nothing moved worth a pixel: stop until something changes.
+        B.settled = !B.expanded && B.open01 === 0 && moved < 1e-5;
     }
 
     /* ── picking ───────────────────────────────────────────────────────── */
@@ -971,10 +991,14 @@
         return hits.length ? 'bag' : null;
     }
 
-    function setExpanded(on) { B.expanded = !!on; }
-    function toggle() { B.expanded = !B.expanded; return B.expanded; }
-    function setSelected(id) { B.selected = id; }
-    function setHover(id) { B.hover = id; }
+    /* The four things that can give the bag something to do again. Anything
+       that changes where a club is going, or how it is lit, has to come
+       through one of these — which is what makes the early-out in update()
+       safe to trust. */
+    function setExpanded(on) { B.expanded = !!on; B.settled = false; }
+    function toggle() { B.expanded = !B.expanded; B.settled = false; return B.expanded; }
+    function setSelected(id) { B.selected = id; B.settled = false; }
+    function setHover(id) { if (id !== B.hover) B.settled = false; B.hover = id; }
     function isExpanded() { return B.expanded; }
 
     /* What the DOM is using at the top and the bottom of the stage, as

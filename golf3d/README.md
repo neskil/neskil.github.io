@@ -21,13 +21,26 @@ them.
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
 | `js/audio.js` | Synthesised sound effects and the weather's sound bed — no audio files to ship. |
+| `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
+| `js/textures.js` | Every texture, drawn into a canvas at load, and the rule that keeps them shared. |
+| `js/shaders.js` | The two shaders written by hand rather than by three.js: the sky and the water. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
-| `js/render.js` | The course, in three.js. Procedural textures, no images. |
+| `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
 | `js/bag.js` | The club picker: a modelled bag that rides in front of the camera. |
+| `js/debug.js` | The course inspector — `?debug=1`, or <kbd>G</kbd>. The tool for building a hole. |
 | `js/game.js` | Loop, input, and what a shot means. |
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness. Open it; green is green. |
+
+The four files above `weather.js` in that list are the four different jobs the
+renderer used to do in one file. Picking colours, drawing a texture, writing
+GLSL and placing a mesh are not the same activity, and none of them should
+require scrolling through the other three: `themes.js` is where a course's
+palette lives, `textures.js` owns every canvas the game draws into *and* the
+rule that keeps one grass serving a whole course, and `shaders.js` holds the two
+places where the answer is GLSL rather than a property. What is left in
+`render.js` is the part that actually builds a hole.
 
 ## The bag
 
@@ -331,6 +344,62 @@ looks. Rolling drag takes `-ln(k)` off the ball's speed per unit travelled
 far end of a long run-up can be unreachable at full power. Put ramps near the
 tee, or expect the hole to take two shots.
 
+### The inspector
+
+`?debug=1`, or <kbd>G</kbd> at any time. This is the tool for doing the above.
+
+For a long while building a hole meant writing coordinates, loading the page
+and squinting at a green field. There was no way to tell a pad's edge from a
+rail's, no way to see which rails `enclose()` had decided to build for you, and
+no way at all to answer the question you actually have while authoring, which
+is *what are the coordinates of that corner*. `tests.html` can say a hole is
+broken. It cannot say where anything is.
+
+So `debug.js` draws the hole out of the same data the solver reads:
+
+- **pads**, washed in alternating colours and outlined on their own surface,
+  tilt and all. The wash alternates **by index rather than by kind**, which
+  looks like the wrong choice and is not: what a pad is made of is already on
+  the screen — grass is green, sand is sand — and what is not on the screen is
+  where one pad ends and the next begins. Two greens meeting are invisible
+  until they are tinted differently, and that seam is the thing worth looking
+  at, because it is where a hole either tiles cleanly or trips the ball.
+- **walls**, as the boxes the solver collides with, placed from
+  `physics.wallBox()` at the current clock — so a gate's outline slides with
+  the gate and a blade's turns with the blade. A mesh that had drifted from its
+  box would show up here as two rectangles instead of one.
+- **generated rails in blue and authored `extra` walls in pink**, which is the
+  quickest way to see that `enclose()` has fenced off an edge you meant to
+  leave open, or left one open you meant to fence.
+- **water, gaps, the tee, and the cup with the clearance the tests want round
+  it**, plus a **metre grid through the origin**, because every number in
+  `courses.js` is a measurement from there.
+
+And then the part that does the real work: **the pointer reads out where it is
+on the course**, against the pads themselves rather than a flat plane, so the
+number is right on a ramp too. Point at a corner and you have the `x` and `z`
+to type. That is the whole authoring loop — look at the hole, point at where
+the thing should go, read the numbers, write them down — and it is the
+difference between building a hole and guessing at one.
+
+`G3.debug.dump()` prints the current hole back out in the form `courses.js`
+writes one in — the pads, the water, the gaps, the `extra` walls, the tee and
+the cup, and not the rails, since those are generated and printing them would
+turn a hole that follows its own floor into a hole with forty boxes nailed to
+it. It prints primitives rather than sugar: a `beam()` comes back out as the
+three walls it is.
+
+The panel also **lints the hole** against the rules above that can be checked
+without playing it: a wall thinner than 0.24, a cup too close to its pad edge,
+a tee or a cup buried in a wall, and two pads fighting for the same ground. Those same rules are asserted
+in `tests.html` and **`tests.html` is still the authority** — it also *plays*
+the hole, which is the only check that really matters and the only one that
+cannot be done in a panel. What is here is the subset that can answer back in
+the same second you make the mistake.
+
+None of it costs a normal frame anything: the overlay does not exist until the
+inspector is switched on.
+
 ## The physics, and the things worth protecting
 
 `advance(world, dt)` is the only integrator. The game loop calls it once per
@@ -617,8 +686,12 @@ periods that do not divide into each other — and everything answers to it:
 
 ## Rendering
 
-`render.js` is the only file that knows three.js exists. Everything it draws
-comes from the same data the simulation reads: pads are boxes sheared by the
+`render.js` is the only file that draws the course. (It is not the only one
+that knows three.js exists — `bag.js`, `weather.js` and `postfx.js` do too, and
+that is the point of them being separate files: one draws the world the
+simulation knows about, and the others draw furniture, air and the picture
+afterwards.) Everything it draws comes from the same data the simulation
+reads: pads are boxes sheared by the
 pad's own gradient (a shear keeps the vertical edges vertical, so a tilted pad
 still meets its neighbours), and a pad's underside reaches the surrounding
 ground so a raised green reads as a plateau rather than a slab in mid-air.
@@ -627,6 +700,29 @@ a causeway.
 
 Textures are drawn into canvases at load: grass, sand, planks and rock. No
 image files to ship and no requests to fail.
+
+**A surface texture is shared, and the tiling lives in the geometry.** It used
+to be the other way round, and that is worth writing down because it looked
+right. Each pad cloned its own copy of the grass with `repeat` set to that
+pad's size — which is one GPU texture per pad, so The Reach, at eleven pads,
+uploaded twenty-three 512² canvases and threw all of them away on the next
+hole. But the tiling is a property of the *pad*, not of the texture, so it now
+lives where the pad does: the UVs are scaled when the geometry is built, and
+one texture serves every pad of a kind at every size. `textures.SCALE` is the
+one number the two halves have to agree on, which is why it sits in
+`textures.js` next to the textures rather than in `render.js` next to the
+geometry. The same argument applies to the materials, so there is now one per
+surface kind and one per coat of paint, rather than one per pad and one per
+rail. On The Reach that is 23 textures and 59 materials down to 3 and 20, and
+a hole that builds in a third of the time. The grass is redrawn when the
+*theme* changes rather than when the hole does, which is most of that: it is a
+512² canvas with five thousand blade strokes in it, and six holes of a course
+were each paying for their own copy of the same one.
+
+The exception that proves the rule is the green's bump map, which tiles finer
+than its colour map. That is a *ratio* rather than a pad size — a constant —
+so it is the one texture that still carries a `repeat`.
+
 The green is the one surface the camera is always looking at, so it gets the
 most attention — mow bands with a soft seam, broad mottling so the tiling does
 not show as a grid, a mat of blade strokes, and a bump map of the same blades so
@@ -743,6 +839,45 @@ The camera is never flown directly. It sits behind the ball looking down the aim
 line, which is what makes "drag left, aim left" true from any angle, and
 `V` lifts it to an overview that fits the hole's bounding box in frame.
 
+### What a frame does not do
+
+The most expensive thing in a frame is not the picture, it is the **shot
+preview**: three runs of the simulation, up to a second each, at a hundred and
+twenty steps a second. On Double Doors with a putter in hand that is about six
+milliseconds of a desktop's frame and rather more than a whole frame of a
+phone's — and it was being paid on every frame the player spent looking at a
+shot they had not touched.
+
+So it is computed when the shot changes and not otherwise. What the path
+depends on is small and knowable: where the ball is, where it is aimed, how
+hard, at what loft, and — only on a hole with a gate or a blade on it — the
+clock, because those keep moving while you stand still.
+
+Exactly six of the thirty holes have anything moving, and all six are Windmill
+Works. On the other twenty-four that is three runs of the simulation per *aim*
+rather than three per frame — measured at 3 in 120 frames against 360 — so four
+of the five courses now pay nothing at all to stand and look. On Windmill Works
+the clock is compared at 24Hz instead of at the frame rate. The gate itself
+still slides every frame, placed by `syncMovers` from the solver's own clock;
+what refreshes at 24Hz is the translucent band of the prediction, which is the
+one thing on screen already allowed to snap, since a hair's difference in
+timing is what turns "through the gap" into "off the gate".
+
+Almost nothing has to be invalidated by hand, which is the part that makes it
+safe. The geometry the preview writes into is persistent, so a frame that skips
+the work leaves the last answer on screen — and the last answer is still the
+right one, because the inputs it was computed from are exactly what is being
+compared against. The one deliberate invalidation is a new hole, where the
+world the numbers described has been replaced underneath them.
+
+Three smaller things in the same spirit. The camera lerp, the ball's spin axis
+and the wind are **scratch objects** rather than fresh ones each frame. The two
+readouts refreshed on the frame rather than on the shot — the distance to the
+cup and the wind speed — **compare before they write**, because writing the
+string that is already there is a layout the browser did not need to do. And
+the bag, which is a still object once it is shut, **stops easing** until one of
+the four things that can move it says otherwise.
+
 ## Tests
 
 Open `tests.html`. 610 assertions covering the surfaces, the collision
@@ -794,8 +929,8 @@ camera swings with it. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
 overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd>
-the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound. Scroll or pinch to
-zoom.
+the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>G</kbd> the
+course inspector. Scroll or pinch to zoom.
 
 ## Query parameters
 
@@ -804,3 +939,7 @@ skipping the picker, `&hole=1..6` jumps to a hole, and
 `&weather=clear|fair|overcast|drizzle|rain|mist|golden|dust` fixes the sky for
 the round. Handy for screenshots and for linking someone at the hole you are
 complaining about, in the weather you were complaining about it in.
+
+`&debug=1` opens the [course inspector](#the-inspector) with the hole, which is
+how you would start a session spent building one. <kbd>G</kbd> does the same
+thing at any point without reloading.
