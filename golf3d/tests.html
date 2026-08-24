@@ -296,6 +296,51 @@
                 under.ball.z > 12 && under.ball.y < 1,
                 'z ' + under.ball.z.toFixed(2) + ' y ' + under.ball.y.toFixed(2));
 
+            /* The band a riser used to leak through. Reading "inside the face"
+               off the ball's crown rather than its centre leaves a radius of
+               clearance in which the centre is already under the surface and
+               nothing has fired: a shot that grazes the top of the step slips
+               in through the last few centimetres, and from in there every
+               step puts it back where it was while gravity keeps working, so
+               it sinks out of the world. It is a narrow window, so sweep the
+               band across three step heights rather than guessing the one
+               launch that finds it. */
+            (function () {
+                var lost = 0, sank = 0, rises = [0.3, 0.4, 0.55], r, i, hill, shot, lie;
+                for (r = 0; r < rises.length; r++) {
+                    hill = lab({
+                        pads: [A.pad(0, 0, 10, 8, 0), A.pad(0, 8, 10, 32, rises[r])],
+                        cup: { x: 5, z: 38 }
+                    });
+                    for (i = 0; i <= 40; i++) {
+                        shot = shootFrom(hill, { x: 5, z: 2 }, 0, 8 + i * 0.2, 0.05 + i * 0.01);
+                        if (shot.out) { lost++; continue; }
+                        lie = P.surfaceUnder(hill, shot.ball.x, shot.ball.z, shot.ball.y);
+                        if (!lie || shot.ball.y < lie.y - 1e-9) sank++;
+                    }
+                }
+                assert('no shot at a terrace riser falls through it', lost === 0, lost + ' of 123 lost');
+                assert('and none comes to rest inside the hill', sank === 0, sank + ' of 123 buried');
+            })();
+
+            // A ball that clears the riser has to land on the terrace, not be
+            // turned back by it: the face must be solid without being tall.
+            var terrace = lab({ pads: [A.pad(0, 0, 10, 8, 0), A.pad(0, 8, 10, 32, 0.4)], cup: { x: 5, z: 38 } });
+            var over = shootFrom(terrace, { x: 5, z: 5 }, 0, 10, 0.6);
+            assert('a ball lofted over a riser lands on the terrace above it',
+                over.ball.z > 8 && approx(over.ball.y, 0.4 + C.BALL_R, 0.02),
+                'z ' + over.ball.z.toFixed(2) + ' y ' + over.ball.y.toFixed(3));
+
+            /* And a ball that is inside the hill already — however it got there
+               — has to be pushed out of it. Undoing the last step is no help
+               when the step before was inside too. */
+            var stuck = P.createWorld(terrace, { x: 5, z: 9, y: 0.2 }, 0);
+            stuck.moving = true;
+            P.settle(stuck, 4);
+            assert('a ball buried in a face is pushed out, not swallowed',
+                !stuck.out && approx(stuck.ball.y, C.BALL_R, 1e-6) && stuck.ball.z < 8,
+                'x ' + stuck.ball.x.toFixed(2) + ' y ' + stuck.ball.y.toFixed(2) + ' z ' + stuck.ball.z.toFixed(2));
+
             // Loft: a rail that stops a flat shot should be flyable.
             var fence = lab({ walls: [A.wall(0, 7, 10, 0.4, 0.5, { base: 0 })] });
             var flatShot = shootFrom(fence, { x: 5, z: 2 }, 0, 11, 0);
