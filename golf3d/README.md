@@ -33,10 +33,10 @@ them.
 | `vendor/three.min.js` | three.js r128, vendored. |
 | `tests.html` | Headless test harness. Open it; green is green. |
 
-The four files above `weather.js` in that list are the four different jobs the
-renderer used to do in one file. Picking colours, drawing a texture, writing
-GLSL and placing a mesh are not the same activity, and none of them should
-require scrolling through the other three: `themes.js` is where a course's
+The three files above `weather.js` in that list are three of the four different
+jobs the renderer used to do in one file. Picking colours, drawing a texture,
+writing GLSL and placing a mesh are not the same activity, and none of them
+should require scrolling through the other three: `themes.js` is where a course's
 palette lives, `textures.js` owns every canvas the game draws into *and* the
 rule that keeps one grass serving a whole course, and `shaders.js` holds the two
 places where the answer is GLSL rather than a property. What is left in
