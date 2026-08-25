@@ -84,7 +84,11 @@
             : null;
         R.buildHole(hole, state.course.theme, state.weather);
         A.ambience(state.weather);
-        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, overview: false });
+        // A new hole is a new look at it: the camera goes back behind the ball
+        // whatever angle the last one was left at.
+        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, view: 0, overview: false });
+        syncView();
+        $('btn-view').classList.remove('on');
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
         syncHud();
@@ -731,11 +735,127 @@
         R.cam.dist = Math.max(4, Math.min(24, R.cam.dist + delta));
     }
 
+    /* ── the view dial ──────────────────────────────────────────────────────
+
+       Aiming and looking used to be one gesture, so every side-on look at a
+       hole was also a shot pointed sideways. They are two things now: the drag
+       on the course turns the shot (and the camera comes with it, as before),
+       and this turns the camera off the shot line and leaves it there. Zero is
+       straight behind the ball; half a turn either way stands you in front of
+       it looking back. The knob is where you are standing, so sliding it right
+       walks you round to the right of the shot — and the shot itself lies away
+       to the left of the screen from there, which is the point of standing
+       there at all. */
+
+    var VIEW_MAX = Math.PI;          // half a turn either way is the whole circle
+    var VIEW_STEP = Math.PI / 12;    // 15° a press, which is a useful nudge
+
+    function setView(rad) {
+        R.cam.view = Math.max(-VIEW_MAX, Math.min(VIEW_MAX, rad));
+        syncView();
+    }
+
+    function nudgeView(by) { setView(R.cam.view + by); }
+
+    /* Straight: back behind the ball, and level with where a hole starts. The
+       zoom is left alone — it is its own control, and someone who has pinched
+       in on a green rarely wants that undone as well. */
+    function straightenView() {
+        R.cam.pitch = 0.46;
+        if (look) look.pitch = 0.46;
+        setView(0);
+        A.tick(0.5);
+    }
+
+    function syncView() {
+        var deg = Math.round(R.cam.view * 180 / Math.PI);
+        var straight = deg === 0;
+        var side = deg > 0 ? 'right' : 'left';
+        // Both ends of the dial are the same place — in front of the ball,
+        // looking back down the shot — so both ends say so.
+        var text = straight ? 'Straight'
+            : Math.abs(deg) === 180 ? 'Head on'
+            : Math.abs(deg) + '° ' + side;
+        $('view-knob').style.left = (50 + (R.cam.view / VIEW_MAX) * 50) + '%';
+        $('view-val').textContent = text;
+        $('viewctl').classList.toggle('off-axis', !straight);
+        var track = $('view-track');
+        track.setAttribute('aria-valuenow', String(deg));
+        track.setAttribute('aria-valuetext', straight
+            ? 'Straight behind the ball'
+            : Math.abs(deg) === 180 ? 'In front of the ball, looking back down the shot'
+            : Math.abs(deg) + ' degrees to the ' + side + ' of the shot');
+    }
+
+    /* The track is absolute, the way the power meter is: press anywhere along
+       it to stand there, drag to walk round. The press is taken on the dial
+       rather than the track, because the ⌖ covers the middle of it — which is
+       exactly where the knob sits when the view is straight, and a control you
+       cannot start dragging from its resting position is no control at all. A
+       press that lands on the ⌖ is a reset until it has travelled; past that
+       it becomes a drag, and the release is no longer a press of the button. */
+    var viewDrag = 0;          // pointerId working the dial, 0 when nobody is
+    var viewHomePress = false; // it landed on the ⌖ and has not moved yet
+    var viewTravelled = false; // ...and once it has, the release is not a reset
+    var viewStartX = 0;
+
+    function viewFromEvent(e) {
+        var r = $('view-track').getBoundingClientRect();
+        if (!r.width) return;
+        setView((((e.clientX - r.left) / r.width) * 2 - 1) * VIEW_MAX);
+    }
+
+    function grabView(id) {
+        try { $('view-dial').setPointerCapture(id); } catch (err) { /* ignore */ }
+    }
+
+    function onViewDown(e) {
+        viewDrag = e.pointerId;
+        viewTravelled = false;
+        viewStartX = e.clientX;
+        viewHomePress = !!(e.target && e.target.closest && e.target.closest('.view-home'));
+        if (viewHomePress) return;    // leave the button its click
+        grabView(e.pointerId);
+        viewFromEvent(e);
+        e.preventDefault();
+    }
+    function onViewMove(e) {
+        if (viewDrag !== e.pointerId) return;
+        // A press on the ⌖ is not captured — it may be about to be a click —
+        // so its release can happen off the dial and never reach onViewUp. A
+        // mouse moving back over the dial with no button held is that release.
+        if (e.pointerType === 'mouse' && !e.buttons) { onViewUp(e); return; }
+        if (viewHomePress) {
+            if (Math.abs(e.clientX - viewStartX) < 6) return;
+            viewHomePress = false;
+            viewTravelled = true;
+            grabView(e.pointerId);
+        }
+        viewFromEvent(e);
+    }
+    function onViewUp(e) {
+        if (viewDrag !== e.pointerId) return;
+        viewDrag = 0;
+        viewHomePress = false;
+    }
+    function onViewKey(e) {
+        var fine = e.shiftKey;
+        e.stopPropagation();   // the window handler would otherwise nudge twice
+        var step = fine ? VIEW_STEP / 5 : VIEW_STEP;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudgeView(-step); e.preventDefault(); }
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudgeView(step); e.preventDefault(); }
+        else if (e.key === 'Home' || e.key === '0') { straightenView(); e.preventDefault(); }
+        else if (e.key === 'Enter' || e.key === ' ') { straightenView(); e.preventDefault(); }
+    }
+
     function onKey(e) {
         if (!state) return;
         var fine = e.shiftKey;
         var k = e.key;
 
+        if (k === ',' || k === '<') { nudgeView(-VIEW_STEP); return; }
+        if (k === '.' || k === '>') { nudgeView(VIEW_STEP); return; }
+        if (k === '0') { straightenView(); return; }
         if (k === 'm' || k === 'M') { toggleMute(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
         if (k === 'v' || k === 'V') { toggleOverview(); return; }
@@ -946,7 +1066,9 @@
         // under the hole name is refreshed on the frame rather than the shot.
         syncWind();
 
-        // The camera sits behind the aim, so turning one turns the other.
+        // The camera rides the aim, so turning one turns the other; how far
+        // round the ball it stands from there is the view dial's business
+        // (R.cam.view), and the renderer puts the two together.
         R.cam.yaw = state.aim.yaw;
         // One object, refilled: the renderer reads it within the call and the
         // preview compares its fields against the last frame's, so handing it a
@@ -1010,6 +1132,18 @@
         $('btn-swing').addEventListener('click', shoot);
         $('btn-aim-left').addEventListener('click', function () { nudgeAim(0.035); });
         $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
+        $('btn-view-left').addEventListener('click', function () { nudgeView(-VIEW_STEP); });
+        $('btn-view-right').addEventListener('click', function () { nudgeView(VIEW_STEP); });
+        // A drag that started on the ⌖ and walked away is not a press of it.
+        $('btn-view-home').addEventListener('click', function () {
+            if (viewTravelled) { viewTravelled = false; return; }
+            straightenView();
+        });
+        $('view-dial').addEventListener('pointerdown', onViewDown);
+        $('view-dial').addEventListener('pointermove', onViewMove);
+        $('view-dial').addEventListener('pointerup', onViewUp);
+        $('view-dial').addEventListener('pointercancel', onViewUp);
+        $('view-track').addEventListener('keydown', onViewKey);
         $('power-track').addEventListener('pointerdown', onPowerDown);
         $('power-track').addEventListener('pointermove', onPowerMove);
         $('power-track').addEventListener('pointerup', onPowerUp);

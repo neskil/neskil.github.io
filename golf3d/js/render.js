@@ -46,6 +46,11 @@
         theme: null, weather: null,
         cam: {
             yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false,
+            /* Where the player has walked round to, measured off the aim line
+               rather than off the world: the shot still turns the camera with
+               it, and this is the angle it is watched from. Zero is straight
+               behind the ball, and a new hole puts it back there. */
+            view: 0,
             kick: 0,          // impact flinch, decays
             speedPull: 0      // extra distance while the ball is quick
         },
@@ -1136,11 +1141,19 @@
         if (pathStale(world, aim)) updatePath(world, aim, frac);
     }
 
-    /* Camera. The player never flies it directly: it sits behind the ball
-       looking down the aim line, which is what makes "drag left, aim left"
-       true from any angle. Overview lifts it above the hole instead. */
+    /* Camera. The player never flies it directly: it stands a fixed angle off
+       the aim line and turns with it, which is what makes "drag left, aim
+       left" true from any angle. That angle is c.view — zero puts the camera
+       straight behind the ball, and anything else is the same shot watched
+       from the side. Overview lifts it above the hole instead, round the same
+       axis, so a hole looked at from the side stays looked at from the side.
+
+       Subtracted, not added: c.view is measured the way the player walks —
+       positive is round to the right of the shot — and the world turns the
+       other way from underneath them. */
     function updateCamera(hole, ball, dt) {
         var c = R.cam;
+        var yaw = c.yaw - c.view;
         var tx, ty, tz, px, py, pz;
 
         if (c.overview) {
@@ -1157,9 +1170,9 @@
             var dist = radius / Math.tan(Math.min(vFov, hFov));
             var tilt = 1.02;                  // ~58° down, so it still reads as 3D
             tx = bx; ty = 0; tz = bz;
-            px = bx - Math.sin(c.yaw) * Math.cos(tilt) * dist;
+            px = bx - Math.sin(yaw) * Math.cos(tilt) * dist;
             py = Math.sin(tilt) * dist;
-            pz = bz - Math.cos(c.yaw) * Math.cos(tilt) * dist;
+            pz = bz - Math.cos(yaw) * Math.cos(tilt) * dist;
         } else {
             /* Two things move the camera besides the player: it flinches when
                the ball is struck, and it drifts back as the ball gets quick, so
@@ -1167,9 +1180,9 @@
             var dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
             tx = ball.x; ty = ball.y + 0.35; tz = ball.z;
             var back = dist * Math.cos(c.pitch);
-            px = ball.x - Math.sin(c.yaw) * back;
+            px = ball.x - Math.sin(yaw) * back;
             py = ball.y + dist * Math.sin(c.pitch);
-            pz = ball.z - Math.cos(c.yaw) * back;
+            pz = ball.z - Math.cos(yaw) * back;
         }
 
         if (!R.smooth.started) {

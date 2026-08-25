@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.3.0">
+    <link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
     <div class="wrap">
@@ -142,20 +142,45 @@
             </div>
 
             <div class="controls">
-                <div class="power">
-                    <span class="ctl-label">Power <b id="power-val">0%</b></span>
-                    <div class="power-track" id="power-track" role="slider" tabindex="0"
-                         aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                        <div class="power-fill" id="power-fill"></div>
-                        <i class="power-max" aria-hidden="true"></i>
+                <!-- Where the camera stands, which is a different question from
+                     where the shot is going: the aim is still the drag on the
+                     course. The button in the middle of the dial walks it back
+                     behind the ball, and so does a new hole. -->
+                <div class="viewctl" id="viewctl">
+                    <span class="ctl-label">View <b id="view-val">Straight</b></span>
+                    <div class="view-row">
+                        <button type="button" class="view-step" id="btn-view-left"
+                                title="Walk the view left (,)" aria-label="Walk the view left">↺</button>
+                        <div class="view-dial" id="view-dial">
+                            <div class="view-track" id="view-track" role="slider" tabindex="0"
+                                 aria-label="View angle" aria-valuemin="-180" aria-valuemax="180"
+                                 aria-valuenow="0" aria-valuetext="Straight behind the ball">
+                                <i class="view-knob" id="view-knob" aria-hidden="true"></i>
+                            </div>
+                            <button type="button" class="view-home" id="btn-view-home"
+                                    title="Straighten the view (0)" aria-label="Straighten the view">⌖</button>
+                        </div>
+                        <button type="button" class="view-step" id="btn-view-right"
+                                title="Walk the view right (.)" aria-label="Walk the view right">↻</button>
                     </div>
-                    <span class="club-hint" id="club-hint" aria-live="polite"></span>
                 </div>
 
-                <div class="shot-actions">
-                    <button type="button" class="aim-nudge" id="btn-aim-left" title="Aim left (←)" aria-label="Aim left">‹</button>
-                    <button type="button" class="swing" id="btn-swing" title="Play the shot (space)">Swing</button>
-                    <button type="button" class="aim-nudge" id="btn-aim-right" title="Aim right (→)" aria-label="Aim right">›</button>
+                <div class="ctl-row">
+                    <div class="power">
+                        <span class="ctl-label">Power <b id="power-val">0%</b></span>
+                        <div class="power-track" id="power-track" role="slider" tabindex="0"
+                             aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div class="power-fill" id="power-fill"></div>
+                            <i class="power-max" aria-hidden="true"></i>
+                        </div>
+                        <span class="club-hint" id="club-hint" aria-live="polite"></span>
+                    </div>
+
+                    <div class="shot-actions">
+                        <button type="button" class="aim-nudge" id="btn-aim-left" title="Aim left (←)" aria-label="Aim left">‹</button>
+                        <button type="button" class="swing" id="btn-swing" title="Play the shot (space)">Swing</button>
+                        <button type="button" class="aim-nudge" id="btn-aim-right" title="Aim right (→)" aria-label="Aim right">›</button>
+                    </div>
                 </div>
             </div>
 
@@ -198,6 +223,18 @@
                     the aim a hair, for the putts that need it.
                 </li>
                 <li>
+                    <b>Stand where you like.</b> Aiming and looking are two different things.
+                    The <b>View</b> dial above the power meter walks you round the ball without
+                    touching the shot: slide the knob right to stand to the right of the line,
+                    left to stand to the left, either end to get in front of the ball and look
+                    back down it. The shot still turns the camera with it when you drag the
+                    course, so a side-on angle stays side-on while you aim. The <b>⌖</b> in the
+                    middle of the dial puts you straight back behind the ball — and so does a new
+                    hole, so nothing you left at an angle follows you onto the next one.
+                    <kbd>,</kbd> and <kbd>.</kbd> walk round a step at a time, <kbd>0</kbd>
+                    straightens up.
+                </li>
+                <li>
                     <b>Pick a club.</b> Click the bag in the bottom corner: the clubs come out,
                     line up and turn slowly so you can look at them, and the one under your pointer
                     is explained above. Click a head to take it, or swipe across the bag to step
@@ -236,7 +273,8 @@
 
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> swing ·
-                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview ·
+                <kbd>shift</kbd> fine control · <kbd>,</kbd><kbd>.</kbd> view round the ball ·
+                <kbd>0</kbd> straighten · <kbd>V</kbd> overview ·
                 <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
             </p>
 
@@ -276,10 +314,11 @@
         <summary>Controls</summary>
         <div class="help">
             <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
+            <span><b>The View dial</b> above the meter walks the camera round the ball without moving the shot — the <b>⌖</b> in its middle puts it back behind the ball, and so does a new hole.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
-            <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
+            <span class="kb-help"><kbd>,</kbd><kbd>.</kbd> view · <kbd>0</kbd> straighten · <kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Drag the View dial to look at the shot from the side. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
         </details>
@@ -305,19 +344,19 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.3.1"></script>
-    <script src="js/themes.js?v=1.3.1"></script>
-    <script src="js/physics.js?v=1.3.1"></script>
-    <script src="js/courses.js?v=1.3.1"></script>
-    <script src="js/scoring.js?v=1.3.1"></script>
-    <script src="js/audio.js?v=1.3.1"></script>
-    <script src="js/bag.js?v=1.3.1"></script>
-    <script src="js/textures.js?v=1.3.1"></script>
-    <script src="js/shaders.js?v=1.3.1"></script>
-    <script src="js/postfx.js?v=1.3.1"></script>
-    <script src="js/weather.js?v=1.3.1"></script>
-    <script src="js/render.js?v=1.3.1"></script>
-    <script src="js/debug.js?v=1.3.1"></script>
-    <script src="js/game.js?v=1.3.1"></script>
+    <script src="js/config.js?v=1.4.0"></script>
+    <script src="js/themes.js?v=1.4.0"></script>
+    <script src="js/physics.js?v=1.4.0"></script>
+    <script src="js/courses.js?v=1.4.0"></script>
+    <script src="js/scoring.js?v=1.4.0"></script>
+    <script src="js/audio.js?v=1.4.0"></script>
+    <script src="js/bag.js?v=1.4.0"></script>
+    <script src="js/textures.js?v=1.4.0"></script>
+    <script src="js/shaders.js?v=1.4.0"></script>
+    <script src="js/postfx.js?v=1.4.0"></script>
+    <script src="js/weather.js?v=1.4.0"></script>
+    <script src="js/render.js?v=1.4.0"></script>
+    <script src="js/debug.js?v=1.4.0"></script>
+    <script src="js/game.js?v=1.4.0"></script>
 </body>
 </html>

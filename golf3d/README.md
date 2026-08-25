@@ -627,6 +627,42 @@ permanently on screen. A phone is 400 points wide and the course is the point.
 - **The reminders below the fold** — the controls and what the course is made
   of — are `<details>` panels. They are worth having and not worth a screenful.
 
+### The view dial
+
+The camera used to have exactly one place to be: behind the ball, on the aim
+line, because that is what makes *drag left, aim left* true from any angle. It
+still does that — but it meant the only way to look at a hole from the side was
+to point the shot at the side, and put it back afterwards from memory.
+
+So the two are separate numbers now. `cam.yaw` is the aim, set from
+`state.aim.yaw` every frame the way it always was. `cam.view` is how far round
+the ball the player has walked from there, and `updateCamera` subtracts one
+from the other — subtracts, because `view` is measured the way a player walks
+and yaw the way the world turns underneath them. Zero is straight behind the
+ball; half a turn either way stands in front of it looking back down the shot.
+Nothing else in the game reads it: the physics, the preview lanes and the aim
+wedge all still hang off `aim.yaw` alone, so a side-on view cannot change where
+a ball goes.
+
+The control for it sits above the power meter — the same shape, because it is
+the same kind of thing: press anywhere to stand there, drag to walk round, and
+the knob is *where you are*, so sliding it right stands you to the right of the
+line and the shot lies away to the left of the screen. The ⌖ in the middle of
+the track walks it straight back and levels the pitch with it; the zoom is left
+alone, being its own control. It lights up whenever there is anything to undo.
+
+Two details are worth keeping if this is ever rebuilt:
+
+- **The press is taken on the dial, not the track.** The ⌖ covers the middle of
+  the track, which is exactly where the knob rests when the view is straight —
+  and a control you cannot start dragging from its resting position is no
+  control at all. So a press that lands on the ⌖ is a reset until it has
+  travelled six pixels, and a drag from there on; the button's click is
+  swallowed once that happens.
+- **A new hole straightens it**, along with the pitch, the zoom and overview.
+  An angle is a thing you chose for the hole in front of you, and the next hole
+  is not that hole.
+
 ## Weather
 
 Every hole has a sky of its own, and it is the same sky every time you come
@@ -936,12 +972,14 @@ disabled should cost you your records, not your round.
 ## Controls
 
 Drag back from the ball and let go; drag sideways to swing the aim, and the
-camera swings with it. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
+camera swings with it. Where the camera stands *relative to* that aim is the
+[view dial](#the-view-dial), not the drag. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
-cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
-overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd>
-the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>G</kbd> the
-course inspector. Scroll or pinch to zoom.
+cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control,
+<kbd>,</kbd><kbd>.</kbd> walk the view round the ball, <kbd>0</kbd> straighten
+it, <kbd>V</kbd> overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the
+hole, <kbd>W</kbd> the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound,
+<kbd>G</kbd> the course inspector. Scroll or pinch to zoom.
 
 ## Query parameters
 
