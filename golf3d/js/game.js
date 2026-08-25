@@ -396,8 +396,8 @@
         var club = state.club;
         var frac = Math.max(0, Math.min(1, state.aim.power / club.power));
         var hot = frac > C.OVERSWING;
-        // Green through amber to red, and the same hue the arrow and the ring
-        // are wearing out on the course.
+        // Green through amber to red, and the same hue the arrow is wearing
+        // out on the course.
         var hue = hot ? 0 : 120 * (1 - frac / C.OVERSWING);
         $('power-fill').style.width = (frac * 100).toFixed(1) + '%';
         $('power-fill').style.color = $('power-fill').style.background = 'hsl(' + hue + ' 85% 55%)';

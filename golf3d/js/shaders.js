@@ -146,9 +146,13 @@
        dozen instructions; because they travel on the wind vector, the sea gets
        rougher when the flag does.
 
-       Rain lands on it. A hash grid picks a drop per cell and a ring expands
-       out of it, tilting the normal as it goes — which is enough for a squall
-       to be visible on the water from the tee. */
+       Rain lands on it. Drops come off a hash grid, but a grid is exactly what
+       you must not be able to see: one ring per cell, centred, lands them on a
+       lattice and the squall reads as tiled wallpaper. So each cell jitters
+       its drop off centre, gates on a hash so most cells are empty, and runs
+       on its own phase and speed — then the whole thing is done twice more, at
+       scales and bearings that do not divide into each other. What is left is
+       rings arriving scattered and out of step, which is what rain does. */
 
     var WATER_VS = [
         'varying vec3 vWorld;',
@@ -171,6 +175,31 @@
         '  g += dir * (cos(dot(p, dir) * freq + t * speed) * amp * freq);',
         '}',
 
+        /* Two randoms per cell, without a sin in sight: sin-based hashes lose
+           their nerve out where the sea's coordinates get big, and the sea is
+           the one surface that goes all the way to the horizon. */
+        'vec2 hash22(vec2 c){',
+        '  vec3 q = fract(c.xyx * vec3(0.1031, 0.1030, 0.0973));',
+        '  q += dot(q, q.yzx + 33.33);',
+        '  return fract((q.xx + q.yz) * q.zy);',
+        '}',
+
+        /* One layer of drops: a ring per cell of a grid at `scale`, but pushed
+           off the cell centre, most of them switched off, and each on its own
+           phase. Only the slope is returned — same currency as wave(). */
+        'vec2 drops(vec2 p, float scale, float t, float speed){',
+        '  vec2 sp = p * scale;',
+        '  vec2 cell = floor(sp);',
+        '  vec2 h = hash22(cell);',
+        '  vec2 j = hash22(cell + 17.31);',
+        '  float on = step(h.y, 0.45);',
+        '  vec2 d = fract(sp) - (vec2(0.5) + (j - 0.5) * 0.72);',
+        '  float r = length(d) + 1e-4;',
+        '  float ph = fract(t * speed * (0.7 + j.y * 0.6) + h.x);',
+        '  float ring = sin((r - ph * 0.5) * 40.0) * exp(-r * 7.5) * (1.0 - ph);',
+        '  return (d / r) * ring * on;',
+        '}',
+
         'void main(){',
         '  vec2 p = vWorld.xz;',
         '  float t = time;',
@@ -187,14 +216,15 @@
         '  wave(g, normalize(-w + wp * 0.45), 6.31, 0.0072 * chop, 3.07, p, t);',
         '  wave(g, normalize(w * 0.35 - wp), 9.87, 0.0036 * chop, 4.13, p, t);',
 
+        /* Three layers, each on a grid the others are not aligned to: the
+           second is turned by about 37 degrees, the third by about 68 the
+           other way, so no two lattices ever agree on where a row is. */
         '  if (rain > 0.001) {',
-        '    vec2 cell = floor(p * 2.2);',
-        '    vec2 f = fract(p * 2.2) - 0.5;',
-        '    float r = length(f) + 1e-4;',
-        '    float seed = fract(sin(dot(cell, vec2(21.98, 78.23))) * 4375.85);',
-        '    float ph = fract(t * 0.75 + seed);',
-        '    float ring = sin((r - ph * 0.55) * 46.0) * exp(-r * 7.0) * (1.0 - ph);',
-        '    g += (f / r) * ring * 0.55 * rain;',
+        '    mat2 rotA = mat2(0.80, -0.60, 0.60, 0.80);',
+        '    mat2 rotB = mat2(0.37, 0.93, -0.93, 0.37);',
+        '    g += drops(p, 2.30, t, 0.75) * 0.42 * rain;',
+        '    g += drops(rotA * p + vec2(11.3, 4.7), 1.55, t + 3.1, 0.55) * 0.46 * rain;',
+        '    g += drops(rotB * p - vec2(6.1, 19.4), 3.40, t + 7.7, 0.95) * 0.30 * rain;',
         '  }',
 
         '  vec3 n = normalize(vec3(-g.x, 1.0, -g.y));',
