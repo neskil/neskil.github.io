@@ -719,19 +719,48 @@ canvas:active { cursor: grabbing; }
     transition: width 0.04s linear;
 }
 
-/* Where the swing runs out. Everything past it is the part of the shot most
-   likely to end in the water. */
+/* A full swing — 100% of the club in hand, which is not the end of the track
+   any more. game.js places it, since where it falls depends on CONFIG.OVERDRAW.
+   Everything left of it is a shot the game plays exactly as previewed. */
 .power-max {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 85%;
+    left: 76.92%;
     width: 2px;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.75);
+}
+
+/* And the overdraw: the stretch past a full swing, hatched so it reads as
+   somewhere you have to mean to go. Power that is real and accuracy that is
+   not — see CONFIG.OVERDRAW. */
+.power-over {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 76.92%;
+    right: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        -45deg,
+        rgba(248, 113, 113, 0.30) 0 4px,
+        rgba(248, 113, 113, 0.08) 4px 8px);
 }
 
 .power-track.hot { border-color: rgba(248, 113, 113, 0.85); }
 .power-track.hot .power-fill { animation: powerPulse 0.45s ease-in-out infinite alternate; }
+
+/* Wound past a full swing: the track itself goes hot, not just the fill, and
+   the percentage over the meter turns with it. */
+.power-track.over {
+    border-color: rgba(248, 113, 113, 1);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 12px rgba(248, 113, 113, 0.55);
+}
+
+.power-track.over .power-fill { animation-duration: 0.28s; }
+
+.ctl-label.over,
+.ctl-label.over b { color: #fca5a5; }
 
 @keyframes powerPulse {
     from { filter: brightness(1); }
