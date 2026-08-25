@@ -271,10 +271,20 @@ canvas:active { cursor: grabbing; }
     bottom: 12px;
     padding-left: min(26%, 220px);   /* the bag stands here */
     display: flex;
-    align-items: flex-end;
-    gap: 0.9rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
     line-height: 1.2;
     pointer-events: none;
+}
+
+/* The shot itself — the meter and the three buttons that play it — is one
+   row; the view dial sits on its own line above, because where you stand is
+   not part of loading a shot. */
+.ctl-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.9rem;
 }
 
 .controls .power { flex: 1 1 auto; min-width: 0; }
@@ -574,6 +584,117 @@ canvas:active { cursor: grabbing; }
 }
 
 .ctl-label b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ── the view dial ──────────────────────────────────────────────────────── */
+
+/* Aiming and looking used to be the same gesture, which meant every side-on
+   look at a hole was also a shot pointed sideways. The dial splits them: the
+   drag on the course still turns the shot, and this turns the camera off the
+   shot line — zero straight behind the ball, half a turn either way to stand
+   in front of it. The ⌖ in the middle walks it back, and so does a new hole,
+   so no angle you leave behind can follow you onto the next one. */
+.viewctl {
+    align-self: flex-end;
+    width: min(272px, 46%);
+    min-width: 0;
+}
+
+.view-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.view-step {
+    flex: none;
+    font: inherit;
+    font-size: 0.95rem;
+    line-height: 1;
+    width: 30px;
+    height: 26px;
+    color: var(--ink);
+    background: rgba(6, 20, 32, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 9px;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s;
+}
+
+.view-step:hover { background: rgba(56, 189, 248, 0.3); }
+.view-step:active { background: var(--accent); color: #06212f; }
+
+/* The track and the button that sits on its middle. */
+.view-dial {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.view-track {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    pointer-events: auto;
+    cursor: ew-resize;
+    touch-action: none;
+    border-radius: 6px;
+    background: rgba(3, 12, 20, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.view-track:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.view-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    pointer-events: none;
+}
+
+/* Straight ahead the knob is under the button, so the button is the knob;
+   off-axis it lights up, which is the only cue the view needs straightening. */
+.view-home {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font: inherit;
+    font-size: 0.8rem;
+    line-height: 1;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    color: rgba(234, 246, 255, 0.75);
+    background: rgba(6, 20, 32, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 50%;
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: none;
+    transition: color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.view-home:hover { color: var(--ink); border-color: var(--accent); }
+.view-home:active { background: var(--accent); color: #06212f; }
+
+.viewctl.off-axis .view-home {
+    color: var(--ink);
+    border-color: rgba(56, 189, 248, 0.8);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
 
 .power-track {
     position: relative;
@@ -1061,14 +1182,21 @@ kbd {
     /* One row is not enough for the meter and the buttons on a phone, so they
        stack — both kept clear of the bag standing in the corner. */
     .controls {
-        flex-direction: column;
-        align-items: stretch;
         gap: 0.45rem;
         padding-left: min(34%, 150px);
         left: 10px;
         right: 10px;
         bottom: 10px;
     }
+
+    .ctl-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+    }
+
+    /* A thumb wants the whole width to drag the view along. */
+    .viewctl { align-self: stretch; width: auto; }
 
     .swing { flex: 1 1 auto; padding: 0.65rem 1rem; }
 

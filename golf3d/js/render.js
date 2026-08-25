@@ -49,6 +49,13 @@
             yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(),
             mode: 'follow',   // …or 'side' or 'over'; see updateCamera
             sideSign: 1,      // which side of the shot the side view stands on
+            /* Where the player has walked round to, measured off the aim line
+               rather than off the world: the shot still turns the camera with
+               it, and this is the angle it is watched from. Zero is straight
+               behind the ball, and a new hole puts it back there. It is an
+               offset on whichever seat `mode` has chosen, so the dial still
+               walks you round a hole you are looking at side on or from above. */
+            view: 0,
             kick: 0,          // impact flinch, decays
             speedPull: 0      // extra distance while the ball is quick
         },
@@ -1351,7 +1358,18 @@
                   the view that answers "will it clear".
          over     the whole hole from above, for working out where to go.
 
-       Overview also thins the air out — see `atmosphere()`. */
+       Overview also thins the air out — see `atmosphere()`.
+
+       Whichever seat is chosen, **c.view turns it**. That is the dial: how far
+       round the ball the player has walked, measured off the aim line rather
+       than off the world, so the shot still turns the camera with it and this
+       is only the angle it is watched from. Zero is wherever the seat itself
+       puts you — behind the ball in follow, square across the shot side on —
+       and a new hole puts it back there.
+
+       Subtracted, not added: c.view is measured the way the player walks —
+       positive is round to the right of the shot — and the world turns the
+       other way from underneath them. */
     var VIEWS = ['follow', 'side', 'over'];
 
     function viewLabel(mode) {
@@ -1366,6 +1384,7 @@
 
     function updateCamera(hole, ball, dt) {
         var c = R.cam;
+        var yaw = c.yaw - c.view;
         var tx, ty, tz, px, py, pz, dist;
         var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
         var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
@@ -1387,9 +1406,9 @@
             R.overRadius = radius;
             var tilt = 1.02;                  // ~58° down, so it still reads as 3D
             tx = bx; ty = 0; tz = bz;
-            px = bx - Math.sin(c.yaw) * Math.cos(tilt) * dist;
+            px = bx - Math.sin(yaw) * Math.cos(tilt) * dist;
             py = Math.sin(tilt) * dist;
-            pz = bz - Math.cos(c.yaw) * Math.cos(tilt) * dist;
+            pz = bz - Math.cos(yaw) * Math.cos(tilt) * dist;
         } else if (c.mode === 'side') {
             /* Square on to the shot. The camera looks at a point down the aim
                line rather than at the ball, so the ball sits at one edge of the
@@ -1416,12 +1435,17 @@
             var lead = Math.min(9, Math.max(3.5,
                 Math.hypot(hole.cup.x - ball.x, hole.cup.z - ball.z) * 0.45));
             lead = Math.min(lead, Math.max(1.8, dist * Math.tan(sideH) * 0.95));
+            /* The point it looks at is down the *aim*, because that is where
+               the shot goes; where it stands to look at it is off the *view*,
+               because that is the dial. With the dial straight the two are the
+               same angle and this is square across the shot, which is the seat
+               it is; walk round and it swings from there. */
             var ax = Math.sin(c.yaw), az = Math.cos(c.yaw);
             tx = ball.x + ax * lead;
             ty = ball.y + 0.7;
             tz = ball.z + az * lead;
 
-            var perpX = az, perpZ = -ax;            // the aim line, turned 90°
+            var perpX = Math.cos(yaw), perpZ = -Math.sin(yaw);   // the view, turned 90°
             var out = (tx - bx) * perpX + (tz - bz) * perpZ;
             var want = out >= 0 ? 1 : -1;
             if (c.sideSign !== want && Math.abs(out) > 0.6) c.sideSign = want;
@@ -1440,9 +1464,9 @@
             dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
             tx = ball.x; ty = ball.y + 0.35; tz = ball.z;
             var back = dist * Math.cos(c.pitch);
-            px = ball.x - Math.sin(c.yaw) * back;
+            px = ball.x - Math.sin(yaw) * back;
             py = ball.y + dist * Math.sin(c.pitch);
-            pz = ball.z - Math.cos(c.yaw) * back;
+            pz = ball.z - Math.cos(yaw) * back;
         }
 
         if (!R.smooth.started) {
