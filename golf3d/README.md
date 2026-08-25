@@ -424,14 +424,25 @@ Details that are easy to get wrong and are pinned by tests:
   set of quads with nothing underneath them, which is exactly what makes
   bridges work and exactly what lets a ball fly *into* the side of a step and
   sail on through the hillside, out of the world beneath it. So the airborne
-  step has one extra test: if there is ground at the new point and every bit of
-  it is above the ball's crown, the ball is inside a face, and it bounces off
-  one axis at a time like the kerb backstop on the ground. That single
-  condition tells a cliff from a bridge — under a bridge there is a pad *below*
-  the ball, and it never fires. It costs two lookups and only over a void,
-  which is the only place the ball can be inside anything. Without it a terrace
-  swallows balls at three specific heights and a raised green can be holed from
-  underneath.
+  step has one extra test: if there is nothing to stand on at the ball's own
+  height and yet there is ground at the point, the ball's centre is inside
+  something, and the height it started the step at says which way it got in. A
+  centre that was above that ground came down onto the top of it and lands; a
+  centre that was below it flew into the face, and bounces off one axis at a
+  time like the kerb backstop on the ground. That same condition tells a cliff
+  from a bridge — under a bridge there is a pad *below* the ball, and it never
+  fires. Without it a terrace swallows balls and a raised green can be holed
+  from underneath.
+
+  **The centre, not the crown.** Reading "inside a face" off the top of the
+  ball leaves a radius-deep band around every riser in which the centre is
+  already under the surface and nothing has fired — so a shot that grazes the
+  lip of a step slips in through the last few centimetres, and from in there
+  undoing the step is no help, because the step before was inside too. It sinks
+  until it is out of the world. A ball that is inside a face and cannot be
+  backed out of it is therefore shoved through the nearest edge of the pad it
+  is under, which is the one thing that guarantees the hillside always has an
+  outside.
 - **A ball at rest on a slope is not at rest** — but a ball that has been slow
   for a while on one has found something to lean on, and is allowed to stop.
   Without the first half the ball hangs on a hillside; without the second, a
@@ -880,7 +891,7 @@ the four things that can move it says otherwise.
 
 ## Tests
 
-Open `tests.html`. 610 assertions covering the surfaces, the collision
+Open `tests.html`. 614 assertions covering the surfaces, the collision
 geometry, the cup, the integrator, the bag, all thirty holes of course data
 and the scorecard, in a few seconds.
 

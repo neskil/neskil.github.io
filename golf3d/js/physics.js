@@ -99,6 +99,52 @@
         return surfaceUnder(hole, x, z, Infinity);
     }
 
+    /* Is the ball's centre inside the ground at this point? Pads are surfaces
+       rather than solids, so "inside" has to be said in terms of them: there
+       is ground here, and every bit of it is above the centre — nothing to
+       stand on, and a face between the ball and the daylight. Being under a
+       bridge is not this: there the deck is above the ball but the ground
+       below is what surfaceUnder hands back, so it never fires.
+
+       The centre, not the crown. A sphere resting on a surface has its centre
+       a radius above it, so a centre below the surface is a ball that is in
+       the hillside rather than on it — and measuring from the crown instead
+       leaves a radius-deep band around every riser where the ball is already
+       inside the face and nothing has noticed. */
+    function inFace(hole, x, z, y) {
+        return !surfaceUnder(hole, x, z, y) && !!surfaceUnder(hole, x, z, Infinity);
+    }
+
+    /* Last resort for a ball that is inside a face and cannot be got out by
+       undoing the step that put it there — one that came down the face itself,
+       or arrived by some route where the previous position was buried too.
+       Shove the centre through the nearest edge of the pad it is under,
+       preferring an edge that leaves it in the open.
+
+       Without this the ball has nowhere to go: every step restores a position
+       that is itself inside the hill, so it sinks until it is out of the
+       world. That is the ball falling through the terrace risers. */
+    function ejectFromFace(hole, b, events) {
+        var s = surfaceUnder(hole, b.x, b.z, Infinity);
+        if (!s || s.pad === CUP_PAD || !s.pad.w || !s.pad.d) return;
+        var pad = s.pad, r = C.BALL_R;
+        var ways = [
+            { d: b.x - pad.x, x: pad.x - r, z: b.z, nx: -1, nz: 0 },
+            { d: pad.x + pad.w - b.x, x: pad.x + pad.w + r, z: b.z, nx: 1, nz: 0 },
+            { d: b.z - pad.z, x: b.x, z: pad.z - r, nx: 0, nz: -1 },
+            { d: pad.z + pad.d - b.z, x: b.x, z: pad.z + pad.d + r, nx: 0, nz: 1 }
+        ];
+        ways.sort(function (a, c) { return a.d - c.d; });
+        var pick = ways[0], i;
+        for (i = 0; i < ways.length; i++) {
+            if (!inFace(hole, ways[i].x, ways[i].z, b.y)) { pick = ways[i]; break; }
+        }
+        b.x = pick.x; b.z = pick.z;
+        if (pick.nx && b.vx * pick.nx < 0) b.vx = -b.vx * C.RESTITUTION;
+        if (pick.nz && b.vz * pick.nz < 0) b.vz = -b.vz * C.RESTITUTION;
+        events.bounce = true;
+    }
+
     function waterAt(hole, x, z) {
         var w = hole.water, i;
         if (!w) return null;
@@ -472,7 +518,7 @@
                 }
             }
         } else {
-            var px = b.x, pz = b.z;
+            var px = b.x, pz = b.z, py = b.y;
             b.vy -= C.GRAVITY * dt;
             b.x += b.vx * dt;
             b.z += b.vz * dt;
@@ -487,23 +533,33 @@
                riser, and how one used to arrive in the mouth of a raised cup
                from below and be counted as holed.
 
-               The test is "there is ground here and every bit of it is over
-               the ball's crown" — which is exactly what being inside a face
-               means, and exactly what being under a bridge is not: under a
-               bridge there is a pad below the ball, and this never fires.
-               Resolved one axis at a time, like the kerb backstop on the
-               ground, so a glancing blow slides along the face instead of
-               stopping dead. It costs two lookups and only over a void, which
-               is the only place the ball can be inside anything. */
+               There is no support at the ball's own height (that is what a
+               null `land` means) and yet there is ground here, so the centre
+               is inside something. The one thing left to decide is which way
+               it got in, and the height it started the step at says so: a
+               centre that was above this ground has come down onto the top of
+               it and wants a landing, and one that was below it has flown into
+               the face and wants a wall.
+
+               The face is resolved one axis at a time, like the kerb backstop
+               on the ground, so a glancing blow slides along it instead of
+               stopping dead — and if that still leaves the ball inside (it
+               came down the face itself, say), it is pushed out bodily rather
+               than left to sink. It costs a lookup, and only over a void or a
+               riser, which is the only place the ball can be inside
+               anything. */
             if (!land) {
-                var lid = b.y + C.BALL_R;
-                if (!surfaceUnder(hole, b.x, b.z, lid) && surfaceUnder(hole, b.x, b.z, Infinity)) {
-                    if (!surfaceUnder(hole, b.x, pz, lid) && surfaceUnder(hole, b.x, pz, Infinity)) {
+                var col = surfaceUnder(hole, b.x, b.z, Infinity);
+                if (col && py >= col.y) {
+                    land = col;             // came down on top of it
+                } else if (col) {
+                    if (inFace(hole, b.x, pz, b.y)) {
                         b.x = px; b.vx = -b.vx * C.RESTITUTION; events.bounce = true;
                     }
-                    if (!surfaceUnder(hole, px, b.z, lid) && surfaceUnder(hole, px, b.z, Infinity)) {
+                    if (inFace(hole, px, b.z, b.y)) {
                         b.z = pz; b.vz = -b.vz * C.RESTITUTION; events.bounce = true;
                     }
+                    if (inFace(hole, b.x, b.z, b.y)) ejectFromFace(hole, b, events);
                     land = surfaceUnder(hole, b.x, b.z, b.y);
                 }
             }
