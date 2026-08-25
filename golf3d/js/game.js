@@ -348,11 +348,16 @@
         $('shud-sky').textContent = state.weather.icon + ' ' + state.weather.label;
     }
 
+    var lastWind = null;
+
     function syncWind() {
         var W = G3.weather;
         if (!W || !state.weather) return;
         var kph = W.windSpeedKph();
-        $('sky-wind').textContent = '· ' + (kph < 4 ? 'still' : kph + ' km/h');
+        var text = '· ' + (kph < 4 ? 'still' : kph + ' km/h');
+        if (text === lastWind) return;
+        lastWind = text;
+        $('sky-wind').textContent = text;
     }
 
     /* W, or the chip under the hole name. It sets an override that lasts the
@@ -370,12 +375,19 @@
         toast(state.weather.icon + '  ' + state.weather.label);
     }
 
-    // How far there is left to go, which is the number the club choice is
-    // really about. Updated every frame while the ball is rolling.
+    /* How far there is left to go, which is the number the club choice is
+       really about. Updated every frame while the ball is rolling — and, like
+       syncWind above, spending most of those frames writing the string that is
+       already there, which is a layout the browser did not need to do. Both
+       are one string compare away from being free, so that is what they are. */
+    var lastDistance = null;
+
     function syncDistance() {
         var b = state.world.ball, cup = state.course.holes[state.holeIndex].cup;
         var d = Math.hypot(cup.x - b.x, cup.z - b.z);
         var text = state.world.sunk ? 'in' : d.toFixed(1) + ' m';
+        if (text === lastDistance) return;
+        lastDistance = text;
         $('to-cup').textContent = text;
         $('shud-dist').textContent = text;
     }
@@ -911,6 +923,8 @@
 
     /* ── loop ───────────────────────────────────────────────────────────── */
 
+    var intent = { show: false, yaw: 0, power: 0, loft: 0 };
+
     function loop(now) {
         raf = requestAnimationFrame(loop);
         var dt = Math.min(0.05, (now - last) / 1000);
@@ -934,12 +948,18 @@
 
         // The camera sits behind the aim, so turning one turns the other.
         R.cam.yaw = state.aim.yaw;
-        R.frame(dt, state.world, {
-            show: state.phase === 'aim',
-            yaw: state.aim.yaw,
-            power: state.aim.power,
-            loft: state.club.loft
-        });
+        // One object, refilled: the renderer reads it within the call and the
+        // preview compares its fields against the last frame's, so handing it a
+        // fresh literal every frame was sixty allocations a second for nothing.
+        intent.show = state.phase === 'aim';
+        intent.yaw = state.aim.yaw;
+        intent.power = state.aim.power;
+        intent.loft = state.club.loft;
+        R.frame(dt, state.world, intent);
+
+        // After the frame, so the inspector's outlines are placed from the
+        // same clock the course was just drawn on.
+        if (G3.debug && G3.debug.on) G3.debug.frame(state.world, dt);
     }
 
     /* ── boot ───────────────────────────────────────────────────────────── */
@@ -1054,6 +1074,10 @@
                 openHowTo();
             }
         }
+
+        // The course inspector (debug.js), which installs its own key and
+        // pointer handling and draws nothing until it is switched on.
+        if (G3.debug) G3.debug.init(canvas);
 
         // One measurement before the first frame, so the bag stands in the
         // right corner of the round rather than the frame after it.

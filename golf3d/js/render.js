@@ -1,5 +1,5 @@
-/* Everything that touches three.js. The simulation never appears in here and
-   this file never decides anything about a shot — it is handed a world and a
+/* The course, in three.js. The simulation never appears in here and this
+   file never decides anything about a shot — it is handed a world and a
    camera intent and it draws them.
 
    Two rules keep the picture honest:
@@ -10,213 +10,22 @@
    - The pads are drawn from the same rectangles the ball rolls on, sheared by
      the same gradient, so what looks like a ramp is a ramp.
 
-   Textures are drawn into canvases at load. No image files to ship, no
-   requests to fail, and the palette moves with the theme. */
+   The three files next to this one are the three jobs it is not doing:
+   themes.js is the palette, textures.js draws every canvas the game uses (and
+   owns the rule that keeps one grass serving a whole course), and shaders.js
+   holds the sky and the water, which are the two places where the answer is
+   GLSL rather than a material property. */
 (function (G3) {
     'use strict';
 
     var C = G3.CONFIG;
     var P = G3.physics;
 
-    var THEMES = {
-        seaside: {
-            sky: [0x3f93cf, 0xc9e8f7],
-            fog: 0xc9e8f7,
-            sun: 0xfff3dc, sunPos: [9, 16, 7], ambient: 0x9fd0ea, ambientI: 0.55,
-            grass: ['#4fae54', '#43a04a'],
-            rail: 0xf4f7f5,
-            surroundY: -0.95, surround: 'water',
-            water: 0x2079ab,
-            side: '#a08a5f'
-        },
-        quarry: {
-            sky: [0xcf9558, 0xf6e2c2],
-            fog: 0xf6e2c2,
-            sun: 0xffe6bd, sunPos: [-8, 15, 6], ambient: 0xd8b58e, ambientI: 0.6,
-            grass: ['#6f9c4e', '#628f45'],
-            rail: 0xc7ae8c,
-            surroundY: -2.4, surround: 'rock',
-            water: 0x2f7fa8,
-            side: '#8d7355'
-        },
-        lagoon: {
-            sky: [0x1f86c8, 0xbfe9f4],
-            fog: 0xbfe9f4,
-            sun: 0xfff7e6, sunPos: [7, 17, -6], ambient: 0x9adfe8, ambientI: 0.62,
-            grass: ['#5cba62', '#4faa55'],
-            rail: 0xfbf4e4,
-            surroundY: -0.78, surround: 'water',
-            water: 0x11a5c0,
-            side: '#c9b287'
-        },
-        highland: {
-            sky: [0x4d74ab, 0xd9e5f0],
-            fog: 0xd9e5f0,
-            sun: 0xffeccb, sunPos: [-8, 14, -7], ambient: 0xa6bcd4, ambientI: 0.5,
-            grass: ['#4a9159', '#3f8149'],
-            rail: 0x99a3ac,
-            /* Moor, not quarry: the surround takes a tint of its own so the
-               two rock courses do not read as the same place. It lands about
-               twice as bright as it looks here once the sun, the hemisphere
-               and the tone map have all had a go at it. */
-            surroundY: -2.7, surround: 'rock', ground: '#454c3c',
-            water: 0x2b6d8d,
-            side: '#7d7566'
-        },
-        works: {
-            sky: [0x0d121d, 0x33405e],
-            fog: 0x33405e,
-            sun: 0xffe0b0, sunPos: [6, 14, -4], ambient: 0x5a6c94, ambientI: 0.75,
-            grass: ['#2f7f5c', '#2a7355'],
-            rail: 0xd9b36a,
-            stars: 0.9,             // the one course played after dark
-            cloudLum: 0.20,         // …so its clouds are moonlit, not sunlit
-            surroundY: -2.6, surround: 'floor',
-            water: 0x2b6f8f,
-            floor: '#2b2f39',
-            side: '#4a4a55'
-        }
-    };
-
-    /* ── procedural textures ────────────────────────────────────────────── */
-
-    function canvasTex(size, draw) {
-        var cv = document.createElement('canvas');
-        cv.width = cv.height = size;
-        draw(cv.getContext('2d'), size);
-        var t = new THREE.CanvasTexture(cv);
-        t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        return t;
-    }
-
-    /* Grass is three things stacked: a mow pattern, a mat of blades, and dirt.
-       The mow bands are what make a green read as a surface rather than a flat
-       colour when the camera is low, the blades give it something for the light
-       to catch at close range, and the mottling stops the tiling from showing
-       as a grid on the big pads. */
-    function grassTexture(theme) {
-        return canvasTex(512, function (g, s) {
-            var i, n, x, y, a;
-            g.fillStyle = theme.grass[0];
-            g.fillRect(0, 0, s, s);
-
-            // Mow bands, with a soft seam so the roller looks like a roller.
-            for (i = 0; i < s; i += 64) {
-                var grd = g.createLinearGradient(0, i, 0, i + 32);
-                grd.addColorStop(0, theme.grass[1]);
-                grd.addColorStop(1, theme.grass[0]);
-                g.fillStyle = grd;
-                g.fillRect(0, i, s, 32);
-            }
-
-            // Broad mottling: light and shade at a scale bigger than a blade.
-            for (n = 0; n < 90; n++) {
-                g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '255,255,255,' : '0,0,0,') +
-                    (0.015 + Math.random() * 0.03) + ')';
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, 20 + Math.random() * 70, 0, 6.283);
-                g.fill();
-            }
-
-            // Blades: short strokes leaning a few degrees off vertical.
-            g.lineWidth = 1;
-            for (n = 0; n < 5200; n++) {
-                x = Math.random() * s; y = Math.random() * s;
-                a = (Math.random() - 0.5) * 0.5;
-                g.strokeStyle = Math.random() < 0.5
-                    ? 'rgba(255,255,255,' + (0.02 + Math.random() * 0.05) + ')'
-                    : 'rgba(0,0,0,' + (0.02 + Math.random() * 0.05) + ')';
-                g.beginPath();
-                g.moveTo(x, y);
-                g.lineTo(x + Math.sin(a) * 6, y - Math.cos(a) * 6);
-                g.stroke();
-            }
-        });
-    }
-
-    /* A height field for the same blades, so the light rakes across the green
-       instead of lying on it flat. Cheap: one greyscale canvas, no normal maths
-       — three.js turns a bump map into normals for us. */
-    function grassBump() {
-        return canvasTex(256, function (g, s) {
-            var n, x, y;
-            g.fillStyle = '#808080';
-            g.fillRect(0, 0, s, s);
-            for (n = 0; n < 5000; n++) {
-                x = Math.random() * s; y = Math.random() * s;
-                g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
-                g.fillRect(x, y, 2, 3);
-            }
-        });
-    }
-
-    function sandTexture() {
-        return canvasTex(128, function (g, s) {
-            g.fillStyle = '#d8c391';
-            g.fillRect(0, 0, s, s);
-            for (var n = 0; n < 4000; n++) {
-                g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.35)' : 'rgba(150,120,70,0.28)';
-                g.fillRect(Math.random() * s, Math.random() * s, 1.5, 1.5);
-            }
-        });
-    }
-
-    function woodTexture() {
-        return canvasTex(128, function (g, s) {
-            g.fillStyle = '#a97c4c';
-            g.fillRect(0, 0, s, s);
-            for (var i = 0; i < s; i += 16) {
-                g.fillStyle = 'rgba(0,0,0,0.16)';
-                g.fillRect(0, i, s, 2);
-                g.fillStyle = 'rgba(255,220,180,0.10)';
-                g.fillRect(0, i + 3, s, 3);
-            }
-            for (var n = 0; n < 900; n++) {
-                g.fillStyle = 'rgba(80,50,20,0.12)';
-                g.fillRect(Math.random() * s, Math.random() * s, 3, 1);
-            }
-        });
-    }
-
-    function roughTexture() {
-        return canvasTex(128, function (g, s) {
-            g.fillStyle = '#3c6b34';
-            g.fillRect(0, 0, s, s);
-            for (var n = 0; n < 2200; n++) {
-                g.fillStyle = Math.random() < 0.5 ? 'rgba(40,90,35,0.5)' : 'rgba(120,150,80,0.25)';
-                g.fillRect(Math.random() * s, Math.random() * s, 3, 3);
-            }
-        });
-    }
-
-    function rockTexture(tint) {
-        return canvasTex(256, function (g, s) {
-            g.fillStyle = tint;
-            g.fillRect(0, 0, s, s);
-            for (var n = 0; n < 900; n++) {
-                var r = 3 + Math.random() * 14;
-                g.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.13) + ')';
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, r, 0, 6.283);
-                g.fill();
-                g.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.08) + ')';
-                g.beginPath();
-                g.arc(Math.random() * s, Math.random() * s, r * 0.6, 0, 6.283);
-                g.fill();
-            }
-        });
-    }
-
-    function dotTexture() {
-        return canvasTex(64, function (g, s) {
-            var grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-            grd.addColorStop(0, 'rgba(255,255,255,1)');
-            grd.addColorStop(0.55, 'rgba(255,255,255,0.75)');
-            grd.addColorStop(1, 'rgba(255,255,255,0)');
-            g.fillStyle = grd;
-            g.fillRect(0, 0, s, s);
-        });
-    }
+    /* The palettes live in themes.js, the procedural textures in
+       textures.js and the two hand-written shaders in shaders.js. What is
+       left in here is the part that actually builds a hole. */
+    var TX = G3.textures;
+    var SH = G3.shaders;
 
     /* ── module state ───────────────────────────────────────────────────── */
 
@@ -232,7 +41,8 @@
         sun: null,             // the directional light, and where it is pointing
         sunDir: new THREE.Vector3(0, 1, 0),
         sunUv: new THREE.Vector2(0.5, 1.2),
-        tex: {},
+        surf: null,            // the hole's shared surface materials
+        pathBuilds: 0,         // preview recomputes, for the inspector
         theme: null, weather: null,
         cam: {
             yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false,
@@ -261,13 +71,10 @@
         R.scene = new THREE.Scene();
         R.camera = new THREE.PerspectiveCamera(52, 1, 0.1, 400);
 
-        R.maxAniso = R.renderer.capabilities.getMaxAnisotropy();
-        R.tex.sand = sandTexture();
-        R.tex.grassBump = grassBump();
-        R.tex.dimple = dimpleTexture();
-        R.tex.wood = woodTexture();
-        R.tex.rough = roughTexture();
-        R.tex.dot = dotTexture();
+        // The surface textures are shared and live in textures.js; this is
+        // the point where the context is known, and the anisotropy limit with
+        // it, so it is where they are allowed to exist.
+        TX.prepare(R.renderer);
 
         buildBall();
         buildAim();
@@ -295,37 +102,11 @@
 
     /* ── persistent objects ─────────────────────────────────────────────── */
 
-    /* Dimples, as a bump map. Modelling them as geometry would cost a few
-       thousand triangles on the one object the camera is always closest to;
-       a hex grid of soft circles in a canvas costs nothing and reads the same
-       at every distance the game ever uses. */
-    function dimpleTexture() {
-        return canvasTex(256, function (g, s) {
-            var cols = 16, r = s / cols / 2, row, col, cx, cz, grd;
-            g.fillStyle = '#b4b4b4';
-            g.fillRect(0, 0, s, s);
-            for (row = 0; row < cols * 2; row++) {
-                for (col = 0; col < cols; col++) {
-                    cx = col * (s / cols) + (row % 2 ? r : 0) + r;
-                    cz = row * (s / (cols * 2)) + r / 2;
-                    grd = g.createRadialGradient(cx, cz, 0, cx, cz, r * 0.92);
-                    grd.addColorStop(0, '#3a3a3a');
-                    grd.addColorStop(0.72, '#a0a0a0');
-                    grd.addColorStop(1, '#ffffff');
-                    g.fillStyle = grd;
-                    g.beginPath();
-                    g.arc(cx, cz, r * 0.92, 0, 6.283);
-                    g.fill();
-                }
-            }
-        });
-    }
-
     function buildBall() {
         var geo = new THREE.SphereGeometry(C.BALL_R, 32, 24);
         var mat = new THREE.MeshPhongMaterial({
             color: 0xffffff,
-            bumpMap: R.tex.dimple,
+            bumpMap: TX.dimple,
             bumpScale: 0.012,
             shininess: 55,
             specular: 0x9aa4ac
@@ -434,7 +215,7 @@
         g.setAttribute('position', new THREE.Float32BufferAttribute(new Array(n * 3).fill(-9999), 3));
         g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), 3));
         R.trail = new THREE.Points(g, new THREE.PointsMaterial({
-            size: 0.13, map: R.tex.dot, transparent: true, depthWrite: false,
+            size: 0.13, map: TX.dot, transparent: true, depthWrite: false,
             blending: THREE.AdditiveBlending, vertexColors: true
         }));
         R.trail.frustumCulled = false;
@@ -470,7 +251,7 @@
         var g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(new Array(n * 3).fill(0), 3));
         R.particles = new THREE.Points(g, new THREE.PointsMaterial({
-            size: 0.13, map: R.tex.dot, transparent: true, opacity: 0.9, depthWrite: false
+            size: 0.13, map: TX.dot, transparent: true, opacity: 0.9, depthWrite: false
         }));
         R.particles.visible = false;
         R.particles.userData.v = [];
@@ -517,136 +298,26 @@
 
     /* ── scene assembly ─────────────────────────────────────────────────── */
 
+    /* The hole's geometry and its materials go together; its textures do not.
+       A material is now shared by every pad or rail wearing it, so the same
+       object turns up on a dozen meshes and must be disposed once and not a
+       dozen times — releasing a program more often than it was claimed is how
+       a renderer ends up drawing nothing. Textures belong to textures.js,
+       which knows when they stop being the current theme's. */
     function disposeGroup(g) {
+        var seen = [];
+        function drop(m) {
+            if (!m || seen.indexOf(m) >= 0) return;
+            seen.push(m);
+            m.dispose();
+        }
         g.traverse(function (o) {
             if (o.geometry) o.geometry.dispose();
-            if (o.material) {
-                // Textures are shared and cached on R.tex; only per-hole
-                // materials are thrown away here.
-                if (Array.isArray(o.material)) o.material.forEach(function (m) { m.dispose(); });
-                else o.material.dispose();
-            }
+            if (Array.isArray(o.material)) o.material.forEach(drop);
+            else drop(o.material);
         });
         R.scene.remove(g);
     }
-
-    /* ── the sky ────────────────────────────────────────────────────────
-
-       The sky was a two-stop gradient, which is fine until you look up. It is
-       now the one genuinely expensive shader in the game, and it earns it: the
-       whole of the weather that you can see without looking down is in here.
-
-       Clouds are noise, not geometry. The ray from the camera is projected
-       onto a flat sheet a long way up — divide the direction by its own height
-       and you have the point where it crosses that sheet — and five octaves of
-       value noise are sampled there. Coverage is a threshold on that noise, so
-       one uniform takes the sky from clear to solid, and drifting the sample
-       point with the wind moves the weather across the course without moving
-       a single vertex.
-
-       Two details do most of the work. The clouds are shaded by sampling the
-       *same* noise a short way towards the sun and comparing: where the field
-       is rising towards the light the cloud is lit, where it is falling it is
-       in its own shadow, which is a fair imitation of a cloud for two texture
-       reads. And the sun's own halo is added on top of the cloud rather than
-       under it, so an overcast sky still has a bright patch where the sun is
-       and a rim of silver on whatever is passing in front of it. */
-
-    var SKY_VS =
-        'varying vec3 vDir;' +
-        'void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-
-    var SKY_FS = [
-        'uniform vec3 top, bottom, fogColour, sunColour, cloudTop, cloudBase, sunDir;',
-        'uniform float cover, sunI, sharp, hazeTop, starI;',
-        'uniform vec2 drift;',
-        'varying vec3 vDir;',
-
-        'float hash21(vec2 p){',
-        '  p = fract(p * vec2(123.34, 456.21));',
-        '  p += dot(p, p + 45.32);',
-        '  return fract(p.x * p.y);',
-        '}',
-        'float vnoise(vec2 p){',
-        '  vec2 i = floor(p), f = fract(p);',
-        '  vec2 u = f * f * (3.0 - 2.0 * f);',
-        '  float a = hash21(i), b = hash21(i + vec2(1.0, 0.0));',
-        '  float c = hash21(i + vec2(0.0, 1.0)), d = hash21(i + vec2(1.0, 1.0));',
-        '  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);',
-        '}',
-        /* Five octaves, with the fine ones faded out towards the horizon.
-           The projection below stretches the cloud sheet without limit as the
-           ray flattens, so by the horizon a single pixel spans several periods
-           of the top octave and the sky turns to static. Weighting each octave
-           by how much room it has left, and normalising by the weights so the
-           mean does not move with it, is a level-of-detail scheme in four
-           lines — and it is also, by happy accident, what distance does to a
-           real cloud: you stop seeing the small stuff first. */
-        'float fbm(vec2 p, float lod){',
-        '  float v = 0.0, a = 0.5, w = 0.0;',
-        '  for (int i = 0; i < 5; i++) {',
-        '    float k = a * clamp(lod * 4.0 - float(i) + 1.0, 0.0, 1.0);',
-        '    v += k * vnoise(p);',
-        '    w += k;',
-        '    p = p * 2.03 + vec2(1.7, 9.2);',
-        '    a *= 0.5;',
-        '  }',
-        '  return v / max(w, 1e-4);',
-        '}',
-
-        /* Stars, for the course that is played after dark. A hash grid on the
-           sphere's own angles: one cell in twenty holds a star, and each one
-           twinkles on a period of its own. It costs two hashes and it is the
-           difference between a night sky and a dark ceiling. */
-        'float stars(vec3 d){',
-        '  vec2 uv = vec2(atan(d.z, d.x), asin(clamp(d.y, -1.0, 1.0))) * 46.0;',
-        '  vec2 gi = floor(uv), gf = fract(uv) - 0.5;',
-        '  float r = hash21(gi);',
-        '  if (r < 0.95) return 0.0;',
-        '  float mag = hash21(gi + 3.7);',
-        '  return smoothstep(0.34, 0.02, length(gf)) * (0.25 + 0.75 * mag);',
-        '}',
-
-        'void main(){',
-        '  vec3 d = normalize(vDir);',
-        '  float h = d.y;',
-        '  vec3 sky = mix(bottom, top, smoothstep(-0.12, 0.62, h));',
-        '  if (starI > 0.001) sky += vec3(0.85, 0.90, 1.0) * stars(d) * starI * smoothstep(0.0, 0.28, h);',
-
-        '  float sd = max(dot(d, sunDir), 0.0);',
-        // A disc a couple of degrees across — bigger than the real one, which
-        // is what every photograph of a sun looks like anyway — plus two
-        // widths of halo so the air round it reads as air.
-        '  float disc = smoothstep(0.9986, 0.9997, sd) * 3.2;',
-        '  float glow = pow(sd, 22.0) * 0.42 + pow(sd, 4.0) * 0.09;',
-        '  sky += sunColour * (disc * sharp + glow * (0.3 + 0.7 * sharp)) * sunI;',
-
-        '  if (h > 0.0) {',
-        // The ray is dropped onto a flat sheet overhead: divide the direction
-        // by its own height and you have where it crosses. max() keeps the
-        // last few degrees above the horizon from dividing by nothing.
-        '    float hh = max(h, 0.07);',
-        '    vec2 uv = d.xz / hh * 1.6 + drift;',
-        '    float lod = smoothstep(0.04, 0.34, hh);',
-        '    float f = fbm(uv, lod);',
-        '    float lit = fbm(uv + normalize(sunDir.xz + vec2(1e-3)) * 0.5, lod);',
-        '    float edge = mix(0.58, 0.06, cover);',
-        '    float a = smoothstep(edge, edge + 0.26, f) * smoothstep(hazeTop * 0.3, hazeTop + 0.24, h);',
-        '    vec3 cc = mix(cloudBase, cloudTop, clamp((f - lit) * 2.4 + 0.62, 0.0, 1.0));',
-        '    cc += sunColour * pow(sd, 10.0) * 0.55 * sunI;',
-        '    sky = mix(sky, cc, a * 0.96);',
-        '  }',
-
-        /* Meet the fog at the horizon, so the ground plane and the sky end in
-           the same colour and the join is a haze rather than a seam. How far
-           up that haze reaches is the weather's business: a clear day gives it
-           the last few degrees, a sea fog gives it a third of the sky, and
-           without that the fog would swallow the water and then stop dead at a
-           horizon with a hard-edged cloud deck sitting on it. */
-        '  sky = mix(sky, fogColour, smoothstep(hazeTop, -0.04, h));',
-        '  gl_FragColor = vec4(sky, 1.0);',
-        '}'
-    ].join('\n');
 
     function skyDome(theme, weather) {
         var mat = new THREE.ShaderMaterial({
@@ -679,8 +350,8 @@
                 starI: { value: (theme.stars || 0) * (1 - weather.cloud * 0.85) },
                 drift: { value: new THREE.Vector2() }
             },
-            vertexShader: SKY_VS,
-            fragmentShader: SKY_FS
+            vertexShader: SH.SKY_VS,
+            fragmentShader: SH.SKY_FS
         });
         var mesh = new THREE.Mesh(new THREE.SphereGeometry(180, 32, 20), mat);
         mesh.renderOrder = -1;
@@ -688,77 +359,119 @@
         return mesh;
     }
 
-    function tiled(base, w, d, scale) {
-        var tex = base.clone();
-        tex.needsUpdate = true;
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.anisotropy = R.maxAniso;      // the grazing angles are most of the view
-        tex.repeat.set(Math.max(1, w / scale), Math.max(1, d / scale));
-        return tex;
-    }
+    /* ── the surfaces ───────────────────────────────────────────────────
 
-    // An extruded slab's cap is UV-mapped in the shape's own coordinates —
-    // world units — where a box's cap runs 0..1. Same texture, different
-    // repeat, or the green around the cup comes out a hundred times too big.
-    function tiledCap(base, w, d, scale, worldUv) {
-        if (!worldUv) return tiled(base, w, d, scale);
-        var tex = base.clone();
-        tex.needsUpdate = true;
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.anisotropy = R.maxAniso;
-        tex.repeat.set(1 / scale, 1 / scale);    // UVs are already world units
-        return tex;
-    }
+       One material per surface kind per hole, and one texture behind it,
+       shared by every pad that is made of it.
 
-    /* Every surface is Phong now, which sounds like a cost and is not: with a
+       This used to be the other way round: each pad cloned its own copy of
+       the grass with `repeat` set to that pad's size, so a hole with a dozen
+       pads uploaded a dozen 512² greens and threw them all away on the next
+       hole. The tiling is a property of the pad, not of the texture, so it
+       now lives where the pad does — baked into the pad's UVs when the
+       geometry is built (`addPad`) — and the texture is a constant that every
+       pad can point at. `textures.SCALE` is the number the two halves agree
+       on.
+
+       Every surface is Phong, which sounds like a cost and is not: with a
        black specular a Phong material is a Lambert material, and what it buys
        is one number — how wet the ground is. Rain darkens a surface and makes
        it shine, and doing that to the sand and the boards as well as the green
        is the difference between "it is raining" and "there is rain in front of
        the screen". */
-    function padMaterial(kind, theme, w, d, worldUv) {
+    function buildSurfaces(theme) {
         var wet = R.weather ? (R.weather.wet || 0) : 0;
+        var tex = TX.surfaces(theme);
+        // Wet ground is darker ground, whatever it is made of.
+        var damp = new THREE.Color(1, 1, 1).multiplyScalar(1 - wet * 0.24);
         var side = new THREE.MeshLambertMaterial({
             color: new THREE.Color(theme.side).multiplyScalar(1 - wet * 0.20)
         });
-        var top;
-        // Wet ground is darker ground, whatever it is made of.
-        function damp() { return new THREE.Color(1, 1, 1).multiplyScalar(1 - wet * 0.24); }
-        if (kind === 'sand') {
-            top = new THREE.MeshPhongMaterial({
-                map: tiledCap(R.tex.sand, w, d, 2, worldUv),
-                color: damp(), shininess: 4 + wet * 60, specular: new THREE.Color(0x000000).lerp(new THREE.Color(0x9aa4ac), wet)
+
+        function tops(map, shine, dry, soaked) {
+            return new THREE.MeshPhongMaterial({
+                map: map, color: damp.clone(), shininess: shine,
+                specular: new THREE.Color(dry).lerp(new THREE.Color(soaked), wet)
             });
-        } else if (kind === 'wood') {
-            top = new THREE.MeshPhongMaterial({
-                map: tiledCap(R.tex.wood, w, d, 2, worldUv),
-                color: damp(), shininess: 8 + wet * 80, specular: new THREE.Color(0x151515).lerp(new THREE.Color(0xb0bcc4), wet)
-            });
-        } else if (kind === 'rough') {
-            top = new THREE.MeshPhongMaterial({
-                map: tiledCap(R.tex.rough, w, d, 2, worldUv),
-                color: damp(), shininess: 3 + wet * 40, specular: new THREE.Color(0x000000).lerp(new THREE.Color(0x7d8a92), wet)
-            });
-        } else {
+        }
+
+        var top = {
+            sand: tops(tex.sand, 4 + wet * 60, 0x000000, 0x9aa4ac),
+            wood: tops(tex.wood, 8 + wet * 80, 0x151515, 0xb0bcc4),
+            rough: tops(tex.rough, 3 + wet * 40, 0x000000, 0x7d8a92),
             // The greens get the most of everything: a bump map of the same
             // blades that are in the colour map, so the light rakes across the
             // mow bands rather than lying on them flat.
-            top = new THREE.MeshPhongMaterial({
-                map: tiledCap(R.tex.grass, w, d, 3.5, worldUv),
-                bumpMap: tiledCap(R.tex.grassBump, w, d, 0.8, worldUv),
+            green: new THREE.MeshPhongMaterial({
+                map: tex.green,
+                bumpMap: tex.greenBump,
                 bumpScale: 0.035 + wet * 0.02,
-                color: damp(),
+                color: damp.clone(),
                 // Wet grass is dark and sheeny, not glittery: a bump map under
                 // a hard specular puts a white speck on every blade and the
                 // green comes out looking like frost.
                 shininess: 4 + wet * 22,
                 specular: new THREE.Color(0x1c2a18).lerp(new THREE.Color(0x4a5a60), wet)
+            })
+        };
+
+        /* Box material order is +x, -x, +y, -y, +z, -z; an extruded slab has
+           just two groups, caps then walls. Both arrays point at the same two
+           materials, so a pad picks a shape rather than a look. */
+        var pads = {};
+        for (var k in top) {
+            if (!Object.prototype.hasOwnProperty.call(top, k)) continue;
+            pads[k] = {
+                box: [side, side, top[k], side, side, side],
+                slab: [top[k], side]
+            };
+        }
+
+        /* A painted rail has a sheen on it in any weather and a hard one in the
+           rain; it is also the brightest thing on most holes, which is what
+           gives the bloom something to find. Four kinds, four materials, and
+           twenty rails between them. */
+        function paint(color) {
+            return new THREE.MeshPhongMaterial({
+                color: new THREE.Color(color).multiplyScalar(1 - wet * 0.16),
+                shininess: 22 + wet * 80,
+                specular: new THREE.Color(0x2a2f33).lerp(new THREE.Color(0xaab6bd), wet)
             });
         }
-        // Box material order is +x, -x, +y, -y, +z, -z; an extruded slab has
-        // just two groups, caps then walls. Passing six covers both, since the
-        // slab only ever reads the first two — so cap first, wall second.
-        return worldUv ? [top, side] : [side, side, top, side, side, side];
+
+        R.surf = {
+            pads: pads,
+            walls: {
+                rail: paint(theme.rail),
+                blade: paint(0xd8523f),
+                gate: paint(0xe0a13a),
+                beam: paint(0x9a6a3c)
+            },
+            post: new THREE.MeshLambertMaterial({ color: 0x6b7280 })
+        };
+    }
+
+    function padMaterial(kind, slab) {
+        var set = R.surf.pads[kind] || R.surf.pads.green;
+        return slab ? set.slab : set.box;
+    }
+
+    /* The tiling, baked in. A box's cap runs 0..1 across the pad, so it is
+       scaled by how many tiles the pad is wide and deep; an extruded slab's
+       cap is UV-mapped in the shape's own coordinates — world units — so it is
+       divided by the tile size instead. Same texture either way, which is the
+       whole point. */
+    function scaleUv(geo, su, sv) {
+        var uv = geo.attributes.uv, i;
+        if (!uv) return;
+        for (i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+        uv.needsUpdate = true;
+    }
+
+    function tilePad(geo, kind, w, d, slab) {
+        var scale = TX.SCALE[kind] || TX.SCALE.green;
+        if (slab) scaleUv(geo, 1 / scale, 1 / scale);
+        else scaleUv(geo, TX.tiles(kind, w), TX.tiles(kind, d));
     }
 
     /* The lit materials in this game hand three.js an sRGB hex as if it were a
@@ -850,30 +563,22 @@
             geo.applyMatrix4(m);
             geo.computeVertexNormals();
         }
-        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, theme, pad.w, pad.d, holed));
+        // The tiling rides on the pad rather than on the texture, which is
+        // what lets every pad of a kind share one material (buildSurfaces).
+        tilePad(geo, pad.kind, pad.w, pad.d, holed);
+        var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, holed));
         mesh.position.set(cx, cy - thick / 2, cz);
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
     }
 
-    function addWall(group, wall, theme) {
+    function addWall(group, wall) {
         var B = P.wallBox(wall, 0);
         var geo = new THREE.BoxGeometry(wall.w, wall.h, wall.d);
-        var color = wall.kind === 'blade' ? 0xd8523f
-            : wall.kind === 'gate' ? 0xe0a13a
-            : wall.kind === 'beam' ? 0x9a6a3c
-            : theme.rail;
-        var wet = R.weather ? (R.weather.wet || 0) : 0;
-        // A painted rail has a sheen on it in any weather and a hard one in the
-        // rain; it is also the brightest thing on most holes, which is what
-        // gives the bloom something to find.
-        var mat = new THREE.MeshPhongMaterial({
-            color: new THREE.Color(color).multiplyScalar(1 - wet * 0.16),
-            shininess: 22 + wet * 80,
-            specular: new THREE.Color(0x2a2f33).lerp(new THREE.Color(0xaab6bd), wet)
-        });
-        var mesh = new THREE.Mesh(geo, mat);
+        // One material per kind, shared by every wall wearing it (see
+        // buildSurfaces) — a hole has up to twenty rails and one coat of paint.
+        var mesh = new THREE.Mesh(geo, R.surf.walls[wall.kind] || R.surf.walls.rail);
         mesh.position.set(B.cx, B.base + wall.h / 2, B.cz);
         mesh.rotation.y = B.yaw;
         mesh.castShadow = true;
@@ -887,7 +592,7 @@
                 // plank.
                 var post = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.16, 0.2, wall.h + 1.5, 12),
-                    new THREE.MeshLambertMaterial({ color: 0x6b7280 })
+                    R.surf.post
                 );
                 post.position.set(B.cx, B.base + (wall.h + 1.5) / 2 - 0.3, B.cz);
                 post.castShadow = true;
@@ -895,96 +600,6 @@
             }
         }
     }
-
-    /* ── water ──────────────────────────────────────────────────────────
-
-       The sea used to be a blue box with a scrolling ripple texture painted on
-       it, and from a low camera it read as lino. It is now a shader, and the
-       thing that makes it read as water is not the waves — it is the Fresnel
-       term: water is nearly a mirror at a grazing angle and nearly transparent
-       looking straight down, so the horizon takes the colour of the sky and
-       the near edge keeps the colour of the water. Every other trick here is
-       secondary to that one.
-
-       The surface itself is four directional waves summed and differentiated
-       by hand. Because the derivative is analytic there is no normal map to
-       tile, nothing to align to the shore, and the whole thing costs about a
-       dozen instructions; because they travel on the wind vector, the sea gets
-       rougher when the flag does.
-
-       Rain lands on it. A hash grid picks a drop per cell and a ring expands
-       out of it, tilting the normal as it goes — which is enough for a squall
-       to be visible on the water from the tee. */
-
-    var WATER_VS = [
-        'varying vec3 vWorld;',
-        'void main(){',
-        '  vec4 wp = modelMatrix * vec4(position, 1.0);',
-        '  vWorld = wp.xyz;',
-        '  gl_Position = projectionMatrix * viewMatrix * wp;',
-        '}'
-    ].join('\n');
-
-    var WATER_FS = [
-        'uniform vec3 deep, shallow, skyColour, sunColour, fogColour, sunDir;',
-        'uniform float time, gloss, rain, fogNear, fogFar, alpha, chop;',
-        'uniform vec2 wind;',
-        'varying vec3 vWorld;',
-
-        // One travelling wave, accumulated as a slope rather than a height:
-        // the height is never needed, only what it does to the normal.
-        'void wave(inout vec2 g, vec2 dir, float freq, float amp, float speed, vec2 p, float t){',
-        '  g += dir * (cos(dot(p, dir) * freq + t * speed) * amp * freq);',
-        '}',
-
-        'void main(){',
-        '  vec2 p = vWorld.xz;',
-        '  float t = time;',
-        '  vec2 w = normalize(wind + vec2(1e-3));',
-        '  vec2 wp = vec2(-w.y, w.x);',
-        /* Five trains, and every number in here is chosen not to divide into
-           the others. Harmonic frequencies on similar bearings beat against
-           each other into a plaid that reads as a tiled texture the moment the
-           camera goes overhead — which is exactly what this replaced. */
-        '  vec2 g = vec2(0.0);',
-        '  wave(g, w, 1.27, 0.046 * chop, 1.31, p, t);',
-        '  wave(g, normalize(w + wp * 0.75), 2.11, 0.026 * chop, 1.77, p, t);',
-        '  wave(g, normalize(w - wp * 1.35), 3.67, 0.014 * chop, 2.39, p, t);',
-        '  wave(g, normalize(-w + wp * 0.45), 6.31, 0.0072 * chop, 3.07, p, t);',
-        '  wave(g, normalize(w * 0.35 - wp), 9.87, 0.0036 * chop, 4.13, p, t);',
-
-        '  if (rain > 0.001) {',
-        '    vec2 cell = floor(p * 2.2);',
-        '    vec2 f = fract(p * 2.2) - 0.5;',
-        '    float r = length(f) + 1e-4;',
-        '    float seed = fract(sin(dot(cell, vec2(21.98, 78.23))) * 4375.85);',
-        '    float ph = fract(t * 0.75 + seed);',
-        '    float ring = sin((r - ph * 0.55) * 46.0) * exp(-r * 7.0) * (1.0 - ph);',
-        '    g += (f / r) * ring * 0.55 * rain;',
-        '  }',
-
-        '  vec3 n = normalize(vec3(-g.x, 1.0, -g.y));',
-        '  vec3 v = normalize(cameraPosition - vWorld);',
-        '  float ndv = max(dot(n, v), 0.0);',
-
-        // Schlick, with water's 0.02 at normal incidence. This is the whole
-        // trick: a mirror at the horizon, a pond at your feet.
-        '  float fres = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);',
-        '  vec3 body = mix(deep, shallow, clamp(ndv * 1.25, 0.0, 1.0));',
-        '  vec3 col = mix(body, skyColour, clamp(fres, 0.0, 0.92));',
-
-        // Sun glint. Two exponents: a broad sheen and the hard sparkle on the
-        // crests, which is the part that makes it move.
-        '  vec3 hv = normalize(sunDir + v);',
-        '  float spec = max(dot(n, hv), 0.0);',
-        '  col += sunColour * pow(spec, 48.0) * 0.34 * gloss;',
-        '  col += sunColour * pow(spec, 320.0) * 1.10 * gloss;',
-
-        '  float depth = length(cameraPosition - vWorld);',
-        '  col = mix(col, fogColour, smoothstep(fogNear, fogFar, depth));',
-        '  gl_FragColor = vec4(col, alpha);',
-        '}'
-    ].join('\n');
 
     function waterMaterial(theme, opts) {
         var deep = lin(theme.water);
@@ -1006,8 +621,8 @@
                 alpha: { value: opts && opts.alpha !== undefined ? opts.alpha : 1 },
                 wind: { value: new THREE.Vector2(0.4, 0.9) }
             },
-            vertexShader: WATER_VS,
-            fragmentShader: WATER_FS,
+            vertexShader: SH.WATER_VS,
+            fragmentShader: SH.WATER_FS,
             transparent: !!(opts && opts.alpha !== undefined && opts.alpha < 1)
         });
         R.waterMats.push(mat);
@@ -1036,12 +651,13 @@
         if (theme.surround === 'water') {
             mat = waterMaterial(theme, {});
         } else {
-            var rt = rockTexture(theme.surround === 'rock' ? (theme.ground || '#9c8466') : (theme.floor || '#3f4450'));
-            rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
-            rt.anisotropy = R.maxAniso;
-            rt.repeat.set(150, 150);
-            R.tex.surroundTemp = rt;
-            mat = new THREE.MeshLambertMaterial({ map: rt });
+            // Cached by tint in textures.js: two holes on the same course
+            // stand on the same rock, and it used to be redrawn for each.
+            mat = new THREE.MeshLambertMaterial({
+                map: TX.rock(theme.surround === 'rock'
+                    ? (theme.ground || '#9c8466')
+                    : (theme.floor || '#3f4450'))
+            });
         }
         // Big enough that its edge is beyond the fog, so the horizon is a fade
         // and not a line.
@@ -1232,7 +848,7 @@
        tween beautifully, and the other half is material state that would not,
        and a hole that is half sunny is worse than a cut. */
     function buildHole(hole, themeName, weatherKind) {
-        var theme = THEMES[themeName] || THEMES.seaside;
+        var theme = G3.themeFor(themeName);
         var W = G3.weather;
         var weather = weatherKind || (W ? W.now : null) || { cloud: 0.4, fog: 1.3, sun: 1, amb: 1, sunSharp: 1, cloudTop: '#ffffff', cloudBase: '#b9c6d4', grade: {} };
         R.theme = theme;
@@ -1241,10 +857,11 @@
         R.movers = [];
         R.waterMats = [];
 
-        // One grass texture per hole, and the last one goes with it: the pad
-        // materials hold clones, which disposeGroup has already taken.
-        if (R.tex.grass) R.tex.grass.dispose();
-        R.tex.grass = grassTexture(theme);
+        /* One set of surfaces per hole: the textures behind them are the
+           theme's and are only redrawn when the theme changes (textures.js),
+           and the materials are the weather's, which is what a hole is
+           rebuilt for. */
+        buildSurfaces(theme);
 
         var g = new THREE.Group();
         // The weather scales the theme's own fog, which is what makes mist a
@@ -1258,7 +875,7 @@
 
         var i;
         for (i = 0; i < hole.pads.length; i++) addPad(g, hole.pads[i], theme, hole.cup);
-        for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i], theme);
+        for (i = 0; i < hole.walls.length; i++) addWall(g, hole.walls[i]);
         for (i = 0; i < hole.water.length; i++) addWater(g, hole.water[i], theme);
         addCup(g, hole);
         addTeeMark(g, hole);
@@ -1288,6 +905,9 @@
         R.scene.add(g);
         R.holeGroup = g;
         R.smooth.started = false;
+        // A new hole is a new world; nothing the last one's preview was
+        // computed from can be assumed to mean the same thing.
+        clearPathCache();
         R.clock = 0;
         R.cam.kick = 0;
         R.cam.speedPull = 0;
@@ -1307,12 +927,19 @@
         }
     }
 
+    // The axis, the camera's two lerp targets and the wind below are the
+    // things this file would otherwise allocate on every single frame. They
+    // are scratch: written before they are read, never held on to.
+    var _axis = new THREE.Vector3();
+    var _camPos = new THREE.Vector3();
+    var _camTarget = new THREE.Vector3();
+    var _wind = { x: 0.4, z: 0.9, speed: 0.5 };
+
     function rollBall(pos) {
         var dx = pos.x - R.lastBall.x, dz = pos.z - R.lastBall.z;
         var d = Math.hypot(dx, dz);
         if (d > 1e-5) {
-            var axis = new THREE.Vector3(dz / d, 0, -dx / d);
-            R.ball.rotateOnWorldAxis(axis, d / C.BALL_R);
+            R.ball.rotateOnWorldAxis(_axis.set(dz / d, 0, -dx / d), d / C.BALL_R);
         }
         R.lastBall.set(pos.x, pos.y, pos.z);
         R.ball.position.set(pos.x, pos.y, pos.z);
@@ -1322,6 +949,129 @@
        set off, and the first stretch of the predicted path as dots. The path
        comes from the physics module rather than a formula of its own, which is
        why it is right about rails and ramps. */
+    /* The predicted path, which is where the frame's time goes: three runs
+       of the simulation, up to a second each, at a hundred and twenty steps
+       a second. On the slowest hole in the game that is about six
+       milliseconds — a third of a frame at 60Hz, and rather more than a
+       frame on a phone — and it was being paid on every frame the player
+       spent looking at a shot they had not changed.
+
+       So it is computed when the shot changes and not otherwise. What the
+       path depends on is small and knowable: where the ball is, where it is
+       aimed, how hard, at what loft — and, on a hole with a gate or a blade
+       on it, the clock, because those keep moving while you stand still.
+       Only those holes pay anything at all while the aim is held, and even
+       there at PATH_HZ rather than at the frame rate. The gate itself still
+       moves every frame — syncMovers places it from the solver's own clock —
+       so what is refreshed at PATH_HZ is the translucent band of the
+       prediction, which is the one thing on screen already allowed to snap: a
+       hair's difference in timing is what turns "through the gap" into "off
+       the gate", and no smoothing would make that continuous anyway.
+
+       Nothing has to be invalidated by hand. The geometry it writes is
+       persistent, so a frame that skips the work leaves the last answer on
+       screen — and the last answer is still the right one, because the
+       inputs it was computed from are exactly what is being compared. */
+    var PATH_HZ = 24;
+    var _path = { valid: false, x: 0, y: 0, z: 0, yaw: 0, power: 0, loft: 0, t: 0 };
+
+    function clearPathCache() { _path.valid = false; }
+
+    function pathStale(world, aim) {
+        var b = world.ball;
+        // A hole with nothing moving on it has a path that does not depend
+        // on the clock at all, so it is not in the comparison.
+        var t = R.movers.length ? Math.floor(world.time * PATH_HZ) : 0;
+        if (_path.valid && _path.x === b.x && _path.y === b.y && _path.z === b.z &&
+            _path.yaw === aim.yaw && _path.power === aim.power &&
+            _path.loft === aim.loft && _path.t === t) return false;
+        _path.valid = true;
+        _path.x = b.x; _path.y = b.y; _path.z = b.z;
+        _path.yaw = aim.yaw; _path.power = aim.power; _path.loft = aim.loft;
+        _path.t = t;
+        return true;
+    }
+
+    function updatePath(world, aim, frac) {
+        R.pathBuilds++;      // what the inspector counts (debug.js)
+        // Touch is too coarse to load an exact number, so the plane spans a
+        // spread of power either side of what is loaded — its two edges are
+        // the lightest and heaviest this shot could actually be, and its
+        // width at any point is how much air time is still in question there.
+        var lo = Math.max(C.MIN_POWER, aim.power * 0.82);
+        var hi = Math.min(C.MAX_POWER, aim.power * 1.18);
+        var seconds = 0.5 + frac * 0.5;
+        var perPath = R.pathPerPath;
+        var i, k;
+
+        var loPts = P.previewPath(world, aim.yaw, lo, aim.loft, seconds);
+        var hiPts = P.previewPath(world, aim.yaw, hi, aim.loft, seconds);
+        var midPts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
+
+        /* Under MIN_POWER there is no shot to preview: launch() refuses it and
+           previewPath hands back nothing. Park the plane and the arrowhead
+           rather than reading the last point of an empty path — which is what
+           a freshly loaded hole does until the player winds a swing on. The
+           wedge, the band and the ring are drawn by updateAim whatever this
+           decides, because the shot line is worth showing before there is a
+           shot. */
+        R.pathPlane.visible = midPts.length > 1;
+        R.pathHead.visible = midPts.length > 1;
+        if (midPts.length < 2) return;
+
+        var turn = -1;
+        for (i = 1; i < midPts.length; i++) {
+            if (midPts[i].bounce) { turn = i; break; }
+        }
+
+        var nSamples = Math.min(perPath, Math.min(loPts.length, hiPts.length));
+        var segCount = Math.max(0, nSamples - 1);
+        var turnFrac = (turn >= 0 && midPts.length > 1) ? turn / (midPts.length - 1) : -1;
+        var turnSample = turnFrac >= 0 ? Math.round(turnFrac * segCount) : -1;
+
+        var loArr = [], hiArr = [];
+        for (i = 0; i < nSamples; i++) {
+            var kl = Math.min(loPts.length - 1, Math.round(i * ((loPts.length - 1) / Math.max(1, nSamples - 1))));
+            var kh = Math.min(hiPts.length - 1, Math.round(i * ((hiPts.length - 1) / Math.max(1, nSamples - 1))));
+            loArr.push(loPts[kl]);
+            hiArr.push(hiPts[kh]);
+        }
+
+        var pos = R.pathPlane.geometry.attributes.position.array;
+        var col = R.pathPlane.geometry.attributes.color.array;
+        for (i = 0; i < perPath - 1; i++) {
+            var base = i * 6;
+            if (i < segCount) {
+                var shade = (1 - (i / segCount) * 0.4) * ((turnSample >= 0 && i >= turnSample) ? 0.5 : 1);
+                putPathQuad(pos, base, loArr[i], hiArr[i], hiArr[i + 1], loArr[i + 1]);
+                setPathQuadShade(col, base, shade);
+            } else {
+                for (var v = 0; v < 6; v++) pos[(base + v) * 3 + 1] = -999;
+            }
+        }
+        R.pathPlane.geometry.attributes.position.needsUpdate = true;
+        R.pathPlane.geometry.attributes.color.needsUpdate = true;
+        R.pathPlane.geometry.computeBoundingSphere();
+
+        // The arrowhead: where the loaded shot itself lands, or first meets a
+        // wall — the one point in the plane that is actually being aimed at.
+        var headIdx = turn >= 0 ? turn : midPts.length - 1;
+        var headPos = midPts[headIdx];
+        var prevPos = midPts[Math.max(0, headIdx - 1)];
+        var hdx = headPos.x - prevPos.x, hdz = headPos.z - prevPos.z;
+        var hlen = Math.hypot(hdx, hdz) || 1;
+        hdx /= hlen; hdz /= hlen;
+        var hpx = -hdz, hpz = hdx;
+        var hs = 0.14 + frac * 0.05;
+        var hp = R.pathHead.geometry.attributes.position.array;
+        hp[0] = headPos.x - hpx * hs; hp[1] = headPos.y; hp[2] = headPos.z - hpz * hs;
+        hp[3] = headPos.x + hpx * hs; hp[4] = headPos.y; hp[5] = headPos.z + hpz * hs;
+        hp[6] = headPos.x + hdx * hs * 2; hp[7] = headPos.y; hp[8] = headPos.z + hdz * hs * 2;
+        R.pathHead.geometry.attributes.position.needsUpdate = true;
+        R.pathHead.geometry.computeBoundingSphere();
+        R.pathHead.material.color.copy(R.arrow.material.color);
+    }
+
     function updateAim(world, aim) {
         var show = !!(aim && aim.show && !world.moving && !world.sunk);
         R.aimGroup.visible = show;
@@ -1381,81 +1131,9 @@
         R.ring.material.color.copy(R.arrow.material.color);
         R.ring.visible = rawFrac > 0.02;
 
-        // Touch is too coarse to load an exact number, so the plane spans a
-        // spread of power either side of what is loaded — its two edges are
-        // the lightest and heaviest this shot could actually be, and its
-        // width at any point is how much air time is still in question there.
-        var lo = Math.max(C.MIN_POWER, aim.power * 0.82);
-        var hi = Math.min(C.MAX_POWER, aim.power * 1.18);
-        var seconds = 0.5 + frac * 0.5;
-        var perPath = R.pathPerPath;
-        var i, k;
-
-        var loPts = P.previewPath(world, aim.yaw, lo, aim.loft, seconds);
-        var hiPts = P.previewPath(world, aim.yaw, hi, aim.loft, seconds);
-        var midPts = P.previewPath(world, aim.yaw, aim.power, aim.loft, seconds);
-
-        /* Under MIN_POWER there is no shot to preview: launch() refuses it and
-           previewPath hands back nothing. Park the plane and the arrowhead
-           rather than reading the last point of an empty path — which is what
-           a freshly loaded hole does on every frame until the player winds a
-           swing on. The wedge, band and ring above still draw, because the
-           shot line is worth showing before there is a shot. */
-        R.pathPlane.visible = midPts.length > 1;
-        R.pathHead.visible = midPts.length > 1;
-        if (midPts.length < 2) return;
-
-        var turn = -1;
-        for (i = 1; i < midPts.length; i++) {
-            if (midPts[i].bounce) { turn = i; break; }
-        }
-
-        var nSamples = Math.min(perPath, Math.min(loPts.length, hiPts.length));
-        var segCount = Math.max(0, nSamples - 1);
-        var turnFrac = (turn >= 0 && midPts.length > 1) ? turn / (midPts.length - 1) : -1;
-        var turnSample = turnFrac >= 0 ? Math.round(turnFrac * segCount) : -1;
-
-        var loArr = [], hiArr = [];
-        for (i = 0; i < nSamples; i++) {
-            var kl = Math.min(loPts.length - 1, Math.round(i * ((loPts.length - 1) / Math.max(1, nSamples - 1))));
-            var kh = Math.min(hiPts.length - 1, Math.round(i * ((hiPts.length - 1) / Math.max(1, nSamples - 1))));
-            loArr.push(loPts[kl]);
-            hiArr.push(hiPts[kh]);
-        }
-
-        var pos = R.pathPlane.geometry.attributes.position.array;
-        var col = R.pathPlane.geometry.attributes.color.array;
-        for (i = 0; i < perPath - 1; i++) {
-            var base = i * 6;
-            if (i < segCount) {
-                var shade = (1 - (i / segCount) * 0.4) * ((turnSample >= 0 && i >= turnSample) ? 0.5 : 1);
-                putPathQuad(pos, base, loArr[i], hiArr[i], hiArr[i + 1], loArr[i + 1]);
-                setPathQuadShade(col, base, shade);
-            } else {
-                for (var v = 0; v < 6; v++) pos[(base + v) * 3 + 1] = -999;
-            }
-        }
-        R.pathPlane.geometry.attributes.position.needsUpdate = true;
-        R.pathPlane.geometry.attributes.color.needsUpdate = true;
-        R.pathPlane.geometry.computeBoundingSphere();
-
-        // The arrowhead: where the loaded shot itself lands, or first meets a
-        // wall — the one point in the plane that is actually being aimed at.
-        var headIdx = turn >= 0 ? turn : midPts.length - 1;
-        var headPos = midPts[headIdx];
-        var prevPos = midPts[Math.max(0, headIdx - 1)];
-        var hdx = headPos.x - prevPos.x, hdz = headPos.z - prevPos.z;
-        var hlen = Math.hypot(hdx, hdz) || 1;
-        hdx /= hlen; hdz /= hlen;
-        var hpx = -hdz, hpz = hdx;
-        var hs = 0.14 + frac * 0.05;
-        var hp = R.pathHead.geometry.attributes.position.array;
-        hp[0] = headPos.x - hpx * hs; hp[1] = headPos.y; hp[2] = headPos.z - hpz * hs;
-        hp[3] = headPos.x + hpx * hs; hp[4] = headPos.y; hp[5] = headPos.z + hpz * hs;
-        hp[6] = headPos.x + hdx * hs * 2; hp[7] = headPos.y; hp[8] = headPos.z + hdz * hs * 2;
-        R.pathHead.geometry.attributes.position.needsUpdate = true;
-        R.pathHead.geometry.computeBoundingSphere();
-        R.pathHead.material.color.copy(R.arrow.material.color);
+        // The path is the expensive half of this function, and most frames
+        // do not need it recomputed — see updatePath.
+        if (pathStale(world, aim)) updatePath(world, aim, frac);
     }
 
     /* Camera. The player never flies it directly: it sits behind the ball
@@ -1500,8 +1178,8 @@
             R.smooth.started = true;
         } else {
             var k = 1 - Math.pow(0.0016, dt);   // frame-rate independent easing
-            R.smooth.pos.lerp(new THREE.Vector3(px, py, pz), k);
-            R.smooth.target.lerp(new THREE.Vector3(tx, ty, tz), k);
+            R.smooth.pos.lerp(_camPos.set(px, py, pz), k);
+            R.smooth.target.lerp(_camTarget.set(tx, ty, tz), k);
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
@@ -1544,7 +1222,7 @@
         // The weather runs off the camera, so it is stepped after the camera
         // has finished moving: the rain column, the motes and the mist banks
         // all follow it, and a frame's lag shows as a jitter at the edges.
-        var wind = { x: 0.4, z: 0.9, speed: 0.5 };
+        var wind = _wind;
         if (G3.weather) {
             G3.weather.update(dt, R.camera);
             wind = G3.weather.wind;
@@ -1674,7 +1352,7 @@
             return G3.bag ? G3.bag.pick(nx, ny, R.camera, R.scene) : null;
         },
         state: R,
-        THEMES: THEMES,
+        THEMES: G3.THEMES,
         // What the HUD needs to name the sky it is standing under.
         get weather() { return R.weather; }
     };
