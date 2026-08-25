@@ -32,7 +32,7 @@
 
         gtag('config', 'G-9GP823TGLB');
     </script>
-    <link rel="stylesheet" href="style.css?v=1.3.0">
+    <link rel="stylesheet" href="style.css?v=1.4.0">
 </head>
 <body>
     <div class="wrap">
@@ -52,14 +52,15 @@
                 <p class="tagline">Five courses. Thirty holes. Four clubs, and half of them fly.</p>
             </div>
             <div class="topbar-actions">
-                <button class="chip" id="btn-view" title="Look at the whole hole (V)">Overview</button>
+                <button class="chip" id="btn-view" title="Behind the ball, side on, or the whole hole (V)">Follow</button>
                 <button class="chip" id="btn-full" title="Play fullscreen (F)" aria-label="Play fullscreen">⛶</button>
                 <div class="topbar-menu" id="topbar-menu">
                     <button class="chip" id="btn-courses" title="Pick a course">Courses</button>
                     <button class="chip" id="btn-restart" title="Restart this hole (R)">↻ Hole</button>
                     <button class="chip" id="btn-card" title="Scorecard">Card</button>
                     <button class="chip" id="btn-help" title="How to play (H)" aria-label="How to play">?<span class="chip-text"> How to play</span></button>
-                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Mute"><span id="mute-icon">🔊</span><span class="chip-text"> Sound</span></button>
+                    <button class="chip" id="btn-mute" title="Sound (M)" aria-label="Unmute"><span id="mute-icon">🔇</span><span class="chip-text"> Sound</span></button>
+                    <button class="chip" id="btn-music" title="Background music (J)" aria-label="Turn the music off"><span id="music-icon">♪</span><span class="chip-text"> Jazz</span></button>
                 </div>
                 <button class="chip chip-menu" id="btn-menu" title="More" aria-label="More controls"
                         aria-expanded="false" aria-controls="topbar-menu">☰</button>
@@ -210,8 +211,12 @@
                     own ceiling on power, so a full swing means something different in every hand.
                 </li>
                 <li>
-                    <b>Read the hole first.</b> <kbd>V</kbd> lifts the camera above the whole hole;
-                    scroll or pinch to zoom. The dotted lines in front of the ball are where the shot
+                    <b>Read the hole first.</b> <kbd>V</kbd> walks between three cameras:
+                    behind the ball, <b>side on</b> — square across the shot, which is the
+                    only place you can see how high a lofted one is going and whether it
+                    clears what is in the way — and <b>overview</b>, the whole hole from
+                    above, which lifts the fog on a misty one so it is still worth
+                    looking at. Scroll or pinch to zoom. The dotted lines in front of the ball are where the shot
                     is headed — real physics, not a guess, so they tell you the truth about rails and
                     ramps. There are three of them rather than one: a lane of a bit less power, a bit
                     more, and what is loaded right now, because touch is too coarse to load an exact
@@ -228,6 +233,13 @@
                     changes it if you would rather see the hole in something else.
                 </li>
                 <li>
+                    <b>The sound starts off.</b> Nothing plays until you ask for it —
+                    <kbd>M</kbd>, or the speaker behind ☰. What you get is a lounge trio
+                    playing quietly under the round, along with the weather; <kbd>J</kbd>
+                    keeps the weather and sends the band home. Tab away and all of it
+                    stops until you come back.
+                </li>
+                <li>
                     <b>Mind the water.</b> A splash or a fall off the edge costs one stroke and you
                     play again from where you hit. Sand is heavy going, boards are quick, and a
                     tilted green breaks the ball downhill the whole way.
@@ -236,8 +248,8 @@
 
             <p class="sub kb-help">
                 <kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>space</kbd> swing ·
-                <kbd>shift</kbd> fine control · <kbd>V</kbd> overview ·
-                <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound
+                <kbd>shift</kbd> fine control · <kbd>V</kbd> view ·
+                <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>M</kbd> sound · <kbd>J</kbd> music
             </p>
 
             <div class="modal-actions">
@@ -278,7 +290,7 @@
             <span><b>Drag the course to aim</b>, set the power on the meter, then hit <b>Swing</b>. Nothing you do on the course plays a shot by itself.</span>
             <span class="kb-help"><kbd>←</kbd><kbd>→</kbd> aim · <kbd>↑</kbd><kbd>↓</kbd> power · <kbd>1</kbd>–<kbd>4</kbd> club
                 · <kbd>space</kbd> swing (<kbd>shift</kbd> for fine control)</span>
-            <span class="kb-help"><kbd>V</kbd> overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · scroll to zoom</span>
+            <span class="kb-help"><kbd>V</kbd> view: follow, side on, overview · <kbd>F</kbd> fullscreen · <kbd>R</kbd> restart hole · <kbd>W</kbd> weather · <kbd>M</kbd> sound · <kbd>J</kbd> music · scroll to zoom</span>
             <span class="touch-help">Drag sideways to turn, up and down to raise and drop the camera. Pinch to zoom, swipe the bag to switch clubs. Turn your phone sideways for a bigger course.</span>
             <span><button type="button" class="linkish" id="btn-help-2">How to play</button></span>
         </div>
@@ -305,19 +317,20 @@
 
     <!-- Load order is dependency order: config, then the pure logic, then the
          things that touch the screen. game.js boots itself on DOMContentLoaded. -->
-    <script src="js/config.js?v=1.3.1"></script>
-    <script src="js/themes.js?v=1.3.1"></script>
-    <script src="js/physics.js?v=1.3.1"></script>
-    <script src="js/courses.js?v=1.3.1"></script>
-    <script src="js/scoring.js?v=1.3.1"></script>
-    <script src="js/audio.js?v=1.3.1"></script>
-    <script src="js/bag.js?v=1.3.1"></script>
-    <script src="js/textures.js?v=1.3.1"></script>
-    <script src="js/shaders.js?v=1.3.1"></script>
-    <script src="js/postfx.js?v=1.3.1"></script>
-    <script src="js/weather.js?v=1.3.1"></script>
-    <script src="js/render.js?v=1.3.1"></script>
-    <script src="js/debug.js?v=1.3.1"></script>
-    <script src="js/game.js?v=1.3.1"></script>
+    <script src="js/config.js?v=1.4.0"></script>
+    <script src="js/themes.js?v=1.4.0"></script>
+    <script src="js/physics.js?v=1.4.0"></script>
+    <script src="js/courses.js?v=1.4.0"></script>
+    <script src="js/scoring.js?v=1.4.0"></script>
+    <script src="js/audio.js?v=1.4.0"></script>
+    <script src="js/music.js?v=1.4.0"></script>
+    <script src="js/bag.js?v=1.4.0"></script>
+    <script src="js/textures.js?v=1.4.0"></script>
+    <script src="js/shaders.js?v=1.4.0"></script>
+    <script src="js/postfx.js?v=1.4.0"></script>
+    <script src="js/weather.js?v=1.4.0"></script>
+    <script src="js/render.js?v=1.4.0"></script>
+    <script src="js/debug.js?v=1.4.0"></script>
+    <script src="js/game.js?v=1.4.0"></script>
 </body>
 </html>

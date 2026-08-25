@@ -36,6 +36,7 @@
         flagCloth: null, flagPole: null, cupMesh: null,
         pin: null, flagSwivel: null, flagRest: null, pinShake: 0,
         movers: [],            // { mesh, wall } — updated from physics each frame
+        shells: [],            // { mesh, x, z, k, phase } — the grass, leaned by the wind
         waterMats: [],         // water shaders whose clock and wind we advance
         sky: null,             // the sky shader's material, for the same reason
         sun: null,             // the directional light, and where it is pointing
@@ -45,12 +46,17 @@
         pathBuilds: 0,         // preview recomputes, for the inspector
         theme: null, weather: null,
         cam: {
-            yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(), overview: false,
+            yaw: 0, pitch: 0.46, dist: 9, target: new THREE.Vector3(),
+            mode: 'follow',   // …or 'side' or 'over'; see updateCamera
+            sideSign: 1,      // which side of the shot the side view stands on
             kick: 0,          // impact flinch, decays
             speedPull: 0      // extra distance while the ball is quick
         },
         smooth: { pos: new THREE.Vector3(), target: new THREE.Vector3(), started: false },
         particles: null, pAlive: 0,
+        marks: null,           // the overview's ball ring, cup ring and beacon
+        lift: 0,               // 0 on the course, 1 overhead; see atmosphere()
+        overDist: 0, overRadius: 0,
         lastBall: new THREE.Vector3(),
         clock: 0
     };
@@ -78,6 +84,7 @@
 
         buildBall();
         buildAim();
+        buildMarkers();
         buildTrail();
         buildParticles();
         if (G3.bag) G3.bag.build(R.scene);
@@ -439,8 +446,43 @@
             });
         }
 
+        /* The shells. One material per layer per grassy kind, shared by every
+           pad wearing it — the same rule as the flat surfaces above, and the
+           reason a hole with a dozen greens on it still only has these.
+
+           Two numbers do all the work. `alphaTest` climbs with the layer, so
+           each shell keeps only the blades that reach it and the mat tapers;
+           and the colour climbs with it too, because the bottom of a stand of
+           grass is in the shade of the rest of it. Lit rather than unlit, so
+           the sun still rakes across the turf and a shell in the shadow of a
+           rail goes dark with the pad under it. */
+        function shells(kind, tex, base, layers) {
+            var out = [], i, f, mat;
+            for (i = 0; i < layers; i++) {
+                f = (i + 1) / layers;
+                mat = new THREE.MeshLambertMaterial({
+                    map: tex,
+                    // Never quite 0: a layer that keeps every texel is a sheet
+                    // of grass-coloured film lying over the pad.
+                    alphaTest: 0.035 + f * 0.72,
+                    color: new THREE.Color(base).multiplyScalar((0.42 + 0.62 * f) * (1 - wet * 0.24)),
+                    // Opaque with a cut-out, not blended: alphaTest writes
+                    // depth, so six layers sort themselves and cost no more
+                    // than six opaque draws.
+                    transparent: false,
+                    side: THREE.FrontSide
+                });
+                out.push(mat);
+            }
+            return out;
+        }
+
         R.surf = {
             pads: pads,
+            shells: {
+                green: shells('green', tex.greenShell, theme.grass[1], SHELL_LAYERS),
+                rough: shells('rough', tex.roughShell, '#3c6b34', SHELL_LAYERS)
+            },
             walls: {
                 rail: paint(theme.rail),
                 blade: paint(0xd8523f),
@@ -500,6 +542,26 @@
 
     var PLANK_THICK = 0.3;
 
+    /* ── the grass ──────────────────────────────────────────────────────
+
+       How many shells a green gets, and how tall the mat is. Six is where the
+       stack stops reading as stripes from a low camera; a phone gets four,
+       because the shells are the one thing here that costs a draw call per
+       pad per layer and a phone is where that shows first.
+
+       The rough gets the same six at twice the height and a wilder lean. No
+       hole uses a rough pad today, but the surface is a real one everywhere
+       else — the friction, the texture, the divot colour — so it grows too,
+       and the first hole to want one will look like somewhere you would
+       rather not be. */
+    var SHELL_LAYERS = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 4 : 6;
+    var SHELL_HEIGHT = { green: 0.115, rough: 0.26 };
+    /* How far the tips lean, per unit of wind. Each is about 40% of that kind's
+       height, so a full gale bends the mat over by half its own height and no
+       further — past that the top of the stack visibly slides off the bottom
+       of it, which is the one way this technique gives itself away. */
+    var SHELL_SWAY = { green: 0.045, rough: 0.10 };
+
     var FLAG_W = 0.76;
 
     /* Pads are drawn as boxes whose underside reaches the surrounding ground,
@@ -532,6 +594,107 @@
         geo.rotateX(-Math.PI / 2);       // lay it flat: extrusion now runs +y
         geo.translate(0, -thick, 0);     // top face at y = 0, like the box
         return geo;
+    }
+
+    /* The mat over one pad. Each shell is the pad's own outline lifted a
+       little further off it, wearing the blade sheet from textures.js — so a
+       green ends up with six flat planes stacked inside twelve centimetres,
+       and looks like turf you could putt on.
+
+       The cup's pad is punched here exactly as the pad itself is: a solid
+       shell over the hole would grow grass across the one part of the course
+       that has to stay a hole.
+
+       Every shell is registered with R.shells, because the wind moves them
+       (see `swayShells`) and a mat that does not move is a carpet. */
+    function addShells(group, pad, cup, holed, cx, cy, cz) {
+        var set = R.surf.shells[pad.kind];
+        if (!set) return;
+        var sx = pad.sx || 0, sz = pad.sz || 0;
+        var height = SHELL_HEIGHT[pad.kind];
+        var sway = SHELL_SWAY[pad.kind];
+        // A phase per pad, off its own corner, so the ripple crosses the hole
+        // rather than every green waving in unison.
+        var phase = (pad.x * 0.7 + pad.z * 1.3) % 6.283;
+        var i;
+
+        for (i = 0; i < set.length; i++) {
+            var f = (i + 1) / set.length;
+            var geo;
+            if (holed) {
+                geo = shellShape(pad, cup);
+                scaleUv(geo, 1 / TX.SHELL_SCALE[pad.kind], 1 / TX.SHELL_SCALE[pad.kind]);
+            } else {
+                geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
+                geo.rotateX(-Math.PI / 2);
+                scaleUv(geo, TX.shellTiles(pad.kind, pad.w), TX.shellTiles(pad.kind, pad.d));
+            }
+            if (sx || sz) {
+                var m = new THREE.Matrix4();
+                m.set(1, 0, 0, 0,
+                      sx, 1, sz, 0,
+                      0, 0, 1, 0,
+                      0, 0, 0, 1);
+                geo.applyMatrix4(m);
+                geo.computeVertexNormals();
+            }
+            var mesh = new THREE.Mesh(geo, set[i]);
+            mesh.position.set(cx, cy + height * f, cz);
+            // Lit by the sun and darkened by anything standing on the pad, but
+            // casting nothing itself: a cut-out shadow needs a depth material
+            // of its own, and six of those per pad would cost more than the
+            // shadow is worth on grass this short.
+            mesh.receiveShadow = true;
+            mesh.renderOrder = 1;
+            group.add(mesh);
+            R.shells.push({
+                mesh: mesh, x: cx, z: cz,
+                // The lean is cubed in the layer: the roots barely move and
+                // the tips do all of it, which is how a blade actually bends.
+                k: sway * f * f * f,
+                phase: phase + f * 1.4
+            });
+        }
+    }
+
+    /* The punched outline again, flat this time. `punchedSlab` extrudes; a mat
+       has no thickness, so it is the same shape run through ShapeGeometry —
+       whose UVs come out in the shape's own coordinates, which is to say world
+       units, which is what the caller scales by. */
+    function shellShape(pad, cup) {
+        var hw = pad.w / 2, hd = pad.d / 2;
+        var shape = new THREE.Shape();
+        shape.moveTo(-hw, -hd);
+        shape.lineTo(hw, -hd);
+        shape.lineTo(hw, hd);
+        shape.lineTo(-hw, hd);
+        shape.lineTo(-hw, -hd);
+        var hole = new THREE.Path();
+        var cx = pad.x + hw, cz = pad.z + hd;
+        // A shade wider than the cup, so no blade hangs over the rim.
+        hole.absarc(cup.x - cx, -(cup.z - cz), C.HOLE_R * 1.08, 0, Math.PI * 2, true);
+        shape.holes.push(hole);
+        var geo = new THREE.ShapeGeometry(shape, 24);
+        geo.rotateX(-Math.PI / 2);
+        return geo;
+    }
+
+    /* The wind, in the grass. One sine per shell with the pad's own phase in
+       it, times the layer's height above the roots, along the wind's own
+       bearing — so a gust crosses the hole as a wave and a still hole barely
+       moves at all. Nothing here is simulated; it is the flag's wind read
+       twice. */
+    function swayShells(wind) {
+        var i, sh, ripple;
+        for (i = 0; i < R.shells.length; i++) {
+            sh = R.shells[i];
+            // The wave travels along the wind, so its phase has to depend on
+            // where the pad is *down* the wind rather than on the clock alone.
+            ripple = 0.62 + 0.38 * Math.sin(R.clock * (1.4 + wind.speed * 1.8) +
+                sh.phase - (sh.x * wind.x + sh.z * wind.z) * 0.55);
+            sh.mesh.position.x = sh.x + wind.x * sh.k * ripple;
+            sh.mesh.position.z = sh.z + wind.z * sh.k * ripple;
+        }
     }
 
     function addPad(group, pad, theme, cup) {
@@ -571,6 +734,9 @@
         mesh.receiveShadow = true;
         mesh.castShadow = true;
         group.add(mesh);
+
+        // …and the grass standing on it, if it is the sort of pad that grows.
+        addShells(group, pad, cup, holed, cx, cy, cz);
     }
 
     function addWall(group, wall) {
@@ -856,6 +1022,7 @@
         if (R.holeGroup) disposeGroup(R.holeGroup);
         R.movers = [];
         R.waterMats = [];
+        R.shells = [];
 
         /* One set of surfaces per hole: the textures behind them are the
            theme's and are only redrawn when the theme changes (textures.js),
@@ -1136,35 +1303,105 @@
         if (pathStale(world, aim)) updatePath(world, aim, frac);
     }
 
-    /* Camera. The player never flies it directly: it sits behind the ball
-       looking down the aim line, which is what makes "drag left, aim left"
-       true from any angle. Overview lifts it above the hole instead. */
+    /* Camera. The player never flies it directly — there are three seats and V
+       walks between them, and all three are placed off the aim line, which is
+       what makes "drag left, aim left" true from any of them.
+
+         follow   behind the ball, down the shot. The one you play from.
+         side     square on to the shot, low. A ball's flight has a height as
+                  well as a length in this game, and from behind the ball the
+                  height is the one thing you cannot read: a wedge over a rail
+                  and a wedge into it look identical until it lands. This is
+                  the view that answers "will it clear".
+         over     the whole hole from above, for working out where to go.
+
+       Overview also thins the air out — see `atmosphere()`. */
+    var VIEWS = ['follow', 'side', 'over'];
+
+    function viewLabel(mode) {
+        return mode === 'over' ? 'Overview' : (mode === 'side' ? 'Side on' : 'Follow');
+    }
+
+    function cycleView() {
+        var i = VIEWS.indexOf(R.cam.mode);
+        R.cam.mode = VIEWS[(i + 1) % VIEWS.length];
+        return R.cam.mode;
+    }
+
     function updateCamera(hole, ball, dt) {
         var c = R.cam;
-        var tx, ty, tz, px, py, pz;
+        var tx, ty, tz, px, py, pz, dist;
+        var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
+        var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
 
-        if (c.overview) {
+        if (c.mode === 'over') {
             // Fit the pad bounding box: back off along the aim line far enough
             // that the hole's bounding radius is inside the narrower of the two
             // frustum half-angles, with a little air around it.
-            var bx = (hole.bounds.minX + hole.bounds.maxX) / 2;
-            var bz = (hole.bounds.minZ + hole.bounds.maxZ) / 2;
             var ex = (hole.bounds.maxX - hole.bounds.minX) / 2;
             var ez = (hole.bounds.maxZ - hole.bounds.minZ) / 2;
             var radius = Math.hypot(ex, ez) * 1.12;
             var vFov = R.camera.fov * Math.PI / 360;
             var hFov = Math.atan(Math.tan(vFov) * R.camera.aspect);
-            var dist = radius / Math.tan(Math.min(vFov, hFov));
+            dist = radius / Math.tan(Math.min(vFov, hFov));
+            // How far back the map is standing, which is what the fog has to
+            // be pushed past for the hole to be visible at all — see
+            // atmosphere() below.
+            R.overDist = dist;
+            R.overRadius = radius;
             var tilt = 1.02;                  // ~58° down, so it still reads as 3D
             tx = bx; ty = 0; tz = bz;
             px = bx - Math.sin(c.yaw) * Math.cos(tilt) * dist;
             py = Math.sin(tilt) * dist;
             pz = bz - Math.cos(c.yaw) * Math.cos(tilt) * dist;
+        } else if (c.mode === 'side') {
+            /* Square on to the shot. The camera looks at a point down the aim
+               line rather than at the ball, so the ball sits at one edge of the
+               frame and the ground it has to cross fills the rest — which is
+               the whole reason to be over here.
+
+               Which side it stands on is not arbitrary: the two candidates are
+               mirror images, and the useful one is whichever is further out of
+               the hole, so the view is across the course rather than through a
+               rail. It only swaps when the other side is clearly better, or a
+               slow turn of the aim would send the camera sweeping through the
+               ball every time the choice tipped over.
+
+               How far down the shot it looks is half way to the cup, near
+               enough — but never further than the frame can actually hold at
+               the distance the zoom has asked for. A portrait phone has less
+               than half the horizontal angle a laptop does, and the choice
+               there is between seeing less of the hole and seeing all of it as
+               a smudge on the horizon. Less of it, then; the zoom is a scroll
+               away for anyone who wants the rest. */
+            dist = (c.dist + c.speedPull) * 1.25;
+            var sideV = R.camera.fov * Math.PI / 360;
+            var sideH = Math.atan(Math.tan(sideV) * R.camera.aspect);
+            var lead = Math.min(9, Math.max(3.5,
+                Math.hypot(hole.cup.x - ball.x, hole.cup.z - ball.z) * 0.45));
+            lead = Math.min(lead, Math.max(1.8, dist * Math.tan(sideH) * 0.95));
+            var ax = Math.sin(c.yaw), az = Math.cos(c.yaw);
+            tx = ball.x + ax * lead;
+            ty = ball.y + 0.7;
+            tz = ball.z + az * lead;
+
+            var perpX = az, perpZ = -ax;            // the aim line, turned 90°
+            var out = (tx - bx) * perpX + (tz - bz) * perpZ;
+            var want = out >= 0 ? 1 : -1;
+            if (c.sideSign !== want && Math.abs(out) > 0.6) c.sideSign = want;
+
+            dist -= c.kick * C.KICK * 4;
+            // Low: about fourteen degrees above the shot. Any higher and the
+            // arc starts flattening into a plan view, which is the one thing
+            // this seat exists not to be.
+            px = tx + perpX * c.sideSign * dist;
+            py = ty + dist * 0.25;
+            pz = tz + perpZ * c.sideSign * dist;
         } else {
             /* Two things move the camera besides the player: it flinches when
                the ball is struck, and it drifts back as the ball gets quick, so
                a hard shot feels quick rather than merely distant. */
-            var dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
+            dist = c.dist + c.speedPull - c.kick * C.KICK * 4;
             tx = ball.x; ty = ball.y + 0.35; tz = ball.z;
             var back = dist * Math.cos(c.pitch);
             px = ball.x - Math.sin(c.yaw) * back;
@@ -1183,6 +1420,97 @@
         }
         R.camera.position.copy(R.smooth.pos);
         R.camera.lookAt(R.smooth.target);
+    }
+
+    /* Clearing the air for the map.
+
+       An overview on a misty hole used to be a grey rectangle: the fog is set
+       from the theme and scaled by the weather (buildHole), and both are
+       chosen for a camera standing on the course, not one forty units above
+       it. So is the rain, and so are the mist banks — which the overview looks
+       at *through*, four sheets of it, from directly overhead.
+
+       Rather than special-case the weather, the camera lifts it. `lift` runs 0
+       to 1 with the view and eases over about a second, and three things ride
+       on it: the fog's near and far are pushed out past whatever the map is
+       standing back to, the rain and the mist thin out (weather.js's
+       setAtmosphere), and the two markers below come up. Drop back to the
+       course and every one of them returns to what the weather asked for.
+
+       The weather on the ground is untouched: the hole is playing in exactly
+       the mist it was, and looks it the moment you are back behind the ball. */
+    function atmosphere(dt) {
+        var want = R.cam.mode === 'over' ? 1 : 0;
+        R.lift += (want - R.lift) * (1 - Math.pow(0.008, dt));
+        if (R.lift < 0.002) R.lift = 0;
+        if (R.lift > 0.998) R.lift = 1;
+
+        var dist = R.overDist || 40, radius = R.overRadius || 20;
+        // Past the far corner of the hole, with the horizon still fading —
+        // a map with no distance at all reads as a cardboard cut-out.
+        var near = Math.max(R.fogNear, dist * 0.85);
+        var far = Math.max(R.fogFar, dist * 1.5 + radius * 2.2);
+        if (R.scene.fog) {
+            R.scene.fog.near = R.fogNear + (near - R.fogNear) * R.lift;
+            R.scene.fog.far = R.fogFar + (far - R.fogFar) * R.lift;
+        }
+        // Not quite nothing: a trace of rain still falling says the hole has
+        // not stopped being wet just because you are looking down at it.
+        if (G3.weather) G3.weather.setAtmosphere(1 - R.lift * 0.86);
+    }
+
+    /* The two things the map has to show, and the two the eye loses first from
+       forty units up: where the ball is and where it is going. A ring on the
+       ground under the ball and a column of light standing in the cup, both
+       drawn with the depth test off so a ridge between them hides neither, and
+       both fading in with the lift rather than snapping on. */
+    function buildMarkers() {
+        R.marks = new THREE.Group();
+        R.marks.visible = false;
+
+        function flat(inner, outer, colour, opacity) {
+            var geo = new THREE.RingGeometry(inner, outer, 40);
+            geo.rotateX(-Math.PI / 2);
+            var m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+                color: colour, transparent: true, opacity: opacity,
+                depthTest: false, depthWrite: false, fog: false,
+                side: THREE.DoubleSide
+            }));
+            m.renderOrder = 8;
+            return m;
+        }
+
+        R.markBall = flat(0.42, 0.58, 0xffffff, 0.9);
+        R.markCup = flat(0.5, 0.72, 0xffd166, 0.9);
+
+        // The beacon. Open-ended and unlit, so it reads as light rather than
+        // as a post somebody could have hit the ball into.
+        var geo = new THREE.CylinderGeometry(0.055, 0.14, 4.2, 10, 1, true);
+        geo.translate(0, 2.1, 0);
+        R.markBeacon = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+            color: 0xffd166, transparent: true, opacity: 0.42,
+            depthTest: false, depthWrite: false, fog: false,
+            side: THREE.DoubleSide
+        }));
+        R.markBeacon.renderOrder = 8;
+
+        R.marks.add(R.markBall, R.markCup, R.markBeacon);
+        R.scene.add(R.marks);
+    }
+
+    function placeMarkers(hole, ball) {
+        if (!R.marks) return;
+        R.marks.visible = R.lift > 0.01;
+        if (!R.marks.visible) return;
+        R.markBall.position.set(ball.x, ball.y - C.BALL_R + 0.02, ball.z);
+        R.markCup.position.set(hole.cup.x, hole.cup.y + 0.02, hole.cup.z);
+        R.markBeacon.position.set(hole.cup.x, hole.cup.y, hole.cup.z);
+        // A slow pulse on the ring under the ball, because from up here the
+        // ball is four pixels across and a moving thing is easier to find.
+        var pulse = 0.72 + 0.28 * Math.sin(R.clock * 2.4);
+        R.markBall.material.opacity = 0.9 * R.lift * pulse;
+        R.markCup.material.opacity = 0.9 * R.lift;
+        R.markBeacon.material.opacity = 0.42 * R.lift;
     }
 
     function frame(dt, world, aim) {
@@ -1219,6 +1547,11 @@
         stepParticles(dt);
         updateCamera(world.hole, world.ball, dt);
 
+        // The camera has moved; what the air is doing about it, and the two
+        // markers that only exist while it is up there.
+        atmosphere(dt);
+        placeMarkers(world.hole, world.ball);
+
         // The weather runs off the camera, so it is stepped after the camera
         // has finished moving: the rain column, the motes and the mist banks
         // all follow it, and a frame's lag shows as a jitter at the edges.
@@ -1228,10 +1561,19 @@
             wind = G3.weather.wind;
         }
 
+        swayShells(wind);
+
         var i;
         for (i = 0; i < R.waterMats.length; i++) {
             var u = R.waterMats[i].uniforms;
             u.time.value = R.clock;
+            // The same fog the lit materials are under, lifted and all: the
+            // sea going grey while the greens beside it stay clear is the one
+            // seam the whole trick would show through.
+            if (R.scene.fog) {
+                u.fogNear.value = R.scene.fog.near;
+                u.fogFar.value = R.scene.fog.far;
+            }
             u.wind.value.set(wind.x, wind.z);
             // A rough day is a choppy sea, and the same number does both.
             u.chop.value = 0.55 + Math.min(1.6, wind.speed * 1.5);
@@ -1346,6 +1688,8 @@
         divot: divot,
         punch: punch,
         setCam: setCam,
+        cycleView: cycleView,
+        viewLabel: viewLabel,
         cam: R.cam,
         // The bag picks against these, and nothing else needs them.
         pickAt: function (nx, ny) {

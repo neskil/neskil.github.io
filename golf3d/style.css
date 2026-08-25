@@ -132,6 +132,11 @@ button.chip:hover { background: var(--accent-soft); border-color: rgba(125, 211,
 button.chip:active { transform: translateY(1px); }
 button.chip.on { background: var(--accent); color: #06212f; border-color: transparent; }
 
+/* The view chip names where the camera is, and the three names are different
+   lengths — without a floor under it the whole topbar shuffles sideways every
+   time you press V. */
+#btn-view { min-width: 5.8rem; }
+
 /* ── scoreboard ─────────────────────────────────────────────────────────── */
 
 .scoreboard {

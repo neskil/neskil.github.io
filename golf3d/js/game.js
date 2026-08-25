@@ -84,7 +84,10 @@
             : null;
         R.buildHole(hole, state.course.theme, state.weather);
         A.ambience(state.weather);
-        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, overview: false });
+        // A new hole is played from behind the ball, whatever the last
+        // one was being looked at from.
+        R.setCam({ yaw: state.aim.yaw, dist: 9, pitch: 0.46, mode: 'follow' });
+        syncView();
         R.state.lastBall.set(state.world.ball.x, state.world.ball.y, state.world.ball.z);
         hideBanner();
         syncHud();
@@ -309,7 +312,7 @@
         if (was !== on) { R.resize(); measurePickerBand(); }
     }
 
-    /* Five of the seven chips live behind ☰ when the bar is compact. Overview
+    /* Six of the eight chips live behind ☰ when the bar is compact. The view
        and fullscreen stay out, because those are the two you reach for with a
        shot half aimed. */
     function closeTopMenu() {
@@ -737,8 +740,9 @@
         var k = e.key;
 
         if (k === 'm' || k === 'M') { toggleMute(); return; }
+        if (k === 'j' || k === 'J') { toggleMusic(); return; }
         if (k === 'r' || k === 'R') { restartHole(); return; }
-        if (k === 'v' || k === 'V') { toggleOverview(); return; }
+        if (k === 'v' || k === 'V') { cycleView(); return; }
         if (k === 'f' || k === 'F') { toggleFullscreen(); return; }
         if (k === 'w' || k === 'W') { cycleWeather(); return; }
         if (k === '?' || k === 'h' || k === 'H') { openHowTo(); return; }
@@ -778,9 +782,19 @@
         else if (k === ' ') { shoot(); e.preventDefault(); }
     }
 
-    function toggleOverview() {
-        R.cam.overview = !R.cam.overview;
-        $('btn-view').classList.toggle('on', R.cam.overview);
+    /* Three seats, one key: follow, side on, overview. The chip says which one
+       you are in rather than which one you would get, because a control that
+       names somewhere you are not is a control you press twice. */
+    function cycleView() {
+        var mode = R.cycleView();
+        syncView();
+        toast(R.viewLabel(mode));
+    }
+
+    function syncView() {
+        var mode = R.cam.mode;
+        $('btn-view').textContent = R.viewLabel(mode);
+        $('btn-view').classList.toggle('on', mode !== 'follow');
     }
 
     /* Fullscreen is taken on the viewport rather than the stage: the topbar,
@@ -863,8 +877,29 @@
 
     function toggleMute() {
         var m = A.toggleMute();
+        syncSound();
+        // The round starts silent (audio.js), so the first unmute is the first
+        // time anyone hears there is a band in here at all.
+        if (!m) toast(A.hasMusic() ? 'Sound on — smooth jazz and all' : 'Sound on');
+    }
+
+    function toggleMusic() {
+        var on = A.toggleMusic();
+        syncSound();
+        if (on && A.isMuted()) toast('Jazz on — but the sound is muted (M)');
+        else toast(on ? 'Jazz on' : 'Jazz off');
+    }
+
+    /* Both chips, from whatever audio.js currently believes — which is also
+       what the page loads with, since the mute is remembered and the music is
+       remembered separately. */
+    function syncSound() {
+        var m = A.isMuted(), j = A.hasMusic();
         $('mute-icon').textContent = m ? '🔇' : '🔊';
         $('btn-mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
+        $('btn-mute').classList.toggle('on', !m);
+        $('btn-music').classList.toggle('on', j && !m);
+        $('btn-music').setAttribute('aria-label', j ? 'Turn the music off' : 'Turn the music on');
     }
 
     /* ── menus and cards ────────────────────────────────────────────────── */
@@ -1006,7 +1041,7 @@
         $('btn-restart').addEventListener('click', restartHole);
         $('btn-courses').addEventListener('click', openMenu);
         $('btn-card').addEventListener('click', function () { openCard(null); });
-        $('btn-view').addEventListener('click', toggleOverview);
+        $('btn-view').addEventListener('click', cycleView);
         $('btn-swing').addEventListener('click', shoot);
         $('btn-aim-left').addEventListener('click', function () { nudgeAim(0.035); });
         $('btn-aim-right').addEventListener('click', function () { nudgeAim(-0.035); });
@@ -1021,6 +1056,7 @@
         $('btn-help').addEventListener('click', openHowTo);
         $('btn-help-2').addEventListener('click', openHowTo);
         $('btn-mute').addEventListener('click', toggleMute);
+        $('btn-music').addEventListener('click', toggleMusic);
         $('btn-weather').addEventListener('click', cycleWeather);
         $('shud-sky').addEventListener('click', cycleWeather);
         $('hole-name').addEventListener('click', showHoleCard);
@@ -1049,7 +1085,8 @@
             if (state && state.world) closeMenu();
         });
 
-        if (A.isMuted()) $('mute-icon').textContent = '🔇';
+        syncSound();
+        syncView();
 
         var q = params();
         state = { save: S.load() };

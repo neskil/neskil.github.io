@@ -20,7 +20,8 @@ them.
 | `js/courses.js` | The thirty holes, as data, plus the rail generator. |
 | `js/physics.js` | The simulation. No three.js, no DOM, pure. |
 | `js/scoring.js` | Scorecard arithmetic and the save file. |
-| `js/audio.js` | Synthesised sound effects and the weather's sound bed — no audio files to ship. |
+| `js/audio.js` | Synthesised sound effects, the weather's sound bed, the mute and the tab-out — no audio files to ship. |
+| `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
 | `js/textures.js` | Every texture, drawn into a canvas at load, and the rule that keeps them shared. |
 | `js/shaders.js` | The two shaders written by hand rather than by three.js: the sky and the water. |
@@ -587,12 +588,15 @@ The rule the chrome is built to: **a thing that only needs saying once should
 only be said once**, and everything else should be one press away rather than
 permanently on screen. A phone is 400 points wide and the course is the point.
 
-- **The topbar** is one row and never more than one. Overview and fullscreen
+- **The topbar** is one row and never more than one. The view and fullscreen
   stay out where a thumb can reach them mid-shot; Courses, restart, the card,
-  the rules and sound fold behind ☰ — a real menu that shuts on a press
-  outside it, on `Escape`, and on picking anything out of it. Wide enough for
-  all seven and the wrapper drops out of the layout entirely
-  (`display: contents`) and the chips sit in the row as before.
+  the rules, sound and the music fold behind ☰ — a real menu that shuts on a
+  press outside it, on `Escape`, and on picking anything out of it. Wide enough
+  for all eight and the wrapper drops out of the layout entirely
+  (`display: contents`) and the chips sit in the row as before. The view chip
+  names the seat the camera is in rather than the one the press would take you
+  to, and carries a `min-width` so the bar does not shuffle sideways when the
+  name changes length.
 - **Compact chrome** is on wherever the immersive layout is — a narrow window, a
   touch screen, or fullscreen on anything — and `game.js` decides it in one
   place (`syncCompact`) so the bar's two modes cannot disagree with the
@@ -677,6 +681,7 @@ periods that do not divide into each other — and everything answers to it:
   with the wind's cutoff and gain on slow LFOs so it breathes instead of
   sitting there. It never restarts — changing the weather ramps the gains and
   leaves the loop running, which is why a squall can arrive without a click.
+  It also runs at about a third of the level it used to; see below.
 
 ### What each kind is made of
 
@@ -739,6 +744,62 @@ most attention — mow bands with a soft seam, broad mottling so the tiling does
 not show as a grid, a mat of blade strokes, and a bump map of the same blades so
 the light rakes across it. It is also the only surface on Phong rather than
 Lambert; a little sheen is the difference between mown grass and green paint.
+
+### The grass stands up
+
+All of that is a picture painted flat, and a painted picture of grass stops
+convincing anybody the moment the camera drops to ball height: the green has no
+silhouette, and its edge against a rail is a razor line. So the greens are
+**shell textured** — the oldest trick for drawing fur in real time, and the one
+technique in here that is not a texture.
+
+The pad's own outline is drawn again six times at rising heights, all six
+within twelve centimetres of the surface, each wearing the same blade sheet.
+What makes it work is one channel: the sheet's **alpha is the blade's height**,
+and layer *n* of *N* keeps a texel only where alpha ≥ n/N. So every shell up
+the stack keeps fewer blades than the one below, the tips are the last thing
+left, and what the camera looks through is a field of tapering blades with air
+between them — a proper silhouette against the sky, and an edge that frays
+where it meets a rail. The blade colour rides in the same texture's RGB, a
+little lighter or darker per blade, because a lawn where every blade is the
+same green is a carpet; and each layer's material colour climbs with its
+height, because the bottom of a stand of grass is in the shade of the rest of
+it.
+
+Three details are the difference between grass and static:
+
+- **The blades sit on a jittered grid**, not at random. Pure random leaves bald
+  patches and clumps of four; a shaken grid is what a mown surface actually
+  looks like from above.
+- **The wind moves them.** Each shell is offset along the wind's own bearing by
+  the cube of its height above the roots — so the roots barely move and the
+  tips do all of the leaning, which is how a blade bends — and the sine that
+  drives it carries the pad's position *down* the wind in its phase, so a gust
+  crosses the hole as a wave rather than every green waving in unison. It is
+  the same wind vector the flag reads, and like the flag it touches nothing the
+  ball does.
+- **The empty texels are not empty.** A canvas stores its colours multiplied by
+  their own alpha, so a fully transparent texel has no colour left to remember,
+  and the filtering between a blade and the gap beside it fades towards black —
+  a dark fringe on every blade. A wash of the blade tint at an alpha below the
+  lowest cutoff gives every texel a colour without letting any of it survive
+  the `alphaTest`.
+
+It is cheap in the two ways that matter. The shells are **opaque with a
+cut-out**, not blended: `alphaTest` writes depth, so six layers sort themselves
+and cost six opaque draws rather than a sorted transparent pass. And they obey
+the same rule as every other surface — one material per layer per kind, shared
+by every pad wearing it, with the tiling baked into the pad's UVs — so a hole
+with a dozen greens on it has six shell materials, not seventy-two. Mipmapping
+gives the level of detail for free: the alpha averages down with distance until
+it stops clearing the cutoff, and a green across the course quietly goes back
+to being the flat texture it always was. A coarse-pointer device gets four
+layers instead of six.
+
+The rough is the same code with a wilder lean and twice the height. None of the
+thirty holes uses a rough pad today; the surface is supported by the physics,
+the textures and now the shells, and the day a hole wants one it will look like
+somewhere you would rather not be.
 The ball gets its dimples the same way, as a hex grid of soft circles used as a
 bump map — a few thousand triangles saved on the one object the camera is always
 closest to. Each of the three courses is a theme: sky gradient, fog colour matched
@@ -846,9 +907,47 @@ weather's colour grade, a vignette, and a little grain to stop the sky banding.
   throws away the canvas's own — a jagged rail in exchange for a nicer sky is
   not a trade.
 
-The camera is never flown directly. It sits behind the ball looking down the aim
-line, which is what makes "drag left, aim left" true from any angle, and
-`V` lifts it to an overview that fits the hole's bounding box in frame.
+### The three cameras
+
+The camera is never flown directly. It is placed off the aim line, which is
+what makes "drag left, aim left" true from any of the three seats `V` walks
+between:
+
+- **Follow**, behind the ball and down the shot. The one you play from, and the
+  one a new hole always starts in.
+- **Side on**, square across the shot and low — about fourteen degrees above
+  it. This game has a third axis and a bag of clubs with lofts in it, and from
+  behind the ball the *height* of a shot is the one thing you cannot read: a
+  wedge that clears the rail and a wedge that hits it look identical until it
+  lands. From over here they do not. It looks at a point down the aim line
+  rather than at the ball, so the ball sits at the edge of the frame and the
+  ground it has to cross fills the rest. Which side it stands on is whichever
+  is further *out* of the hole — the view is across the course rather than
+  through a rail — and it only swaps when the other side is clearly better,
+  because a choice that tips over on a hair sends the camera sweeping through
+  the ball every time the aim turns.
+- **Overview**, backed off along the aim line far enough to fit the hole's
+  bounding radius inside the narrower of the two frustum half-angles.
+
+**The overview lifts the weather.** It used to be worthless on half the courses
+and worse than worthless on a misty one: the fog distances are the theme's,
+scaled by the weather (`buildHole`), and both are chosen for a camera standing
+*on* the course rather than forty units above it — so the map of a hole in mist
+was a grey rectangle, seen through four sheets of ground fog and whatever rain
+was falling. Rather than special-case the weather, the camera lifts it.
+`R.lift` runs 0 to 1 with the view and eases over about a second, and three
+things ride on it: the fog's near and far are pushed out past whatever distance
+the map is standing back at (`Math.max`, so a clear day is untouched — it never
+*adds* fog), the rain and the mist banks thin to a seventh of themselves
+(`weather.setAtmosphere`), and two markers come up — a ring under the ball,
+pulsing slowly because from up there the ball is four pixels across, and a ring
+and a column of light in the cup. Both are drawn with the depth test off, so a
+ridge between them hides neither.
+
+None of it touches the hole. The weather is exactly what it was the moment you
+drop back behind the ball, the water reads the same lifted fog as the lit
+materials so the sea cannot go grey while the greens beside it stay clear, and
+the simulation has never heard of any of this.
 
 ### What a frame does not do
 
@@ -930,8 +1029,49 @@ rounds played, plus a global round count and ace tally. Records are kept per
 course because a personal best at Seaside Green says nothing about Windmill
 Works, and merging them would just reward playing the easy one. The landing
 page reads the same key for the card's stat chip. Mute state lives separately
-under `loftLinks.muted`. Both writes are wrapped — a browser with storage
+under `loftLinks.muted` — and *absent* there means muted, which is how a first
+visit is silent — with the band's own switch under `loftLinks.music`. Both writes are wrapped — a browser with storage
 disabled should cost you your records, not your round.
+
+## Sound
+
+Three rules, all of them about not being the tab somebody is hunting for.
+
+**It starts muted.** A game that begins talking to a room is a game that gets
+closed, so a first visit is silent and the speaker chip is the invitation.
+After that the choice is remembered whichever way it went, and unmuting is also
+the gesture that finally creates the `AudioContext` — browsers will not start
+one before a gesture, and a suspended one warns on every load.
+
+**Nothing plays into a tab you are not looking at.** Everything — effects, bed
+and band alike — goes through one master gain, and that is the only thing the
+mute, the fade and the duck have to touch. `visibilitychange` and the window's
+own focus drop it to nothing over a tenth of a second (a hard cut clicks) and
+then suspend the whole context, which stops the bed's loop, the band's clock
+and the audio thread with it. Alt-tabbing counts: the tab is still visible, and
+it is still the same "I am not here".
+
+**There is a band.** `music.js` is a smooth jazz quartet with no audio files in
+it: a Rhodes comping two or three chords a bar and never on the beat, an
+upright walking quarter notes and approaching each new root chromatically,
+brushes — a swirl on two and four, a ride in swung eighths — and a horn that is
+silent most of the time, because a melody playing continuously over a game is a
+melody you will mute inside a minute. The chart is sixteen hand-written bars in
+F, as MIDI numbers: a voicing written out is one line to read, and a chord
+engine is a file to maintain. A convolver over a second of decaying noise puts
+them all in the same room, and a compressor keeps the bar where everything
+lands at once from poking out of the mix.
+
+**Timing is scheduled, never fired from a timer.** A `setInterval` looks a bar
+ahead and books every note against `ctx.currentTime`; the interval only has to
+be roughly punctual and Web Audio places the note exactly. It is also why a
+throttled background tab cannot make it stumble — a suspended context stops its
+clock, so on the way back the band drops whatever backlog accrued and comes in
+on the next bar rather than playing it all at once.
+
+<kbd>M</kbd> is sound, <kbd>J</kbd> is the band on its own. Two switches rather
+than one, because "sound" and "music" being the same control is how you end up
+with neither: some people want a hole with weather on it and nothing else.
 
 ## Controls
 
@@ -939,9 +1079,10 @@ Drag back from the ball and let go; drag sideways to swing the aim, and the
 camera swings with it. Keys: <kbd>←</kbd><kbd>→</kbd> aim,
 <kbd>↑</kbd><kbd>↓</kbd> power, <kbd>1</kbd>–<kbd>4</kbd> club (<kbd>C</kbd>
 cycles), <kbd>space</kbd> hit, <kbd>shift</kbd> for fine control, <kbd>V</kbd>
-overview, <kbd>F</kbd> fullscreen, <kbd>R</kbd> restart the hole, <kbd>W</kbd>
-the weather, <kbd>H</kbd> the rules, <kbd>M</kbd> sound, <kbd>G</kbd> the
-course inspector. Scroll or pinch to zoom.
+the camera — follow, side on, overview — <kbd>F</kbd> fullscreen, <kbd>R</kbd>
+restart the hole, <kbd>W</kbd> the weather, <kbd>H</kbd> the rules,
+<kbd>M</kbd> sound, <kbd>J</kbd> the music, <kbd>G</kbd> the course inspector.
+Scroll or pinch to zoom.
 
 ## Query parameters
 

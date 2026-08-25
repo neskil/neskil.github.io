@@ -8,7 +8,7 @@
    — the renderer scales to the viewport, the simulation never sees a pixel. */
 window.G3 = window.G3 || {};
 
-G3.VERSION = '1.3.1';
+G3.VERSION = '1.4.0';
 
 G3.CONFIG = {
     BALL_R: 0.16,
@@ -113,6 +113,7 @@ G3.CONFIG = {
 
     SAVE_KEY: 'loftLinks.save.v1',
     MUTE_KEY: 'loftLinks.muted',
+    MUSIC_KEY: 'loftLinks.music',
     SEEN_KEY: 'loftLinks.seenHowTo',
     FS_PROMPT_KEY: 'loftLinks.fsPromptDismissed'
 };
