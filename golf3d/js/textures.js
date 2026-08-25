@@ -10,11 +10,17 @@
    Each pad used to get its own clone of the grass with `repeat` set to that
    pad's size, which is one GPU texture per pad — a 512² green uploaded a
    dozen times over for a hole with a dozen pads, and a fresh dozen on every
-   hole load. Instead the pad's own UVs are scaled when it is built (see
-   `render.addPad`), so one texture serves every pad of a kind at every size.
+   hole load. Instead the pad's own UVs are written when it is built (see
+   `render.worldUv`), so one texture serves every pad of a kind at every size.
    `SCALE` is the world size one tile covers and is the number both halves
    have to agree on, which is why it lives here beside the textures rather
    than beside the geometry.
+
+   Those UVs are anchored to the **world**, not to the pad. A pad-anchored
+   tiling restarts its pattern at every seam, which on a green means the mow
+   bands stop and start again at each join; anchored to the world they run
+   unbroken across a whole hole, and two pads of the same size stop being
+   copies of each other.
 
    The one thing that still needs `repeat` is the green's bump map, which
    tiles finer than its colour map. That ratio is a constant rather than a
@@ -26,15 +32,22 @@
        these and the pads retile; nothing else has to be told. */
     var SCALE = { green: 3.5, sand: 2, wood: 2, rough: 2 };
     var GRASS_BUMP_SCALE = 0.8;      // the blades are finer than the mow bands
-    // The shells (see `shell` below) tile finer still: this is roughly a
-    // handspan of turf per tile, which is what puts a blade at the size a
-    // blade should be when the camera is down at ball height.
-    var SHELL_SCALE = { green: 0.62, rough: 0.85 };
+
+    /* The width of one pass of the mower, in world units, and the one number
+       three separate things have to agree on: the pale-and-dark banding drawn
+       into the green's colour map, the direction the blades are combed in the
+       shell sheet below, and the stripe the renderer's turf shader brightens.
+       Get them out of step and a green has two sets of stripes on it. */
+    var MOW = 0.875;
+
+    // A shell tile is one there-and-back of the mower, so the sheet can carry
+    // the comb — one band leaning up the green, the next leaning back down.
+    var SHELL_SCALE = { green: MOW * 2, rough: 1.6 };
 
     var maxAniso = 1;
     var shared = {};                  // the per-theme surface set, disposed together
     var rocks = {};                   // by tint, kept for the life of the page
-    var extras = {};                  // dimple, dot — built once, never rebuilt
+    var extras = {};                  // dimple, dot, the blade sheets — built once
 
     function canvasTex(size, draw) {
         var cv = document.createElement('canvas');
@@ -56,13 +69,18 @@
             g.fillStyle = theme.grass[0];
             g.fillRect(0, 0, s, s);
 
-            // Mow bands, with a soft seam so the roller looks like a roller.
-            for (i = 0; i < s; i += 64) {
-                var grd = g.createLinearGradient(0, i, 0, i + 32);
+            /* Mow bands, with a soft seam so the roller looks like a roller
+               — one pass of the mower wide, which is what the shell sheet is
+               combed to and what the turf shader brightens. `band` is that
+               width in texels: MOW world units of a tile that covers
+               SCALE.green of them. */
+            var band = Math.round(s * MOW / SCALE.green);
+            for (i = 0; i < s; i += band * 2) {
+                var grd = g.createLinearGradient(0, i, 0, i + band);
                 grd.addColorStop(0, theme.grass[1]);
                 grd.addColorStop(1, theme.grass[0]);
                 g.fillStyle = grd;
-                g.fillRect(0, i, s, 32);
+                g.fillRect(0, i, s, band);
             }
 
             // Broad mottling: light and shade at a scale bigger than a blade.
@@ -108,68 +126,166 @@
 
     /* ── the shells ─────────────────────────────────────────────────────
 
-       Shell texturing, which is the one trick in this file that is not just a
-       nicer picture painted flat. The green is drawn again half a dozen times
-       at rising heights, and each copy keeps only the blades tall enough to
-       reach it — so what the camera sees through the stack is a field of
-       tapering blades with air between them, built out of six two-triangle
-       planes and one texture. It is how fur has been drawn in real time for
-       twenty years and it costs about as much as a decal.
+       Shell texturing, which is the one thing in this file that is not a
+       picture painted flat. The green is drawn again half a dozen times at
+       rising heights and each copy keeps only the blades tall enough to reach
+       it, so what the camera looks through is a field of tapering blades with
+       air between them — six two-triangle planes and one texture, and it is
+       how fur has been drawn in real time for twenty years.
 
-       Everything the technique needs is in the alpha channel of one canvas:
+       **The alpha channel is a height field, and that is the whole technique.**
+       Layer *n* of *N* keeps a texel only where alpha ≥ n/N (three.js's
+       `alphaTest`). Everything below is about what to write into it.
 
-         alpha   how tall this blade is, 0 to 1. Layer *n* of *N* keeps a
-                 texel only where alpha ≥ n/N (three.js's `alphaTest`), so
-                 every layer thins out and the tips are the last thing left.
-         rgb     the blade's own colour — a little lighter or darker than its
-                 neighbours, because a lawn where every blade is the same
-                 green reads as a carpet.
+       A blade is *not* a vertical stroke of constant alpha. That was the first
+       attempt and it is why the first version read as speckle: a stroke with
+       one alpha value is either wholly in a layer or wholly out of it, so
+       every shell was the same mat with a different number of dots in it and
+       nothing ever tapered. What a blade actually occupies is a *smear*: at
+       height y it stands at its root plus its lean times y, narrowing as it
+       goes. So the texel at the root end belongs to the bottom of the blade
+       and the texel at the far end to its tip — which is to say **alpha has to
+       climb along the blade, from nothing at the root to the blade's full
+       height at the tip, while the blade narrows.** Do that and a low shell
+       keeps the whole smear, a high one keeps only the tip, and the mat
+       tapers and leans at the same time, for free.
 
-       The blades are placed on a jittered grid rather than at random: pure
-       random leaves bald patches and clumps of four, and a grid with the
-       positions shaken about is what an actual mown surface looks like from
-       above. Each is drawn as a short stroke leaning off vertical, so the
-       shells above catch the lean and the whole mat looks combed.
+       Which is one tapered triangle under a gradient per blade, ten thousand
+       of them. Ten thousand `createLinearGradient` calls is a quarter of a
+       second, so the blade is drawn *once* into a small sprite and stamped —
+       rotated, scaled and with `globalAlpha` set to its height, which scales
+       the whole ramp and so sets the blade's height in one number.
 
-       One texture serves every layer and every pad; the tiling rides on the
-       pad's UVs, exactly as it does for the flat surfaces above. */
-    function shellTexture(density, lean) {
-        return canvasTex(256, function (g, s) {
-            var cell = 8, jitter = cell * 0.55;
-            var gx, gy, i, x, y, h, a, len, tint;
+       Under the blades is the **thatch**: two-by-four texel strands written
+       straight into an ImageData, dense enough to hide the ground and low
+       enough in the height field that only the bottom shell or two keep any of
+       it. Ten thousand blades cover about a quarter of the sheet; the thatch
+       covers most of the rest, and a lawn you can see the soil through is a
+       lawn in August.
 
-            /* Bare ground is alpha 0 — but a canvas stores its colours
-               multiplied by their own alpha, so a fully transparent texel has
-               no colour left to remember, and the filtering between a blade
-               and the gap beside it would fade towards black. A wash of the
-               blade tint at an alpha below the lowest cutoff gives every texel
-               a colour without letting any of it survive the alphaTest: no
-               black fringe, and nothing extra drawn. */
-            g.fillStyle = 'rgba(190,200,170,0.03)';
-            g.fillRect(0, 0, s, s);
-            g.lineCap = 'round';
+       And the **comb**: the top half of the sheet leans one way and the bottom
+       half the other, because a tile is `MOW * 2` across and a mower goes up
+       one stripe and back down the next. That is where the stripes on a green
+       come from, and it is the reason the sheet is anchored to the world
+       rather than to the pad (see `render.worldUv`) — so the bands run
+       unbroken across every pad of a hole instead of restarting at each seam.
 
-            for (gy = 0; gy < s; gy += cell) {
-                for (gx = 0; gx < s; gx += cell) {
-                    for (i = 0; i < density; i++) {
-                        x = gx + Math.random() * jitter;
-                        y = gy + Math.random() * jitter;
-                        // Height, biased short: a few blades standing well
-                        // above the rest is what gives the mat a silhouette.
-                        h = Math.pow(Math.random(), 0.7);
-                        a = (Math.random() - 0.5) * lean;
-                        len = 2.5 + h * 4.5;
-                        tint = 150 + Math.floor(Math.random() * 105);
-                        g.strokeStyle = 'rgba(' + tint + ',' + (tint + 12) + ',' +
-                            (tint - 18) + ',' + h.toFixed(3) + ')';
-                        g.lineWidth = 1.6 + h * 0.9;
-                        g.beginPath();
-                        g.moveTo(x, y);
-                        g.lineTo(x + Math.sin(a) * len, y - Math.cos(a) * len);
-                        g.stroke();
+       None of this depends on the theme — the blades are a pale neutral green
+       and the course's own colour arrives as the material's — so the sheets
+       are built once at start-up and never rebuilt. */
+
+    // Light, and spread from yellow-green to a cooler blue-green. The material
+    // multiplies the theme's own colour through these, so they are a variation
+    // rather than a palette.
+    var BLADE_TINTS = [
+        '214,224,178', '196,214,164', '228,228,186', '178,204,158',
+        '206,208,192', '188,198,152', '224,232,200', '170,192,150'
+    ];
+
+    /* One blade, as a sprite: a triangle wide at the root and narrow at the
+       tip, under a gradient that runs from transparent at the root to solid at
+       the tip. Stamping this *is* writing a height ramp along the blade. */
+    function bladeSprite(rgb) {
+        var cv = document.createElement('canvas');
+        cv.width = 16; cv.height = 48;
+        var g = cv.getContext('2d');
+        var grd = g.createLinearGradient(0, 48, 0, 0);
+        grd.addColorStop(0, 'rgba(' + rgb + ',0)');
+        grd.addColorStop(0.4, 'rgba(' + rgb + ',0.34)');
+        grd.addColorStop(1, 'rgba(' + rgb + ',1)');
+        g.fillStyle = grd;
+        g.beginPath();
+        g.moveTo(0.5, 48);
+        g.lineTo(15.5, 48);
+        g.lineTo(9.4, 0);
+        g.lineTo(6.6, 0);
+        g.closePath();
+        g.fill();
+        return cv;
+    }
+
+    var blades = null;
+    function bladeSprites() {
+        if (!blades) {
+            blades = [];
+            for (var i = 0; i < BLADE_TINTS.length; i++) blades.push(bladeSprite(BLADE_TINTS[i]));
+        }
+        return blades;
+    }
+
+    /* The mat under the blades. Strands two texels wide and four tall, most of
+       them present, none of them tall — so this is what the bottom shell is
+       made of and what every shell above it throws away. Written as raw pixels
+       rather than drawn: a million texels through putImageData is forty
+       milliseconds, and forty thousand more little fills is not. */
+    function thatch(g, s, cover, top) {
+        var sw = s >> 1, sh = s >> 2;
+        var seed = new Float32Array(sw * sh), i;
+        for (i = 0; i < seed.length; i++) seed[i] = Math.random();
+
+        var img = g.createImageData(s, s);
+        var d = img.data;
+        var x, y, v, a, tint;
+        for (y = 0; y < s; y++) {
+            for (x = 0; x < s; x++) {
+                v = seed[(y >> 2) * sw + (x >> 1)];
+                i = (y * s + x) * 4;
+                tint = 186 + ((v * 71) | 0);
+                d[i] = tint;
+                d[i + 1] = tint + 12;
+                d[i + 2] = tint - 26;
+                /* Below the cover fraction there is no strand — but not alpha
+                   zero either. A canvas keeps its colours multiplied by their
+                   own alpha, so a fully transparent texel has no colour left
+                   to remember and the filtering between a blade and the gap
+                   beside it would fade towards black. A hair of alpha, well
+                   under the lowest cutoff, gives every texel a colour without
+                   letting any of it survive the alphaTest. */
+                a = v < cover ? 0.012 : 0.05 + (v - cover) / (1 - cover) * top;
+                d[i + 3] = (a * 255) | 0;
+            }
+        }
+        g.putImageData(img, 0, 0);
+    }
+
+    /* `cells` blades across the sheet, `per` in each jittered cell. `comb`
+       splits the sheet into the mower's two directions; without it the blades
+       lie every way at once, which is what long grass does. */
+    function shellTexture(size, opts) {
+        return canvasTex(size, function (g, s) {
+            var sp = bladeSprites();
+            var px = s / 1024;                 // the sizes below are for 1024²
+            var step = s / opts.cells;
+            var gx, gy, k, x, y, h, len, wide, ang;
+
+            thatch(g, s, opts.cover, opts.thatch);
+
+            for (gy = 0; gy < opts.cells; gy++) {
+                for (gx = 0; gx < opts.cells; gx++) {
+                    for (k = 0; k < opts.per; k++) {
+                        x = (gx + Math.random()) * step;
+                        y = (gy + Math.random()) * step;
+                        // Biased short: a handful of blades standing well above
+                        // the rest is what gives the mat a silhouette.
+                        h = Math.pow(Math.random(), opts.bias);
+                        len = (opts.len + h * opts.grow) * px;
+                        wide = len * opts.wide;
+                        // The comb. Half the sheet lies up the green and half
+                        // lies back down it, and the spread on top of that is
+                        // what stops a stripe looking brushed.
+                        ang = (opts.comb && y > s / 2 ? Math.PI : 0) +
+                            (Math.random() - 0.5) * opts.spread;
+                        if (!opts.comb && Math.random() < 0.5) ang += Math.PI;
+                        g.globalAlpha = h;
+                        g.setTransform(Math.cos(ang), Math.sin(ang),
+                            -Math.sin(ang), Math.cos(ang), x, y);
+                        g.drawImage(sp[(Math.random() * sp.length) | 0],
+                            -wide / 2, -len, wide, len);
                     }
                 }
             }
+            g.setTransform(1, 0, 0, 1, 0, 0);
+            g.globalAlpha = 1;
         });
     }
 
@@ -282,6 +398,28 @@
         maxAniso = renderer.capabilities.getMaxAnisotropy();
         extras.dimple = dimpleTexture();
         extras.dot = dotTexture();
+
+        /* The blade sheets. Ten thousand stamps and a million texels of
+           thatch is about a quarter of a second, paid once here rather than
+           on every change of course — the blades are a neutral green and the
+           course's own colour arrives as the material's, so there is nothing
+           theme-shaped in them to rebuild. A coarse pointer gets half the
+           resolution, which is the one thing on the page that scales with how
+           much GPU there is likely to be.
+
+           The rough is a quarter of the work for a surface no hole uses yet;
+           it is here because rough is a real surface everywhere else in the
+           game, and the day a hole wants one it should already look like
+           somewhere you would rather not be. */
+        var big = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 512 : 1024;
+        extras.greenShell = dress(shellTexture(big, {
+            cells: 100, per: 1, bias: 0.85, len: 11, grow: 9, wide: 0.30,
+            comb: true, spread: 1.5, cover: 0.30, thatch: 0.30
+        }));
+        extras.roughShell = dress(shellTexture(big >> 1, {
+            cells: 46, per: 1, bias: 0.6, len: 16, grow: 20, wide: 0.26,
+            comb: false, spread: 2.6, cover: 0.42, thatch: 0.38
+        }));
     }
 
     /* The surfaces for one theme. Only the grass changes with the theme, but
@@ -293,11 +431,6 @@
         shared = {
             theme: theme,
             green: dress(grassTexture(theme)),
-            // One blade sheet for the greens and a shaggier one for the rough:
-            // the difference between the two is a lean and a count, and every
-            // shell of every pad of that kind shares the result.
-            greenShell: dress(shellTexture(2, 0.55)),
-            roughShell: dress(shellTexture(3, 1.15)),
             // The one texture that still tiles by `repeat`: the blades are
             // finer than the mow bands by a fixed ratio, and a ratio is a
             // constant rather than a pad size.
@@ -328,6 +461,7 @@
     G3.textures = {
         SCALE: SCALE,
         SHELL_SCALE: SHELL_SCALE,
+        MOW: MOW,
         canvas: canvasTex,
         prepare: prepare,
         surfaces: surfaces,
@@ -335,15 +469,12 @@
         rock: rock,
         get dimple() { return extras.dimple; },
         get dot() { return extras.dot; },
-        // How many tiles a pad of this size gets, which is what the pad's UVs
-        // are scaled by. Never below one, or a small pad magnifies its texture.
-        tiles: function (kind, size) {
-            return Math.max(1, size / (SCALE[kind] || SCALE.green));
-        },
-        // The same sum for the shells, which tile far finer and so never need
-        // the floor of one: a pad narrower than a handspan does not exist.
-        shellTiles: function (kind, size) {
-            return size / (SHELL_SCALE[kind] || SHELL_SCALE.green);
+        get greenShell() { return extras.greenShell; },
+        get roughShell() { return extras.roughShell; },
+        // Which blade sheet a surface wears. Two kinds grow; everything else
+        // gets nothing back and grows nothing.
+        shellFor: function (kind) {
+            return kind === 'rough' ? extras.roughShell : extras.greenShell;
         }
     };
 

@@ -24,7 +24,7 @@ them.
 | `js/music.js` | The house band: a smooth jazz quartet, synthesised a bar at a time. |
 | `js/themes.js` | What each course looks like: a palette per theme, and nothing else. |
 | `js/textures.js` | Every texture, drawn into a canvas at load, and the rule that keeps them shared. |
-| `js/shaders.js` | The two shaders written by hand rather than by three.js: the sky and the water. |
+| `js/shaders.js` | The shaders written by hand rather than by three.js: the sky, the water, and the turf spliced into three.js's own. |
 | `js/weather.js` | The sky each hole gets, the wind everything answers to, and the rain, mist and motes. |
 | `js/postfx.js` | What happens to the picture after the course is drawn: bloom, light shafts, tone mapping, grade. |
 | `js/render.js` | The course, in three.js: geometry, lights, camera and the frame. |
@@ -39,7 +39,7 @@ jobs the renderer used to do in one file. Picking colours, drawing a texture,
 writing GLSL and placing a mesh are not the same activity, and none of them
 should require scrolling through the other three: `themes.js` is where a course's
 palette lives, `textures.js` owns every canvas the game draws into *and* the
-rule that keeps one grass serving a whole course, and `shaders.js` holds the two
+rule that keeps one grass serving a whole course, and `shaders.js` holds the
 places where the answer is GLSL rather than a property. What is left in
 `render.js` is the part that actually builds a hole.
 
@@ -717,7 +717,8 @@ a causeway.
 Textures are drawn into canvases at load: grass, sand, planks and rock. No
 image files to ship and no requests to fail.
 
-**A surface texture is shared, and the tiling lives in the geometry.** It used
+**A surface texture is shared, and the tiling lives in the geometry** — and it
+is anchored to the world, not to the pad. It used
 to be the other way round, and that is worth writing down because it looked
 right. Each pad cloned its own copy of the grass with `repeat` set to that
 pad's size — which is one GPU texture per pad, so The Reach, at eleven pads,
@@ -734,6 +735,11 @@ a hole that builds in a third of the time. The grass is redrawn when the
 *theme* changes rather than when the hole does, which is most of that: it is a
 512² canvas with five thousand blade strokes in it, and six holes of a course
 were each paying for their own copy of the same one.
+
+Anchoring those UVs to the world rather than to the pad came later and is the
+subject of [the mower](#the-mower) below: a pad-anchored tiling restarts its
+pattern at every seam, which on a green means the mow bands stop and start
+again at each join.
 
 The exception that proves the rule is the green's bump map, which tiles finer
 than its colour map. That is a *ratio* rather than a pad size — a constant —
@@ -755,56 +761,105 @@ technique in here that is not a texture.
 
 The pad's own outline is drawn again six times at rising heights, all six
 within twelve centimetres of the surface, each wearing the same blade sheet.
-What makes it work is one channel: the sheet's **alpha is the blade's height**,
-and layer *n* of *N* keeps a texel only where alpha ≥ n/N. So every shell up
-the stack keeps fewer blades than the one below, the tips are the last thing
-left, and what the camera looks through is a field of tapering blades with air
-between them — a proper silhouette against the sky, and an edge that frays
-where it meets a rail. The blade colour rides in the same texture's RGB, a
-little lighter or darker per blade, because a lawn where every blade is the
-same green is a carpet; and each layer's material colour climbs with its
-height, because the bottom of a stand of grass is in the shade of the rest of
-it.
+What makes it work is one channel: **the sheet's alpha is a height field**, and
+layer *n* of *N* keeps a texel only where alpha ≥ n/N. Every shell up the stack
+keeps fewer blades than the one below, the tips are the last thing left, and
+what the camera looks through is a field of blades with air between them.
 
-Three details are the difference between grass and static:
+**A blade is a smear, not a stroke.** The first version drew each blade as a
+line of constant alpha, and that is exactly why it read as speckle: a stroke
+with one alpha value is either wholly in a layer or wholly out of it, so every
+shell was the same mat with fewer dots in it and nothing ever tapered. What a
+blade actually occupies is a smear — at height *y* it stands at its root plus
+its lean times *y*, narrowing as it goes — so the texel at the root end belongs
+to the bottom of the blade and the texel at the far end to its tip. Which means
+**alpha has to climb along the blade**, from nothing at the root to the blade's
+full height at the tip, while the blade narrows. Do that and a low shell keeps
+the whole smear, a high one keeps only the tip, and the mat tapers and leans at
+the same time, for free.
 
-- **The blades sit on a jittered grid**, not at random. Pure random leaves bald
-  patches and clumps of four; a shaken grid is what a mown surface actually
-  looks like from above.
-- **The wind moves them.** Each shell is offset along the wind's own bearing by
-  the cube of its height above the roots — so the roots barely move and the
-  tips do all of the leaning, which is how a blade bends — and the sine that
-  drives it carries the pad's position *down* the wind in its phase, so a gust
-  crosses the hole as a wave rather than every green waving in unison. It is
-  the same wind vector the flag reads, and like the flag it touches nothing the
-  ball does.
-- **The empty texels are not empty.** A canvas stores its colours multiplied by
-  their own alpha, so a fully transparent texel has no colour left to remember,
-  and the filtering between a blade and the gap beside it fades towards black —
-  a dark fringe on every blade. A wash of the blade tint at an alpha below the
-  lowest cutoff gives every texel a colour without letting any of it survive
-  the `alphaTest`.
+That is one tapered triangle under a gradient per blade, ten thousand of them,
+and ten thousand `createLinearGradient` calls is a quarter of a second. So the
+blade is drawn *once* into a small sprite and stamped — rotated, scaled, and
+with `globalAlpha` set to its height, which scales the whole ramp and so sets
+the blade's height in one number. Under the blades is the **thatch**: strands
+two texels wide and four tall written straight into an `ImageData`, dense
+enough to hide the ground and low enough in the height field that only the
+bottom shell keeps any of it. A million texels through `putImageData` is forty
+milliseconds; forty thousand more little fills is not.
 
-It is cheap in the two ways that matter. The shells are **opaque with a
+**None of it depends on the theme.** The blades are a pale neutral green and
+the course's own colour arrives as the material's, so the sheets are built once
+at start-up (about a tenth of a second) and never rebuilt — where the first
+version redrew them on every change of course.
+
+#### The mower
+
+A golf green is striped, and the stripes are not paint: a mower goes up one
+pass and back down the next, and the blades lie the way they were last driven
+over. Shell texturing can say that directly, so the sheet's top half is combed
+one way and its bottom half the other, and a tile is exactly two passes of the
+mower across.
+
+For that to mean anything the sheet has to know where it is, so **the pad UVs
+are anchored to the world rather than to the pad** — the world x and z divided
+by the tile size, written from the vertex positions rather than scaled from
+whatever UVs the geometry arrived with. Every seam disappears: the bands run
+unbroken across a hole instead of restarting at each pad edge, two pads of the
+same size stop being copies of each other, and a box, an extruded slab and a
+plane all come out agreeing with each other, which they did not before. The
+green's colour map got the same treatment and the same band width, so the
+stripes survive into the distance after the shells have mipped away.
+`textures.MOW` is the one number the three of them have to agree on.
+
+#### The turf shader
+
+The rest is four fragments of GLSL spliced into three.js's own Lambert with
+`onBeforeCompile` (`shaders.js`, `TURF_*`), at `<alphatest_fragment>` —
+the last moment before the cut-out is decided and the first at which the map
+has been sampled. It buys three things a texture cannot, because all three need
+to know where in the *world* a fragment is rather than where in the tile:
+
+- **Patches.** Two octaves of value noise scale the height field, so turf grows
+  thick in some places and thin in others at a scale far larger than any tile —
+  which is also the thing that stops a repeating sheet reading as a repeating
+  sheet.
+- **The mower's light.** The comb is in the sheet, but a comb on flat planes
+  changes only the silhouette, and most of what you see in a striped green is
+  the light coming back differently off blades leaning towards you and away.
+  That is a few percent of brightness alternating every `MOW`, and it is worth
+  more than the comb it is drawn on top of.
+- **Colour that is not one colour**, from the same noise, quietly.
+
+One uniform, `mowK` — π over the mower's width — because writing 3.59 in two
+files is how two files stop agreeing.
+
+#### What it costs
+
+Very little, in the two ways that matter. The shells are **opaque with a
 cut-out**, not blended: `alphaTest` writes depth, so six layers sort themselves
 and cost six opaque draws rather than a sorted transparent pass. And they obey
 the same rule as every other surface — one material per layer per kind, shared
-by every pad wearing it, with the tiling baked into the pad's UVs — so a hole
-with a dozen greens on it has six shell materials, not seventy-two. Mipmapping
-gives the level of detail for free: the alpha averages down with distance until
-it stops clearing the cutoff, and a green across the course quietly goes back
-to being the flat texture it always was. A coarse-pointer device gets four
-layers instead of six.
+by every pad wearing it — so a hole with a dozen greens has six shell
+materials, not seventy-two. Mipmapping gives the level of detail for free: the
+alpha averages down with distance until it stops clearing the cutoff, and a
+green across the course quietly goes back to being the flat texture it always
+was. A coarse-pointer device gets four layers and a half-resolution sheet.
 
-The rough is the same code with a wilder lean and twice the height. None of the
-thirty holes uses a rough pad today; the surface is supported by the physics,
-the textures and now the shells, and the day a hole wants one it will look like
-somewhere you would rather not be.
-The ball gets its dimples the same way, as a hex grid of soft circles used as a
-bump map — a few thousand triangles saved on the one object the camera is always
-closest to. Each of the three courses is a theme: sky gradient, fog colour matched
-to the horizon so the ground plane fades instead of ending in a line, sun angle,
-palette.
+The wind moves them: each shell is offset along the wind's own bearing by the
+cube of its height above the roots — the roots barely move and the tips do all
+of the leaning, which is how a blade bends — and the sine that drives it
+carries the pad's position *down* the wind in its phase, so a gust crosses the
+hole as a wave rather than every green waving in unison. It is the same wind
+vector the flag reads, and like the flag it touches nothing the ball does. A
+full gale bends the mat by half its own height and no further; past that the
+top of the stack visibly slides off the bottom of it, which is the one way this
+technique gives itself away.
+
+The rough is the same code with a wilder lean, twice the height and no comb —
+long grass lies every way at once. None of the thirty holes uses a rough pad
+today; the surface is a real one everywhere else in the game, and the day a
+hole wants one it will look like somewhere you would rather not be.
 
 ### The sky
 

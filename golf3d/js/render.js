@@ -386,6 +386,19 @@
        it shine, and doing that to the sand and the boards as well as the green
        is the difference between "it is raining" and "there is rain in front of
        the screen". */
+    /* The turf splice, as one function every shell material points at. The
+       GLSL is shaders.js's; this is only the plumbing, and it is the same
+       plumbing for every layer — three.js's own program cache keys on the
+       ALPHATEST define, so the six layers still compile the six programs they
+       always did and share this source between them. */
+    function turfShader(shader) {
+        shader.uniforms.mowK = { value: Math.PI / TX.MOW };
+        shader.vertexShader = SH.TURF_VS_HEAD +
+            shader.vertexShader.replace('#include <begin_vertex>', SH.TURF_VS_BODY);
+        shader.fragmentShader = SH.TURF_FS_HEAD +
+            shader.fragmentShader.replace('#include <alphatest_fragment>', SH.TURF_FS_BODY);
+    }
+
     function buildSurfaces(theme) {
         var wet = R.weather ? (R.weather.wet || 0) : 0;
         var tex = TX.surfaces(theme);
@@ -450,28 +463,43 @@
            pad wearing it — the same rule as the flat surfaces above, and the
            reason a hole with a dozen greens on it still only has these.
 
-           Two numbers do all the work. `alphaTest` climbs with the layer, so
-           each shell keeps only the blades that reach it and the mat tapers;
-           and the colour climbs with it too, because the bottom of a stand of
-           grass is in the shade of the rest of it. Lit rather than unlit, so
-           the sun still rakes across the turf and a shell in the shadow of a
-           rail goes dark with the pad under it. */
+           Three numbers climb with the layer and one shader is spliced in.
+
+           `alphaTest` climbs, so each shell keeps only the blades that reach
+           it: the bottom one takes nearly everything, which is what hides the
+           pad, and the top one takes the tallest fifth. The colour climbs too,
+           because the bottom of a stand of grass is in the shade of the rest
+           of it — and the last of it warms towards the light, which is the
+           cheap version of the sun coming *through* a blade. Lit rather than
+           unlit, so the sun rakes across the turf and a shell in the shadow of
+           a rail goes dark with the pad under it.
+
+           The splice is shaders.js's TURF, and it is what makes a course of
+           tiled sheets stop looking like a course of tiled sheets: patches at
+           a scale no tile has, and the mower's stripes in the light rather
+           than only in the lie of the blades. */
         function shells(kind, tex, base, layers) {
             var out = [], i, f, mat;
+            var warm = new THREE.Color('#dff0ae');
             for (i = 0; i < layers; i++) {
-                f = (i + 1) / layers;
+                f = (i + 0.3) / layers;
                 mat = new THREE.MeshLambertMaterial({
                     map: tex,
-                    // Never quite 0: a layer that keeps every texel is a sheet
-                    // of grass-coloured film lying over the pad.
-                    alphaTest: 0.035 + f * 0.72,
-                    color: new THREE.Color(base).multiplyScalar((0.42 + 0.62 * f) * (1 - wet * 0.24)),
+                    /* Never quite 0 — a layer that keeps every texel is a
+                       sheet of grass-coloured film lying over the pad — and
+                       never quite 1, or the top shell is empty on a hole where
+                       the turf shader has thinned it. */
+                    alphaTest: 0.05 + (layers > 1 ? i / (layers - 1) : 0) * 0.74,
+                    color: new THREE.Color(base)
+                        .multiplyScalar((0.40 + 0.68 * f) * (1 - wet * 0.24))
+                        .lerp(warm, f * f * 0.16 * (1 - wet)),
                     // Opaque with a cut-out, not blended: alphaTest writes
                     // depth, so six layers sort themselves and cost no more
                     // than six opaque draws.
                     transparent: false,
                     side: THREE.FrontSide
                 });
+                mat.onBeforeCompile = turfShader;
                 out.push(mat);
             }
             return out;
@@ -480,8 +508,8 @@
         R.surf = {
             pads: pads,
             shells: {
-                green: shells('green', tex.greenShell, theme.grass[1], SHELL_LAYERS),
-                rough: shells('rough', tex.roughShell, '#3c6b34', SHELL_LAYERS)
+                green: shells('green', TX.shellFor('green'), theme.grass[1], SHELL_LAYERS),
+                rough: shells('rough', TX.shellFor('rough'), '#3c6b34', SHELL_LAYERS)
             },
             walls: {
                 rail: paint(theme.rail),
@@ -498,22 +526,28 @@
         return slab ? set.slab : set.box;
     }
 
-    /* The tiling, baked in. A box's cap runs 0..1 across the pad, so it is
-       scaled by how many tiles the pad is wide and deep; an extruded slab's
-       cap is UV-mapped in the shape's own coordinates — world units — so it is
-       divided by the tile size instead. Same texture either way, which is the
-       whole point. */
-    function scaleUv(geo, su, sv) {
-        var uv = geo.attributes.uv, i;
-        if (!uv) return;
-        for (i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
-        uv.needsUpdate = true;
-    }
+    /* The tiling, baked in — and anchored to the world rather than to the pad.
 
-    function tilePad(geo, kind, w, d, slab) {
-        var scale = TX.SCALE[kind] || TX.SCALE.green;
-        if (slab) scaleUv(geo, 1 / scale, 1 / scale);
-        else scaleUv(geo, TX.tiles(kind, w), TX.tiles(kind, d));
+       Every one of these surfaces is a flat top seen from above, so the honest
+       UV for it is simply where it is: divide the world x and z by the tile
+       size and the texture lies over the course like a sheet, continuous
+       across every seam. Written from the *positions* rather than scaled from
+       whatever UVs the geometry arrived with, which also means a box, an
+       extruded slab and a plane all come out of here agreeing with each other
+       — they did not, before, and the mow bands restarting at every pad edge
+       was the visible half of that.
+
+       The geometry is in pad-local coordinates at this point, so the pad's own
+       centre is what turns it into a world one. A box's vertical faces get
+       nonsense UVs out of this and do not care: they wear the earth-coloured
+       side material, which has no map on it at all. */
+    function worldUv(geo, scale, cx, cz) {
+        var uv = geo.attributes.uv, pos = geo.attributes.position, i;
+        if (!uv) return;
+        for (i = 0; i < uv.count; i++) {
+            uv.setXY(i, (cx + pos.getX(i)) / scale, (cz + pos.getZ(i)) / scale);
+        }
+        uv.needsUpdate = true;
     }
 
     /* The lit materials in this game hand three.js an sRGB hex as if it were a
@@ -619,16 +653,18 @@
         var i;
 
         for (i = 0; i < set.length; i++) {
-            var f = (i + 1) / set.length;
+            var f = (i + 0.3) / set.length;
             var geo;
             if (holed) {
                 geo = shellShape(pad, cup);
-                scaleUv(geo, 1 / TX.SHELL_SCALE[pad.kind], 1 / TX.SHELL_SCALE[pad.kind]);
             } else {
                 geo = new THREE.PlaneGeometry(pad.w, pad.d, 1, 1);
                 geo.rotateX(-Math.PI / 2);
-                scaleUv(geo, TX.shellTiles(pad.kind, pad.w), TX.shellTiles(pad.kind, pad.d));
             }
+            // The same world anchoring the pad under it got, at the finer
+            // scale the blades tile at — which is what carries the mow bands
+            // unbroken from one pad to the next.
+            worldUv(geo, TX.SHELL_SCALE[pad.kind], cx, cz);
             if (sx || sz) {
                 var m = new THREE.Matrix4();
                 m.set(1, 0, 0, 0,
@@ -728,7 +764,7 @@
         }
         // The tiling rides on the pad rather than on the texture, which is
         // what lets every pad of a kind share one material (buildSurfaces).
-        tilePad(geo, pad.kind, pad.w, pad.d, holed);
+        worldUv(geo, TX.SCALE[pad.kind] || TX.SCALE.green, cx, cz);
         var mesh = new THREE.Mesh(geo, padMaterial(pad.kind, holed));
         mesh.position.set(cx, cy - thick / 2, cz);
         mesh.receiveShadow = true;

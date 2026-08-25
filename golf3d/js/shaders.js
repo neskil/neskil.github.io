@@ -1,9 +1,14 @@
-/* The two shaders the game writes itself, as source.
+/* The GLSL the game writes itself, as source.
 
-   Everything else in this game is lit by three.js. These two are not: the sky
-   and the water are raw ShaderMaterials, which is why they are the only files
-   that have to convert their own colours (see `lin()` in render.js) and the
-   only ones where a change means reading GLSL rather than setting a property.
+   Everything else in this game is lit by three.js. The sky and the water are
+   not: they are raw ShaderMaterials, which is why this is the only file that
+   has to convert its own colours (see `lin()` in render.js) and the only one
+   where a change means reading GLSL rather than setting a property.
+
+   The turf at the bottom is a third thing again — not a shader but four
+   fragments of one, spliced into three.js's own Lambert. It is here because
+   what it is made of is GLSL, and this is the file you open when that is the
+   answer.
 
    They live here, apart from the geometry, for the same reason the themes do:
    editing a cloud is a different job from placing a mesh, and neither should
@@ -220,11 +225,86 @@
         '}'
     ].join('\n');
 
+    /* ── the turf ───────────────────────────────────────────────────────
+
+       Not a shader — four fragments of one, spliced into three.js's own
+       Lambert with `onBeforeCompile` (see `render.buildSurfaces`). The grass
+       wants three things that a texture cannot give it, all of which need to
+       know where in the *world* a fragment is rather than where in the tile:
+
+         · **patches.** Turf grows thick in some places and thin in others, at
+           a scale far larger than any tile — and a modulation at that scale is
+           also the thing that stops a repeating sheet reading as a repeating
+           sheet. Two octaves of value noise scale the height field before the
+           alphaTest, so a thin patch simply fails to reach the upper shells.
+         · **the mower.** The comb is baked into the sheet, but a comb on flat
+           planes changes only the silhouette, and most of what you actually
+           see in a striped green is the *light* coming back differently off
+           blades leaning towards you and away. That is a few percent of
+           brightness, alternating every `MOW`, and it is worth more than the
+           comb it is drawn on top of.
+         · **colour that is not one colour.** The same noise, quietly, so no
+           two square metres of a course are the same green.
+
+       It is spliced at `<alphatest_fragment>` because that is the last moment
+       before the cut-out is decided and the first at which the map has been
+       sampled — modify the height field after the discard and you are shading
+       texels that were about to be thrown away.
+
+       One uniform: `mowK`, which is π over the mower's width. It is the only
+       number in here that has to agree with anything else (textures.MOW), and
+       passing it beats writing 3.59 in two files. */
+
+    var TURF_VS_HEAD = 'varying vec3 vTurf;\n';
+    var TURF_VS_BODY = [
+        '#include <begin_vertex>',
+        '\tvTurf = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;'
+    ].join('\n');
+
+    var TURF_FS_HEAD = [
+        'varying vec3 vTurf;',
+        'uniform float mowK;',
+        'float turfHash(vec2 p){',
+        '  p = fract(p * vec2(127.31, 311.7));',
+        '  p += dot(p, p + 34.21);',
+        '  return fract(p.x * p.y);',
+        '}',
+        'float turfNoise(vec2 p){',
+        '  vec2 i = floor(p), f = fract(p);',
+        '  f = f * f * (3.0 - 2.0 * f);',
+        '  float a = turfHash(i), b = turfHash(i + vec2(1.0, 0.0));',
+        '  float c = turfHash(i + vec2(0.0, 1.0)), d = turfHash(i + vec2(1.0, 1.0));',
+        '  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);',
+        '}',
+        ''
+    ].join('\n');
+
+    var TURF_FS_BODY = [
+        '  float turf = turfNoise(vTurf.xz * 0.30) * 0.62 + turfNoise(vTurf.xz * 1.4) * 0.38;',
+        // Thick and thin. Below one, blades lose height and the top shells
+        // drop them; above, the mat stands up and the stack fills in.
+        '  diffuseColor.a *= 0.84 + 0.30 * turf;',
+        // The stripe, softened at its edges: a mower leaves a seam, not a wall.
+        '  float mow = smoothstep(-0.45, 0.45, sin(vTurf.z * mowK));',
+        // The blades in a stripe stand a shade differently as well as catching
+        // the light differently, which is what keeps the band from reading as
+        // paint when the camera comes down to the ground.
+        '  diffuseColor.a *= mix(0.96, 1.04, mow);',
+        '  diffuseColor.rgb *= mix(0.90, 1.10, mow) * (0.96 + 0.08 * turf);',
+        '#ifdef ALPHATEST',
+        '  if ( diffuseColor.a < ALPHATEST ) discard;',
+        '#endif'
+    ].join('\n');
+
     G3.shaders = {
         SKY_VS: SKY_VS,
         SKY_FS: SKY_FS,
         WATER_VS: WATER_VS,
-        WATER_FS: WATER_FS
+        WATER_FS: WATER_FS,
+        TURF_VS_HEAD: TURF_VS_HEAD,
+        TURF_VS_BODY: TURF_VS_BODY,
+        TURF_FS_HEAD: TURF_FS_HEAD,
+        TURF_FS_BODY: TURF_FS_BODY
     };
 
 })(window.G3);
