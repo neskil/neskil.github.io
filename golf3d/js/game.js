@@ -491,12 +491,14 @@
         var club = clubById(id);
         $('picker-name').textContent = club.name;
         $('picker-blurb').textContent = club.blurb;
-        // Short on purpose: the club itself now carries the same line in its
-        // own hand (bag.js), so this is the backup for a screen reader and a
-        // reminder, not the only place to read it.
+        /* The same two figures the club's own card carries (bag.js), written
+           out rather than abbreviated: `pwr 14 · loft 22°` was the data with
+           the meaning left off, and this is the line a screen reader reads
+           aloud. The card draws them; this says them. */
         $('picker-stats').innerHTML =
-            '<b>' + club.key + '</b> · pwr <b>' + club.power + '</b> · loft <b>' +
-            Math.round(club.loft * 180 / Math.PI) + '°</b>' +
+            'Key <b>' + club.key + '</b> · loft <b>' +
+            Math.round(club.loft * 180 / Math.PI) + '°</b> · full swing <b>' +
+            club.power + '</b>' +
             (club.id === state.club.id ? ' · <b>in hand</b>' : '');
     }
 
